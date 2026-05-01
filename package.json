@@ -13,7 +13,9 @@
     "web:build": "bun --filter @stage-gen/web build"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "@types/bun": "^1.1.14"
+    "@types/bun": "^1.1.14",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^24.42.0",
+    "typescript": "^5.6.3"
   }
 }

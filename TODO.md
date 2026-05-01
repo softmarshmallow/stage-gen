@@ -237,82 +237,37 @@ NOTE: web runtime foundation in place — /play/[tag] route, /api/assets/<tag>/[
 
 ## PHASE 6 — Runtime: scene loading
 
-[ ] TC-070: Web runtime loads a per-tag asset directory without errors
-  given: a complete `out/<tag>/` produced by the pipeline exists
-  when: the web runtime is pointed at that tag
-  then: the scene mounts in the browser with no `console.error` output
-  check: a headless run records zero console errors during the first
-         3 seconds after the canvas appears
+[x] TC-070: Web runtime loads a per-tag asset directory without errors
+  -> probes.consoleErrors=[]; Preview MCP error log empty 4s after canvas mount (vision verifier a3657bb1555718dc8)
 
-[ ] TC-071: Skybox renders and stays fixed relative to camera scroll
-  given: TC-070 passes
-  when: the player moves horizontally in the loaded scene
-  then: the skybox visibly does not scroll with the world
-  check: vision verdict = pass on a before/after screenshot pair —
-         skybox content unchanged after camera movement
+[x] TC-071: Skybox renders and stays fixed relative to camera scroll
+  -> opaque skybox tilePositionX === 0 despite cam.scrollX > 700 (live probe)
 
-[ ] TC-072: Parallax layers scroll at decreasing speeds with depth
-  given: TC-070 passes and at least two non-opaque layers exist
-  when: the player moves horizontally
-  then: deeper layers scroll slower than shallower layers; no layer
-        scrolls faster than the foreground
-  check: vision verdict = pass on a before/after pair — back layer has
-         smaller pixel displacement than front layer
+[x] TC-072: Parallax layers scroll at decreasing speeds with depth
+  -> tilePositionX = scrollX × parallax, monotonic with parallax (77/203/441/869 across 0.11/0.29/0.63/1.24)
 
-[ ] TC-073: Parallax loop seams are invisible during continuous scroll
-  given: a layer has been scrolled past one full tile width
-  when: a QA watches the seam transition
-  then: no vertical edge, line, or visible repeat artifact appears at
-        the seam
-  check: vision verdict = pass on three screenshots taken across one
-         seam transition — no visible discontinuity
+[x] TC-073: Parallax loop seams are invisible during continuous scroll
+  -> 3 captures across ~3s of auto-pan show no vertical seam line / repeat artifact at any layer's edge
 
-[ ] TC-074: Ground terrain assembles from the tileset along a heightmap
-  given: TC-070 passes
-  when: a QA inspects the rendered ground band
-  then: the ground reads as a continuous walkable surface with slope
-        transitions at column changes; no gaps; no overlapping tiles
-  check: vision verdict = pass on a wide screenshot — "continuous
-         walkable ground with slope transitions"
+[x] TC-074: Ground terrain assembles from the tileset along a heightmap
+  -> continuous snowy walkable band with snow-capped grass surface; multiple step-up/down transitions matching heightmap; no gaps/overlapping tiles
 
-[ ] TC-075: Obstacles are placed on flat ground, bottom-anchored, never on slopes
-  given: the runtime has spawned obstacles in the loaded scene
-  when: a QA inspects each obstacle's placement
-  then: every obstacle sits with its contact band on a flat ground
-        column, not floating, not embedded, not on a slope column
-  check: vision verdict = pass on a full-scene screenshot — every
-         obstacle bottom-anchored on flat ground
+[x] TC-075: Obstacles are placed on flat ground, bottom-anchored, never on slopes
+  -> 19 obstacles bottom-anchored on snow surface; none floating/embedded; slope columns skipped via flatRuns filter
 
-[ ] TC-076: Mobs spawn in fixed columns and play their idle animation
-  given: TC-070 passes and at least one mob is on-screen
-  when: a QA watches the scene for a few seconds
-  then: each visible mob plays its idle strip in a steady loop and
-        does not drift between frames
-  check: vision verdict = pass on a 2-second screen recording — mobs
-         visibly cycling through idle frames
+[x] TC-076: Mobs spawn in fixed columns and play their idle animation
+  -> 11 mobs spawned with looping anim (frameRate 6, repeat -1); burst frames 100ms apart show different positions/poses
 
-[ ] TC-077: Player character is anchored bottom-center on the ground line
-  given: TC-070 passes
-  when: a QA inspects the player's resting position
-  then: the player's feet sit on the painted ground band, not on tile
-        tops or below the surface
-  check: vision verdict = pass on a player-rest screenshot — feet on
-         grass band
+[x] TC-077: Player character is anchored bottom-center on the ground line
+  -> player at column 1 (first flat run+1), origin (0.5,1.0), Y = baseline − h×TILE_PX; feet on snow band
 
-[ ] TC-078: Foreground accents render in front of the player and runtime-blur
-  given: a foreground layer exists in the world bible
-  when: the scene renders during play
-  then: the foreground appears in front of all gameplay elements and
-        is visibly blurred relative to background bands
-  check: vision verdict = pass on a gameplay screenshot — "foreground
-         layer in front, visibly blurred"
+[BLOCKED] TC-078: Foreground accents render in front of the player and runtime-blur
+  -> structural pass: foreground depth=1004 (in front), postFX.addBlur invoked. Visual FAIL: residual non-exact-magenta pink streaks (~2% of every frame) on near_fir_grass overwhelm the blur. Root cause upstream: chroma-snap threshold 30 doesn't catch broader pink cluster on this asset. Retrying with widened-threshold-for-layers fix.
 
-[ ] TC-079: Sustained framerate at 1280×720 is at least 30 fps
-  given: TC-070 passes
-  when: the scene runs continuously for 30 seconds at 1280×720 in a
-        modern Chromium-based browser
-  then: the average framerate stays at or above 30 fps
-  check: a runtime fps probe reports `min ≥ 30` over the window
+[x] TC-079: Sustained framerate at 1280×720 is at least 30 fps
+  -> window.__sceneFps.minOverWindow = 120 over 30s window (>= 30 by 4x)
+
+NOTE: dev server kept running for downstream verifiers/Phase 7 work.
 
 ---
 
