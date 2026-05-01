@@ -91,18 +91,29 @@ button:disabled {
   border-color: var(--dim);
   color: var(--dim);
 }
-.sg-btn-preset {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--border);
-  color: var(--fg);
-  padding: 6px 10px;
-  margin: 0 0 4px 0;
+/* Tag/chip-style preset row — short labels, inline-flow, terminal feel. */
+.sg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.sg-btn-preset:hover {
+.sg-chip {
+  font: inherit;
+  background: transparent;
+  color: var(--dim);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  border-radius: 0;
+}
+.sg-chip:hover {
+  color: var(--fg);
   border-color: var(--fg);
-  background: var(--hover-bg);
+}
+.sg-chip:active {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* The Play CTA — the ONE place the accent fills.
@@ -131,6 +142,99 @@ button:disabled {
   filter: brightness(1.1);
 }
 
+/* Quick-demo "ready projects" list on the home page. */
+.sg-projects {
+  margin-top: 32px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.sg-projects-h {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.sg-projects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sg-project-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
+.sg-project-row:hover {
+  border-color: var(--fg);
+}
+.sg-project-thumb {
+  width: 64px;
+  height: 48px;
+  background: #050505;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--dim);
+}
+.sg-project-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sg-project-meta {
+  min-width: 0;
+}
+.sg-project-prompt {
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+.sg-project-tag {
+  color: var(--dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.sg-project-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+/* Compact button used in the project rows. Inherits sg-play / mini variants. */
+.sg-mini {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 0;
+  text-decoration: none;
+}
+.sg-mini-ghost {
+  border: 1px solid var(--border);
+  color: var(--dim);
+}
+.sg-mini-ghost:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+@media (max-width: 480px) {
+  .sg-project-row {
+    grid-template-columns: 48px 1fr;
+  }
+  .sg-project-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
 /* Progress bar — block characters rendered as text. The "fill" portion
  * gets the accent colour; the "rest" stays dim.
  */
@@ -147,8 +251,8 @@ button:disabled {
 }
 /* loading.gif — sole accepted use is here, beside the progress bar */
 .sg-progress-loading {
-  width: 16px;
-  height: 16px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
 }
 
