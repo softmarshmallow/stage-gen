@@ -10,7 +10,11 @@
   "bin": {
     "stage-gen": "src/cli.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ai": "^6.0.0",
+    "sharp": "^0.34.5",
+    "zod": "^4.0.0"
+  },
   "devDependencies": {
     "typescript": "^5.6.3",
     "@types/bun": "^1.1.14"

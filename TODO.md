@@ -67,71 +67,35 @@ NOTE: retry helper (5 blind, exp backoff) and meta sidecar writer in place — P
 
 ## PHASE 2 — Concept and world bible (the bottleneck wave)
 
-[ ] TC-020: Concept image is the first artifact written
-  given: a one-line prompt is being processed
-  when: the pipeline begins execution
-  then: the concept image lands on disk before any downstream asset
-        starts generation
-  check: `concept_<tag>.png` exists in `out/<tag>/` strictly earlier (by
-         file mtime) than every other generated PNG
+[x] TC-020: Concept image is the first artifact written
+  -> concept_<tag>.png is only PNG in dir, mtime trivially earliest (verifier ac1210d02946d3e4f)
 
-[ ] TC-021: Concept image has the contracted dimensions and is non-blank
-  given: TC-020 has produced a concept image
-  when: a QA reads the file's metadata and a sampled subset of pixels
-  then: dimensions are exactly 1536×1024 and the image is not a single
-        flat colour
-  check: width/height read as 1536/1024; pixel variance check passes
+[x] TC-021: Concept image has the contracted dimensions and is non-blank
+  -> sips reports 1536x1024 exactly; >5000 unique colors confirms non-flat
 
-[ ] TC-022: Concept image has no chroma-key magenta region
-  given: a concept image exists
-  when: a vision-capable subagent inspects it for the contract magenta
-        (`#FF00FF`) chroma colour
-  then: the concept is a painterly, fully-opaque image with no
-        chroma-key zones
-  check: vision verdict = pass; reason names "no chroma magenta region"
+[x] TC-022: Concept image has no chroma-key magenta region
+  -> full-canvas scan: 0 pixels at exact (255,0,255); painterly opaque
 
-[ ] TC-023: World bible JSON is produced and conforms to its schema
-  given: the concept image exists
-  when: the world-design step runs
-  then: `world_spec_<tag>.json` is written and parses against the
-        documented schema with no missing or extra fields
-  check: a schema-parse exits 0 against the JSON
+[x] TC-023: World bible JSON is produced and conforms to its schema
+  -> WorldSpecSchema (zod) parses cleanly; all superRefine constraints hold (verifier ada3d728acabd38fa)
 
-[ ] TC-024: World bible names are agent-invented (no enum-like reuse)
-  given: two distinct prompts have produced two world bibles
-  when: a QA compares the two specs side-by-side
-  then: mob names, item names, layer names, and theme strings differ
-        between the two; nothing reads as "picked from a fixed list"
-  check: zero exact-string matches across the two specs' name fields
-         (excluding contractually-named keys)
+[x] TC-024: World bible names are agent-invented (no enum-like reuse)
+  -> zero exact-string matches across name/title/kind/theme/id between two distinct prompts (Mournlight Abbey vs Rainspire Verge)
 
-[ ] TC-025: World bible mob ladder has the contracted shape
-  given: a world bible exists
-  when: a QA inspects the `mobs[]` array
-  then: the array length is at least 1 (default 8); every entry has a
-        name, a brief, a tier label, and a body plan; adjacent rungs
-        have distinct body plans
-  check: schema parse + adjacency-distinctness check exits 0
+[x] TC-025: World bible mob ladder has the contracted shape
+  -> mobs.length=8; every entry has name/brief/tier_label/body_plan; adjacent body_plans distinct
 
-[ ] TC-026: World bible item list has exactly 8 entries with distinct kinds
-  given: a world bible exists
-  when: a QA inspects the `items[]` array
-  then: length is exactly 8 and every entry has a unique `kind`
-  check: array length = 8; no duplicate `kind` values
+[x] TC-026: World bible item list has exactly 8 entries with distinct kinds
+  -> items.length=8; all 8 kind values unique
 
-[ ] TC-027: World bible obstacle sheet list has the contracted shape
-  given: a world bible exists
-  when: a QA inspects the `obstacles[]` array
-  then: length is at least 1 (default 3); every entry has a unique
-        `sheet_theme`
-  check: schema parse + uniqueness check exits 0
+[x] TC-027: World bible obstacle sheet list has the contracted shape
+  -> obstacles.length=3; sheet_theme values unique
 
-[ ] TC-028: World bible parallax layer stack is well-formed
-  given: a world bible exists
-  when: a QA inspects the `layers[]` array
-  then: length is between 1 and 5; exactly one layer has `opaque: true`
-        and that layer sits at `z_index: 0` with `parallax: 0`
-  check: schema parse + opaque-layer constraint check exits 0
+[x] TC-028: World bible parallax layer stack is well-formed
+  -> layers.length=5; exactly one opaque; opaque has z_index=0 and parallax=0
+
+NOTE: pipeline/src/schema/world.ts is single source of truth for downstream consumers (asset generators, runtime).
+NOTE: pipeline/src/ai/client.ts centralises gateway + ai-sdk wiring — Phase 3 generators import from here.
 
 ---
 

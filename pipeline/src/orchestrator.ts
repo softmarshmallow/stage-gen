@@ -54,7 +54,7 @@ export async function runPipeline(opts: RunOptions): Promise<RunSummary> {
     const t0 = performance.now();
     log(`  [wave ${stage.wave}] ${stage.name} — ${stage.description}`);
     try {
-      const { artifacts } = await stage.run({ prompt, tag, runDir });
+      const { artifacts } = await stage.run({ prompt, tag, runDir, env });
       const durationMs = Math.round(performance.now() - t0);
       stageResults.push({
         stage: stage.name,

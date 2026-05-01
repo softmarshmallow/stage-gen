@@ -13,6 +13,9 @@
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { stubMeta, writeMeta } from "./meta.ts";
+import { generateConcept } from "./ai/concept.ts";
+import { generateWorldSpec } from "./ai/world-spec.ts";
+import type { PipelineEnv } from "./env.ts";
 
 export interface StageContext {
   /** The user's world prompt for this run. */
@@ -21,6 +24,8 @@ export interface StageContext {
   tag: string;
   /** Absolute path to `out/<tag>/`. The stage is the only writer here. */
   runDir: string;
+  /** Validated env (resolved at CLI bootstrap). */
+  env: PipelineEnv;
 }
 
 export interface StageResult {
@@ -84,11 +89,42 @@ function stubStage(
 // -----------------------------------------------------------------------------
 
 export const STAGES: Stage[] = [
-  // Wave 1 — concept (style root).
-  stubStage("concept", 1, "world concept image (style root)"),
+  // Wave 1 — concept (style root). Real gpt-image-2 call; output is the
+  // opaque painterly reference every later wave consumes. Must land first
+  // because Wave 1.5 (world-spec) attaches it as a vision payload.
+  {
+    name: "concept",
+    wave: 1,
+    description: "world concept image (style root)",
+    run: async (ctx) => {
+      const { imagePath, metaPath } = await generateConcept({
+        prompt: ctx.prompt,
+        tag: ctx.tag,
+        runDir: ctx.runDir,
+        model: ctx.env.IMAGE_MODEL,
+      });
+      return { artifacts: [imagePath, metaPath] };
+    },
+  },
 
-  // Wave 1.5 — world-design agent (text-gen).
-  stubStage("world-spec", 1.5, "world bible JSON via vision LLM"),
+  // Wave 1.5 — world-design agent (text-gen). Reads concept_<tag>.png
+  // produced above and returns a Zod-validated world bible JSON.
+  {
+    name: "world-spec",
+    wave: 1.5,
+    description: "world bible JSON via vision LLM",
+    run: async (ctx) => {
+      const conceptImagePath = join(ctx.runDir, `concept_${ctx.tag}.png`);
+      const { jsonPath, metaPath } = await generateWorldSpec({
+        prompt: ctx.prompt,
+        tag: ctx.tag,
+        runDir: ctx.runDir,
+        model: ctx.env.TEXT_MODEL,
+        conceptImagePath,
+      });
+      return { artifacts: [jsonPath, metaPath] };
+    },
+  },
 
   // Wave 2 — wave A: parallel asset fan-out off the concept + spec.
   stubStage("layers", 2, "agent-designed parallax layers"),

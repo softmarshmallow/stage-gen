@@ -17,6 +17,7 @@
 
 import { loadEnv } from "./env.ts";
 import { runPipeline } from "./orchestrator.ts";
+import { configureAi } from "./ai/client.ts";
 
 function usage(): never {
   process.stderr.write(
@@ -28,6 +29,7 @@ function usage(): never {
 
 async function main() {
   const env = loadEnv();
+  configureAi(env);
 
   const args = process.argv.slice(2);
   // Support `bun run pipeline -- "<prompt>"` style by stripping a leading `--`.
