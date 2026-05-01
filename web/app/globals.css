@@ -1,0 +1,342 @@
+/* stage-gen visual language — see DESIGN.md.
+ *
+ * Three colours total: bg, fg, accent. Plus a dim and an error.
+ * Monospace everywhere. No animations beyond loading.gif (which is an <img>,
+ * not a CSS keyframe — keyframes are forbidden by the design rule).
+ */
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #e6e6e6;
+  --dim: #666666;
+  --accent: #00ff88;
+  --error: #ff5555;
+  --border: #2a2a2a;
+  --hover-bg: #151515;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Bare 1px-bordered text input — flat, no rounded corners. */
+.sg-input,
+.sg-textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--dim);
+  padding: 8px 12px;
+  caret-color: var(--fg);
+  outline: none;
+  border-radius: 0;
+}
+.sg-input:focus,
+.sg-textarea:focus {
+  border-color: var(--fg);
+}
+.sg-textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+/* [ label ] bracket-button. Inactive = dim border + dim text. */
+.sg-btn {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--fg);
+  color: var(--fg);
+  padding: 6px 14px;
+  font: inherit;
+  border-radius: 0;
+}
+.sg-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+.sg-btn:disabled {
+  border-color: var(--dim);
+  color: var(--dim);
+}
+.sg-btn-preset {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 6px 10px;
+  margin: 0 0 4px 0;
+}
+.sg-btn-preset:hover {
+  border-color: var(--fg);
+  background: var(--hover-bg);
+}
+
+/* The Play CTA — the ONE place the accent fills.
+ * Disabled = dim border + dim text, no fill.
+ * Active   = filled with accent, text in bg colour.
+ */
+.sg-play {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  padding: 6px 18px;
+  font: inherit;
+  border-radius: 0;
+  text-decoration: none;
+  pointer-events: none;
+}
+.sg-play.is-active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  pointer-events: auto;
+  font-weight: 600;
+}
+.sg-play.is-active:hover {
+  filter: brightness(1.1);
+}
+
+/* Progress bar — block characters rendered as text. The "fill" portion
+ * gets the accent colour; the "rest" stays dim.
+ */
+.sg-progress {
+  font-family: inherit;
+  white-space: pre;
+  color: var(--dim);
+}
+.sg-progress .sg-progress-fill {
+  color: var(--accent);
+}
+
+/* Slot — one square box per expected artifact. */
+.sg-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+.sg-slot:hover {
+  border-color: var(--fg);
+}
+.sg-slot.is-active {
+  border-color: var(--accent);
+}
+.sg-slot.is-failed {
+  border-color: var(--error);
+  color: var(--error);
+}
+.sg-slot-inner {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #050505;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.sg-slot-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.sg-slot-loading {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  opacity: 0.85;
+}
+.sg-slot-fail {
+  color: var(--error);
+  font-size: 24px;
+  font-weight: 700;
+}
+.sg-slot-label {
+  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Section header — a `─` divider with a label. No size change. */
+.sg-section-h {
+  margin: 16px 0 6px 0;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sg-section-h::before {
+  content: "─";
+}
+.sg-section-h::after {
+  content: "─";
+  flex: 1;
+  letter-spacing: -2px;
+  color: var(--border);
+  overflow: hidden;
+}
+
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 6px;
+}
+
+/* Log strip — append-only, dim, monospace. */
+.sg-log {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+  color: var(--dim);
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.sg-log-line {
+  margin: 0;
+  padding: 0;
+}
+
+.sg-error-banner {
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 8px 12px;
+  margin: 8px 0;
+  background: rgba(255, 85, 85, 0.05);
+}
+
+/* Lightbox overlay. */
+.sg-lightbox {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.sg-lightbox-img {
+  max-width: 95vw;
+  max-height: calc(95vh - 80px);
+  object-fit: contain;
+}
+.sg-lightbox-img.alpha-checker {
+  background-image: linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+    linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, 10px 0;
+}
+.sg-lightbox-meta {
+  margin-top: 12px;
+  color: var(--dim);
+  font-size: 12px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.sg-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.sg-h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+.sg-meta-line {
+  color: var(--dim);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.sg-header-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sg-concept-banner {
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  background: #050505;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  cursor: pointer;
+}
+.sg-concept-banner img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.sg-concept-banner img.is-loading {
+  width: 80px;
+  height: 80px;
+  margin: 32px auto;
+  display: block;
+  opacity: 0.85;
+}
+
+@media (max-width: 480px) {
+  .sg-page {
+    padding: 12px;
+  }
+  .sg-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+}

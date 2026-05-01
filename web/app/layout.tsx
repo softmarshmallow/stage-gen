@@ -1,6 +1,13 @@
+import "./globals.css";
+
 export const metadata = {
   title: "stage-gen",
   description: "Prompt-to-playable 2D side-scroller",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -10,19 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          background: "#0a0a0a",
-          color: "#e6e6e6",
-          fontFamily:
-            'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-          fontSize: 14,
-          lineHeight: 1.5,
-        }}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
