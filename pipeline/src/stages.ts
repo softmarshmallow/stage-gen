@@ -26,6 +26,7 @@ import { generateCharacterAttack } from "./ai/character-attack.ts";
 import { generateAllMobIdles } from "./ai/mob-idle.ts";
 import { generateAllMobHurts } from "./ai/mob-hurt.ts";
 import { runPostChroma } from "./post/chroma-snap-stage.ts";
+import { sliceMasterSheet } from "./post/master-sheet-slicer.ts";
 import { WorldSpecSchema } from "./schema/world.ts";
 import type { PipelineEnv } from "./env.ts";
 
@@ -307,8 +308,32 @@ export const STAGES: Stage[] = [
     },
   },
 
-  // Wave 4 — CPU post: master-sheet slicer (TC-060/TC-061; still stub).
-  stubStage("post-split", 4, "split master sheet into per-state strips"),
+  // Wave 4 — CPU post: master-sheet slicer (TC-060/TC-061).
+  // Slices the 2400×3440 master sheet into 5 per-state 2400×688 strips
+  // named character_<tag>-fromcombined_<state>.png. Runs AFTER post-chroma
+  // so the strips inherit exact #FF00FF — chroma-snap on the master sheet
+  // first, then slice. Idempotent: skips if all 5 strips + sidecars exist.
+  {
+    name: "post-split",
+    wave: 4,
+    description: "split master sheet into per-state strips",
+    run: async (ctx) => {
+      const masterSheetPath = join(
+        ctx.runDir,
+        `character_${ctx.tag}_combined.png`,
+      );
+      const stripPaths = await sliceMasterSheet(
+        masterSheetPath,
+        ctx.tag,
+        ctx.runDir,
+      );
+      const artifacts: string[] = [];
+      for (const p of stripPaths) {
+        artifacts.push(p, `${p}.meta.json`);
+      }
+      return { artifacts };
+    },
+  },
 
   // Wave 5 — manifest.
   stubStage("manifest", 5, "write per-tag manifest of artifacts"),

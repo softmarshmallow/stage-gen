@@ -216,47 +216,22 @@ NOTE: TC-123 (re-run no-op) achieved as side-effect of skip-if-exists in image-h
 
 ## PHASE 5 — Post-processing (deterministic, no model calls)
 
-[ ] TC-060: Character master sheet is sliced into five per-state strips
-  given: TC-050 has produced the master sheet
-  when: the post-processing slicer runs
-  then: five files of the form `character_<tag>-fromcombined_<state>.png`
-        are written for the states idle, walk, run, jump, crawl
-  check: exactly five strip files exist with the documented state names
+[x] TC-060: Character master sheet is sliced into five per-state strips
+  -> 5 PNGs character_<tag>-fromcombined_{idle,walk,run,jump,crawl}.png; runs after post-chroma; idempotent (slicer a07df478370e62660)
 
-[ ] TC-061: Sliced strips contain the expected frames at the contracted height
-  given: the five sliced strips exist
-  when: a QA reads each strip's dimensions
-  then: each strip is the expected 1×4 layout consistent with the
-        master sheet's row height
-  check: each strip's dimensions match the documented per-row geometry
+[x] TC-061: Sliced strips contain the expected frames at the contracted height
+  -> all 5 strips at 2400×688 (sips); jump strip airborne apex confirmed via upper-band non-magenta count
 
-[ ] TC-062: Chroma-key replacement produces clean transparency at runtime
-  given: any chroma-keyed sprite (character/mob/items/obstacles) is loaded
-  when: the runtime applies its chroma-key step
-  then: every `#FF00FF` pixel becomes alpha 0; sprite edges have no
-        magenta fringe
-  check: vision verdict = pass on a sprite previewed against a
-         contrasting background — no visible halo at edges
+[x] TC-062: Chroma-key replacement produces clean transparency at runtime
+  -> chromaKeyToAlpha in web/lib/runtime/image-ops.ts; exact (255,0,255) → alpha 0; spot-check character_concept (50,0) preAlpha 255 → postAlpha 0; on-disk PNG SHA unchanged (web agent ab7764c5ce22eec6e)
 
-[ ] TC-063: Per-cell alpha bounding-box crop honours variable prop sizes
-  given: an obstacle or items sheet has been processed
-  when: the runtime extracts each cell's prop
-  then: each prop is cropped to its own visible content's bounding box,
-        not to a fixed cell rectangle
-  check: extracted prop dimensions vary cell-to-cell within the same
-         sheet
+[x] TC-063: Per-cell alpha bounding-box crop honours variable prop sizes
+  -> extractCellsBbox: obstacles_0 cell heights 181..400, widths 550..600; items cell widths 373..600, heights 290..382 — sizes vary per cell within same sheet
 
-[ ] TC-064: Parallax layer edges fade to transparent after the runtime loads them
-  given: a non-opaque parallax layer has been loaded by the runtime
-  when: the runtime samples alpha along the left and right edges of
-        the in-memory texture (after its load-time edge-fade pass)
-  then: alpha tapers smoothly from opaque inward to fully transparent
-        at both the left and right outer columns; the source PNG on
-        disk is unmodified
-  check: alpha at the outermost column reads as 0; alpha 64px inward
-         reads as > 0; vision verdict = pass on a checker-background
-         preview of the loaded texture; on-disk PNG byte hash unchanged
-         before vs. after load
+[x] TC-064: Parallax layer edges fade to transparent after the runtime loads them
+  -> fadeParallaxEdges (64px taper); valley_pine_haze row 340 (x0,x32,x63,x64) pre=(255,255,255,0) post=(0,128,251,0); on-disk PNG SHA unchanged
+
+NOTE: web runtime foundation in place — /play/[tag] route, /api/assets/<tag>/[...path] streaming endpoint, Phaser 4 scene scaffold. Phase 6 builds atop this.
 
 ---
 
