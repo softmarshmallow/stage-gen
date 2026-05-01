@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "schema": {
+    "id": "stable slug; used by the picker function and persisted in stage metadata. lowercase_snake_case.",
+    "file": "filename relative to this folder. mp3 or ogg. seamless-loop preferred (~1–3 min, peak-normalized).",
+    "title": "human-readable title shown in HUD / debug overlays.",
+    "description": "natural-language pitch — the picker's primary matching signal. one or two sentences describing instrumentation, tempo, mood, time of day, and what kind of world / pacing this fits.",
+    "tags": "discrete keywords for cheap overlap matching against the user's world prompt. mix biome / mood / instrumentation / tempo terms.",
+    "mood": "1–3 mood adjectives (peaceful, uneasy, heroic, playful, oppressive, …).",
+    "biomes": "biome words this pack pairs well with (forest, desert, snow, swamp, candy, urban, ruins, …). open-ended.",
+    "tempo": "one of slow | mid | fast.",
+    "loop": "true if the file is meant to loop seamlessly (default true).",
+    "loopStartSec": "optional seek-back point in seconds for non-zero loop start (e.g. after an intro stinger).",
+    "credits": "attribution string. required for any non-original track."
+  },
+  "_note": "Descriptions / tags / moods / biomes in this revision are anchored to the user's actual listening notes after vocal-stem removal — NOT to original metadata. The Demucs pass changed how several tracks read (e.g. 'Song of the Dead' now sits as cavernous reverb rather than funereal choir; 'Breaking Point' lost the tense lead and reads upbeat). Schema and ids match ../bgm/ for picker-code compatibility.",
+  "packs": [
+    {
+      "id": "ck_martin_mountain_climbing",
+      "file": "ck_martin_mountain_climbing.mp3",
+      "title": "Mountain Climbing — Cut Strings",
+      "description": "Tall string-ensemble writing that holds long notes across open intervals — the kind of arrangement that puts altitude in your chest. Mid tempo, daytime, summit-bound. Pairs with snow-capped peaks, alpine ridge crossings, sky-island vistas, and any traversal where the camera should pull wide.",
+      "tags": ["mountain", "strings", "alpine", "vast", "ascent", "journey", "peak", "cold", "vista"],
+      "mood": ["heroic", "awe", "vast"],
+      "biomes": ["mountain", "snow", "alpine", "highlands", "summit", "ridge", "peak"],
+      "tempo": "mid",
+      "loop": true,
+      "credits": "Original: C.K. Martin — Mountain Climbing (Cut Strings, 2026) · Instrumental retained via Meta Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "ian_post_breaking_point",
+      "file": "ian_post_breaking_point.mp3",
+      "title": "Breaking Point",
+      "description": "Driving electronic underscore — pulsing bass, busy hi-hat groove, restless arp pattern that keeps the floor moving. Fast tempo, daytime energy, upbeat-forward (the lead that gave the original its 'tension' is stripped — it now reads as pure momentum). Pairs with action stages, time-attack rooms, montage sequences, and any level that wants forward push without dread.",
+      "tags": ["upbeat", "energetic", "electronic", "drive", "momentum", "fast", "action", "dynamic", "groove"],
+      "mood": ["energetic", "fun", "upbeat"],
+      "biomes": ["urban", "action_stage", "race_track", "hub", "city", "speedway"],
+      "tempo": "fast",
+      "loop": true,
+      "credits": "Original: Ian Post — Breaking Point / No Leads (8 Bit Tunes, 2018) · Instrumental via Demucs htdemucs (MIT) — vocal/lead removal shifted character from tense to upbeat"
+    },
+    {
+      "id": "ian_post_song_of_the_dead",
+      "file": "ian_post_song_of_the_dead.mp3",
+      "title": "Song of the Dead",
+      "description": "Cavernous reverb tail over slow processional beats — sustained low-register textures read as deep stone echo, water-drop spacing, ancient air. Slow tempo, twilight underground, vast and quiet. Pairs with deep caves, lost mines, underground temples, grottos, and chambers where nothing has moved in centuries.",
+      "tags": ["cave", "deep", "echo", "reverb", "underground", "ancient", "sparse", "mysterious", "slow"],
+      "mood": ["mysterious", "deep", "ancient"],
+      "biomes": ["cave", "cavern", "underground", "depths", "mine", "grotto", "crypt", "abandoned"],
+      "tempo": "slow",
+      "loop": true,
+      "credits": "Original: Helvv Kryd — Yole Kross Ayle / The Song of the Dead (2021) · Instrumental via Demucs htdemucs (MIT) — choir leads attenuated; resulting texture sits as cave-reverb rather than funereal choir"
+    },
+    {
+      "id": "itamar_doari_beat_the_dark",
+      "file": "itamar_doari_beat_the_dark.mp3",
+      "title": "Beat the Dark",
+      "description": "Stripped percussion bed — toms, frame drums, low rattles — looped under a slow wash of dark drone. Mid tempo, nightfall, brooding patience. Pairs with shadowed ruins, cursed ground, abandoned ritual sites, and any place where the silence between hits feels watching.",
+      "tags": ["dark", "percussion", "drums", "ominous", "brooding", "low", "slow_burn", "shadow"],
+      "mood": ["dark", "ominous", "brooding"],
+      "biomes": ["ruins", "abandoned", "cursed", "shadow", "dungeon", "forsaken", "night_zone"],
+      "tempo": "mid",
+      "loop": true,
+      "credits": "Original: Itamar Doari — Beat the Dark (Playground, 2019) · Instrumental via Demucs htdemucs (MIT) — vocal chants attenuated; without them the track shifts from urgent-tribal to slow-burn dark"
+    },
+    {
+      "id": "kashido_jingle_bells_8bit",
+      "file": "kashido_jingle_bells_8bit.mp3",
+      "title": "Jingle Bells — 8-bit",
+      "description": "Tight chiptune sprint — square-wave melody on top, punchy duty-cycle bass, NES-perfect kick-snare. Fast tempo, bright, propulsive. Pairs with arcade levels, candy/toy worlds, holiday rooms, and any time you need pure forward bounce.",
+      "tags": ["chiptune", "8bit", "fast", "propulsive", "bouncy", "retro", "arcade", "festive", "playful"],
+      "mood": ["playful", "propulsive", "cheerful"],
+      "biomes": ["arcade", "retrogame", "festive", "candy", "toy", "winter"],
+      "tempo": "fast",
+      "loop": true,
+      "credits": "Holiday melody (public domain, James L. Pierpont, 1857) · Chiptune arrangement by Kashido (2023) · Instrumental via Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "kashido_prelude_op28_no4",
+      "file": "kashido_prelude_op28_no4.mp3",
+      "title": "Prelude in E minor — Op. 28 No. 4",
+      "description": "Solo piano playing as if from across an open square — gentle staircase chords, unhurried, the sustain pedal doing half the work. Slow tempo, midday calm, public-but-quiet. Pairs with town plazas, fountain courtyards, marketplace lulls, and the rest moments between stages.",
+      "tags": ["piano", "classical", "plaza", "public", "communal", "calm", "daytime", "gentle", "open"],
+      "mood": ["calm", "gentle", "communal"],
+      "biomes": ["plaza", "town_square", "marketplace", "courtyard", "fountain", "village", "garden"],
+      "tempo": "slow",
+      "loop": true,
+      "credits": "Composition: public domain (Frédéric Chopin, 1839) · Performed by Kashido (Insert Coin to Play, 2023) · Instrumental via Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "letra_circle_of_life",
+      "file": "letra_circle_of_life.mp3",
+      "title": "Circle of Life — Short",
+      "description": "Short mystical reveal — strings opening like a curtain, soft floor-tom hint, a single sustained note hanging in the air. Mid tempo, 35-second one-shot, wondrous. Pairs with sacred discoveries, hidden chambers, cutscene reveals, and the moment a player crests a ridge into something they're not supposed to see yet.",
+      "tags": ["mysterious", "mystical", "reveal", "sacred", "stinger", "ethereal", "awe", "wonder", "short"],
+      "mood": ["mysterious", "wondrous", "awe"],
+      "biomes": ["temple", "shrine", "sacred_grove", "hidden_chamber", "ruins", "secret_place"],
+      "tempo": "mid",
+      "loop": false,
+      "credits": "Original: Letra — Circle of Life / Shorts Catalog AO-000537 (2026) · Instrumental via Demucs htdemucs (MIT) · NOTE: 35s one-shot — treat as reveal stinger, not a seamless loop"
+    },
+    {
+      "id": "risian_maps_without_names",
+      "file": "risian_maps_without_names.mp3",
+      "title": "Maps Without Names",
+      "description": "Slow guitar layers floating in soft reverb, no percussion, the room itself acting as the rhythm. Slow tempo, twilight stillness, restful. Pairs with hub areas, save points, gardens, indoor sanctuaries, and any moment the player needs to breathe.",
+      "tags": ["calm", "peaceful", "ambient", "guitar", "restful", "soft", "hub", "save_point", "gentle"],
+      "mood": ["calm", "peaceful", "restful"],
+      "biomes": ["hub", "save_point", "garden", "sanctuary", "indoor", "cabin", "rest_area", "campfire"],
+      "tempo": "slow",
+      "loop": true,
+      "credits": "Original: Risian — Maps Without Names (2025) · Instrumental via Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "t_bless_froggy_fraud_adventure",
+      "file": "t_bless_froggy_fraud_adventure.mp3",
+      "title": "Froggy Fraud Adventure",
+      "description": "Classic 16-bit-platformer energy — bouncy bass line, comic woodblock hits, gleeful staccato strings. Fast tempo, daytime, full-grin upbeat. Pairs with classic platformer stages, arcade-style levels, hub-to-stage transitions, and any moment you want pure 'press start' joy.",
+      "tags": ["retro", "platformer", "energetic", "bouncy", "fast", "16bit", "classic", "arcade", "fun", "action"],
+      "mood": ["energetic", "fun", "nostalgic"],
+      "biomes": ["arcade", "action_stage", "retro_level", "hub", "classic_platformer", "side_scroller"],
+      "tempo": "fast",
+      "loop": true,
+      "credits": "Original: T Bless — Froggy Fraud Adventure (Lost Games of the 1990s, 2021) · Instrumental via Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "yarin_primak_super_computer",
+      "file": "yarin_primak_super_computer.mp3",
+      "title": "Super Computer",
+      "description": "Tightening electronic pulse — sub-bass driving every beat, glitchy stabs, hi-hats locked at 16th-notes. Fast tempo, alarm-amber lighting, intense forward push. Pairs with chase sequences, escape rooms, boss approaches, and self-destruct-countdown urgency.",
+      "tags": ["urgent", "intense", "electronic", "alarm", "chase", "danger", "fast", "pursuit", "stakes", "driving"],
+      "mood": ["urgent", "intense", "driving"],
+      "biomes": ["chase_sequence", "escape_zone", "boss_arena", "danger_room", "race", "factory", "tech"],
+      "tempo": "fast",
+      "loop": true,
+      "credits": "Original: Yarin Primak — Super Computer (Beasts of Beauty, 2021) · Instrumental via Demucs htdemucs (MIT)"
+    },
+    {
+      "id": "yesnomaybe_bark_technology",
+      "file": "yesnomaybe_bark_technology.mp3",
+      "title": "Bark Technology",
+      "description": "Friendly mid-tempo groove — warm sub-bass, soft synth-pluck loop, gentle off-beat shaker. Mid tempo, late-morning sun, welcoming. Pairs with starting villages, tutorial towns, RPG hub plazas, and the first 'okay, now you wander around and meet folks' moment of any game.",
+      "tags": ["village", "town", "intro", "hub", "friendly", "welcoming", "gentle", "walk", "starting_zone", "groove"],
+      "mood": ["friendly", "welcoming", "gentle"],
+      "biomes": ["village", "town", "starting_zone", "hub", "plaza", "market", "tutorial_area"],
+      "tempo": "mid",
+      "loop": true,
+      "credits": "Original: YesNoMaybe — Bark Technology (2021) · Instrumental via Demucs htdemucs (MIT) — vocal stabs/barks attenuated; track now reads as gentle hub groove"
+    },
+    {
+      "id": "lumine_wave_rhythm_sketches",
+      "file": "lumine_wave_rhythm_sketches.mp3",
+      "title": "Rhythm Sketches",
+      "description": "Gentle walking-pace beat with airy string pads, soft wood percussion, and a Rhodes line that loops like footsteps on a forest path. Mid tempo, late-afternoon canopy light, peaceful exploration. Pairs with old-growth forests, woodland glades, gentle nature trails, and any unhurried side-area.",
+      "tags": ["forest", "exploration", "walking", "calm", "organic", "woods", "nature", "peaceful", "trail", "ambient"],
+      "mood": ["calm", "exploratory", "peaceful"],
+      "biomes": ["forest", "woods", "glade", "trail", "nature", "meadow", "woodland", "side_area"],
+      "tempo": "mid",
+      "loop": true,
+      "credits": "Original: lumine wave — Rhythm Sketches (Strings & Dreams, 2025) · Instrumental via Demucs htdemucs (MIT)"
+    }
+  ]
+}
