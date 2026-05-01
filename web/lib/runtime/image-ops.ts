@@ -29,19 +29,62 @@ function toCanvas(img: ImageSource): HTMLCanvasElement {
   return c;
 }
 
-// 1) chromaKeyToAlpha — exact (255, 0, 255) RGB → alpha 0.
-// Pipeline-side chroma-snap guarantees no near-magenta drift, so an
-// exact-match comparison is sufficient. Sprite edges therefore have no
-// magenta fringe (TC-062).
-export function chromaKeyToAlpha(img: ImageSource): HTMLCanvasElement {
+// 1) chromaKeyToAlpha — magenta (#FF00FF) → alpha 0.
+//
+// Default behaviour is EXACT match on (255, 0, 255). The pipeline-side
+// chroma-snap stage guarantees the on-disk PNG has no near-magenta drift
+// for every asset family that owns the snap (sprites, mobs, portal,
+// inventory, items, obstacles, tileset, and most layers). Exact-match
+// keeps sprite edges fringe-free (TC-062) and is the only mode that
+// must be used for non-layer assets.
+//
+// Tolerant mode (`threshold` > 0): a pixel within Manhattan distance
+// `threshold` of (255, 0, 255) also gets alpha=0. This is reserved for
+// parallax LAYER assets where the painted background drifts further
+// from #FF00FF than the pipeline snap (default 30) catches — see
+// TC-078. The snapped-on-disk vs runtime-tolerant split avoids any
+// regression on sprite assets that depend on exact-match.
+//
+// Threshold guidance: 80 catches the published (220,50,200) drift class
+// (Manhattan distance 140) with margin. Empirically on the snowy-mountain
+// `near_fir_grass` layer, threshold 180 brings the residual pink count
+// down from ~23k to ~1.8k pixels (most remaining are anti-alias edges
+// against the snapped magenta, harmless once blurred). Values much
+// above 200 begin to encroach on dusty-purple stylistic tones and
+// risk snapping painted content; 180 is the chosen balance.
+export interface ChromaKeyOptions {
+  /** Manhattan distance from (255,0,255). 0 = exact match (default). */
+  threshold?: number;
+}
+
+export function chromaKeyToAlpha(
+  img: ImageSource,
+  options: ChromaKeyOptions = {},
+): HTMLCanvasElement {
+  const threshold = options.threshold ?? 0;
   const canvas = toCanvas(img);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("2d context unavailable");
   const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const px = id.data;
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i] === 255 && px[i + 1] === 0 && px[i + 2] === 255) {
-      px[i + 3] = 0;
+  if (threshold <= 0) {
+    // Exact-match path — preserves TC-062 for all sprite assets.
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i] === 255 && px[i + 1] === 0 && px[i + 2] === 255) {
+        px[i + 3] = 0;
+      }
+    }
+  } else {
+    // Tolerant path — layers only. Manhattan distance from (255,0,255).
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i];
+      const g = px[i + 1];
+      const b = px[i + 2];
+      // (255 - r) + g + (255 - b), avoiding Math.abs since signs are known.
+      const dist = (255 - r) + g + (255 - b);
+      if (dist <= threshold) {
+        px[i + 3] = 0;
+      }
     }
   }
   ctx.putImageData(id, 0, 0);

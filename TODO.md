@@ -262,7 +262,7 @@ NOTE: web runtime foundation in place — /play/[tag] route, /api/assets/<tag>/[
   -> player at column 1 (first flat run+1), origin (0.5,1.0), Y = baseline − h×TILE_PX; feet on snow band
 
 [BLOCKED] TC-078: Foreground accents render in front of the player and runtime-blur
-  -> structural pass: foreground depth=1004 (in front), postFX.addBlur invoked. Visual FAIL: residual non-exact-magenta pink streaks (~2% of every frame) on near_fir_grass overwhelm the blur. Root cause upstream: chroma-snap threshold 30 doesn't catch broader pink cluster on this asset. Retrying with widened-threshold-for-layers fix.
+  -> retry 1 (runtime threshold=180, layers only) FAILED on multi-frame re-verify (verifier af506e7c1fe13b46a): pink 22-26k (2.46-2.91%) in actual gameplay; producer's 2.6k was a lucky single-sample frame. ALSO mob sprites show pink rectangles around them (mob_concept_0..7 have 5,981-51,886 near-magenta px each). Retry 2 (changed approach): pipeline-side flood-fill-from-edges in chroma-snap — any near-magenta pixel connected to a PNG edge becomes exact #FF00FF; interior pinks untouched. Bulletproof for sprites (background = edge-connected by definition) and works for layers.
 
 [x] TC-079: Sustained framerate at 1280×720 is at least 30 fps
   -> window.__sceneFps.minOverWindow = 120 over 30s window (>= 30 by 4x)
