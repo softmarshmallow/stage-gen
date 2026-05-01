@@ -1,8 +1,9 @@
 /* stage-gen visual language — see DESIGN.md.
  *
  * Three colours total: bg, fg, accent. Plus a dim and an error.
- * Monospace everywhere. No animations beyond loading.gif (which is an <img>,
- * not a CSS keyframe — keyframes are forbidden by the design rule).
+ * Monospace everywhere. CSS keyframes are forbidden by the design rule.
+ * loading.gif appears in exactly one place: next to the main progress bar.
+ * Empty asset slots show a dim "·" placeholder, not a spinner or gif.
  */
 
 :root {
@@ -137,9 +138,18 @@ button:disabled {
   font-family: inherit;
   white-space: pre;
   color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .sg-progress .sg-progress-fill {
   color: var(--accent);
+}
+/* loading.gif — sole accepted use is here, beside the progress bar */
+.sg-progress-loading {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 /* Slot — one square box per expected artifact. */
@@ -183,11 +193,11 @@ button:disabled {
   object-fit: contain;
   image-rendering: pixelated;
 }
-.sg-slot-loading {
-  width: 60%;
-  height: 60%;
-  object-fit: contain;
-  opacity: 0.85;
+.sg-slot-pending {
+  color: var(--dim);
+  opacity: 0.4;
+  font-size: 18px;
+  user-select: none;
 }
 .sg-slot-fail {
   color: var(--error);
@@ -324,12 +334,13 @@ button:disabled {
   height: auto;
   display: block;
 }
-.sg-concept-banner img.is-loading {
-  width: 80px;
-  height: 80px;
-  margin: 32px auto;
-  display: block;
-  opacity: 0.85;
+.sg-concept-pending {
+  font-family: inherit;
+  color: var(--dim);
+  opacity: 0.6;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  padding: 48px 16px;
 }
 
 @media (max-width: 480px) {

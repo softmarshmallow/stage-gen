@@ -299,6 +299,14 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       ) : null}
 
       <div className="sg-progress" data-testid="progress">
+        {status === "running" ? (
+          <img
+            className="sg-progress-loading"
+            src="/loading.gif"
+            alt=""
+            aria-hidden
+          />
+        ) : null}
         <span>progress: </span>
         <span className="sg-progress-fill">{bar.filled}</span>
         <span>{bar.rest}</span>
@@ -329,11 +337,15 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
             />
           </button>
         ) : (
-          <img className="is-loading" src="/loading.gif" alt="loading" />
+          <div className="sg-concept-pending" aria-label="concept pending">
+            world concept · pending
+          </div>
         )}
       </div>
 
-      {nonConceptGroups.map((g) => (
+      {/* Procedural feel: hold the asset grid until the concept lands.
+          Pre-concept the user only sees the progress bar + concept-pending banner. */}
+      {conceptFile ? nonConceptGroups.map((g) => (
         <section key={g.section}>
           <div className="sg-section-h">{g.section}</div>
           <div className="sg-grid">
@@ -372,11 +384,9 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
                           ×
                         </span>
                       ) : (
-                        <img
-                          className="sg-slot-loading"
-                          src="/loading.gif"
-                          alt="loading"
-                        />
+                        <span className="sg-slot-pending" aria-hidden>
+                          ·
+                        </span>
                       )}
                     </div>
                     <div className="sg-slot-label">
@@ -393,7 +403,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
             })}
           </div>
         </section>
-      ))}
+      )) : null}
 
       <div className="sg-log" ref={logRef} data-testid="log">
         {logLines.length === 0 ? (
