@@ -21,6 +21,10 @@ import { generateAllObstacles } from "./ai/obstacles.ts";
 import { generateItems } from "./ai/items.ts";
 import { generateInventory } from "./ai/inventory.ts";
 import { generatePortal } from "./ai/portal.ts";
+import { generateCharacterCombined } from "./ai/character-combined.ts";
+import { generateCharacterAttack } from "./ai/character-attack.ts";
+import { generateAllMobIdles } from "./ai/mob-idle.ts";
+import { generateAllMobHurts } from "./ai/mob-hurt.ts";
 import { WorldSpecSchema } from "./schema/world.ts";
 import type { PipelineEnv } from "./env.ts";
 
@@ -97,7 +101,8 @@ const TPL = {
   wireframe: join(FIXTURES_ROOT, "wireframe.png"),
   obstacle: join(FIXTURES_ROOT, "obstacle_template.png"),
   inventory: join(FIXTURES_ROOT, "inventory_template.png"),
-  // (character_template.png + character_template_combined.png are Wave 3.)
+  character: join(FIXTURES_ROOT, "character_template.png"),
+  characterCombined: join(FIXTURES_ROOT, "character_template_combined.png"),
 };
 
 // -----------------------------------------------------------------------------
@@ -212,12 +217,70 @@ export const STAGES: Stage[] = [
     },
   },
 
-  // Wave 3 — Wave B: animation strips off the Wave 2 turnarounds. Stubs
-  // until Phase 4 of the build loop.
-  stubStage("character-master", 3, "5x4 character motion master sheet"),
-  stubStage("character-attack", 3, "1x4 character attack strip"),
-  stubStage("mob-idle", 3, "per-rung mob idle strips"),
-  stubStage("mob-hurt", 3, "per-rung mob hurt strips"),
+  // Wave 3 — Wave B: animation strips off the Wave 2 turnarounds.
+  // 2 + 2N parallel image-gen calls per docs/spec/asset-contracts.md
+  // (1 character master sheet + 1 character attack + N mob idle + N mob hurt).
+  // Each inner call is wrapped in withRetry (5 blind retries) inside the
+  // shared image helper.
+  {
+    name: "wave-b",
+    wave: 3,
+    description:
+      "Wave B fan-out: character master sheet, character attack, per-mob idle + hurt strips",
+    run: async (ctx) => {
+      const characterConceptPath = join(
+        ctx.runDir,
+        `character_concept_${ctx.tag}.png`,
+      );
+      const specPath = join(ctx.runDir, `world_spec_${ctx.tag}.json`);
+
+      const specRaw = await readFile(specPath, "utf8");
+      const spec = WorldSpecSchema.parse(JSON.parse(specRaw));
+
+      const baseArgs = {
+        prompt: ctx.prompt,
+        tag: ctx.tag,
+        runDir: ctx.runDir,
+        model: ctx.env.IMAGE_MODEL,
+      };
+
+      // All Wave B calls fire concurrently. Each inner call already retries.
+      const [characterCombined, characterAttack, mobIdles, mobHurts] =
+        await Promise.all([
+          generateCharacterCombined({
+            ...baseArgs,
+            layoutTemplatePath: TPL.characterCombined,
+            characterConceptPath,
+          }),
+          generateCharacterAttack({
+            ...baseArgs,
+            layoutTemplatePath: TPL.character,
+            characterConceptPath,
+          }),
+          generateAllMobIdles({
+            ...baseArgs,
+            layoutTemplatePath: TPL.character,
+            mobs: spec.mobs,
+          }),
+          generateAllMobHurts({
+            ...baseArgs,
+            layoutTemplatePath: TPL.character,
+            mobs: spec.mobs,
+          }),
+        ]);
+
+      const artifacts: string[] = [];
+      const collect = (r: { imagePath: string; metaPath: string }) => {
+        artifacts.push(r.imagePath, r.metaPath);
+      };
+      collect(characterCombined);
+      collect(characterAttack);
+      mobIdles.forEach(collect);
+      mobHurts.forEach(collect);
+
+      return { artifacts };
+    },
+  },
 
   // Wave 4 — CPU post.
   stubStage("post-split", 4, "split master sheet into per-state strips"),

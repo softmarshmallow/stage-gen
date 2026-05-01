@@ -13,7 +13,7 @@
 // and empty output all throw and retry — the AGENTS.md "silent failures"
 // rule.
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { generateObject } from "./client.ts";
 import { withRetry } from "./retry.ts";
@@ -114,6 +114,23 @@ export async function generateWorldSpec(args: WorldSpecArgs): Promise<WorldSpecR
   } = args;
   await mkdir(runDir, { recursive: true });
   const jsonPath = join(runDir, `world_spec_${tag}.json`);
+
+  // Skip-if-exists: TC-123 — re-running an existing tag is a no-op.
+  // The world-spec is the determinism root for downstream layer/mob/item names,
+  // so a regenerated spec on a re-run would invalidate every existing artifact.
+  if (process.env.STAGE_GEN_FORCE !== "1") {
+    const metaPath = `${jsonPath}.meta.json`;
+    try {
+      const [jsonStat, metaStat] = await Promise.all([stat(jsonPath), stat(metaPath)]);
+      if (jsonStat.isFile() && jsonStat.size > 0 && metaStat.isFile() && metaStat.size > 0) {
+        const cached = await readFile(jsonPath, "utf8");
+        const spec = WorldSpecSchema.parse(JSON.parse(cached));
+        return { jsonPath, metaPath, spec };
+      }
+    } catch {
+      // fall through to generate
+    }
+  }
 
   const conceptBytes = new Uint8Array(await readFile(conceptImagePath));
   const userPromptText = buildUserPrompt(prompt, mobCount, obstacleCount);

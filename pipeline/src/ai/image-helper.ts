@@ -12,7 +12,7 @@
 //
 // Generators import this and supply: prompt text, refs, output path, size.
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import sharp from "sharp";
 import { generateImage } from "./client.ts";
@@ -61,6 +61,23 @@ export async function generateImageAsset(args: ImageGenArgs): Promise<ImageGenRe
   } = args;
 
   await mkdir(dirname(outPath), { recursive: true });
+
+  // Skip-if-exists: TC-123 contract — re-running a complete tag is a no-op.
+  // If the output PNG and its meta sidecar already exist non-empty, return
+  // them without calling the SDK. Set STAGE_GEN_FORCE=1 to force regeneration.
+  const force = process.env.STAGE_GEN_FORCE === "1";
+  if (!force) {
+    const metaPath = `${outPath}.meta.json`;
+    try {
+      const [imgStat, metaStat] = await Promise.all([stat(outPath), stat(metaPath)]);
+      if (imgStat.isFile() && imgStat.size > 0 && metaStat.isFile() && metaStat.size > 0) {
+        // No file mtime / bytes change on this code path — bail before any write.
+        return { imagePath: outPath, metaPath };
+      }
+    } catch {
+      // Either file is missing — fall through to generate.
+    }
+  }
 
   // Read all refs ONCE outside the retry loop — the bytes are stable.
   const refBytes: Uint8Array[] = [];

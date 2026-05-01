@@ -12,7 +12,7 @@
 //     AGENTS.md). Empty bytes / dimension mismatch / SDK errors all retry.
 //   - Writes a sidecar concept_<tag>.png.meta.json (prompt, model, params, ts).
 
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 import { generateImage } from "./client.ts";
@@ -48,6 +48,19 @@ export async function generateConcept(args: ConceptArgs): Promise<ConceptResult>
   const { prompt, tag, runDir, model } = args;
   await mkdir(runDir, { recursive: true });
   const imagePath = join(runDir, `concept_${tag}.png`);
+
+  // Skip-if-exists: TC-123 — re-running an existing tag is a no-op.
+  if (process.env.STAGE_GEN_FORCE !== "1") {
+    const metaPath = `${imagePath}.meta.json`;
+    try {
+      const [imgStat, metaStat] = await Promise.all([stat(imagePath), stat(metaPath)]);
+      if (imgStat.isFile() && imgStat.size > 0 && metaStat.isFile() && metaStat.size > 0) {
+        return { imagePath, metaPath };
+      }
+    } catch {
+      // fall through to generate
+    }
+  }
 
   const promptText = buildConceptPrompt(prompt);
   const sizeStr = `${CANVAS_W}x${CANVAS_H}`;

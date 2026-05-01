@@ -132,8 +132,8 @@ outputs as references).
 [x] TC-032: Non-opaque parallax layers carry the contract chroma-key colour
   -> all 4 non-opaque layers show large pure #FF00FF regions matching paint_region (vision verifier a400318db53f04bcd)
 
-[BLOCKED] TC-033: Ground tileset is generated at the contracted size and grid
-  -> dims pass (2400×800); vision FAIL: rows 2/3/4 read as undifferentiated stone fill — slopes/corners/sides/platforms not discernible. Retrying producer with stronger layout-prior conformance.
+[x] TC-033: Ground tileset is generated at the contracted size and grid
+  -> 2400×800; 12×4 grid visible; row 1 surface, row 2 slopes/inner-corners, row 3 sides+bottom-edges, row 4 fill+floating-platforms (vision verifier a307acb78d550affc, after retry with row-by-row prompt rewrite)
 
 [x] TC-034: Character turnaround is generated as a 3-pose sheet
   -> 2400×800; three distinct poses (front/side/back) on solid magenta
@@ -166,51 +166,25 @@ outputs as references).
 
 ## PHASE 4 — Wave B: animation states (depend on Wave A turnarounds)
 
-[ ] TC-050: Character motion master sheet is generated
-  given: TC-034 has produced the character turnaround
-  when: the master-sheet generator runs
-  then: `character_<tag>_combined.png` is written at exactly 2400×3440
-        with a 5-row × 4-column layout of motion frames
-  check: file exists; dimensions = 2400×3440; vision verdict = pass on
-         "5 rows × 4 columns of motion frames visible"
+[x] TC-050: Character motion master sheet is generated
+  -> character_<tag>_combined.png at 2400×3440; 5×4 grid (idle/walk/run/jump/crawl) (verifier a5eca3441dd891205)
 
-[ ] TC-051: Master sheet preserves character scale across all 20 cells
-  given: the master sheet exists
-  when: a vision subagent compares head height and feet position
-        across every cell
-  then: head and feet sit on the same horizontal rails in every cell
-  check: vision verdict = pass on "head/feet rails consistent across
-         all 20 cells"
+[x] TC-051: Master sheet preserves character scale across all 20 cells
+  -> head heights + feet baselines hold across all 20 cells; no floaters/scale outliers
 
-[ ] TC-052: Character attack strip is generated
-  given: TC-034 has produced the character turnaround
-  when: the attack-strip generator runs
-  then: `character_<tag>_attack.png` is written as a 1×4 strip on
-        chroma-key magenta
-  check: file exists; vision verdict = pass on "1×4 attack frames,
-         magenta ground"
+[x] TC-052: Character attack strip is generated
+  -> 1×4 on magenta; sword-attack progression (windup → swing → thrust → recover)
 
-[ ] TC-053: One idle strip is produced per mob rung
-  given: all N mob turnarounds (TC-035) exist
-  when: the per-mob idle generators run
-  then: N files of the form `mob_<tag>_<i>_idle.png` are written, each
-        a 1×4 idle strip on chroma-key magenta
-  check: file count = N; each is a 1×4 strip
+[x] TC-053: One idle strip is produced per mob rung
+  -> 8 mob_<tag>_<i>_idle.png; each 1×4 on magenta with subtle idle motion
 
-[ ] TC-054: One hurt strip is produced per mob rung
-  given: all N mob turnarounds exist
-  when: the per-mob hurt generators run
-  then: N files of the form `mob_<tag>_<i>_hurt.png` are written, each
-        a 1×4 hurt strip on chroma-key magenta
-  check: file count = N; each is a 1×4 strip
+[x] TC-054: One hurt strip is produced per mob rung
+  -> 8 mob_<tag>_<i>_hurt.png; each 1×4 on magenta with flinch/recoil
 
-[ ] TC-055: Animation strips preserve subject identity from their turnaround
-  given: a character or mob turnaround and its derived strips exist
-  when: a vision subagent compares the strips to the source turnaround
-  then: silhouette, palette, and proportions are recognisably the same
-        creature across the source and every derived strip
-  check: vision verdict = pass on "identity preserved" for character
-         master sheet, character attack, and every mob idle/hurt pair
+[x] TC-055: Animation strips preserve subject identity from their turnaround
+  -> all 8 mobs idle+hurt match source species (verifier a054e9651a23ad714); fixed by reordering refs (mob_concept primary) + stronger identity-preservation prompt language; prior drift on mobs 0+4 resolved
+
+NOTE: TC-123 (re-run no-op) achieved as side-effect of skip-if-exists in image-helper.ts/concept.ts/world-spec.ts — verified third run = 0.13s, zero PNG byte changes
 
 ---
 
