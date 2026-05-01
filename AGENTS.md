@@ -43,6 +43,32 @@ Cap every subagent's return. Default: under 200 words, or a fixed schema (verdic
 
 If a subagent needs to communicate more than the cap, it writes to a file and returns the path.
 
+## Cost is not a constraint
+
+This project does not optimize for token or API cost. Env is provisioned for free use of the AI SDK. Agents should call the SDK as much as needed to validate that a pipeline stage works — extra exploratory calls, comparison runs, and sanity checks are encouraged. Do not skip a verification, retry, or experiment to "save calls." The only budget that matters is the main agent's context window (see vision rule above).
+
+## Retry every AI call
+
+Every AI SDK call must be wrapped in a retry. The SDK fails randomly — transient network errors, model hiccups, schema-violating outputs. A single un-retried call is a latent bug.
+
+Default policy: **5 blind retries** with backoff before surfacing failure. Apply this at every AI-dependent point in the pipeline — generation, verification, structured-output parsing, anything that hits the model. No bare calls.
+
+Retry on the obvious (network, 5xx, timeout) and on the silent failures too: malformed JSON, schema mismatch, empty output. If the call's contract isn't met, retry.
+
+## Env
+
+`.env` at the repo root is gitignored but **already populated** with working keys (image-gen, text-gen, gateway URL). Treat it as a ready resource, not a thing to set up.
+
+When a workspace needs its own env (e.g. the Next.js app reading `process.env.*` at build/runtime), **copy** the root `.env` into that workspace's expected location (`web/.env`, `web/.env.local`, etc.) — same copy-don't-symlink rule as fixtures. Each workspace gets its own copy; do not try to share by reference.
+
+`.env.example` is the source of truth for *which keys exist*. Keep it in sync when the agent introduces a new env-dependent step.
+
+## Fixtures
+
+Pre-defined assets (reference templates, sample inputs, etc.) live under `fixtures/`. Use them directly from that path, or **copy** them into wherever the actual service consumes them — e.g. a Next.js app would copy needed assets into `public/`.
+
+Do not symlink. Symlinks break across build steps, deploy targets, and platform tools in ways that are tedious to debug. Copy is cheap; pay the duplication.
+
 ## Reproducibility for vision
 
 When a subagent generates an image, it persists alongside the output: prompt, seed, model, reference path, and any params. The main agent uses these to dispatch a retry without ever loading the image itself. If this metadata is missing, a failed verification becomes unrecoverable from the main context.
