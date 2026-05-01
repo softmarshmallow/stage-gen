@@ -78,6 +78,10 @@ web_modules/
 .next
 out
 
+# stage-gen pipeline outputs (per-tag dirs land under <repo-root>/out)
+/out/
+
+
 # Nuxt.js build / generate output
 .nuxt
 dist

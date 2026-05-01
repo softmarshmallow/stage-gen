@@ -48,37 +48,20 @@ choice.
 
 ## PHASE 1 — Single-command pipeline invocation
 
-[ ] TC-010: A single CLI command runs the full pipeline for one prompt
-  given: env is configured and the repo is installed
-  when: the documented one-shot command is run with a one-line prompt
-        argument
-  then: the command runs to completion (success or surfaced error)
-        without requiring further input
-  check: command exits 0 on success; any failure is surfaced as a
-         non-zero exit with a one-line cause
+[x] TC-010: A single CLI command runs the full pipeline for one prompt
+  -> `bun run pipeline "<prompt>"` exits 0 walking 16 stub stages; forced failure → exit 1 with one-line stderr (verifier a5fd9f09190a8e668)
 
-[ ] TC-011: The output tag is derived deterministically from the prompt
-  given: the same prompt is passed twice
-  when: the pipeline computes the output directory name
-  then: the same tag is produced both times — a stable slug plus a
-        short hash
-  check: re-running with the same prompt resolves to the same `out/<tag>/`
-         path
+[x] TC-011: The output tag is derived deterministically from the prompt
+  -> tag.ts: pure slug-shorthash from sha256; same prompt → same dir 'haunted-swamp-metroidvania-af76f135'
 
-[ ] TC-012: Each run isolates its outputs to its own per-tag directory
-  given: two different prompts have been run
-  when: a QA inspects the output area
-  then: each prompt's artifacts live under `out/<tag>/` with no
-        cross-contamination of files between tags
-  check: no shared filenames between the two output dirs other than
-         contractually-named per-tag artifacts
+[x] TC-012: Each run isolates its outputs to its own per-tag directory
+  -> two prompts → two distinct out/<tag>/; no leak outside out/; only contractual filenames overlap
 
-[ ] TC-013: Generated outputs are not committed to git
-  given: a pipeline run has produced files under `out/`
-  when: a QA runs `git status`
-  then: the generated files are gitignored and do not appear as
-        candidates for commit
-  check: `git status --porcelain out/` is empty
+[x] TC-013: Generated outputs are not committed to git
+  -> /out/ in .gitignore line 82; `git status --porcelain out/` empty; check-ignore confirms
+
+NOTE: Phase 2+ replaces stub stage `run` bodies in place (orchestrator architecture preserved).
+NOTE: retry helper (5 blind, exp backoff) and meta sidecar writer in place — Phase 2 producers should use them.
 
 ---
 

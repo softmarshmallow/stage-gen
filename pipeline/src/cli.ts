@@ -1,11 +1,22 @@
 #!/usr/bin/env bun
-// stage-gen pipeline CLI — Phase 0 stub.
+// stage-gen pipeline CLI.
 //
-// Today this entrypoint only validates env and echoes the prompt. Real
-// generation orchestration lands in later phases. The fail-fast env check
-// satisfies TC-003.
+// Phase 1: a single command runs the full pipeline end-to-end for one prompt.
+// Today every stage is a stub (logs + writes a `<stage>.stub` marker + meta);
+// Phase 2+ replaces stub bodies with real generators without changing this
+// entrypoint.
+//
+//   bun run pipeline "<prompt>"
+//
+// Behaviour:
+//   - Validates env (fail-fast, exit 2) — preserves TC-003.
+//   - Derives a deterministic tag from the prompt (TC-011).
+//   - Writes only into `out/<tag>/` (TC-012).
+//   - Exits 0 on success; any stage failure → non-zero exit + one-line stderr
+//     (TC-010).
 
 import { loadEnv } from "./env.ts";
+import { runPipeline } from "./orchestrator.ts";
 
 function usage(): never {
   process.stderr.write(
@@ -15,11 +26,7 @@ function usage(): never {
   process.exit(64);
 }
 
-function main() {
-  // Bun auto-loads `.env` from cwd. We additionally probe the repo-root .env
-  // so the CLI works whether invoked from repo root or pipeline/.
-  // (Bun's auto-load handles both via cwd; explicit re-load is a no-op here.)
-
+async function main() {
   const env = loadEnv();
 
   const args = process.argv.slice(2);
@@ -29,9 +36,27 @@ function main() {
   const prompt = args.join(" ").trim();
   if (!prompt) usage();
 
+  let summary;
+  try {
+    summary = await runPipeline({ prompt, env });
+  } catch (err) {
+    // The orchestrator catches per-stage failures; reaching here means an
+    // unexpected error (e.g. fs permission). Surface it on one line and exit.
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`stage-gen: pipeline crashed: ${msg}\n`);
+    process.exit(1);
+  }
+
+  if (!summary.ok) {
+    const failed = summary.stages.find((s) => !s.ok);
+    const cause = failed ? `${failed.stage}: ${failed.error}` : "unknown";
+    process.stderr.write(`stage-gen: stage failed — ${cause}\n`);
+    process.exit(1);
+  }
+
   process.stdout.write(
-    `ok: would run for ${JSON.stringify(prompt)} ` +
-      `(model=${env.IMAGE_MODEL}, out=${env.OUT_DIR})\n`,
+    `stage-gen: done tag=${summary.tag} stages=${summary.stages.length} ` +
+      `duration=${summary.durationMs}ms\n`,
   );
 }
 
