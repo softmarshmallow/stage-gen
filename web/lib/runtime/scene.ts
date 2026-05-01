@@ -1,17 +1,18 @@
-// Per-tag Phaser 4 scene loader (Phase 6).
+// Per-tag Phaser 4 scene loader (Phase 6 + Phase 7).
 //
 // Builds a full playable stage from a complete `out/<tag>/` asset directory:
 //   - skybox (parallax 0, fixed to camera)             → TC-071
 //   - parallax layers (TileSprite per layer)           → TC-072 / TC-073
 //   - ground (heightmap-driven 12×4 tileset assembly)  → TC-074
 //   - obstacles on flat columns                        → TC-075
-//   - mobs with looping idle animation                 → TC-076
+//   - mobs with looping idle animation + wander        → TC-076 / TC-083
 //   - player anchored bottom-center on ground band     → TC-077
 //   - foreground band (high-parallax + blur)           → TC-078
 //   - FPS probe                                        → TC-079
-//
-// A simple auto-pan + arrow-key camera lets us observe parallax behaviour
-// before Phase 7 hands movement to the player.
+//   - Phase 7 player controller                        → TC-080..082
+//   - Mob HP + hurt + drop                             → TC-084..086
+//   - Item pickup → inventory HUD                      → TC-087/088
+//   - Exit portal triggers stage-advance               → TC-089
 
 import Phaser from "phaser";
 import {
@@ -29,6 +30,11 @@ import {
 import { buildHeightmap, slopeAt, flatRuns, type SlopeKind } from "./heightmap";
 import { pickRole } from "./tiles";
 import { FpsProbe, type FpsSnapshot } from "./fps";
+import { Player, type PlayerStateSnapshot } from "./player";
+import { Mob } from "./mob";
+import { ItemSystem } from "./items";
+import { InventoryHud } from "./inventory";
+import { PortalSystem } from "./portal";
 
 type WorldLayer = {
   id: string;
@@ -90,6 +96,14 @@ export type SceneProbes = {
   playerColumn: number;
   foregroundLayers: string[];
   fps?: FpsSnapshot;
+  // Phase 7 additions — side-channel for verifiers.
+  player?: PlayerStateSnapshot;
+  mobs?: ReturnType<Mob["snapshot"]>[];
+  inventory?: ReturnType<InventoryHud["snapshot"]>;
+  worldItems?: ReturnType<ItemSystem["snapshot"]>;
+  portals?: ReturnType<PortalSystem["snapshot"]>;
+  events?: { kind: string; t: number; data?: unknown }[];
+  itemPalette?: { kind: string; name: string }[];
 };
 
 declare global {
@@ -98,6 +112,10 @@ declare global {
     __sceneReady?: boolean;
     __sceneFps?: FpsSnapshot;
     __sceneCamera?: { scrollX: number };
+    __scenePlayerState?: PlayerStateSnapshot;
+    __sceneMobsState?: ReturnType<Mob["snapshot"]>[];
+    __sceneInventory?: ReturnType<InventoryHud["snapshot"]>;
+    __sceneScene?: StageScene;
   }
 }
 
@@ -113,9 +131,14 @@ export class StageScene extends Phaser.Scene {
   // Foreground (parallax > 1.0): TileSprites placed in front of gameplay.
   private foregroundSprites: { id: string; sprite: Phaser.GameObjects.TileSprite; parallax: number }[] = [];
 
-  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-  private autoPan = true;
-  private autoPanSpeed = 100; // px/s
+  // Phase 7 systems.
+  private player?: Player;
+  private mobs: Mob[] = [];
+  private items?: ItemSystem;
+  private inventory?: InventoryHud;
+  private portal?: PortalSystem;
+  private heights: number[] = [];
+  private eventLog: { kind: string; t: number; data?: unknown }[] = [];
 
   constructor(init: SceneInit) {
     super({ key: "StageScene" });
@@ -136,8 +159,12 @@ export class StageScene extends Phaser.Scene {
       mobCount: 0,
       playerColumn: 0,
       foregroundLayers: [],
+      events: this.eventLog,
     };
-    if (typeof window !== "undefined") window.__sceneProbes = this.probes;
+    if (typeof window !== "undefined") {
+      window.__sceneProbes = this.probes;
+      window.__sceneScene = this;
+    }
 
     // Patch console.error to track errors during the first few seconds.
     const origErr = console.error.bind(console);
@@ -150,7 +177,6 @@ export class StageScene extends Phaser.Scene {
 
     // Camera bounds — generous; loadAll() will narrow to STAGE_W after ground.
     this.cameras.main.setBounds(0, 0, STAGE_W, VIEW_H);
-    this.cursors = this.input.keyboard?.createCursorKeys();
 
     this.fpsProbe.start();
 
@@ -159,40 +185,96 @@ export class StageScene extends Phaser.Scene {
       this.probes.consoleErrors.push(String((err as Error)?.message ?? err));
     });
 
+    this.logEvent("scene-created");
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.fpsProbe.stop();
     });
   }
 
+  private logEvent(kind: string, data?: unknown) {
+    this.eventLog.push({ kind, t: performance.now(), data });
+  }
+
   update(_time: number, deltaMs: number) {
     const cam = this.cameras.main;
     const dt = deltaMs / 1000;
+    void dt;
+    const now = performance.now();
 
-    // Manual camera control: arrows override auto-pan.
-    let userMoved = false;
-    if (this.cursors) {
-      if (this.cursors.left?.isDown) {
-        cam.scrollX -= 200 * dt;
-        userMoved = true;
+    // Player drives the camera (TC-080).
+    if (this.player) {
+      this.player.update(deltaMs, now);
+      // Camera follow — center on player, clamped to bounds.
+      const px = this.player.sprite.x;
+      const desired = px - VIEW_W / 2;
+      cam.scrollX = Phaser.Math.Clamp(desired, 0, Math.max(0, STAGE_W - VIEW_W));
+
+      // Inventory toggle.
+      if (this.player.inventoryToggleRequested && this.inventory) {
+        this.inventory.toggle();
+        this.player.inventoryToggleRequested = false;
       }
-      if (this.cursors.right?.isDown) {
-        cam.scrollX += 200 * dt;
-        userMoved = true;
+
+      // Attack collisions vs mobs.
+      if (this.player.consumeAttackHit()) {
+        const px2 = this.player.sprite.x;
+        const py2 = this.player.sprite.y;
+        const facing = this.player.facing === "left" ? -1 : 1;
+        // Hit reaches ~1 tile in front + 1 tile width.
+        const reach = TILE_PX * 1.4;
+        const hitX = px2 + facing * reach * 0.5;
+        for (const m of this.mobs) {
+          if (!m.isAlive()) continue;
+          const dx = m.sprite.x - hitX;
+          const dy = m.sprite.y - py2;
+          if (Math.abs(dx) < reach && Math.abs(dy) < TILE_PX * 2.5) {
+            const r = m.takeHit(now);
+            this.logEvent("mob-hit", { ladderIndex: m.ladderIndex, hpLeft: r.hpLeft, died: r.died });
+            if (r.died && this.items) {
+              const drop = this.items.drop(m.sprite.x, m.sprite.y - TILE_PX, m.ladderIndex);
+              if (drop) {
+                this.logEvent("mob-drop", { ladderIndex: m.ladderIndex, kindIndex: m.ladderIndex });
+              }
+            }
+            break; // one hit per swing
+          }
+        }
       }
     }
-    if (this.autoPan && !userMoved) {
-      cam.scrollX += this.autoPanSpeed * dt;
-      // Bounce back at the right edge so observation runs forever.
-      if (cam.scrollX > STAGE_W - VIEW_W) {
-        cam.scrollX = 0;
+
+    // Mobs.
+    for (const m of this.mobs) {
+      if (m.isAlive()) m.update(deltaMs, now);
+    }
+
+    // Items (gravity + bob).
+    if (this.items) this.items.update(deltaMs);
+
+    // Item pickups.
+    if (this.player && this.items) {
+      const picked = this.items.tryPickup(this.player.sprite.x, this.player.sprite.y, TILE_PX * 0.9);
+      for (const p of picked) {
+        if (this.inventory) this.inventory.addItem(p.kindIndex);
+        this.logEvent("item-pickup", { kindIndex: p.kindIndex });
       }
     }
-    if (cam.scrollX < 0) cam.scrollX = 0;
+
+    // Portal exit check.
+    if (this.player && this.portal) {
+      if (this.portal.checkExit(this.player.sprite.x, this.player.sprite.y)) {
+        this.logEvent("stage-advance", { portal: "exit" });
+        // eslint-disable-next-line no-console
+        console.log("[stage-advance] portal entered: exit");
+        if (typeof window !== "undefined") {
+          try {
+            window.dispatchEvent(new CustomEvent("stage-advance", { detail: { portal: "exit", tag: this.tag } }));
+          } catch {}
+        }
+      }
+    }
 
     // Drive parallax tilePosition based on scrollX × parallax.
-    // We use TileSprites with scrollFactor=0 (camera-fixed); the wrap is
-    // achieved by mutating tilePositionX. Deeper layers (smaller parallax)
-    // → smaller displacement; foreground (parallax > 1.0) → larger.
     for (const p of this.parallaxSprites) {
       p.sprite.tilePositionX = cam.scrollX * p.parallax;
     }
@@ -203,6 +285,22 @@ export class StageScene extends Phaser.Scene {
     if (typeof window !== "undefined") {
       window.__sceneCamera = { scrollX: cam.scrollX };
       if (window.__sceneFps) this.probes.fps = window.__sceneFps;
+      // Phase 7 side-channel for verifiers.
+      if (this.player) {
+        const ps = this.player.snapshot();
+        window.__scenePlayerState = ps;
+        this.probes.player = ps;
+      }
+      const ms = this.mobs.map((m) => m.snapshot());
+      window.__sceneMobsState = ms;
+      this.probes.mobs = ms;
+      if (this.inventory) {
+        const inv = this.inventory.snapshot();
+        window.__sceneInventory = inv;
+        this.probes.inventory = inv;
+      }
+      if (this.items) this.probes.worldItems = this.items.snapshot();
+      if (this.portal) this.probes.portals = this.portal.snapshot();
       // Surface live tilePositionX per layer for headless parallax verification.
       const tiles: Record<string, { parallax: number; tilePositionX: number; depth: number }> = {};
       for (const p of this.parallaxSprites) {
@@ -224,9 +322,11 @@ export class StageScene extends Phaser.Scene {
     // World spec.
     const spec = await fetchJson<WorldSpec>(u(`world_spec_${tag}.json`));
     this.probes.loadedAssetKeys.push(`spec:${spec.world.name}`);
+    this.probes.itemPalette = spec.items.map((i) => ({ kind: i.kind, name: i.name }));
 
     // ---------- Heightmap (deterministic from tag) ----------
     const heights = buildHeightmap(tag, { cols: COLS, minH: MIN_H, maxH: MAX_H });
+    this.heights = heights;
     this.probes.heightmap = heights;
 
     // ---------- Parallax layers ----------
@@ -261,47 +361,29 @@ export class StageScene extends Phaser.Scene {
           opaque: layer.opaque,
         };
 
-        // Mount into the scene. All parallax layers are TileSprites with
-        // scrollFactor=0 (we move tilePositionX manually each frame).
         const sprite = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, key);
         sprite.setOrigin(0, 0);
         sprite.setScrollFactor(0);
-        // Scale tile so its texture height fills VIEW_H. Phaser TileSprite
-        // tiles at the texture's native size; setting tileScale scales the
-        // tiled pattern.
         const ts = VIEW_H / loaded.height;
         sprite.setTileScale(ts, ts);
 
         if (layer.parallax > 1.0) {
-          // Foreground accent — render in front of gameplay (depth 1000+).
           sprite.setDepth(1000 + layer.z_index);
-          // Apply a Gaussian-ish blur via canvas filter on the WebGL texture.
-          // Phaser 4 supports preFX.addBlur on GameObjects.
           try {
-            // setPostPipeline requires WebGL. Use the built-in BlurFX where available.
             const fx = (sprite as unknown as {
               postFX?: { addBlur?: (q?: number, x?: number, y?: number, str?: number, color?: number, steps?: number) => unknown };
             }).postFX;
             if (fx?.addBlur) {
               const strength = Math.min(4, (layer.parallax - 1.0) * 6);
               fx.addBlur(0, 2, 2, strength, 0xffffff, 4);
-            } else {
-              // Canvas fallback: apply a CSS-like blur via a per-frame filter
-              // baked into a copy canvas. Skip for now; the depth ordering
-              // alone proves "foreground in front".
             }
-          } catch {
-            // best effort — blur is cosmetic
-          }
+          } catch {}
           this.foregroundSprites.push({ id: layer.id, sprite, parallax: layer.parallax });
           this.probes.foregroundLayers.push(layer.id);
         } else if (layer.opaque) {
-          // Skybox: scrollFactor 0, no parallax math needed; tilePositionX
-          // stays 0 so it's truly fixed to the camera.
           sprite.setDepth(0);
           this.parallaxSprites.push({ id: layer.id, sprite, parallax: 0 });
         } else {
-          // Mid background.
           sprite.setDepth(layer.z_index);
           this.parallaxSprites.push({ id: layer.id, sprite, parallax: layer.parallax });
         }
@@ -342,7 +424,6 @@ export class StageScene extends Phaser.Scene {
       }
     }
 
-    // Place obstacles on flat columns (footprint width: 1 column).
     this.placeObstacles(heights, obstacleCells);
 
     // ---------- Items sheet ----------
@@ -363,6 +444,7 @@ export class StageScene extends Phaser.Scene {
 
     // ---------- Mobs (idle + hurt + concept) ----------
     const mobIdleKeys: string[] = [];
+    const mobHurtKeys: string[] = [];
     for (let i = 0; i < spec.mobs.length; i++) {
       const idleKey = `mob_${i}_idle`;
       try {
@@ -374,7 +456,6 @@ export class StageScene extends Phaser.Scene {
         );
         this.probes.loadedAssetKeys.push(idleKey);
         mobIdleKeys.push(idleKey);
-        // Build the looping anim if the manager doesn't have it yet.
         if (!this.anims.exists(idleKey)) {
           this.anims.create({
             key: idleKey,
@@ -385,13 +466,16 @@ export class StageScene extends Phaser.Scene {
         }
       } catch (e) {
         this.recordErr(e);
+        mobIdleKeys.push("");
       }
       const hurtKey = `mob_${i}_hurt`;
       try {
         await loadFrameStrip(u(`mob_${tag}_${i}_hurt.png`), hurtKey, 4, this.textures);
         this.probes.loadedAssetKeys.push(hurtKey);
+        mobHurtKeys.push(hurtKey);
       } catch (e) {
         this.recordErr(e);
+        mobHurtKeys.push("");
       }
       try {
         await loadChromaKeyedSprite(
@@ -405,7 +489,7 @@ export class StageScene extends Phaser.Scene {
       }
     }
 
-    this.spawnMobs(heights, mobIdleKeys);
+    this.spawnMobs(heights, mobIdleKeys, mobHurtKeys);
 
     // ---------- Character ----------
     let charSprite: HTMLCanvasElement | null = null;
@@ -416,7 +500,6 @@ export class StageScene extends Phaser.Scene {
         this.textures,
       );
       this.probes.loadedAssetKeys.push(`character_concept`);
-      // Spot-check chroma probe (top-left corner is reliably background).
       const sampleAt = { x: 1, y: 1 };
       this.probes.spriteChromaProbe[`character_concept`] = {
         spriteKey: `character_concept`,
@@ -426,7 +509,7 @@ export class StageScene extends Phaser.Scene {
     } catch (e) {
       this.recordErr(e);
     }
-    // Idle strip (sliced) — preferred for the runtime player avatar.
+    // Idle strip (sliced) — used for the runtime player avatar.
     try {
       await loadFrameStrip(
         u(`character_${tag}-fromcombined_idle.png`),
@@ -435,18 +518,10 @@ export class StageScene extends Phaser.Scene {
         this.textures,
       );
       this.probes.loadedAssetKeys.push(`character_idle`);
-      if (!this.anims.exists(`character_idle`)) {
-        this.anims.create({
-          key: `character_idle`,
-          frames: [0, 1, 2, 3].map((f) => ({ key: `character_idle`, frame: f })),
-          frameRate: 4,
-          repeat: -1,
-        });
-      }
     } catch (e) {
       this.recordErr(e);
     }
-    // Other states (walk/run/jump/crawl/attack) — load now so Phase 7 can use them.
+    // Other states — used by Phase 7 player state machine.
     for (const state of ["walk", "run", "jump", "crawl"]) {
       try {
         await loadFrameStrip(
@@ -483,6 +558,34 @@ export class StageScene extends Phaser.Scene {
       this.recordErr(e);
     }
 
+    // Build the Phase 7 systems.
+    this.items = new ItemSystem({
+      scene: this,
+      tilePx: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (col) => this.heights[Math.max(0, Math.min(this.heights.length - 1, col))] ?? MIN_H,
+      itemFrameKey: (idx) => `item_${idx % 8}`,
+      itemTextureKey: "items",
+    });
+
+    this.inventory = new InventoryHud({
+      scene: this,
+      panelKey: "inventory",
+      itemsKey: "items",
+      itemFrameKey: (idx) => `item_${idx % 8}`,
+      viewW: VIEW_W,
+      viewH: VIEW_H,
+    });
+
+    this.portal = new PortalSystem({
+      scene: this,
+      portalKey: "portal",
+      tilePx: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (col) => this.heights[Math.max(0, Math.min(this.heights.length - 1, col))] ?? MIN_H,
+      stageWidthPx: STAGE_W,
+    });
+
     // Concept (purely for completeness; not displayed).
     try {
       await loadChromaKeyedSprite(u(`concept_${tag}.png`), `concept`, this.textures);
@@ -499,25 +602,19 @@ export class StageScene extends Phaser.Scene {
   // ---------- Ground assembly ----------
 
   private assembleGround(heights: number[], srcTileW: number, srcTileH: number) {
-    // We render at TILE_PX × TILE_PX regardless of source tile size — Phaser
-    // scales the texture frame to the sprite's display size.
-    const baseY = GROUND_BASELINE_Y; // bottom of surface row
-    const groundDepth = 500; // in front of bg layers, behind player
+    const baseY = GROUND_BASELINE_Y;
+    const groundDepth = 500;
 
     const sheetKey = `tileset`;
-    const variantOfCol = (x: number) => x % 3; // visual variation
+    const variantOfCol = (x: number) => x % 3;
 
     for (let x = 0; x < heights.length; x++) {
       const h = heights[x];
       const slope = slopeAt(heights, x);
-      const isLeftEdge = x === 0 || heights[x - 1] < h - 0; // simplistic: treat as edge if neighbour shorter
-      const isRightEdge = x === heights.length - 1 || heights[x + 1] < h - 0;
-      // We render `h` tiles up from the baseline (depth=0 at the top, depth=h-1 at the bottom).
       for (let depth = 0; depth < h; depth++) {
         const role = pickRole(
           slope,
           depth,
-          // Side edges only meaningful below the surface (depth>0).
           depth > 0 && (x === 0 || heights[x - 1] < h),
           depth > 0 && (x === heights.length - 1 || heights[x + 1] < h),
         );
@@ -544,26 +641,22 @@ export class StageScene extends Phaser.Scene {
     const runs = flatRuns(heights, 2);
     this.probes.flatRunCount = runs.length;
     let placed = 0;
-    // Walk runs and drop one obstacle per run, biased to its centre.
     for (let r = 0; r < runs.length; r++) {
       const run = runs[r];
-      // Skip first/last column of run to avoid abutting slopes.
       if (run.len < 3) continue;
       const col = run.start + Math.floor(run.len / 2);
-      const cell = cells[(r * 7) % cells.length]; // pseudo-distribute across props
+      const cell = cells[(r * 7) % cells.length];
       const sheetKey = `obstacles_${cell.sheetIdx}`;
       const frameKey = `prop_${cell.cellIdx}`;
       const h = heights[col];
-      // Surface Y at this column: baseline minus h tiles plus tile/2 (top of top tile)
       const surfaceY = GROUND_BASELINE_Y - h * TILE_PX;
-      // Display height: scale prop to ~1.5 tiles tall.
       const targetH = TILE_PX * 1.4;
       const aspect = cell.w / cell.h;
       const targetW = targetH * aspect;
       const x = col * TILE_PX + TILE_PX / 2;
-      const y = surfaceY; // bottom of obstacle == top of ground
+      const y = surfaceY;
       const img = this.add.image(x, y, sheetKey, frameKey);
-      img.setOrigin(0.5, 1.0); // bottom-center anchor
+      img.setOrigin(0.5, 1.0);
       img.setDisplaySize(targetW, targetH);
       img.setDepth(700);
       placed++;
@@ -573,29 +666,34 @@ export class StageScene extends Phaser.Scene {
 
   // ---------- Mob spawning ----------
 
-  private spawnMobs(heights: number[], mobIdleKeys: string[]) {
-    if (mobIdleKeys.length === 0) return;
+  private spawnMobs(heights: number[], mobIdleKeys: string[], mobHurtKeys: string[]) {
+    const hF = (col: number) => heights[Math.max(0, Math.min(heights.length - 1, col))] ?? MIN_H;
+    if (mobIdleKeys.filter(Boolean).length === 0) return;
     const runs = flatRuns(heights, 2);
     let spawned = 0;
-    // Deterministic: stride mob spawns evenly across flat runs, modulo mobs.
-    // Skip every other run to keep the world breathable.
     let mobIdx = 0;
     for (let r = 0; r < runs.length; r += 2) {
       const run = runs[r];
-      const col = run.start + 1; // one column in from the left edge
-      const key = mobIdleKeys[mobIdx % mobIdleKeys.length];
-      const h = heights[col];
-      const surfaceY = GROUND_BASELINE_Y - h * TILE_PX;
-      const sprite = this.add.sprite(col * TILE_PX + TILE_PX / 2, surfaceY, key, 0);
-      sprite.setOrigin(0.5, 1.0); // bottom-center on the surface
-      // Scale to ~2 tiles tall.
-      const targetH = TILE_PX * 1.8;
-      const tex = this.textures.get(key);
-      const frame0 = tex.get(0);
-      const aspect = frame0.width / Math.max(1, frame0.height);
-      sprite.setDisplaySize(targetH * aspect, targetH);
-      sprite.setDepth(800);
-      sprite.play(key);
+      const col = run.start + 1;
+      const ladderIndex = mobIdx % mobIdleKeys.length;
+      const idleKey = mobIdleKeys[ladderIndex];
+      const hurtKey = mobHurtKeys[ladderIndex] ?? "";
+      if (!idleKey) {
+        mobIdx++;
+        continue;
+      }
+      const mob = new Mob({
+        scene: this,
+        ladderIndex,
+        spawnCol: col,
+        tilePx: TILE_PX,
+        baselineY: GROUND_BASELINE_Y,
+        heightFn: hF,
+        spriteHeightPx: TILE_PX * 1.8,
+        idleAnimKey: idleKey,
+        hurtTextureKey: hurtKey || idleKey,
+      });
+      this.mobs.push(mob);
       mobIdx++;
       spawned++;
     }
@@ -605,7 +703,6 @@ export class StageScene extends Phaser.Scene {
   // ---------- Player spawn ----------
 
   private spawnPlayer(heights: number[]) {
-    // Pick the leftmost flat run as the start column.
     const runs = flatRuns(heights, 3);
     const startCol = runs.length > 0 ? runs[0].start + 1 : 4;
     this.probes.playerColumn = startCol;
@@ -613,23 +710,19 @@ export class StageScene extends Phaser.Scene {
     const surfaceY = GROUND_BASELINE_Y - h * TILE_PX;
     const x = startCol * TILE_PX + TILE_PX / 2;
 
-    const useStrip = this.textures.exists(`character_idle`);
-    const key = useStrip ? `character_idle` : `character_concept`;
-    const sprite = this.add.sprite(x, surfaceY, key, useStrip ? 0 : undefined);
-    sprite.setOrigin(0.5, 1.0); // bottom-center; feet on the ground band
-    const targetH = TILE_PX * 2.2;
-    const tex = this.textures.get(key);
-    const frame0 = useStrip ? tex.get(0) : tex.getSourceImage(0);
-    const w = (frame0 as { width: number }).width;
-    const hpx = (frame0 as { height: number }).height;
-    const aspect = w / Math.max(1, hpx);
-    sprite.setDisplaySize(targetH * aspect, targetH);
-    sprite.setDepth(900);
-    if (useStrip && this.anims.exists(`character_idle`)) {
-      sprite.play(`character_idle`);
-    }
+    const hF = (col: number) =>
+      heights[Math.max(0, Math.min(heights.length - 1, col))] ?? MIN_H;
 
-    // Centre the camera on the player at start so the play view shows ground + sky.
+    this.player = new Player({
+      scene: this,
+      startX: x,
+      startY: surfaceY,
+      tilePx: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: hF,
+      targetSpriteHeight: TILE_PX * 2.2,
+    });
+
     this.cameras.main.scrollX = Math.max(0, x - VIEW_W / 2);
   }
 
