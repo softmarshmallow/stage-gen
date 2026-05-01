@@ -1,20 +1,27 @@
 // Pipeline stage list — the typed sequence the orchestrator walks end-to-end.
 //
-// Phase 1 ships every stage as a STUB: log the stage name, sleep ~10ms, write
-// `out/<tag>/<stage>.stub` plus a sidecar meta. Phase 2+ will replace each
-// stub's `run` with the real generator (concept image, world spec, layer
-// fan-out, etc.) without changing the orchestrator or the stage list shape.
+// Wave 1 → Wave 1.5 → Wave 2 (fan-out) → Wave 3 (stub) → Wave 4 (stub).
 //
 // The list mirrors the wave structure documented in
-// docs/spec/system-overview.md (Wave 1 → 1.5 → 2 → 3 → 4 + a final manifest
-// step). Phase 1 doesn't fan out within a wave — every stage runs serially —
-// because the stubs do nothing meaningful in parallel.
+// docs/spec/system-overview.md. Within Wave 2, every contracted call fires
+// concurrently via Promise.all (per AGENTS.md "cost is not a constraint" +
+// asset-contracts.md "5 + L + N + M parallel"). Wave 3+ remain stubs until
+// Phase 4 of the build loop.
 
-import { join } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { stubMeta, writeMeta } from "./meta.ts";
 import { generateConcept } from "./ai/concept.ts";
 import { generateWorldSpec } from "./ai/world-spec.ts";
+import { generateAllLayers } from "./ai/parallax.ts";
+import { generateTileset } from "./ai/tileset.ts";
+import { generateCharacterConcept } from "./ai/character.ts";
+import { generateAllMobConcepts } from "./ai/mobs.ts";
+import { generateAllObstacles } from "./ai/obstacles.ts";
+import { generateItems } from "./ai/items.ts";
+import { generateInventory } from "./ai/inventory.ts";
+import { generatePortal } from "./ai/portal.ts";
+import { WorldSpecSchema } from "./schema/world.ts";
 import type { PipelineEnv } from "./env.ts";
 
 export interface StageContext {
@@ -49,7 +56,7 @@ export interface Stage {
 }
 
 // -----------------------------------------------------------------------------
-// Stub runner — every Phase 1 stage delegates here.
+// Stub runner — kept for Wave 3+ stages still to be built.
 // -----------------------------------------------------------------------------
 
 async function runStub(
@@ -57,8 +64,6 @@ async function runStub(
   stageName: string,
 ): Promise<{ artifacts: string[] }> {
   await mkdir(ctx.runDir, { recursive: true });
-  // ~10ms sleep so the orchestrator's per-stage timing is non-zero and
-  // fan-out behaviour is observable in real runs later.
   await new Promise((r) => setTimeout(r, 10));
   const stubPath = join(ctx.runDir, `${stageName}.stub`);
   await writeFile(
@@ -84,14 +89,23 @@ function stubStage(
 }
 
 // -----------------------------------------------------------------------------
-// Stage list — mirrors the documented wave structure. Phase 2+ replaces the
-// `run` body of each entry in place; the list shape itself is stable.
+// Fixture paths — committed templates the Wave 2 generators consume by path.
+// -----------------------------------------------------------------------------
+
+const FIXTURES_ROOT = resolve(import.meta.dir, "../../fixtures/image_gen_templates");
+const TPL = {
+  wireframe: join(FIXTURES_ROOT, "wireframe.png"),
+  obstacle: join(FIXTURES_ROOT, "obstacle_template.png"),
+  inventory: join(FIXTURES_ROOT, "inventory_template.png"),
+  // (character_template.png + character_template_combined.png are Wave 3.)
+};
+
+// -----------------------------------------------------------------------------
+// Stage list.
 // -----------------------------------------------------------------------------
 
 export const STAGES: Stage[] = [
-  // Wave 1 — concept (style root). Real gpt-image-2 call; output is the
-  // opaque painterly reference every later wave consumes. Must land first
-  // because Wave 1.5 (world-spec) attaches it as a vision payload.
+  // Wave 1 — concept (style root).
   {
     name: "concept",
     wave: 1,
@@ -107,8 +121,7 @@ export const STAGES: Stage[] = [
     },
   },
 
-  // Wave 1.5 — world-design agent (text-gen). Reads concept_<tag>.png
-  // produced above and returns a Zod-validated world bible JSON.
+  // Wave 1.5 — world-design agent (text-gen).
   {
     name: "world-spec",
     wave: 1.5,
@@ -126,25 +139,89 @@ export const STAGES: Stage[] = [
     },
   },
 
-  // Wave 2 — wave A: parallel asset fan-out off the concept + spec.
-  stubStage("layers", 2, "agent-designed parallax layers"),
-  stubStage("tileset", 2, "ground tileset"),
-  stubStage("character-concept", 2, "character turnaround"),
-  stubStage("mob-concepts", 2, "per-rung mob turnarounds"),
-  stubStage("obstacles", 2, "obstacle prop sheets"),
-  stubStage("items", 2, "items / pickup sheet"),
-  stubStage("inventory", 2, "inventory bag panel"),
-  stubStage("portal", 2, "entry / exit portal pair"),
+  // Wave 2 — Wave A: every contracted asset fires concurrently.
+  // 5 + L + N + M parallel image-gen calls per docs/spec/asset-contracts.md.
+  // Each individual call is wrapped in withRetry (5 blind retries) inside the
+  // shared image helper.
+  {
+    name: "wave-a",
+    wave: 2,
+    description:
+      "Wave A fan-out: layers, tileset, character, mobs, obstacles, items, inventory, portal",
+    run: async (ctx) => {
+      const conceptImagePath = join(ctx.runDir, `concept_${ctx.tag}.png`);
+      const specPath = join(ctx.runDir, `world_spec_${ctx.tag}.json`);
 
-  // Wave 3 — wave B: animation fan-out off wave A turnarounds.
+      const specRaw = await readFile(specPath, "utf8");
+      const spec = WorldSpecSchema.parse(JSON.parse(specRaw));
+
+      const baseArgs = {
+        prompt: ctx.prompt,
+        tag: ctx.tag,
+        runDir: ctx.runDir,
+        model: ctx.env.IMAGE_MODEL,
+        conceptImagePath,
+      };
+
+      // All Wave A calls fire concurrently. Each inner call already retries.
+      const [
+        layers,
+        tileset,
+        characterConcept,
+        mobConcepts,
+        obstacles,
+        items,
+        inventory,
+        portal,
+      ] = await Promise.all([
+        generateAllLayers({ ...baseArgs, layers: spec.layers }),
+        generateTileset({ ...baseArgs, wireframePath: TPL.wireframe }),
+        generateCharacterConcept(baseArgs),
+        generateAllMobConcepts({ ...baseArgs, mobs: spec.mobs }),
+        generateAllObstacles({
+          ...baseArgs,
+          obstacleTemplatePath: TPL.obstacle,
+          obstacles: spec.obstacles,
+        }),
+        generateItems({
+          ...baseArgs,
+          obstacleTemplatePath: TPL.obstacle,
+          items: spec.items,
+        }),
+        generateInventory({
+          ...baseArgs,
+          inventoryTemplatePath: TPL.inventory,
+        }),
+        generatePortal(baseArgs),
+      ]);
+
+      const artifacts: string[] = [];
+      const collect = (r: { imagePath: string; metaPath: string }) => {
+        artifacts.push(r.imagePath, r.metaPath);
+      };
+      layers.forEach(collect);
+      collect(tileset);
+      collect(characterConcept);
+      mobConcepts.forEach(collect);
+      obstacles.forEach(collect);
+      collect(items);
+      collect(inventory);
+      collect(portal);
+
+      return { artifacts };
+    },
+  },
+
+  // Wave 3 — Wave B: animation strips off the Wave 2 turnarounds. Stubs
+  // until Phase 4 of the build loop.
   stubStage("character-master", 3, "5x4 character motion master sheet"),
   stubStage("character-attack", 3, "1x4 character attack strip"),
   stubStage("mob-idle", 3, "per-rung mob idle strips"),
   stubStage("mob-hurt", 3, "per-rung mob hurt strips"),
 
-  // Wave 4 — CPU post (sharp slice of the master sheet, etc.).
+  // Wave 4 — CPU post.
   stubStage("post-split", 4, "split master sheet into per-state strips"),
 
-  // Wave 5 — manifest: index.json the web runtime will consume.
+  // Wave 5 — manifest.
   stubStage("manifest", 5, "write per-tag manifest of artifacts"),
 ];

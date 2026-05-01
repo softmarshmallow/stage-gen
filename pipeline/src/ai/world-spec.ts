@@ -49,7 +49,18 @@ NAMING RULES (critical — image models receive these names later, and confusing
 
 Return ONLY the structured object.`;
 
+// Pick a varied target layer count per call (3, 4, or 5). Prevents the
+// agent from anchoring to one constant — paired with the "vary parallax
+// per world" instruction below to break the previously identical
+// (0, 0.15, 0.4, 0.75, 1.1) tuple across worlds.
+function pickTargetLayerCount(): number {
+  // Uniform over {3, 4, 5}. Caller doesn't seed; over a small batch we
+  // expect a mix.
+  return 3 + Math.floor(Math.random() * 3);
+}
+
 function buildUserPrompt(userPromptText: string, mobCount: number, obstacleCount: number): string {
+  const targetLayerCount = pickTargetLayerCount();
   return `WORLD PROMPT (from the user): "${userPromptText}"
 
 The image attached is the world's main concept art.
@@ -60,28 +71,30 @@ PRODUCE THE WORLD BIBLE. You design every entry yourself — there is no pre-def
 
 2) mobs: design a CREATURE LADDER of exactly ${mobCount} rungs for this world. Slot 0 = the WEAKEST / smallest / lowest-tier creature in this world. Slot ${mobCount - 1} = the STRONGEST / largest / boss-class apex. Power, size, ornateness, and threat must monotonically rise across slots — the runtime scales HP linearly with slot index, so the ladder ordering is load-bearing. For EACH slot, design:
    - tier_label: short label for this rung — your design (e.g. "hatchling", "forager", "stalker", "bloomling", "alpha"). Don't reuse the same label across slots.
-   - body_plan: 2-5 word body-plan archetype that defines this creature's silhouette (e.g. "four-legged quadruped", "six-legged insectoid", "two-legged bird", "horned biped", "tendrilled cephalopod"). Body plans MUST clearly differ between ADJACENT slots so the ladder reads visually distinct — DO NOT repeat a body plan on consecutive rungs.
+   - body_plan: 2-5 word body-plan archetype that NAMES AN ANATOMY CLASS — e.g. "four-legged quadruped", "two-armed humanoid", "six-legged insectoid", "serpentine wyrm", "winged avian", "tendrilled cephalopod", "horned biped", "spider-like arachnid". The string MUST contain an anatomical noun. DO NOT use scale-only descriptors ("palm-sized crawler", "huge thing") or vibe-only descriptors ("floating shroud", "shimmering haunter"); those describe size or mood, not silhouette. Body plans MUST clearly differ between ADJACENT slots so the ladder reads visually distinct — DO NOT repeat a body plan on consecutive rungs.
    - name: 1-3 word creature name
    - brief: ONE sentence — silhouette + a distinguishing trait. Don't restate the tier_label or body_plan.
 
 3) obstacles: exactly ${obstacleCount} obstacle sheets. For each sheet pick a thematic bias (sheet_theme, 2-4 words) appropriate to this world — sheet themes must NOT duplicate. Then list exactly 8 props with name + brief, all clearly fitting that sheet's theme.
 
-4) items: exactly 8 collectible pickups for this world. You design EACH pickup yourself — no fixed kind enum. Vary the kinds across the 8 entries (e.g. one currency, one consumable, one key/access, one rare relic, one weapon trinket — but choose what makes sense for THIS world). For EACH item:
-   - kind: 1-2 word category label — your design (e.g. "sun-coin", "spore-vial", "amber-bead", "rune-shard"). Used in HUD / pickup logs. Don't reuse the same kind across items.
+4) items: exactly 8 collectible pickups for this world. You design EACH pickup yourself — no fixed kind enum. The 8 kinds MUST come from SEMANTICALLY DISTINCT CATEGORIES — choose 8 different buckets from {currency, consumable/healing, key/access, rare relic, weapon trinket, map/data fragment, charm/talisman, light/fuel source, food/edible, crafting material, …}. CRITICAL DON'TS: do NOT include two currencies (no two of "coin"/"token"/"chip"/"cred"/"credit"/"buck"/"bit"/"yen"); do NOT include two vessels (no two of "vial"/"phial"/"flask"/"bottle"/"ampoule"); do NOT include two fragments (no two of "shard"/"fragment"/"piece"/"sliver"/"chunk"). Each item is a different category. For EACH item:
+   - kind: 1-2 word category label — your design (e.g. "sun-coin", "spore-vial", "amber-bead", "rune-shard"). Used in HUD / pickup logs. Don't reuse the same kind across items, AND don't pick two kinds that are synonyms in the buckets above.
    - name: 1-3 word item name
    - brief: one short clause — appearance + flavour
 
-5) layers: design 1-5 PARALLAX DEPTH LAYERS for this world. Each layer is a 3:1 horizontal panel (2400×800) painted in this world's style. The runtime stacks them back-to-front by z_index and scrolls each at its own parallax speed.
+5) layers: design PARALLAX DEPTH LAYERS for this world. Each layer is a 3:1 horizontal panel (2400×800) painted in this world's style. The runtime stacks them back-to-front by z_index and scrolls each at its own parallax speed.
 
-REQUIRED: include EXACTLY ONE OPAQUE BACKDROP layer (e.g. sky / nebula / vast distant void). It must have z_index=0, parallax=0, opaque=true. This layer is what shows behind everything else.
+LAYER COUNT: pick a number of layers between 3 and 5, biased toward ${targetLayerCount} for this world — DO NOT default to 5 every time. Different worlds want different stack depths (a foggy void may need 3; a dense urban skyline may want 5). Your choice; vary it across worlds.
 
-All other layers (1 to 4 of them) are TRANSPARENT — they paint a region and leave the rest as magenta chroma key so deeper layers show through.
+REQUIRED: include EXACTLY ONE OPAQUE BACKDROP layer (e.g. sky / nebula / vast distant void). It must have z_index=0, parallax=0, opaque=true. This layer is what shows behind everything else. All other layers are TRANSPARENT — they paint a region and leave the rest as magenta chroma key so deeper layers show through.
+
+LAYER ARCHETYPE ORDERING: do NOT default to the canonical "sky → distant peaks → mid-foliage → near buildings → foreground vines" five-band stack on every world. Reorder, drop, or recombine archetypes to fit THIS world. A submarine world might be "abyssal dark → kelp curtain → ground silt → foreground bubbles". A samurai ink-wash might be "rice-paper sky → ink mountain → cherry boughs". Make the stack world-specific, not template-shaped.
 
 For each layer:
-   - id: lowercase_snake slug for the filename ("sky_void", "far_peaks", "mid_canopy", "fg_vines")
+   - id: lowercase_snake slug for the filename
    - title: human-readable
    - z_index: integer; lowest is drawn first (deepest). Use 0 for the opaque backdrop, then ascending values for each transparent layer painted on top.
-   - parallax: scroll-speed multiplier. 0 for the opaque backdrop. Then ~0.15 for far / ~0.4 for mid / ~0.75 for near / ~1.1 for foreground accents that scroll faster than gameplay. Pick what fits each layer's depth.
+   - parallax: scroll-speed multiplier in the range [0, 2]. 0 for the opaque backdrop. For the other layers, choose values that monotonically increase with z_index (deeper layers scroll slower than shallower ones). The exact numbers are YOUR design — pick fresh values per world. Foreground accents that should appear closer than gameplay use a parallax > 1.0 (capped at 2). DO NOT reuse the same parallax tuple across worlds — vary the numbers each time so two different worlds never produce the same array of parallax values.
    - opaque: true ONLY for the deepest backdrop. All other layers MUST be false.
    - paint_region: describe in CANVAS-FRACTION terms which Y / X range you'll paint, and what stays magenta. The Y axis runs 0/5 (top) to 5/5 (bottom). Examples: "paint Y range 3/5..5/5 (lower 40%) — leave the upper 60% magenta because the deeper sky covers it", "paint full canvas" for the opaque sky, "sparse vertical accents at any Y, X anywhere" for foreground vines. Be precise about what stays magenta.
    - description: ONE sentence — what to paint in the painted region (e.g. "silhouettes of jagged ash mountains receding into haze"). World-specific.

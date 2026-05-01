@@ -18,6 +18,197 @@
 
 import { z } from "zod";
 
+// Anatomical-noun whitelist for mob.body_plan (TC-025b). The body_plan must
+// name an anatomy archetype, not a scale-only or vibe-only descriptor. Pure
+// scale ("palm-sized crawler") or vibe ("floating shroud") fails — the
+// silhouette of a creature is determined by its anatomy class, and downstream
+// mob-concept image gen relies on the body_plan as the silhouette contract.
+const ANATOMICAL_NOUNS = [
+  "humanoid",
+  "biped",
+  "bipedal",
+  "quadruped",
+  "quadrupedal",
+  "insectoid",
+  "arachnid",
+  "spider",
+  "spiderlike",
+  "spider-like",
+  "serpent",
+  "serpentine",
+  "wormlike",
+  "worm-like",
+  "wyrm",
+  "snake",
+  "winged",
+  "wingless",
+  "avian",
+  "bird",
+  "birdlike",
+  "bird-like",
+  "wormoid",
+  "aquatic",
+  "fish",
+  "fishlike",
+  "amphibian",
+  "amphibious",
+  "reptilian",
+  "reptile",
+  "lizard",
+  "skeletal",
+  "skeleton",
+  "ape",
+  "apelike",
+  "ape-like",
+  "feline",
+  "cat",
+  "catlike",
+  "canine",
+  "dog",
+  "wolf",
+  "centaur",
+  "centauroid",
+  "golem",
+  "elemental",
+  "cephalopod",
+  "tendrilled",
+  "tentacled",
+  "octopoid",
+  "crustacean",
+  "crab",
+  "crablike",
+  "knucklewalker",
+  "mollusc",
+  "slug",
+  "sluglike",
+  "mite",
+  "rodent",
+  "ratlike",
+  "rat-like",
+  "mantis",
+  "mantis-like",
+  "beetle",
+  "beetlelike",
+  "beetle-like",
+  "lobster",
+  "horned",
+  "antlered",
+  "tailed",
+  "limbed",
+  "legged", // also matches four-legged, six-legged, eight-legged, etc.
+  "armed", // also matches two-armed, six-armed, etc.
+  "headed",
+  "winger",
+  "drone",
+  "mech",
+  "mechanoid",
+  "android",
+  "anthropoid",
+  "saurian",
+  "draconic",
+  "dragon",
+  "dragonoid",
+  "trilobite",
+  "polyp",
+  "starfish",
+  "jelly",
+  "jellyfish",
+  "construct",
+  "automaton",
+  "shell",
+  "shelled",
+  "carapaced",
+  "carapace",
+  "tank",
+  "walker",
+  "hopper",
+  "swimmer",
+  "flier",
+  "flyer",
+  "bat",
+  "batlike",
+  "bat-like",
+  "deer",
+  "stag",
+  "owl",
+  "owlish",
+  "bear",
+  "fox",
+  "frog",
+  "toad",
+  "monkey",
+  "primate",
+  "primatoid",
+  "scorpion",
+  "centipede",
+  "millipede",
+  "crustaceous",
+  "shrub",
+  "fungal",
+  "plantlike",
+  "plant-like",
+  "treant",
+  "treelike",
+  "tree-like",
+  "blob",
+  "amorphous",
+  "ooze",
+  "slime",
+  "ghost",
+  "ghostly",
+  "spectral",
+  "wraith",
+  "specter",
+  "phantom",
+  "spirit",
+  "spectre",
+];
+
+// Set form for fast membership tests; lowercased.
+const ANATOMICAL_NOUN_SET = new Set(ANATOMICAL_NOUNS.map((n) => n.toLowerCase()));
+
+function bodyPlanHasAnatomicalNoun(bp: string): boolean {
+  // Tokenize on whitespace + hyphens; check each token (and hyphen-suffixed
+  // variants like "four-legged" → "legged") against the whitelist.
+  const tokens = bp
+    .toLowerCase()
+    .split(/[\s\-_/]+/)
+    .map((t) => t.replace(/[^a-z]/g, ""))
+    .filter(Boolean);
+  for (const tok of tokens) {
+    if (ANATOMICAL_NOUN_SET.has(tok)) return true;
+  }
+  return false;
+}
+
+// Item-kind synonym detection (TC-026b). Reject pairs that share a noun-head
+// from one of three semantic buckets:
+//   - currency-head: token / coin / chip / cred / credit / buck / bit
+//   - vessel-head:   vial / phial / flask / bottle / ampoule
+//   - fragment-head: shard / fragment / piece / sliver / chunk
+const CURRENCY_HEADS = ["token", "coin", "chip", "cred", "credit", "buck", "bit", "yen"];
+const VESSEL_HEADS = ["vial", "phial", "flask", "bottle", "ampoule"];
+const FRAGMENT_HEADS = ["shard", "fragment", "piece", "sliver", "chunk"];
+
+function kindHeads(kind: string): { head: string; tail: string; tokens: string[] } {
+  const tokens = kind
+    .toLowerCase()
+    .split(/[\s\-_/]+/)
+    .map((t) => t.replace(/[^a-z]/g, ""))
+    .filter(Boolean);
+  const head = tokens[0] ?? "";
+  const tail = tokens[tokens.length - 1] ?? "";
+  return { head, tail, tokens };
+}
+
+function kindHasBucket(kind: string, bucket: string[]): string | null {
+  const { tokens } = kindHeads(kind);
+  for (const tok of tokens) {
+    if (bucket.includes(tok)) return tok;
+  }
+  return null;
+}
+
 const WorldHeader = z.object({
   name: z
     .string()
@@ -46,7 +237,7 @@ const Mob = z.object({
     .string()
     .min(1)
     .describe(
-      "2-5 word body-plan archetype that defines this creature's silhouette (e.g. 'four-legged quadruped', 'tendrilled cephalopod', 'two-legged bird'). Body plans MUST clearly differ between adjacent rungs of the ladder.",
+      "2-5 word body-plan archetype that NAMES an anatomy class (e.g. 'four-legged quadruped', 'two-armed humanoid', 'six-legged insectoid', 'serpentine wyrm', 'winged avian', 'tendrilled cephalopod'). MUST contain an anatomical noun — not a pure scale descriptor ('palm-sized crawler') or vibe descriptor ('floating shroud'). Body plans MUST clearly differ between adjacent rungs of the ladder.",
     ),
   name: z.string().min(1).describe("1-3 word creature name. World-specific. Avoid generic names like 'Slime' / 'Goblin'."),
   brief: z
@@ -78,7 +269,7 @@ const Item = z.object({
     .string()
     .min(1)
     .describe(
-      "1-2 word category label — YOUR design (e.g. 'sun-coin', 'spore-vial', 'rune-shard'). Used in the HUD / pickup log. Do NOT reuse the same kind across items — vary categories (currency, consumable, key, relic, weapon trinket, etc.).",
+      "1-2 word category label — YOUR design (e.g. 'sun-coin', 'spore-vial', 'rune-shard'). Used in the HUD / pickup log. Items MUST come from semantically distinct categories — NOT two currencies, NOT two potions, NOT two map-fragments. Vary across currency / consumable / key / relic / weapon trinket / data / tool, etc.",
     ),
   name: z.string().min(1).describe("1-3 word item name. World-specific."),
   brief: z.string().min(1).describe("One short clause — appearance + flavour."),
@@ -99,7 +290,8 @@ const Layer = z.object({
   parallax: z
     .number()
     .min(0)
-    .describe("Scroll-speed multiplier. 0 for the opaque backdrop. ~0.15 far / ~0.4 mid / ~0.75 near / ~1.1 foreground."),
+    .max(2)
+    .describe("Scroll-speed multiplier in the range [0, 2]. 0 for the opaque backdrop. Choose a value that fits each layer's depth — vary your numbers per world; do not reuse a fixed tuple."),
   opaque: z
     .boolean()
     .describe("true ONLY for the deepest backdrop. All other layers MUST be false."),
@@ -129,7 +321,7 @@ export const WorldSpecSchema = z
     items: z
       .array(Item)
       .length(8)
-      .describe("Exactly 8 collectible pickups. Each `kind` must be unique."),
+      .describe("Exactly 8 collectible pickups. Each `kind` must be unique AND from semantically distinct categories (no synonym pairs)."),
     layers: z
       .array(Layer)
       .min(1)
@@ -151,6 +343,16 @@ export const WorldSpecSchema = z
         });
       }
     }
+    // Mobs: body_plan must contain an anatomical noun (TC-025b).
+    spec.mobs.forEach((mob, i) => {
+      if (!bodyPlanHasAnatomicalNoun(mob.body_plan)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["mobs", i, "body_plan"],
+          message: `mobs[${i}].body_plan ("${mob.body_plan}") must contain an anatomical noun (e.g. quadruped, humanoid, insectoid, serpent, avian, cephalopod, golem, …) — not a pure scale or vibe descriptor`,
+        });
+      }
+    });
     // Items: unique kind values.
     const seenKinds = new Map<string, number>();
     spec.items.forEach((item, i) => {
@@ -166,6 +368,33 @@ export const WorldSpecSchema = z
         seenKinds.set(k, i);
       }
     });
+    // Items: reject synonym pairs (TC-026b). Two kinds that both belong to
+    // the same semantic bucket (currency / vessel / fragment) are synonyms,
+    // even if their literal strings differ.
+    const buckets: { name: string; words: string[] }[] = [
+      { name: "currency", words: CURRENCY_HEADS },
+      { name: "vessel", words: VESSEL_HEADS },
+      { name: "fragment", words: FRAGMENT_HEADS },
+    ];
+    for (const bucket of buckets) {
+      const hits: { idx: number; kind: string; tok: string }[] = [];
+      spec.items.forEach((item, i) => {
+        const tok = kindHasBucket(item.kind, bucket.words);
+        if (tok !== null) hits.push({ idx: i, kind: item.kind, tok });
+      });
+      if (hits.length >= 2) {
+        // Flag the second-and-later one(s).
+        for (let h = 1; h < hits.length; h++) {
+          const a = hits[0];
+          const b = hits[h];
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", b.idx, "kind"],
+            message: `items[${b.idx}].kind ("${b.kind}") is a ${bucket.name}-noun synonym of items[${a.idx}].kind ("${a.kind}") (both contain "${a.tok}"/"${b.tok}"). Pick semantically distinct categories.`,
+          });
+        }
+      }
+    }
     // Obstacles: unique sheet_theme values.
     const seenThemes = new Map<string, number>();
     spec.obstacles.forEach((sheet, i) => {

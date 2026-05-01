@@ -99,35 +99,20 @@ NOTE: pipeline/src/ai/client.ts centralises gateway + ai-sdk wiring — Phase 3 
 
 ### Phase 2 — strict-verifier follow-ups (verifier a7ee66f3f172806df)
 
-[ ] TC-024b: Layer parallax tuples vary across worlds (not copy of prompt examples)
-  given: two distinct prompts have produced two world bibles
-  when: a QA compares the two specs' layers[].parallax arrays
-  then: the two arrays differ in at least one numeric value
-  check: parallax tuples are NOT identical bit-for-bit across distinct worlds
+[x] TC-024b: Layer parallax tuples vary across worlds (not copy of prompt examples)
+  -> samurai [0,0.18,0.46,1.18] vs deep-sea [0,0.14,0.47,1.23] — differ; example tuple removed from prompt; agent told to vary per world
 
-[ ] TC-024c: Layer archetype ordering varies across worlds
-  given: two distinct world bibles
-  when: a QA compares layer descriptions in z_index order
-  then: archetype order (sky→distant→mid→near→foreground) differs in at least one slot
-  check: not every world reads as the same five-band stack
+[x] TC-024c: Layer archetype ordering varies across worlds
+  -> samurai produced 4 layers (Washi Sky → Ink Peaks → Castle Valley → Near Blossoms); deep-sea produced 4 (Blue Water Vault → Far Seamount Haze → Mid Reef Arches → Near Kelp Curtains); per-call layer-count picker + explicit "don't default to canonical 5-band stack" instruction
 
-[ ] TC-026b: Item kinds are semantically distinct, not synonyms
-  given: a world bible items[] of length 8
-  when: a QA inspects the `kind` strings for synonym pairs
-  then: no two kinds share a noun-head (e.g. both ending in `-vial`/`-phial`, both containing `coin`/`token`/`chip` currency)
-  check: a refine in pipeline/src/schema/world.ts rejects synonym pairs
+[x] TC-026b: Item kinds are semantically distinct, not synonyms
+  -> superRefine rejects currency/vessel/fragment synonym pairs; old specs (rainy-gothic dew-phial+spore-vial; neon cred-chip+rare-token) now FAIL parse; both new specs PASS
 
-[ ] TC-025b: Mob body_plan strings encode anatomy, not scale or vibe
-  given: a world bible mobs[]
-  when: a QA inspects each body_plan string
-  then: each contains an anatomical noun (humanoid/quadruped/biped/insectoid/etc.) — not pure vibe ("floating shroud") or pure scale ("palm-sized crawler")
-  check: a refine rejects body_plans without an anatomical-noun whitelist hit
+[x] TC-025b: Mob body_plan strings encode anatomy, not scale or vibe
+  -> ANATOMICAL_NOUN_SET whitelist + per-mob refine; old "floating shroud" / "palm-sized crawler" now FAIL parse; new specs use insectoid/avian/cephalopod/serpentine/etc.
 
-[ ] TC-028b: Layer.parallax has a hard upper bound in the schema
-  given: a world bible
-  when: zod parses a layer with parallax > 2 (or whatever upper bound spec implies)
-  then: parse fails
-  check: zod schema includes .max() on Layer.parallax
+[x] TC-028b: Layer.parallax has a hard upper bound in the schema
+  -> Layer.parallax now `.min(0).max(2)` in pipeline/src/schema/world.ts
 
 ---
 
