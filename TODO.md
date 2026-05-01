@@ -169,8 +169,8 @@ outputs as references).
 [x] TC-050: Character motion master sheet is generated
   -> character_<tag>_combined.png at 2400×3440; 5×4 grid (idle/walk/run/jump/crawl) (verifier a5eca3441dd891205)
 
-[x] TC-051: Master sheet preserves character scale across all 20 cells
-  -> head heights + feet baselines hold across all 20 cells; no floaters/scale outliers
+[BLOCKED] TC-051: Master sheet preserves character scale across all 20 cells
+  -> strict re-verify (verifier a4df16d72a6f84c67) FAILS: row 1 visibly taller than rows 2-3, feet baselines drift within row 1; "ALL 20 cells" contract not met. Retrying producer with explicit pixel-rail prompt language.
 
 [x] TC-052: Character attack strip is generated
   -> 1×4 on magenta; sword-attack progression (windup → swing → thrust → recover)
@@ -185,6 +185,39 @@ outputs as references).
   -> all 8 mobs idle+hurt match source species (verifier a054e9651a23ad714); fixed by reordering refs (mob_concept primary) + stronger identity-preservation prompt language; prior drift on mobs 0+4 resolved
 
 NOTE: TC-123 (re-run no-op) achieved as side-effect of skip-if-exists in image-helper.ts/concept.ts/world-spec.ts — verified third run = 0.13s, zero PNG byte changes
+
+### Phase 4 — strict-verifier follow-ups (verifier a4df16d72a6f84c67)
+
+[ ] TC-042b: Chroma-key magenta in generated sprites is exact #FF00FF
+  given: a wave-A or wave-B chroma-keyed sprite has been generated
+  when: a QA pixel-samples the supposed-magenta background regions
+  then: those pixels read as exact (255,0,255), not (243,5,232) or near-magenta
+  check: a post-generation validator OR a deterministic snap-to-#FF00FF post-pass produces exact-magenta backgrounds; runtime chroma keying matches without tolerance
+  STATUS: known FAIL — all 17 wave-B strips drift to (243, 3-12, 230-242). Fix lands in Phase 5 chroma-snap step.
+
+[ ] TC-050b: Master sheet idle row shows visible breath/sway across 4 frames
+  given: master sheet exists
+  when: a QA inspects row 1 (idle) frames
+  then: at least one anatomical landmark (shoulder, chest, head) shifts visibly between adjacent frames
+  check: row 1 not 4 near-identical standing poses
+
+[ ] TC-050c: Master sheet jump row shows 4 distinct phases
+  given: master sheet exists
+  when: a QA inspects row 4 (jump) frames
+  then: anticipation crouch → push-off extended → apex airborne → landing impact, in that order
+  check: at least one frame shows the character clearly airborne
+
+[ ] TC-050d: Master sheet crawl row shows consistent low-stance progression
+  given: master sheet exists
+  when: a QA inspects row 5 (crawl) frames
+  then: all 4 frames are low-horizontal stance with progressive limb cycling
+  check: no upright frames mixed in; same orientation across the 4 cells
+
+[ ] TC-053b: Mob idle motion floor — visible delta between adjacent frames
+  given: a mob idle strip
+  when: a QA compares any two adjacent frames
+  then: at least one anatomical landmark moved by >2% of canvas height
+  check: mobs 0, 3, 6 currently fail; need stronger idle-motion prompt or per-frame jitter
 
 ---
 
