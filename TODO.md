@@ -170,7 +170,7 @@ outputs as references).
   -> character_<tag>_combined.png at 2400×3440; 5×4 grid (idle/walk/run/jump/crawl) (verifier a5eca3441dd891205)
 
 [BLOCKED] TC-051: Master sheet preserves character scale across all 20 cells
-  -> strict re-verify (verifier a4df16d72a6f84c67) FAILS: row 1 visibly taller than rows 2-3, feet baselines drift within row 1; "ALL 20 cells" contract not met. Retrying producer with explicit pixel-rail prompt language.
+  -> retry 1 of 2 (pixel-rail prompt) FAILED: rows 4-5 kneeling stance shrinks total figure / head tops drop below rail (verifier a83e17c86de7b3c4b). Retry 2: changing approach — per-row strip generation + sharp composite, each row gets focused prompt context.
 
 [x] TC-052: Character attack strip is generated
   -> 1×4 on magenta; sword-attack progression (windup → swing → thrust → recover)
@@ -188,36 +188,29 @@ NOTE: TC-123 (re-run no-op) achieved as side-effect of skip-if-exists in image-h
 
 ### Phase 4 — strict-verifier follow-ups (verifier a4df16d72a6f84c67)
 
-[ ] TC-042b: Chroma-key magenta in generated sprites is exact #FF00FF
-  given: a wave-A or wave-B chroma-keyed sprite has been generated
-  when: a QA pixel-samples the supposed-magenta background regions
-  then: those pixels read as exact (255,0,255), not (243,5,232) or near-magenta
-  check: a post-generation validator OR a deterministic snap-to-#FF00FF post-pass produces exact-magenta backgrounds; runtime chroma keying matches without tolerance
-  STATUS: known FAIL — all 17 wave-B strips drift to (243, 3-12, 230-242). Fix lands in Phase 5 chroma-snap step.
+[x] TC-042b: Chroma-key magenta in generated sprites is exact #FF00FF
+  -> Phase 5 post-chroma stage (pipeline/src/post/chroma-snap.ts + chroma-snap-stage.ts) snaps any RGB pixel within Manhattan distance 30 of (255,0,255) to exact (255,0,255). Idempotent (sidecar marker extra.chroma_snapped=true). Stage runs after Wave B; processes layers (skipping opaque), tileset, character concept/combined/attack, mob concepts/idle/hurt, obstacles, items, inventory, portal. Skips concept_<tag>.png and the opaque parallax backdrop. Spot-check on snowy-mountain run: character_attack near=1346456→0 / exact=2→1346458; layer_near_fir_grass near=1193228→0 / exact=47→1193275; character_combined exact=0→8900. Re-run = 32ms (idempotency). Pipeline exit 0.
 
 [ ] TC-050b: Master sheet idle row shows visible breath/sway across 4 frames
-  given: master sheet exists
-  when: a QA inspects row 1 (idle) frames
-  then: at least one anatomical landmark (shoulder, chest, head) shifts visibly between adjacent frames
-  check: row 1 not 4 near-identical standing poses
+  -> retry 1 FAILED: row 1 still 4 near-identical poses. Retry 2 (per-row strip generation) coupled with TC-051.
 
 [ ] TC-050c: Master sheet jump row shows 4 distinct phases
-  given: master sheet exists
-  when: a QA inspects row 4 (jump) frames
-  then: anticipation crouch → push-off extended → apex airborne → landing impact, in that order
-  check: at least one frame shows the character clearly airborne
+  -> retry 1 FAILED: row contains zero airborne frames; model renders crouches in grid context. Retry 2 (per-row strip with focused prompt) coupled with TC-051.
 
-[ ] TC-050d: Master sheet crawl row shows consistent low-stance progression
-  given: master sheet exists
-  when: a QA inspects row 5 (crawl) frames
-  then: all 4 frames are low-horizontal stance with progressive limb cycling
-  check: no upright frames mixed in; same orientation across the 4 cells
+[x] TC-050d: Master sheet crawl row shows consistent low-stance progression
+  -> all 4 row-5 frames low-horizontal/kneeling, consistent orientation, visible limb cycling
 
 [ ] TC-053b: Mob idle motion floor — visible delta between adjacent frames
   given: a mob idle strip
   when: a QA compares any two adjacent frames
   then: at least one anatomical landmark moved by >2% of canvas height
   check: mobs 0, 3, 6 currently fail; need stronger idle-motion prompt or per-frame jitter
+
+[ ] TC-053c: Mob idle/hurt sprite reserves chroma-key background
+  given: a mob idle/hurt strip
+  when: pixel-sample exact #FF00FF count after generation+snap
+  then: at least 1000 exact-magenta pixels remain
+  check: mob_7_idle currently 603 — sprite covers nearly full canvas; producer should reserve background margin
 
 ---
 

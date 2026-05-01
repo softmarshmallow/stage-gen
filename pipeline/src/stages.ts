@@ -25,6 +25,7 @@ import { generateCharacterCombined } from "./ai/character-combined.ts";
 import { generateCharacterAttack } from "./ai/character-attack.ts";
 import { generateAllMobIdles } from "./ai/mob-idle.ts";
 import { generateAllMobHurts } from "./ai/mob-hurt.ts";
+import { runPostChroma } from "./post/chroma-snap-stage.ts";
 import { WorldSpecSchema } from "./schema/world.ts";
 import type { PipelineEnv } from "./env.ts";
 
@@ -282,7 +283,28 @@ export const STAGES: Stage[] = [
     },
   },
 
-  // Wave 4 — CPU post.
+  // Wave 4 — CPU post: deterministic chroma-snap (TC-042b).
+  // Snaps near-magenta drift in every chroma-keyed sprite to exact #FF00FF
+  // so the runtime can chroma-key without tolerance (prerequisite for
+  // TC-062). Runs after Wave B so all chroma-keyed assets are present.
+  // Idempotent — re-runs skip files whose sidecars already mark
+  // extra.chroma_snapped: true.
+  {
+    name: "post-chroma",
+    wave: 4,
+    description: "snap near-magenta drift to exact #FF00FF on chroma-keyed sprites",
+    run: async (ctx) => {
+      const summary = await runPostChroma({ runDir: ctx.runDir, tag: ctx.tag });
+      // Artifacts are the in-place PNGs and their updated sidecars.
+      const artifacts: string[] = [];
+      for (const r of summary.processed) {
+        artifacts.push(r.imagePath, `${r.imagePath}.meta.json`);
+      }
+      return { artifacts };
+    },
+  },
+
+  // Wave 4 — CPU post: master-sheet slicer (TC-060/TC-061; still stub).
   stubStage("post-split", 4, "split master sheet into per-state strips"),
 
   // Wave 5 — manifest.
