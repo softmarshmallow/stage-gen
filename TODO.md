@@ -97,6 +97,38 @@ NOTE: retry helper (5 blind, exp backoff) and meta sidecar writer in place — P
 NOTE: pipeline/src/schema/world.ts is single source of truth for downstream consumers (asset generators, runtime).
 NOTE: pipeline/src/ai/client.ts centralises gateway + ai-sdk wiring — Phase 3 generators import from here.
 
+### Phase 2 — strict-verifier follow-ups (verifier a7ee66f3f172806df)
+
+[ ] TC-024b: Layer parallax tuples vary across worlds (not copy of prompt examples)
+  given: two distinct prompts have produced two world bibles
+  when: a QA compares the two specs' layers[].parallax arrays
+  then: the two arrays differ in at least one numeric value
+  check: parallax tuples are NOT identical bit-for-bit across distinct worlds
+
+[ ] TC-024c: Layer archetype ordering varies across worlds
+  given: two distinct world bibles
+  when: a QA compares layer descriptions in z_index order
+  then: archetype order (sky→distant→mid→near→foreground) differs in at least one slot
+  check: not every world reads as the same five-band stack
+
+[ ] TC-026b: Item kinds are semantically distinct, not synonyms
+  given: a world bible items[] of length 8
+  when: a QA inspects the `kind` strings for synonym pairs
+  then: no two kinds share a noun-head (e.g. both ending in `-vial`/`-phial`, both containing `coin`/`token`/`chip` currency)
+  check: a refine in pipeline/src/schema/world.ts rejects synonym pairs
+
+[ ] TC-025b: Mob body_plan strings encode anatomy, not scale or vibe
+  given: a world bible mobs[]
+  when: a QA inspects each body_plan string
+  then: each contains an anatomical noun (humanoid/quadruped/biped/insectoid/etc.) — not pure vibe ("floating shroud") or pure scale ("palm-sized crawler")
+  check: a refine rejects body_plans without an anatomical-noun whitelist hit
+
+[ ] TC-028b: Layer.parallax has a hard upper bound in the schema
+  given: a world bible
+  when: zod parses a layer with parallax > 2 (or whatever upper bound spec implies)
+  then: parse fails
+  check: zod schema includes .max() on Layer.parallax
+
 ---
 
 ## PHASE 3 — Wave A: parallel asset fan-out
