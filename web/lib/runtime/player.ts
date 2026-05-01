@@ -72,6 +72,7 @@ export class Player {
     jump: Phaser.Input.Keyboard.Key;
     attack1: Phaser.Input.Keyboard.Key;
     attack2: Phaser.Input.Keyboard.Key;
+    attack3: Phaser.Input.Keyboard.Key;
     shift: Phaser.Input.Keyboard.Key;
     inventory: Phaser.Input.Keyboard.Key;
   };
@@ -128,6 +129,7 @@ export class Player {
       jump: kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       attack1: kb.addKey(Phaser.Input.Keyboard.KeyCodes.J),
       attack2: kb.addKey(Phaser.Input.Keyboard.KeyCodes.X),
+      attack3: kb.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
       shift: kb.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
       inventory: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I),
     };
@@ -153,7 +155,7 @@ export class Player {
       (k && Phaser.Input.Keyboard.JustDown(k.up)) ||
       false;
     const wantsAttack =
-      (k && (Phaser.Input.Keyboard.JustDown(k.attack1) || Phaser.Input.Keyboard.JustDown(k.attack2))) || false;
+      (k && (Phaser.Input.Keyboard.JustDown(k.attack1) || Phaser.Input.Keyboard.JustDown(k.attack2) || Phaser.Input.Keyboard.JustDown(k.attack3))) || false;
 
     // Determine target horizontal velocity.
     let targetVx = 0;

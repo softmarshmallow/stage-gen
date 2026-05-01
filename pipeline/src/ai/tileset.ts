@@ -38,7 +38,7 @@ CANVAS GEOMETRY — strict:
 
 ROW ROLE CONTRACT — each row encodes a DIFFERENT STRUCTURAL ROLE FAMILY. The four rows MUST read as four visually distinct families. If rows 2/3/4 all look like the same featureless block of underground material, the sheet is WRONG.
 
-ROW 1 — TOP SURFACE TILES (sky above the cell). The walkable surface is a thin band near the TOP of each cell; magenta fills the area ABOVE the surface; underground material fills BELOW the surface down to the cell's bottom edge.
+ROW 1 — TOP SURFACE TILES. **This is the ONLY row that contains surface material** (grass / snow / sand cap / etc., picked from the style reference). The walkable surface is a thin band near the TOP of each cell; magenta fills the area ABOVE the surface; underground material fills BELOW the surface down to the cell's bottom edge.
   • Cell (1,1): TOP-LEFT outer corner — surface only on TOP and LEFT edges; magenta fills the upper-right quadrant; underground fills lower-right.
   • Cell (1,2)–(1,4): TOP middle — flat continuous surface along the top edge; magenta above, underground below. Vary each cell with subtle decoration (a tuft, a pebble, a clean variant).
   • Cell (1,5): TOP-RIGHT outer corner — surface only on TOP and RIGHT edges; magenta fills the upper-left quadrant.
@@ -46,25 +46,25 @@ ROW 1 — TOP SURFACE TILES (sky above the cell). The walkable surface is a thin
   • Cell (1,9)–(1,11): more TOP middle variants (clean / decorated / clumped surface details).
   • Cell (1,12): TOP-LEFT outer corner variant (mirror of (1,1)) — closes the row.
 
-ROW 2 — SLOPE TILES + INNER (CONCAVE) CORNER TILES. The defining feature of this row is DIAGONAL geometry. Every cell must show an obviously DIAGONAL boundary between magenta-sky and underground material. NO cell in this row is a featureless flat block.
-  • Cell (2,1): SLOPE UP 45° — diagonal rises from BOTTOM-LEFT to TOP-RIGHT; magenta fills the UPPER-LEFT triangle, underground fills the LOWER-RIGHT triangle, with surface material capping the diagonal as a clean ramp the player walks up.
-  • Cell (2,2): SLOPE DOWN 45° — diagonal rises from TOP-LEFT to BOTTOM-RIGHT; magenta fills the UPPER-RIGHT triangle.
-  • Cell (2,3): GENTLE SLOPE UP (left half, ~22.5°) — shallow diagonal rising from bottom-left into the cell's right edge at mid-height; large magenta wedge in the upper-left.
-  • Cell (2,4): GENTLE SLOPE UP (right half) — continues from (2,3); diagonal exits the cell's right edge at the top.
-  • Cell (2,5): GENTLE SLOPE DOWN (left half) — diagonal enters the right edge at top, falls toward bottom-right.
-  • Cell (2,6): GENTLE SLOPE DOWN (right half) — completes the descent.
-  • Cell (2,7): SLOPE-UP CAP — a slope meets a flat top going right (junction tile); diagonal in the left half, flat surface in the right half.
-  • Cell (2,8): SLOPE-DOWN CAP — flat surface on the left half drops into a slope on the right half.
+ROW 2 — SLOPE TILES + INNER (CONCAVE) CORNER TILES. The defining feature of this row is DIAGONAL geometry. Every cell must show an obviously DIAGONAL boundary between magenta-sky and underground material. **No surface material anywhere in this row** — the diagonal is a clean cut between magenta and underground. NO cell in this row is a featureless flat block.
+  • Cell (2,1): SLOPE UP 45° — diagonal rises from BOTTOM-LEFT to TOP-RIGHT; magenta fills the UPPER-LEFT triangle, underground fills the LOWER-RIGHT triangle. The diagonal is a clean dirt-to-magenta cut; NO grass/snow/surface cap on the slope.
+  • Cell (2,2): SLOPE DOWN 45° — diagonal rises from TOP-LEFT to BOTTOM-RIGHT; magenta fills the UPPER-RIGHT triangle, underground fills the LOWER-LEFT triangle. Clean dirt-to-magenta cut; NO surface cap.
+  • Cell (2,3): GENTLE SLOPE UP (left half, ~22.5°) — shallow diagonal rising from bottom-left into the cell's right edge at mid-height; large magenta wedge in the upper-left; underground fills the rest. NO surface cap.
+  • Cell (2,4): GENTLE SLOPE UP (right half) — continues from (2,3); diagonal exits the cell's right edge at the top. NO surface cap.
+  • Cell (2,5): GENTLE SLOPE DOWN (left half) — diagonal enters the right edge at top, falls toward bottom-right. NO surface cap.
+  • Cell (2,6): GENTLE SLOPE DOWN (right half) — completes the descent. NO surface cap.
+  • Cell (2,7): SLOPE-UP CAP — a slope meets a flat top going right; diagonal in the left half, flat horizontal underground-to-magenta edge in the right half. All dirt below the boundary; magenta above. NO surface material.
+  • Cell (2,8): SLOPE-DOWN CAP — flat horizontal underground-to-magenta edge on the left half, slope on the right half. NO surface material.
   • Cell (2,9): INNER CORNER TOP-LEFT (concave) — magenta is a clean QUARTER-CIRCLE BITE in the TOP-LEFT corner only; underground fills the rest of the cell.
   • Cell (2,10): INNER CORNER TOP-RIGHT (concave) — magenta quarter-circle bite in the TOP-RIGHT corner only.
   • Cell (2,11): INNER CORNER BOTTOM-LEFT (concave) — magenta quarter-circle bite in the BOTTOM-LEFT corner only.
   • Cell (2,12): INNER CORNER BOTTOM-RIGHT (concave) — magenta quarter-circle bite in the BOTTOM-RIGHT corner only.
 
-ROW 3 — SIDE TILES + BOTTOM-EDGE / OUTER (CONVEX) CORNER TILES. Defining feature: VERTICAL or HORIZONTAL CLIFF EDGES with magenta on ONE side only. Every cell shows a clear straight edge between magenta and underground material — NO cell is a featureless block.
-  • Cell (3,1): SIDE-LEFT — vertical cliff face; magenta fills the LEFT third of the cell; the cliff face (a vertical wall edge in surface material) runs top-to-bottom; underground fills the right two-thirds.
-  • Cell (3,2): SIDE-RIGHT — magenta fills the RIGHT third; cliff face on the right edge.
-  • Cell (3,3): SIDE-LEFT variant — same as (3,1) with subtle texture variation.
-  • Cell (3,4): SIDE-RIGHT variant — same as (3,2) with subtle texture variation.
+ROW 3 — SIDE TILES + BOTTOM-EDGE / OUTER (CONVEX) CORNER TILES. Defining feature: VERTICAL or HORIZONTAL CLIFF EDGES with magenta on ONE side only. Every cell shows a clear straight edge between magenta and underground material — NO cell is a featureless block. **No surface material anywhere in this row** — every edge is a direct dirt-to-magenta cut.
+  • Cell (3,1): SIDE-LEFT — magenta fills the LEFT third of the cell; underground fills the right two-thirds; the boundary is a clean VERTICAL CLIFF EDGE running top-to-bottom — no grass cap, no surface band.
+  • Cell (3,2): SIDE-RIGHT — magenta fills the RIGHT third; underground fills the left two-thirds; clean vertical dirt-to-magenta cut.
+  • Cell (3,3): SIDE-LEFT variant — same as (3,1) with subtle dirt texture variation; still no surface material.
+  • Cell (3,4): SIDE-RIGHT variant — same as (3,2) with subtle dirt texture variation; still no surface material.
   • Cell (3,5): BOTTOM-LEFT outer corner — magenta fills BOTTOM and LEFT (an L-shape of magenta wrapping the bottom-left); underground fills the upper-right.
   • Cell (3,6): BOTTOM-MIDDLE — magenta fills the BOTTOM third only; cliff bottom-edge (a horizontal underside) runs left-to-right; underground fills the upper two-thirds.
   • Cell (3,7): BOTTOM-MIDDLE variant.
@@ -74,18 +74,19 @@ ROW 3 — SIDE TILES + BOTTOM-EDGE / OUTER (CONVEX) CORNER TILES. Defining featu
   • Cell (3,11): OUTER CORNER BOTTOM-LEFT — underground only in bottom-left quadrant.
   • Cell (3,12): OUTER CORNER BOTTOM-RIGHT — underground only in bottom-right quadrant.
 
-ROW 4 — INTERIOR FILL + FLOATING PLATFORM TILES. Two visually distinct sub-families inside this row.
-  • Cell (4,1)–(4,4): INTERIOR FILL — solid underground material edge-to-edge, NO magenta anywhere in the cell. Each cell is a subtly different texture variant (different rock cluster / pebble pattern / packed-snow grain). These are the ONLY cells in the entire sheet that legitimately read as "solid underground block".
-  • Cell (4,5): FLOATING PLATFORM LEFT — a self-contained mini-platform; surface material caps the TOP, underground rounds off into a curved/tapered BOTTOM-LEFT, magenta surrounds the platform on TOP, LEFT and BOTTOM (the platform "floats" with magenta sky on three sides).
-  • Cell (4,6): FLOATING PLATFORM MIDDLE — surface caps the TOP, underground sits flat at the BOTTOM, magenta surrounds on TOP and BOTTOM (passes through horizontally to neighbours).
-  • Cell (4,7): FLOATING PLATFORM MIDDLE variant.
-  • Cell (4,8): FLOATING PLATFORM RIGHT — mirror of (4,5); curved/tapered BOTTOM-RIGHT, magenta on TOP, RIGHT and BOTTOM.
-  • Cell (4,9): SINGLE 1-TILE FLOATING PLATFORM — fully self-contained: magenta on all four sides, surface cap on top, rounded underground bottom; reads as one isolated step.
-  • Cell (4,10): 2-TILE FLOATING PLATFORM LEFT — surface cap top, rounded bottom-left, magenta on TOP, LEFT, BOTTOM.
-  • Cell (4,11): 2-TILE FLOATING PLATFORM RIGHT — mirror of (4,10).
-  • Cell (4,12): CLOUD-STYLE FLOATING TILE — softer, more diffuse silhouette but still a clearly bounded floating platform with magenta surrounding.
+ROW 4 — INTERIOR FILL + FLOATING PLATFORM TILES. Two visually distinct sub-families inside this row. **No surface material anywhere in this row** — every floating platform is a pure dirt island with a flat-or-rounded TOP edge cutting straight against magenta sky; NO grass/snow cap on any platform.
+  • Cell (4,1)–(4,4): INTERIOR FILL — solid underground material edge-to-edge, NO magenta anywhere in the cell. Each cell is a subtly different texture variant (different rock cluster / pebble pattern / packed-dirt grain). These are the ONLY cells in the entire sheet that legitimately read as "solid underground block".
+  • Cell (4,5): FLOATING PLATFORM LEFT — a self-contained mini-platform of pure underground material; flat dirt TOP edge cutting straight against magenta sky above; underground rounds off into a curved/tapered BOTTOM-LEFT; magenta surrounds the platform on TOP, LEFT and BOTTOM. NO surface cap.
+  • Cell (4,6): FLOATING PLATFORM MIDDLE — flat dirt TOP edge, underground sits flat at the BOTTOM, magenta surrounds on TOP and BOTTOM (passes through horizontally to neighbours). NO surface cap.
+  • Cell (4,7): FLOATING PLATFORM MIDDLE variant. NO surface cap.
+  • Cell (4,8): FLOATING PLATFORM RIGHT — mirror of (4,5); flat dirt TOP, curved/tapered BOTTOM-RIGHT, magenta on TOP, RIGHT and BOTTOM. NO surface cap.
+  • Cell (4,9): SINGLE 1-TILE FLOATING PLATFORM — fully self-contained dirt island: magenta on all four sides, flat dirt TOP, rounded underground bottom; reads as one isolated step. NO surface cap.
+  • Cell (4,10): 2-TILE FLOATING PLATFORM LEFT — flat dirt TOP, rounded bottom-left, magenta on TOP, LEFT, BOTTOM. NO surface cap.
+  • Cell (4,11): 2-TILE FLOATING PLATFORM RIGHT — mirror of (4,10). NO surface cap.
+  • Cell (4,12): CLOUD-STYLE FLOATING TILE — softer, more diffuse silhouette but still a clearly bounded dirt platform with magenta surrounding. NO surface cap.
 
-ABSOLUTE REQUIREMENTS (read carefully — the previous attempt failed on these):
+ABSOLUTE REQUIREMENTS (read carefully — the previous attempts failed on these):
+  0. **ROW 1 IS THE ONLY ROW WITH SURFACE MATERIAL.** Row 1 cells have a thin grass/snow/sand band capping the dirt. Rows 2, 3 and 4 contain ONLY dirt (underground material) and magenta — NO grass, NO snow cap, NO green band, NO surface stripe anywhere. Slopes, sides, corners and floating platforms in rows 2/3/4 are pure dirt cut against magenta sky.
   1. ROWS MUST READ AS FOUR DIFFERENT FAMILIES. If a verifier looks at the sheet and sees "row 1 has surface tiles" but "rows 2/3/4 all look like one big stone block", the sheet is wrong. Row 2 is dominated by DIAGONALS. Row 3 is dominated by STRAIGHT VERTICAL/HORIZONTAL EDGES with magenta on one side. Row 4 mixes solid fill blocks (left half) with FLOATING PLATFORMS surrounded by magenta (right half).
   2. SLOPES IN ROW 2 MUST ACTUALLY SLOPE. Each slope cell shows a clear diagonal boundary between magenta and underground — not a flat horizontal surface band, not a rectangular block.
   3. CORNERS MUST SHOW CORNERS. Inner-corner cells (concave) show a quarter-circle BITE of magenta in the named corner. Outer-corner cells (convex) show underground material ONLY in the named quadrant, magenta everywhere else in the cell.

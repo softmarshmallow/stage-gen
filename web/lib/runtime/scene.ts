@@ -127,9 +127,28 @@ export class StageScene extends Phaser.Scene {
   private fpsProbe = new FpsProbe(30);
 
   // Parallax sprite tracking — index by layer id.
-  private parallaxSprites: { id: string; sprite: Phaser.GameObjects.TileSprite; parallax: number }[] = [];
+  // For fading layers we render TWO TileSprites at the same screen position.
+  // The partner is offset by (naturalWidth − fadePx) in source space so its
+  // RIGHT fade band lands exactly on the primary's LEFT fade band (and vice
+  // versa). With linear taper the two alphas sum to ~1 across the entire
+  // fade band — the seam disappears.
+  private parallaxSprites: {
+    id: string;
+    sprite: Phaser.GameObjects.TileSprite;
+    parallax: number;
+    partner?: Phaser.GameObjects.TileSprite;
+    naturalWidth: number;
+    seamOffset: number;
+  }[] = [];
   // Foreground (parallax > 1.0): TileSprites placed in front of gameplay.
-  private foregroundSprites: { id: string; sprite: Phaser.GameObjects.TileSprite; parallax: number }[] = [];
+  private foregroundSprites: {
+    id: string;
+    sprite: Phaser.GameObjects.TileSprite;
+    parallax: number;
+    partner?: Phaser.GameObjects.TileSprite;
+    naturalWidth: number;
+    seamOffset: number;
+  }[] = [];
 
   // Phase 7 systems.
   private player?: Player;
@@ -275,11 +294,18 @@ export class StageScene extends Phaser.Scene {
     }
 
     // Drive parallax tilePosition based on scrollX × parallax.
+    // For fading layers the partner is offset by seamOffset = (W − fadePx)
+    // in source space so its right fade band lands directly on top of the
+    // primary's left fade band → composited alpha stays opaque across seam.
     for (const p of this.parallaxSprites) {
-      p.sprite.tilePositionX = cam.scrollX * p.parallax;
+      const tx = cam.scrollX * p.parallax;
+      p.sprite.tilePositionX = tx;
+      if (p.partner) p.partner.tilePositionX = tx + p.seamOffset;
     }
     for (const p of this.foregroundSprites) {
-      p.sprite.tilePositionX = cam.scrollX * p.parallax;
+      const tx = cam.scrollX * p.parallax;
+      p.sprite.tilePositionX = tx;
+      if (p.partner) p.partner.tilePositionX = tx + p.seamOffset;
     }
 
     if (typeof window !== "undefined") {
@@ -332,6 +358,7 @@ export class StageScene extends Phaser.Scene {
     // ---------- Parallax layers ----------
     // Sort by z_index ascending so we render back-to-front.
     const sortedLayers = [...spec.layers].sort((a, b) => a.z_index - b.z_index);
+    const FADE_PX = 64;
     for (const layer of sortedLayers) {
       const file = `layer_${tag}_${layer.id}.png`;
       const key = `layer_${layer.id}`;
@@ -340,7 +367,7 @@ export class StageScene extends Phaser.Scene {
           u(file),
           key,
           layer.opaque,
-          64,
+          FADE_PX,
           this.textures,
         );
         this.probes.loadedAssetKeys.push(key);
@@ -367,6 +394,25 @@ export class StageScene extends Phaser.Scene {
         const ts = VIEW_H / loaded.height;
         sprite.setTileScale(ts, ts);
 
+        // Helper: build a half-phase partner TileSprite that renders at the
+        // same screen position but tiled at +naturalWidth/2 in source space.
+        // This stitches the fade seams: at any screen-x where sprite A is in
+        // its fade band, sprite B is mid-tile (full alpha) and covers it.
+        // Skipped for opaque layers (no fade gap to stitch).
+        const makePartner = (depth: number) => {
+          const partner = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, key);
+          partner.setOrigin(0, 0);
+          partner.setScrollFactor(0);
+          partner.setTileScale(ts, ts);
+          partner.setDepth(depth);
+          return partner;
+        };
+
+        // Tight edge-overlap: partner is shifted by (W − fadePx) so its
+        // RIGHT fade band lands directly on top of primary's LEFT fade band.
+        // Linear taper sum c/F + (F−1−c)/F ≈ 1 across the band → seamless.
+        const seamOffset = loaded.width - FADE_PX;
+
         if (layer.parallax > 1.0) {
           sprite.setDepth(1000 + layer.z_index);
           try {
@@ -378,14 +424,47 @@ export class StageScene extends Phaser.Scene {
               fx.addBlur(0, 2, 2, strength, 0xffffff, 4);
             }
           } catch {}
-          this.foregroundSprites.push({ id: layer.id, sprite, parallax: layer.parallax });
+          // Foreground partner sits at the same depth slot; mirror the blur.
+          const partner = makePartner(1000 + layer.z_index);
+          try {
+            const fx = (partner as unknown as {
+              postFX?: { addBlur?: (q?: number, x?: number, y?: number, str?: number, color?: number, steps?: number) => unknown };
+            }).postFX;
+            if (fx?.addBlur) {
+              const strength = Math.min(4, (layer.parallax - 1.0) * 6);
+              fx.addBlur(0, 2, 2, strength, 0xffffff, 4);
+            }
+          } catch {}
+          this.foregroundSprites.push({
+            id: layer.id,
+            sprite,
+            parallax: layer.parallax,
+            partner,
+            naturalWidth: loaded.width,
+            seamOffset,
+          });
           this.probes.foregroundLayers.push(layer.id);
         } else if (layer.opaque) {
           sprite.setDepth(0);
-          this.parallaxSprites.push({ id: layer.id, sprite, parallax: 0 });
+          // Opaque skybox doesn't fade → no seam to stitch → no partner.
+          this.parallaxSprites.push({
+            id: layer.id,
+            sprite,
+            parallax: 0,
+            naturalWidth: loaded.width,
+            seamOffset: 0,
+          });
         } else {
           sprite.setDepth(layer.z_index);
-          this.parallaxSprites.push({ id: layer.id, sprite, parallax: layer.parallax });
+          const partner = makePartner(layer.z_index);
+          this.parallaxSprites.push({
+            id: layer.id,
+            sprite,
+            parallax: layer.parallax,
+            partner,
+            naturalWidth: loaded.width,
+            seamOffset,
+          });
         }
       } catch (e) {
         this.recordErr(e);
