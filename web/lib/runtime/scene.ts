@@ -358,7 +358,11 @@ export class StageScene extends Phaser.Scene {
     // ---------- Parallax layers ----------
     // Sort by z_index ascending so we render back-to-front.
     const sortedLayers = [...spec.layers].sort((a, b) => a.z_index - b.z_index);
-    const FADE_PX = 64;
+    // Fade band width on each tile edge (and the overlap width with the
+    // partner sprite). Larger = more of the texture cross-blends at the
+    // seam = softer / less visible wrap. seamOffset stays = W − FADE_PX
+    // so primary's left fade lands exactly on partner's right fade.
+    const FADE_PX = 256;
     for (const layer of sortedLayers) {
       const file = `layer_${tag}_${layer.id}.png`;
       const key = `layer_${layer.id}`;
