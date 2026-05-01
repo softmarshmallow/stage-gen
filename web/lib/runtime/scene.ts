@@ -27,8 +27,9 @@ import {
   loadGridSheet,
   loadTileset,
 } from "./assets";
-import { buildHeightmap, slopeAt, flatRuns, type SlopeKind } from "./heightmap";
-import { pickRole } from "./tiles";
+import { buildHeightmap, flatRuns, type SlopeKind } from "./heightmap";
+// pickRole / slopeAt no longer needed — assembleGround uses a single
+// ground_fill cell (registered by loadTileset) for every tile.
 import { FpsProbe, type FpsSnapshot } from "./fps";
 import { Player, type PlayerStateSnapshot } from "./player";
 import { Mob } from "./mob";
@@ -689,20 +690,15 @@ export class StageScene extends Phaser.Scene {
     const groundDepth = 500;
 
     const sheetKey = `tileset`;
-    const variantOfCol = (x: number) => x % 3;
+    // Quick ship: the 12×4 role contract is unreliable (gpt-image-2 doesn't
+    // always honour it). Use the single best-opacity cell (registered as
+    // `ground_fill` by loadTileset) for every ground tile. Loses
+    // slope/corner variety but every column renders as a clean solid block.
+    const frameKey = "ground_fill";
 
     for (let x = 0; x < heights.length; x++) {
       const h = heights[x];
-      const slope = slopeAt(heights, x);
       for (let depth = 0; depth < h; depth++) {
-        const role = pickRole(
-          slope,
-          depth,
-          depth > 0 && (x === 0 || heights[x - 1] < h),
-          depth > 0 && (x === heights.length - 1 || heights[x + 1] < h),
-        );
-        const variant = variantOfCol(x + depth);
-        const frameKey = `${role}_v${variant}`;
         const tx = x * TILE_PX + TILE_PX / 2;
         const ty = baseY - depth * TILE_PX - TILE_PX / 2;
         const img = this.add.image(tx, ty, sheetKey, frameKey);

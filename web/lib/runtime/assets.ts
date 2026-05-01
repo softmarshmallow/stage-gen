@@ -161,7 +161,12 @@ export async function loadTileset(
   url: string,
   key: string,
   textures: Phaser.Textures.TextureManager,
-): Promise<{ canvas: HTMLCanvasElement; tileW: number; tileH: number }> {
+): Promise<{
+  canvas: HTMLCanvasElement;
+  tileW: number;
+  tileH: number;
+  bestFillCell: { row: number; col: number; opacity: number };
+}> {
   const img = await fetchImage(url);
   const keyed = chromaKeyToAlpha(img);
   registerCanvas(textures, key, keyed);
@@ -180,5 +185,36 @@ export async function loadTileset(
       tex.add(`${role}_v${v}`, 0, r.x, r.y, r.w, r.h);
     }
   }
-  return { canvas: keyed, tileW, tileH };
+
+  // Quick fallback: gpt-image-2 doesn't always honour the 12×4 role contract,
+  // so scan every cell, pick the one with the most opaque pixels (= least
+  // magenta-after-chroma-key) and register it as `ground_fill`. The ground
+  // assembler can use this single cell for every column when it would
+  // otherwise render a half-transparent / mismatched role tile.
+  const ctx = keyed.getContext("2d", { willReadFrequently: true });
+  let best = { row: 0, col: 0, opacity: 0 };
+  if (ctx) {
+    for (let row = 0; row < TILESET_ROWS; row++) {
+      for (let col = 0; col < TILESET_COLS; col++) {
+        const data = ctx.getImageData(col * tileW, row * tileH, tileW, tileH).data;
+        let opaque = 0;
+        // Sample every 4th pixel for speed; 50×50 samples per cell is plenty.
+        for (let i = 3; i < data.length; i += 16) {
+          if (data[i] === 255) opaque++;
+        }
+        const opacity = opaque / (data.length / 16);
+        if (opacity > best.opacity) best = { row, col, opacity };
+      }
+    }
+  }
+  tex.add(
+    "ground_fill",
+    0,
+    best.col * tileW,
+    best.row * tileH,
+    tileW,
+    tileH,
+  );
+
+  return { canvas: keyed, tileW, tileH, bestFillCell: best };
 }
