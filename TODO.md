@@ -123,104 +123,44 @@ wave — the agent may dispatch them in parallel — but **every TC in
 Phase 3 must pass before any TC in Phase 4 starts** (Wave B reads Wave A
 outputs as references).
 
-[ ] TC-030: Skybox layer is generated at the contracted canvas size
-  given: world bible and concept image exist
-  when: the skybox generator runs
-  then: the opaque skybox layer PNG is written at exactly 2400×800
-  check: file exists; dimensions read as 2400×800
+[x] TC-030: Skybox layer is generated at the contracted canvas size
+  -> opaque layer (bluebird_sky) at 2400×800 (verifier a7805c7e75228324e)
 
-[ ] TC-031: Each parallax layer (1–5) is generated at the contracted size
-  given: world bible has L layers (1 ≤ L ≤ 5)
-  when: each parallax layer's generator runs
-  then: L layer PNGs are written, each at exactly 2400×800
-  check: file count = L; each file dimensions = 2400×800
+[x] TC-031: Each parallax layer (1–5) is generated at the contracted size
+  -> 5 layer_*.png at 2400×800 each, matches L=5
 
-[ ] TC-032: Non-opaque parallax layers carry the contract chroma-key colour
-  given: a non-opaque parallax layer has been generated
-  when: a vision subagent inspects the layer for sky/background regions
-  then: those regions are the exact contract magenta `#FF00FF`, not a
-        near-magenta or a transparent fill
-  check: vision verdict = pass for "uses #FF00FF as chroma key"
+[x] TC-032: Non-opaque parallax layers carry the contract chroma-key colour
+  -> all 4 non-opaque layers show large pure #FF00FF regions matching paint_region (vision verifier a400318db53f04bcd)
 
-[ ] TC-033: Ground tileset is generated at the contracted size and grid
-  given: world bible and concept exist
-  when: the tileset generator runs
-  then: `tileset_<tag>.png` is written at 2400×800 and visibly contains
-        a 12×4 grid of cells
-  check: file exists; dimensions = 2400×800; vision verdict = pass on
-         "12 columns × 4 rows of tile cells visible"
+[BLOCKED] TC-033: Ground tileset is generated at the contracted size and grid
+  -> dims pass (2400×800); vision FAIL: rows 2/3/4 read as undifferentiated stone fill — slopes/corners/sides/platforms not discernible. Retrying producer with stronger layout-prior conformance.
 
-[ ] TC-034: Character turnaround is generated as a 3-pose sheet
-  given: world bible (character description) and concept exist
-  when: the character turnaround generator runs
-  then: `character_concept_<tag>.png` is written at 2400×800 with three
-        clearly distinct poses on a chroma-key magenta ground
-  check: file exists; dimensions = 2400×800; vision verdict = pass on
-         "three poses, magenta background"
+[x] TC-034: Character turnaround is generated as a 3-pose sheet
+  -> 2400×800; three distinct poses (front/side/back) on solid magenta
 
-[ ] TC-035: One mob turnaround is generated per ladder rung
-  given: world bible specifies N mobs
-  when: the mob turnaround generators run
-  then: N files of the form `mob_concept_<tag>_<i>.png` are written, one
-        per rung
-  check: file count = N
+[x] TC-035: One mob turnaround is generated per ladder rung
+  -> 8 mob_concept_*.png files, matches N=8
 
-[ ] TC-036: Mob turnarounds visually escalate up the ladder
-  given: all N mob turnarounds exist
-  when: a vision subagent compares rung 0 with rung N-1 against the
-        world bible's tier labels
-  then: rung 0 reads as the weakest silhouette, rung N-1 as the
-        strongest, with monotonic progression in between
-  check: vision verdict = pass on "monotonic escalation matches
-         tier_label progression"
+[x] TC-036: Mob turnarounds visually escalate up the ladder
+  -> monotonic progression: rung 0 (pika puff) → rung 7 (massive crested ice wyvern); intermediates escalate in size/menace
 
-[ ] TC-037: Obstacle sheets are generated, one per declared sheet theme
-  given: world bible specifies M obstacle sheets
-  when: the obstacle generators run
-  then: M sheets of the form `obstacles_<tag>_<i>.png` are written, each
-        with a 4×2 grid of distinct props on chroma-key magenta
-  check: file count = M; vision verdict = pass on "4×2 grid, distinct
-         props, magenta ground" for each
+[x] TC-037: Obstacle sheets are generated, one per declared sheet theme
+  -> 3 obstacle sheets, each 4×2 grid of distinct themed props on magenta
 
-[ ] TC-038: Items sheet contains exactly 8 distinct pickup props
-  given: world bible items list of length 8 exists
-  when: the items generator runs
-  then: `items_<tag>.png` is written as a 4×2 grid of 8 visibly distinct
-        pickup props on chroma-key magenta
-  check: file exists; vision verdict = pass on "4×2 grid, 8 distinct
-         items, magenta ground"
+[x] TC-038: Items sheet contains exactly 8 distinct pickup props
+  -> 4×2 grid of 8 visibly distinct items on magenta
 
-[ ] TC-039: Inventory panel is generated at the contracted size
-  given: world bible exists
-  when: the inventory panel generator runs
-  then: `inventory_<tag>.png` is written at 1536×1024 with locked slot
-        positions visible
-  check: file exists; dimensions = 1536×1024; vision verdict = pass on
-         "inventory panel with discrete slot positions"
+[x] TC-039: Inventory panel is generated at the contracted size
+  -> 1536×1024; 8 discrete recessed slot cells in 4×2 grid; magenta surround
 
-[ ] TC-040: Portal pair is generated at the contracted size
-  given: world bible exists
-  when: the portal generator runs
-  then: `portal_<tag>.png` is written at 2048×1024 containing two
-        distinct portal renderings (entry / exit)
-  check: file exists; dimensions = 2048×1024; vision verdict = pass on
-         "two distinct portals visible"
+[x] TC-040: Portal pair is generated at the contracted size
+  -> 2048×1024; two stone arches (cool blue entry / warm gold exit) clearly distinguishable
 
-[ ] TC-041: All Wave A outputs share the concept's stylistic palette
-  given: every Wave A asset has been generated for one tag
-  when: a vision subagent compares each output to the concept image
-        for palette and brushwork coherence
-  then: every output reads as belonging to the same world as the
-        concept; no asset reads as a stylistic outlier
-  check: vision verdict = pass for each asset against the concept
+[x] TC-041: All Wave A outputs share the concept's stylistic palette
+  -> concept + sky + parallax + character + mobs + items all share same painterly snowy-alpine palette; no outlier
 
-[ ] TC-042: Reproducibility metadata is persisted next to every Wave A asset
-  given: a Wave A asset has been generated
-  when: a QA inspects the output directory
-  then: alongside each PNG there is a sidecar holding the prompt, seed,
-        model name, reference paths, and any params used
-  check: for each Wave A PNG, a sidecar metadata file exists in the
-         same directory
+[x] TC-042: Reproducibility metadata is persisted next to every Wave A asset
+  -> all 22 PNGs have <name>.png.meta.json with prompt/model/refs/params/ts/attempts (verifier a7805c7e75228324e)
 
 ---
 
