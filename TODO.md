@@ -32,33 +32,17 @@ choice.
 
 ## PHASE 0 — Project bootstrap (must pass before anything else)
 
-[ ] TC-001: Repository installs cleanly on a fresh checkout
-  given: a clean clone of the repo and a system with Bun installed
-  when: the documented install command is run from the repo root
-  then: install completes with zero errors and zero unresolved deps
-  check: install command exits 0; no `error` lines in its stdout/stderr
+[x] TC-001: Repository installs cleanly on a fresh checkout
+  -> bun install exit 0, 58 packages, no error lines (verifier aab16fbadc218894a)
 
-[ ] TC-002: Required environment variables are documented and discoverable
-  given: a fresh checkout with no `.env` configured
-  when: a QA reads the project's setup docs
-  then: every required env var (image-gen key, text-gen key, gateway URL,
-        any others) is named in `.env.example` with a one-line purpose
-  check: `.env.example` exists at repo root and lists every key the
-         pipeline reads; `.env` is gitignored
+[x] TC-002: Required environment variables are documented and discoverable
+  -> .env.example lists 5 keys (AI_GATEWAY_API_KEY, AI_GATEWAY_BASE_URL, IMAGE_MODEL, TEXT_MODEL, OUT_DIR) matching pipeline/src/env.ts; .env gitignored
 
-[ ] TC-003: Pipeline fails fast on missing env vars with a clear message
-  given: `.env` is empty or missing one required key
-  when: the pipeline CLI is invoked
-  then: it exits non-zero within 2 seconds with a message naming the
-        missing key
-  check: stderr contains the missing key's name; exit code ≠ 0
+[x] TC-003: Pipeline fails fast on missing env vars with a clear message
+  -> exit 2 in <50ms with stderr naming AI_GATEWAY_API_KEY when key absent or empty
 
-[ ] TC-004: Repository has the three documented workspace areas
-  given: the repo is checked out
-  when: a QA inspects the top-level layout
-  then: there is a clear separation between pipeline code, web app code,
-        and committed fixtures, each independently runnable
-  check: each area has its own entry point and own dependency manifest
+[x] TC-004: Repository has the three documented workspace areas
+  -> pipeline/ + web/ each have own manifest + entry and run standalone (web binds :3000 HTTP 200); fixtures/ at top level
 
 ---
 
