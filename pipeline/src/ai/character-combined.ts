@@ -1,83 +1,162 @@
 // Character motion master sheet generator (Wave 3 / Wave B).
-// 5 rows × 4 columns of motion frames on chroma magenta, 2400×3440.
-// Largest call in the pipeline (≈8.26 Mpx, just under the model cap).
+//
+// PER-ROW STRATEGY (retry 2 of TC-051 / TC-050b / TC-050c):
+// The single 2400×3440 5-row generation produced two persistent failures:
+//   - jump row (row 4) contained zero airborne frames — model rendered
+//     crouches in grid context.
+//   - idle row (row 1) collapsed to 4 near-identical poses.
+//   - rows 4-5 kneeling stances shrank the figure (cross-row scale drift).
+//
+// Root cause: a single prompt that has to describe 5 different motion
+// states simultaneously dilutes per-state guidance and lets the model
+// skip per-row specificity. The character-attack strip (TC-052) uses a
+// single focused prompt and consistently produces 4 distinct phases.
+//
+// New approach: generate 5 independent 1×4 strips at 2400×688 each — same
+// shape as character-attack — with one focused prompt per state, then
+// composite them deterministically with sharp into the 2400×3440 master
+// sheet. Each strip carries the same identity ref (character_concept) so
+// scale-lock is an emergent property of identity preservation across
+// strips, not a prompt rule the model has to enforce within one canvas.
 //
 // Inputs:
-//   - layout prior: fixtures/image_gen_templates/character_template_combined.png
+//   - layout prior: fixtures/image_gen_templates/character_template.png  (4×1 strip)
 //   - identity ref: out/<tag>/character_concept_<tag>.png
 //
-// Rows (top → bottom): idle, walk, run, jump, crawl. 4 frames each.
+// Output filename unchanged: character_<tag>_combined.png
+// Sidecar records all 5 source strip paths and the composite step in extra.
 //
-// Reference order: layout template FIRST, identity ref SECOND. Per
-// docs/tech/gpt-image-2.md the model honours `images: [...]` in order
-// and the first image tends to dominate compositional / spatial framing.
-// We need the rails (cell geometry, head-top, feet-baseline) to dominate
-// here — TC-051 fails when scale drifts row-to-row, so layout primacy is
-// load-bearing. Identity is preserved by the explicit "match design
-// EXACTLY" prompt + the second ref carrying the colours/silhouette.
+// Reference order: layout template FIRST, identity ref SECOND. Same as
+// character-attack.ts (the working pattern).
 
 import { join } from "node:path";
+import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { dirname } from "node:path";
+import sharp from "sharp";
 import { generateImageAsset } from "./image-helper.ts";
+import { snapChromaKey } from "../post/chroma-snap.ts";
+import { writeMeta } from "../meta.ts";
 
 const CANVAS_W = 2400;
-const CANVAS_H = 3440;
+const ROW_H = 688; // master-sheet row height (composite output: 5 × 688 = 3440)
+const CANVAS_H = ROW_H * 5; // 3440
 
-// Grid math — every prompt callout below is derived from these constants
-// so the prompt and the runtime slicer share a single source of truth.
-const COLS = 4;
-const ROWS = 5;
-const CELL_W = CANVAS_W / COLS; // 600
-const CELL_H = CANVAS_H / ROWS; // 688
+// Per-strip generation height — gpt-image-2 caps aspect ratio at 3:1, so
+// the smallest legal height for a 2400-wide canvas is 800. We generate each
+// strip at 2400×800, then crop the bottom (extra magenta floor band) down to
+// 2400×688 before compositing. Character occupies y=80..620 — cropping the
+// bottom 112 px is safely below the feet rail.
+const GEN_H = 800;
+const CROP_BOTTOM_PX = GEN_H - ROW_H; // 112 — sliced off after generation
 
-// Per-cell rails (pixels from the cell's TOP edge):
-//   - HEAD_TOP_Y: top of head/hair must sit at this line in EVERY cell.
-//   - FEET_BOT_Y: soles of feet must sit at this line in EVERY cell.
-// Body height between rails = FEET_BOT_Y - HEAD_TOP_Y = 540 px.
-// Margin above head = 80 px; magenta floor band below feet = 68 px.
-// These numbers are repeated in the prompt so the model sees the rails
-// as hard constraints, not just a soft template hint.
+// Per-cell rails — applied within the 2400×800 generation canvas. The
+// composite uses the same head-top and feet-baseline rail offsets, so the
+// crop-bottom step preserves the full character.
 const HEAD_TOP_Y = 80;
 const FEET_BOT_Y = 620;
 const BODY_PX = FEET_BOT_Y - HEAD_TOP_Y; // 540
-const FLOOR_BAND_PX = CELL_H - FEET_BOT_Y; // 68
+const FLOOR_BAND_PX = GEN_H - FEET_BOT_Y; // 180 — bottom band in the gen canvas
 
-function buildPrompt(): string {
+type State = "idle" | "walk" | "run" | "jump" | "crawl";
+const STATES: State[] = ["idle", "walk", "run", "jump", "crawl"];
+
+// Shared rail / canvas preamble reused across every per-row prompt.
+function railPreamble(): string {
   return (
-    `Sprite animation MASTER SHEET for a single 2D platformer character.\n` +
-    `TWO reference images are provided, in this exact order:\n` +
-    `  IMAGE 1 — LAYOUT TEMPLATE (PRIMARY / GEOMETRY): a 4×5 grid of equal cells on magenta with bright YELLOW grid lines. Each cell contains a gray HUMANOID silhouette with a CYAN top rail (head height) and a GREEN feet rail spanning the full row width (feet baseline). This image dictates EXACT cell geometry, character scale, and per-cell rail positions. Honour it 1:1.\n` +
-    `  IMAGE 2 — DESIGN REFERENCE (IDENTITY): the character's turnaround. Match its design, proportions, colours, outfit, and rendering style EXACTLY across every frame. Use it ONLY for identity/styling — do NOT borrow its scale or framing.\n\n` +
-    `Output canvas: ${CANVAS_W}×${CANVAS_H}. Strict ${COLS}-column × ${ROWS}-row grid, cells ${CELL_W}×${CELL_H} px each, aligned 1:1 with the template's cells. Each ROW is a different motion state. Each COLUMN within a row is the next frame in that motion's cycle, read left-to-right.\n\n` +
-    `=== HARD PIXEL RAILS — APPLY TO ALL 20 CELLS, NO EXCEPTIONS ===\n` +
-    `Within EVERY single cell (measuring from the cell's own top edge):\n` +
+    `TWO reference images are provided:\n` +
+    `  IMAGE 1 — LAYOUT TEMPLATE: a 4×1 grid on magenta with bright YELLOW grid lines. Each cell has a CYAN horizontal rail (head-top marker) and a single GREEN horizontal rail across the FULL ROW (feet baseline / ground line). The grey humanoid silhouette marks the body's height, width, and centre.\n` +
+    `  IMAGE 2 — DESIGN REFERENCE: the character's turnaround. Match its design, proportions, colours, outfit, and rendering style EXACTLY across every frame. Use it for identity / colours / silhouette — do NOT borrow its scale or framing.\n\n` +
+    `Render a strict 4×1 grid of equal cells (each 600×${GEN_H}), aligned 1:1 with the template's cells. Read order: left-to-right.\n\n` +
+    `=== HARD PIXEL RAILS — APPLY TO ALL 4 CELLS ===\n` +
+    `Within EVERY single cell (measuring from the cell's top edge):\n` +
     `  • HEAD TOP rail: y ≈ ${HEAD_TOP_Y} px from cell top. Top of hair / hat / ears sits ON this line.\n` +
     `  • FEET BOTTOM rail: y ≈ ${FEET_BOT_Y} px from cell top. Soles of feet / boots sit ON this line.\n` +
-    `  • Standing body height between rails = ${BODY_PX} px. This number is IDENTICAL across all 20 cells.\n` +
-    `  • The bottom ${FLOOR_BAND_PX} px of every cell is a magenta floor band — NOTHING is painted there (no shadow, no toes, no dust).\n` +
-    `These rails are the SAME in row 1 (idle), row 2 (walk), row 3 (run), row 4 (jump), row 5 (crawl). The cyan/green rails in IMAGE 1 mark exactly these positions — do not deviate.\n\n` +
-    `=== SCALE LOCK — NO ROW-TO-ROW SCALING ===\n` +
-    `The character's standing body height is ${BODY_PX} px in every row. Do NOT scale the character up or down between rows. Idle stance and jump apex use the SAME character height. Run row is NOT taller. Crawl row is NOT shorter — the crawl pose is the SAME body, just deeply folded; head size, limb thickness, and overall body mass are identical to row 1. If a motion would push pixels outside the rails, CROP/CLIP the motion or fold the body smaller — never rescale the character.\n\n` +
-    `=== PER-ROW FEET-BASELINE LOCK ===\n` +
-    `Within every row, all 4 frames share the SAME feet baseline at y=${FEET_BOT_Y} from each cell's top. The character does not drift up or down between adjacent frames in the same row. The only row where feet may temporarily LIFT off the rail is row 4 (jump) — see jump rules below.\n\n` +
-    `=== ROW-BY-ROW MOTION SPEC ===\n` +
-    `Row 1 — IDLE: subtle breathing + weight shift. Feet PLANTED on the green rail in ALL 4 frames; feet do NOT lift. Motion is breath rise/fall in chest+shoulders, slight head bob (≤10 px), arms swaying gently at sides. Visible delta between adjacent frames in shoulder/chest height. Loops cleanly.\n` +
-    `Row 2 — WALK: alternating legs forward, gentle opposite arm swing, slight head bob. Both feet stay near the green rail — at most one foot lifts a few px during step. Loops cleanly.\n` +
-    `Row 3 — RUN: full sprint, knees driven high, bent arms swinging hard front-to-back, body leaning slightly forward. Feet may lift off the rail mid-stride but body height between head and trailing foot stays the SAME ${BODY_PX} px scale. Loops cleanly.\n` +
-    `Row 4 — JUMP: four DISTINCT phases, must read clearly:\n` +
-    `  Frame 1 ANTICIPATION CROUCH: knees bent, hips lowered, feet on green rail.\n` +
-    `  Frame 2 PUSH-OFF: legs extending, body rising, feet just leaving the rail.\n` +
-    `  Frame 3 AIRBORNE APEX: character clearly OFF THE GROUND, legs tucked or extended; FEET MAY GO ABOVE the green rail (this is the only allowed rail crossing) but the HEAD TOP must STILL be at y=${HEAD_TOP_Y} (do not let head rise above the cyan rail).\n` +
-    `  Frame 4 LANDING IMPACT: feet returning to the green rail, knees absorbing, body slightly compressed.\n` +
-    `Row 5 — CRAWL: ALL 4 frames are LOW HORIZONTAL crouch — knees deeply bent, body lowered to roughly half standing height, head ducked. Hands near knees or held low. NO upright frames anywhere in this row. Same orientation across all 4 cells; alternating crouched-step limb cycle. The character's HEAD TOP in this row is BELOW the cyan rail (because the body is folded low) but the magenta band above the head fills to the rail — do not enlarge the character to fill the gap. Feet on the green rail. Loops cleanly.\n\n` +
+    `  • Standing body height between rails = ${BODY_PX} px. IDENTICAL across all 4 cells.\n` +
+    `  • The bottom ${FLOOR_BAND_PX} px of every cell is a magenta floor band — NOTHING is painted there.\n` +
+    `Side view, facing right, throughout the strip.\n` +
+    `Background is solid magenta (#FF00FF) outside the character — chroma key, will be removed. EXACT colour, not a pinkish hue.\n` +
+    `Do NOT render the silhouettes, the cyan/green rails, or the yellow grid in the output. No labels, no row dividers, no borders, no frame numbers, no ground shadow.\n\n`
+  );
+}
+
+// Per-state focused motion spec. Each is intentionally narrow — one
+// motion only, no grid context, no cross-row scale negotiation.
+const STATE_SPEC: Record<State, { title: string; spec: string; railNote?: string }> = {
+  idle: {
+    title: "IDLE breath cycle",
+    spec:
+      `Subtle breath cycle in 4 frames — the ONLY motion is breathing.\n` +
+      `  Frame 1: chest neutral (resting), shoulders at neutral height.\n` +
+      `  Frame 2: shoulders rise slightly (~6-10 px), chest beginning to expand.\n` +
+      `  Frame 3: chest expanded peak, shoulders at highest point, head may bob up ~4 px.\n` +
+      `  Frame 4: shoulders descending back toward neutral, chest deflating.\n` +
+      `Feet PLANTED on the green rail in ALL 4 frames — feet do NOT lift, do NOT step, do NOT shuffle. Arms hang at sides, may sway gently with the breath. Visible delta between adjacent frames in shoulder/chest height — the strip must NOT collapse to 4 identical poses.`,
+  },
+  walk: {
+    title: "WALK cycle",
+    spec:
+      `One full walk cycle in 4 frames — standard alternating-leg gait.\n` +
+      `  Frame 1: LEFT foot forward contact (heel just landed), right foot pushing off behind.\n` +
+      `  Frame 2: LEFT foot passing under body (planted, weight transfer), right leg swinging forward.\n` +
+      `  Frame 3: RIGHT foot forward contact (heel just landed), left foot pushing off behind.\n` +
+      `  Frame 4: RIGHT foot passing under body (planted, weight transfer), left leg swinging forward.\n` +
+      `Opposite arm swing (right arm forward when left leg forward, etc.). Slight head bob. Feet stay near the green rail; at most one foot lifts a few px during step. Loops cleanly (frame 4 → frame 1).`,
+  },
+  run: {
+    title: "RUN cycle",
+    spec:
+      `One full run cycle in 4 frames — full sprint, exaggerated stride.\n` +
+      `  Frame 1: LEFT foot driving forward at peak knee-lift, right leg extended back.\n` +
+      `  Frame 2: BOTH FEET BRIEFLY OFF GROUND — airborne mid-stride, body extended.\n` +
+      `  Frame 3: RIGHT foot driving forward at peak knee-lift, left leg extended back.\n` +
+      `  Frame 4: BOTH FEET BRIEFLY OFF GROUND — airborne mid-stride, body extended.\n` +
+      `Forward lean throughout. Bent arms swinging hard front-to-back, opposite to legs. Cloak / hair trailing behind. Feet may lift off the green rail mid-stride but the body height between head and trailing foot stays at the SAME ${BODY_PX}-px scale. Loops cleanly.`,
+    railNote:
+      `Run row exception: feet may lift OFF the green rail in airborne frames; HEAD TOP must still be at y=${HEAD_TOP_Y} (do not let head rise above the cyan rail).`,
+  },
+  jump: {
+    title: "JUMP — 4 distinct phases",
+    spec:
+      `Four DISTINCT jump phases — must read clearly and unambiguously as one jump arc:\n` +
+      `  Frame 1 — ANTICIPATION CROUCH: knees bent deep, hips lowered, arms swung BACK behind body, weight loaded. Feet ON the green rail.\n` +
+      `  Frame 2 — PUSH-OFF: legs EXTENDING upward, arms SWINGING UP, body rising, feet JUST LEAVING the green rail.\n` +
+      `  Frame 3 — APEX AIRBORNE: character clearly OFF THE GROUND. Feet visibly ABOVE the green rail (feet rail-cross is REQUIRED in this frame). Body extended or legs tucked, arms RAISED overhead. This is the airborne peak — without this frame the strip is wrong.\n` +
+      `  Frame 4 — LANDING IMPACT: feet returning to the green rail, knees BENT to absorb impact, arms forward / out for balance, body slightly compressed.\n` +
+      `Critical: frame 3 MUST show the feet clear of the green rail — if you draw a crouch in frame 3, the strip is wrong. Each of the 4 frames must be visually distinct from the other 3.`,
+    railNote:
+      `Jump apex (frame 3) is the ONLY allowed feet-above-rail moment in this whole sheet. HEAD TOP must STILL be at y=${HEAD_TOP_Y} (do not let head rise above the cyan rail in any frame, apex included).`,
+  },
+  crawl: {
+    title: "CRAWL — low horizontal stance",
+    spec:
+      `LOW HORIZONTAL CRAWL throughout — all 4 frames are a hands-and-knees crawl, NOT a crouch-walk, NOT an upright pose.\n` +
+      `  Body orientation: torso roughly HORIZONTAL, parallel to the ground. Hands and knees on the ground. Head looking forward (slightly up).\n` +
+      `  Frame 1: RIGHT hand + LEFT knee forward (diagonal pair planted), left hand + right knee trailing.\n` +
+      `  Frame 2: passing — limbs swapping; right hand and left knee pushing back, left hand and right knee swinging forward.\n` +
+      `  Frame 3: LEFT hand + RIGHT knee forward (opposite diagonal pair planted), right hand + left knee trailing.\n` +
+      `  Frame 4: passing — limbs swapping back toward the frame-1 configuration. Loops cleanly.\n` +
+      `The character's HEAD TOP in this strip is BELOW the cyan rail (because the body is folded low) — that is correct, do NOT enlarge the character to fill the gap. Hands and knees rest ON the green rail. NO upright frames anywhere.`,
+  },
+};
+
+function buildStripPrompt(state: State): string {
+  const spec = STATE_SPEC[state];
+  return (
+    `Sprite ${spec.title} animation strip for a 2D platformer character.\n` +
+    railPreamble() +
+    `=== MOTION SPEC (${state.toUpperCase()}) ===\n` +
+    spec.spec +
+    `\n\n` +
+    (spec.railNote
+      ? `=== RAIL EXCEPTION ===\n${spec.railNote}\n\n`
+      : ``) +
     `=== ANCHORING + RENDER RULES ===\n` +
     `In every cell, replace the gray silhouette with the character in the correct pose. Rails are HARD limits:\n` +
-    `  - CYAN top rail = TOP of head/hair. Do NOT paint any character pixels above the cyan line (jump apex included — head stays inside the cell).\n` +
-    `  - GREEN feet rail = SOLES of feet. Do NOT paint character pixels below the green line in ANY row. Jump airborne frames may have feet ABOVE the rail; that is the only allowed deviation.\n` +
+    `  - CYAN top rail = TOP of head/hair. Do NOT paint character pixels above the cyan line.\n` +
+    `  - GREEN feet rail = SOLES of feet. Do NOT paint character pixels below the green line in any frame.\n` +
     `  - Horizontal centre of the silhouette = character's body centre.\n` +
     `  - The narrow magenta band below the green feet rail in every cell MUST remain solid magenta — no boots, no feet, no shadow, no toes poking through.\n` +
-    `Side view, facing right, throughout the whole sheet.\n` +
-    `Background is solid magenta (#FF00FF) everywhere outside the character — chroma key, will be removed. EXACT colour, not a pinkish hue.\n` +
-    `Do NOT render the silhouettes, the cyan/green rails, or the yellow grid in the output. No labels, no row dividers, no borders, no frame numbers, no ground shadow.`
+    `Output canvas: ${CANVAS_W}×${GEN_H} (3:1, sliced as 4 cells of 600×${GEN_H}).`
   );
 }
 
@@ -86,34 +165,181 @@ export interface CharacterCombinedArgs {
   tag: string;
   runDir: string;
   model: string;
-  /** Path to fixtures/image_gen_templates/character_template_combined.png */
+  /** Path to fixtures/image_gen_templates/character_template.png (the 4×1 strip prior). */
   layoutTemplatePath: string;
   /** Path to character_concept_<tag>.png (identity ref). */
   characterConceptPath: string;
 }
 
-export async function generateCharacterCombined(args: CharacterCombinedArgs) {
-  const { prompt, tag, runDir, model, layoutTemplatePath, characterConceptPath } = args;
-  const outPath = join(runDir, `character_${tag}_combined.png`);
-  return generateImageAsset({
-    stage: "character-master",
-    userPrompt: prompt,
-    promptText: buildPrompt(),
-    // Order matters — see header comment. Layout FIRST (geometry dominance),
-    // identity SECOND (style match).
-    refs: [layoutTemplatePath, characterConceptPath],
-    outPath,
-    width: CANVAS_W,
-    height: CANVAS_H,
+export interface CharacterCombinedResult {
+  imagePath: string;
+  metaPath: string;
+  stripPaths: Record<State, string>;
+  /** Per-strip wall-clock generation duration in ms (best-effort). */
+  stripTimingsMs: Record<State, number>;
+}
+
+/**
+ * Generate the 5 per-state strips in parallel, then composite into the
+ * 2400×3440 master sheet via sharp. Apply chroma-snap to the composite.
+ */
+export async function generateCharacterCombined(
+  args: CharacterCombinedArgs,
+): Promise<CharacterCombinedResult> {
+  const {
+    prompt,
+    tag,
+    runDir,
     model,
+    layoutTemplatePath,
+    characterConceptPath,
+  } = args;
+
+  const outPath = join(runDir, `character_${tag}_combined.png`);
+  const metaPath = `${outPath}.meta.json`;
+
+  // Skip-if-exists: same contract as image-helper. If the composite + sidecar
+  // already exist non-empty, return without re-running.
+  const force = process.env.STAGE_GEN_FORCE === "1";
+  if (!force) {
+    try {
+      const [imgStat, metaStat] = await Promise.all([stat(outPath), stat(metaPath)]);
+      if (imgStat.isFile() && imgStat.size > 0 && metaStat.isFile() && metaStat.size > 0) {
+        // Best-effort reconstruction of strip paths for the return value.
+        const stripPaths = Object.fromEntries(
+          STATES.map((s) => [s, join(runDir, `character_${tag}_combined_strip_${s}.png`)]),
+        ) as Record<State, string>;
+        const stripTimingsMs = Object.fromEntries(
+          STATES.map((s) => [s, 0]),
+        ) as Record<State, number>;
+        return { imagePath: outPath, metaPath, stripPaths, stripTimingsMs };
+      }
+    } catch {
+      // fall through to generate
+    }
+  }
+
+  await mkdir(dirname(outPath), { recursive: true });
+
+  // Per-strip generation. Each is its own retry-wrapped image-gen call via
+  // generateImageAsset (which already handles retries, sidecar, dim check).
+  const stripTimings: Record<string, number> = {};
+  const stripResults = await Promise.all(
+    STATES.map(async (state) => {
+      const stripOut = join(runDir, `character_${tag}_combined_strip_${state}.png`);
+      const t0 = Date.now();
+      const result = await generateImageAsset({
+        stage: `character-master-strip-${state}`,
+        userPrompt: prompt,
+        promptText: buildStripPrompt(state),
+        // Order matters — layout FIRST, identity SECOND (matches character-attack).
+        refs: [layoutTemplatePath, characterConceptPath],
+        outPath: stripOut,
+        width: CANVAS_W,
+        height: GEN_H,
+        model,
+        extra: {
+          state,
+          rows: 1,
+          cols: 4,
+          cellW: CANVAS_W / 4,
+          cellH: GEN_H,
+          headTopY: HEAD_TOP_Y,
+          feetBotY: FEET_BOT_Y,
+          gen_height: GEN_H,
+          composite_row_height: ROW_H,
+          part_of: `character_${tag}_combined.png`,
+        },
+      });
+      stripTimings[state] = Date.now() - t0;
+      // Snap each strip individually so the composite inputs have exact magenta;
+      // chroma-snap is idempotent and the post-stage will skip-mark via sidecar.
+      await snapChromaKey(stripOut);
+      return { state, stripPath: result.imagePath };
+    }),
+  );
+
+  // Deterministic vertical composite via sharp. Each strip is generated at
+  // 2400×800 (gpt-image-2 3:1 aspect cap), then cropped to 2400×688 (the
+  // master-sheet row height) by trimming CROP_BOTTOM_PX from the bottom.
+  // Character bodies live at y=80..620 so the trimmed band is pure magenta.
+  // Cropped strips stack at y=0,688,1376,2064,2752.
+  const stripBuffers = await Promise.all(
+    stripResults.map(async (r) => ({
+      state: r.state,
+      buf: await sharp(await readFile(r.stripPath))
+        .extract({ left: 0, top: 0, width: CANVAS_W, height: ROW_H })
+        .png()
+        .toBuffer(),
+    })),
+  );
+  // Order by STATES (Promise.all preserves order, but be explicit).
+  const ordered = STATES.map((s) => {
+    const found = stripBuffers.find((sb) => sb.state === s);
+    if (!found) throw new Error(`character-combined: missing strip for state ${s}`);
+    return found;
+  });
+
+  const composite = await sharp({
+    create: {
+      width: CANVAS_W,
+      height: CANVAS_H,
+      channels: 4,
+      background: { r: 255, g: 0, b: 255, alpha: 1 },
+    },
+  })
+    .composite(
+      ordered.map((sb, idx) => ({
+        input: sb.buf,
+        top: idx * ROW_H,
+        left: 0,
+      })),
+    )
+    .png()
+    .toBuffer();
+
+  await writeFile(outPath, composite);
+
+  const stripPaths = Object.fromEntries(
+    stripResults.map((r) => [r.state, r.stripPath]),
+  ) as Record<State, string>;
+  const stripTimingsMs = Object.fromEntries(
+    STATES.map((s) => [s, stripTimings[s] ?? 0]),
+  ) as Record<State, number>;
+
+  await writeMeta(outPath, {
+    stage: "character-master",
+    prompt,
+    ts: new Date().toISOString(),
+    model,
+    refs: [layoutTemplatePath, characterConceptPath],
+    params: {
+      size: `${CANVAS_W}x${CANVAS_H}` as const,
+      moderation: "low",
+    },
     extra: {
-      rows: ROWS,
-      cols: COLS,
-      cellW: CELL_W,
-      cellH: CELL_H,
+      composite_strategy: "per-row",
+      states: STATES,
+      rows: 5,
+      cols: 4,
+      cellW: CANVAS_W / 4,
+      cellH: ROW_H,
       headTopY: HEAD_TOP_Y,
       feetBotY: FEET_BOT_Y,
-      states: ["idle", "walk", "run", "jump", "crawl"],
+      width: CANVAS_W,
+      height: CANVAS_H,
+      bytes: composite.length,
+      strip_gen_height: GEN_H,
+      strip_crop_bottom_px: CROP_BOTTOM_PX,
+      strip_paths: stripPaths,
+      strip_timings_ms: stripTimingsMs,
+      composite_offsets_y: STATES.map((_, i) => i * ROW_H),
     },
   });
+
+  // Snap the composite as well — defensive; the chroma-snap post-stage will
+  // see the sidecar marker after this and skip a redundant pass.
+  await snapChromaKey(outPath);
+
+  return { imagePath: outPath, metaPath, stripPaths, stripTimingsMs };
 }

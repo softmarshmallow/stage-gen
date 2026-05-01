@@ -250,7 +250,10 @@ export const STAGES: Stage[] = [
         await Promise.all([
           generateCharacterCombined({
             ...baseArgs,
-            layoutTemplatePath: TPL.characterCombined,
+            // Per-row strategy — each strip uses the 4×1 strip template
+            // (same as character-attack). The old 4×5 grid template is no
+            // longer consumed; per-strip prompts handle layout per state.
+            layoutTemplatePath: TPL.character,
             characterConceptPath,
           }),
           generateCharacterAttack({

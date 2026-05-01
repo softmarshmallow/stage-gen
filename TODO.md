@@ -169,8 +169,8 @@ outputs as references).
 [x] TC-050: Character motion master sheet is generated
   -> character_<tag>_combined.png at 2400×3440; 5×4 grid (idle/walk/run/jump/crawl) (verifier a5eca3441dd891205)
 
-[BLOCKED] TC-051: Master sheet preserves character scale across all 20 cells
-  -> retry 1 of 2 (pixel-rail prompt) FAILED: rows 4-5 kneeling stance shrinks total figure / head tops drop below rail (verifier a83e17c86de7b3c4b). Retry 2: changing approach — per-row strip generation + sharp composite, each row gets focused prompt context.
+[x] TC-051: Master sheet preserves character scale across all 20 cells
+  -> retry 2 (per-row strip generation + sharp composite) PASSES: head tops consistent across rows 1-3, jump apex breaks baseline (legal), row 5 correctly low; cross-row scale locked (verifier a0cf6faa6deda86b8)
 
 [x] TC-052: Character attack strip is generated
   -> 1×4 on magenta; sword-attack progression (windup → swing → thrust → recover)
@@ -191,11 +191,11 @@ NOTE: TC-123 (re-run no-op) achieved as side-effect of skip-if-exists in image-h
 [x] TC-042b: Chroma-key magenta in generated sprites is exact #FF00FF
   -> Phase 5 post-chroma stage (pipeline/src/post/chroma-snap.ts + chroma-snap-stage.ts) snaps any RGB pixel within Manhattan distance 30 of (255,0,255) to exact (255,0,255). Idempotent (sidecar marker extra.chroma_snapped=true). Stage runs after Wave B; processes layers (skipping opaque), tileset, character concept/combined/attack, mob concepts/idle/hurt, obstacles, items, inventory, portal. Skips concept_<tag>.png and the opaque parallax backdrop. Spot-check on snowy-mountain run: character_attack near=1346456→0 / exact=2→1346458; layer_near_fir_grass near=1193228→0 / exact=47→1193275; character_combined exact=0→8900. Re-run = 32ms (idempotency). Pipeline exit 0.
 
-[ ] TC-050b: Master sheet idle row shows visible breath/sway across 4 frames
-  -> retry 1 FAILED: row 1 still 4 near-identical poses. Retry 2 (per-row strip generation) coupled with TC-051.
+[BLOCKED] TC-050b: Master sheet idle row shows visible breath/sway across 4 frames
+  -> 2 retries spent (pixel-rail + per-row strip); per-row improved everything else but idle remains 4 near-identical standing poses. Cosmetic — runtime can fake subtle breath via 1-px y-jitter on alternate frames if needed. Not blocking gameplay.
 
-[ ] TC-050c: Master sheet jump row shows 4 distinct phases
-  -> retry 1 FAILED: row contains zero airborne frames; model renders crouches in grid context. Retry 2 (per-row strip with focused prompt) coupled with TC-051.
+[x] TC-050c: Master sheet jump row shows 4 distinct phases
+  -> retry 2 (per-row strip) PASSES: F1 anticipation crouch, F2 push-off mid-air rising, F3 APEX AIRBORNE arms up clear of rail, F4 landing crouch (verifier a0cf6faa6deda86b8)
 
 [x] TC-050d: Master sheet crawl row shows consistent low-stance progression
   -> all 4 row-5 frames low-horizontal/kneeling, consistent orientation, visible limb cycling
