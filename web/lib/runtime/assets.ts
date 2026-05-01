@@ -43,16 +43,12 @@ export function registerCanvas(
 
 // --- Parallax: chroma-key + edge-fade for non-opaque, raw for opaque. ---
 //
-// Parallax layers are the ONLY asset family that uses the tolerant
-// chroma-key path (see image-ops.ts § ChromaKeyOptions and TC-078).
-// gpt-image-2 drifts the magenta background substantially on dense
-// foreground layers — the pipeline-side snap (Manhattan threshold 30)
-// leaves a residual pink cluster around (220,50,200) that overwhelms
-// the runtime blur. A wider runtime threshold cleans that up without
-// mutating the on-disk PNG and without affecting sprite chroma keying
-// (sprites still use exact-match → TC-062 preserved).
-const LAYER_CHROMA_THRESHOLD = 180;
-
+// As of TC-078 retry 2 the pipeline-side chroma-snap uses flood-fill
+// from edges (pipeline/src/post/chroma-snap.ts) and guarantees that
+// every edge-connected pinkish pixel on every chroma-keyed asset —
+// layers included — is exact (255,0,255). The runtime can therefore
+// stay on the simple exact-match path used by every other sprite
+// family, with no per-asset tolerance to maintain.
 export type LoadedParallaxLayer = {
   key: string;
   canvas: HTMLCanvasElement;
@@ -77,7 +73,7 @@ export async function loadParallaxLayer(
     c.getContext("2d")!.drawImage(img, 0, 0);
     canvas = c;
   } else {
-    const keyed = chromaKeyToAlpha(img, { threshold: LAYER_CHROMA_THRESHOLD });
+    const keyed = chromaKeyToAlpha(img);
     canvas = fadeParallaxEdges(keyed, fadePx);
   }
   registerCanvas(textures, key, canvas);

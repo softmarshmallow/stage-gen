@@ -31,8 +31,10 @@ export interface PostChromaArgs {
   runDir: string;
   /** Tag (used to recognize <tag>-prefixed files). */
   tag: string;
-  /** Distance threshold (default 30). */
-  threshold?: number;
+  /** Edge-seed Manhattan threshold (default 280). */
+  seedThreshold?: number;
+  /** Flood Manhattan threshold (default 220). */
+  floodThreshold?: number;
 }
 
 export interface PostChromaSummary {
@@ -101,7 +103,7 @@ async function classify(
 }
 
 export async function runPostChroma(args: PostChromaArgs): Promise<PostChromaSummary> {
-  const { runDir, tag, threshold } = args;
+  const { runDir, tag, seedThreshold, floodThreshold } = args;
   const entries = await readdir(runDir);
 
   const processed: SnapChromaResult[] = [];
@@ -115,7 +117,7 @@ export async function runPostChroma(args: PostChromaArgs): Promise<PostChromaSum
       continue;
     }
     const fullPath = join(runDir, entry);
-    const result = await snapChromaKey(fullPath, { threshold });
+    const result = await snapChromaKey(fullPath, { seedThreshold, floodThreshold });
     if (result.skipped) {
       skipped.push(entry);
     } else {

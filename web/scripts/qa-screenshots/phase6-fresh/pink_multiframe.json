@@ -1,0 +1,24 @@
+{
+  "url": "http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2",
+  "frames": 12,
+  "spacingMs": 900,
+  "total": 921600,
+  "min": 152,
+  "max": 489,
+  "avg": 292,
+  "maxRatio": 0.0005305989583333333,
+  "perFrame": [
+    484,
+    489,
+    425,
+    477,
+    231,
+    231,
+    229,
+    206,
+    204,
+    204,
+    176,
+    152
+  ]
+}
