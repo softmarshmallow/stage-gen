@@ -47,7 +47,7 @@ const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
 };
 
 const WALK_SPEED = 200; // px/s   (TC-080: "reasonable")
-const RUN_SPEED = 360;
+const RUN_SPEED = 540;
 const JUMP_VEL = 520; // upward initial velocity
 const GRAVITY = 1500; // px/s^2
 const ATTACK_DURATION_MS = 333; // 4 frames at 12 fps

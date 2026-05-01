@@ -186,35 +186,26 @@ export async function loadTileset(
     }
   }
 
-  // Quick fallback: gpt-image-2 doesn't always honour the 12×4 role contract,
-  // so scan every cell, pick the one with the most opaque pixels (= least
-  // magenta-after-chroma-key) and register it as `ground_fill`. The ground
-  // assembler can use this single cell for every column when it would
-  // otherwise render a half-transparent / mismatched role tile.
-  const ctx = keyed.getContext("2d", { willReadFrequently: true });
-  let best = { row: 0, col: 0, opacity: 0 };
-  if (ctx) {
-    for (let row = 0; row < TILESET_ROWS; row++) {
-      for (let col = 0; col < TILESET_COLS; col++) {
-        const data = ctx.getImageData(col * tileW, row * tileH, tileW, tileH).data;
-        let opaque = 0;
-        // Sample every 4th pixel for speed; 50×50 samples per cell is plenty.
-        for (let i = 3; i < data.length; i += 16) {
-          if (data[i] === 255) opaque++;
-        }
-        const opacity = opaque / (data.length / 16);
-        if (opacity > best.opacity) best = { row, col, opacity };
-      }
-    }
-  }
+  // The 12×4 role contract is unreliable in places, but the tileset prompt
+  // explicitly guarantees row 4 (0-indexed row 3), cols 1..4 are 100% solid
+  // interior fill — the ONLY cells contracted as "solid underground block,
+  // NO magenta anywhere". (See pipeline/src/ai/tileset.ts.) Use cell
+  // (row=3, col=0) as the canonical universal fill. Static, no scan.
+  const FILL_ROW = 3;
+  const FILL_COL = 0;
   tex.add(
     "ground_fill",
     0,
-    best.col * tileW,
-    best.row * tileH,
+    FILL_COL * tileW,
+    FILL_ROW * tileH,
     tileW,
     tileH,
   );
 
-  return { canvas: keyed, tileW, tileH, bestFillCell: best };
+  return {
+    canvas: keyed,
+    tileW,
+    tileH,
+    bestFillCell: { row: FILL_ROW, col: FILL_COL, opacity: 1 },
+  };
 }

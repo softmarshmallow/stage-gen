@@ -249,7 +249,7 @@ export class StageScene extends Phaser.Scene {
           const dx = m.sprite.x - hitX;
           const dy = m.sprite.y - py2;
           if (Math.abs(dx) < reach && Math.abs(dy) < TILE_PX * 2.5) {
-            const r = m.takeHit(now);
+            const r = m.takeHit(now, facing as 1 | -1);
             this.logEvent("mob-hit", { ladderIndex: m.ladderIndex, hpLeft: r.hpLeft, died: r.died });
             if (r.died && this.items) {
               const drop = this.items.drop(m.sprite.x, m.sprite.y - TILE_PX, m.ladderIndex);

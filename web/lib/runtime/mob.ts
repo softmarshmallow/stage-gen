@@ -31,6 +31,8 @@ export interface MobOpts {
 const DEFAULT_WANDER_PX = 100;
 const DEFAULT_SPEED = 36;
 const HURT_DURATION_MS = 600;
+const KNOCKBACK_PX = 80;
+const KNOCKBACK_MS = 220;
 
 export class Mob {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -124,9 +126,21 @@ export class Mob {
   /**
    * Apply one point of damage. Returns true if the mob died from this hit.
    */
-  takeHit(nowMs: number): { died: boolean; hpLeft: number } {
+  takeHit(nowMs: number, knockbackDir: 1 | -1 = 1): { died: boolean; hpLeft: number } {
     if (this.state === "dead") return { died: false, hpLeft: 0 };
     this.hp -= 1;
+    // Knockback tween — clamped to wander bounds so the mob doesn't escape its lane.
+    const targetX = Phaser.Math.Clamp(
+      this.sprite.x + knockbackDir * KNOCKBACK_PX,
+      this.wanderMin,
+      this.wanderMax,
+    );
+    this.opts.scene.tweens.add({
+      targets: this.sprite,
+      x: targetX,
+      duration: KNOCKBACK_MS,
+      ease: "Cubic.easeOut",
+    });
     if (this.hp <= 0) {
       this.state = "dead";
       // Fade out then destroy.
