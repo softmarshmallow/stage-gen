@@ -10,7 +10,7 @@
 import puppeteer from 'puppeteer';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
-const URL = 'http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
+const URL = 'http://localhost:3000/preview/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
 const FRAMES = 12;
 const SPACING_MS = 900; // ~10.8s window — covers a full auto-pan cycle
 const VIEWPORT = { width: 1280, height: 720 };

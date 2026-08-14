@@ -18,7 +18,7 @@ export interface PortalSpec {
 
 export interface PortalSystemOpts {
   scene: Phaser.Scene;
-  /** Texture key holding the chroma-keyed full 2:1 portal sheet. */
+  /** Texture key holding the canonical-alpha full 2:1 portal sheet. */
   portalKey: string;
   tilePx: number;
   baselineY: number;

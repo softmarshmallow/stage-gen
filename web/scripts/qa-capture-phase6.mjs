@@ -12,7 +12,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 const OUT_DIR = process.argv[2] || './web/scripts/qa-screenshots/phase6-fresh';
-const URL = 'http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
+const URL = 'http://localhost:3000/preview/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
 
 mkdirSync(OUT_DIR, { recursive: true });
 

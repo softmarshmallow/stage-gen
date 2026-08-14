@@ -1,124 +1,64 @@
-project: stage-gen — prompt-to-playable game AI generator using gpt-image-2
-via vercel ai-gateway + ai-sdk.
+# Autonomous loop guide
 
-you are the looping main agent. you plan, dispatch, audit. you do not execute
-work yourself, and you do not look at images — ever.
+This loop advances `stage-gen` as a headless, general 2D asset generator. The
+shared state is `TODO.md`; the public product and operational contracts live in
+`README.md`, `MISSION.md`, `ARCHITECTURE.md`, and `docs/`.
 
-== delegation principle ==
+## Wake and ground
 
-your context is the scarce resource. subagents are not. dispatch by passing
-**paths**, not content. a subagent prompt should look like:
+1. Read `TODO.md` and inspect the live Git state before planning.
+2. Reconcile stale in-progress items against the working tree; the working
+   tree is authoritative.
+3. Identify independent work, dependencies, verification owners, and bounded
+   return contracts before dispatch.
+4. Keep the main context free of image payloads. Pass paths to specialized
+   producers and independent verifiers.
 
-  "goal: <one line>. read: AGENTS.md, TODO.md, docs/<spec>.md,
-   fixtures/<ref>. return: {schema}."
+## Build loop
 
-let subagents read whole docs, whole specs, whole fixtures, whole prior
-outputs. they have fresh context — abuse it. you don't paraphrase docs
-into prompts; you point. if a subagent needs more, it reads more.
+1. A producer reads the relevant contract and creates an artifact plus complete
+   reproducibility metadata.
+2. A different verifier receives the artifact and its specification, but not
+   the generation prompt, and returns a structured pass/fail verdict.
+3. A failed visual stage receives at most two bounded regeneration attempts
+   before its reason is surfaced. Provider-call retries remain owned by the
+   implementation's shared retry boundary.
+4. A peer audit checks code, manifests, validation, provenance, OSS/IP policy,
+   and the headless path before work is marked complete.
+5. Completed TODO sections are pruned; unresolved work keeps an explicit next
+   action or blocking reason.
 
-never paste image contents, long spec excerpts, or prior subagent reports
-into a new dispatch. pass the path. the subagent fetches what it needs.
+## Architectural rules
 
-== each iteration ==
+- Reusable components remain independent of genre, camera, gameplay loop,
+  preview runtime, and future engine choice.
+- Recipe-specific scrolling assumptions stay in
+  `stage-gen/recipes/scrolling-preview/`. Browser scene assumptions stay in
+  `web/`.
+- The public command is `bun run stage-gen -- <args>`.
+- Provider adapters are configured at the headless application boundary.
+  Operational OpenRouter/fal/Lyria details belong in `docs/providers.md`, not
+  in generic component contracts.
+- Every AI call has one bounded retry owner covering transport and silent
+  contract failures. Do not stack hidden SDK retries.
+- An artifact is successful only after media validation, atomic persistence,
+  integrity metadata, and secret-free provenance.
+- Fixtures are copied rather than symlinked. Generated outputs and populated
+  environment files are never committed.
+- Repository prompts use neutral original properties and never request
+  imitation of named identities, catalogs, or recordings.
 
-1. wake & ground
-   - read TODO.md first, then a shallow `tree -L 2` for structural shape.
-   - scan TODO for orphan in-progress items from a prior crash (claimed,
-     not finished, no recent update). those come first — finish them or
-     mark `[blocked: <reason>]` before planning new work.
-   - skim the last commit and any VERIFICATION notes touched since last
-     iteration. paths only into your context — full reads happen in
-     subagents when needed.
+## Verification discipline
 
-2. plan the fan-out
-   - sketch which subagents you'd dispatch, what each reads, what each
-     returns, how outputs compose. write this into TODO before dispatch.
-   - independent items dispatch in parallel — single message, multiple
-     Agent calls. sequential only on a real dependency.
-   - every subagent prompt names: goal, paths to read, return contract,
-     verification plan its output will face. nothing more.
+- Tests and schema checks do not replace live provider-contract evidence.
+- Live evidence does not replace deterministic media inspection.
+- Preview behavior does not define component quality; benchmark each component
+  against its own declared artifact contract.
+- Never expose credential values, signed URLs, embedded reference bytes, or
+  private local paths in output, logs, errors, or reports.
+- Do not skip validation to reduce provider calls. Context safety and bounded
+  execution matter; token or API cost is not the optimization target.
 
-3. dispatch — producer
-   - prompt names goal + paths (spec, references, prior outputs, AGENTS.md
-     for project rules). producer reads what it needs.
-   - producer generates the artifact AND persists reproducibility metadata
-     next to it: prompt, seed, model, reference path, params. without
-     this metadata, a failed verification is unrecoverable from your
-     context.
-   - producer returns `{path, metadata_path, one-line summary}`. nothing
-     more. if it returns more, discard and redispatch.
-
-4. dispatch — verifier (must be a fresh subagent)
-   - prompt names: spec path + output path. it does NOT see the
-     generation prompt, or it will confirm the ask instead of judging the
-     render.
-   - verifier returns `{verdict: pass|fail, reason}`. one line each.
-   - on fail: redispatch producer with verifier's reason injected as
-     constraint. bounded to 2 retries per stage. then mark
-     `[blocked: <reason>]` and move on — never let one stuck stage stall
-     the whole loop.
-
-5. peer audit (separate subagent, separate concern)
-   - prompt names: TODO.md, verifier verdict paths, output paths. it
-     reads them, returns: which items to tick, which to add, which to
-     demote to blocked. trust its diff.
-
-6. commit forward motion
-   - apply TODO updates. commit with a one-line message naming the stage
-     advanced. push.
-   - prune completed sections aggressively. TODO is working memory, not
-     a log.
-
-== hard rules ==
-
-- no images in main context. never Read *.png / *.jpg / *.webp or anything
-  under fixtures/ or example-output/. the urge to "just check it" is a
-  verification subagent, not a Read.
-- pass paths, not content. if you find yourself pasting more than a few
-  lines into a subagent prompt, stop — point at the file instead.
-- verifier ≠ producer, every time.
-- every AI SDK call is wrapped in 5 blind retries with backoff. if a
-  returned artifact looks like no retry happened (empty output, schema
-  mismatch, truncation), reject and redispatch.
-- subagent returns are capped: structured verdict or <200 words. longer
-  → file + return path.
-- fan out by default. parallel unless dependency forces sequence.
-- fixtures are copied, never symlinked.
-- cost is not a constraint. extra verifications, comparison runs, sanity
-  checks are encouraged. only your context budget matters — protect it
-  by delegating reads.
-
-== how forward motion is measured ==
-
-every iteration must advance at least one artifact — a new output passes,
-a blocked stage unblocks, a regression gets caught and cleanly retried.
-an iteration with zero artifact movement is a failed iteration; diagnose
-before the next dispatch.
-
-treat "done" as a hypothesis to falsify, not a state to reach. if TODO
-looks empty, that is the signal to dispatch a critique pass: a fresh
-verifier reading the latest end-to-end output against the strictest
-interpretation of the spec. it will find gaps. those are the next TODO.
-
-if the same stage hits `[blocked]` two iterations in a row, change the
-approach — different prompt structure, different reference, different
-decomposition — not a third retry of the same dispatch.
-
-== recovery semantics ==
-
-- subagent returned the wrong shape, leaked an image into your context,
-  or echoed back content you should have only pointed at: discard,
-  redispatch with the contract repeated. a sloppy return must not
-  contaminate planning.
-- if TODO and the working tree disagree, TODO loses — rewrite TODO from
-  the working tree, not the other way around.
-- if you catch yourself about to Read an image, or paste a doc into a
-  prompt: stop, dispatch a subagent with the path instead.
-
-== before sleeping ==
-
-- TODO committed and pushed.
-- every in-progress item has a verdict or an explicit blocked reason.
-- the top TODO entry is the next wake-up's first move, written so a
-  cold-start agent could act on it from paths alone, without re-deriving
-  context.
+Before the loop yields, every active item has a result or explicit next action,
+and the next iteration can resume from paths and TODO state without re-deriving
+the project.

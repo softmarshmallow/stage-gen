@@ -24,10 +24,15 @@ import {
   type SlotDef,
   type WorldSpecLite,
 } from "@/lib/shell/slots";
+import {
+  transparencyModeLabel,
+  type TransparencyMode,
+} from "@/lib/shell/transparency";
 
 interface InitialState {
   tag: string;
   prompt: string | null;
+  transparencyMode: TransparencyMode | null;
   status: "missing" | "running" | "done" | "failed";
   failedStage: string | null;
   spec: WorldSpecLite | null;
@@ -38,8 +43,8 @@ interface LightboxState {
   filename: string;
   label: string;
   url: string;
-  /** True for chroma-keyed sprite assets (everything except concept). */
-  chromaKeyed: boolean;
+  /** True when the canonical artifact is expected to carry alpha. */
+  transparent: boolean;
   width?: number;
   height?: number;
 }
@@ -59,11 +64,17 @@ function progressBarText(filled: number, total: number, width = 24): {
   };
 }
 
-function isChromaKeyed(filename: string): boolean {
-  // Only the concept image and the opaque skybox layer are NOT chroma-keyed.
-  // Conservatively: concept and the run.json are not; everything else is.
-  if (filename.startsWith("concept_")) return false;
-  if (filename.endsWith(".json")) return false;
+function assetUsesTransparency(
+  slot: SlotDef,
+  filename: string,
+  spec: WorldSpecLite | null,
+): boolean {
+  if (!filename.endsWith(".png") || filename.startsWith("concept_")) return false;
+  if (slot.id.startsWith("layer-") && spec) {
+    const layerId = slot.id.slice("layer-".length);
+    const layer = spec.layers.find((candidate) => candidate.id === layerId);
+    if (layer) return !layer.opaque;
+  }
   return true;
 }
 
@@ -90,6 +101,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const [showAlpha, setShowAlpha] = useState(false);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  const [retryError, setRetryError] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to SSE while the run could still progress. If the initial
@@ -212,7 +224,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
     totalCount === 0 ? 0 : Math.round((matchedCount / totalCount) * 100);
   const bar = progressBarText(matchedCount, totalCount, 24);
 
-  const playReady = status === "done";
+  const previewReady = status === "done";
 
   function openLightbox(slot: SlotDef, filename: string) {
     const url = `/api/assets/${tag}/${filename}`;
@@ -221,7 +233,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       filename,
       label: slot.label,
       url,
-      chromaKeyed: isChromaKeyed(filename),
+      transparent: assetUsesTransparency(slot, filename, spec),
     });
   }
 
@@ -229,17 +241,26 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
     const filename = slot.filenames[0];
     if (!filename) return;
     if (retrying.has(filename)) return;
+    setRetryError(null);
     setRetrying((prev) => new Set(prev).add(filename));
     try {
-      await fetch(`/api/run/${tag}/retry`, {
+      const response = await fetch(`/api/run/${tag}/retry`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ asset: filename }),
       });
+      const result = (await response.json().catch(() => ({}))) as {
+        reason?: string;
+      };
+      if (!response.ok) {
+        throw new Error(result.reason ?? `retry failed (HTTP ${response.status})`);
+      }
       // Returning to a "running" state lets the SSE re-open and pick up
       // the new file when it lands.
       setStatus("running");
       setFailedStage(null);
+    } catch (error) {
+      setRetryError(error instanceof Error ? error.message : String(error));
     } finally {
       setRetrying((prev) => {
         const next = new Set(prev);
@@ -275,18 +296,24 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
             status: <span style={{ color: "var(--fg)" }}>{status}</span>
             {failedStage ? ` (${failedStage})` : ""}
           </div>
+          <div className="sg-meta-line" data-testid="transparency-mode">
+            transparency:{" "}
+            <span style={{ color: "var(--fg)" }}>
+              {transparencyModeLabel(initial.transparencyMode)}
+            </span>
+          </div>
         </div>
         <Link
-          href={playReady ? `/play/${tag}` : "#"}
-          className={`sg-play${playReady ? " is-active" : ""}`}
-          aria-disabled={!playReady}
-          tabIndex={playReady ? 0 : -1}
-          data-testid="play-cta"
+          href={previewReady ? `/preview/${tag}` : "#"}
+          className={`sg-play${previewReady ? " is-active" : ""}`}
+          aria-disabled={!previewReady}
+          tabIndex={previewReady ? 0 : -1}
+          data-testid="preview-cta"
           onClick={(e) => {
-            if (!playReady) e.preventDefault();
+            if (!previewReady) e.preventDefault();
           }}
         >
-          [ play ▸ ]
+          [ preview ▸ ]
         </Link>
       </div>
 
@@ -295,6 +322,12 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
           pipeline failed{failedStage ? ` at stage ${failedStage}` : ""}.
           check log below for details. retry individual assets via the slot
           retry button, or restart the whole run from the picker.
+        </div>
+      ) : null}
+
+      {retryError ? (
+        <div className="sg-error-banner" role="alert">
+          retry failed: {retryError}
         </div>
       ) : null}
 
@@ -434,18 +467,10 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
         >
           <img
             className={`sg-lightbox-img${
-              lightbox.chromaKeyed && showAlpha ? " alpha-checker" : ""
+              lightbox.transparent && showAlpha ? " alpha-checker" : ""
             }`}
             src={lightbox.url}
             alt={lightbox.label}
-            style={
-              lightbox.chromaKeyed && showAlpha
-                ? {
-                    // crude chroma-key preview: rely on the checker bg + the
-                    // browser's blend; we don't actually strip pixels here.
-                  }
-                : undefined
-            }
             onLoad={(e) => {
               const img = e.currentTarget;
               setLightbox((prev) =>
@@ -466,7 +491,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
                 {lightbox.width}×{lightbox.height}
               </span>
             ) : null}
-            {lightbox.chromaKeyed ? (
+            {lightbox.transparent ? (
               <button
                 type="button"
                 className="sg-btn"

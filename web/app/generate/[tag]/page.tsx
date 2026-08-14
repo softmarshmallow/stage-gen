@@ -7,16 +7,24 @@
 
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
-import path from "node:path";
+import { notFound } from "next/navigation";
 import GenerateView from "./GenerateView";
-import { runDirFor, runJsonPathFor, readRunStatus } from "@/lib/shell/runs";
+import {
+  artifactPathFor,
+  isSafeRunTag,
+  readRunInput,
+  readRunStatus,
+  runDirFor,
+} from "@/lib/shell/runs";
 import type { WorldSpecLite } from "@/lib/shell/slots";
+import type { TransparencyMode } from "@/lib/shell/transparency";
 
 export const dynamic = "force-dynamic";
 
 interface InitialState {
   tag: string;
   prompt: string | null;
+  transparencyMode: TransparencyMode | null;
   status: "missing" | "running" | "done" | "failed";
   failedStage: string | null;
   spec: WorldSpecLite | null;
@@ -24,21 +32,14 @@ interface InitialState {
 }
 
 async function loadInitial(tag: string): Promise<InitialState> {
+  if (!isSafeRunTag(tag)) notFound();
   const dir = runDirFor(tag);
   const status = await readRunStatus(tag);
 
-  let prompt: string | null = null;
-  if (existsSync(runJsonPathFor(tag))) {
-    try {
-      const raw = await fs.readFile(runJsonPathFor(tag), "utf8");
-      prompt = JSON.parse(raw).prompt ?? null;
-    } catch {
-      // ignore
-    }
-  }
+  const runInput = await readRunInput(tag);
 
   let spec: WorldSpecLite | null = null;
-  const specPath = path.join(dir, `world_spec_${tag}.json`);
+  const specPath = artifactPathFor(tag, `world_spec_${tag}.json`);
   if (existsSync(specPath)) {
     try {
       const raw = await fs.readFile(specPath, "utf8");
@@ -64,7 +65,8 @@ async function loadInitial(tag: string): Promise<InitialState> {
 
   return {
     tag,
-    prompt,
+    prompt: runInput?.prompt ?? null,
+    transparencyMode: runInput?.transparencyMode ?? null,
     status: status.status,
     failedStage: status.failedStage ?? null,
     spec,

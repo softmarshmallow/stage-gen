@@ -2,12 +2,17 @@
 //
 // A "ready" project is one whose run.json exists and reports ok === true.
 // Used by the picker home page to surface a quick-demo list with direct
-// Play / Details links — bypassing the prompt-and-generate flow.
+// Preview / Details links — bypassing the prompt-and-generate flow.
 
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
-import path from "node:path";
-import { OUT_ROOT, runJsonPathFor, runDirFor } from "./runs";
+import {
+  artifactPathFor,
+  isSafeRunTag,
+  OUT_ROOT,
+  promptFromRunManifest,
+  runJsonPathFor,
+} from "./runs";
 
 export interface ReadyProject {
   tag: string;
@@ -24,6 +29,7 @@ export async function listReadyProjects(): Promise<ReadyProject[]> {
     entries.map(async (e) => {
       if (!e.isDirectory()) return;
       const tag = e.name;
+      if (!isSafeRunTag(tag)) return;
       const runJson = runJsonPathFor(tag);
       if (!existsSync(runJson)) return;
       try {
@@ -31,11 +37,11 @@ export async function listReadyProjects(): Promise<ReadyProject[]> {
         const data = JSON.parse(raw);
         if (data.ok !== true) return;
         const conceptName = `concept_${tag}.png`;
-        const conceptPath = path.join(runDirFor(tag), conceptName);
+        const conceptPath = artifactPathFor(tag, conceptName);
         const conceptFile = existsSync(conceptPath) ? conceptName : null;
         out.push({
           tag,
-          prompt: typeof data.prompt === "string" ? data.prompt : "",
+          prompt: promptFromRunManifest(data) ?? "",
           endedAt: typeof data.endedAt === "string" ? data.endedAt : null,
           conceptFile,
         });

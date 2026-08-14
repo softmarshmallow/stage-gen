@@ -14,8 +14,8 @@
 import { NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
-import path from "node:path";
 import {
+  isSafeRunTag,
   logPathFor,
   runDirFor,
   runJsonPathFor,
@@ -63,6 +63,9 @@ export async function GET(
   { params }: { params: Promise<{ tag: string }> },
 ) {
   const { tag } = await params;
+  if (!isSafeRunTag(tag)) {
+    return Response.json({ error: "invalid run tag" }, { status: 400 });
+  }
   const logPath = logPathFor(tag);
   const dir = runDirFor(tag);
   const runJsonPath = runJsonPathFor(tag);

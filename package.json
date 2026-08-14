@@ -4,11 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "pipeline",
+    "components/*",
+    "stage-gen",
     "web"
   ],
   "scripts": {
-    "pipeline": "bun run pipeline/src/cli.ts",
+    "stage-gen": "bun run stage-gen/src/cli.ts",
+    "check:stage-gen": "bun --filter @stage-gen/stage-gen check",
+    "test:stage-gen": "bun --filter @stage-gen/stage-gen test",
     "web": "bun --filter @stage-gen/web dev",
     "web:build": "bun --filter @stage-gen/web build"
   },

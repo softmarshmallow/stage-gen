@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "provider": "openrouter",
+  "model": "google/lyria-3-pro-preview",
+  "seed": null,
+  "prompt": "Generate a seamless thirty-second instrumental loop for a horizontally scrolling 2D game preview. Use a warm, light, adventurous mood with plucked strings, soft mallet tones, gentle hand percussion, and a restrained airy pad. Keep a steady moderate pulse, a clear but unobtrusive melody, and a balanced mix that leaves room for sound effects. The ending must reconnect naturally to the opening harmony and rhythm with no fade-out. No vocals, spoken words, artist references, franchise references, quoted melodies, or imitation of any identifiable work.",
+  "prompt_sha256": "f5bfa3e506b35d11745ce3d23e13a72391a82b02c5277f0976488ea083e035fa",
+  "references": [],
+  "refs": [],
+  "inputs": [
+    {
+      "ref": "sha256:5f3d7dc7956a525b64514ace172c3edae489ed329f6ead3ee6312642d9d0dbb7",
+      "sha256": "5f3d7dc7956a525b64514ace172c3edae489ed329f6ead3ee6312642d9d0dbb7",
+      "source": "content",
+      "bytes": 1254310,
+      "media_type": "audio/mpeg"
+    }
+  ],
+  "params": {
+    "generation": {
+      "output_format": "mp3",
+      "modalities": [
+        "text",
+        "audio"
+      ],
+      "stream": true,
+      "validated": true,
+      "metadata": {
+        "source": "stage-gen-headless"
+      }
+    },
+    "generation_timestamp": "2026-08-14T08:35:36.105Z",
+    "references": [],
+    "postprocess": {
+      "processor": "ffmpeg",
+      "version": "ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers",
+      "filter": "loudnorm",
+      "filter_params": {
+        "integrated_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "lra": 11,
+        "linear": true
+      },
+      "measured_source": {
+        "integrated_lufs": -11.89,
+        "true_peak_dbtp": 0.21,
+        "lra": 5.3,
+        "threshold": -22.19,
+        "target_offset": -1.17
+      },
+      "codec": "libmp3lame",
+      "output_format": "mp3"
+    }
+  },
+  "validation": {
+    "generation": {
+      "output_nonempty": true,
+      "base64": "strict",
+      "media_type": "audio/mpeg",
+      "signature": "matched",
+      "source_shape": "sse",
+      "caller": true
+    },
+    "postprocess": {
+      "non_silent": true,
+      "integrated_lufs": -16.27,
+      "true_peak_dbtp": -4.16,
+      "max_true_peak_dbtp": -1,
+      "duration_seconds": 52.009796,
+      "format_name": "mp3",
+      "bit_rate": 192195,
+      "signature": "matched"
+    }
+  },
+  "component": {
+    "name": "@stage-gen/music-generation",
+    "version": "0.0.0"
+  },
+  "tool": {
+    "name": "stage-gen",
+    "version": "0.0.0"
+  },
+  "artifact": {
+    "sha256": "af275dba903676d007a0631b480ad5ceb3154b7f77e90e40137d9f8781a066a7",
+    "bytes": 1249508,
+    "media_type": "audio/mpeg"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "license_id": "CC0-1.0",
+    "notice": "preview-loop.LICENSE.md",
+    "attribution": [],
+    "basis": [
+      "preview-loop.mp3.meta.json",
+      "preview-loop.LICENSE.md",
+      "terms-reviewed-2026-08-14",
+      "repository maintainer (authenticated task owner)",
+      "project maintainer and authorized generation workflow operator",
+      "no recognizable protected composition, lyrics, performer, voice, brand, or mark",
+      "project-controlled rights, if any",
+      "conversation-attestation-2026-08-14T123808Z",
+      "artifact-specific rights-holder dedication of project-controlled rights only"
+    ],
+    "reviewed_at": "2026-08-14T12:38:08.000Z"
+  },
+  "ts": "2026-08-14T08:45:41.027Z",
+  "attempts": 1,
+  "retries": 0,
+  "response": {
+    "generation": {
+      "media_type": "audio/mpeg",
+      "bytes": 1254310,
+      "source_shape": "sse",
+      "text_characters": 20,
+      "usage": {
+        "prompt_tokens": 138,
+        "completion_tokens": 6,
+        "total_tokens": 144,
+        "cost": 0.08,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.08,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0.08
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 6
+        }
+      }
+    },
+    "postprocess": {
+      "source_sha256": "5f3d7dc7956a525b64514ace172c3edae489ed329f6ead3ee6312642d9d0dbb7",
+      "output_sha256": "af275dba903676d007a0631b480ad5ceb3154b7f77e90e40137d9f8781a066a7",
+      "source_bytes": 1254310,
+      "output_bytes": 1249508,
+      "ffmpeg_version": "ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers"
+    }
+  }
+}

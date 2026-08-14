@@ -2,21 +2,21 @@
 //
 // Three operations the runtime applies as it loads pipeline-generated assets:
 //
-//   1. chromaKeyToAlpha  — magenta (#FF00FF) → alpha 0  (TC-062)
+//   1. chromaKeyToAlpha  — legacy exact-key compatibility → alpha 0
 //   2. extractCellsBbox  — per-cell alpha bbox crop on a grid sheet (TC-063)
 //   3. fadeParallaxEdges — left/right alpha taper for seamless loop (TC-064)
 //
 // Everything happens on an in-memory <canvas>; the on-disk PNG is never
-// touched. The chroma-snap pipeline stage (pipeline/src/post/chroma-snap.ts)
-// already snaps near-magenta drift to exact #FF00FF, so the runtime can
-// match exact RGB without any tolerance.
+// touched. New manifests already carry canonical alpha and never call the
+// legacy compatibility operation.
 //
 // Output: a fresh HTMLCanvasElement holding the processed pixels. Callers
 // register it with Phaser via `textures.addCanvas(key, canvas)`.
 
 export type ImageSource = HTMLImageElement | HTMLCanvasElement;
 
-function toCanvas(img: ImageSource): HTMLCanvasElement {
+/** Copy an image into a fresh canvas while preserving its existing alpha. */
+export function copyImageToCanvas(img: ImageSource): HTMLCanvasElement {
   // Take the source dimensions even if it's a plain Image.
   const w = "naturalWidth" in img ? img.naturalWidth || img.width : img.width;
   const h = "naturalHeight" in img ? img.naturalHeight || img.height : img.height;
@@ -29,29 +29,12 @@ function toCanvas(img: ImageSource): HTMLCanvasElement {
   return c;
 }
 
-// 1) chromaKeyToAlpha — magenta (#FF00FF) → alpha 0.
+// 1) chromaKeyToAlpha — legacy exact-key compatibility → alpha 0.
 //
-// Default behaviour is EXACT match on (255, 0, 255). The pipeline-side
-// chroma-snap stage guarantees the on-disk PNG has no near-magenta drift
-// for every asset family that owns the snap (sprites, mobs, portal,
-// inventory, items, obstacles, tileset, and most layers). Exact-match
-// keeps sprite edges fringe-free (TC-062) and is the only mode that
-// must be used for non-layer assets.
-//
-// Tolerant mode (`threshold` > 0): a pixel within Manhattan distance
-// `threshold` of (255, 0, 255) also gets alpha=0. This is reserved for
-// parallax LAYER assets where the painted background drifts further
-// from #FF00FF than the pipeline snap (default 30) catches — see
-// TC-078. The snapped-on-disk vs runtime-tolerant split avoids any
-// regression on sprite assets that depend on exact-match.
-//
-// Threshold guidance: 80 catches the published (220,50,200) drift class
-// (Manhattan distance 140) with margin. Empirically on the snowy-mountain
-// `near_fir_grass` layer, threshold 180 brings the residual pink count
-// down from ~23k to ~1.8k pixels (most remaining are anti-alias edges
-// against the snapped magenta, harmless once blurred). Values much
-// above 200 begin to encroach on dusty-purple stylistic tones and
-// risk snapping painted content; 180 is the chosen balance.
+// Default behavior matches the historical exact (255, 0, 255) exterior.
+// Tolerant mode exists only for old parallax outputs that predate explicit
+// strategy metadata. New `ai` and `chroma` runs both publish canonical alpha
+// and must bypass this conversion.
 export interface ChromaKeyOptions {
   /** Manhattan distance from (255,0,255). 0 = exact match (default). */
   threshold?: number;
@@ -62,7 +45,7 @@ export function chromaKeyToAlpha(
   options: ChromaKeyOptions = {},
 ): HTMLCanvasElement {
   const threshold = options.threshold ?? 0;
-  const canvas = toCanvas(img);
+  const canvas = copyImageToCanvas(img);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("2d context unavailable");
   const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -95,8 +78,8 @@ export function chromaKeyToAlpha(
 // compute the alpha bounding box of the actual content. Returns the cropped
 // region rectangle for each cell (left-to-right, top-to-bottom).
 //
-// Important: pass an ALREADY chroma-keyed canvas in. extractCellsBbox does
-// not key magenta itself; it expects alpha=0 to mark "background".
+// Important: pass an alpha-bearing canvas in. extractCellsBbox does not derive
+// transparency itself; it expects alpha=0 to mark the exterior.
 //
 // Returns the per-cell rectangles and a sourceCanvas the caller can use to
 // register sub-textures. An empty cell (no non-zero alpha) yields a 1×1
@@ -124,7 +107,7 @@ export function extractCellsBbox(
   const sourceCanvas =
     spriteSheet instanceof HTMLCanvasElement
       ? spriteSheet
-      : toCanvas(spriteSheet);
+      : copyImageToCanvas(spriteSheet);
   const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("2d context unavailable");
   const W = sourceCanvas.width;
@@ -186,14 +169,14 @@ export function extractCellsBbox(
 // alpha is fully restored to its original value. The on-disk PNG is
 // untouched — we only mutate the in-memory canvas. (TC-064)
 //
-// The taper multiplies the existing alpha so chroma-keyed transparent
-// regions stay transparent. This is what enables the two-image looping
+// The taper multiplies the existing alpha so transparent regions stay
+// transparent. This is what enables the two-image looping
 // crossfade described in docs/spec/asset-contracts.md § "Looping".
 export function fadeParallaxEdges(
   img: ImageSource,
   fadePx = 64,
 ): HTMLCanvasElement {
-  const canvas = toCanvas(img);
+  const canvas = copyImageToCanvas(img);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("2d context unavailable");
   const W = canvas.width;

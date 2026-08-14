@@ -1,0 +1,16 @@
+{
+  "name": "@stage-gen/image-generation",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@stage-gen/core": "workspace:*"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "roots": [
+    "stage-gen/recipes"
+  ],
+  "media": [
+    {
+      "path": "stage-gen/recipes/scrolling-preview/assets/music/preview-loop.mp3",
+      "reviewStatus": "repository-approved",
+      "synthId": {
+        "expected": true,
+        "independentlyVerified": false
+      },
+      "listeningReview": {
+        "status": "approved",
+        "reviewedBy": "repository maintainer (authenticated task owner)",
+        "authorityBasis": "project maintainer and authorized generation workflow operator",
+        "result": "no recognizable protected composition, lyrics, performer, voice, brand, or mark",
+        "approvalScope": "project-controlled rights, if any",
+        "reviewedAt": "2026-08-14T12:38:08.000Z",
+        "attestationId": "conversation-attestation-2026-08-14T123808Z",
+        "attestedAt": "2026-08-14T12:38:08.000Z"
+      }
+    }
+  ]
+}

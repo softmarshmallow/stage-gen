@@ -1,81 +1,70 @@
-# gpt-image-2 — model adapter notes
+# Image-model adapter contract
 
-What `openai/gpt-image-2` accepts via the Vercel AI Gateway, and how the
-asset specs in this directory are written against it.
+Verified 2026-08-14. This page records the model-specific boundary used by the
+scrolling-preview recipe. The general component contract lives in
+[../component-contract.md](../component-contract.md).
 
-## Parameter compatibility (vs gpt-image-1)
+## Route
 
-| Parameter | gpt-image-1 | gpt-image-2 | Notes |
-|---|---|---|---|
-| `response_format="b64_json"` | ok | **rejected** — `Unknown parameter: 'response_format'` | Output is always base64 by default; do not pass. |
-| `background="transparent"` | ok | **rejected** — `Transparent background is not supported for this model` | Use `auto`/`opaque` only. Composite alpha cutout downstream if needed. |
-| `prompt`, `size`, `quality`, `n` | ok | accepted | The model does not honour `quality` / per-call style knobs. |
+- OpenRouter slug: `openai/gpt-image-2`.
+- Endpoint: `POST https://openrouter.ai/api/v1/images`.
+- Credential: `OPENROUTER_API_KEY`.
+- Inputs: text and optional reference images.
+- Output: image.
 
-## Routing (gateway)
+Use the dedicated image endpoint or the current OpenRouter AI SDK image model.
+Do not rely on behavior from the removed gateway integration.
 
-- Model id sent: `openai/gpt-image-2`
-- Resolved provider: `openai`, provider model id: `gpt-image-2`
-- Endpoint hit: `/v1/images/generations`
-- Errors arrive wrapped as `AI_APICallError` with the upstream message in `error.message`.
+## Verified request surface
 
-## Open questions for game-asset workflow
+Current endpoint metadata advertises:
 
-- No transparent background → assets use a magenta (#FF00FF) chroma key
-  contract; the runtime keys it to alpha at load.
-- Higher resolutions (2K native, 4K upscale per launch post): not in
-  scope for this pipeline.
+- `aspect_ratio`: `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `16:9`, `9:16`,
+  `21:9`, or `auto`;
+- `quality`: `auto`, `low`, `medium`, or `high`;
+- `background`: `auto` or `opaque`;
+- `n`: 1 through 10;
+- up to 16 `input_references`;
+- `output_compression`: 0 through 100; and
+- buffered or streaming output.
 
-## Image-to-image (reference image input)
+The endpoint record does not advertise arbitrary pixel `size`, `resolution`,
+transparent background, output format, or seed. Treat absent capabilities as
+unsupported. Query the endpoint record before expanding the adapter.
 
-The OpenAI SDK's `client.images.edit(...)` posts to `/v1/images/edits`,
-which the gateway returns 404 for. The canonical edit route is **not**
-exposed.
+Reference images are hosted/data URLs in `input_references`. Their order is an
+explicit part of the prompt contract.
 
-The OpenAI-compatible REST surface on the gateway accepts the
-generations endpoint, but reference-image fields (`image_urls`,
-`mask_url`, `image_url`) are not forwarded — the model generates from
-the prompt alone on that path.
+## Response
 
-**Conclusion:** the OpenAI-compatible REST surface on Vercel AI Gateway
-does not currently expose gpt-image-2's image-to-image capability.
-Image-to-image is reachable through the AI SDK.
+Buffered success contains `data[].b64_json` plus optional `media_type` and
+usage. Streaming success emits partial-image events followed by a completed
+event and `[DONE]`.
 
-## Working path: Vercel AI SDK
+Decode base64 within the retry attempt. Reject an empty item, invalid base64,
+unrecognized media, or failed image inspection. Record returned usage without
+assuming it is always present.
 
-```ts
-import { generateImage } from "ai";
+## Recipe normalization
 
-const result = await generateImage({
-  model: "openai/gpt-image-2",
-  prompt: { text: "...", images: [referenceBytes] },
-  size: "1024x1024",
-});
-```
+The scrolling recipe has exact legacy canvas/grid contracts. These are output
+contracts, not proof that the provider accepts arbitrary pixel dimensions.
+Request a supported aspect ratio, inspect the returned canvas, then use an
+explicit deterministic normalization step where the recipe requires exact
+dimensions.
 
-Notes:
-- AI SDK v6 uses non-experimental `generateImage` (no `experimental_` prefix).
-- The `prompt` is an object: `{ text, images }`. `images` accepts
-  `Uint8Array | string | URL | Buffer | base64`.
-- `AI_GATEWAY_API_KEY` env var auto-routes the model id to the gateway.
+Transparent sprites default to an opaque neutral grey or naturally isolated
+background followed by the background-removal component. A layout prior may
+still communicate cell geometry, but its removable field must follow the
+selected recipe strategy. Exact `#FF00FF` is reserved for the explicit degraded
+`chroma` fallback. Provider transparency is not part of this model's verified
+contract. Opaque concept/backdrop assets bypass removal.
 
-### Mask parameters
+## Retry and provenance
 
-Inpainting masks (`mask`, `mask_url`, `mask_image_url`) are not honoured
-on either gateway path — passing them does not constrain the output to
-the unmasked region. The fix is **not** to find a mask key that works
-but to bake the layout into a reference image instead (see "layout
-prior" / "harness" in `asset-contracts.md`).
+Use one initial attempt plus five blind retries. Validation failures are
+retryable. Record the exact slug, endpoint capability snapshot/version when
+available, prompt, references/hashes, request parameters, returned media type,
+usage, attempts, normalization, and final hash.
 
-## Template adherence
-
-A reference image with a thin grid (e.g. 3×2 cells with bold dividers
-on a magenta canvas) paired with a one-line style prompt
-("pixel-art RPG item icons, game asset") produces a layout-correct
-sheet — one item per cell, dividers preserved — without the prompt
-needing to describe the grid, count cells, or list contents.
-
-**Conclusion:** an empty grid is a sufficient structural prior on its
-own. The model fills cells with style-consistent assets from a brief
-style/type prompt alone. This makes layout-driven asset generation
-viable: author a template PNG, supply a one-line style prompt, get a
-sheet back.
+Primary source links are maintained in [provider operations](../providers.md).

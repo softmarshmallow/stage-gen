@@ -1,104 +1,104 @@
-# Game template overview
+# System overview
 
-A short dictionary of the systems that make up the 2D side-scrolling RPG
-template. Each entry is a one-paragraph sketch — implementation details live
-in dedicated docs (linked where they exist).
+`stage-gen` is a headless orchestration surface over reusable 2D media
+components. It produces validated artifacts and provenance for games and game
+tools; it does not own gameplay or require a particular runtime.
 
-This is a **template**, not a fixed game: every entry below is generated
-from a single world prompt, then assembled into a playable scene. Most
-systems are deliberately minimal "demo" implementations meant to prove the
-art pipeline end-to-end; expect to grow each one as the template matures.
+## Topology
 
-## Systems
+```mermaid
+flowchart LR
+    I["Typed input manifest"] --> C["Reusable components"]
+    C --> P["Headless pipeline"]
+    P --> A["Artifacts + provenance"]
+    P --> B["Benchmarks and research evidence"]
+    A --> W["Optional web preview adapter"]
+    A --> E["Future engine adapters"]
+```
 
-- **World concept** — The single style root. One painterly image of the
-  world that every other generation step uses as a style reference.
-  Ensures palette, brushwork, lighting, and mood stay coherent across
-  every asset. (See [asset-contracts.md](asset-contracts.md).)
+- `components/` owns provider adapters and deterministic media operations.
+- `stage-gen/` owns CLI/server orchestration, run state, manifests,
+  benchmarks, and research workflows.
+- `web/` is an optional consumer that visualizes output and demonstrates one
+  scrolling-world recipe.
+- `docs/` records contracts, verified provider behavior, policies, and recipe
+  evidence.
 
-- **World-design agent** — A vision LLM step right after the concept
-  that produces a **structured world bible** (`world_spec_<tag>.json`) —
-  short narrative + lists for mobs, obstacle sheets, and items. The
-  agent has **full design control**: it invents the world's mob ladder
-  (its own tier labels and body plans for each rung) and the world's
-  pickup palette (its own kind labels) — there is no static menu of
-  "fledgling / forager / scout / …" tiers or "coin / gem / potion / …"
-  item kinds anywhere in the pipeline. The only structural commitment
-  the agent must respect is that `mobs[]` is an ascending power ladder
-  (slot 0 = weakest, slot N-1 = strongest) because the runtime scales
-  HP linearly with slot index. Naming is intentionally short (1-3
-  words) because the image model also receives the same concept image.
+The dependency direction is one way. A component does not import a pipeline;
+a pipeline does not import a preview; a preview does not become an implicit
+validator for the reusable component.
 
-- **Parallax** — An **agent-designed** stack of 1-5 horizontally-tiling
-  depth layers. The world-design agent picks how many layers exist,
-  what each one paints, where on the canvas (in canvas-fraction
-  language), z-index for draw order, parallax speed, and whether the
-  layer is opaque (the deepest one always is — that's the skybox).
-  Looping is handled at runtime by pre-fading each transparent layer's
-  L/R edges with an alpha gradient and rendering two overlapping
-  copies whose matched fades crossfade across the seam — no
-  painter-side cooperation, no static lobe mask.
+## Component graph
 
-- **Terrain (ground)** — A heightmap-driven floor of square tiles, painted
-  from a generated tileset that follows [tileset.md](tileset.md).
-  Currently just the main floor — there is no multi-storey level
-  architecture, no slopes mid-stage, no underground, no walls beyond
-  the natural step-up of adjacent columns.
+A pipeline builds a directed acyclic graph from explicit inputs. Independent
+nodes may run concurrently; dependent nodes receive artifacts through typed
+results or a manifest. A recipe decides which component families to compose.
 
-- **Character** — The player avatar. A single concept turnaround feeds
-  the master motion sheet (idle / walk / run / jump / crawl), plus a
-  dedicated attack strip. Movement is platformer-classic: arrows / WASD,
-  shift to run, space to jump, `S`/down to crouch, `Z` to attack.
+Examples of reusable operations include:
 
-- **Mobs** — Wandering creatures, one per "tier" on an 8-step ladder
-  (fledgling → apex). Each variant has its own concept turnaround, idle
-  strip, and hurt strip; HP scales with tier. Mobs wander a small radius
-  around their spawn column, can be hit, take knockback, and fade out
-  on death.
+- image generation from text and optional references;
+- background removal and mask extraction;
+- media validation and deterministic normalization;
+- grid/sheet slicing and packing;
+- structured text/vision design data; and
+- music generation and audio inspection.
 
-- **Props (obstacles)** — Decorative ground-resting objects (rocks,
-  bushes, posts, crates, totems) painted across themed sheets. Scattered
-  along the heightmap to break up the silhouette of the floor. Purely
-  visual today — no collision, no interaction.
+A recipe may request platformer motion names, top-down props, dialogue
+portraits, interface panels, or a particular projection. That vocabulary is
+recipe input, not a hidden property of the underlying provider or media
+component.
 
-- **Items** — Pickups dropped by mobs on death. Bob in place; collected on
-  player overlap. The world-design agent invents an 8-item palette per
-  world (its own `kind` labels, names, and briefs — no fixed enum).
-  The only structural commitment is exactly 8 slots, matching the
-  inventory grid.
+## Run contract
 
-- **Inventory (bag)** — A toggleable overlay panel (`I` key) showing the
-  agent-designed 8-item palette as a 4×2 slot grid. Per-item counts
-  increment on pickup; empty slots stay hidden. Demo-quality: no
-  equipping, no using, no re-ordering.
+Every headless run has:
 
-- **Portal** — Building-sized entry / exit markers placed at the start
-  and end of the stage. The player walks into them — no key press
-  required. (Currently the trigger fires; what happens next is the
-  hook for level progression.)
+1. a validated input manifest;
+2. a deterministic run identifier when all identity-bearing inputs are stable;
+3. an isolated output directory;
+4. component-level progress and failure state;
+5. resumable skip-if-valid behavior;
+6. artifact results with adjacent provenance; and
+7. a top-level run manifest that records the graph and final status.
 
-- **BGM (background music)** — A **curated**, not generated, library of
-  music packs. Each pack has a natural-language description, biome /
-  mood / tempo facets, and a `tags` keyword bag. A picker function
-  scores packs against the user's world prompt and selects one for the
-  runtime to loop.
+An artifact is valid only after media inspection succeeds. HTTP success or a
+non-empty URL is insufficient. Partial files do not satisfy the cache.
 
-## Pipeline shape
+## Reliability
 
-The art for one world is generated by an orchestrator that fans the world
-concept out into a few dozen parallel image-gen calls (see
-[asset-contracts.md](asset-contracts.md) for orchestration and per-asset
-specs). The web runtime loads everything and stitches it into a 2D scene.
+Every provider/network call receives five blind retries with capped backoff.
+Transport failures and silent contract failures use the same retry boundary.
+Inputs/references are read and hashed once outside the loop when safe; every
+attempt records non-secret diagnostics. Deterministic post-processing is
+separate from provider retries and is safe to rerun.
 
-## Out of scope (today)
+See [the component contract](../component-contract.md) and
+[provider operations](../providers.md).
 
-Things the template **does not** have yet — call them out as separate
-systems when they land:
+## Provenance
 
-- Combat depth: no projectiles, no mob attacks, no player damage / HP.
-- Level architecture: no slopes mid-stage, no multi-floor, no
-  destructible terrain.
-- Persistence / save state.
-- Audio (music, SFX).
-- Dialogue / NPCs / quests.
-- Equipment, crafting, consumable use.
+The run manifest links each artifact to its component, exact provider/model or
+endpoint, prompt and non-secret parameters, input hashes, attempt count,
+timestamp, media facts, post-processing, and output hash. Provenance supports
+debugging and reproducibility; it is not an IP license.
+
+## First recipe and preview
+
+The existing detailed asset contracts describe a side-view scrolling-world
+recipe: a concept root, parallax layers, terrain tiles, character/mob sheets,
+props, items, inventory, and portals. Those contracts remain useful as the
+first comprehensive integration case.
+
+The browser preview composes that recipe into a scene with a horizontal camera,
+heightmap terrain, movement, interactions, and portals. All of those choices
+stay under `web/`. A different recipe or engine can consume the same generic
+component results through a different manifest/adapter.
+
+See [scrolling-preview asset contracts](asset-contracts.md) and the
+[web preview boundary](../web-preview.md).
+
+## Game engine
+
+No engine is selected for future gameplay. The current browser adapter is not
+the default production target. Dedicated 2D engines, including Godot, may be
+evaluated with alternatives once export manifests are stable; see
+[game-engine evaluation](../game-engine-evaluation.md).

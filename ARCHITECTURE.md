@@ -1,75 +1,92 @@
 # Architecture
 
-A small set of pre-pinned technology choices so the loop doesn't burn
-iterations re-litigating them. Everything else is the agent's call.
+`stage-gen` is a headless, general-purpose system for producing coherent 2D
+game assets. The reusable core stops at validated artifacts, manifests, and
+provenance. A preview or game runtime is a downstream consumer, never the
+definition of the generator.
 
-## Stack at a glance
+## Repository boundaries
 
-| Layer | Choice | Why pinned |
-|---|---|---|
-| Runtime + tooling | **Bun** | One binary for runtime + bundler + script runner + package manager. Native TypeScript, fast cold starts, zero build step for `bun run`. The pipeline scripts run as `bun <file>.ts` directly. |
-| Web framework | **Next.js (App Router)** | Mature, batteries-included; serves the static demo + has API routes for streaming pipeline logs to the browser. Use the App Router (`app/`), not the legacy `pages/` router. |
-| 2D game engine | **Phaser 4** | Long-lived, well-documented WebGL/Canvas 2D engine. Phaser 4 is the current major; it is functionally compatible with Phaser 3 — see [`docs/tech/phaser-4.md`](docs/tech/phaser-4.md). |
-| Image generation | **OpenAI gpt-image-2** via Vercel AI Gateway | The asset contracts in [`docs/spec/asset-contracts.md`](docs/spec/asset-contracts.md) are written against this model. See [`docs/tech/gpt-image-2.md`](docs/tech/gpt-image-2.md) for what works and what to avoid. |
-| Vision LLM (world-design agent) | **OpenAI `gpt-5.5`** | Reads the concept image, returns Zod-validated structured output. Flagship model; no fallback chain. |
-| AI SDK | **`ai` v6 (`@vercel/ai`)** + `@ai-sdk/openai` | One SDK for both image-gen and structured-output text-gen. Talks to the gateway via env-var auth (`AI_GATEWAY_API_KEY`). |
-| Schema validation | **Zod v4** | Used for the world-spec contract. Every Zod schema fed to `generateObject` follows the OpenAI-strict-mode rules in [`docs/tech/gpt-image-2.md`](docs/tech/gpt-image-2.md) (no `.optional()` — use `.nullable()`). |
-| Image post-processing | **`sharp`** | Pipeline-side cropping, resizing, and slicing. Browser-side post (chroma-key, alpha-bbox crop, edge-fade) uses `<canvas>` directly — no extra dep. |
-
-## Three workspaces
-
-The repository has three concerns that should sit in three independent
-workspaces (separate `package.json`s; one Bun monorepo via `bun
-workspaces` is the cleanest layout, but plain top-level dirs also work).
-
-```
-<repo-root>/
-├── pipeline/        ← Bun TypeScript pipeline scripts
-│   ├── ai/          ← per-asset generators + world-design agent + retry wrapper
-│   ├── post/        ← sharp-based slicing / cropping
-│   └── orchestrator (a single `bun` script that fans out the gen calls)
-│
-├── web/             ← Next.js app
-│   ├── app/         ← App Router routes (e.g. `/play/[tag]`)
-│   ├── game/        ← Phaser scene(s) + asset loaders + runtime compositors
-│   └── lib/         ← shared types, slug helpers, world-spec readers
-│
-└── fixtures/              ← committed static assets (same across all worlds)
-    ├── image_gen_templates/ ← layout-prior PNGs
-    ├── bgm/                 ← curated audio library (index.json + mp3s)
-    ├── prompts.txt          ← example world prompts
-    └── styles.txt           ← visual style hints
+```text
+README.md        public entry point
+docs/            contracts, operations, research, and policy
+components/      reusable media capabilities
+stage-gen/       headless CLI, HTTP service, recipes, and benchmarks
+web/             optional browser preview adapter
+fixtures/        small, redistributable references and neutral text cases
 ```
 
-Generated outputs live outside the repo in `out/<tag>/` and are
-gitignored.
+The dependency direction is one way:
 
-## Why this split
+```text
+components <- stage-gen recipes <- optional consumers
+```
 
-- **Pipeline runs offline** (CLI, can be invoked from anywhere — terminal,
-  Next.js API route, CI). It writes PNGs + JSON to a per-tag directory.
-- **Web runtime is purely client-side** at gameplay time — it loads the
-  per-tag directory the pipeline produced and renders the scene in
-  Phaser. The Next.js layer is only there to serve the assets and host
-  the API route that streams pipeline logs to the browser.
-- **Layout-prior PNGs are committed** because they are part of the
-  contract between the painter and the runtime slicer (see
-  [`docs/spec/asset-contracts.md`](docs/spec/asset-contracts.md) §
-  "Common contract: layout priors").
+Components do not import recipes or `web/`. They accept explicit typed inputs,
+validate outputs, and expose provider-neutral artifact information. Recipes
+may add genre, projection, camera, sheet-layout, or gameplay-oriented
+constraints. Consumers may translate a completed manifest into an engine's
+textures, scenes, or import settings.
 
-## What the agent must NOT do (architecture-level)
+## Operational capabilities
 
-- Don't replace Phaser with another 2D engine. The compositing recipes
-  ([`docs/spec/asset-contracts.md`](docs/spec/asset-contracts.md), parallax /
-  chroma-key) are written against a `<canvas>`+sprite-image pipeline
-  that Phaser handles natively.
-- Don't move the pipeline into the Next.js process. The image-gen calls
-  are 30–120 s each; running them inside an HTTP request handler means
-  you're holding 25 in-flight requests open. The pipeline is a CLI; the
-  web layer streams its stdout.
-- Don't introduce a frontend framework on top of Phaser (React, Vue,
-  Svelte) for the gameplay scene. The Phaser scene IS the UI.
-  React/Next is fine for the upload form, the log viewer, and routing.
-- Don't switch image models without re-validating every per-asset
-  contract — see [`docs/tech/gpt-image-2.md`](docs/tech/gpt-image-2.md)
-  for the model-specific quirks the asset contracts depend on.
+The initial hosted adapters use OpenRouter for structured text/vision, image
+generation, and experimental music generation, and fal for background
+removal. Exact model identifiers, request envelopes, environment variables,
+and verification status are documented in [Provider operations](docs/providers.md).
+Those names are operational configuration, not architectural dependencies:
+recipes consume capability interfaces and provenance records rather than raw
+provider response types.
+
+Every AI operation has one retry owner. Transport failures and silent contract
+failures—empty media, malformed JSON, schema mismatch, invalid containers, or
+failed caller validation—remain inside that boundary. Successful artifacts
+must be committed with their provenance and integrity metadata; credentials,
+authorization headers, signed query strings, and embedded reference bytes are
+never persisted.
+
+## Headless path
+
+The supported entry point is:
+
+```sh
+bun run stage-gen -- <args>
+```
+
+The CLI is the primary automation surface. The HTTP service exposes the same
+headless capabilities for local tools. Benchmarks and research cases also live
+under `stage-gen/`; they test declared component contracts without depending
+on a browser scene.
+
+Generated runs live below the configured output directory. Recipe-specific
+names and file layouts belong in recipe manifests, not in generic
+orchestration. Deterministic post-processing is explicit, independently
+testable, and recorded in provenance.
+
+Transparency is a recipe input, not a provider-global toggle. The first recipe
+defaults to validated AI background removal; its explicit degraded chroma
+fallback remains deterministic and local. Opaque artifacts bypass both paths.
+The selected strategy and raw-to-derived lineage travel in manifests and
+sidecars so consumers load canonical outputs without guessing from colour.
+
+## Optional preview
+
+The current `web/` application is a development adapter for the first
+side-view scrolling recipe. Its horizontal camera, parallax, terrain,
+movement, combat, and interaction rules are local preview decisions. It may
+launch the public headless command and read completed run manifests, but it
+does not own generation or define reusable component contracts.
+
+No production gameplay engine has been selected. A dedicated 2D engine,
+including Godot or another suitable candidate, may be evaluated later. The
+choice is deliberately deferred and must not force changes to provider
+adapters, artifact schemas, or component boundaries.
+
+## Storage and redistribution
+
+Generated output, populated environment files, caches, and local verification
+captures are ignored. Only small intentional fixtures with a documented
+rights basis belong in version control. Generated music replaces the removed
+legacy recording library; no third-party recording is retained as a fallback.
+See [Repository storage policy](docs/repository-storage.md) and
+[OSS and IP policy](docs/oss-ip.md).

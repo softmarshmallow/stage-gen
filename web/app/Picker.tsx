@@ -5,40 +5,43 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  DEFAULT_TRANSPARENCY_MODE,
+  modeForAiBackgroundRemoval,
+} from "@/lib/shell/transparency";
 
-// Top-6 curated preset chips. Each chip's `label` is the short tag shown
-// in the UI; clicking injects `prompt` into the textarea. Picked for visual
-// variety across the 30-line fixture (one per major biome/aesthetic).
+// Neutral, repository-authored prompts for the scrolling-preview recipe.
+// They intentionally avoid named properties, creators, studios, and styles.
 const CHIPS: { label: string; prompt: string }[] = [
   {
-    label: "gothic ruins",
+    label: "rain ruins",
     prompt:
-      "I want a moody side-scroll platformer, like Hollow Knight, with rainy gothic ruins, cracked stone arches, and bioluminescent moss glowing pale blue.",
+      "Create an original side-view scrolling-game asset set for rain-dark stone ruins, with broken arches, pale bioluminescent moss, layered mist, and a restrained blue-gray palette.",
   },
   {
-    label: "cozy autumn",
+    label: "harvest village",
     prompt:
-      "I want a cozy autumn village adventure, like Stardew Valley meets a 2D platformer, with thatched-roof cottages, pumpkin patches, falling orange leaves, and warm lantern light.",
+      "Create an original side-view scrolling-game asset set for an autumn farming village, with timber cottages, squash gardens, drifting copper leaves, and warm lantern light.",
   },
   {
-    label: "neon cyberpunk",
+    label: "neon transit",
     prompt:
-      "I want a neon cyberpunk side-scroller, like Katana ZERO, with rainy back-alleys, holographic signs in Japanese, puddle reflections, and pink-cyan rim lighting.",
+      "Create an original side-view scrolling-game asset set for a rain-soaked future transit district, with geometric light panels, puddle reflections, service tunnels, and cyan-magenta rim light without logos or text.",
   },
   {
-    label: "snowy peaks",
+    label: "alpine dusk",
     prompt:
-      "I want a snowy mountain platformer, like Celeste, with crisp powder, pine forests on distant peaks, frozen lakes, and faint aurora in the sky.",
+      "Create an original side-view scrolling-game asset set for an alpine route at dusk, with crisp snow, distant conifer ridges, frozen ponds, and a faint green aurora.",
   },
   {
-    label: "desert tombs",
+    label: "desert vault",
     prompt:
-      "I want a desert dungeon-crawler side-view, like Crypt of the NecroDancer, with sandstone tombs, half-buried obelisks, scorpions in the foreground, and a heat-hazed horizon.",
+      "Create an original side-view scrolling-game asset set for a buried desert observatory, with weathered sandstone chambers, abstract stone markers, small desert creatures, and a heat-softened horizon.",
   },
   {
-    label: "deep sea",
+    label: "abyssal reef",
     prompt:
-      "I want a deep-sea exploration platformer, like Aquaria, with kelp forests, glowing jellyfish drifting in the back, sunken stone columns, and god rays from above.",
+      "Create an original side-view scrolling-game asset set for a deep-ocean reef, with kelp silhouettes, luminous drifting creatures, eroded mineral columns, and narrow shafts of light from above.",
   },
 ];
 
@@ -47,6 +50,9 @@ export default function Picker(_props: { presets: string[] }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiBackgroundRemoval, setAiBackgroundRemoval] = useState(
+    DEFAULT_TRANSPARENCY_MODE === "ai",
+  );
 
   const trimmed = prompt.trim();
   const canSubmit = !busy && trimmed.length > 0;
@@ -59,7 +65,10 @@ export default function Picker(_props: { presets: string[] }) {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: trimmed }),
+        body: JSON.stringify({
+          prompt: trimmed,
+          transparencyMode: modeForAiBackgroundRemoval(aiBackgroundRemoval),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -76,16 +85,45 @@ export default function Picker(_props: { presets: string[] }) {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ color: "var(--dim)", marginBottom: 4 }}>prompt:</div>
+        <div style={{ color: "var(--dim)", marginBottom: 4 }}>
+          scrolling-preview recipe prompt:
+        </div>
         <textarea
           className="sg-textarea"
-          aria-label="world prompt"
-          placeholder="describe a world…"
+          aria-label="scrolling preview asset prompt"
+          placeholder="describe an original side-view asset set…"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           autoFocus
         />
       </div>
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          marginBottom: 16,
+          color: "var(--fg)",
+          cursor: busy ? "default" : "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={aiBackgroundRemoval}
+          disabled={busy}
+          onChange={(event) => setAiBackgroundRemoval(event.target.checked)}
+          aria-label="AI background removal"
+        />
+        <span>
+          <span>AI background removal: {aiBackgroundRemoval ? "on" : "off"}</span>
+          <span style={{ display: "block", color: "var(--dim)", marginTop: 2 }}>
+            {aiBackgroundRemoval
+              ? "default; requires server-side FAL_KEY and fails closed if removal is unavailable"
+              : "explicit degraded chroma fallback; no background-removal call"}
+          </span>
+        </span>
+      </label>
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ color: "var(--dim)", marginBottom: 6 }}>presets:</div>

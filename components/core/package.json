@@ -1,0 +1,13 @@
+{
+  "name": "@stage-gen/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
+  }
+}

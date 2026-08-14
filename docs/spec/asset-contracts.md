@@ -1,21 +1,18 @@
-# Image generation spec
+# Scrolling-preview image asset contracts
 
-Specification of every image asset the pipeline produces — output dimensions,
-input contracts (style references and layout priors), grid layouts where the
-asset is sliced into sprite cells, and orchestration constraints.
+This is the recipe-specific contract for the first 2D scrolling preview:
+output dimensions, reference/layout inputs, sheet grids, and orchestration.
+It is not the global definition of `stage-gen`. Reusable components remain
+genre-, camera-, gameplay-, and engine-agnostic; this recipe supplies the
+side-view vocabulary explicitly.
 
-> **Model-specific note.** This spec targets **OpenAI gpt-image-2** (accessed
-> via the Vercel AI Gateway). Canvas sizes, the ~8.3 Mpx hard cap, the
-> reference-image prompting style, the chroma-key + layout-prior approach,
-> and the absence of per-call quality knobs all reflect what this model
-> accepts and responds well to. Other image models (e.g. Imagen, FLUX,
-> Stable Diffusion-family) accept different size constraints, may not
-> support multi-image references the same way, and may need a different
-> harness strategy (e.g. ControlNet conditioning instead of in-canvas
-> coloured masks). Treat the per-asset specs below as gpt-image-2 contracts;
-> porting to another model means re-validating each contract, not a
-> drop-in swap. See [model-gpt-image-2.md](model-gpt-image-2.md) for the
-> underlying model notes.
+> **Provider note.** The image adapter uses `openai/gpt-image-2` through
+> OpenRouter. The recipe's exact canvas sizes are normalized output contracts,
+> not a claim that the provider accepts arbitrary pixel dimensions. Current
+> endpoint capabilities, alpha limitations, and deterministic normalization
+> requirements are documented in
+> [model-gpt-image-2.md](model-gpt-image-2.md). Revalidate every recipe contract
+> when changing models.
 
 ---
 
@@ -62,7 +59,7 @@ size rails, and forbidden zones using a fixed colour contract:
 
 | Channel | Meaning |
 |---|---|
-| Solid magenta | Chroma key — will become transparent at runtime. |
+| Strategy background | Removable exterior field: neutral grey/natural isolation in `ai`; exact `#FF00FF` in degraded `chroma`. |
 | Yellow lines / outlines | Cell, panel, or frame boundaries (positional only; never painted). |
 | Cyan rails / outlines | Hard limits and anchor lines (head-top rails, slot outlines). |
 | Green rails | Ground / feet baselines (full-row, shared across cells in a row). |
@@ -115,16 +112,23 @@ sheet so cross-row scale-lock can be enforced via shared head/feet rails.
 
 ---
 
-## Common contract: chroma-key
+## Common contract: transparency strategy
 
-Every sprite asset (anything that is not a full-bleed background) is rendered
-with **magenta (#FF00FF) as the chroma key**. The runtime keys magenta to
-transparent during load, with a soft falloff and per-pixel despill on the
-remaining colour channels.
+Every transparency-producing asset declares one run-level strategy:
 
-Exterior magenta is therefore not a stylistic choice — it is part of the
-asset contract. Generators always include explicit "magenta is the chroma
-key" guidance in their prompts.
+- `ai` (default): generate on neutral grey or a naturally isolated background,
+  then require validated background removal. The remover's alpha-bearing PNG
+  is canonical; the raw opaque artifact remains lineage metadata.
+- `chroma` (explicit degraded fallback): generate an exact `#FF00FF` exterior
+  and deterministically key it to alpha without calling the remover.
+
+Both paths publish canonical transparent PNGs. Consumers read the manifest and
+load alpha normally; they do not infer strategy from colour. The world concept
+and the one designated opaque parallax backdrop bypass both paths unchanged.
+An `ai` failure never silently changes to `chroma`.
+
+In the asset-specific sections below, **strategy background** means neutral
+grey/natural isolation for `ai` and exact `#FF00FF` for `chroma`.
 
 ---
 
@@ -148,7 +152,7 @@ Two things are load-bearing for prior + prompt to actually steer output:
   Every layout-critical generator's prompt has a small "colour key"
   section.
 - **The prior carries geometry; the prompt does not re-describe it.**
-  An empty grid PNG (cell dividers on magenta, no other content) is a
+  An empty grid PNG (cell dividers on the strategy background, no other content) is a
   sufficient structural prior on its own — the model will produce one
   asset per cell from a one-line style prompt. Describing the grid in
   prose is redundant noise.
@@ -168,7 +172,7 @@ output); every other generation wave is image-gen.
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
 | 2 | World concept dependants — L parallax layers (agent-designed count), tileset, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
 | 3 | Concept dependants — character master sheet, character attack strip, N creature idle strips, N creature hurt strips | Fan-out: `2 + 2N` calls fired together. | image |
-| 4 | In-process post-processing — chroma-key + slice the character master sheet into per-state strips. No network. | Single CPU pass. | none |
+| 4 | Transparency derivation — validated removal (`ai`) or deterministic keying (`chroma`) — then slice the character master sheet. | Strategy-dependent pass. | background-removal or local CPU |
 
 Wall-clock is dominated by:
 
@@ -194,7 +198,7 @@ Wall-clock is dominated by:
 | **Wave** | 1 (serial root) |
 
 Single-image painterly composition that captures the world's palette,
-brushwork, lighting, and mood. No grid; no chroma-key.
+brushwork, lighting, and mood. No grid or removable exterior field.
 
 ---
 
@@ -304,8 +308,8 @@ exist (1-5), what each one paints, where on the canvas (in
 canvas-fraction language — Y axis 0/5 top to 5/5 bottom), z-index for
 draw order, parallax speed, and whether the layer is opaque. Exactly
 one layer must be the opaque backdrop (z=0, parallax=0); all others
-are transparent overlays that show deeper layers through their magenta
-regions.
+are transparent overlays that show deeper layers through their strategy-background
+regions after derivation.
 
 There is no separate "skybox" generator — the deepest opaque layer the
 agent designs IS the skybox.
@@ -314,7 +318,7 @@ agent designs IS the skybox.
 
 There is no lobe-mask layout prior. A naive lobe-mask approach
 (painters expected to taper content into lobes) tends to fail in
-practice — the model often just leaves magenta in the lobes or
+practice — the model often just leaves the strategy background in the lobes or
 produces visible seams. Instead, all looping work moves to the runtime:
 
 1. At load time, each transparent layer's L/R edges are pre-multiplied
@@ -339,7 +343,7 @@ if the canvas were a single isolated panel. The runtime does the rest.
 | `z_index` | Integer; lower = deeper (drawn first). 0 for the opaque backdrop, ascending for layers painted on top. |
 | `parallax` | Scroll-speed multiplier. 0 for the opaque backdrop. ~0.15 far / ~0.4 mid / ~0.75 near / ~1.1 foreground. |
 | `opaque` | `true` for exactly ONE layer (the deepest backdrop). All others must be `false`. |
-| `paint_region` | Free-form text describing which Y/X range to paint in canvas fractions (e.g. "paint Y 3/5..5/5") and which stays magenta. |
+| `paint_region` | Free-form text describing which Y/X range to paint in canvas fractions (e.g. "paint Y 3/5..5/5") and which remains exterior background. |
 | `description` | One sentence — what to paint (e.g. "silhouettes of jagged ash mountains receding into haze"). |
 
 ### Depth-of-field blur (runtime, derived from `parallax`)
@@ -375,7 +379,7 @@ The tile-role layout (which cell is "top-left corner", "slope up", "interior
 fill", "floating platform left", etc.) is governed by [tileset.md](tileset.md).
 The wireframe layout prior encodes the same role layout in three colours:
 
-- Magenta — sky / above-surface
+- Strategy background — sky / above-surface
 - Green — surface cover (the walkable layer; whatever material the world uses)
 - Gray — underground fill
 
@@ -568,7 +572,7 @@ The bottom of each prop is flat and textured (not a sharp single-line
 edge), so the runtime can place props on any width of grass.
 
 Each prop varies in size dramatically — small (~30% of cell) to large
-(~90% of cell). Above the grass band, magenta is the chroma key; the
+(~90% of cell). Above the grass band, the strategy background is removed; the
 runtime alpha-bbox-crops each cell so cell padding is irrelevant.
 
 ### Theme rotation (fallback only — used when `world_spec` is missing)
@@ -657,7 +661,7 @@ Slot centres (panel coords):
 
 ### Layout prior
 
-Magenta canvas with:
+Canvas filled with the strategy background, with:
 
 - A **yellow rectangle** at the panel's outer edge (1280 × 704, centred).
 - A **4×2 grid of cyan-outlined squares** at the slot positions above
@@ -675,7 +679,7 @@ The model is told to:
 - Leave slot interiors a calm flat tone — no painted contents.
 - Never paint the cyan slot outlines or the yellow outer outline; these
   are positional markers only.
-- Outside the yellow outline, leave magenta untouched (chroma key).
+- Outside the yellow outline, leave the strategy background untouched.
 
 The 8-slot count matches the 8-item palette (one slot per item kind).
 
@@ -716,7 +720,7 @@ matched set.
   with grass tufts wrapping the foot for seamless integration.
 - The portal's open inner area (aperture / archway / doorway) is filled
   with a soft glow / mist / shimmer / rune fill — kept inside the
-  architecture's frame, hard-edged against the surrounding magenta.
+  architecture's frame, hard-edged against the surrounding strategy background.
 
 ### Runtime usage
 

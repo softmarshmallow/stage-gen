@@ -7,7 +7,7 @@ import path from "node:path";
 import { PNG } from "pngjs";
 
 const URL =
-  "http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2";
+  "http://localhost:3000/preview/snowy-mountain-platformer-with-crisp-pow-5162c8d2";
 const OUT = "/tmp/qa-phase7";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

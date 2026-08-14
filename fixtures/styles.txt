@@ -1,38 +1,25 @@
-# Visual style fixtures
+# Neutral visual property fixtures
 
-Short style strings the pipeline can pass alongside a world prompt to bias the painterly look. Each line is a complete style hint; combine freely with any prompt fixture.
+# These short descriptors specify medium, palette, texture, and rendering
+# behavior. They do not refer to named works, creators, studios, or products.
 
-- pencil drawn
-- 80s arcade
-- "don't starve"
-- "hollow knight"
-- "stardew valley"
-- "hyper light drifter"
-- "celeste"
-- "shovel knight"
-- "the binding of isaac"
-- "undertale"
-- "link's awakening (game boy)"
-- gameboy 4-shade green
-- GBA pastel
-- NES 8-bit
-- SNES 16-bit
-- PS1 lowpoly
-- saturday morning cartoon
-- muted watercolor
-- neon synthwave
-- high contrast noir
-- flat vector minimalist
-- soft pastel
-- crayon doodle
-- oil painting
-- woodcut print
-- isometric blueprint
-- papercraft cutout
-- chalkboard sketch
-- clay-mation
-- paper mario
-- risograph print
-- photoreal
-- dark fantasy
-- candy pop
+- fine graphite lines with sparse watercolor washes
+- limited four-tone green monochrome pixel art
+- soft sixteen-color pixel art with restrained dithering
+- chunky low-resolution geometry with flat-shaded lighting
+- muted watercolor on lightly textured paper
+- high-contrast black ink with selective warm accents
+- flat geometric vector shapes with minimal gradients
+- layered paper-cut shapes with visible fiber texture
+- dry-brush gouache with simplified silhouettes
+- carved woodblock texture with uneven ink coverage
+- two-color risograph texture with slight registration drift
+- chalk and pastel marks on a dark matte ground
+- soft clay-like forms with broad softbox lighting
+- crisp technical blueprint lines on desaturated blue
+- low-saturation oil paint with visible broad strokes
+- bright wax-crayon marks on warm cream paper
+- weathered screen-print texture with a restricted palette
+- clean sprite art with one-pixel highlights and readable outlines
+- atmospheric matte painting with restrained depth haze
+- high-key pastel forms with rounded silhouettes

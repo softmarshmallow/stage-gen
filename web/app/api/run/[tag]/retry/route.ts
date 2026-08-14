@@ -3,13 +3,12 @@
 // Body: { asset: string }   filename under out/<tag>/
 // Response: { ok: boolean, reason?: string }
 //
-// Implementation notes: we don't yet have a single-stage CLI entrypoint, so
-// this just removes the named file and re-spawns `bun run pipeline`. Every
-// generator stages skip-if-exists, so only the deleted asset is regenerated
-// (TC-123 verified that re-runs are no-ops when nothing is missing).
+// The headless CLI does not yet expose a single-stage entrypoint. This removes
+// the validated artifact and sidecar, then submits the original current-run
+// input through the public command. Intact recipe artifacts remain cached.
 
 import { NextRequest } from "next/server";
-import { retryAsset } from "@/lib/shell/runs";
+import { artifactPathFor, isSafeRunTag, retryAsset } from "@/lib/shell/runs";
 
 export const runtime = "nodejs";
 
@@ -18,6 +17,9 @@ export async function POST(
   { params }: { params: Promise<{ tag: string }> },
 ) {
   const { tag } = await params;
+  if (!isSafeRunTag(tag)) {
+    return Response.json({ ok: false, reason: "invalid run tag" }, { status: 400 });
+  }
   let body: unknown;
   try {
     body = await req.json();
@@ -28,7 +30,9 @@ export async function POST(
     typeof body === "object" && body !== null && "asset" in body
       ? String((body as Record<string, unknown>).asset ?? "")
       : "";
-  if (!asset || asset.includes("/") || asset.includes("..")) {
+  try {
+    artifactPathFor(tag, asset);
+  } catch {
     return Response.json(
       { ok: false, reason: "asset is required and must be a bare filename" },
       { status: 400 },

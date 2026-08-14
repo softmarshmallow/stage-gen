@@ -1,10 +1,11 @@
-// Deterministic tag derivation — mirrors pipeline/src/tag.ts byte-for-byte.
+// Deterministic base-tag derivation — mirrors stage-gen/src/tag.ts byte-for-byte.
 //
-// Duplicated (not imported) because pipeline/ is a separate Bun workspace and
-// the web bundler cannot pull arbitrary files from outside web/. Both copies
-// MUST stay in sync — the slug + sha256 contract is part of the per-tag URL.
+// Kept at the adapter boundary so the web bundle does not import headless
+// implementation sources. Both copies must stay in sync because slug + hash
+// are part of the per-run URL contract.
 
 import { createHash } from "node:crypto";
+import type { TransparencyMode } from "./transparency";
 
 const SLUG_MAX = 40;
 const SHORTHASH_LEN = 8;
@@ -25,6 +26,7 @@ export function shortHash(prompt: string): string {
     .slice(0, SHORTHASH_LEN);
 }
 
-export function tagFor(prompt: string): string {
-  return `${slugify(prompt)}-${shortHash(prompt)}`;
+export function tagFor(prompt: string, transparencyMode: TransparencyMode): string {
+  const recipeTag = `${slugify(prompt)}-${shortHash(prompt)}`;
+  return `${recipeTag}-${transparencyMode}`;
 }

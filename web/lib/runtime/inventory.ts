@@ -1,6 +1,6 @@
 // Inventory overlay (Phase 7).
 //
-// Renders the chroma-keyed inventory_<tag>.png panel as a HUD overlay
+// Renders the canonical-alpha inventory_<tag>.png panel as a HUD overlay
 // (toggled with I, default visible) and composites picked-up items into
 // the panel's contracted slot positions (TC-088).
 //
@@ -36,7 +36,7 @@ export const SLOT_CENTRES: { col: number; row: number; x: number; y: number }[] 
 
 export interface InventoryHudOpts {
   scene: Phaser.Scene;
-  /** Phaser texture key holding the chroma-keyed inventory panel. */
+  /** Phaser texture key holding the canonical inventory panel. */
   panelKey: string;
   /** Phaser texture key holding the items grid. */
   itemsKey: string;

@@ -19,12 +19,15 @@ export default async function Home() {
   return (
     <main className="sg-page">
       <h1 className="sg-h1">stage-gen</h1>
+      <p className="sg-meta-line" style={{ marginBottom: 20 }}>
+        optional scrolling-preview adapter · reusable generation runs headlessly
+      </p>
       <Picker presets={[]} />
 
       {projects.length > 0 ? (
         <section className="sg-projects">
           <div className="sg-projects-h">
-            <span style={{ color: "var(--dim)" }}>ready projects</span>
+            <span style={{ color: "var(--dim)" }}>ready preview runs</span>
             <span style={{ color: "var(--dim)", opacity: 0.6 }}>
               {" "}
               · {projects.length} done
@@ -54,9 +57,9 @@ export default async function Home() {
                 <div className="sg-project-actions">
                   <Link
                     className="sg-play is-active sg-mini"
-                    href={`/play/${p.tag}`}
+                    href={`/preview/${p.tag}`}
                   >
-                    [ ▶ play ]
+                    [ ▶ open preview ]
                   </Link>
                   <Link className="sg-mini sg-mini-ghost" href={`/generate/${p.tag}`}>
                     [ ⌕ details ]

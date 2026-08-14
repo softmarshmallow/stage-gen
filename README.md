@@ -1,161 +1,203 @@
 # stage-gen
 
-Prompt-to-playable 2D side-scroller. One natural-language description in →
-a parallax world, a character, an enemy, props, and a runnable demo out.
+`stage-gen` is a general-purpose, headless pipeline and component library for generating
+coherent 2D game assets. It turns typed inputs, prompts, and optional visual
+references into validated artifacts with reproducibility metadata.
 
-The system is a directed asset pipeline: a small set of **hand-authored
-templates** constrains generation, the model fills in the painted detail,
-and a **deterministic post-pipeline** stitches everything into a tileable,
-loopable, playable scene.
+The project is not a game engine and it is not defined by one genre, camera,
+or control scheme. Individual recipes may request side-view scenery, top-down
+props, interface elements, animation sheets, music, or other asset families;
+the reusable components remain independent of those product choices.
 
----
+The first demonstrated consumer is an optional web-based scrolling-game
+preview. It exists to exercise generated assets end to end. Its camera,
+terrain, movement, combat, and scene-composition assumptions are adapter
+concerns, not core generation contracts.
 
-## Pipeline at a glance
+## Repository shape
 
-```mermaid
-flowchart TD
-    P[Prompt] --> C[Generate Concept Art]
-
-    C --> S[Skybox]
-    C --> L1[Parallax Layer · back]
-    C --> L2[Parallax Layer · mid]
-    C --> L3[Parallax Layer · front]
-    C --> L4[Parallax Layer · fg]
-    C --> CT[Character Turnaround]
-    C --> MT[Mob Turnaround]
-    C --> GT[Ground Tileset]
-    C --> OB[Obstacle Sheet]
-
-    CT --> CS[Character States]
-    MT --> MI[Mob Idle]
-    CS --> SP[Split per-state strips]
-
-    S  --> R[Runtime · compose & play]
-    L1 --> R
-    L2 --> R
-    L3 --> R
-    L4 --> R
-    GT --> R
-    OB --> R
-    SP --> R
-    MI --> R
-
-    classDef gen fill:#3b82f6,stroke:#1e40af,color:#fff
-    classDef post fill:#10b981,stroke:#065f46,color:#fff
-    classDef play fill:#f59e0b,stroke:#92400e,color:#fff
-    class C,S,L1,L2,L3,L4,CT,MT,GT,OB,CS,MI gen
-    class SP post
-    class R play
+```text
+README.md        public entry point
+docs/            architecture, provider, policy, and recipe documentation
+components/      reusable generation and post-processing modules
+stage-gen/       headless CLI/server plus benchmark and research entrypoints
+web/             optional scrolling-preview adapter
 ```
 
-Stages run in three waves:
+Each component should have typed inputs and outputs, validate its returned
+media, use the shared retry policy, and emit provenance beside its artifacts.
+Pipelines compose components; preview or engine integrations consume pipeline
+outputs. Components must not import from `web/` or encode a particular camera,
+genre, gameplay loop, or engine.
 
-1. **Concept** is the bottleneck. Everything downstream uses it as the
-   style reference, so it must finish first.
-2. **Wave A (parallel)** — eight independent gens fan out: the skybox,
-   four parallax depth layers, two turnarounds (player and mob), the
-   ground tileset, and the obstacle sheet.
-3. **Wave B (parallel)** — character animation states (a multi-state
-   master sheet) and the mob's idle strip; each depends only on its
-   own turnaround from Wave A.
+## Setup
 
-A small **post-processing** step then slices the master sheet into
-per-state strips. After that the runtime can launch.
+Prerequisites are Bun and provider credentials for the stages you intend to
+run. Copy the public template and fill values locally:
 
----
-
-## Hand-authored templates
-
-The model is creative but loose; templates are how we make its output
-*usable*. Each template encodes one specific contract the pipeline depends
-on. They are static — the same templates serve every theme.
-
-| Template | Contract it encodes |
-|---|---|
-| **Ground wireframe** | Fixed grid of surface, slope, and underground tiles. The "walkable layer" is shaped as a thin band with irregular vertical protrusions, so any biome (grass, snow, sand, moss, ice) reads as both a flat walkable surface and tufted detail. |
-| **Character template** | Cyan head-rail and full-row green feet-rail per cell. Every animation frame inherits the same scale, the same head height, and the same ground line. |
-| **Character template (combined)** | Same rails, stacked into multiple rows so one image holds every motion state at consistent scale. |
-| **Obstacle template** | A grid of cells, each with a small contact band at the bottom marking where the obstacle meets the ground. |
-
-The wireframe and character templates use **rails** — bright, contrasting
-horizontal lines drawn across the canvas — so the model treats them as
-hard sizing constraints rather than vague hints.
-
----
-
-## Seamless parallax looping
-
-Parallax layers tile horizontally forever, so the seam between repeats
-has to be invisible. The painter is not asked to cooperate — the
-runtime handles it:
-
-1. At load time, each transparent layer's left and right edges are
-   faded out via an alpha gradient.
-2. The layer is rendered as **two sprites side-by-side**, the second
-   offset so the right edge of sprite A overlaps with the left edge
-   of sprite B.
-3. In the overlap zone the matched alpha gradients sum to opaque, so
-   the seam crossfades smoothly between right-edge and left-edge
-   content.
-
-The painter gets a simple instruction: paint edge-to-edge as if the
-canvas were a single isolated panel. The runtime does the rest. Pick
-the fade width and overlap stride at implementation time; what matters
-for the contract is that the painter isn't asked to taper anything.
-
----
-
-## Runtime composition
-
-The demo paints back-to-front each frame, with each band scrolling at
-its own parallax factor:
-
-```
-  Skybox     ─┐
-  Back       ─┤
-  Mid        ─┤  background bands (edge-faded, tiled)
-  Front      ─┤
-              │
-  Ground     ─┤  tiles assembled from a heightmap
-  Obstacles  ─┤  scattered on flat ground, bottom-anchored
-  Mobs       ─┤  fixed columns, looping idle
-  Player     ─┤  state machine on the heightmap
-              │
-  FG         ─┘  near-camera accents, runtime-blurred
+```sh
+cp .env.example .env
+bun install
+bun run stage-gen -- doctor
+bun run stage-gen -- recipes
+bun run stage-gen -- --help
 ```
 
-A handful of derived facts hold the runtime together:
+The operational credentials are:
 
-- The **heightmap** drives both ground assembly and feet-snap. Slope
-  tiles are placed automatically at column transitions.
-- Player and mob sprites anchor **bottom-center** to the ground line,
-  with a single fixed offset that places feet on the painted grass
-  band rather than blade tips.
-- **Obstacles** are autocropped to their alpha bbox at load time and
-  scattered with a seeded RNG, skipping slope columns and the spawn
-  zone. They scale together so relative size is preserved.
-- **Parallax loop seams** are invisible because each transparent
-  layer's L/R edges are pre-faded and two copies are crossfaded at
-  the overlap — no painter cooperation required.
+- `OPENROUTER_API_KEY` for image, text/vision, and experimental music calls.
+- `FAL_KEY` for the default AI background-removal strategy. It is not
+  required when a recipe is explicitly run with the degraded `chroma`
+  fallback.
 
----
+Never commit or print `.env`. A workspace that needs its own env file receives
+a copy, not a symlink.
 
-## Why this layout
+## Provider-backed stages
 
-A few principles fall out of building the pipeline this way:
+| Capability | Operational route | Status |
+|---|---|---|
+| Image generation/editing | OpenRouter image API with `openai/gpt-image-2` | Model identity and image endpoint verified |
+| Background removal | fal endpoint `fal-ai/birefnet/v2` | Request and response contract verified |
+| Music generation | OpenRouter with `google/lyria-3-pro-preview` | Experimental until a key-backed response-envelope smoke test passes |
 
-- **One-way data flow.** Nothing later in the pipeline writes back into
-  earlier stages, so partial reruns and parallelism are natural.
-- **Templates over prompt-only.** Rails and contact bands survive the
-  model's interpretation in ways that prose instructions don't.
-  Whenever something drifts, it gets fixed by a stronger template,
-  not a wordier prompt.
-- **Runtime over painter.** Precision tasks the model can't do
-  reliably (loop seams, depth-of-field blur, scale-lock between
-  animation states) are handled by deterministic runtime code instead
-  of asking the painter to cooperate.
-- **Material-agnostic prompts where possible.** Colours in the
-  templates (magenta for sky / chroma key, green for surface, gray for
-  underground) are placeholders. The biome — grass, snow, sand — comes
-  from the concept, not the template, so the same wireframe paints
-  every world.
+### Transparency strategy
+
+Transparency-producing assets default to `ai`. The image prompt requests a
+neutral grey or naturally isolated background, then the background-removal
+component produces and validates the canonical transparent PNG. Fully opaque
+assets, including the world concept and designated opaque backdrop, bypass
+removal and are unchanged.
+
+`chroma` is an explicit degraded fallback. It requests exact `#FF00FF` and
+uses deterministic local keying without calling the remover. The pipeline
+never switches to `chroma` automatically: an `ai` run without `FAL_KEY`, or
+with failed removal/validation, fails closed.
+
+```sh
+# Default; equivalent to --transparency ai and requires FAL_KEY.
+bun run stage-gen -- generate --recipe scrolling-preview "original rain-dark stone ruins with pale moss"
+
+# Explicit degraded fallback; does not require FAL_KEY.
+bun run stage-gen -- generate --recipe scrolling-preview --transparency chroma "original rain-dark stone ruins with pale moss"
+```
+
+The local HTTP run input uses `transparencyMode: "ai" | "chroma"`. Run
+manifests and provenance record the selected strategy so consumers never infer
+it from filenames or prompts.
+
+The music model and its audio modality are discoverable through OpenRouter,
+but a Lyria-specific response envelope is not currently documented there.
+The adapter must inspect and validate live returned media rather than assume a
+speech-oriented audio shape, fixed sample rate, or duration field.
+
+See [Provider operations](docs/providers.md) for exact request constraints,
+verified claims, and primary sources.
+
+## Reliability and provenance
+
+Every network/model call uses five blind retries with capped backoff. A call is
+also retried when the transport succeeds but its contract does not: empty
+media, malformed JSON, schema failure, unsupported MIME type, or invalid
+dimensions are failures.
+
+Each artifact must have a sidecar or manifest entry containing at least:
+
+- component and pipeline versions;
+- provider and exact model/endpoint identifier;
+- prompt plus non-secret request parameters;
+- input/reference paths and content hashes;
+- output MIME type, byte size, dimensions or media duration when known;
+- attempt count, timestamp, and output hash;
+- deterministic post-processing steps.
+
+Provenance makes a run auditable and repeatable. It does not grant copyright,
+trademark, publicity, or training-data rights.
+
+## Headless and research first
+
+The supported public entry point is:
+
+```sh
+bun run stage-gen -- <args>
+```
+
+Use `--help` as the source of truth for available pipelines and benchmark
+commands. Research runs should preserve raw provider metadata, normalized
+artifacts, provenance, validation results, timings, and failures. Do not tune a
+component only against the optional web preview; benchmark its declared media
+contract independently.
+
+The initial recipe and offline benchmark can be invoked directly. Generation
+defaults to `--transparency ai`:
+
+```sh
+bun run stage-gen -- generate --recipe scrolling-preview "original rain-dark stone ruins with pale moss"
+bun run stage-gen -- benchmark smoke
+```
+
+Provider-backed media components also have headless entrypoints:
+
+```sh
+bun run stage-gen -- remove-background --input ./input.png --output ./out/subject.png
+bun run stage-gen -- generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
+```
+
+See [Benchmarking and research](docs/benchmarking.md).
+
+## Optional web preview
+
+The `web/` workspace is a development adapter for one scrolling-world recipe.
+It launches the public headless command, visualizes run progress and artifacts,
+and can mount them in a browser scene.
+
+```sh
+bun run web
+```
+
+The preview is deliberately replaceable. A production game may consume the
+same exported assets from any suitable engine or custom runtime.
+
+## Game-engine status
+
+No gameplay engine has been selected. A dedicated 2D engine, including Godot,
+may be evaluated alongside other candidates, but the decision remains open.
+Provider adapters, components, manifests, and asset contracts must not depend
+on that future choice. See [Game-engine evaluation](docs/game-engine-evaluation.md).
+
+## OSS and IP rules
+
+Repository prompts, fixtures, examples, and generated placeholders must use an
+original, neutral brief. Do not request or imply imitation of a named
+franchise, brand, character, artist, studio, game, album, track, or a living
+creator's recognizable style. Contributors must have rights to every supplied
+reference and every committed media file.
+
+The BSD-3-Clause license covers repository source. It does not automatically
+license generated artifacts, user inputs, model weights, hosted outputs, or
+third-party services. Review provider terms and applicable law before shipping
+generated media. See [OSS and IP policy](docs/oss-ip.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Repository storage policy
+
+Git LFS is not enabled. After the legacy audio purge, tracked binaries total
+about 15.7 MiB and the largest is about 1.73 MiB, so LFS would add contributor
+friction without useful savings. Reconsider when one intentionally tracked
+binary reaches 10 MiB or a frequently revised binary family is projected to
+add 50 MiB of reachable history. Generated run output stays gitignored.
+
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [System overview](docs/spec/system-overview.md)
+- [Provider operations](docs/providers.md)
+- [Component contract](docs/component-contract.md)
+- [Benchmarking and research](docs/benchmarking.md)
+- [OSS and IP policy](docs/oss-ip.md)
+- [Repository storage policy](docs/repository-storage.md)
+- [Scrolling-preview recipe contracts](docs/spec/asset-contracts.md)
+
+## License
+
+Source code is available under the [BSD 3-Clause License](LICENSE).

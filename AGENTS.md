@@ -57,11 +57,11 @@ Retry on the obvious (network, 5xx, timeout) and on the silent failures too: mal
 
 ## Env
 
-`.env` at the repo root is gitignored but **already populated** with working keys (image-gen, text-gen, gateway URL). Treat it as a ready resource, not a thing to set up.
+`.env` at the repo root is gitignored and **already populated** with the working OpenRouter and fal credentials. Treat it as a ready resource, not a thing to set up. Provider-key imports are allowlist-only: copy only the documented key names, and never print or forward values or unrelated entries.
 
 When a workspace needs its own env (e.g. the Next.js app reading `process.env.*` at build/runtime), **copy** the root `.env` into that workspace's expected location (`web/.env`, `web/.env.local`, etc.) — same copy-don't-symlink rule as fixtures. Each workspace gets its own copy; do not try to share by reference.
 
-`.env.example` is the source of truth for *which keys exist*. Keep it in sync when the agent introduces a new env-dependent step.
+`.env.example` is the source of truth for provider key names and non-secret defaults. Keep it in sync when the agent introduces a new env-dependent step.
 
 ## Fixtures
 

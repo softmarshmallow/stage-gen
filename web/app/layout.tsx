@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "stage-gen",
-  description: "Prompt-to-playable 2D side-scroller",
+  description: "Optional web preview for the stage-gen 2D asset pipeline",
 };
 
 export const viewport = {

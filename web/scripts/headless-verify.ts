@@ -1,7 +1,7 @@
 // Phase 6 headless verification.
 //
 // Boots the local dev server (assumed running on :3000), opens
-// /play/<TAG> in a headless Chromium via Playwright, and exercises the
+// /preview/<TAG> in a headless Chromium via Playwright, and exercises the
 // scene against TC-070..TC-079.
 //
 // Run: bun --cwd web run scripts/headless-verify.ts
@@ -28,7 +28,7 @@ async function main() {
   });
   page.on("pageerror", (err) => consoleErrors.push("pageerror: " + err.message));
 
-  await page.goto(`${BASE}/play/${TAG}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}/preview/${TAG}`, { waitUntil: "domcontentloaded" });
 
   // Wait for canvas to appear.
   await page.waitForSelector("canvas", { timeout: 15000 });

@@ -1,17 +1,18 @@
 // Centralised asset-load layer.
 //
 // Each asset family (parallax, tileset, character, mob, obstacle, items,
-// inventory, portal) flows through the same chroma-key / bbox / edge-fade
-// primitives. The scene calls into this module instead of doing its own
-// fetch+process per asset, so the runtime image-ops contract stays in one
-// place.
+// inventory, portal) flows through the same alpha / bbox / edge-fade
+// primitives. New runs already provide canonical transparent PNGs. Exact
+// magenta keying is retained only for legacy manifests without strategy data.
 
 import {
   chromaKeyToAlpha,
+  copyImageToCanvas,
   extractCellsBbox,
   fadeParallaxEdges,
   type CellRect,
 } from "./image-ops";
+import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 
 export type AssetUrlFn = (file: string) => string;
 
@@ -41,14 +42,7 @@ export function registerCanvas(
   textures.addCanvas(key, canvas);
 }
 
-// --- Parallax: chroma-key + edge-fade for non-opaque, raw for opaque. ---
-//
-// As of TC-078 retry 2 the pipeline-side chroma-snap uses flood-fill
-// from edges (pipeline/src/post/chroma-snap.ts) and guarantees that
-// every edge-connected pinkish pixel on every chroma-keyed asset —
-// layers included — is exact (255,0,255). The runtime can therefore
-// stay on the simple exact-match path used by every other sprite
-// family, with no per-asset tolerance to maintain.
+// --- Parallax: preserve canonical alpha + edge-fade for non-opaque. ---
 export type LoadedParallaxLayer = {
   key: string;
   canvas: HTMLCanvasElement;
@@ -63,18 +57,14 @@ export async function loadParallaxLayer(
   opaque: boolean,
   fadePx: number,
   textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
 ): Promise<LoadedParallaxLayer> {
   const img = await fetchImage(url);
   let canvas: HTMLCanvasElement;
   if (opaque) {
-    const c = document.createElement("canvas");
-    c.width = img.naturalWidth;
-    c.height = img.naturalHeight;
-    c.getContext("2d")!.drawImage(img, 0, 0);
-    canvas = c;
+    canvas = copyImageToCanvas(img);
   } else {
-    const keyed = chromaKeyToAlpha(img);
-    canvas = fadeParallaxEdges(keyed, fadePx);
+    canvas = fadeParallaxEdges(transparencyCanvas(img, policy), fadePx);
   }
   registerCanvas(textures, key, canvas);
   return {
@@ -86,22 +76,36 @@ export async function loadParallaxLayer(
   };
 }
 
-// --- Generic chroma-keyed sprite (character, mob, portal, inventory). ---
+// --- Generic transparent sprite (character, mob, portal, inventory). ---
 
-export async function loadChromaKeyedSprite(
+export async function loadTransparentSprite(
+  url: string,
+  key: string,
+  textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
+): Promise<HTMLCanvasElement> {
+  const img = await fetchImage(url);
+  const canvas = transparencyCanvas(img, policy);
+  registerCanvas(textures, key, canvas);
+  return canvas;
+}
+
+// Opaque concept/backdrop assets never participate in transparency handling,
+// including when a legacy run is previewed.
+export async function loadOpaqueSprite(
   url: string,
   key: string,
   textures: Phaser.Textures.TextureManager,
 ): Promise<HTMLCanvasElement> {
   const img = await fetchImage(url);
-  const keyed = chromaKeyToAlpha(img);
-  registerCanvas(textures, key, keyed);
-  return keyed;
+  const canvas = copyImageToCanvas(img);
+  registerCanvas(textures, key, canvas);
+  return canvas;
 }
 
 // --- Sliced spritesheet (mob idle/hurt/attack: 1 row × 4 frames). ---
 // Registers the sheet under `key`, plus per-frame sub-textures `key:0` ..
-// `key:N-1` cropped via per-cell alpha bbox (so frames lose magenta padding).
+// `key:N-1` cropped via each cell's alpha bounding box.
 
 export type FrameRect = { x: number; y: number; w: number; h: number };
 
@@ -110,11 +114,12 @@ export async function loadFrameStrip(
   key: string,
   frames: number,
   textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
 ): Promise<{ canvas: HTMLCanvasElement; cells: CellRect[] }> {
   const img = await fetchImage(url);
-  const keyed = chromaKeyToAlpha(img);
-  registerCanvas(textures, key, keyed);
-  const { cells } = extractCellsBbox(keyed, 1, frames);
+  const canvas = transparencyCanvas(img, policy);
+  registerCanvas(textures, key, canvas);
+  const { cells } = extractCellsBbox(canvas, 1, frames);
   // Add each frame as a sub-frame on the texture. Frame names are integers
   // 0..N-1 so Phaser anim configs can reference them directly.
   const tex = textures.get(key);
@@ -123,11 +128,11 @@ export async function loadFrameStrip(
       tex.add(i, 0, cell.x, cell.y, cell.w, cell.h);
     } else {
       // Empty frame fallback — point at the whole cell.
-      const cellW = Math.floor(keyed.width / frames);
-      tex.add(i, 0, i * cellW, 0, cellW, keyed.height);
+      const cellW = Math.floor(canvas.width / frames);
+      tex.add(i, 0, i * cellW, 0, cellW, canvas.height);
     }
   });
-  return { canvas: keyed, cells };
+  return { canvas, cells };
 }
 
 // --- Obstacles + items sheet (2 rows × 4 cols). ---
@@ -139,21 +144,22 @@ export async function loadGridSheet(
   cols: number,
   framePrefix: string,
   textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
 ): Promise<{ canvas: HTMLCanvasElement; cells: CellRect[] }> {
   const img = await fetchImage(url);
-  const keyed = chromaKeyToAlpha(img);
-  registerCanvas(textures, key, keyed);
-  const { cells } = extractCellsBbox(keyed, rows, cols);
+  const canvas = transparencyCanvas(img, policy);
+  registerCanvas(textures, key, canvas);
+  const { cells } = extractCellsBbox(canvas, rows, cols);
   const tex = textures.get(key);
   cells.forEach((cell, idx) => {
     if (cell.w > 1 && cell.h > 1) {
       tex.add(`${framePrefix}_${idx}`, 0, cell.x, cell.y, cell.w, cell.h);
     }
   });
-  return { canvas: keyed, cells };
+  return { canvas, cells };
 }
 
-// --- Tileset: chroma-key + register cells by role. ---
+// --- Tileset: consume canonical alpha + register cells by role. ---
 
 import { cellRectFor, TILESET_COLS, TILESET_ROWS, type TileRole } from "./tiles";
 
@@ -161,6 +167,7 @@ export async function loadTileset(
   url: string,
   key: string,
   textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
 ): Promise<{
   canvas: HTMLCanvasElement;
   tileW: number;
@@ -168,11 +175,11 @@ export async function loadTileset(
   bestFillCell: { row: number; col: number; opacity: number };
 }> {
   const img = await fetchImage(url);
-  const keyed = chromaKeyToAlpha(img);
-  registerCanvas(textures, key, keyed);
+  const canvas = transparencyCanvas(img, policy);
+  registerCanvas(textures, key, canvas);
   const tex = textures.get(key);
-  const tileW = Math.floor(keyed.width / TILESET_COLS);
-  const tileH = Math.floor(keyed.height / TILESET_ROWS);
+  const tileW = Math.floor(canvas.width / TILESET_COLS);
+  const tileH = Math.floor(canvas.height / TILESET_ROWS);
   const ROLES: TileRole[] = [
     "top_left", "top_mid", "top_right", "top_single",
     "slope_up", "slope_down", "inner_tl", "inner_tr",
@@ -181,15 +188,15 @@ export async function loadTileset(
   ];
   for (const role of ROLES) {
     for (let v = 0; v < 3; v++) {
-      const r = cellRectFor(role, keyed.width, keyed.height, v);
+      const r = cellRectFor(role, canvas.width, canvas.height, v);
       tex.add(`${role}_v${v}`, 0, r.x, r.y, r.w, r.h);
     }
   }
 
   // The 12×4 role contract is unreliable in places, but the tileset prompt
   // explicitly guarantees row 4 (0-indexed row 3), cols 1..4 are 100% solid
-  // interior fill — the ONLY cells contracted as "solid underground block,
-  // NO magenta anywhere". (See pipeline/src/ai/tileset.ts.) Use cell
+  // interior fill — the only cells contracted as fully opaque underground
+  // blocks. The scrolling recipe owns that tile contract. Use cell
   // (row=3, col=0) as the canonical universal fill. Static, no scan.
   const FILL_ROW = 3;
   const FILL_COL = 0;
@@ -203,9 +210,16 @@ export async function loadTileset(
   );
 
   return {
-    canvas: keyed,
+    canvas,
     tileW,
     tileH,
     bestFillCell: { row: FILL_ROW, col: FILL_COL, opacity: 1 },
   };
+}
+
+function transparencyCanvas(
+  image: HTMLImageElement,
+  policy: PreviewTransparencyPolicy,
+): HTMLCanvasElement {
+  return policy === "legacy-chroma" ? chromaKeyToAlpha(image) : copyImageToCanvas(image);
 }

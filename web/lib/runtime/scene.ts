@@ -1,6 +1,8 @@
-// Per-tag Phaser 4 scene loader (Phase 6 + Phase 7).
+// Optional scrolling-preview adapter scene.
 //
-// Builds a full playable stage from a complete `out/<tag>/` asset directory:
+// Builds a browser demonstration from a complete `out/<tag>/` asset directory.
+// Camera, terrain, movement, combat, and portal behavior here are consumer
+// assumptions and must not become reusable component or CLI contracts:
 //   - skybox (parallax 0, fixed to camera)             → TC-071
 //   - parallax layers (TileSprite per layer)           → TC-072 / TC-073
 //   - ground (heightmap-driven 12×4 tileset assembly)  → TC-074
@@ -21,12 +23,14 @@ import {
 } from "./image-ops";
 import {
   fetchJson,
+  loadOpaqueSprite,
   loadParallaxLayer,
-  loadChromaKeyedSprite,
+  loadTransparentSprite,
   loadFrameStrip,
   loadGridSheet,
   loadTileset,
 } from "./assets";
+import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import { buildHeightmap, flatRuns, type SlopeKind } from "./heightmap";
 // pickRole / slopeAt no longer needed — assembleGround uses a single
 // ground_fill cell (registered by loadTileset) for every tile.
@@ -83,7 +87,7 @@ export type SceneProbes = {
     string,
     { layerId: string; leftEdgeAlpha: number; inwardAlpha: number; width: number; height: number; parallax: number; opaque: boolean }
   >;
-  spriteChromaProbe: Record<
+  spriteAlphaProbe: Record<
     string,
     { spriteKey: string; sampledAlpha: number; sampledAt: { x: number; y: number } }
   >;
@@ -120,10 +124,14 @@ declare global {
   }
 }
 
-export type SceneInit = { tag: string };
+export type SceneInit = {
+  tag: string;
+  transparencyPolicy: PreviewTransparencyPolicy;
+};
 
 export class StageScene extends Phaser.Scene {
   private tag: string;
+  private transparencyPolicy: PreviewTransparencyPolicy;
   private probes!: SceneProbes;
   private fpsProbe = new FpsProbe(30);
 
@@ -163,6 +171,7 @@ export class StageScene extends Phaser.Scene {
   constructor(init: SceneInit) {
     super({ key: "StageScene" });
     this.tag = init.tag;
+    this.transparencyPolicy = init.transparencyPolicy;
   }
 
   create() {
@@ -170,7 +179,7 @@ export class StageScene extends Phaser.Scene {
       tag: this.tag,
       loadedAssetKeys: [],
       parallaxAlphaProbe: {},
-      spriteChromaProbe: {},
+      spriteAlphaProbe: {},
       cellExtractProbe: {},
       consoleErrors: [],
       heightmap: [],
@@ -374,6 +383,7 @@ export class StageScene extends Phaser.Scene {
           layer.opaque,
           FADE_PX,
           this.textures,
+          this.transparencyPolicy,
         );
         this.probes.loadedAssetKeys.push(key);
 
@@ -480,7 +490,12 @@ export class StageScene extends Phaser.Scene {
     let tileW = TILE_PX;
     let tileH = TILE_PX;
     try {
-      const ts = await loadTileset(u(`tileset_${tag}.png`), `tileset`, this.textures);
+      const ts = await loadTileset(
+        u(`tileset_${tag}.png`),
+        `tileset`,
+        this.textures,
+        this.transparencyPolicy,
+      );
       this.probes.loadedAssetKeys.push(`tileset`);
       tileW = ts.tileW;
       tileH = ts.tileH;
@@ -495,7 +510,15 @@ export class StageScene extends Phaser.Scene {
       const file = `obstacles_${tag}_${i}.png`;
       const key = `obstacles_${i}`;
       try {
-        const { cells } = await loadGridSheet(u(file), key, 2, 4, "prop", this.textures);
+        const { cells } = await loadGridSheet(
+          u(file),
+          key,
+          2,
+          4,
+          "prop",
+          this.textures,
+          this.transparencyPolicy,
+        );
         this.probes.cellExtractProbe[key] = cells;
         this.probes.loadedAssetKeys.push(key);
         cells.forEach((c, idx) => {
@@ -519,6 +542,7 @@ export class StageScene extends Phaser.Scene {
         4,
         "item",
         this.textures,
+        this.transparencyPolicy,
       );
       this.probes.cellExtractProbe[`items`] = cells;
       this.probes.loadedAssetKeys.push(`items`);
@@ -537,6 +561,7 @@ export class StageScene extends Phaser.Scene {
           idleKey,
           4,
           this.textures,
+          this.transparencyPolicy,
         );
         this.probes.loadedAssetKeys.push(idleKey);
         mobIdleKeys.push(idleKey);
@@ -554,7 +579,13 @@ export class StageScene extends Phaser.Scene {
       }
       const hurtKey = `mob_${i}_hurt`;
       try {
-        await loadFrameStrip(u(`mob_${tag}_${i}_hurt.png`), hurtKey, 4, this.textures);
+        await loadFrameStrip(
+          u(`mob_${tag}_${i}_hurt.png`),
+          hurtKey,
+          4,
+          this.textures,
+          this.transparencyPolicy,
+        );
         this.probes.loadedAssetKeys.push(hurtKey);
         mobHurtKeys.push(hurtKey);
       } catch (e) {
@@ -562,10 +593,11 @@ export class StageScene extends Phaser.Scene {
         mobHurtKeys.push("");
       }
       try {
-        await loadChromaKeyedSprite(
+        await loadTransparentSprite(
           u(`mob_concept_${tag}_${i}.png`),
           `mob_concept_${i}`,
           this.textures,
+          this.transparencyPolicy,
         );
         this.probes.loadedAssetKeys.push(`mob_concept_${i}`);
       } catch (e) {
@@ -578,14 +610,15 @@ export class StageScene extends Phaser.Scene {
     // ---------- Character ----------
     let charSprite: HTMLCanvasElement | null = null;
     try {
-      charSprite = await loadChromaKeyedSprite(
+      charSprite = await loadTransparentSprite(
         u(`character_concept_${tag}.png`),
         `character_concept`,
         this.textures,
+        this.transparencyPolicy,
       );
       this.probes.loadedAssetKeys.push(`character_concept`);
       const sampleAt = { x: 1, y: 1 };
-      this.probes.spriteChromaProbe[`character_concept`] = {
+      this.probes.spriteAlphaProbe[`character_concept`] = {
         spriteKey: `character_concept`,
         sampledAlpha: alphaAt(charSprite, sampleAt.x, sampleAt.y),
         sampledAt: sampleAt,
@@ -600,6 +633,7 @@ export class StageScene extends Phaser.Scene {
         `character_idle`,
         4,
         this.textures,
+        this.transparencyPolicy,
       );
       this.probes.loadedAssetKeys.push(`character_idle`);
     } catch (e) {
@@ -613,6 +647,7 @@ export class StageScene extends Phaser.Scene {
           `character_${state}`,
           4,
           this.textures,
+          this.transparencyPolicy,
         );
         this.probes.loadedAssetKeys.push(`character_${state}`);
       } catch (e) {
@@ -620,7 +655,13 @@ export class StageScene extends Phaser.Scene {
       }
     }
     try {
-      await loadFrameStrip(u(`character_${tag}_attack.png`), `character_attack`, 4, this.textures);
+      await loadFrameStrip(
+        u(`character_${tag}_attack.png`),
+        `character_attack`,
+        4,
+        this.textures,
+        this.transparencyPolicy,
+      );
       this.probes.loadedAssetKeys.push(`character_attack`);
     } catch (e) {
       this.recordErr(e);
@@ -630,13 +671,23 @@ export class StageScene extends Phaser.Scene {
 
     // ---------- Inventory + portal ----------
     try {
-      await loadChromaKeyedSprite(u(`inventory_${tag}.png`), `inventory`, this.textures);
+      await loadTransparentSprite(
+        u(`inventory_${tag}.png`),
+        `inventory`,
+        this.textures,
+        this.transparencyPolicy,
+      );
       this.probes.loadedAssetKeys.push(`inventory`);
     } catch (e) {
       this.recordErr(e);
     }
     try {
-      await loadChromaKeyedSprite(u(`portal_${tag}.png`), `portal`, this.textures);
+      await loadTransparentSprite(
+        u(`portal_${tag}.png`),
+        `portal`,
+        this.textures,
+        this.transparencyPolicy,
+      );
       this.probes.loadedAssetKeys.push(`portal`);
     } catch (e) {
       this.recordErr(e);
@@ -672,7 +723,7 @@ export class StageScene extends Phaser.Scene {
 
     // Concept (purely for completeness; not displayed).
     try {
-      await loadChromaKeyedSprite(u(`concept_${tag}.png`), `concept`, this.textures);
+      await loadOpaqueSprite(u(`concept_${tag}.png`), `concept`, this.textures);
       this.probes.loadedAssetKeys.push(`concept`);
     } catch (e) {
       this.recordErr(e);
@@ -812,14 +863,18 @@ export class StageScene extends Phaser.Scene {
   }
 }
 
-export function bootGame(parent: HTMLElement, tag: string): Phaser.Game {
+export function bootGame(
+  parent: HTMLElement,
+  tag: string,
+  transparencyPolicy: PreviewTransparencyPolicy,
+): Phaser.Game {
   return new Phaser.Game({
     type: Phaser.AUTO,
     width: VIEW_W,
     height: VIEW_H,
     parent,
     backgroundColor: "#000",
-    scene: [new StageScene({ tag })],
+    scene: [new StageScene({ tag, transparencyPolicy })],
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   });
 }

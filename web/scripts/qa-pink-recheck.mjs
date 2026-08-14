@@ -7,7 +7,7 @@
 import puppeteer from 'puppeteer';
 import { writeFileSync } from 'node:fs';
 
-const URL = 'http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
+const URL = 'http://localhost:3000/preview/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
 
 const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
 const page = await browser.newPage();

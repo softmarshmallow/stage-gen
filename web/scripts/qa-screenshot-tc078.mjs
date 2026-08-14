@@ -1,7 +1,10 @@
 import puppeteer from 'puppeteer';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const URL = 'http://localhost:3000/play/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
-const OUT = '/Users/universe/Desktop/stage-gen-ralph-setup/web/scripts/qa-screenshots/phase6-fresh/tc078-fresh-verify.png';
+const URL = 'http://localhost:3000/preview/snowy-mountain-platformer-with-crisp-pow-5162c8d2';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const OUT = path.join(HERE, 'qa-screenshots', 'phase6-fresh', 'tc078-fresh-verify.png');
 
 const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
 const page = await browser.newPage();

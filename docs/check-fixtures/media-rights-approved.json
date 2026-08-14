@@ -1,0 +1,48 @@
+{
+  "entry": {
+    "path": "stage-gen/recipes/example/assets/music/example.mp3",
+    "reviewStatus": "repository-approved",
+    "synthId": {
+      "expected": true,
+      "independentlyVerified": false
+    },
+    "listeningReview": {
+      "status": "approved",
+      "reviewedBy": "repository maintainer (authenticated task owner)",
+      "authorityBasis": "project maintainer and authorized generation workflow operator",
+      "result": "no recognizable protected composition, lyrics, performer, voice, brand, or mark",
+      "approvalScope": "project-controlled rights, if any",
+      "reviewedAt": "2026-08-14T00:00:00.000Z",
+      "attestationId": "conversation-attestation-fixture-2026-08-14",
+      "attestedAt": "2026-08-14T00:00:00.000Z"
+    }
+  },
+  "observed": {
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1234
+  },
+  "sidecar": {
+    "inputs": [
+      {
+        "ref": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 1300
+      }
+    ],
+    "artifact": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1234
+    },
+    "rights": {
+      "status": "redistribution-approved",
+      "notice": "Fixture-only artifact notice identifier",
+      "license_id": "LicenseRef-Fixture-Artifact-Permission",
+      "attribution": [],
+      "basis": [
+        "Fixture-only artifact-specific documented authorization",
+        "conversation-attestation-fixture-2026-08-14"
+      ],
+      "reviewed_at": "2026-08-14T00:00:00.000Z"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "entry": {
+    "path": "stage-gen/recipes/example/assets/music/example.mp3",
+    "reviewStatus": "runtime-unreviewed",
+    "synthId": {
+      "expected": true,
+      "independentlyVerified": false
+    }
+  },
+  "observed": {
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1234
+  },
+  "sidecar": {
+    "inputs": [
+      {
+        "ref": "/tmp/example.mp3",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 1300
+      }
+    ],
+    "artifact": {
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "bytes": 1200
+    }
+  }
+}

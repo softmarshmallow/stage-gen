@@ -14,8 +14,14 @@
 import { NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
-import path from "node:path";
-import { runDirFor, runJsonPathFor, readRunStatus } from "@/lib/shell/runs";
+import {
+  artifactPathFor,
+  isSafeRunTag,
+  promptFromRunManifest,
+  readRunStatus,
+  runDirFor,
+  runJsonPathFor,
+} from "@/lib/shell/runs";
 import type { WorldSpecLite } from "@/lib/shell/slots";
 
 export const runtime = "nodejs";
@@ -25,6 +31,9 @@ export async function GET(
   { params }: { params: Promise<{ tag: string }> },
 ) {
   const { tag } = await params;
+  if (!isSafeRunTag(tag)) {
+    return Response.json({ error: "invalid run tag" }, { status: 400 });
+  }
   const dir = runDirFor(tag);
   const status = await readRunStatus(tag);
 
@@ -32,14 +41,14 @@ export async function GET(
   if (existsSync(runJsonPathFor(tag))) {
     try {
       const raw = await fs.readFile(runJsonPathFor(tag), "utf8");
-      prompt = JSON.parse(raw).prompt ?? null;
+      prompt = promptFromRunManifest(JSON.parse(raw)) ?? null;
     } catch {
       // ignore
     }
   }
 
   let spec: WorldSpecLite | null = null;
-  const specPath = path.join(dir, `world_spec_${tag}.json`);
+  const specPath = artifactPathFor(tag, `world_spec_${tag}.json`);
   if (existsSync(specPath)) {
     try {
       const raw = await fs.readFile(specPath, "utf8");

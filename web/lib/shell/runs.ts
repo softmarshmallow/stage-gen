@@ -1,7 +1,7 @@
 // Server-side run lifecycle helpers.
 //
-// Spawns `bun run pipeline "<prompt>"` from repo root, redirects stdout +
-// stderr to a per-tag `web-run.log` inside out/<tag>/, and tracks live
+// Spawns the public `bun run stage-gen -- generate ...` command from repo root,
+// redirects stdout + stderr to a per-tag `web-run.log` inside out/<tag>/, and tracks live
 // processes in an in-process map so the SSE route can tell "still running"
 // from "exited".
 
@@ -9,12 +9,48 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import {
+  DEFAULT_TRANSPARENCY_MODE,
+  promptFromRunManifest,
+  transparencyModeFromRunManifest,
+  type TransparencyMode,
+} from "./transparency";
+import { tagFor } from "./tag";
+
+export { promptFromRunManifest } from "./transparency";
 
 export const REPO_ROOT = path.resolve(process.cwd(), "..");
 export const OUT_ROOT = path.join(REPO_ROOT, "out");
 
+const RUN_TAG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+const ARTIFACT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+
+function isAlreadyDecoded(value: string): boolean {
+  try {
+    return decodeURIComponent(value) === value;
+  } catch {
+    return false;
+  }
+}
+
+export function isSafeRunTag(tag: string): boolean {
+  return isAlreadyDecoded(tag) && RUN_TAG_PATTERN.test(tag);
+}
+
+export function assertSafeRunTag(tag: string): void {
+  if (!isSafeRunTag(tag)) {
+    throw new Error("invalid run tag");
+  }
+}
+
 export function runDirFor(tag: string): string {
-  return path.join(OUT_ROOT, tag);
+  assertSafeRunTag(tag);
+  const root = path.resolve(OUT_ROOT);
+  const runDir = path.resolve(root, tag);
+  if (!runDir.startsWith(`${root}${path.sep}`)) {
+    throw new Error("run tag escapes OUT_DIR");
+  }
+  return runDir;
 }
 
 export function logPathFor(tag: string): string {
@@ -25,9 +61,28 @@ export function runJsonPathFor(tag: string): string {
   return path.join(runDirFor(tag), "run.json");
 }
 
+export function artifactPathFor(tag: string, asset: string): string {
+  if (!isAlreadyDecoded(asset) || !ARTIFACT_NAME_PATTERN.test(asset)) {
+    throw new Error("invalid artifact name");
+  }
+  const runDir = runDirFor(tag);
+  const target = path.resolve(runDir, asset);
+  if (!target.startsWith(`${runDir}${path.sep}`)) {
+    throw new Error("artifact path escapes run directory");
+  }
+  return target;
+}
+
+export interface RunInputSnapshot {
+  prompt: string;
+  /** Null only for a legacy run manifest that predates explicit strategy metadata. */
+  transparencyMode: TransparencyMode | null;
+}
+
 interface ProcRecord {
   proc: ChildProcess;
   startedAt: number;
+  input: RunInputSnapshot & { transparencyMode: TransparencyMode };
 }
 
 // Module-level singleton so multiple SSE clients reuse the same record.
@@ -61,8 +116,33 @@ export async function readRunStatus(tag: string): Promise<RunStatus> {
     }
   }
   if (isRunning(tag)) return { status: "running" };
-  if (existsSync(runDirFor(tag))) return { status: "running" };
+  if (existsSync(runDirFor(tag))) {
+    return { status: "failed", ok: false, failedStage: "interrupted" };
+  }
   return { status: "missing" };
+}
+
+export async function readRunInput(tag: string): Promise<RunInputSnapshot | null> {
+  assertSafeRunTag(tag);
+  const runJson = runJsonPathFor(tag);
+  if (existsSync(runJson)) {
+    let value: unknown;
+    try {
+      value = JSON.parse(await fs.readFile(runJson, "utf8"));
+    } catch {
+      // A live process record can still provide its validated input while the
+      // manifest is being published. A terminal malformed manifest fails
+      // closed instead of being mistaken for a legacy manifest.
+      const inFlight = procs.get(tag)?.input;
+      if (inFlight) return inFlight;
+      throw new Error("run manifest is not valid JSON");
+    }
+    const prompt = promptFromRunManifest(value);
+    if (prompt) {
+      return { prompt, transparencyMode: transparencyModeFromRunManifest(value) };
+    }
+  }
+  return procs.get(tag)?.input ?? null;
 }
 
 /**
@@ -73,12 +153,23 @@ export async function readRunStatus(tag: string): Promise<RunStatus> {
 export async function startRun(opts: {
   prompt: string;
   tag: string;
+  transparencyMode?: TransparencyMode;
 }): Promise<{ started: boolean }> {
   const { prompt, tag } = opts;
+  const transparencyMode = opts.transparencyMode ?? DEFAULT_TRANSPARENCY_MODE;
+  assertSafeRunTag(tag);
+  if (tagFor(prompt, transparencyMode) !== tag) {
+    throw new Error("run tag does not match prompt and transparencyMode");
+  }
   if (isRunning(tag)) return { started: false };
 
   const dir = runDirFor(tag);
   await fs.mkdir(dir, { recursive: true });
+  // A previous terminal manifest must not make a newly spawned retry look
+  // complete or failed while it is running.
+  await fs.unlink(runJsonPathFor(tag)).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
   const logPath = logPathFor(tag);
   // Truncate the log on a fresh start so SSE clients get a clean replay.
   await fs.writeFile(logPath, "", "utf8");
@@ -86,14 +177,22 @@ export async function startRun(opts: {
   // open() the log file as an fs handle and feed it to the spawn stdio.
   const fd = await fs.open(logPath, "a");
 
-  const proc = spawn("bun", ["run", "pipeline", prompt], {
-    cwd: REPO_ROOT,
-    stdio: ["ignore", fd.fd, fd.fd],
-    detached: false,
-    env: process.env,
-  });
+  const proc = spawn(
+    "bun",
+    stageGenArgsFor({ prompt, transparencyMode }),
+    {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", fd.fd, fd.fd],
+      detached: false,
+      env: process.env,
+    },
+  );
 
-  procs.set(tag, { proc, startedAt: Date.now() });
+  procs.set(tag, {
+    proc,
+    startedAt: Date.now(),
+    input: { prompt, transparencyMode },
+  });
 
   proc.on("exit", () => {
     fd.close().catch(() => {});
@@ -117,22 +216,39 @@ export async function startRun(opts: {
 export async function retryAsset(opts: {
   tag: string;
   asset: string;
-}): Promise<{ ok: boolean; reason?: string }> {
+}, start: typeof startRun = startRun): Promise<{ ok: boolean; reason?: string }> {
   const { tag, asset } = opts;
-  // Look up the prompt from run.json so we can re-spawn the same pipeline.
   try {
+    const target = artifactPathFor(tag, asset);
+    // Read the current headless run manifest so the same recipe input can be
+    // submitted again after removing the failed artifact.
     const raw = await fs.readFile(runJsonPathFor(tag), "utf8");
     const data = JSON.parse(raw);
-    const prompt: string | undefined = data.prompt;
-    if (!prompt) return { ok: false, reason: "no prompt in run.json" };
+    const prompt = promptFromRunManifest(data);
+    if (!prompt) return { ok: false, reason: "run manifest has no input.prompt" };
+    // A legacy manifest has no reproducible strategy choice. Its artifacts may
+    // still be previewed through compatibility keying, but mutating retry must
+    // fail rather than silently choose a mode and write into a different tag.
+    const transparencyMode = transparencyModeFromRunManifest(data);
+    if (!transparencyMode) {
+      return {
+        ok: false,
+        reason: "legacy run has no transparencyMode; restart it from the picker",
+      };
+    }
+    if (tagFor(prompt, transparencyMode) !== tag) {
+      return {
+        ok: false,
+        reason: "run tag does not match its prompt and transparencyMode",
+      };
+    }
     // Delete the asset file (and its sidecar) if present so the generator
     // re-creates it on the next run. The orchestrator will skip everything
     // else thanks to the per-stage skip-if-exists guards.
-    const target = path.join(runDirFor(tag), asset);
     if (existsSync(target)) await fs.unlink(target).catch(() => {});
     const sidecar = `${target}.meta.json`;
     if (existsSync(sidecar)) await fs.unlink(sidecar).catch(() => {});
-    await startRun({ prompt, tag });
+    await start({ prompt, tag, transparencyMode });
     return { ok: true };
   } catch (err) {
     return {
@@ -140,4 +256,21 @@ export async function retryAsset(opts: {
       reason: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+export function stageGenArgsFor(input: {
+  prompt: string;
+  transparencyMode: TransparencyMode;
+}): string[] {
+  return [
+    "run",
+    "stage-gen",
+    "--",
+    "generate",
+    "--recipe",
+    "scrolling-preview",
+    "--transparency",
+    input.transparencyMode,
+    input.prompt,
+  ];
 }
