@@ -9,6 +9,12 @@
 // from the pre-loaded mob_<i>_idle / mob_<i>_hurt frame strips.
 
 import Phaser from "phaser";
+import {
+  MOB_DEATH_FADE_MS,
+  MOB_KNOCKBACK_MS,
+  sampleFixedMobHit,
+  type FixedMobHitMotion,
+} from "./fixed-motion";
 
 export type MobAiState = "wander" | "hurt" | "dead";
 
@@ -26,13 +32,14 @@ export interface MobOpts {
   idleAnimKey: string;
   hurtTextureKey: string;
   hurtFrames?: number;
+  /** Use explicit simulation time instead of Phaser's wall-clock tween state. */
+  fixedStepMotion?: boolean;
 }
 
 const DEFAULT_WANDER_PX = 100;
 const DEFAULT_SPEED = 36;
 const HURT_DURATION_MS = 600;
 const KNOCKBACK_PX = 80;
-const KNOCKBACK_MS = 220;
 
 export class Mob {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -41,12 +48,14 @@ export class Mob {
   state: MobAiState = "wander";
   private opts: MobOpts;
   private spawnX: number;
+  private spawnY: number;
   private wanderMin: number;
   private wanderMax: number;
   private dirSign: 1 | -1 = 1;
   private hurtUntil = 0;
   private idleAnim: string;
   private hurtAnim: string;
+  private fixedHitMotion?: FixedMobHitMotion;
 
   constructor(opts: MobOpts) {
     this.opts = opts;
@@ -61,16 +70,23 @@ export class Mob {
 
     const colH = opts.heightFn(opts.spawnCol);
     const surfaceY = opts.baselineY - colH * opts.tilePx;
+    this.spawnY = surfaceY;
 
     // Build the idle anim if it doesn't exist (scene may have made it; harmless).
     this.idleAnim = opts.idleAnimKey;
     this.hurtAnim = `${opts.hurtTextureKey}_anim`;
     const scene = opts.scene;
-    if (!scene.anims.exists(this.hurtAnim) && scene.textures.exists(opts.hurtTextureKey)) {
+    if (
+      !scene.anims.exists(this.hurtAnim) &&
+      scene.textures.exists(opts.hurtTextureKey)
+    ) {
       const fcount = opts.hurtFrames ?? 4;
       scene.anims.create({
         key: this.hurtAnim,
-        frames: Array.from({ length: fcount }, (_, f) => ({ key: opts.hurtTextureKey, frame: f })),
+        frames: Array.from({ length: fcount }, (_, f) => ({
+          key: opts.hurtTextureKey,
+          frame: f,
+        })),
         frameRate: Math.ceil((fcount * 1000) / HURT_DURATION_MS),
         repeat: 0,
       });
@@ -91,6 +107,13 @@ export class Mob {
   }
 
   update(dtMs: number, nowMs: number) {
+    if (this.fixedHitMotion) {
+      const sample = sampleFixedMobHit(this.fixedHitMotion, nowMs);
+      this.sprite.x = sample.x;
+      this.sprite.alpha = sample.alpha;
+      this.sprite.setVisible(!sample.hidden);
+      if (sample.complete) this.fixedHitMotion = undefined;
+    }
     if (this.state === "dead") return;
     const dt = dtMs / 1000;
 
@@ -126,7 +149,10 @@ export class Mob {
   /**
    * Apply one point of damage. Returns true if the mob died from this hit.
    */
-  takeHit(nowMs: number, knockbackDir: 1 | -1 = 1): { died: boolean; hpLeft: number } {
+  takeHit(
+    nowMs: number,
+    knockbackDir: 1 | -1 = 1,
+  ): { died: boolean; hpLeft: number } {
     if (this.state === "dead") return { died: false, hpLeft: 0 };
     this.hp -= 1;
     // Knockback tween — clamped to wander bounds so the mob doesn't escape its lane.
@@ -135,21 +161,33 @@ export class Mob {
       this.wanderMin,
       this.wanderMax,
     );
-    this.opts.scene.tweens.add({
-      targets: this.sprite,
-      x: targetX,
-      duration: KNOCKBACK_MS,
-      ease: "Cubic.easeOut",
-    });
-    if (this.hp <= 0) {
-      this.state = "dead";
-      // Fade out then destroy.
+    const died = this.hp <= 0;
+    if (this.opts.fixedStepMotion) {
+      this.fixedHitMotion = {
+        startedMs: nowMs,
+        startX: this.sprite.x,
+        targetX,
+        died,
+      };
+    } else {
       this.opts.scene.tweens.add({
         targets: this.sprite,
-        alpha: 0,
-        duration: 280,
-        onComplete: () => this.sprite.destroy(),
+        x: targetX,
+        duration: MOB_KNOCKBACK_MS,
+        ease: "Cubic.easeOut",
       });
+    }
+    if (died) {
+      this.state = "dead";
+      // Fade out then destroy.
+      if (!this.opts.fixedStepMotion) {
+        this.opts.scene.tweens.add({
+          targets: this.sprite,
+          alpha: 0,
+          duration: MOB_DEATH_FADE_MS,
+          onComplete: () => this.sprite.destroy(),
+        });
+      }
       return { died: true, hpLeft: 0 };
     }
     // Non-fatal: play hurt anim once.
@@ -163,6 +201,30 @@ export class Mob {
 
   isAlive(): boolean {
     return this.state !== "dead";
+  }
+
+  /** Restore the exact frame-zero state before deterministic automation starts. */
+  resetAutomationState(): void {
+    this.hp = this.ladderIndex + 1;
+    this.state = "wander";
+    this.dirSign = this.ladderIndex % 2 === 0 ? 1 : -1;
+    this.hurtUntil = 0;
+    this.fixedHitMotion = undefined;
+    this.sprite.setPosition(this.spawnX, this.spawnY);
+    this.sprite.setFlipX(this.dirSign === -1);
+    this.sprite.setAlpha(1);
+    this.sprite.setVisible(true);
+    this.sprite.anims.stop();
+    this.sprite.setTexture(this.opts.idleAnimKey, 0);
+    if (this.opts.scene.anims.exists(this.idleAnim)) {
+      this.sprite.play(this.idleAnim, true);
+    }
+    const f0 = this.opts.scene.textures.get(this.opts.idleAnimKey).get(0);
+    const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
+    this.sprite.setDisplaySize(
+      this.opts.spriteHeightPx * aspect,
+      this.opts.spriteHeightPx,
+    );
   }
 
   snapshot() {

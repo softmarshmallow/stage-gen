@@ -10,6 +10,22 @@ Next.js/React/Phaser application consumes one scrolling-preview recipe without
 moving gameplay assumptions into reusable components.
 It is an optional web-based scrolling-game preview, not the product boundary.
 
+## Showcase
+
+[![Poster for the deterministic real gameplay showcase](docs/media/gameplay-showcase.poster.png)](docs/media/gameplay-showcase.mp4)
+
+The poster links to a deterministic 30-second real-gameplay capture rendered
+with 18 independently approved image-model-generated assets. Transparent
+assets use the documented FAL background-removal lineage. Verify the fixed-step
+transcript and selected canvas hashes locally with:
+
+```sh
+cd web
+bun run check
+bun run build
+bun run gameplay:verify
+```
+
 ## Topology
 
 ```text

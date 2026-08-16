@@ -2,13 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
+import type { GameplayAutomationMode } from "@/lib/runtime/automation";
 
 export default function PreviewCanvas({
   tag,
   transparencyPolicy,
+  automationMode,
 }: {
   tag: string;
   transparencyPolicy: PreviewTransparencyPolicy;
+  automationMode: GameplayAutomationMode | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -21,23 +24,25 @@ export default function PreviewCanvas({
     void (async () => {
       const { bootGame } = await import("@/lib/runtime/scene");
       if (cancelled || !ref.current) return;
-      preview = bootGame(ref.current, tag, transparencyPolicy);
+      preview = bootGame(ref.current, tag, transparencyPolicy, automationMode);
     })();
 
     return () => {
       cancelled = true;
       preview?.destroy(true);
     };
-  }, [tag, transparencyPolicy]);
+  }, [automationMode, tag, transparencyPolicy]);
 
   return (
     <div
       ref={ref}
       aria-label="optional scrolling-game preview"
+      data-automation={automationMode ?? undefined}
       style={{
-        width: "100%",
-        maxWidth: 1280,
-        aspectRatio: "1280 / 720",
+        width: automationMode ? 1280 : "100%",
+        maxWidth: automationMode ? undefined : 1280,
+        height: automationMode ? 720 : undefined,
+        aspectRatio: automationMode ? undefined : "1280 / 720",
         margin: "0 auto",
         background: "#000",
       }}

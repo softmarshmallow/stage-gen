@@ -38,14 +38,13 @@ export type HeightmapOpts = {
 };
 
 /**
- * Build a heightmap of integer column heights. Adjacent columns differ by
- * at most ±1 (ensured by smoothing) so the tile picker only needs single-
- * step slope variants.
+ * Build a heightmap from an explicit seed. This lets a run preserve its
+ * terrain independently from display metadata such as its prompt or tag.
  */
-export function buildHeightmap(tag: string, opts: HeightmapOpts): number[] {
+export function buildHeightmapFromSeed(seed: number, opts: HeightmapOpts): number[] {
   const { cols, minH, maxH, flatRun = 6 } = opts;
   const range = Math.max(1, maxH - minH);
-  const rng = makeRng(fnv1a32(tag));
+  const rng = makeRng(seed);
 
   // Generate raw heights: pick a target every ~flatRun columns, hold it for
   // that many columns, then drift to a new target.
@@ -84,6 +83,15 @@ export function buildHeightmap(tag: string, opts: HeightmapOpts): number[] {
   }
 
   return heights;
+}
+
+/**
+ * Build a heightmap of integer column heights. Adjacent columns differ by
+ * at most ±1 (ensured by smoothing) so the tile picker only needs single-
+ * step slope variants.
+ */
+export function buildHeightmap(tag: string, opts: HeightmapOpts): number[] {
+  return buildHeightmapFromSeed(fnv1a32(tag), opts);
 }
 
 /**

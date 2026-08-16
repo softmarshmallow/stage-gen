@@ -36,6 +36,13 @@ independent verification. For the current Lyria-generated loop, SynthID is
 expected from provider documentation but has not been independently verified.
 A watermark expectation neither proves ownership nor grants a license.
 
+Browser-capture video and poster entries explicitly record `kind`, set
+`synthIdExpected` to false, and require an independent visual-review pass tied
+to a stable attestation. Related video and poster artifacts share one adjacent,
+artifact-specific rights notice. The showcase notice permits redistribution of
+the unchanged, digest-matched files only with this repository; it is not a
+blanket media license or a grant for standalone reuse.
+
 ## Portable lineage
 
 Each source record needs its actual SHA-256 digest and byte size, with

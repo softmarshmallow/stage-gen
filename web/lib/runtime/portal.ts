@@ -33,6 +33,10 @@ export class PortalSystem {
   readonly portals: PortalSpec[] = [];
   private opts: PortalSystemOpts;
   private exitFired = false;
+  private readonly baseDisplaySizes = new Map<
+    PortalKind,
+    Readonly<{ width: number; height: number }>
+  >();
 
   constructor(opts: PortalSystemOpts) {
     this.opts = opts;
@@ -75,7 +79,19 @@ export class PortalSystem {
       sprite.setDisplaySize(targetH * aspect, targetH);
       sprite.setDepth(750);
 
+      this.baseDisplaySizes.set(kind, { width: targetH * aspect, height: targetH });
+
       this.portals.push({ kind, x, y, sprite, bboxHalf: bbox });
+    }
+  }
+
+  /** Apply deterministic automation-only emphasis without changing source art. */
+  applyAutomationPresentation(scale: number, alpha: number): void {
+    for (const portal of this.portals) {
+      const base = this.baseDisplaySizes.get(portal.kind);
+      if (!base) continue;
+      portal.sprite.setDisplaySize(base.width * scale, base.height * scale);
+      portal.sprite.setAlpha(alpha);
     }
   }
 

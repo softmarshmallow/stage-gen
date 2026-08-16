@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "state": "redistribution-approved",
+  "visualReview": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewedBy": "independent verification subagent",
+    "authorityBasis": "reviewer independent from the capture producer; exact final-source recapture digest-bound visual and technical verification",
+    "reviewedAt": "2026-08-16T12:00:05.000Z",
+    "attestationId": "independent-final-source-recapture-c312124fadd636ff",
+    "attestedAt": "2026-08-16T12:00:05.000Z",
+    "artifactSha256": "5ed3ba2648dc96d904bc38c9d98457aee2e66ebe08ff2d7921204d38fb9161b8",
+    "artifactBytes": 7087068,
+    "evidence": {
+      "ref": "sha256:c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8",
+      "sha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8",
+      "prePublicationSidecarSha256": "1dac8dff49997958ed28c33ea43356c65298bbd1432ac306882a42c71c9f254a"
+    }
+  },
+  "artifact": {
+    "path": "docs/media/gameplay-showcase.mp4",
+    "media_type": "video/mp4",
+    "sha256": "5ed3ba2648dc96d904bc38c9d98457aee2e66ebe08ff2d7921204d38fb9161b8",
+    "bytes": 7087068
+  },
+  "capture": {
+    "tool": "Playwright canvas frames and ffmpeg libx264",
+    "version": "Playwright 1.62.1; Chromium 151.0.7922.34; ffmpeg version 7.1.1 Copyright (c) 2000-2025 the FFmpeg developers; ffprobe version 7.1.1 Copyright (c) 2007-2025 the FFmpeg developers",
+    "params": {
+      "automation_mode": "gameplay-v1",
+      "browser": "chromium",
+      "playwright_version": "1.62.1",
+      "chromium_version": "151.0.7922.34",
+      "ffmpeg_version": "ffmpeg version 7.1.1 Copyright (c) 2000-2025 the FFmpeg developers",
+      "ffprobe_version": "ffprobe version 7.1.1 Copyright (c) 2007-2025 the FFmpeg developers",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "device_scale_factor": 1,
+      "frame_count": 900,
+      "frame_rate": 30,
+      "clock": {
+        "mode": "manual-fixed-step",
+        "step_ms": 33.333333333333336
+      },
+      "fixture_sha256": "4d5cee64294a1d7ebe819bf1a30c80ff2d1fd0d06026c68507a6eade6e4f9a5b",
+      "transcript_sha256": "35e99a96c856d70ea9bb3fbd33ac3bf4d3018543cf15fe8d7be503d1b8cc3d1f",
+      "checkpoint_sha256": {
+        "1": "b16f912060b25c10dad8dd7ea90610564426296a1a8b5d5a0b3b697298e55d38",
+        "31": "06064e3f034c5714ecc22169825b319bdea52ffaf75730bfb299e7818bb6997f",
+        "35": "61c2e77b41df4e0fa28df060e831593312232ad84c05d81005e136867fc4554f",
+        "43": "46f2a385a8c73e13bd290681164fa0877a9864f2a46f8daf953e0b3f33fc2799",
+        "49": "f8b1e4ab0411ceeadb6e980140afe1c6f7bf469a4c1a1ace2d535cf77a75e71d",
+        "67": "49e4abe1d99e23556e43e9a89fc652456401eb873018a347bfd5300f721647bb",
+        "271": "a1ea25913684d9ef309e868ec16e7f0cfc598dd6a5b9290adbed09b3fd177c9c",
+        "481": "729afc229f11620fe3b690182999ee3bd6e0bfd121a43168c14afa2988d979af",
+        "870": "2bdfe39f3c7fcec45f64769973af0b76d29d1b133144b570a828d5d8b47b3e12",
+        "900": "edd80f00e6a6db2675f8a8d79e6430c4c58e8d365576bb8505f6aa428173ab6c"
+      },
+      "event_frames": {
+        "mob-hit": 34,
+        "mob-death": 43,
+        "mob-drop": 49,
+        "item-pickup": 67,
+        "stage-advance": 893
+      },
+      "ffmpeg_args": [
+        "-framerate",
+        "30",
+        "-start_number",
+        "1",
+        "-i",
+        "frame-%04d.png",
+        "-frames:v",
+        "900",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-crf",
+        "26",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "gameplay-showcase.mp4"
+      ],
+      "ffprobe_args": [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=format_name,duration,size:stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate",
+        "-of",
+        "json",
+        "gameplay-showcase.mp4"
+      ]
+    },
+    "source": {
+      "path": "web/scripts/gameplay/showcase.ts",
+      "sha256": "d5b159d7a0bb262aaedfbbefa107e8f0beb840ce4f4d0927209b93043b750f08"
+    },
+    "generator": {
+      "pathAtCapture": "web/tests/gameplay/harness.ts",
+      "ref": "sha256:0502282774e2fba63609fe76dcdb4130a0781ac60977a6986d573fd124f20eeb",
+      "sha256": "0502282774e2fba63609fe76dcdb4130a0781ac60977a6986d573fd124f20eeb"
+    },
+    "verifier": {
+      "path": "web/tests/gameplay/harness.ts",
+      "sha256": "0502282774e2fba63609fe76dcdb4130a0781ac60977a6986d573fd124f20eeb"
+    },
+    "fixture": {
+      "path": "web/tests/gameplay/model-assets.ts",
+      "sha256": "cfd6ff9cee574556df349a031488f502d66c519fc21a7170f75a74335005aec1"
+    },
+    "fixtureGenerator": {
+      "pathAtCapture": "web/tests/gameplay/model-assets.ts",
+      "ref": "sha256:cfd6ff9cee574556df349a031488f502d66c519fc21a7170f75a74335005aec1",
+      "sha256": "cfd6ff9cee574556df349a031488f502d66c519fc21a7170f75a74335005aec1"
+    },
+    "timeline": {
+      "path": "web/tests/gameplay/timeline.ts",
+      "sha256": "ed7b6af3ceae9124cb4ffcf47dfbf63e60ea0e47bfd4c9d0ac19c5e9f020cea1"
+    },
+    "producerManifest": {
+      "path": "fixtures/gameplay-demo/asset-manifest.json",
+      "sha256": "edf1b2913afeae906275588e745023ead6797ca7ed7839a72c0789243fd7b8ca",
+      "bytes": 78630
+    },
+    "approvalManifest": {
+      "path": "fixtures/gameplay-demo/approval-manifest.json",
+      "sha256": "7818a18ea177ed47203e1d47d22b1d669055f13b4eb113801326c7cd86629048",
+      "bytes": 16869
+    },
+    "assetSet": {
+      "count": 18,
+      "aggregate": {
+        "algorithm": "sha256-of-shasum-lines-v1",
+        "lineFormat": "<sha256><two-spaces><repository-relative-path><newline>; filename-sorted",
+        "sha256": "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a"
+      },
+      "assets": [
+        {
+          "id": "character-attack",
+          "path": "fixtures/gameplay-demo/character-attack.png",
+          "sha256": "faa49646f67cb8947f5844363ad1fdaf1f38b2862c564759558669788a790900",
+          "bytes": 27195
+        },
+        {
+          "id": "character-concept",
+          "path": "fixtures/gameplay-demo/character-concept.png",
+          "sha256": "b7fdacdd0064d2277641cd700cabf0bc2c3b7ec1921b85a23010746931a8089b",
+          "bytes": 20821
+        },
+        {
+          "id": "character-crawl",
+          "path": "fixtures/gameplay-demo/character-crawl.png",
+          "sha256": "2649a447c47c573c0eb3842930968dfd7979d5e65466d8029e42f9d759d775f3",
+          "bytes": 18271
+        },
+        {
+          "id": "character-idle",
+          "path": "fixtures/gameplay-demo/character-idle.png",
+          "sha256": "feed8044ba3a1681f972bb5837a9f205722f62855c9056e30c8737462e8ba3bc",
+          "bytes": 38755
+        },
+        {
+          "id": "character-jump",
+          "path": "fixtures/gameplay-demo/character-jump.png",
+          "sha256": "300ffd5acdf00a85cbf82ce5916eae3659f6b938bc80fb48c9ea70c4e3b02b21",
+          "bytes": 24929
+        },
+        {
+          "id": "character-run",
+          "path": "fixtures/gameplay-demo/character-run.png",
+          "sha256": "34dcdd32d4d9599bf6b131b2565d1f52ea295fe4884ede7bedddee7c1fb7b718",
+          "bytes": 30514
+        },
+        {
+          "id": "character-walk",
+          "path": "fixtures/gameplay-demo/character-walk.png",
+          "sha256": "579fe7d4e203b04815ca985a83bb684edeac37cf60eeaace16cb99f2402a6ab7",
+          "bytes": 38805
+        },
+        {
+          "id": "concept",
+          "path": "fixtures/gameplay-demo/concept.png",
+          "sha256": "cd4473cc2643354a149b64ca2abb34194c7f502a34cc8b4ea64ed0b9e2057867",
+          "bytes": 1512625
+        },
+        {
+          "id": "inventory",
+          "path": "fixtures/gameplay-demo/inventory.png",
+          "sha256": "cc84ef8c742ead87fd7a6297a0d36ab79fcd98f556421a99f48d5ff01dd5493f",
+          "bytes": 250463
+        },
+        {
+          "id": "items",
+          "path": "fixtures/gameplay-demo/items.png",
+          "sha256": "2b7a140ac78942d616bdf200129805512fd2dc7c54838a97a67c85b584d59c5c",
+          "bytes": 33432
+        },
+        {
+          "id": "layer-foreground",
+          "path": "fixtures/gameplay-demo/layer-foreground.png",
+          "sha256": "0779b5d2935bb476f30f42b3e5bc69e33789c186153966ee3805b52384371ce4",
+          "bytes": 743456
+        },
+        {
+          "id": "layer-ridges",
+          "path": "fixtures/gameplay-demo/layer-ridges.png",
+          "sha256": "03ec03579584db58f12d249d6409f9c41d5fc18d29002f9f12c793e7615d3af9",
+          "bytes": 855817
+        },
+        {
+          "id": "layer-sky",
+          "path": "fixtures/gameplay-demo/layer-sky.png",
+          "sha256": "1f2af73f5aa252bfff66f3cc41b5c5c3362488b8d7ba790fa90919e40a4fcef8",
+          "bytes": 830021
+        },
+        {
+          "id": "mob-concept",
+          "path": "fixtures/gameplay-demo/mob-concept.png",
+          "sha256": "b92ae08792f719d3c693032a044655ca9cbb32254dcc3b4d00380d6856a92319",
+          "bytes": 23935
+        },
+        {
+          "id": "mob-hurt",
+          "path": "fixtures/gameplay-demo/mob-hurt.png",
+          "sha256": "6119339840c5ed541991f763c4f8d288d70ab19484b1dff25c18918461a72d09",
+          "bytes": 34522
+        },
+        {
+          "id": "mob-idle",
+          "path": "fixtures/gameplay-demo/mob-idle.png",
+          "sha256": "592122dd5030359b0d76629c312a81fa8af83731f00d5a1af16acdad744c4eed",
+          "bytes": 44100
+        },
+        {
+          "id": "portal",
+          "path": "fixtures/gameplay-demo/portal.png",
+          "sha256": "53a654a27b8ec4e2a9f55aa939c27f607820e3efaf925563dbc17a93eb64b092",
+          "bytes": 76191
+        },
+        {
+          "id": "tileset",
+          "path": "fixtures/gameplay-demo/tileset.png",
+          "sha256": "297237d42962ba4fcab332a6c2799f29858af345f72bbecabb26af07f6fe5ebd",
+          "bytes": 51213
+        }
+      ]
+    },
+    "mp4": {
+      "container": "mp4",
+      "video_codec": "h264",
+      "pixel_format": "yuv420p",
+      "width": 1280,
+      "height": 720,
+      "frame_rate": 30,
+      "duration_seconds": 30,
+      "fast_start": true,
+      "audio_codec": null
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "notice": "gameplay-showcase.LICENSE.md",
+    "license_id": "LicenseRef-Stage-Gen-Gameplay-Showcase-Repository-Sharing",
+    "attribution": [],
+    "basis": [
+      "Artifact-specific repository publication authorization by the authenticated task owner",
+      "Exact digest-matched deterministic final-source real-gameplay browser capture",
+      "Independently approved 18-asset image-model-generated set with FAL alpha-removal lineage",
+      "gameplay-showcase.LICENSE.md",
+      "independent-final-source-recapture-c312124fadd636ff",
+      "sha256:c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
+    ],
+    "reviewed_at": "2026-08-16T12:00:05.000Z"
+  }
+}

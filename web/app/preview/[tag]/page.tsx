@@ -5,17 +5,34 @@ import {
   previewPolicyForRunMode,
   transparencyModeLabel,
 } from "@/lib/shell/transparency";
+import {
+  GameplayAutomationRequestError,
+  resolveGameplayAutomationMode,
+} from "@/lib/runtime/automation";
 import PreviewCanvas from "./PreviewCanvas";
 
 // Optional per-run consumer for the scrolling-world recipe. This page is a
 // preview adapter, not the core pipeline or a committed production runtime.
 export default async function PreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tag: string }>;
+  searchParams: Promise<{ automation?: string | string[] }>;
 }) {
   const { tag } = await params;
   if (!isSafeRunTag(tag)) notFound();
+  const query = await searchParams;
+  let automationMode;
+  try {
+    automationMode = resolveGameplayAutomationMode(
+      query.automation,
+      process.env.STAGE_GEN_GAMEPLAY_AUTOMATION,
+    );
+  } catch (error) {
+    if (error instanceof GameplayAutomationRequestError) notFound();
+    throw error;
+  }
   const input = await readRunInput(tag);
   const policy = previewPolicyForRunMode(input?.transparencyMode ?? null);
   return (
@@ -47,7 +64,11 @@ export default async function PreviewPage({
           </span>
         </span>
       </div>
-      <PreviewCanvas tag={tag} transparencyPolicy={policy} />
+      <PreviewCanvas
+        tag={tag}
+        transparencyPolicy={policy}
+        automationMode={automationMode}
+      />
     </main>
   );
 }

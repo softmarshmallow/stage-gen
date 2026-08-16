@@ -6,10 +6,29 @@ explain a contract.
 
 ## Git LFS decision
 
-Git LFS is not enabled. After removing the legacy audio blobs, the tracked
-binary tree is approximately 15.7 MiB and its largest file approximately
-1.73 MiB. LFS would make a fresh OSS checkout depend on another authenticated
-storage surface without materially reducing this repository.
+Git LFS is not enabled. A fresh OSS checkout should not depend on another
+authenticated storage surface while the repository remains within its
+enforced binary limits. Current sizes are deliberately not copied into this
+document because they change whenever an approved fixture or publication is
+replaced.
+
+The repository gates enforce these binary-media limits:
+
+- audio: 20 MiB per file;
+- image: 5 MiB per file;
+- video: 25 MiB per file; and
+- all tracked/generated media combined: 50 MiB.
+
+Run the canonical current-tree checks from the repository root:
+
+```sh
+uv run python scripts/check_docs.py
+uv run pytest -q tests/contract/test_packaged_resources.py::test_repository_media_obeys_git_size_and_location_policy
+```
+
+The documentation checker validates every inventoried generated-media file,
+and the focused contract test discovers tracked media and computes each current
+file size and the aggregate. Neither gate relies on a documented size snapshot.
 
 Reconsider LFS when either:
 

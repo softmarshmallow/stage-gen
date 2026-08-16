@@ -21,7 +21,8 @@
     ],
     "artifact": {
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-      "bytes": 1200
+      "bytes": 1200,
+      "media_type": "audio/mpeg"
     }
   }
 }

@@ -114,6 +114,22 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ("pinned browser engine rule", re.compile(r"do\s+not\s+replace\s+Phaser", re.IGNORECASE)),
         ("private absolute path", re.compile(r"/Users/[A-Za-z0-9._-]+/")),
         (
+            "retired synthetic showcase description",
+            re.compile(r"original\s+synthetic\s+fixture\s+assets", re.IGNORECASE),
+        ),
+        (
+            "retired synthetic showcase video digest",
+            re.compile(r"ec3c200b40ccd12521b5535ed46a3b7256ec1dc4fee1acfde2ec95c1540e694c"),
+        ),
+        (
+            "retired synthetic showcase poster digest",
+            re.compile(r"6da7281ac29f91f20cb65099088af357420906946bdfde0df7974ec8e844bdec"),
+        ),
+        (
+            "retired synthetic showcase attestation",
+            re.compile(r"independent-visual-attestation-gameplay-showcase-2026-08-16"),
+        ),
+        (
             "unconditional exact-key background rule",
             re.compile(
                 r"\b(?:all|every)\s+(?:sprite|transparent|transparency-producing)[^\n]*(?:magenta|#FF00FF)",

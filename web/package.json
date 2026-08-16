@@ -8,7 +8,9 @@
     "check": "tsc --noEmit",
     "test": "bun test",
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start -p 3000",
+    "gameplay:verify": "bun scripts/gameplay/showcase.ts --verify",
+    "gameplay:capture": "bun scripts/gameplay/showcase.ts --capture docs/media/gameplay-showcase.mp4"
   },
   "dependencies": {
     "next": "^15.0.3",

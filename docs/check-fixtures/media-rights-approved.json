@@ -31,7 +31,8 @@
     ],
     "artifact": {
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "bytes": 1234
+      "bytes": 1234,
+      "media_type": "audio/mpeg"
     },
     "rights": {
       "status": "redistribution-approved",

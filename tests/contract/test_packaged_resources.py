@@ -52,7 +52,27 @@ BANNED_SEGMENTS = {
     "qa-screenshots",
     "screenshots",
 }
-MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".mp3", ".png", ".wav", ".webp"}
+MEDIA_SUFFIXES = {
+    ".aac",
+    ".flac",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".m4a",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".png",
+    ".wav",
+    ".webm",
+    ".webp",
+}
+GIT_MEDIA_LIMITS = {
+    "audio": 20 * 1024 * 1024,
+    "image": 5 * 1024 * 1024,
+    "video": 25 * 1024 * 1024,
+}
+GIT_MEDIA_TOTAL_LIMIT = 50 * 1024 * 1024
 SECRET_SUFFIXES = {".key", ".p12", ".pem", ".pfx"}
 
 
@@ -101,6 +121,8 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
         assert not any(name.startswith("tests/") for name in wheel_entries)
+        assert not any(_is_docs_media(name) for name in wheel_entries)
+        assert not any(_is_gameplay_demo_fixture(name) for name in wheel_entries)
         wheel.extractall(installed)
 
     extracted_sdist_parent = tmp_path / "extracted-sdist"
@@ -113,6 +135,8 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert all(sdist_entries[name] > 0 for name in SDIST_RESOURCES)
+        assert not any(_is_docs_media(name) for name in sdist_entries)
+        assert not any(_is_gameplay_demo_fixture(name) for name in sdist_entries)
         env_handle = sdist.extractfile(f"{root}/.env.example")
         assert env_handle is not None
         env_example = env_handle.read().decode("utf-8")
@@ -160,6 +184,54 @@ assert (music.parent / "preview-loop.LICENSE.md").is_file()
     )
 
 
+def test_repository_media_obeys_git_size_and_location_policy() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+    )
+    relative_paths: set[PurePosixPath] = set()
+    if tracked.returncode == 0:
+        relative_paths.update(
+            PurePosixPath(item.decode("utf-8"))
+            for item in tracked.stdout.split(b"\0")
+            if item and PurePosixPath(item.decode("utf-8")).suffix.lower() in MEDIA_SUFFIXES
+        )
+    docs_root = repository / "docs"
+    relative_paths.update(
+        PurePosixPath(path.relative_to(repository).as_posix())
+        for path in docs_root.rglob("*")
+        if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
+    )
+
+    total = 0
+    for relative in sorted(relative_paths):
+        assert relative.parts[0] in {"docs", "fixtures", "src", "web"}
+        if relative.parts[0] == "src":
+            assert relative.parts[:3] == ("src", "stage_gen", "resources")
+        if relative.parts[0] == "web":
+            assert relative.parts[:2] in {("web", "public"), ("web", "scripts")}
+        if relative.suffix.lower() in {".mp4", ".webm"}:
+            assert relative.parts[0] == "docs"
+        path = repository / relative
+        assert path.is_file() and not path.is_symlink()
+        size = path.stat().st_size
+        family = _media_family(relative.suffix.lower())
+        assert 0 < size <= GIT_MEDIA_LIMITS[family]
+        total += size
+        if relative.parts[0] == "docs":
+            assert Path(f"{path}.meta.json").is_file()
+            ignored = subprocess.run(
+                ["git", "check-ignore", "--quiet", "--", relative.as_posix()],
+                cwd=repository,
+                check=False,
+            )
+            assert ignored.returncode == 1
+    assert total <= GIT_MEDIA_TOTAL_LIMIT
+
+
 def _sdist_file_entries(members: list[tarfile.TarInfo]) -> tuple[str, dict[str, int]]:
     files = [member for member in members if member.isfile()]
     roots = {PurePosixPath(member.name).parts[0] for member in files}
@@ -193,6 +265,26 @@ def _assert_archive_hygiene(entries: Mapping[str, int], *, resource_prefix: str)
         assert basename not in {"bun.lock", "package.json", "tsconfig.json"}
         if path.suffix.lower() in MEDIA_SUFFIXES:
             assert name.startswith(resource_prefix)
+
+
+def _is_docs_media(name: str) -> bool:
+    path = PurePosixPath(name)
+    return "docs" in path.parts and path.suffix.lower() in MEDIA_SUFFIXES
+
+
+def _is_gameplay_demo_fixture(name: str) -> bool:
+    parts = PurePosixPath(name).parts
+    return any(
+        parts[index : index + 2] == ("fixtures", "gameplay-demo") for index in range(len(parts))
+    )
+
+
+def _media_family(suffix: str) -> str:
+    if suffix in {".aac", ".flac", ".m4a", ".mp3", ".ogg", ".wav"}:
+        return "audio"
+    if suffix in {".mp4", ".webm"}:
+        return "video"
+    return "image"
 
 
 def _env_value(contents: str, key: str) -> str:

@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "roots": [
-    "src/stage_gen/resources/music"
+    "src/stage_gen/resources/music",
+    "docs/media"
   ],
   "media": [
     {
@@ -20,6 +21,44 @@
         "reviewedAt": "2026-08-14T12:38:08.000Z",
         "attestationId": "conversation-attestation-2026-08-14T123808Z",
         "attestedAt": "2026-08-14T12:38:08.000Z"
+      }
+    },
+    {
+      "path": "docs/media/gameplay-showcase.mp4",
+      "kind": "video",
+      "reviewStatus": "repository-approved",
+      "synthIdExpected": false,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "independent verification subagent",
+        "authorityBasis": "reviewer independent from the capture producer; exact final-source recapture digest-bound visual and technical verification",
+        "reviewedAt": "2026-08-16T12:00:05.000Z",
+        "attestationId": "independent-final-source-recapture-c312124fadd636ff",
+        "attestedAt": "2026-08-16T12:00:05.000Z",
+        "artifactSha256": "5ed3ba2648dc96d904bc38c9d98457aee2e66ebe08ff2d7921204d38fb9161b8",
+        "artifactBytes": 7087068,
+        "verificationReportSha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
+      }
+    },
+    {
+      "path": "docs/media/gameplay-showcase.poster.png",
+      "kind": "image",
+      "reviewStatus": "repository-approved",
+      "synthIdExpected": false,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "independent verification subagent",
+        "authorityBasis": "reviewer independent from the capture producer; exact final-source recapture digest-bound visual and technical verification",
+        "reviewedAt": "2026-08-16T12:00:05.000Z",
+        "attestationId": "independent-final-source-recapture-c312124fadd636ff",
+        "attestedAt": "2026-08-16T12:00:05.000Z",
+        "artifactSha256": "61c2e77b41df4e0fa28df060e831593312232ad84c05d81005e136867fc4554f",
+        "artifactBytes": 891557,
+        "verificationReportSha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
       }
     }
   ]

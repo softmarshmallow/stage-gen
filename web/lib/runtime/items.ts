@@ -60,12 +60,12 @@ export class ItemSystem {
     return item;
   }
 
-  update(dtMs: number) {
+  update(dtMs: number, nowMs: number) {
     const dt = dtMs / 1000;
     for (const it of this.items) {
       if (it.settled) {
         // Gentle bob.
-        const bob = Math.sin(performance.now() / 200 + it.kindIndex) * 2;
+        const bob = Math.sin(nowMs / 200 + it.kindIndex) * 2;
         it.sprite.y = it.sprite.getData("groundY") + bob;
         continue;
       }

@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "sourceManifest": {
+    "path": "asset-manifest.json",
+    "sha256": "edf1b2913afeae906275588e745023ead6797ca7ed7839a72c0789243fd7b8ca",
+    "bytes": 78630
+  },
+  "setReview": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewedBy": "codex-independent-visual-verifier",
+    "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+    "reviewedAt": "2026-08-16T10:01:40.000Z",
+    "attestationId": "att-a09317bf41eb6d89ad49b3772d6b5997",
+    "attestedAt": "2026-08-16T10:01:40.000Z"
+  },
+  "assets": [
+    {
+      "id": "concept",
+      "path": "concept.png",
+      "sha256": "cd4473cc2643354a149b64ca2abb34194c7f502a34cc8b4ea64ed0b9e2057867",
+      "bytes": 1512625,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-2b10d7fea40dce320ee8daa7a2689741",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-2b10d7fea40dce320ee8daa7a2689741",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "layer-sky",
+      "path": "layer-sky.png",
+      "sha256": "1f2af73f5aa252bfff66f3cc41b5c5c3362488b8d7ba790fa90919e40a4fcef8",
+      "bytes": 830021,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-5999966fb9177e1f6ec7d64daa0932dd",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-5999966fb9177e1f6ec7d64daa0932dd",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "layer-ridges",
+      "path": "layer-ridges.png",
+      "sha256": "03ec03579584db58f12d249d6409f9c41d5fc18d29002f9f12c793e7615d3af9",
+      "bytes": 855817,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-46875137ea419246348ad74c54da4ad0",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-46875137ea419246348ad74c54da4ad0",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "layer-foreground",
+      "path": "layer-foreground.png",
+      "sha256": "0779b5d2935bb476f30f42b3e5bc69e33789c186153966ee3805b52384371ce4",
+      "bytes": 743456,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-c12e37bbdfcf2771c32dffc0755a0715",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-c12e37bbdfcf2771c32dffc0755a0715",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "tileset",
+      "path": "tileset.png",
+      "sha256": "297237d42962ba4fcab332a6c2799f29858af345f72bbecabb26af07f6fe5ebd",
+      "bytes": 51213,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-e992a1f61d641581246e6d3991bf3009",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-e992a1f61d641581246e6d3991bf3009",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-concept",
+      "path": "character-concept.png",
+      "sha256": "b7fdacdd0064d2277641cd700cabf0bc2c3b7ec1921b85a23010746931a8089b",
+      "bytes": 20821,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-e549e92c019a5555530b59fde45590a4",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-e549e92c019a5555530b59fde45590a4",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-idle",
+      "path": "character-idle.png",
+      "sha256": "feed8044ba3a1681f972bb5837a9f205722f62855c9056e30c8737462e8ba3bc",
+      "bytes": 38755,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-da438a1b9abe18c2cb19374fcd8efd32",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-da438a1b9abe18c2cb19374fcd8efd32",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-walk",
+      "path": "character-walk.png",
+      "sha256": "579fe7d4e203b04815ca985a83bb684edeac37cf60eeaace16cb99f2402a6ab7",
+      "bytes": 38805,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-63df2c65232a4ae0e61d9704c45a530a",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-63df2c65232a4ae0e61d9704c45a530a",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-run",
+      "path": "character-run.png",
+      "sha256": "34dcdd32d4d9599bf6b131b2565d1f52ea295fe4884ede7bedddee7c1fb7b718",
+      "bytes": 30514,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-ef45eeebbce3d77f439ea3d5317d0a11",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-ef45eeebbce3d77f439ea3d5317d0a11",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-jump",
+      "path": "character-jump.png",
+      "sha256": "300ffd5acdf00a85cbf82ce5916eae3659f6b938bc80fb48c9ea70c4e3b02b21",
+      "bytes": 24929,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-fc662a521dea185fe9c3d384fe373255",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-fc662a521dea185fe9c3d384fe373255",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-crawl",
+      "path": "character-crawl.png",
+      "sha256": "2649a447c47c573c0eb3842930968dfd7979d5e65466d8029e42f9d759d775f3",
+      "bytes": 18271,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-b840e59d7bbda7df071611bf0bfb0ef0",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-b840e59d7bbda7df071611bf0bfb0ef0",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-attack",
+      "path": "character-attack.png",
+      "sha256": "faa49646f67cb8947f5844363ad1fdaf1f38b2862c564759558669788a790900",
+      "bytes": 27195,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-09413789874e95e49365665dbdd053c8",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-09413789874e95e49365665dbdd053c8",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "mob-concept",
+      "path": "mob-concept.png",
+      "sha256": "b92ae08792f719d3c693032a044655ca9cbb32254dcc3b4d00380d6856a92319",
+      "bytes": 23935,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-91b55f05585578f15152d87089202e61",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-91b55f05585578f15152d87089202e61",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "mob-idle",
+      "path": "mob-idle.png",
+      "sha256": "592122dd5030359b0d76629c312a81fa8af83731f00d5a1af16acdad744c4eed",
+      "bytes": 44100,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-0e4c1797e7324e1074e7ae67e4e863b5",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-0e4c1797e7324e1074e7ae67e4e863b5",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "mob-hurt",
+      "path": "mob-hurt.png",
+      "sha256": "6119339840c5ed541991f763c4f8d288d70ab19484b1dff25c18918461a72d09",
+      "bytes": 34522,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-59d084bbd89257a45256eead0cb3deb9",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-59d084bbd89257a45256eead0cb3deb9",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "items",
+      "path": "items.png",
+      "sha256": "2b7a140ac78942d616bdf200129805512fd2dc7c54838a97a67c85b584d59c5c",
+      "bytes": 33432,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-bae48477a41d3516d8e5beef611a41ab",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-bae48477a41d3516d8e5beef611a41ab",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "inventory",
+      "path": "inventory.png",
+      "sha256": "cc84ef8c742ead87fd7a6297a0d36ab79fcd98f556421a99f48d5ff01dd5493f",
+      "bytes": 250463,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-5d93850532114d436ab0bc6bb7beb501",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-5d93850532114d436ab0bc6bb7beb501",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "portal",
+      "path": "portal.png",
+      "sha256": "53a654a27b8ec4e2a9f55aa939c27f607820e3efaf925563dbc17a93eb64b092",
+      "bytes": 76191,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-16T10:01:40.000Z",
+        "attestationId": "att-e2d35a7ae5bc94028f2421c34518d9cc",
+        "attestedAt": "2026-08-16T10:01:40.000Z"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-e2d35a7ae5bc94028f2421c34518d9cc",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    }
+  ]
+}

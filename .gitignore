@@ -70,6 +70,9 @@ web_modules/
 # Optional REPL history
 .node_repl_history
 
+# Local browser-control snapshots and logs
+.playwright-cli/
+
 # Output of 'npm pack'
 *.tgz
 

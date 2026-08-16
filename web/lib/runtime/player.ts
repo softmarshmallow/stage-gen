@@ -11,7 +11,8 @@
 
 import Phaser from "phaser";
 
-export type PlayerState = "idle" | "walk" | "run" | "jump" | "crouch" | "attack";
+export type PlayerState =
+  "idle" | "walk" | "run" | "jump" | "crouch" | "attack";
 
 export type PlayerStateSnapshot = {
   state: PlayerState;
@@ -90,7 +91,14 @@ export class Player {
 
     const scene = opts.scene;
     // Build animations for each state once.
-    for (const st of ["idle", "walk", "run", "jump", "crouch", "attack"] as PlayerState[]) {
+    for (const st of [
+      "idle",
+      "walk",
+      "run",
+      "jump",
+      "crouch",
+      "attack",
+    ] as PlayerState[]) {
       const animKey = `player_${st}`;
       const texKey = stateTextureKey(st);
       if (!scene.anims.exists(animKey) && scene.textures.exists(texKey)) {
@@ -110,7 +118,10 @@ export class Player {
     const tex = scene.textures.get(initialKey);
     const f0 = tex.get(0);
     const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
-    this.sprite.setDisplaySize(opts.targetSpriteHeight * aspect, opts.targetSpriteHeight);
+    this.sprite.setDisplaySize(
+      opts.targetSpriteHeight * aspect,
+      opts.targetSpriteHeight,
+    );
     this.sprite.setDepth(900);
     if (scene.anims.exists("player_idle")) this.sprite.play("player_idle");
 
@@ -155,7 +166,11 @@ export class Player {
       (k && Phaser.Input.Keyboard.JustDown(k.up)) ||
       false;
     const wantsAttack =
-      (k && (Phaser.Input.Keyboard.JustDown(k.attack1) || Phaser.Input.Keyboard.JustDown(k.attack2) || Phaser.Input.Keyboard.JustDown(k.attack3))) || false;
+      (k &&
+        (Phaser.Input.Keyboard.JustDown(k.attack1) ||
+          Phaser.Input.Keyboard.JustDown(k.attack2) ||
+          Phaser.Input.Keyboard.JustDown(k.attack3))) ||
+      false;
 
     // Determine target horizontal velocity.
     let targetVx = 0;
@@ -186,7 +201,8 @@ export class Player {
 
     // Horizontal motion.
     this.sprite.x += this.vx * dt;
-    if (this.sprite.x < this.opts.tilePx / 2) this.sprite.x = this.opts.tilePx / 2;
+    if (this.sprite.x < this.opts.tilePx / 2)
+      this.sprite.x = this.opts.tilePx / 2;
 
     // Attack overrides locomotion anim state (still moves but plays attack).
     if (wantsAttack && !this.attackActive && nowMs >= this.attackUntil) {
@@ -276,6 +292,36 @@ export class Player {
   /** Test/QA helper to drive position directly. */
   setX(x: number) {
     this.sprite.x = x;
+  }
+
+  /** Restore the exact frame-zero state before deterministic automation starts. */
+  resetAutomationState(): void {
+    this.state = "idle";
+    this.facing = "right";
+    this.vx = 0;
+    this.vy = 0;
+    this.airborne = false;
+    this.attackUntil = 0;
+    this.attackStarted = 0;
+    this.attackHitConsumed = false;
+    this.attackActive = false;
+    this.inventoryToggleRequested = false;
+    this.sprite.setPosition(this.opts.startX, this.opts.startY);
+    this.sprite.setFlipX(false);
+    this.sprite.setAlpha(1);
+    this.sprite.setVisible(true);
+    this.sprite.anims.stop();
+    const initialKey = stateTextureKey("idle");
+    this.sprite.setTexture(initialKey, 0);
+    if (this.opts.scene.anims.exists("player_idle")) {
+      this.sprite.play("player_idle", true);
+    }
+    const f0 = this.opts.scene.textures.get(initialKey).get(0);
+    const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
+    this.sprite.setDisplaySize(
+      this.opts.targetSpriteHeight * aspect,
+      this.opts.targetSpriteHeight,
+    );
   }
 }
 
