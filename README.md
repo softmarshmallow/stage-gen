@@ -1,202 +1,216 @@
 # stage-gen
 
-`stage-gen` is a general-purpose, headless pipeline and component library for generating
-coherent 2D game assets. It turns typed inputs, prompts, and optional visual
-references into validated artifacts with reproducibility metadata.
+`stage-gen` is a general-purpose headless Python pipeline and component library
+for generating coherent 2D game assets. Typed inputs and optional visual
+references become validated artifacts with adjacent, content-bound provenance.
 
-The project is not a game engine and it is not defined by one genre, camera,
-or control scheme. Individual recipes may request side-view scenery, top-down
-props, interface elements, animation sheets, music, or other asset families;
-the reusable components remain independent of those product choices.
+The Python package is the authoritative backend. It is not a game engine and
+does not assume a genre, camera, movement model, or runtime. The optional
+Next.js/React/Phaser application consumes one scrolling-preview recipe without
+moving gameplay assumptions into reusable components.
+It is an optional web-based scrolling-game preview, not the product boundary.
 
-The first demonstrated consumer is an optional web-based scrolling-game
-preview. It exists to exercise generated assets end to end. Its camera,
-terrain, movement, combat, and scene-composition assumptions are adapter
-concerns, not core generation contracts.
-
-## Repository shape
+## Topology
 
 ```text
-README.md        public entry point
-docs/            architecture, provider, policy, and recipe documentation
-components/      reusable generation and post-processing modules
-stage-gen/       headless CLI/server plus benchmark and research entrypoints
-web/             optional scrolling-preview adapter
+src/stage_gen/
+  components/          provider-neutral image, structured, removal, and music operations
+  providers/           OpenRouter and fal HTTP adapters
+  media/               deterministic image/audio inspection and normalization
+  reliability/         retry, cancellation, redaction, safe paths, and atomic persistence
+  recipes/             application compositions; scrolling-preview is the reference recipe
+  orchestration/       run preparation, concrete provider composition, summaries, and run.json
+  interfaces/          argparse CLI and optional FastAPI-compatible HTTP/SSE app
+  benchmarks/          credential-free and opt-in evaluation suites
+  resources/           wheel-packaged layout fixtures and approved fallback music
+tests/                  unit, integration, contract, and opt-in live tests
+scripts/check.py        locked credential-free Python gate
+web/                    optional server-side launcher and browser preview adapter
+docs/                   architecture, provider, policy, recipe, and testing documentation
 ```
 
-Each component should have typed inputs and outputs, validate its returned
-media, use the shared retry policy, and emit provenance beside its artifacts.
-Pipelines compose components; preview or engine integrations consume pipeline
-outputs. Components must not import from `web/` or encode a particular camera,
-genre, gameplay loop, or engine.
+Dependencies point inward: providers implement component protocols, recipes
+compose components, and `orchestration.runtime` is the application composition
+root that joins both concrete sides for interfaces. Neither reusable components
+nor recipes import providers or the web preview.
 
-## Setup
+## Install
 
-Prerequisites are Bun and provider credentials for the stages you intend to
-run. Copy the public template and fill values locally:
+Requirements:
+
+- Python 3.12;
+- [uv](https://docs.astral.sh/uv/);
+- `ffmpeg` and `ffprobe` for generated-music normalization and inspection; and
+- Bun only when developing or verifying the optional web adapter.
 
 ```sh
+uv sync --all-extras
 cp .env.example .env
-bun install
-bun run stage-gen -- doctor
-bun run stage-gen -- recipes
-bun run stage-gen -- --help
+uv run stage-gen --help
+uv run stage-gen doctor --json
+uv run stage-gen recipes
 ```
 
-The operational credentials are:
+The package can also be built and installed as a wheel. Required recipe
+templates and the approved fallback-music artifact, sidecar, and notice ship
+inside `stage_gen.resources`; an installed wheel does not depend on checkout
+paths.
 
-- `OPENROUTER_API_KEY` for image, text/vision, and experimental music calls.
-- `FAL_KEY` for the default AI background-removal strategy. It is not
-  required when a recipe is explicitly run with the degraded `chroma`
-  fallback.
+## Configuration
 
-Never commit or print `.env`. A workspace that needs its own env file receives
-a copy, not a symlink.
+`.env.example` documents the supported names. Never commit, print, forward, or
+copy populated values into logs or provenance.
 
-## Provider-backed stages
+The Python application automatically reads only `OPENROUTER_API_KEY` and
+`FAL_KEY` from `.env` in the current working directory. Existing process
+environment values take precedence. All endpoint, model, runtime, and web
+settings must be supplied through the process environment; arbitrary `.env`
+entries are intentionally ignored.
 
-| Capability | Operational route | Status |
-|---|---|---|
-| Image generation/editing | OpenRouter image API with `openai/gpt-image-2` | Model identity and image endpoint verified |
-| Background removal | fal endpoint `fal-ai/birefnet/v2` | Request and response contract verified |
-| Music generation | OpenRouter with `google/lyria-3-pro-preview` | Experimental until a key-backed response-envelope smoke test passes |
+- Credentials: `OPENROUTER_API_KEY`, `FAL_KEY`.
+- Optional provider endpoints: `OPENROUTER_BASE_URL`, `FAL_BASE_URL`.
+- Model selection: `STAGE_GEN_IMAGE_MODEL`, `STAGE_GEN_TEXT_MODEL`,
+  `STAGE_GEN_MUSIC_MODEL`, `STAGE_GEN_BACKGROUND_REMOVAL_MODEL` (legacy
+  unprefixed model names remain accepted during migration).
+- Runtime: `STAGE_GEN_OUT_DIR`, `STAGE_GEN_STAGE_TIMEOUT_MS`,
+  `STAGE_GEN_CAPABILITY_TIMEOUT_MS`, `STAGE_GEN_FORCE`, `TRANSPARENCY_MODE`.
+- Optional web launcher: `STAGE_GEN_EXECUTABLE`.
 
-### Transparency strategy
+OpenRouter is required for image, structured, and music generation. `FAL_KEY`
+is required only for the default `ai` transparency mode. The explicit degraded
+`chroma` mode performs deterministic local keying and never silently replaces a
+failed AI-removal request.
+`FAL_KEY` is not required for an explicit chroma run.
 
-Transparency-producing assets default to `ai`. The image prompt requests a
-neutral grey or naturally isolated background, then the background-removal
-component produces and validates the canonical transparent PNG. Fully opaque
-assets, including the world concept and designated opaque backdrop, bypass
-removal and are unchanged.
+## Quickstart
 
-`chroma` is an explicit degraded fallback. It requests exact `#FF00FF` and
-uses deterministic local keying without calling the remover. The pipeline
-never switches to `chroma` automatically: an `ai` run without `FAL_KEY`, or
-with failed removal/validation, fails closed.
+Run the credential-free smoke benchmark:
 
 ```sh
-# Default; equivalent to --transparency ai and requires FAL_KEY.
-bun run stage-gen -- generate --recipe scrolling-preview "original rain-dark stone ruins with pale moss"
-
-# Explicit degraded fallback; does not require FAL_KEY.
-bun run stage-gen -- generate --recipe scrolling-preview --transparency chroma "original rain-dark stone ruins with pale moss"
+uv run stage-gen benchmark list
+uv run stage-gen benchmark smoke
 ```
 
-The local HTTP run input uses `transparencyMode: "ai" | "chroma"`. Run
-manifests and provenance record the selected strategy so consumers never infer
-it from filenames or prompts.
+Generate the reference recipe. The output directory is
+`out/<prompt-tag>-<mode>/` unless configured otherwise.
+The default is `--transparency ai`; select chroma explicitly when required.
 
-The music model and its audio modality are discoverable through OpenRouter,
-but a Lyria-specific response envelope is not currently documented there.
-The adapter must inspect and validate live returned media rather than assume a
-speech-oriented audio shape, fixed sample rate, or duration field.
+```sh
+# Default AI removal; requires OPENROUTER_API_KEY and FAL_KEY.
+uv run stage-gen generate --recipe scrolling-preview \
+  "original rain-dark stone ruins with pale moss"
 
-See [Provider operations](docs/providers.md) for exact request constraints,
-verified claims, and primary sources.
+# Explicit degraded fallback; requires OPENROUTER_API_KEY only.
+uv run stage-gen generate --recipe scrolling-preview --transparency chroma \
+  "original rain-dark stone ruins with pale moss"
+```
+
+A bare prompt remains a compatibility alias for `generate --recipe
+scrolling-preview`. Every run writes an atomic `run.json`; successful scrolling
+runs also write manifest schema v2. Transparency mode is part of the tag, cache
+identity, provenance, and manifest.
+
+Standalone capability commands use the same component services:
+
+```sh
+uv run stage-gen generate-image --output ./out/concept.png "original forest shrine"
+uv run stage-gen remove-background --input ./input.png --output ./out/subject.png
+uv run stage-gen generate-music --output ./out/theme.mp3 --format mp3 \
+  "original instrumental exploration loop with a gentle pulse"
+```
+
+The local API is loopback-only unless public binding is explicitly authorized:
+
+```sh
+uv run stage-gen serve --host 127.0.0.1 --port 4317
+```
+
+It exposes health, recipes/capabilities, run start/status/cancellation, SSE
+events, confined artifact reads, and standalone image generation. Request-body,
+path, and binding limits are enforced server-side.
 
 ## Reliability and provenance
 
-Every network/model call uses five blind retries with capped backoff. A call is
-also retried when the transport succeeds but its contract does not: empty
-media, malformed JSON, schema failure, unsupported MIME type, or invalid
-dimensions are failures.
+Every AI/provider operation has exactly six attempts at most: one initial
+attempt plus five retries with capped backoff. Network errors, timeouts, 5xx
+responses, empty media, malformed JSON, schema mismatch, invalid base64,
+unsupported media, and failed caller validation all remain inside that single
+retry owner. Do not stack a second SDK retry loop beneath it.
 
-Each artifact must have a sidecar or manifest entry containing at least:
+Artifacts are successful only after contract validation and rollback-safe
+artifact-plus-sidecar persistence. Provenance records the provider/model,
+sanitized prompt and parameters, input hashes, attempts, validation, tool and
+component identity, deterministic post-processing, output digest, and explicit
+rights decision when one exists. Temporary paths, credentials, authorization
+headers, and embedded media are not persisted.
 
-- component and pipeline versions;
-- provider and exact model/endpoint identifier;
-- prompt plus non-secret request parameters;
-- input/reference paths and content hashes;
-- output MIME type, byte size, dimensions or media duration when known;
-- attempt count, timestamp, and output hash;
-- deterministic post-processing steps.
+## Testing
 
-Provenance makes a run auditable and repeatable. It does not grant copyright,
-trademark, publicity, or training-data rights.
-
-## Headless and research first
-
-The supported public entry point is:
+Run the complete credential-free gate:
 
 ```sh
-bun run stage-gen -- <args>
+uv run python scripts/check.py
 ```
 
-Use `--help` as the source of truth for available pipelines and benchmark
-commands. Research runs should preserve raw provider metadata, normalized
-artifacts, provenance, validation results, timings, and failures. Do not tune a
-component only against the optional web preview; benchmark its declared media
-contract independently.
+It formats/lints, runs strict typing and all non-live tests, builds the sdist
+and wheel, verifies packaged resources, and runs CLI smoke commands. Focused
+module commands, opt-in live policy, web checks, and the `ffmpeg` requirement
+are listed in [Testing the Python reboot](docs/testing.md).
 
-The initial recipe and offline benchmark can be invoked directly. Generation
-defaults to `--transparency ai`:
+Verify that every live smoke remains safely skipped, even if the parent shell
+was previously opted in:
 
 ```sh
-bun run stage-gen -- generate --recipe scrolling-preview "original rain-dark stone ruins with pale moss"
-bun run stage-gen -- benchmark smoke
+STAGE_GEN_RUN_LIVE=0 uv run pytest -m live -q
 ```
 
-Provider-backed media components also have headless entrypoints:
-
-```sh
-bun run stage-gen -- remove-background --input ./input.png --output ./out/subject.png
-bun run stage-gen -- generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
-```
-
-See [Benchmarking and research](docs/benchmarking.md).
+Intentional provider calls require an explicit
+`STAGE_GEN_RUN_LIVE=1`; see the testing guide for the exact command.
 
 ## Optional web preview
 
-The `web/` workspace is a development adapter for one scrolling-world recipe.
-It launches the public headless command, visualizes run progress and artifacts,
-and can mount them in a browser scene.
+The web workspace is a replaceable consumer, not the backend:
 
 ```sh
-bun run web
+cd web
+bun install --frozen-lockfile
+bun run dev
 ```
 
-The preview is deliberately replaceable. A production game may consume the
-same exported assets from any suitable engine or custom runtime.
+Its server-only launcher invokes `uv run stage-gen generate ...` from the
+repository root using an argument array with no shell. `STAGE_GEN_EXECUTABLE`
+may select only `uv`, `stage-gen`, `stage-gen-py`, or a normalized absolute path
+whose basename is one of those names. Prompt text never becomes a command
+string. The browser receives progress, manifests, and artifacts—not provider
+credentials. React/Phaser gameplay code remains an optional adapter.
 
-## Game-engine status
+## Implementation boundary
 
-No gameplay engine has been selected. A dedicated 2D engine, including Godot,
-may be evaluated alongside other candidates, but the decision remains open.
-Provider adapters, components, manifests, and asset contracts must not depend
-on that future choice. See [Game-engine evaluation](docs/game-engine-evaluation.md).
+Python under `src/stage_gen/` is the sole headless implementation. Node and
+TypeScript are confined to `web/`, whose server launches the public Python CLI
+and whose browser code consumes completed manifests and artifacts.
 
-## OSS and IP rules
+## OSS and IP
 
-Repository prompts, fixtures, examples, and generated placeholders must use an
-original, neutral brief. Do not request or imply imitation of a named
-franchise, brand, character, artist, studio, game, album, track, or a living
-creator's recognizable style. Contributors must have rights to every supplied
-reference and every committed media file.
-
-The BSD-3-Clause license covers repository source. It does not automatically
-license generated artifacts, user inputs, model weights, hosted outputs, or
-third-party services. Review provider terms and applicable law before shipping
-generated media. See [OSS and IP policy](docs/oss-ip.md) and
-[CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Repository storage policy
-
-Git LFS is not enabled. After the legacy audio purge, tracked binaries total
-about 15.7 MiB and the largest is about 1.73 MiB, so LFS would add contributor
-friction without useful savings. Reconsider when one intentionally tracked
-binary reaches 10 MiB or a frequently revised binary family is projected to
-add 50 MiB of reachable history. Generated run output stays gitignored.
+Prompts, fixtures, examples, and committed outputs must use original,
+brand-neutral briefs. Contributors need rights to supplied references and
+committed media. BSD-3-Clause covers repository source; it does not
+automatically license generated artifacts, user inputs, provider outputs,
+models, or third-party services. See [OSS and IP policy](docs/oss-ip.md) and
+[Generated-media publication](docs/generated-media-publication.md).
 
 ## Documentation
 
 - [Documentation index](docs/README.md)
 - [System overview](docs/spec/system-overview.md)
-- [Provider operations](docs/providers.md)
 - [Component contract](docs/component-contract.md)
+- [Provider operations](docs/providers.md)
+- [Testing the Python reboot](docs/testing.md)
+- [Verification rules](VERIFICATION.md)
 - [Benchmarking and research](docs/benchmarking.md)
-- [OSS and IP policy](docs/oss-ip.md)
-- [Repository storage policy](docs/repository-storage.md)
-- [Scrolling-preview recipe contracts](docs/spec/asset-contracts.md)
+- [Optional web preview](docs/web-preview.md)
+- [Scrolling-preview asset contracts](docs/spec/asset-contracts.md)
+- [Game-engine evaluation](docs/game-engine-evaluation.md)
 
 ## License
 

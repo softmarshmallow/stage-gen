@@ -1,6 +1,5 @@
-import type { TransparencyMode } from "../../../stage-gen/src/config";
-
-export type { TransparencyMode } from "../../../stage-gen/src/config";
+/** JSON/CLI boundary shared with the authoritative Python backend. */
+export type TransparencyMode = "ai" | "chroma";
 
 export const DEFAULT_TRANSPARENCY_MODE: TransparencyMode = "ai";
 

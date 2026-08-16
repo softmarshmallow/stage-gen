@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "roots": [
-    "stage-gen/recipes"
+    "src/stage_gen/resources/music"
   ],
   "media": [
     {
-      "path": "stage-gen/recipes/scrolling-preview/assets/music/preview-loop.mp3",
+      "path": "src/stage_gen/resources/music/preview-loop.mp3",
       "reviewStatus": "repository-approved",
       "synthId": {
         "expected": true,

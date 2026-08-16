@@ -1,0 +1,106 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stage-gen"
+version = "0.0.0"
+description = "Headless, reproducible 2D game-asset generation pipeline"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "stage-gen contributors" }]
+dependencies = [
+  "httpx>=0.28,<1",
+  "pillow>=11,<13",
+  "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+server = [
+  "fastapi>=0.116,<1",
+  "uvicorn>=0.35,<1",
+]
+
+[project.scripts]
+stage-gen = "stage_gen.interfaces.cli:entrypoint"
+stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
+
+[dependency-groups]
+dev = [
+  "build>=1.2,<2",
+  "hatchling>=1.27,<2",
+  "mypy>=1.15,<2",
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.26,<1",
+  "pytest-timeout>=2.3,<3",
+  "ruff>=0.11,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stage_gen"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.env.example",
+  "/LICENSE",
+  "/README.md",
+  "/VERIFICATION.md",
+  "/pyproject.toml",
+  "/uv.lock",
+  "/docs/**/*.json",
+  "/docs/**/*.md",
+  "/scripts/**/*.py",
+  "/src/stage_gen/**",
+  "/tests/**/*.json",
+  "/tests/**/*.py",
+]
+exclude = [
+  "/.env",
+  "/.git/**",
+  "/.mypy_cache/**",
+  "/.pytest_cache/**",
+  "/.ruff_cache/**",
+  "/.venv/**",
+  "/build/**",
+  "/dist/**",
+  "/example-output/**",
+  "/fixtures/**",
+  "/node_modules/**",
+  "/web/**",
+  "**/__pycache__/**",
+  "**/*.py[cod]",
+  "**/*.tsbuildinfo",
+  "**/qa-screenshots/**",
+  "**/screenshots/**",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "live: opt-in test that calls a hosted provider",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = ["RUF022"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["stage_gen"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests", "scripts"]
+
+[[tool.mypy.overrides]]
+module = ["PIL.*"]
+ignore_missing_imports = true

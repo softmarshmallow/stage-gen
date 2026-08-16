@@ -16,9 +16,14 @@ flowchart LR
     A --> E["Future engine adapters"]
 ```
 
-- `components/` owns provider adapters and deterministic media operations.
-- `stage-gen/` owns CLI/server orchestration, run state, manifests,
-  benchmarks, and research workflows.
+- `src/stage_gen/components/` owns provider-neutral service contracts;
+  `src/stage_gen/providers/` implements vendor adapters.
+- `src/stage_gen/media/` owns deterministic inspection and normalization.
+- `src/stage_gen/recipes/` owns recipe graphs and manifests;
+  `src/stage_gen/orchestration/` owns concrete provider composition, run state,
+  and summaries.
+- `src/stage_gen/interfaces/` and `src/stage_gen/benchmarks/` expose the
+  Python CLI, optional HTTP/SSE API, and research workflows.
 - `web/` is an optional consumer that visualizes output and demonstrates one
   scrolling-world recipe.
 - `docs/` records contracts, verified provider behavior, policies, and recipe
@@ -65,7 +70,8 @@ non-empty URL is insufficient. Partial files do not satisfy the cache.
 
 ## Reliability
 
-Every provider/network call receives five blind retries with capped backoff.
+Every provider/network call receives one initial attempt plus five blind
+retries with capped backoff: six attempts at most.
 Transport failures and silent contract failures use the same retry boundary.
 Inputs/references are read and hashed once outside the loop when safe; every
 attempt records non-secret diagnostics. Deterministic post-processing is
@@ -95,6 +101,9 @@ component results through a different manifest/adapter.
 
 See [scrolling-preview asset contracts](asset-contracts.md) and the
 [web preview boundary](../web-preview.md).
+
+The Python package under `src/stage_gen/` is the sole headless implementation.
+Node and TypeScript are confined to the optional `web/` adapter.
 
 ## Game engine
 

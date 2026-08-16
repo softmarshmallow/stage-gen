@@ -12,12 +12,22 @@ Its assumptions are intentionally local:
 - browser texture registration and a fixed preview viewport.
 
 These belong in `web/lib/runtime/` and preview routes. They must not leak into
-`components/`, the public CLI contract, or provider adapters.
+`src/stage_gen/components/`, the public CLI contract, or provider adapters.
 
-The adapter invokes the public root command (`bun run stage-gen -- ...`) and
-consumes output manifests/files through server-side routes. Browser code never
-receives provider credentials. The preview may be replaced or removed without
-changing a component's typed input/output contract.
+The server-only adapter invokes the authoritative Python command from the
+repository root. Its default launch is exactly:
+
+```text
+uv run stage-gen generate --recipe scrolling-preview --transparency <mode> <prompt>
+```
+
+The process API receives an executable and argument array with `shell: false`;
+prompt text is never interpolated into a command string. The optional
+`STAGE_GEN_EXECUTABLE` override accepts only `uv`, `stage-gen`, `stage-gen-py`,
+or a normalized absolute path whose basename is one of those values. Output is
+rooted at `STAGE_GEN_OUT_DIR` (default `out/`) for both processes. The adapter
+consumes manifests, run summaries, SSE progress, and confined artifacts through
+server routes. Browser code never receives provider credentials.
 
 The Generate view exposes **AI background removal**, on by default. On maps to
 the headless `ai` transparency strategy; off explicitly requests the degraded
@@ -44,3 +54,7 @@ share a cache entry across strategies.
 Static third-party background music is not part of this adapter. Generated
 music is a headless component artifact and may be previewed only after its
 provenance and media contract are present.
+
+The browser gameplay implementation remains unchanged and optional. All Node
+and TypeScript code is confined to `web/`; the headless implementation is
+Python.

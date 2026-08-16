@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ESNext"],
-    "types": ["bun"],
-    "allowImportingTsExtensions": true
-  },
-  "include": ["src/**/*.ts", "recipes/**/*.ts", "benchmarks/**/*.ts", "test/**/*.ts"]
-}

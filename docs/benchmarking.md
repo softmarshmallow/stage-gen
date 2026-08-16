@@ -1,10 +1,10 @@
 # Benchmarking and research
 
-Benchmarking belongs to the headless `stage-gen/` surface, not the optional
-web preview. The public entry point is:
+Benchmarking belongs to the authoritative Python headless package, not the
+optional web preview. The public entry point is:
 
 ```sh
-bun run stage-gen -- --help
+uv run stage-gen --help
 ```
 
 Use the CLI help as the source of truth for currently implemented pipeline and
@@ -13,8 +13,8 @@ benchmark arguments. Do not document an aspirational subcommand as shipped.
 The current offline suite is runnable without provider calls:
 
 ```sh
-bun run stage-gen -- benchmark list
-bun run stage-gen -- benchmark smoke
+uv run stage-gen benchmark list
+uv run stage-gen benchmark smoke
 ```
 
 ## Evidence bundle

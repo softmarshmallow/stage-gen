@@ -4,6 +4,9 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Testing the Python reboot](testing.md) — focused, full, live, and web gates.
+- [Verification rules](../VERIFICATION.md) — evidence and independent media
+  verification requirements.
 - [Provider operations](providers.md) — credentials, verified endpoints, and
   experimental boundaries.
 - [Benchmarking and research](benchmarking.md) — evidence and evaluation.
@@ -27,5 +30,5 @@ can change independently of this source tree.
 Run the documentation checks with:
 
 ```sh
-bun docs/check.mjs
+uv run python scripts/check_docs.py
 ```

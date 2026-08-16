@@ -1,6 +1,6 @@
 {
   "entry": {
-    "path": "stage-gen/recipes/example/assets/music/example.mp3",
+    "path": "examples/generated-media/example.mp3",
     "reviewStatus": "repository-approved",
     "synthId": {
       "expected": true,

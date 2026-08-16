@@ -1,4 +1,4 @@
-// Deterministic base-tag derivation — mirrors stage-gen/src/tag.ts byte-for-byte.
+// Deterministic base-tag derivation — mirrors stage_gen.tags byte-for-byte.
 //
 // Kept at the adapter boundary so the web bundle does not import headless
 // implementation sources. Both copies must stay in sync because slug + hash

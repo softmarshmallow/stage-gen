@@ -1,6 +1,6 @@
 // Server-side run lifecycle helpers.
 //
-// Spawns the public `bun run stage-gen -- generate ...` command from repo root,
+// Spawns the public Python `stage-gen generate ...` command from repo root,
 // redirects stdout + stderr to a per-tag `web-run.log` inside out/<tag>/, and tracks live
 // processes in an in-process map so the SSE route can tell "still running"
 // from "exited".
@@ -20,10 +20,60 @@ import { tagFor } from "./tag";
 export { promptFromRunManifest } from "./transparency";
 
 export const REPO_ROOT = path.resolve(process.cwd(), "..");
-export const OUT_ROOT = path.join(REPO_ROOT, "out");
+export const OUT_ROOT = process.env.STAGE_GEN_OUT_DIR?.trim()
+  ? path.resolve(REPO_ROOT, process.env.STAGE_GEN_OUT_DIR.trim())
+  : path.join(REPO_ROOT, "out");
 
 const RUN_TAG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 const ARTIFACT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+const ALLOWED_EXECUTABLE_NAMES = new Set(["uv", "stage-gen", "stage-gen-py"]);
+
+export interface StageGenCommand {
+  executable: string;
+  args: string[];
+}
+
+export function resolveStageGenExecutable(configured?: string): string {
+  if (configured === undefined || configured === "") return "uv";
+  if (
+    configured !== configured.trim() ||
+    /[\s\0]/.test(configured) ||
+    (!path.isAbsolute(configured) && path.basename(configured) !== configured) ||
+    (path.isAbsolute(configured) && path.normalize(configured) !== configured) ||
+    !ALLOWED_EXECUTABLE_NAMES.has(path.basename(configured))
+  ) {
+    throw new Error(
+      "STAGE_GEN_EXECUTABLE must be uv, stage-gen, stage-gen-py, or an absolute path to one",
+    );
+  }
+  return configured;
+}
+
+function pythonCliArgsFor(input: {
+  prompt: string;
+  transparencyMode: TransparencyMode;
+}): string[] {
+  return [
+    "generate",
+    "--recipe",
+    "scrolling-preview",
+    "--transparency",
+    input.transparencyMode,
+    input.prompt,
+  ];
+}
+
+export function stageGenCommandFor(
+  input: { prompt: string; transparencyMode: TransparencyMode },
+  configuredExecutable: string | undefined = process.env.STAGE_GEN_EXECUTABLE,
+): StageGenCommand {
+  const executable = resolveStageGenExecutable(configuredExecutable);
+  const cliArgs = pythonCliArgsFor(input);
+  return {
+    executable,
+    args: path.basename(executable) === "uv" ? ["run", "stage-gen", ...cliArgs] : cliArgs,
+  };
+}
 
 function isAlreadyDecoded(value: string): boolean {
   try {
@@ -177,16 +227,14 @@ export async function startRun(opts: {
   // open() the log file as an fs handle and feed it to the spawn stdio.
   const fd = await fs.open(logPath, "a");
 
-  const proc = spawn(
-    "bun",
-    stageGenArgsFor({ prompt, transparencyMode }),
-    {
-      cwd: REPO_ROOT,
-      stdio: ["ignore", fd.fd, fd.fd],
-      detached: false,
-      env: process.env,
-    },
-  );
+  const command = stageGenCommandFor({ prompt, transparencyMode });
+  const proc = spawn(command.executable, command.args, {
+    cwd: REPO_ROOT,
+    stdio: ["ignore", fd.fd, fd.fd],
+    detached: false,
+    shell: false,
+    env: { ...process.env, STAGE_GEN_OUT_DIR: OUT_ROOT },
+  });
 
   procs.set(tag, {
     proc,
@@ -262,15 +310,5 @@ export function stageGenArgsFor(input: {
   prompt: string;
   transparencyMode: TransparencyMode;
 }): string[] {
-  return [
-    "run",
-    "stage-gen",
-    "--",
-    "generate",
-    "--recipe",
-    "scrolling-preview",
-    "--transparency",
-    input.transparencyMode,
-    input.prompt,
-  ];
+  return stageGenCommandFor(input, "uv").args;
 }

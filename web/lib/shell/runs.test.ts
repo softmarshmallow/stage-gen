@@ -9,9 +9,11 @@ import {
   readRunInput,
   readRunStatus,
   retryAsset,
+  resolveStageGenExecutable,
   runDirFor,
   startRun,
   stageGenArgsFor,
+  stageGenCommandFor,
 } from "./runs";
 import { tagFor } from "./tag";
 import {
@@ -66,7 +68,6 @@ describe("web run boundary", () => {
     expect(stageGenArgsFor({ prompt, transparencyMode: "ai" })).toEqual([
       "run",
       "stage-gen",
-      "--",
       "generate",
       "--recipe",
       "scrolling-preview",
@@ -74,6 +75,34 @@ describe("web run boundary", () => {
       "ai",
       prompt,
     ]);
+    expect(stageGenCommandFor({ prompt, transparencyMode: "ai" }, "stage-gen")).toEqual({
+      executable: "stage-gen",
+      args: [
+        "generate",
+        "--recipe",
+        "scrolling-preview",
+        "--transparency",
+        "ai",
+        prompt,
+      ],
+    });
+  });
+
+  test("validates a configurable Python CLI executable without shell parsing", () => {
+    expect(resolveStageGenExecutable()).toBe("uv");
+    expect(resolveStageGenExecutable("stage-gen-py")).toBe("stage-gen-py");
+    expect(resolveStageGenExecutable(path.resolve("/opt/stage-gen/bin/stage-gen"))).toBe(
+      path.resolve("/opt/stage-gen/bin/stage-gen"),
+    );
+    for (const executable of [
+      "uv --project /tmp/other",
+      "../stage-gen",
+      "/bin/sh",
+      "/opt/stage-gen/../bin/stage-gen",
+      " stage-gen",
+    ]) {
+      expect(() => resolveStageGenExecutable(executable)).toThrow("STAGE_GEN_EXECUTABLE");
+    }
   });
 
   test("launch rejects a prompt, mode, and tag identity collision", async () => {

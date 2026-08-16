@@ -33,9 +33,10 @@ shared state is `TODO.md`; the public product and operational contracts live in
 - Reusable components remain independent of genre, camera, gameplay loop,
   preview runtime, and future engine choice.
 - Recipe-specific scrolling assumptions stay in
-  `stage-gen/recipes/scrolling-preview/`. Browser scene assumptions stay in
+  `src/stage_gen/recipes/scrolling_preview/`. Browser scene assumptions stay in
   `web/`.
-- The public command is `bun run stage-gen -- <args>`.
+- The public command is `uv run stage-gen <args>`; the Python package is the
+  authoritative backend.
 - Provider adapters are configured at the headless application boundary.
   Operational OpenRouter/fal/Lyria details belong in `docs/providers.md`, not
   in generic component contracts.

@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import httpx
+
+from stage_gen.components.image_generation.models import (
+    ImageGenerationRequest,
+    ProviderImage,
+)
+from stage_gen.media import assert_image_signature, decode_base64_strict, normalize_media_type
+from stage_gen.providers._http import (
+    assert_success,
+    json_object,
+    normalized_base_url,
+    response_metadata,
+)
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2"
+
+
+class OpenRouterImageBackend:
+    provider = "openrouter"
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str = OPENROUTER_IMAGE_MODEL,
+        base_url: str = OPENROUTER_BASE_URL,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        if not api_key.strip():
+            raise ValueError("OpenRouter api_key must be non-empty")
+        if not model.strip():
+            raise ValueError("OpenRouter image model must be non-empty")
+        self._api_key = api_key
+        self.secrets: tuple[str, ...] = (api_key,)
+        self.model = model.strip()
+        self._base_url = normalized_base_url(base_url, "OpenRouter base_url")
+        self._client = client or httpx.AsyncClient(timeout=None)
+        self._owns_client = client is None
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self._client.aclose()
+
+    async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
+        body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
+        if request.aspect_ratio is not None:
+            body["aspect_ratio"] = request.aspect_ratio
+        if request.quality is not None:
+            body["quality"] = request.quality
+        if request.background is not None:
+            body["background"] = request.background
+        if request.output_compression is not None:
+            body["output_compression"] = request.output_compression
+        if request.input_references:
+            body["input_references"] = [
+                {"type": "image_url", "image_url": {"url": reference.url}}
+                for reference in request.input_references
+            ]
+        if request.moderation is not None:
+            body["provider"] = {"options": {"openai": {"moderation": request.moderation}}}
+        response = await self._client.post(
+            f"{self._base_url}/images",
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+        assert_success(response, "OpenRouter image generation")
+        payload = json_object(response, "OpenRouter image generation")
+        data = payload.get("data")
+        if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):
+            raise ValueError("OpenRouter image generation returned no single image")
+        encoded = data[0].get("b64_json")
+        image_data = decode_base64_strict(encoded, "OpenRouter image b64_json")
+        media_type = _openrouter_image_media_type(data[0].get("media_type"))
+        assert_image_signature(image_data, media_type)
+        return ProviderImage(
+            data=image_data,
+            media_type=media_type,
+            response_metadata=response_metadata(response, payload),
+        )
+
+
+def _openrouter_image_media_type(value: object) -> str:
+    if not isinstance(value, str) or not value.strip() or ";" in value:
+        raise ValueError("OpenRouter image media type must be parameter-free PNG, JPEG, or WebP")
+    media_type = normalize_media_type(value, "image")
+    if media_type not in {"image/png", "image/jpeg", "image/webp"}:
+        raise ValueError("OpenRouter image media type must be PNG, JPEG, or WebP")
+    return media_type

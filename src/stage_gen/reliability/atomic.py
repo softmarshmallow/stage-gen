@@ -1,0 +1,471 @@
+"""Atomic JSON and artifact/provenance persistence with rollback."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import json
+import os
+import uuid
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Protocol
+
+from stage_gen.contracts import (
+    ArtifactDigest,
+    ArtifactProvenance,
+    ArtifactRights,
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+)
+
+from .encoding import (
+    assert_media_type,
+    is_portable_artifact_reference,
+    sanitize_reference,
+    sha256_hex,
+)
+from .redaction import redact_secrets, sanitize_for_persistence
+
+
+class AtomicWriteError(OSError):
+    """An atomic commit or its rollback failed."""
+
+
+class FileOperations(Protocol):
+    def mkdir(self, path: Path) -> None: ...
+
+    def exists(self, path: Path) -> bool: ...
+
+    def read_bytes(self, path: Path) -> bytes: ...
+
+    def write_exclusive(self, path: Path, data: bytes, mode: int = 0o600) -> None: ...
+
+    def replace(self, source: Path, destination: Path) -> None: ...
+
+    def remove(self, path: Path) -> None: ...
+
+    def sync_directory(self, path: Path) -> None: ...
+
+
+class LocalFileOperations:
+    """Durable local filesystem operations; injectable for rollback tests."""
+
+    def mkdir(self, path: Path) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+
+    def exists(self, path: Path) -> bool:
+        return os.path.lexists(path)
+
+    def read_bytes(self, path: Path) -> bytes:
+        return path.read_bytes()
+
+    def write_exclusive(self, path: Path, data: bytes, mode: int = 0o600) -> None:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        try:
+            with os.fdopen(descriptor, "wb", closefd=False) as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            os.close(descriptor)
+
+    def replace(self, source: Path, destination: Path) -> None:
+        os.replace(source, destination)
+
+    def remove(self, path: Path) -> None:
+        with contextlib.suppress(FileNotFoundError):
+            path.unlink()
+
+    def sync_directory(self, path: Path) -> None:
+        descriptor = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+
+_LOCAL_FILES = LocalFileOperations()
+
+
+def build_artifact_provenance(
+    artifact: BinaryArtifact | None,
+    provenance: ProvenanceInput,
+    *,
+    secrets: Sequence[str] = (),
+    now: datetime | None = None,
+) -> ArtifactProvenance:
+    """Validate and sanitize a provenance-v1 record before any write."""
+
+    references = [sanitize_reference(reference) for reference in provenance.refs]
+    inputs = [
+        InputProvenance(
+            ref=sanitize_reference(item.ref),
+            sha256=item.sha256,
+            source=item.source,
+            bytes=item.bytes,
+            media_type=item.media_type,
+        )
+        for item in provenance.inputs
+    ]
+    rights = _sanitize_rights(provenance.rights, secrets) if provenance.rights is not None else None
+    timestamp = provenance.timestamp or (now or datetime.now(UTC)).isoformat(
+        timespec="milliseconds"
+    ).replace("+00:00", "Z")
+    digest = None
+    if artifact is not None:
+        if not artifact.data:
+            raise ValueError("artifact bytes must be non-empty")
+        family = artifact.media_type.split("/", 1)[0]
+        if family not in {"image", "audio", "application"}:
+            family = "application"
+        media_type = assert_media_type(artifact.media_type, family)
+        digest = ArtifactDigest(
+            sha256=sha256_hex(artifact.data), bytes=len(artifact.data), media_type=media_type
+        )
+    raw: dict[str, Any] = {
+        "schema_version": 1,
+        "provider": provenance.provider,
+        "model": provenance.model,
+        "seed": provenance.seed,
+        "prompt": provenance.prompt,
+        "prompt_sha256": sha256_hex(provenance.prompt),
+        "references": references,
+        "refs": references,
+        "inputs": [item.model_dump(mode="json") for item in inputs],
+        "params": provenance.params,
+        "validation": provenance.validation,
+        "component": provenance.component.model_dump(mode="json"),
+        "tool": provenance.tool.model_dump(mode="json"),
+        "artifact": digest.model_dump(mode="json") if digest is not None else None,
+        "rights": rights.model_dump(mode="json") if rights is not None else None,
+        "ts": timestamp,
+        "attempts": provenance.attempts,
+        "retries": provenance.attempts - 1,
+        "response": provenance.response,
+    }
+    sanitized = sanitize_for_persistence(raw, secrets)
+    if not isinstance(sanitized, dict):
+        raise TypeError("artifact provenance must be an object")
+    record = ArtifactProvenance.model_validate(sanitized)
+    if record.rights is not None and record.rights.status == "redistribution-approved":
+        _assert_portable_references(record.references, record.inputs)
+    return record
+
+
+def serialize_provenance(provenance: ArtifactProvenance) -> bytes:
+    """Serialize using persisted aliases while keeping required null seed."""
+
+    payload = provenance.model_dump(mode="json", by_alias=True, exclude_none=False)
+    for optional in ("artifact", "rights", "response"):
+        if payload[optional] is None:
+            payload.pop(optional)
+    for item in payload["inputs"]:
+        for optional in ("bytes", "media_type"):
+            if item[optional] is None:
+                item.pop(optional)
+    return (json.dumps(payload, indent=2, ensure_ascii=False) + "\n").encode()
+
+
+def write_artifact_with_provenance(
+    artifact_path: str | os.PathLike[str],
+    artifact: BinaryArtifact,
+    provenance: ProvenanceInput,
+    *,
+    secrets: Sequence[str] = (),
+    now: datetime | None = None,
+    operations: FileOperations | None = None,
+) -> Path:
+    """Commit artifact and adjacent sidecar as one rollback-protected pair."""
+
+    raw_path = os.fspath(artifact_path)
+    if not raw_path or not raw_path.strip():
+        raise ValueError("artifact_path must be non-empty")
+    path = Path(raw_path)
+    sidecar_path = Path(f"{path}.meta.json")
+    record = build_artifact_provenance(artifact, provenance, secrets=secrets, now=now)
+    sidecar_bytes = serialize_provenance(record)
+    files = operations or _LOCAL_FILES
+    files.mkdir(path.parent)
+
+    token = uuid.uuid4().hex
+    artifact_temp = path.parent / f".{path.name}.{token}.tmp"
+    sidecar_temp = sidecar_path.parent / f".{sidecar_path.name}.{token}.tmp"
+    artifact_backup = Path(f"{artifact_temp}.backup")
+    sidecar_backup = Path(f"{sidecar_temp}.backup")
+    artifact_backed_up = False
+    sidecar_backed_up = False
+    artifact_installed = False
+    sidecar_installed = False
+    artifact_existed = files.exists(path)
+    sidecar_existed = files.exists(sidecar_path)
+
+    try:
+        files.write_exclusive(artifact_temp, artifact.data)
+        files.write_exclusive(sidecar_temp, sidecar_bytes)
+        if artifact_existed:
+            files.replace(path, artifact_backup)
+            artifact_backed_up = True
+        if sidecar_existed:
+            files.replace(sidecar_path, sidecar_backup)
+            sidecar_backed_up = True
+        files.replace(artifact_temp, path)
+        artifact_installed = True
+        files.replace(sidecar_temp, sidecar_path)
+        sidecar_installed = True
+        files.sync_directory(path.parent)
+    except Exception as error:
+        rollback_errors = _rollback_artifact_pair(
+            files,
+            artifact_path=path,
+            sidecar_path=sidecar_path,
+            artifact_backup=artifact_backup,
+            sidecar_backup=sidecar_backup,
+            artifact_existed=artifact_existed,
+            sidecar_existed=sidecar_existed,
+            artifact_backed_up=artifact_backed_up,
+            sidecar_backed_up=sidecar_backed_up,
+            artifact_installed=artifact_installed,
+            sidecar_installed=sidecar_installed,
+        )
+        _safe_remove(files, artifact_temp)
+        _safe_remove(files, sidecar_temp)
+        safe_message = redact_secrets(str(error), secrets)
+        if rollback_errors:
+            raise AtomicWriteError(
+                "artifact pair persistence failed and rollback was incomplete; "
+                f"recovery backups were retained: {safe_message}"
+            ) from None
+        raise AtomicWriteError(safe_message) from None
+
+    _safe_remove(files, artifact_backup)
+    _safe_remove(files, sidecar_backup)
+    return sidecar_path
+
+
+async def write_artifact_with_provenance_async(
+    artifact_path: str | os.PathLike[str],
+    artifact: BinaryArtifact,
+    provenance: ProvenanceInput,
+    *,
+    secrets: Sequence[str] = (),
+    now: datetime | None = None,
+    operations: FileOperations | None = None,
+) -> Path:
+    return await asyncio.to_thread(
+        write_artifact_with_provenance,
+        artifact_path,
+        artifact,
+        provenance,
+        secrets=secrets,
+        now=now,
+        operations=operations,
+    )
+
+
+def atomic_write_bytes(
+    path: str | os.PathLike[str],
+    data: bytes,
+    *,
+    mode: int = 0o600,
+    operations: FileOperations | None = None,
+) -> Path:
+    """Atomically replace one file from an exclusive, fsynced sibling temp."""
+
+    target = Path(path)
+    files = operations or _LOCAL_FILES
+    files.mkdir(target.parent)
+    temporary = target.parent / f".{target.name}.{uuid.uuid4().hex}.tmp"
+    try:
+        files.write_exclusive(temporary, data, mode)
+        files.replace(temporary, target)
+        files.sync_directory(target.parent)
+    except Exception:
+        _safe_remove(files, temporary)
+        raise
+    return target
+
+
+def atomic_write_text(
+    path: str | os.PathLike[str],
+    text: str,
+    *,
+    mode: int = 0o600,
+    operations: FileOperations | None = None,
+) -> Path:
+    return atomic_write_bytes(path, text.encode(), mode=mode, operations=operations)
+
+
+def atomic_write_json(
+    path: str | os.PathLike[str],
+    value: Mapping[str, Any],
+    *,
+    mode: int = 0o600,
+    operations: FileOperations | None = None,
+) -> Path:
+    payload = (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode()
+    return atomic_write_bytes(path, payload, mode=mode, operations=operations)
+
+
+def record_artifact_rights(
+    artifact_path: str | os.PathLike[str],
+    rights: ArtifactRights,
+    *,
+    provenance_path: str | os.PathLike[str] | None = None,
+    secrets: Sequence[str] = (),
+    operations: FileOperations | None = None,
+) -> Path:
+    """Verify binding and atomically attach an explicit rights decision."""
+
+    path = Path(artifact_path)
+    sidecar_path = Path(provenance_path) if provenance_path else Path(f"{path}.meta.json")
+    files = operations or _LOCAL_FILES
+    artifact_bytes = files.read_bytes(path)
+    original_sidecar = files.read_bytes(sidecar_path)
+    try:
+        record = ArtifactProvenance.model_validate_json(original_sidecar)
+    except Exception as error:
+        raise ValueError("artifact provenance is not valid provenance-v1 JSON") from error
+    _assert_artifact_binding(record, artifact_bytes)
+    if rights.status == "redistribution-approved":
+        _assert_portable_references(record.references, record.inputs)
+    updated = record.model_copy(update={"rights": _sanitize_rights(rights, secrets)})
+    serialized = serialize_provenance(updated)
+    temporary = sidecar_path.parent / f".{sidecar_path.name}.{uuid.uuid4().hex}.tmp"
+    files.mkdir(sidecar_path.parent)
+    try:
+        files.write_exclusive(temporary, serialized)
+        _assert_artifact_binding(record, files.read_bytes(path))
+        if sha256_hex(files.read_bytes(sidecar_path)) != sha256_hex(original_sidecar):
+            raise ValueError("artifact provenance changed while recording rights")
+        files.replace(temporary, sidecar_path)
+        files.sync_directory(sidecar_path.parent)
+    except Exception as error:
+        _safe_remove(files, temporary)
+        raise AtomicWriteError(redact_secrets(str(error), secrets)) from None
+    return sidecar_path
+
+
+async def record_artifact_rights_async(
+    artifact_path: str | os.PathLike[str],
+    rights: ArtifactRights,
+    *,
+    provenance_path: str | os.PathLike[str] | None = None,
+    secrets: Sequence[str] = (),
+    operations: FileOperations | None = None,
+) -> Path:
+    return await asyncio.to_thread(
+        record_artifact_rights,
+        artifact_path,
+        rights,
+        provenance_path=provenance_path,
+        secrets=secrets,
+        operations=operations,
+    )
+
+
+def _assert_artifact_binding(record: ArtifactProvenance, artifact_bytes: bytes) -> None:
+    if record.artifact is None:
+        raise ValueError("artifact provenance has no artifact digest")
+    if record.artifact.bytes != len(artifact_bytes) or record.artifact.sha256 != sha256_hex(
+        artifact_bytes
+    ):
+        raise ValueError("artifact bytes do not match provenance digest")
+
+
+def _assert_portable_references(
+    references: Sequence[str], inputs: Sequence[InputProvenance]
+) -> None:
+    if any(not is_portable_artifact_reference(reference) for reference in references):
+        raise ValueError("redistribution-approved provenance contains an unsafe reference")
+    if any(not is_portable_artifact_reference(item.ref) for item in inputs):
+        raise ValueError("redistribution-approved provenance contains an unsafe input reference")
+
+
+def _sanitize_rights(rights: ArtifactRights, secrets: Sequence[str]) -> ArtifactRights:
+    value = sanitize_for_persistence(rights.model_dump(mode="json"), secrets)
+    if not isinstance(value, dict):
+        raise TypeError("artifact rights must be an object")
+    return ArtifactRights.model_validate(value)
+
+
+def _safe_remove(files: FileOperations, path: Path) -> None:
+    with contextlib.suppress(Exception):
+        files.remove(path)
+
+
+def _rollback_artifact_pair(
+    files: FileOperations,
+    *,
+    artifact_path: Path,
+    sidecar_path: Path,
+    artifact_backup: Path,
+    sidecar_backup: Path,
+    artifact_existed: bool,
+    sidecar_existed: bool,
+    artifact_backed_up: bool,
+    sidecar_backed_up: bool,
+    artifact_installed: bool,
+    sidecar_installed: bool,
+) -> list[Exception]:
+    """Restore each old output independently, retaining any failed backup."""
+
+    errors: list[Exception] = []
+    pairs = (
+        (
+            artifact_path,
+            artifact_backup,
+            artifact_existed,
+            artifact_backed_up,
+            artifact_installed,
+        ),
+        (
+            sidecar_path,
+            sidecar_backup,
+            sidecar_existed,
+            sidecar_backed_up,
+            sidecar_installed,
+        ),
+    )
+    for destination, backup, existed, backed_up, installed in pairs:
+        backup_exists = backed_up or _safe_exists(files, backup)
+        if backup_exists:
+            restore_error: Exception | None = None
+            # A local rename can fail transiently (for example, interruption or
+            # an injected fault). One immediate retry keeps the pair recoverable
+            # without introducing AI-style backoff into filesystem recovery.
+            for _attempt in range(2):
+                try:
+                    files.replace(backup, destination)
+                except Exception as error:
+                    restore_error = error
+                else:
+                    restore_error = None
+                    break
+            if restore_error is not None:
+                errors.append(restore_error)
+                if installed:
+                    try:
+                        files.remove(destination)
+                    except Exception as error:
+                        errors.append(error)
+            continue
+        if not existed and (installed or _safe_exists(files, destination)):
+            try:
+                files.remove(destination)
+            except Exception as error:
+                errors.append(error)
+    try:
+        files.sync_directory(artifact_path.parent)
+    except Exception as error:
+        errors.append(error)
+    return errors
+
+
+def _safe_exists(files: FileOperations, path: Path) -> bool:
+    try:
+        return files.exists(path)
+    except Exception:
+        return False

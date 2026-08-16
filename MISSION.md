@@ -11,11 +11,11 @@ isometric, interface, animation, music, and other 2D production workflows.
 
 ## Primary outcomes
 
-1. `components/` provides independently testable operations for structured
-   generation, image generation/editing, background removal, music
-   generation, provenance, validation, and deterministic processing.
-2. `stage-gen/` provides the public CLI and local HTTP surface, recipe
-   composition, reproducible runs, and benchmark/research entrypoints.
+1. `src/stage_gen/components/`, `providers/`, and `media/` provide independently
+   testable structured/image/music/removal operations, vendor adapters,
+   validation, provenance, and deterministic processing.
+2. `src/stage_gen/` provides the authoritative Python CLI and local HTTP
+   surface, recipe composition, reproducible runs, and benchmarks.
 3. Every successful artifact has a typed manifest, validated media contract,
    integrity hashes, provenance, and explicit output location.
 4. Every AI call retries transport and contract failures through one bounded
@@ -49,7 +49,7 @@ and deterministic post-processing.
 
 This recipe is evidence that the pipeline composes end to end. Its platformer
 terms, horizontal projection, parallax values, fixed sheet roles, and browser
-scene remain inside `stage-gen/recipes/scrolling-preview/` and `web/`. They are
+scene remain inside `src/stage_gen/recipes/scrolling_preview/` and `web/`. They are
 not defaults for reusable components or future recipes.
 
 ## Acceptance criteria

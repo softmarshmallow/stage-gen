@@ -1,0 +1,175 @@
+"""Environment-derived configuration at the headless application boundary."""
+
+from __future__ import annotations
+
+import math
+import os
+from collections.abc import Iterable, Mapping
+from enum import StrEnum
+from pathlib import Path
+
+from pydantic import Field, field_validator
+
+from stage_gen.contracts import ContractModel
+from stage_gen.provider_env import load_provider_dotenv
+
+
+class CapabilityName(StrEnum):
+    STRUCTURED_GENERATION = "structured-generation"
+    IMAGE_GENERATION = "image-generation"
+    BACKGROUND_REMOVAL = "background-removal"
+    MUSIC_GENERATION = "music-generation"
+
+
+class TransparencyMode(StrEnum):
+    AI = "ai"
+    CHROMA = "chroma"
+
+
+DEFAULT_TRANSPARENCY_MODE = TransparencyMode.AI
+
+
+class StageGenConfig(ContractModel):
+    out_dir: Path = Path("out")
+    open_router_api_key: str | None = Field(default=None, repr=False)
+    fal_key: str | None = Field(default=None, repr=False)
+    open_router_base_url: str | None = None
+    fal_base_url: str | None = None
+    image_model: str = "openai/gpt-image-2"
+    text_model: str = "openai/gpt-5.5"
+    music_model: str = "google/lyria-3-pro-preview"
+    background_removal_model: str = "fal-ai/birefnet/v2"
+    transparency_mode: TransparencyMode = DEFAULT_TRANSPARENCY_MODE
+    stage_timeout_ms: int = Field(default=1_800_000, gt=0)
+    capability_timeout_ms: int = Field(default=600_000, gt=0)
+
+    @field_validator("image_model", "text_model", "music_model", "background_removal_model")
+    @classmethod
+    def validate_model(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("model identifiers must be non-empty")
+        return value.strip()
+
+    @property
+    def stage_timeout_s(self) -> float:
+        return self.stage_timeout_ms / 1000
+
+    @property
+    def capability_timeout_s(self) -> float:
+        return self.capability_timeout_ms / 1000
+
+
+class ConfigError(Exception):
+    def __init__(self, missing: Iterable[str]) -> None:
+        self.missing = tuple(dict.fromkeys(missing))
+        suffix = "" if len(self.missing) == 1 else "s"
+        super().__init__(
+            f"missing required environment variable{suffix}: {', '.join(self.missing)}"
+        )
+
+
+def load_config(
+    *,
+    env: Mapping[str, str | None] | None = None,
+    require: Iterable[CapabilityName | str] = (),
+) -> StageGenConfig:
+    values: Mapping[str, str | None] = _application_environment() if env is None else env
+    config = StageGenConfig(
+        out_dir=_first(values, "STAGE_GEN_OUT_DIR", "OUT_DIR") or "out",
+        open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
+        fal_key=_first(values, "FAL_KEY"),
+        open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
+        fal_base_url=_first(values, "FAL_BASE_URL"),
+        image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL") or "openai/gpt-image-2",
+        text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.5",
+        music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
+        or "google/lyria-3-pro-preview",
+        background_removal_model=_first(
+            values, "STAGE_GEN_BACKGROUND_REMOVAL_MODEL", "BACKGROUND_REMOVAL_MODEL"
+        )
+        or "fal-ai/birefnet/v2",
+        transparency_mode=parse_transparency_mode(
+            _first(values, "TRANSPARENCY_MODE") or DEFAULT_TRANSPARENCY_MODE,
+            "TRANSPARENCY_MODE",
+        ),
+        stage_timeout_ms=_positive_integer(
+            values.get("STAGE_GEN_STAGE_TIMEOUT_MS"),
+            "STAGE_GEN_STAGE_TIMEOUT_MS",
+            1_800_000,
+        ),
+        capability_timeout_ms=_positive_integer(
+            values.get("STAGE_GEN_CAPABILITY_TIMEOUT_MS"),
+            "STAGE_GEN_CAPABILITY_TIMEOUT_MS",
+            600_000,
+        ),
+    )
+    assert_capabilities(config, require)
+    return config
+
+
+def _application_environment() -> Mapping[str, str]:
+    process_environment = dict(os.environ)
+    if process_environment.get("_STAGE_GEN_DISABLE_DOTENV") == "1":
+        return process_environment
+    dotenv_environment = load_provider_dotenv(Path.cwd() / ".env")
+    application_environment = {str(key): value for key, value in dotenv_environment.items()}
+    application_environment.update(process_environment)
+    return application_environment
+
+
+def assert_capabilities(
+    config: StageGenConfig, capabilities: Iterable[CapabilityName | str]
+) -> None:
+    missing: list[str] = []
+    for raw_capability in capabilities:
+        capability = CapabilityName(raw_capability)
+        if (
+            capability
+            in {
+                CapabilityName.STRUCTURED_GENERATION,
+                CapabilityName.IMAGE_GENERATION,
+                CapabilityName.MUSIC_GENERATION,
+            }
+            and not config.open_router_api_key
+        ):
+            missing.append("OPENROUTER_API_KEY")
+        if capability is CapabilityName.BACKGROUND_REMOVAL and not config.fal_key:
+            missing.append("FAL_KEY")
+    if missing:
+        raise ConfigError(missing)
+
+
+def parse_transparency_mode(value: object, label: str = "transparency mode") -> TransparencyMode:
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be ai or chroma")
+    try:
+        return TransparencyMode(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be ai or chroma") from error
+
+
+def transparency_capabilities(mode: TransparencyMode) -> tuple[CapabilityName, ...]:
+    return (CapabilityName.BACKGROUND_REMOVAL,) if mode is TransparencyMode.AI else ()
+
+
+def _first(env: Mapping[str, str | None], *keys: str) -> str | None:
+    for key in keys:
+        value = env.get(key)
+        if value is not None and value.strip():
+            return value.strip()
+    return None
+
+
+def _positive_integer(value: str | None, name: str, fallback: int) -> int:
+    if value is None or not value.strip():
+        return fallback
+    try:
+        numeric = float(value.strip())
+    except ValueError as error:
+        raise ValueError(f"{name} must be a positive integer in milliseconds") from error
+    if not math.isfinite(numeric) or numeric <= 0 or not numeric.is_integer():
+        raise ValueError(f"{name} must be a positive integer in milliseconds")
+    parsed = int(numeric)
+    if parsed > 9_007_199_254_740_991:
+        raise ValueError(f"{name} must be a positive integer in milliseconds")
+    return parsed

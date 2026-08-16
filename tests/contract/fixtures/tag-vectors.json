@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "ascii-slug-sha256-v1",
+  "vectors": [
+    {
+      "name": "empty-ai",
+      "prompt": "",
+      "transparencyMode": "ai",
+      "slug": "untitled",
+      "baseTag": "untitled-e3b0c442",
+      "tag": "untitled-e3b0c442-ai"
+    },
+    {
+      "name": "non-ascii-chroma",
+      "prompt": "雪の森 🌲",
+      "transparencyMode": "chroma",
+      "slug": "untitled",
+      "baseTag": "untitled-2c4a60e7",
+      "tag": "untitled-2c4a60e7-chroma"
+    },
+    {
+      "name": "unicode-case-ai",
+      "prompt": "Kelvin 雪",
+      "transparencyMode": "ai",
+      "slug": "kelvin",
+      "baseTag": "kelvin-23acf24f",
+      "tag": "kelvin-23acf24f-ai"
+    },
+    {
+      "name": "punctuation-chroma",
+      "prompt": "!!! Original... asset??? ###",
+      "transparencyMode": "chroma",
+      "slug": "original-asset",
+      "baseTag": "original-asset-9cf2bc5f",
+      "tag": "original-asset-9cf2bc5f-chroma"
+    },
+    {
+      "name": "long-truncated-ai",
+      "prompt": "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda",
+      "transparencyMode": "ai",
+      "slug": "alpha-beta-gamma-delta-epsilon-zeta-eta",
+      "baseTag": "alpha-beta-gamma-delta-epsilon-zeta-eta-144dd991",
+      "tag": "alpha-beta-gamma-delta-epsilon-zeta-eta-144dd991-ai"
+    },
+    {
+      "name": "whitespace-chroma",
+      "prompt": "  neutral\tasset\n study  ",
+      "transparencyMode": "chroma",
+      "slug": "neutral-asset-study",
+      "baseTag": "neutral-asset-study-7ae0ec95",
+      "tag": "neutral-asset-study-7ae0ec95-chroma"
+    }
+  ]
+}

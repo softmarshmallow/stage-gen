@@ -46,7 +46,8 @@ not establish their rights.
 
 ## Gate
 
-`bun docs/check.mjs` hashes bytes without decoding media and verifies that:
+`uv run python scripts/check_docs.py` hashes bytes without decoding media and
+verifies that:
 
 1. generated media in the declared roots is intentionally enumerated;
 2. the adjacent sidecar digest and byte size match;
@@ -57,9 +58,9 @@ not establish their rights.
 Validator behavior is covered by synthetic JSON fixtures in
 [`check-fixtures/`](check-fixtures/) and does not need a media fixture.
 
-The current preview loop is `repository-approved` after an artifact-specific
-maintainer rights decision and listening review. Its conservative
-[generated-asset notice](../stage-gen/recipes/scrolling-preview/assets/music/preview-loop.LICENSE.md)
+The sole authoritative packaged preview loop is `repository-approved` after
+an artifact-specific maintainer rights decision and listening review. Its conservative
+[generated-asset notice](../src/stage_gen/resources/music/preview-loop.LICENSE.md)
 limits CC0 to project-controlled rights, if any. This approval applies only to
 that digest-matched artifact; updating model/provider provenance alone cannot
 satisfy the gate for another output.

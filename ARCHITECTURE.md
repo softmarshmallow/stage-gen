@@ -8,25 +8,40 @@ definition of the generator.
 ## Repository boundaries
 
 ```text
-README.md        public entry point
-docs/            contracts, operations, research, and policy
-components/      reusable media capabilities
-stage-gen/       headless CLI, HTTP service, recipes, and benchmarks
-web/             optional browser preview adapter
-fixtures/        small, redistributable references and neutral text cases
+src/stage_gen/components/     provider-neutral services
+src/stage_gen/providers/      OpenRouter and fal adapters
+src/stage_gen/media/          deterministic inspection and transforms
+src/stage_gen/recipes/        recipe-specific composition and manifests
+src/stage_gen/orchestration/  run preparation, concrete composition, and summaries
+src/stage_gen/interfaces/     argparse CLI and optional HTTP/SSE API
+src/stage_gen/benchmarks/     headless evaluation entrypoints
+src/stage_gen/resources/      wheel-packaged recipe resources
+web/                          optional browser preview adapter
+docs/                         contracts, operations, research, and policy
 ```
 
-The dependency direction is one way:
+Arrows below point from an importer to the layer it imports:
 
 ```text
-components <- stage-gen recipes <- optional consumers
+interfaces    --imports----------> orchestration
+orchestration --imports/composes-> recipes   --imports----------> components
+orchestration --imports/composes-> providers --implements-------> components
+components    --imports----------> contracts + reliability + media
 ```
+
+Optional consumers invoke an interface through its CLI or HTTP contract; they
+are not imported by the Python package.
 
 Components do not import recipes or `web/`. They accept explicit typed inputs,
 validate outputs, and expose provider-neutral artifact information. Recipes
 may add genre, projection, camera, sheet-layout, or gameplay-oriented
 constraints. Consumers may translate a completed manifest into an engine's
 textures, scenes, or import settings.
+
+`stage_gen.orchestration.runtime` is the application composition root. It may
+import both provider-neutral component services and concrete providers; those
+layers do not import it. An AST contract test enforces that reusable components
+never import providers, recipes, orchestration, interfaces, or `web/`.
 
 ## Operational capabilities
 
@@ -50,13 +65,13 @@ never persisted.
 The supported entry point is:
 
 ```sh
-bun run stage-gen -- <args>
+uv run stage-gen <args>
 ```
 
 The CLI is the primary automation surface. The HTTP service exposes the same
-headless capabilities for local tools. Benchmarks and research cases also live
-under `stage-gen/`; they test declared component contracts without depending
-on a browser scene.
+headless capabilities for local tools. Benchmarks and research cases live
+under `src/stage_gen/benchmarks/`; they test declared component contracts
+without depending on a browser scene.
 
 Generated runs live below the configured output directory. Recipe-specific
 names and file layouts belong in recipe manifests, not in generic
@@ -81,6 +96,9 @@ No production gameplay engine has been selected. A dedicated 2D engine,
 including Godot or another suitable candidate, may be evaluated later. The
 choice is deliberately deferred and must not force changes to provider
 adapters, artifact schemas, or component boundaries.
+
+The Python package is the sole headless implementation. Node and TypeScript are
+confined to the optional `web/` adapter, which launches the public Python CLI.
 
 ## Storage and redistribution
 

@@ -1,10 +1,11 @@
 # Component contract
 
 A component is one independently testable media operation beneath
-`components/`. Examples include image generation, background removal, sheet
-slicing, metadata inspection, or music generation. A pipeline is an ordered or
-parallel composition of components. A runtime or preview is a consumer of the
-pipeline's artifacts.
+`src/stage_gen/components/`. Examples include image generation, background
+removal, structured generation, or music generation. Deterministic media
+inspection and transformation live under `src/stage_gen/media/`. A recipe is
+an ordered or parallel composition of components; a runtime or preview is a
+consumer of its artifacts.
 
 ## Required properties
 
@@ -14,7 +15,8 @@ Every component must:
 2. write only below the caller-provided output directory;
 3. return an artifact manifest rather than relying on implicit filenames;
 4. validate media before reporting success;
-5. wrap every provider/network call in five blind retries with capped backoff;
+5. give every provider/network call one initial attempt plus five blind retries
+   with capped backoff (six attempts at most);
 6. retry silent contract failures such as empty media or malformed JSON;
 7. persist provenance and a content hash beside the artifact;
 8. make deterministic post-processing explicit and independently testable;
@@ -40,17 +42,19 @@ manifests and may translate them into browser-engine textures or scene state.
 A successful result should provide this information, directly or through a
 manifest:
 
-```ts
-interface ArtifactResult {
-  component: string;
-  artifactPath: string;
-  provenancePath: string;
-  mediaType: string;
-  sha256: string;
-  bytes: number;
-  attempts: number;
-  validation: Record<string, unknown>;
-}
+```python
+from stage_gen.contracts import ArtifactResult
+
+result = ArtifactResult(
+    component="image-generation",
+    artifactPath="out/concept.png",
+    provenancePath="out/concept.png.meta.json",
+    mediaType="image/png",
+    sha256="0" * 64,
+    bytes=1,
+    attempts=1,
+    validation={"width": 1, "height": 1},
+)
 ```
 
 Image dimensions, audio duration, channel count, or other media-specific facts

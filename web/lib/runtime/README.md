@@ -2,7 +2,7 @@
 
 This directory belongs exclusively to the optional browser preview. It is not
 the authoritative runtime for generated assets and it is not imported by
-`components/` or `stage-gen/`.
+`src/stage_gen/components/` or `src/stage_gen/recipes/`.
 
 The current implementation deliberately hard-codes one integration case:
 horizontal camera/parallax, a one-dimensional heightmap, scrolling-recipe tile

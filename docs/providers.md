@@ -98,14 +98,14 @@ provenance. Technical suitability is not a legal assurance.
 The key-backed CLI path is:
 
 ```sh
-bun run stage-gen -- remove-background --input ./input.png --output ./out/subject.png
+uv run stage-gen remove-background --input ./input.png --output ./out/subject.png
 ```
 
 Recipe selection is separate:
 
 ```sh
-bun run stage-gen -- generate --recipe scrolling-preview --transparency ai "an original 2D asset set"
-bun run stage-gen -- generate --recipe scrolling-preview --transparency chroma "an original 2D asset set"
+uv run stage-gen generate --recipe scrolling-preview --transparency ai "an original 2D asset set"
+uv run stage-gen generate --recipe scrolling-preview --transparency chroma "an original 2D asset set"
 ```
 
 The first command requires `FAL_KEY`; the second is a degraded local-keying
@@ -155,7 +155,7 @@ Repository publication still requires the independent
 The key-backed CLI path is:
 
 ```sh
-bun run stage-gen -- generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
+uv run stage-gen generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
 ```
 
 Primary sources:

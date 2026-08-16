@@ -9,6 +9,14 @@ lerna-debug.log*
 # OS metadata
 .DS_Store
 
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 

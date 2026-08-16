@@ -1,0 +1,25 @@
+# Neutral world prompt fixtures
+
+# Each bullet is a complete, repository-authored prompt for an original result.
+# Describe visual properties and technical needs without named identities.
+
+- Create an original side-view 2D asset set for rain-dark stone ruins with broken arches, pale bioluminescent moss, layered mist, and a restrained blue-gray palette.
+- Create an original side-view 2D asset set for a warm autumn farming village with timber cottages, squash gardens, drifting copper leaves, and lantern-lit paths.
+- Create an original side-view 2D asset set for a rain-soaked future transit district with geometric light panels, puddle reflections, service tunnels, and cyan-magenta rim light without logos or text.
+- Create an original side-view 2D asset set for an alpine route at dusk with crisp snow, distant conifer ridges, frozen ponds, and a faint green aurora.
+- Create an original side-view 2D asset set for a buried desert observatory with weathered sandstone chambers, abstract stone markers, small desert creatures, and a heat-softened horizon.
+- Create an original side-view 2D asset set for a deep-ocean reef with kelp silhouettes, luminous drifting creatures, eroded mineral columns, and narrow shafts of light from above.
+- Create an original top-down 2D asset set for a tidal research outpost with modular walkways, salt-stained equipment, shallow water channels, and storm-warning lights.
+- Create an original top-down 2D asset set for a moonlit orchard with winding irrigation paths, flowering trees, low stone walls, and soft silver-blue shadows.
+- Create an original isometric 2D asset set for a compact cliffside workshop with pulley lifts, layered wooden platforms, canvas awnings, and wind-worn tools.
+- Create an original isometric 2D asset set for a geothermal greenhouse with glass chambers, copper pipes, dense broad-leaf plants, and warm vapor clouds.
+- Create an original interface asset set for a field journal using off-white paper, graphite diagrams, muted mineral accents, compact iconography, and high-contrast readable labels.
+- Create an original inventory asset set for a traveling naturalist with stitched fabric panels, carved wooden tokens, small specimen containers, and clear empty-slot states.
+- Create an original character animation set for a nimble cave surveyor wearing layered work clothes, a compact lamp harness, sturdy boots, and a readable silhouette at small scale.
+- Create an original creature set based on translucent cave fauna with varied body plans, luminous sensory organs, mineral-like armor, and a clear weak-to-strong progression.
+- Create an original prop sheet for an abandoned weather station with bent antenna parts, sealed instrument cases, warning stakes, cable reels, and snow-dusted debris.
+- Create an original seamless terrain set for a volcanic shoreline with black glass rock, pale ash, shallow ember cracks, and strong edge continuity between tiles.
+- Create an original parallax layer set for a quiet marsh at sunrise with a flat distant sky, fog-softened tree bands, sparse reeds, reflective water, and near-camera seed heads.
+- Create an original effects sheet for nonviolent wind magic with curved air ribbons, drifting leaves, pressure rings, and transparent backgrounds without letters or symbols.
+- Create an original music cue for exploration using plucked strings, soft wooden percussion, a gentle 92 BPM pulse, no vocals, and a clean loop point near ninety seconds.
+- Create an original music cue for a calm workshop using felted keys, quiet hand percussion, warm sustained tones, no vocals, and a subtle two-minute loop structure.
