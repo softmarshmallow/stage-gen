@@ -5,6 +5,8 @@
 // player overlap and calls collect() on contact (TC-087).
 
 import Phaser from "phaser";
+import { SCENE_CONTENT_DEPTH } from "./layers";
+import { terrainSurfaceY } from "./terrain";
 
 export type ItemKindIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | number;
 
@@ -50,11 +52,13 @@ export class ItemSystem {
     if (!this.opts.scene.textures.exists(tex)) return null;
     const sprite = this.opts.scene.add.image(x, y, tex, frameKey);
     sprite.setOrigin(0.5, 1.0);
-    const targetH = this.opts.itemHeightPx ?? Math.floor(this.opts.tilePx * 0.7);
+    const targetH =
+      this.opts.itemHeightPx ?? Math.floor(this.opts.tilePx * 0.7);
     const phaserFrame = this.opts.scene.textures.get(tex).get(frameKey);
-    const aspect = (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
+    const aspect =
+      (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
     sprite.setDisplaySize(targetH * aspect, targetH);
-    sprite.setDepth(850);
+    sprite.setDepth(SCENE_CONTENT_DEPTH.item);
     const item: DroppedItem = { kindIndex, sprite, settled: false, vy: 0 };
     this.items.push(item);
     return item;
@@ -73,7 +77,11 @@ export class ItemSystem {
       it.sprite.y += it.vy * dt;
       const col = Math.floor(it.sprite.x / this.opts.tilePx);
       const colH = this.opts.heightFn(col);
-      const surfaceY = this.opts.baselineY - colH * this.opts.tilePx;
+      const surfaceY = terrainSurfaceY(
+        colH,
+        this.opts.tilePx,
+        this.opts.baselineY,
+      );
       if (it.sprite.y >= surfaceY) {
         it.sprite.y = surfaceY;
         it.settled = true;

@@ -38,10 +38,12 @@ A watermark expectation neither proves ownership nor grants a license.
 
 Browser-capture video and poster entries explicitly record `kind`, set
 `synthIdExpected` to false, and require an independent visual-review pass tied
-to a stable attestation. Related video and poster artifacts share one adjacent,
-artifact-specific rights notice. The showcase notice permits redistribution of
-the unchanged, digest-matched files only with this repository; it is not a
-blanket media license or a grant for standalone reuse.
+to a stable attestation. Their inventory entries also record `sidecarSha256`,
+which must match the exact adjacent provenance-sidecar bytes. Related video and
+poster artifacts share one adjacent, artifact-specific rights notice. The
+showcase notice permits redistribution of the unchanged, digest-matched files
+only with this repository; it is not a blanket media license or a grant for
+standalone reuse.
 
 ## Portable lineage
 
@@ -57,7 +59,8 @@ not establish their rights.
 verifies that:
 
 1. generated media in the declared roots is intentionally enumerated;
-2. the adjacent sidecar digest and byte size match;
+2. the adjacent sidecar's artifact digest and byte size match, and browser
+   captures' inventory `sidecarSha256` matches the sidecar itself;
 3. source references are portable and content-addressed;
 4. rights are explicitly redistribution-approved with stable evidence; and
 5. required human and watermark review facts are present.

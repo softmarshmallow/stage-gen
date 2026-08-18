@@ -25,6 +25,7 @@
     },
     {
       "path": "docs/media/gameplay-showcase.mp4",
+      "sidecarSha256": "d8a526be3ae9c424baefdd797bfa98a9afb9902c4288b48891e4e1eff3dcbd8c",
       "kind": "video",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,
@@ -44,6 +45,7 @@
     },
     {
       "path": "docs/media/gameplay-showcase.poster.png",
+      "sidecarSha256": "67c28ff08b3bc334e725e12691b17ea3eb8e93f9b733bfd1652ebfa41f814bf2",
       "kind": "image",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,

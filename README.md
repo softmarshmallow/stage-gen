@@ -15,9 +15,11 @@ It is an optional web-based scrolling-game preview, not the product boundary.
 [![Poster for the deterministic real gameplay showcase](docs/media/gameplay-showcase.poster.png)](docs/media/gameplay-showcase.mp4)
 
 The poster links to a deterministic 30-second real-gameplay capture rendered
-with 18 independently approved image-model-generated assets. Transparent
-assets use the documented FAL background-removal lineage. Verify the fixed-step
-transcript and selected canvas hashes locally with:
+with the historical set of 18 independently approved image-model-generated
+assets. The current live demo fixture has 20 approved assets; the ladder and
+back-facing climb strip were added after this published capture. Transparent
+assets bind their documented extraction lineage in producer provenance. Verify
+the fixed-step transcript and selected canvas hashes locally with:
 
 ```sh
 cd web
@@ -25,6 +27,49 @@ bun run check
 bun run build
 bun run gameplay:verify
 ```
+
+Create a reusable local gameplay report with the model-demo preset:
+
+```sh
+cd web
+bun run gameplay:record
+```
+
+The default writes `gameplay-report.mp4`, `gameplay-report.poster.png`, and
+`gameplay-report.recording.json` below the repository's ignored
+`output/playwright/` directory. The metadata binds the capture to its fixture,
+timeline, source hashes, deterministic transcript, checkpoints, and media
+probe; a new report remains `unreviewed` until it receives an independent
+visual review. Choose another confined MP4 name with, for example,
+`--output output/playwright/vertical-demo.mp4`.
+
+`--dry-run` validates command-line shape and prints the resolved artifact,
+simulation, and media plan without reading fixture contents, starting a
+browser, encoding video, or writing report artifacts:
+
+```sh
+bun run gameplay:record --dry-run \
+  --output output/playwright/vertical-demo.mp4
+```
+
+The default source is `--preset model-demo`. A custom report instead requires
+all three source flags; partial custom input and mixing it with a preset are
+rejected:
+
+```sh
+bun run gameplay:record \
+  --fixture out/<tag> \
+  --tag <tag> \
+  --timeline path/to/timeline.json \
+  --output output/playwright/custom-demo.mp4
+```
+
+The fixture must be the matching real `out/<tag>` directory, and the timeline
+must be schema version 1 with exactly `duration × 30` contiguous fixed-step
+frames. Recording snapshots the fixture, timeline, and relevant source files
+before capture and refuses to install outputs if any change during the run.
+Duplicate deterministic verification is on by default; the explicit
+`--no-verify-twice` option disables that second simulation.
 
 ## Topology
 

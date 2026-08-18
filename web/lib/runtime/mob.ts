@@ -15,6 +15,8 @@ import {
   sampleFixedMobHit,
   type FixedMobHitMotion,
 } from "./fixed-motion";
+import { SCENE_CONTENT_DEPTH } from "./layers";
+import { terrainSurfaceY } from "./terrain";
 
 export type MobAiState = "wander" | "hurt" | "dead";
 
@@ -23,6 +25,7 @@ export interface MobOpts {
   ladderIndex: number;
   spawnCol: number;
   tilePx: number;
+  worldWidthPx: number;
   baselineY: number;
   heightFn: (col: number) => number;
   /** Wander extent in pixels around spawnCol*tilePx. */
@@ -65,11 +68,14 @@ export class Mob {
     const spawnX = opts.spawnCol * opts.tilePx + opts.tilePx / 2;
     this.spawnX = spawnX;
     const ext = opts.wanderExtentPx ?? DEFAULT_WANDER_PX;
-    this.wanderMin = spawnX - ext;
-    this.wanderMax = spawnX + ext;
+    this.wanderMin = Math.max(opts.tilePx / 2, spawnX - ext);
+    this.wanderMax = Math.min(
+      opts.worldWidthPx - opts.tilePx / 2,
+      spawnX + ext,
+    );
 
     const colH = opts.heightFn(opts.spawnCol);
-    const surfaceY = opts.baselineY - colH * opts.tilePx;
+    const surfaceY = terrainSurfaceY(colH, opts.tilePx, opts.baselineY);
     this.spawnY = surfaceY;
 
     // Build the idle anim if it doesn't exist (scene may have made it; harmless).
@@ -98,7 +104,7 @@ export class Mob {
     const f0 = tex.get(0);
     const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
     sprite.setDisplaySize(opts.spriteHeightPx * aspect, opts.spriteHeightPx);
-    sprite.setDepth(800);
+    sprite.setDepth(SCENE_CONTENT_DEPTH.mob);
     if (scene.anims.exists(opts.idleAnimKey)) sprite.play(opts.idleAnimKey);
     this.sprite = sprite;
 
@@ -143,7 +149,11 @@ export class Mob {
     // Snap feet (in case heights differ across wander span).
     const col = Math.floor(this.sprite.x / this.opts.tilePx);
     const colH = this.opts.heightFn(col);
-    this.sprite.y = this.opts.baselineY - colH * this.opts.tilePx;
+    this.sprite.y = terrainSurfaceY(
+      colH,
+      this.opts.tilePx,
+      this.opts.baselineY,
+    );
   }
 
   /**

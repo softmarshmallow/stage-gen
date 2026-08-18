@@ -18,10 +18,16 @@
 // →  rows  368, 656
 
 import Phaser from "phaser";
+import { SCENE_CONTENT_DEPTH } from "./layers";
 
 export const INVENTORY_PANEL_W = 1536;
 export const INVENTORY_PANEL_H = 1024;
-export const SLOT_CENTRES: { col: number; row: number; x: number; y: number }[] = [
+export const SLOT_CENTRES: {
+  col: number;
+  row: number;
+  x: number;
+  y: number;
+}[] = [
   // Row 0
   { col: 0, row: 0, x: 336, y: 368 },
   { col: 1, row: 0, x: 624, y: 368 },
@@ -48,7 +54,11 @@ export interface InventoryHudOpts {
   scale?: number;
 }
 
-type SlotEntry = { kindIndex: number; count: number; icon: Phaser.GameObjects.Image };
+type SlotEntry = {
+  kindIndex: number;
+  count: number;
+  icon: Phaser.GameObjects.Image;
+};
 
 export class InventoryHud {
   private opts: InventoryHudOpts;
@@ -74,7 +84,7 @@ export class InventoryHud {
 
     this.container = opts.scene.add.container(px, py);
     this.container.setScrollFactor(0);
-    this.container.setDepth(2000);
+    this.container.setDepth(SCENE_CONTENT_DEPTH.hud);
 
     if (opts.scene.textures.exists(opts.panelKey)) {
       const img = opts.scene.add.image(0, 0, opts.panelKey);
@@ -101,7 +111,14 @@ export class InventoryHud {
 
     if (!this.opts.scene.textures.exists(this.opts.itemsKey)) {
       // No texture — still create a placeholder rectangle so the slot is filled.
-      const g = this.opts.scene.add.rectangle(sx, sy, iconSizeWorld, iconSizeWorld, 0x00ff88, 0.6);
+      const g = this.opts.scene.add.rectangle(
+        sx,
+        sy,
+        iconSizeWorld,
+        iconSizeWorld,
+        0x00ff88,
+        0.6,
+      );
       this.container.add(g);
       // Track via fake icon ref.
       this.slots.set(kindIndex, {
@@ -114,17 +131,28 @@ export class InventoryHud {
     const frameKey = this.opts.itemFrameKey(kindIndex);
     const tex = this.opts.scene.textures.get(this.opts.itemsKey);
     const phaserFrame = tex.get(frameKey);
-    const aspect = (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
-    const icon = this.opts.scene.add.image(sx, sy, this.opts.itemsKey, frameKey);
+    const aspect =
+      (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
+    const icon = this.opts.scene.add.image(
+      sx,
+      sy,
+      this.opts.itemsKey,
+      frameKey,
+    );
     icon.setOrigin(0.5, 0.5);
     icon.setDisplaySize(iconSizeWorld * aspect, iconSizeWorld);
     this.container.add(icon);
 
-    const txt = this.opts.scene.add.text(sx + iconSizeWorld * 0.3, sy + iconSizeWorld * 0.3, "x1", {
-      fontFamily: "ui-monospace, Menlo, monospace",
-      fontSize: `${Math.max(10, Math.floor(iconSizeWorld * 0.18))}px`,
-      color: "#e6e6e6",
-    });
+    const txt = this.opts.scene.add.text(
+      sx + iconSizeWorld * 0.3,
+      sy + iconSizeWorld * 0.3,
+      "x1",
+      {
+        fontFamily: "ui-monospace, Menlo, monospace",
+        fontSize: `${Math.max(10, Math.floor(iconSizeWorld * 0.18))}px`,
+        color: "#e6e6e6",
+      },
+    );
     txt.setOrigin(0, 0);
     this.container.add(txt);
     this.countTexts.set(kindIndex, txt);

@@ -13,6 +13,11 @@ import {
   sleepGameplayAutomationLoopAfterBoot,
   type GameplayAutomationSnapshot,
 } from "./automation";
+import {
+  layoutSceneLayer,
+  resolveSceneLayerStack,
+  sceneLayerProbe,
+} from "./layers";
 
 describe("gameplay automation server gate", () => {
   test("leaves normal previews unchanged when the query is absent", () => {
@@ -113,6 +118,25 @@ describe("deterministic gameplay presentation", () => {
 
 describe("public gameplay probe", () => {
   test("sorts asset keys and cannot mutate scene state", () => {
+    const layerContext = {
+      viewportWidth: 1280,
+      viewportHeight: 720,
+      worldWidth: 12_800,
+      groundBaselineY: 720,
+      foregroundContactScreenY: 704,
+      foregroundSafeBandTopY: 540,
+      foregroundMaxScale: 0.75,
+    } as const;
+    const sky = resolveSceneLayerStack(
+      [{ id: "sky", z_index: 0, parallax: 0, opaque: true }],
+      layerContext,
+    )[0]!;
+    const skyLayout = layoutSceneLayer(
+      sky,
+      { scrollX: 0, scrollY: 0, zoom: 1 },
+      layerContext,
+      { width: 1280, height: 720 },
+    );
     const source: GameplayAutomationSnapshot = {
       version: GAMEPLAY_AUTOMATION_MODE,
       state: "ready",
@@ -123,6 +147,33 @@ describe("public gameplay probe", () => {
       simulationMs: 0,
       player: null,
       camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+      layers: [
+        sceneLayerProbe(sky, skyLayout, { scrollX: 0, scrollY: 0, zoom: 1 }, {
+          x: skyLayout.x,
+          y: skyLayout.y,
+          scaleX: skyLayout.scale,
+          scaleY: skyLayout.scale,
+          displayWidth: skyLayout.renderWidth * skyLayout.scale,
+          displayHeight: skyLayout.renderHeight * skyLayout.scale,
+          originX: 0,
+          originY: 0,
+          scrollFactorX: 0,
+          scrollFactorY: 0,
+          tilePositionX: skyLayout.tilePositionX,
+          tilePositionY: 0,
+          tileScaleX: skyLayout.textureScale,
+          tileScaleY: skyLayout.textureScale,
+          visible: true,
+          depth: sky.renderDepth,
+          spriteCount: 1,
+          textureWidth: skyLayout.textureWidth,
+          textureHeight: skyLayout.textureHeight,
+          clipBounds: { left: 0, top: 0, right: 1280, bottom: 720 },
+        }),
+      ],
+      platforms: [],
+      platformRoutes: [],
+      ladders: [],
       mobs: [],
       inventory: { visible: true, slots: [] },
       worldItems: [],
@@ -158,6 +209,8 @@ describe("public gameplay probe", () => {
     });
     expect(Object.isFrozen(probe)).toBeTrue();
     expect(Object.isFrozen(probe.camera)).toBeTrue();
+    expect(Object.isFrozen(probe.layers)).toBeTrue();
+    expect(Object.isFrozen(probe.layers[0])).toBeTrue();
     expect(probe.events.map((event) => event.kind)).toEqual([
       "mob-hit",
       "mob-drop",

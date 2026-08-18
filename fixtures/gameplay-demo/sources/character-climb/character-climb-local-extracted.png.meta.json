@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "assetId": "character-climb",
+  "operation": "local-checkerboard-to-alpha-and-edge-decontamination",
+  "reason": "The built-in generator returned an RGB checkerboard. External FAL upload was not performed after approval review rejected transmission of the private fixture sprite.",
+  "tool": {
+    "name": "Pillow",
+    "version": "12.3.0"
+  },
+  "input": {
+    "path": "fixtures/gameplay-demo/sources/character-climb/exec-38fdc4af-99bb-42cc-be44-d5d0ba80e0a5.png",
+    "sha256": "2d2e67b3750a0d0f1fa315e9a23c8fd7af3c2b75c472fdd661f4dfe897b4dbd2",
+    "bytes": 1270082,
+    "width": 1774,
+    "height": 887,
+    "mode": "RGB",
+    "mimeType": "image/png"
+  },
+  "parameters": {
+    "checkerBackgroundCandidatesRgb": [247, 254],
+    "strongForeground": "min(rgb) < 235 OR chroma(rgb) > 6",
+    "interiorForeground": "5x5 MinFilter(strongForeground) == 255",
+    "backgroundSelection": "nearest of grayscale 247 and 254 by RGB mean",
+    "darknessAlpha": "max(0, background-min(rgb)-1)/(background-30)",
+    "chromaAlpha": "max(0, max(rgb)-min(rgb)-1)/75",
+    "alpha": "1 for interior foreground, otherwise clamp(max(darknessAlpha,chromaAlpha),0,1)",
+    "edgeDecontamination": "for alpha>0, clamp((channel-(1-alpha)*background)/alpha,0,255)",
+    "rounding": "nearest integer",
+    "png": {
+      "optimize": false,
+      "compressLevel": 9
+    }
+  },
+  "validation": {
+    "dimensionsPreserved": true,
+    "hasAlpha": true,
+    "alphaMin": 0,
+    "alphaMax": 255,
+    "externalUploadPerformed": false
+  },
+  "output": {
+    "path": "fixtures/gameplay-demo/sources/character-climb/character-climb-local-extracted.png",
+    "sha256": "4e23bc7690662429c2d52c88d90020c3dd5176f0e18b047d88a59d60a3040df5",
+    "bytes": 830149,
+    "width": 1774,
+    "height": 887,
+    "mode": "RGBA",
+    "mimeType": "image/png"
+  }
+}

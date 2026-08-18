@@ -10,10 +10,13 @@ This notice applies only to these exact, digest-matched artifacts:
   891,557 bytes.
 
 They are a deterministic 30-second real-gameplay browser capture and its
-poster, rendered from project runtime code and an independently approved set
-of 18 image-model-generated assets. The transparent canonical assets include
-FAL background-removal lineage. The producer manifest, approval manifest, and
-18-file aggregate are content-bound in both adjacent provenance sidecars.
+poster, rendered from project runtime code and the historical independently
+approved set of 18 image-model-generated assets. The current live demo fixture
+has 20 approved assets; the ladder and back-facing climb strip were added after
+this published capture. The transparent canonical assets include FAL
+background-removal lineage. The historical capture-time producer manifest,
+approval manifest, and 18-file aggregate are content-bound in both adjacent
+provenance sidecars.
 
 ## Repository-sharing permission
 

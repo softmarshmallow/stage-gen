@@ -4,6 +4,8 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Endpoint-conditioned loop synthesis](loop-synthesis.md) — deferred masked
+  bridge generation, seam gates, and runtime consumption.
 - [Testing the Python reboot](testing.md) — focused, full, live, and web gates.
 - [Verification rules](../VERIFICATION.md) — evidence and independent media
   verification requirements.

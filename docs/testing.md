@@ -9,6 +9,7 @@ All routine verification is credential-free. Provider-backed tests carry the
 |---|---|
 | Config, contracts, reliability | `uv run pytest tests/unit/test_config.py tests/unit/contracts tests/unit/reliability -q` |
 | Reusable components/providers | `uv run pytest tests/unit/components -q` |
+| Endpoint-conditioned loops | `uv run pytest tests/unit/components/loop_synthesis -q` |
 | Deterministic media | `uv run pytest tests/unit/media -q` |
 | Recipes and orchestration | `uv run pytest tests/unit/recipes tests/unit/orchestration tests/integration/test_scrolling_preview.py -q` |
 | CLI and HTTP/SSE boundaries | `uv run pytest tests/integration/test_cli.py tests/integration/test_api.py -q` |
@@ -62,11 +63,17 @@ bun install --frozen-lockfile
 bun run check
 bun test
 bun run build
+bun run gameplay:verify
 ```
 
 Web tests cover exact Python argv construction, mode-bearing tags, run status,
-retry behavior, and artifact confinement. A build must not require provider
-credentials or execute a live generation request.
+retry behavior, artifact confinement, vertical geometry, one-way collision,
+ladder endpoint/state behavior, camera deadzones, and the deterministic
+900-frame gameplay transcript. `gameplay:verify` runs that transcript twice
+and requires identical selected-frame hashes, ordered ladder transitions,
+platform support, negative vertical camera scroll, and an exact return to
+terrain. A build must not require provider credentials or execute a live
+generation request.
 
 Documentation publication checks are Python utilities and are part of the
 locked gate:

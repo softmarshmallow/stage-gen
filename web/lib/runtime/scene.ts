@@ -20,12 +20,14 @@ import Phaser from "phaser";
 import { alphaAt, type CellRect } from "./image-ops";
 import {
   fetchJson,
+  loadForegroundLayer,
   loadOpaqueSprite,
   loadParallaxLayer,
   loadTransparentSprite,
   loadFrameStrip,
   loadGridSheet,
   loadTileset,
+  type LoadedForegroundLayer,
 } from "./assets";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import {
@@ -34,14 +36,35 @@ import {
   flatRuns,
   type SlopeKind,
 } from "./heightmap";
-// pickRole / slopeAt no longer needed — assembleGround uses a single
-// ground_fill cell (registered by loadTileset) for every tile.
 import { FpsProbe, type FpsSnapshot } from "./fps";
 import { Player, type PlayerStateSnapshot } from "./player";
 import { Mob } from "./mob";
 import { ItemSystem } from "./items";
 import { InventoryHud } from "./inventory";
 import { PortalSystem } from "./portal";
+import {
+  SCENE_CONTENT_DEPTH,
+  layoutSceneLayer,
+  resolveSceneLayerStack,
+  sceneLayerProbe,
+  type SceneLayerBlend,
+  type SceneLayerContract,
+  type SceneLayerAssetMetadata,
+  type SceneLayerProbe,
+  type SceneLayerRenderState,
+} from "./layers";
+import {
+  buildTerrainPlan,
+  buildTerrainRenderPlan,
+  createTerrainContract,
+  terrainHeightAtColumn,
+  terrainMaterialOrigin,
+  terrainSurfaceY,
+  terrainWorldWidth,
+  visibleTerrainColumnRange,
+  type TerrainColumnRange,
+} from "./terrain";
+import { TERRAIN_SURFACE_BAND_TEXTURE_HEIGHT } from "./tiles";
 import {
   GAMEPLAY_AUTOMATION_ENCOUNTER,
   GAMEPLAY_AUTOMATION_MODE,
@@ -55,9 +78,28 @@ import {
   type GameplayEncounterProbe,
   type GameplayAutomationSnapshot,
   type GameplayFrame,
+  type GameplayLadderProbe,
+  type GameplayPlatformProbe,
+  type GameplayPlatformRouteProbe,
   type GameplayTranscriptEvent,
   type GameplayWorldBoundsProbe,
 } from "./automation";
+import {
+  VERTICAL_CAMERA_MIN_SCROLL_Y,
+  activateVerticalFeatureTransaction,
+  buildPlatformRenderPlan,
+  ladderVisualBounds,
+  prepareVerticalTraversalAssets,
+  selectDemoVerticalWorld,
+  verticalCameraScrollY,
+  verticalSceneObjectVisible,
+  verticalFeatureAfterAssetLoad,
+  verticalSpawnAllowed,
+  type LadderZone,
+  type PlatformRoute,
+  type UpperPlatform,
+  type VerticalWorld,
+} from "./vertical";
 
 type WorldLayer = {
   id: string;
@@ -67,6 +109,7 @@ type WorldLayer = {
   opaque: boolean;
   paint_region: string;
   description: string;
+  scene_layer?: unknown;
 };
 
 type WorldSpec = {
@@ -86,6 +129,18 @@ type WorldSpec = {
   layers: WorldLayer[];
 };
 
+type TerrainRunSprite = Readonly<{
+  startColumn: number;
+  endColumn: number;
+  sprite: Phaser.GameObjects.TileSprite;
+}>;
+
+type VerticalRenderSprite = Readonly<{
+  id: string;
+  bounds: Readonly<{ left: number; right: number; top: number; bottom: number }>;
+  sprites: readonly (Phaser.GameObjects.TileSprite | Phaser.GameObjects.Image)[];
+}>;
+
 const VIEW_W = 1280;
 const VIEW_H = 720;
 
@@ -93,8 +148,24 @@ const VIEW_H = 720;
 // per cell). At runtime we render tiles smaller for usable column density.
 const TILE_PX = 64;
 const COLS = 200; // total stage width in columns → 200 × 64 = 12800 px
-const STAGE_W = COLS * TILE_PX;
-const GROUND_BASELINE_Y = VIEW_H - 8; // Y of the painted ground band (where player feet sit)
+const TERRAIN_CONTRACT = createTerrainContract({
+  columns: COLS,
+  tilePixels: TILE_PX,
+  baselineY: VIEW_H,
+  viewportWidth: VIEW_W,
+  viewportHeight: VIEW_H,
+});
+const STAGE_W = terrainWorldWidth(TERRAIN_CONTRACT);
+const GROUND_BASELINE_Y = TERRAIN_CONTRACT.baselineY;
+const SCENE_LAYER_CONTEXT = Object.freeze({
+  viewportWidth: VIEW_W,
+  viewportHeight: VIEW_H,
+  worldWidth: STAGE_W,
+  groundBaselineY: GROUND_BASELINE_Y,
+  foregroundContactScreenY: 704,
+  foregroundSafeBandTopY: 540,
+  foregroundMaxScale: 0.75,
+});
 const MIN_H = 1; // tiles
 const MAX_H = 4;
 
@@ -107,6 +178,51 @@ function gameplayWorldBounds(
     top: bounds.top,
     bottom: bounds.bottom,
   });
+}
+
+function sceneLayerBlendMode(blend: SceneLayerBlend): number {
+  switch (blend) {
+    case "normal":
+      return Phaser.BlendModes.NORMAL;
+    case "multiply":
+      return Phaser.BlendModes.MULTIPLY;
+    case "screen":
+      return Phaser.BlendModes.SCREEN;
+    case "add":
+      return Phaser.BlendModes.ADD;
+  }
+}
+
+function sceneDevicePixelRatio(): number {
+  if (typeof window === "undefined") return 1;
+  const ratio = window.devicePixelRatio;
+  return Number.isFinite(ratio) && ratio >= 1 && ratio <= 8 ? ratio : 1;
+}
+
+function applyForegroundBlur(
+  sprite: Phaser.GameObjects.TileSprite,
+  depthCoefficient: number,
+): void {
+  try {
+    const fx = (
+      sprite as unknown as {
+        postFX?: {
+          addBlur?: (
+            quality?: number,
+            x?: number,
+            y?: number,
+            strength?: number,
+            color?: number,
+            steps?: number,
+          ) => unknown;
+        };
+      }
+    ).postFX;
+    const strength = Math.min(4, (depthCoefficient - 1) * 6);
+    fx?.addBlur?.(0, 2, 2, strength, 0xffffff, 4);
+  } catch {
+    // Optional post-processing support differs between Phaser renderers.
+  }
 }
 
 // Asset URL helper.
@@ -150,6 +266,10 @@ export type SceneProbes = {
   mobCount: number;
   playerColumn: number;
   foregroundLayers: string[];
+  sceneLayers: SceneLayerProbe[];
+  platforms: GameplayPlatformProbe[];
+  platformRoutes: GameplayPlatformRouteProbe[];
+  ladders: GameplayLadderProbe[];
   fps?: FpsSnapshot;
   // Phase 7 additions — side-channel for verifiers.
   player?: PlayerStateSnapshot;
@@ -208,27 +328,14 @@ export class StageScene extends Phaser.Scene {
   private probes!: SceneProbes;
   private fpsProbe = new FpsProbe(30);
 
-  // Parallax sprite tracking — index by layer id.
-  // For fading layers we render TWO TileSprites at the same screen position.
-  // The partner is offset by (naturalWidth − fadePx) in source space so its
-  // RIGHT fade band lands exactly on the primary's LEFT fade band (and vice
-  // versa). With linear taper the two alphas sum to ~1 across the entire
-  // fade band — the seam disappears.
-  private parallaxSprites: {
-    id: string;
+  // Semantic screen/parallax layers, ordered by canonical depth. Legacy
+  // distant/midground layers may retain a fallback partner; the foreground
+  // is always one prepared periodic texture and exactly one TileSprite.
+  private sceneLayerSprites: {
+    contract: SceneLayerContract;
+    asset: SceneLayerAssetMetadata;
     sprite: Phaser.GameObjects.TileSprite;
-    parallax: number;
     partner?: Phaser.GameObjects.TileSprite;
-    naturalWidth: number;
-    seamOffset: number;
-  }[] = [];
-  // Foreground (parallax > 1.0): TileSprites placed in front of gameplay.
-  private foregroundSprites: {
-    id: string;
-    sprite: Phaser.GameObjects.TileSprite;
-    parallax: number;
-    partner?: Phaser.GameObjects.TileSprite;
-    naturalWidth: number;
     seamOffset: number;
   }[] = [];
 
@@ -239,6 +346,18 @@ export class StageScene extends Phaser.Scene {
   private inventory?: InventoryHud;
   private portal?: PortalSystem;
   private heights: number[] = [];
+  private terrainFillSprites: TerrainRunSprite[] = [];
+  private terrainIntegrationSprites: TerrainRunSprite[] = [];
+  private terrainBoundarySprites: TerrainRunSprite[] = [];
+  private terrainCullRange: TerrainColumnRange | null | undefined;
+  private verticalWorld: VerticalWorld = Object.freeze({
+    platforms: Object.freeze([]),
+    ladders: Object.freeze([]),
+  });
+  private verticalReservedColumns = new Set<number>();
+  private verticalRoutes: readonly PlatformRoute[] = Object.freeze([]);
+  private platformRenderSprites: VerticalRenderSprite[] = [];
+  private ladderRenderSprites: VerticalRenderSprite[] = [];
   private eventLog: { kind: string; t: number; data?: unknown }[] = [];
 
   constructor(init: SceneInit) {
@@ -264,6 +383,10 @@ export class StageScene extends Phaser.Scene {
       mobCount: 0,
       playerColumn: 0,
       foregroundLayers: [],
+      sceneLayers: [],
+      platforms: [],
+      platformRoutes: [],
+      ladders: [],
       events: this.eventLog,
     };
     if (typeof window !== "undefined" && !this.automationMode) {
@@ -283,7 +406,13 @@ export class StageScene extends Phaser.Scene {
     }) as typeof console.error;
 
     // Camera bounds — generous; loadAll() will narrow to STAGE_W after ground.
-    this.cameras.main.setBounds(0, 0, STAGE_W, VIEW_H);
+    this.cameras.main.setBounds(
+      0,
+      VERTICAL_CAMERA_MIN_SCROLL_Y,
+      STAGE_W,
+      VIEW_H - VERTICAL_CAMERA_MIN_SCROLL_Y,
+    );
+    this.cameras.main.setRoundPixels(true);
 
     if (!this.automationMode) {
       this.fpsProbe.start();
@@ -337,10 +466,6 @@ export class StageScene extends Phaser.Scene {
     );
     if (this.automationMode) {
       cam.setZoom(presentation.cameraZoom);
-      for (const foreground of this.foregroundSprites) {
-        foreground.sprite.setVisible(presentation.foregroundVisible);
-        foreground.partner?.setVisible(presentation.foregroundVisible);
-      }
       if (this.inventory) {
         if (
           presentation.inventorySuppressed &&
@@ -378,7 +503,12 @@ export class StageScene extends Phaser.Scene {
         cam.centerOn(encounter.focusX, encounter.focusY);
       } else {
         cam.centerOnX(px);
-        cam.scrollY = 0;
+        cam.scrollY = verticalCameraScrollY({
+          currentScrollY: cam.scrollY,
+          footY: this.player.sprite.y,
+          zoom: cam.zoom,
+          viewportHeight: cam.height,
+        });
       }
 
       // Inventory toggle.
@@ -442,6 +572,9 @@ export class StageScene extends Phaser.Scene {
         }
       }
     }
+
+    this.updateTerrainCulling(cam);
+    this.updateVerticalCulling(cam);
 
     // Mobs.
     for (const m of this.mobs) {
@@ -521,20 +654,7 @@ export class StageScene extends Phaser.Scene {
       }
     }
 
-    // Drive parallax tilePosition based on scrollX × parallax.
-    // For fading layers the partner is offset by seamOffset = (W − fadePx)
-    // in source space so its right fade band lands directly on top of the
-    // primary's left fade band → composited alpha stays opaque across seam.
-    for (const p of this.parallaxSprites) {
-      const tx = cam.scrollX * p.parallax;
-      p.sprite.tilePositionX = tx;
-      if (p.partner) p.partner.tilePositionX = tx + p.seamOffset;
-    }
-    for (const p of this.foregroundSprites) {
-      const tx = cam.scrollX * p.parallax;
-      p.sprite.tilePositionX = tx;
-      if (p.partner) p.partner.tilePositionX = tx + p.seamOffset;
-    }
+    this.updateSceneLayerTransforms(cam, presentation.foregroundVisible);
 
     if (typeof window !== "undefined") {
       if (!this.automationMode) {
@@ -557,23 +677,23 @@ export class StageScene extends Phaser.Scene {
       }
       if (this.items) this.probes.worldItems = this.items.snapshot();
       if (this.portal) this.probes.portals = this.portal.snapshot();
+      this.probes.platforms = [...this.platformProbes(cam)];
+      this.probes.platformRoutes = [...this.platformRouteProbes()];
+      this.probes.ladders = [...this.ladderProbes(cam)];
       // Surface live tilePositionX per layer for headless parallax verification.
       const tiles: Record<
         string,
-        { parallax: number; tilePositionX: number; depth: number }
+        {
+          depthCoefficient: number;
+          tilePositionX: number;
+          renderDepth: number;
+        }
       > = {};
-      for (const p of this.parallaxSprites) {
-        tiles[p.id] = {
-          parallax: p.parallax,
-          tilePositionX: p.sprite.tilePositionX,
-          depth: p.sprite.depth,
-        };
-      }
-      for (const p of this.foregroundSprites) {
-        tiles[p.id] = {
-          parallax: p.parallax,
-          tilePositionX: p.sprite.tilePositionX,
-          depth: p.sprite.depth,
+      for (const entry of this.sceneLayerSprites) {
+        tiles[entry.contract.id] = {
+          depthCoefficient: entry.contract.depthCoefficient,
+          tilePositionX: entry.sprite.tilePositionX,
+          renderDepth: entry.sprite.depth,
         };
       }
       if (!this.automationMode) {
@@ -581,6 +701,101 @@ export class StageScene extends Phaser.Scene {
           tiles;
       }
     }
+  }
+
+  private updateSceneLayerTransforms(
+    camera: Phaser.Cameras.Scene2D.Camera,
+    foregroundVisible: boolean,
+  ): void {
+    const probes: SceneLayerProbe[] = [];
+    for (const entry of this.sceneLayerSprites) {
+      const layout = layoutSceneLayer(
+        entry.contract,
+        {
+          scrollX: camera.scrollX,
+          scrollY: camera.scrollY,
+          zoom: camera.zoom,
+        },
+        SCENE_LAYER_CONTEXT,
+        entry.asset,
+        sceneDevicePixelRatio(),
+      );
+      const bounds = layout.screenBounds;
+      const intersectsViewport =
+        bounds.right > 0 &&
+        bounds.bottom > 0 &&
+        bounds.left < VIEW_W &&
+        bounds.top < VIEW_H;
+      const visible =
+        (entry.contract.cull === "never" || intersectsViewport) &&
+        (entry.contract.kind !== "near-foreground" || foregroundVisible);
+      entry.sprite
+        .setPosition(layout.x, layout.y)
+        .setScale(layout.scale)
+        .setTileScale(layout.textureScale, layout.textureScale)
+        .setVisible(visible);
+      entry.sprite.tilePositionX = layout.tilePositionX;
+      if (entry.partner) {
+        entry.partner
+          .setPosition(layout.x, layout.y)
+          .setScale(layout.scale)
+          .setTileScale(layout.textureScale, layout.textureScale)
+          .setVisible(visible);
+        entry.partner.tilePositionX = layout.tilePositionX + entry.seamOffset;
+      }
+      probes.push(
+        sceneLayerProbe(
+          entry.contract,
+          layout,
+          {
+            scrollX: camera.scrollX,
+            scrollY: camera.scrollY,
+            zoom: camera.zoom,
+          },
+          this.readSceneLayerRenderState(entry, camera),
+        ),
+      );
+    }
+    this.probes.sceneLayers = probes;
+  }
+
+  private readSceneLayerRenderState(
+    entry: (typeof this.sceneLayerSprites)[number],
+    camera: Phaser.Cameras.Scene2D.Camera,
+  ): SceneLayerRenderState {
+    const sprite = entry.sprite;
+    const spriteCount = this.children.list.filter(
+      (candidate) =>
+        candidate instanceof Phaser.GameObjects.TileSprite &&
+        candidate.texture.key === sprite.texture.key,
+    ).length;
+    return Object.freeze({
+      x: sprite.x,
+      y: sprite.y,
+      scaleX: sprite.scaleX,
+      scaleY: sprite.scaleY,
+      displayWidth: sprite.displayWidth,
+      displayHeight: sprite.displayHeight,
+      originX: sprite.originX,
+      originY: sprite.originY,
+      scrollFactorX: sprite.scrollFactorX,
+      scrollFactorY: sprite.scrollFactorY,
+      tilePositionX: sprite.tilePositionX,
+      tilePositionY: sprite.tilePositionY,
+      tileScaleX: sprite.tileScaleX,
+      tileScaleY: sprite.tileScaleY,
+      visible: sprite.visible,
+      depth: sprite.depth,
+      spriteCount,
+      textureWidth: sprite.frame.realWidth,
+      textureHeight: sprite.frame.realHeight,
+      clipBounds: Object.freeze({
+        left: camera.x,
+        top: camera.y,
+        right: camera.x + camera.width,
+        bottom: camera.y + camera.height,
+      }),
+    });
   }
 
   private installAutomationApi(): void {
@@ -612,6 +827,10 @@ export class StageScene extends Phaser.Scene {
       simulationMs: clock.simulationMs,
       player: this.player?.snapshot() ?? null,
       camera: { scrollX: cam.scrollX, scrollY: cam.scrollY, zoom: cam.zoom },
+      layers: this.probes.sceneLayers,
+      platforms: this.platformProbes(cam),
+      platformRoutes: this.platformRouteProbes(),
+      ladders: this.ladderProbes(cam),
       mobs: this.mobs.map((mob) => mob.snapshot()),
       inventory: {
         visible: this.inventory?.visible ?? false,
@@ -640,6 +859,80 @@ export class StageScene extends Phaser.Scene {
           ? mob
           : nearest;
       }, undefined);
+  }
+
+  private verticalVisible(
+    camera: Phaser.Cameras.Scene2D.Camera,
+    bounds: Readonly<{ left: number; right: number; top: number; bottom: number }>,
+  ): boolean {
+    return verticalSceneObjectVisible({
+      bounds,
+      camera: {
+        scrollX: camera.scrollX,
+        scrollY: camera.scrollY,
+        zoom: camera.zoom,
+        viewportWidth: camera.width,
+        viewportHeight: camera.height,
+      },
+      overscan: TILE_PX,
+      devicePixelRatio: sceneDevicePixelRatio(),
+    });
+  }
+
+  private platformProbes(
+    camera: Phaser.Cameras.Scene2D.Camera,
+  ): readonly GameplayPlatformProbe[] {
+    return this.verticalWorld.platforms.map((platform) =>
+      Object.freeze({
+        id: platform.id,
+        left: platform.left,
+        right: platform.right,
+        deckY: platform.deckY,
+        tier: platform.tier,
+        thickness: platform.thickness,
+        visible: this.verticalVisible(camera, {
+          left: platform.left,
+          right: platform.right,
+          top: platform.deckY,
+          bottom: platform.deckY + platform.thickness,
+        }),
+      }),
+    );
+  }
+
+  private platformRouteProbes(): readonly GameplayPlatformRouteProbe[] {
+    return this.verticalRoutes.map((route) =>
+      Object.freeze({
+        id: route.id,
+        from: route.from,
+        to: route.to,
+        mode: route.mode,
+        rise: route.rise,
+        gap: route.gap,
+        landingStep: route.landingStep,
+        horizontalRange: route.horizontalRange,
+        ladderId: route.ladderId,
+      }),
+    );
+  }
+
+  private ladderProbes(
+    camera: Phaser.Cameras.Scene2D.Camera,
+  ): readonly GameplayLadderProbe[] {
+    return this.verticalWorld.ladders.map((ladder) => {
+      const visual = ladderVisualBounds(ladder);
+      return Object.freeze({
+        id: ladder.id,
+        platformId: ladder.platformId,
+        centerX: ladder.centerX,
+        top: visual.top,
+        bottom: visual.bottom,
+        activationHalfWidth: ladder.activationHalfWidth,
+        visualTopOvershoot: ladder.visualTopOvershoot,
+        visualBottomOvershoot: ladder.visualBottomOvershoot,
+        visible: this.verticalVisible(camera, visual),
+      });
+    });
   }
 
   private automationLiveDropBounds(): GameplayWorldBoundsProbe | undefined {
@@ -750,6 +1043,9 @@ export class StageScene extends Phaser.Scene {
     this.cameras.main.setZoom(1);
     this.cameras.main.centerOnX(playerX);
     this.cameras.main.scrollY = 0;
+    this.updateTerrainCulling(this.cameras.main);
+    this.updateVerticalCulling(this.cameras.main);
+    this.updateSceneLayerTransforms(this.cameras.main, true);
     this.automationClock.markReady();
     this.logEvent("assets-ready", {
       count: this.probes.loadedAssetKeys.length,
@@ -806,27 +1102,86 @@ export class StageScene extends Phaser.Scene {
     this.probes.heightmap = heights;
     if (this.automationMode)
       this.heightmapDigest = await heightmapSha256(heights);
+    // The opening encounter owns columns 0..13. Vertical geometry is selected
+    // before prop/mob placement. Selection rejects caller occupancy across
+    // the complete raster/collision footprint (start-1 through end), then
+    // reserves that same interval from both spawners.
+    const openingEncounterColumns = new Set(
+      Array.from({ length: 14 }, (_, column) => column),
+    );
+    const verticalCandidate = selectDemoVerticalWorld({
+      heights,
+      tilePixels: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      worldWidth: STAGE_W,
+      reservedColumns: openingEncounterColumns,
+    });
+    const inactiveVertical = verticalFeatureAfterAssetLoad(
+      verticalCandidate,
+      false,
+    );
+    this.verticalWorld = inactiveVertical.world;
+    this.verticalRoutes = inactiveVertical.routes;
+    this.verticalReservedColumns = new Set(inactiveVertical.reservedColumns);
+    const { ladderAssetLoaded, climbAssetLoaded } =
+      await prepareVerticalTraversalAssets({
+        selected: verticalCandidate,
+        loadLadder: async () => {
+          await loadTransparentSprite(
+            u(`ladder_${tag}.png`),
+            "ladder",
+            this.textures,
+            this.transparencyPolicy,
+          );
+        },
+        loadClimb: async () => {
+          await loadFrameStrip(
+            u(`character_${tag}-fromcombined_climb.png`),
+            "character_climb",
+            4,
+            this.textures,
+            this.transparencyPolicy,
+          );
+        },
+        removeAsset: (key) => {
+          if (this.textures.exists(key)) this.textures.remove(key);
+        },
+        recordError: (message) => this.recordErr(message),
+      });
 
-    // ---------- Parallax layers ----------
-    // Sort by z_index ascending so we render back-to-front.
-    const sortedLayers = [...spec.layers].sort((a, b) => a.z_index - b.z_index);
-    // Fade band width on each tile edge (and the overlap width with the
-    // partner sprite). Larger = more of the texture cross-blends at the
-    // seam = softer / less visible wrap. seamOffset stays = W − FADE_PX
-    // so primary's left fade lands exactly on partner's right fade.
+    // ---------- Semantic screen/parallax layers ----------
+    const layersById = new Map(spec.layers.map((layer) => [layer.id, layer]));
+    const resolvedLayers = resolveSceneLayerStack(
+      spec.layers,
+      SCENE_LAYER_CONTEXT,
+    );
+    // Runtime-only overlap width. Foreground consumes it into one
+    // premultiplied periodic canvas; legacy non-foreground layers keep their
+    // existing fade-partner fallback.
     const FADE_PX = 256;
-    for (const layer of sortedLayers) {
+    for (const contract of resolvedLayers) {
+      const layer = layersById.get(contract.id);
+      if (!layer) throw new Error(`${contract.id} has no world-layer source`);
       const file = `layer_${tag}_${layer.id}.png`;
       const key = `layer_${layer.id}`;
       try {
-        const loaded = await loadParallaxLayer(
-          u(file),
-          key,
-          layer.opaque,
-          FADE_PX,
-          this.textures,
-          this.transparencyPolicy,
-        );
+        const loaded =
+          contract.kind === "near-foreground"
+            ? await loadForegroundLayer(
+                u(file),
+                key,
+                FADE_PX,
+                this.textures,
+                this.transparencyPolicy,
+              )
+            : await loadParallaxLayer(
+                u(file),
+                key,
+                layer.opaque,
+                FADE_PX,
+                this.textures,
+                this.transparencyPolicy,
+              );
         this.probes.loadedAssetKeys.push(key);
 
         // Probe alpha at left edge + 64 px inward (for non-opaque).
@@ -847,128 +1202,150 @@ export class StageScene extends Phaser.Scene {
           opaque: layer.opaque,
         };
 
-        const sprite = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, key);
+        const asset: SceneLayerAssetMetadata = {
+          width: loaded.width,
+          height: loaded.height,
+          foreground:
+            contract.kind === "near-foreground"
+              ? (loaded as LoadedForegroundLayer).foreground
+              : undefined,
+        };
+        const initialLayout = layoutSceneLayer(
+          contract,
+          { scrollX: 0, scrollY: 0, zoom: 1 },
+          SCENE_LAYER_CONTEXT,
+          asset,
+          sceneDevicePixelRatio(),
+        );
+        const sprite = this.add.tileSprite(
+          0,
+          0,
+          initialLayout.renderWidth,
+          initialLayout.renderHeight,
+          key,
+        );
         sprite.setOrigin(0, 0);
         sprite.setScrollFactor(0);
-        const ts = VIEW_H / loaded.height;
+        sprite.setDepth(contract.renderDepth);
+        sprite.setAlpha(contract.opacity.alpha);
+        sprite.setBlendMode(sceneLayerBlendMode(contract.blend));
+        const ts = initialLayout.textureScale;
         sprite.setTileScale(ts, ts);
 
-        // Helper: build a half-phase partner TileSprite that renders at the
-        // same screen position but tiled at +naturalWidth/2 in source space.
-        // This stitches the fade seams: at any screen-x where sprite A is in
-        // its fade band, sprite B is mid-tile (full alpha) and covers it.
-        // Skipped for opaque layers (no fade gap to stitch).
-        const makePartner = (depth: number) => {
-          const partner = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, key);
+        // Helper: build the optional partner TileSprite at the same screen
+        // position. The caller offsets it by (naturalWidth - fadePx), making
+        // its right linear edge band complement the primary's left edge band.
+        // Opaque and non-overlap layers never create this partner.
+        const makePartner = () => {
+          const partner = this.add.tileSprite(
+            0,
+            0,
+            initialLayout.renderWidth,
+            initialLayout.renderHeight,
+            key,
+          );
           partner.setOrigin(0, 0);
           partner.setScrollFactor(0);
           partner.setTileScale(ts, ts);
-          partner.setDepth(depth);
+          partner.setDepth(contract.renderDepth);
+          partner.setAlpha(contract.opacity.alpha);
+          partner.setBlendMode(sceneLayerBlendMode(contract.blend));
           return partner;
         };
 
-        // Tight edge-overlap: partner is shifted by (W − fadePx) so its
-        // RIGHT fade band lands directly on top of primary's LEFT fade band.
-        // Linear taper sum c/F + (F−1−c)/F ≈ 1 across the band → seamless.
         const seamOffset = loaded.width - FADE_PX;
 
-        if (layer.parallax > 1.0) {
-          sprite.setDepth(1000 + layer.z_index);
-          try {
-            const fx = (
-              sprite as unknown as {
-                postFX?: {
-                  addBlur?: (
-                    q?: number,
-                    x?: number,
-                    y?: number,
-                    str?: number,
-                    color?: number,
-                    steps?: number,
-                  ) => unknown;
-                };
-              }
-            ).postFX;
-            if (fx?.addBlur) {
-              const strength = Math.min(4, (layer.parallax - 1.0) * 6);
-              fx.addBlur(0, 2, 2, strength, 0xffffff, 4);
-            }
-          } catch {}
-          // Foreground partner sits at the same depth slot; mirror the blur.
-          const partner = makePartner(1000 + layer.z_index);
-          try {
-            const fx = (
-              partner as unknown as {
-                postFX?: {
-                  addBlur?: (
-                    q?: number,
-                    x?: number,
-                    y?: number,
-                    str?: number,
-                    color?: number,
-                    steps?: number,
-                  ) => unknown;
-                };
-              }
-            ).postFX;
-            if (fx?.addBlur) {
-              const strength = Math.min(4, (layer.parallax - 1.0) * 6);
-              fx.addBlur(0, 2, 2, strength, 0xffffff, 4);
-            }
-          } catch {}
-          this.foregroundSprites.push({
-            id: layer.id,
-            sprite,
-            parallax: layer.parallax,
-            partner,
-            naturalWidth: loaded.width,
-            seamOffset,
-          });
-          this.probes.foregroundLayers.push(layer.id);
-        } else if (layer.opaque) {
-          sprite.setDepth(0);
-          // Opaque skybox doesn't fade → no seam to stitch → no partner.
-          this.parallaxSprites.push({
-            id: layer.id,
-            sprite,
-            parallax: 0,
-            naturalWidth: loaded.width,
-            seamOffset: 0,
-          });
-        } else {
-          sprite.setDepth(layer.z_index);
-          const partner = makePartner(layer.z_index);
-          this.parallaxSprites.push({
-            id: layer.id,
-            sprite,
-            parallax: layer.parallax,
-            partner,
-            naturalWidth: loaded.width,
-            seamOffset,
-          });
+        const partner =
+          contract.repeat === "repeat-x-seam-overlap"
+            ? makePartner()
+            : undefined;
+        if (contract.kind === "near-foreground") {
+          applyForegroundBlur(sprite, contract.depthCoefficient);
+          this.probes.foregroundLayers.push(contract.id);
         }
+        this.sceneLayerSprites.push({
+          contract,
+          asset,
+          sprite,
+          partner,
+          seamOffset: partner ? seamOffset : 0,
+        });
       } catch (e) {
         this.recordErr(e);
       }
     }
 
     // ---------- Tileset + ground assembly ----------
-    let tileW = TILE_PX;
-    let tileH = TILE_PX;
     try {
-      const ts = await loadTileset(
+      const tileset = await loadTileset(
         u(`tileset_${tag}.png`),
         `tileset`,
         this.textures,
         this.transparencyPolicy,
       );
       this.probes.loadedAssetKeys.push(`tileset`);
-      tileW = ts.tileW;
-      tileH = ts.tileH;
+      this.assembleGround(
+        heights,
+        tileset.fillMaterialKey,
+        tileset.surfaceMaterialKey,
+        tileset.leftSideMaterialKey,
+        tileset.rightSideMaterialKey,
+        tileset.surfaceIntegrationKey,
+        tileset.leftSideIntegrationKey,
+        tileset.rightSideIntegrationKey,
+      );
+      if (verticalCandidate) {
+        try {
+          const activated = activateVerticalFeatureTransaction({
+            selected: verticalCandidate,
+            ladderAssetLoaded,
+            climbAssetLoaded,
+            platformMaterialsReady: true,
+            assemblePlatforms: (platforms) =>
+              this.assembleUpperPlatforms(
+                platforms,
+                tileset.fillMaterialKey,
+                tileset.surfaceMaterialKey,
+                tileset.leftSideMaterialKey,
+                tileset.rightSideMaterialKey,
+              ),
+            assembleLadders: (ladders) => this.assembleLadders(ladders),
+            rollbackRendering: () => this.clearVerticalRendering(),
+            commit: (selection) => {
+              this.verticalWorld = selection.world;
+              this.verticalRoutes = selection.routes;
+              this.verticalReservedColumns = new Set(
+                selection.reservedColumns,
+              );
+            },
+          });
+          if (activated) {
+            this.probes.loadedAssetKeys.push("ladder", "character_climb");
+          } else {
+            if (this.textures.exists("ladder")) this.textures.remove("ladder");
+            if (this.textures.exists("character_climb")) {
+              this.textures.remove("character_climb");
+            }
+          }
+        } catch (error) {
+          if (this.textures.exists("ladder")) this.textures.remove("ladder");
+          if (this.textures.exists("character_climb")) {
+            this.textures.remove("character_climb");
+          }
+          this.recordErr(error);
+        }
+      }
     } catch (e) {
+      this.clearVerticalRendering();
+      this.verticalWorld = inactiveVertical.world;
+      this.verticalRoutes = inactiveVertical.routes;
+      this.verticalReservedColumns = new Set(inactiveVertical.reservedColumns);
+      if (this.textures.exists("ladder")) this.textures.remove("ladder");
+      if (this.textures.exists("character_climb")) {
+        this.textures.remove("character_climb");
+      }
       this.recordErr(e);
     }
-    this.assembleGround(heights, tileW, tileH);
 
     // ---------- Obstacle sheets ----------
     const obstacleCells: {
@@ -1169,9 +1546,7 @@ export class StageScene extends Phaser.Scene {
       scene: this,
       tilePx: TILE_PX,
       baselineY: GROUND_BASELINE_Y,
-      heightFn: (col) =>
-        this.heights[Math.max(0, Math.min(this.heights.length - 1, col))] ??
-        MIN_H,
+      heightFn: (col) => terrainHeightAtColumn(this.heights, col),
       itemFrameKey: (idx) => `item_${idx % 8}`,
       itemTextureKey: "items",
     });
@@ -1190,9 +1565,7 @@ export class StageScene extends Phaser.Scene {
       portalKey: "portal",
       tilePx: TILE_PX,
       baselineY: GROUND_BASELINE_Y,
-      heightFn: (col) =>
-        this.heights[Math.max(0, Math.min(this.heights.length - 1, col))] ??
-        MIN_H,
+      heightFn: (col) => terrainHeightAtColumn(this.heights, col),
       stageWidthPx: STAGE_W,
     });
 
@@ -1208,32 +1581,287 @@ export class StageScene extends Phaser.Scene {
   // ---------- Ground assembly ----------
 
   private assembleGround(
-    heights: number[],
-    srcTileW: number,
-    srcTileH: number,
+    heights: readonly number[],
+    fillMaterialKey: string,
+    surfaceMaterialKey: string,
+    leftSideMaterialKey: string,
+    rightSideMaterialKey: string,
+    surfaceIntegrationKey: string,
+    leftSideIntegrationKey: string,
+    rightSideIntegrationKey: string,
   ) {
-    const baseY = GROUND_BASELINE_Y;
-    const groundDepth = 500;
-
-    const sheetKey = `tileset`;
-    // Quick ship: the 12×4 role contract is unreliable (gpt-image-2 doesn't
-    // always honour it). Use the single best-opacity cell (registered as
-    // `ground_fill` by loadTileset) for every ground tile. Loses
-    // slope/corner variety but every column renders as a clean solid block.
-    const frameKey = "ground_fill";
-
-    for (let x = 0; x < heights.length; x++) {
-      const h = heights[x];
-      for (let depth = 0; depth < h; depth++) {
-        const tx = x * TILE_PX + TILE_PX / 2;
-        const ty = baseY - depth * TILE_PX - TILE_PX / 2;
-        const img = this.add.image(tx, ty, sheetKey, frameKey);
-        img.setDisplaySize(TILE_PX, TILE_PX);
-        img.setDepth(groundDepth);
-      }
+    for (const run of [
+      ...this.terrainFillSprites,
+      ...this.terrainIntegrationSprites,
+      ...this.terrainBoundarySprites,
+    ]) {
+      run.sprite.destroy();
     }
-    void srcTileW;
-    void srcTileH;
+    this.terrainFillSprites = [];
+    this.terrainIntegrationSprites = [];
+    this.terrainBoundarySprites = [];
+    this.terrainCullRange = undefined;
+
+    const plan = buildTerrainPlan(heights, TERRAIN_CONTRACT);
+    const renderPlan = buildTerrainRenderPlan(
+      plan,
+      TERRAIN_SURFACE_BAND_TEXTURE_HEIGHT,
+    );
+    const initialRange = visibleTerrainColumnRange(0, VIEW_W, TERRAIN_CONTRACT);
+    const visibleAtStart = (startColumn: number, endColumn: number) =>
+      initialRange !== null &&
+      endColumn >= initialRange.start &&
+      startColumn <= initialRange.end;
+
+    for (const run of renderPlan.fillRuns) {
+      const fill = this.add.tileSprite(
+        run.paintRect.x,
+        run.paintRect.y,
+        run.paintRect.width,
+        run.paintRect.height,
+        fillMaterialKey,
+      );
+      fill.setOrigin(0, 0);
+      const materialOrigin = terrainMaterialOrigin(run);
+      fill.tilePositionX = materialOrigin.x;
+      fill.tilePositionY = materialOrigin.y;
+      fill.setDepth(SCENE_CONTENT_DEPTH.terrain);
+      fill.setVisible(visibleAtStart(run.startColumn, run.endColumn));
+      this.terrainFillSprites.push(
+        Object.freeze({
+          startColumn: run.startColumn,
+          endColumn: run.endColumn,
+          sprite: fill,
+        }),
+      );
+    }
+
+    for (const patch of renderPlan.integrationPatches) {
+      const materialKey =
+        patch.kind === "surface"
+          ? surfaceIntegrationKey
+          : patch.kind === "side-left"
+            ? leftSideIntegrationKey
+            : rightSideIntegrationKey;
+      const integration = this.add.tileSprite(
+        patch.paintRect.x,
+        patch.paintRect.y,
+        patch.paintRect.width,
+        patch.paintRect.height,
+        materialKey,
+      );
+      integration.setOrigin(0, 0);
+      integration.tilePositionX =
+        patch.kind === "surface" ? patch.paintRect.x : 0;
+      integration.tilePositionY =
+        patch.kind === "surface" ? 0 : patch.paintRect.y;
+      integration.setDepth(SCENE_CONTENT_DEPTH.terrain);
+      integration.setVisible(
+        visibleAtStart(patch.startColumn, patch.endColumn),
+      );
+      this.terrainIntegrationSprites.push(
+        Object.freeze({
+          startColumn: patch.startColumn,
+          endColumn: patch.endColumn,
+          sprite: integration,
+        }),
+      );
+    }
+
+    // Approved contour paint is created last at the same semantic depth so it
+    // remains crisp over the inward transition.
+    for (const strip of renderPlan.boundaryStrips) {
+      const materialKey =
+        strip.kind === "surface"
+          ? surfaceMaterialKey
+          : strip.kind === "side-left"
+            ? leftSideMaterialKey
+            : rightSideMaterialKey;
+      const boundary = this.add.tileSprite(
+        strip.paintRect.x,
+        strip.paintRect.y,
+        strip.paintRect.width,
+        strip.paintRect.height,
+        materialKey,
+      );
+      boundary.setOrigin(0, 0);
+      boundary.tilePositionX = strip.paintRect.x;
+      boundary.tilePositionY = strip.paintRect.y;
+      boundary.setDepth(SCENE_CONTENT_DEPTH.terrain);
+      boundary.setVisible(visibleAtStart(strip.startColumn, strip.endColumn));
+      this.terrainBoundarySprites.push(
+        Object.freeze({
+          startColumn: strip.startColumn,
+          endColumn: strip.endColumn,
+          sprite: boundary,
+        }),
+      );
+    }
+    this.terrainCullRange = initialRange;
+  }
+
+  private updateTerrainCulling(camera: Phaser.Cameras.Scene2D.Camera): void {
+    if (
+      this.terrainFillSprites.length === 0 &&
+      this.terrainIntegrationSprites.length === 0 &&
+      this.terrainBoundarySprites.length === 0
+    ) {
+      return;
+    }
+    const worldWidth = camera.width / camera.zoom;
+    const midpointX = camera.scrollX + camera.width / 2;
+    const next = visibleTerrainColumnRange(
+      midpointX - worldWidth / 2,
+      midpointX + worldWidth / 2,
+      TERRAIN_CONTRACT,
+    );
+    const previous = this.terrainCullRange;
+    if (
+      previous !== undefined &&
+      ((previous === null && next === null) ||
+        (previous !== null &&
+          next !== null &&
+          previous.start === next.start &&
+          previous.end === next.end))
+    ) {
+      return;
+    }
+    for (const run of [
+      ...this.terrainFillSprites,
+      ...this.terrainIntegrationSprites,
+      ...this.terrainBoundarySprites,
+    ]) {
+      run.sprite.setVisible(
+        next !== null &&
+          run.endColumn >= next.start &&
+          run.startColumn <= next.end,
+      );
+    }
+    this.terrainCullRange = next;
+  }
+
+  private assembleUpperPlatforms(
+    platforms: readonly UpperPlatform[],
+    fillMaterialKey: string,
+    surfaceMaterialKey: string,
+    leftSideMaterialKey: string,
+    rightSideMaterialKey: string,
+  ): void {
+    const created: Phaser.GameObjects.GameObject[] = [];
+    const next: VerticalRenderSprite[] = [];
+    try {
+      for (const platform of platforms) {
+        const plan = buildPlatformRenderPlan(platform);
+        const body = this.add.tileSprite(
+          plan.body.x,
+          plan.body.y,
+          plan.body.width,
+          plan.body.height,
+          fillMaterialKey,
+        );
+        created.push(body);
+        body.setOrigin(0, 0);
+        body.tilePositionX = plan.body.x;
+        body.tilePositionY = plan.body.y;
+        body.setDepth(SCENE_CONTENT_DEPTH.terrain);
+
+        const cap = this.add.tileSprite(
+          plan.cap.x,
+          plan.cap.y,
+          plan.cap.width,
+          plan.cap.height,
+          surfaceMaterialKey,
+        );
+        created.push(cap);
+        cap.setOrigin(0, 0);
+        cap.tilePositionX = plan.cap.x;
+        cap.tilePositionY = plan.cap.y;
+        cap.setDepth(SCENE_CONTENT_DEPTH.terrain);
+
+        const sides = plan.sides.map((side) => {
+          const sprite = this.add.tileSprite(
+            side.x,
+            side.y,
+            side.width,
+            side.height,
+            side.edge === "left" ? leftSideMaterialKey : rightSideMaterialKey,
+          );
+          created.push(sprite);
+          sprite.setOrigin(0, 0);
+          sprite.tilePositionX = side.x;
+          sprite.tilePositionY = side.y;
+          sprite.setDepth(SCENE_CONTENT_DEPTH.terrain);
+          return sprite;
+        });
+        next.push(
+          Object.freeze({
+            id: platform.id,
+            bounds: Object.freeze({
+              left: platform.left,
+              right: platform.right,
+              top: platform.deckY,
+              bottom: platform.deckY + platform.thickness,
+            }),
+            sprites: Object.freeze([body, cap, ...sides]),
+          }),
+        );
+      }
+    } catch (error) {
+      for (const sprite of created) sprite.destroy();
+      throw error;
+    }
+    for (const rendered of this.platformRenderSprites)
+      for (const sprite of rendered.sprites) sprite.destroy();
+    this.platformRenderSprites = next;
+  }
+
+  private assembleLadders(ladders: readonly LadderZone[]): void {
+    const created: Phaser.GameObjects.GameObject[] = [];
+    const next: VerticalRenderSprite[] = [];
+    try {
+      for (const ladder of ladders) {
+        const visual = ladderVisualBounds(ladder);
+        const sprite = this.add.image(ladder.centerX, visual.top, "ladder");
+        created.push(sprite);
+        sprite.setOrigin(0.5, 0);
+        sprite.setDisplaySize(visual.width, visual.height);
+        sprite.setDepth(SCENE_CONTENT_DEPTH.prop);
+        next.push(
+          Object.freeze({
+            id: ladder.id,
+            bounds: visual,
+            sprites: Object.freeze([sprite]),
+          }),
+        );
+      }
+    } catch (error) {
+      for (const sprite of created) sprite.destroy();
+      throw error;
+    }
+    for (const rendered of this.ladderRenderSprites)
+      for (const sprite of rendered.sprites) sprite.destroy();
+    this.ladderRenderSprites = next;
+  }
+
+  private clearVerticalRendering(): void {
+    for (const rendered of [
+      ...this.platformRenderSprites,
+      ...this.ladderRenderSprites,
+    ]) {
+      for (const sprite of rendered.sprites) sprite.destroy();
+    }
+    this.platformRenderSprites = [];
+    this.ladderRenderSprites = [];
+  }
+
+  private updateVerticalCulling(camera: Phaser.Cameras.Scene2D.Camera): void {
+    for (const rendered of [
+      ...this.platformRenderSprites,
+      ...this.ladderRenderSprites,
+    ]) {
+      const visible = this.verticalVisible(camera, rendered.bounds);
+      for (const sprite of rendered.sprites) sprite.setVisible(visible);
+    }
   }
 
   // ---------- Obstacle placement ----------
@@ -1250,11 +1878,12 @@ export class StageScene extends Phaser.Scene {
       const run = runs[r];
       if (run.len < 3) continue;
       const col = run.start + Math.floor(run.len / 2);
+      if (!verticalSpawnAllowed(this.verticalReservedColumns, col)) continue;
       const cell = cells[(r * 7) % cells.length];
       const sheetKey = `obstacles_${cell.sheetIdx}`;
       const frameKey = `prop_${cell.cellIdx}`;
       const h = heights[col];
-      const surfaceY = GROUND_BASELINE_Y - h * TILE_PX;
+      const surfaceY = terrainSurfaceY(h, TILE_PX, GROUND_BASELINE_Y);
       const targetH = TILE_PX * 1.4;
       const aspect = cell.w / cell.h;
       const targetW = targetH * aspect;
@@ -1263,7 +1892,7 @@ export class StageScene extends Phaser.Scene {
       const img = this.add.image(x, y, sheetKey, frameKey);
       img.setOrigin(0.5, 1.0);
       img.setDisplaySize(targetW, targetH);
-      img.setDepth(700);
+      img.setDepth(SCENE_CONTENT_DEPTH.prop);
       placed++;
     }
     this.probes.obstacleCount = placed;
@@ -1276,8 +1905,7 @@ export class StageScene extends Phaser.Scene {
     mobIdleKeys: string[],
     mobHurtKeys: string[],
   ) {
-    const hF = (col: number) =>
-      heights[Math.max(0, Math.min(heights.length - 1, col))] ?? MIN_H;
+    const hF = (col: number) => terrainHeightAtColumn(heights, col);
     if (mobIdleKeys.filter(Boolean).length === 0) return;
     const runs = flatRuns(heights, 2);
     let spawned = 0;
@@ -1285,6 +1913,7 @@ export class StageScene extends Phaser.Scene {
     for (let r = 0; r < runs.length; r += 2) {
       const run = runs[r];
       const col = run.start + 1;
+      if (!verticalSpawnAllowed(this.verticalReservedColumns, col)) continue;
       const ladderIndex = mobIdx % mobIdleKeys.length;
       const idleKey = mobIdleKeys[ladderIndex];
       const hurtKey = mobHurtKeys[ladderIndex] ?? "";
@@ -1297,6 +1926,7 @@ export class StageScene extends Phaser.Scene {
         ladderIndex,
         spawnCol: col,
         tilePx: TILE_PX,
+        worldWidthPx: STAGE_W,
         baselineY: GROUND_BASELINE_Y,
         heightFn: hF,
         spriteHeightPx: TILE_PX * 1.8,
@@ -1318,20 +1948,23 @@ export class StageScene extends Phaser.Scene {
     const startCol = runs.length > 0 ? runs[0].start + 1 : 4;
     this.probes.playerColumn = startCol;
     const h = heights[startCol];
-    const surfaceY = GROUND_BASELINE_Y - h * TILE_PX;
+    const surfaceY = terrainSurfaceY(h, TILE_PX, GROUND_BASELINE_Y);
     const x = startCol * TILE_PX + TILE_PX / 2;
 
-    const hF = (col: number) =>
-      heights[Math.max(0, Math.min(heights.length - 1, col))] ?? MIN_H;
+    const hF = (col: number) => terrainHeightAtColumn(heights, col);
 
     this.player = new Player({
       scene: this,
       startX: x,
       startY: surfaceY,
       tilePx: TILE_PX,
+      worldWidthPx: STAGE_W,
       baselineY: GROUND_BASELINE_Y,
       heightFn: hF,
       targetSpriteHeight: TILE_PX * 2.2,
+      platforms: this.verticalWorld.platforms,
+      ladders: this.verticalWorld.ladders,
+      onTransition: (kind, data) => this.logEvent(kind, data),
     });
 
     this.cameras.main.scrollX = Math.max(0, x - VIEW_W / 2);

@@ -45,7 +45,7 @@ const LAYERS = Object.freeze([
     id: "foreground",
     title: "Geometric foreground",
     z_index: 20,
-    parallax: 1.2,
+    parallax: 1.8,
     opaque: false,
     paint_region: "lower quarter",
     description: "Transparent foreground markers.",

@@ -72,6 +72,7 @@ web_modules/
 
 # Local browser-control snapshots and logs
 .playwright-cli/
+/output/playwright/
 
 # Output of 'npm pack'
 *.tgz

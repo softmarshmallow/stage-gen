@@ -14,7 +14,7 @@ import {
   type GameplayAutomationSnapshot,
   type GameplayWorldBoundsProbe,
 } from "../../lib/runtime/automation";
-import { GAMEPLAY_AUTOMATION_VERSION } from "./contracts";
+import { GAMEPLAY_AUTOMATION_VERSION, type GameplayFixture } from "./contracts";
 import {
   GAMEPLAY_DEMO_APPROVAL_MANIFEST,
   GAMEPLAY_DEMO_ASSET_MANIFEST,
@@ -23,21 +23,30 @@ import {
   generateApprovedModelGameplayFixture,
 } from "./model-assets";
 import {
+  PLATFORM_DROP_SETTLE_FRAMES,
+  UPPER_PLATFORM_THICKNESS,
+} from "../../lib/runtime/vertical";
+import { NEAR_FOREGROUND_DEPTH_COEFFICIENT } from "../../lib/runtime/layers";
+import {
   GAMEPLAY_DURATION_SECONDS,
+  GAMEPLAY_DROP_EVENT_SEQUENCE,
   GAMEPLAY_EVENT_VISIBILITY_WINDOWS,
   GAMEPLAY_FRAME_COUNT,
   GAMEPLAY_POSTER_FRAME,
+  GAMEPLAY_PLATFORM_EVENT_SEQUENCE,
   GAMEPLAY_REQUIRED_EVENTS,
   GAMEPLAY_REQUIRED_STATES,
   GAMEPLAY_SELECTED_FRAMES,
   GAMEPLAY_STEP_MS,
   GAMEPLAY_TIMELINE,
+  GAMEPLAY_VERTICAL_EVENT_SEQUENCE,
+  type GameplayFrame,
 } from "./timeline";
 
 const GAMEPLAY_DIR = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(GAMEPLAY_DIR, "../..");
 const REPO_ROOT = path.resolve(WEB_ROOT, "..");
-const NEXT_CLI = path.join(
+export const GAMEPLAY_NEXT_CLI_PATH = path.join(
   WEB_ROOT,
   "node_modules",
   "next",
@@ -48,7 +57,7 @@ const NEXT_CLI = path.join(
 const CAPTURE_VIDEO_PATH = "docs/media/gameplay-showcase.mp4";
 const CAPTURE_POSTER_PATH = "docs/media/gameplay-showcase.poster.png";
 const MODEL_ASSET_AGGREGATE_SHA256 =
-  "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a";
+  "24f02376a8a561333b1f89403649c954a53ffb7c7cc035c3d4495f1127cfe9b8";
 const SERVER_TIMEOUT_MS = 30_000;
 const PROBE_TIMEOUT_MS = 30_000;
 const MAX_SERVER_LOG_CHARS = 64_000;
@@ -60,6 +69,12 @@ const FFPROBE_TIMEOUT_MS = 30_000;
 const TOOL_VERSION_TIMEOUT_MS = 10_000;
 const MAX_TOOL_TIMEOUT_MS = 600_000;
 const MAX_TOOL_TERMINATE_GRACE_MS = 10_000;
+
+export const GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS = Object.freeze({
+  tierThree: -37.666666666666686,
+  summit: -101.66666666666669,
+  recovery: 0,
+});
 
 export type GameplayRunEvidence = Readonly<{
   transcript: string;
@@ -106,10 +121,19 @@ function safeServerEnvironment(outRoot: string): NodeJS.ProcessEnv {
   return env;
 }
 
-async function assertBuiltNextApplication(): Promise<void> {
+async function assertBuiltNextApplication(applicationRoot: string): Promise<void> {
+  if (!path.isAbsolute(applicationRoot)) {
+    throw new Error("Next application root must be absolute");
+  }
+  const applicationStat = await fs.lstat(applicationRoot).catch(() => {
+    throw new Error("Next application root must be a real directory");
+  });
+  if (!applicationStat.isDirectory() || applicationStat.isSymbolicLink()) {
+    throw new Error("Next application root must be a real directory");
+  }
   const [buildId, nextCli] = await Promise.all([
-    fs.lstat(path.join(WEB_ROOT, ".next", "BUILD_ID")),
-    fs.lstat(NEXT_CLI),
+    fs.lstat(path.join(applicationRoot, ".next", "BUILD_ID")),
+    fs.lstat(GAMEPLAY_NEXT_CLI_PATH),
   ]).catch(() => {
     throw new Error(
       "built Next application is missing; run `bun run build` in web first",
@@ -120,7 +144,7 @@ async function assertBuiltNextApplication(): Promise<void> {
       "built Next application is unsafe; rebuild it from web/package.json",
     );
   }
-  const realCli = await fs.realpath(NEXT_CLI);
+  const realCli = await fs.realpath(GAMEPLAY_NEXT_CLI_PATH);
   const dependencyRoot = `${path.join(WEB_ROOT, "node_modules")}${path.sep}`;
   if (!realCli.startsWith(dependencyRoot)) {
     throw new Error("Next launcher escapes the web dependency directory");
@@ -161,11 +185,92 @@ async function stopChild(child: ServerChild): Promise<void> {
   }
 }
 
-async function startNextServer(outRoot: string): Promise<StartedServer> {
-  await assertBuiltNextApplication();
+function throwIfAborted(signal: AbortSignal | undefined, label: string): void {
+  if (signal?.aborted) throw new Error(`${label} was cancelled`);
+}
+
+async function abortable<T>(
+  operation: Promise<T>,
+  signal: AbortSignal | undefined,
+  label: string,
+): Promise<T> {
+  if (!signal) return await operation;
+  throwIfAborted(signal, label);
+  let listener: (() => void) | undefined;
+  const cancelled = new Promise<never>((_, reject) => {
+    listener = () => reject(new Error(`${label} was cancelled`));
+    signal.addEventListener("abort", listener, { once: true });
+  });
+  try {
+    return await Promise.race([operation, cancelled]);
+  } finally {
+    if (listener) signal.removeEventListener("abort", listener);
+  }
+}
+
+async function rethrowAfterGameplayCleanup(
+  primaryError: unknown,
+  label: string,
+  cleanup: () => Promise<void>,
+): Promise<never> {
+  try {
+    await cleanup();
+  } catch (cleanupError) {
+    throw new AggregateError(
+      [primaryError, cleanupError],
+      `${label} failed and cleanup failed`,
+      { cause: primaryError },
+    );
+  }
+  throw primaryError;
+}
+
+export async function runOwnedGameplayStartup<T>(
+  startup: () => Promise<T>,
+  cleanup: () => Promise<void>,
+  label: string,
+): Promise<T> {
+  try {
+    return await startup();
+  } catch (error) {
+    return await rethrowAfterGameplayCleanup(error, label, cleanup);
+  }
+}
+
+export async function acquireAbortableGameplayResource<T>(
+  acquisition: Promise<T>,
+  signal: AbortSignal | undefined,
+  label: string,
+  cleanup: (resource: T) => Promise<void>,
+): Promise<T> {
+  try {
+    return await abortable(acquisition, signal, label);
+  } catch (error) {
+    if (!signal?.aborted) throw error;
+    let resource: T;
+    try {
+      resource = await acquisition;
+    } catch {
+      throw error;
+    }
+    return await rethrowAfterGameplayCleanup(
+      error,
+      label,
+      async () => await cleanup(resource),
+    );
+  }
+}
+
+async function startNextServer(
+  outRoot: string,
+  signal?: AbortSignal,
+  applicationRoot = WEB_ROOT,
+): Promise<StartedServer> {
+  throwIfAborted(signal, "gameplay server startup");
+  await assertBuiltNextApplication(applicationRoot);
   const port = await freeLoopbackPort();
   const args = [
-    NEXT_CLI,
+    GAMEPLAY_NEXT_CLI_PATH,
     "start",
     "--hostname",
     "127.0.0.1",
@@ -173,7 +278,7 @@ async function startNextServer(outRoot: string): Promise<StartedServer> {
     String(port),
   ];
   const child = spawn(process.execPath, args, {
-    cwd: WEB_ROOT,
+    cwd: applicationRoot,
     env: safeServerEnvironment(outRoot),
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
@@ -185,26 +290,35 @@ async function startNextServer(outRoot: string): Promise<StartedServer> {
   child.stdout.on("data", remember);
   child.stderr.on("data", remember);
   const baseUrl = `http://127.0.0.1:${port}`;
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < SERVER_TIMEOUT_MS) {
-    if (child.exitCode !== null) {
-      throw new Error(
-        `Next server exited before readiness (code ${child.exitCode}): ${output}`,
-      );
-    }
-    try {
-      const response = await fetch(baseUrl, { redirect: "manual" });
-      if (response.status >= 200 && response.status < 500) {
-        return { baseUrl, process: child, stop: () => stopChild(child) };
+  return await runOwnedGameplayStartup(
+    async () => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < SERVER_TIMEOUT_MS) {
+        throwIfAborted(signal, "gameplay server startup");
+        if (child.exitCode !== null) {
+          throw new Error(
+            `Next server exited before readiness (code ${child.exitCode}): ${output}`,
+          );
+        }
+        try {
+          const response = await fetch(baseUrl, {
+            redirect: "manual",
+            signal,
+          });
+          if (response.status >= 200 && response.status < 500) {
+            return { baseUrl, process: child, stop: () => stopChild(child) };
+          }
+        } catch {
+          // Startup races are expected until the loopback listener is ready.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    } catch {
-      // Startup races are expected until the loopback listener is ready.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  await stopChild(child);
-  throw new Error(
-    `Next server did not become ready within ${SERVER_TIMEOUT_MS}ms`,
+      throw new Error(
+        `Next server did not become ready within ${SERVER_TIMEOUT_MS}ms`,
+      );
+    },
+    async () => await stopChild(child),
+    "gameplay server startup",
   );
 }
 
@@ -214,6 +328,10 @@ function transcriptLine(snapshot: GameplayAutomationSnapshot): string {
     simulationMs: snapshot.simulationMs,
     player: snapshot.player,
     camera: snapshot.camera,
+    layers: snapshot.layers.filter((layer) => layer.kind === "near-foreground"),
+    platforms: snapshot.platforms,
+    platformRoutes: snapshot.platformRoutes,
+    ladders: snapshot.ladders,
     mobs: snapshot.mobs,
     inventory: snapshot.inventory,
     worldItems: snapshot.worldItems,
@@ -279,16 +397,411 @@ function assertSnapshotContract(snapshot: GameplayAutomationSnapshot): void {
       `unexpected gameplay probe version: ${String(snapshot.version)}`,
     );
   }
+  if (snapshot.errors.length > 0) {
+    const detail = sanitizedToolDiagnostic(
+      snapshot.errors.slice(0, 3).join("\n"),
+    );
+    throw new Error(
+      `gameplay probe reported ${snapshot.errors.length} error(s)` +
+        (detail ? `: ${detail}` : ""),
+    );
+  }
   if (!snapshot.ready || snapshot.state !== "ready") {
     throw new Error(`gameplay probe is not ready (${snapshot.state})`);
   }
-  if (snapshot.errors.length > 0) {
-    throw new Error(
-      `gameplay probe reported ${snapshot.errors.length} error(s)`,
-    );
-  }
   if (!snapshot.heightmapDigest?.match(/^[0-9a-f]{64}$/)) {
     throw new Error("gameplay probe has no stable heightmap digest");
+  }
+  if (
+    snapshot.platforms.length !== 4 ||
+    JSON.stringify(snapshot.platforms.map(({ visible: _visible, ...platform }) => platform)) !==
+      JSON.stringify([
+        {
+          id: "tier-1-launch",
+          left: 1280,
+          right: 1664,
+          deckY: 528,
+          tier: 1,
+          thickness: 32,
+        },
+        {
+          id: "tier-2-transfer",
+          left: 1728,
+          right: 2112,
+          deckY: 464,
+          tier: 2,
+          thickness: 32,
+        },
+        {
+          id: "tier-3-bridge",
+          left: 2176,
+          right: 2560,
+          deckY: 400,
+          tier: 3,
+          thickness: 32,
+        },
+        {
+          id: "tier-4-summit",
+          left: 2624,
+          right: 3008,
+          deckY: 336,
+          tier: 4,
+          thickness: 32,
+        },
+      ])
+  ) {
+    throw new Error("gameplay platform probe violates the approved geometry");
+  }
+  if (
+    JSON.stringify(snapshot.platformRoutes) !==
+    JSON.stringify([
+      { id: "jump-1", from: "terrain", to: "tier-1-launch", mode: "jump", rise: 64, gap: 0, landingStep: 15, horizontalRange: 270, ladderId: null },
+      { id: "jump-2", from: "tier-1-launch", to: "tier-2-transfer", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+      { id: "jump-3", from: "tier-2-transfer", to: "tier-3-bridge", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+      { id: "jump-4", from: "tier-3-bridge", to: "tier-4-summit", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+      { id: "drop-1", from: "tier-1-launch", to: "terrain", mode: "drop", rise: -64, gap: 0, landingStep: 9, horizontalRange: null, ladderId: null },
+      { id: "drop-2", from: "tier-2-transfer", to: "terrain", mode: "drop", rise: -192, gap: 0, landingStep: 15, horizontalRange: null, ladderId: null },
+      { id: "drop-3", from: "tier-3-bridge", to: "terrain", mode: "drop", rise: -256, gap: 0, landingStep: 18, horizontalRange: null, ladderId: null },
+      { id: "drop-4", from: "tier-4-summit", to: "terrain", mode: "drop", rise: -320, gap: 0, landingStep: 20, horizontalRange: null, ladderId: null },
+      { id: "ladder-up", from: "terrain", to: "tier-4-summit", mode: "ladder", rise: 256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+      { id: "ladder-down", from: "tier-4-summit", to: "terrain", mode: "ladder", rise: -256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+    ])
+  ) {
+    throw new Error("gameplay platform route probes violate the approved graph");
+  }
+  if (
+    snapshot.ladders.length !== 1 ||
+    JSON.stringify(snapshot.ladders.map(({ visible: _visible, ...ladder }) => ladder)) !==
+      JSON.stringify([
+        {
+          id: "ladder-summit",
+          platformId: "tier-4-summit",
+          centerX: 2976,
+          top: 304,
+          bottom: 624,
+          activationHalfWidth: 30,
+          visualTopOvershoot: 32,
+          visualBottomOvershoot: 32,
+        },
+      ])
+  ) {
+    throw new Error("gameplay ladder probes violate the approved geometry");
+  }
+  if (snapshot.player) assertPlayerSupportInvariant(snapshot.frame, snapshot.player);
+  assertGameplayForegroundProbe(
+    snapshot.frame,
+    snapshot.layers,
+    snapshot.presentation,
+    snapshot.camera,
+  );
+}
+
+function assertPlayerSupportInvariant(
+  frame: number,
+  player: NonNullable<GameplayAutomationSnapshot["player"]>,
+): void {
+  for (const value of [player.x, player.y, player.vx, player.vy]) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`player contains a nonfinite value at frame ${frame}`);
+    }
+  }
+  for (const value of Object.values(player.renderBounds)) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`player render bounds are nonfinite at frame ${frame}`);
+    }
+  }
+  if (
+    player.renderBounds.left >= player.renderBounds.right ||
+    player.renderBounds.top >= player.renderBounds.bottom ||
+    player.x < player.renderBounds.left ||
+    player.x > player.renderBounds.right ||
+    !approximately(player.renderBounds.bottom, player.y)
+  ) {
+    throw new Error(`player render bounds are inconsistent at frame ${frame}`);
+  }
+  if (player.airborne !== (player.support === "air")) {
+    throw new Error(`player airborne/support invariant failed at frame ${frame}`);
+  }
+  if (
+    (player.support === "ladder") !== (player.ladderId !== null) ||
+    (player.support === "platform") !== (player.platformId !== null) ||
+    (player.support === "ladder" && player.supportId !== player.ladderId) ||
+    (player.support === "platform" && player.supportId !== player.platformId) ||
+    ((player.support === "terrain" || player.support === "air") &&
+      player.supportId !== null)
+  ) {
+    throw new Error(`player support ids are inconsistent at frame ${frame}`);
+  }
+  if (
+    player.dropThroughPlatformId !== null &&
+    player.support !== "air"
+  ) {
+    throw new Error(`player drop-through state is sticky at frame ${frame}`);
+  }
+  const dropPhase = player.dropTraversalPhase;
+  const hasDropOrigin =
+    player.dropTraversalPlatformId !== null &&
+    Number.isFinite(player.dropTraversalPlatformBottomY);
+  if (
+    (dropPhase === null) !== !hasDropOrigin ||
+    !Number.isSafeInteger(player.dropTraversalStableFrames) ||
+    player.dropTraversalStableFrames < 0 ||
+    player.dropTraversalStableFrames > PLATFORM_DROP_SETTLE_FRAMES ||
+    (dropPhase === null &&
+      (player.dropTraversalLowerSupport !== null ||
+        player.dropTraversalLowerSupportId !== null ||
+        player.dropTraversalLowerSupportY !== null ||
+        player.dropTraversalStableFrames !== 0)) ||
+    ((dropPhase === "drop-commanded" || dropPhase === "underside-cleared") &&
+      (player.dropTraversalLowerSupport !== null ||
+        player.dropTraversalLowerSupportId !== null ||
+        player.dropTraversalLowerSupportY !== null)) ||
+    (dropPhase !== null &&
+      dropPhase !== "drop-commanded" &&
+      dropPhase !== "underside-cleared" &&
+      (player.dropTraversalLowerSupport === null ||
+        !Number.isFinite(player.dropTraversalLowerSupportY)))
+  ) {
+    throw new Error(`player drop traversal probe is inconsistent at frame ${frame}`);
+  }
+  const climbing = player.support === "ladder";
+  if (
+    climbing !== (player.state === "climb") ||
+    climbing !== (player.climbAnimationKey === "player_climb") ||
+    climbing !== (player.climbTextureKey === "character_climb") ||
+    climbing !== player.rearFacing ||
+    (climbing &&
+      (!Number.isSafeInteger(player.climbFrame) ||
+        player.climbFrame! < 0 ||
+        player.climbFrame! > 3 ||
+        typeof player.climbAnimationPaused !== "boolean")) ||
+    (!climbing &&
+      (player.climbFrame !== null || player.climbAnimationPaused !== null))
+  ) {
+    throw new Error(`player climb presentation is inconsistent at frame ${frame}`);
+  }
+}
+
+function approximately(left: number, right: number, tolerance = 1e-6): boolean {
+  return (
+    Number.isFinite(left) &&
+    Number.isFinite(right) &&
+    Math.abs(left - right) <= tolerance
+  );
+}
+
+function positiveModulo(value: number, period: number): number {
+  return ((value % period) + period) % period;
+}
+
+function signedCircularDelta(
+  from: number,
+  to: number,
+  period: number,
+): number {
+  return positiveModulo(to - from + period / 2, period) - period / 2;
+}
+
+function assertGameplayForegroundProbe(
+  frame: number,
+  layers: GameplayAutomationSnapshot["layers"],
+  presentation: GameplayAutomationSnapshot["presentation"],
+  camera: GameplayAutomationSnapshot["camera"],
+): void {
+  const foregrounds = layers.filter(
+    (layer) => layer.kind === "near-foreground",
+  );
+  if (foregrounds.length !== 1) {
+    throw new Error(
+      `frame ${frame} requires exactly one foreground layer probe`,
+    );
+  }
+  const layer = foregrounds[0]!;
+  const foreground = layer.foreground;
+  if (!foreground) {
+    throw new Error(`frame ${frame} foreground layer has no measured probe`);
+  }
+  const tolerance = 0.5 / foreground.devicePixelRatio + 1e-6;
+  const exactClip =
+    foreground.clipBounds.left === 0 &&
+    foreground.clipBounds.top === 0 &&
+    foreground.clipBounds.right === GAMEPLAY_AUTOMATION_VIEWPORT.width &&
+    foreground.clipBounds.bottom === GAMEPLAY_AUTOMATION_VIEWPORT.height;
+  const display = layer.render.displayBounds;
+  const actualPhaseDevicePixels =
+    layer.render.tilePositionX *
+    foreground.sourceScaleScreenX *
+    foreground.devicePixelRatio;
+  const liveSourceScaleScreenX =
+    layer.render.tileScaleX * layer.render.scaleX * camera.zoom;
+  const liveSourceScaleScreenY =
+    layer.render.tileScaleY * layer.render.scaleY * camera.zoom;
+  const periodScreenPx =
+    foreground.repeatPeriodSourcePx * liveSourceScaleScreenX;
+  const projectedCameraTravelScreenPx =
+    camera.scrollX * camera.zoom * NEAR_FOREGROUND_DEPTH_COEFFICIENT;
+  const rawExpectedPhaseScreenPx = positiveModulo(
+    projectedCameraTravelScreenPx,
+    periodScreenPx,
+  );
+  const snappedExpectedPhaseScreenPx =
+    Math.round(rawExpectedPhaseScreenPx * foreground.devicePixelRatio) /
+    foreground.devicePixelRatio;
+  const expectedPhaseScreenPx =
+    snappedExpectedPhaseScreenPx >= periodScreenPx
+      ? 0
+      : snappedExpectedPhaseScreenPx;
+  const actualPhaseScreenPx =
+    layer.render.tilePositionX * liveSourceScaleScreenX;
+  if (
+    layer.anchor !== "screen-ground-left" ||
+    layer.baseline !== "screen-ground" ||
+    layer.repeat !== "repeat-x-overlap-add" ||
+    layer.cull !== "never" ||
+    layer.renderDepth !== 1200 ||
+    layer.render.depth !== layer.renderDepth ||
+    layer.depthCoefficient !== NEAR_FOREGROUND_DEPTH_COEFFICIENT ||
+    foreground.depthCoefficient !== layer.depthCoefficient ||
+    !approximately(layer.cameraScrollX, camera.scrollX) ||
+    !approximately(layer.cameraScrollY, camera.scrollY) ||
+    layer.render.spriteCount !== 1 ||
+    layer.render.scrollFactorX !== 0 ||
+    layer.render.scrollFactorY !== 0 ||
+    foreground.spriteCount !== 1 ||
+    layer.render.visible !== presentation.foregroundVisible ||
+    !approximately(layer.cameraZoom, camera.zoom) ||
+    !approximately(display.left, layer.screenBounds.left) ||
+    !approximately(display.top, layer.screenBounds.top) ||
+    !approximately(display.right, layer.screenBounds.right) ||
+    !approximately(display.bottom, layer.screenBounds.bottom) ||
+    Math.abs(foreground.contactScreenY - 704) > tolerance ||
+    foreground.meaningfulContentScreenBounds.top < 540 - tolerance ||
+    foreground.sourceScaleScreenX > 0.75 + 1e-6 ||
+    foreground.sourceScaleScreenY > 0.75 + 1e-6 ||
+    !approximately(
+      foreground.sourceScaleScreenX,
+      foreground.sourceScaleScreenY,
+    ) ||
+    !approximately(foreground.sourceScaleScreenX, liveSourceScaleScreenX) ||
+    !approximately(foreground.sourceScaleScreenY, liveSourceScaleScreenY) ||
+    !exactClip ||
+    foreground.repeatPeriodSourcePx !== 1024 ||
+    foreground.overlapSourcePx !== 256 ||
+    layer.render.textureWidth !== foreground.repeatPeriodSourcePx ||
+    layer.render.textureHeight <= 0 ||
+    foreground.phaseSourcePx < 0 ||
+    foreground.phaseSourcePx >= foreground.repeatPeriodSourcePx ||
+    !approximately(layer.tilePositionX, foreground.phaseSourcePx) ||
+    !approximately(layer.render.tilePositionX, foreground.phaseSourcePx) ||
+    !approximately(foreground.phaseDevicePixels, actualPhaseDevicePixels) ||
+    !approximately(
+      foreground.observedPhaseScreenPx,
+      actualPhaseScreenPx,
+    ) ||
+    !approximately(
+      foreground.projectedCameraTravelScreenPx,
+      projectedCameraTravelScreenPx,
+    ) ||
+    Math.abs(
+      signedCircularDelta(
+        expectedPhaseScreenPx,
+        actualPhaseScreenPx,
+        periodScreenPx,
+      ),
+    ) > tolerance ||
+    Math.abs(
+      foreground.phaseDevicePixels - Math.round(foreground.phaseDevicePixels),
+    ) > 1e-6 ||
+    !approximately(
+      foreground.seamPeriodScreenPx,
+      foreground.repeatPeriodSourcePx * foreground.sourceScaleScreenX,
+    ) ||
+    !approximately(layer.render.scaleX * camera.zoom, 1) ||
+    !approximately(layer.render.scaleY * camera.zoom, 1)
+  ) {
+    throw new Error(`frame ${frame} foreground layer probe violates contract`);
+  }
+}
+
+function assertGameplayForegroundMotion(
+  transcript: readonly Readonly<{
+    frame: number;
+    camera: GameplayAutomationSnapshot["camera"];
+    layers: GameplayAutomationSnapshot["layers"];
+    presentation: GameplayAutomationSnapshot["presentation"];
+  }>[],
+): void {
+  let measuredPairs = 0;
+  let cumulativeObservedPhaseTravel = 0;
+  let cumulativeTerrainScreenTravel = 0;
+  let cumulativeTolerance = 0;
+  for (let index = 1; index < transcript.length; index += 1) {
+    const previous = transcript[index - 1]!;
+    const current = transcript[index]!;
+    if (
+      !previous.presentation.foregroundVisible ||
+      !current.presentation.foregroundVisible ||
+      previous.camera.zoom !== current.camera.zoom
+    ) {
+      continue;
+    }
+    const cameraDelta = current.camera.scrollX - previous.camera.scrollX;
+    if (Math.abs(cameraDelta) <= 1e-9) continue;
+    const previousForeground = previous.layers[0]?.foreground;
+    const currentForeground = current.layers[0]?.foreground;
+    if (!previousForeground || !currentForeground) continue;
+    const periodScreenPx = currentForeground.seamPeriodScreenPx;
+    if (
+      !approximately(
+        periodScreenPx,
+        previousForeground.seamPeriodScreenPx,
+      )
+    ) {
+      continue;
+    }
+    const observedPhaseTravel = signedCircularDelta(
+      previousForeground.observedPhaseScreenPx,
+      currentForeground.observedPhaseScreenPx,
+      periodScreenPx,
+    );
+    const terrainScreenTravel = cameraDelta * current.camera.zoom;
+    const expectedPhaseTravel =
+      terrainScreenTravel * NEAR_FOREGROUND_DEPTH_COEFFICIENT;
+    if (Math.abs(expectedPhaseTravel) >= periodScreenPx / 2) continue;
+    const tolerance =
+      1 / Math.min(
+        previousForeground.devicePixelRatio,
+        currentForeground.devicePixelRatio,
+      ) + 1e-6;
+    if (
+      Math.abs(observedPhaseTravel - expectedPhaseTravel) > tolerance ||
+      Math.sign(observedPhaseTravel) !== Math.sign(terrainScreenTravel) ||
+      Math.abs(observedPhaseTravel) + tolerance <=
+        Math.abs(terrainScreenTravel) * 1.75
+    ) {
+      throw new Error(
+        `foreground physical displacement violates ${NEAR_FOREGROUND_DEPTH_COEFFICIENT}x motion at frame ${current.frame}`,
+      );
+    }
+    measuredPairs += 1;
+    cumulativeObservedPhaseTravel += observedPhaseTravel;
+    cumulativeTerrainScreenTravel += terrainScreenTravel;
+    cumulativeTolerance = Math.max(cumulativeTolerance, tolerance);
+  }
+  if (measuredPairs === 0) {
+    throw new Error("gameplay transcript has no visible foreground motion pair");
+  }
+  const cumulativeExpected =
+    cumulativeTerrainScreenTravel * NEAR_FOREGROUND_DEPTH_COEFFICIENT;
+  if (
+    Math.abs(cumulativeObservedPhaseTravel - cumulativeExpected) >
+      cumulativeTolerance ||
+    Math.abs(cumulativeObservedPhaseTravel) + cumulativeTolerance <=
+      Math.abs(cumulativeTerrainScreenTravel) * 1.75
+  ) {
+    throw new Error(
+      `foreground cumulative displacement does not converge to ${NEAR_FOREGROUND_DEPTH_COEFFICIENT}x terrain`,
+    );
   }
 }
 
@@ -401,10 +914,15 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
           frame: number;
           player: GameplayAutomationSnapshot["player"];
           camera: GameplayAutomationSnapshot["camera"];
+          layers: GameplayAutomationSnapshot["layers"];
+          platforms: GameplayAutomationSnapshot["platforms"];
+          platformRoutes: GameplayAutomationSnapshot["platformRoutes"];
+          ladders: GameplayAutomationSnapshot["ladders"];
           mobs: GameplayAutomationSnapshot["mobs"];
           worldItems: GameplayAutomationSnapshot["worldItems"];
           encounter: GameplayAutomationSnapshot["encounter"];
           presentation: GameplayAutomationSnapshot["presentation"];
+          events: GameplayAutomationSnapshot["events"];
         },
     );
   if (transcript.length !== GAMEPLAY_FRAME_COUNT) {
@@ -412,6 +930,29 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
       "gameplay transcript must contain exactly 900 frame snapshots",
     );
   }
+  for (const snapshot of transcript) {
+    assertGameplayForegroundProbe(
+      snapshot.frame,
+      snapshot.layers,
+      snapshot.presentation,
+      snapshot.camera,
+    );
+    if (snapshot.player) assertPlayerSupportInvariant(snapshot.frame, snapshot.player);
+    if (
+      snapshot.platforms.length !== 4 ||
+      snapshot.platformRoutes.length !== 10 ||
+      snapshot.ladders.length !== 1
+    ) {
+      throw new Error(`vertical probes are incomplete at frame ${snapshot.frame}`);
+    }
+    if (
+      JSON.stringify(snapshot.platformRoutes) !==
+      JSON.stringify(final.platformRoutes)
+    ) {
+      throw new Error(`platform routes drifted at frame ${snapshot.frame}`);
+    }
+  }
+  assertGameplayForegroundMotion(transcript);
   const byFrame = new Map(
     transcript.map((snapshot) => [snapshot.frame, snapshot]),
   );
@@ -437,6 +978,241 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     !poster.presentation.inventorySuppressed
   ) {
     throw new Error("poster frame is not an unobscured attack frame");
+  }
+  const verticalEvents = final.events.filter(
+    (event) => event.kind === "ladder-enter" || event.kind === "ladder-exit",
+  );
+  if (verticalEvents.length !== GAMEPLAY_VERTICAL_EVENT_SEQUENCE.length) {
+    throw new Error(
+      `vertical traversal event count is incomplete: ${JSON.stringify(verticalEvents)}`,
+    );
+  }
+  for (let index = 0; index < GAMEPLAY_VERTICAL_EVENT_SEQUENCE.length; index += 1) {
+    const expected = GAMEPLAY_VERTICAL_EVENT_SEQUENCE[index]!;
+    const actual = verticalEvents[index]!;
+    const actualEndpoint =
+      actual.kind === "ladder-enter" ? actual.data?.from : actual.data?.to;
+    if (
+      actual.kind !== expected.kind ||
+      actual.data?.ladderId !== expected.ladderId ||
+      actualEndpoint !== expected.endpoint
+    ) {
+      throw new Error(`vertical traversal event ${index + 1} violates order or ids`);
+    }
+  }
+  const verticalWindows = [
+    [269, 270],
+    [314, 315],
+  ] as const;
+  verticalEvents.forEach((event, index) => {
+    const window = verticalWindows[index]!;
+    if (event.frame < window[0] || event.frame > window[1]) {
+      throw new Error(`${event.kind} frame ${event.frame} is outside traversal window`);
+    }
+  });
+  const platformEvents = final.events.filter(
+    (event) => event.kind === "platform-land" || event.kind === "platform-drop",
+  );
+  if (platformEvents.length !== GAMEPLAY_PLATFORM_EVENT_SEQUENCE.length) {
+    throw new Error(
+      `platform traversal event count is incomplete: ${JSON.stringify(platformEvents)}`,
+    );
+  }
+  const platformWindows = [
+    [144, 145],
+    [153, 154],
+    [189, 190],
+    [210, 211],
+    [230, 231],
+    [255, 256],
+  ] as const;
+  platformEvents.forEach((event, index) => {
+    const expected = GAMEPLAY_PLATFORM_EVENT_SEQUENCE[index]!;
+    const window = platformWindows[index]!;
+    if (
+      event.kind !== expected.kind ||
+      event.data?.platformId !== expected.platformId ||
+      event.frame < window[0] ||
+      event.frame > window[1]
+    ) {
+      throw new Error(`platform traversal event ${index + 1} violates graph order`);
+    }
+  });
+  const climbSnapshots = transcript.filter(
+    (snapshot) => snapshot.player?.state === "climb",
+  );
+  if (climbSnapshots.length === 0) throw new Error("timeline did not visibly climb");
+  if (!transcript.some((snapshot) => snapshot.player?.support === "platform")) {
+    throw new Error("timeline never reached platform support");
+  }
+  if (!transcript.some((snapshot) => snapshot.camera.scrollY < 0)) {
+    throw new Error("vertical camera never followed upward");
+  }
+  const dropEvents = final.events.filter((event) =>
+    GAMEPLAY_DROP_EVENT_SEQUENCE.some(
+      (expected) => expected.kind === event.kind,
+    ),
+  );
+  if (dropEvents.length !== GAMEPLAY_DROP_EVENT_SEQUENCE.length) {
+    throw new Error(
+      `readable drop traversal event count is incomplete: ${JSON.stringify(dropEvents)}`,
+    );
+  }
+  const dropWindows = [154, 162, 165, 171, 176, 190] as const;
+  dropEvents.forEach((event, index) => {
+    const expected = GAMEPLAY_DROP_EVENT_SEQUENCE[index]!;
+    if (
+      event.kind !== expected.kind ||
+      event.data?.platformId !== expected.platformId ||
+      event.frame !== dropWindows[index]
+    ) {
+      throw new Error(`drop traversal event ${index + 1} violates choreography`);
+    }
+  });
+  const [dropCommand, undersideClear, lowerLand, lowerSettle, recoveryLaunch, recoveryLand] =
+    dropEvents;
+  if (
+    dropCommand!.data?.footY !== 528 ||
+    dropCommand!.data?.platformBottomY !== 528 + UPPER_PLATFORM_THICKNESS ||
+    undersideClear!.data?.separationAxis !== "horizontal" ||
+    Number(undersideClear!.data?.playerLeft) <=
+      Number(undersideClear!.data?.platformRight) ||
+    Number(undersideClear!.data?.playerBottom) <=
+      Number(undersideClear!.data?.playerTop) ||
+    lowerLand!.data?.support !== "terrain" ||
+    lowerLand!.data?.footY !== 656 ||
+    lowerSettle!.data?.support !== "terrain" ||
+    lowerSettle!.data?.footY !== 656 ||
+    lowerSettle!.data?.stableFrames !== PLATFORM_DROP_SETTLE_FRAMES ||
+    recoveryLaunch!.data?.support !== "terrain" ||
+    recoveryLaunch!.data?.footY !== 592 ||
+    recoveryLaunch!.data?.settledFootY !== 656 ||
+    recoveryLaunch!.data?.stableFrames !== PLATFORM_DROP_SETTLE_FRAMES ||
+    recoveryLand!.data?.support !== "platform" ||
+    recoveryLand!.data?.footY !== 528
+  ) {
+    throw new Error("drop traversal event geometry or support is ambiguous");
+  }
+  if (
+    dropCommand!.frame - platformEvents[0]!.frame < 6 ||
+    dropCommand!.frame - platformEvents[0]!.frame > 10 ||
+    undersideClear!.frame <= dropCommand!.frame ||
+    lowerLand!.frame <= undersideClear!.frame ||
+    lowerSettle!.frame - lowerLand!.frame < 6 ||
+    lowerSettle!.frame - lowerLand!.frame > 10 ||
+    recoveryLaunch!.frame <= lowerSettle!.frame ||
+    recoveryLand!.frame - recoveryLaunch!.frame < 10
+  ) {
+    throw new Error("drop traversal milestones are too compressed to read");
+  }
+  const preJump = byFrame.get(130);
+  if (
+    preJump?.player?.support !== "terrain" ||
+    preJump.player.column !== 20 ||
+    preJump.player.y !== 592
+  ) {
+    throw new Error("jump route did not establish the exact grounded launch state");
+  }
+  if (
+    byFrame.get(154)?.player?.dropThroughPlatformId !== "tier-1-launch" ||
+    byFrame.get(160)?.player?.dropThroughPlatformId !== null ||
+    byFrame.get(190)?.player?.supportId !== "tier-1-launch"
+  ) {
+    throw new Error("drop-through ignore state did not clear before retry landing");
+  }
+  for (let frame = 145; frame <= 153; frame += 1) {
+    const player = byFrame.get(frame)?.player;
+    if (
+      player?.support !== "platform" ||
+      player.supportId !== "tier-1-launch" ||
+      player.y !== 528 ||
+      player.vy !== 0
+    ) {
+      throw new Error(`upper drop support did not visibly settle at frame ${frame}`);
+    }
+  }
+  for (let frame = 165; frame <= 172; frame += 1) {
+    const player = byFrame.get(frame)?.player;
+    if (
+      player?.support !== "terrain" ||
+      player.y !== 656 ||
+      player.vy !== 0 ||
+      player.renderBounds.left <= 1664
+    ) {
+      throw new Error(`lower drop support did not visibly settle at frame ${frame}`);
+    }
+  }
+  const phaseFrames = [
+    [154, "drop-commanded", "air", 529.6666666666666],
+    [162, "underside-cleared", "air", 603],
+    [165, "lower-support-landed", "terrain", 656],
+    [171, "lower-support-settled", "terrain", 656],
+    [176, "recovery-airborne", "air", 576.3333333333334],
+    [190, "recovered", "platform", 528],
+  ] as const;
+  for (const [frame, phase, support, footY] of phaseFrames) {
+    const player = byFrame.get(frame)?.player;
+    if (
+      player?.dropTraversalPhase !== phase ||
+      player.dropTraversalPlatformId !== "tier-1-launch" ||
+      player.dropTraversalPlatformBottomY !== 560 ||
+      player.support !== support ||
+      !approximately(player.y, footY)
+    ) {
+      throw new Error(`drop traversal probe is ambiguous at frame ${frame}`);
+    }
+  }
+  const clearPlayer = byFrame.get(162)!.player!;
+  const clearPlatform = final.platforms.find(
+    (platform) => platform.id === "tier-1-launch",
+  )!;
+  if (
+    clearPlayer.renderBounds.left <= clearPlatform.right ||
+    clearPlayer.renderBounds.bottom <= clearPlayer.renderBounds.top ||
+    byFrame.get(162)!.player!.x <= byFrame.get(161)!.player!.x ||
+    (byFrame.get(176)?.player?.vy ?? 0) >= 0 ||
+    byFrame.get(175)?.player?.support !== "terrain" ||
+    byFrame.get(175)?.player?.y !== 592 ||
+    byFrame.get(190)?.player?.supportId !== "tier-1-launch" ||
+    byFrame.get(196)?.player?.supportId !== "tier-1-launch" ||
+    byFrame.get(197)?.player?.support !== "air" ||
+    byFrame.get(197)?.player?.vx !== 540
+  ) {
+    throw new Error("drop recovery is clipped or not separate from the jump chain");
+  }
+  const frame231 = byFrame.get(231);
+  const frame256 = byFrame.get(256);
+  const frame315 = byFrame.get(315);
+  if (
+    frame231?.camera.scrollY !==
+      GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.tierThree ||
+    frame231.player?.support !== "platform" ||
+    frame231.player.supportId !== "tier-3-bridge"
+  ) {
+    throw new Error("jump chain does not reach the exact tier-three state");
+  }
+  if (
+    frame256?.camera.scrollY !== GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.summit ||
+    frame256.player?.support !== "platform" ||
+    frame256.player.supportId !== "tier-4-summit"
+  ) {
+    throw new Error("jump-only route does not reach the exact summit state");
+  }
+  if (
+    frame315?.camera.scrollY !== GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.recovery ||
+    frame315.player?.support !== "terrain" ||
+    frame315.player.y !== 592 ||
+    frame315.player.climbAnimationKey !== null ||
+    frame315.player.rearFacing
+  ) {
+    throw new Error("ladder descent does not reset on exact recovery terrain");
+  }
+  if (
+    byFrame.get(292)?.player?.climbAnimationPaused !== true ||
+    byFrame.get(295)?.player?.climbAnimationPaused !== false ||
+    new Set(climbSnapshots.map((snapshot) => snapshot.player?.climbFrame)).size < 2
+  ) {
+    throw new Error("climb presentation does not pause and advance deterministically");
   }
   for (let frame = 30; frame <= 76; frame += 1) {
     const snapshot = byFrame.get(frame);
@@ -528,6 +1304,16 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
   ) {
     throw new Error("entry and exit portals were not both active");
   }
+  const entryColumn = Math.floor(final.portals[0]!.x / 64);
+  const exitColumn = Math.floor(final.portals[1]!.x / 64);
+  if (
+    entryColumn !== 3 ||
+    exitColumn !== 196 ||
+    (entryColumn >= 19 && entryColumn <= 47) ||
+    (exitColumn >= 19 && exitColumn <= 47)
+  ) {
+    throw new Error("portal columns violate encounter/vertical reservations");
+  }
   if (final.camera.scrollX <= 0)
     throw new Error("camera did not traverse the stage");
   if (
@@ -542,31 +1328,61 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
   }
 }
 
-async function waitForProbe(page: Page): Promise<GameplayAutomationSnapshot> {
-  await page.waitForFunction(
-    () => {
-      const probe = window.__stageGenGameplayProbe;
-      return probe?.ready === true || probe?.state === "error";
-    },
-    undefined,
-    { timeout: PROBE_TIMEOUT_MS },
+async function waitForProbe(
+  page: Page,
+  signal?: AbortSignal,
+): Promise<GameplayAutomationSnapshot> {
+  await abortable(
+    page.waitForFunction(
+      () => {
+        const probe = window.__stageGenGameplayProbe;
+        return probe?.ready === true || probe?.state === "error";
+      },
+      undefined,
+      { timeout: PROBE_TIMEOUT_MS },
+    ),
+    signal,
+    "gameplay probe wait",
   );
-  return await page.evaluate(() => {
-    const probe = window.__stageGenGameplayProbe;
-    if (!probe) throw new Error("gameplay probe is missing");
-    return probe;
-  });
+  return await abortable(
+    page.evaluate(() => {
+      const probe = window.__stageGenGameplayProbe;
+      if (!probe) throw new Error("gameplay probe is missing");
+      return probe;
+    }),
+    signal,
+    "gameplay probe read",
+  );
 }
 
 async function runOnce(
   browser: Browser,
   baseUrl: string,
   route: string,
-  frameDirectory?: string,
+  options: Readonly<{
+    timeline: readonly GameplayFrame[];
+    selectedFrames: readonly number[];
+    frameDirectory?: string;
+    validate?: (run: GameplayRunEvidence) => void;
+    signal?: AbortSignal;
+    deviceScaleFactor?: number;
+  }>,
 ): Promise<GameplayRunEvidence> {
+  const {
+    timeline,
+    selectedFrames,
+    frameDirectory,
+    validate,
+    signal,
+    deviceScaleFactor = 1,
+  } = options;
+  if (![1, 2, 3, 4].includes(deviceScaleFactor)) {
+    throw new Error("gameplay device scale factor must be 1, 2, 3, or 4");
+  }
+  throwIfAborted(signal, "gameplay browser run");
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
-    deviceScaleFactor: 1,
+    deviceScaleFactor,
     locale: "en-US",
     timezoneId: "UTC",
     reducedMotion: "reduce",
@@ -589,20 +1405,32 @@ async function runOnce(
   });
 
   try {
-    const response = await page.goto(`${baseUrl}${route}`, {
-      waitUntil: "domcontentloaded",
-      timeout: PROBE_TIMEOUT_MS,
-    });
+    const response = await abortable(
+      page.goto(`${baseUrl}${route}`, {
+        waitUntil: "domcontentloaded",
+        timeout: PROBE_TIMEOUT_MS,
+      }),
+      signal,
+      "gameplay navigation",
+    );
     if (!response?.ok())
       throw new Error(`preview route returned HTTP ${response?.status() ?? 0}`);
-    const initial = await waitForProbe(page);
+    const initial = await waitForProbe(page, signal);
     assertSnapshotContract(initial);
     if (initial.frame !== 0 || initial.simulationMs !== 0) {
       throw new Error("gameplay probe did not start at frame zero");
     }
     const canvas = page.locator("canvas").first();
-    await canvas.waitFor({ state: "visible", timeout: PROBE_TIMEOUT_MS });
-    const bounds = await canvas.boundingBox();
+    await abortable(
+      canvas.waitFor({ state: "visible", timeout: PROBE_TIMEOUT_MS }),
+      signal,
+      "gameplay canvas wait",
+    );
+    const bounds = await abortable(
+      canvas.boundingBox(),
+      signal,
+      "gameplay canvas bounds",
+    );
     if (!bounds || bounds.width !== 1280 || bounds.height !== 720) {
       throw new Error(
         `gameplay canvas is not 1280x720 (${bounds?.width}x${bounds?.height})`,
@@ -611,19 +1439,35 @@ async function runOnce(
 
     const transcript: string[] = [];
     const states = new Set<string>();
-    const selected = new Set<number>(GAMEPLAY_SELECTED_FRAMES);
+    const selected = new Set<number>(selectedFrames);
     const selectedFrameHashes: Record<string, string> = {};
     let snapshot = initial;
-    for (const frame of GAMEPLAY_TIMELINE) {
+    for (const frame of timeline) {
+      throwIfAborted(signal, `gameplay frame ${frame.index + 1}`);
       for (const action of frame.actions) {
-        if (action.type === "down") await page.keyboard.down(action.key);
-        else await page.keyboard.up(action.key);
+        if (action.type === "down") {
+          await abortable(
+            page.keyboard.down(action.key),
+            signal,
+            `gameplay frame ${frame.index + 1}`,
+          );
+        } else {
+          await abortable(
+            page.keyboard.up(action.key),
+            signal,
+            `gameplay frame ${frame.index + 1}`,
+          );
+        }
       }
-      snapshot = await page.evaluate(async () => {
-        const advance = window.__stageGenAdvanceGameplayFrame;
-        if (!advance) throw new Error("gameplay frame hook is missing");
-        return await advance();
-      });
+      snapshot = await abortable(
+        page.evaluate(async () => {
+          const advance = window.__stageGenAdvanceGameplayFrame;
+          if (!advance) throw new Error("gameplay frame hook is missing");
+          return await advance();
+        }),
+        signal,
+        `gameplay frame ${frame.index + 1}`,
+      );
       if (snapshot.frame !== frame.index + 1) {
         throw new Error(
           `gameplay frame skipped from ${frame.index} to ${snapshot.frame}`,
@@ -633,7 +1477,11 @@ async function runOnce(
       if (snapshot.player) states.add(snapshot.player.state);
       transcript.push(transcriptLine(snapshot));
       if (selected.has(snapshot.frame) || frameDirectory) {
-        const framePng = await canvas.screenshot({ type: "png" });
+        const framePng = await abortable(
+          canvas.screenshot({ type: "png" }),
+          signal,
+          `gameplay frame ${snapshot.frame} screenshot`,
+        );
         if (selected.has(snapshot.frame)) {
           selectedFrameHashes[String(snapshot.frame)] = sha256(framePng);
         }
@@ -659,17 +1507,102 @@ async function runOnce(
       states: Object.freeze([...states].sort()),
       finalSnapshot: snapshot,
     });
-    validateGameplayRun(result);
+    if (snapshot.frame !== timeline.length) {
+      throw new Error(
+        `expected frame ${timeline.length}, got ${snapshot.frame}`,
+      );
+    }
+    if (
+      Math.abs(snapshot.simulationMs - timeline.length * GAMEPLAY_STEP_MS) >
+      1e-7
+    ) {
+      throw new Error(
+        `unexpected simulation duration: ${snapshot.simulationMs}`,
+      );
+    }
+    if (Object.keys(selectedFrameHashes).length !== selected.size) {
+      throw new Error("selected frame hash evidence is incomplete");
+    }
+    validate?.(result);
     return result;
   } finally {
     await context.close();
   }
 }
 
-type VerifiedGameplay = Readonly<{
+async function verifyForegroundDprMatrix(
+  browser: Browser,
+  baseUrl: string,
+  route: string,
+  timeline: readonly GameplayFrame[],
+  signal?: AbortSignal,
+): Promise<readonly number[]> {
+  const matrix = [1, 2, 3, 4] as const;
+  const focusedTimeline = timeline.slice(0, 315);
+  for (const deviceScaleFactor of matrix.slice(1)) {
+    await runOnce(browser, baseUrl, route, {
+      timeline: focusedTimeline,
+      selectedFrames: [],
+      deviceScaleFactor,
+      signal,
+      validate: (run) => {
+        const snapshots = run.transcript
+          .trimEnd()
+          .split("\n")
+          .map(
+            (line) =>
+              JSON.parse(line) as {
+                frame: number;
+                camera: GameplayAutomationSnapshot["camera"];
+                layers: GameplayAutomationSnapshot["layers"];
+                presentation: GameplayAutomationSnapshot["presentation"];
+              },
+          );
+        assertGameplayForegroundMotion(snapshots);
+        for (const snapshot of snapshots) {
+          const foreground = snapshot.layers[0]?.foreground;
+          if (foreground?.devicePixelRatio !== deviceScaleFactor) {
+            throw new Error(
+              `foreground DPR ${deviceScaleFactor} live readback is missing at frame ${snapshot.frame}`,
+            );
+          }
+        }
+        const byFrame = new Map(
+          snapshots.map((snapshot) => [snapshot.frame, snapshot]),
+        );
+        const visibleStart = byFrame.get(81)!;
+        const summit = byFrame.get(256)!;
+        const startForeground = visibleStart.layers[0]!.foreground!;
+        const summitForeground = summit.layers[0]!.foreground!;
+        if (
+          !visibleStart.presentation.foregroundVisible ||
+          summit.camera.scrollY >= 0 ||
+          Math.abs(startForeground.contactScreenY - 704) >
+            0.5 / deviceScaleFactor + 1e-6 ||
+          Math.abs(summitForeground.contactScreenY - 704) >
+            0.5 / deviceScaleFactor + 1e-6 ||
+          Math.abs(
+            summitForeground.projectedCameraTravelScreenPx -
+              startForeground.projectedCameraTravelScreenPx,
+          ) <= summitForeground.seamPeriodScreenPx
+        ) {
+          throw new Error(
+            `foreground DPR ${deviceScaleFactor} did not prove visible motion, vertical anchoring, and repeat re-entry`,
+          );
+        }
+      },
+    });
+  }
+  return Object.freeze([...matrix]);
+}
+
+export type GameplaySessionEvidence = Readonly<{
   fixtureDigest: string;
+  fixtureTag: string;
   first: GameplayRunEvidence;
   chromiumVersion: string;
+  duplicateVerified: boolean;
+  foregroundDprVerified: readonly number[];
 }>;
 
 function compareRuns(
@@ -692,38 +1625,102 @@ function compareRuns(
   }
 }
 
-async function withVerifiedGameplay<T>(
-  operation: (evidence: VerifiedGameplay, workspace: string) => Promise<T> | T,
-  captureFrames = false,
+export type GameplaySessionOptions = Readonly<{
+  prepareFixture: (workspace: string) => Promise<GameplayFixture>;
+  timeline: readonly GameplayFrame[];
+  selectedFrames: readonly number[];
+  captureFrames?: boolean;
+  verifyDuplicate?: boolean;
+  validateRun?: (run: GameplayRunEvidence) => void;
+  applicationRoot?: string;
+  validateApplication?: () => Promise<void>;
+  signal?: AbortSignal;
+}>;
+
+export async function withGameplaySession<T>(
+  options: GameplaySessionOptions,
+  operation: (
+    evidence: GameplaySessionEvidence,
+    workspace: string,
+  ) => Promise<T> | T,
 ): Promise<T> {
+  if (options.timeline.length === 0) {
+    throw new Error("gameplay timeline must not be empty");
+  }
+  for (let index = 0; index < options.timeline.length; index += 1) {
+    if (options.timeline[index]?.index !== index) {
+      throw new Error("gameplay timeline indices must be contiguous from zero");
+    }
+  }
+  if (
+    options.selectedFrames.length === 0 ||
+    new Set(options.selectedFrames).size !== options.selectedFrames.length ||
+    options.selectedFrames.some(
+      (frame) =>
+        !Number.isSafeInteger(frame) ||
+        frame < 1 ||
+        frame > options.timeline.length,
+    )
+  ) {
+    throw new Error("selected gameplay frames must be unique timeline frames");
+  }
+  throwIfAborted(options.signal, "gameplay session");
   const workspace = await fs.mkdtemp(
     path.join(tmpdir(), "stage-gen-gameplay-"),
   );
   let server: StartedServer | undefined;
   let browser: Browser | undefined;
   return await runWithGameplayCleanups(async () => {
-    const fixture = await generateApprovedModelGameplayFixture(
-      path.join(workspace, "out"),
+    throwIfAborted(options.signal, "gameplay fixture preparation");
+    const fixture = await options.prepareFixture(workspace);
+    throwIfAborted(options.signal, "gameplay server startup");
+    await options.validateApplication?.();
+    server = await startNextServer(
+      fixture.outRoot,
+      options.signal,
+      options.applicationRoot,
     );
-    server = await startNextServer(fixture.outRoot);
-    browser = await chromium.launch({ headless: true });
-    const frameDirectory = captureFrames
+    browser = await acquireAbortableGameplayResource(
+      chromium.launch({ headless: true, timeout: PROBE_TIMEOUT_MS }),
+      options.signal,
+      "Chromium launch",
+      async (launched) => await launched.close(),
+    );
+    const frameDirectory = options.captureFrames
       ? path.join(workspace, "frames")
       : undefined;
     if (frameDirectory) await fs.mkdir(frameDirectory, { mode: 0o700 });
-    const first = await runOnce(
+    const first = await runOnce(browser, server.baseUrl, fixture.route, {
+      timeline: options.timeline,
+      selectedFrames: options.selectedFrames,
+      frameDirectory,
+      validate: options.validateRun,
+      signal: options.signal,
+    });
+    if (options.verifyDuplicate ?? true) {
+      const second = await runOnce(browser, server.baseUrl, fixture.route, {
+        timeline: options.timeline,
+        selectedFrames: options.selectedFrames,
+        validate: options.validateRun,
+        signal: options.signal,
+      });
+      compareRuns(first, second);
+    }
+    const foregroundDprVerified = await verifyForegroundDprMatrix(
       browser,
       server.baseUrl,
       fixture.route,
-      frameDirectory,
+      options.timeline,
+      options.signal,
     );
-    const second = await runOnce(browser, server.baseUrl, fixture.route);
-    compareRuns(first, second);
     return await operation(
       Object.freeze({
         fixtureDigest: fixture.digest,
+        fixtureTag: fixture.tag,
         first,
         chromiumVersion: browser.version(),
+        duplicateVerified: options.verifyDuplicate ?? true,
+        foregroundDprVerified,
       }),
       workspace,
     );
@@ -735,6 +1732,26 @@ async function withVerifiedGameplay<T>(
       run: async () => await fs.rm(workspace, { recursive: true, force: true }),
     },
   ]);
+}
+
+type VerifiedGameplay = GameplaySessionEvidence;
+
+async function withVerifiedGameplay<T>(
+  operation: (evidence: VerifiedGameplay, workspace: string) => Promise<T> | T,
+  captureFrames = false,
+): Promise<T> {
+  return await withGameplaySession(
+    {
+      prepareFixture: async (workspace) =>
+        await generateApprovedModelGameplayFixture(path.join(workspace, "out")),
+      timeline: GAMEPLAY_TIMELINE,
+      selectedFrames: GAMEPLAY_SELECTED_FRAMES,
+      captureFrames,
+      verifyDuplicate: true,
+      validateRun: validateGameplayRun,
+    },
+    operation,
+  );
 }
 
 export type GameplayCleanupStep = Readonly<{
@@ -831,6 +1848,7 @@ export type ToolRunOptions = Readonly<{
   timeoutMs?: number;
   terminateGraceMs?: number;
   signal?: AbortSignal;
+  cwd?: string;
 }>;
 
 type ToolChild = ChildProcessByStdio<null, Readable, Readable>;
@@ -950,10 +1968,21 @@ export async function runTool(
   );
   if (options.signal?.aborted)
     throw new Error(`${name} was cancelled before launch`);
+  const workingDirectory = path.resolve(options.cwd ?? WEB_ROOT);
+  const workingDirectoryStat = await fs.lstat(workingDirectory).catch(() => {
+    throw new Error(`${name} working directory must be a real directory`);
+  });
+  if (
+    !workingDirectoryStat.isDirectory() ||
+    workingDirectoryStat.isSymbolicLink() ||
+    (await fs.realpath(workingDirectory)) !== workingDirectory
+  ) {
+    throw new Error(`${name} working directory must be a real directory`);
+  }
   let child: ToolChild;
   try {
     child = spawn(executable, [...args], {
-      cwd: WEB_ROOT,
+      cwd: workingDirectory,
       env: safeServerEnvironment(path.join(WEB_ROOT, "out")),
       detached: process.platform !== "win32",
       shell: false,
@@ -1149,8 +2178,8 @@ async function contentReference(
   };
 }
 
-async function modelAssetBundleReference(): Promise<{
-  count: 18;
+export async function modelAssetBundleReference(): Promise<{
+  count: 20;
   aggregate: { algorithm: string; lineFormat: string; sha256: string };
   assets: readonly {
     id: string;
@@ -1178,7 +2207,7 @@ async function modelAssetBundleReference(): Promise<{
     );
   }
   return Object.freeze({
-    count: 18,
+    count: 20,
     aggregate: Object.freeze({
       algorithm: "sha256-of-shasum-lines-v1",
       lineFormat:
@@ -1317,18 +2346,110 @@ async function assertReplaceable(targets: readonly string[]): Promise<void> {
 
 type CaptureInstall = Readonly<{ target: string; bytes: Buffer }>;
 
+type DirectoryComponentIdentity = Readonly<{
+  path: string;
+  dev: number;
+  ino: number;
+}>;
+
+export type CaptureDirectoryIdentity = Readonly<{
+  requestedPath: string;
+  realPath: string;
+  components: readonly DirectoryComponentIdentity[];
+}>;
+
+export async function bindCaptureDirectoryIdentity(
+  directory: string,
+): Promise<CaptureDirectoryIdentity> {
+  if (!path.isAbsolute(directory) || directory.includes("\0")) {
+    throw new Error("capture output directory must be absolute");
+  }
+  const requestedPath = path.resolve(directory);
+  const requestedStat = await fs.lstat(requestedPath).catch(() => {
+    throw new Error("capture output directory must be a real directory");
+  });
+  if (!requestedStat.isDirectory() || requestedStat.isSymbolicLink()) {
+    throw new Error("capture output directory must be a real directory");
+  }
+  const realPath = await fs.realpath(requestedPath);
+  const parsed = path.parse(realPath);
+  const components: DirectoryComponentIdentity[] = [];
+  let current = parsed.root;
+  for (const segment of realPath.slice(parsed.root.length).split(path.sep)) {
+    if (!segment) continue;
+    current = path.join(current, segment);
+    const stat = await fs.lstat(current);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+      throw new Error("capture output ancestry must not contain symlinks");
+    }
+    components.push(Object.freeze({ path: current, dev: stat.dev, ino: stat.ino }));
+  }
+  if (components.length === 0) {
+    throw new Error("capture output directory must not be a filesystem root");
+  }
+  return Object.freeze({
+    requestedPath,
+    realPath,
+    components: Object.freeze(components),
+  });
+}
+
+export async function assertCaptureDirectoryIdentity(
+  identity: CaptureDirectoryIdentity,
+): Promise<void> {
+  const requestedStat = await fs.lstat(identity.requestedPath).catch(() => {
+    throw new Error("capture output directory identity changed");
+  });
+  if (
+    !requestedStat.isDirectory() ||
+    requestedStat.isSymbolicLink() ||
+    (await fs.realpath(identity.requestedPath)) !== identity.realPath
+  ) {
+    throw new Error("capture output directory identity changed");
+  }
+  for (const component of identity.components) {
+    const stat = await fs.lstat(component.path).catch(() => {
+      throw new Error("capture output directory ancestry changed");
+    });
+    if (
+      !stat.isDirectory() ||
+      stat.isSymbolicLink() ||
+      stat.dev !== component.dev ||
+      stat.ino !== component.ino
+    ) {
+      throw new Error("capture output directory ancestry changed");
+    }
+  }
+}
+
 export type CaptureInstallOperations = Readonly<{
   rename?: (source: string, target: string) => Promise<void>;
+  backup?: (source: string, target: string) => Promise<void>;
+  signal?: AbortSignal;
+  directoryIdentity?: CaptureDirectoryIdentity;
+  beforeDirectoryCheck?: (stage: string) => Promise<void>;
+  validateBeforeCommit?: () => Promise<void>;
+  validateAfterInstall?: () => Promise<void>;
 }>;
 
 export async function installCaptureFiles(
   entries: readonly CaptureInstall[],
   operations: CaptureInstallOperations = {},
 ): Promise<void> {
+  const checkCancellation = () => {
+    if (operations.signal?.aborted) {
+      throw new Error("capture install was cancelled");
+    }
+  };
+  checkCancellation();
   if (entries.length === 0)
     throw new Error("capture install requires output files");
-  const captureRoot = path.dirname(entries[0].target);
-  if (entries.some((entry) => path.dirname(entry.target) !== captureRoot)) {
+  const captureRoot = path.dirname(path.resolve(entries[0].target));
+  if (
+    entries.some(
+      (entry) => path.dirname(path.resolve(entry.target)) !== captureRoot,
+    )
+  ) {
     throw new Error("capture install targets must share one directory");
   }
   if (
@@ -1337,10 +2458,28 @@ export async function installCaptureFiles(
   ) {
     throw new Error("capture install target basenames must be unique");
   }
+  const directoryIdentity =
+    operations.directoryIdentity ??
+    (await bindCaptureDirectoryIdentity(captureRoot));
+  if (
+    directoryIdentity.requestedPath !== path.resolve(captureRoot) ||
+    entries.some(
+      (entry) => path.dirname(path.resolve(entry.target)) !== captureRoot,
+    )
+  ) {
+    throw new Error("capture install directory identity does not match targets");
+  }
+  const assertDirectory = async (stage: string): Promise<void> => {
+    await operations.beforeDirectoryCheck?.(stage);
+    await assertCaptureDirectoryIdentity(directoryIdentity);
+  };
+  await assertDirectory("before-staging");
   await assertReplaceable(entries.map((entry) => entry.target));
+  await assertDirectory("before-transaction");
   const transactionRoot = await fs.mkdtemp(
     path.join(captureRoot, ".stage-gen-capture-install-"),
   );
+  await assertDirectory("after-transaction");
   const payloadRoot = path.join(transactionRoot, "payload");
   const backupRoot = path.join(transactionRoot, "backup");
   await Promise.all([
@@ -1352,39 +2491,68 @@ export async function installCaptureFiles(
   const rename =
     operations.rename ??
     (async (source, target) => await fs.rename(source, target));
+  const backup =
+    operations.backup ??
+    (async (source, target) => await fs.copyFile(source, target));
   let retainTransaction = false;
   try {
     for (const entry of entries) {
+      checkCancellation();
+      await assertDirectory(`before-backup:${path.basename(entry.target)}`);
       const basename = path.basename(entry.target);
       await fs.writeFile(path.join(payloadRoot, basename), entry.bytes, {
         flag: "wx",
         mode: 0o644,
       });
       try {
-        await fs.copyFile(entry.target, path.join(backupRoot, basename));
+        await backup(entry.target, path.join(backupRoot, basename));
         existingTargets.add(entry.target);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
+    checkCancellation();
+    await assertDirectory("before-final-validation");
+    await operations.validateBeforeCommit?.();
+    checkCancellation();
+    await assertDirectory("after-final-validation");
     for (const entry of entries) {
+      checkCancellation();
+      await assertDirectory(`before-rename:${path.basename(entry.target)}`);
       await rename(
         path.join(payloadRoot, path.basename(entry.target)),
         entry.target,
       );
       installedTargets.add(entry.target);
+      await assertDirectory(`after-rename:${path.basename(entry.target)}`);
     }
+    checkCancellation();
+    await assertDirectory("after-install");
+    await operations.validateAfterInstall?.();
+    checkCancellation();
+    await assertDirectory("after-installed-validation");
   } catch (error) {
     const rollbackFailures: string[] = [];
+    try {
+      await assertCaptureDirectoryIdentity(directoryIdentity);
+    } catch {
+      retainTransaction = true;
+      throw new Error(
+        "capture output directory changed; transaction retained without unsafe rollback",
+        { cause: error },
+      );
+    }
     for (const entry of [...entries].reverse()) {
       try {
+        if (!installedTargets.has(entry.target)) continue;
+        await assertCaptureDirectoryIdentity(directoryIdentity);
         if (existingTargets.has(entry.target)) {
           await fs.rm(entry.target, { force: true });
           await rename(
             path.join(backupRoot, path.basename(entry.target)),
             entry.target,
           );
-        } else if (installedTargets.has(entry.target)) {
+        } else {
           await fs.rm(entry.target, { force: true });
         }
       } catch {
@@ -1400,8 +2568,10 @@ export async function installCaptureFiles(
     }
     throw error;
   } finally {
-    if (!retainTransaction)
+    if (!retainTransaction) {
+      await assertCaptureDirectoryIdentity(directoryIdentity);
       await fs.rm(transactionRoot, { recursive: true, force: true });
+    }
   }
 }
 

@@ -12,6 +12,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from stage_gen.components.loop_synthesis import (
+    LOOP_SYNTHESIS_ALGORITHM,
+    MASKED_IMAGE_EDIT_CAPABILITY,
+    LoopAssetBinding,
+    LoopContinuityThresholds,
+    LoopLineage,
+    LoopSynthesisManifest,
+)
+from stage_gen.components.loop_synthesis.processing import (
+    VerifiedLoopArtifact,
+    verify_loop_repeat_unit,
+)
 from stage_gen.config import TransparencyMode
 from stage_gen.contracts import (
     ArtifactProvenance,
@@ -93,7 +105,9 @@ def _write_scrolling_preview_manifest(
         and name not in {manifest_path.name, f"{manifest_path.name}.meta.json"}
         and ".raw.png" not in name
     ]
-    canonical = _collect_canonical_images(run_dir, set(names), mode)
+    loop_records = _collect_loop_synthesis(run_dir, set(names))
+    loop_repeat_units = {record["repeatUnit"]["path"] for record in loop_records}
+    canonical = _collect_canonical_images(run_dir, set(names), mode, loop_repeat_units)
     music_meta = Path(f"{music_path}.meta.json")
     manifest: dict[str, Any] = {
         "schemaVersion": 2,
@@ -102,6 +116,14 @@ def _write_scrolling_preview_manifest(
         "transparencyMode": mode,
         "artifacts": artifacts,
         "canonicalArtifacts": canonical,
+        "loopSynthesis": {
+            "enabled": bool(loop_records),
+            "status": "available" if loop_records else "deferred",
+            "axis": "x",
+            "algorithm": LOOP_SYNTHESIS_ALGORITHM,
+            "requiresCapability": MASKED_IMAGE_EDIT_CAPABILITY,
+            "artifacts": loop_records,
+        },
         "music": {
             "path": music_path.name,
             "provenancePath": music_meta.name,
@@ -145,6 +167,8 @@ def _write_scrolling_preview_manifest(
             "canonical_transparency_entries": sum(
                 1 for entry in canonical if "transparency" in entry
             ),
+            "loop_synthesis_default_off": not loop_records,
+            "loop_synthesis_artifacts": len(loop_records),
         },
     )
     return ManifestWriteResult(
@@ -159,13 +183,20 @@ def _write_scrolling_preview_manifest(
 
 
 def _collect_canonical_images(
-    run_dir: Path, names: set[str], mode: TransparencyMode
+    run_dir: Path,
+    names: set[str],
+    mode: TransparencyMode,
+    excluded: set[str] | None = None,
 ) -> list[dict[str, Any]]:
+    excluded_names = excluded or set()
     results: list[dict[str, Any]] = []
     canonical_names = sorted(
         name
         for name in names
-        if name.endswith(".png") and not name.startswith(".") and not name.endswith(".raw.png")
+        if name.endswith(".png")
+        and not name.startswith(".")
+        and not name.endswith(".raw.png")
+        and name not in excluded_names
     )
     for canonical_name in canonical_names:
         provenance_name = f"{canonical_name}.meta.json"
@@ -230,6 +261,305 @@ def _collect_canonical_images(
             )
         results.append({"path": canonical_name, "provenancePath": provenance_name})
     return results
+
+
+def _collect_loop_synthesis(run_dir: Path, names: set[str]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for manifest_name in sorted(
+        name for name in names if name.endswith(".loop.json") and not name.startswith(".")
+    ):
+        manifest_meta = f"{manifest_name}.meta.json"
+        if manifest_meta not in names:
+            raise ValueError(f"loop manifest provenance is missing for {manifest_name}")
+        manifest_path = run_dir / manifest_name
+        manifest_provenance = _read_loop_provenance(run_dir / manifest_meta, manifest_name)
+        manifest_data = _verify_loop_artifact_binding(
+            manifest_path, manifest_provenance, manifest_name, "application/json"
+        )
+        try:
+            record = LoopSynthesisManifest.model_validate_json(manifest_data)
+        except ValueError:
+            raise ValueError(f"loop manifest is invalid for {manifest_name}") from None
+        repeat_name = _run_relative_path(run_dir, record.repeat_unit.path)
+        repeat_meta = _run_relative_path(run_dir, record.repeat_unit.provenance_path)
+        source_name = _run_relative_path(run_dir, record.source.path)
+        source_meta = _run_relative_path(run_dir, record.source.provenance_path)
+        if source_meta != f"{source_name}.meta.json" or repeat_meta != f"{repeat_name}.meta.json":
+            raise ValueError(f"loop provenance adjacency mismatch for {manifest_name}")
+        if any(name not in names for name in (source_name, source_meta, repeat_name, repeat_meta)):
+            raise ValueError(f"loop artifact pair is incomplete for {manifest_name}")
+        source_provenance = _read_loop_provenance(run_dir / source_meta, source_name)
+        repeat_provenance = _read_loop_provenance(run_dir / repeat_meta, repeat_name)
+        _verify_loop_rights(
+            source_provenance,
+            repeat_provenance,
+            manifest_provenance,
+            record,
+            manifest_name,
+        )
+        source_data = _verify_loop_artifact_binding(
+            run_dir / source_name, source_provenance, source_name, "image/png"
+        )
+        repeat_data = _verify_loop_artifact_binding(
+            run_dir / repeat_name, repeat_provenance, repeat_name, "image/png"
+        )
+        _verify_loop_binding(record.source, source_provenance, source_data, manifest_name)
+        _verify_loop_binding(record.repeat_unit, repeat_provenance, repeat_data, manifest_name)
+        thresholds = LoopContinuityThresholds(**record.thresholds.model_dump(mode="python"))
+        try:
+            verified = verify_loop_repeat_unit(
+                source_data,
+                repeat_data,
+                context_band_px=record.context_band_px,
+                bridge_width_px=record.bridge_width_px,
+                thresholds=thresholds,
+            )
+        except ValueError:
+            raise ValueError(f"loop media derivation is invalid for {manifest_name}") from None
+        lineage = LoopLineage(
+            source_sha256=hashlib.sha256(source_data).hexdigest(),
+            left_context_sha256=hashlib.sha256(verified.prepared.left_context_png).hexdigest(),
+            right_context_sha256=hashlib.sha256(verified.prepared.right_context_png).hexdigest(),
+            conditioning_sha256=hashlib.sha256(verified.prepared.conditioning_png).hexdigest(),
+            mask_sha256=hashlib.sha256(verified.prepared.mask_png).hexdigest(),
+            bridge_sha256=hashlib.sha256(verified.bridge_png).hexdigest(),
+            repeat_unit_sha256=hashlib.sha256(repeat_data).hexdigest(),
+        )
+        if (
+            record.lineage != lineage
+            or record.metrics != verified.metrics
+            or record.source.width != verified.prepared.width
+            or record.source.height != verified.prepared.height
+            or record.repeat_unit.width != verified.repeat_width
+            or record.repeat_unit.height != verified.prepared.height
+            or record.period_px != verified.repeat_width
+        ):
+            raise ValueError(f"loop decoded geometry or lineage mismatch for {manifest_name}")
+        _verify_repeat_provenance(
+            repeat_provenance,
+            record,
+            lineage,
+            verified,
+            source_name,
+            source_data,
+            repeat_name,
+            repeat_data,
+            manifest_name,
+        )
+        _verify_loop_manifest_provenance(
+            manifest_provenance,
+            record,
+            lineage,
+            source_name,
+            source_data,
+            repeat_name,
+            repeat_data,
+            manifest_name,
+        )
+        records.append(record.model_dump(mode="json", by_alias=True))
+    return records
+
+
+def _read_loop_provenance(path: Path, artifact_name: str) -> ArtifactProvenance:
+    try:
+        return ArtifactProvenance.model_validate_json(path.read_bytes())
+    except (OSError, ValueError):
+        raise ValueError(f"loop provenance is invalid for {artifact_name}") from None
+
+
+def _verify_loop_artifact_binding(
+    path: Path,
+    provenance: ArtifactProvenance,
+    artifact_name: str,
+    media_type: str,
+) -> bytes:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        raise ValueError(f"loop artifact is missing for {artifact_name}") from None
+    artifact = provenance.artifact
+    if (
+        artifact is None
+        or artifact.media_type != media_type
+        or artifact.sha256 != hashlib.sha256(data).hexdigest()
+        or artifact.bytes != len(data)
+    ):
+        raise ValueError(f"loop artifact binding mismatch for {artifact_name}")
+    return data
+
+
+def _verify_loop_binding(
+    binding: LoopAssetBinding,
+    provenance: ArtifactProvenance,
+    data: bytes,
+    manifest_name: str,
+) -> None:
+    artifact = provenance.artifact
+    if (
+        artifact is None
+        or binding.sha256 != hashlib.sha256(data).hexdigest()
+        or binding.bytes != len(data)
+        or binding.sha256 != artifact.sha256
+        or binding.bytes != artifact.bytes
+    ):
+        raise ValueError(f"loop artifact binding mismatch for {manifest_name}")
+
+
+def _verify_repeat_provenance(
+    provenance: ArtifactProvenance,
+    record: LoopSynthesisManifest,
+    lineage: LoopLineage,
+    verified: VerifiedLoopArtifact,
+    source_name: str,
+    source_data: bytes,
+    repeat_name: str,
+    repeat_data: bytes,
+    manifest_name: str,
+) -> None:
+    del repeat_name, repeat_data
+    lineage_json = lineage.model_dump(mode="json", by_alias=True)
+    hashes_and_data = (
+        (lineage.left_context_sha256, verified.prepared.left_context_png),
+        (lineage.right_context_sha256, verified.prepared.right_context_png),
+        (lineage.conditioning_sha256, verified.prepared.conditioning_png),
+        (lineage.mask_sha256, verified.prepared.mask_png),
+    )
+    expected_refs = [source_name, *(f"sha256:{digest}" for digest, _data in hashes_and_data)]
+    expected_inputs = [
+        (source_name, hashlib.sha256(source_data).hexdigest(), len(source_data), "image/png"),
+        *((f"sha256:{digest}", digest, len(data), "image/png") for digest, data in hashes_and_data),
+    ]
+    params = provenance.params
+    validation = provenance.validation
+    changed_pixels = validation.get("provider_band_changed_pixels")
+    maximum_band_pixels = 2 * record.context_band_px * verified.prepared.height
+    if (
+        provenance.component.name != "@stage-gen/loop-synthesis"
+        or provenance.component.version != "0.0.0"
+        or provenance.provider != record.provider
+        or provenance.model != record.model
+        or provenance.attempts != record.attempts
+        or provenance.rights is None
+        or provenance.rights.status != record.rights_status
+        or provenance.references != expected_refs
+        or not _inputs_match(provenance, expected_inputs)
+        or params.get("algorithm") != LOOP_SYNTHESIS_ALGORITHM
+        or params.get("axis") != "x"
+        or params.get("context_band_px") != record.context_band_px
+        or params.get("bridge_width_px") != record.bridge_width_px
+        or params.get("period_px") != record.period_px
+        or params.get("mask_semantics") != "white-edit-black-preserve"
+        or params.get("lineage") != lineage_json
+        or params.get("thresholds") != _loop_thresholds_json(record)
+        or validation.get("source_provenance_bound") is not True
+        or validation.get("source_dimensions")
+        != [verified.prepared.width, verified.prepared.height]
+        or validation.get("provider_dimensions")
+        != [verified.prepared.conditioning_width, verified.prepared.height]
+        or validation.get("provider_media_type") != "image/png"
+        or validation.get("immutable_bands_verified") is not True
+        or validation.get("immutable_bands_reimposed") is not True
+        or isinstance(changed_pixels, bool)
+        or not isinstance(changed_pixels, int)
+        or not 0 <= changed_pixels <= maximum_band_pixels
+        or validation.get("bridge_cropped_without_context") is not True
+        or validation.get("repeat_period_px") != verified.repeat_width
+        or validation.get("joins") != verified.metrics.model_dump(mode="json", by_alias=True)
+        or validation.get("seam_thresholds_passed") is not True
+    ):
+        raise ValueError(f"loop repeat provenance lineage mismatch for {manifest_name}")
+
+
+def _verify_loop_rights(
+    source: ArtifactProvenance,
+    repeat: ArtifactProvenance,
+    manifest: ArtifactProvenance,
+    record: LoopSynthesisManifest,
+    manifest_name: str,
+) -> None:
+    output_rights = repeat.rights
+    if (
+        output_rights is None
+        or manifest.rights != output_rights
+        or output_rights.status != record.rights_status
+        or (
+            source.rights is not None
+            and source.rights.status == "restricted"
+            and output_rights.status != "restricted"
+        )
+        or (
+            output_rights.status == "redistribution-approved"
+            and (source.rights is None or source.rights.status != "redistribution-approved")
+        )
+    ):
+        raise ValueError(f"loop rights lineage mismatch for {manifest_name}")
+
+
+def _verify_loop_manifest_provenance(
+    provenance: ArtifactProvenance,
+    record: LoopSynthesisManifest,
+    lineage: LoopLineage,
+    source_name: str,
+    source_data: bytes,
+    repeat_name: str,
+    repeat_data: bytes,
+    manifest_name: str,
+) -> None:
+    params = provenance.params
+    validation = provenance.validation
+    expected_inputs = [
+        (source_name, hashlib.sha256(source_data).hexdigest(), len(source_data), "image/png"),
+        (repeat_name, hashlib.sha256(repeat_data).hexdigest(), len(repeat_data), "image/png"),
+    ]
+    if (
+        provenance.component.name != "@stage-gen/loop-synthesis"
+        or provenance.component.version != "0.0.0"
+        or provenance.provider != "local"
+        or provenance.model != "endpoint-conditioned-loop-manifest-v1"
+        or provenance.attempts != 1
+        or provenance.rights is None
+        or provenance.rights.status != record.rights_status
+        or provenance.references != [source_name, repeat_name]
+        or not _inputs_match(provenance, expected_inputs)
+        or params.get("algorithm") != LOOP_SYNTHESIS_ALGORITHM
+        or params.get("period_px") != record.period_px
+        or params.get("provider_attempts") != record.attempts
+        or params.get("lineage") != lineage.model_dump(mode="json", by_alias=True)
+        or validation
+        != {
+            "schema_version": 1,
+            "typed_contract": True,
+            "repeat_unit_binding": True,
+            "lineage_binding": True,
+        }
+    ):
+        raise ValueError(f"loop manifest provenance lineage mismatch for {manifest_name}")
+
+
+def _inputs_match(
+    provenance: ArtifactProvenance,
+    expected: list[tuple[str, str, int, str]],
+) -> bool:
+    actual = [
+        (item.ref, item.sha256, item.bytes, item.media_type, item.source)
+        for item in provenance.inputs
+    ]
+    return actual == [(*item, "content") for item in expected]
+
+
+def _loop_thresholds_json(record: LoopSynthesisManifest) -> dict[str, float]:
+    values = record.thresholds
+    return {
+        "pixel_mae": values.pixel_mae,
+        "pixel_p95": values.pixel_p95,
+        "pixel_max": values.pixel_max,
+        "gradient_mae": values.gradient_mae,
+        "gradient_p95": values.gradient_p95,
+        "gradient_max": values.gradient_max,
+        "perceptual_delta_e": values.perceptual_delta_e,
+        "perceptual_delta_e_p95": values.perceptual_delta_e_p95,
+        "perceptual_delta_e_max": values.perceptual_delta_e_max,
+    }
 
 
 def _read_sidecar(path: Path, artifact_name: str) -> dict[str, Any]:

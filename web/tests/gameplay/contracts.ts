@@ -6,6 +6,7 @@ const GAMEPLAY_RUNTIME_ASSET_KEYS = Object.freeze([
   "layer_ridges",
   "layer_foreground",
   "tileset",
+  "ladder",
   "items",
   "mob_0_idle",
   "mob_0_hurt",
@@ -15,6 +16,7 @@ const GAMEPLAY_RUNTIME_ASSET_KEYS = Object.freeze([
   "character_walk",
   "character_run",
   "character_jump",
+  "character_climb",
   "character_crawl",
   "character_attack",
   "inventory",
@@ -22,11 +24,15 @@ const GAMEPLAY_RUNTIME_ASSET_KEYS = Object.freeze([
   "concept",
 ]);
 
-export function gameplayRequiredAssetKeys(worldName: string): readonly string[] {
+export function gameplayRequiredAssetKeys(
+  worldName: string,
+): readonly string[] {
   if (!worldName || worldName !== worldName.trim()) {
     throw new Error("gameplay world name must be stable nonempty text");
   }
-  return Object.freeze([`spec:${worldName}`, ...GAMEPLAY_RUNTIME_ASSET_KEYS].sort());
+  return Object.freeze(
+    [`spec:${worldName}`, ...GAMEPLAY_RUNTIME_ASSET_KEYS].sort(),
+  );
 }
 
 export type GameplayFixture = Readonly<{

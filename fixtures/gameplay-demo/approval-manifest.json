@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "sourceManifest": {
     "path": "asset-manifest.json",
-    "sha256": "edf1b2913afeae906275588e745023ead6797ca7ed7839a72c0789243fd7b8ca",
-    "bytes": 78630
+    "sha256": "4efcd5785f140d5161f29ef863bb679e3f5ea33fe39a5bb1ef076797923506a8",
+    "bytes": 91663
   },
   "setReview": {
     "status": "approved",
@@ -131,6 +131,83 @@
         "status": "redistribution-approved",
         "basis": [
           "att-e992a1f61d641581246e6d3991bf3009",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "ladder",
+      "path": "ladder.png",
+      "sha256": "a89b1d865b651806b1457ab1fc37da4d0a54ff28daf5566ec4011483c732faa6",
+      "bytes": 172703,
+      "dimensions": {
+        "width": 256,
+        "height": 1024
+      },
+      "alphaExpectation": "transparent",
+      "styleReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "artDirection": "Moonlit Overgrown Ruins",
+        "cohesiveWithApprovedSet": true,
+        "referenceAssetIds": [
+          "tileset",
+          "concept"
+        ]
+      },
+      "runtimeScaleReview": {
+        "status": "approved",
+        "result": "pass",
+        "source": {
+          "width": 256,
+          "height": 1024
+        },
+        "display": {
+          "width": 80,
+          "height": 320
+        },
+        "uniformScale": 0.3125
+      },
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-17T10:06:01.000Z",
+        "attestationId": "att-a4aea48b569cd5d29d322ac870517750",
+        "attestedAt": "2026-08-17T10:06:01.000Z",
+        "report": {
+          "recordId": "stage-gen-ladder-visual-review",
+          "sha256": "a4aea48b569cd5d29d322ac8705177506c1910b6a9bceed4220ab9f8bf0397b8",
+          "bytes": 282
+        }
+      },
+      "provenance": {
+        "producerManifest": {
+          "path": "asset-manifest.json",
+          "sha256": "09bf7554d377e7ef70b1dabc66dd45233239bf32b8ea9d2ecc5a78265d6bb65f",
+          "bytes": 85782
+        },
+        "producerAssetId": "ladder",
+        "generationRecord": {
+          "path": "fixtures/gameplay-demo/sources/ladder/generation.json",
+          "sha256": "4fc2155a0eda619230b30e7c355d0c6e4b853c54945a0585b13969dfdf717eb3",
+          "bytes": 6456
+        },
+        "backgroundRemovalProvenanceSha256": "777bbb50b43b54f79dfe886a084463bcb32ff4313db16f84ce4fa730669fea0b"
+      },
+      "cohesiveSet": {
+        "member": true,
+        "setAttestationId": "att-a09317bf41eb6d89ad49b3772d6b5997",
+        "extensionAttestationId": "att-a4aea48b569cd5d29d322ac870517750"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-a4aea48b569cd5d29d322ac870517750",
           "att-a09317bf41eb6d89ad49b3772d6b5997",
           "user-authorized-gameplay-demo-publication-2026-08-16"
         ]
@@ -443,6 +520,97 @@
         "status": "redistribution-approved",
         "basis": [
           "att-e2d35a7ae5bc94028f2421c34518d9cc",
+          "att-a09317bf41eb6d89ad49b3772d6b5997",
+          "user-authorized-gameplay-demo-publication-2026-08-16"
+        ]
+      }
+    },
+    {
+      "id": "character-climb",
+      "path": "character-climb.png",
+      "sha256": "782fcda99a7296ab746c21d05014214503d4af280541b1f115031cf4d70dc56e",
+      "bytes": 39677,
+      "dimensions": {
+        "width": 256,
+        "height": 128
+      },
+      "layout": {
+        "rows": 1,
+        "columns": 4,
+        "cellWidth": 64,
+        "cellHeight": 128,
+        "transparentGutterPixelsPerCellEdge": 2
+      },
+      "alphaExpectation": "transparent",
+      "styleReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "artDirection": "Moonlit Overgrown Ruins",
+        "cohesiveWithApprovedSet": true,
+        "referenceAssetIds": [
+          "character-concept",
+          "character-idle",
+          "character-jump",
+          "ladder"
+        ]
+      },
+      "runtimeOutput": {
+        "slot": "character_<tag>-fromcombined_climb.png",
+        "textureKey": "character_climb",
+        "frame": {
+          "width": 64,
+          "height": 128,
+          "count": 4
+        }
+      },
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "codex-independent-visual-verifier",
+        "authorityBasis": "Independent specification and final-output review without access to generation prompts.",
+        "reviewedAt": "2026-08-17T13:40:43.000Z",
+        "attestationId": "att-b0e492daa55778ac99ae5b8ef5fec114",
+        "attestedAt": "2026-08-17T13:40:43.000Z",
+        "report": {
+          "recordId": "stage-gen-character-climb-visual-review",
+          "path": "fixtures/gameplay-demo/sources/character-climb/visual-review.md",
+          "sha256": "b0e492daa55778ac99ae5b8ef5fec114455bf74e0240bb5b4f9557eacbab7c05",
+          "bytes": 752
+        }
+      },
+      "provenance": {
+        "producerManifest": {
+          "path": "asset-manifest.json",
+          "sha256": "4efcd5785f140d5161f29ef863bb679e3f5ea33fe39a5bb1ef076797923506a8",
+          "bytes": 91663
+        },
+        "producerAssetId": "character-climb",
+        "generationRecord": {
+          "path": "fixtures/gameplay-demo/sources/character-climb/generation.json",
+          "sha256": "59504ed6731c851d3a3d87e91eaff139f1c7ecf7e4dee22cee1e2cf3f9d7b9bc",
+          "bytes": 14947,
+          "attempts": 5,
+          "selectedAttempt": 2
+        },
+        "localExtractionRecord": {
+          "path": "fixtures/gameplay-demo/sources/character-climb/character-climb-local-extracted.png.meta.json",
+          "sha256": "c7887efbf5cea15679137c8e70a73665c273376fc7781dc1507fcfe41da0018a",
+          "bytes": 1840,
+          "outputSha256": "4e23bc7690662429c2d52c88d90020c3dd5176f0e18b047d88a59d60a3040df5",
+          "externalUploadPerformed": false
+        }
+      },
+      "cohesiveSet": {
+        "member": true,
+        "setAttestationId": "att-a09317bf41eb6d89ad49b3772d6b5997",
+        "extensionAttestationId": "att-b0e492daa55778ac99ae5b8ef5fec114"
+      },
+      "rights": {
+        "status": "redistribution-approved",
+        "basis": [
+          "att-b0e492daa55778ac99ae5b8ef5fec114",
           "att-a09317bf41eb6d89ad49b3772d6b5997",
           "user-authorized-gameplay-demo-publication-2026-08-16"
         ]

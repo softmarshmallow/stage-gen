@@ -12,9 +12,13 @@ import {
 } from "../../lib/runtime/automation";
 import { GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS } from "./model-assets";
 import {
+  GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS,
+  acquireAbortableGameplayResource,
   installCaptureFiles,
+  modelAssetBundleReference,
   resolveGameplayCapturePath,
   projectGameplayBoundsToViewport,
+  runOwnedGameplayStartup,
   runTool,
   runWithGameplayCleanups,
   validateFastStartMp4,
@@ -24,8 +28,140 @@ import {
   type GameplayRunEvidence,
 } from "./harness";
 import { GAMEPLAY_POSTER_FRAME, GAMEPLAY_SELECTED_FRAMES } from "./timeline";
+import {
+  NEAR_FOREGROUND_DEPTH_COEFFICIENT,
+  layoutSceneLayer,
+  resolveSceneLayerStack,
+  sceneLayerProbe,
+  type SceneLayerProbe,
+} from "../../lib/runtime/layers";
 
 const temporaryRoots: string[] = [];
+
+const FOREGROUND_CONTEXT = Object.freeze({
+  viewportWidth: 1280,
+  viewportHeight: 720,
+  worldWidth: 12_800,
+  groundBaselineY: 720,
+  foregroundContactScreenY: 704,
+  foregroundSafeBandTopY: 540,
+  foregroundMaxScale: 0.75,
+});
+const FOREGROUND_ASSET = Object.freeze({
+  width: 1024,
+  height: 711,
+  foreground: Object.freeze({
+    sourceWidth: 1280,
+    sourceHeight: 720,
+    contentBounds: Object.freeze({ left: 0, top: 0, right: 1024, bottom: 711 }),
+    meaningfulContentBounds: Object.freeze({
+      left: 0,
+      top: 425,
+      right: 1024,
+      bottom: 654,
+    }),
+    contactStrip: Object.freeze({ top: 609, bottom: 654 }),
+    contactSourceY: 653,
+    repeatPeriod: 1024,
+    overlap: 256,
+  }),
+});
+const FOREGROUND_CONTRACT = resolveSceneLayerStack(
+  [
+    { id: "sky", z_index: 0, parallax: 0, opaque: true },
+    {
+      id: "foreground",
+      z_index: 20,
+      parallax: NEAR_FOREGROUND_DEPTH_COEFFICIENT,
+      opaque: false,
+    },
+  ],
+  FOREGROUND_CONTEXT,
+).find((layer) => layer.kind === "near-foreground")!;
+
+function validForegroundLayer(
+  camera: GameplayAutomationSnapshot["camera"],
+  visible: boolean,
+): SceneLayerProbe {
+  const layout = layoutSceneLayer(
+    FOREGROUND_CONTRACT,
+    camera,
+    FOREGROUND_CONTEXT,
+    FOREGROUND_ASSET,
+    1,
+  );
+  return sceneLayerProbe(FOREGROUND_CONTRACT, layout, camera, {
+    x: layout.x,
+    y: layout.y,
+    scaleX: layout.scale,
+    scaleY: layout.scale,
+    displayWidth: layout.renderWidth * layout.scale,
+    displayHeight: layout.renderHeight * layout.scale,
+    originX: 0,
+    originY: 0,
+    scrollFactorX: 0,
+    scrollFactorY: 0,
+    tilePositionX: layout.tilePositionX,
+    tilePositionY: 0,
+    tileScaleX: layout.textureScale,
+    tileScaleY: layout.textureScale,
+    visible,
+    depth: FOREGROUND_CONTRACT.renderDepth,
+    spriteCount: 1,
+    textureWidth: layout.textureWidth,
+    textureHeight: layout.textureHeight,
+    clipBounds: { left: 0, top: 0, right: 1280, bottom: 720 },
+  });
+}
+
+type MutableBounds = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+type MutableVerticalBounds = { top: number; bottom: number };
+
+type MutableTranscriptForegroundLayer = {
+  renderDepth: number;
+  depthCoefficient: number;
+  cameraScrollX: number;
+  cameraScrollY: number;
+  screenBounds: MutableBounds;
+  tilePositionX: number;
+  render: {
+    spriteCount: number;
+    depth: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    tilePositionX: number;
+    tileScaleX: number;
+    tileScaleY: number;
+    scrollFactorX: number;
+    scrollFactorY: number;
+    displayBounds: MutableBounds;
+  };
+  foreground: {
+    spriteCount: number;
+    contentScreenBounds: MutableBounds;
+    meaningfulContentScreenBounds: MutableBounds;
+    contactStripScreen: MutableVerticalBounds;
+    contactScreenY: number;
+    depthCoefficient: number;
+    projectedCameraTravelScreenPx: number;
+    phaseSourcePx: number;
+    observedPhaseScreenPx: number;
+    phaseDevicePixels: number;
+    sourceScaleScreenX: number;
+    sourceScaleScreenY: number;
+    devicePixelRatio: number;
+    repeatPeriodSourcePx: number;
+    seamPeriodScreenPx: number;
+    seamScreenX: number;
+  };
+};
 
 afterEach(async () => {
   await Promise.all(
@@ -102,9 +238,9 @@ function validRun(): GameplayRunEvidence {
     "mob-drop": 49,
     "item-pickup": 67,
     "inventory-toggle": 480,
-    "stage-advance": 892,
+    "stage-advance": 869,
   };
-  const events: GameplayAutomationSnapshot["events"] = Object.entries(
+  const events: Array<GameplayAutomationSnapshot["events"][number]> = Object.entries(
     eventFrames,
   ).map(([kind, frame]) => ({
     kind,
@@ -112,6 +248,181 @@ function validRun(): GameplayRunEvidence {
     simulationMs: frame * (1000 / 30),
     data: kind === "inventory-toggle" ? { visible: false } : null,
   }));
+  events.push(
+    {
+      kind: "platform-land",
+      frame: 145,
+      simulationMs: 145 * (1000 / 30),
+      data: { platformId: "tier-1-launch" },
+    },
+    {
+      kind: "platform-drop",
+      frame: 154,
+      simulationMs: 154 * (1000 / 30),
+      data: {
+        platformId: "tier-1-launch",
+        footY: 528,
+        platformLeft: 1280,
+        platformRight: 1664,
+        platformBottomY: 560,
+      },
+    },
+    {
+      kind: "platform-underside-clear",
+      frame: 162,
+      simulationMs: 162 * (1000 / 30),
+      data: {
+        platformId: "tier-1-launch",
+        footY: 603,
+        playerLeft: 1679.4666666666667,
+        playerTop: 462.2,
+        playerRight: 1749.8666666666668,
+        playerBottom: 603,
+        platformLeft: 1280,
+        platformRight: 1664,
+        platformDeckY: 528,
+        platformBottomY: 560,
+        separationAxis: "horizontal",
+      },
+    },
+    {
+      kind: "platform-lower-land",
+      frame: 165,
+      simulationMs: 165 * (1000 / 30),
+      data: { platformId: "tier-1-launch", support: "terrain", footY: 656 },
+    },
+    {
+      kind: "platform-lower-settle",
+      frame: 171,
+      simulationMs: 171 * (1000 / 30),
+      data: {
+        platformId: "tier-1-launch",
+        support: "terrain",
+        footY: 656,
+        stableFrames: 7,
+      },
+    },
+    {
+      kind: "platform-recovery-launch",
+      frame: 176,
+      simulationMs: 176 * (1000 / 30),
+      data: {
+        platformId: "tier-1-launch",
+        support: "terrain",
+        footY: 592,
+        settledFootY: 656,
+        stableFrames: 7,
+      },
+    },
+    {
+      kind: "platform-recovery-land",
+      frame: 190,
+      simulationMs: 190 * (1000 / 30),
+      data: { platformId: "tier-1-launch", support: "platform", footY: 528 },
+    },
+    {
+      kind: "platform-land",
+      frame: 190,
+      simulationMs: 190 * (1000 / 30),
+      data: { platformId: "tier-1-launch" },
+    },
+    {
+      kind: "platform-land",
+      frame: 211,
+      simulationMs: 211 * (1000 / 30),
+      data: { platformId: "tier-2-transfer" },
+    },
+    {
+      kind: "platform-land",
+      frame: 231,
+      simulationMs: 231 * (1000 / 30),
+      data: { platformId: "tier-3-bridge" },
+    },
+    {
+      kind: "platform-land",
+      frame: 256,
+      simulationMs: 256 * (1000 / 30),
+      data: { platformId: "tier-4-summit" },
+    },
+    {
+      kind: "ladder-enter",
+      frame: 270,
+      simulationMs: 270 * (1000 / 30),
+      data: { ladderId: "ladder-summit", from: "platform", direction: "down" },
+    },
+    {
+      kind: "ladder-exit",
+      frame: 315,
+      simulationMs: 315 * (1000 / 30),
+      data: { ladderId: "ladder-summit", to: "terrain" },
+    },
+  );
+  events.sort((left, right) => left.frame - right.frame);
+  const platforms: GameplayAutomationSnapshot["platforms"] = [
+    {
+      id: "tier-1-launch",
+      left: 1280,
+      right: 1664,
+      deckY: 528,
+      tier: 1,
+      thickness: 32,
+      visible: false,
+    },
+    {
+      id: "tier-2-transfer",
+      left: 1728,
+      right: 2112,
+      deckY: 464,
+      tier: 2,
+      thickness: 32,
+      visible: false,
+    },
+    {
+      id: "tier-3-bridge",
+      left: 2176,
+      right: 2560,
+      deckY: 400,
+      tier: 3,
+      thickness: 32,
+      visible: false,
+    },
+    {
+      id: "tier-4-summit",
+      left: 2624,
+      right: 3008,
+      deckY: 336,
+      tier: 4,
+      thickness: 32,
+      visible: false,
+    },
+  ];
+  const platformRoutes: GameplayAutomationSnapshot["platformRoutes"] = [
+    { id: "jump-1", from: "terrain", to: "tier-1-launch", mode: "jump", rise: 64, gap: 0, landingStep: 15, horizontalRange: 270, ladderId: null },
+    { id: "jump-2", from: "tier-1-launch", to: "tier-2-transfer", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+    { id: "jump-3", from: "tier-2-transfer", to: "tier-3-bridge", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+    { id: "jump-4", from: "tier-3-bridge", to: "tier-4-summit", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
+    { id: "drop-1", from: "tier-1-launch", to: "terrain", mode: "drop", rise: -64, gap: 0, landingStep: 9, horizontalRange: null, ladderId: null },
+    { id: "drop-2", from: "tier-2-transfer", to: "terrain", mode: "drop", rise: -192, gap: 0, landingStep: 15, horizontalRange: null, ladderId: null },
+    { id: "drop-3", from: "tier-3-bridge", to: "terrain", mode: "drop", rise: -256, gap: 0, landingStep: 18, horizontalRange: null, ladderId: null },
+    { id: "drop-4", from: "tier-4-summit", to: "terrain", mode: "drop", rise: -320, gap: 0, landingStep: 20, horizontalRange: null, ladderId: null },
+    { id: "ladder-up", from: "terrain", to: "tier-4-summit", mode: "ladder", rise: 256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+    { id: "ladder-down", from: "tier-4-summit", to: "terrain", mode: "ladder", rise: -256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+  ];
+  const ladders: GameplayAutomationSnapshot["ladders"] = [
+    {
+      id: "ladder-summit",
+      platformId: "tier-4-summit",
+      centerX: 2976,
+      top: 304,
+      bottom: 624,
+      activationHalfWidth: 30,
+      visualTopOvershoot: 32,
+      visualBottomOvershoot: 32,
+      visible: false,
+    },
+  ];
+  const finalPresentation = gameplayAutomationPresentation(900);
+  const finalCamera = { scrollX: 11_520, scrollY: 0, zoom: 1 } as const;
   const snapshot: GameplayAutomationSnapshot = {
     version: GAMEPLAY_AUTOMATION_MODE,
     state: "ready",
@@ -130,8 +441,37 @@ function validRun(): GameplayRunEvidence {
       vy: 0,
       airborne: false,
       attackActive: false,
+      support: "terrain",
+      supportId: null,
+      ladderId: null,
+      platformId: null,
+      dropThroughPlatformId: null,
+      dropTraversalPhase: "recovered",
+      dropTraversalPlatformId: "tier-1-launch",
+      dropTraversalPlatformBottomY: 560,
+      dropTraversalLowerSupport: "terrain",
+      dropTraversalLowerSupportId: null,
+      dropTraversalLowerSupportY: 656,
+      dropTraversalStableFrames: 7,
+      renderBounds: {
+        left: 12_664.8,
+        top: 371.2,
+        right: 12_735.2,
+        bottom: 512,
+      },
+      climbAnimationKey: null,
+      climbTextureKey: null,
+      climbFrame: null,
+      climbAnimationPaused: null,
+      rearFacing: false,
     },
-    camera: { scrollX: 11_520, scrollY: 0, zoom: 1 },
+    camera: finalCamera,
+    layers: [
+      validForegroundLayer(finalCamera, finalPresentation.foregroundVisible),
+    ],
+    platforms,
+    platformRoutes,
+    ladders,
     mobs: [],
     inventory: {
       visible: false,
@@ -153,23 +493,196 @@ function validRun(): GameplayRunEvidence {
       { kind: "entry", x: 224, y: 512, w: 100, h: 200 },
       { kind: "exit", x: 12_576, y: 512, w: 100, h: 200 },
     ],
-    presentation: gameplayAutomationPresentation(900),
+    presentation: finalPresentation,
     events,
     heightmapDigest: "a".repeat(64),
   };
   const transcript = Array.from({ length: 900 }, (_, index) => {
     const frame = index + 1;
     const presentation = gameplayAutomationPresentation(frame);
+    const climbing = frame >= 270 && frame < 315;
+    const pausedClimb = frame >= 292 && frame < 295;
+    const descentSteps =
+      frame < 270
+        ? 0
+        : frame < 292
+          ? frame - 269
+          : frame < 295
+            ? 22
+            : 22 + (frame - 294);
+    const platformId =
+      (frame >= 145 && frame <= 153) || (frame >= 190 && frame <= 196)
+        ? "tier-1-launch"
+        : frame >= 211 && frame <= 216
+          ? "tier-2-transfer"
+          : frame >= 231 && frame <= 241
+            ? "tier-3-bridge"
+            : frame >= 256 && frame < 270
+              ? "tier-4-summit"
+              : null;
+    const airborne =
+      (frame >= 131 && frame < 145) ||
+      (frame >= 154 && frame < 165) ||
+      (frame >= 176 && frame < 190) ||
+      (frame >= 197 && frame < 211) ||
+      (frame >= 217 && frame < 231) ||
+      (frame >= 242 && frame < 256);
+    const support = climbing
+      ? "ladder"
+      : platformId
+        ? "platform"
+        : airborne
+          ? "air"
+          : "terrain";
+    const y = climbing
+      ? Math.min(592, 336 + descentSteps * 6)
+      : platformId === "tier-1-launch"
+        ? 528
+        : platformId === "tier-2-transfer"
+          ? 464
+          : platformId === "tier-3-bridge"
+            ? 400
+            : platformId === "tier-4-summit"
+              ? 336
+              : frame >= 154 && frame < 165
+                ? 528 + (5 / 6) * (frame - 153) * (frame - 152)
+                : frame >= 165 && frame < 175
+                  ? 656
+                  : frame === 175
+                    ? 592
+                  : frame >= 176 && frame < 190
+                    ? 592 +
+                      (-520 * (frame - 175) +
+                        25 * (frame - 175) * (frame - 174)) /
+                        30
+                    : frame === 130 || frame >= 315
+                      ? 592
+                      : snapshot.player!.y;
+    const camera = presentation.encounterFocus
+      ? { scrollX: 0, scrollY: 0, zoom: presentation.cameraZoom }
+      : {
+          ...snapshot.camera,
+          scrollX:
+            (snapshot.camera.scrollX * Math.max(0, frame - 80)) /
+            (900 - 80),
+          scrollY:
+            frame === 231
+              ? GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.tierThree
+              : frame >= 256 && frame < 315
+                ? GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.summit
+                : GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.recovery,
+          zoom: presentation.cameraZoom,
+        };
+    const ladderId = climbing ? "ladder-summit" : null;
+    const climbFrame = climbing ? Math.floor(Math.abs(592 - y) / 12) % 4 : null;
+    const x =
+      frame === 130
+        ? 1282.6666666666667
+        : frame >= 145 && frame <= 153
+          ? 1552.6666666666667
+          : frame >= 154 && frame <= 162
+            ? 1552.6666666666667 + 18 * (frame - 153)
+            : frame >= 163 && frame <= 172
+              ? 1714.6666666666667
+              : frame >= 173 && frame <= 175
+                ? 1714.6666666666667 - 18 * (frame - 172)
+                : frame >= 176 && frame <= 196
+                  ? 1660.6666666666667
+                  : frame >= 197 && frame <= 211
+                    ? 1660.6666666666667 + 18 * (frame - 196)
+                    : frame >= 212 && frame <= 216
+                      ? 1930.6666666666667 + 18 * (frame - 211)
+                      : frame >= 217 && frame <= 231
+                        ? 2020.6666666666667 + 18 * (frame - 216)
+                        : frame >= 232 && frame <= 241
+                          ? 2290.666666666667 + 18 * (frame - 231)
+                          : frame >= 242 && frame <= 256
+                            ? 2470.666666666667 + 18 * (frame - 241)
+                            : frame >= 257 && frame < 270
+                              ? 2740.666666666667 + 18 * (frame - 256)
+                              : climbing || frame === 315
+                                ? 2976
+                                : snapshot.player!.x;
+    const renderBounds = {
+      left: x - 35.2,
+      top: y - 140.8,
+      right: x + 35.2,
+      bottom: y,
+    };
     return JSON.stringify({
       frame,
       player: {
         ...snapshot.player,
-        state: frame === GAMEPLAY_POSTER_FRAME ? "attack" : "run",
-        vx: frame >= 846 && frame <= 899 ? 540 : 0,
+        state:
+          climbing
+            ? "climb"
+            : airborne
+              ? "jump"
+            : frame === GAMEPLAY_POSTER_FRAME
+              ? "attack"
+              : "run",
+        x,
+        column: Math.floor(x / 64),
+        y,
+        vx:
+          (frame >= 154 && frame <= 162) ||
+          (frame >= 197 && frame < 270) ||
+          (frame >= 846 && frame <= 899)
+            ? 540
+            : frame >= 173 && frame <= 175
+              ? -540
+              : 0,
+        vy: climbing
+          ? pausedClimb
+            ? 0
+            : 180
+          : frame >= 154 && frame < 165
+            ? 50 * (frame - 153)
+            : frame >= 176 && frame < 190
+              ? -520 + 50 * (frame - 175)
+              : airborne
+                ? 100
+                : 0,
+        airborne,
+        support,
+        supportId: ladderId ?? platformId,
+        ladderId,
+        platformId,
+        dropThroughPlatformId:
+          frame >= 154 && frame < 160 ? "tier-1-launch" : null,
+        dropTraversalPhase:
+          frame < 154
+            ? null
+            : frame < 162
+              ? "drop-commanded"
+              : frame < 165
+                ? "underside-cleared"
+                : frame < 171
+                  ? "lower-support-landed"
+                  : frame < 176
+                    ? "lower-support-settled"
+                    : frame < 190
+                      ? "recovery-airborne"
+                      : "recovered",
+        dropTraversalPlatformId: frame >= 154 ? "tier-1-launch" : null,
+        dropTraversalPlatformBottomY: frame >= 154 ? 560 : null,
+        dropTraversalLowerSupport: frame >= 165 ? "terrain" : null,
+        dropTraversalLowerSupportId: null,
+        dropTraversalLowerSupportY: frame >= 165 ? 656 : null,
+        dropTraversalStableFrames:
+          frame < 165 ? 0 : Math.min(7, frame - 164),
+        renderBounds,
+        climbAnimationKey: climbing ? "player_climb" : null,
+        climbTextureKey: climbing ? "character_climb" : null,
+        climbFrame,
+        climbAnimationPaused: climbing ? pausedClimb : null,
+        rearFacing: climbing,
       },
-      camera: presentation.encounterFocus
-        ? { scrollX: 0, scrollY: 0, zoom: presentation.cameraZoom }
-        : { ...snapshot.camera, zoom: presentation.cameraZoom },
+      camera,
+      layers: [validForegroundLayer(camera, presentation.foregroundVisible)],
+      platforms,
+      platformRoutes,
+      ladders,
       mobs: [],
       worldItems:
         frame >= eventFrames["mob-drop"] && frame < eventFrames["item-pickup"]
@@ -177,6 +690,7 @@ function validRun(): GameplayRunEvidence {
           : [],
       encounter: encounterProbe(frame),
       presentation,
+      events: events.filter((event) => event.frame <= frame),
     });
   }).join("\n");
   return {
@@ -185,14 +699,186 @@ function validRun(): GameplayRunEvidence {
     selectedFrameHashes: Object.fromEntries(
       GAMEPLAY_SELECTED_FRAMES.map((frame) => [String(frame), "c".repeat(64)]),
     ),
-    states: ["idle", "walk", "run", "jump", "crouch", "attack"],
+    states: ["idle", "walk", "run", "jump", "crouch", "attack", "climb"],
     finalSnapshot: snapshot,
   };
 }
 
 describe("gameplay harness verdict", () => {
+  test("binds the legacy capture entrypoint to the live approved 20-asset set", async () => {
+    const assetSet = await modelAssetBundleReference();
+    expect(assetSet.count).toBe(20);
+    expect(assetSet.assets).toHaveLength(20);
+    expect(new Set(assetSet.assets.map((asset) => asset.id)).size).toBe(20);
+    expect(assetSet.aggregate.sha256).toBe(
+      "24f02376a8a561333b1f89403649c954a53ffb7c7cc035c3d4495f1127cfe9b8",
+    );
+  });
+
   test("accepts the complete deterministic gameplay contract", () => {
     expect(() => validateGameplayRun(validRun())).not.toThrow();
+  });
+
+  test("rejects live foreground mutations despite unchanged deterministic hashes", () => {
+    const source = validRun();
+    const mutateAtFrame = (
+      mutate: (layer: MutableTranscriptForegroundLayer) => void,
+    ): GameplayRunEvidence => {
+      const lines = source.transcript.trimEnd().split("\n");
+      const snapshot = JSON.parse(lines[100]!) as {
+        layers: MutableTranscriptForegroundLayer[];
+      };
+      mutate(snapshot.layers[0]!);
+      lines[100] = JSON.stringify(snapshot);
+      return { ...source, transcript: `${lines.join("\n")}\n` };
+    };
+    const extraPartner = mutateAtFrame((layer) => {
+      layer.render.spriteCount = 2;
+      layer.foreground.spriteCount = 2;
+    });
+    const shiftedY = mutateAtFrame((layer) => {
+      for (const bounds of [
+        layer.screenBounds,
+        layer.render.displayBounds,
+        layer.foreground.contentScreenBounds,
+        layer.foreground.meaningfulContentScreenBounds,
+        layer.foreground.contactStripScreen,
+      ]) {
+        bounds.top += 24;
+        bounds.bottom += 24;
+      }
+      layer.render.y += 24;
+      layer.foreground.contactScreenY += 24;
+    });
+    const shiftedPhase = mutateAtFrame((layer) => {
+      const delta =
+        1 /
+        (layer.foreground.sourceScaleScreenX *
+          layer.foreground.devicePixelRatio);
+      layer.tilePositionX += delta;
+      layer.render.tilePositionX += delta;
+      layer.foreground.phaseSourcePx += delta;
+      layer.foreground.observedPhaseScreenPx +=
+        delta * layer.foreground.sourceScaleScreenX;
+      layer.foreground.phaseDevicePixels +=
+        delta *
+        layer.foreground.sourceScaleScreenX *
+        layer.foreground.devicePixelRatio;
+      layer.foreground.seamScreenX -=
+        delta * layer.foreground.sourceScaleScreenX;
+    });
+    for (const run of [extraPartner, shiftedY, shiftedPhase]) {
+      expect(run.selectedFrameHashes).toBe(source.selectedFrameHashes);
+      expect(() => validateGameplayRun(run)).toThrow(
+        "foreground layer probe violates contract",
+      );
+    }
+  });
+
+  test("rejects a fully correlated replay of the removed source-pixel phase formula", () => {
+    const source = validRun();
+    const lines = source.transcript.trimEnd().split("\n");
+    for (let index = 0; index < lines.length; index += 1) {
+      const snapshot = JSON.parse(lines[index]!) as {
+        camera: GameplayAutomationSnapshot["camera"];
+        layers: MutableTranscriptForegroundLayer[];
+      };
+      const layer = snapshot.layers[0]!;
+      const foreground = layer.foreground;
+      const raw =
+        ((snapshot.camera.scrollX * layer.depthCoefficient) %
+          foreground.repeatPeriodSourcePx +
+          foreground.repeatPeriodSourcePx) %
+        foreground.repeatPeriodSourcePx;
+      let phase =
+        Math.round(
+          raw *
+            foreground.sourceScaleScreenX *
+            foreground.devicePixelRatio,
+        ) /
+        (foreground.sourceScaleScreenX * foreground.devicePixelRatio);
+      if (phase >= foreground.repeatPeriodSourcePx) phase = 0;
+      layer.tilePositionX = phase;
+      layer.render.tilePositionX = phase;
+      foreground.phaseSourcePx = phase;
+      foreground.observedPhaseScreenPx =
+        phase * foreground.sourceScaleScreenX;
+      foreground.phaseDevicePixels =
+        foreground.observedPhaseScreenPx * foreground.devicePixelRatio;
+      foreground.seamScreenX =
+        layer.render.displayBounds.left +
+        (phase === 0 ? 0 : foreground.repeatPeriodSourcePx - phase) *
+          foreground.sourceScaleScreenX;
+      foreground.projectedCameraTravelScreenPx =
+        snapshot.camera.scrollX *
+        layer.depthCoefficient *
+        foreground.sourceScaleScreenX;
+      lines[index] = JSON.stringify(snapshot);
+    }
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${lines.join("\n")}\n`,
+      }),
+    ).toThrow("foreground layer probe violates contract");
+  });
+
+  test("separately rejects motion-depth, painter-depth, scroll-factor, and stale re-entry mutations", () => {
+    const source = validRun();
+    const mutateFrame = (
+      frame: number,
+      mutate: (layer: MutableTranscriptForegroundLayer) => void,
+    ): GameplayRunEvidence => {
+      const lines = source.transcript.trimEnd().split("\n");
+      const snapshot = JSON.parse(lines[frame - 1]!) as {
+        layers: MutableTranscriptForegroundLayer[];
+      };
+      mutate(snapshot.layers[0]!);
+      lines[frame - 1] = JSON.stringify(snapshot);
+      return { ...source, transcript: `${lines.join("\n")}\n` };
+    };
+    const wrongCoefficient = mutateFrame(101, (layer) => {
+      layer.depthCoefficient = 1.9;
+      layer.foreground.depthCoefficient = 1.9;
+    });
+    const wrongPainter = mutateFrame(101, (layer) => {
+      layer.renderDepth = 1199;
+      layer.render.depth = 1199;
+    });
+    const phaserScrollFactor = mutateFrame(101, (layer) => {
+      layer.render.scrollFactorX = 1;
+    });
+    const staleReentry = (() => {
+      const lines = source.transcript.trimEnd().split("\n");
+      const hidden = JSON.parse(lines[79]!) as {
+        layers: MutableTranscriptForegroundLayer[];
+      };
+      const visible = JSON.parse(lines[80]!) as {
+        layers: MutableTranscriptForegroundLayer[];
+      };
+      const before = hidden.layers[0]!;
+      const after = visible.layers[0]!;
+      after.tilePositionX = before.tilePositionX;
+      after.render.tilePositionX = before.render.tilePositionX;
+      after.foreground.phaseSourcePx = before.foreground.phaseSourcePx;
+      after.foreground.observedPhaseScreenPx =
+        before.foreground.observedPhaseScreenPx;
+      after.foreground.phaseDevicePixels =
+        before.foreground.phaseDevicePixels;
+      after.foreground.seamScreenX = before.foreground.seamScreenX;
+      lines[80] = JSON.stringify(visible);
+      return { ...source, transcript: `${lines.join("\n")}\n` };
+    })();
+    for (const run of [
+      wrongCoefficient,
+      wrongPainter,
+      phaserScrollFactor,
+      staleReentry,
+    ]) {
+      expect(() => validateGameplayRun(run)).toThrow(
+        "foreground layer probe violates contract",
+      );
+    }
   });
 
   test("projects encounter bounds through Phaser zoom-independent scroll", () => {
@@ -230,6 +916,204 @@ describe("gameplay harness verdict", () => {
       },
     };
     expect(() => validateGameplayRun(broken)).toThrow("exactly one mob-hit");
+  });
+
+  test("rejects missing, duplicate, and wrong-id ladder transitions", () => {
+    const source = validRun();
+    const vertical = source.finalSnapshot.events.filter((event) =>
+      event.kind.startsWith("ladder-"),
+    );
+    const missing: GameplayAutomationSnapshot = {
+      ...source.finalSnapshot,
+      events: source.finalSnapshot.events.filter(
+        (event) =>
+          !(
+            event.kind === "ladder-exit" &&
+            event.data?.ladderId === "ladder-summit"
+          ),
+      ),
+    };
+    expect(() =>
+      validateGameplayRun({ ...source, finalSnapshot: missing }),
+    ).toThrow("event count");
+
+    const duplicate: GameplayAutomationSnapshot = {
+      ...source.finalSnapshot,
+      events: [...source.finalSnapshot.events, structuredClone(vertical[0]!)].sort(
+        (left, right) => left.frame - right.frame,
+      ),
+    };
+    expect(() =>
+      validateGameplayRun({ ...source, finalSnapshot: duplicate }),
+    ).toThrow("event count");
+
+    const wrongId: GameplayAutomationSnapshot = {
+      ...source.finalSnapshot,
+      events: source.finalSnapshot.events.map((event) =>
+        event.kind === "ladder-enter" &&
+        event.data?.ladderId === "ladder-summit"
+          ? { ...event, data: { ...event.data, ladderId: "ladder-wrong" } }
+          : event,
+      ),
+    };
+    expect(() =>
+      validateGameplayRun({ ...source, finalSnapshot: wrongId }),
+    ).toThrow("order or ids");
+  });
+
+  test("rejects fake vertical probes and support/camera evidence", () => {
+    const source = validRun();
+    const fakeProbe: GameplayAutomationSnapshot = {
+      ...source.finalSnapshot,
+      platforms: source.finalSnapshot.platforms.map((platform, index) =>
+        index === 0 ? { ...platform, deckY: 337 } : platform,
+      ),
+    };
+    expect(() =>
+      validateGameplayRun({ ...source, finalSnapshot: fakeProbe }),
+    ).toThrow("platform probe");
+
+    const lines = source.transcript.trimEnd().split("\n");
+    const upper = JSON.parse(lines[255]!) as {
+      player: {
+        support: string;
+        airborne: boolean;
+        supportId: string | null;
+        platformId: string | null;
+      };
+      camera: { scrollY: number };
+      layers: MutableTranscriptForegroundLayer[];
+    };
+    upper.player.support = "air";
+    upper.player.airborne = true;
+    upper.player.supportId = null;
+    upper.player.platformId = null;
+    upper.camera.scrollY = 0;
+    upper.layers[0]!.cameraScrollY = 0;
+    lines[255] = JSON.stringify(upper);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${lines.join("\n")}\n`,
+      }),
+    ).toThrow("exact summit state");
+
+    const visualDrift: GameplayAutomationSnapshot = {
+      ...source.finalSnapshot,
+      ladders: source.finalSnapshot.ladders.map((ladder, index) =>
+        index === 0
+          ? { ...ladder, top: 312, visualTopOvershoot: 24 }
+          : ladder,
+      ),
+    };
+    expect(() =>
+      validateGameplayRun({ ...source, finalSnapshot: visualDrift }),
+    ).toThrow("ladder probes");
+
+    const climbLines = source.transcript.trimEnd().split("\n");
+    const climb = JSON.parse(climbLines[270]!) as {
+      player: { rearFacing: boolean };
+    };
+    climb.player.rearFacing = false;
+    climbLines[270] = JSON.stringify(climb);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${climbLines.join("\n")}\n`,
+      }),
+    ).toThrow("climb presentation");
+
+    const dropLines = source.transcript.trimEnd().split("\n");
+    const recovered = JSON.parse(dropLines[164]!) as {
+      player: { dropThroughPlatformId: string | null };
+    };
+    recovered.player.dropThroughPlatformId = "tier-1-launch";
+    dropLines[164] = JSON.stringify(recovered);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${dropLines.join("\n")}\n`,
+      }),
+    ).toThrow("sticky");
+
+    const routeLines = source.transcript.trimEnd().split("\n");
+    const routeDrift = JSON.parse(routeLines[400]!) as {
+      platformRoutes: Array<{ horizontalRange: number | null }>;
+    };
+    routeDrift.platformRoutes[1]!.horizontalRange = 269;
+    routeLines[400] = JSON.stringify(routeDrift);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${routeLines.join("\n")}\n`,
+      }),
+    ).toThrow("routes drifted");
+  });
+
+  test("rejects compressed, clipped, or probe-free drop recovery", () => {
+    const source = validRun();
+    const retime = {
+      ...source,
+      finalSnapshot: {
+        ...source.finalSnapshot,
+        events: source.finalSnapshot.events.map((event) =>
+          event.kind === "platform-lower-settle"
+            ? {
+                ...event,
+                frame: 169,
+                simulationMs: 169 * (1000 / 30),
+              }
+            : event,
+        ),
+      },
+    };
+    expect(() => validateGameplayRun(retime)).toThrow("choreography");
+
+    const clipped = {
+      ...source,
+      finalSnapshot: {
+        ...source.finalSnapshot,
+        events: source.finalSnapshot.events.map((event) =>
+          event.kind === "platform-underside-clear"
+            ? {
+                ...event,
+                data: {
+                  ...event.data,
+                  playerLeft: 1650,
+                  playerRight: 1720,
+                },
+              }
+            : event,
+        ),
+      },
+    };
+    expect(() => validateGameplayRun(clipped)).toThrow("geometry or support");
+
+    const lines = source.transcript.trimEnd().split("\n");
+    const missingPhase = JSON.parse(lines[161]!) as {
+      player: { dropTraversalPhase: string | null };
+    };
+    missingPhase.player.dropTraversalPhase = "drop-commanded";
+    lines[161] = JSON.stringify(missingPhase);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${lines.join("\n")}\n`,
+      }),
+    ).toThrow("ambiguous at frame 162");
+
+    const lowerLines = source.transcript.trimEnd().split("\n");
+    const movingLower = JSON.parse(lowerLines[165]!) as {
+      player: { vy: number };
+    };
+    movingLower.player.vy = -60;
+    lowerLines[165] = JSON.stringify(movingLower);
+    expect(() =>
+      validateGameplayRun({
+        ...source,
+        transcript: `${lowerLines.join("\n")}\n`,
+      }),
+    ).toThrow("lower drop support did not visibly settle at frame 166");
   });
 
   test("rejects missing state, asset, frame-hash, and duration evidence", () => {
@@ -419,6 +1303,51 @@ describe("gameplay harness verdict", () => {
     expect((thrown as AggregateError).errors).toEqual([cleanupFailure]);
   });
 
+  test("reaps a startup-owned child before propagating startup cancellation", async () => {
+    const cancellation = new Error("startup cancelled");
+    let childPending = true;
+
+    await expect(
+      runOwnedGameplayStartup(
+        async () => {
+          throw cancellation;
+        },
+        async () => {
+          childPending = false;
+        },
+        "gameplay server startup",
+      ),
+    ).rejects.toBe(cancellation);
+    expect(childPending).toBe(false);
+  });
+
+  test("closes a late Chromium handle before propagating launch cancellation", async () => {
+    const controller = new AbortController();
+    let resolveBrowser!: (browser: { close: () => Promise<void> }) => void;
+    let browserPending = true;
+    const acquisition = new Promise<{ close: () => Promise<void> }>(
+      (resolve) => {
+        resolveBrowser = resolve;
+      },
+    );
+    const result = acquireAbortableGameplayResource(
+      acquisition,
+      controller.signal,
+      "Chromium launch",
+      async (browser) => await browser.close(),
+    );
+
+    controller.abort(new Error("test cancellation"));
+    resolveBrowser({
+      close: async () => {
+        browserPending = false;
+      },
+    });
+
+    await expect(result).rejects.toThrow("Chromium launch was cancelled");
+    expect(browserPending).toBe(false);
+  });
+
   test("rolls back every capture target after an injected replacement failure", async () => {
     const root = await makeTemporaryRoot();
     const targets = [
@@ -436,6 +1365,7 @@ describe("gameplay harness verdict", () => {
       ),
     );
     let payloadRenames = 0;
+    const restoredBasenames: string[] = [];
     await expect(
       installCaptureFiles(
         targets.map((target, index) => ({
@@ -448,6 +1378,8 @@ describe("gameplay harness verdict", () => {
               payloadRenames += 1;
               if (payloadRenames === 2)
                 throw new Error("injected replacement failure");
+            } else if (path.basename(path.dirname(source)) === "backup") {
+              restoredBasenames.push(path.basename(target));
             }
             await fs.rename(source, target);
           },
@@ -459,6 +1391,100 @@ describe("gameplay harness verdict", () => {
       targets.map((target) => fs.readFile(target)),
     );
     expect(restored).toEqual(previousBytes);
+    expect(restoredBasenames).toEqual(["video.mp4"]);
+    expect(
+      (await fs.readdir(root)).filter((name) =>
+        name.startsWith(".stage-gen-capture-install-"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("does not disturb originals when cancellation wins during staging", async () => {
+    const root = await makeTemporaryRoot();
+    const targets = ["video.mp4", "poster.png", "recording.json"].map((name) =>
+      path.join(root, name),
+    );
+    const previous = targets.map((_, index) =>
+      Buffer.from(`previous-${index}`),
+    );
+    await Promise.all(
+      targets.map((target, index) => fs.writeFile(target, previous[index]!)),
+    );
+    const controller = new AbortController();
+    let renameCalls = 0;
+    let backupCalls = 0;
+
+    await expect(
+      installCaptureFiles(
+        targets.map((target, index) => ({
+          target,
+          bytes: Buffer.from(`replacement-${index}`),
+        })),
+        {
+          signal: controller.signal,
+          backup: async (source, target) => {
+            backupCalls += 1;
+            await fs.copyFile(source, target);
+            if (backupCalls === 1)
+              controller.abort(new Error("staging cancelled"));
+          },
+          rename: async (source, target) => {
+            renameCalls += 1;
+            await fs.rename(source, target);
+          },
+        },
+      ),
+    ).rejects.toThrow("cancelled");
+
+    expect(renameCalls).toBe(0);
+    expect(
+      await Promise.all(targets.map((target) => fs.readFile(target))),
+    ).toEqual(previous);
+    expect(
+      (await fs.readdir(root)).filter((name) =>
+        name.startsWith(".stage-gen-capture-install-"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("does not manufacture rollback when backup staging fails", async () => {
+    const root = await makeTemporaryRoot();
+    const targets = ["video.mp4", "poster.png", "recording.json"].map((name) =>
+      path.join(root, name),
+    );
+    const previous = targets.map((_, index) =>
+      Buffer.from(`previous-${index}`),
+    );
+    await Promise.all(
+      targets.map((target, index) => fs.writeFile(target, previous[index]!)),
+    );
+    let backupCalls = 0;
+    let renameCalls = 0;
+
+    await expect(
+      installCaptureFiles(
+        targets.map((target, index) => ({
+          target,
+          bytes: Buffer.from(`replacement-${index}`),
+        })),
+        {
+          backup: async (source, target) => {
+            backupCalls += 1;
+            if (backupCalls === 2) throw new Error("injected backup failure");
+            await fs.copyFile(source, target);
+          },
+          rename: async (source, target) => {
+            renameCalls += 1;
+            await fs.rename(source, target);
+          },
+        },
+      ),
+    ).rejects.toThrow("injected backup failure");
+
+    expect(renameCalls).toBe(0);
+    expect(
+      await Promise.all(targets.map((target) => fs.readFile(target))),
+    ).toEqual(previous);
     expect(
       (await fs.readdir(root)).filter((name) =>
         name.startsWith(".stage-gen-capture-install-"),

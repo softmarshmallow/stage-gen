@@ -314,25 +314,35 @@ regions after derivation.
 There is no separate "skybox" generator — the deepest opaque layer the
 agent designs IS the skybox.
 
-### Looping — runtime crossfade, no painter cooperation
+### Looping — deferred endpoint-conditioned bridge
 
-There is no lobe-mask layout prior. A naive lobe-mask approach
-(painters expected to taper content into lobes) tends to fail in
-practice — the model often just leaves the strategy background in the lobes or
-produces visible seams. Instead, all looping work moves to the runtime:
+The model is not expected to infer a repeatable edge from prompt wording. A
+future generation stage will give it both answers explicitly: the source's
+ending context on the left and starting context on the right, with only the
+middle transition bridge editable. The accepted repeat period is the untouched
+source followed by that bridge.
 
-1. At load time, each transparent layer's L/R edges are pre-multiplied
-   by an alpha gradient that fades out toward each edge.
-2. Each layer is rendered as **two Image instances side-by-side**, the
-   second offset by `(displayWidth - overlap)` so the right edge of
-   sprite A overlaps with the left edge of sprite B.
-3. In the overlap zone both sprites are partially transparent; their
-   matched alpha gradients sum to opaque across the seam, producing a
-   smooth crossfade between source-right-edge content and
-   source-left-edge content.
+The Python core now defines this provider-neutral contract, but the recipe
+leaves it disabled until a configured adapter supports exact masked image edit:
 
-Painters get a simple instruction: paint the content edge-to-edge as
-if the canvas were a single isolated panel. The runtime does the rest.
+1. construct `[source-end context | masked bridge | source-start context]`;
+2. edit only the middle mask and reimpose both immutable context bands;
+3. crop the bridge and form `[source | bridge]`;
+4. measure mean, p95, and maximum pixel, gradient, and perceptual continuity at
+   both joins; and
+5. retry failed candidates rather than hiding a seam with blur or crossfade.
+
+See [endpoint-conditioned loop synthesis](../loop-synthesis.md) for the typed
+manifest, provenance, rights, activation, and runtime contracts. When no
+verified loop artifact exists, the browser preview may use the explicitly
+temporary legacy `repeat-x-seam-overlap` fallback for an alpha-bearing source
+layer. It tapers the source alpha across both 256-source-pixel edge bands and
+composites a second copy at a phase of `sourceWidthPx - 256`; complementary
+edge bands overlap under normal alpha blending. Opaque layers use ordinary
+`repeat-x` without a partner. This in-memory preview treatment neither changes
+the published PNG nor claims that it is a verified loop. Once a verified
+repeat unit is selected, the fallback is ineligible and the declared period is
+rendered without overlap.
 
 ### Per-layer fields (from the agent)
 
@@ -341,7 +351,7 @@ if the canvas were a single isolated panel. The runtime does the rest.
 | `id` | Lowercase snake-case slug used as filename suffix. |
 | `title` | Human-readable name. |
 | `z_index` | Integer; lower = deeper (drawn first). 0 for the opaque backdrop, ascending for layers painted on top. |
-| `parallax` | Scroll-speed multiplier. 0 for the opaque backdrop. ~0.15 far / ~0.4 mid / ~0.75 near / ~1.1 foreground. |
+| `parallax` | Browser screen-velocity ratio to the gameplay plane. 0 for the opaque backdrop; typical distant/mid layers are ~0.15/~0.4/~0.75, while the current near-foreground design uses 1.8. |
 | `opaque` | `true` for exactly ONE layer (the deepest backdrop). All others must be `false`. |
 | `paint_region` | Free-form text describing which Y/X range to paint in canvas fractions (e.g. "paint Y 3/5..5/5") and which remains exterior background. |
 | `description` | One sentence — what to paint (e.g. "silhouettes of jagged ash mountains receding into haze"). |

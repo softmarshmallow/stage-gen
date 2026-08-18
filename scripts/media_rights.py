@@ -659,6 +659,15 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             "sidecarSha256": hashlib.sha256(sidecar_bytes).hexdigest(),
             "noticeSha256": None,
         }
+        kind = _media_kind(entry, path, [])
+        if kind in CAPTURE_KINDS:
+            inventory_sidecar_digest = entry.get("sidecarSha256")
+            if not _valid_digest(inventory_sidecar_digest):
+                failures.append(f"{path}: inventory sidecarSha256 is required for browser capture")
+            elif inventory_sidecar_digest != observed["sidecarSha256"]:
+                failures.append(
+                    f"{path}: inventory sidecarSha256 does not match adjacent provenance sidecar"
+                )
         rights = _record(sidecar.get("rights"))
         notice = rights.get("notice") if rights is not None else None
         if not isinstance(notice, str) or Path(notice).name != notice or notice in {".", ".."}:
@@ -671,11 +680,10 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
                 failures.append(f"{path}: sidecar rights notice must be a regular file")
             else:
                 observed["noticeSha256"] = _sha256_file(notice_path)
-                kind = _media_kind(entry, path, [])
                 if kind in CAPTURE_KINDS:
                     capture_notice_paths.add(notice_path.relative_to(repo).as_posix())
         observations[path] = observed
-        if _media_kind(entry, path, []) in CAPTURE_KINDS:
+        if kind in CAPTURE_KINDS:
             _validate_capture_source_files(repo, path, sidecar, failures)
         for failure in validate_published_media_record(
             {"entry": entry, "observed": observed, "sidecar": sidecar}

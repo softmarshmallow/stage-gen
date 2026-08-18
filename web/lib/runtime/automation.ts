@@ -1,8 +1,12 @@
+import type { SceneLayerProbe } from "./layers";
+import { PLATFORMER_FIXED_STEP_SECONDS } from "./vertical";
+
 export const GAMEPLAY_AUTOMATION_MODE = "gameplay-v1" as const;
 export type GameplayAutomationMode = typeof GAMEPLAY_AUTOMATION_MODE;
 
-export const GAMEPLAY_AUTOMATION_FPS = 30;
-export const GAMEPLAY_AUTOMATION_FRAME_MS = 1000 / GAMEPLAY_AUTOMATION_FPS;
+export const GAMEPLAY_AUTOMATION_FPS = 1 / PLATFORMER_FIXED_STEP_SECONDS;
+export const GAMEPLAY_AUTOMATION_FRAME_MS =
+  PLATFORMER_FIXED_STEP_SECONDS * 1000;
 export const GAMEPLAY_AUTOMATION_VIEWPORT = Object.freeze({
   width: 1280,
   height: 720,
@@ -149,7 +153,7 @@ export type GameplayTranscriptEvent = Readonly<{
 }>;
 
 export type GameplayPlayerProbe = Readonly<{
-  state: "idle" | "walk" | "run" | "jump" | "crouch" | "attack";
+  state: "idle" | "walk" | "run" | "jump" | "crouch" | "attack" | "climb";
   facing: "left" | "right";
   x: number;
   y: number;
@@ -158,6 +162,70 @@ export type GameplayPlayerProbe = Readonly<{
   vy: number;
   airborne: boolean;
   attackActive: boolean;
+  support: "terrain" | "platform" | "ladder" | "air";
+  supportId: string | null;
+  ladderId: string | null;
+  platformId: string | null;
+  dropThroughPlatformId: string | null;
+  dropTraversalPhase:
+    | "drop-commanded"
+    | "underside-cleared"
+    | "lower-support-landed"
+    | "lower-support-settled"
+    | "recovery-airborne"
+    | "recovered"
+    | null;
+  dropTraversalPlatformId: string | null;
+  dropTraversalPlatformBottomY: number | null;
+  dropTraversalLowerSupport: "terrain" | "platform" | null;
+  dropTraversalLowerSupportId: string | null;
+  dropTraversalLowerSupportY: number | null;
+  dropTraversalStableFrames: number;
+  renderBounds: Readonly<{
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }>;
+  climbAnimationKey: "player_climb" | null;
+  climbTextureKey: "character_climb" | null;
+  climbFrame: number | null;
+  climbAnimationPaused: boolean | null;
+  rearFacing: boolean;
+}>;
+
+export type GameplayPlatformProbe = Readonly<{
+  id: string;
+  left: number;
+  right: number;
+  deckY: number;
+  tier: number;
+  thickness: number;
+  visible: boolean;
+}>;
+
+export type GameplayPlatformRouteProbe = Readonly<{
+  id: string;
+  from: string;
+  to: string;
+  mode: "jump" | "drop" | "ladder";
+  rise: number;
+  gap: number;
+  landingStep: number | null;
+  horizontalRange: number | null;
+  ladderId: string | null;
+}>;
+
+export type GameplayLadderProbe = Readonly<{
+  id: string;
+  platformId: string;
+  centerX: number;
+  top: number;
+  bottom: number;
+  activationHalfWidth: number;
+  visualTopOvershoot: number;
+  visualBottomOvershoot: number;
+  visible: boolean;
 }>;
 
 export type GameplayMobProbe = Readonly<{
@@ -222,6 +290,10 @@ export type GameplayAutomationSnapshot = Readonly<{
   simulationMs: number;
   player: GameplayPlayerProbe | null;
   camera: Readonly<{ scrollX: number; scrollY: number; zoom: number }>;
+  layers: readonly SceneLayerProbe[];
+  platforms: readonly GameplayPlatformProbe[];
+  platformRoutes: readonly GameplayPlatformRouteProbe[];
+  ladders: readonly GameplayLadderProbe[];
   mobs: readonly GameplayMobProbe[];
   inventory: Readonly<{
     visible: boolean;

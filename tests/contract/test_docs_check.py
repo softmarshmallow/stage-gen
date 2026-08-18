@@ -38,3 +38,45 @@ def test_repository_storage_policy_uses_live_enforced_limits() -> None:
         "tests/contract/test_packaged_resources.py::"
         "test_repository_media_obeys_git_size_and_location_policy"
     ) in policy
+
+
+def test_loop_preview_fallback_is_temporary_and_verified_loop_scoped() -> None:
+    repository_root = Path(__file__).parents[2]
+    documents = (
+        repository_root / "docs/loop-synthesis.md",
+        repository_root / "docs/scene-layers.md",
+        repository_root / "docs/spec/asset-contracts.md",
+    )
+
+    for document in documents:
+        contract = document.read_text(encoding="utf-8")
+        assert "repeat-x-seam-overlap" in contract
+        assert re.search(r"temporary legacy.{0,100}fallback", contract, re.DOTALL)
+        assert re.search(r"no\s+verified loop artifact", contract)
+        assert "sourceWidthPx - 256" in contract
+        assert re.search(r"alpha", contract, re.IGNORECASE)
+        assert re.search(r"verified\s+repeat\s+(?:unit|artifact)", contract)
+        assert "ineligible" in contract
+
+
+def test_tileset_documentation_matches_connected_harmonic_runtime() -> None:
+    repository_root = Path(__file__).parents[2]
+    contract = (repository_root / "docs/spec/tileset.md").read_text(encoding="utf-8")
+    normalized = " ".join(contract.split())
+
+    for required in (
+        "does not register or render per-role atlas frames",
+        "512 x 512 toroidal",
+        "luminance-sorted color palette",
+        "3/7/19/43",
+        "connected-run fill TileSprites",
+        "runtime-only 12-pixel side bands",
+    ):
+        assert required in normalized
+    for retired in (
+        "register frames against the inset content rectangle",
+        "per-channel mean, variance",
+        "three mirror-safe warped samples",
+        "Cull transition frames",
+    ):
+        assert retired not in normalized

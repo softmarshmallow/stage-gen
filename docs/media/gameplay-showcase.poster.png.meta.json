@@ -80,11 +80,13 @@
     },
     "verifier": {
       "path": "web/tests/gameplay/harness.ts",
-      "sha256": "0502282774e2fba63609fe76dcdb4130a0781ac60977a6986d573fd124f20eeb"
+      "sha256": "90accbd541232cdc8b99bcaa6f3d569c719c8b4ae0fdfbed540bb0159344d320",
+      "bytes": 96687
     },
     "fixture": {
       "path": "web/tests/gameplay/model-assets.ts",
-      "sha256": "cfd6ff9cee574556df349a031488f502d66c519fc21a7170f75a74335005aec1"
+      "sha256": "01abb9b1e104edff3a8b5982793171ce29d000ccd6e85f4ff75027a2b3111943",
+      "bytes": 50710
     },
     "fixtureGenerator": {
       "pathAtCapture": "web/tests/gameplay/model-assets.ts",
@@ -93,7 +95,7 @@
     },
     "timeline": {
       "path": "web/tests/gameplay/timeline.ts",
-      "sha256": "ed7b6af3ceae9124cb4ffcf47dfbf63e60ea0e47bfd4c9d0ac19c5e9f020cea1"
+      "sha256": "579da155b4b1c6651384ec1554e093562c796dff8c05925b0837d157eef621ee"
     },
     "producerManifest": {
       "path": "fixtures/gameplay-demo/asset-manifest.json",

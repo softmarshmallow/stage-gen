@@ -10,9 +10,47 @@
 // and reads .sprite / .state / .attacking for collision + camera follow.
 
 import Phaser from "phaser";
+import { SCENE_CONTENT_DEPTH } from "./layers";
+import { terrainSurfaceY } from "./terrain";
+import {
+  PLATFORMER_GRAVITY,
+  PLATFORMER_JUMP_VELOCITY,
+  PLATFORMER_RUN_SPEED,
+  PLATFORMER_WALK_SPEED,
+  PLATFORM_DROP_THROUGH_MS,
+  PLATFORM_DROP_SETTLE_FRAMES,
+  UPPER_PLATFORM_THICKNESS,
+  advanceLadderMotion,
+  ladderEntryAt,
+  ladderJumpOffVelocity,
+  platformDropThroughActive,
+  resolveVerticalLanding,
+  type LadderZone,
+  type PlayerSupport,
+  type UpperPlatform,
+} from "./vertical";
 
 export type PlayerState =
-  "idle" | "walk" | "run" | "jump" | "crouch" | "attack";
+  "idle" | "walk" | "run" | "jump" | "crouch" | "attack" | "climb";
+
+export type PlatformDropTraversalPhase =
+  | "drop-commanded"
+  | "underside-cleared"
+  | "lower-support-landed"
+  | "lower-support-settled"
+  | "recovery-airborne"
+  | "recovered";
+
+export type PlayerTransitionKind =
+  | "ladder-enter"
+  | "ladder-exit"
+  | "platform-land"
+  | "platform-drop"
+  | "platform-underside-clear"
+  | "platform-lower-land"
+  | "platform-lower-settle"
+  | "platform-recovery-launch"
+  | "platform-recovery-land";
 
 export type PlayerStateSnapshot = {
   state: PlayerState;
@@ -24,6 +62,29 @@ export type PlayerStateSnapshot = {
   vy: number;
   airborne: boolean;
   attackActive: boolean;
+  support: PlayerSupport;
+  supportId: string | null;
+  ladderId: string | null;
+  platformId: string | null;
+  dropThroughPlatformId: string | null;
+  dropTraversalPhase: PlatformDropTraversalPhase | null;
+  dropTraversalPlatformId: string | null;
+  dropTraversalPlatformBottomY: number | null;
+  dropTraversalLowerSupport: "terrain" | "platform" | null;
+  dropTraversalLowerSupportId: string | null;
+  dropTraversalLowerSupportY: number | null;
+  dropTraversalStableFrames: number;
+  renderBounds: Readonly<{
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }>;
+  climbAnimationKey: "player_climb" | null;
+  climbTextureKey: "character_climb" | null;
+  climbFrame: number | null;
+  climbAnimationPaused: boolean | null;
+  rearFacing: boolean;
 };
 
 export interface PlayerOpts {
@@ -31,9 +92,16 @@ export interface PlayerOpts {
   startX: number;
   startY: number;
   tilePx: number;
+  worldWidthPx: number;
   baselineY: number; // GROUND_BASELINE_Y
   heightFn: (col: number) => number; // returns column height in tiles
   targetSpriteHeight: number; // px
+  platforms?: readonly UpperPlatform[];
+  ladders?: readonly LadderZone[];
+  onTransition?: (
+    kind: PlayerTransitionKind,
+    data: Record<string, string | number | boolean>,
+  ) => void;
   /** Frame rates per state (fps). */
   frameRates?: Partial<Record<PlayerState, number>>;
 }
@@ -45,12 +113,9 @@ const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   jump: 8,
   crouch: 6,
   attack: 12,
+  climb: 9,
 };
 
-const WALK_SPEED = 200; // px/s   (TC-080: "reasonable")
-const RUN_SPEED = 540;
-const JUMP_VEL = 520; // upward initial velocity
-const GRAVITY = 1500; // px/s^2
 const ATTACK_DURATION_MS = 333; // 4 frames at 12 fps
 const ATTACK_HIT_WINDOW_MS_FROM = 80; // hit window starts ~frame 1
 const ATTACK_HIT_WINDOW_MS_TO = 250; // …ends after frame 3
@@ -62,6 +127,9 @@ export class Player {
   vx = 0;
   vy = 0;
   airborne = false;
+  support: PlayerSupport = "terrain";
+  supportId: string | null = null;
+  ladderId: string | null = null;
   private opts: PlayerOpts;
   private frameRates: Record<PlayerState, number>;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -80,6 +148,22 @@ export class Player {
   private attackUntil = 0;
   private attackStarted = 0;
   private attackHitConsumed = false;
+  private activeLadder?: LadderZone;
+  private climbFrame: number | null = null;
+  private dropThroughPlatformId: string | null = null;
+  private dropThroughUntil = 0;
+  private dropTraversal?: {
+    platformId: string;
+    platformLeft: number;
+    platformRight: number;
+    platformDeckY: number;
+    platformBottomY: number;
+    phase: PlatformDropTraversalPhase;
+    lowerSupport: "terrain" | "platform" | null;
+    lowerSupportId: string | null;
+    lowerSupportY: number | null;
+    stableFrames: number;
+  };
   /** Set while the attack swing is in its hit window. */
   attackActive = false;
   /** Toggled by I key to open inventory; consumed externally. */
@@ -98,6 +182,7 @@ export class Player {
       "jump",
       "crouch",
       "attack",
+      "climb",
     ] as PlayerState[]) {
       const animKey = `player_${st}`;
       const texKey = stateTextureKey(st);
@@ -122,7 +207,7 @@ export class Player {
       opts.targetSpriteHeight * aspect,
       opts.targetSpriteHeight,
     );
-    this.sprite.setDepth(900);
+    this.sprite.setDepth(SCENE_CONTENT_DEPTH.player);
     if (scene.anims.exists("player_idle")) this.sprite.play("player_idle");
 
     this.bindInput();
@@ -160,11 +245,9 @@ export class Player {
     const down = !!(k?.down.isDown || c?.down?.isDown);
     const up = !!(k?.up.isDown || c?.up?.isDown);
     const shift = !!k?.shift.isDown;
-    const wantsJump =
-      Phaser.Input.Keyboard.JustDown(k!.jump!) ||
-      (c?.up && Phaser.Input.Keyboard.JustDown(c.up)) ||
-      (k && Phaser.Input.Keyboard.JustDown(k.up)) ||
-      false;
+    const wantsJump = !!(
+      k?.jump && Phaser.Input.Keyboard.JustDown(k.jump)
+    );
     const wantsAttack =
       (k &&
         (Phaser.Input.Keyboard.JustDown(k.attack1) ||
@@ -172,40 +255,121 @@ export class Player {
           Phaser.Input.Keyboard.JustDown(k.attack3))) ||
       false;
 
+    // Active ladder traversal has priority over every movement/combat action.
+    if (this.support === "ladder" && this.activeLadder) {
+      this.continueLadder({ dt, up, down, left, right, wantsJump });
+      this.sprite.setFlipX(
+        this.support === "ladder" ? false : this.facing === "left",
+      );
+      return;
+    }
+
+    // Entering a ladder has priority over platform drop-through.
+    const entry = ladderEntryAt({
+      ladders: this.opts.ladders ?? [],
+      support: this.support,
+      supportId: this.supportId,
+      x: this.sprite.x,
+      footY: this.sprite.y,
+      up,
+      down,
+    });
+    if (entry) {
+      this.activeLadder = entry.ladder;
+      this.ladderId = entry.ladder.id;
+      this.support = "ladder";
+      this.supportId = entry.ladder.id;
+      this.airborne = false;
+      this.vx = 0;
+      this.vy = 0;
+      this.sprite.x = entry.ladder.centerX;
+      this.clearAttack();
+      this.opts.onTransition?.("ladder-enter", {
+        ladderId: entry.ladder.id,
+        from: entry.direction === "up" ? "terrain" : "platform",
+        direction: entry.direction,
+      });
+      this.continueLadder({ dt, up, down, left, right, wantsJump: false });
+      this.sprite.setFlipX(
+        this.support === "ladder" ? false : this.facing === "left",
+      );
+      return;
+    }
+
+    this.advanceDropTraversalSettle();
+
     // Determine target horizontal velocity.
     let targetVx = 0;
     if (left && !right) {
-      targetVx = -(shift ? RUN_SPEED : WALK_SPEED);
+      targetVx = -(shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED);
       this.facing = "left";
     } else if (right && !left) {
-      targetVx = shift ? RUN_SPEED : WALK_SPEED;
+      targetVx = shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED;
       this.facing = "right";
     }
 
     // Crouch reduces speed and locks state on the ground.
-    const crouching = down && !this.airborne;
+    const crouching = down && this.support !== "air";
     if (crouching) targetVx *= 0.4;
 
     this.vx = targetVx;
 
-    // Jump.
-    if (wantsJump && !this.airborne && !crouching) {
-      this.vy = -JUMP_VEL;
-      this.airborne = true;
-    }
-
-    // Apply gravity & vertical integration.
-    if (this.airborne) {
-      this.vy += GRAVITY * dt;
+    // Down+Space drops through the current one-way platform. A valid ladder
+    // entry was already consumed above, so it cannot be shadowed by this.
+    const dropping =
+      wantsJump && down && this.support === "platform" && this.supportId !== null;
+    if (dropping) {
+      const platformId = this.supportId!;
+      const platform = (this.opts.platforms ?? []).find(
+        (candidate) => candidate.id === platformId,
+      );
+      if (!platform) {
+        throw new Error("drop-through support must name an active platform");
+      }
+      this.dropThroughPlatformId = platformId;
+      this.dropThroughUntil = nowMs + PLATFORM_DROP_THROUGH_MS;
+      this.dropTraversal = {
+        platformId,
+        platformLeft: platform.left,
+        platformRight: platform.right,
+        platformDeckY: platform.deckY,
+        platformBottomY: platform.deckY + UPPER_PLATFORM_THICKNESS,
+        phase: "drop-commanded",
+        lowerSupport: null,
+        lowerSupportId: null,
+        lowerSupportY: null,
+        stableFrames: 0,
+      };
+      this.setSupport("air", null);
+      this.vy = 0;
+      this.opts.onTransition?.("platform-drop", {
+        platformId,
+        footY: this.sprite.y,
+        platformLeft: this.dropTraversal.platformLeft,
+        platformRight: this.dropTraversal.platformRight,
+        platformBottomY: this.dropTraversal.platformBottomY,
+      });
+    } else if (wantsJump && this.support !== "air" && !crouching) {
+      this.beginDropRecoveryIfReady();
+      this.vy = -PLATFORMER_JUMP_VELOCITY;
+      this.setSupport("air", null);
     }
 
     // Horizontal motion.
     this.sprite.x += this.vx * dt;
-    if (this.sprite.x < this.opts.tilePx / 2)
-      this.sprite.x = this.opts.tilePx / 2;
+    this.sprite.x = Phaser.Math.Clamp(
+      this.sprite.x,
+      this.opts.tilePx / 2,
+      this.opts.worldWidthPx - this.opts.tilePx / 2,
+    );
 
     // Attack overrides locomotion anim state (still moves but plays attack).
-    if (wantsAttack && !this.attackActive && nowMs >= this.attackUntil) {
+    if (
+      wantsAttack &&
+      !this.attackActive &&
+      nowMs >= this.attackUntil &&
+      this.support !== "ladder"
+    ) {
       this.attackUntil = nowMs + ATTACK_DURATION_MS;
       this.attackStarted = nowMs;
       this.attackHitConsumed = false;
@@ -217,27 +381,65 @@ export class Player {
       attackElapsed >= ATTACK_HIT_WINDOW_MS_FROM &&
       attackElapsed <= ATTACK_HIT_WINDOW_MS_TO;
 
-    // Vertical motion + ground snap (TC-082).
+    // Vertical motion + one-way platform/terrain resolution.
     const col = Math.floor(this.sprite.x / this.opts.tilePx);
     const colH = this.opts.heightFn(col);
-    const surfaceY = this.opts.baselineY - colH * this.opts.tilePx;
+    const surfaceY = terrainSurfaceY(
+      colH,
+      this.opts.tilePx,
+      this.opts.baselineY,
+    );
 
-    if (this.airborne) {
-      this.sprite.y += this.vy * dt;
-      if (this.sprite.y >= surfaceY) {
-        this.sprite.y = surfaceY;
+    if (this.support === "platform") {
+      const platform = (this.opts.platforms ?? []).find(
+        (candidate) => candidate.id === this.supportId,
+      );
+      if (!platform || this.sprite.x < platform.left || this.sprite.x > platform.right) {
+        this.setSupport("air", null);
         this.vy = 0;
-        this.airborne = false;
+      } else {
+        this.sprite.y = platform.deckY;
       }
-    } else {
-      // Always snap to surface so walking up/down a step looks locked.
+    } else if (this.support === "terrain") {
+      // Preserve this preview heightfield's established column-locked terrain
+      // traversal. Only an upper-platform edge is a one-way step-off.
       this.sprite.y = surfaceY;
+    }
+
+    if (this.support === "air") {
+      this.vy += PLATFORMER_GRAVITY * dt;
+      const nextFootY = this.sprite.y + this.vy * dt;
+      const ignoredPlatformId = this.activeDropThroughPlatform(nowMs);
+      const landing = resolveVerticalLanding({
+        x: this.sprite.x,
+        previousFootY: this.sprite.y,
+        nextFootY,
+        vy: this.vy,
+        terrainY: surfaceY,
+        platforms: this.opts.platforms ?? [],
+        ignoredPlatformId,
+      });
+      this.sprite.y = landing.footY;
+      this.vy = landing.vy;
+      this.setSupport(landing.support, landing.supportId);
+      this.advanceDropTraversalAfterAirborne(landing);
+      if (landing.support === "platform" && landing.supportId) {
+        this.opts.onTransition?.("platform-land", {
+          platformId: landing.supportId,
+        });
+      }
+      if (
+        landing.support !== "air" &&
+        landing.supportId !== this.dropThroughPlatformId
+      ) {
+        this.clearDropThrough();
+      }
     }
 
     // Compute new state.
     let next: PlayerState;
     if (attacking) next = "attack";
-    else if (this.airborne) next = "jump";
+    else if (this.support === "air") next = "jump";
     else if (crouching) next = "crouch";
     else if (this.vx !== 0 && shift) next = "run";
     else if (this.vx !== 0) next = "walk";
@@ -251,9 +453,284 @@ export class Player {
     this.sprite.setFlipX(this.facing === "left");
   }
 
+  private continueLadder(input: Readonly<{
+    dt: number;
+    up: boolean;
+    down: boolean;
+    left: boolean;
+    right: boolean;
+    wantsJump: boolean;
+  }>): void {
+    const ladder = this.activeLadder;
+    if (!ladder) throw new Error("ladder support requires an active ladder");
+    this.sprite.x = ladder.centerX;
+    this.vx = 0;
+    if (input.wantsJump) {
+      const jump = ladderJumpOffVelocity({
+        left: input.left,
+        right: input.right,
+        facing: this.facing,
+      });
+      this.vx = jump.vx;
+      this.vy = jump.vy;
+      this.sprite.x += this.vx * input.dt;
+      this.sprite.y += this.vy * input.dt;
+      const ladderId = ladder.id;
+      this.activeLadder = undefined;
+      this.ladderId = null;
+      this.setSupport("air", null);
+      this.opts.onTransition?.("ladder-exit", {
+        ladderId,
+        to: "air",
+      });
+      this.setState("jump");
+      return;
+    }
+    const motion = advanceLadderMotion({
+      ladder,
+      footY: this.sprite.y,
+      deltaSeconds: input.dt,
+      up: input.up,
+      down: input.down,
+    });
+    this.sprite.y = motion.footY;
+    this.vy = motion.vy;
+    if (motion.exit === "platform") {
+      const ladderId = ladder.id;
+      this.activeLadder = undefined;
+      this.ladderId = null;
+      this.setSupport("platform", ladder.platformId);
+      this.opts.onTransition?.("ladder-exit", {
+        ladderId,
+        to: "platform",
+      });
+      this.setState("idle");
+      return;
+    }
+    if (motion.exit === "terrain") {
+      const ladderId = ladder.id;
+      this.activeLadder = undefined;
+      this.ladderId = null;
+      this.setSupport("terrain", null);
+      this.opts.onTransition?.("ladder-exit", {
+        ladderId,
+        to: "terrain",
+      });
+      this.setState("idle");
+      return;
+    }
+    if (this.state !== "climb") this.setState("climb");
+    this.setClimbFrame(this.vy !== 0);
+  }
+
+  private setSupport(support: PlayerSupport, supportId: string | null): void {
+    this.support = support;
+    this.supportId = supportId;
+    this.airborne = support === "air";
+  }
+
+  private activeDropThroughPlatform(nowMs: number): string | null {
+    if (!this.dropThroughPlatformId) return null;
+    const platform = (this.opts.platforms ?? []).find(
+      (candidate) => candidate.id === this.dropThroughPlatformId,
+    );
+    if (
+      !platform ||
+      !platformDropThroughActive({
+        nowMs,
+        expiresAtMs: this.dropThroughUntil,
+        footY: this.sprite.y,
+        deckY: platform.deckY,
+      })
+    ) {
+      this.clearDropThrough();
+      return null;
+    }
+    return this.dropThroughPlatformId;
+  }
+
+  private clearDropThrough(): void {
+    this.dropThroughPlatformId = null;
+    this.dropThroughUntil = 0;
+  }
+
+  private advanceDropTraversalSettle(): void {
+    const traversal = this.dropTraversal;
+    if (!traversal || traversal.phase !== "lower-support-landed") return;
+    if (
+      this.support !== traversal.lowerSupport ||
+      this.supportId !== traversal.lowerSupportId ||
+      this.sprite.y !== traversal.lowerSupportY
+    ) {
+      return;
+    }
+    traversal.stableFrames += 1;
+    if (traversal.stableFrames !== PLATFORM_DROP_SETTLE_FRAMES) return;
+    traversal.phase = "lower-support-settled";
+    this.opts.onTransition?.("platform-lower-settle", {
+      platformId: traversal.platformId,
+      support: traversal.lowerSupport!,
+      footY: traversal.lowerSupportY!,
+      stableFrames: traversal.stableFrames,
+    });
+  }
+
+  private beginDropRecoveryIfReady(): void {
+    const traversal = this.dropTraversal;
+    if (!traversal || traversal.phase !== "lower-support-settled") return;
+    if (this.support === "air" || this.support === "ladder") return;
+    traversal.phase = "recovery-airborne";
+    this.opts.onTransition?.("platform-recovery-launch", {
+      platformId: traversal.platformId,
+      support: this.support,
+      footY: this.sprite.y,
+      settledFootY: traversal.lowerSupportY!,
+      stableFrames: traversal.stableFrames,
+    });
+  }
+
+  private advanceDropTraversalAfterAirborne(
+    landing: Readonly<{
+      footY: number;
+      support: "air" | "terrain" | "platform";
+      supportId: string | null;
+    }>,
+  ): void {
+    const traversal = this.dropTraversal;
+    if (!traversal) return;
+    const renderBounds = this.playerRenderBounds();
+    const fullyClear =
+      renderBounds.right < traversal.platformLeft ||
+      renderBounds.left > traversal.platformRight ||
+      renderBounds.bottom < traversal.platformDeckY ||
+      renderBounds.top > traversal.platformBottomY;
+    if (
+      traversal.phase === "drop-commanded" &&
+      fullyClear
+    ) {
+      traversal.phase = "underside-cleared";
+      this.opts.onTransition?.("platform-underside-clear", {
+        platformId: traversal.platformId,
+        footY: landing.footY,
+        playerLeft: renderBounds.left,
+        playerTop: renderBounds.top,
+        playerRight: renderBounds.right,
+        playerBottom: renderBounds.bottom,
+        platformLeft: traversal.platformLeft,
+        platformRight: traversal.platformRight,
+        platformDeckY: traversal.platformDeckY,
+        platformBottomY: traversal.platformBottomY,
+        separationAxis:
+          renderBounds.left > traversal.platformRight ||
+          renderBounds.right < traversal.platformLeft
+            ? "horizontal"
+            : "vertical",
+      });
+    }
+    if (
+      (traversal.phase === "drop-commanded" ||
+        traversal.phase === "underside-cleared") &&
+      landing.support !== "air" &&
+      !(
+        landing.support === "platform" &&
+        landing.supportId === traversal.platformId
+      )
+    ) {
+      traversal.phase = "lower-support-landed";
+      traversal.lowerSupport = landing.support;
+      traversal.lowerSupportId = landing.supportId;
+      traversal.lowerSupportY = landing.footY;
+      traversal.stableFrames = 1;
+      this.opts.onTransition?.("platform-lower-land", {
+        platformId: traversal.platformId,
+        support: landing.support,
+        footY: landing.footY,
+      });
+      return;
+    }
+    if (
+      traversal.phase === "recovery-airborne" &&
+      landing.support === "platform" &&
+      landing.supportId === traversal.platformId
+    ) {
+      traversal.phase = "recovered";
+      this.opts.onTransition?.("platform-recovery-land", {
+        platformId: traversal.platformId,
+        support: "platform",
+        footY: landing.footY,
+      });
+    }
+  }
+
+  private clearAttack(): void {
+    this.attackUntil = 0;
+    this.attackStarted = 0;
+    this.attackHitConsumed = false;
+    this.attackActive = false;
+  }
+
+  private playerRenderBounds(): Readonly<{
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }> {
+    const bounds = this.sprite.getBounds();
+    return {
+      left: bounds.left,
+      top: bounds.top,
+      right: bounds.right,
+      bottom: bounds.bottom,
+    };
+  }
+
+  private setClimbFrame(moving: boolean): void {
+    const textureKey = "character_climb";
+    if (
+      this.opts.scene.textures.exists(textureKey) &&
+      this.opts.scene.anims.exists("player_climb")
+    ) {
+      const ladder = this.activeLadder;
+      const nextFrame =
+        moving && ladder
+          ? Math.floor(
+              Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12,
+            ) % 4
+          : (this.climbFrame ?? 0);
+      if (
+        this.sprite.anims.currentAnim?.key !== "player_climb" ||
+        !this.sprite.anims.isPlaying
+      ) {
+        this.sprite.play("player_climb", true);
+      }
+      const animationFrame = this.sprite.anims.currentAnim?.frames[nextFrame];
+      if (animationFrame) this.sprite.anims.setCurrentFrame(animationFrame);
+      if (moving) this.sprite.anims.resume();
+      else this.sprite.anims.pause();
+      this.sprite.setFlipX(false);
+      this.climbFrame = nextFrame;
+      return;
+    }
+    this.climbFrame = null;
+    this.sprite.anims.stop();
+    const fallback = "character_jump";
+    if (!this.opts.scene.textures.exists(fallback)) return;
+    const ladder = this.activeLadder;
+    const frame =
+      moving && ladder
+        ? Math.floor((ladder.lowerSurfaceY - this.sprite.y) / 20) & 1
+        : 0;
+    this.sprite.setTexture(fallback, frame);
+  }
+
   /** Force the animation matching `next`. */
   private setState(next: PlayerState) {
     this.state = next;
+    if (next === "climb") {
+      this.setClimbFrame(false);
+      return;
+    }
+    this.climbFrame = null;
     const animKey = `player_${next}`;
     if (this.opts.scene.anims.exists(animKey)) {
       this.sprite.play(animKey, true);
@@ -276,6 +753,7 @@ export class Player {
   }
 
   snapshot(): PlayerStateSnapshot {
+    const renderBounds = this.playerRenderBounds();
     return {
       state: this.state,
       facing: this.facing,
@@ -286,6 +764,35 @@ export class Player {
       vy: this.vy,
       airborne: this.airborne,
       attackActive: this.attackActive,
+      support: this.support,
+      supportId: this.supportId,
+      ladderId: this.ladderId,
+      platformId: this.support === "platform" ? this.supportId : null,
+      dropThroughPlatformId: this.dropThroughPlatformId,
+      dropTraversalPhase: this.dropTraversal?.phase ?? null,
+      dropTraversalPlatformId: this.dropTraversal?.platformId ?? null,
+      dropTraversalPlatformBottomY:
+        this.dropTraversal?.platformBottomY ?? null,
+      dropTraversalLowerSupport: this.dropTraversal?.lowerSupport ?? null,
+      dropTraversalLowerSupportId:
+        this.dropTraversal?.lowerSupportId ?? null,
+      dropTraversalLowerSupportY: this.dropTraversal?.lowerSupportY ?? null,
+      dropTraversalStableFrames: this.dropTraversal?.stableFrames ?? 0,
+      renderBounds,
+      climbAnimationKey:
+        this.support === "ladder" && this.climbFrame !== null
+          ? "player_climb"
+          : null,
+      climbTextureKey:
+        this.support === "ladder" && this.climbFrame !== null
+          ? "character_climb"
+          : null,
+      climbFrame: this.support === "ladder" ? this.climbFrame : null,
+      climbAnimationPaused:
+        this.support === "ladder" && this.climbFrame !== null
+          ? this.sprite.anims.isPaused
+          : null,
+      rearFacing: this.support === "ladder" && !this.sprite.flipX,
     };
   }
 
@@ -300,11 +807,13 @@ export class Player {
     this.facing = "right";
     this.vx = 0;
     this.vy = 0;
-    this.airborne = false;
-    this.attackUntil = 0;
-    this.attackStarted = 0;
-    this.attackHitConsumed = false;
-    this.attackActive = false;
+    this.setSupport("terrain", null);
+    this.activeLadder = undefined;
+    this.ladderId = null;
+    this.climbFrame = null;
+    this.clearDropThrough();
+    this.dropTraversal = undefined;
+    this.clearAttack();
     this.inventoryToggleRequested = false;
     this.sprite.setPosition(this.opts.startX, this.opts.startY);
     this.sprite.setFlipX(false);
@@ -330,5 +839,6 @@ function stateTextureKey(state: PlayerState): string {
   // character_attack for the attack strip.
   if (state === "attack") return "character_attack";
   if (state === "crouch") return "character_crawl"; // crawl strip used for crouch
+  if (state === "climb") return "character_climb";
   return `character_${state}`;
 }

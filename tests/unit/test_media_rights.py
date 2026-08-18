@@ -495,7 +495,9 @@ def _write_capture_publication(repo: Path) -> Path:
                 "path": path.relative_to(repo).as_posix(),
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             }
-        Path(f"{artifact}.meta.json").write_text(json.dumps(record["sidecar"]), encoding="utf-8")
+        sidecar_bytes = json.dumps(record["sidecar"]).encode()
+        Path(f"{artifact}.meta.json").write_bytes(sidecar_bytes)
+        record["entry"]["sidecarSha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
         entries.append(record["entry"])
     inventory = repo / "docs/generated-media-inventory.json"
     inventory.parent.mkdir(exist_ok=True)
@@ -580,6 +582,22 @@ def test_browser_capture_verifier_digest_tracks_current_hardened_code(tmp_path: 
     assert sum("sidecar.capture.verifier digest does not match" in item for item in failures) == 2
 
 
+def test_browser_capture_inventory_binds_exact_sidecar_bytes(tmp_path: Path) -> None:
+    inventory = _write_capture_publication(tmp_path)
+    sidecar = tmp_path / "docs/showcase/gameplay.mp4.meta.json"
+    sidecar.write_bytes(sidecar.read_bytes() + b"\n")
+
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+
+    assert (
+        sum(
+            "inventory sidecarSha256 does not match adjacent provenance sidecar" in item
+            for item in failures
+        )
+        == 1
+    )
+
+
 def test_media_git_size_limits_are_enforced_without_large_fixtures() -> None:
     for kind, maximum in (("video", 25 * 1024 * 1024), ("image", 5 * 1024 * 1024)):
         value = _capture_record(kind)
@@ -627,7 +645,22 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
         )
         for asset in approved_assets
     }
-    assert len(expected_asset_records) == 18
+    assets_promoted_after_capture = {
+        (
+            "ladder",
+            "fixtures/gameplay-demo/ladder.png",
+            "a89b1d865b651806b1457ab1fc37da4d0a54ff28daf5566ec4011483c732faa6",
+            172_703,
+        ),
+        (
+            "character-climb",
+            "fixtures/gameplay-demo/character-climb.png",
+            "782fcda99a7296ab746c21d05014214503d4af280541b1f115031cf4d70dc56e",
+            39_677,
+        ),
+    }
+    assert len(expected_asset_records) == 20
+    assert assets_promoted_after_capture <= expected_asset_records
     assert all(asset["visualReview"]["status"] == "approved" for asset in approved_assets)
     assert all(asset["visualReview"]["result"] == "pass" for asset in approved_assets)
     assert all(asset["visualReview"]["independent"] is True for asset in approved_assets)
@@ -644,6 +677,9 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
             "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
         )
         sidecar_path = repository / f"{path}.meta.json"
+        assert (
+            entries[path]["sidecarSha256"] == hashlib.sha256(sidecar_path.read_bytes()).hexdigest()
+        )
         sidecar = cast(dict[str, Any], json.loads(sidecar_path.read_text(encoding="utf-8")))
         assert sidecar["state"] == "redistribution-approved"
         assert sidecar["visualReview"]["artifactSha256"] == digest
@@ -667,10 +703,12 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
         assert asset_set["aggregate"]["sha256"] == (
             "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a"
         )
-        assert {
+        historical_asset_records = {
             (asset["id"], asset["path"], asset["sha256"], asset["bytes"])
             for asset in cast(list[dict[str, Any]], asset_set["assets"])
-        } == expected_asset_records
+        }
+        assert historical_asset_records.isdisjoint(assets_promoted_after_capture)
+        assert historical_asset_records == expected_asset_records - assets_promoted_after_capture
         publication_text += sidecar_path.read_text(encoding="utf-8")
 
     assert "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a" in publication_text

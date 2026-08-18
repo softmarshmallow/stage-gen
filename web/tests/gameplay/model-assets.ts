@@ -12,16 +12,53 @@ import {
 
 const GAMEPLAY_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(GAMEPLAY_DIR, "../../..");
-export const GAMEPLAY_DEMO_ROOT = path.join(REPO_ROOT, "fixtures", "gameplay-demo");
+export const GAMEPLAY_DEMO_ROOT = path.join(
+  REPO_ROOT,
+  "fixtures",
+  "gameplay-demo",
+);
 export const GAMEPLAY_DEMO_ASSET_MANIFEST = "asset-manifest.json";
 export const GAMEPLAY_DEMO_APPROVAL_MANIFEST = "approval-manifest.json";
 const MAX_MANIFEST_BYTES = 1_000_000;
 const MAX_PNG_BYTES = 20_000_000;
 const CELL_GUTTER_PIXELS = 2;
-const REQUIRED_GUTTER_ASSET_IDS = new Set(["tileset", "character-attack"]);
+const REQUIRED_GUTTER_ASSET_IDS = new Set([
+  "tileset",
+  "character-attack",
+  "character-climb",
+]);
 const FAL_BACKGROUND_REMOVAL_PROVIDER = "fal";
 const FAL_BACKGROUND_REMOVAL_MODEL = "fal-ai/birefnet/v2";
 const WORLD_NAME = "Moonlit Overgrown Ruins";
+const LADDER_REVIEW_REPORT_SHA256 =
+  "a4aea48b569cd5d29d322ac8705177506c1910b6a9bceed4220ab9f8bf0397b8";
+const LADDER_RUNTIME_WIDTH = 80;
+const LADDER_RUNTIME_HEIGHT = 320;
+const GAMEPLAY_DEMO_REPOSITORY_PREFIX = "fixtures/gameplay-demo/";
+const CHARACTER_CLIMB_ID = "character-climb";
+const CHARACTER_CLIMB_SHA256 =
+  "782fcda99a7296ab746c21d05014214503d4af280541b1f115031cf4d70dc56e";
+const CHARACTER_CLIMB_BYTES = 39_677;
+const CHARACTER_CLIMB_GENERATION_PATH =
+  "fixtures/gameplay-demo/sources/character-climb/generation.json";
+const CHARACTER_CLIMB_GENERATION_SHA256 =
+  "59504ed6731c851d3a3d87e91eaff139f1c7ecf7e4dee22cee1e2cf3f9d7b9bc";
+const CHARACTER_CLIMB_GENERATION_BYTES = 14_947;
+const CHARACTER_CLIMB_SOURCE_SHA256 =
+  "2d2e67b3750a0d0f1fa315e9a23c8fd7af3c2b75c472fdd661f4dfe897b4dbd2";
+const CHARACTER_CLIMB_EXTRACTION_PATH =
+  "fixtures/gameplay-demo/sources/character-climb/character-climb-local-extracted.png.meta.json";
+const CHARACTER_CLIMB_EXTRACTION_SHA256 =
+  "c7887efbf5cea15679137c8e70a73665c273376fc7781dc1507fcfe41da0018a";
+const CHARACTER_CLIMB_EXTRACTION_BYTES = 1_840;
+const CHARACTER_CLIMB_EXTRACTED_SHA256 =
+  "4e23bc7690662429c2d52c88d90020c3dd5176f0e18b047d88a59d60a3040df5";
+const CHARACTER_CLIMB_EXTRACTED_BYTES = 830_149;
+const CHARACTER_CLIMB_REVIEW_PATH =
+  "fixtures/gameplay-demo/sources/character-climb/visual-review.md";
+const CHARACTER_CLIMB_REVIEW_SHA256 =
+  "b0e492daa55778ac99ae5b8ef5fec114455bf74e0240bb5b4f9557eacbab7c05";
+const CHARACTER_CLIMB_REVIEW_BYTES = 752;
 
 export const GAMEPLAY_MODEL_PROMPT =
   "moonlit overgrown ruins model-generated gameplay showcase";
@@ -29,7 +66,8 @@ export const GAMEPLAY_MODEL_TRANSPARENCY_MODE = "ai" as const;
 export const GAMEPLAY_MODEL_TAG =
   "moonlit-overgrown-ruins-model-generated-346cf767-ai";
 export const GAMEPLAY_MODEL_TERRAIN_SEED = 1_235_206_006;
-export const GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS = gameplayRequiredAssetKeys(WORLD_NAME);
+export const GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS =
+  gameplayRequiredAssetKeys(WORLD_NAME);
 
 type AlphaExpectation = "opaque" | "transparent";
 
@@ -39,11 +77,13 @@ const RUNTIME_SLOTS: Readonly<Record<string, string>> = {
   "layer-ridges": "layer_<tag>_ridges.png",
   "layer-foreground": "layer_<tag>_foreground.png",
   tileset: "tileset_<tag>.png",
+  ladder: "ladder_<tag>.png",
   "character-concept": "character_concept_<tag>.png",
   "character-idle": "character_<tag>-fromcombined_idle.png",
   "character-walk": "character_<tag>-fromcombined_walk.png",
   "character-run": "character_<tag>-fromcombined_run.png",
   "character-jump": "character_<tag>-fromcombined_jump.png",
+  "character-climb": "character_<tag>-fromcombined_climb.png",
   "character-crawl": "character_<tag>-fromcombined_crawl.png",
   "character-attack": "character_<tag>_attack.png",
   "mob-concept": "mob_concept_<tag>_0.png",
@@ -69,34 +109,178 @@ const GAMEPLAY_MODEL_ASSET_SHAPES: readonly Omit<
   GameplayModelAssetContract,
   "path" | "runtimeSlot"
 >[] = [
-  { id: "concept", width: 1280, height: 720, rows: 1, columns: 1, alphaExpectation: "opaque" },
-  { id: "layer-sky", width: 1280, height: 720, rows: 1, columns: 1, alphaExpectation: "opaque" },
-  { id: "layer-ridges", width: 1280, height: 720, rows: 1, columns: 1, alphaExpectation: "transparent" },
-  { id: "layer-foreground", width: 1280, height: 720, rows: 1, columns: 1, alphaExpectation: "transparent" },
-  { id: "tileset", width: 384, height: 128, rows: 4, columns: 12, alphaExpectation: "transparent" },
-  { id: "character-concept", width: 128, height: 192, rows: 1, columns: 1, alphaExpectation: "transparent" },
-  { id: "character-idle", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "character-walk", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "character-run", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "character-jump", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "character-crawl", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "character-attack", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "mob-concept", width: 128, height: 128, rows: 1, columns: 1, alphaExpectation: "transparent" },
-  { id: "mob-idle", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "mob-hurt", width: 256, height: 128, rows: 1, columns: 4, alphaExpectation: "transparent" },
-  { id: "items", width: 256, height: 128, rows: 2, columns: 4, alphaExpectation: "transparent" },
-  { id: "inventory", width: 512, height: 320, rows: 1, columns: 1, alphaExpectation: "transparent" },
-  { id: "portal", width: 256, height: 192, rows: 1, columns: 2, alphaExpectation: "transparent" },
+  {
+    id: "concept",
+    width: 1280,
+    height: 720,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "opaque",
+  },
+  {
+    id: "layer-sky",
+    width: 1280,
+    height: 720,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "opaque",
+  },
+  {
+    id: "layer-ridges",
+    width: 1280,
+    height: 720,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "layer-foreground",
+    width: 1280,
+    height: 720,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "tileset",
+    width: 384,
+    height: 128,
+    rows: 4,
+    columns: 12,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "ladder",
+    width: 256,
+    height: 1024,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-concept",
+    width: 128,
+    height: 192,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-idle",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-walk",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-run",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-jump",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-crawl",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-attack",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "mob-concept",
+    width: 128,
+    height: 128,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "mob-idle",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "mob-hurt",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "items",
+    width: 256,
+    height: 128,
+    rows: 2,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "inventory",
+    width: 512,
+    height: 320,
+    rows: 1,
+    columns: 1,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "portal",
+    width: 256,
+    height: 192,
+    rows: 1,
+    columns: 2,
+    alphaExpectation: "transparent",
+  },
+  {
+    id: "character-climb",
+    width: 256,
+    height: 128,
+    rows: 1,
+    columns: 4,
+    alphaExpectation: "transparent",
+  },
 ];
 
 export const GAMEPLAY_MODEL_ASSET_CONTRACTS: readonly GameplayModelAssetContract[] =
-  Object.freeze(GAMEPLAY_MODEL_ASSET_SHAPES.map((asset) => {
-    return Object.freeze({
-      ...asset,
-      path: `${asset.id}.png`,
-      runtimeSlot: RUNTIME_SLOTS[asset.id],
-    });
-  }));
+  Object.freeze(
+    GAMEPLAY_MODEL_ASSET_SHAPES.map((asset) => {
+      return Object.freeze({
+        ...asset,
+        path: `${asset.id}.png`,
+        runtimeSlot: RUNTIME_SLOTS[asset.id],
+      });
+    }),
+  );
 
 const GAMEPLAY_MODEL_TRANSPARENT_ASSET_IDS = Object.freeze(
   GAMEPLAY_MODEL_ASSET_CONTRACTS.filter(
@@ -145,7 +329,9 @@ function safeRelative(value: unknown, label: string): string {
     candidate.includes("\\") ||
     path.posix.isAbsolute(candidate) ||
     path.posix.normalize(candidate) !== candidate ||
-    candidate.split("/").some((part) => part === "" || part === "." || part === "..")
+    candidate
+      .split("/")
+      .some((part) => part === "" || part === "." || part === "..")
   ) {
     throw new Error(`${label} must be a canonical relative path`);
   }
@@ -174,7 +360,9 @@ function portableJson(value: unknown, label: string): void {
   const rendered = JSON.stringify(value);
   if (
     !rendered ||
-    /(?:file:|data:|\/Users\/|\/private\/tmp\/|\/var\/folders\/)/i.test(rendered) ||
+    /(?:file:|data:|\/Users\/|\/private\/tmp\/|\/var\/folders\/)/i.test(
+      rendered,
+    ) ||
     /\b(?:OPENROUTER_API_KEY|FAL_KEY)\b/.test(rendered)
   ) {
     throw new Error(`${label} contains a non-portable or sensitive value`);
@@ -195,11 +383,19 @@ async function readRegularWithin(
   let rootReal: string;
   let stat: Stats;
   try {
-    [rootReal, stat] = await Promise.all([fs.realpath(absoluteRoot), fs.lstat(target)]);
+    [rootReal, stat] = await Promise.all([
+      fs.realpath(absoluteRoot),
+      fs.lstat(target),
+    ]);
   } catch {
     throw new Error(`${label} must be a bounded non-symlink regular file`);
   }
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.size <= 0 || stat.size > maximumBytes) {
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.size <= 0 ||
+    stat.size > maximumBytes
+  ) {
     throw new Error(`${label} must be a bounded non-symlink regular file`);
   }
   let real: string;
@@ -208,11 +404,17 @@ async function readRegularWithin(
   } catch {
     throw new Error(`${label} must be a bounded non-symlink regular file`);
   }
-  if (!real.startsWith(`${rootReal}${path.sep}`)) throw new Error(`${label} escapes its root`);
+  if (!real.startsWith(`${rootReal}${path.sep}`))
+    throw new Error(`${label} escapes its root`);
   return await fs.readFile(target);
 }
 
-function exactPair(value: unknown, width: number, height: number, label: string): void {
+function exactPair(
+  value: unknown,
+  width: number,
+  height: number,
+  label: string,
+): void {
   const pair = record(value, label);
   if (pair.width !== width || pair.height !== height) {
     throw new Error(`${label} does not match the gameplay asset contract`);
@@ -235,8 +437,13 @@ function validateGridPixels(
   if (contract.alphaExpectation === "opaque" && nonOpaque !== 0) {
     throw new Error(`${contract.id} must be fully opaque`);
   }
-  if (contract.alphaExpectation === "transparent" && (transparent === 0 || painted === 0)) {
-    throw new Error(`${contract.id} must contain transparent and painted pixels`);
+  if (
+    contract.alphaExpectation === "transparent" &&
+    (transparent === 0 || painted === 0)
+  ) {
+    throw new Error(
+      `${contract.id} must contain transparent and painted pixels`,
+    );
   }
   const cellWidth = contract.width / contract.columns;
   const cellHeight = contract.height / contract.rows;
@@ -261,7 +468,8 @@ function validateGridPixels(
           if (!inGutter && alpha !== 0) cellPainted = true;
         }
       }
-      if (!cellPainted) throw new Error(`${contract.id} has an empty grid-cell interior`);
+      if (!cellPainted)
+        throw new Error(`${contract.id} has an empty grid-cell interior`);
     }
   }
   if (contract.id === "tileset") {
@@ -278,7 +486,9 @@ function validateGridPixels(
         x += 1
       ) {
         if (decoded.data[(y * contract.width + x) * 4 + 3] !== 255) {
-          throw new Error("tileset ground-fill cell interior must be fully opaque");
+          throw new Error(
+            "tileset ground-fill cell interior must be fully opaque",
+          );
         }
       }
     }
@@ -303,23 +513,128 @@ function decodeAndValidatePng(
     !Buffer.isBuffer(decoded.data) ||
     decoded.data.byteLength !== contract.width * contract.height * 4
   ) {
-    throw new Error(`${contract.id} has invalid dimensions, depth, or decoded bounds`);
+    throw new Error(
+      `${contract.id} has invalid dimensions, depth, or decoded bounds`,
+    );
   }
   validateGridPixels(decoded, contract, cellGutterPixels);
 }
 
-function assertExactIds(records: readonly JsonRecord[], label: string): Map<string, JsonRecord> {
+function assertExactIds(
+  records: readonly JsonRecord[],
+  label: string,
+): Map<string, JsonRecord> {
   const byId = new Map<string, JsonRecord>();
   for (const item of records) {
     const id = stableText(item.id, `${label}.id`);
     if (byId.has(id)) throw new Error(`${label} contains a duplicate id`);
     byId.set(id, item);
   }
-  const expected = GAMEPLAY_MODEL_ASSET_CONTRACTS.map((asset) => asset.id).sort();
+  const expected = GAMEPLAY_MODEL_ASSET_CONTRACTS.map(
+    (asset) => asset.id,
+  ).sort();
   if (JSON.stringify([...byId.keys()].sort()) !== JSON.stringify(expected)) {
-    throw new Error(`${label} must contain exactly the 18 gameplay asset ids`);
+    throw new Error(
+      `${label} must contain exactly the ${GAMEPLAY_MODEL_ASSET_CONTRACTS.length} gameplay asset ids`,
+    );
   }
   return byId;
+}
+
+function validateCharacterClimbProducer(
+  value: JsonRecord,
+  postprocess: JsonRecord,
+): void {
+  const layout = record(value.layout, "character-climb.layout");
+  if (layout.cellWidth !== 64 || layout.cellHeight !== 128) {
+    throw new Error("character-climb must bind four exact 64x128 cells");
+  }
+  const parameters = record(value.parameters, "character-climb.parameters");
+  const parameterProvenance = record(
+    parameters.generationProvenance,
+    "character-climb.parameters.generationProvenance",
+  );
+  const producerProvenance = record(
+    postprocess.producerProvenance,
+    "character-climb.postprocess.producerProvenance",
+  );
+  for (const [label, provenance] of [
+    ["parameter", parameterProvenance],
+    ["producer", producerProvenance],
+  ] as const) {
+    if (
+      safeRelative(provenance.path, `character-climb.${label}.path`) !==
+        CHARACTER_CLIMB_GENERATION_PATH ||
+      digest(provenance.sha256, `character-climb.${label}.sha256`) !==
+        CHARACTER_CLIMB_GENERATION_SHA256 ||
+      provenance.bytes !== CHARACTER_CLIMB_GENERATION_BYTES ||
+      provenance.attempts !== 5 ||
+      provenance.selectedAttempt !== 2
+    ) {
+      throw new Error(
+        "character-climb must bind its exact five-attempt ImageGen provenance",
+      );
+    }
+  }
+  if (
+    producerProvenance.tool !== "image_gen.imagegen" ||
+    producerProvenance.mode !== "built-in"
+  ) {
+    throw new Error("character-climb producer provenance must identify ImageGen");
+  }
+  const source = record(value.sourceOutput, "character-climb.sourceOutput");
+  if (source.sha256 !== CHARACTER_CLIMB_SOURCE_SHA256) {
+    throw new Error("character-climb must bind the selected ImageGen source");
+  }
+  const extraction = record(
+    postprocess.backgroundExtraction,
+    "character-climb.postprocess.backgroundExtraction",
+  );
+  const extractedOutput = record(
+    extraction.output,
+    "character-climb.postprocess.backgroundExtraction.output",
+  );
+  if (
+    extraction.tool !== "Pillow" ||
+    extraction.operation !==
+      "local-checkerboard-to-alpha-and-edge-decontamination" ||
+    extraction.inputSha256 !== CHARACTER_CLIMB_SOURCE_SHA256 ||
+    safeRelative(
+      extraction.provenancePath,
+      "character-climb.postprocess.backgroundExtraction.provenancePath",
+    ) !== CHARACTER_CLIMB_EXTRACTION_PATH ||
+    extraction.provenanceSha256 !== CHARACTER_CLIMB_EXTRACTION_SHA256 ||
+    extraction.provenanceBytes !== CHARACTER_CLIMB_EXTRACTION_BYTES ||
+    extraction.externalUploadPerformed !== false ||
+    extractedOutput.sha256 !== CHARACTER_CLIMB_EXTRACTED_SHA256 ||
+    extractedOutput.bytes !== CHARACTER_CLIMB_EXTRACTED_BYTES ||
+    extractedOutput.width !== 1774 ||
+    extractedOutput.height !== 887 ||
+    extractedOutput.mimeType !== "image/png"
+  ) {
+    throw new Error(
+      "character-climb must bind its exact local alpha-extraction provenance",
+    );
+  }
+  const normalization = record(
+    postprocess.normalization,
+    "character-climb.postprocess.normalization",
+  );
+  if (
+    normalization.sourceSha256 !== CHARACTER_CLIMB_EXTRACTED_SHA256 ||
+    normalization.transparentGutterPixelsPerCellEdge !== CELL_GUTTER_PIXELS
+  ) {
+    throw new Error(
+      "character-climb normalization must bind the extracted source and 2-pixel gutters",
+    );
+  }
+  const output = record(value.output, "character-climb.output");
+  if (
+    output.sha256 !== CHARACTER_CLIMB_SHA256 ||
+    output.bytes !== CHARACTER_CLIMB_BYTES
+  ) {
+    throw new Error("character-climb must bind the exact approved PNG bytes");
+  }
 }
 
 function validateProducerAsset(
@@ -327,18 +642,29 @@ function validateProducerAsset(
   contract: GameplayModelAssetContract,
 ): number {
   if (safeRelative(value.path, `${contract.id}.path`) !== contract.path) {
-    throw new Error(`${contract.id}.path does not match the fixed asset contract`);
+    throw new Error(
+      `${contract.id}.path does not match the fixed asset contract`,
+    );
   }
   if (value.runtimeSlot !== contract.runtimeSlot) {
-    throw new Error(`${contract.id}.runtimeSlot does not match the runtime contract`);
+    throw new Error(
+      `${contract.id}.runtimeSlot does not match the runtime contract`,
+    );
   }
-  exactPair(value.target, contract.width, contract.height, `${contract.id}.target`);
+  exactPair(
+    value.target,
+    contract.width,
+    contract.height,
+    `${contract.id}.target`,
+  );
   const layout = record(value.layout, `${contract.id}.layout`);
   if (layout.rows !== contract.rows || layout.columns !== contract.columns) {
     throw new Error(`${contract.id}.layout does not match the runtime grid`);
   }
   if (value.alphaExpectation !== contract.alphaExpectation) {
-    throw new Error(`${contract.id}.alphaExpectation does not match the runtime contract`);
+    throw new Error(
+      `${contract.id}.alphaExpectation does not match the runtime contract`,
+    );
   }
   stableText(value.prompt, `${contract.id}.prompt`);
   if (!Array.isArray(value.referenceAssetIds)) {
@@ -357,7 +683,11 @@ function validateProducerAsset(
     }
     referenceIds.add(reference);
   }
-  if (!value.parameters || typeof value.parameters !== "object" || Array.isArray(value.parameters)) {
+  if (
+    !value.parameters ||
+    typeof value.parameters !== "object" ||
+    Array.isArray(value.parameters)
+  ) {
     throw new Error(`${contract.id}.parameters must be an object`);
   }
   if (Object.keys(value.parameters).length === 0) {
@@ -365,15 +695,25 @@ function validateProducerAsset(
   }
   portableJson(value.parameters, `${contract.id}.parameters`);
   const source = record(value.sourceOutput, `${contract.id}.sourceOutput`);
-  const sourceFileName = stableText(source.fileName, `${contract.id}.sourceOutput.fileName`);
+  const sourceFileName = stableText(
+    source.fileName,
+    `${contract.id}.sourceOutput.fileName`,
+  );
   if (sourceFileName.includes("/") || sourceFileName.includes("\\")) {
-    throw new Error(`${contract.id}.sourceOutput.fileName must be a portable basename`);
+    throw new Error(
+      `${contract.id}.sourceOutput.fileName must be a portable basename`,
+    );
   }
   digest(source.sha256, `${contract.id}.sourceOutput.sha256`);
   positiveInteger(source.width, `${contract.id}.sourceOutput.width`);
   positiveInteger(source.height, `${contract.id}.sourceOutput.height`);
-  if (source.mimeType !== "image/png") throw new Error(`${contract.id} source must be PNG`);
-  if (!value.postprocess || typeof value.postprocess !== "object" || Array.isArray(value.postprocess)) {
+  if (source.mimeType !== "image/png")
+    throw new Error(`${contract.id} source must be PNG`);
+  if (
+    !value.postprocess ||
+    typeof value.postprocess !== "object" ||
+    Array.isArray(value.postprocess)
+  ) {
     throw new Error(`${contract.id}.postprocess must be an object`);
   }
   if (Object.keys(value.postprocess).length === 0) {
@@ -382,6 +722,9 @@ function validateProducerAsset(
   const postprocess = value.postprocess as JsonRecord;
   portableJson(postprocess, `${contract.id}.postprocess`);
   if (contract.alphaExpectation === "transparent") {
+    if (contract.id === CHARACTER_CLIMB_ID) {
+      validateCharacterClimbProducer(value, postprocess);
+    } else {
     const backgroundRemoval = record(
       postprocess.backgroundRemoval,
       `${contract.id}.postprocess.backgroundRemoval`,
@@ -426,6 +769,7 @@ function validateProducerAsset(
     if (backgroundOutput.mimeType !== "image/png") {
       throw new Error(`${contract.id} background-removal output must be PNG`);
     }
+    }
   }
   const declaresCellGutter = Object.hasOwn(postprocess, "cellGutterPixels");
   const supportsCellGutter =
@@ -440,14 +784,19 @@ function validateProducerAsset(
     );
   }
   if (REQUIRED_GUTTER_ASSET_IDS.has(contract.id) && !declaresCellGutter) {
-    throw new Error(`${contract.id}.postprocess must declare cellGutterPixels: 2`);
+    throw new Error(
+      `${contract.id}.postprocess must declare cellGutterPixels: 2`,
+    );
   }
   const output = record(value.output, `${contract.id}.output`);
   digest(output.sha256, `${contract.id}.output.sha256`);
   exactPair(output, contract.width, contract.height, `${contract.id}.output`);
-  if (output.mimeType !== "image/png") throw new Error(`${contract.id} output must be PNG`);
+  if (output.mimeType !== "image/png")
+    throw new Error(`${contract.id} output must be PNG`);
   if (value.reviewStatus !== "pending-independent-review") {
-    throw new Error(`${contract.id} producer reviewStatus must remain pending-independent-review`);
+    throw new Error(
+      `${contract.id} producer reviewStatus must remain pending-independent-review`,
+    );
   }
   return declaresCellGutter ? CELL_GUTTER_PIXELS : 0;
 }
@@ -456,32 +805,359 @@ function validateApprovalAsset(
   value: JsonRecord,
   producer: JsonRecord,
   contract: GameplayModelAssetContract,
+  setAttestation: string,
+  sourceManifest: JsonRecord,
 ): void {
-  if (safeRelative(value.path, `${contract.id}.approval.path`) !== contract.path) {
-    throw new Error(`${contract.id} approval path does not match the fixed asset contract`);
+  if (
+    safeRelative(value.path, `${contract.id}.approval.path`) !== contract.path
+  ) {
+    throw new Error(
+      `${contract.id} approval path does not match the fixed asset contract`,
+    );
   }
   const producerOutput = record(producer.output, `${contract.id}.output`);
-  if (digest(value.sha256, `${contract.id}.approval.sha256`) !== producerOutput.sha256) {
-    throw new Error(`${contract.id} approval digest does not match the producer output`);
+  if (
+    digest(value.sha256, `${contract.id}.approval.sha256`) !==
+    producerOutput.sha256
+  ) {
+    throw new Error(
+      `${contract.id} approval digest does not match the producer output`,
+    );
   }
   positiveInteger(value.bytes, `${contract.id}.approval.bytes`);
   const visual = record(value.visualReview, `${contract.id}.visualReview`);
-  if (visual.status !== "approved" || visual.result !== "pass" || visual.independent !== true) {
-    throw new Error(`${contract.id} requires an independent passing visual approval`);
+  if (
+    visual.status !== "approved" ||
+    visual.result !== "pass" ||
+    visual.independent !== true
+  ) {
+    throw new Error(
+      `${contract.id} requires an independent passing visual approval`,
+    );
   }
-  const attestation = stableText(visual.attestationId, `${contract.id}.visualReview.attestationId`);
-  for (const field of ["reviewedBy", "authorityBasis", "reviewedAt", "attestedAt"] as const) {
+  const attestation = stableText(
+    visual.attestationId,
+    `${contract.id}.visualReview.attestationId`,
+  );
+  for (const field of [
+    "reviewedBy",
+    "authorityBasis",
+    "reviewedAt",
+    "attestedAt",
+  ] as const) {
     stableText(visual[field], `${contract.id}.visualReview.${field}`);
   }
   const rights = record(value.rights, `${contract.id}.rights`);
-  if (rights.status !== "redistribution-approved" || !Array.isArray(rights.basis)) {
-    throw new Error(`${contract.id} requires an explicit redistribution approval basis`);
+  if (
+    rights.status !== "redistribution-approved" ||
+    !Array.isArray(rights.basis)
+  ) {
+    throw new Error(
+      `${contract.id} requires an explicit redistribution approval basis`,
+    );
   }
   const basis = rights.basis.map((item, index) =>
     stableText(item, `${contract.id}.rights.basis[${index}]`),
   );
   if (new Set(basis).size !== basis.length || !basis.includes(attestation)) {
-    throw new Error(`${contract.id} rights basis must include its visual attestation`);
+    throw new Error(
+      `${contract.id} rights basis must include its visual attestation`,
+    );
+  }
+  if (contract.id === "ladder") {
+    validateLadderApproval(
+      value,
+      producer,
+      contract,
+      visual,
+      attestation,
+      setAttestation,
+    );
+  }
+  if (contract.id === CHARACTER_CLIMB_ID) {
+    validateCharacterClimbApproval(
+      value,
+      producer,
+      contract,
+      visual,
+      attestation,
+      setAttestation,
+      sourceManifest,
+    );
+  }
+}
+
+function validateLadderApproval(
+  value: JsonRecord,
+  producer: JsonRecord,
+  contract: GameplayModelAssetContract,
+  visual: JsonRecord,
+  attestation: string,
+  setAttestation: string,
+): void {
+  exactPair(
+    value.dimensions,
+    contract.width,
+    contract.height,
+    "ladder.approval.dimensions",
+  );
+  if (value.alphaExpectation !== "transparent") {
+    throw new Error("ladder approval must bind the transparent-alpha contract");
+  }
+  const style = record(value.styleReview, "ladder.styleReview");
+  if (
+    style.status !== "approved" ||
+    style.result !== "pass" ||
+    style.independent !== true ||
+    style.artDirection !== WORLD_NAME ||
+    style.cohesiveWithApprovedSet !== true ||
+    JSON.stringify(style.referenceAssetIds) !==
+      JSON.stringify(["tileset", "concept"])
+  ) {
+    throw new Error("ladder requires an independent cohesive style approval");
+  }
+  const runtime = record(value.runtimeScaleReview, "ladder.runtimeScaleReview");
+  if (runtime.status !== "approved" || runtime.result !== "pass") {
+    throw new Error("ladder runtime scale must be explicitly approved");
+  }
+  exactPair(
+    runtime.source,
+    contract.width,
+    contract.height,
+    "ladder.runtimeScaleReview.source",
+  );
+  exactPair(
+    runtime.display,
+    LADDER_RUNTIME_WIDTH,
+    LADDER_RUNTIME_HEIGHT,
+    "ladder.runtimeScaleReview.display",
+  );
+  if (runtime.uniformScale !== LADDER_RUNTIME_WIDTH / contract.width) {
+    throw new Error(
+      "ladder runtime scale must preserve the approved aspect ratio",
+    );
+  }
+  const report = record(visual.report, "ladder.visualReview.report");
+  if (
+    report.recordId !== "stage-gen-ladder-visual-review" ||
+    digest(report.sha256, "ladder.visualReview.report.sha256") !==
+      LADDER_REVIEW_REPORT_SHA256
+  ) {
+    throw new Error(
+      "ladder approval must bind the exact independent visual report",
+    );
+  }
+  positiveInteger(report.bytes, "ladder.visualReview.report.bytes");
+  const provenance = record(value.provenance, "ladder.provenance");
+  const producerManifest = record(
+    provenance.producerManifest,
+    "ladder.provenance.producerManifest",
+  );
+  if (
+    safeRelative(
+      producerManifest.path,
+      "ladder.provenance.producerManifest.path",
+    ) !== GAMEPLAY_DEMO_ASSET_MANIFEST ||
+    digest(
+      producerManifest.sha256,
+      "ladder.provenance.producerManifest.sha256",
+    ).length !== 64 ||
+    positiveInteger(
+      producerManifest.bytes,
+      "ladder.provenance.producerManifest.bytes",
+    ) < 1 ||
+    provenance.producerAssetId !== "ladder"
+  ) {
+    throw new Error(
+      "ladder provenance must bind its historical producer manifest and asset",
+    );
+  }
+  const producerPostprocess = record(
+    producer.postprocess,
+    "ladder.postprocess",
+  );
+  const producerRecord = record(
+    producerPostprocess.producerProvenance,
+    "ladder.postprocess.producerProvenance",
+  );
+  const generation = record(
+    provenance.generationRecord,
+    "ladder.provenance.generationRecord",
+  );
+  if (
+    safeRelative(generation.path, "ladder.provenance.generationRecord.path") !==
+      producerRecord.path ||
+    digest(generation.sha256, "ladder.provenance.generationRecord.sha256") !==
+      producerRecord.sha256
+  ) {
+    throw new Error("ladder approval must bind its exact generation record");
+  }
+  positiveInteger(generation.bytes, "ladder.provenance.generationRecord.bytes");
+  const backgroundRemoval = record(
+    producerPostprocess.backgroundRemoval,
+    "ladder.postprocess.backgroundRemoval",
+  );
+  if (
+    digest(
+      provenance.backgroundRemovalProvenanceSha256,
+      "ladder.provenance.backgroundRemovalProvenanceSha256",
+    ) !== backgroundRemoval.provenanceSha256
+  ) {
+    throw new Error("ladder approval must bind background-removal provenance");
+  }
+  const cohesiveSet = record(value.cohesiveSet, "ladder.cohesiveSet");
+  if (
+    cohesiveSet.member !== true ||
+    cohesiveSet.setAttestationId !== setAttestation ||
+    cohesiveSet.extensionAttestationId !== attestation
+  ) {
+    throw new Error("ladder approval must bind its cohesive-set membership");
+  }
+}
+
+function validateCharacterClimbApproval(
+  value: JsonRecord,
+  producer: JsonRecord,
+  contract: GameplayModelAssetContract,
+  visual: JsonRecord,
+  attestation: string,
+  setAttestation: string,
+  sourceManifest: JsonRecord,
+): void {
+  exactPair(
+    value.dimensions,
+    contract.width,
+    contract.height,
+    "character-climb.approval.dimensions",
+  );
+  if (value.alphaExpectation !== "transparent") {
+    throw new Error(
+      "character-climb approval must bind the transparent-alpha contract",
+    );
+  }
+  const layout = record(value.layout, "character-climb.approval.layout");
+  if (
+    layout.rows !== 1 ||
+    layout.columns !== 4 ||
+    layout.cellWidth !== 64 ||
+    layout.cellHeight !== 128 ||
+    layout.transparentGutterPixelsPerCellEdge !== CELL_GUTTER_PIXELS
+  ) {
+    throw new Error(
+      "character-climb approval must bind four 64x128 cells with 2-pixel gutters",
+    );
+  }
+  const style = record(value.styleReview, "character-climb.styleReview");
+  if (
+    style.status !== "approved" ||
+    style.result !== "pass" ||
+    style.independent !== true ||
+    style.artDirection !== WORLD_NAME ||
+    style.cohesiveWithApprovedSet !== true ||
+    JSON.stringify(style.referenceAssetIds) !==
+      JSON.stringify([
+        "character-concept",
+        "character-idle",
+        "character-jump",
+        "ladder",
+      ])
+  ) {
+    throw new Error(
+      "character-climb requires an independent cohesive style approval",
+    );
+  }
+  const runtime = record(value.runtimeOutput, "character-climb.runtimeOutput");
+  const frame = record(runtime.frame, "character-climb.runtimeOutput.frame");
+  if (
+    runtime.slot !== contract.runtimeSlot ||
+    runtime.textureKey !== "character_climb" ||
+    frame.width !== 64 ||
+    frame.height !== 128 ||
+    frame.count !== 4
+  ) {
+    throw new Error(
+      "character-climb approval must bind the exact runtime output and frame contract",
+    );
+  }
+  const report = record(visual.report, "character-climb.visualReview.report");
+  if (
+    report.recordId !== "stage-gen-character-climb-visual-review" ||
+    safeRelative(report.path, "character-climb.visualReview.report.path") !==
+      CHARACTER_CLIMB_REVIEW_PATH ||
+    digest(report.sha256, "character-climb.visualReview.report.sha256") !==
+      CHARACTER_CLIMB_REVIEW_SHA256 ||
+    report.bytes !== CHARACTER_CLIMB_REVIEW_BYTES
+  ) {
+    throw new Error(
+      "character-climb approval must bind the exact independent visual report",
+    );
+  }
+  const provenance = record(value.provenance, "character-climb.provenance");
+  const producerManifest = record(
+    provenance.producerManifest,
+    "character-climb.provenance.producerManifest",
+  );
+  if (
+    producerManifest.path !== sourceManifest.path ||
+    producerManifest.sha256 !== sourceManifest.sha256 ||
+    producerManifest.bytes !== sourceManifest.bytes ||
+    provenance.producerAssetId !== CHARACTER_CLIMB_ID
+  ) {
+    throw new Error(
+      "character-climb provenance must bind the exact current producer manifest and asset",
+    );
+  }
+  const producerPostprocess = record(
+    producer.postprocess,
+    "character-climb.postprocess",
+  );
+  const producerGeneration = record(
+    producerPostprocess.producerProvenance,
+    "character-climb.postprocess.producerProvenance",
+  );
+  const generation = record(
+    provenance.generationRecord,
+    "character-climb.provenance.generationRecord",
+  );
+  if (
+    generation.path !== producerGeneration.path ||
+    generation.sha256 !== producerGeneration.sha256 ||
+    generation.bytes !== producerGeneration.bytes ||
+    generation.attempts !== 5 ||
+    generation.selectedAttempt !== 2
+  ) {
+    throw new Error(
+      "character-climb approval must bind its five-attempt generation record",
+    );
+  }
+  const producerExtraction = record(
+    producerPostprocess.backgroundExtraction,
+    "character-climb.postprocess.backgroundExtraction",
+  );
+  const extraction = record(
+    provenance.localExtractionRecord,
+    "character-climb.provenance.localExtractionRecord",
+  );
+  if (
+    extraction.path !== producerExtraction.provenancePath ||
+    extraction.sha256 !== producerExtraction.provenanceSha256 ||
+    extraction.bytes !== producerExtraction.provenanceBytes ||
+    extraction.outputSha256 !== CHARACTER_CLIMB_EXTRACTED_SHA256 ||
+    extraction.externalUploadPerformed !== false
+  ) {
+    throw new Error(
+      "character-climb approval must bind the exact local extraction record",
+    );
+  }
+  const cohesiveSet = record(value.cohesiveSet, "character-climb.cohesiveSet");
+  if (
+    cohesiveSet.member !== true ||
+    cohesiveSet.setAttestationId !== setAttestation ||
+    cohesiveSet.extensionAttestationId !== attestation
+  ) {
+    throw new Error(
+      "character-climb approval must bind its cohesive-set membership",
+    );
   }
 }
 
@@ -491,14 +1167,16 @@ function worldSpec(): object {
     world: {
       name: WORLD_NAME,
       one_liner: "A moonlit path through hand-painted overgrown ruins.",
-      narrative: "Cross the ancient ruins, face their corrupted guardian, and reach the portal.",
+      narrative:
+        "Cross the ancient ruins, face their corrupted guardian, and reach the portal.",
     },
     mobs: [
       {
         tier_label: "training-0",
         body_plan: "single original creature",
         name: "Corrupted Stone Guardian",
-        brief: "A one-hit guardian represented by the approved model-generated demo art.",
+        brief:
+          "A one-hit guardian represented by the approved model-generated demo art.",
       },
     ],
     obstacles: [],
@@ -508,9 +1186,33 @@ function worldSpec(): object {
       brief: "An original collectible from the moonlit ruins.",
     })),
     layers: [
-      { id: "sky", title: "Sky", z_index: 0, parallax: 0, opaque: true, paint_region: "full canvas", description: "Approved opaque backdrop." },
-      { id: "ridges", title: "Ridges", z_index: 10, parallax: 0.35, opaque: false, paint_region: "lower two thirds", description: "Approved transparent middle depth." },
-      { id: "foreground", title: "Foreground", z_index: 20, parallax: 1.2, opaque: false, paint_region: "lower quarter", description: "Approved transparent foreground depth." },
+      {
+        id: "sky",
+        title: "Sky",
+        z_index: 0,
+        parallax: 0,
+        opaque: true,
+        paint_region: "full canvas",
+        description: "Approved opaque backdrop.",
+      },
+      {
+        id: "ridges",
+        title: "Ridges",
+        z_index: 10,
+        parallax: 0.35,
+        opaque: false,
+        paint_region: "lower two thirds",
+        description: "Approved transparent middle depth.",
+      },
+      {
+        id: "foreground",
+        title: "Foreground",
+        z_index: 20,
+        parallax: 1.8,
+        opaque: false,
+        paint_region: "lower quarter",
+        description: "Approved transparent foreground depth.",
+      },
     ],
   };
 }
@@ -535,7 +1237,10 @@ export async function generateApprovedModelGameplayFixture(
     throw new Error("gameplay fixture output root must be an absolute path");
   }
   const requestedSourceRoot = options.sourceRoot ?? GAMEPLAY_DEMO_ROOT;
-  if (!path.isAbsolute(requestedSourceRoot) || requestedSourceRoot.includes("\0")) {
+  if (
+    !path.isAbsolute(requestedSourceRoot) ||
+    requestedSourceRoot.includes("\0")
+  ) {
     throw new Error("gameplay demo source root must be an absolute path");
   }
   const sourceRoot = path.resolve(requestedSourceRoot);
@@ -571,12 +1276,19 @@ export async function generateApprovedModelGameplayFixture(
   portableJson(assetManifestValue, "gameplay asset manifest");
   portableJson(approvalManifestValue, "gameplay approval manifest");
   const assetManifest = record(assetManifestValue, "gameplay asset manifest");
-  const approvalManifest = record(approvalManifestValue, "gameplay approval manifest");
-  if (assetManifest.schemaVersion !== 1 || approvalManifest.schemaVersion !== 1) {
+  const approvalManifest = record(
+    approvalManifestValue,
+    "gameplay approval manifest",
+  );
+  if (
+    assetManifest.schemaVersion !== 1 ||
+    approvalManifest.schemaVersion !== 1
+  ) {
     throw new Error("gameplay demo manifest schemaVersion must be 1");
   }
   const artDirection = record(assetManifest.artDirection, "artDirection");
-  if (Object.keys(artDirection).length === 0) throw new Error("artDirection must not be empty");
+  if (Object.keys(artDirection).length === 0)
+    throw new Error("artDirection must not be empty");
   portableJson(artDirection, "artDirection");
   const generator = record(assetManifest.generator, "generator");
   if (
@@ -584,14 +1296,21 @@ export async function generateApprovedModelGameplayFixture(
     generator.mode !== "built-in" ||
     generator.model !== "unavailable"
   ) {
-    throw new Error("generator identity must match the built-in image generation contract");
+    throw new Error(
+      "generator identity must match the built-in image generation contract",
+    );
   }
   const seed = record(generator.seed, "generator.seed");
   if (seed.available !== false || seed.value !== null) {
-    throw new Error("generator seed must explicitly record provider unavailability");
+    throw new Error(
+      "generator seed must explicitly record provider unavailability",
+    );
   }
   stableText(seed.reason, "generator.seed.reason");
-  if (!Array.isArray(assetManifest.assets) || !Array.isArray(approvalManifest.assets)) {
+  if (
+    !Array.isArray(assetManifest.assets) ||
+    !Array.isArray(approvalManifest.assets)
+  ) {
     throw new Error("gameplay demo manifests must contain asset arrays");
   }
   const producerById = assertExactIds(
@@ -599,23 +1318,44 @@ export async function generateApprovedModelGameplayFixture(
     "producer assets",
   );
   const approvalById = assertExactIds(
-    approvalManifest.assets.map((item, index) => record(item, `assets[${index}]`)),
+    approvalManifest.assets.map((item, index) =>
+      record(item, `assets[${index}]`),
+    ),
     "approval assets",
   );
-  const sourceManifest = record(approvalManifest.sourceManifest, "sourceManifest");
+  const sourceManifest = record(
+    approvalManifest.sourceManifest,
+    "sourceManifest",
+  );
   if (
     sourceManifest.path !== GAMEPLAY_DEMO_ASSET_MANIFEST ||
     sourceManifest.sha256 !== sha256(assetManifestBytes) ||
     sourceManifest.bytes !== assetManifestBytes.byteLength
   ) {
-    throw new Error("approval manifest is not bound to the exact producer manifest");
+    throw new Error(
+      "approval manifest is not bound to the exact producer manifest",
+    );
   }
   const setReview = record(approvalManifest.setReview, "setReview");
-  if (setReview.status !== "approved" || setReview.result !== "pass" || setReview.independent !== true) {
-    throw new Error("gameplay demo requires an independent cohesive-set approval");
+  if (
+    setReview.status !== "approved" ||
+    setReview.result !== "pass" ||
+    setReview.independent !== true
+  ) {
+    throw new Error(
+      "gameplay demo requires an independent cohesive-set approval",
+    );
   }
-  const setAttestation = stableText(setReview.attestationId, "setReview.attestationId");
-  for (const field of ["reviewedBy", "authorityBasis", "reviewedAt", "attestedAt"] as const) {
+  const setAttestation = stableText(
+    setReview.attestationId,
+    "setReview.attestationId",
+  );
+  for (const field of [
+    "reviewedBy",
+    "authorityBasis",
+    "reviewedAt",
+    "attestedAt",
+  ] as const) {
     stableText(setReview[field], `setReview.${field}`);
   }
 
@@ -625,10 +1365,18 @@ export async function generateApprovedModelGameplayFixture(
     const producer = producerById.get(contract.id)!;
     const approval = approvalById.get(contract.id)!;
     const cellGutterPixels = validateProducerAsset(producer, contract);
-    validateApprovalAsset(approval, producer, contract);
+    validateApprovalAsset(
+      approval,
+      producer,
+      contract,
+      setAttestation,
+      sourceManifest,
+    );
     const rights = record(approval.rights, `${contract.id}.rights`);
     if (!(rights.basis as unknown[]).includes(setAttestation)) {
-      throw new Error(`${contract.id} rights basis must include the cohesive-set attestation`);
+      throw new Error(
+        `${contract.id} rights basis must include the cohesive-set attestation`,
+      );
     }
     const bytes = await readRegularWithin(
       sourceRoot,
@@ -636,11 +1384,132 @@ export async function generateApprovedModelGameplayFixture(
       `${contract.id} final PNG`,
       MAX_PNG_BYTES,
     );
-    if (sha256(bytes) !== approval.sha256 || bytes.byteLength !== approval.bytes) {
-      throw new Error(`${contract.id} bytes do not match their approved digest and size`);
+    if (
+      sha256(bytes) !== approval.sha256 ||
+      bytes.byteLength !== approval.bytes
+    ) {
+      throw new Error(
+        `${contract.id} bytes do not match their approved digest and size`,
+      );
+    }
+    if (contract.id === "ladder") {
+      const provenance = record(approval.provenance, "ladder.provenance");
+      const generation = record(
+        provenance.generationRecord,
+        "ladder.provenance.generationRecord",
+      );
+      const generationPath = safeRelative(
+        generation.path,
+        "ladder.provenance.generationRecord.path",
+      );
+      if (!generationPath.startsWith(GAMEPLAY_DEMO_REPOSITORY_PREFIX)) {
+        throw new Error(
+          "ladder generation record must use the fixed repository fixture prefix",
+        );
+      }
+      const generationBytes = await readRegularWithin(
+        sourceRoot,
+        generationPath.slice(GAMEPLAY_DEMO_REPOSITORY_PREFIX.length),
+        "ladder generation record",
+        MAX_MANIFEST_BYTES,
+      );
+      if (
+        sha256(generationBytes) !== generation.sha256 ||
+        generationBytes.byteLength !== generation.bytes
+      ) {
+        throw new Error(
+          "ladder generation record does not match its approved provenance",
+        );
+      }
+    }
+    if (contract.id === CHARACTER_CLIMB_ID) {
+      const provenance = record(
+        approval.provenance,
+        "character-climb.provenance",
+      );
+      const generation = record(
+        provenance.generationRecord,
+        "character-climb.provenance.generationRecord",
+      );
+      const extraction = record(
+        provenance.localExtractionRecord,
+        "character-climb.provenance.localExtractionRecord",
+      );
+      const visual = record(
+        approval.visualReview,
+        "character-climb.visualReview",
+      );
+      const report = record(
+        visual.report,
+        "character-climb.visualReview.report",
+      );
+      for (const [recordValue, label] of [
+        [generation, "character-climb generation record"],
+        [extraction, "character-climb extraction record"],
+        [report, "character-climb visual review"],
+      ] as const) {
+        const recordPath = safeRelative(recordValue.path, `${label}.path`);
+        if (!recordPath.startsWith(GAMEPLAY_DEMO_REPOSITORY_PREFIX)) {
+          throw new Error(`${label} must use the fixed repository fixture prefix`);
+        }
+        const recordBytes = await readRegularWithin(
+          sourceRoot,
+          recordPath.slice(GAMEPLAY_DEMO_REPOSITORY_PREFIX.length),
+          label,
+          MAX_MANIFEST_BYTES,
+        );
+        if (
+          sha256(recordBytes) !== recordValue.sha256 ||
+          recordBytes.byteLength !== recordValue.bytes
+        ) {
+          throw new Error(`${label} does not match its approved provenance`);
+        }
+        if (recordValue === generation) {
+          let generationValue: unknown;
+          try {
+            generationValue = JSON.parse(recordBytes.toString("utf8"));
+          } catch {
+            throw new Error("character-climb generation record must be JSON");
+          }
+          const generationRecord = record(
+            generationValue,
+            "character-climb generation record",
+          );
+          const generatorRecord = record(
+            generationRecord.generator,
+            "character-climb generation record.generator",
+          );
+          if (
+            generatorRecord.tool !== "image_gen.imagegen" ||
+            generatorRecord.mode !== "built-in" ||
+            !Array.isArray(generationRecord.attempts) ||
+            generationRecord.attempts.length !== 5
+          ) {
+            throw new Error(
+              "character-climb generation record must contain five built-in ImageGen attempts",
+            );
+          }
+          const attempts = generationRecord.attempts.map((attempt, index) =>
+            record(attempt, `character-climb generation attempt ${index + 1}`),
+          );
+          if (
+            attempts.some((attempt, index) => attempt.attempt !== index + 1) ||
+            attempts.filter((attempt) => attempt.status === "selected")
+              .length !== 1 ||
+            attempts[1]?.status !== "selected"
+          ) {
+            throw new Error(
+              "character-climb generation attempts must bind selected attempt 2",
+            );
+          }
+        }
+      }
     }
     decodeAndValidatePng(bytes, contract, cellGutterPixels);
-    const runtimeName = contract.runtimeSlot.replace("<tag>", GAMEPLAY_MODEL_TAG);
+    const runtimeName = contract.runtimeSlot.replace(
+      "<tag>",
+      GAMEPLAY_MODEL_TAG,
+    );
     outputs.set(runtimeName, bytes);
     sourceAssetHashes[contract.id] = sha256(bytes);
   }
@@ -683,7 +1552,10 @@ export async function generateApprovedModelGameplayFixture(
         canonicalAlpha: true,
         provider: FAL_BACKGROUND_REMOVAL_PROVIDER,
         model: FAL_BACKGROUND_REMOVAL_MODEL,
-        assetIds: GAMEPLAY_MODEL_TRANSPARENT_ASSET_IDS,
+        assetIds: GAMEPLAY_MODEL_TRANSPARENT_ASSET_IDS.filter(
+          (assetId) => assetId !== CHARACTER_CLIMB_ID,
+        ),
+        localExtractionAssetIds: [CHARACTER_CLIMB_ID],
         sourceManifest: {
           path: "fixtures/gameplay-demo/asset-manifest.json",
           sha256: sha256(assetManifestBytes),
@@ -717,10 +1589,13 @@ export async function generateApprovedModelGameplayFixture(
   }
   const runDir = path.join(outRoot, GAMEPLAY_MODEL_TAG);
   await fs.mkdir(runDir, { mode: 0o700 });
-  for (const [filename, bytes] of [...outputs.entries()].sort(([left], [right]) =>
-    left.localeCompare(right),
+  for (const [filename, bytes] of [...outputs.entries()].sort(
+    ([left], [right]) => left.localeCompare(right),
   )) {
-    await fs.writeFile(path.join(runDir, filename), bytes, { flag: "wx", mode: 0o600 });
+    await fs.writeFile(path.join(runDir, filename), bytes, {
+      flag: "wx",
+      mode: 0o600,
+    });
   }
   const fixtureDigest = sha256(
     Buffer.from(

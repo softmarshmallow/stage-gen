@@ -13,6 +13,10 @@ import {
   type CellRect,
 } from "./image-ops";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
+import {
+  prepareForegroundRaster,
+  type PreparedForegroundRaster,
+} from "./foreground";
 
 export type AssetUrlFn = (file: string) => string;
 
@@ -51,6 +55,21 @@ export type LoadedParallaxLayer = {
   opaque: boolean;
 };
 
+export type LoadedForegroundLayer = LoadedParallaxLayer &
+  Readonly<{
+    foreground: Pick<
+      PreparedForegroundRaster,
+      | "sourceWidth"
+      | "sourceHeight"
+      | "contentBounds"
+      | "meaningfulContentBounds"
+      | "contactStrip"
+      | "contactSourceY"
+      | "repeatPeriod"
+      | "overlap"
+    >;
+  }>;
+
 export async function loadParallaxLayer(
   url: string,
   key: string,
@@ -73,6 +92,58 @@ export async function loadParallaxLayer(
     width: canvas.width,
     height: canvas.height,
     opaque,
+  };
+}
+
+/** Prepare one vertically trimmed, premultiplied periodic foreground canvas. */
+export async function loadForegroundLayer(
+  url: string,
+  key: string,
+  overlapPx: number,
+  textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
+): Promise<LoadedForegroundLayer> {
+  const image = await fetchImage(url);
+  const source = transparencyCanvas(image, policy);
+  const sourceContext = source.getContext("2d", { willReadFrequently: true });
+  if (!sourceContext) {
+    throw new Error("foreground preparation requires a 2d source canvas");
+  }
+  const prepared = prepareForegroundRaster(
+    {
+      width: source.width,
+      height: source.height,
+      data: sourceContext.getImageData(0, 0, source.width, source.height).data,
+    },
+    overlapPx,
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = prepared.width;
+  canvas.height = prepared.height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("foreground preparation requires a 2d target canvas");
+  }
+  const imageData = context.createImageData(prepared.width, prepared.height);
+  imageData.data.set(prepared.data);
+  context.putImageData(imageData, 0, 0);
+  registerCanvas(textures, key, canvas);
+  return {
+    key,
+    canvas,
+    width: canvas.width,
+    height: canvas.height,
+    opaque: false,
+    foreground: {
+      sourceWidth: prepared.sourceWidth,
+      sourceHeight: prepared.sourceHeight,
+      contentBounds: prepared.contentBounds,
+      meaningfulContentBounds: prepared.meaningfulContentBounds,
+      contactStrip: prepared.contactStrip,
+      contactSourceY: prepared.contactSourceY,
+      repeatPeriod: prepared.repeatPeriod,
+      overlap: prepared.overlap,
+    },
   };
 }
 
@@ -159,9 +230,221 @@ export async function loadGridSheet(
   return { canvas, cells };
 }
 
-// --- Tileset: consume canonical alpha + register cells by role. ---
+// --- Tileset: consume canonical alpha into continuous terrain materials. ---
 
-import { cellRectFor, TILESET_COLS, TILESET_ROWS, type TileRole } from "./tiles";
+import {
+  atlasExtrusionBlits,
+  cellRectFor,
+  contentRectFor,
+  deriveTerrainMaterialProfile,
+  deriveTerrainSideBand,
+  deriveTerrainSurfaceBand,
+  terrainIntegrationPixel,
+  terrainMaterialPixelFromSource,
+  TERRAIN_INTEGRATION_TEXTURE_DEPTH,
+  TERRAIN_MATERIAL_TEXTURE_PIXELS,
+  TERRAIN_SIDE_BAND_TEXTURE_WIDTH,
+  TERRAIN_SURFACE_BAND_TEXTURE_HEIGHT,
+  tilesetGeometry,
+  type TerrainMaterialProfile,
+  type TerrainIntegrationAxis,
+  type TerrainSideEdge,
+} from "./tiles";
+
+/**
+ * Build a runtime-only atlas whose isolation gutters repeat each cell's own
+ * edge pixels. This prevents transparent gutter scaling and cross-cell
+ * sampling without changing the approved source image bytes.
+ */
+export function prepareTilesetCanvas(
+  source: HTMLCanvasElement,
+): HTMLCanvasElement {
+  const geometry = tilesetGeometry(source.width, source.height);
+  const fillContent = contentRectFor("fill", source.width, source.height, 0);
+  assertOpaqueCanvasRect(source, fillContent, "tileset fill content");
+
+  const prepared = document.createElement("canvas");
+  prepared.width = source.width;
+  prepared.height = source.height;
+  const context = prepared.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("tileset preparation requires a 2d canvas");
+  context.imageSmoothingEnabled = false;
+  for (const blit of atlasExtrusionBlits(source.width, source.height)) {
+    context.drawImage(
+      source,
+      blit.source.x,
+      blit.source.y,
+      blit.source.w,
+      blit.source.h,
+      blit.target.x,
+      blit.target.y,
+      blit.target.w,
+      blit.target.h,
+    );
+  }
+
+  // The canonical fill frame is the coverage layer under every terrain role.
+  // Its derived cell must remain opaque including the extruded gutter.
+  const fillCell = cellRectFor("fill", source.width, source.height, 0);
+  assertOpaqueCanvasRect(prepared, fillCell, "prepared tileset fill frame");
+  if (fillCell.w !== geometry.cellWidth || fillCell.h !== geometry.cellHeight) {
+    throw new Error(
+      "prepared tileset cell geometry diverged from its contract",
+    );
+  }
+  return prepared;
+}
+
+export function prepareTerrainMaterialCanvas(
+  source: HTMLCanvasElement,
+): Readonly<{
+  canvas: HTMLCanvasElement;
+  profile: TerrainMaterialProfile;
+}> {
+  const fillContent = contentRectFor("fill", source.width, source.height, 0);
+  assertOpaqueCanvasRect(source, fillContent, "tileset fill content");
+  const sourceContext = source.getContext("2d", { willReadFrequently: true });
+  if (!sourceContext) {
+    throw new Error("terrain material preparation requires a 2d source canvas");
+  }
+  const sourcePixels = sourceContext.getImageData(
+    fillContent.x,
+    fillContent.y,
+    fillContent.w,
+    fillContent.h,
+  ).data;
+  const profile = deriveTerrainMaterialProfile(sourcePixels);
+  const material = document.createElement("canvas");
+  material.width = TERRAIN_MATERIAL_TEXTURE_PIXELS;
+  material.height = TERRAIN_MATERIAL_TEXTURE_PIXELS;
+  const context = material.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("terrain material preparation requires a 2d target canvas");
+  }
+  const image = context.createImageData(material.width, material.height);
+  for (let y = 0; y < material.height; y += 1) {
+    for (let x = 0; x < material.width; x += 1) {
+      const color = terrainMaterialPixelFromSource(
+        profile,
+        sourcePixels,
+        fillContent.w,
+        fillContent.h,
+        x,
+        y,
+        material.width,
+      );
+      const offset = (y * material.width + x) * 4;
+      image.data[offset] = color.red;
+      image.data[offset + 1] = color.green;
+      image.data[offset + 2] = color.blue;
+      image.data[offset + 3] = color.alpha;
+    }
+  }
+  context.putImageData(image, 0, 0);
+  return Object.freeze({ canvas: material, profile });
+}
+
+export function prepareTerrainSurfaceCanvas(
+  source: HTMLCanvasElement,
+): HTMLCanvasElement {
+  const cap = contentRectFor("top_single", source.width, source.height, 0);
+  const sourceContext = source.getContext("2d", { willReadFrequently: true });
+  if (!sourceContext) {
+    throw new Error("terrain surface preparation requires a 2d source canvas");
+  }
+  const pixels = sourceContext.getImageData(cap.x, cap.y, cap.w, cap.h).data;
+  const surface = document.createElement("canvas");
+  surface.width = TERRAIN_MATERIAL_TEXTURE_PIXELS;
+  surface.height = TERRAIN_SURFACE_BAND_TEXTURE_HEIGHT;
+  const context = surface.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("terrain surface preparation requires a 2d target canvas");
+  }
+  const image = context.createImageData(surface.width, surface.height);
+  image.data.set(
+    deriveTerrainSurfaceBand(
+      pixels,
+      cap.w,
+      cap.h,
+      surface.width,
+      surface.height,
+    ),
+  );
+  context.putImageData(image, 0, 0);
+  return surface;
+}
+
+export function prepareTerrainSideCanvas(
+  source: HTMLCanvasElement,
+  edge: TerrainSideEdge,
+): HTMLCanvasElement {
+  const role = edge === "left" ? "side_left" : "side_right";
+  const side = contentRectFor(role, source.width, source.height, 0);
+  const sourceContext = source.getContext("2d", { willReadFrequently: true });
+  if (!sourceContext) {
+    throw new Error("terrain side preparation requires a 2d source canvas");
+  }
+  const pixels = sourceContext.getImageData(
+    side.x,
+    side.y,
+    side.w,
+    side.h,
+  ).data;
+  const strip = document.createElement("canvas");
+  strip.width = TERRAIN_SIDE_BAND_TEXTURE_WIDTH;
+  strip.height = TERRAIN_MATERIAL_TEXTURE_PIXELS;
+  const context = strip.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("terrain side preparation requires a 2d target canvas");
+  }
+  const image = context.createImageData(strip.width, strip.height);
+  image.data.set(
+    deriveTerrainSideBand(
+      pixels,
+      side.w,
+      side.h,
+      edge,
+      strip.width,
+      strip.height,
+    ),
+  );
+  context.putImageData(image, 0, 0);
+  return strip;
+}
+
+export function prepareTerrainIntegrationCanvas(
+  profile: TerrainMaterialProfile,
+  axis: TerrainIntegrationAxis,
+): HTMLCanvasElement {
+  const vertical = axis !== "surface";
+  const canvas = document.createElement("canvas");
+  canvas.width = vertical
+    ? TERRAIN_INTEGRATION_TEXTURE_DEPTH
+    : TERRAIN_MATERIAL_TEXTURE_PIXELS;
+  canvas.height = vertical
+    ? TERRAIN_MATERIAL_TEXTURE_PIXELS
+    : TERRAIN_INTEGRATION_TEXTURE_DEPTH;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("terrain integration preparation requires a 2d canvas");
+  }
+  const image = context.createImageData(canvas.width, canvas.height);
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const along = vertical ? y : x;
+      const depth =
+        axis === "side-right" ? canvas.width - 1 - x : vertical ? x : y;
+      const color = terrainIntegrationPixel(profile, axis, along, depth);
+      const offset = (y * canvas.width + x) * 4;
+      image.data[offset] = color.red;
+      image.data[offset + 1] = color.green;
+      image.data[offset + 2] = color.blue;
+      image.data[offset + 3] = color.alpha;
+    }
+  }
+  context.putImageData(image, 0, 0);
+  return canvas;
+}
 
 export async function loadTileset(
   url: string,
@@ -170,56 +453,83 @@ export async function loadTileset(
   policy: PreviewTransparencyPolicy,
 ): Promise<{
   canvas: HTMLCanvasElement;
-  tileW: number;
-  tileH: number;
-  bestFillCell: { row: number; col: number; opacity: number };
+  fillMaterialKey: string;
+  surfaceMaterialKey: string;
+  leftSideMaterialKey: string;
+  rightSideMaterialKey: string;
+  surfaceIntegrationKey: string;
+  leftSideIntegrationKey: string;
+  rightSideIntegrationKey: string;
+  fillMaterialProfile: TerrainMaterialProfile;
 }> {
   const img = await fetchImage(url);
-  const canvas = transparencyCanvas(img, policy);
-  registerCanvas(textures, key, canvas);
-  const tex = textures.get(key);
-  const tileW = Math.floor(canvas.width / TILESET_COLS);
-  const tileH = Math.floor(canvas.height / TILESET_ROWS);
-  const ROLES: TileRole[] = [
-    "top_left", "top_mid", "top_right", "top_single",
-    "slope_up", "slope_down", "inner_tl", "inner_tr",
-    "side_left", "side_right", "bot_left", "bot_right",
-    "fill", "plat_left", "plat_mid", "plat_right",
-  ];
-  for (const role of ROLES) {
-    for (let v = 0; v < 3; v++) {
-      const r = cellRectFor(role, canvas.width, canvas.height, v);
-      tex.add(`${role}_v${v}`, 0, r.x, r.y, r.w, r.h);
-    }
-  }
-
-  // The 12×4 role contract is unreliable in places, but the tileset prompt
-  // explicitly guarantees row 4 (0-indexed row 3), cols 1..4 are 100% solid
-  // interior fill — the only cells contracted as fully opaque underground
-  // blocks. The scrolling recipe owns that tile contract. Use cell
-  // (row=3, col=0) as the canonical universal fill. Static, no scan.
-  const FILL_ROW = 3;
-  const FILL_COL = 0;
-  tex.add(
-    "ground_fill",
-    0,
-    FILL_COL * tileW,
-    FILL_ROW * tileH,
-    tileW,
-    tileH,
+  const sourceCanvas = transparencyCanvas(img, policy);
+  const canvas = prepareTilesetCanvas(sourceCanvas);
+  const fillMaterial = prepareTerrainMaterialCanvas(sourceCanvas);
+  const surfaceMaterial = prepareTerrainSurfaceCanvas(sourceCanvas);
+  const leftSideMaterial = prepareTerrainSideCanvas(sourceCanvas, "left");
+  const rightSideMaterial = prepareTerrainSideCanvas(sourceCanvas, "right");
+  const surfaceIntegration = prepareTerrainIntegrationCanvas(
+    fillMaterial.profile,
+    "surface",
   );
+  const leftSideIntegration = prepareTerrainIntegrationCanvas(
+    fillMaterial.profile,
+    "side-left",
+  );
+  const rightSideIntegration = prepareTerrainIntegrationCanvas(
+    fillMaterial.profile,
+    "side-right",
+  );
+  const fillMaterialKey = `${key}_continuous_fill`;
+  const surfaceMaterialKey = `${key}_continuous_surface`;
+  const leftSideMaterialKey = `${key}_continuous_side_left`;
+  const rightSideMaterialKey = `${key}_continuous_side_right`;
+  const surfaceIntegrationKey = `${key}_surface_integration`;
+  const leftSideIntegrationKey = `${key}_side_left_integration`;
+  const rightSideIntegrationKey = `${key}_side_right_integration`;
+  registerCanvas(textures, key, canvas);
+  registerCanvas(textures, fillMaterialKey, fillMaterial.canvas);
+  registerCanvas(textures, surfaceMaterialKey, surfaceMaterial);
+  registerCanvas(textures, leftSideMaterialKey, leftSideMaterial);
+  registerCanvas(textures, rightSideMaterialKey, rightSideMaterial);
+  registerCanvas(textures, surfaceIntegrationKey, surfaceIntegration);
+  registerCanvas(textures, leftSideIntegrationKey, leftSideIntegration);
+  registerCanvas(textures, rightSideIntegrationKey, rightSideIntegration);
 
   return {
     canvas,
-    tileW,
-    tileH,
-    bestFillCell: { row: FILL_ROW, col: FILL_COL, opacity: 1 },
+    fillMaterialKey,
+    surfaceMaterialKey,
+    leftSideMaterialKey,
+    rightSideMaterialKey,
+    surfaceIntegrationKey,
+    leftSideIntegrationKey,
+    rightSideIntegrationKey,
+    fillMaterialProfile: fillMaterial.profile,
   };
+}
+
+function assertOpaqueCanvasRect(
+  canvas: HTMLCanvasElement,
+  rect: { x: number; y: number; w: number; h: number },
+  label: string,
+): void {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error(`${label} requires a 2d canvas`);
+  const pixels = context.getImageData(rect.x, rect.y, rect.w, rect.h).data;
+  for (let offset = 3; offset < pixels.length; offset += 4) {
+    if (pixels[offset] !== 255) {
+      throw new Error(`${label} must be fully opaque`);
+    }
+  }
 }
 
 function transparencyCanvas(
   image: HTMLImageElement,
   policy: PreviewTransparencyPolicy,
 ): HTMLCanvasElement {
-  return policy === "legacy-chroma" ? chromaKeyToAlpha(image) : copyImageToCanvas(image);
+  return policy === "legacy-chroma"
+    ? chromaKeyToAlpha(image)
+    : copyImageToCanvas(image);
 }

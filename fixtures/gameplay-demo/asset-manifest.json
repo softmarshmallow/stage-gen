@@ -462,6 +462,183 @@
       "reviewStatus": "pending-independent-review"
     },
     {
+      "id": "ladder",
+      "path": "ladder.png",
+      "runtimeSlot": "ladder_<tag>.png",
+      "target": {
+        "width": 256,
+        "height": 1024
+      },
+      "layout": {
+        "rows": 1,
+        "columns": 1
+      },
+      "alphaExpectation": "transparent",
+      "prompt": "Use case: stylized-concept\nAsset type: transparent side-view fantasy platformer traversal prop, normalized later to a 256×1024 runtime PNG\nPrimary request: create one single straight ruined-fantasy climbing ladder that belongs in the supplied moonlit overgrown ancient-ruins game world\nInput images: Image 1 is the approved tileset style and palette reference; Image 2 is the approved environment concept style, material, lighting, and world reference\nScene/backdrop: genuinely transparent canvas only\nSubject: one tall front-facing ladder, exactly two parallel weathered dark wooden rails reinforced with subtle chipped ancient-metal bindings, and exactly eight visually distinct horizontal wooden rungs spanning rail-to-rail; restrained moss and tiny teal vine wraps may hug the rails but must not form separate silhouettes\nStyle/medium: original hand-painted fantasy game sprite/cutout, crisp painterly edges and surface texture, visually cohesive with the references, readable at small gameplay scale\nComposition/framing: orthographic straight-on side elevation, ladder centered, vertical, symmetrical, nearly full image height, generous transparent clearance on every outer edge; all rungs horizontal and evenly spaced; no perspective taper, no skew\nLighting/mood: cool moonlit cyan rim highlights over deep teal and dark brown, high-enough contrast for gameplay readability\nColor palette: dark weathered wood, midnight teal, muted jade moss, pale cyan edge accents, tiny restrained warm-metal highlights\nMaterials/textures: worn wooden rails and rungs, chipped bindings, light moss; solid connected climbable construction\nConstraints: actual transparent background and clean nontrivial alpha; exactly one ladder; exactly two rails; exactly eight rungs; no ground contact slab; no shadow; no background; no surrounding foliage; no detached fragments; no text; no logos; no watermark; no border; no panels\nAvoid: rope ladder, stone staircase, perspective view, diagonal rails, uneven spacing, missing or extra rungs, characters, enemies, UI, checkerboard, white or black background, photorealism, 3D render, pixel art",
+      "referenceAssetIds": [
+        "tileset",
+        "concept"
+      ],
+      "parameters": {
+        "mode": "built-in",
+        "referenced_image_paths": [
+          "fixtures/gameplay-demo/tileset.png",
+          "fixtures/gameplay-demo/concept.png"
+        ],
+        "requested_transparency": true
+      },
+      "sourceOutput": {
+        "fileName": "exec-67267074-5199-415f-b98c-08ae3fc177d2.png",
+        "sha256": "a235ee3b0356644eaade578f89728637b6459ddb4a85b90c42eb5d61d68e666d",
+        "width": 941,
+        "height": 1672,
+        "mimeType": "image/png"
+      },
+      "postprocess": {
+        "normalization": {
+          "tool": "Pillow",
+          "version": "12.3.0",
+          "operation": "premultiplied-alpha-horizontal-affine-rail-registration-and-piecewise-linear-vertical-rung-registration",
+          "sourceSha256": "3fcee4e792ea5f84a171a15f9eee027dc74c276965f271ff3682cae5387552e2",
+          "resampling": {
+            "horizontal": "BICUBIC",
+            "vertical": "linear-over-premultiplied-RGBa-rows"
+          },
+          "sourceRailCentersX": [
+            298.25,
+            637.25
+          ],
+          "targetRailCentersX": [
+            72.0,
+            184.0
+          ],
+          "horizontalScale": 0.3303834808259587,
+          "horizontalTranslation": -26.536873156342182,
+          "sourceVerticalKnots": [
+            26.0,
+            174.5,
+            361.5,
+            550.5,
+            738.0,
+            924.0,
+            1116.0,
+            1307.5,
+            1497.0,
+            1649.0
+          ],
+          "targetVerticalWarpKnots": [
+            16.0,
+            58.0,
+            192.0,
+            320.0,
+            448.0,
+            576.0,
+            704.0,
+            832.0,
+            966.0,
+            1007.0
+          ],
+          "requiredVisualRungCentersY": [
+            64,
+            192,
+            320,
+            448,
+            576,
+            704,
+            832,
+            960
+          ],
+          "clearBorderPixels": 16,
+          "png": {
+            "optimize": false,
+            "compressLevel": 9
+          }
+        },
+        "backgroundRemoval": {
+          "tool": "stage-gen",
+          "component": {
+            "name": "@stage-gen/background-removal",
+            "version": "0.0.0"
+          },
+          "provider": "fal",
+          "model": "fal-ai/birefnet/v2",
+          "operation": "remove-background",
+          "inputSha256": "a235ee3b0356644eaade578f89728637b6459ddb4a85b90c42eb5d61d68e666d",
+          "output": {
+            "sha256": "3fcee4e792ea5f84a171a15f9eee027dc74c276965f271ff3682cae5387552e2",
+            "bytes": 771114,
+            "width": 941,
+            "height": 1672,
+            "mimeType": "image/png"
+          },
+          "provenanceSha256": "777bbb50b43b54f79dfe886a084463bcb32ff4313db16f84ce4fa730669fea0b",
+          "attempts": 1,
+          "parameters": {
+            "model_variant": "General Use (Light)",
+            "operating_resolution": "1024x1024",
+            "output_mask": false,
+            "refine_foreground": true,
+            "output_format": "png",
+            "mask_only": false,
+            "sync_mode": true,
+            "validated": true
+          },
+          "validation": {
+            "output_nonempty": true,
+            "base64_or_download": "validated",
+            "media_type": "image/png",
+            "signature": "matched",
+            "source": "data-uri",
+            "mask_requested": false,
+            "mask_received": false,
+            "caller": true,
+            "dimensions_preserved": true,
+            "has_alpha": true
+          },
+          "response": {
+            "media_type": "image/png",
+            "bytes": 771114,
+            "mask_present": false,
+            "width": 941,
+            "height": 1672
+          }
+        },
+        "producerProvenance": {
+          "path": "fixtures/gameplay-demo/sources/ladder/generation.json",
+          "sha256": "4fc2155a0eda619230b30e7c355d0c6e4b853c54945a0585b13969dfdf717eb3"
+        },
+        "alphaGeometry": {
+          "bboxExclusive": [
+            58,
+            16,
+            198,
+            1008
+          ],
+          "railCentersX": [
+            72.0,
+            183.5
+          ],
+          "rungBandCentersY": [
+            64.5,
+            191.5,
+            320.0,
+            448.5,
+            576.0,
+            704.0,
+            832.5,
+            959.5
+          ]
+        }
+      },
+      "output": {
+        "sha256": "a89b1d865b651806b1457ab1fc37da4d0a54ff28daf5566ec4011483c732faa6",
+        "width": 256,
+        "height": 1024,
+        "mimeType": "image/png"
+      },
+      "reviewStatus": "pending-independent-review"
+    },
+    {
       "id": "character-concept",
       "path": "character-concept.png",
       "runtimeSlot": "character_concept_<tag>.png",
@@ -1856,6 +2033,113 @@
         "sha256": "53a654a27b8ec4e2a9f55aa939c27f607820e3efaf925563dbc17a93eb64b092",
         "width": 256,
         "height": 192,
+        "mimeType": "image/png"
+      },
+      "reviewStatus": "pending-independent-review"
+    },
+    {
+      "id": "character-climb",
+      "path": "character-climb.png",
+      "runtimeSlot": "character_<tag>-fromcombined_climb.png",
+      "target": {
+        "width": 256,
+        "height": 128
+      },
+      "layout": {
+        "rows": 1,
+        "columns": 4,
+        "cellWidth": 64,
+        "cellHeight": 128
+      },
+      "alphaExpectation": "transparent",
+      "prompt": "Use case: identity-preserve\nAsset type: production source for a four-frame rear-view climbing loop, later normalized to four 64×128 cells\nPrimary request: render exactly four isolated full-body copies of the SAME approved ranger in one horizontal row, strictly back-facing, with an unmistakably alternating climb cycle.\nInput images: Images 1–3 define the ranger identity, costume, palette, proportions, painterly sprite style, and scale. Image 4 defines only believable hand/foot spacing; DO NOT draw the ladder or any rung.\nFrame choreography, left to right: FRAME 1 left hand fully extended high + RIGHT knee/boot clearly lifted high, right hand low + left boot extended down. FRAME 2 body pulled upward and centered, both elbows bent, both boots staggered mid-height. FRAME 3 right hand fully extended high + LEFT knee/boot clearly lifted high, left hand low + right boot extended down. FRAME 4 second centered pull, both elbows bent, the opposite small vertical bob from frame 2. Frames 1 and 3 must be obvious mirrored limb alternates, not the same raised leg.\nSubject invariants: exact compact masked ranger identity; pointed midnight-teal hood seen from behind; face, eyes, and mask front completely invisible; layered dark teal/jade cloak and leather armor; dark boots and gloves; cyan edge highlights; warm amber short blade secured tight along the rear belt, consistent in every frame and contained inside each silhouette.\nScene/backdrop: genuinely transparent canvas only\nStyle/medium: original hand-painted 2D fantasy game sprite/cutout matching the references, crisp silhouette and clean alpha\nComposition/framing: one row, exactly four equal visually separated cells; identical scale, camera, body center, and anchor; generous empty gutters around and between figures; no overlap and no cell separators\nConstraints: exactly four back-facing figures, each complete and anatomically coherent; no ladder, rungs, rope, wall, platform, scenery, ground, cast shadow, border, panel, checkerboard, text, logo, watermark, or extra object\nAvoid: side or three-quarter view, visible face, repeated raised leg, pose duplication, identity drift, extra/missing limbs, detached weapon, photorealism, 3D, pixel art",
+      "referenceAssetIds": [
+        "character-concept",
+        "character-idle",
+        "character-jump",
+        "ladder"
+      ],
+      "parameters": {
+        "mode": "built-in",
+        "referenced_image_paths": [
+          "fixtures/gameplay-demo/character-concept.png",
+          "fixtures/gameplay-demo/character-idle.png",
+          "fixtures/gameplay-demo/character-jump.png",
+          "fixtures/gameplay-demo/ladder.png"
+        ],
+        "generationProvenance": {
+          "path": "fixtures/gameplay-demo/sources/character-climb/generation.json",
+          "sha256": "59504ed6731c851d3a3d87e91eaff139f1c7ecf7e4dee22cee1e2cf3f9d7b9bc",
+          "bytes": 14947,
+          "attempts": 5,
+          "selectedAttempt": 2
+        }
+      },
+      "sourceOutput": {
+        "fileName": "exec-38fdc4af-99bb-42cc-be44-d5d0ba80e0a5.png",
+        "sha256": "2d2e67b3750a0d0f1fa315e9a23c8fd7af3c2b75c472fdd661f4dfe897b4dbd2",
+        "width": 1774,
+        "height": 887,
+        "mimeType": "image/png"
+      },
+      "postprocess": {
+        "cellGutterPixels": 2,
+        "producerProvenance": {
+          "path": "fixtures/gameplay-demo/sources/character-climb/generation.json",
+          "sha256": "59504ed6731c851d3a3d87e91eaff139f1c7ecf7e4dee22cee1e2cf3f9d7b9bc",
+          "bytes": 14947,
+          "tool": "image_gen.imagegen",
+          "mode": "built-in",
+          "attempts": 5,
+          "selectedAttempt": 2
+        },
+        "backgroundExtraction": {
+          "tool": "Pillow",
+          "version": "12.3.0",
+          "operation": "local-checkerboard-to-alpha-and-edge-decontamination",
+          "inputSha256": "2d2e67b3750a0d0f1fa315e9a23c8fd7af3c2b75c472fdd661f4dfe897b4dbd2",
+          "output": {
+            "sha256": "4e23bc7690662429c2d52c88d90020c3dd5176f0e18b047d88a59d60a3040df5",
+            "bytes": 830149,
+            "width": 1774,
+            "height": 887,
+            "mimeType": "image/png"
+          },
+          "provenancePath": "fixtures/gameplay-demo/sources/character-climb/character-climb-local-extracted.png.meta.json",
+          "provenanceSha256": "c7887efbf5cea15679137c8e70a73665c273376fc7781dc1507fcfe41da0018a",
+          "provenanceBytes": 1840,
+          "externalUploadPerformed": false
+        },
+        "normalization": {
+          "tool": "Pillow",
+          "version": "12.3.0",
+          "operation": "per-cell-common-scale-premultiplied-alpha-fit-with-alternate-side-mirroring-and-two-pixel-gutters",
+          "sourceSha256": "4e23bc7690662429c2d52c88d90020c3dd5176f0e18b047d88a59d60a3040df5",
+          "resampling": "LANCZOS",
+          "cellBoundaries": [
+            0,
+            443,
+            887,
+            1330,
+            1774
+          ],
+          "mirroredFrames": [
+            2,
+            3
+          ],
+          "commonScale": 0.1984,
+          "transparentGutterPixelsPerCellEdge": 2,
+          "png": {
+            "optimize": false,
+            "compressLevel": 9
+          }
+        }
+      },
+      "output": {
+        "sha256": "782fcda99a7296ab746c21d05014214503d4af280541b1f115031cf4d70dc56e",
+        "bytes": 39677,
+        "width": 256,
+        "height": 128,
         "mimeType": "image/png"
       },
       "reviewStatus": "pending-independent-review"

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "provider": "fal",
+  "model": "fal-ai/birefnet/v2",
+  "seed": null,
+  "prompt": "Remove the background while preserving the foreground subject.",
+  "prompt_sha256": "21e8b5b7015eb6f6989fab074898bda00758ff6961f1aab04d4641b3198020fc",
+  "references": [
+    "data:image/png;base64,[REDACTED]"
+  ],
+  "refs": [
+    "data:image/png;base64,[REDACTED]"
+  ],
+  "inputs": [
+    {
+      "ref": "data:image/png;base64,[REDACTED]",
+      "sha256": "a235ee3b0356644eaade578f89728637b6459ddb4a85b90c42eb5d61d68e666d",
+      "source": "content",
+      "bytes": 1292699,
+      "media_type": "image/png"
+    }
+  ],
+  "params": {
+    "model_variant": "General Use (Light)",
+    "operating_resolution": "1024x1024",
+    "output_mask": false,
+    "refine_foreground": true,
+    "output_format": "png",
+    "mask_only": false,
+    "sync_mode": true,
+    "validated": true,
+    "metadata": {
+      "source_path": "fixtures/gameplay-demo/sources/ladder/exec-67267074-5199-415f-b98c-08ae3fc177d2.png"
+    }
+  },
+  "validation": {
+    "output_nonempty": true,
+    "base64_or_download": "validated",
+    "media_type": "image/png",
+    "signature": "matched",
+    "source": "data-uri",
+    "mask_requested": false,
+    "mask_received": false,
+    "caller": true,
+    "dimensions_preserved": true,
+    "has_alpha": true
+  },
+  "component": {
+    "name": "@stage-gen/background-removal",
+    "version": "0.0.0"
+  },
+  "tool": {
+    "name": "stage-gen",
+    "version": "0.0.0"
+  },
+  "artifact": {
+    "sha256": "3fcee4e792ea5f84a171a15f9eee027dc74c276965f271ff3682cae5387552e2",
+    "bytes": 771114,
+    "media_type": "image/png"
+  },
+  "ts": "2026-08-17T09:55:06.423Z",
+  "attempts": 1,
+  "retries": 0,
+  "response": {
+    "media_type": "image/png",
+    "bytes": 771114,
+    "mask_present": false,
+    "width": 941,
+    "height": 1672
+  }
+}

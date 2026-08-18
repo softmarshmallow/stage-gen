@@ -5,6 +5,8 @@
 // stage-advance event when the player overlaps the EXIT (TC-089).
 
 import Phaser from "phaser";
+import { SCENE_CONTENT_DEPTH } from "./layers";
+import { terrainSurfaceY } from "./terrain";
 
 export type PortalKind = "entry" | "exit";
 
@@ -70,16 +72,23 @@ export class PortalSystem {
           ? 3
           : Math.floor(this.opts.stageWidthPx / this.opts.tilePx) - 4;
       const colH = this.opts.heightFn(col);
-      const surfaceY = this.opts.baselineY - colH * this.opts.tilePx;
+      const surfaceY = terrainSurfaceY(
+        colH,
+        this.opts.tilePx,
+        this.opts.baselineY,
+      );
       const x = col * this.opts.tilePx + this.opts.tilePx / 2;
       const y = surfaceY;
 
       const sprite = scene.add.image(x, y, this.opts.portalKey, frameName);
       sprite.setOrigin(0.5, 1.0);
       sprite.setDisplaySize(targetH * aspect, targetH);
-      sprite.setDepth(750);
+      sprite.setDepth(SCENE_CONTENT_DEPTH.portal);
 
-      this.baseDisplaySizes.set(kind, { width: targetH * aspect, height: targetH });
+      this.baseDisplaySizes.set(kind, {
+        width: targetH * aspect,
+        height: targetH,
+      });
 
       this.portals.push({ kind, x, y, sprite, bboxHalf: bbox });
     }
