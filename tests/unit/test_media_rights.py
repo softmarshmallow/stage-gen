@@ -613,7 +613,7 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
     inventory_path = repository / "docs/generated-media-inventory.json"
     result = check_generated_media_publication(repository, inventory_path)
     assert result.failures == ()
-    assert result.media_count == 3
+    assert result.media_count == 4
 
     inventory = cast(dict[str, Any], json.loads(inventory_path.read_text(encoding="utf-8")))
     entries = {entry["path"]: entry for entry in cast(list[dict[str, Any]], inventory["media"])}

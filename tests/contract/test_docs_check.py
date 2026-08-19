@@ -23,7 +23,7 @@ def test_repository_documentation_and_publication_contract() -> None:
     assert result.failures == ()
     assert result.markdown_count > 0
     assert result.text_count > 0
-    assert result.media_count == 3
+    assert result.media_count == 4
 
 
 def test_repository_storage_policy_uses_live_enforced_limits() -> None:

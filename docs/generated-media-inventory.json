@@ -62,6 +62,27 @@
         "artifactBytes": 891557,
         "verificationReportSha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
       }
+    },
+    {
+      "path": "docs/media/gameplay-model-demo.png",
+      "sidecarSha256": "07328ef51e6f438a2d0bfa592733489763197f3ddde0e8675a8c5efc6f315bc3",
+      "kind": "image",
+      "reviewStatus": "repository-approved",
+      "synthIdExpected": false,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "independent visual verification subagent",
+        "authorityBasis": "reviewer independent from the capture producer; exact digest-bound acceptance-spec visual verification",
+        "reviewedAt": "2026-08-19T09:08:18.000Z",
+        "attestationId": "independent-readme-screenshot-visual-9194172d56b405d8",
+        "attestedAt": "2026-08-19T09:08:18.000Z",
+        "artifactSha256": "2fcc8564c0f9a2e9f5003c968536bbe8158b3234e853c678749a068834d16145",
+        "artifactBytes": 1794459,
+        "verificationReportPath": "docs/media/gameplay-model-demo.visual-review.md",
+        "verificationReportSha256": "9194172d56b405d89e4781ea194ffe435cb1e59f904d5b7f344ad1c83ea733b2"
+      }
     }
   ]
 }
