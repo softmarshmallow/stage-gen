@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "templateId": "mio-expression-edit-v1",
+  "rendering": "Replace the single {EXPRESSION} token, then join promptLines with LF characters in order.",
+  "promptLines": [
+    "Use case: identity-preserve",
+    "Asset type: reusable upper-body anime visual-novel expression sprite, chroma-key source",
+    "Input images: Image 1 is the neutral sprite edit target and absolute identity, wardrobe, pose, framing, lighting, and background reference.",
+    "Primary request: Change only Mio Amamiya’s facial expression to {EXPRESSION}. Keep every other design and composition choice matched to Image 1.",
+    "Identity lock: exactly the same explicitly 23-year-old adult woman; preserve mature facial structure, teal-gray eye design, dark-indigo shoulder-length bob and every hair lock, small gold four-point star hairpin, skin tone, adult proportions, and silhouette.",
+    "Wardrobe lock: preserve exactly the same navy knit research cardigan, ivory mock-neck blouse, amber-gold buttons, slim amber pendant, folds, colors, and visible crop.",
+    "Pose/framing lock: preserve the same portrait 2:3 canvas, character scale, top-of-hair-to-waist crop, head position, shoulder line, torso angle, gaze origin, arm placement, padding, and edge separation. Do not zoom, shift, rotate, crop, or redesign.",
+    "Style/lighting lock: preserve the same polished contemporary Japanese visual-novel anime rendering, linework, cel shading, cool rim light, and material finish.",
+    "Scene/backdrop lock: preserve a perfectly flat uniform solid #00ff00 chroma-key background with no shadow, gradient, texture, scenery, floor, halo, vignette, or lighting variation.",
+    "Constraints: change only facial expression and expression-driven eyelid, eyebrow, mouth, gaze, and subtle cheek-color details; do not use #00ff00 in the subject; crisp antialiased silhouette; no text, labels, logo, signature, border, UI, speech bubble, or watermark; exactly one adult character.",
+    "Avoid: pose drift; crop drift; identity drift; outfit changes; accessory changes; new props; visible hands; school uniform; childlike or chibi proportions; sexualization; photorealism; 3D-render look."
+  ]
+}

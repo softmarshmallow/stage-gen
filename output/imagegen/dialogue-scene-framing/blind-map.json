@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "dialogue-scene-framing-control-v1",
+  "hashAlgorithm": "sha256",
+  "assignment": {
+    "algorithm": "sha256-first-nibble-parity-v1",
+    "seed": "dialogue-scene-framing-blind-v1",
+    "inputFormat": "{seed}:{zoomPadded3}",
+    "rule": "An odd first digest nibble assigns term-only-v1 to candidate-a; an even first digest nibble assigns hybrid-bounds-v1 to candidate-a; candidate-b receives the other method.",
+    "digests": {
+      "z025": "d5cbf975a6289e438d13870285a0263e4482db0970b0153b978de75db0a30aaf",
+      "z060": "82e244424afa71877a9721eecef850e2dd98557180b4ed8ab341aa16329fae05",
+      "z085": "ff3cc5dd06fab5b3c33d6c80675c84a5a44a6ab3127fbf3618b066e1517707a6"
+    }
+  },
+  "candidates": [
+    {
+      "zoom": 25,
+      "candidate": "a",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z025/candidate-a.png",
+      "sha256": "588413152945772183e8e3333bb7fd85bcac5d0d183c367b035f6bc2b3d504a6",
+      "source": {
+        "methodId": "term-only-v1",
+        "path": "output/imagegen/dialogue-scene-framing/term-only-v1/zoom-025.png",
+        "sha256": "588413152945772183e8e3333bb7fd85bcac5d0d183c367b035f6bc2b3d504a6"
+      }
+    },
+    {
+      "zoom": 25,
+      "candidate": "b",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z025/candidate-b.png",
+      "sha256": "a4807604125917076986ef494bd764426770a6d7bb32c65b151354619eb638a9",
+      "source": {
+        "methodId": "hybrid-bounds-v1",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-bounds-v1/zoom-025.png",
+        "sha256": "a4807604125917076986ef494bd764426770a6d7bb32c65b151354619eb638a9"
+      }
+    },
+    {
+      "zoom": 60,
+      "candidate": "a",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z060/candidate-a.png",
+      "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+      "source": {
+        "methodId": "hybrid-bounds-v1",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-bounds-v1/zoom-060.png",
+        "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32"
+      }
+    },
+    {
+      "zoom": 60,
+      "candidate": "b",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z060/candidate-b.png",
+      "sha256": "77d25f8e8d4d296a0bba2dd0e1c6320a1fbd22006e4d771c7d9882fcf5fbd7d3",
+      "source": {
+        "methodId": "term-only-v1",
+        "path": "output/imagegen/dialogue-scene-framing/term-only-v1/zoom-060.png",
+        "sha256": "77d25f8e8d4d296a0bba2dd0e1c6320a1fbd22006e4d771c7d9882fcf5fbd7d3"
+      }
+    },
+    {
+      "zoom": 85,
+      "candidate": "a",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z085/candidate-a.png",
+      "sha256": "db198ac2cd32b8d54480c129f0128a6b74dbb4dfa413de0f8e63210b574d8030",
+      "source": {
+        "methodId": "term-only-v1",
+        "path": "output/imagegen/dialogue-scene-framing/term-only-v1/zoom-085.png",
+        "sha256": "db198ac2cd32b8d54480c129f0128a6b74dbb4dfa413de0f8e63210b574d8030"
+      }
+    },
+    {
+      "zoom": 85,
+      "candidate": "b",
+      "blindPath": "output/imagegen/dialogue-scene-framing/blind/z085/candidate-b.png",
+      "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+      "source": {
+        "methodId": "hybrid-bounds-v1",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-bounds-v1/zoom-085.png",
+        "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f"
+      }
+    }
+  ],
+  "validation": {
+    "copyMode": "byte-for-byte",
+    "candidateCount": 6,
+    "allBlindHashesMatchSourceHashes": true
+  }
+}

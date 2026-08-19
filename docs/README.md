@@ -19,11 +19,27 @@ Start here for the headless, general-purpose system:
 - [Game-engine evaluation](game-engine-evaluation.md) — deliberately open
   integration decision.
 - [Web preview adapter](web-preview.md) — optional first consumer.
+- [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
+  planned `dialogue-scene` sibling recipe, data boundary, and static expression
+  set deliverable.
+- [Dialogue-scene preview](dialogue-scene-preview.md) — implemented
+  deterministic demo boundary and planned manifest-backed consumer/editor.
+- [Dialogue-scene framing control](dialogue-scene-framing.md) — implemented
+  deterministic demo mapping and prompt-only research results; no provider
+  pipeline.
+- [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred
+  video, sprite-grid, and layered-rig ideas; no implementation commitment.
 
 The documents under [`spec/`](spec/) that describe parallax, terrain,
 characters, mobs, inventory, and portals are the first scrolling-preview
 recipe. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
+
+The Visual Novel Scene Kit headless recipe and manifest-backed consumer remain
+planned design contracts. A deterministic browser demo now exercises bundled
+anime assets, an explicitly adult heroine, beat-driven expression variants,
+caller-authored dialogue, and `presentation.framingZoom`; it is not a provider
+path or evidence that the headless recipe exists.
 
 Provider facts in this repository were last verified on 2026-08-14. Re-check
 capability metadata before changing adapters because hosted model contracts

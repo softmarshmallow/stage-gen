@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "verificationMode": "blind",
+  "reference": {
+    "path": "web/public/dialogue-scene/demo/appearance-concept.png",
+    "sha256": "015d6f456e8738f4a039c3196cdb2f79eae2c6ce08c8d0eda3261218742dac34"
+  },
+  "zooms": {
+    "z060": {
+      "preferred": "candidate-b",
+      "preferenceReason": "Marginally closer face scale and waist framing.",
+      "candidates": {
+        "candidate-a": {
+          "path": "output/imagegen/dialogue-scene-framing/round-2-blind/z060/candidate-a.png",
+          "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatePct": 17
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatePct": 5
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Crop extends below the waist and the face is slightly undersized."
+        },
+        "candidate-b": {
+          "path": "output/imagegen/dialogue-scene-framing/round-2-blind/z060/candidate-b.png",
+          "sha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatePct": 17
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatePct": 5
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Crop still extends below the waist and the face is slightly undersized."
+        }
+      }
+    },
+    "z085": {
+      "preferred": "candidate-a",
+      "preferenceReason": "Substantially closer to the required close-up scale.",
+      "candidates": {
+        "candidate-a": {
+          "path": "output/imagegen/dialogue-scene-framing/round-2-blind/z085/candidate-a.png",
+          "sha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatePct": 28
+          },
+          "headroom": {
+            "verdict": "fail",
+            "estimatePct": 9
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Crop reaches the lower torso; face scale is low and headroom is high."
+        },
+        "candidate-b": {
+          "path": "output/imagegen/dialogue-scene-framing/round-2-blind/z085/candidate-b.png",
+          "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatePct": 26
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatePct": 7
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Crop reaches the lower torso and face scale is below the close-up band."
+        }
+      }
+    }
+  }
+}

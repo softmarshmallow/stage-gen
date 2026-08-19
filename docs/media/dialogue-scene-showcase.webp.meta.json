@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "state": "redistribution-approved",
+  "visualReview": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewedBy": "independent visual-verification subagent",
+    "authorityBasis": "reviewer independent from the browser-capture producer; exact digest-bound README WebP verification",
+    "reviewedAt": "2026-08-19T19:47:39.000Z",
+    "attestationId": "independent-dialogue-showcase-webp-94efbbfba6485fad",
+    "attestedAt": "2026-08-19T19:47:39.000Z",
+    "artifactSha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe",
+    "artifactBytes": 82910,
+    "acceptanceSpec": "faithful market-ready anime dialogue-scene README rendering; readable character, dialogue, profile, and controls; no clipping; maximum 250 KiB",
+    "evidence": {
+      "path": "docs/media/dialogue-scene-showcase.visual-review.md",
+      "verdict": "pass",
+      "ref": "sha256:ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba",
+      "sha256": "ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba",
+      "bytes": 983,
+      "sourceVerdictPath": "web/output/playwright/dialogue-scene-anime/visual-review.json",
+      "sourceVerdictSha256": "94efbbfba6485fadd01cc212db21c5a106e6cc2f29ee375358d90b2b78546239"
+    }
+  },
+  "artifact": {
+    "path": "docs/media/dialogue-scene-showcase.webp",
+    "media_type": "image/webp",
+    "sha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe",
+    "bytes": 82910
+  },
+  "capture": {
+    "tool": "Playwright CLI production-page capture followed by ImageMagick WebP optimization",
+    "version": "@playwright/mcp playwright-cli 0.0.60; ImageMagick 7.1.2-8 Q16-HDRI aarch64",
+    "params": {
+      "route": "/dialogue-scene/demo",
+      "serverMode": "next-production",
+      "browser": "chromium",
+      "viewport": { "width": 1440, "height": 1000 },
+      "deviceScaleFactor": 1,
+      "sourceCapture": {
+        "pathAtCapture": "web/output/playwright/dialogue-scene-anime/desktop-market-ready.png",
+        "sha256": "d8be7243138187a83158532e4c3e5299f25e04ebc3c74e9dce1a275d31b1e1d1",
+        "bytes": 1095601,
+        "width": 1440,
+        "height": 1000,
+        "retention": "bulky raw QA capture removed after compact evidence and final derivative were bound by digest"
+      },
+      "encoding": {
+        "tool": "ImageMagick magick",
+        "version": "7.1.2-8 Q16-HDRI aarch64",
+        "argv": [
+          "-strip",
+          "-resize",
+          "1200x833",
+          "-quality",
+          "82",
+          "-define",
+          "webp:method=6"
+        ],
+        "outputWidth": 1200,
+        "outputHeight": 833
+      },
+      "browserQaSha256": "bd6cfa0be5087d177aa585ea1a66000cbe79c5226897e2aabd02ffc5db599dc0",
+      "visualVerdictSha256": "94efbbfba6485fadd01cc212db21c5a106e6cc2f29ee375358d90b2b78546239",
+      "productionBuild": "pass",
+      "brokenImageCount": 0,
+      "horizontalOverflow": false
+    },
+    "source": {
+      "path": "web/app/dialogue-scene/demo/DialogueSceneDemo.tsx",
+      "sha256": "91d5311bcc6cea967d7769ccc521c43d5363f6aa9ec1249659801ea5348639e6",
+      "bytes": 17990
+    },
+    "generator": {
+      "pathAtCapture": "web/app/dialogue-scene/demo/DialogueSceneDemo.tsx",
+      "ref": "sha256:91d5311bcc6cea967d7769ccc521c43d5363f6aa9ec1249659801ea5348639e6",
+      "sha256": "91d5311bcc6cea967d7769ccc521c43d5363f6aa9ec1249659801ea5348639e6"
+    },
+    "verifier": {
+      "path": "web/output/playwright/dialogue-scene-anime/visual-review.json",
+      "sha256": "94efbbfba6485fadd01cc212db21c5a106e6cc2f29ee375358d90b2b78546239",
+      "bytes": 1246
+    },
+    "fixture": {
+      "path": "web/lib/dialogue-scene/demo-fixture.json",
+      "sha256": "6a91c7ea0c9b302c197478b89f632cb4266dd99c785b10014bdb20122b78217e",
+      "bytes": 4808
+    },
+    "timeline": {
+      "path": "web/lib/dialogue-scene/playback.ts",
+      "sha256": "343cdd017e1ac97f8fb2104c6466c39440a7585c411012bd90bf5a9f9f036610",
+      "bytes": 2460
+    },
+    "presentationSources": [
+      {
+        "path": "web/app/dialogue-scene/demo/page.tsx",
+        "sha256": "b72239f163e0bf4e78b52f2f48d15618b96956cab14f050612a0b46c831a7158",
+        "bytes": 1853
+      },
+      {
+        "path": "web/app/globals.css",
+        "sha256": "819f1ea64c53997ac178e3306bf81e4c5bc82e202ebd09e45e10a7ff6d3337ba",
+        "bytes": 30929
+      }
+    ],
+    "assetSet": {
+      "count": 6,
+      "assets": [
+        {
+          "path": "web/public/dialogue-scene/demo/anime/background.png",
+          "sha256": "b629716e5634eac33debbf70ebe78d13fe7e15f6a007dc5ade189ed32027604d",
+          "bytes": 2131779
+        },
+        {
+          "path": "web/public/dialogue-scene/demo/anime/concept-key-art.png",
+          "sha256": "3dec4723dbcc0bce7f420c20d230509cb3544d46f32dfb184e580351881da4b3",
+          "bytes": 2452121
+        },
+        {
+          "path": "web/public/dialogue-scene/demo/anime/heroine-neutral.png",
+          "sha256": "ae8d95fd94e87bac7beaefaf6fc6d18efbaf7aca16ba0ce5fa7a00e44808cd0c",
+          "bytes": 1411792
+        },
+        {
+          "path": "web/public/dialogue-scene/demo/anime/heroine-delighted.png",
+          "sha256": "c6f94bfd93980beeb0dc027fd52d6051adcbe1dfc66f4e62592b64e5fbc56b49",
+          "bytes": 1313584
+        },
+        {
+          "path": "web/public/dialogue-scene/demo/anime/heroine-flustered.png",
+          "sha256": "8afa4c2a26d714de03b2d152fe28362352e1897e353ea9519f8dd8622e384174",
+          "bytes": 1313060
+        },
+        {
+          "path": "web/public/dialogue-scene/demo/anime/heroine-concerned.png",
+          "sha256": "4ae83215d10368fbb47c9a0288af987ac79369c06babdf6ce74133a87bd218ac",
+          "bytes": 1327049
+        }
+      ]
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "notice": "dialogue-scene-showcase.LICENSE.md",
+    "license_id": "LicenseRef-Stage-Gen-Dialogue-Scene-Showcase-Repository-Sharing",
+    "attribution": [],
+    "basis": [
+      "Artifact-specific repository publication authorization by the authenticated project owner",
+      "Exact digest-matched deterministic browser capture of project UI and project-owned AI-generated runtime assets",
+      "dialogue-scene-showcase.LICENSE.md",
+      "independent-dialogue-showcase-webp-94efbbfba6485fad",
+      "docs/media/dialogue-scene-showcase.visual-review.md",
+      "sha256:ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba"
+    ],
+    "reviewed_at": "2026-08-19T19:47:39.000Z"
+  }
+}

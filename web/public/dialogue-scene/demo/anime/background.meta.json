@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "asset": "web/public/dialogue-scene/demo/anime/background.png",
+  "role": "anime visual-novel background plate",
+  "sha256": "b629716e5634eac33debbf70ebe78d13fe7e15f6a007dc5ade189ed32027604d",
+  "media": { "mimeType": "image/png", "width": 1672, "height": 941, "alpha": false },
+  "generation": {
+    "tool": "built-in image_gen.imagegen",
+    "model": { "value": null, "status": "unavailable: built-in tool did not expose a model identifier" },
+    "seed": { "value": null, "status": "unavailable: built-in tool did not expose a seed" },
+    "referenceImages": [],
+    "params": {
+      "callArguments": ["prompt"],
+      "explicitSize": { "value": null, "status": "unavailable in built-in tool; 16:9 was requested in the prompt" },
+      "quality": { "value": null, "status": "unavailable in built-in tool" }
+    },
+    "retry": { "policy": "initial attempt plus up to 5 blind retries with exponential backoff capped at 16 seconds", "attemptsUsed": 1 },
+    "promptEncoding": "Join promptLines with LF characters in order.",
+    "promptLines": [
+      "Use case: stylized-concept",
+      "Asset type: 16:9 visual-novel background plate",
+      "Primary request: Create a polished anime visual-novel background for “Signal at Blue Hour,” set at a seaside radio observatory during meteor-watch week.",
+      "Scene/backdrop: an empty open-air observatory control terrace on a coastal cliff at blue hour; large radio-dish silhouettes and antenna structures, distant ocean horizon, glass-and-metal control room windows, tidy consoles and railings, windswept coastal grass at the edges, one or two subtle meteor trails high in the sky.",
+      "Subject: environment only; absolutely no people, characters, silhouettes, portraits, reflections of people, or human figures.",
+      "Style/medium: premium contemporary Japanese visual-novel background illustration; clean architectural drawing, soft cel-painted surfaces, delicate atmospheric gradients, high production value, original design.",
+      "Composition/framing: wide cinematic 16:9 establishing view at human eye level; leave a calm uncluttered character-readable zone in the right-middle foreground and keep the lower quarter compositionally quiet for dialogue UI; retain depth and a strong ocean vista.",
+      "Lighting/mood: tranquil blue hour moving into first stars; indigo and teal ambient light with restrained warm amber instrument glow; romantic but grounded, inviting, tasteful 15+ tone.",
+      "Color palette: deep indigo, muted teal, cyan haze, ivory highlights, restrained amber practical lights.",
+      "Constraints: coherent perspective; usable as a game background behind a transparent upper-body character sprite; no text, labels, logos, signatures, borders, UI, speech bubbles, or watermark.",
+      "Avoid: characters of any kind; school imagery; photorealism; 3D-render look; excessive bloom; clutter in the sprite/UI zones; illegible pseudo-text."
+    ]
+  },
+  "provenance": {
+    "createdAt": "2026-08-20T04:22:44+09:00",
+    "sourceOutput": {
+      "ref": "sha256:b629716e5634eac33debbf70ebe78d13fe7e15f6a007dc5ade189ed32027604d",
+      "retention": "workspace final is the byte-for-byte built-in output; transient external path intentionally omitted"
+    },
+    "workspaceCopy": "byte-for-byte",
+    "postprocessing": "none",
+    "rightsState": "repository-approved-project-owned-ai-generated",
+    "independentVisualReview": {
+      "status": "pass",
+      "path": "web/public/dialogue-scene/demo/anime/visual-review.json",
+      "sha256": "aefd8a5842b2c33bd256cf778470853dae0bf144b549a7a3079dff6af18cd9c1"
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "ownership": "project-owned AI-generated artifact",
+    "license_id": "LicenseRef-Stage-Gen-Dialogue-Scene-Repository-Sharing",
+    "notice": "dialogue-scene-assets.LICENSE.md",
+    "basis": [
+      "Artifact-specific repository publication authorization by the authenticated project owner",
+      "Original project-authored prompt with no third-party visual reference",
+      "Independent digest-bound visual review pass"
+    ],
+    "reviewed_at": "2026-08-19T19:47:39.000Z"
+  }
+}

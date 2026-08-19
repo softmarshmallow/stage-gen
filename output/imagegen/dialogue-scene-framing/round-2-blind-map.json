@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "dialogue-scene-framing-control-v1",
+  "round": 2,
+  "hashAlgorithm": "sha256",
+  "assignment": {
+    "algorithm": "sha256-second-nibble-parity-v1",
+    "seed": "dialogue-scene-framing-round-2-blind-v1",
+    "inputFormat": "{seed}:{zoomPadded3}",
+    "rule": "An odd second digest nibble assigns hybrid-bounds-v1 to candidate-a; an even second digest nibble assigns hybrid-crop-first-v2 to candidate-a; candidate-b receives the other method.",
+    "digests": {
+      "z060": "d725a1586a3b892cc6ca808235e40ef068815054b91d49740466054f9741d49e",
+      "z085": "7a725ec95f3161f4973ddd5f4c46f4a06939c0909664d477ab2caf2bfd0befe0"
+    }
+  },
+  "candidates": [
+    {
+      "zoom": 60,
+      "candidate": "a",
+      "blindPath": "output/imagegen/dialogue-scene-framing/round-2-blind/z060/candidate-a.png",
+      "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+      "source": {
+        "methodId": "hybrid-bounds-v1",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-bounds-v1/zoom-060.png",
+        "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32"
+      }
+    },
+    {
+      "zoom": 60,
+      "candidate": "b",
+      "blindPath": "output/imagegen/dialogue-scene-framing/round-2-blind/z060/candidate-b.png",
+      "sha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538",
+      "source": {
+        "methodId": "hybrid-crop-first-v2",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-crop-first-v2/zoom-060.png",
+        "sha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538"
+      }
+    },
+    {
+      "zoom": 85,
+      "candidate": "a",
+      "blindPath": "output/imagegen/dialogue-scene-framing/round-2-blind/z085/candidate-a.png",
+      "sha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081",
+      "source": {
+        "methodId": "hybrid-crop-first-v2",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-crop-first-v2/zoom-085.png",
+        "sha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081"
+      }
+    },
+    {
+      "zoom": 85,
+      "candidate": "b",
+      "blindPath": "output/imagegen/dialogue-scene-framing/round-2-blind/z085/candidate-b.png",
+      "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+      "source": {
+        "methodId": "hybrid-bounds-v1",
+        "path": "output/imagegen/dialogue-scene-framing/hybrid-bounds-v1/zoom-085.png",
+        "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f"
+      }
+    }
+  ],
+  "validation": {
+    "copyMode": "byte-for-byte",
+    "candidateCount": 4,
+    "allBlindHashesMatchSourceHashes": true
+  }
+}

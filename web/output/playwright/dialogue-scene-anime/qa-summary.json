@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "status": "pass",
+  "url": "http://127.0.0.1:47291/dialogue-scene/demo",
+  "server": {
+    "mode": "next-production",
+    "host": "127.0.0.1",
+    "port": 47291,
+    "retainedSessionId": 95842,
+    "routeHttpStatus": 200,
+    "productionBuild": "pass"
+  },
+  "automation": {
+    "tool": "playwright-cli",
+    "package": "@playwright/mcp@0.0.60",
+    "session": "anime",
+    "freshSnapshotsUsed": true,
+    "note": "The repository wrapper resolved a newer @playwright/mcp release without playwright-cli, so the last compatible CLI package was invoked directly. A legacy CLI post-evaluation TypeError appeared after two successful run-code fill calls; it was automation-process noise, not a browser console or application error."
+  },
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 1000,
+      "horizontalOverflow": false,
+      "brokenImageCount": 0
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "documentClientWidth": 390,
+      "documentScrollWidth": 390,
+      "bodyClientWidth": 390,
+      "bodyScrollWidth": 390,
+      "horizontalOverflow": false,
+      "documentScrollHeight": 1595,
+      "verticalDocumentScrollExpected": true,
+      "offscreenHorizontalControlCount": 0,
+      "brokenImageCount": 0
+    }
+  },
+  "assertions": {
+    "dialogueStateAndSpriteUrl": {
+      "status": "pass",
+      "observed": [
+        {
+          "beat": 1,
+          "state": "neutral",
+          "spriteUrl": "/dialogue-scene/demo/anime/heroine-neutral.png"
+        },
+        {
+          "beat": 3,
+          "state": "delighted",
+          "spriteUrl": "/dialogue-scene/demo/anime/heroine-delighted.png"
+        },
+        {
+          "beat": 4,
+          "state": "flustered",
+          "spriteUrl": "/dialogue-scene/demo/anime/heroine-flustered.png"
+        },
+        {
+          "beat": 6,
+          "state": "concerned",
+          "spriteUrl": "/dialogue-scene/demo/anime/heroine-concerned.png"
+        }
+      ]
+    },
+    "clickControls": {
+      "status": "pass",
+      "covered": [
+        "Continue",
+        "Back",
+        "stage advance",
+        "Hide dialogue",
+        "Show dialogue"
+      ]
+    },
+    "keyboardControls": {
+      "status": "pass",
+      "covered": [
+        "Enter",
+        "Space",
+        "ArrowRight",
+        "ArrowLeft"
+      ]
+    },
+    "completion": {
+      "status": "pass",
+      "label": "Scene complete · 8 of 8",
+      "nextDisabled": true,
+      "backReturnsToBeat8": true,
+      "reloadResetsToBeat1Neutral": true
+    },
+    "framingRangeAndNumberSync": {
+      "status": "pass",
+      "values": [25, 60, 70, 85],
+      "rangeEqualsNumberAtEveryValue": true
+    },
+    "responsiveLayout": {
+      "status": "pass",
+      "desktopHorizontalOverflow": false,
+      "mobileHorizontalOverflow": false,
+      "mobileControlsReachable": true
+    }
+  },
+  "browserConsole": {
+    "status": "pass",
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "network": {
+    "status": "pass",
+    "sameOriginResourcesChecked": 13,
+    "failureCount": 0,
+    "observedStatuses": [200],
+    "brokenAssetCount": 0
+  },
+  "captures": [
+    {
+      "role": "desktopRawEvidence",
+      "path": "web/output/playwright/dialogue-scene-anime/desktop-market-ready.png",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 1095601,
+      "sha256": "d8be7243138187a83158532e4c3e5299f25e04ebc3c74e9dce1a275d31b1e1d1"
+    },
+    {
+      "role": "mobileRawEvidence",
+      "path": "web/output/playwright/dialogue-scene-anime/mobile-flustered-390x844.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 387902,
+      "sha256": "ddcd20cfcc9b0748caa91a2504cd0258bf05445e3673e0d29ec945cb1573b922"
+    },
+    {
+      "role": "readmeOptimized",
+      "path": "docs/media/dialogue-scene-showcase.webp",
+      "width": 1200,
+      "height": 833,
+      "bytes": 82910,
+      "maximumBytes": 256000,
+      "withinBudget": true,
+      "sha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe"
+    }
+  ],
+  "productCodeEditedDuringQa": false,
+  "independentVisualReview": {
+    "status": "pass",
+    "path": "web/output/playwright/dialogue-scene-anime/visual-review.json",
+    "filesReviewed": 3,
+    "blockingMismatchCount": 0
+  }
+}

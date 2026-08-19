@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "asset": "web/public/dialogue-scene/demo/anime/heroine-neutral.png",
+  "role": "transparent neutral expression sprite",
+  "sha256": "ae8d95fd94e87bac7beaefaf6fc6d18efbaf7aca16ba0ce5fa7a00e44808cd0c",
+  "media": { "mimeType": "image/png", "width": 1024, "height": 1536, "alpha": true },
+  "sourceGeneration": {
+    "sourceArtifact": {
+      "asset": "heroine-neutral.chroma.png",
+      "role": "neutral expression chroma source",
+      "sha256": "cdd88bde4cff85df021bf377dd2b3aa7924e26c0abe19e396d1750e89d742c2d",
+      "bytes": 1863329,
+      "media": { "mimeType": "image/png", "width": 1024, "height": 1536, "alpha": false, "requestedKey": "#00ff00" },
+      "retention": "opaque chroma intermediate removed after canonical alpha derivation"
+    },
+    "tool": "built-in image_gen.imagegen",
+    "model": { "value": null, "status": "unavailable: built-in tool did not expose a model identifier" },
+    "seed": { "value": null, "status": "unavailable: built-in tool did not expose a seed" },
+    "referenceImages": [
+      {
+        "path": "web/public/dialogue-scene/demo/anime/concept-key-art.png",
+        "role": "identity, outfit, and style reference",
+        "sha256": "3dec4723dbcc0bce7f420c20d230509cb3544d46f32dfb184e580351881da4b3"
+      }
+    ],
+    "params": {
+      "callArguments": ["prompt", "referenced_image_paths"],
+      "explicitSize": { "value": null, "status": "unavailable in built-in tool; portrait 2:3 was requested in the prompt" },
+      "quality": { "value": null, "status": "unavailable in built-in tool" }
+    },
+    "retry": { "policy": "initial attempt plus up to 5 blind retries with exponential backoff capped at 16 seconds", "attemptsUsed": 1 },
+    "promptEncoding": "Join promptLines with LF characters in order.",
+    "promptLines": [
+      "Use case: identity-preserve",
+      "Asset type: reusable upper-body anime visual-novel standing sprite, neutral expression, chroma-key source",
+      "Input images: Image 1 is the identity, outfit, and illustration-style reference for Mio Amamiya; it is not a background or composition reference.",
+      "Primary request: Generate a clean reusable neutral-expression sprite of exactly the same Mio Amamiya shown in Image 1.",
+      "Subject identity lock: explicitly 23-year-old adult woman; preserve her exact mature facial structure, teal-gray eye shape and color, dark-indigo shoulder-length bob with soft inward curl and side-swept fringe, small gold four-point star hairpin, skin tone, adult proportions, and overall silhouette.",
+      "Wardrobe lock: preserve the same professional navy knit research cardigan, ivory mock-neck blouse, amber-gold buttons, and slim amber pendant necklace exactly; no additions, removals, recoloring, or redesign.",
+      "Expression: reserved attentiveness with relaxed brows, steady gaze toward viewer, closed lips, and a faint professional half-smile; no blush, tears, or exaggerated emotion.",
+      "Pose and framing lock: portrait 2:3 canvas; identical canonical upper-body framing intended for a four-expression sprite set; top of hair through natural waist visible; head centered, shoulders level, torso turned only slightly three-quarter while face looks toward viewer; both complete shoulders and cardigan front visible; arms relaxed but hands remain outside the bottom edge; generous even padding around hair and shoulders.",
+      "Style/medium: match Image 1’s polished contemporary Japanese visual-novel anime rendering, clean expressive linework, soft cel shading, controlled highlights, premium dating-sim finish.",
+      "Scene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal.",
+      "Lighting: soft neutral studio-like character lighting with a very subtle cool blue-hour rim, consistent across the future expression set.",
+      "Constraints: the background must be one uniform #00ff00 color with no shadows, gradient, texture, reflections, floor plane, halo, vignette, scenery, props, cast shadow, or lighting variation; keep the subject fully separated from the background with crisp antialiased edges; do not use #00ff00 anywhere in the subject; no text, labels, logo, signature, border, UI, speech bubble, or watermark; exactly one adult character.",
+      "Avoid: full-body framing; cropped hair; cut shoulders; visible hands; school uniform; childlike or chibi proportions; sexualized framing; photorealism; 3D-render look; magenta key background."
+    ],
+    "provenance": {
+      "createdAt": "2026-08-20T04:22:44+09:00",
+      "workspaceCopy": "byte-for-byte before deterministic alpha derivation",
+      "postprocessing": "none before deterministic alpha derivation",
+      "transientExternalPath": "intentionally omitted"
+    }
+  },
+  "derivation": {
+    "tool": "Codex imagegen skill remove_chroma_key.py",
+    "toolLocation": { "value": null, "status": "external skill path intentionally omitted from repository provenance" },
+    "toolVersion": { "value": null, "status": "unavailable: helper exposes no version identifier" },
+    "params": { "autoKey": "border", "softMatte": true, "transparentThreshold": 12, "opaqueThreshold": 220, "despill": true, "edgeContract": 0, "edgeFeather": 0 },
+    "sampledKey": "#03f903"
+  },
+  "technicalValidation": {
+    "rgba": true,
+    "transparentCorners": 4,
+    "transparentPixels": 780009,
+    "partiallyTransparentPixels": 9738,
+    "totalPixels": 1572864,
+    "alphaMean": 0.500547,
+    "residualKeyFractionAtAlphaAbove0.05": 0,
+    "independentVisualReview": {
+      "status": "pass",
+      "path": "web/public/dialogue-scene/demo/anime/visual-review.json",
+      "sha256": "aefd8a5842b2c33bd256cf778470853dae0bf144b549a7a3079dff6af18cd9c1"
+    }
+  },
+  "provenance": {
+    "createdAt": "2026-08-20T04:22:44+09:00",
+    "operation": "deterministic local chroma removal",
+    "rightsState": "repository-approved-project-owned-ai-generated"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "ownership": "project-owned AI-generated artifact",
+    "license_id": "LicenseRef-Stage-Gen-Dialogue-Scene-Repository-Sharing",
+    "notice": "dialogue-scene-assets.LICENSE.md",
+    "basis": [
+      "Artifact-specific repository publication authorization by the authenticated project owner",
+      "Original project-authored prompt and project-owned identity reference",
+      "Independent digest-bound visual review pass"
+    ],
+    "reviewed_at": "2026-08-19T19:47:39.000Z"
+  }
+}

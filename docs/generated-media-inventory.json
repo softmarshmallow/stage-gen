@@ -83,6 +83,27 @@
         "verificationReportPath": "docs/media/gameplay-model-demo.visual-review.md",
         "verificationReportSha256": "9194172d56b405d89e4781ea194ffe435cb1e59f904d5b7f344ad1c83ea733b2"
       }
+    },
+    {
+      "path": "docs/media/dialogue-scene-showcase.webp",
+      "sidecarSha256": "8e6abe4feeb95175b9517bbc33e028375b8b66aeb2c144667f0a726c34cc4a0e",
+      "kind": "image",
+      "reviewStatus": "repository-approved",
+      "synthIdExpected": false,
+      "visualReview": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewedBy": "independent visual-verification subagent",
+        "authorityBasis": "reviewer independent from the browser-capture producer; exact digest-bound README WebP verification",
+        "reviewedAt": "2026-08-19T19:47:39.000Z",
+        "attestationId": "independent-dialogue-showcase-webp-94efbbfba6485fad",
+        "attestedAt": "2026-08-19T19:47:39.000Z",
+        "artifactSha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe",
+        "artifactBytes": 82910,
+        "verificationReportPath": "docs/media/dialogue-scene-showcase.visual-review.md",
+        "verificationReportSha256": "ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba"
+      }
     }
   ]
 }

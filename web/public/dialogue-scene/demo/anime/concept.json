@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "conceptId": "signal-at-blue-hour-mio-v1",
+  "conceptName": "Signal at Blue Hour — Mio's Meteor Watch",
+  "title": "Signal at Blue Hour",
+  "contentRating": {
+    "label": "15+",
+    "tone": "Tasteful slow-burn romance with gentle emotional tension and no sexual content.",
+    "adultCastPolicy": "Mio is explicitly 23 years old. The concept contains no minors, school setting, school uniform, or minor-coded framing."
+  },
+  "marketableHook": "During meteor-watch week, a late-night equipment fault leaves the player alone at a seaside radio observatory with Mio Amamiya, a guarded young researcher whose dry wit brightens as the sky darkens.",
+  "heroine": {
+    "id": "mio-amamiya",
+    "name": "Mio Amamiya",
+    "age": 23,
+    "role": "Adult graduate astronomy researcher working the observatory night shift.",
+    "personality": [
+      "quietly witty",
+      "meticulous",
+      "initially guarded",
+      "warmly expressive once trust is earned"
+    ],
+    "identityLock": {
+      "hair": "Dark-indigo shoulder-length bob with a soft inward curl and side-swept fringe.",
+      "eyes": "Clear teal-gray eyes.",
+      "signatureAccessory": "Small gold four-point star hairpin.",
+      "outfit": "Professional navy research cardigan over an ivory mock-neck blouse with a slim amber pendant; contemporary adult workplace clothing, not a school uniform.",
+      "proportions": "Clearly adult facial structure and body proportions; tasteful non-sexualized presentation."
+    }
+  },
+  "setting": {
+    "location": "Seaside radio observatory control terrace during meteor-watch week.",
+    "time": "Blue hour moving into the first stars.",
+    "visualMotifs": [
+      "radio-dish silhouettes",
+      "distant ocean horizon",
+      "indigo and teal sky",
+      "warm amber instrument lights",
+      "subtle meteor trails"
+    ]
+  },
+  "artDirection": {
+    "medium": "Polished contemporary Japanese visual-novel anime illustration.",
+    "palette": "Blue-hour indigo and teal with restrained amber highlights.",
+    "finish": "Clean expressive linework, soft cel shading, delicate atmospheric gradients, premium dating-sim key-art polish.",
+    "constraints": [
+      "original character design",
+      "no text, logos, signatures, or watermarks in generated assets",
+      "no sexualized pose or camera angle",
+      "no school-uniform styling or minor coding"
+    ]
+  },
+  "expressionStates": {
+    "neutral": {
+      "meaning": "Reserved attentiveness and a faint professional half-smile.",
+      "asset": "/dialogue-scene/demo/anime/heroine-neutral.png"
+    },
+    "delighted": {
+      "meaning": "Genuine open smile, softly lifted brows, and brightened eyes.",
+      "asset": "/dialogue-scene/demo/anime/heroine-delighted.png"
+    },
+    "flustered": {
+      "meaning": "Subtle warm blush, shy side glance, and a small uncertain smile.",
+      "asset": "/dialogue-scene/demo/anime/heroine-flustered.png"
+    },
+    "concerned": {
+      "meaning": "Focused serious gaze, gently knit brows, and composed closed lips.",
+      "asset": "/dialogue-scene/demo/anime/heroine-concerned.png"
+    }
+  },
+  "assets": {
+    "background": "/dialogue-scene/demo/anime/background.png",
+    "keyArt": "/dialogue-scene/demo/anime/concept-key-art.png",
+    "spriteFraming": "Matching upper-body crop from the top of the hair through the lower ribcage, centered on a portrait canvas."
+  }
+}

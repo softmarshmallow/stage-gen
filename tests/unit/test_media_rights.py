@@ -572,6 +572,29 @@ def test_browser_capture_video_and_poster_must_share_notice(tmp_path: Path) -> N
     assert "browser capture video and poster must share one adjacent rights notice" in failures
 
 
+def test_unrelated_capture_license_may_use_its_own_notice(tmp_path: Path) -> None:
+    inventory = _write_capture_publication(tmp_path)
+    poster_sidecar = tmp_path / "docs/showcase/gameplay.png.meta.json"
+    value = cast(dict[str, Any], json.loads(poster_sidecar.read_text(encoding="utf-8")))
+    second_notice = poster_sidecar.parent / "SECOND-SHOWCASE-NOTICE.md"
+    second_notice.write_text("Independent synthetic showcase permission.", encoding="utf-8")
+    value["rights"]["notice"] = second_notice.name
+    value["rights"]["license_id"] = "LicenseRef-Independent-Synthetic-Showcase"
+    sidecar_bytes = json.dumps(value).encode()
+    poster_sidecar.write_bytes(sidecar_bytes)
+
+    inventory_value = cast(dict[str, Any], json.loads(inventory.read_text(encoding="utf-8")))
+    poster_entry = next(
+        entry
+        for entry in inventory_value["media"]
+        if entry["path"] == "docs/showcase/gameplay.png"
+    )
+    poster_entry["sidecarSha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
+    inventory.write_text(json.dumps(inventory_value), encoding="utf-8")
+
+    assert check_generated_media_publication(tmp_path, inventory).failures == ()
+
+
 def test_browser_capture_verifier_digest_tracks_current_hardened_code(tmp_path: Path) -> None:
     inventory = _write_capture_publication(tmp_path)
     verifier = tmp_path / "web/tests/gameplay/harness.ts"
@@ -613,7 +636,7 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
     inventory_path = repository / "docs/generated-media-inventory.json"
     result = check_generated_media_publication(repository, inventory_path)
     assert result.failures == ()
-    assert result.media_count == 4
+    assert result.media_count == 5
 
     inventory = cast(dict[str, Any], json.loads(inventory_path.read_text(encoding="utf-8")))
     entries = {entry["path"]: entry for entry in cast(list[dict[str, Any]], inventory["media"])}

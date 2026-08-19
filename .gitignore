@@ -73,6 +73,10 @@ web_modules/
 # Local browser-control snapshots and logs
 .playwright-cli/
 /output/playwright/
+/output/imagegen/**/*.png
+/output/imagegen/**/*.png.meta.json
+/output/imagegen/**/*.metadata.json
+/web/output/**/*.png
 
 # Output of 'npm pack'
 *.tgz

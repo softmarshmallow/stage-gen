@@ -1,0 +1,35 @@
+{
+  "files": {
+    "web/output/playwright/dialogue-scene-anime/desktop-market-ready.png": {
+      "sha256": "d8be7243138187a83158532e4c3e5299f25e04ebc3c74e9dce1a275d31b1e1d1",
+      "dimensions": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sizeBytes": 1095601,
+      "verdict": "pass",
+      "reason": "Readable market-ready flustered VN composition; dialogue and presentation controls are visible without clipping."
+    },
+    "web/output/playwright/dialogue-scene-anime/mobile-flustered-390x844.png": {
+      "sha256": "ddcd20cfcc9b0748caa91a2504cd0258bf05445e3673e0d29ec945cb1573b922",
+      "dimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sizeBytes": 387902,
+      "verdict": "pass",
+      "reason": "Exact viewport, readable flustered scene and tap control, with no horizontal overflow or clipping."
+    },
+    "docs/media/dialogue-scene-showcase.webp": {
+      "sha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe",
+      "dimensions": {
+        "width": 1200,
+        "height": 833
+      },
+      "sizeBytes": 82910,
+      "verdict": "pass",
+      "reason": "Clean, faithful README rendering at 82,910 bytes, below the 250 KiB limit."
+    }
+  },
+  "overall": "pass"
+}

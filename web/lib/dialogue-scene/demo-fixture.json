@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "signal-at-blue-hour-v2",
+  "mode": "deterministic-demo",
+  "authorship": "caller-authored",
+  "title": "Signal at Blue Hour",
+  "sceneLabel": "Episode 01 · Meteor-watch week · Seaside radio observatory",
+  "presentation": {
+    "framingZoom": 70,
+    "sourceFramingZoom": 70
+  },
+  "background": {
+    "id": "seaside-observatory-blue-hour",
+    "src": "/dialogue-scene/demo/anime/background.png",
+    "alt": "A seaside radio-observatory control terrace at blue hour with amber instrument light"
+  },
+  "appearance": {
+    "id": "mio-amamiya-astronomy-researcher",
+    "label": "Mio Amamiya",
+    "age": 23,
+    "role": "Graduate astronomy researcher · night shift",
+    "tagline": "She maps distant signals precisely. The one between you is harder to name.",
+    "description": "Quietly witty and meticulous, Mio begins the meteor watch carefully guarded, then lets her warmth show when the night takes an unexpected turn.",
+    "visualIdentity": "An adult woman with a dark-indigo shoulder-length bob, teal-gray eyes, a small gold four-point star hairpin, a navy research cardigan, an ivory mock-neck blouse, and a slim amber pendant",
+    "artDirection": "Original polished 2D anime and moe visual-novel character art, with graceful adult proportions, clean expressive features, and a blue-hour teal, indigo, and amber palette",
+    "conceptSrc": "/dialogue-scene/demo/anime/concept-key-art.png"
+  },
+  "expressionVariants": [
+    {
+      "id": "mio-neutral",
+      "src": "/dialogue-scene/demo/anime/heroine-neutral.png",
+      "alt": "Mio Amamiya with a composed, attentive expression",
+      "appearanceId": "mio-amamiya-astronomy-researcher",
+      "state": "neutral",
+      "label": "Composed",
+      "description": "composed and attentive, with a restrained closed-mouth smile and direct, thoughtful eye contact",
+      "slot": "right"
+    },
+    {
+      "id": "mio-delighted",
+      "src": "/dialogue-scene/demo/anime/heroine-delighted.png",
+      "alt": "Mio Amamiya smiling with open delight",
+      "appearanceId": "mio-amamiya-astronomy-researcher",
+      "state": "delighted",
+      "label": "Delighted",
+      "description": "warm, open delight with bright eyes and an unguarded smile, preserving the same adult identity and outfit",
+      "slot": "right"
+    },
+    {
+      "id": "mio-flustered",
+      "src": "/dialogue-scene/demo/anime/heroine-flustered.png",
+      "alt": "Mio Amamiya looking warmly flustered",
+      "appearanceId": "mio-amamiya-astronomy-researcher",
+      "state": "flustered",
+      "label": "Flustered",
+      "description": "warmly flustered with a faint blush, softened gaze, and shy half-smile; bashful, never juvenile",
+      "slot": "right"
+    },
+    {
+      "id": "mio-concerned",
+      "src": "/dialogue-scene/demo/anime/heroine-concerned.png",
+      "alt": "Mio Amamiya focused with a serious, concerned expression",
+      "appearanceId": "mio-amamiya-astronomy-researcher",
+      "state": "concerned",
+      "label": "Concerned",
+      "description": "focused concern with drawn brows and a firm mouth, reading as a capable adult responding to a technical problem",
+      "slot": "right"
+    }
+  ],
+  "dialogue": [
+    {
+      "id": "late-arrival",
+      "speaker": "Mio",
+      "text": "You made it. I was starting to suspect the meteor shower had better plans for you than I did.",
+      "expressionState": "neutral"
+    },
+    {
+      "id": "cocoa-offering",
+      "speaker": "You",
+      "text": "The last train was late. I brought hot cocoa as an apology—and remembered the cinnamon.",
+      "expressionState": "neutral"
+    },
+    {
+      "id": "remembered-cinnamon",
+      "speaker": "Mio",
+      "text": "You remembered. That may be the most convincing research result I’ve seen all week.",
+      "expressionState": "delighted"
+    },
+    {
+      "id": "second-date",
+      "speaker": "You",
+      "text": "Then… if the sky cooperates, could we call tonight a second date?",
+      "expressionState": "flustered"
+    },
+    {
+      "id": "first-date",
+      "speaker": "Mio",
+      "text": "Only if we agree the first was the night we stayed up until dawn calibrating the receiver.",
+      "expressionState": "flustered"
+    },
+    {
+      "id": "array-silence",
+      "speaker": "Mio",
+      "text": "Wait—the western array just went quiet. If that timing drift is real, we’ll miss the entire event.",
+      "expressionState": "concerned"
+    },
+    {
+      "id": "where-needed",
+      "speaker": "You",
+      "text": "Tell me where you need me.",
+      "expressionState": "concerned"
+    },
+    {
+      "id": "beside-me",
+      "speaker": "Mio",
+      "text": "Beside me. For the array—and, if you’re willing, after the stars are done too.",
+      "expressionState": "delighted"
+    }
+  ]
+}

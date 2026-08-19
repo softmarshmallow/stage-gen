@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "dialogue-scene-framing-control-v1",
+  "status": "specified-not-run",
+  "reference": {
+    "path": "web/public/dialogue-scene/demo/appearance-concept.png",
+    "role": "sole character identity and style reference"
+  },
+  "publicControl": {
+    "name": "framingZoom",
+    "type": "number",
+    "minimum": 0,
+    "maximum": 100,
+    "direction": "higher-is-tighter",
+    "experimentInputs": [25, 60, 85]
+  },
+  "measurementDefinitions": {
+    "faceHeightPercent": "One hundred times the vertical distance from the anatomical hairline at the forehead center to the bottom of the chin, divided by canvas height; estimate the hairline through bangs when necessary.",
+    "headroomPercent": "One hundred times the vertical distance from the topmost painted hair pixel to the top canvas edge, divided by canvas height.",
+    "visibleAnatomy": "A named feature is visible only when it is inside the canvas, not clipped by a canvas edge, and not hidden by the framing boundary.",
+    "bands": "All target bands are inclusive."
+  },
+  "sharedInvariants": {
+    "identity": [
+      "one original adult observatory courier",
+      "same facial structure and adult age",
+      "dark-auburn bob haircut",
+      "brass communications earpiece",
+      "amber scarf",
+      "long navy courier coat with brass fasteners",
+      "same body proportions and costume construction",
+      "no added, removed, or redesigned identity-defining features when those features are within frame"
+    ],
+    "style": [
+      "coherent polished 2D game character art",
+      "same painterly edge treatment, material rendering, palette, and lighting direction as the reference",
+      "no photorealism or 3D-render styling"
+    ],
+    "pose": "upright neutral stance, shoulders level, body turned ten degrees to the viewer's left, head and gaze toward the viewer, arms relaxed naturally at the sides",
+    "expression": "calm closed-mouth neutral expression",
+    "canvas": "portrait-oriented 2:3 canvas",
+    "background": "flat uniform neutral middle-gray backdrop with no gradient, texture, scenery, props, horizon, cast shadow, or floor line",
+    "output": "one opaque RGB image generated directly, with no transparency, alpha, chroma key, mask, grid, or postprocessing",
+    "textExclusions": "no text, captions, logos, signatures, or watermarks"
+  },
+  "tiers": [
+    {
+      "anchor": 25,
+      "semanticTier": "full-body",
+      "cameraTerm": "full shot",
+      "cropLandmark": "below both boot soles, retaining a floor margin of 2%-6% of canvas height",
+      "visibleAnatomy": "entire hair and head, neck, shoulders, torso, both arms and hands, coat hem, both legs, and both boots",
+      "targetFaceHeightPercent": [7.0, 11.0],
+      "targetHeadroomPercent": [4.0, 8.0],
+      "positiveBoundaryConstraints": [
+        "keep the top of the hair and both boot soles inside the canvas",
+        "keep both hands and the complete coat hem inside the canvas",
+        "retain 2%-6% canvas-height margin below the boot soles"
+      ],
+      "negativeBoundaryConstraints": [
+        "do not crop hair, hands, coat hem, legs, or boots",
+        "do not use waist-up, bust, head-and-shoulders, or head-only framing"
+      ],
+      "passCriteria": [
+        "semantic reading is a conventional full shot",
+        "every listed anatomy feature is visible",
+        "face height is within 7.0%-11.0% of canvas height",
+        "headroom is within 4.0%-8.0% of canvas height",
+        "every positive boundary constraint holds and no negative boundary occurs",
+        "all shared identity, style, pose, expression, canvas, background, output, and text invariants hold"
+      ]
+    },
+    {
+      "anchor": 60,
+      "semanticTier": "waist-up",
+      "cameraTerm": "medium shot",
+      "cropLandmark": "at the natural waist, below the coat's waist fastener and without cutting the torso",
+      "visibleAnatomy": "entire hair and head, neck, both shoulders, torso through the natural waist, and both upper arms",
+      "targetFaceHeightPercent": [18.0, 26.0],
+      "targetHeadroomPercent": [4.0, 8.0],
+      "positiveBoundaryConstraints": [
+        "keep the top of the hair, both shoulders, and torso through the natural waist inside the canvas",
+        "place the level lower frame boundary at the natural waist"
+      ],
+      "negativeBoundaryConstraints": [
+        "do not include hips, thighs, knees, boots, or a full-body floor margin",
+        "do not crop through the head, neck, shoulders, or chest",
+        "do not drift to full-shot, close-up, or head-only framing"
+      ],
+      "passCriteria": [
+        "semantic reading is a conventional medium shot",
+        "every listed anatomy feature is visible and the crop lands at the natural waist",
+        "face height is within 18.0%-26.0% of canvas height",
+        "headroom is within 4.0%-8.0% of canvas height",
+        "every positive boundary constraint holds and no negative boundary occurs",
+        "all shared identity, style, pose, expression, canvas, background, output, and text invariants hold"
+      ]
+    },
+    {
+      "anchor": 85,
+      "semanticTier": "head-and-shoulders",
+      "cameraTerm": "close-up",
+      "cropLandmark": "across the upper chest below the clavicles, retaining the complete shoulder line",
+      "visibleAnatomy": "entire hair and head, face, neck, both complete shoulders, and upper chest",
+      "targetFaceHeightPercent": [34.0, 46.0],
+      "targetHeadroomPercent": [3.0, 7.0],
+      "positiveBoundaryConstraints": [
+        "keep the top of the hair, full face, neck, complete shoulder line, and upper chest inside the canvas",
+        "place the lower frame boundary across the upper chest below the clavicles"
+      ],
+      "negativeBoundaryConstraints": [
+        "do not crop hair, chin, neck, or either shoulder",
+        "do not include the waist, hips, hands, legs, boots, or a floor margin",
+        "do not drift to a medium shot, full shot, or extreme facial close-up"
+      ],
+      "passCriteria": [
+        "semantic reading is a conventional close-up",
+        "every listed anatomy feature is visible and the crop lands across the upper chest",
+        "face height is within 34.0%-46.0% of canvas height",
+        "headroom is within 3.0%-7.0% of canvas height",
+        "every positive boundary constraint holds and no negative boundary occurs",
+        "all shared identity, style, pose, expression, canvas, background, output, and text invariants hold"
+      ]
+    }
+  ],
+  "valueResolution": {
+    "orderedSteps": [
+      "Reject non-numeric, NaN, and infinite inputs.",
+      "Set clampedZoom = min(100, max(0, input)).",
+      "Set geometryZoom = min(85, max(25, clampedZoom)); values from 0 through 25 use the 25 anchor geometry, and values from 85 through 100 use the 85 anchor geometry.",
+      "Choose the categorical tier whose anchor has the smallest absolute distance from clampedZoom; on a tie choose the higher, tighter anchor. This yields full-body below 42.5, waist-up from 42.5 through values below 72.5, and head-and-shoulders from 72.5 upward.",
+      "For each target-band endpoint, linearly interpolate between the two anchors bracketing geometryZoom. Exact anchors retain their declared values. Round interpolated percentages to one decimal place with half values rounded upward.",
+      "Use crop landmark, visible anatomy, camera term, and boundary constraints from the chosen categorical tier; categorical text is never blended.",
+      "Format clampedZoom with at most one decimal place and omit a trailing .0. Format every percentage endpoint with exactly one decimal place."
+    ],
+    "experimentRestriction": "Generate only the exact inputs 25, 60, and 85 in this experiment. The remaining scale behavior is defined for a future pure mapper, not additional generation here."
+  },
+  "promptDataRendering": {
+    "identityJoin": "; ",
+    "styleJoin": "; ",
+    "constraintJoin": "; ",
+    "faceBandFormat": "{faceLowFixed1}%-{faceHighFixed1}% of canvas height, inclusive",
+    "headroomBandFormat": "{headroomLowFixed1}%-{headroomHighFixed1}% of canvas height, inclusive",
+    "tokenReplacement": "Resolve all tokens first, then replace each brace-delimited token exactly once; concatenate no prefix, suffix, or commentary beyond the template."
+  },
+  "methods": [
+    {
+      "id": "term-only-v1",
+      "role": "conventional camera-term baseline",
+      "framingInputsRendered": ["cameraTerm"],
+      "framingInputsForbidden": [
+        "numeric framingZoom",
+        "semantic tier label",
+        "crop landmark",
+        "visible anatomy list",
+        "face-height band",
+        "headroom band",
+        "positive boundary constraints",
+        "negative boundary constraints"
+      ],
+      "promptRenderer": {
+        "template": "Create one {cameraTerm} of the exact character in the supplied reference image. Preserve these identity invariants exactly: {identity}. Preserve these style invariants exactly: {style}. Keep constant across every output: pose — {pose}; expression — {expression}; canvas — {canvas}; backdrop — {background}; output — {output}; exclusions — {textExclusions}.",
+        "orderedResolution": [
+          "Resolve clampedZoom and choose the categorical tier using valueResolution.",
+          "Set cameraTerm from that tier.",
+          "Join sharedInvariants.identity with promptDataRendering.identityJoin and sharedInvariants.style with promptDataRendering.styleJoin.",
+          "Substitute cameraTerm, identity, style, pose, expression, canvas, background, output, and textExclusions into the template.",
+          "Do not render any forbidden framing input and do not append text."
+        ]
+      },
+      "outputNameFormat": "framing-z{clampedZoomPadded3}--term-only-v1.png"
+    },
+    {
+      "id": "hybrid-bounds-v1",
+      "role": "camera term plus numeric and explicit geometric bounds",
+      "framingInputsRendered": [
+        "cameraTerm",
+        "clampedZoom",
+        "cropLandmark",
+        "visibleAnatomy",
+        "interpolated face-height band",
+        "interpolated headroom band",
+        "positiveBoundaryConstraints",
+        "negativeBoundaryConstraints"
+      ],
+      "promptRenderer": {
+        "template": "Create one {cameraTerm} of the exact character in the supplied reference image. Framing control: framingZoom={clampedZoom}/100, where higher means tighter. Crop landmark: {cropLandmark}. Visible anatomy: {visibleAnatomy}. Target face height: {faceBand}. Target headroom: {headroomBand}. Positive boundary constraints: {positiveConstraints}. Negative boundary constraints: {negativeConstraints}. Preserve these identity invariants exactly: {identity}. Preserve these style invariants exactly: {style}. Keep constant across every output: pose — {pose}; expression — {expression}; canvas — {canvas}; backdrop — {background}; output — {output}; exclusions — {textExclusions}.",
+        "orderedResolution": [
+          "Resolve clampedZoom, geometryZoom, categorical tier, and interpolated target bands using valueResolution.",
+          "Set cameraTerm, cropLandmark, visibleAnatomy, positiveBoundaryConstraints, and negativeBoundaryConstraints from the chosen tier.",
+          "Format clampedZoom and both target bands using valueResolution and promptDataRendering.",
+          "Join identity, style, positive constraints, and negative constraints with their declared join delimiters.",
+          "Substitute every named token into the template and do not append text."
+        ]
+      },
+      "outputNameFormat": "framing-z{clampedZoomPadded3}--hybrid-bounds-v1.png"
+    }
+  ],
+  "matchedRunPolicy": {
+    "pairing": "For each experiment input, run both methods with the same reference bytes, provider, model, portrait canvas, pose, expression, background, output mode, and non-prompt generation parameters.",
+    "seed": "Use the same seed for both methods at one input when the provider supports a seed; otherwise record that seed control is unavailable.",
+    "postprocessing": "none",
+    "transparency": "none",
+    "comparisonOrder": [
+      "25:term-only-v1",
+      "25:hybrid-bounds-v1",
+      "60:term-only-v1",
+      "60:hybrid-bounds-v1",
+      "85:term-only-v1",
+      "85:hybrid-bounds-v1"
+    ]
+  },
+  "decision": {
+    "status": "unselected",
+    "winner": null,
+    "selectionRule": "Choose no winner until independently verified, hash-bound output verdicts exist for all six experiment outputs."
+  }
+}

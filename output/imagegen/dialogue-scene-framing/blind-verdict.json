@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "path": "web/public/dialogue-scene/demo/appearance-concept.png",
+    "sha256": "015d6f456e8738f4a039c3196cdb2f79eae2c6ce08c8d0eda3261218742dac34"
+  },
+  "zooms": {
+    "z025": {
+      "preferredCandidate": "candidate-a",
+      "candidates": {
+        "candidate-a": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z025/candidate-a.png",
+          "sha256": "588413152945772183e8e3333bb7fd85bcac5d0d183c367b035f6bc2b3d504a6",
+          "identity": "pass",
+          "crop": "pass",
+          "faceBand": {
+            "verdict": "pass",
+            "estimatedPercent": 9.8
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatedPercent": 5.2
+          },
+          "sharedInvariants": "pass",
+          "overall": "pass",
+          "reason": "Complete full-body framing, compliant floor margin, face scale, and headroom."
+        },
+        "candidate-b": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z025/candidate-b.png",
+          "sha256": "a4807604125917076986ef494bd764426770a6d7bb32c65b151354619eb638a9",
+          "identity": "pass",
+          "crop": "pass",
+          "faceBand": {
+            "verdict": "pass",
+            "estimatedPercent": 9.7
+          },
+          "headroom": {
+            "verdict": "fail",
+            "estimatedPercent": 3.2
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Full-body crop and face scale fit, but headroom is below the 4% minimum."
+        }
+      }
+    },
+    "z060": {
+      "preferredCandidate": "candidate-a",
+      "candidates": {
+        "candidate-a": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z060/candidate-a.png",
+          "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "pass",
+            "estimatedPercent": 22.0
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatedPercent": 5.0
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Face scale and headroom fit, but framing continues below the natural waist into hips and thighs."
+        },
+        "candidate-b": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z060/candidate-b.png",
+          "sha256": "77d25f8e8d4d296a0bba2dd0e1c6320a1fbd22006e4d771c7d9882fcf5fbd7d3",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatedPercent": 16.8
+          },
+          "headroom": {
+            "verdict": "fail",
+            "estimatedPercent": 3.0
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Framing is too loose, revealing hips and thighs, with an undersized face and tight headroom."
+        }
+      }
+    },
+    "z085": {
+      "preferredCandidate": "candidate-b",
+      "candidates": {
+        "candidate-a": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z085/candidate-a.png",
+          "sha256": "db198ac2cd32b8d54480c129f0128a6b74dbb4dfa413de0f8e63210b574d8030",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatedPercent": 17.2
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatedPercent": 4.0
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Framing is far too loose, with hands, waist, and thighs visible and an undersized face."
+        },
+        "candidate-b": {
+          "path": "output/imagegen/dialogue-scene-framing/blind/z085/candidate-b.png",
+          "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+          "identity": "pass",
+          "crop": "fail",
+          "faceBand": {
+            "verdict": "fail",
+            "estimatedPercent": 29.5
+          },
+          "headroom": {
+            "verdict": "pass",
+            "estimatedPercent": 5.0
+          },
+          "sharedInvariants": "pass",
+          "overall": "fail",
+          "reason": "Closest close-up, but it extends below the upper chest and the face remains below the target band."
+        }
+      }
+    }
+  }
+}

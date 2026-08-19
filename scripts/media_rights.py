@@ -631,7 +631,7 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             failures.append(f"{path}: binary media is not enumerated in the inventory")
 
     observations: dict[str, JsonObject] = {}
-    capture_notice_paths: set[str] = set()
+    capture_notice_paths_by_license: dict[str, set[str]] = {}
     for path, entry in entries.items():
         if path not in discovered:
             failures.append(f"{path}: inventory entry does not resolve to discovered binary media")
@@ -680,8 +680,12 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
                 failures.append(f"{path}: sidecar rights notice must be a regular file")
             else:
                 observed["noticeSha256"] = _sha256_file(notice_path)
-                if kind in CAPTURE_KINDS:
-                    capture_notice_paths.add(notice_path.relative_to(repo).as_posix())
+                if kind in CAPTURE_KINDS and rights is not None:
+                    license_id = rights.get("license_id")
+                    if isinstance(license_id, str):
+                        capture_notice_paths_by_license.setdefault(license_id, set()).add(
+                            notice_path.relative_to(repo).as_posix()
+                        )
         observations[path] = observed
         if kind in CAPTURE_KINDS:
             _validate_capture_source_files(repo, path, sidecar, failures)
@@ -690,7 +694,7 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
         ):
             failures.append(f"{path}: {failure}")
 
-    if len(capture_notice_paths) > 1:
+    if any(len(paths) > 1 for paths in capture_notice_paths_by_license.values()):
         failures.append("browser capture video and poster must share one adjacent rights notice")
 
     for path, entry in entries.items():

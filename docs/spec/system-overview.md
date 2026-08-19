@@ -102,6 +102,16 @@ component results through a different manifest/adapter.
 See [scrolling-preview asset contracts](asset-contracts.md) and the
 [web preview boundary](../web-preview.md).
 
+The planned `dialogue-scene` sibling recipe packages one caller-directed
+appearance concept, a finite set of static expression variants for that
+identity, and portable scene data for the Visual Novel Scene Kit. Its
+[asset contract](dialogue-scene-assets.md),
+[optional preview](../dialogue-scene-preview.md), and
+[deferred animation notes](../dialogue-scene-animation.md) preserve the same
+headless-recipe and downstream-consumer boundary. A deterministic browser
+vertical slice implements state-driven variant swapping; the provider-backed
+headless recipe does not yet exist.
+
 The Python package under `src/stage_gen/` is the sole headless implementation.
 Node and TypeScript are confined to the optional `web/` adapter.
 

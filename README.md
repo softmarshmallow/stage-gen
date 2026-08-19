@@ -82,6 +82,43 @@ compatibility alias for `generate --recipe scrolling-preview`.
 - A replaceable Next.js/React/Phaser preview that consumes completed manifests
   without moving gameplay assumptions into Python components.
 
+## Recipe boundary
+
+The stable product boundary is coherent **2D asset generation**. Genre,
+viewpoint and camera, composition rules, and validation harnesses belong to
+individual recipes. `scrolling-preview` is the only implemented recipe today:
+it is the side-view reference integration, not a template whose platformer
+assumptions or asset layout may define future recipes.
+
+## Showcase: Visual Novel Scene Kit
+
+![Signal at Blue Hour anime dating-sim demo with Mio Amamiya and state-driven expression variants](docs/media/dialogue-scene-showcase.webp)
+
+**Signal at Blue Hour** is a deterministic, playable 15+ slow-burn romance
+vignette built from a background, one adult heroine identity, four transparent
+expression variants, caller-authored dialogue, and presentation data. Mio
+Amamiya is a 23-year-old graduate astronomy researcher on the night shift at a
+seaside radio observatory. Each dialogue beat selects a discrete `neutral`,
+`delighted`, `flustered`, or `concerned` variant; these are reusable sprite
+states, not animation frames and not a rig.
+
+Run the optional web app and open `/dialogue-scene/demo` to play the vertical
+slice. The same page keeps the numeric `framingZoom` control and camera-term
+prompt mapping over `25..85`, while a deterministic viewport owns the final
+crop. Mio's committed sprites are authored upper-body at baseline `70`, so
+looser values make that source smaller but correctly do not claim to reveal
+unauthored full-body pixels.
+
+The browser showcase is implemented; the provider-backed `dialogue-scene`
+headless recipe remains planned. Its asset direction now pairs one appearance
+concept with a finite expression-variant set while background generation,
+choices, rigging, lip sync, and motion stay outside the committed slice. The
+boundaries are recorded in the
+[asset contract](docs/spec/dialogue-scene-assets.md),
+[preview contract](docs/dialogue-scene-preview.md),
+[framing control](docs/dialogue-scene-framing.md), and
+[deferred animation notes](docs/dialogue-scene-animation.md).
+
 ## Architecture
 
 Python under `src/stage_gen/` is the sole headless implementation. Node and

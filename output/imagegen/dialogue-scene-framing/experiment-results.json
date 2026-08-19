@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "dialogue-scene-framing-control-v1",
+  "status": "complete",
+  "reference": {
+    "path": "web/public/dialogue-scene/demo/appearance-concept.png",
+    "sha256": "015d6f456e8738f4a039c3196cdb2f79eae2c6ce08c8d0eda3261218742dac34"
+  },
+  "evidence": {
+    "experimentSpec": {
+      "path": "output/imagegen/dialogue-scene-framing/experiment-spec.json",
+      "sha256": "cdaa96e244b3aeda5fb819f7e75b1247bf427960ef271226aa13112ec0ff1d3b"
+    },
+    "round1BlindMap": {
+      "path": "output/imagegen/dialogue-scene-framing/blind-map.json",
+      "sha256": "ed5e3cf4ef5d1bc5c5a97a1554d0c2778fcd7d2f83f0788471224d0d68bfcd10"
+    },
+    "round1BlindVerdict": {
+      "path": "output/imagegen/dialogue-scene-framing/blind-verdict.json",
+      "sha256": "b04fbbb137a308067ef2135c989298b441f92bd2cce36b0b68901d00c3b0d66e"
+    },
+    "round1DecodedResults": {
+      "path": "output/imagegen/dialogue-scene-framing/round-1-results.json",
+      "sha256": "e3a3ae7ce3909466000583235bc1a3d8b7de7db91dcce997e622dd038f889a4e"
+    },
+    "round2BlindMap": {
+      "path": "output/imagegen/dialogue-scene-framing/round-2-blind-map.json",
+      "sha256": "80368f34cb79c44ec11dc01c24a4e89a1df022e29094130b53323d1977a93ea7"
+    },
+    "round2BlindVerdict": {
+      "path": "output/imagegen/dialogue-scene-framing/round-2-blind-verdict.json",
+      "sha256": "c968a44cf31683c7cd87bd412c148d4efabb602c007e73d196f9df10aec05272"
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "testedZooms": [25, 60, 85],
+      "methodPassCounts": {
+        "term-only-v1": {
+          "passed": 1,
+          "tested": 3,
+          "passedZooms": [25],
+          "productionAcceptableForRound": false
+        },
+        "hybrid-bounds-v1": {
+          "passed": 0,
+          "tested": 3,
+          "passedZooms": [],
+          "productionAcceptableForRound": false
+        }
+      },
+      "perZoomPreferences": {
+        "25": {
+          "methodId": "term-only-v1",
+          "overall": "pass",
+          "sourceSha256": "588413152945772183e8e3333bb7fd85bcac5d0d183c367b035f6bc2b3d504a6"
+        },
+        "60": {
+          "methodId": "hybrid-bounds-v1",
+          "overall": "fail",
+          "sourceSha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32"
+        },
+        "85": {
+          "methodId": "hybrid-bounds-v1",
+          "overall": "fail",
+          "sourceSha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f"
+        }
+      },
+      "outputs": [
+        {
+          "zoom": 25,
+          "methodId": "term-only-v1",
+          "sha256": "588413152945772183e8e3333bb7fd85bcac5d0d183c367b035f6bc2b3d504a6",
+          "overall": "pass"
+        },
+        {
+          "zoom": 25,
+          "methodId": "hybrid-bounds-v1",
+          "sha256": "a4807604125917076986ef494bd764426770a6d7bb32c65b151354619eb638a9",
+          "overall": "fail"
+        },
+        {
+          "zoom": 60,
+          "methodId": "term-only-v1",
+          "sha256": "77d25f8e8d4d296a0bba2dd0e1c6320a1fbd22006e4d771c7d9882fcf5fbd7d3",
+          "overall": "fail"
+        },
+        {
+          "zoom": 60,
+          "methodId": "hybrid-bounds-v1",
+          "sha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+          "overall": "fail"
+        },
+        {
+          "zoom": 85,
+          "methodId": "term-only-v1",
+          "sha256": "db198ac2cd32b8d54480c129f0128a6b74dbb4dfa413de0f8e63210b574d8030",
+          "overall": "fail"
+        },
+        {
+          "zoom": 85,
+          "methodId": "hybrid-bounds-v1",
+          "sha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+          "overall": "fail"
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "testedZooms": [60, 85],
+      "methodPassCounts": {
+        "hybrid-bounds-v1": {
+          "passed": 0,
+          "tested": 2,
+          "passedZooms": [],
+          "productionAcceptableForRound": false
+        },
+        "hybrid-crop-first-v2": {
+          "passed": 0,
+          "tested": 2,
+          "passedZooms": [],
+          "productionAcceptableForRound": false
+        }
+      },
+      "perZoomPreferences": {
+        "60": {
+          "methodId": "hybrid-crop-first-v2",
+          "overall": "fail",
+          "sourceSha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538",
+          "reason": "Marginally closer face scale and waist framing."
+        },
+        "85": {
+          "methodId": "hybrid-crop-first-v2",
+          "overall": "fail",
+          "sourceSha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081",
+          "reason": "Substantially closer to the required close-up scale."
+        }
+      },
+      "outputs": [
+        {
+          "zoom": 60,
+          "methodId": "hybrid-bounds-v1",
+          "blindCandidate": "candidate-a",
+          "blindSha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+          "sourceSha256": "a314f7ec3218dc3f5833e2da354ce639f063d6e81a736970b0ca4bc7f0cc4d32",
+          "overall": "fail",
+          "failedCriteria": ["crop", "faceBand"]
+        },
+        {
+          "zoom": 60,
+          "methodId": "hybrid-crop-first-v2",
+          "blindCandidate": "candidate-b",
+          "blindSha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538",
+          "sourceSha256": "aec420df199d4010e0a3a1113bbf6df575f29bfa8deea54c74545b8dac345538",
+          "overall": "fail",
+          "failedCriteria": ["crop", "faceBand"]
+        },
+        {
+          "zoom": 85,
+          "methodId": "hybrid-crop-first-v2",
+          "blindCandidate": "candidate-a",
+          "blindSha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081",
+          "sourceSha256": "49d6aba068b710751cae446f2220ed570436c20a12dc0cb55e5fb7a6956fa081",
+          "overall": "fail",
+          "failedCriteria": ["crop", "faceBand", "headroom"]
+        },
+        {
+          "zoom": 85,
+          "methodId": "hybrid-bounds-v1",
+          "blindCandidate": "candidate-b",
+          "blindSha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+          "sourceSha256": "c0b5b3f699ec316151a2cf2e63c0b796ce848dc4df43a8c88fdadf79076eba0f",
+          "overall": "fail",
+          "failedCriteria": ["crop", "faceBand"]
+        }
+      ]
+    }
+  ],
+  "aggregateMethodSummary": {
+    "term-only-v1": {
+      "uniqueOutputPassCount": 1,
+      "uniqueOutputTestedCount": 3,
+      "exactFramingPromptWinner": false
+    },
+    "hybrid-bounds-v1": {
+      "uniqueOutputPassCount": 0,
+      "uniqueOutputTestedCount": 3,
+      "verdictInstancePassCount": 0,
+      "verdictInstanceTestedCount": 5,
+      "exactFramingPromptWinner": false
+    },
+    "hybrid-crop-first-v2": {
+      "uniqueOutputPassCount": 0,
+      "uniqueOutputTestedCount": 2,
+      "exactFramingPromptWinner": false,
+      "closestCoarseSourceGenerationStrategy": true
+    }
+  },
+  "decisionRule": "If no prompt-only method passes both zoom 60 and zoom 85, select no exact-framing prompt winner and use the closest method only as a coarse source-generation strategy.",
+  "conclusion": {
+    "exactFramingPromptWinner": null,
+    "reason": "No prompt-only method passes both zoom 60 and zoom 85.",
+    "closestCoarseSourceGenerationStrategy": "hybrid-crop-first-v2",
+    "closestStrategyReason": "It is preferred at both bounded round-two zooms while preserving identity and shared invariants, but it still fails exact crop targets.",
+    "recommendedArchitecture": {
+      "control": "hybrid",
+      "publicInput": {
+        "name": "framingZoom",
+        "rangeInclusive": [0, 100],
+        "default": 70,
+        "higherMeans": "tighter framing"
+      },
+      "sourceGeneration": "Map the clamped numeric value to a semantic prompt tier and crop landmark; use hybrid-crop-first-v2 as the closest tested coarse generation strategy.",
+      "presentation": "Enforce the final framing deterministically with the presentation viewport/crop after generation; prompt output is source overscan, not the final crop authority."
+    },
+    "safeGenerationAcceptanceRule": {
+      "acceptWhen": [
+        "identity and style invariants pass",
+        "all anatomy required in the final frame is fully present and unobstructed",
+        "the target crop landmark and enough crop-safe resolution are available for deterministic viewport framing"
+      ],
+      "allowed": "Extra lower anatomy beyond the intended final crop is acceptable source overscan.",
+      "rejectWhen": [
+        "required in-frame anatomy is missing, clipped, or obstructed",
+        "identity or style invariants fail",
+        "the target landmark is unavailable or the source lacks resolution for the deterministic crop"
+      ],
+      "nonBlockingPromptFailures": "Exact source-image crop and face-height percentages do not reject an otherwise crop-safe source."
+    }
+  }
+}
