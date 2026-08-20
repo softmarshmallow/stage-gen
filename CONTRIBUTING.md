@@ -5,12 +5,17 @@ pipeline with optional consumers.
 
 ## Boundaries
 
-- Put provider-neutral operations in `src/stage_gen/components/`, vendor
-  adapters in `src/stage_gen/providers/`, and deterministic transformations in
-  `src/stage_gen/media/`.
+- Put provider-neutral capability services in `src/stage_gen/components/` and
+  vendor adapters in `src/stage_gen/providers/`.
+- Put shared recipe-neutral media inspection and transforms in
+  `src/stage_gen/media/`. Keep capability-specific deterministic processing
+  with its component contract and recipe-specific canonicalization with its
+  recipe.
 - Compose them through `src/stage_gen/recipes/` and public manifests.
-- Keep camera, movement, combat, scene, and engine assumptions inside a recipe
-  or consumer adapter such as `web/`.
+- Keep generation-specific genre, composition, projection, framing, layout,
+  artifact, and validation assumptions in recipes. Keep runtime camera, scene,
+  engine, movement, combat, and gameplay assumptions in consumer adapters such
+  as `web/`.
 - Do not import `web/` from a reusable component.
 - Keep source identifiers, comments, logs, tests, and user-facing strings in
   English.
@@ -18,10 +23,12 @@ pipeline with optional consumers.
 ## Provider work
 
 Use documented env variable names and never commit or print credentials. Every
-network/model call must use one initial attempt plus five blind retries with
-backoff (six attempts at most) and must retry
-malformed, empty, or otherwise contract-invalid success responses. Persist
-non-secret provenance and validate media before marking a run successful.
+provider operation has one retry owner and at most six total attempts: one
+initial attempt plus five retries with capped backoff. Keep transport,
+decoding, schema or media checks, and caller contract validation inside that
+boundary; disable or avoid nested SDK, adapter, parser, and caller retry loops.
+Persist non-secret provenance and validate media before marking a run
+successful.
 
 ## Prompts and media
 

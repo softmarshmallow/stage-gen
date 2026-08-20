@@ -1,4 +1,12 @@
-# DESIGN — web application UX + visual spec
+# DESIGN — historical May prototype (non-authoritative)
+
+> This document preserves the UX and visual specification drafted for the
+> one-day May 2026 prototype. It is historical context, not a current product,
+> architecture, implementation, or acceptance contract. Use [README.md](README.md)
+> for current product scope and [ARCHITECTURE.md](ARCHITECTURE.md) for current
+> boundaries. The timing assumptions, single-flow mandate, framework choices,
+> asset counts, visual rules, and definition of done below apply only when a
+> current task explicitly re-adopts them.
 
 The web app's job, the user flow, and the visual language.
 

@@ -1,4 +1,4 @@
-# Testing the Python reboot
+# Testing stage-gen
 
 All routine verification is credential-free. Provider-backed tests carry the
 `live` marker and are never selected by the locked offline gate.
@@ -18,7 +18,7 @@ All routine verification is credential-free. Provider-backed tests carry the
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 
-The complete locked gate is the handoff command:
+For Python changes, the complete locked gate is the handoff command:
 
 ```sh
 uv run python scripts/check.py
@@ -48,9 +48,10 @@ STAGE_GEN_RUN_LIVE=1 uv run pytest -m live --basetemp out/live-smoke -q
 
 A live test must preserve sanitized request/response facts, exact model and
 endpoint identity, attempt count, validation, and artifact provenance. Visual
-outputs still require independent verification by a different subagent; audio
-quality review is separate from deterministic media validation. Cost is not a
-reason to skip a required retry, contract probe, or independent verification.
+output accepted as evidence still requires semantic review by a non-producer;
+audio quality review is separate from deterministic media validation. The live
+gate requires explicit task intent; setting the flag does not broaden the
+authorized scope.
 
 ## Optional web adapter
 
@@ -75,8 +76,10 @@ platform support, negative vertical camera scroll, and an exact return to
 terrain. A build must not require provider credentials or execute a live
 generation request.
 
-Documentation publication checks are Python utilities and are part of the
-locked gate:
+## Documentation and publication policy
+
+For documentation or publication-policy changes, run these Python utilities;
+they are also part of the locked Python gate:
 
 ```sh
 uv run python scripts/check_docs.py

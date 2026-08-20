@@ -9,7 +9,7 @@ Start here for the headless, general-purpose system:
   not implemented.
 - [Endpoint-conditioned loop synthesis](loop-synthesis.md) — deferred masked
   bridge generation, seam gates, and runtime consumption.
-- [Testing the Python reboot](testing.md) — focused, full, live, and web gates.
+- [Testing stage-gen](testing.md) — focused, full, live, and web gates.
 - [Verification rules](../VERIFICATION.md) — evidence and independent media
   verification requirements.
 - [Provider operations](providers.md) — credentials, verified endpoints, and

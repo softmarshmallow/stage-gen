@@ -1,23 +1,28 @@
 # Verification
 
 The Python package under `src/stage_gen/` is the authoritative headless
-implementation. Verification is evidence that a contract holds; it is not a
-cost-minimization exercise. The repository's binding collaboration and vision
+implementation. Verification is evidence that a contract holds. The
+repository's binding scope, authorization, collaboration, and visual-acceptance
 rules remain in [AGENTS.md](AGENTS.md), and focused module commands are indexed
 in [docs/testing.md](docs/testing.md).
 
 ## Non-negotiable rules
 
-- Run deterministic checks for every changed boundary and the complete locked
-  gate before handoff.
-- API cost is not a constraint. Do not omit a provider probe, retry,
-  independent verification, or comparison run merely to reduce spend.
-- Every AI/provider operation owns one initial attempt plus five retries: six
-  attempts at most. Invalid success envelopes are retryable failures.
-- The main agent never opens image payloads. Every visual payload is verified
-  by a different subagent from its producer. The verifier receives the spec
-  and output, not the generation prompt, and returns `pass` or `fail` with a
-  short reason.
+- Run deterministic checks that cover each changed boundary, then the
+  documented handoff gate for the surfaces actually changed.
+- Offline checks are the default. Live/provider calls require explicit task
+  intent and the documented `STAGE_GEN_RUN_LIVE=1` opt-in; this file does not
+  authorize them.
+- Every AI/provider operation has one retry owner: one initial attempt plus at
+  most five retries (six attempts maximum). Invalid success envelopes are
+  retryable failures inside that same boundary; do not nest independent SDK,
+  adapter, parser, or caller retry loops.
+- Generated visual output presented as an accepted deliverable, demo, evidence
+  artifact, or publication candidate requires semantic review by a non-producer.
+  The reviewer receives the acceptance spec and exact artifact and returns an
+  artifact-bound `pass` or `fail` with a short reason. Input/reference inspection
+  and exploratory output do not automatically require independent review;
+  exploratory output remains labeled unreviewed.
 - Deterministic dimensions, format, alpha, digest, and schema checks do not
   replace semantic visual verification. A failed visual verdict gets at most
   two bounded regeneration attempts before the failure is surfaced.
@@ -42,78 +47,35 @@ The script removes `OPENROUTER_API_KEY` and `FAL_KEY` from every child process.
 It also disables cwd `.env` credential loading for those children, so it must
 pass without network access or provider credentials.
 
-## Focused Python checks
+## Verification routing
 
-Use the smallest relevant command while iterating, then run the locked gate:
+Use the procedures in [Testing stage-gen](docs/testing.md) for the changed
+surface instead of combining every gate:
 
-| Surface | Command |
-|---|---|
-| Config, contracts, reliability | `uv run pytest tests/unit/test_config.py tests/unit/contracts tests/unit/reliability -q` |
-| Components and provider seams | `uv run pytest tests/unit/components -q` |
-| Deterministic media | `uv run pytest tests/unit/media -q` |
-| Recipe and orchestration | `uv run pytest tests/unit/recipes tests/unit/orchestration tests/integration/test_scrolling_preview.py -q` |
-| CLI and HTTP/SSE | `uv run pytest tests/integration/test_cli.py tests/integration/test_api.py -q` |
-| Packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
-| Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
-| Strict typing | `uv run mypy --strict src tests scripts` |
+- [Focused matrix](docs/testing.md#focused-matrix) for the smallest relevant
+  Python checks while iterating;
+- [Optional web adapter](docs/testing.md#optional-web-adapter) for web checks;
+- [Documentation and publication policy](docs/testing.md#documentation-and-publication-policy)
+  for documentation and publication commands; and
+- [Live provider tests](docs/testing.md#live-provider-tests) only after explicit
+  task authorization and the documented `STAGE_GEN_RUN_LIVE=1` opt-in.
 
-Recipe caches are content contracts, not existence checks. A cache hit requires
-matching artifact bytes, sidecar digest, dimensions, media mode, selected
-transparency mode, and lineage. `STAGE_GEN_FORCE=1` deliberately bypasses it.
-
-## Documentation and optional web boundary
-
-```sh
-uv run python scripts/check_docs.py
-uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
-cd web
-bun install --frozen-lockfile
-bun run check
-bun test
-bun run build
-```
-
-Python owns documentation and publication checks. Bun is used only inside the
-optional Next/React/Phaser consumer. The web server launches the Python CLI; it
-is not a second headless implementation.
-
-## Opt-in live provider smokes
-
-Four real smoke modules are collected under `tests/live/`, one for each
-provider-backed component. Collection is safe and exits successfully without
-calling a provider:
-
-```sh
-STAGE_GEN_RUN_LIVE=0 uv run pytest -m live -q
-```
-
-The tests skip unless `STAGE_GEN_RUN_LIVE=1`. An intentional key-backed run is:
-
-```sh
-STAGE_GEN_RUN_LIVE=1 uv run pytest -m live --basetemp out/live-smoke -q
-```
-
-Only allowlisted `OPENROUTER_API_KEY` and `FAL_KEY` values are read from the
-process environment or the current working directory's `.env`, and values are
-never printed.
-Live smokes validate transport, response contracts, retry ownership,
-persistence, and provenance. They are not part of the locked offline gate.
-Any produced image still requires the independent visual-verification workflow
-above; any accepted music quality claim requires a listening verdict.
+Python changes still require the locked credential-free gate above before
+handoff. Live tests remain outside that gate and cannot be inferred from a build
+or documentation task. Generated output accepted as live evidence remains
+subject to the semantic and audio acceptance rules above.
 
 ## Evidence format
 
-Every completed TODO item points to a durable report or a concise command
-result. Useful evidence records:
+Useful evidence records, when applicable:
 
 - exact command and exit status;
 - passed, failed, skipped, and deselected counts;
 - affected module or artifact path;
 - manifest/schema version and non-secret validation facts;
-- independent visual verdict path when visual output exists; and
+- independent visual verdict path when generated visual output is accepted; and
 - failure reason and retry count when a stage does not pass.
 
-Do not use “looks fine” as evidence. Do not paste generated media, secrets, or
-large logs into the main context. A subagent that needs more than a short
-result writes a report under `/tmp` and returns its path.
+Do not use “looks fine” as evidence. Do not include generated-media bytes,
+secrets, private URLs, or large logs in textual evidence; reference the exact
+artifact or a task-appropriate report instead.
