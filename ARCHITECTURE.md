@@ -65,12 +65,15 @@ must be committed with their provenance and integrity metadata; credentials,
 authorization headers, signed query strings, and embedded reference bytes are
 never persisted.
 
-The optional scrolling-preview theme compiler is a provider-neutral structured
-generation seam: it rewrites strict numeric handles and a base brief into
-validated, asset-aware art direction before deterministic recipe composition.
-Raw controls do not cross the image boundary. The packaged policy digest,
-compiler version, and normalized handle digest bind provenance and downstream
-cache identity; see [Theme art-direction controls](docs/theme-art-direction.md).
+Visual Content Direction is an optional `scrolling-preview` recipe stage,
+implemented by the v1 `theme-compile` node. It uses the provider-neutral
+structured-generation component to compile strict numeric content controls and
+a base brief into a recipe-specific seven-field prose plan before deterministic
+recipe composition. It is not itself a reusable component or standalone image
+pipeline. Raw controls do not cross the image boundary. The packaged policy
+digest, compiler version, and normalized control digest bind provenance and
+downstream cache identity; see
+[Visual Content Direction](docs/visual-content-direction.md).
 
 ## Headless path
 

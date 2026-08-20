@@ -170,22 +170,24 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
-Generation runs in five baseline waves. A run with theme controls adds the
-optional wave 0.5; omitting `theme` preserves the legacy five-wave graph. All
-calls within a wave fire concurrently, and waves are serial because each wave
-depends on outputs from the previous one. Wave 1.5 is the only baseline
-**text-gen** wave (a vision LLM with structured output); themed runs also use
-text generation for the structured theme compiler at wave 0.5. Every other
-generation wave is image-gen.
+Generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. A run
+with Visual Content Direction controls adds the optional wave 0.5; omitting
+the shipped v1 `theme` field preserves the legacy six-stage graph. All calls
+within a fan-out wave fire concurrently, and waves are serial because each
+wave depends on outputs from the previous one. Wave 1.5 is the only baseline
+**text-gen** wave (a vision LLM with structured output); controlled runs also
+use text generation for the compiler at wave 0.5. Provider-backed waves 1, 2,
+and 3 use image generation; waves 4 and 5 are deterministic local work.
 
 | Wave | Purpose | Parallelism | Backend |
 |---|---|---|---|
-| 0.5 (themed only) | Compile the original brief and six theme handles into a validated seven-field art-direction plan. | Single call; omitted when `theme` is unset. | text agent |
+| 0.5 (controlled only) | Compile the original brief and six v1 content controls into a validated seven-field scrolling plan. | Single call; omitted when `theme` is unset. | text agent |
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
 | 2 | World concept dependants — L parallax layers (agent-designed count), tileset, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
 | 3 | Concept dependants — five character state strips, character attack strip, N creature idle strips, N creature hurt strips; then deterministic character-master composition | Fan-out: `6 + 2N` image calls, followed by one local composition. | image + local CPU |
 | 4 | Split the composed character master into five fixed state rows. | Single deterministic pass; no provider call. | local CPU |
+| 5 | Write the per-tag artifact manifest and resolve preview music. | Single deterministic assembly after post-processing. | local CPU |
 
 Provider latency, service concurrency, and account throttling are operational
 observations rather than recipe contracts. The executor may fan out independent
@@ -196,13 +198,13 @@ provider concurrency tier.
 
 # Asset specifications
 
-## Theme compiler (`theme_plan_<tag>.json`, optional)
+## Visual Content Direction compiler (`theme_plan_<tag>.json`, optional)
 
 | | |
 |---|---|
 | **Output** | `theme_plan_<tag>.json` plus its canonical provenance sidecar |
 | **Backend** | text-gen LLM via strict structured output — `openai/gpt-5.6` by default |
-| **Inputs** | Original world brief, canonical six-handle theme controls, and the packaged theme-compiler skill |
+| **Inputs** | Original world brief, canonical six-control v1 `theme` object, and the packaged compiler policy |
 | **Wave** | 0.5 (single call, only when `theme` is set) |
 
 The compiler produces the validated `concept`, `world_spec`, `environment`,
@@ -210,6 +212,10 @@ The compiler produces the validated `concept`, `world_spec`, `environment`,
 brief and raw handles remain in compiler provenance for reproducibility but do
 not flow into the downstream world planner or image requests. An unthemed run
 does not create this artifact and retains the legacy prompt path exactly.
+The seven-field object is specific to `scrolling-preview`; it is not a generic
+character or image-generation contract. See the normative
+[content controls](content-controls-v1.md) and
+[scrolling plan](scrolling-content-direction-plan-v1.md) contracts.
 
 ---
 

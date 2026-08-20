@@ -13,9 +13,13 @@ from stage_gen.recipes.base import StageContext
 
 
 class ApiRuntime:
+    def __init__(self) -> None:
+        self.stages: list[str] = []
+
     async def run_scrolling_preview_stage(
         self, stage_name: str, context: StageContext
     ) -> tuple[str, ...]:
+        self.stages.append(stage_name)
         path = context.run_dir / f"{stage_name}.txt"
         path.write_text(stage_name, encoding="utf-8")
         return (str(path),)
@@ -88,6 +92,58 @@ def test_public_binding_requires_explicit_opt_in() -> None:
         "0.0.0.0",
         4317,
     )
+
+
+@pytest.mark.asyncio
+async def test_api_accepts_nested_visual_content_direction_input(tmp_path: Path) -> None:
+    runtime = ApiRuntime()
+    app = create_app(
+        StageGenConfig(
+            out_dir=tmp_path,
+            open_router_api_key="offline",
+            transparency_mode="chroma",
+        ),
+        runtime=runtime,
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        start = await client.post(
+            "/v1/runs",
+            json={
+                "recipe": "scrolling-preview",
+                "input": {
+                    "prompt": "original bright adult anime cafe scene",
+                    "theme": {
+                        "sexual_content": 0,
+                        "nudity_exposure": 0,
+                        "hostile_action": 0,
+                        "injury_detail": 0,
+                        "substance_depiction": 0,
+                        "threat_disturbance": 0,
+                    },
+                },
+                "transparencyMode": "chroma",
+            },
+        )
+        assert start.status_code == 202
+        run_id = start.json()["id"]
+        for _ in range(100):
+            status = await client.get(f"/v1/runs/{run_id}")
+            if status.json()["status"] == "done":
+                break
+            await asyncio.sleep(0.01)
+
+    assert status.json()["summary"]["ok"] is True
+    assert runtime.stages == [
+        "theme-compile",
+        "concept",
+        "world-spec",
+        "wave-a",
+        "wave-b",
+        "post-split",
+        "manifest",
+    ]
 
 
 @pytest.mark.asyncio

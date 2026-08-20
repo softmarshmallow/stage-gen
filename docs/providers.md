@@ -1,8 +1,10 @@
 # Provider operations
 
-Verified against primary provider documentation and live unauthenticated model
-metadata on 2026-08-14. Hosted capabilities can drift; query discovery
-endpoints or repeat the smoke tests before widening an adapter contract.
+Image, background-removal, and music contracts were verified against primary
+provider documentation and live unauthenticated metadata on 2026-08-14. The
+structured GPT-5.6 route was probed on 2026-08-20 as recorded below. Hosted
+capabilities can drift; query discovery endpoints or repeat the smoke tests
+before widening an adapter contract.
 
 ## Configuration
 
