@@ -1,8 +1,9 @@
-"""Six-phase stage graph for the scrolling-preview recipe."""
+"""Six-phase core graph plus the optional theme-compiler stage."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from stage_gen.recipes.base import StageContext, StageSpec
 from stage_gen.recipes.scrolling_preview.manifest import write_scrolling_preview_manifest
@@ -18,6 +19,10 @@ async def _delegate(stage_name: str, context: StageContext) -> Sequence[str]:
 
 async def _concept(context: StageContext) -> Sequence[str]:
     return await _delegate("concept", context)
+
+
+async def _theme_compile(context: StageContext) -> Sequence[str]:
+    return await _delegate("theme-compile", context)
 
 
 async def _world_spec(context: StageContext) -> Sequence[str]:
@@ -102,3 +107,26 @@ STAGES: tuple[StageSpec, ...] = (
         depends_on=("post-split",),
     ),
 )
+
+THEME_COMPILE_STAGE = StageSpec(
+    name="theme-compile",
+    wave=0.5,
+    description="compile numeric theme controls into stage-scoped prose",
+    run=_theme_compile,
+)
+
+_CONCEPT_STAGE, *_REMAINING_STAGES = STAGES
+THEMED_CONCEPT_STAGE = StageSpec(
+    name=_CONCEPT_STAGE.name,
+    wave=_CONCEPT_STAGE.wave,
+    description=_CONCEPT_STAGE.description,
+    run=_CONCEPT_STAGE.run,
+    depends_on=("theme-compile",),
+)
+THEMED_STAGES = (THEME_COMPILE_STAGE, THEMED_CONCEPT_STAGE, *_REMAINING_STAGES)
+
+
+def scrolling_preview_stages(input_value: Mapping[str, Any]) -> tuple[StageSpec, ...]:
+    """Keep the exact legacy graph unless theme compilation is explicitly enabled."""
+
+    return THEMED_STAGES if "theme" in input_value else STAGES

@@ -29,9 +29,10 @@ component contract, not a vendor SDK response type.
 
 Structured text/vision generation also routes through OpenRouter. The exact
 slug is configurable with `STAGE_GEN_TEXT_MODEL`; the current default is
-`openai/gpt-5.5`. This migration's provider research did not independently
-revalidate that text model's structured-output/vision capabilities, so a live
-contract smoke test remains a release gate for recipes that require it.
+`openai/gpt-5.6`, which OpenRouter resolved to GPT-5.6 Sol during the
+2026-08-20 probe. A live strict-JSON-schema request passed without temperature
+or explicit reasoning. Hosted capabilities can drift, so keep the provider
+smoke test as a release gate for recipes that require structured generation.
 
 ## Image generation through OpenRouter
 

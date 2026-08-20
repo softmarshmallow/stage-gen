@@ -17,6 +17,72 @@ from stage_gen.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.reliability import RetryExhaustedError, RetryPolicy
 
 
+def test_strict_schema_is_canonicalized_before_transport_and_provenance() -> None:
+    schema = StructuredOutputSchema(
+        name="strict-value",
+        json_schema={
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "minimum": 0, "default": 0},
+                "detail": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string", "minLength": 1, "pattern": "^[a-z]+$"}
+                    },
+                },
+            },
+        },
+    )
+
+    assert schema.json_schema == {
+        "type": "object",
+        "properties": {
+            "count": {"type": "integer"},
+            "detail": {
+                "type": "object",
+                "properties": {"label": {"type": "string"}},
+                "required": ["label"],
+                "additionalProperties": False,
+            },
+        },
+        "required": ["count", "detail"],
+        "additionalProperties": False,
+    }
+
+
+def test_strict_schema_preserves_keyword_like_property_and_definition_names() -> None:
+    schema = StructuredOutputSchema(
+        name="keyword-fields",
+        json_schema={
+            "type": "object",
+            "$defs": {
+                "default": {
+                    "type": "string",
+                    "default": "fallback",
+                    "minLength": 1,
+                }
+            },
+            "properties": {
+                "format": {"type": "string", "format": "date-time"},
+                "minimum": {"type": "integer", "minimum": 0},
+                "default": {"$ref": "#/$defs/default"},
+            },
+        },
+    )
+
+    assert schema.json_schema == {
+        "type": "object",
+        "$defs": {"default": {"type": "string"}},
+        "properties": {
+            "format": {"type": "string"},
+            "minimum": {"type": "integer"},
+            "default": {"$ref": "#/$defs/default"},
+        },
+        "required": ["format", "minimum", "default"],
+        "additionalProperties": False,
+    }
+
+
 @pytest.mark.asyncio
 async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -> None:
     calls = 0

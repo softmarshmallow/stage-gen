@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import sys
+import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Never, TextIO
@@ -259,8 +260,9 @@ async def _dispatch_async(
     if args.command == "generate":
         prompt = " ".join(args.prompt).strip()
         if args.input_file:
-            input_text = await asyncio.to_thread(Path(args.input_file).read_text, encoding="utf-8")
-            input_value: object = json.loads(input_text)
+            input_path = Path(args.input_file)
+            input_text = await asyncio.to_thread(input_path.read_text, encoding="utf-8")
+            input_value = _parse_input_document(input_text, suffix=input_path.suffix.lower())
         else:
             input_value = {"prompt": prompt}
         summary = await generate(
@@ -316,3 +318,9 @@ async def _dispatch_async(
         raise ValueError(f"unsupported command: {args.command}")
     stdout.write(f"{json.dumps(result.to_dict(), separators=(',', ':'))}\n")
     return 0
+
+
+def _parse_input_document(text: str, *, suffix: str) -> object:
+    if suffix == ".toml":
+        return tomllib.loads(text)
+    return json.loads(text)

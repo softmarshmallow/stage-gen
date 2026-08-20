@@ -23,6 +23,7 @@ async def run_recipe(options: RunOptions) -> RunSummary:
         "input.transparencyMode",
     )
     input_value = {**options.input, "transparencyMode": mode}
+    stages = options.recipe.stages_for(input_value)
     run_config = options.config.model_copy(update={"transparency_mode": mode})
     log = options.log or print
     computed_tag = tag_for_transparency_mode(options.recipe.tag_for(input_value), mode)
@@ -40,7 +41,7 @@ async def run_recipe(options: RunOptions) -> RunSummary:
     log(f"stage-gen: tag={tag}")
     log(f"stage-gen: out={run_dir}")
 
-    for stage in options.recipe.stages:
+    for stage in stages:
         start = time.perf_counter()
         wave = int(stage.wave) if stage.wave.is_integer() else stage.wave
         log(f"  [wave {wave}] {stage.name} - {stage.description}")

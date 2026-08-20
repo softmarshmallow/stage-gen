@@ -104,6 +104,30 @@
         "verificationReportPath": "docs/media/dialogue-scene-showcase.visual-review.md",
         "verificationReportSha256": "ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba"
       }
+    },
+    {
+      "path": "docs/media/theme-art-direction-example.webp",
+      "provenance_kind": "generated_image_derivative",
+      "lineage_kind": "theme_art_direction_comparison_v1",
+      "kind": "image",
+      "sidecar_sha256": "415333a665719432fce566f8a9dbae94d329029130b60f9f1a5629fdbd7a42e3",
+      "review_status": "repository-approved",
+      "synth_id_expected": false,
+      "visual_review": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewed_by": "independent visual-review subagent",
+        "authority_basis": "reviewer independent from the deterministic derivative producer; exact digest-bound documentation-derivative semantic verification",
+        "reviewed_at": "2026-08-20T13:45:15Z",
+        "attestation_id": "independent-theme-art-direction-webp-7ad7b8d619664aff",
+        "attested_at": "2026-08-20T13:45:15Z",
+        "artifact_sha256": "7ad7b8d619664aff315f34cb0188e7ddc0d35b1ed7fdc057bf0962a81dbee512",
+        "artifact_bytes": 127304,
+        "verification_report_path": "docs/media/theme-art-direction-example.visual-review.md",
+        "verification_report_sha256": "cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
+        "verification_report_bytes": 2005
+      }
     }
   ]
 }

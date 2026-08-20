@@ -69,6 +69,9 @@ atomic `run.json`; a successful scrolling-preview run also writes manifest
 schema v2 and adjacent artifact provenance. A bare prompt remains a
 compatibility alias for `generate --recipe scrolling-preview`.
 
+For opt-in JSON/TOML theme compilation, see
+[Theme art-direction controls](docs/theme-art-direction.md).
+
 ## What it provides
 
 - Typed, provider-neutral components for image and structured generation,

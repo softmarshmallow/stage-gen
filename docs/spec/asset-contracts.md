@@ -170,13 +170,17 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
-Generation runs in five waves. All calls within a wave fire concurrently;
-waves are serial because each wave depends on outputs from the previous
-one. Wave 1.5 is the only **text-gen** wave (a vision LLM with structured
-output); every other generation wave is image-gen.
+Generation runs in five baseline waves. A run with theme controls adds the
+optional wave 0.5; omitting `theme` preserves the legacy five-wave graph. All
+calls within a wave fire concurrently, and waves are serial because each wave
+depends on outputs from the previous one. Wave 1.5 is the only baseline
+**text-gen** wave (a vision LLM with structured output); themed runs also use
+text generation for the structured theme compiler at wave 0.5. Every other
+generation wave is image-gen.
 
 | Wave | Purpose | Parallelism | Backend |
 |---|---|---|---|
+| 0.5 (themed only) | Compile the original brief and six theme handles into a validated seven-field art-direction plan. | Single call; omitted when `theme` is unset. | text agent |
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
 | 2 | World concept dependants — L parallax layers (agent-designed count), tileset, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
@@ -192,13 +196,30 @@ provider concurrency tier.
 
 # Asset specifications
 
+## Theme compiler (`theme_plan_<tag>.json`, optional)
+
+| | |
+|---|---|
+| **Output** | `theme_plan_<tag>.json` plus its canonical provenance sidecar |
+| **Backend** | text-gen LLM via strict structured output — `openai/gpt-5.6` by default |
+| **Inputs** | Original world brief, canonical six-handle theme controls, and the packaged theme-compiler skill |
+| **Wave** | 0.5 (single call, only when `theme` is set) |
+
+The compiler produces the validated `concept`, `world_spec`, `environment`,
+`characters`, `items`, `portals`, and `hard_exclusions` fields. The original
+brief and raw handles remain in compiler provenance for reproducibility but do
+not flow into the downstream world planner or image requests. An unthemed run
+does not create this artifact and retains the legacy prompt path exactly.
+
+---
+
 ## World concept
 
 | | |
 |---|---|
 | **Output** | `concept_<tag>.png` |
 | **Canvas** | 1536 × 1024 (aspect 3:2 landscape) |
-| **Inputs** | _none_ — text prompt only (the user's world description) |
+| **Inputs** | Unthemed: _none_ — the legacy text prompt uses the user's world description. Themed: validated `theme_plan_<tag>.json` `concept`; the original brief and handles are not forwarded. |
 | **Layout prior** | n/a |
 | **Used as style reference by** | every other generator in the pipeline |
 | **Wave** | 1 (serial root) |
@@ -213,8 +234,8 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 | | |
 |---|---|
 | **Output** | `world_spec_<tag>.json` |
-| **Backend** | text-gen LLM via structured-output (`generateObject`-style) call — `openai/gpt-5.5` |
-| **Inputs** | World concept (vision), user world prompt (text), `mob_count`, `obstacle_count` |
+| **Backend** | text-gen LLM via structured-output (`generateObject`-style) call — `openai/gpt-5.6` by default |
+| **Inputs** | World concept (vision), `mob_count`, and `obstacle_count`. Unthemed: the legacy user world prompt. Themed: validated `concept`, `world_spec`, and `hard_exclusions` from `theme_plan_<tag>.json`; the original brief and handles are not forwarded. |
 | **Wave** | 1.5 (single call, between concept and image fan-out) |
 
 A vision LLM that names every concrete asset the rest of the pipeline

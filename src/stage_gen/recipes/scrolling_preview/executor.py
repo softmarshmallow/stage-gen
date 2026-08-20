@@ -6,7 +6,7 @@ import asyncio
 import base64
 import json
 import uuid
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -49,6 +49,14 @@ from stage_gen.reliability import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.resources import image_template_dir
+from stage_gen.theme import (
+    THEME_COMPILER_VERSION,
+    THEME_SCHEMA_VERSION,
+    CompiledThemePlan,
+    assert_no_raw_theme_control_leak,
+    build_theme_plan_request,
+    parse_theme_handles,
+)
 
 _RECIPE_COMPONENT = SoftwareIdentity(name="@stage-gen/stage-gen", version="0.0.0")
 _STATES = ("idle", "walk", "run", "jump", "crawl")
@@ -64,6 +72,14 @@ class _ImageSpec:
     references: tuple[Path, ...] = ()
     transparent: bool = True
     metadata: dict[str, object] | None = None
+    compiled_creative_base: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class _CompiledThemeContext:
+    plan: CompiledThemePlan
+    identity: dict[str, object]
+    artifact_bytes: int
 
 
 class ScrollingPreviewExecutor:
@@ -73,7 +89,7 @@ class ScrollingPreviewExecutor:
         self,
         *,
         image_service: ImageGenerationService,
-        structured_service: StructuredGenerationService[WorldSpec],
+        structured_service: StructuredGenerationService[Any],
         background_service: BackgroundRemovalService | None = None,
     ) -> None:
         self._images = image_service
@@ -84,6 +100,7 @@ class ScrollingPreviewExecutor:
         self, stage_name: str, context: StageContext
     ) -> Sequence[str]:
         handlers: dict[str, Callable[[StageContext], Awaitable[Sequence[str]]]] = {
+            "theme-compile": self._theme_compile,
             "concept": self._concept,
             "world-spec": self._world_spec,
             "wave-a": self._wave_a,
@@ -98,36 +115,73 @@ class ScrollingPreviewExecutor:
             raise ValueError(f"unknown scrolling-preview stage: {stage_name}") from error
         return await handler(context)
 
+    async def _theme_compile(self, context: StageContext) -> Sequence[str]:
+        if "theme" not in context.input:
+            raise ValueError("theme-compile requires theme controls")
+        output = _theme_plan_path(context)
+        request = build_theme_plan_request(
+            str(context.input["prompt"]),
+            parse_theme_handles(context.input["theme"]),
+            output,
+            timeout_seconds=context.config.capability_timeout_s,
+            cancellation=context.cancellation,
+        )
+        if valid_artifact_pair(
+            output,
+            validator=lambda path, sidecar: _valid_theme_plan_cache(
+                path,
+                sidecar,
+                request,
+                expected_model=context.config.text_model,
+            ),
+        ):
+            return (str(output), f"{output}.meta.json")
+        generated = await self._structured.generate(request)
+        return (str(output), generated.provenance_path)
+
     async def _concept(self, context: StageContext) -> Sequence[str]:
-        prompt = str(context.input["prompt"])
+        user_prompt = str(context.input["prompt"])
+        compiled = await _read_compiled_theme(context)
         output = context.run_dir / f"concept_{context.tag}.png"
+        metadata: dict[str, object]
+        if compiled is None:
+            prompt = (
+                "2D scrolling-game scene concept art, wide cinematic landscape view.\n"
+                f"Theme: {user_prompt}.\n"
+                "Compose clear distant, middle, and foreground depth. Hand-painted, fully "
+                "opaque, without text or labels."
+            )
+            metadata = {"stage": "concept", "user_prompt": user_prompt}
+        else:
+            prompt = _themed_concept_prompt(compiled.plan.concept)
+            metadata = {"stage": "concept"}
         result = await self._generate_image_asset(
             context,
             _ImageSpec(
                 stage="concept",
-                prompt=(
-                    "2D scrolling-game scene concept art, wide cinematic landscape view.\n"
-                    f"Theme: {prompt}.\n"
-                    "Compose clear distant, middle, and foreground depth. Hand-painted, fully "
-                    "opaque, without text or labels."
-                ),
+                prompt=prompt,
                 output=output,
                 width=1536,
                 height=1024,
                 transparent=False,
-                metadata={"stage": "concept", "user_prompt": prompt},
+                metadata=metadata,
+                compiled_creative_base=compiled is not None,
             ),
         )
         return result
 
     async def _world_spec(self, context: StageContext) -> Sequence[str]:
         output = context.run_dir / f"world_spec_{context.tag}.json"
-        if valid_artifact_pair(output):
-            try:
-                WorldSpec.model_validate_json(await asyncio.to_thread(output.read_text))
-                return (str(output), f"{output}.meta.json")
-            except Exception:
-                pass
+        compiled = await _read_compiled_theme(context)
+        if valid_artifact_pair(
+            output,
+            validator=lambda path, sidecar: _valid_world_spec_cache(
+                path,
+                sidecar,
+                compiled.identity if compiled is not None else None,
+            ),
+        ):
+            return (str(output), f"{output}.meta.json")
         prompt = str(context.input["prompt"])
         concept = context.run_dir / f"concept_{context.tag}.png"
         reference = await _structured_reference(concept)
@@ -140,18 +194,29 @@ class ScrollingPreviewExecutor:
                 raise ValueError(f"obstacles length {len(spec.obstacles)} != requested 3")
             return spec
 
+        planner_instruction = (
+            "Design a side-scrolling world bible with exactly 8 ascending, anatomy-distinct "
+            "mobs; exactly 3 uniquely themed obstacle sheets with 8 props each; exactly 8 "
+            "semantically distinct items; and 1-5 parallax layers with exactly one opaque "
+            "z=0/parallax=0 backdrop."
+        )
+        request_prompt = f'WORLD PROMPT: "{prompt}"\n{planner_instruction}'
+        request_metadata: dict[str, object] = {"stage": "world-spec", "user_prompt": prompt}
+        if compiled is not None:
+            request_prompt = _append_compiled_directive(
+                (f"Validated compiled concept:\n{compiled.plan.concept}\n\n{planner_instruction}"),
+                compiled.plan.world_spec,
+                compiled.plan.hard_exclusions,
+            )
+            request_metadata = {"stage": "world-spec", "theme_compilation": compiled.identity}
+
         generated = await self._structured.generate(
             StructuredGenerationRequest(
                 system=(
                     "You are a world-design agent. Return only the strict structured object. "
                     "The attached concept is the source of truth for palette and atmosphere."
                 ),
-                prompt=(
-                    f'WORLD PROMPT: "{prompt}"\nDesign a side-scrolling world bible with exactly '
-                    "8 ascending, anatomy-distinct mobs; exactly 3 uniquely themed obstacle "
-                    "sheets with 8 props each; exactly 8 semantically distinct items; and 1-5 "
-                    "parallax layers with exactly one opaque z=0/parallax=0 backdrop."
-                ),
+                prompt=request_prompt,
                 artifact_path=output,
                 references=(reference,),
                 schema=StructuredOutputSchema(
@@ -161,7 +226,7 @@ class ScrollingPreviewExecutor:
                     strict=True,
                 ),
                 parse=parse,
-                metadata={"stage": "world-spec", "user_prompt": prompt},
+                metadata=request_metadata,
                 timeout_seconds=context.config.capability_timeout_s,
                 cancellation=context.cancellation,
             )
@@ -339,6 +404,7 @@ class ScrollingPreviewExecutor:
         return (*master, *published)
 
     async def _compose_character_master(self, context: StageContext) -> Sequence[str]:
+        compiled = await _read_compiled_theme(context)
         sources = tuple(
             context.run_dir / f"character_{context.tag}_combined_strip_{state}.png"
             for state in _STATES
@@ -358,6 +424,10 @@ class ScrollingPreviewExecutor:
             validator=lambda path, meta: (
                 _exact_image(path, 2400, 3440, alpha=True)
                 and _source_hashes_match(meta, source_hashes)
+                and _optional_theme_identity_matches(
+                    meta,
+                    compiled.identity if compiled is not None else None,
+                )
             ),
         ):
             return (str(output), f"{output}.meta.json")
@@ -382,7 +452,8 @@ class ScrollingPreviewExecutor:
                         media_type="image/png",
                     )
                     for path, data in zip(sources, source_bytes, strict=True)
-                ],
+                ]
+                + ([_theme_plan_input(compiled)] if compiled is not None else []),
                 params={
                     "stage": "character-master",
                     "transparency": {
@@ -402,6 +473,9 @@ class ScrollingPreviewExecutor:
                         "strip_gen_height": 800,
                         "strip_crop_bottom_px": 112,
                         "composite_offsets_y": [row * 688 for row in range(5)],
+                        **(
+                            {"theme_compilation": compiled.identity} if compiled is not None else {}
+                        ),
                     },
                 },
                 validation={
@@ -422,6 +496,7 @@ class ScrollingPreviewExecutor:
         return (str(output), str(sidecar))
 
     async def _post_split(self, context: StageContext) -> Sequence[str]:
+        compiled = await _read_compiled_theme(context)
         master = context.run_dir / f"character_{context.tag}_combined.png"
         master_bytes = await asyncio.to_thread(master.read_bytes)
         facts = inspect_image(master_bytes, expected_media_type="image/png")
@@ -438,6 +513,10 @@ class ScrollingPreviewExecutor:
                 validator=lambda path, meta: (
                     _exact_image(path, 2400, 688, alpha=True)
                     and _source_hash_matches(meta, source_hash)
+                    and _optional_theme_identity_matches(
+                        meta,
+                        compiled.identity if compiled is not None else None,
+                    )
                 ),
             ):
                 output_hash = sha256_hex(data)
@@ -467,7 +546,15 @@ class ScrollingPreviewExecutor:
                                 "output_sha256": output_hash,
                                 "processor": "master-sheet-slice",
                             },
-                            "metadata": {"state": state, "row_height": 688},
+                            "metadata": {
+                                "state": state,
+                                "row_height": 688,
+                                **(
+                                    {"theme_compilation": compiled.identity}
+                                    if compiled is not None
+                                    else {}
+                                ),
+                            },
                         },
                         validation={
                             "exact_contract_dimensions": True,
@@ -516,6 +603,7 @@ class ScrollingPreviewExecutor:
     async def _generate_image_asset(
         self, context: StageContext, spec: _ImageSpec, *, force: bool = False
     ) -> Sequence[str]:
+        compiled = await _read_compiled_theme(context)
         mode = context.config.transparency_mode if spec.transparent else None
         raw_path = (
             spec.output.with_name(f"{spec.output.stem}.raw.png")
@@ -525,7 +613,13 @@ class ScrollingPreviewExecutor:
         if valid_artifact_pair(
             raw_path,
             transparency_mode=mode,
-            validator=lambda path, _meta: _exact_image(path, spec.width, spec.height, alpha=False),
+            validator=lambda path, meta: (
+                _exact_image(path, spec.width, spec.height, alpha=False)
+                and _optional_theme_identity_matches(
+                    meta,
+                    compiled.identity if compiled is not None else None,
+                )
+            ),
             force=force,
         ):
             if mode is None:
@@ -533,13 +627,19 @@ class ScrollingPreviewExecutor:
             if valid_artifact_pair(
                 spec.output,
                 transparency_mode=mode,
-                validator=lambda path, meta: _valid_transparency_cache(
-                    path,
-                    meta,
-                    raw_path=raw_path,
-                    mode=mode,
-                    width=spec.width,
-                    height=spec.height,
+                validator=lambda path, meta: (
+                    _valid_transparency_cache(
+                        path,
+                        meta,
+                        raw_path=raw_path,
+                        mode=mode,
+                        width=spec.width,
+                        height=spec.height,
+                    )
+                    and _optional_theme_identity_matches(
+                        meta,
+                        compiled.identity if compiled is not None else None,
+                    )
                 ),
                 force=force,
             ):
@@ -549,7 +649,28 @@ class ScrollingPreviewExecutor:
 
         references = tuple([await _image_reference(path) for path in spec.references])
         provider_path = raw_path.parent / f".{raw_path.name}.provider-{uuid.uuid4().hex}.png"
-        effective_prompt = _prompt_for_transparency(spec.prompt, mode)
+        prompt = spec.prompt
+        request_metadata: dict[str, object] = {
+            "stage": spec.stage,
+            "requested_width": spec.width,
+            "requested_height": spec.height,
+            **({"transparency_mode": str(mode)} if mode is not None else {}),
+            **(spec.metadata or {}),
+        }
+        if compiled is not None:
+            if spec.compiled_creative_base:
+                prompt = _append_binding_visual_constraints(prompt, compiled.plan.hard_exclusions)
+            else:
+                prompt = _append_compiled_directive(
+                    prompt,
+                    _directive_for_image_stage(compiled.plan, spec.stage),
+                    compiled.plan.hard_exclusions,
+                )
+            request_metadata["theme_compilation"] = compiled.identity
+        effective_prompt = _prompt_for_transparency(prompt, mode)
+        if compiled is not None:
+            assert_no_raw_theme_control_leak(effective_prompt)
+            _assert_no_raw_theme_controls_in_metadata(request_metadata)
         try:
             generated = await self._images.generate(
                 ImageGenerationRequest(
@@ -560,13 +681,7 @@ class ScrollingPreviewExecutor:
                     quality="high",
                     background="opaque",
                     moderation="low",
-                    metadata={
-                        "stage": spec.stage,
-                        "requested_width": spec.width,
-                        "requested_height": spec.height,
-                        **({"transparency_mode": str(mode)} if mode is not None else {}),
-                        **(spec.metadata or {}),
-                    },
+                    metadata=request_metadata,
                     timeout_seconds=context.config.capability_timeout_s,
                     cancellation=context.cancellation,
                     validate=lambda artifact: _validate_provider_png(artifact.data, spec.stage),
@@ -597,6 +712,7 @@ class ScrollingPreviewExecutor:
                             bytes=len(generated.data),
                             media_type=generated.media_type,
                         ),
+                        *([_theme_plan_input(compiled)] if compiled is not None else []),
                     ],
                     params={
                         **upstream.params,
@@ -606,6 +722,11 @@ class ScrollingPreviewExecutor:
                             "normalization": record.as_dict(),
                             **({"transparency_mode": str(mode)} if mode is not None else {}),
                             **(spec.metadata or {}),
+                            **(
+                                {"theme_compilation": compiled.identity}
+                                if compiled is not None
+                                else {}
+                            ),
                         },
                         "postprocess": [record.as_dict()],
                         "upstream_provenance": embedded_upstream,
@@ -642,6 +763,7 @@ class ScrollingPreviewExecutor:
     async def _derive_transparency(
         self, context: StageContext, spec: _ImageSpec, raw_path: Path
     ) -> Path:
+        compiled = await _read_compiled_theme(context)
         raw = await asyncio.to_thread(raw_path.read_bytes)
         raw_record = await _read_provenance(Path(f"{raw_path}.meta.json"))
         embedded_raw = _embedded_provenance(raw_record)
@@ -718,7 +840,8 @@ class ScrollingPreviewExecutor:
                         source="content",
                         bytes=len(raw),
                         media_type="image/png",
-                    )
+                    ),
+                    *([_theme_plan_input(compiled)] if compiled is not None else []),
                 ],
                 params={
                     "transparency": {
@@ -730,7 +853,12 @@ class ScrollingPreviewExecutor:
                         "source_provenance": embedded_raw,
                         **({"removal": removal_payload} if removal_payload is not None else {}),
                     },
-                    "metadata": {"stage": spec.stage},
+                    "metadata": {
+                        "stage": spec.stage,
+                        **(
+                            {"theme_compilation": compiled.identity} if compiled is not None else {}
+                        ),
+                    },
                 },
                 validation={
                     "alpha_nontrivial": True,
@@ -759,6 +887,177 @@ async def _read_world_spec(context: StageContext) -> WorldSpec:
     path = context.run_dir / f"world_spec_{context.tag}.json"
     raw = await asyncio.to_thread(path.read_text, encoding="utf-8")
     return WorldSpec.model_validate_json(raw)
+
+
+def _theme_plan_path(context: StageContext) -> Path:
+    return context.run_dir / f"theme_plan_{context.tag}.json"
+
+
+async def _read_compiled_theme(context: StageContext) -> _CompiledThemeContext | None:
+    if "theme" not in context.input:
+        return None
+    path = _theme_plan_path(context)
+    request = build_theme_plan_request(
+        str(context.input["prompt"]),
+        parse_theme_handles(context.input["theme"]),
+        path,
+        timeout_seconds=context.config.capability_timeout_s,
+        cancellation=context.cancellation,
+    )
+    if not valid_artifact_pair(
+        path,
+        validator=lambda artifact, sidecar: _valid_theme_plan_cache(
+            artifact,
+            sidecar,
+            request,
+            expected_model=context.config.text_model,
+        ),
+        force=False,
+    ):
+        raise ValueError("compiled theme plan is missing, stale, or invalid")
+    raw = await asyncio.to_thread(path.read_bytes)
+    plan = request.parse(json.loads(raw))
+    artifact_sha256 = sha256_hex(raw)
+    return _CompiledThemeContext(
+        plan=plan,
+        identity={
+            "schema_version": THEME_SCHEMA_VERSION,
+            "compiler_version": THEME_COMPILER_VERSION,
+            "theme_digest": request.metadata["theme_digest"],
+            "theme_skill_name": request.metadata["theme_skill_name"],
+            "theme_skill_sha256": request.metadata["theme_skill_sha256"],
+            "artifact_ref": f"sha256:{artifact_sha256}",
+            "artifact_sha256": artifact_sha256,
+            "artifact_bytes": len(raw),
+        },
+        artifact_bytes=len(raw),
+    )
+
+
+def _valid_theme_plan_cache(
+    path: Path,
+    sidecar: dict[str, Any],
+    request: StructuredGenerationRequest[CompiledThemePlan],
+    *,
+    expected_model: str,
+) -> bool:
+    try:
+        request.parse(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+    params = sidecar.get("params")
+    if not isinstance(params, dict):
+        return False
+    expected_params: dict[str, object] = {
+        "schema_name": request.schema.name,
+        "schema": dict(request.schema.json_schema),
+        "strict": request.schema.strict,
+        "require_parameters": True,
+    }
+    if request.system:
+        expected_params["system"] = request.system
+        expected_params["system_sha256"] = sha256_hex(request.system)
+    if request.temperature is not None:
+        expected_params["temperature"] = request.temperature
+    if request.max_tokens is not None:
+        expected_params["max_tokens"] = request.max_tokens
+    if request.seed is not None:
+        expected_params["seed"] = request.seed
+    if request.metadata:
+        expected_params["metadata"] = dict(request.metadata)
+    return (
+        sidecar.get("model") == expected_model
+        and sidecar.get("prompt") == request.prompt
+        and params == expected_params
+    )
+
+
+def _valid_world_spec_cache(
+    path: Path,
+    sidecar: Mapping[str, Any],
+    identity: Mapping[str, object] | None,
+) -> bool:
+    try:
+        WorldSpec.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return _optional_theme_identity_matches(sidecar, identity)
+
+
+def _theme_identity_matches(sidecar: Mapping[str, Any], expected: Mapping[str, object]) -> bool:
+    params = sidecar.get("params")
+    metadata = params.get("metadata") if isinstance(params, Mapping) else None
+    actual = metadata.get("theme_compilation") if isinstance(metadata, Mapping) else None
+    return actual == dict(expected)
+
+
+def _optional_theme_identity_matches(
+    sidecar: Mapping[str, Any], expected: Mapping[str, object] | None
+) -> bool:
+    params = sidecar.get("params")
+    metadata = params.get("metadata") if isinstance(params, Mapping) else None
+    if expected is None:
+        return not isinstance(metadata, Mapping) or "theme_compilation" not in metadata
+    return _theme_identity_matches(sidecar, expected)
+
+
+def _theme_plan_input(compiled: _CompiledThemeContext) -> InputProvenance:
+    return InputProvenance(
+        ref=str(compiled.identity["artifact_ref"]),
+        sha256=str(compiled.identity["artifact_sha256"]),
+        source="content",
+        bytes=compiled.artifact_bytes,
+        media_type="application/json",
+    )
+
+
+def _append_compiled_directive(prompt: str, directive: str, hard_exclusions: str) -> str:
+    return (
+        f"{prompt.strip()}\n\nVisible content direction:\n{directive}\n\n"
+        f"Binding visual constraints:\n{hard_exclusions}"
+    )
+
+
+def _append_binding_visual_constraints(prompt: str, constraints: str) -> str:
+    return f"{prompt.strip()}\n\nBinding visual constraints:\n{constraints}"
+
+
+def _themed_concept_prompt(concept: str) -> str:
+    return (
+        f"{concept.strip()}\n\nRecipe composition:\n"
+        "Use a wide cinematic landscape canvas for a 2D scrolling-game scene, with clear "
+        "distant, middle, and foreground depth. Fill the complete canvas opaquely."
+    )
+
+
+def _directive_for_image_stage(plan: CompiledThemePlan, stage: str) -> str:
+    if stage == "concept":
+        return plan.concept
+    if stage in {"items", "inventory"} or stage.startswith("obstacles-"):
+        return plan.items
+    if stage == "portal":
+        return plan.portals
+    if stage.startswith(("character-", "mob-")):
+        return plan.characters
+    return plan.environment
+
+
+def _assert_no_raw_theme_controls_in_metadata(value: object) -> None:
+    if isinstance(value, str):
+        assert_no_raw_theme_control_leak(value)
+    elif isinstance(value, Mapping):
+        for key, nested in value.items():
+            if isinstance(key, str):
+                if key == "theme_compilation":
+                    continue
+                assert_no_raw_theme_control_leak(key)
+                assert_no_raw_theme_control_leak(
+                    f"{key}={json.dumps(nested, ensure_ascii=False, default=str)}"
+                )
+            _assert_no_raw_theme_controls_in_metadata(nested)
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        for nested in value:
+            _assert_no_raw_theme_controls_in_metadata(nested)
 
 
 def _template_root() -> Path:

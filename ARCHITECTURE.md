@@ -65,6 +65,13 @@ must be committed with their provenance and integrity metadata; credentials,
 authorization headers, signed query strings, and embedded reference bytes are
 never persisted.
 
+The optional scrolling-preview theme compiler is a provider-neutral structured
+generation seam: it rewrites strict numeric handles and a base brief into
+validated, asset-aware art direction before deterministic recipe composition.
+Raw controls do not cross the image boundary. The packaged policy digest,
+compiler version, and normalized handle digest bind provenance and downstream
+cache identity; see [Theme art-direction controls](docs/theme-art-direction.md).
+
 ## Headless path
 
 The supported entry point is:

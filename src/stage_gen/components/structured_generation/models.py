@@ -15,6 +15,33 @@ from stage_gen.reliability.cancellation import CancellationToken
 
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
 
+# OpenAI-compatible strict structured-output transports accept a deliberately
+# small JSON Schema subset. Caller-side parsing remains authoritative for these
+# assertions after decoding.
+_UNSUPPORTED_STRICT_ASSERTIONS = frozenset(
+    {
+        "contains",
+        "format",
+        "maxContains",
+        "maxItems",
+        "maxLength",
+        "maxProperties",
+        "maximum",
+        "minContains",
+        "minItems",
+        "minLength",
+        "minProperties",
+        "minimum",
+        "multipleOf",
+        "pattern",
+        "patternProperties",
+        "propertyNames",
+        "unevaluatedItems",
+        "unevaluatedProperties",
+        "uniqueItems",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class StructuredReference:
@@ -42,6 +69,54 @@ class StructuredOutputSchema:
             raise ValueError("json_schema must be an object")
         if not isinstance(self.strict, bool):
             raise ValueError("schema strict must be a boolean")
+        if self.strict:
+            object.__setattr__(
+                self,
+                "json_schema",
+                canonicalize_strict_json_schema(self.json_schema),
+            )
+
+
+def canonicalize_strict_json_schema(value: Mapping[str, object]) -> dict[str, object]:
+    """Canonicalize the common strict-output subset before transport/provenance."""
+
+    normalized = _canonicalize_schema_value(value)
+    if not isinstance(normalized, dict):
+        raise TypeError("strict json_schema must normalize to an object")
+    return normalized
+
+
+def _canonicalize_schema_value(value: object) -> object:
+    if isinstance(value, list):
+        return [_canonicalize_schema_value(item) for item in value]
+    if not isinstance(value, Mapping):
+        return value
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise ValueError("JSON Schema keys must be strings")
+        if key == "default" or key in _UNSUPPORTED_STRICT_ASSERTIONS:
+            continue
+        if key in {"$defs", "definitions", "properties"} and isinstance(item, Mapping):
+            result[key] = _canonicalize_named_schemas(item)
+        else:
+            result[key] = _canonicalize_schema_value(item)
+    properties = result.get("properties")
+    if isinstance(properties, Mapping):
+        result["required"] = list(properties)
+        result["additionalProperties"] = False
+    return result
+
+
+def _canonicalize_named_schemas(value: Mapping[object, object]) -> dict[str, object]:
+    """Preserve arbitrary field/definition names while normalizing their schemas."""
+
+    result: dict[str, object] = {}
+    for name, schema in value.items():
+        if not isinstance(name, str):
+            raise ValueError("JSON Schema property and definition names must be strings")
+        result[name] = _canonicalize_schema_value(schema)
+    return result
 
 
 @dataclass(frozen=True, slots=True)

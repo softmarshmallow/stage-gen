@@ -12,6 +12,7 @@ from stage_gen.reliability import CancellationToken
 
 type JsonObject = dict[str, Any]
 type StageRun = Callable[["StageContext"], Awaitable[Sequence[str]]]
+type StageResolver = Callable[[Mapping[str, Any]], tuple["StageSpec", ...]]
 
 
 class RecipeRuntime(Protocol):
@@ -43,6 +44,12 @@ class Recipe:
     parse_input: Callable[[object], JsonObject]
     tag_for: Callable[[Mapping[str, Any]], str]
     stages: tuple[StageSpec, ...]
+    stage_resolver: StageResolver | None = None
+
+    def stages_for(self, input_value: Mapping[str, Any]) -> tuple[StageSpec, ...]:
+        """Resolve the graph for normalized input while preserving the static default."""
+
+        return self.stages if self.stage_resolver is None else self.stage_resolver(input_value)
 
 
 @dataclass(frozen=True, slots=True)

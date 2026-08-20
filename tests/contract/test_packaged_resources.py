@@ -20,6 +20,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/music/preview-loop.mp3",
     "stage_gen/resources/music/preview-loop.mp3.meta.json",
     "stage_gen/resources/music/preview-loop.LICENSE.md",
+    "stage_gen/resources/skills/compile-theme-art-direction/SKILL.md",
 }
 SDIST_RESOURCES = {f"src/{name}" for name in WHEEL_RESOURCES}
 EXPECTED_SDIST_FILES = {
@@ -163,12 +164,25 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
 
     probe = """
 from pathlib import Path
-from stage_gen.resources import bundled_music_path, image_template_dir, required_resource_paths
+from stage_gen.resources import (
+    bundled_music_path,
+    image_template_dir,
+    required_resource_paths,
+    theme_compiler_skill_path,
+)
+from stage_gen.theme import load_theme_compiler_skill
 
 paths = required_resource_paths()
-assert len(paths) == 11
+assert len(paths) == 12
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
+assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
+    "---\\nname: compile-theme-art-direction\\n"
+)
+skill = load_theme_compiler_skill()
+assert skill.name == "compile-theme-art-direction"
+assert skill.body.startswith("# Compile Theme Art Direction\\n")
+assert len(skill.sha256) == 64
 music = bundled_music_path()
 assert Path(f"{music}.meta.json").is_file()
 assert (music.parent / "preview-loop.LICENSE.md").is_file()

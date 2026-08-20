@@ -5,6 +5,7 @@ from .models import (
     StructuredGenerationResult,
     StructuredOutputSchema,
     StructuredReference,
+    canonicalize_strict_json_schema,
 )
 from .service import StructuredGenerationService
 
@@ -16,4 +17,5 @@ __all__ = [
     "StructuredGenerationService",
     "StructuredOutputSchema",
     "StructuredReference",
+    "canonicalize_strict_json_schema",
 ]

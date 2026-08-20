@@ -99,6 +99,7 @@ out
 
 # stage-gen pipeline outputs (per-tag dirs land under <repo-root>/out)
 /out/
+/tmp/theme-compiler-spike/
 
 
 # Nuxt.js build / generate output
