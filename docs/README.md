@@ -4,6 +4,9 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
+  provider-neutral grid detection, cell extraction, and anchor-aligned packing;
+  not implemented.
 - [Endpoint-conditioned loop synthesis](loop-synthesis.md) — deferred masked
   bridge generation, seam gates, and runtime consumption.
 - [Testing the Python reboot](testing.md) — focused, full, live, and web gates.

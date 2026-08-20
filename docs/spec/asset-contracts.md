@@ -65,9 +65,13 @@ size rails, and forbidden zones using a fixed colour contract:
 | Green rails | Ground / feet baselines (full-row, shared across cells in a row). |
 
 The prompt explains what each colour means and asks the model to **honour the
-prior 1:1** without painting the marker colours themselves. The runtime
-slicer reads cells from the same coordinates the prior encodes, so prior and
-runtime share a single source of truth for cell geometry.
+prior 1:1** without painting the marker colours themselves. A slicer reads
+cells from the same coordinates the prior encodes, so prior and recipe share a
+single source of truth for cell geometry. The generic detection, tight-crop,
+and anchor-aligned packing boundary is defined by the
+[planned provider-neutral sprite-sheet processing contract](sprite-sheet-processing.md).
+It is not implemented in the Python core; the current recipe implements only
+its fixed character-master row composition and split.
 
 ### Why this works
 
@@ -86,18 +90,19 @@ spec below names which of these inputs it carries.
 
 ## Common parameters
 
-Every generation call uses the same backend and quality controls:
+Every generation call passes one typed `ImageGenerationRequest` to
+`ImageGenerationService.generate`. The component service is the sole retry
+owner around one backend attempt and caller validation.
 
-| Parameter | Value | Notes |
+| Concern | Current contract | Notes |
 |---|---|---|
-| Model class | OpenAI image-gen v2 (~8.3 Mpx hard cap) | All canvas sizes below stay under this cap. |
-| Content moderation | Permissive ("low") | Required for fantasy creature / weapon imagery. |
-| Returned images per call | 1 | The pipeline never requests batch outputs. |
-| SDK retries (transient) | bumped above SDK default | Handled inside the retry helper — see `docs/tech/gpt-image-2.md`. |
-| Outer retries (gateway / transport errors) | a few attempts with capped exponential backoff | For cases where the SDK classifier misses a retryable error. |
-| Quality / style parameters | _not used_ | This model class doesn't honour per-call quality knobs. |
+| Model and route | `openai/gpt-image-2` through OpenRouter's dedicated image endpoint | Re-query endpoint metadata before expanding the adapter contract. |
+| Request surface | Prompt, optional ordered references, `aspect_ratio`, `quality`, `background`, optional `output_compression`, and provider moderation; `n` is fixed to 1 | The current endpoint advertises quality values including `high`. It does not advertise arbitrary pixel `size`, `resolution`, `seed`, or `output_format`. |
+| Scrolling-recipe request | An `aspect_ratio` request value derived from target geometry, `quality="high"`, `background="opaque"`, and moderation `low` | Provider/model validation owns which request values are accepted. Deterministic PNG normalization owns the final target dimensions; target geometry does not establish native provider support. |
+| Retry owner | One initial attempt plus five blind retries in `ImageGenerationService.generate` | Transport, response-envelope, media, and caller-validation failures remain inside this one boundary. Recipes and backends must not stack SDK, outer, or per-stage retry loops. |
+| Accepted response | Exactly one nonempty image with strict base64, media-type, signature, and caller validation | The inspected provider artifact and deterministic normalized artifact retain bound provenance. |
 
-Four canvas sizes are used across the pipeline:
+Four exact canvas sizes are used as scrolling-recipe output contracts:
 
 | Canvas | Aspect | Pixel area | Used by |
 |---|---|---|---|
@@ -106,9 +111,13 @@ Four canvas sizes are used across the pipeline:
 | 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, ground tileset, character / creature concepts, single-state motion strips, obstacle sheets, item sheet |
 | 2400 × 3440 | ≈ 30:43 (tall, ~5:7) | 8.26 Mpx | Character motion master sheet (5 rows × 4 frames) |
 
-`2400 × 3440` is intentionally the largest size that stays under the model's
-8.3 Mpx cap; it exists to put all five character motion states on a single
-sheet so cross-row scale-lock can be enforced via shared head/feet rails.
+These dimensions are not provider-native size requests or evidence of a model
+pixel-area cap. The recipe derives an aspect-ratio request value from target
+geometry, leaves acceptance to provider/model validation, inspects the
+returned image, and normalizes it deterministically. The 2400 x 3440 character
+master is composed locally from five normalized 2400 x 800 state strips after
+each strip is cropped to 2400 x 688; it is never requested as one provider
+image.
 
 ---
 
@@ -171,16 +180,13 @@ output); every other generation wave is image-gen.
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
 | 2 | World concept dependants — L parallax layers (agent-designed count), tileset, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
-| 3 | Concept dependants — character master sheet, character attack strip, N creature idle strips, N creature hurt strips | Fan-out: `2 + 2N` calls fired together. | image |
-| 4 | Transparency derivation — validated removal (`ai`) or deterministic keying (`chroma`) — then slice the character master sheet. | Strategy-dependent pass. | background-removal or local CPU |
+| 3 | Concept dependants — five character state strips, character attack strip, N creature idle strips, N creature hurt strips; then deterministic character-master composition | Fan-out: `6 + 2N` image calls, followed by one local composition. | image + local CPU |
+| 4 | Split the composed character master into five fixed state rows. | Single deterministic pass; no provider call. | local CPU |
 
-Wall-clock is dominated by:
-
-- The near-cap character master sheet — the single slowest call. It
-  lives in wave 3, so wave 3 ≈ that call regardless of `N`.
-- Upstream concurrency cap of the image-gen account. Wave 2 fires up to
-  ~25 parallel calls at default counts; lower account tiers will
-  serialize wave 2 in chunks.
+Provider latency, service concurrency, and account throttling are operational
+observations rather than recipe contracts. The executor may fan out independent
+requests, but this document does not promise wall-clock timing or invent a
+provider concurrency tier.
 
 ---
 
