@@ -31,6 +31,7 @@ DEFAULT_TRANSPARENCY_MODE = TransparencyMode.AI
 
 class StageGenConfig(ContractModel):
     out_dir: Path = Path("out")
+    character_library_root: Path | None = None
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
     open_router_base_url: str | None = None
@@ -76,6 +77,7 @@ def load_config(
     values: Mapping[str, str | None] = _application_environment() if env is None else env
     config = StageGenConfig(
         out_dir=_first(values, "STAGE_GEN_OUT_DIR", "OUT_DIR") or "out",
+        character_library_root=_first(values, "STAGE_GEN_CHARACTER_LIBRARY_ROOT"),
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
         fal_key=_first(values, "FAL_KEY"),
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),

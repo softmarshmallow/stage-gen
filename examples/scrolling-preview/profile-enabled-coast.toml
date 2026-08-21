@@ -1,0 +1,7 @@
+prompt = "original hand-painted storm-cleared coast with brass survey markers"
+
+[character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "library/characters/mira-vale-cartographer/profile.toml"
+source_sha256 = "4b0ae65d60c355b4312dc928b27827188b2b2b820c8467376e4f50ecee2f36ff"

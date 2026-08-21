@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import sys
+import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Never, TextIO
@@ -16,6 +18,10 @@ from stage_gen.capabilities import (
     generate_image_artifact,
     generate_music,
     remove_background,
+)
+from stage_gen.components.character_profile import (
+    ResolvedCharacterProfile,
+    resolve_character_profile_binding,
 )
 from stage_gen.config import (
     ConfigError,
@@ -39,6 +45,7 @@ COMMANDS = {
     "generate-music",
     "import-env",
     "doctor",
+    "character-profile",
 }
 
 
@@ -65,8 +72,28 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser = commands.add_parser("generate")
     generate_parser.add_argument("--recipe", default="scrolling-preview")
     generate_parser.add_argument("--input", dest="input_file")
+    generate_parser.add_argument(
+        "--character-library-root",
+        help="explicit workspace root containing library/characters",
+    )
     generate_parser.add_argument("--transparency", choices=("ai", "chroma"))
     generate_parser.add_argument("prompt", nargs="*")
+
+    profile_parser = commands.add_parser(
+        "character-profile",
+        description="Validate and inspect an authored character profile",
+    )
+    profile_commands = profile_parser.add_subparsers(
+        dest="character_profile_command", required=True
+    )
+    for action in ("validate", "digest"):
+        action_parser = profile_commands.add_parser(action)
+        action_parser.add_argument("--input", required=True, dest="input_path")
+        action_parser.add_argument(
+            "--character-library-root",
+            required=True,
+            help="workspace root containing library/characters",
+        )
 
     serve_parser = commands.add_parser("serve")
     serve_parser.add_argument("--host")
@@ -196,6 +223,17 @@ def _dispatch(
     if command == "recipes":
         stdout.write(f"{json.dumps({'recipes': list_recipes()}, indent=2)}\n")
         return 0
+    if command == "character-profile":
+        resolved = _resolve_cli_character_profile(
+            input_path=Path(args.input_path),
+            character_library_root=Path(args.character_library_root),
+        )
+        if args.character_profile_command == "digest":
+            stdout.write(f"{resolved.source_sha256}\n")
+        else:
+            report = {"valid": True, **resolved.identity()}
+            stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
     if command == "doctor":
         config = load_config()
         mode = (
@@ -257,10 +295,15 @@ async def _dispatch_async(
 ) -> int:
     config = load_config()
     if args.command == "generate":
+        if args.character_library_root is not None:
+            config = config.model_copy(
+                update={"character_library_root": Path(args.character_library_root)}
+            )
         prompt = " ".join(args.prompt).strip()
         if args.input_file:
-            input_text = await asyncio.to_thread(Path(args.input_file).read_text, encoding="utf-8")
-            input_value: object = json.loads(input_text)
+            input_path = Path(args.input_file)
+            input_text = await asyncio.to_thread(input_path.read_text, encoding="utf-8")
+            input_value = _parse_input_document(input_text, suffix=input_path.suffix.lower())
         else:
             input_value = {"prompt": prompt}
         summary = await generate(
@@ -316,3 +359,38 @@ async def _dispatch_async(
         raise ValueError(f"unsupported command: {args.command}")
     stdout.write(f"{json.dumps(result.to_dict(), separators=(',', ':'))}\n")
     return 0
+
+
+def _parse_input_document(text: str, *, suffix: str) -> object:
+    if suffix == ".toml":
+        return tomllib.loads(text)
+    return json.loads(text)
+
+
+def _resolve_cli_character_profile(
+    *, input_path: Path, character_library_root: Path
+) -> ResolvedCharacterProfile:
+    root = character_library_root.absolute()
+    source = input_path.absolute()
+    try:
+        relative = source.relative_to(root)
+    except ValueError as error:
+        raise ValueError("character profile input must be inside character library root") from error
+    parts = relative.parts
+    if len(parts) != 4 or parts[:2] != ("library", "characters") or parts[3] != "profile.toml":
+        raise ValueError(
+            "character profile input must equal ROOT/library/characters/<profile_id>/profile.toml"
+        )
+    try:
+        source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+    except OSError as error:
+        raise ValueError("character profile input is unreadable") from error
+    return resolve_character_profile_binding(
+        {
+            "schema_version": 1,
+            "kind": "character-profile-binding-v1",
+            "ref": relative.as_posix(),
+            "source_sha256": source_sha256,
+        },
+        character_library_root=root,
+    )

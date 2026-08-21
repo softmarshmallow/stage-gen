@@ -1,0 +1,19 @@
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "mira-vale-cartographer"
+revision = 1
+display_name = "Mira Vale"
+age_years = 29
+description = "An original adult field cartographer who documents changing coastlines."
+visual_identity = "Tall adult woman with warm brown skin, gray-green eyes, and a close-cropped black undercut."
+wardrobe = "Weathered teal field jacket, charcoal work trousers, and practical brown walking boots."
+invariants = [
+  "Gray-green eyes and close-cropped black undercut",
+  "Teal field jacket with a brass compass clipped inside the left lapel",
+  "Adult proportions and an observant, self-possessed demeanor",
+]
+
+[rights]
+status = "unreviewed"
+notice = "Original fictional character text authored as a stage-gen contract sample; no publication or redistribution approval is implied."
+basis = ["Original repository-authored text with no external character or media reference."]

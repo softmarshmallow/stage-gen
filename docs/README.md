@@ -4,6 +4,9 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Authored character library](character-library.md) — strict TOML/JSON profile
+  authoring, CLI validation/digest commands, canonical JSON identity, portable
+  references, and rights ownership.
 - [Image style anchor](image-style-anchor.md) — tracked rendering-medium
   vocabulary, single-token model selection, and digest-bound prompt clause.
 - [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
