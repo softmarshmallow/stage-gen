@@ -45,6 +45,53 @@ showcase notice permits redistribution of the unchanged, digest-matched files
 only with this repository; it is not a blanket media license or a grant for
 standalone reuse.
 
+Generated-image documentation derivatives use a separate, backward-compatible
+inventory branch selected by
+`provenance_kind: "generated_image_derivative"`. New records use
+`lower_snake_case` throughout: `sidecar_sha256`, `review_status`,
+`synth_id_expected`, and `visual_review`. The adjacent sidecar repeats the
+selector and records `inputs`, `transformation`, `visual_review`, and `rights`;
+it must not masquerade as a browser `capture`.
+
+`provenance_kind` selects the generic derivative safeguards. A required
+`lineage_kind` selects the lineage-specific validator. The theme comparison uses
+`theme_art_direction_comparison_v1`, which fixes the supported top-level fields
+and validates its exact two-input, shared-seed, and six-handle compiler lineage.
+Any future derivative subtype needs its own explicit validator before it can
+pass publication; unknown or missing lineage kinds fail closed.
+
+Every derivative input is content-addressed and carries its full exact original
+prompt, a SHA-256 digest of that exact UTF-8 string, and a source-specific
+`rights_basis` bound to the input content identifier. Raw source images do not
+need to be tracked. The deterministic `transformation` instead binds their
+content identifiers in order and records stable tool, version, parameters, and
+output facts. A digest identifies bytes without publishing a private or
+temporary source path.
+
+The derivative `generation` record binds the generated seed and selected
+candidate back to those same content identifiers. `reference_refs` records the
+candidate's exact seed dependency, while `canonical_theme_json` and
+`theme_digest` bind the six handles, compiler version, and compiler-skill
+identity used for the selected candidate.
+
+The independent `visual_review` is artifact-bound and duplicated in the
+inventory and sidecar. It names a stable reviewer identity or role, records
+`independent: true`, and binds the artifact digest, byte count, and
+repository-relative verification report with its exact digest and byte count.
+Inventory and sidecar review facts must match exactly. The checker hashes the
+report itself; copying an old verdict or changing the report after approval
+fails publication.
+The derivative rights record also binds the adjacent notice with
+`notice_sha256` and `notice_bytes`; changing the permission text after approval
+fails the same gate.
+
+Every derivative entry and sidecar is scanned recursively. Private or temporary
+paths, file/data references, authorization or credential material, and signed
+URL query parameters fail publication wherever they appear. Null image-model or
+numeric-seed facts require an explicit unavailable status; reported model or
+seed facts require `reported`. Provider operations remain capped at six
+attempts, and semantic image-candidate regeneration remains capped at two.
+
 ## Portable lineage
 
 Each source record needs its actual SHA-256 digest and byte size, with
@@ -59,11 +106,15 @@ not establish their rights.
 verifies that:
 
 1. generated media in the declared roots is intentionally enumerated;
-2. the adjacent sidecar's artifact digest and byte size match, and browser
-   captures' inventory `sidecarSha256` matches the sidecar itself;
-3. source references are portable and content-addressed;
-4. rights are explicitly redistribution-approved with stable evidence; and
-5. required human and watermark review facts are present.
+2. the adjacent sidecar's artifact digest and byte size match, and the
+   inventory's branch-specific sidecar digest matches the sidecar itself;
+3. source references are portable and content-addressed, with exact prompt
+   digests and source-specific rights for generated-image derivatives;
+4. deterministic derivative transformations record stable tool, version,
+   parameters, ordered inputs, and output facts;
+5. rights are explicitly redistribution-approved with stable evidence; and
+6. required listening or independent visual-review facts and their exact report
+   digests are present.
 
 Validator behavior is covered by synthetic JSON fixtures in
 [`check-fixtures/`](check-fixtures/) and does not need a media fixture.

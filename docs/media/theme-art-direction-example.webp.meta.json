@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "generated_image_derivative",
+  "lineage_kind": "theme_art_direction_comparison_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "docs/media/theme-art-direction-example.webp",
+    "media_type": "image/webp",
+    "codec": "webp",
+    "encoding": "lossy_vp8",
+    "pixel_format": "yuv420p",
+    "width": 1200,
+    "height": 1200,
+    "sha256": "7ad7b8d619664aff315f34cb0188e7ddc0d35b1ed7fdc057bf0962a81dbee512",
+    "bytes": 127304
+  },
+  "inputs": [
+    {
+      "role": "manually_authored_neutral_shared_seed",
+      "ref": "sha256:e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f",
+      "sha256": "e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f",
+      "bytes": 2075025,
+      "media_type": "image/png",
+      "width": 1024,
+      "height": 1536,
+      "original_prompt": "Use case: stylized-concept\nAsset type: shared reference image for a controlled A/B game-theme demonstration\nPrimary request: Create polished original cute/moe Japanese anime game character key art featuring one unmistakably 26-year-old adult woman.\nScene/backdrop: Bright sunlit pastel studio window nook; simple and uncluttered; no cafe setting or signage.\nSubject: One adult woman with a distinctive chestnut bob and mint ribbon. Her right hand holds a completely plain, unmarked ceramic cup at sternum height. Her left hand tucks her hair behind her left ear. She wears a gentle, cheerful, neutral smile.\nStyle/medium: Appealing original 2D Japanese moe anime illustration; clean confident linework; crisp cel shading.\nComposition/framing: Fixed eye-level three-quarter portrait from mid-thigh upward; centered; body turned three-quarters right; face directed toward the viewer.\nLighting/mood: Bright natural sunlight; cheerful, calm, wholesome, neutral.\nColor palette: Peach, mint, and cream.\nWardrobe: Modest, securely arranged mint cardigan, cream blouse, and peach skirt.\nConstraints: Preserve exactly one adult character, the specified pose, crop, clothing arrangement, cup position, hairstyle, ribbon, lighting, and palette. No sexualization, no nudity, no violence, no injury, no substances, no threat. No readable text, signage, logo, or watermark.",
+      "prompt_sha256": "b7744057596cd9b32bfc4fd90969c6416e47cbc14ecc24410afea8b2f29f9df1",
+      "prompt_hash_scope": "full_exact_utf8_string",
+      "rights_basis": [
+        "Authenticated project owner authorized documentation use of the exact project-controlled shared seed identified by sha256:e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f"
+      ]
+    },
+    {
+      "role": "compiler_v6_selected_reference_edit_candidate",
+      "ref": "sha256:1c92f42d03f944c219fce237587c2fadffc1d74bdda89066bc33e83f5c065143",
+      "sha256": "1c92f42d03f944c219fce237587c2fadffc1d74bdda89066bc33e83f5c065143",
+      "bytes": 1976249,
+      "media_type": "image/png",
+      "width": 1024,
+      "height": 1536,
+      "original_prompt": "The supplied seed image is the sole visual reference. Hard-lock only the unmistakably adult identity and face, chestnut bob, mint ribbon, defining character design, and bright Japanese moe art language. Pose, hands, props, crop, and staging remain editable.\n\nConcept:\nPolished original 2D Japanese moe anime game key art of one unmistakably 26-year-old woman in a sunlit pastel cafe studio. Her distinctive chestnut bob and mint ribbon frame a confident direct gaze and playful smile. She poses in poised contrapposto with one hand lifting her hair and the other at her waist, wearing an intentionally arranged peach backless halter mini dress with a deep neckline, open side waist, and high slit revealing shoulders, collarbones, upper back, and legs. Eye-level three-quarter framing, crisp cel shading, warm rim light, peach-mint-cream palette, clean linework, and uncluttered authored design.\n\nCharacter direction:\nThe clearly adult woman stands in elegant contrapposto, torso turned three-quarters while her face meets the viewer. Her direct warm gaze, playful cheerful smile, lifted chin, hair-touch gesture, and hand at the waist create strong confident glamour. Her fitted backless halter mini dress is visibly secured and arranged, with a deep neckline, open side waist, and high slit presenting shoulders, collarbones, upper back, and long leg lines.\n",
+      "prompt_sha256": "fe799eb3262f826ee2aa6df697dbeaf70e50ec3513d0dc5c021d503fa39d0ec6",
+      "prompt_hash_scope": "full_exact_utf8_string",
+      "rights_basis": [
+        "Authenticated project owner authorized documentation use of the exact project-controlled reference-edit candidate identified by sha256:1c92f42d03f944c219fce237587c2fadffc1d74bdda89066bc33e83f5c065143"
+      ]
+    }
+  ],
+  "generation": {
+    "shared_seed": {
+      "tool": "image_gen.imagegen",
+      "artifact_ref": "sha256:e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f",
+      "reference_refs": [],
+      "model": null,
+      "model_status": "unavailable_from_builtin_image_tool",
+      "numeric_seed": null,
+      "numeric_seed_status": "unavailable_from_builtin_image_tool",
+      "attempt_count": 1
+    },
+    "compiled_variant": {
+      "artifact_ref": "sha256:1c92f42d03f944c219fce237587c2fadffc1d74bdda89066bc33e83f5c065143",
+      "reference_refs": [
+        "sha256:e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f"
+      ],
+      "canonical_theme_json": "{\"schema_version\":1,\"compiler_version\":6,\"handles\":{\"sexual_content\":4,\"nudity_exposure\":4,\"hostile_action\":0,\"injury_detail\":0,\"substance_depiction\":0,\"threat_disturbance\":0}}",
+      "theme_digest": "c6d10ac651bd61501e7701667f06cfde3d54e5ff0d42f1f7d8714ebd536c73b2",
+      "compiler_provider": "OpenRouter",
+      "compiler_model": "openai/gpt-5.6",
+      "compiler_version": 6,
+      "compiler_attempt_count": 5,
+      "skill_name": "compile-theme-art-direction",
+      "skill_ref": "sha256:19e098122181c0f0f6177a184dfbcff4514985c84b2e2fe0987dc8ceacffdb2c",
+      "skill_sha256": "19e098122181c0f0f6177a184dfbcff4514985c84b2e2fe0987dc8ceacffdb2c",
+      "plan_ref": "sha256:2f17895004315e648660c4d736e65bce4d564a817e150a832b7c9c078dd97005",
+      "plan_sha256": "2f17895004315e648660c4d736e65bce4d564a817e150a832b7c9c078dd97005",
+      "image_tool": "image_gen.imagegen",
+      "image_model": null,
+      "image_model_status": "unavailable_from_builtin_image_tool",
+      "image_attempt_count": 1,
+      "numeric_seed": null,
+      "numeric_seed_status": "unavailable_from_builtin_image_tool",
+      "selected_candidate_attempt": 1,
+      "bounded_image_candidate_regenerations": 2,
+      "raw_selected_source_visual_status": "fail_readable_generated_signage"
+    }
+  },
+  "transformation": {
+    "tool": "ffmpeg+cwebp",
+    "version": "ffmpeg 8.0.1; cwebp 1.6.0; libsharpyuv 0.4.2",
+    "params": {
+      "operation": "crop_append_resize_encode",
+      "input_refs": [
+        "sha256:e2e09421c86f6d6a8e0e444763c8b581daf94fd5a187ecd8af92b855bb02062f",
+        "sha256:1c92f42d03f944c219fce237587c2fadffc1d74bdda89066bc33e83f5c065143"
+      ],
+      "left_crop": {
+        "x": 128,
+        "y": 0,
+        "width": 768,
+        "height": 1536
+      },
+      "right_crop": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 1536
+      },
+      "append_axis": "horizontal",
+      "resize_filter": "lanczos",
+      "output": {
+        "media_type": "image/webp",
+        "width": 1200,
+        "height": 1200
+      },
+      "codec": "webp",
+      "quality": 82,
+      "method": 6,
+      "metadata": "none",
+      "pixel_retouching": false,
+      "labels_added": false
+    }
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "independent visual-review subagent",
+    "authority_basis": "reviewer independent from the deterministic derivative producer; exact digest-bound documentation-derivative semantic verification",
+    "reviewed_at": "2026-08-20T13:45:15Z",
+    "attestation_id": "independent-theme-art-direction-webp-7ad7b8d619664aff",
+    "attested_at": "2026-08-20T13:45:15Z",
+    "artifact_sha256": "7ad7b8d619664aff315f34cb0188e7ddc0d35b1ed7fdc057bf0962a81dbee512",
+    "artifact_bytes": 127304,
+    "verification_report_path": "docs/media/theme-art-direction-example.visual-review.md",
+    "verification_report_sha256": "cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
+    "verification_report_bytes": 2005,
+    "acceptance_spec": "Exact 1200x1200 WebP; neutral shared seed at left and compiled maximum at right; clearly adult identity, chestnut bob, mint ribbon, faces, gaze, cup, hair-touch, changed pose, waist hand, wardrobe, crop, and staging legible at documentation size; clean seam; faithful color; no clipping of required evidence, resize artifact, readable text, sign, logo, watermark, frame remnant, or protected mark.",
+    "evidence": {
+      "path": "docs/media/theme-art-direction-example.visual-review.md",
+      "verdict": "pass",
+      "ref": "sha256:cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
+      "sha256": "cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
+      "bytes": 2005
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "notice": "theme-art-direction-example.LICENSE.md",
+    "notice_sha256": "9337569ffdc9b33779ba76ee1aa55aa8f17599dc83454e3eab1523fc57dd7f92",
+    "notice_bytes": 1854,
+    "license_id": "LicenseRef-Stage-Gen-Theme-Art-Direction-Example-Repository-Sharing",
+    "attribution": [],
+    "basis": [
+      "Artifact-specific repository publication authorization in the authenticated project owner's direct 2026-08-20 request to make this documentation and include a WebP in Git",
+      "Exact digest-matched deterministic derivative of two content-addressed project-controlled experiment outputs with source-specific rights bases",
+      "theme-art-direction-example.LICENSE.md",
+      "independent-theme-art-direction-webp-7ad7b8d619664aff",
+      "docs/media/theme-art-direction-example.visual-review.md",
+      "sha256:cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5"
+    ],
+    "reviewed_at": "2026-08-20T13:46:54Z"
+  }
+}

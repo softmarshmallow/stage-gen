@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
+from urllib.parse import parse_qsl, urlsplit
 
 JsonObject = dict[str, Any]
 
@@ -68,6 +69,64 @@ PROVENANCE_ONLY = re.compile(
 LISTENING_RESULT = "no recognizable protected composition, lyrics, performer, voice, brand, or mark"
 VISUAL_REVIEW_RESULT = "pass"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+GENERATED_IMAGE_DERIVATIVE = "generated_image_derivative"
+THEME_ART_DIRECTION_COMPARISON = "theme_art_direction_comparison_v1"
+LOWER_SNAKE_FIELD = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
+FILE_OR_DATA_REF = re.compile(r"\bfile:|\bdata:[^,\s]*,", re.IGNORECASE)
+ABSOLUTE_UNIX_PATH = re.compile(
+    r"(?:^|[\s\"'(<>=:\[,;])/(?:[^/\s\"'<>(),;]+/)*[^/\s\"'<>(),;]+"
+    r"(?=$|[\s\"'<>),;\]])",
+    re.IGNORECASE,
+)
+TILDE_PATH = re.compile(r"(?:^|[\s\"'(<>=:])~(?:[^/\\\s]+)?(?:[/\\]|$)")
+WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
+TEMPORARY_RELATIVE_PATH = re.compile(
+    r"(?:^|[\\/\s])(?:tmp|private[\\/]tmp|var[\\/]folders)(?:[\\/]|$)",
+    re.IGNORECASE,
+)
+PARENT_PATH_SEGMENT = re.compile(r"(?:^|[\\/])\.\.(?:[\\/]|$)")
+AUTHORIZATION_VALUE = re.compile(
+    r"\b(?:authorization|proxy-authorization)\s*:\s*(?:"
+    r"(?:bearer|basic|key|token)\s+[A-Za-z0-9._~+/=-]{8,}|"
+    r"(?:sk|rk)-[A-Za-z0-9_-]{16,}|[A-Za-z0-9._~+/=-]{20,})"
+    r"(?=$|[\s,;])|"
+    r"\b(?:api[-_ ]?key|access[-_ ]?token)\s*[:=]\s*[A-Za-z0-9._~+/=-]{8,}|"
+    r"\bbearer\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|rk)-[A-Za-z0-9_-]{16,}",
+    re.IGNORECASE,
+)
+SIGNED_QUERY_VALUE = re.compile(
+    r"(?:\?|&)(?:access_token|api_key|client_secret|expires|password|se|sig|signature|token|"
+    r"x-amz-credential|x-amz-security-token|x-amz-signature|x-goog-credential|"
+    r"x-goog-signature)=",
+    re.IGNORECASE,
+)
+SIGNED_QUERY_FIELDS = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "client_secret",
+        "expires",
+        "password",
+        "se",
+        "sig",
+        "signature",
+        "token",
+        "x-amz-credential",
+        "x-amz-security-token",
+        "x-amz-signature",
+        "x-goog-credential",
+        "x-goog-signature",
+    }
+)
+THEME_HANDLE_NAMES = (
+    "sexual_content",
+    "nudity_exposure",
+    "hostile_action",
+    "injury_detail",
+    "substance_depiction",
+    "threat_disturbance",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +169,145 @@ def _positive_safe_integer(value: object) -> bool:
 
 def _valid_digest(value: object) -> bool:
     return isinstance(value, str) and SHA256.fullmatch(value) is not None
+
+
+def _utf8_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _theme_identity_digest(canonical: str, skill_name: str, skill_digest: str) -> str:
+    identity = json.dumps(
+        {
+            "canonical_theme_json": canonical,
+            "theme_skill_name": skill_name,
+            "theme_skill_sha256": skill_digest,
+        },
+        ensure_ascii=True,
+        allow_nan=False,
+        separators=(",", ":"),
+    )
+    return _utf8_digest(identity)
+
+
+def _has_non_lower_snake_key(value: object) -> bool:
+    if isinstance(value, dict):
+        return any(
+            not isinstance(key, str)
+            or LOWER_SNAKE_FIELD.fullmatch(key) is None
+            or _has_non_lower_snake_key(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(_has_non_lower_snake_key(item) for item in value)
+    return False
+
+
+def _contains_unstable_ref(value: object) -> bool:
+    if isinstance(value, str):
+        return UNSTABLE_REF.search(value) is not None
+    if isinstance(value, dict):
+        return any(_contains_unstable_ref(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_unstable_ref(item) for item in value)
+    return False
+
+
+def _string_contains_signed_url(value: str) -> bool:
+    if SIGNED_QUERY_VALUE.search(value) is not None:
+        return True
+    for match in HTTP_URL.finditer(value):
+        try:
+            parsed = urlsplit(match.group(0).rstrip(".,);]"))
+            query = parse_qsl(parsed.query, keep_blank_values=True)
+        except ValueError:
+            return True
+        if parsed.username is not None or parsed.password is not None:
+            return True
+        if any(key.lower() in SIGNED_QUERY_FIELDS for key, _item in query):
+            return True
+    return False
+
+
+def _string_contains_filesystem_ref(value: str) -> bool:
+    if FILE_OR_DATA_REF.search(value) is not None:
+        return True
+    without_urls = HTTP_URL.sub("", value)
+    return any(
+        pattern.search(without_urls) is not None
+        for pattern in (
+            ABSOLUTE_UNIX_PATH,
+            TILDE_PATH,
+            WINDOWS_DRIVE_PATH,
+            TEMPORARY_RELATIVE_PATH,
+            PARENT_PATH_SEGMENT,
+        )
+    )
+
+
+def _sensitive_field_name(value: str) -> bool:
+    normalized = value.lower().replace("-", "_")
+    exact = {
+        "access_token",
+        "api_key",
+        "authorization",
+        "authorization_header",
+        "credential",
+        "credentials",
+        "password",
+        "private_key",
+        "proxy_authorization",
+        "refresh_token",
+        "secret",
+        "secret_key",
+        "sig",
+        "signature",
+        "token",
+    }
+    sensitive_suffixes = (
+        "_access_key",
+        "_access_key_id",
+        "_api_key",
+        "_authorization",
+        "_authorization_header",
+        "_credential",
+        "_credentials",
+        "_password",
+        "_private_key",
+        "_secret",
+        "_secret_key",
+        "_signature",
+        "_token",
+    )
+    provider_key = re.fullmatch(
+        r"(?:anthropic|aws|azure|fal|google|groq|hf|huggingface|openai|openrouter|replicate)_key",
+        normalized,
+    )
+    return (
+        normalized in exact or normalized.endswith(sensitive_suffixes) or provider_key is not None
+    )
+
+
+def _contains_forbidden_derivative_material(value: object) -> bool:
+    if isinstance(value, str):
+        return (
+            _string_contains_filesystem_ref(value)
+            or AUTHORIZATION_VALUE.search(value) is not None
+            or _string_contains_signed_url(value)
+        )
+    if isinstance(value, dict):
+        return any(
+            not isinstance(key, str)
+            or _sensitive_field_name(key)
+            or _contains_forbidden_derivative_material(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_forbidden_derivative_material(item) for item in value)
+    return False
+
+
+def _is_generated_image_derivative(entry: JsonObject) -> bool:
+    return entry.get("provenance_kind") == GENERATED_IMAGE_DERIVATIVE
 
 
 def _safe_relative_path(value: object) -> bool:
@@ -336,14 +534,550 @@ def _validate_source_inputs(sidecar: JsonObject, errors: list[str]) -> None:
             errors.append(f"sidecar.inputs[{index}].bytes must be a positive integer")
 
 
+def _validate_derivative_inputs(sidecar: JsonObject, errors: list[str]) -> list[str]:
+    inputs = sidecar.get("inputs")
+    if not isinstance(inputs, list) or not inputs:
+        errors.append("sidecar.inputs must contain content-addressed generated-image sources")
+        return []
+    references: list[str] = []
+    roles: list[str] = []
+    for index, raw_input in enumerate(inputs):
+        source_input = _record(raw_input)
+        if source_input is None:
+            errors.append(f"sidecar.inputs[{index}] must be an object")
+            continue
+        role = source_input.get("role")
+        if not _stable_text(role):
+            errors.append(f"sidecar.inputs[{index}].role must be stable")
+        elif isinstance(role, str):
+            roles.append(role)
+        reference = source_input.get("ref")
+        digest = source_input.get("sha256")
+        if not _valid_digest(digest):
+            errors.append(f"sidecar.inputs[{index}].sha256 must be a content digest")
+        if (
+            not isinstance(reference, str)
+            or not _valid_digest(digest)
+            or reference != f"sha256:{digest}"
+        ):
+            errors.append(f"sidecar.inputs[{index}].ref must match its sha256 content identifier")
+        else:
+            references.append(reference)
+        if "path" in source_input:
+            errors.append(
+                f"sidecar.inputs[{index}] must use content identity instead of a source path"
+            )
+        if not _positive_safe_integer(source_input.get("bytes")):
+            errors.append(f"sidecar.inputs[{index}].bytes must be a positive integer")
+        media_type = source_input.get("media_type")
+        if not isinstance(media_type, str) or not media_type.startswith("image/"):
+            errors.append(f"sidecar.inputs[{index}].media_type must describe an image")
+        for field in ("width", "height"):
+            if not _positive_safe_integer(source_input.get(field)):
+                errors.append(f"sidecar.inputs[{index}].{field} must be a positive integer")
+        prompt = source_input.get("original_prompt")
+        if not _stable_text(prompt):
+            errors.append(f"sidecar.inputs[{index}].original_prompt must contain the full prompt")
+        elif source_input.get("prompt_sha256") != _utf8_digest(cast(str, prompt)):
+            errors.append(
+                f"sidecar.inputs[{index}].prompt_sha256 must digest the full exact UTF-8 prompt"
+            )
+        if source_input.get("prompt_hash_scope") != "full_exact_utf8_string":
+            errors.append(
+                f"sidecar.inputs[{index}].prompt_hash_scope must declare the full exact prompt"
+            )
+        rights_basis = source_input.get("rights_basis")
+        valid_basis = (
+            isinstance(rights_basis, list)
+            and bool(rights_basis)
+            and all(
+                _stable_text(item) and isinstance(item, str) and UNSTABLE_REF.search(item) is None
+                for item in rights_basis
+            )
+        )
+        if not valid_basis:
+            errors.append(
+                f"sidecar.inputs[{index}].rights_basis must contain source-specific reviewed values"
+            )
+        elif isinstance(reference, str) and not any(
+            reference in cast(str, item) for item in cast(list[object], rights_basis)
+        ):
+            errors.append(
+                f"sidecar.inputs[{index}].rights_basis must bind the exact "
+                "source content identifier"
+            )
+    if len(roles) != len(set(roles)):
+        errors.append("sidecar.inputs roles must be unique")
+    if len(references) != len(set(references)):
+        errors.append("sidecar.inputs content identifiers must be unique")
+    return references
+
+
+def _validate_derivative_transformation(
+    sidecar: JsonObject,
+    references: list[str],
+    artifact: JsonObject | None,
+    errors: list[str],
+) -> None:
+    if "capture" in sidecar:
+        errors.append("generated-image derivative sidecar must use transformation, never capture")
+    transformation = _record(sidecar.get("transformation"))
+    if transformation is None:
+        errors.append("sidecar.transformation is required for a generated-image derivative")
+        return
+    for field in ("tool", "version"):
+        if not _stable_text(transformation.get(field)):
+            errors.append(f"sidecar.transformation.{field} must be a stable value")
+    params = transformation.get("params")
+    if not isinstance(params, dict) or not params or not _valid_capture_params(params):
+        errors.append("sidecar.transformation.params must be a non-empty stable JSON object")
+        return
+    if _contains_unstable_ref(params):
+        errors.append("sidecar.transformation.params must not contain private or temporary paths")
+    if params.get("input_refs") != references:
+        errors.append("sidecar.transformation.params.input_refs must bind every source in order")
+    if not _stable_text(params.get("operation")):
+        errors.append("sidecar.transformation.params.operation must be stable")
+    output = _record(params.get("output"))
+    if output is None:
+        errors.append("sidecar.transformation.params.output must bind the derivative output")
+    else:
+        if not _stable_text(output.get("media_type")):
+            errors.append("sidecar.transformation.params.output.media_type must be stable")
+        for field in ("width", "height"):
+            if not _positive_safe_integer(output.get(field)):
+                errors.append(
+                    f"sidecar.transformation.params.output.{field} must be a positive integer"
+                )
+        if artifact is not None:
+            for field in ("media_type", "width", "height"):
+                if output.get(field) != artifact.get(field):
+                    errors.append(
+                        f"sidecar.transformation.params.output.{field} must match the artifact"
+                    )
+
+
+def _validate_model_identity(
+    record: JsonObject,
+    value_field: str,
+    status_field: str,
+    label: str,
+    errors: list[str],
+) -> None:
+    value = record.get(value_field)
+    if value is None:
+        if record.get(status_field) != "unavailable_from_builtin_image_tool":
+            errors.append(f"{label}.{status_field} must explain the unavailable value")
+    elif not _stable_text(value) or record.get(status_field) != "reported":
+        errors.append(f"{label}.{value_field} must be stable and {status_field} must be reported")
+
+
+def _validate_seed_identity(
+    record: JsonObject,
+    value_field: str,
+    status_field: str,
+    label: str,
+    errors: list[str],
+) -> None:
+    value = record.get(value_field)
+    if value is None:
+        if record.get(status_field) != "unavailable_from_builtin_image_tool":
+            errors.append(f"{label}.{status_field} must explain the unavailable value")
+    elif not _safe_integer(value) or record.get(status_field) != "reported":
+        errors.append(
+            f"{label}.{value_field} must be an integer and {status_field} must be reported"
+        )
+
+
+def _validate_derivative_generation(
+    sidecar: JsonObject,
+    references: list[str],
+    errors: list[str],
+) -> None:
+    generation = _record(sidecar.get("generation"))
+    if generation is None or set(generation) != {"shared_seed", "compiled_variant"}:
+        errors.append("sidecar.generation must contain shared_seed and compiled_variant records")
+        return
+    shared_seed = _record(generation.get("shared_seed"))
+    compiled = _record(generation.get("compiled_variant"))
+    if shared_seed is None or compiled is None or len(references) != 2:
+        errors.append("sidecar.generation must bind exactly two derivative inputs")
+        return
+    expected_seed_fields = {
+        "tool",
+        "artifact_ref",
+        "reference_refs",
+        "model",
+        "model_status",
+        "numeric_seed",
+        "numeric_seed_status",
+        "attempt_count",
+    }
+    if set(shared_seed) != expected_seed_fields:
+        errors.append("sidecar.generation.shared_seed fields are incomplete or unsupported")
+    if not _stable_text(shared_seed.get("tool")):
+        errors.append("sidecar.generation.shared_seed.tool must be stable")
+    if shared_seed.get("artifact_ref") != references[0]:
+        errors.append("sidecar.generation.shared_seed.artifact_ref must bind the seed input")
+    if shared_seed.get("reference_refs") != []:
+        errors.append("sidecar.generation.shared_seed.reference_refs must be empty")
+    _validate_model_identity(
+        shared_seed,
+        "model",
+        "model_status",
+        "sidecar.generation.shared_seed",
+        errors,
+    )
+    _validate_seed_identity(
+        shared_seed,
+        "numeric_seed",
+        "numeric_seed_status",
+        "sidecar.generation.shared_seed",
+        errors,
+    )
+    seed_attempts = shared_seed.get("attempt_count")
+    if not _positive_safe_integer(seed_attempts) or cast(int, seed_attempts) > 6:
+        errors.append("sidecar.generation.shared_seed.attempt_count must be within [1, 6]")
+
+    expected_compiled_fields = {
+        "artifact_ref",
+        "reference_refs",
+        "canonical_theme_json",
+        "theme_digest",
+        "compiler_provider",
+        "compiler_model",
+        "compiler_version",
+        "compiler_attempt_count",
+        "skill_name",
+        "skill_ref",
+        "skill_sha256",
+        "plan_ref",
+        "plan_sha256",
+        "image_tool",
+        "image_model",
+        "image_model_status",
+        "image_attempt_count",
+        "numeric_seed",
+        "numeric_seed_status",
+        "selected_candidate_attempt",
+        "bounded_image_candidate_regenerations",
+        "raw_selected_source_visual_status",
+    }
+    if set(compiled) != expected_compiled_fields:
+        errors.append("sidecar.generation.compiled_variant fields are incomplete or unsupported")
+    if compiled.get("artifact_ref") != references[1]:
+        errors.append(
+            "sidecar.generation.compiled_variant.artifact_ref must bind the selected input"
+        )
+    if compiled.get("reference_refs") != [references[0]]:
+        errors.append(
+            "sidecar.generation.compiled_variant.reference_refs must bind only the shared seed"
+        )
+    for field in ("compiler_provider", "compiler_model", "skill_name", "image_tool"):
+        if not _stable_text(compiled.get(field)):
+            errors.append(f"sidecar.generation.compiled_variant.{field} must be stable")
+    if not _positive_safe_integer(compiled.get("compiler_version")):
+        errors.append(
+            "sidecar.generation.compiled_variant.compiler_version must be a positive integer"
+        )
+    compiler_attempts = compiled.get("compiler_attempt_count")
+    if not _positive_safe_integer(compiler_attempts) or cast(int, compiler_attempts) > 6:
+        errors.append(
+            "sidecar.generation.compiled_variant.compiler_attempt_count must be within [1, 6]"
+        )
+    image_attempts = compiled.get("image_attempt_count")
+    if not _positive_safe_integer(image_attempts) or cast(int, image_attempts) > 6:
+        errors.append(
+            "sidecar.generation.compiled_variant.image_attempt_count must be within [1, 6]"
+        )
+    selected_candidate = compiled.get("selected_candidate_attempt")
+    if not _positive_safe_integer(selected_candidate):
+        errors.append(
+            "sidecar.generation.compiled_variant.selected_candidate_attempt must be a "
+            "positive integer"
+        )
+    regenerations = compiled.get("bounded_image_candidate_regenerations")
+    if (
+        not _safe_integer(regenerations)
+        or cast(int, regenerations) < 0
+        or cast(int, regenerations) > 2
+    ):
+        errors.append(
+            "sidecar.generation.compiled_variant.bounded_image_candidate_regenerations "
+            "must be within [0, 2]"
+        )
+    elif _positive_safe_integer(selected_candidate) and cast(int, selected_candidate) > (
+        cast(int, regenerations) + 1
+    ):
+        errors.append(
+            "sidecar.generation.compiled_variant.selected_candidate_attempt must not exceed "
+            "the initial candidate plus regenerations"
+        )
+    for digest_field, ref_field in (
+        ("skill_sha256", "skill_ref"),
+        ("plan_sha256", "plan_ref"),
+    ):
+        digest = compiled.get(digest_field)
+        if not _valid_digest(digest):
+            errors.append(
+                f"sidecar.generation.compiled_variant.{digest_field} must be a content digest"
+            )
+        if not isinstance(digest, str) or compiled.get(ref_field) != f"sha256:{digest}":
+            errors.append(
+                f"sidecar.generation.compiled_variant.{ref_field} must match {digest_field}"
+            )
+    _validate_model_identity(
+        compiled,
+        "image_model",
+        "image_model_status",
+        "sidecar.generation.compiled_variant",
+        errors,
+    )
+    _validate_seed_identity(
+        compiled,
+        "numeric_seed",
+        "numeric_seed_status",
+        "sidecar.generation.compiled_variant",
+        errors,
+    )
+    if not _stable_text(compiled.get("raw_selected_source_visual_status")):
+        errors.append(
+            "sidecar.generation.compiled_variant.raw_selected_source_visual_status must be stable"
+        )
+
+    canonical = compiled.get("canonical_theme_json")
+    try:
+        decoded = _record(json.loads(canonical)) if isinstance(canonical, str) else None
+    except json.JSONDecodeError:
+        decoded = None
+    canonical_encoding = (
+        json.dumps(decoded, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+        if decoded is not None
+        else None
+    )
+    handles = _record(decoded.get("handles")) if decoded is not None else None
+    valid_handles = (
+        handles is not None
+        and tuple(handles) == THEME_HANDLE_NAMES
+        and all(
+            _safe_integer(handles.get(name)) and 0 <= cast(int, handles[name]) <= 4
+            for name in THEME_HANDLE_NAMES
+        )
+    )
+    if (
+        decoded is None
+        or canonical_encoding != canonical
+        or decoded.get("schema_version") != 1
+        or decoded.get("compiler_version") != compiled.get("compiler_version")
+        or not valid_handles
+    ):
+        errors.append(
+            "sidecar.generation.compiled_variant.canonical_theme_json must be canonical "
+            "and contain the six validated handles"
+        )
+    skill_name = compiled.get("skill_name")
+    skill_digest = compiled.get("skill_sha256")
+    if (
+        not isinstance(canonical, str)
+        or not isinstance(skill_name, str)
+        or not isinstance(skill_digest, str)
+        or compiled.get("theme_digest")
+        != _theme_identity_digest(canonical, skill_name, skill_digest)
+    ):
+        errors.append(
+            "sidecar.generation.compiled_variant.theme_digest must bind canonical theme "
+            "and compiler skill identity"
+        )
+
+
+def _validate_derivative_review(
+    entry: JsonObject,
+    sidecar: JsonObject,
+    basis: object,
+    errors: list[str],
+) -> None:
+    if entry.get("synth_id_expected") is not False:
+        errors.append(
+            "inventory synth_id_expected must explicitly be false for generated-image derivative"
+        )
+    inventory_review = _record(entry.get("visual_review"))
+    sidecar_review = _record(sidecar.get("visual_review"))
+    if inventory_review is None:
+        errors.append("inventory visual_review is required for generated-image derivative")
+        return
+    if sidecar_review is None:
+        errors.append("sidecar.visual_review is required for generated-image derivative")
+        return
+    artifact = _record(sidecar.get("artifact"))
+    artifact_digest = artifact.get("sha256") if artifact is not None else None
+    artifact_bytes = artifact.get("bytes") if artifact is not None else None
+    shared_fields = (
+        "status",
+        "result",
+        "independent",
+        "reviewed_by",
+        "authority_basis",
+        "reviewed_at",
+        "attestation_id",
+        "attested_at",
+        "artifact_sha256",
+        "artifact_bytes",
+        "verification_report_path",
+        "verification_report_sha256",
+        "verification_report_bytes",
+    )
+    for label, review in (
+        ("inventory visual_review", inventory_review),
+        ("sidecar.visual_review", sidecar_review),
+    ):
+        if review.get("status") != "approved":
+            errors.append(f"{label}.status must be approved")
+        if review.get("result") != VISUAL_REVIEW_RESULT:
+            errors.append(f"{label}.result must be pass")
+        if review.get("independent") is not True:
+            errors.append(f"{label}.independent must be true")
+        if not _stable_text(review.get("reviewed_by")):
+            errors.append(f"{label}.reviewed_by must be a stable reviewer identity or role")
+        if not _stable_text(review.get("authority_basis")):
+            errors.append(f"{label}.authority_basis is required")
+        if not _valid_timestamp(review.get("reviewed_at")):
+            errors.append(f"{label}.reviewed_at must be an ISO UTC timestamp")
+        if review.get("artifact_sha256") != artifact_digest:
+            errors.append(f"{label}.artifact_sha256 must match the artifact")
+        if review.get("artifact_bytes") != artifact_bytes:
+            errors.append(f"{label}.artifact_bytes must match the artifact")
+        report_path = review.get("verification_report_path")
+        if not _safe_relative_path(report_path):
+            errors.append(f"{label}.verification_report_path must be repository-relative")
+        if not _valid_digest(review.get("verification_report_sha256")):
+            errors.append(f"{label}.verification_report_sha256 must be a content digest")
+        if not _positive_safe_integer(review.get("verification_report_bytes")):
+            errors.append(f"{label}.verification_report_bytes must be a positive integer")
+        attestation_id = review.get("attestation_id")
+        if (
+            not _stable_text(attestation_id)
+            or not isinstance(attestation_id, str)
+            or UNSTABLE_REF.search(attestation_id) is not None
+        ):
+            errors.append(f"{label}.attestation_id must be stable")
+        elif not isinstance(basis, list) or attestation_id not in basis:
+            errors.append("sidecar.rights.basis must include the visual attestation identifier")
+        if not _valid_timestamp(review.get("attested_at")) or review.get(
+            "attested_at"
+        ) != review.get("reviewed_at"):
+            errors.append(f"{label}.attested_at must match reviewed_at")
+    for field in shared_fields:
+        if inventory_review.get(field) != sidecar_review.get(field):
+            errors.append(f"inventory and sidecar visual_review.{field} must match")
+    if not _stable_text(sidecar_review.get("acceptance_spec")):
+        errors.append("sidecar.visual_review.acceptance_spec is required")
+    evidence = _record(sidecar_review.get("evidence"))
+    if evidence is None:
+        errors.append("sidecar.visual_review.evidence is required")
+    else:
+        if evidence.get("verdict") != "pass":
+            errors.append("sidecar.visual_review.evidence.verdict must be pass")
+        if evidence.get("path") != sidecar_review.get("verification_report_path"):
+            errors.append("sidecar.visual_review.evidence.path must match the review report")
+        if evidence.get("sha256") != sidecar_review.get("verification_report_sha256"):
+            errors.append("sidecar.visual_review.evidence.sha256 must match the review report")
+        if evidence.get("bytes") != sidecar_review.get("verification_report_bytes"):
+            errors.append("sidecar.visual_review.evidence.bytes must match the review report")
+        digest = evidence.get("sha256")
+        if not isinstance(digest, str) or evidence.get("ref") != f"sha256:{digest}":
+            errors.append("sidecar.visual_review.evidence.ref must match its sha256")
+
+
+def _validate_derivative_metadata(
+    entry: JsonObject,
+    path: str,
+    sidecar: JsonObject,
+    errors: list[str],
+) -> None:
+    if _has_non_lower_snake_key(entry):
+        errors.append("generated-image derivative inventory fields must use lower_snake_case")
+    if _has_non_lower_snake_key(sidecar):
+        errors.append("generated-image derivative sidecar fields must use lower_snake_case")
+    if _contains_forbidden_derivative_material({"entry": entry, "sidecar": sidecar}):
+        errors.append(
+            "generated-image derivative records must not contain private, temporary, file, "
+            "data, authorization, credential, or signed-URL material"
+        )
+    if sidecar.get("provenance_kind") != GENERATED_IMAGE_DERIVATIVE:
+        errors.append("sidecar.provenance_kind must match generated_image_derivative")
+    entry_lineage = entry.get("lineage_kind")
+    sidecar_lineage = sidecar.get("lineage_kind")
+    if entry_lineage != THEME_ART_DIRECTION_COMPARISON:
+        errors.append(
+            "inventory lineage_kind must select supported theme_art_direction_comparison_v1"
+        )
+    if sidecar_lineage != entry_lineage:
+        errors.append("sidecar.lineage_kind must match inventory lineage_kind")
+    theme_subtype = (
+        entry_lineage == THEME_ART_DIRECTION_COMPARISON
+        or sidecar_lineage == THEME_ART_DIRECTION_COMPARISON
+    )
+    if theme_subtype:
+        expected_entry_fields = {
+            "path",
+            "provenance_kind",
+            "lineage_kind",
+            "kind",
+            "sidecar_sha256",
+            "review_status",
+            "synth_id_expected",
+            "visual_review",
+        }
+        expected_sidecar_fields = {
+            "schema_version",
+            "provenance_kind",
+            "lineage_kind",
+            "state",
+            "artifact",
+            "inputs",
+            "generation",
+            "transformation",
+            "visual_review",
+            "rights",
+        }
+        if set(entry) != expected_entry_fields:
+            errors.append(
+                "theme_art_direction_comparison_v1 inventory fields are incomplete or unsupported"
+            )
+        if set(sidecar) != expected_sidecar_fields:
+            errors.append(
+                "theme_art_direction_comparison_v1 sidecar fields are incomplete or unsupported"
+            )
+    if type(sidecar.get("schema_version")) is not int or sidecar.get("schema_version") != 1:
+        errors.append("generated-image derivative sidecar schema_version must be 1")
+    if sidecar.get("state") != "redistribution-approved":
+        errors.append("generated-image derivative sidecar state must be redistribution-approved")
+    artifact = _record(sidecar.get("artifact"))
+    if artifact is not None and artifact.get("path") != path:
+        errors.append("sidecar.artifact.path must match the inventory artifact path")
+    if artifact is not None:
+        for field in ("width", "height"):
+            if not _positive_safe_integer(artifact.get(field)):
+                errors.append(f"sidecar.artifact.{field} must be a positive integer")
+    references = _validate_derivative_inputs(sidecar, errors)
+    if entry_lineage == THEME_ART_DIRECTION_COMPARISON and sidecar_lineage == entry_lineage:
+        _validate_derivative_generation(sidecar, references, errors)
+    _validate_derivative_transformation(sidecar, references, artifact, errors)
+
+
 def _validate_rights(
     entry: JsonObject,
     sidecar: JsonObject,
     *,
     kind: str | None,
+    observed: JsonObject | None,
     errors: list[str],
 ) -> None:
-    if entry.get("reviewStatus") != "repository-approved":
+    derivative = _is_generated_image_derivative(entry)
+    if derivative:
+        if entry.get("review_status") != "repository-approved":
+            errors.append("inventory review_status must be repository-approved")
+    elif entry.get("reviewStatus") != "repository-approved":
         errors.append("inventory reviewStatus must be repository-approved")
     rights = _record(sidecar.get("rights"))
     if rights is None:
@@ -376,6 +1110,17 @@ def _validate_rights(
             errors.append("sidecar.rights.basis cannot rely only on provider provenance")
         if not _valid_timestamp(rights.get("reviewed_at")):
             errors.append("sidecar.rights.reviewed_at must be an ISO UTC timestamp")
+        if derivative:
+            notice_digest = rights.get("notice_sha256")
+            notice_bytes = rights.get("notice_bytes")
+            if not _valid_digest(notice_digest):
+                errors.append("sidecar.rights.notice_sha256 must be a content digest")
+            elif observed is None or notice_digest != observed.get("notice_sha256"):
+                errors.append("sidecar.rights.notice_sha256 must match the adjacent notice")
+            if not _positive_safe_integer(notice_bytes):
+                errors.append("sidecar.rights.notice_bytes must be a positive integer")
+            elif observed is None or notice_bytes != observed.get("notice_bytes"):
+                errors.append("sidecar.rights.notice_bytes must match the adjacent notice")
         if rights.get("license_id") == "BSD-3-Clause":
             errors.append("the repository source license cannot be inherited by generated media")
         if rights.get("license_id") == "CC0-1.0" and not (
@@ -388,7 +1133,9 @@ def _validate_rights(
         ):
             errors.append("CC0 requires an artifact-specific rights-holder dedication basis")
     basis = rights.get("basis") if rights is not None else None
-    if kind == "audio":
+    if derivative:
+        _validate_derivative_review(entry, sidecar, basis, errors)
+    elif kind == "audio":
         _validate_audio_review(entry, basis, errors)
     elif kind in CAPTURE_KINDS:
         _validate_visual_review(entry, basis, errors)
@@ -477,6 +1224,7 @@ def validate_published_media_record(value: object) -> list[str]:
         return ["sidecar must be a JSON object"]
     errors: list[str] = []
     path = cast(str, entry["path"])
+    derivative = _is_generated_image_derivative(entry)
     kind = _media_kind(entry, path, errors)
     observed_digest = observed.get("sha256") if observed is not None else None
     observed_bytes = observed.get("bytes") if observed is not None else None
@@ -491,11 +1239,17 @@ def validate_published_media_record(value: object) -> list[str]:
     if not _positive_safe_integer(artifact_bytes) or artifact_bytes != observed_bytes:
         errors.append("sidecar artifact byte size does not match media bytes")
     _validate_artifact_media_type(path, kind, artifact, errors)
-    if kind == "audio":
+    if derivative:
+        if kind != "image":
+            errors.append("generated_image_derivative provenance requires an image artifact")
+        _validate_derivative_metadata(entry, path, sidecar, errors)
+    elif "provenance_kind" in entry:
+        errors.append("inventory provenance_kind is unsupported")
+    elif kind == "audio":
         _validate_source_inputs(sidecar, errors)
     elif kind in CAPTURE_KINDS:
         _validate_capture_metadata(sidecar, kind, errors)
-    _validate_rights(entry, sidecar, kind=kind, errors=errors)
+    _validate_rights(entry, sidecar, kind=kind, observed=observed, errors=errors)
     return errors
 
 
@@ -562,6 +1316,36 @@ def _validate_capture_source_files(
             )
         elif _valid_digest(digest) and _sha256_file(source_path) != digest:
             failures.append(f"{media_path}: sidecar.capture.{label} digest does not match")
+
+
+def _validate_derivative_review_file(
+    repo: Path,
+    media_path: str,
+    sidecar: JsonObject,
+    failures: list[str],
+) -> None:
+    review = _record(sidecar.get("visual_review"))
+    evidence = _record(review.get("evidence")) if review is not None else None
+    path = evidence.get("path") if evidence is not None else None
+    digest = evidence.get("sha256") if evidence is not None else None
+    byte_count = evidence.get("bytes") if evidence is not None else None
+    if not _safe_repo_path(repo, path) or path == media_path:
+        failures.append(f"{media_path}: sidecar.visual_review.evidence.path is unsafe")
+        return
+    evidence_path = repo / cast(str, path)
+    try:
+        evidence_path.lstat()
+    except OSError:
+        failures.append(f"{media_path}: visual review evidence file is missing")
+        return
+    if evidence_path.is_symlink() or not evidence_path.is_file():
+        failures.append(f"{media_path}: visual review evidence must be a regular file")
+        return
+    evidence_bytes = evidence_path.read_bytes()
+    if not _valid_digest(digest) or hashlib.sha256(evidence_bytes).hexdigest() != digest:
+        failures.append(f"{media_path}: visual review evidence digest does not match")
+    if not _positive_safe_integer(byte_count) or len(evidence_bytes) != byte_count:
+        failures.append(f"{media_path}: visual review evidence byte size does not match")
 
 
 def _discover_media(repo: Path, roots: list[object], failures: list[str]) -> list[str]:
@@ -658,9 +1442,22 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             "sha256": _sha256_file(absolute),
             "sidecarSha256": hashlib.sha256(sidecar_bytes).hexdigest(),
             "noticeSha256": None,
+            "notice_sha256": None,
+            "notice_bytes": None,
         }
         kind = _media_kind(entry, path, [])
-        if kind in CAPTURE_KINDS:
+        derivative = _is_generated_image_derivative(entry)
+        if derivative:
+            inventory_sidecar_digest = entry.get("sidecar_sha256")
+            if not _valid_digest(inventory_sidecar_digest):
+                failures.append(
+                    f"{path}: inventory sidecar_sha256 is required for generated-image derivative"
+                )
+            elif inventory_sidecar_digest != observed["sidecarSha256"]:
+                failures.append(
+                    f"{path}: inventory sidecar_sha256 does not match adjacent provenance sidecar"
+                )
+        elif kind in CAPTURE_KINDS:
             inventory_sidecar_digest = entry.get("sidecarSha256")
             if not _valid_digest(inventory_sidecar_digest):
                 failures.append(f"{path}: inventory sidecarSha256 is required for browser capture")
@@ -680,14 +1477,18 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
                 failures.append(f"{path}: sidecar rights notice must be a regular file")
             else:
                 observed["noticeSha256"] = _sha256_file(notice_path)
-                if kind in CAPTURE_KINDS and rights is not None:
+                observed["notice_sha256"] = observed["noticeSha256"]
+                observed["notice_bytes"] = notice_path.stat().st_size
+                if kind in CAPTURE_KINDS and not derivative and rights is not None:
                     license_id = rights.get("license_id")
                     if isinstance(license_id, str):
                         capture_notice_paths_by_license.setdefault(license_id, set()).add(
                             notice_path.relative_to(repo).as_posix()
                         )
         observations[path] = observed
-        if kind in CAPTURE_KINDS:
+        if derivative:
+            _validate_derivative_review_file(repo, path, sidecar, failures)
+        elif kind in CAPTURE_KINDS:
             _validate_capture_source_files(repo, path, sidecar, failures)
         for failure in validate_published_media_record(
             {"entry": entry, "observed": observed, "sidecar": sidecar}

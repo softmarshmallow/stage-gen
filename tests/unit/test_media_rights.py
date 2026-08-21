@@ -149,6 +149,426 @@ def test_requires_generated_media_copies_to_remain_byte_identical() -> None:
     assert "provenance sidecar must match copyOf exactly" in failures
 
 
+def _generated_derivative_record() -> dict[str, Any]:
+    artifact_digest = "a" * 64
+    review_digest = "b" * 64
+    notice_digest = "9" * 64
+    attestation = "independent-generated-derivative-review-a"
+    skill_name = "compile-theme-art-direction"
+    skill_digest = "f" * 64
+    canonical_theme = json.dumps(
+        {
+            "schema_version": 1,
+            "compiler_version": 6,
+            "handles": {
+                "sexual_content": 4,
+                "nudity_exposure": 4,
+                "hostile_action": 0,
+                "injury_detail": 0,
+                "substance_depiction": 0,
+                "threat_disturbance": 0,
+            },
+        },
+        separators=(",", ":"),
+    )
+    theme_digest = hashlib.sha256(
+        json.dumps(
+            {
+                "canonical_theme_json": canonical_theme,
+                "theme_skill_name": skill_name,
+                "theme_skill_sha256": skill_digest,
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    prompts = (
+        "Original neutral shared-seed prompt with exact punctuation.",
+        "Exact reference-edit prompt.\nIt preserves its final newline.\n",
+    )
+    inputs = []
+    for index, (role, digest, prompt) in enumerate(
+        zip(
+            ("neutral_shared_seed", "compiled_maximum_candidate"),
+            ("c" * 64, "d" * 64),
+            prompts,
+            strict=True,
+        )
+    ):
+        reference = f"sha256:{digest}"
+        inputs.append(
+            {
+                "role": role,
+                "ref": reference,
+                "sha256": digest,
+                "bytes": 1024 + index,
+                "media_type": "image/png",
+                "width": 1024,
+                "height": 1536,
+                "original_prompt": prompt,
+                "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                "prompt_hash_scope": "full_exact_utf8_string",
+                "rights_basis": [
+                    f"Artifact-specific source authorization for exact bytes {reference}"
+                ],
+            }
+        )
+    shared_review = {
+        "status": "approved",
+        "result": "pass",
+        "independent": True,
+        "reviewed_by": "independent visual-review subagent",
+        "authority_basis": "reviewer independent from the derivative producer",
+        "reviewed_at": "2026-08-20T00:00:00.000Z",
+        "attestation_id": attestation,
+        "attested_at": "2026-08-20T00:00:00.000Z",
+        "artifact_sha256": artifact_digest,
+        "artifact_bytes": 2048,
+        "verification_report_path": "docs/media/example.visual-review.md",
+        "verification_report_sha256": review_digest,
+        "verification_report_bytes": 128,
+    }
+    return {
+        "entry": {
+            "path": "docs/media/example.webp",
+            "provenance_kind": "generated_image_derivative",
+            "lineage_kind": "theme_art_direction_comparison_v1",
+            "kind": "image",
+            "sidecar_sha256": "e" * 64,
+            "review_status": "repository-approved",
+            "synth_id_expected": False,
+            "visual_review": copy.deepcopy(shared_review),
+        },
+        "observed": {
+            "sha256": artifact_digest,
+            "bytes": 2048,
+            "notice_sha256": notice_digest,
+            "notice_bytes": 64,
+        },
+        "sidecar": {
+            "schema_version": 1,
+            "provenance_kind": "generated_image_derivative",
+            "lineage_kind": "theme_art_direction_comparison_v1",
+            "state": "redistribution-approved",
+            "artifact": {
+                "path": "docs/media/example.webp",
+                "media_type": "image/webp",
+                "width": 1200,
+                "height": 1200,
+                "sha256": artifact_digest,
+                "bytes": 2048,
+            },
+            "inputs": inputs,
+            "generation": {
+                "shared_seed": {
+                    "tool": "image_gen.imagegen",
+                    "artifact_ref": inputs[0]["ref"],
+                    "reference_refs": [],
+                    "model": None,
+                    "model_status": "unavailable_from_builtin_image_tool",
+                    "numeric_seed": None,
+                    "numeric_seed_status": "unavailable_from_builtin_image_tool",
+                    "attempt_count": 1,
+                },
+                "compiled_variant": {
+                    "artifact_ref": inputs[1]["ref"],
+                    "reference_refs": [inputs[0]["ref"]],
+                    "canonical_theme_json": canonical_theme,
+                    "theme_digest": theme_digest,
+                    "compiler_provider": "OpenRouter",
+                    "compiler_model": "openai/gpt-5.6",
+                    "compiler_version": 6,
+                    "compiler_attempt_count": 5,
+                    "skill_name": skill_name,
+                    "skill_ref": f"sha256:{skill_digest}",
+                    "skill_sha256": skill_digest,
+                    "plan_ref": f"sha256:{'8' * 64}",
+                    "plan_sha256": "8" * 64,
+                    "image_tool": "image_gen.imagegen",
+                    "image_model": None,
+                    "image_model_status": "unavailable_from_builtin_image_tool",
+                    "image_attempt_count": 1,
+                    "numeric_seed": None,
+                    "numeric_seed_status": "unavailable_from_builtin_image_tool",
+                    "selected_candidate_attempt": 1,
+                    "bounded_image_candidate_regenerations": 2,
+                    "raw_selected_source_visual_status": "fail_readable_generated_signage",
+                },
+            },
+            "transformation": {
+                "tool": "ffmpeg+cwebp",
+                "version": "ffmpeg 8.0.1; cwebp 1.6.0",
+                "params": {
+                    "operation": "crop_append_resize_encode",
+                    "input_refs": [source["ref"] for source in inputs],
+                    "output": {
+                        "media_type": "image/webp",
+                        "width": 1200,
+                        "height": 1200,
+                    },
+                    "quality": 82,
+                },
+            },
+            "visual_review": {
+                **copy.deepcopy(shared_review),
+                "acceptance_spec": "Exact derivative composition with no readable text.",
+                "evidence": {
+                    "path": shared_review["verification_report_path"],
+                    "verdict": "pass",
+                    "ref": f"sha256:{review_digest}",
+                    "sha256": review_digest,
+                    "bytes": shared_review["verification_report_bytes"],
+                },
+            },
+            "rights": {
+                "status": "redistribution-approved",
+                "notice": "example.LICENSE.md",
+                "notice_sha256": notice_digest,
+                "notice_bytes": 64,
+                "license_id": "LicenseRef-Synthetic-Generated-Derivative",
+                "basis": ["Artifact-specific publication authorization", attestation],
+                "reviewed_at": "2026-08-20T00:00:00.000Z",
+            },
+        },
+    }
+
+
+def test_accepts_generated_image_derivative_without_tracked_raw_sources() -> None:
+    assert validate_published_media_record(_generated_derivative_record()) == []
+
+
+def test_generated_image_derivative_rejects_camel_case_temp_refs_and_missing_source_facts() -> None:
+    value = _generated_derivative_record()
+    value["entry"]["reviewStatus"] = value["entry"].pop("review_status")
+    value["sidecar"]["visualReview"] = value["sidecar"].pop("visual_review")
+    source = value["sidecar"]["inputs"][0]
+    source["ref"] = "file:/private/tmp/seed.png"
+    del source["original_prompt"]
+    del source["rights_basis"]
+    value["sidecar"]["capture"] = {}
+    value["sidecar"]["transformation"]["params"]["working_path"] = "/private/tmp/output.webp"
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "generated-image derivative inventory fields must use lower_snake_case",
+        "generated-image derivative sidecar fields must use lower_snake_case",
+        "inventory review_status must be repository-approved",
+        "sidecar.inputs[0].ref must match its sha256 content identifier",
+        "sidecar.inputs[0].original_prompt must contain the full prompt",
+        "sidecar.inputs[0].rights_basis must contain source-specific reviewed values",
+        "generated-image derivative sidecar must use transformation, never capture",
+        "sidecar.transformation.params must not contain private or temporary paths",
+        "sidecar.visual_review is required for generated-image derivative",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_image_derivative_rejects_prompt_digest_rights_and_review_mismatches() -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["inputs"][1]["prompt_sha256"] = "0" * 64
+    value["sidecar"]["inputs"][1]["rights_basis"] = ["Generic provider provenance"]
+    value["sidecar"]["visual_review"]["artifact_sha256"] = "1" * 64
+    value["sidecar"]["visual_review"]["evidence"]["sha256"] = "2" * 64
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "sidecar.inputs[1].prompt_sha256 must digest the full exact UTF-8 prompt",
+        "sidecar.inputs[1].rights_basis must bind the exact source content identifier",
+        "sidecar.visual_review.artifact_sha256 must match the artifact",
+        "inventory and sidecar visual_review.artifact_sha256 must match",
+        "sidecar.visual_review.evidence.sha256 must match the review report",
+        "sidecar.visual_review.evidence.ref must match its sha256",
+    }
+    assert expected <= set(failures)
+
+    missing_rights = _generated_derivative_record()
+    del missing_rights["sidecar"]["rights"]
+    assert (
+        "sidecar.rights is required for repository publication"
+        in validate_published_media_record(missing_rights)
+    )
+
+
+def test_generated_image_derivative_rejects_unbound_generation_and_notice_facts() -> None:
+    value = _generated_derivative_record()
+    compiled = value["sidecar"]["generation"]["compiled_variant"]
+    compiled["reference_refs"] = []
+    compiled["theme_digest"] = "0" * 64
+    value["sidecar"]["rights"]["notice_sha256"] = "1" * 64
+    value["sidecar"]["rights"]["notice_bytes"] = 65
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "sidecar.generation.compiled_variant.reference_refs must bind only the shared seed",
+        (
+            "sidecar.generation.compiled_variant.theme_digest must bind canonical theme "
+            "and compiler skill identity"
+        ),
+        "sidecar.rights.notice_sha256 must match the adjacent notice",
+        "sidecar.rights.notice_bytes must match the adjacent notice",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_image_derivative_accepts_a_stable_human_reviewer_identity() -> None:
+    value = _generated_derivative_record()
+    for review in (value["entry"]["visual_review"], value["sidecar"]["visual_review"]):
+        review["reviewed_by"] = "Ada Reviewer, independent human reviewer"
+
+    assert validate_published_media_record(value) == []
+
+
+@pytest.mark.parametrize(
+    "unsafe_value",
+    (
+        "private source at /home/alice/reference.png",
+        "private key at /root/.ssh/id_ed25519",
+        "system path /etc/passwd",
+        "delimiter path source,/etc/passwd",
+        "delimiter path source;/etc/passwd",
+        "home path ~/.ssh/config",
+        "home shorthand ~",
+        "temporary source at tmp/reference.png",
+        "relative URI file:relative.png",
+        "Windows path C:/Users/alice/reference.png",
+        r"Windows path C:\Users\alice\reference.png",
+        "https://alice:supersecret@example.invalid/reference.png",
+        "https://assets.example.invalid/image.png?X-Amz-Signature=secret",
+        "https://assets.example.invalid/image.png?password=secret",
+        "https://assets.example.invalid/image.png?client_secret=secret",
+        "Authorization: Bearer abcdefghijklmnop",
+        "Authorization: Basic YWxpY2U6c2VjcmV0",
+        "data:image/png;base64,AAAA",
+    ),
+)
+def test_generated_image_derivative_rejects_forbidden_material_anywhere(
+    unsafe_value: str,
+) -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["visual_review"]["acceptance_spec"] = unsafe_value
+
+    assert (
+        "generated-image derivative records must not contain private, temporary, file, "
+        "data, authorization, credential, or signed-URL material"
+        in validate_published_media_record(value)
+    )
+
+
+@pytest.mark.parametrize(
+    "sensitive_key",
+    (
+        "openrouter_api_key",
+        "api_token",
+        "client_secret",
+        "secret_key",
+        "private_key",
+        "authorization",
+    ),
+)
+def test_generated_image_derivative_rejects_nested_sensitive_fields(
+    sensitive_key: str,
+) -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["visual_review"]["evidence"][sensitive_key] = "sensitive-value"
+
+    assert (
+        "generated-image derivative records must not contain private, temporary, file, "
+        "data, authorization, credential, or signed-URL material"
+        in validate_published_media_record(value)
+    )
+
+
+def test_generated_image_derivative_accepts_a_benign_public_https_url() -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["visual_review"]["acceptance_spec"] = (
+        "Public reference https://example.invalid/reference.png?version=1"
+    )
+
+    assert validate_published_media_record(value) == []
+
+
+def test_generated_image_derivative_accepts_benign_path_and_authorization_prose() -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["visual_review"]["acceptance_spec"] = (
+        "Compare crop / framing treatments. Authorization: approved by project owner"
+    )
+
+    assert validate_published_media_record(value) == []
+
+
+def test_generated_image_derivative_rejects_invalid_model_attempt_and_candidate_facts() -> None:
+    value = _generated_derivative_record()
+    seed = value["sidecar"]["generation"]["shared_seed"]
+    compiled = value["sidecar"]["generation"]["compiled_variant"]
+    seed["model"] = "reported-image-model"
+    seed["model_status"] = "unavailable_from_builtin_image_tool"
+    seed["attempt_count"] = 7
+    compiled["compiler_attempt_count"] = 7
+    compiled["image_attempt_count"] = 7
+    compiled["selected_candidate_attempt"] = 4
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        ("sidecar.generation.shared_seed.model must be stable and model_status must be reported"),
+        "sidecar.generation.shared_seed.attempt_count must be within [1, 6]",
+        ("sidecar.generation.compiled_variant.compiler_attempt_count must be within [1, 6]"),
+        "sidecar.generation.compiled_variant.image_attempt_count must be within [1, 6]",
+        (
+            "sidecar.generation.compiled_variant.selected_candidate_attempt must not "
+            "exceed the initial candidate plus regenerations"
+        ),
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_image_derivative_rejects_bad_artifact_and_output_dimensions() -> None:
+    value = _generated_derivative_record()
+    value["sidecar"]["artifact"]["width"] = 0
+    value["sidecar"]["transformation"]["params"]["output"]["width"] = 0
+
+    failures = validate_published_media_record(value)
+
+    assert "sidecar.artifact.width must be a positive integer" in failures
+    assert "sidecar.transformation.params.output.width must be a positive integer" in failures
+
+
+def test_generated_image_derivative_rejects_missing_or_unsupported_lineage_kind() -> None:
+    missing = _generated_derivative_record()
+    del missing["entry"]["lineage_kind"]
+    del missing["sidecar"]["lineage_kind"]
+    assert (
+        "inventory lineage_kind must select supported theme_art_direction_comparison_v1"
+        in validate_published_media_record(missing)
+    )
+
+    unsupported = _generated_derivative_record()
+    unsupported["entry"]["lineage_kind"] = "unknown_derivative_v1"
+    unsupported["sidecar"]["lineage_kind"] = "unknown_derivative_v1"
+    assert (
+        "inventory lineage_kind must select supported theme_art_direction_comparison_v1"
+        in validate_published_media_record(unsupported)
+    )
+
+
+def test_theme_art_direction_subtype_rejects_unknown_top_level_fields() -> None:
+    value = _generated_derivative_record()
+    value["entry"]["extra_field"] = "unsupported"
+    value["sidecar"]["extra_field"] = "unsupported"
+
+    failures = validate_published_media_record(value)
+
+    assert (
+        "theme_art_direction_comparison_v1 inventory fields are incomplete or unsupported"
+        in failures
+    )
+    assert (
+        "theme_art_direction_comparison_v1 sidecar fields are incomplete or unsupported" in failures
+    )
+
+
 def _write_synthetic_publication(repo: Path) -> tuple[Path, Path]:
     media_root = repo / "media"
     media_root.mkdir()
@@ -183,6 +603,68 @@ def _write_synthetic_publication(repo: Path) -> tuple[Path, Path]:
     return inventory, artifact
 
 
+def _write_generated_derivative_publication(repo: Path) -> tuple[Path, Path, Path, Path]:
+    record = _generated_derivative_record()
+    media_root = repo / "docs/media"
+    media_root.mkdir(parents=True)
+    artifact = media_root / "example.webp"
+    artifact_bytes = b"synthetic derivative bytes; not encoded media"
+    artifact.write_bytes(artifact_bytes)
+    artifact_digest = hashlib.sha256(artifact_bytes).hexdigest()
+    review_path = media_root / "example.visual-review.md"
+    review_bytes = b"Artifact-bound independent review: pass."
+    review_path.write_bytes(review_bytes)
+    review_digest = hashlib.sha256(review_bytes).hexdigest()
+    notice = media_root / "example.LICENSE.md"
+    notice.write_text("Synthetic artifact-specific permission.", encoding="utf-8")
+    notice_bytes = notice.read_bytes()
+    record["observed"] = {
+        "sha256": artifact_digest,
+        "bytes": len(artifact_bytes),
+        "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
+        "notice_bytes": len(notice_bytes),
+    }
+    record["sidecar"]["artifact"].update({"sha256": artifact_digest, "bytes": len(artifact_bytes)})
+    record["sidecar"]["rights"].update(
+        {
+            "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
+            "notice_bytes": len(notice_bytes),
+        }
+    )
+    for review in (record["entry"]["visual_review"], record["sidecar"]["visual_review"]):
+        review.update(
+            {
+                "artifact_sha256": artifact_digest,
+                "artifact_bytes": len(artifact_bytes),
+                "verification_report_sha256": review_digest,
+                "verification_report_bytes": len(review_bytes),
+            }
+        )
+    record["sidecar"]["visual_review"]["evidence"].update(
+        {
+            "ref": f"sha256:{review_digest}",
+            "sha256": review_digest,
+            "bytes": len(review_bytes),
+        }
+    )
+    sidecar_path = Path(f"{artifact}.meta.json")
+    sidecar_bytes = json.dumps(record["sidecar"], indent=2).encode("utf-8")
+    sidecar_path.write_bytes(sidecar_bytes)
+    record["entry"]["sidecar_sha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
+    inventory = repo / "docs/generated-media-inventory.json"
+    inventory.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "roots": ["docs/media"],
+                "media": [record["entry"]],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return inventory, artifact, sidecar_path, review_path
+
+
 def test_publication_discovery_validates_bytes_sidecar_notice_and_inventory(
     tmp_path: Path,
 ) -> None:
@@ -193,6 +675,26 @@ def test_publication_discovery_validates_bytes_sidecar_notice_and_inventory(
     failures = check_generated_media_publication(tmp_path, inventory).failures
     assert any("sidecar artifact digest does not match media bytes" in item for item in failures)
     assert any("sidecar artifact byte size does not match media bytes" in item for item in failures)
+
+
+def test_generated_derivative_publication_binds_review_and_sidecar_without_raw_sources(
+    tmp_path: Path,
+) -> None:
+    inventory, _artifact, sidecar, review = _write_generated_derivative_publication(tmp_path)
+    assert check_generated_media_publication(tmp_path, inventory).failures == ()
+
+    review.write_text("changed review evidence", encoding="utf-8")
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+    assert any("visual review evidence digest does not match" in item for item in failures)
+    assert any("visual review evidence byte size does not match" in item for item in failures)
+
+    review.write_bytes(b"Artifact-bound independent review: pass.")
+    sidecar.write_bytes(sidecar.read_bytes() + b"\n")
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+    assert any(
+        "inventory sidecar_sha256 does not match adjacent provenance sidecar" in item
+        for item in failures
+    )
 
 
 def test_publication_discovery_rejects_unlisted_media_and_symlinks(tmp_path: Path) -> None:
@@ -629,12 +1131,49 @@ def test_media_git_size_limits_are_enforced_without_large_fixtures() -> None:
         )
 
 
+def test_current_theme_art_direction_derivative_is_exactly_bound() -> None:
+    repository = Path(__file__).parents[2]
+    inventory = cast(
+        dict[str, Any],
+        json.loads(
+            (repository / "docs/generated-media-inventory.json").read_text(encoding="utf-8")
+        ),
+    )
+    entry = next(
+        item
+        for item in cast(list[dict[str, Any]], inventory["media"])
+        if item.get("provenance_kind") == "generated_image_derivative"
+    )
+    artifact = repository / cast(str, entry["path"])
+    sidecar_path = Path(f"{artifact}.meta.json")
+    sidecar_bytes = sidecar_path.read_bytes()
+    sidecar = cast(dict[str, Any], json.loads(sidecar_bytes.decode("utf-8")))
+    notice = artifact.parent / cast(str, sidecar["rights"]["notice"])
+    observed = {
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "bytes": artifact.stat().st_size,
+        "notice_sha256": hashlib.sha256(notice.read_bytes()).hexdigest(),
+        "notice_bytes": notice.stat().st_size,
+    }
+
+    assert entry["sidecar_sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
+    assert (
+        validate_published_media_record({"entry": entry, "observed": observed, "sidecar": sidecar})
+        == []
+    )
+    report = repository / cast(str, sidecar["visual_review"]["evidence"]["path"])
+    assert (
+        sidecar["visual_review"]["evidence"]["sha256"]
+        == hashlib.sha256(report.read_bytes()).hexdigest()
+    )
+
+
 def test_current_repository_generated_media_inventory_remains_strictly_valid() -> None:
     repository = Path(__file__).parents[2]
     inventory_path = repository / "docs/generated-media-inventory.json"
     result = check_generated_media_publication(repository, inventory_path)
     assert result.failures == ()
-    assert result.media_count == 5
+    assert result.media_count == 6
 
     inventory = cast(dict[str, Any], json.loads(inventory_path.read_text(encoding="utf-8")))
     entries = {entry["path"]: entry for entry in cast(list[dict[str, Any]], inventory["media"])}

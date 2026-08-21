@@ -4,6 +4,9 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Theme art-direction controls](theme-art-direction.md) — optional numeric
+  content handles, LLM-in-the-middle compilation, prompt boundaries, and a
+  shared-seed case study with its strict visual-review result.
 - [Authored character library](character-library.md) — strict TOML/JSON profile
   authoring, CLI validation/digest commands, canonical JSON identity, portable
   references, and rights ownership.

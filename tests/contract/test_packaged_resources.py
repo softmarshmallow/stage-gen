@@ -177,6 +177,7 @@ from stage_gen.resources import (
     required_resource_paths,
     theme_compiler_skill_path,
 )
+from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
@@ -186,6 +187,10 @@ assert image_template_dir().is_dir()
 assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
     "---\\nname: compile-theme-art-direction\\n"
 )
+skill = load_theme_compiler_skill()
+assert skill.name == "compile-theme-art-direction"
+assert skill.body.startswith("# Compile Theme Art Direction\\n")
+assert len(skill.sha256) == 64
 style_resources = load_image_style_resources()
 assert image_style_skill_path().read_text(encoding="utf-8").startswith(
     "---\\nname: anchor-image-style\\n"
