@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "kind": "dialogue-theme-request-v2",
+  "scene_brief": "After an evening graduate seminar in a coastal university study lounge",
+  "appearance": {
+    "id": "mio-amamiya-astronomy-researcher",
+    "label": "Mio Amamiya",
+    "age": 23,
+    "role": "Graduate astronomy researcher",
+    "description": "An adult woman with a dark-indigo shoulder-length bob, teal-gray eyes, a small gold star hairpin, a navy research cardigan, an ivory mock-neck blouse, and an amber pendant",
+    "concept": {
+      "mode": "generate",
+      "description": "Original clean Japanese anime visual-novel character direction with crisp 2D cel shading, adult proportions, and a polished contemporary university design"
+    }
+  },
+  "background": {
+    "mode": "generate",
+    "description": "An upscale coastal university graduate study lounge after an evening seminar, blue-hour windows, warm task lamps, no people"
+  },
+  "dialogue": [
+    {
+      "id": "stayed-after-seminar",
+      "speaker": "Mio",
+      "text": "You stayed after the graduate seminar. I was hoping you would.",
+      "expression_state": "neutral"
+    },
+    {
+      "id": "admit-the-invitation",
+      "speaker": "You",
+      "text": "We're both adults, Mio. You can admit reserving the study lounge was an excuse to spend time with me.",
+      "expression_state": "neutral"
+    },
+    {
+      "id": "confident-answer",
+      "speaker": "Mio",
+      "text": "Confident. I like that. And yes—I wanted a little time with you after class.",
+      "expression_state": "delighted"
+    },
+    {
+      "id": "wanted-the-same",
+      "speaker": "You",
+      "text": "Good. I spent the whole seminar trying not to make it obvious that I wanted the same thing.",
+      "expression_state": "flustered"
+    },
+    {
+      "id": "charming-failure",
+      "speaker": "Mio",
+      "text": "You failed, by the way. I noticed. It was charming.",
+      "expression_state": "flustered"
+    },
+    {
+      "id": "missing-citation",
+      "speaker": "Mio",
+      "text": "Hold that thought—my seminar draft just lost a citation. Help me check our shared notes?",
+      "expression_state": "concerned"
+    },
+    {
+      "id": "second-date-plan",
+      "speaker": "You",
+      "text": "Of course. Then you can tell me where we're going for our second date.",
+      "expression_state": "concerned"
+    },
+    {
+      "id": "late-coffee",
+      "speaker": "Mio",
+      "text": "Deal. Find the citation with me, and late coffee downstairs is officially date number two.",
+      "expression_state": "delighted"
+    }
+  ],
+  "presentation": {
+    "slot": "right",
+    "framing_zoom": 70,
+    "source_framing_zoom": 70
+  },
+  "transparency_mode": "ai"
+}

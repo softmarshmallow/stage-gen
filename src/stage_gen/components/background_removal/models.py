@@ -71,6 +71,7 @@ class BackgroundRemovalRequest:
     timeout_seconds: float | None = None
     cancellation: CancellationToken | None = None
     validate: BackgroundValidator | None = None
+    provenance_schema_version: Literal[1, 2] = 1
 
     def __post_init__(self) -> None:
         if not self.image_url.strip():
@@ -106,6 +107,8 @@ class BackgroundRemovalRequest:
             if not isinstance(value, bool):
                 raise ValueError(f"{label} must be a boolean")
         validate_optional_timeout(self.timeout_seconds)
+        if self.provenance_schema_version not in {1, 2}:
+            raise ValueError("provenance_schema_version must be 1 or 2")
 
 
 @dataclass(frozen=True, slots=True)

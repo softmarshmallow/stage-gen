@@ -13,7 +13,7 @@ async def _delegate(stage_name: str, context: StageContext) -> Sequence[str]:
         raise RuntimeError(
             f"scrolling-preview stage {stage_name} requires a composed recipe runtime"
         )
-    return await context.runtime.run_scrolling_preview_stage(stage_name, context)
+    return await context.runtime.run_recipe_stage("scrolling-preview", stage_name, context)
 
 
 async def _concept(context: StageContext) -> Sequence[str]:
@@ -44,7 +44,7 @@ async def _manifest(context: StageContext) -> Sequence[str]:
     # repository fallback + manifest assembler directly.
     if context.runtime is not None:
         try:
-            return await context.runtime.run_scrolling_preview_stage("manifest", context)
+            return await context.runtime.run_recipe_stage("scrolling-preview", "manifest", context)
         except NotImplementedError:
             pass
     result = await write_scrolling_preview_manifest(

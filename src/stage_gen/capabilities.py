@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from stage_gen.config import StageGenConfig, assert_capabilities
-from stage_gen.recipes.base import RecipeRuntime, StageContext
+from stage_gen.recipes.base import RecipeRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,10 +45,6 @@ class HeadlessRuntime(RecipeRuntime, Protocol):
     async def generate_music(
         self, *, prompt: str, output_path: str, output_format: str
     ) -> CapabilityArtifactResult: ...
-
-    async def run_scrolling_preview_stage(
-        self, stage_name: str, context: StageContext
-    ) -> Sequence[str]: ...
 
 
 async def generate_image_artifact(

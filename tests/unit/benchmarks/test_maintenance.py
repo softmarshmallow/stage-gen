@@ -27,9 +27,10 @@ class _TilesetRuntime:
     def __init__(self) -> None:
         self.context: StageContext | None = None
 
-    async def run_scrolling_preview_stage(
-        self, stage_name: str, context: StageContext
+    async def run_recipe_stage(
+        self, recipe_id: str, stage_name: str, context: StageContext
     ) -> tuple[str, str]:
+        assert recipe_id == "scrolling-preview"
         assert stage_name == "maintenance-regenerate-tileset"
         self.context = context
         output = context.run_dir / f"tileset_{context.tag}.png"

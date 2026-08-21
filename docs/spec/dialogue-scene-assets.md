@@ -1,210 +1,182 @@
 # Visual Novel Scene Kit: dialogue-scene asset contract
 
-> **Status: planned headless recipe.** This document defines the intended
-> contract for a sibling recipe. The Python `dialogue-scene` recipe and its
-> source directories do not exist yet. A deterministic browser demo exists,
-> but nothing here claims a working provider path or generated recipe output.
+> **Status: implemented v2 headless recipe.** The Python `dialogue-scene`
+> recipe generates a portable, provider-neutral bundle. The web application is
+> a consumer adapter and never generates assets.
 
-The **Visual Novel Scene Kit** is an asset-centric name for a small dialogue
-scene package. It does not imply that `stage-gen` writes a visual novel. The
-headless recipe id is `dialogue-scene`.
+The first slice packages one adult character identity, one required scene
+background, four static expression sprites, caller-authored dialogue, and
+presentation data. It does not own story generation, branching, relationship
+state, animation, rigging, lip sync, or a game runtime.
 
-## Vocabulary and boundary
+## Ownership and boundary
 
-- **appearance** is the visual identity of the one character in the first
-  slice: silhouette, proportions, clothing, palette, and other continuity
-  constraints. It excludes personality, biography, and plot.
-- **appearance concept** is either caller-supplied concept art or a new concept
-  generated from the appearance description. It is a design reference, not a
-  runtime pose.
-- **character sprite** is the reusable transparent foreground layer for one
-  appearance. “Portrait” or “standing sprite” may describe its framing or
-  layout role, but neither implies one file or animation.
-- **expression variant** is one static character-sprite asset for the same
-  appearance, wardrobe, and scene pose, distinguished by a stable state id and
-  a deliberately authored facial expression or small gesture. It is also
-  reasonable to call the runtime selection a **sprite state**.
-- **expression set** is the unordered collection of expression variants for an
-  appearance. Variants do not carry frame numbers, durations, transitions, or
-  interpolation. Dialogue beats select a state; they do not advance an
-  animation timeline.
-- **scene brief** is caller-authored visual direction for one composition:
-  setting, framing, pose, expression, gaze, mood, and placement. It may carry
-  caller-authored dialogue, but the recipe does not invent or improve story.
-- **background** is the scene plate behind the character sprite. Whether the
-  first slice only accepts a supplied/reference asset or may also generate one
-  is an open product decision.
+| Location                                | Responsibility                                                                                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/stage_gen/recipes/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v2 models, stage graph, cache identity, validation, and bundle assembly.                                              |
+| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, and background removal with one six-attempt retry owner.                                                                    |
+| `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms.                                                                                                                                 |
+| `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
+| `web/`                                  | Strict bundle validation, immutable installation, projection into web runtime objects, activation, status, and rollback. It never imports Python recipe internals or calls providers. |
 
-The committed first slice produces or reuses one appearance concept, derives
-one strict scene specification, and produces a finite static expression set.
-The implemented fixture demonstrates `neutral`, `delighted`, `flustered`, and
-`concerned` states. It does not generate story, own narrative state, produce
-character animation, rigging, interpolation, lip sync, a production scene
-editor, or a game runtime. Deferred motion approaches are isolated in
-[Dialogue-scene animation research](../dialogue-scene-animation.md).
+`dialogue-scene` is a sibling of `scrolling-preview`, not a mode within it.
+Recipe vocabulary and visual assumptions do not enter generic components; web
+camera, UI, and gameplay assumptions do not enter the producer bundle.
 
-## Open product decisions and proposed defaults
+## Public request: `dialogue-theme-request-v2`
 
-Two data-shape decisions remain with the owner:
+The JSON or TOML input is strict. Every application-owned key is
+lower_snake_case; v1, camelCase, unknown keys, and implicit aliases are
+rejected.
 
-- **Background source.** Proposed default: accept a supplied/reference
-  background, or no background for an asset-only run, before requiring a new
-  generation stage. If background generation is selected, it must be an
-  explicit headless recipe stage with the same validation and provenance as
-  every other image artifact.
-- **Choice events.** Proposed default: allow caller-authored choice labels and
-  opaque event payloads to pass through `sceneData`, while the host application
-  owns destination lookup, branching, relationship values, persistence, and
-  all other narrative state. The recipe never invents choice copy or outcomes.
+```json
+{
+  "schema_version": 2,
+  "kind": "dialogue-theme-request-v2",
+  "scene_brief": "Adult university study lounge after a graduate seminar",
+  "appearance": {
+    "id": "mio-researcher",
+    "label": "Mio",
+    "age": 23,
+    "role": "Graduate researcher",
+    "description": "Adult woman in a navy cardigan",
+    "concept": {
+      "mode": "generate",
+      "description": "Original clean Japanese anime visual-novel character direction"
+    }
+  },
+  "background": {
+    "mode": "generate",
+    "description": "Evening university study lounge with no people"
+  },
+  "dialogue": [
+    {
+      "id": "opening",
+      "speaker": "Mio",
+      "text": "I hoped you would stay after the seminar.",
+      "expression_state": "neutral"
+    }
+  ],
+  "presentation": {
+    "slot": "right",
+    "framing_zoom": 70,
+    "source_framing_zoom": 70
+  },
+  "transparency_mode": "ai"
+}
+```
 
-Neither proposed default is a confirmed v1 requirement or exclusion.
+Exactly one appearance and a required background are supported. Appearance age
+is `21..120`; the recipe owns the locked `neutral`, `delighted`, `flustered`,
+and `concerned` taxonomy. Dialogue contains `1..12` caller-authored beats and
+passes through unchanged. Every beat must select a locked expression state.
+`transparency_mode` is `ai` or the explicit degraded `chroma` path.
 
-## Ownership and intended topology
+Concept and background sources use `mode: "generate"` or `mode: "reuse"`.
+Reuse requires a portable reference, exact SHA-256, and explicit rights state;
+the recipe verifies and copies it into the isolated run rather than symlinking
+or inferring redistribution permission.
 
-The implementation should follow the existing dependency direction:
+## Plan and stage graph
 
-| Intended location | Responsibility |
-|---|---|
-| `src/stage_gen/recipes/dialogue_scene/` | Strict recipe input and derived-scene models, stage graph, recipe executor, filenames, cache rules, and output-manifest assembly. |
-| `src/stage_gen/components/` | Existing provider-neutral image generation, structured generation, and background removal. Dialogue vocabulary must not enter these components. |
-| `src/stage_gen/media/` | Deterministic image inspection, normalization, alpha checks, and any future crop or bounds calculation. |
-| `src/stage_gen/orchestration/` | Concrete provider composition and generic recipe-stage dispatch. Adding the second recipe should generalize the current scrolling-specific dispatch instead of moving recipe behavior into orchestration. |
-| `web/` | Optional consumer only; see [Dialogue-scene preview](../dialogue-scene-preview.md). |
+Structured generation writes `dialogue-scene-plan-v2` with
+`schema_version: 2`, `recipe_version: "dialogue-scene-v3"`,
+`policy_version: "adult-romance-nonexplicit-v2"`, and
+`expression_profile: "romance-core-v2"`. It binds the canonical request digest,
+appearance id, shared identity/wardrobe/pose/lighting locks, fixed canvas
+geometry, the four expression directions, and prompt-template digests.
 
-The recipe is a sibling of `scrolling_preview`, not a mode inside it. It gets
-its own registry entry, input parser, stage graph, cache identity, and manifest
-schema. This document records the topology only; no source stubs are reserved
-by the plan.
+Before planning or images, structured generation may select only one approved
+style vocabulary mode. Deterministic local code materializes the exact medium,
+observable traits, asset treatment, and exclusions into `style-anchor.json`.
+Its anchor, skill, vocabulary, resource, and compiler digests bind cache, run
+identity, plan provenance, and bundle provenance.
 
-## Input specification
+The exact stages are:
 
-The public input is a strict `dialogue-scene-input-v1` value. It describes
-caller intent and source material; it never contains output paths or provider
-responses.
+1. `prepare`: validate the request and ingest reusable references.
+2. `style-selection`: select a mode and locally materialize the style anchor.
+3. `appearance-concept`: produce or copy the opaque identity anchor.
+4. `scene-plan`: produce and validate the strict structured plan.
+5. `background`: produce or copy the required opaque scene plate.
+6. `neutral`: derive the neutral opaque/chroma sprite from the concept.
+7. `expressions`: edit the neutral reference into three expression variants.
+8. `canonicalize`: create the four validated transparent runtime sprites.
+9. `bundle`: validate all bindings and write the portable bundle.
 
-| Field | First-slice contract |
-|---|---|
-| `schemaVersion` | Integer `1`. |
-| `sceneBrief` | Required, non-empty caller-authored visual direction. |
-| `appearance` | Required object for exactly one character. |
-| `appearance.description` | Visual identity description. Required when a concept must be generated; optional reinforcement when a concept is reused. |
-| `appearance.concept` | Exactly one mode: reuse a reference or generate a new concept. Reuse names a caller-controlled reference; generate carries no output path. |
-| `expressionStates` | Required finite list of stable ids and caller-authored visual directions. `neutral` is required as the fallback state. Entries describe discrete static variants, never frames or transition timing. |
-| `background` | Open decision. Proposed default: optional caller-controlled reference plus presentation metadata; absence remains valid for an asset-only run. A generation mode may be added only if selected explicitly. |
-| `dialogue` | Optional ordered caller-authored speaker/text records with an expression-state id. Text passes through unchanged; every state reference must resolve within `expressionStates`. |
-| `choiceEvents` | Open decision. Proposed default: optional caller-authored labels and opaque payloads that a consumer may emit without evaluating narrative state. |
-| `presentation` | Optional viewport, character-sprite slot, anchor, scale, dialogue-UI hints, `framingZoom`, and `sourceFramingZoom`. Both framing values are finite `0..100`; higher means tighter. The source baseline records the crop already authored into sprite pixels, so looser presentation values never claim to reveal missing anatomy. Only the deterministic demo consumes them today; they do not invoke or configure a provider. |
-| `transparencyMode` | Existing `ai` or explicit degraded `chroma` strategy for every expression variant. |
+Every provider operation owns one initial attempt plus at most five retries.
+Transport, decoding, schema/media, dimension, chroma, and alpha failures remain
+inside that service boundary. The recipe does not wrap providers in another
+retry loop. Resume reuses only digest- and lineage-valid cache entries; force
+invalidates the selected stage and required descendants.
 
-Exactly one appearance and one scene brief are allowed in v1. Reused files are
-hashed and copied into the isolated run when the recipe needs a durable local
-input; they are never symlinked. A cache identity must include the canonical
-input, reference content digests, selected transparency mode, recipe/schema
-version, and other identity-bearing parameters. A filename or mutable path is
-not sufficient identity.
+Within structured provenance, standard JSON Schema vocabulary—including
+`$defs`, `$ref`, `additionalProperties`, `maxLength`, and `minLength`—retains
+its mandated spelling. Recipe-owned property names, definition identifiers,
+and matching reference targets are lower_snake_case.
 
-## Derived scene specification
+## Portable bundle: `dialogue-scene-bundle-v2`
 
-`scene_spec_<tag>.json` is generated as strict structured output after the
-appearance concept is available. It is not the public input and it is not the
-artifact manifest. Its purpose is to turn the scene brief into narrow rendering
-instructions shared by every expression variant.
+`bundle.json` is the adapter's sole input. It has `schema_version: 2`,
+`kind: "dialogue-scene-bundle-v2"`, `recipe: "dialogue-scene"`, and
+`recipe_version: "dialogue-scene-v3"`. It binds canonical request and plan
+files plus their provenance paths and SHA-256 digests, `attempts.json`, run
+identity, review state, rights state, and exactly six selected assets:
 
-The schema records:
+- one opaque `concept` PNG at `1024x1536`;
+- one opaque `background` PNG at `1672x941`; and
+- four `1024x1536` alpha-bearing `expression` PNGs, one for each locked state.
 
-- appearance-continuity constraints copied from the input and concept;
-- shared pose, gaze, facing, gesture, and wardrobe constraints plus one
-  expression direction per state id;
-- framing and crop intent;
-- composition slot, anchor, scale intent, and safe region;
-- background context needed for lighting and eyeline coherence; and
-- references to caller-authored dialogue presentation and choice events, if
-  present.
+Each asset record includes its id, role, optional expression state, portable
+path, content digest, byte count, media facts, provenance path and digest, and
+selected attempt. Rejected candidates and raw derivations remain lineage and
+are never selected runtime assets.
 
-The structured operation must not invent dialogue, choices, plot events, or
-character history. A schema mismatch, empty response, invented story field, or
-missing render constraint is a retryable contract failure.
+The strict `scene_data` projection carries recipe/caller-owned copy only:
+`scene_id`, title and label, concept/background asset bindings and background
+alt text, appearance copy, placement and framing, available states, four
+expression records with labels/descriptions/alts, and ordered dialogue beats.
+The bundle validator requires these asset ids and state bindings to match the
+selected inventory exactly.
 
-## Planned stage graph
+The web adapter validates the complete portable bundle before copying it into
+an immutable digest-addressed installation. Only then does it translate
+`scene_data` into the web fixture's internal runtime naming. The adapter may
+not invent missing copy, generation facts, review evidence, or rights.
 
-| Stage | Operation | Output |
-|---|---|---|
-| Prepare | Validate input, hash references, and ingest any reused concept or selected background binding. No AI call. | Stable input/reference records. |
-| Appearance concept | Copy and bind the reused concept, or generate one from `appearance` and the scene's visual context. | `appearance_concept_<tag>.png` and adjacent provenance. |
-| Scene specification | Strict structured generation from the caller's scene brief and appearance concept. | `scene_spec_<tag>.json` and adjacent provenance. |
-| Background (open decision) | Proposed default copies/binds a supplied reference. If owner-selected generation is in scope, generate and validate the scene plate here as an explicit stage. | Optional background artifact and adjacent provenance. |
-| Expression set | Generate one scene-directed static character sprite per declared state using the same appearance concept and shared derived scene specification; normalize each, then derive canonical transparency. | Retained raw images, `expression_<state>_<tag>.png` variants, and adjacent provenance. |
-| Manifest | Validate complete pairs and deterministically project portable scene data. | `manifest_<tag>.json`, its provenance, and the existing `run.json` summary. |
+Consumer compatibility is an explicit allowlist: historical
+`dialogue-scene-v2` installations remain valid under their original contract,
+while `dialogue-scene-v3` must bind the style-anchor artifact, its provenance,
+and matching compiler/resource facts through plan and bundle provenance. No v2
+style values are synthesized, and unknown recipe versions are rejected.
 
-Each generated expression-variant provider output is retained as a raw opaque
-lineage artifact. In `ai` mode, validated background removal produces each
-canonical alpha-bearing PNG. In `chroma` mode, deterministic keying is an
-explicit degraded path. Failure of `ai` removal never falls back to `chroma`.
+## Provenance, review, and publication
 
-Canvas size, crop policy, anchor, and safe bounds must be explicit contract
-values before implementation. Consumers may read the resolved values from the
-manifest; they must not infer them from non-transparent pixels or filenames.
-The evidence-backed `presentation.framingZoom` mapping and its effective
-`25..85` demo range are documented in
-[Dialogue-scene framing control](../dialogue-scene-framing.md). That browser
-mapping does not settle provider-side canvas or crop policy for this planned
-recipe.
+Every selected request, plan, image, and bundle sidecar uses provenance
+`schema_version: 2` and binds the exact artifact digest. Sidecars preserve the
+sanitized final prompt, provider/model/tool disclosure, seed availability,
+parameters, validation, references and digests, attempts/retries, derivation,
+timestamp, and rights state. Paths are portable and never contain credentials,
+private absolute paths, or signed URLs.
 
-## Output manifest and portable scene data
+Generation emits `review.status: "pending"`,
+`rights.aggregate: "unreviewed"`, and
+`rights.publication_authorized: false`. Installation may retain such a bundle
+for inspection, but activation fails closed. Activation requires an
+independent digest-bound `pass` review plus `restricted` local-demo rights and
+`publication_authorized: false`. A review pass never grants rights. Local web
+activation never authorizes export, repository publication, or redistribution;
+those remain subject to the separate generated-media publication gate.
 
-The recipe output is `dialogue-scene-manifest-v1`. It inventories completed
-artifacts; it is not a copy of the input specification. At minimum it binds:
+## Historical built-in assets
 
-- `schemaVersion`, `recipe: "dialogue-scene"`, tag, and canonical input digest;
-- selected transparency mode and recipe/tool versions;
-- the derived scene-spec path and provenance path;
-- the appearance-concept and canonical expression-variant asset ids, state
-  ids, paths, provenance paths, media facts, and content digests;
-- raw-to-canonical transparency lineage;
-- resolved anchor, safe bounds, framing, and placement data;
-- an optional background binding or generated artifact with an explicit source
-  mode; and
-- independent visual-verification evidence or its explicit pending status.
+`web/public/dialogue-scene/demo/anime/` is preserved historical provenance for
+the original showcase. It is not a portable v1 bundle, not an accepted current
+wire schema, and not a compatibility fixture for v2. The separately versioned
+built-in `anime-v2/` demo set is also consumer-owned fixture data rather than a
+producer bundle example. Neither tree is rewritten by theme generation or by
+this contract migration.
 
-The manifest carries a small consumer-neutral `sceneData` projection:
-
-- one scene id and optional background asset id;
-- one appearance id, one shared character-sprite placement, and its available
-  expression-state ids;
-- viewport and dialogue-presentation hints when supplied; and
-- ordered caller-authored dialogue beats, if any; and
-- caller-authored choice events if that open v1 option is selected.
-
-The choice-event shape remains an open decision. Under the proposed default,
-`sceneData` exposes labels and opaque payloads for the host to handle; it does
-not select destinations, mutate narrative state, or contain generated story.
-A consumer may ignore the scene projection and use the asset inventory
-directly. Prompts and detailed provider parameters remain in adjacent
-provenance rather than being duplicated into runtime-facing data.
-
-## Reliability, provenance, and acceptance
-
-Every AI/provider operation has one retry owner: one initial attempt plus five
-blind retries with capped backoff. Transport errors and silent contract
-failures, including malformed structured output, empty media, invalid
-containers, and caller-validator failures, stay inside that boundary.
-
-Every AI-produced concept and expression-variant artifact persists its
-sanitized prompt, model/provider, seed when available, non-secret parameters,
-reference path or portable identifier, reference content digest, attempt
-count, deterministic post-processing, output digest, and rights state. A
-reused appearance concept records its source digest and rights lineage instead;
-copying it does not manufacture a redistribution grant.
-
-Deterministic acceptance checks include schema validity, complete and unique
-state coverage, expected media type, consistent declared dimensions,
-non-trivial alpha for every canonical expression variant, resolved
-anchor/safe-bounds validity, artifact/sidecar digest binding, and path
-confinement. These checks do not establish semantic quality.
-
-Each generated or reused visual payload must also receive a verdict from a
-different subagent than its producer. The verifier receives the applicable
-specification and output, not the generation prompt, and returns `pass` or
-`fail` with a short reason. A visual failure permits at most two bounded
-regeneration attempts before the failure is surfaced. A run is not accepted as
-complete evidence merely because deterministic media checks passed.
+See the [operator workflow](../dialogue-theme-pipeline.md),
+[preview boundary](../dialogue-scene-preview.md), and
+[framing control](../dialogue-scene-framing.md).

@@ -132,7 +132,8 @@ async def regenerate_tileset(
         if cancellation is not None:
             cancellation.raise_if_cancelled()
         async with asyncio.timeout(run_config.stage_timeout_s):
-            await runtime.run_scrolling_preview_stage(
+            await runtime.run_recipe_stage(
+                "scrolling-preview",
                 "maintenance-regenerate-tileset",
                 StageContext(
                     input=context_input,

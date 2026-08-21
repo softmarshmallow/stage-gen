@@ -32,7 +32,7 @@ from stage_gen.config import (
 )
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.service import GenerateRequest, generate
-from stage_gen.recipes.registry import list_recipes
+from stage_gen.recipes.registry import list_recipes, run_recipe_action
 
 COMMANDS = {
     "generate",
@@ -40,6 +40,7 @@ COMMANDS = {
     "recipes",
     "benchmark",
     "research",
+    "review",
     "generate-image",
     "remove-background",
     "generate-music",
@@ -77,6 +78,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="explicit workspace root containing library/characters",
     )
     generate_parser.add_argument("--transparency", choices=("ai", "chroma"))
+    generate_parser.add_argument(
+        "--force-stage",
+        action="append",
+        default=[],
+        dest="force_stages",
+        metavar="STAGE_ID",
+        help="rerun one recipe stage; repeat to select multiple stages",
+    )
     generate_parser.add_argument("prompt", nargs="*")
 
     profile_parser = commands.add_parser(
@@ -94,6 +103,15 @@ def build_parser() -> argparse.ArgumentParser:
             required=True,
             help="workspace root containing library/characters",
         )
+
+    review_parser = commands.add_parser(
+        "review", description="Apply a digest-bound independent recipe review"
+    )
+    review_parser.add_argument("--recipe", required=True)
+    review_parser.add_argument("--bundle", required=True, dest="bundle_path")
+    review_parser.add_argument("--review", required=True, dest="review_path")
+    review_parser.add_argument("--acceptance-spec", required=True, dest="acceptance_spec_path")
+    review_parser.add_argument("--usage", required=True, choices=("local-demo",))
 
     serve_parser = commands.add_parser("serve")
     serve_parser.add_argument("--host")
@@ -293,6 +311,19 @@ async def _dispatch_async(
     runtime: HeadlessRuntime | None,
     stdout: TextIO,
 ) -> int:
+    if args.command == "review":
+        action_result = await run_recipe_action(
+            args.recipe,
+            "review",
+            {
+                "bundle_path": args.bundle_path,
+                "review_path": args.review_path,
+                "acceptance_spec_path": args.acceptance_spec_path,
+                "usage": args.usage,
+            },
+        )
+        stdout.write(f"{json.dumps(action_result, separators=(',', ':'))}\n")
+        return 0
     config = load_config()
     if args.command == "generate":
         if args.character_library_root is not None:
@@ -311,6 +342,7 @@ async def _dispatch_async(
                 recipe=args.recipe,
                 input=input_value,
                 transparency_mode=args.transparency,
+                force_stages=tuple(args.force_stages),
             ),
             config,
             runtime=runtime,

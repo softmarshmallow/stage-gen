@@ -13,9 +13,10 @@ from stage_gen.recipes.base import StageContext
 
 
 class ApiRuntime:
-    async def run_scrolling_preview_stage(
-        self, stage_name: str, context: StageContext
+    async def run_recipe_stage(
+        self, recipe_id: str, stage_name: str, context: StageContext
     ) -> tuple[str, ...]:
+        assert recipe_id == "scrolling-preview"
         path = context.run_dir / f"{stage_name}.txt"
         path.write_text(stage_name, encoding="utf-8")
         return (str(path),)

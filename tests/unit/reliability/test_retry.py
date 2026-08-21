@@ -63,6 +63,37 @@ async def test_exhaustion_is_six_attempts_and_redacts_cause() -> None:
     assert captured.value.retries == 5
     assert secret not in str(captured.value)
     assert secret not in str(captured.value.__cause__)
+    assert [failure.attempt for failure in captured.value.failure_history] == list(range(1, 7))
+    assert all(
+        failure.error_type == "builtins.RuntimeError" for failure in captured.value.failure_history
+    )
+    assert all(secret not in failure.message for failure in captured.value.failure_history)
+
+
+@pytest.mark.asyncio
+async def test_exhaustion_preserves_redacted_typed_failure_codes_for_every_attempt() -> None:
+    class TypedFailure(ValueError):
+        def __init__(self, attempt: int) -> None:
+            self.code = "stable-layout-code"
+            self.row = None
+            self.column = None
+            super().__init__(f"stable-layout-code: private-{attempt}")
+
+    async def operation(context: RetryContext) -> None:
+        raise TypedFailure(context.attempt)
+
+    with pytest.raises(RetryExhaustedError) as captured:
+        await retry_with_backoff(
+            operation,
+            policy=RetryPolicy(initial_delay_s=0),
+            secrets=("private",),
+        )
+
+    history = captured.value.failure_history
+    assert [failure.attempt for failure in history] == list(range(1, 7))
+    assert all(failure.error_type.endswith(".TypedFailure") for failure in history)
+    assert all(failure.code == "stable-layout-code" for failure in history)
+    assert all("private" not in failure.message for failure in history)
 
 
 @pytest.mark.parametrize("max_attempts", [1, 5, 7, 100])

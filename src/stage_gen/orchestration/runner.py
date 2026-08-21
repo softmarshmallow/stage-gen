@@ -8,7 +8,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from stage_gen.config import parse_transparency_mode
-from stage_gen.recipes.base import RunOptions, RunSummary, StageContext, StageResult
+from stage_gen.recipes.base import (
+    RunOptions,
+    RunSummary,
+    StageContext,
+    StageResult,
+    resolve_force_stage_plan,
+)
 from stage_gen.reliability import (
     assert_safe_path_segment,
     atomic_write_json,
@@ -18,11 +24,16 @@ from stage_gen.tags import tag_for_transparency_mode
 
 
 async def run_recipe(options: RunOptions) -> RunSummary:
-    mode = parse_transparency_mode(
-        options.input.get("transparencyMode", options.config.transparency_mode),
-        "input.transparencyMode",
+    transparency_key = (
+        "transparency_mode" if options.recipe.contract_version == 2 else "transparencyMode"
     )
-    input_value = {**options.input, "transparencyMode": mode}
+    mode = parse_transparency_mode(
+        options.input.get(transparency_key, options.config.transparency_mode),
+        f"input.{transparency_key}",
+    )
+    input_value = {**options.input, transparency_key: mode}
+    stages = options.recipe.stages_for(input_value)
+    force_plan = resolve_force_stage_plan(stages, options.force_stages)
     run_config = options.config.model_copy(update={"transparency_mode": mode})
     log = options.log or print
     computed_tag = tag_for_transparency_mode(options.recipe.tag_for(input_value), mode)
@@ -40,7 +51,7 @@ async def run_recipe(options: RunOptions) -> RunSummary:
     log(f"stage-gen: tag={tag}")
     log(f"stage-gen: out={run_dir}")
 
-    for stage in options.recipe.stages:
+    for stage in stages:
         start = time.perf_counter()
         wave = int(stage.wave) if stage.wave.is_integer() else stage.wave
         log(f"  [wave {wave}] {stage.name} - {stage.description}")
@@ -56,6 +67,8 @@ async def run_recipe(options: RunOptions) -> RunSummary:
                         config=run_config,
                         runtime=options.runtime,
                         cancellation=options.cancellation,
+                        force_stages=force_plan.requested,
+                        affected_stages=force_plan.affected,
                     )
                 )
             stage_results.append(
@@ -124,6 +137,7 @@ async def run_recipe(options: RunOptions) -> RunSummary:
         ok=failed_stage is None,
         failed_stage=failed_stage,
         stages=tuple(stage_results),
+        contract_version=options.recipe.contract_version,
     )
     await asyncio.to_thread(atomic_write_json, run_dir / "run.json", summary.to_dict())
     if cancelled is not None:

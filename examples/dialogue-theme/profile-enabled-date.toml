@@ -1,0 +1,37 @@
+schema_version = 3
+kind = "dialogue-theme-request-v3"
+scene_brief = "Two adult cartographers share a quiet rooftop conversation after fieldwork"
+transparency_mode = "ai"
+
+[character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "library/characters/mira-vale-cartographer/profile.toml"
+source_sha256 = "4b0ae65d60c355b4312dc928b27827188b2b2b820c8467376e4f50ecee2f36ff"
+
+[background]
+mode = "generate"
+description = "An original university cartography building rooftop at blue hour, warm work lights, no people"
+
+[presentation]
+slot = "right"
+framing_zoom = 70
+source_framing_zoom = 70
+
+[[dialogue]]
+id = "maps-away"
+speaker = "Mira"
+text = "The maps are packed away. Stay for the view with me?"
+expression_state = "neutral"
+
+[[dialogue]]
+id = "gladly"
+speaker = "You"
+text = "Gladly. I was hoping you would ask."
+expression_state = "delighted"
+
+[[dialogue]]
+id = "next-expedition"
+speaker = "Mira"
+text = "Then our next expedition should include dinner."
+expression_state = "flustered"

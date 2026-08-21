@@ -114,6 +114,7 @@ class BackgroundRemovalService:
             request.artifact_path,
             BinaryArtifact(data=removed.data, media_type=removed.media_type),
             ProvenanceInput(
+                schema_version=request.provenance_schema_version,
                 provider=self._backend.provider,
                 model=self._backend.model,
                 seed=None,

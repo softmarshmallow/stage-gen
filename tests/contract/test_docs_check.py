@@ -40,6 +40,27 @@ def test_repository_storage_policy_uses_live_enforced_limits() -> None:
     ) in policy
 
 
+def test_character_profile_workflow_is_discoverable_and_version_accurate() -> None:
+    repository_root = Path(__file__).parents[2]
+    readme = (repository_root / "README.md").read_text(encoding="utf-8")
+    architecture = (repository_root / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    library = (repository_root / "docs/character-library.md").read_text(encoding="utf-8")
+    docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
+
+    for required in (
+        "stage-gen character-profile validate",
+        "stage-gen character-profile digest",
+        "examples/scrolling-preview/profile-enabled-coast.toml",
+        "examples/dialogue-theme/profile-enabled-date.toml",
+        "STAGE_GEN_CHARACTER_LIBRARY_ROOT",
+        "wire V3/recipe V4",
+    ):
+        assert required in readme or required in library or required in docs_index
+    assert "At committed HEAD it is not a provider-backed" not in architecture
+    assert "successful scrolling-preview run also writes manifest schema v2" not in readme
+    assert "strict v2 lower_snake_case `dialogue-scene` recipe" not in docs_index
+
+
 def test_loop_preview_fallback_is_temporary_and_verified_loop_scoped() -> None:
     repository_root = Path(__file__).parents[2]
     documents = (

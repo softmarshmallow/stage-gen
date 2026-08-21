@@ -57,13 +57,46 @@ class AttemptTimeoutError(TimeoutError):
     """One retryable attempt exceeded its deadline."""
 
 
+@dataclass(frozen=True, slots=True)
+class RetryFailureRecord:
+    """Redacted, typed evidence for one failed retry attempt."""
+
+    attempt: int
+    error_type: str
+    message: str
+    code: str | None = None
+    row: int | None = None
+    column: int | None = None
+
+    def as_dict(self) -> dict[str, object]:
+        record: dict[str, object] = {
+            "attempt": self.attempt,
+            "error_type": self.error_type,
+            "message": self.message,
+        }
+        if self.code is not None:
+            record["code"] = self.code
+        if self.row is not None:
+            record["row"] = self.row
+        if self.column is not None:
+            record["column"] = self.column
+        return record
+
+
 class RetryExhaustedError(Exception):
     """All configured attempts failed."""
 
-    def __init__(self, label: str, cause: Exception, attempts: int) -> None:
+    def __init__(
+        self,
+        label: str,
+        cause: Exception,
+        attempts: int,
+        failure_history: Sequence[RetryFailureRecord] = (),
+    ) -> None:
         self.attempts = attempts
         self.retries = attempts - 1
         self.cause = cause
+        self.failure_history = tuple(failure_history)
         super().__init__(
             f"{label} failed after {attempts} attempts ({attempts - 1} retries): {cause}"
         )
@@ -89,6 +122,7 @@ async def retry_with_backoff[T](
     safe_label = redact_secrets(label.strip() or "AI operation", secrets)
     delay_s = active_policy.initial_delay_s
     last_error: Exception = Exception("unknown failure")
+    failure_history: list[RetryFailureRecord] = []
 
     for attempt in range(1, active_policy.max_attempts + 1):
         _raise_if_cancelled(cancellation, secrets)
@@ -111,7 +145,11 @@ async def retry_with_backoff[T](
         except CancellationError as error:
             raise AbortError(redact_secrets(str(error), secrets)) from None
         except Exception as error:
-            last_error = Exception(redact_secrets(str(error), secrets))
+            safe_message = redact_secrets(str(error), secrets)
+            failure_history.append(
+                _retry_failure_record(error, attempt=attempt, message=safe_message, secrets=secrets)
+            )
+            last_error = Exception(safe_message)
 
         if attempt == active_policy.max_attempts:
             break
@@ -127,8 +165,44 @@ async def retry_with_backoff[T](
                 raise AbortError(redact_secrets(str(error), secrets)) from None
         delay_s = min(delay_s * active_policy.backoff_factor, active_policy.max_delay_s)
 
-    exhausted = RetryExhaustedError(safe_label, last_error, active_policy.max_attempts)
+    exhausted = RetryExhaustedError(
+        safe_label,
+        last_error,
+        active_policy.max_attempts,
+        failure_history,
+    )
     raise exhausted from last_error
+
+
+def _retry_failure_record(
+    error: Exception,
+    *,
+    attempt: int,
+    message: str,
+    secrets: Sequence[str],
+) -> RetryFailureRecord:
+    """Capture stable diagnostics without retaining the original exception."""
+
+    error_type = redact_secrets(
+        f"{type(error).__module__}.{type(error).__qualname__}",
+        secrets,
+    )
+    raw_code = getattr(error, "code", None)
+    code = redact_secrets(raw_code, secrets) if isinstance(raw_code, str) else None
+    raw_row = getattr(error, "row", None)
+    row = raw_row if isinstance(raw_row, int) and not isinstance(raw_row, bool) else None
+    raw_column = getattr(error, "column", None)
+    column = (
+        raw_column if isinstance(raw_column, int) and not isinstance(raw_column, bool) else None
+    )
+    return RetryFailureRecord(
+        attempt=attempt,
+        error_type=error_type,
+        message=message,
+        code=code,
+        row=row,
+        column=column,
+    )
 
 
 async def _run_attempt[T](

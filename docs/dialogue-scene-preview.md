@@ -1,18 +1,19 @@
 # Visual Novel Scene Kit: optional dialogue-scene preview
 
-> **Status: deterministic demo implemented; manifest-backed consumer planned
-> and optional.** The current route is a bundled-fixture presentation proof,
-> not a production authoring tool or part of the headless recipe contract.
+> **Status: deterministic demo and optional bundle-backed consumer
+> implemented.** The current route remains a presentation proof, not a
+> production authoring tool or part of the headless recipe contract.
 
-The planned manifest-backed preview is intended to demonstrate that a completed
-[`dialogue-scene` manifest](spec/dialogue-scene-assets.md) can drive a familiar
+The bundle-backed preview demonstrates that a completed
+`dialogue-scene-bundle-v2` can drive a familiar
 visual-novel composition: background, standing character sprite, speaker
 label, and dialogue bubble. Rendering quality is secondary to proving that the
 data and asset boundaries are usable.
 
-Today, `web/app/dialogue-scene/demo/` presents **Signal at Blue Hour**, a
-tasteful 15+ anime romance vignette with an explicitly adult heroine (Mio
-Amamiya, age 23). Its strict caller-authored fixture and bundled assets prove
+Today, `web/app/dialogue-scene/demo/` presents **After the Seminar**, an adult
+dating-sim technology demo in a coastal university study lounge after an
+evening graduate seminar, with Mio Amamiya explicitly age 23 and both
+participants adults. Its strict caller-authored fixture and bundled assets prove
 deterministic composition, beat-driven expression selection, dialogue
 playback, and `presentation.framingZoom`. It does not launch the recipe, read a
 completed manifest, call a provider, generate an asset, or export edited input. See
@@ -24,8 +25,8 @@ mapping and its limits.
 The browser remains downstream of the Python package. It may:
 
 - start the public headless recipe through the existing CLI or loopback API;
-- read a completed manifest, its portable `sceneData`, and confined artifacts;
-- bind the selected background source, when present, and the canonical
+- read a completed bundle, its portable `scene_data`, and confined artifacts;
+- bind the mandatory selected background and the canonical
   expression set for one appearance;
 - edit explicit presentation values and export a revised input specification;
   and
@@ -47,9 +48,10 @@ The planned consumer belongs in a recipe-local web surface, such as:
 | `web/app/dialogue-scene/[tag]/` | Manifest-backed preview for one completed run. |
 | `web/lib/dialogue-scene/` | Strict manifest parsing, scene-data projection, layout, and deterministic interaction helpers. |
 
-Only the deterministic `web/app/dialogue-scene/demo/` route and reusable
-helpers under `web/lib/dialogue-scene/` exist today. The picker/editor and
-manifest-backed tag route remain topology notes. Shared run/process code may be
+The deterministic `web/app/dialogue-scene/demo/` route and reusable helpers,
+including the strict installer/activation adapter under
+`web/lib/dialogue-scene/`, exist today. The picker/editor and tag route remain
+topology notes. Shared run/process code may be
 reused, but scrolling-world camera, terrain, combat, and Phaser scene
 assumptions must not leak into this consumer. The preview must likewise not add
 dialogue assumptions to generic Python components.
@@ -58,8 +60,7 @@ dialogue assumptions to generic Python components.
 
 The first useful canvas has four layers, back to front:
 
-1. the manifest's selected background artifact/reference, or a neutral
-   placeholder when the asset-only run has no background binding;
+1. the bundle's mandatory selected background artifact;
 2. one selected static expression variant using the expression set's shared
    anchor, scale, and safe bounds;
 3. an optional speaker label; and
@@ -74,12 +75,10 @@ The implemented demo applies framing deterministically over the effective
 generation occurs. The anime sources declare `sourceFramingZoom: 70` because
 their pixels are already upper-body crops. Presentation scale is normalized to
 that baseline, and looser values are explicitly source-limited rather than
-claiming to reveal unauthored anatomy. Saving/export remains planned: a future editor would update
-the public `dialogue-scene-input-v1` value without mutating generated artifacts
-or provenance. Whether the recipe may generate the background is an open owner
-decision. If selected, generation remains an explicit headless stage and is
-never hidden inside the editor. The proposed default starts with a supplied
-background/reference before requiring that stage.
+claiming to reveal unauthored anatomy. Saving/export remains planned: a future
+editor would update the public `dialogue-theme-request-v2` value without
+mutating generated artifacts or provenance. Background generation remains an
+explicit headless stage and is never hidden inside the editor.
 
 ## Minimal interactivity
 
@@ -119,12 +118,17 @@ it would not turn the source assets into animation frames.
 
 ## Loading and failure behavior
 
-The preview loads only a completed `dialogue-scene-manifest-v1` with valid,
-confined artifact references. It rejects an unknown recipe/schema version,
+The optional consumer installs only a completed `dialogue-scene-bundle-v2`
+with valid, confined, digest-bound artifact and provenance references. Its
+persisted/public input and adapter state are strict lower_snake_case; camelCase
+and v1 input fail closed. The adapter explicitly projects validated
+`scene_data` into the existing internal camelCase React fixture. It rejects an unknown recipe/schema version,
 missing or duplicate expression states, unresolved beat state, missing
 artifact/provenance pair, provenance mismatch, invalid bounds, or a manifest
 that declares an unsupported interaction shape. It does not guess filenames
-or accept a partial `run.json` as success.
+or accept a partial `run.json` as success. If `active.json` is absent, the
+committed fixture remains the fallback; invalid active state never falls back
+silently.
 
 A per-asset retry, if later exposed, must replay the original headless input
 with the same appearance reference digest, scene brief, and transparency mode.

@@ -16,6 +16,7 @@ src/stage_gen/orchestration/  run preparation, concrete composition, and summari
 src/stage_gen/interfaces/     argparse CLI and optional HTTP/SSE API
 src/stage_gen/benchmarks/     headless evaluation entrypoints
 src/stage_gen/resources/      wheel-packaged recipe resources
+library/characters/           source-checkout or external authored profile workspace
 web/                          optional browser preview adapter
 docs/                         contracts, operations, research, and policy
 ```
@@ -65,6 +66,13 @@ must be committed with their provenance and integrity metadata; credentials,
 authorization headers, signed query strings, and embedded reference bytes are
 never persisted.
 
+The optional scrolling-preview theme compiler is a provider-neutral structured
+generation seam: it rewrites strict numeric handles and a base brief into
+validated, asset-aware art direction before deterministic recipe composition.
+Raw controls do not cross the image boundary. The packaged policy digest,
+compiler version, and normalized handle digest bind provenance and downstream
+cache identity; see [Theme art-direction controls](docs/theme-art-direction.md).
+
 ## Headless path
 
 The supported entry point is:
@@ -97,9 +105,9 @@ integration surfaces. The side-view scrolling preview may launch the public
 headless command and read completed run manifests; its horizontal camera,
 parallax, terrain, movement, combat, and interaction rules are local consumer
 decisions. The deterministic dialogue-scene showcase consumes a committed
-browser fixture and schema. At committed HEAD it is not a provider-backed
-headless recipe. Neither surface owns generation or defines reusable component
-contracts.
+browser fixture and schema backed optionally by installed output from the
+provider-backed dialogue-scene recipe. Neither surface owns generation or
+defines reusable component contracts.
 
 No production gameplay engine has been selected. A dedicated 2D engine,
 including Godot or another suitable candidate, may be evaluated later. The

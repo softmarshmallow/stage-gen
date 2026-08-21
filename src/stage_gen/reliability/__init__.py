@@ -1,6 +1,7 @@
 """Stable reliability primitives shared across the Python implementation."""
 
 from .atomic import (
+    ArtifactBundleEntry,
     AtomicWriteError,
     FileOperations,
     LocalFileOperations,
@@ -11,6 +12,8 @@ from .atomic import (
     record_artifact_rights,
     record_artifact_rights_async,
     serialize_provenance,
+    write_artifact_bundle_with_provenance,
+    write_artifact_bundle_with_provenance_async,
     write_artifact_with_provenance,
     write_artifact_with_provenance_async,
 )
@@ -37,6 +40,7 @@ from .retry import (
     AttemptTimeoutError,
     RetryContext,
     RetryExhaustedError,
+    RetryFailureRecord,
     RetryPolicy,
     retry_with_backoff,
 )
@@ -44,6 +48,7 @@ from .retry import (
 __all__ = [
     "AI_RETRY_COUNT",
     "AbortError",
+    "ArtifactBundleEntry",
     "DEFAULT_AI_ATTEMPT_TIMEOUT_S",
     "MAX_AI_ATTEMPTS",
     "AtomicWriteError",
@@ -54,6 +59,7 @@ __all__ = [
     "LocalFileOperations",
     "RetryContext",
     "RetryExhaustedError",
+    "RetryFailureRecord",
     "RetryPolicy",
     "assert_media_type",
     "assert_safe_path_segment",
@@ -78,4 +84,6 @@ __all__ = [
     "sha256_hex",
     "write_artifact_with_provenance",
     "write_artifact_with_provenance_async",
+    "write_artifact_bundle_with_provenance",
+    "write_artifact_bundle_with_provenance_async",
 ]

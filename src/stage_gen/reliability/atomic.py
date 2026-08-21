@@ -8,6 +8,7 @@ import json
 import os
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
@@ -32,6 +33,36 @@ from .redaction import redact_secrets, sanitize_for_persistence
 
 class AtomicWriteError(OSError):
     """An atomic commit or its rollback failed."""
+
+
+@dataclass(frozen=True, slots=True)
+class AtomicBundleFile:
+    """One ordered file in a same-directory atomic publication bundle."""
+
+    path: str | os.PathLike[str]
+    data: bytes
+    mode: int = 0o600
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactBundleEntry:
+    """One artifact/provenance pair in a larger atomic publication bundle."""
+
+    path: str | os.PathLike[str]
+    artifact: BinaryArtifact
+    provenance: ProvenanceInput
+
+
+@dataclass(slots=True)
+class _AtomicBundleState:
+    path: Path
+    data: bytes
+    mode: int
+    temporary: Path
+    backup: Path
+    existed: bool
+    backed_up: bool = False
+    install_attempted: bool = False
 
 
 class FileOperations(Protocol):
@@ -126,7 +157,7 @@ def build_artifact_provenance(
             sha256=sha256_hex(artifact.data), bytes=len(artifact.data), media_type=media_type
         )
     raw: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": provenance.schema_version,
         "provider": provenance.provider,
         "model": provenance.model,
         "seed": provenance.seed,
@@ -265,6 +296,162 @@ async def write_artifact_with_provenance_async(
     )
 
 
+def atomic_write_bundle(
+    entries: Sequence[AtomicBundleFile],
+    *,
+    secrets: Sequence[str] = (),
+    operations: FileOperations | None = None,
+) -> tuple[Path, ...]:
+    """Publish ordered same-directory files or restore the complete prior bundle.
+
+    Callers construct and validate every payload before entering this filesystem
+    transaction. All existing destinations are moved to sibling recovery backups
+    before the first new file is installed. A failure restores every prior file,
+    removes newly introduced destinations, and retains only backups whose restore
+    itself failed.
+    """
+
+    if not entries:
+        raise ValueError("atomic bundle must contain at least one file")
+
+    normalized: list[tuple[Path, bytes, int]] = []
+    for entry in entries:
+        raw_path = os.fspath(entry.path)
+        if not raw_path or not raw_path.strip():
+            raise ValueError("atomic bundle paths must be non-empty")
+        path = Path(raw_path)
+        if not path.name:
+            raise ValueError("atomic bundle paths must name files")
+        if not isinstance(entry.data, bytes):
+            raise TypeError("atomic bundle payloads must be bytes")
+        normalized.append((path, entry.data, entry.mode))
+
+    paths = tuple(path for path, _data, _mode in normalized)
+    if len(set(paths)) != len(paths):
+        raise ValueError("atomic bundle paths must be unique")
+    parent = paths[0].parent
+    if any(path.parent != parent for path in paths[1:]):
+        raise ValueError("atomic bundle files must share one directory")
+
+    files = operations or _LOCAL_FILES
+    files.mkdir(parent)
+    token = uuid.uuid4().hex
+    states = [
+        _AtomicBundleState(
+            path=path,
+            data=data,
+            mode=mode,
+            temporary=parent / f".{path.name}.{token}.tmp",
+            backup=parent / f".{path.name}.{token}.tmp.backup",
+            existed=files.exists(path),
+        )
+        for path, data, mode in normalized
+    ]
+
+    try:
+        for state in states:
+            files.write_exclusive(state.temporary, state.data, state.mode)
+        for state in states:
+            if state.existed:
+                files.replace(state.path, state.backup)
+                state.backed_up = True
+        for state in states:
+            state.install_attempted = True
+            files.replace(state.temporary, state.path)
+        files.sync_directory(parent)
+    except Exception as error:
+        rollback_errors = _rollback_atomic_bundle(files, states, parent)
+        for state in states:
+            _safe_remove(files, state.temporary)
+        safe_message = redact_secrets(str(error), secrets)
+        if rollback_errors:
+            raise AtomicWriteError(
+                "artifact bundle persistence failed and rollback was incomplete; "
+                f"recovery backups were retained: {safe_message}"
+            ) from None
+        raise AtomicWriteError(safe_message) from None
+
+    for state in states:
+        _safe_remove(files, state.backup)
+    return paths
+
+
+async def atomic_write_bundle_async(
+    entries: Sequence[AtomicBundleFile],
+    *,
+    secrets: Sequence[str] = (),
+    operations: FileOperations | None = None,
+) -> tuple[Path, ...]:
+    """Run :func:`atomic_write_bundle` without blocking the event loop."""
+
+    return await asyncio.to_thread(
+        atomic_write_bundle,
+        entries,
+        secrets=secrets,
+        operations=operations,
+    )
+
+
+def write_artifact_bundle_with_provenance(
+    entries: Sequence[ArtifactBundleEntry],
+    *,
+    secrets: Sequence[str] = (),
+    now: datetime | None = None,
+    operations: FileOperations | None = None,
+) -> tuple[Path, ...]:
+    """Build and publish multiple artifact/sidecar pairs as one transaction.
+
+    The returned paths are the adjacent provenance sidecars in input order.
+    Provenance validation and serialization for every entry completes before
+    any destination is staged or replaced.
+    """
+
+    if not entries:
+        raise ValueError("artifact bundle must contain at least one entry")
+    bundle_now = now or datetime.now(UTC)
+    publication: list[AtomicBundleFile] = []
+    sidecars: list[Path] = []
+    for entry in entries:
+        raw_path = os.fspath(entry.path)
+        if not raw_path or not raw_path.strip():
+            raise ValueError("artifact bundle paths must be non-empty")
+        path = Path(raw_path)
+        sidecar = Path(f"{path}.meta.json")
+        record = build_artifact_provenance(
+            entry.artifact,
+            entry.provenance,
+            secrets=secrets,
+            now=bundle_now,
+        )
+        publication.extend(
+            (
+                AtomicBundleFile(path, entry.artifact.data),
+                AtomicBundleFile(sidecar, serialize_provenance(record)),
+            )
+        )
+        sidecars.append(sidecar)
+    atomic_write_bundle(publication, secrets=secrets, operations=operations)
+    return tuple(sidecars)
+
+
+async def write_artifact_bundle_with_provenance_async(
+    entries: Sequence[ArtifactBundleEntry],
+    *,
+    secrets: Sequence[str] = (),
+    now: datetime | None = None,
+    operations: FileOperations | None = None,
+) -> tuple[Path, ...]:
+    """Run :func:`write_artifact_bundle_with_provenance` off the event loop."""
+
+    return await asyncio.to_thread(
+        write_artifact_bundle_with_provenance,
+        entries,
+        secrets=secrets,
+        now=now,
+        operations=operations,
+    )
+
+
 def atomic_write_bytes(
     path: str | os.PathLike[str],
     data: bytes,
@@ -394,6 +581,46 @@ def _sanitize_rights(rights: ArtifactRights, secrets: Sequence[str]) -> Artifact
 def _safe_remove(files: FileOperations, path: Path) -> None:
     with contextlib.suppress(Exception):
         files.remove(path)
+
+
+def _rollback_atomic_bundle(
+    files: FileOperations,
+    states: Sequence[_AtomicBundleState],
+    parent: Path,
+) -> list[Exception]:
+    """Restore an arbitrary publication bundle after staging or install failure."""
+
+    errors: list[Exception] = []
+    for state in reversed(states):
+        backup_exists = state.backed_up or _safe_exists(files, state.backup)
+        if backup_exists:
+            restore_error: Exception | None = None
+            for _attempt in range(2):
+                try:
+                    files.replace(state.backup, state.path)
+                except Exception as error:
+                    restore_error = error
+                else:
+                    restore_error = None
+                    break
+            if restore_error is not None:
+                errors.append(restore_error)
+                if state.install_attempted:
+                    try:
+                        files.remove(state.path)
+                    except Exception as error:
+                        errors.append(error)
+            continue
+        if not state.existed and state.install_attempted:
+            try:
+                files.remove(state.path)
+            except Exception as error:
+                errors.append(error)
+    try:
+        files.sync_directory(parent)
+    except Exception as error:
+        errors.append(error)
+    return errors
 
 
 def _rollback_artifact_pair(

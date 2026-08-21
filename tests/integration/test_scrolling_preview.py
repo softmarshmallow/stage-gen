@@ -12,9 +12,10 @@ class MockRecipeRuntime:
     def __init__(self) -> None:
         self.phases: list[str] = []
 
-    async def run_scrolling_preview_stage(
-        self, stage_name: str, context: StageContext
+    async def run_recipe_stage(
+        self, recipe_id: str, stage_name: str, context: StageContext
     ) -> tuple[str, ...]:
+        assert recipe_id == "scrolling-preview"
         self.phases.append(stage_name)
         artifact = context.run_dir / f"{stage_name}.offline"
         artifact.write_text(stage_name, encoding="utf-8")
@@ -43,3 +44,6 @@ async def test_mocked_recipe_runs_all_six_public_phases(tmp_path: Path) -> None:
     ]
     assert [stage.stage for stage in summary.stages] == runtime.phases
     assert await asyncio.to_thread(Path(summary.run_dir, "run.json").is_file)
+    for stage_name in runtime.phases:
+        artifact = Path(summary.run_dir, f"{stage_name}.offline")
+        assert await asyncio.to_thread(artifact.read_bytes) == stage_name.encode("utf-8")
