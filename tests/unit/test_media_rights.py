@@ -585,9 +585,7 @@ def test_unrelated_capture_license_may_use_its_own_notice(tmp_path: Path) -> Non
 
     inventory_value = cast(dict[str, Any], json.loads(inventory.read_text(encoding="utf-8")))
     poster_entry = next(
-        entry
-        for entry in inventory_value["media"]
-        if entry["path"] == "docs/showcase/gameplay.png"
+        entry for entry in inventory_value["media"] if entry["path"] == "docs/showcase/gameplay.png"
     )
     poster_entry["sidecarSha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
     inventory.write_text(json.dumps(inventory_value), encoding="utf-8")

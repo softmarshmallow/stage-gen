@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import datetime
 from hashlib import sha256
 from typing import Self, cast
@@ -64,19 +65,27 @@ class StructuredGenerationService[T]:
 
         async def attempt(
             context: RetryContext,
-        ) -> tuple[ProviderStructuredOutput, T, bytes]:
+        ) -> tuple[ProviderStructuredOutput, T, bytes, dict[str, object]]:
             nonlocal attempts
             attempts = context.attempt
             provider_request = cast(StructuredGenerationRequest[object], request)
             generated = await self._backend.generate_once(provider_request)
             try:
                 value = request.parse(generated.decoded)
+                artifact_value = (
+                    request.artifact_value(value)
+                    if request.artifact_value is not None
+                    else generated.decoded
+                )
+                validation = request.validate(value) if request.validate is not None else None
+                if validation is not None and not isinstance(validation, Mapping):
+                    raise ValueError("structured validator must return a mapping or None")
             except Exception:
                 raise ValueError("structured output failed schema validation") from None
-            artifact_data = _serialize_json_artifact(generated.decoded)
-            return generated, value, artifact_data
+            artifact_data = _serialize_json_artifact(artifact_value)
+            return generated, value, artifact_data, dict(validation or {})
 
-        generated, value, artifact_data = await retry_with_backoff(
+        generated, value, artifact_data, caller_validation = await retry_with_backoff(
             attempt,
             policy=self._retry_policy,
             label=f"{self._backend.provider} structured generation",
@@ -105,6 +114,10 @@ class StructuredGenerationService[T]:
             params["seed"] = request.seed
         if request.metadata:
             params["metadata"] = dict(request.metadata)
+        if request.artifact_value is not None:
+            params["artifact_value"] = "caller-canonicalized"
+        if request.validate is not None:
+            params["validated"] = True
         response: dict[str, object] = {"characters": len(generated.raw_text)}
         if generated.response_metadata.request_id:
             response["request_id"] = generated.response_metadata.request_id
@@ -114,6 +127,7 @@ class StructuredGenerationService[T]:
             request.artifact_path,
             BinaryArtifact(data=artifact_data, media_type="application/json"),
             ProvenanceInput(
+                schema_version=request.provenance_schema_version,
                 provider=self._backend.provider,
                 model=self._backend.model,
                 seed=request.seed,
@@ -128,6 +142,7 @@ class StructuredGenerationService[T]:
                     "output_nonempty": True,
                     "json": "parsed",
                     "schema": "caller-validated",
+                    **caller_validation,
                 },
                 component=STRUCTURED_GENERATION_COMPONENT,
                 tool=self._tool,

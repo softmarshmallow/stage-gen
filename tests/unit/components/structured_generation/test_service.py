@@ -18,6 +18,58 @@ from stage_gen.reliability import RetryExhaustedError, RetryPolicy
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model", "temperature", "expected_temperature"),
+    [
+        ("openai/gpt-5.6", None, None),
+        ("legacy/text", 0, 0),
+    ],
+)
+async def test_structured_payload_preserves_model_temperature_capabilities(
+    model: str,
+    temperature: float | None,
+    expected_temperature: float | None,
+) -> None:
+    bodies: list[Any] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"ok":true}'}}]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        backend = OpenRouterStructuredBackend(api_key="secret", model=model, client=client)
+        await backend.generate_once(
+            StructuredGenerationRequest(
+                prompt="return ok",
+                artifact_path="unused.json",
+                schema=StructuredOutputSchema(
+                    name="ok",
+                    json_schema={"type": "object", "required": ["ok"]},
+                ),
+                parse=lambda value: value,
+                temperature=temperature,
+            )
+        )
+
+    assert len(bodies) == 1
+    body = bodies[0]
+    assert body["model"] == model
+    assert body["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "ok",
+            "strict": True,
+            "schema": {"type": "object", "required": ["ok"]},
+        },
+    }
+    assert body["provider"] == {"require_parameters": True}
+    if expected_temperature is None:
+        assert "temperature" not in body
+    else:
+        assert body["temperature"] == expected_temperature
+
+
+@pytest.mark.asyncio
 async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -> None:
     calls = 0
     bodies: list[Any] = []
@@ -48,7 +100,23 @@ async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -
                 references=(StructuredReference("data:image/png;base64,AAAA", "reference.png"),),
                 schema=StructuredOutputSchema(
                     name="count",
-                    json_schema={"type": "object", "required": ["count"]},
+                    json_schema={
+                        "type": "object",
+                        "properties": {
+                            "count": {"type": "integer", "default": 0},
+                            "detail": {
+                                "type": "object",
+                                "properties": {
+                                    "label": {
+                                        "type": "string",
+                                        "default": "count",
+                                        "minLength": 1,
+                                        "pattern": "^[a-z]+$",
+                                    }
+                                },
+                            },
+                        },
+                    },
                 ),
                 parse=parse,
                 seed=731,
@@ -58,10 +126,64 @@ async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -
     assert result.value == {"count": 3}
     assert json.loads((tmp_path / "value.json").read_text()) == {"count": 3}
     assert bodies[-1]["response_format"]["json_schema"]["strict"] is True
+    sent_schema = bodies[-1]["response_format"]["json_schema"]["schema"]
+    assert sent_schema == {
+        "type": "object",
+        "properties": {
+            "count": {"type": "integer"},
+            "detail": {
+                "type": "object",
+                "properties": {"label": {"type": "string"}},
+                "required": ["label"],
+                "additionalProperties": False,
+            },
+        },
+        "additionalProperties": False,
+        "required": ["count", "detail"],
+    }
     assert bodies[-1]["provider"] == {"require_parameters": True}
     sidecar = json.loads((tmp_path / "value.json.meta.json").read_text())
     assert sidecar["seed"] == 731
+    assert sidecar["params"]["schema"] == sent_schema
     assert sidecar["validation"]["schema"] == "caller-validated"
+
+
+@pytest.mark.asyncio
+async def test_structured_publishes_caller_canonical_value_and_validation(
+    tmp_path: Path,
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"parallax":1.2}'}}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await StructuredGenerationService[dict[str, float]](
+            OpenRouterStructuredBackend(api_key="secret", model="author/text", client=client),
+            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
+        ).generate(
+            StructuredGenerationRequest(
+                prompt="return parallax",
+                artifact_path=tmp_path / "value.json",
+                schema=StructuredOutputSchema(name="parallax", json_schema={}),
+                parse=lambda value: {"parallax": 1.8, "input": value["parallax"]},  # type: ignore[index]
+                artifact_value=lambda value: {"parallax": value["parallax"]},
+                validate=lambda value: {
+                    "normalization": {
+                        "input": value["input"],
+                        "output": value["parallax"],
+                    }
+                },
+            )
+        )
+
+    assert result.value == {"parallax": 1.8, "input": 1.2}
+    assert json.loads((tmp_path / "value.json").read_text()) == {"parallax": 1.8}
+    sidecar = json.loads((tmp_path / "value.json.meta.json").read_text())
+    assert sidecar["params"]["artifact_value"] == "caller-canonicalized"
+    assert sidecar["params"]["validated"] is True
+    assert sidecar["validation"]["normalization"] == {"input": 1.2, "output": 1.8}
 
 
 @pytest.mark.asyncio

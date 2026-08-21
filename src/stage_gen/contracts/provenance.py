@@ -118,9 +118,9 @@ class ArtifactRights(PersistedContractModel):
 
 
 class ArtifactProvenance(PersistedContractModel):
-    """Persisted artifact sidecar schema version 1."""
+    """Persisted artifact sidecar schema version."""
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 1
     provider: str
     model: str
     seed: int | None
@@ -157,6 +157,7 @@ class ArtifactProvenance(PersistedContractModel):
 class ProvenanceInput(PersistedContractModel):
     """Caller input used to construct a sanitized provenance-v1 sidecar."""
 
+    schema_version: Literal[1, 2] = 1
     provider: str
     model: str
     seed: int | None = None

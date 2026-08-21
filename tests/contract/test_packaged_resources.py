@@ -20,6 +20,9 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/music/preview-loop.mp3",
     "stage_gen/resources/music/preview-loop.mp3.meta.json",
     "stage_gen/resources/music/preview-loop.LICENSE.md",
+    "stage_gen/resources/prompting/image_style_vocabulary_v1.json",
+    "stage_gen/resources/skills/anchor-image-style/SKILL.md",
+    "stage_gen/resources/skills/compile-theme-art-direction/SKILL.md",
 }
 SDIST_RESOURCES = {f"src/{name}" for name in WHEEL_RESOURCES}
 EXPECTED_SDIST_FILES = {
@@ -121,6 +124,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
         assert not any(name.startswith("tests/") for name in wheel_entries)
+        assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(_is_docs_media(name) for name in wheel_entries)
         assert not any(_is_gameplay_demo_fixture(name) for name in wheel_entries)
         wheel.extractall(installed)
@@ -134,6 +138,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert len(sdist_entries) <= 240
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
+        assert not any(name.startswith("library/") for name in sdist_entries)
         assert all(sdist_entries[name] > 0 for name in SDIST_RESOURCES)
         assert not any(_is_docs_media(name) for name in sdist_entries)
         assert not any(_is_gameplay_demo_fixture(name) for name in sdist_entries)
@@ -163,12 +168,33 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
 
     probe = """
 from pathlib import Path
-from stage_gen.resources import bundled_music_path, image_template_dir, required_resource_paths
+from stage_gen.resources import (
+    bundled_music_path,
+    image_style_resource_digests,
+    image_style_skill_path,
+    image_style_vocabulary_path,
+    image_template_dir,
+    required_resource_paths,
+    theme_compiler_skill_path,
+)
+from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 11
+assert len(paths) == 14
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
+assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
+    "---\\nname: compile-theme-art-direction\\n"
+)
+style_resources = load_image_style_resources()
+assert image_style_skill_path().read_text(encoding="utf-8").startswith(
+    "---\\nname: anchor-image-style\\n"
+)
+assert image_style_vocabulary_path().is_file()
+assert image_style_resource_digests() == {
+    "skill_sha256": style_resources.skill.sha256,
+    "vocabulary_sha256": style_resources.vocabulary_sha256,
+}
 music = bundled_music_path()
 assert Path(f"{music}.meta.json").is_file()
 assert (music.parent / "preview-loop.LICENSE.md").is_file()

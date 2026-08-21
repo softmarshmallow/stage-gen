@@ -13,6 +13,8 @@ from stage_gen.components._types import (
 )
 from stage_gen.reliability.cancellation import CancellationToken
 
+from .style import CanonicalStyleAnchor, ImageAssetKind
+
 ImageQuality = Literal["auto", "low", "medium", "high"]
 ImageBackground = Literal["auto", "opaque"]
 ImageModeration = Literal["auto", "low"]
@@ -47,6 +49,9 @@ class ImageGenerationRequest:
     timeout_seconds: float | None = None
     cancellation: CancellationToken | None = None
     validate: ArtifactValidator | None = None
+    provenance_schema_version: Literal[1, 2] = 1
+    style_anchor: CanonicalStyleAnchor | None = None
+    asset_kind: ImageAssetKind | None = None
 
     def __post_init__(self) -> None:
         if not self.prompt.strip():
@@ -72,6 +77,10 @@ class ImageGenerationRequest:
         if self.moderation not in {None, "auto", "low"}:
             raise ValueError("moderation must be auto or low")
         validate_optional_timeout(self.timeout_seconds)
+        if self.provenance_schema_version not in {1, 2}:
+            raise ValueError("provenance_schema_version must be 1 or 2")
+        if (self.style_anchor is None) != (self.asset_kind is None):
+            raise ValueError("style_anchor and asset_kind must be provided together")
 
 
 @dataclass(frozen=True, slots=True)

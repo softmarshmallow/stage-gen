@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "image_style_vocabulary_v1",
+  "modes": [
+    {
+      "style_mode": "cel_shaded_anime_2d",
+      "medium_keyword": "clean 2D Japanese anime illustration",
+      "observable_traits": [
+        "crisp inked linework",
+        "flat cel-shaded color regions",
+        "discrete hard-edged shadow shapes",
+        "restrained gradients"
+      ],
+      "asset_treatments": {
+        "concept_art": "polished 2D character and world concept art",
+        "character_sprite": "visual novel character sprite with a readable silhouette and expression",
+        "environment_background": "visual novel background art with clear depth planes and focal staging",
+        "illustration": "finished 2D key illustration with deliberate composition",
+        "asset_sheet": "production-ready 2D game asset sheet with consistent rendering",
+        "tileable_texture": "seamless 2D game texture with clean repeating shapes",
+        "interface_art": "clean 2D game interface art with readable visual hierarchy",
+        "effect_sheet": "readable 2D game effect sheet with crisp silhouettes"
+      },
+      "exclusions": [
+        "photorealistic rendering",
+        "semi-realistic rendering",
+        "live-action imagery",
+        "3D rendering",
+        "painterly realism",
+        "skin-pore detail",
+        "subsurface scattering",
+        "photographic depth of field",
+        "lens bokeh"
+      ]
+    },
+    {
+      "style_mode": "photorealistic_natural",
+      "medium_keyword": "photorealistic natural photography",
+      "observable_traits": [
+        "real material texture",
+        "natural lighting",
+        "optical depth of field",
+        "physically plausible surface response"
+      ],
+      "asset_treatments": {
+        "concept_art": "naturalistic photographic concept study with coherent real-world materials",
+        "character_sprite": "isolated full-character photographic plate with a readable silhouette",
+        "environment_background": "naturalistic environmental plate with credible scale and depth",
+        "illustration": "finished photographic key visual with controlled composition",
+        "asset_sheet": "consistent photographic reference sheet with matched lighting",
+        "tileable_texture": "seamless photographed material texture with even illumination",
+        "interface_art": "restrained photographic interface artwork with clear hierarchy",
+        "effect_sheet": "isolated practical-effect reference sheet with consistent exposure"
+      },
+      "exclusions": [
+        "anime rendering",
+        "cel shading",
+        "inked line art",
+        "painted illustration",
+        "3D rendering"
+      ]
+    },
+    {
+      "style_mode": "gouache_illustration_2d",
+      "medium_keyword": "editorial gouache illustration",
+      "observable_traits": [
+        "opaque matte paint shapes",
+        "visible dry-brush texture",
+        "simplified graphic silhouettes",
+        "restrained paper grain"
+      ],
+      "asset_treatments": {
+        "concept_art": "exploratory painted concept art with clear shape language",
+        "character_sprite": "isolated painted character sprite with a readable silhouette",
+        "environment_background": "layered painted environment with distinct depth planes",
+        "illustration": "finished editorial composition with deliberate negative space",
+        "asset_sheet": "consistent hand-painted 2D game asset sheet",
+        "tileable_texture": "seamless painted texture with controlled brush variation",
+        "interface_art": "hand-painted interface artwork with strong graphic hierarchy",
+        "effect_sheet": "painted 2D effect sheet with clear silhouettes and timing shapes"
+      },
+      "exclusions": [
+        "photorealistic rendering",
+        "anime cel shading",
+        "3D rendering",
+        "glossy digital airbrushing",
+        "vector-flat rendering"
+      ]
+    }
+  ]
+}

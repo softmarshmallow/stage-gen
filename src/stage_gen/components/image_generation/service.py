@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import Self
 
@@ -20,6 +21,11 @@ from .models import (
     ImageGenerationRequest,
     ImageGenerationResult,
     ProviderImage,
+)
+from .style import (
+    STYLE_ANCHOR_RENDERER_VERSION,
+    append_style_anchor_once,
+    canonical_style_anchor_digest,
 )
 
 IMAGE_GENERATION_COMPONENT = SoftwareIdentity(name="@stage-gen/image-generation", version="0.0.0")
@@ -57,13 +63,47 @@ class ImageGenerationService:
     async def aclose(self) -> None:
         await self._backend.aclose()
 
+    @property
+    def provider(self) -> str:
+        """Stable provider identity used by higher-level cache contracts."""
+
+        return self._backend.provider
+
+    @property
+    def model(self) -> str:
+        """Stable model identity used by higher-level cache contracts."""
+
+        return self._backend.model
+
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         attempts = 0
+        provider_request = request
+        style_binding: dict[str, object] | None = None
+        if request.style_anchor is not None and request.asset_kind is not None:
+            provider_request = replace(
+                request,
+                prompt=append_style_anchor_once(
+                    request.prompt,
+                    request.style_anchor,
+                    request.asset_kind,
+                ),
+            )
+            style_binding = {
+                "anchor_sha256": canonical_style_anchor_digest(request.style_anchor),
+                "asset_kind": request.asset_kind,
+                "compiler_sha256": request.style_anchor.compiler_sha256,
+                "compiler_version": request.style_anchor.compiler_version,
+                "renderer_version": STYLE_ANCHOR_RENDERER_VERSION,
+                "resource_sha256": request.style_anchor.resource_sha256,
+                "skill_sha256": request.style_anchor.skill_sha256,
+                "style_mode": request.style_anchor.style_mode,
+                "vocabulary_sha256": request.style_anchor.vocabulary_sha256,
+            }
 
         async def attempt(context: RetryContext) -> tuple[ProviderImage, dict[str, object]]:
             nonlocal attempts
             attempts = context.attempt
-            generated = await self._backend.generate_once(request)
+            generated = await self._backend.generate_once(provider_request)
             assert_image_signature(generated.data, generated.media_type)
             facts = await run_validator(
                 request.validate,
@@ -107,15 +147,18 @@ class ImageGenerationService:
             params["moderation"] = request.moderation
         if request.metadata:
             params["metadata"] = dict(request.metadata)
+        if style_binding is not None:
+            params["style_anchor"] = style_binding
         artifact = BinaryArtifact(data=generated.data, media_type=generated.media_type)
         provenance_path = await write_artifact_with_provenance_async(
             request.artifact_path,
             artifact,
             ProvenanceInput(
+                schema_version=request.provenance_schema_version,
                 provider=self._backend.provider,
                 model=self._backend.model,
                 seed=None,
-                prompt=request.prompt,
+                prompt=provider_request.prompt,
                 refs=references,
                 inputs=[
                     hash_input_reference(reference.url, reference.provenance_ref)

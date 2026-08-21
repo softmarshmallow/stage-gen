@@ -4,6 +4,8 @@ Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
 - [Component contract](component-contract.md) — reusable-module requirements.
+- [Image style anchor](image-style-anchor.md) — tracked rendering-medium
+  vocabulary, single-token model selection, and digest-bound prompt clause.
 - [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
   provider-neutral grid detection, cell extraction, and anchor-aligned packing;
   not implemented.
