@@ -25,6 +25,7 @@ server = [
 [project.scripts]
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
 stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
+stage-gen-concept = "stage_gen.concept_studio.cli:entrypoint"
 
 [dependency-groups]
 dev = [
