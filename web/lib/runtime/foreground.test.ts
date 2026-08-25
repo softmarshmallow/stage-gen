@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   FOREGROUND_PAINTED_ALPHA_THRESHOLD,
   measureForegroundRaster,
+  measureVerifiedForegroundRepeat,
   prepareForegroundRaster,
   type ForegroundRaster,
 } from "./foreground";
@@ -47,6 +48,26 @@ function measuredFixture(): ForegroundRaster {
 }
 
 describe("foreground runtime preparation", () => {
+  test("measures a verified period without cropping or overlap metadata", () => {
+    const source = measuredFixture();
+    const before = source.data.slice();
+    const metadata = measureVerifiedForegroundRepeat(source, source.width);
+    expect(metadata).toMatchObject({
+      sourceWidth: 16,
+      sourceHeight: 12,
+      contentBounds: { left: 0, top: 1, right: 16, bottom: 12 },
+      meaningfulContentBounds: { left: 1, top: 5, right: 15, bottom: 11 },
+      contactStrip: { top: 8, bottom: 11 },
+      contactSourceY: 10,
+      repeatPeriod: 16,
+      overlap: 0,
+    });
+    expect(source.data).toEqual(before);
+    expect(() => measureVerifiedForegroundRepeat(source, 15)).toThrow(
+      "decoded width must equal its repeat period",
+    );
+  });
+
   test("measures sparse alpha separately from meaningful content and contact", () => {
     const measured = measureForegroundRaster(measuredFixture());
     expect(measured.contentBounds).toEqual({

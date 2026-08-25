@@ -147,6 +147,44 @@ export function measureForegroundRaster(raster: ForegroundRaster): Readonly<{
   });
 }
 
+/**
+ * Describe a producer-verified repeat without changing one decoded pixel.
+ *
+ * Unlike the compatibility preparation below, this performs no vertical trim and no horizontal
+ * overlap-add. The decoded width itself is the promised period; a disagreement is a forged or
+ * mismatched artifact and fails closed before Phaser registers the texture.
+ */
+export function measureVerifiedForegroundRepeat(
+  source: ForegroundRaster,
+  repeatPeriod: number,
+): Pick<
+  PreparedForegroundRaster,
+  | "sourceWidth"
+  | "sourceHeight"
+  | "contentBounds"
+  | "meaningfulContentBounds"
+  | "contactStrip"
+  | "contactSourceY"
+  | "repeatPeriod"
+  | "overlap"
+> {
+  assertRaster(source);
+  if (!Number.isSafeInteger(repeatPeriod) || repeatPeriod !== source.width) {
+    throw new Error("verified foreground decoded width must equal its repeat period");
+  }
+  const measured = measureForegroundRaster(source);
+  return Object.freeze({
+    sourceWidth: source.width,
+    sourceHeight: source.height,
+    contentBounds: measured.contentBounds,
+    meaningfulContentBounds: measured.meaningfulContentBounds,
+    contactStrip: measured.contactStrip,
+    contactSourceY: measured.contactStrip.bottom - 1,
+    repeatPeriod,
+    overlap: 0,
+  });
+}
+
 function copyPixel(
   source: Uint8ClampedArray,
   sourceOffset: number,
