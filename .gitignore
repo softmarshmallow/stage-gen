@@ -176,3 +176,9 @@ vite.config.ts.timestamp-*
 
 # Local experiment sandbox (spike only, never shipped)
 spikes/
+
+# Agent-facing game concept drafts; promoted packages live under concept-studio/gallery.
+/concept-studio/workspaces/
+
+# Local dialogue capture evidence remains unreviewed until publication gates promote it.
+/web/output/playwright/dialogue-overlay/
