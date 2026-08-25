@@ -1,112 +1,27 @@
-"""Descriptor-confined filesystem reads for authored character profiles."""
+"""Descriptor-confined filesystem reads for authored character profiles.
+
+The rules themselves moved to `components/_secure_fs` when the game contract began reading
+authored TOML from an operator-named root under exactly the same conditions. This module keeps
+the profile-specific name so the error type callers already catch is unchanged.
+"""
 
 from __future__ import annotations
 
-import os
-import stat
-from collections.abc import Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from stage_gen.components._secure_fs import (
+    SecurePathError,
+    open_absolute_directory,
+    read_absolute_regular_file,
+    read_relative_regular_file,
+)
 
+#: Retained alias. The rules are shared with every other authored contract, so this is the same
+#: class rather than a subclass: an `except SecureCharacterProfilePathError` written against the
+#: profile loader still catches a failure raised through the shared reader.
+SecureCharacterProfilePathError = SecurePathError
 
-class SecureCharacterProfilePathError(ValueError):
-    """Raised when an authored profile path is missing, non-regular, or symlinked."""
-
-
-@contextmanager
-def open_absolute_directory(path: str | Path, *, label: str) -> Iterator[int]:
-    absolute = Path(path).absolute()
-    current = _open_directory(absolute.anchor, label=label)
-    try:
-        for part in absolute.parts[1:]:
-            following = _open_directory(part, dir_fd=current, label=label)
-            os.close(current)
-            current = following
-        yield current
-    finally:
-        os.close(current)
-
-
-def read_absolute_regular_file(path: str | Path, *, label: str) -> bytes:
-    absolute = Path(path).absolute()
-    with open_absolute_directory(absolute.parent, label=label) as directory_fd:
-        return read_relative_regular_file(
-            directory_fd,
-            (absolute.name,),
-            label=label,
-        )
-
-
-def read_relative_regular_file(
-    directory_fd: int,
-    parts: tuple[str, ...],
-    *,
-    label: str,
-) -> bytes:
-    descriptors: list[int] = []
-    current_fd = directory_fd
-    try:
-        for part in parts[:-1]:
-            current_fd = _open_directory(part, dir_fd=current_fd, label=label)
-            descriptors.append(current_fd)
-        descriptor = _open_regular_file(parts[-1], dir_fd=current_fd, label=label)
-        try:
-            return _read_all(descriptor)
-        finally:
-            os.close(descriptor)
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-
-
-def _open_directory(path: str | Path, *, label: str, dir_fd: int | None = None) -> int:
-    try:
-        mode = os.stat(path, dir_fd=dir_fd, follow_symlinks=False).st_mode
-        if stat.S_ISLNK(mode):
-            raise SecureCharacterProfilePathError(f"{label} must not traverse a symlink")
-        descriptor = os.open(
-            path,
-            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_DIRECTORY,
-            dir_fd=dir_fd,
-        )
-        if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
-            os.close(descriptor)
-            raise SecureCharacterProfilePathError(f"{label} must remain inside directories")
-        return descriptor
-    except SecureCharacterProfilePathError:
-        raise
-    except OSError as error:
-        raise SecureCharacterProfilePathError(
-            f"{label} must be an existing directory with non-symlink ancestors"
-        ) from error
-
-
-def _open_regular_file(path: str | Path, *, dir_fd: int, label: str) -> int:
-    try:
-        mode = os.stat(path, dir_fd=dir_fd, follow_symlinks=False).st_mode
-        if stat.S_ISLNK(mode):
-            raise SecureCharacterProfilePathError(
-                f"{label} must be a regular non-symlink file; path must not traverse a symlink"
-            )
-        descriptor = os.open(
-            path,
-            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
-            dir_fd=dir_fd,
-        )
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            os.close(descriptor)
-            raise SecureCharacterProfilePathError(f"{label} must be a regular non-symlink file")
-        return descriptor
-    except SecureCharacterProfilePathError:
-        raise
-    except OSError as error:
-        raise SecureCharacterProfilePathError(
-            f"{label} must be an existing regular non-symlink file"
-        ) from error
-
-
-def _read_all(descriptor: int) -> bytes:
-    chunks: list[bytes] = []
-    while chunk := os.read(descriptor, 1024 * 1024):
-        chunks.append(chunk)
-    return b"".join(chunks)
+__all__ = [
+    "SecureCharacterProfilePathError",
+    "open_absolute_directory",
+    "read_absolute_regular_file",
+    "read_relative_regular_file",
+]
