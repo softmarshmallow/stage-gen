@@ -137,10 +137,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         root, sdist_entries = _sdist_file_entries(members)
         _assert_archive_hygiene(sdist_entries, resource_prefix="src/stage_gen/resources/")
         # A guard against accidental bloat - a stray directory swept into the sdist - and not
-        # a cap on the project growing. Current-only game, soundtrack, and dialogue contracts
-        # brought the clean source distribution to 299 files; retain a small explicit margin.
+        # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
+        # the hardened Concept Studio core bring the clean source distribution to 322 files;
+        # retain a small explicit margin.
         # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 310
+        assert len(sdist_entries) <= 335
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
