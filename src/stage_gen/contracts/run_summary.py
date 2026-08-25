@@ -59,6 +59,8 @@ class RecipeRunStage(PersistedContractModel):
     def validate_error(cls, value: str | None) -> str | None:
         if value is not None and (not value or value != value.strip()):
             raise ValueError("stage error must be a non-empty trimmed string")
+        if value is not None and "\x00" in value:
+            raise ValueError("stage error must not contain NUL")
         return value
 
     @model_validator(mode="after")

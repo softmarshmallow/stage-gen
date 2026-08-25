@@ -113,6 +113,12 @@ def test_run_summary_normalizes_semantically_integral_json_numbers() -> None:
         ),
         (
             lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
+                error="bad\x00error"
+            ),
+            "must not contain NUL",
+        ),
+        (
+            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
                 artifacts=["/tmp/private.png"]
             ),
             "portable relative POSIX reference",
