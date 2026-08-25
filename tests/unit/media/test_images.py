@@ -12,6 +12,7 @@ from stage_gen.media import (
     compose_source_with_alpha,
     decontaminate_magenta_edges,
     inspect_image,
+    normalize_image_to_png,
     normalize_png,
 )
 
@@ -46,6 +47,39 @@ def test_normalize_png_is_deterministic_and_records_transform() -> None:
     }
     with pytest.raises(ValueError, match="positive integer"):
         normalize_png(source, width=0, height=3)
+
+
+@pytest.mark.parametrize("source_format", ["JPEG", "PNG", "WEBP"])
+def test_normalize_image_to_png_accepts_provider_formats_without_resampling(
+    source_format: str,
+) -> None:
+    image = Image.new("RGB", (5, 3), (23, 45, 67))
+    source_io = BytesIO()
+    image.save(source_io, format=source_format)
+
+    first, first_record = normalize_image_to_png(source_io.getvalue())
+    second, second_record = normalize_image_to_png(source_io.getvalue())
+
+    assert first == second
+    assert first_record == second_record
+    assert inspect_image(first, expected_media_type="image/png") == inspect_image(first)
+    assert (inspect_image(first).width, inspect_image(first).height) == (5, 3)
+    assert first_record.operation == "image-to-png"
+    assert (
+        first_record.source["media_type"]
+        == {
+            "JPEG": "image/jpeg",
+            "PNG": "image/png",
+            "WEBP": "image/webp",
+        }[source_format]
+    )
+    assert first_record.transform == {
+        "format": "png",
+        "color_mode": "RGB",
+        "compression_level": 9,
+        "metadata": "stripped",
+        "pixels_resampled": False,
+    }
 
 
 def test_chroma_transparency_handles_every_matching_pixel() -> None:

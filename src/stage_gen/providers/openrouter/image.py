@@ -48,6 +48,8 @@ class OpenRouterImageBackend:
         body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio
+        if request.resolution is not None:
+            body["resolution"] = request.resolution
         if request.quality is not None:
             body["quality"] = request.quality
         if request.background is not None:

@@ -55,6 +55,7 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
                 prompt="original neutral icon",
                 artifact_path=output,
                 aspect_ratio="1:1",
+                resolution="2K",
                 quality="high",
                 background="opaque",
                 input_references=(
@@ -72,10 +73,115 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
     sidecar_text = (tmp_path / "asset.png.meta.json").read_text()
     sidecar = json.loads(sidecar_text)
     assert sidecar["attempts"] == 2
+    assert sidecar["params"]["resolution"] == "2K"
     assert sidecar["response"]["media_type"] == "image/png"
     assert sidecar["validation"]["decoded_bytes"] == len(image)
     assert "image-secret" not in sidecar_text
+    assert request_bodies[-1]["resolution"] == "2K"
     assert request_bodies[-1]["input_references"][0]["type"] == "image_url"
+
+
+@pytest.mark.parametrize("resolution", ["512", "1K", "2K", "4K"])
+def test_image_request_accepts_normalized_resolution(resolution: Any) -> None:
+    request = ImageGenerationRequest(
+        prompt="neutral icon",
+        artifact_path="unused",
+        resolution=resolution,
+    )
+
+    assert request.resolution == resolution
+
+
+@pytest.mark.parametrize("resolution", ["", "1k", "2k", "8K", "1024", 512, True])
+def test_image_request_rejects_noncanonical_resolution(resolution: Any) -> None:
+    with pytest.raises(ValueError, match="resolution must be 512, 1K, 2K, or 4K"):
+        ImageGenerationRequest(
+            prompt="neutral icon",
+            artifact_path="unused",
+            resolution=resolution,
+        )
+
+
+@pytest.mark.asyncio
+async def test_openrouter_image_omits_unset_optional_fields() -> None:
+    image = png_bytes()
+    bodies: list[Any] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "b64_json": base64.b64encode(image).decode(),
+                        "media_type": "image/png",
+                    }
+                ]
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenRouterImageBackend(api_key="secret", client=client).generate_once(
+            ImageGenerationRequest(prompt="neutral icon", artifact_path="unused")
+        )
+
+    assert result.media_type == "image/png"
+    assert bodies == [
+        {
+            "model": "openai/gpt-image-2",
+            "prompt": "neutral icon",
+            "n": 1,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_openrouter_image_serializes_resolution_and_validates_declared_jpeg() -> None:
+    image = b"\xff\xd8\xffsynthetic-jpeg"
+    bodies: list[Any] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "b64_json": base64.b64encode(image).decode(),
+                        "media_type": "image/jpeg",
+                    }
+                ]
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenRouterImageBackend(
+            api_key="secret",
+            model="x-ai/grok-imagine-image-2.0",
+            client=client,
+        ).generate_once(
+            ImageGenerationRequest(
+                prompt="neutral concept",
+                artifact_path="unused",
+                aspect_ratio="16:9",
+                resolution="1K",
+                quality="medium",
+            )
+        )
+
+    assert result.data == image
+    assert result.media_type == "image/jpeg"
+    assert bodies == [
+        {
+            "model": "x-ai/grok-imagine-image-2.0",
+            "prompt": "neutral concept",
+            "n": 1,
+            "aspect_ratio": "16:9",
+            "resolution": "1K",
+            "quality": "medium",
+        }
+    ]
 
 
 @pytest.mark.asyncio

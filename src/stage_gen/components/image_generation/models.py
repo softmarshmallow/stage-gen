@@ -18,6 +18,7 @@ from .style import CanonicalStyleAnchor, ImageAssetKind
 ImageQuality = Literal["auto", "low", "medium", "high"]
 ImageBackground = Literal["auto", "opaque"]
 ImageModeration = Literal["auto", "low"]
+ImageResolution = Literal["512", "1K", "2K", "4K"]
 
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
 _ASPECT_RE = re.compile(r"^[1-9]\d*:[1-9]\d*$")
@@ -52,6 +53,7 @@ class ImageGenerationRequest:
     provenance_schema_version: Literal[1, 2] = 1
     style_anchor: CanonicalStyleAnchor | None = None
     asset_kind: ImageAssetKind | None = None
+    resolution: ImageResolution | None = None
 
     def __post_init__(self) -> None:
         if not self.prompt.strip():
@@ -70,6 +72,8 @@ class ImageGenerationRequest:
             or not 0 <= self.output_compression <= 100
         ):
             raise ValueError("output_compression must be an integer from 0 to 100")
+        if self.resolution not in (None, "512", "1K", "2K", "4K"):
+            raise ValueError("resolution must be 512, 1K, 2K, or 4K")
         if self.quality not in {None, "auto", "low", "medium", "high"}:
             raise ValueError("quality must be auto, low, medium, or high")
         if self.background not in {None, "auto", "opaque"}:

@@ -137,6 +137,8 @@ class ImageGenerationService:
         params: dict[str, object] = {"n": 1, "validated": request.validate is not None}
         if request.aspect_ratio is not None:
             params["aspect_ratio"] = request.aspect_ratio
+        if request.resolution is not None:
+            params["resolution"] = request.resolution
         if request.quality is not None:
             params["quality"] = request.quality
         if request.background is not None:

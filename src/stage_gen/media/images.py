@@ -166,6 +166,45 @@ def normalize_png(
     return output, record
 
 
+def normalize_image_to_png(data: bytes) -> tuple[bytes, ImageNormalizationRecord]:
+    """Decode a supported provider image and re-encode its exact pixel dimensions as PNG."""
+
+    source = inspect_image(data)
+    decoded = _decode_image(data)
+    has_alpha = "A" in decoded.getbands() or "transparency" in decoded.info
+    color_mode = "RGBA" if has_alpha else "RGB"
+    output = _encode_png(decoded.convert(color_mode))
+    result = inspect_image(output, expected_media_type="image/png")
+    if (result.width, result.height) != (source.width, source.height):
+        raise ValueError("image-to-PNG normalization changed pixel dimensions")
+    record = ImageNormalizationRecord(
+        operation="image-to-png",
+        source={
+            "width": source.width,
+            "height": source.height,
+            "bytes": len(data),
+            "sha256": sha256(data).hexdigest(),
+            "media_type": source.media_type,
+        },
+        output={
+            "width": result.width,
+            "height": result.height,
+            "bytes": len(output),
+            "sha256": sha256(output).hexdigest(),
+            "media_type": result.media_type,
+        },
+        transform={
+            "format": "png",
+            "color_mode": color_mode,
+            "compression_level": 9,
+            "metadata": "stripped",
+            "pixels_resampled": False,
+        },
+        tool={"name": "Pillow", "version": pillow_version},
+    )
+    return output, record
+
+
 def apply_chroma_transparency(
     data: bytes,
     *,

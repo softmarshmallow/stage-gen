@@ -24,6 +24,7 @@ from .images import (
     compose_source_with_alpha,
     decontaminate_magenta_edges,
     inspect_image,
+    normalize_image_to_png,
     normalize_png,
 )
 from .validation import (
@@ -54,6 +55,7 @@ __all__ = [
     "inspect_image",
     "normalize_audio_media_type",
     "normalize_media_type",
+    "normalize_image_to_png",
     "normalize_png",
     "parse_loudnorm_json",
     "probe_audio",
