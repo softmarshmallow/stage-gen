@@ -110,10 +110,18 @@ class _ComposedHeadlessRuntime:
         )
 
     async def generate_music(
-        self, *, prompt: str, output_path: str, output_format: str
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        output_format: str,
+        metadata: Mapping[str, object] | None = None,
     ) -> CapabilityArtifactResult:
         return await self._standalone.generate_music(
-            prompt=prompt, output_path=output_path, output_format=output_format
+            prompt=prompt,
+            output_path=output_path,
+            output_format=output_format,
+            metadata=metadata,
         )
 
     async def run_recipe_stage(
@@ -355,7 +363,12 @@ class DefaultHeadlessRuntime:
         )
 
     async def generate_music(
-        self, *, prompt: str, output_path: str, output_format: str
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        output_format: str,
+        metadata: Mapping[str, object] | None = None,
     ) -> CapabilityArtifactResult:
         service = self._music or _missing("OPENROUTER_API_KEY")
         if output_format not in {"mp3", "wav"}:
@@ -374,7 +387,9 @@ class DefaultHeadlessRuntime:
                     artifact_path=raw,
                     output_format=music_format,
                     timeout_seconds=self._config.capability_timeout_ms / 1000,
-                    metadata={"source": "stage-gen-headless"},
+                    metadata=dict(metadata)
+                    if metadata is not None
+                    else {"source": "stage-gen-headless"},
                     rights=_unreviewed_generated_music_rights(),
                     validate=lambda artifact: _minimum_audio_size(artifact.data),
                 )

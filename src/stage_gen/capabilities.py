@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -43,7 +43,12 @@ class HeadlessRuntime(RecipeRuntime, Protocol):
     ) -> CapabilityArtifactResult: ...
 
     async def generate_music(
-        self, *, prompt: str, output_path: str, output_format: str
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        output_format: str,
+        metadata: Mapping[str, object] | None = None,
     ) -> CapabilityArtifactResult: ...
 
 
@@ -107,6 +112,7 @@ async def generate_music(
     output_format: str,
     config: StageGenConfig,
     runtime: HeadlessRuntime | None = None,
+    metadata: Mapping[str, object] | None = None,
 ) -> CapabilityArtifactResult:
     assert_capabilities(config, ("music-generation",))
     if output_format not in {"mp3", "wav"}:
@@ -120,7 +126,10 @@ async def generate_music(
     assert active is not None
     try:
         return await active.generate_music(
-            prompt=prompt, output_path=output_path, output_format=output_format
+            prompt=prompt,
+            output_path=output_path,
+            output_format=output_format,
+            metadata=metadata,
         )
     finally:
         if owned is not None:
