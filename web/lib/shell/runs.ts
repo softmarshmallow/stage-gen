@@ -7,34 +7,31 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { promises as fs } from "node:fs";
-import { existsSync } from "node:fs";
+import { constants as fsConstants, existsSync } from "node:fs";
 import path from "node:path";
 import {
+  parseRecipeRunSummaryBytes,
+  type RecipeRunSummary,
+} from "./run-summary";
+import {
   DEFAULT_TRANSPARENCY_MODE,
-  promptFromRunManifest,
-  transparencyModeFromRunManifest,
+  promptFromRunSummary,
   type TransparencyMode,
 } from "./transparency";
 import { tagFor } from "./tag";
 
-export { promptFromRunManifest } from "./transparency";
+export { promptFromRunSummary } from "./transparency";
 
 export const REPO_ROOT = path.resolve(process.cwd(), "..");
 export const OUT_ROOT = process.env.STAGE_GEN_OUT_DIR?.trim()
   ? path.resolve(REPO_ROOT, process.env.STAGE_GEN_OUT_DIR.trim())
   : path.join(REPO_ROOT, "out");
 
-// Length matches the producer's own bound. Python writes run directories through
-// `assert_safe_path_segment`, whose `_SAFE_SEGMENT` allows 128 characters, and this consumer
-// capped at 64 - so a tag the generator legitimately produced simply 404'd here, with no error
-// naming the length. Two dialogue-scene runs at 65 characters were already unreachable before
-// any game contract existed; a bound game adds a 27-character suffix and makes it routine.
-//
-// The character class stays narrower than the producer's on purpose: run tags are lowercased
-// slugs, and `.` in particular must never reach a path segment here. Only the length moved.
+// Match the current producer's one-safe-segment contract exactly. Generated prompt tags happen
+// to be lower-case, but explicit producer tags may also contain upper-case letters, `_`, or `.`.
 const RUN_TAG_MAXIMUM_LENGTH = 128;
 const RUN_TAG_PATTERN = new RegExp(
-  `^[a-z0-9](?:[a-z0-9-]{0,${RUN_TAG_MAXIMUM_LENGTH - 2}}[a-z0-9])?$`,
+  `^[A-Za-z0-9][A-Za-z0-9._-]{0,${RUN_TAG_MAXIMUM_LENGTH - 1}}$`,
 );
 const ARTIFACT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 const ALLOWED_EXECUTABLE_NAMES = new Set(["uv", "stage-gen", "stage-gen-py"]);
@@ -95,7 +92,7 @@ function isAlreadyDecoded(value: string): boolean {
 }
 
 export function isSafeRunTag(tag: string): boolean {
-  return isAlreadyDecoded(tag) && RUN_TAG_PATTERN.test(tag);
+  return isAlreadyDecoded(tag) && tag !== "." && tag !== ".." && RUN_TAG_PATTERN.test(tag);
 }
 
 export function assertSafeRunTag(tag: string): void {
@@ -142,7 +139,7 @@ export interface RunInputSnapshot {
 interface ProcRecord {
   proc: ChildProcess;
   startedAt: number;
-  input: RunInputSnapshot & { transparencyMode: TransparencyMode };
+  input: RunInputSnapshot;
 }
 
 // Module-level singleton so multiple SSE clients reuse the same record.
@@ -159,21 +156,82 @@ export interface RunStatus {
   failedStage?: string | null;
 }
 
+async function lstatOrNull(target: string): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
+  try {
+    return await fs.lstat(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function assertRealDirectory(target: string, label: string): Promise<boolean> {
+  const stat = await lstatOrNull(target);
+  if (!stat) return false;
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(`${label} must be a real directory`);
+  }
+  if ((await fs.realpath(target)) !== path.resolve(target)) {
+    throw new Error(`${label} must not traverse a symlink`);
+  }
+  return true;
+}
+
+export async function assertSafeOutRoot(): Promise<boolean> {
+  return assertRealDirectory(OUT_ROOT, "run output root");
+}
+
+export async function readRunSummary(tag: string): Promise<RecipeRunSummary | null> {
+  if (!(await assertSafeOutRoot())) return null;
+  const runDir = runDirFor(tag);
+  if (!(await assertRealDirectory(runDir, "run directory"))) return null;
+  const runJson = path.join(runDir, "run.json");
+  const initial = await lstatOrNull(runJson);
+  if (!initial) return null;
+  if (!initial.isFile() || initial.isSymbolicLink()) {
+    throw new Error("run summary file must be a real regular file");
+  }
+  const handle = await fs.open(runJson, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  let bytes: Buffer;
+  let opened: Awaited<ReturnType<typeof handle.stat>>;
+  try {
+    opened = await handle.stat();
+    if (!opened.isFile()) throw new Error("run summary file must be a real regular file");
+    bytes = await handle.readFile();
+  } finally {
+    await handle.close();
+  }
+  const current = await fs.lstat(runJson);
+  if (
+    current.isSymbolicLink() ||
+    !current.isFile() ||
+    current.dev !== opened.dev ||
+    current.ino !== opened.ino
+  ) {
+    throw new Error("run summary file changed while it was being read");
+  }
+  if ((await fs.realpath(runDir)) !== path.resolve(runDir)) {
+    throw new Error("run directory changed while its summary was being read");
+  }
+  const summary = parseRecipeRunSummaryBytes(bytes);
+  if (summary.tag !== tag) {
+    throw new Error("run summary tag does not match its run directory");
+  }
+  if (summary.run_dir !== tag) {
+    throw new Error("run summary run_dir does not match its requested run directory");
+  }
+  return summary;
+}
+
 export async function readRunStatus(tag: string): Promise<RunStatus> {
-  const runJson = runJsonPathFor(tag);
-  if (existsSync(runJson)) {
-    try {
-      const raw = await fs.readFile(runJson, "utf8");
-      const data = JSON.parse(raw);
-      if (data.ok === true) return { status: "done", ok: true };
-      return {
-        status: "failed",
-        ok: false,
-        failedStage: data.failedStage ?? null,
-      };
-    } catch {
-      // fallthrough
-    }
+  const summary = await readRunSummary(tag);
+  if (summary?.ok === true) return { status: "done", ok: true };
+  if (summary?.ok === false) {
+    return {
+      status: "failed",
+      ok: false,
+      failedStage: summary.failed_stage,
+    };
   }
   if (isRunning(tag)) return { status: "running" };
   if (existsSync(runDirFor(tag))) {
@@ -184,22 +242,13 @@ export async function readRunStatus(tag: string): Promise<RunStatus> {
 
 export async function readRunInput(tag: string): Promise<RunInputSnapshot | null> {
   assertSafeRunTag(tag);
-  const runJson = runJsonPathFor(tag);
-  if (existsSync(runJson)) {
-    let value: unknown;
-    try {
-      value = JSON.parse(await fs.readFile(runJson, "utf8"));
-    } catch {
-      // A live process record can still provide its validated input while the
-      // manifest is being published. A terminal malformed manifest fails closed.
-      const inFlight = procs.get(tag)?.input;
-      if (inFlight) return inFlight;
-      throw new Error("run manifest is not valid JSON");
-    }
-    const prompt = promptFromRunManifest(value);
+  const summary = await readRunSummary(tag);
+  if (summary) {
+    const prompt = promptFromRunSummary(summary);
     if (prompt) {
-      return { prompt, transparencyMode: transparencyModeFromRunManifest(value) };
+      return { prompt, transparencyMode: summary.input.transparency_mode };
     }
+    return null;
   }
   return procs.get(tag)?.input ?? null;
 }
@@ -224,7 +273,7 @@ export async function startRun(opts: {
 
   const dir = runDirFor(tag);
   await fs.mkdir(dir, { recursive: true });
-  // A previous terminal manifest must not make a newly spawned retry look
+  // A previous terminal summary must not make a newly spawned retry look
   // complete or failed while it is running.
   await fs.unlink(runJsonPathFor(tag)).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== "ENOENT") throw error;
@@ -277,13 +326,13 @@ export async function retryAsset(opts: {
   const { tag, asset } = opts;
   try {
     const target = artifactPathFor(tag, asset);
-    // Read the current headless run manifest so the same recipe input can be
+    // Read the current headless run summary so the same recipe input can be
     // submitted again after removing the failed artifact.
-    const raw = await fs.readFile(runJsonPathFor(tag), "utf8");
-    const data = JSON.parse(raw);
-    const prompt = promptFromRunManifest(data);
-    if (!prompt) return { ok: false, reason: "run manifest has no input.prompt" };
-    const transparencyMode = transparencyModeFromRunManifest(data);
+    const summary = await readRunSummary(tag);
+    if (!summary) return { ok: false, reason: "run summary is missing" };
+    const prompt = promptFromRunSummary(summary);
+    if (!prompt) return { ok: false, reason: "run summary has no input.prompt" };
+    const transparencyMode = summary.input.transparency_mode;
     if (tagFor(prompt, transparencyMode) !== tag) {
       return {
         ok: false,

@@ -7,10 +7,12 @@
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
 import {
+  assertSafeOutRoot,
   artifactPathFor,
   isSafeRunTag,
   OUT_ROOT,
-  promptFromRunManifest,
+  promptFromRunSummary,
+  readRunSummary,
   runJsonPathFor,
 } from "./runs";
 
@@ -22,7 +24,7 @@ export interface ReadyProject {
 }
 
 export async function listReadyProjects(): Promise<ReadyProject[]> {
-  if (!existsSync(OUT_ROOT)) return [];
+  if (!(await assertSafeOutRoot())) return [];
   const entries = await fs.readdir(OUT_ROOT, { withFileTypes: true });
   const out: ReadyProject[] = [];
   await Promise.all(
@@ -33,16 +35,15 @@ export async function listReadyProjects(): Promise<ReadyProject[]> {
       const runJson = runJsonPathFor(tag);
       if (!existsSync(runJson)) return;
       try {
-        const raw = await fs.readFile(runJson, "utf8");
-        const data = JSON.parse(raw);
-        if (data.ok !== true) return;
+        const summary = await readRunSummary(tag);
+        if (summary?.ok !== true) return;
         const conceptName = `concept_${tag}.png`;
         const conceptPath = artifactPathFor(tag, conceptName);
         const conceptFile = existsSync(conceptPath) ? conceptName : null;
         out.push({
           tag,
-          prompt: promptFromRunManifest(data) ?? "",
-          endedAt: typeof data.endedAt === "string" ? data.endedAt : null,
+          prompt: promptFromRunSummary(summary) ?? "",
+          endedAt: summary.ended_at,
           conceptFile,
         });
       } catch {

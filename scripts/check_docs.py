@@ -254,7 +254,16 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             re.compile(r"opaque[^\n]*(?:neither|omit|bypass)", re.IGNORECASE),
             "opaque exclusion",
         ),
-        ("docs/web-preview.md", re.compile(r"input\.transparencyMode"), "manifest strategy field"),
+        (
+            "docs/web-preview.md",
+            re.compile(r"input\.transparency_mode"),
+            "run-summary strategy field",
+        ),
+        (
+            "docs/web-preview.md",
+            re.compile(r"HTTP start body is `\{ prompt, transparency_mode \}`"),
+            "web run-request strategy field",
+        ),
         (
             "web/app/Picker.tsx",
             re.compile(r'''aria-label="AI background removal"'''),

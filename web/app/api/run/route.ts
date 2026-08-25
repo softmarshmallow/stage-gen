@@ -1,8 +1,8 @@
 // POST /api/run — kick off (or attach to) a pipeline run for one prompt.
 //
-// Body: { prompt: string, transparencyMode?: "ai" | "chroma" }
+// Body: { prompt: string, transparency_mode?: "ai" | "chroma" }
 // Response (200):
-//   { tag: string, status: "started" | "running" | "cached" | "failed" }
+//   { tag: string, status: "started" | "running" | "cached", transparency_mode: string }
 //
 // Behaviour:
 //   - Computes the deterministic tag from prompt + transparency mode (same
@@ -41,16 +41,16 @@ export async function POST(req: NextRequest) {
   const status = await readRunStatus(tag);
 
   if (status.status === "done" && status.ok) {
-    return Response.json({ tag, status: "cached", transparencyMode: input.transparencyMode });
+    return Response.json({ tag, status: "cached", transparency_mode: input.transparencyMode });
   }
   if (status.status === "running") {
-    return Response.json({ tag, status: "running", transparencyMode: input.transparencyMode });
+    return Response.json({ tag, status: "running", transparency_mode: input.transparencyMode });
   }
 
   const { started } = await startRun({ ...input, tag });
   return Response.json({
     tag,
     status: started ? "started" : "running",
-    transparencyMode: input.transparencyMode,
+    transparency_mode: input.transparencyMode,
   });
 }

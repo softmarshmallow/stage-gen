@@ -164,10 +164,10 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       try {
         const data = JSON.parse(ev.data) as {
           ok: boolean;
-          failedStage: string | null;
+          failed_stage: string | null;
         };
         setStatus(data.ok ? "done" : "failed");
-        setFailedStage(data.failedStage);
+        setFailedStage(data.failed_stage);
       } catch {
         // ignore
       }

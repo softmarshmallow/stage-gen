@@ -67,7 +67,7 @@ export default function Picker(_props: { presets: string[] }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           prompt: trimmed,
-          transparencyMode: modeForAiBackgroundRemoval(aiBackgroundRemoval),
+          transparency_mode: modeForAiBackgroundRemoval(aiBackgroundRemoval),
         }),
       });
       if (!res.ok) {

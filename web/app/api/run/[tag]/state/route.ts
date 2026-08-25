@@ -17,10 +17,10 @@ import { existsSync } from "node:fs";
 import {
   artifactPathFor,
   isSafeRunTag,
-  promptFromRunManifest,
+  promptFromRunSummary,
+  readRunSummary,
   readRunStatus,
   runDirFor,
-  runJsonPathFor,
 } from "@/lib/shell/runs";
 import type { WorldSpecLite } from "@/lib/shell/slots";
 
@@ -35,17 +35,13 @@ export async function GET(
     return Response.json({ error: "invalid run tag" }, { status: 400 });
   }
   const dir = runDirFor(tag);
-  const status = await readRunStatus(tag);
-
-  let prompt: string | null = null;
-  if (existsSync(runJsonPathFor(tag))) {
-    try {
-      const raw = await fs.readFile(runJsonPathFor(tag), "utf8");
-      prompt = promptFromRunManifest(JSON.parse(raw)) ?? null;
-    } catch {
-      // ignore
-    }
-  }
+  const summary = await readRunSummary(tag);
+  const status = summary
+    ? summary.ok
+      ? ({ status: "done", ok: true } as const)
+      : ({ status: "failed", ok: false, failedStage: summary.failed_stage } as const)
+    : await readRunStatus(tag);
+  const prompt = summary ? (promptFromRunSummary(summary) ?? null) : null;
 
   let spec: WorldSpecLite | null = null;
   const specPath = artifactPathFor(tag, `world_spec_${tag}.json`);
@@ -76,7 +72,7 @@ export async function GET(
     tag,
     prompt,
     status: status.status,
-    failedStage: status.failedStage ?? null,
+    failed_stage: status.failedStage ?? null,
     spec,
     present,
   });

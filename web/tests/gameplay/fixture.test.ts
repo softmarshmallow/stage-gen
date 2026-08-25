@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseScrollingManifestEnvelope } from "../../lib/runtime/manifest";
+import { parseRecipeRunSummary } from "../../lib/shell/run-summary";
 import {
   GAMEPLAY_AUTOMATION_VERSION,
   GAMEPLAY_FIXTURE_FILES,
@@ -62,10 +63,10 @@ describe("synthetic gameplay fixture", () => {
     expect(second.digest).toBe(first.digest);
 
     const run = JSON.parse(await fs.readFile(path.join(first.runDir, "run.json"), "utf8"));
+    expect(parseRecipeRunSummary(run)).toEqual(run);
     expect(run.input).toEqual({
-      recipe: "scrolling-preview",
       prompt: GAMEPLAY_PROMPT,
-      transparencyMode: "chroma",
+      transparency_mode: "chroma",
     });
     const manifest = JSON.parse(
       await fs.readFile(

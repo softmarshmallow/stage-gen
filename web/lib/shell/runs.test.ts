@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   artifactPathFor,
   isSafeRunTag,
-  promptFromRunManifest,
+  promptFromRunSummary,
   readRunInput,
   readRunStatus,
   retryAsset,
@@ -16,17 +16,61 @@ import {
   stageGenCommandFor,
 } from "./runs";
 import { tagFor } from "./tag";
+import { parseRecipeRunSummary } from "./run-summary";
 import {
   DEFAULT_TRANSPARENCY_MODE,
   modeForAiBackgroundRemoval,
   parseWebRunInput,
   previewPolicyForRunMode,
-  transparencyModeFromRunManifest,
+  transparencyModeFromRunSummary,
   transparencyModeLabel,
   type TransparencyMode,
 } from "./transparency";
 
 const cleanup: string[] = [];
+
+function successfulRunSummary(
+  prompt: string,
+  transparencyMode: TransparencyMode,
+  tag = tagFor(prompt, transparencyMode),
+): Record<string, unknown> {
+  return {
+    schema_version: 3,
+    kind: "recipe_run_v3",
+    recipe: "scrolling-preview",
+    input: { prompt, transparency_mode: transparencyMode },
+    tag,
+    run_dir: tag,
+    started_at: "2026-08-25T00:00:00Z",
+    ended_at: "2026-08-25T00:00:01Z",
+    duration_ms: 1_000,
+    ok: true,
+    stages: [
+      { stage: "concept", ok: true, duration_ms: 1_000, artifacts: ["concept.png"] },
+    ],
+  };
+}
+
+function failedRunSummary(
+  prompt: string,
+  transparencyMode: TransparencyMode,
+  tag = tagFor(prompt, transparencyMode),
+): Record<string, unknown> {
+  return {
+    ...successfulRunSummary(prompt, transparencyMode, tag),
+    ok: false,
+    failed_stage: "concept",
+    stages: [
+      {
+        stage: "concept",
+        ok: false,
+        duration_ms: 1_000,
+        artifacts: [],
+        error: "fixture failure",
+      },
+    ],
+  };
+}
 
 afterEach(async () => {
   await Promise.all(cleanup.splice(0).map((target) => rm(target, { recursive: true, force: true })));
@@ -40,16 +84,22 @@ describe("web run boundary", () => {
       transparencyMode: "ai",
     });
     expect(
-      parseWebRunInput({ prompt: "neutral request", transparencyMode: "chroma" }),
+      parseWebRunInput({ prompt: "neutral request", transparency_mode: "chroma" }),
     ).toEqual({ prompt: "neutral request", transparencyMode: "chroma" });
-    expect(
+    expect(() =>
       parseWebRunInput({
         input: { prompt: "nested request", transparencyMode: "chroma" },
       }),
-    ).toEqual({ prompt: "nested request", transparencyMode: "chroma" });
+    ).toThrow("request body.input is not a supported key");
     expect(() =>
-      parseWebRunInput({ prompt: "neutral request", transparencyMode: "unsupported" }),
-    ).toThrow("transparencyMode must be ai or chroma");
+      parseWebRunInput({ prompt: "neutral request", unknown: true }),
+    ).toThrow("request body.unknown is not a supported key");
+    expect(() =>
+      parseWebRunInput({ prompt: "neutral request", transparency_mode: "unsupported" }),
+    ).toThrow("transparency_mode must be ai or chroma");
+    expect(() =>
+      parseWebRunInput({ prompt: "neutral request", transparencyMode: "ai" }),
+    ).toThrow("request body.transparencyMode is not a supported key");
     expect(() => parseWebRunInput({ prompt: " " })).toThrow("prompt is required");
   });
 
@@ -115,14 +165,15 @@ describe("web run boundary", () => {
     ).rejects.toThrow("run tag does not match prompt and transparencyMode");
   });
 
-  test("current manifests require an explicit mode and always use canonical alpha", () => {
-    const current = { input: { prompt: "neutral", transparencyMode: "chroma" } };
-    const missingMode = { input: { prompt: "neutral" } };
-    expect(transparencyModeFromRunManifest(current)).toBe("chroma");
+  test("current summaries require an explicit mode and always use canonical alpha", () => {
+    const current = successfulRunSummary("neutral", "chroma");
+    const missingMode = successfulRunSummary("neutral", "chroma");
+    missingMode["input"] = { prompt: "neutral" };
+    expect(transparencyModeFromRunSummary(current)).toBe("chroma");
     expect(previewPolicyForRunMode("ai")).toBe("canonical-alpha");
     expect(previewPolicyForRunMode("chroma")).toBe("canonical-alpha");
-    expect(() => transparencyModeFromRunManifest(missingMode)).toThrow(
-      "input.transparencyMode must be ai or chroma",
+    expect(() => transparencyModeFromRunSummary(missingMode)).toThrow(
+      "run_summary.input.transparency_mode must be ai or chroma",
     );
     expect(() => previewPolicyForRunMode(null)).toThrow(
       "current preview requires a transparency mode",
@@ -131,14 +182,16 @@ describe("web run boundary", () => {
       "current preview requires a transparency mode",
     );
     expect(() =>
-      transparencyModeFromRunManifest({
-        input: { prompt: "neutral", transparencyMode: "unknown" },
+      transparencyModeFromRunSummary({
+        ...successfulRunSummary("neutral", "chroma"),
+        input: { prompt: "neutral", transparency_mode: "unknown" },
       }),
-    ).toThrow("run manifest input.transparencyMode must be ai or chroma");
+    ).toThrow("run_summary.input.transparency_mode must be ai or chroma");
   });
 
   test("accepts generated tags and rejects traversal or encoded separators", () => {
     expect(isSafeRunTag("rain-dark-stone-0123abcd")).toBe(true);
+    expect(isSafeRunTag("Explicit_Tag.v3")).toBe(true);
     expect(isSafeRunTag("a")).toBe(true);
     expect(isSafeRunTag("a".repeat(128))).toBe(true);
     expect(isSafeRunTag("a".repeat(129))).toBe(false);
@@ -153,7 +206,6 @@ describe("web run boundary", () => {
       "%2e%2e",
       "safe%2Fescape",
       "safe%252Fescape",
-      "UPPER-0123abcd",
     ]) {
       expect(isSafeRunTag(tag)).toBe(false);
       expect(() => runDirFor(tag)).toThrow("invalid run tag");
@@ -180,16 +232,11 @@ describe("web run boundary", () => {
     }
   });
 
-  test("reads the prompt and strategy from the current headless run manifest", async () => {
-    expect(
-      promptFromRunManifest({
-        recipe: "scrolling-preview",
-        input: { prompt: "original rain-dark ruins" },
-        ok: false,
-      }),
-    ).toBe("original rain-dark ruins");
-    expect(promptFromRunManifest({ prompt: "wrong shape" })).toBeUndefined();
-    expect(promptFromRunManifest({ input: { prompt: "  " } })).toBeUndefined();
+  test("reads the prompt and strategy from the current headless run summary", async () => {
+    const promptSummary = successfulRunSummary("original rain-dark ruins", "ai");
+    expect(promptFromRunSummary(parseRecipeRunSummary(promptSummary))).toBe(
+      "original rain-dark ruins",
+    );
 
     const tag = `test-input-${process.pid}`;
     const runDir = runDirFor(tag);
@@ -197,16 +244,107 @@ describe("web run boundary", () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(
       path.join(runDir, "run.json"),
-      JSON.stringify({
-        input: { prompt: "current neutral request", transparencyMode: "ai" },
-        ok: true,
-      }),
+      JSON.stringify(successfulRunSummary("current neutral request", "ai", tag)),
       "utf8",
     );
     expect(await readRunInput(tag)).toEqual({
       prompt: "current neutral request",
       transparencyMode: "ai",
     });
+    expect(await readRunStatus(tag)).toEqual({ status: "done", ok: true });
+  });
+
+  test("maps a validated failure and rejects a legacy terminal run", async () => {
+    const failedTag = `test-failed-summary-${process.pid}`;
+    const failedDir = runDirFor(failedTag);
+    cleanup.push(failedDir);
+    await mkdir(failedDir, { recursive: true });
+    await writeFile(
+      path.join(failedDir, "run.json"),
+      JSON.stringify(failedRunSummary("current failed request", "ai", failedTag)),
+      "utf8",
+    );
+    expect(await readRunStatus(failedTag)).toEqual({
+      status: "failed",
+      ok: false,
+      failedStage: "concept",
+    });
+
+    const legacyTag = `test-legacy-summary-${process.pid}`;
+    const legacyDir = runDirFor(legacyTag);
+    cleanup.push(legacyDir);
+    await mkdir(legacyDir, { recursive: true });
+    await writeFile(
+      path.join(legacyDir, "run.json"),
+      JSON.stringify({
+        recipe: "scrolling-preview",
+        input: { prompt: "legacy", transparencyMode: "ai" },
+        ok: true,
+      }),
+      "utf8",
+    );
+    await expect(readRunStatus(legacyTag)).rejects.toThrow(
+      "run_summary.schema_version is required",
+    );
+  });
+
+  test("binds the persisted tag and run_dir to the requested directory", async () => {
+    const tag = `test-summary-identity-${process.pid}`;
+    const runDir = runDirFor(tag);
+    cleanup.push(runDir);
+    await mkdir(runDir, { recursive: true });
+
+    await writeFile(
+      path.join(runDir, "run.json"),
+      JSON.stringify(
+        successfulRunSummary("identity mismatch", "ai", `${tag}-other`),
+      ),
+      "utf8",
+    );
+    await expect(readRunStatus(tag)).rejects.toThrow(
+      "run summary tag does not match its run directory",
+    );
+
+    await writeFile(
+      path.join(runDir, "run.json"),
+      JSON.stringify({
+        ...successfulRunSummary("directory mismatch", "ai", tag),
+        run_dir: `${tag}-other`,
+      }),
+      "utf8",
+    );
+    await expect(readRunStatus(tag)).rejects.toThrow(
+      "run_summary.run_dir must equal run_summary.tag",
+    );
+  });
+
+  test("rejects symlinked run directories and run summary files", async () => {
+    const directoryTag = `test-symlink-directory-${process.pid}`;
+    const directoryPath = runDirFor(directoryTag);
+    const directoryTarget = runDirFor(`${directoryTag}-target`);
+    cleanup.push(directoryPath, directoryTarget);
+    await mkdir(directoryTarget, { recursive: true });
+    await symlink(directoryTarget, directoryPath, "dir");
+    await expect(readRunStatus(directoryTag)).rejects.toThrow(
+      "run directory must be a real directory",
+    );
+
+    const fileTag = `test-symlink-file-${process.pid}`;
+    const fileRunDir = runDirFor(fileTag);
+    const fileTargetDir = runDirFor(`${fileTag}-target`);
+    const fileTarget = path.join(fileTargetDir, "foreign-run.json");
+    cleanup.push(fileRunDir, fileTargetDir);
+    await mkdir(fileRunDir, { recursive: true });
+    await mkdir(fileTargetDir, { recursive: true });
+    await writeFile(
+      fileTarget,
+      JSON.stringify(successfulRunSummary("symlink file", "ai", fileTag)),
+      "utf8",
+    );
+    await symlink(fileTarget, path.join(fileRunDir, "run.json"), "file");
+    await expect(readRunStatus(fileTag)).rejects.toThrow(
+      "run summary file must be a real regular file",
+    );
   });
 
   test("treats an orphaned run directory as interrupted, not running", async () => {
@@ -231,10 +369,7 @@ describe("web run boundary", () => {
     const artifactPath = artifactPathFor(tag, asset);
     await writeFile(
       path.join(runDir, "run.json"),
-      JSON.stringify({
-        input: { prompt, transparencyMode: "ai" },
-        ok: false,
-      }),
+      JSON.stringify(failedRunSummary(prompt, "ai", tag)),
       "utf8",
     );
     await writeFile(artifactPath, "partial", "utf8");
@@ -271,7 +406,10 @@ describe("web run boundary", () => {
     const target = artifactPathFor(tag, asset);
     await writeFile(
       path.join(runDir, "run.json"),
-      JSON.stringify({ input: { prompt: "invalid neutral retry" }, ok: false }),
+      JSON.stringify({
+        ...failedRunSummary("invalid neutral retry", "ai", tag),
+        input: { prompt: "invalid neutral retry" },
+      }),
       "utf8",
     );
     await writeFile(target, "partial", "utf8");
@@ -284,7 +422,7 @@ describe("web run boundary", () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: "run manifest input.transparencyMode must be ai or chroma",
+      reason: "run_summary.input.transparency_mode must be ai or chroma",
     });
     expect(starts).toHaveLength(0);
     expect(existsSync(target)).toBe(true);

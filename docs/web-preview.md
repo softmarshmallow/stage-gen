@@ -41,14 +41,14 @@ the headless `ai` transparency strategy; off explicitly requests the degraded
 shows the selected strategy in run metadata instead of inferring it from the
 prompt or asset colour.
 
-The current run manifest must declare `input.transparencyMode`. For both `ai`
+The exact current `recipe_run_v3` summary must declare `input.transparency_mode`. For both `ai`
 and `chroma`, the pipeline's canonical image artifacts are already transparent
 PNGs, so the preview loads their alpha normally and never performs runtime
 chroma keying. A missing or invalid strategy fails closed because the adapter
 cannot reproduce the run's generation policy.
 
-The HTTP start body is `{ prompt, transparencyMode }`, where
-`transparencyMode` is `"ai"` or `"chroma"` and omitted means `"ai"`. The web
+The HTTP start body is `{ prompt, transparency_mode }`, where
+`transparency_mode` is `"ai"` or `"chroma"` and omitted means `"ai"`. The web
 adapter treats the returned run tag as opaque; it does not assume equal prompts
 share a cache entry across strategies.
 

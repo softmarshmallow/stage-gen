@@ -9,6 +9,10 @@ import {
   type GameplayFixture,
 } from "./contracts";
 import { runtimeRoleOwnsScaleReference } from "../../lib/runtime/sprite-scale";
+import {
+  RECIPE_RUN_KIND,
+  RECIPE_RUN_SCHEMA_VERSION,
+} from "../../lib/shell/run-summary";
 
 export {
   GAMEPLAY_AUTOMATION_VERSION,
@@ -552,13 +556,27 @@ export async function generateGameplayFixture(outRoot: string): Promise<Gameplay
   outputs.set(
     "run.json",
     jsonBytes({
-      schemaVersion: 2,
-      ok: true,
+      schema_version: RECIPE_RUN_SCHEMA_VERSION,
+      kind: RECIPE_RUN_KIND,
+      recipe: "scrolling-preview",
       input: {
-        recipe: "scrolling-preview",
         prompt: GAMEPLAY_PROMPT,
-        transparencyMode: GAMEPLAY_TRANSPARENCY_MODE,
+        transparency_mode: GAMEPLAY_TRANSPARENCY_MODE,
       },
+      tag: GAMEPLAY_TAG,
+      run_dir: GAMEPLAY_TAG,
+      started_at: "1970-01-01T00:00:00Z",
+      ended_at: "1970-01-01T00:00:00Z",
+      duration_ms: 0,
+      ok: true,
+      stages: [
+        {
+          stage: "gameplay-fixture",
+          ok: true,
+          duration_ms: 0,
+          artifacts: [...outputs.keys()].sort(),
+        },
+      ],
     }),
   );
 

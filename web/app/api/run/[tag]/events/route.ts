@@ -4,7 +4,7 @@
 //   event: log         data: { line }                    one per pipeline stdout line
 //   event: stage-start data: { wave, name, description } parsed from "[wave N] name — desc"
 //   event: present     data: { files: string[] }         every poll, the file set under out/<tag>/
-//   event: pipeline-done data: { ok, failedStage|null }
+//   event: pipeline-done data: { ok, failed_stage|null }
 //   event: heartbeat   data: { t }                       every 5s so the client stays alive
 //
 // Strategy: tail web-run.log (poll fs.stat + read appended bytes) on a 500ms
@@ -14,12 +14,14 @@
 import { NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
+import { runCompletionPayload } from "@/lib/shell/run-summary";
 import {
   isSafeRunTag,
   logPathFor,
   runDirFor,
   runJsonPathFor,
   isRunning,
+  readRunSummary,
 } from "@/lib/shell/runs";
 
 export const runtime = "nodejs";
@@ -154,14 +156,11 @@ export async function GET(
           if (!donePosted && existsSync(runJsonPath) && !isRunning(tag)) {
             donePosted = true;
             try {
-              const raw = await fs.readFile(runJsonPath, "utf8");
-              const data = JSON.parse(raw);
-              send("pipeline-done", {
-                ok: Boolean(data.ok),
-                failedStage: data.failedStage ?? null,
-              });
+              const summary = await readRunSummary(tag);
+              if (!summary) throw new Error("run summary disappeared");
+              send("pipeline-done", runCompletionPayload(summary));
             } catch {
-              send("pipeline-done", { ok: false, failedStage: "unknown" });
+              send("pipeline-done", { ok: false, failed_stage: "unknown" });
             }
             // Linger ~3s so the client picks up the final present diff,
             // then close.

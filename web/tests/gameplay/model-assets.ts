@@ -10,6 +10,10 @@ import {
   type GameplayFixture,
 } from "./contracts";
 import { runtimeRoleOwnsScaleReference } from "../../lib/runtime/sprite-scale";
+import {
+  RECIPE_RUN_KIND,
+  RECIPE_RUN_SCHEMA_VERSION,
+} from "../../lib/shell/run-summary";
 
 const GAMEPLAY_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(GAMEPLAY_DIR, "../../..");
@@ -1666,13 +1670,27 @@ export async function generateApprovedModelGameplayFixture(
   outputs.set(
     "run.json",
     jsonBytes({
-      schemaVersion: 2,
-      ok: true,
+      schema_version: RECIPE_RUN_SCHEMA_VERSION,
+      kind: RECIPE_RUN_KIND,
+      recipe: "scrolling-preview",
       input: {
-        recipe: "scrolling-preview",
         prompt: GAMEPLAY_MODEL_PROMPT,
-        transparencyMode: GAMEPLAY_MODEL_TRANSPARENCY_MODE,
+        transparency_mode: GAMEPLAY_MODEL_TRANSPARENCY_MODE,
       },
+      tag: GAMEPLAY_MODEL_TAG,
+      run_dir: GAMEPLAY_MODEL_TAG,
+      started_at: "1970-01-01T00:00:00Z",
+      ended_at: "1970-01-01T00:00:00Z",
+      duration_ms: 0,
+      ok: true,
+      stages: [
+        {
+          stage: "gameplay-model-fixture",
+          ok: true,
+          duration_ms: 0,
+          artifacts: [...outputs.keys()].sort(),
+        },
+      ],
     }),
   );
   const artifactHashes = Object.fromEntries(

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PNG, type PngWriteInput } from "pngjs";
 import { parseScrollingManifestEnvelope } from "../../lib/runtime/manifest";
+import { parseRecipeRunSummary } from "../../lib/shell/run-summary";
 import { GAMEPLAY_FIXTURE_METADATA_FILE } from "./contracts";
 import {
   GAMEPLAY_DEMO_APPROVAL_MANIFEST,
@@ -664,6 +665,7 @@ describe("approved model gameplay fixture adapter", () => {
     const run = JSON.parse(
       await fs.readFile(path.join(first.runDir, "run.json"), "utf8"),
     );
+    expect(parseRecipeRunSummary(run)).toEqual(run);
     const worldSpecPath = `world_spec_${GAMEPLAY_MODEL_TAG}.json`;
     const worldSpecBytes = await fs.readFile(
       path.join(first.runDir, worldSpecPath),
@@ -728,9 +730,8 @@ describe("approved model gameplay fixture adapter", () => {
       media_type: "application/json",
     });
     expect(run.input).toEqual({
-      recipe: "scrolling-preview",
       prompt: GAMEPLAY_MODEL_PROMPT,
-      transparencyMode: "ai",
+      transparency_mode: "ai",
     });
     expect(spec.terrain_seed).toBe(GAMEPLAY_MODEL_TERRAIN_SEED);
     expect(spec.world.name).toBe("Moonlit Overgrown Ruins");

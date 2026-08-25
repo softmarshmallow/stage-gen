@@ -1,5 +1,11 @@
-/** JSON/CLI boundary shared with the authoritative Python backend. */
-export type TransparencyMode = "ai" | "chroma";
+import {
+  parseRecipeRunSummary,
+  type RecipeRunSummary,
+  type RunTransparencyMode,
+} from "./run-summary";
+
+/** UI/CLI adapter spelling for the run contract's transparency mode. */
+export type TransparencyMode = RunTransparencyMode;
 
 export const DEFAULT_TRANSPARENCY_MODE: TransparencyMode = "ai";
 
@@ -17,16 +23,17 @@ export function isTransparencyMode(value: unknown): value is TransparencyMode {
 export function parseWebRunInput(value: unknown): WebRunInput {
   if (!value || typeof value !== "object") throw new Error("request body must be an object");
   const record = value as Record<string, unknown>;
-  const nested =
-    record.input && typeof record.input === "object"
-      ? (record.input as Record<string, unknown>)
-      : undefined;
-  const rawPrompt = record.prompt ?? nested?.prompt;
+  for (const key of Object.keys(record)) {
+    if (key !== "prompt" && key !== "transparency_mode") {
+      throw new Error(`request body.${key} is not a supported key`);
+    }
+  }
+  const rawPrompt = record.prompt;
   const prompt = typeof rawPrompt === "string" ? rawPrompt.trim() : "";
   if (!prompt) throw new Error("prompt is required");
-  const rawMode = record.transparencyMode ?? nested?.transparencyMode;
+  const rawMode = record.transparency_mode;
   if (rawMode !== undefined && !isTransparencyMode(rawMode)) {
-    throw new Error("transparencyMode must be ai or chroma");
+    throw new Error("transparency_mode must be ai or chroma");
   }
   return {
     prompt,
@@ -38,27 +45,13 @@ export function modeForAiBackgroundRemoval(enabled: boolean): TransparencyMode {
   return enabled ? "ai" : "chroma";
 }
 
-/** Read the required generation mode from the one current run manifest contract. */
-export function transparencyModeFromRunManifest(value: unknown): TransparencyMode {
-  if (!value || typeof value !== "object") {
-    throw new Error("run manifest must be an object");
-  }
-  const input = (value as { input?: unknown }).input;
-  if (!input || typeof input !== "object") {
-    throw new Error("run manifest input must be an object");
-  }
-  const mode = (input as { transparencyMode?: unknown }).transparencyMode;
-  if (!isTransparencyMode(mode)) {
-    throw new Error("run manifest input.transparencyMode must be ai or chroma");
-  }
-  return mode;
+/** Read the generation mode only after validating the complete persisted summary. */
+export function transparencyModeFromRunSummary(value: unknown): TransparencyMode {
+  return parseRecipeRunSummary(value).input.transparency_mode;
 }
 
-export function promptFromRunManifest(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const input = (value as { input?: unknown }).input;
-  if (!input || typeof input !== "object") return undefined;
-  const prompt = (input as { prompt?: unknown }).prompt;
+export function promptFromRunSummary(value: RecipeRunSummary): string | undefined {
+  const prompt = value.input["prompt"];
   return typeof prompt === "string" && prompt.trim() ? prompt.trim() : undefined;
 }
 
