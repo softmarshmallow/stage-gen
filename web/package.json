@@ -12,7 +12,8 @@
     "stage-gen": "bun scripts/stage-gen.ts",
     "gameplay:verify": "bun scripts/gameplay/showcase.ts --verify",
     "gameplay:capture": "bun scripts/gameplay/showcase.ts --capture docs/media/gameplay-showcase.mp4",
-    "gameplay:record": "bun scripts/gameplay/record.ts"
+    "gameplay:record": "bun scripts/gameplay/record.ts",
+    "gameplay:still": "bun scripts/gameplay/still.ts"
   },
   "dependencies": {
     "next": "^15.0.3",
