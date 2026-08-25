@@ -20,6 +20,12 @@ Start here for the headless, general-purpose system:
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
+- [Game visual reference and vocabulary](game-visual-reference.md) — global
+  research anchors, neutral style facets, prompt boundaries, and candidate
+  vocabulary governance for 2D-game art.
+- [Illustration style taxonomy lab](research/illustration-style-taxonomy/README.md)
+  — active research into atomic visual descriptors, role separation, controlled
+  provider evidence, and promotion gates.
 - [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md)
   — proposed TO-BE dialogue graph, choice, shot, cue-track, control-lease,
   skip/resume, checkpoint, and cutscene-realization semantics.
