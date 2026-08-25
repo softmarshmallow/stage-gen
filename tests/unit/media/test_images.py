@@ -92,8 +92,7 @@ def test_normalize_image_to_png_preserves_rgba_pixels() -> None:
     assert record.transform["color_mode"] == "RGBA"
 
 
-@pytest.mark.parametrize("source_format", ["GIF", "WEBP"])
-def test_normalize_image_to_png_rejects_animated_inputs(source_format: str) -> None:
+def _animated_image(source_format: str) -> bytes:
     first = Image.new("RGB", (8, 8), (255, 0, 0))
     second = Image.new("RGB", (8, 8), (0, 255, 0))
     source_io = BytesIO()
@@ -107,9 +106,20 @@ def test_normalize_image_to_png_rejects_animated_inputs(source_format: str) -> N
         loop=0,
         **format_options,
     )
+    return source_io.getvalue()
+
+
+@pytest.mark.parametrize("source_format", ["GIF", "PNG", "WEBP"])
+def test_normalize_image_to_png_rejects_animated_inputs(source_format: str) -> None:
+    source = _animated_image(source_format)
 
     with pytest.raises(ValueError, match="animated images are not supported"):
-        normalize_image_to_png(source_io.getvalue())
+        normalize_image_to_png(source)
+
+
+def test_normalize_png_rejects_animated_png() -> None:
+    with pytest.raises(ValueError, match="animated images are not supported"):
+        normalize_png(_animated_image("PNG"), width=8, height=8)
 
 
 def test_chroma_transparency_handles_every_matching_pixel() -> None:

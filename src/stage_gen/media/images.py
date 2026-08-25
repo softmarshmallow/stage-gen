@@ -123,15 +123,9 @@ def normalize_png(
     _positive_dimension(width, "width")
     _positive_dimension(height, "height")
     source = inspect_image(data, expected_media_type="image/png")
-    try:
-        with Image.open(BytesIO(data)) as image:
-            image.load()
-            resized = image.resize((width, height), resample=Image.Resampling.LANCZOS)
-            output_io = BytesIO()
-            resized.save(output_io, format="PNG", compress_level=9, optimize=False)
-            output = output_io.getvalue()
-    except (UnidentifiedImageError, OSError) as exc:
-        raise ValueError("provider image must be a decodable PNG with dimensions") from exc
+    decoded = _decode_image(data)
+    resized = decoded.resize((width, height), resample=Image.Resampling.LANCZOS)
+    output = _encode_png(resized)
     result = inspect_image(output, expected_media_type="image/png")
     if (result.width, result.height) != (width, height):
         raise ValueError(
