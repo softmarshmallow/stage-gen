@@ -153,8 +153,9 @@ graduate seminar. Each dialogue beat selects a discrete `neutral`,
 states, not animation frames and not a rig.
 
 The image above and `web/public/dialogue-scene/demo/anime/` remain a historical
-showcase with preserved provenance, not a portable v1 wire schema. The current
-route binds the versioned v2 study-lounge set without rewriting that history.
+showcase with preserved provenance, not an authored current portable-bundle
+example. The current route binds its reviewed fixture through the current
+consumer contract without rewriting those historical bytes.
 
 Run the optional web app and open `/dialogue-scene/demo` to play the vertical
 slice. The same page keeps the numeric framing control and camera-term
@@ -182,7 +183,8 @@ From `web/`, the shortest generation and installation commands are:
 
 ```sh
 bun run stage-gen -- generate --recipe dialogue-scene \
-  --input ../examples/dialogue-theme/adult-university-date.json --transparency ai
+  --input ../examples/dialogue-theme/profile-enabled-date.toml \
+  --character-library-root .. --transparency ai
 bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
 ```
 
