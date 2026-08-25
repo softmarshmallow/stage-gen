@@ -1,4 +1,4 @@
-"""Provenance-v1 and artifact-rights models."""
+"""Current provenance-v2 and artifact-rights models."""
 
 from __future__ import annotations
 
@@ -118,9 +118,9 @@ class ArtifactRights(PersistedContractModel):
 
 
 class ArtifactProvenance(PersistedContractModel):
-    """Persisted artifact sidecar schema version."""
+    """Persisted artifact sidecar using the exact current schema version."""
 
-    schema_version: Literal[1, 2] = 1
+    schema_version: Literal[2]
     provider: str
     model: str
     seed: int | None
@@ -155,9 +155,9 @@ class ArtifactProvenance(PersistedContractModel):
 
 
 class ProvenanceInput(PersistedContractModel):
-    """Caller input used to construct a sanitized provenance-v1 sidecar."""
+    """Caller input used to construct a sanitized provenance-v2 sidecar."""
 
-    schema_version: Literal[1, 2] = 1
+    schema_version: Literal[2] = 2
     provider: str
     model: str
     seed: int | None = None

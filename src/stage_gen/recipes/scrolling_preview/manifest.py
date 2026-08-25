@@ -1959,7 +1959,7 @@ def _read_sidecar(path: Path, artifact_name: str) -> dict[str, Any]:
         raise ValueError(f"canonical provenance is invalid for {artifact_name}") from error
     if (
         not isinstance(parsed, dict)
-        or parsed.get("schema_version") != 1
+        or parsed.get("schema_version") != 2
         or not isinstance(parsed.get("artifact"), dict)
         or not isinstance(parsed["artifact"].get("sha256"), str)
         or not isinstance(parsed.get("params"), dict)
@@ -2323,7 +2323,7 @@ def _validate_fallback(fallback: Path, meta: Path) -> dict[str, Any]:
         raise ValueError("bundled fallback provenance is not valid JSON") from error
     if (
         not isinstance(sidecar, dict)
-        or sidecar.get("schema_version") != 1
+        or sidecar.get("schema_version") != 2
         or not isinstance(sidecar.get("artifact"), dict)
     ):
         raise ValueError("bundled fallback provenance is invalid")

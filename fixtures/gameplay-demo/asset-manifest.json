@@ -571,7 +571,7 @@
             "height": 1672,
             "mimeType": "image/png"
           },
-          "provenanceSha256": "777bbb50b43b54f79dfe886a084463bcb32ff4313db16f84ce4fa730669fea0b",
+          "provenanceSha256": "ff4afbfa3dd3e3baf2f6c6d0d9cc94a110043cfcd91f5d2c6df704edafacc46a",
           "attempts": 1,
           "parameters": {
             "model_variant": "General Use (Light)",

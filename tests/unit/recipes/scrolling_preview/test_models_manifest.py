@@ -14,6 +14,7 @@ from pydantic import ValidationError
 import stage_gen.recipes.scrolling_preview.manifest as manifest_module
 from stage_gen.config import TransparencyMode
 from stage_gen.contracts import BinaryArtifact, ProvenanceInput
+from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
 from stage_gen.recipes.scrolling_preview.manifest import write_scrolling_preview_manifest
 from stage_gen.recipes.scrolling_preview.models import (
     NEAR_FOREGROUND_PARALLAX,
@@ -497,7 +498,7 @@ async def test_current_manifest_copies_only_approved_fallback(
     notice.write_text("approved notice", encoding="utf-8")
     sha = hashlib.sha256(fallback.read_bytes()).hexdigest()
     sidecar = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact": {"sha256": sha, "bytes": fallback.stat().st_size, "media_type": "audio/mpeg"},
         "references": [],
         "refs": [],
@@ -540,6 +541,29 @@ async def test_current_manifest_copies_only_approved_fallback(
     assert result.music_rights_status == "redistribution-approved"
     assert ".raw.png" not in "".join(manifest["artifacts"])
     assert await asyncio.to_thread(Path(result.manifest_provenance_path).is_file)
+    manifest_provenance = json.loads(
+        await asyncio.to_thread(
+            Path(result.manifest_provenance_path).read_text,
+            encoding="utf-8",
+        )
+    )
+    assert manifest_provenance["schema_version"] == 2
+
+
+def test_scrolling_cache_requires_current_provenance_v2(tmp_path: Path) -> None:
+    artifact = tmp_path / "artifact.json"
+    write_artifact_with_provenance(
+        artifact,
+        BinaryArtifact(data=b"{}\n", media_type="application/json"),
+        ProvenanceInput(provider="local", model="test", prompt="test", attempts=1),
+    )
+    assert valid_artifact_pair(artifact, force=False)
+
+    sidecar = Path(f"{artifact}.meta.json")
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    payload["schema_version"] = 1
+    sidecar.write_text(json.dumps(payload), encoding="utf-8")
+    assert not valid_artifact_pair(artifact, force=False)
 
 
 async def test_manifest_uses_real_bundled_fallback_without_live_calls(
@@ -572,7 +596,7 @@ async def test_manifest_rejects_nonportable_fallback_references(
     notice.write_text("approved notice", encoding="utf-8")
     sha = hashlib.sha256(fallback.read_bytes()).hexdigest()
     sidecar = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact": {"sha256": sha, "bytes": len(fallback.read_bytes())},
         "references": [reference],
         "refs": [reference],
@@ -631,6 +655,17 @@ async def test_manifest_rejects_approved_fallback_without_notice(tmp_path: Path)
         await write_scrolling_preview_manifest(
             run_dir=tmp_path / "run",
             tag="missing-notice-ai",
+            transparency_mode=TransparencyMode.AI,
+            fallback_music_path=fallback,
+        )
+
+
+async def test_manifest_rejects_legacy_v1_fallback_provenance(tmp_path: Path) -> None:
+    fallback = _fallback_fixture(tmp_path, schema_version=1)
+    with pytest.raises(ValueError, match="bundled fallback provenance is invalid"):
+        await write_scrolling_preview_manifest(
+            run_dir=tmp_path / "run",
+            tag="legacy-fallback-ai",
             transparency_mode=TransparencyMode.AI,
             fallback_music_path=fallback,
         )
@@ -1227,6 +1262,7 @@ def _fallback_fixture(
     status: str = "redistribution-approved",
     digest: str | None = None,
     write_notice: bool = True,
+    schema_version: int = 2,
 ) -> Path:
     fallback = root / "fallback.mp3"
     data = b"offline-fallback-fixture"
@@ -1257,7 +1293,7 @@ def _fallback_fixture(
             "reviewed_at": "2026-08-14T00:00:00.000Z",
         }
     sidecar = {
-        "schema_version": 1,
+        "schema_version": schema_version,
         "artifact": {
             "sha256": digest or actual_digest,
             "bytes": len(data),

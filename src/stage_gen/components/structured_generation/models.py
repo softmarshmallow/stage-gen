@@ -121,7 +121,7 @@ class StructuredGenerationRequest[T]:
     cancellation: CancellationToken | None = None
     artifact_value: Callable[[T], object] | None = None
     validate: Callable[[T], Mapping[str, object] | None] | None = None
-    provenance_schema_version: Literal[1, 2] = 1
+    provenance_schema_version: Literal[2] = 2
 
     def __post_init__(self) -> None:
         if not self.prompt.strip():
@@ -152,8 +152,8 @@ class StructuredGenerationRequest[T]:
         ):
             raise ValueError("seed must be an integer")
         validate_optional_timeout(self.timeout_seconds)
-        if self.provenance_schema_version not in {1, 2}:
-            raise ValueError("provenance_schema_version must be 1 or 2")
+        if self.provenance_schema_version != 2:
+            raise ValueError("provenance_schema_version must be 2")
 
 
 @dataclass(frozen=True, slots=True)

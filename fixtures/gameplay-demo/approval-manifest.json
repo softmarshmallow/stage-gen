@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "sourceManifest": {
     "path": "asset-manifest.json",
-    "sha256": "4efcd5785f140d5161f29ef863bb679e3f5ea33fe39a5bb1ef076797923506a8",
+    "sha256": "297e022b47c6765742f01108dc1f5c0535f0b5da1ec55d6abaef4f5995f4c583",
     "bytes": 91663
   },
   "setReview": {
@@ -197,7 +197,7 @@
           "sha256": "4fc2155a0eda619230b30e7c355d0c6e4b853c54945a0585b13969dfdf717eb3",
           "bytes": 6456
         },
-        "backgroundRemovalProvenanceSha256": "777bbb50b43b54f79dfe886a084463bcb32ff4313db16f84ce4fa730669fea0b"
+        "backgroundRemovalProvenanceSha256": "ff4afbfa3dd3e3baf2f6c6d0d9cc94a110043cfcd91f5d2c6df704edafacc46a"
       },
       "cohesiveSet": {
         "member": true,
@@ -583,7 +583,7 @@
       "provenance": {
         "producerManifest": {
           "path": "asset-manifest.json",
-          "sha256": "4efcd5785f140d5161f29ef863bb679e3f5ea33fe39a5bb1ef076797923506a8",
+          "sha256": "297e022b47c6765742f01108dc1f5c0535f0b5da1ec55d6abaef4f5995f4c583",
           "bytes": 91663
         },
         "producerAssetId": "character-climb",

@@ -128,7 +128,7 @@ def build_artifact_provenance(
     secrets: Sequence[str] = (),
     now: datetime | None = None,
 ) -> ArtifactProvenance:
-    """Validate and sanitize a provenance-v1 record before any write."""
+    """Validate and sanitize a provenance-v2 record before any write."""
 
     references = [sanitize_reference(reference) for reference in provenance.refs]
     inputs = [
@@ -514,7 +514,7 @@ def record_artifact_rights(
     try:
         record = ArtifactProvenance.model_validate_json(original_sidecar)
     except Exception as error:
-        raise ValueError("artifact provenance is not valid provenance-v1 JSON") from error
+        raise ValueError("artifact provenance is not valid provenance-v2 JSON") from error
     _assert_artifact_binding(record, artifact_bytes)
     if rights.status == "redistribution-approved":
         _assert_portable_references(record.references, record.inputs)

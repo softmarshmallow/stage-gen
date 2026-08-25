@@ -24,7 +24,7 @@ def valid_artifact_pair(
     validator: Callable[[Path, dict[str, Any]], bool] | None = None,
     force: bool | None = None,
 ) -> bool:
-    """Require artifact bytes, matching v1 sidecar, and requested mode.
+    """Require artifact bytes, matching v2 sidecar, and requested mode.
 
     A media-specific caller can additionally verify dimensions/alpha through
     ``validator``.  Existence alone never satisfies this cache contract.
@@ -39,7 +39,7 @@ def valid_artifact_pair(
         sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return False
-    if not raw or not isinstance(sidecar, dict) or sidecar.get("schema_version") != 1:
+    if not raw or not isinstance(sidecar, dict) or sidecar.get("schema_version") != 2:
         return False
     digest = sidecar.get("artifact")
     if not isinstance(digest, dict):

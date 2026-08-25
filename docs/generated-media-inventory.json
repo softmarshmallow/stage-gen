@@ -65,7 +65,7 @@
     },
     {
       "path": "docs/media/gameplay-model-demo.png",
-      "sidecarSha256": "07328ef51e6f438a2d0bfa592733489763197f3ddde0e8675a8c5efc6f315bc3",
+      "sidecarSha256": "1b77327d818701c6230e4c84a6989c999ab4d906067498354fa723088980e6f1",
       "kind": "image",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,

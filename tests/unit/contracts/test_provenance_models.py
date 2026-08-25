@@ -96,6 +96,7 @@ def test_artifact_result_uses_public_camel_case_aliases() -> None:
 
 def test_provenance_rejects_retry_count_or_reference_alias_drift() -> None:
     base = {
+        "schema_version": 2,
         "provider": "provider",
         "model": "model",
         "seed": None,
@@ -119,6 +120,50 @@ def test_provenance_rejects_retry_count_or_reference_alias_drift() -> None:
         ArtifactProvenance.model_validate({**base, "refs": ["different.png"]})
 
 
+def test_provenance_requires_explicit_current_schema_version() -> None:
+    base: dict[str, object] = {
+        "schema_version": 2,
+        "provider": "provider",
+        "model": "model",
+        "seed": None,
+        "prompt": "prompt",
+        "prompt_sha256": "a" * 64,
+        "references": [],
+        "refs": [],
+        "inputs": [],
+        "params": {},
+        "validation": {},
+        "component": {"name": "component", "version": "1"},
+        "tool": {"name": "tool", "version": "1"},
+        "ts": "2026-08-14T00:00:00.000Z",
+        "attempts": 1,
+        "retries": 0,
+    }
+    assert ArtifactProvenance.model_validate(base).schema_version == 2
+    without_version = {key: value for key, value in base.items() if key != "schema_version"}
+    with pytest.raises(ValidationError, match="schema_version"):
+        ArtifactProvenance.model_validate(without_version)
+    with pytest.raises(ValidationError, match="schema_version"):
+        ArtifactProvenance.model_validate({**base, "schema_version": 1})
+
+    assert (
+        ProvenanceInput(
+            provider="provider", model="model", prompt="prompt", attempts=1
+        ).schema_version
+        == 2
+    )
+    with pytest.raises(ValidationError, match="schema_version"):
+        ProvenanceInput.model_validate(
+            {
+                "schema_version": 1,
+                "provider": "provider",
+                "model": "model",
+                "prompt": "prompt",
+                "attempts": 1,
+            }
+        )
+
+
 def test_persisted_contracts_do_not_coerce_numeric_strings() -> None:
     result = {
         "component": "image-generation",
@@ -133,6 +178,7 @@ def test_persisted_contracts_do_not_coerce_numeric_strings() -> None:
         ArtifactResult.model_validate(result)
 
     provenance: dict[str, object] = {
+        "schema_version": 2,
         "provider": "provider",
         "model": "model",
         "seed": None,

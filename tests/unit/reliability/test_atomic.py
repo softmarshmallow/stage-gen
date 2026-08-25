@@ -66,7 +66,7 @@ def test_pair_write_records_schema_hashes_versions_and_mode(tmp_path: Path) -> N
     )
     parsed = json.loads(sidecar_path.read_text())
     assert artifact_path.read_bytes() == b"\x01\x02\x03\x04"
-    assert parsed["schema_version"] == 1
+    assert parsed["schema_version"] == 2
     assert parsed["seed"] is None
     assert parsed["prompt_sha256"] == sha256_hex("hashed prompt")
     assert parsed["artifact"] == {

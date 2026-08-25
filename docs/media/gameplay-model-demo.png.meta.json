@@ -175,12 +175,12 @@
     },
     "producerManifest": {
       "path": "fixtures/gameplay-demo/asset-manifest.json",
-      "sha256": "4efcd5785f140d5161f29ef863bb679e3f5ea33fe39a5bb1ef076797923506a8",
+      "sha256": "297e022b47c6765742f01108dc1f5c0535f0b5da1ec55d6abaef4f5995f4c583",
       "bytes": 91663
     },
     "approvalManifest": {
       "path": "fixtures/gameplay-demo/approval-manifest.json",
-      "sha256": "7af861195edf1e73ce368377de831ddacb20fe19dfb436fe7c05082824634062",
+      "sha256": "96124e19bc83dc0e3f85b671c0c81f99bfc057caeae57c9c19d748f98aaffbed",
       "bytes": 22699
     },
     "assetSet": {
