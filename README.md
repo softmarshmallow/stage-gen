@@ -86,10 +86,12 @@ uv run stage-gen remove-background \
 ```
 
 Generated runs default to `out/<prompt-tag>-<mode>/`. Every run writes an
-atomic `run.json`; scrolling-preview writes legacy manifest schema V2 or
-profile-enabled schema V3, while dialogue-scene writes portable bundle wire V2
-or profile-enabled wire V3. Both retain adjacent artifact provenance. A bare
-prompt remains a compatibility alias for `generate --recipe scrolling-preview`.
+atomic `run.json`; scrolling-preview emits only the exact current manifest V7
+envelope. Optional current systems such as soundtrack, map book, population,
+village, and reviewed dialogue-character imports are omitted when not authored
+and validated; their absence never selects an older envelope. Generated
+artifacts retain adjacent provenance. A bare prompt is the current CLI shorthand
+for `generate --recipe scrolling-preview`.
 
 ## What it provides
 

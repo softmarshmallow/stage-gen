@@ -62,7 +62,11 @@ class DialogueCliRuntime(CliRuntime):
         return (str(path),)
 
 
-def test_cli_offline_surfaces_and_legacy_prompt(monkeypatch: object, tmp_path: Path) -> None:
+def test_cli_offline_surfaces_and_prompt_shorthand(monkeypatch: object, tmp_path: Path) -> None:
+    help_text = " ".join(build_parser().format_help().split())
+    assert "A bare prompt is the current shorthand for scrolling-preview generation." in help_text
+    assert "legacy-compatible" not in help_text
+
     monkeypatch.setenv("OPENROUTER_API_KEY", "offline")  # type: ignore[attr-defined]
     monkeypatch.setenv("OUT_DIR", str(tmp_path))  # type: ignore[attr-defined]
     output = StringIO()

@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="headless 2D asset pipeline",
         epilog=(
             "Every generated artifact reports its output and provenance paths. "
-            "A bare prompt is legacy-compatible scrolling-preview generation."
+            "A bare prompt is the current shorthand for scrolling-preview generation."
         ),
     )
     commands = parser.add_subparsers(dest="command", required=True)
