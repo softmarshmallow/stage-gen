@@ -1644,12 +1644,52 @@ def test_current_theme_art_direction_derivative_is_exactly_bound() -> None:
     )
 
 
+def test_current_game_concept_cover_is_exactly_bound() -> None:
+    repository = Path(__file__).parents[2]
+    inventory = cast(
+        dict[str, Any],
+        json.loads(
+            (repository / "docs/generated-media-inventory.json").read_text(encoding="utf-8")
+        ),
+    )
+    entry = next(
+        item
+        for item in cast(list[dict[str, Any]], inventory["media"])
+        if item.get("lineage_kind") == "game_concept_cover_v1"
+    )
+    artifact = repository / cast(str, entry["path"])
+    sidecar_path = Path(f"{artifact}.meta.json")
+    sidecar_bytes = sidecar_path.read_bytes()
+    sidecar = cast(dict[str, Any], json.loads(sidecar_bytes.decode("utf-8")))
+    notice = artifact.parent / cast(str, sidecar["rights"]["notice"])
+    observed = {
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "bytes": artifact.stat().st_size,
+        "notice_sha256": hashlib.sha256(notice.read_bytes()).hexdigest(),
+        "notice_bytes": notice.stat().st_size,
+    }
+
+    assert entry["sidecar_sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
+    assert (
+        validate_published_media_record({"entry": entry, "observed": observed, "sidecar": sidecar})
+        == []
+    )
+    concept = repository / cast(str, sidecar["concept"]["path"])
+    assert sidecar["concept"]["sha256"] == hashlib.sha256(concept.read_bytes()).hexdigest()
+    assert sidecar["concept"]["bytes"] == concept.stat().st_size
+    report = repository / cast(str, sidecar["visual_review"]["evidence"]["path"])
+    assert (
+        sidecar["visual_review"]["evidence"]["sha256"]
+        == hashlib.sha256(report.read_bytes()).hexdigest()
+    )
+
+
 def test_current_repository_generated_media_inventory_remains_strictly_valid() -> None:
     repository = Path(__file__).parents[2]
     inventory_path = repository / "docs/generated-media-inventory.json"
     result = check_generated_media_publication(repository, inventory_path)
     assert result.failures == ()
-    assert result.media_count == 6
+    assert result.media_count == 7
 
     inventory = cast(dict[str, Any], json.loads(inventory_path.read_text(encoding="utf-8")))
     entries = {entry["path"]: entry for entry in cast(list[dict[str, Any]], inventory["media"])}

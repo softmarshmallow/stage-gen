@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "generated_image",
+  "lineage_kind": "game_concept_cover_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "concept-studio/gallery/the-sky-remembers/images/cover.webp",
+    "media_type": "image/webp",
+    "width": 960,
+    "height": 540,
+    "sha256": "6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6",
+    "bytes": 58386
+  },
+  "concept": {
+    "path": "concept-studio/gallery/the-sky-remembers/concept.md",
+    "sha256": "0c0c7fe995bbd56348e1c803ae233be5cf5b14fe3833e857d24ec9c60d803c6e",
+    "bytes": 5064
+  },
+  "generation": {
+    "prompt": "Use case: stylized-concept\nAsset type: exploratory 16:9 game cover for a modern 2D side-scrolling game\nPrimary request: Create an original cover for The Sky Remembers. Show exactly one non-sexualized\n18-year-old final-year female student in a modest navy-and-white summer uniform, loafers, and a\ncanvas school satchel. Her missing younger brother's faded red scarf is tied to the satchel and\nmoves in the wind beside a tiny brass bell charm.\nComposition variation: Silent level crossing. Show the student in clear side profile, paused at a\nmodern rural railway crossing whose warning lights glow but whose scene feels uncannily silent. No\ntrain is present. The rails cut horizontally across rice fields toward a distant school and low\nmodern homes. Crossing poles and overhead wires frame rather than obscure the immense blue sky.\nKeep the horizon low, with monumental sunlit cumulus occupying most of the frame; hide a single\nhalf-dissolved rooftop shape inside one cloud bank.\nStyle/medium: Original luminous pastoral pixel painting with decisive graphic shadow bands, clean\ncoherent pixel clusters, crisp silhouette edges, restrained texture, sparse dithering, and minimal\noutline. Modern high-color pixel art, not strict retro and not smooth digital painting.\nMood/palette: Flawless late-summer blue, warm fields, cream highlights, lavender cloud shadows,\ncool distant town, faded red scarf; ordinary beauty interrupted by quiet absence.\nConstraints: Wide side-view cover. Contemporary era. One person only. Non-sexual presentation.\nOriginal brand-neutral scene. No text, pseudo-text, signage words, logos, insignia, signatures,\nwatermarks, UI, borders, copied landmarks, recognizable franchises, medieval cues, fantasy outfit,\nfetishized uniform details, childlike anatomy, weapons, monsters, or extra companions.",
+    "prompt_sha256": "13a8b9f53c2439486b1df19dc514fdc5a7ae3d798b212c5160c2305a96c512d8",
+    "prompt_hash_scope": "full_exact_utf8_string",
+    "provider": "openrouter",
+    "model": "openai/gpt-image-2",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [],
+    "source": {
+      "media_type": "image/png",
+      "sha256": "0fa3bf61f6334b5d9f41b68ebf788c55dff5d28a6210085b716fab8dc397328e",
+      "bytes": 1851977,
+      "width": 1536,
+      "height": 864
+    },
+    "normalization": {
+      "tool": "Pillow",
+      "version": "12.3.0",
+      "operation": "image-to-png",
+      "input_sha256": "0fa3bf61f6334b5d9f41b68ebf788c55dff5d28a6210085b716fab8dc397328e",
+      "output_sha256": "a266bb4c293799dd83012340ae4f28513eec0adbec155ecbc16a75c256379b3d",
+      "output_media_type": "image/png",
+      "width": 1536,
+      "height": 864
+    },
+    "publication_transform": {
+      "tool": "cwebp",
+      "version": "1.6.0",
+      "operation": "resize_and_webp_encode",
+      "input_sha256": "a266bb4c293799dd83012340ae4f28513eec0adbec155ecbc16a75c256379b3d",
+      "output_sha256": "6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6",
+      "output_media_type": "image/webp",
+      "width": 960,
+      "height": 540,
+      "settings": {
+        "quality": 75,
+        "resize_width": 960,
+        "resize_height": 540,
+        "metadata": "none"
+      }
+    }
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "independent visual-review subagent",
+    "authority_basis": "reviewer independent from the concept and prompt authors, provider operator, candidate selector, and deterministic WebP transform producer; exact final preview inspection against the selected PNG",
+    "reviewed_at": "2026-08-25T09:09:04Z",
+    "attestation_id": "the-sky-remembers-publication-review-6006077d867b3f3e",
+    "attested_at": "2026-08-25T09:09:04Z",
+    "artifact_sha256": "6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6",
+    "artifact_bytes": 58386,
+    "verification_report_path": "concept-studio/gallery/the-sky-remembers/images/cover.visual-review.md",
+    "verification_report_sha256": "ce9b2dc63033a338717bff9f466b37de8d81b3e8885855fdd01aa7266c42e1b8",
+    "verification_report_bytes": 7382,
+    "acceptance_spec": "Exact The Sky Remembers premise; contemporary rural Japanese-inspired town; one non-sexualized proportional 18-year-old female student; silent level crossing; red scarf and brass bell story cues; immense blue sky and luminous pastoral pixel painting; strong 16:9 side-view cover; no readable or pseudo text, logo, signature, watermark, protected character or material, medieval cue, sexualization, childlike anatomy, weapon, monster, extra companion, or objectionable WebP artifact.",
+    "evidence": {
+      "path": "concept-studio/gallery/the-sky-remembers/images/cover.visual-review.md",
+      "verdict": "pass",
+      "ref": "sha256:ce9b2dc63033a338717bff9f466b37de8d81b3e8885855fdd01aa7266c42e1b8",
+      "sha256": "ce9b2dc63033a338717bff9f466b37de8d81b3e8885855fdd01aa7266c42e1b8",
+      "bytes": 7382
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "notice": "cover.LICENSE.md",
+    "notice_sha256": "f72083eb7a4b690ac748a66734b23df369094461995e5573e3f1988a2b6d0daa",
+    "notice_bytes": 2391,
+    "license_id": "LicenseRef-Synthetic-Game-Concept-Cover",
+    "basis": [
+      "Authenticated task owner selected Candidate 04 and explicitly authorized committing and pushing all remaining repository work, including this exact independently reviewed gallery package, on 2026-08-25",
+      "the-sky-remembers-publication-review-6006077d867b3f3e",
+      "No input reference images or third-party source media were submitted to the provider",
+      "Current OpenRouter model-terms routing and OpenAI output-ownership terms were reviewed in the adjacent artifact-specific notice"
+    ],
+    "reviewed_at": "2026-08-25T09:09:35Z"
+  }
+}

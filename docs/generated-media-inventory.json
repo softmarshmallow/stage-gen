@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "roots": [
     "src/stage_gen/resources/music",
-    "docs/media"
+    "docs/media",
+    "concept-studio/gallery"
   ],
   "media": [
     {
@@ -127,6 +128,30 @@
         "verification_report_path": "docs/media/theme-art-direction-example.visual-review.md",
         "verification_report_sha256": "cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
         "verification_report_bytes": 2005
+      }
+    },
+    {
+      "path": "concept-studio/gallery/the-sky-remembers/images/cover.webp",
+      "provenance_kind": "generated_image",
+      "lineage_kind": "game_concept_cover_v1",
+      "kind": "image",
+      "sidecar_sha256": "565bc5b7f604515505633369357cf8813c4544e3aa21e8e553ad10ab2c3ac9fd",
+      "review_status": "repository-approved",
+      "synth_id_expected": false,
+      "visual_review": {
+        "status": "approved",
+        "result": "pass",
+        "independent": true,
+        "reviewed_by": "independent visual-review subagent",
+        "authority_basis": "reviewer independent from the concept and prompt authors, provider operator, candidate selector, and deterministic WebP transform producer; exact final preview inspection against the selected PNG",
+        "reviewed_at": "2026-08-25T09:09:04Z",
+        "attestation_id": "the-sky-remembers-publication-review-6006077d867b3f3e",
+        "attested_at": "2026-08-25T09:09:04Z",
+        "artifact_sha256": "6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6",
+        "artifact_bytes": 58386,
+        "verification_report_path": "concept-studio/gallery/the-sky-remembers/images/cover.visual-review.md",
+        "verification_report_sha256": "ce9b2dc63033a338717bff9f466b37de8d81b3e8885855fdd01aa7266c42e1b8",
+        "verification_report_bytes": 7382
       }
     }
   ]
