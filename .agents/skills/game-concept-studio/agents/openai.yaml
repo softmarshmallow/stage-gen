@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Concept Studio"
+  short_description: "Shape a game concept through text and images"
+  default_prompt: "Use $game-concept-studio to turn my short game idea into an exploratory concept and cover direction."
