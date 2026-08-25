@@ -111,3 +111,81 @@ def test_tileset_documentation_matches_connected_harmonic_runtime() -> None:
         "Cull transition frames",
     ):
         assert retired not in normalized
+
+
+def test_game_contract_authorities_are_discoverable_and_match_the_live_models() -> None:
+    """The master and executable game contracts remain distinct and discoverable.
+
+    Modelled on the character-profile discoverability test above, and extended with the checks
+    that keep the executable schema from drifting from the models it describes: the documented
+    vocabulary sections, the camera projections the recipe accepts, and the one exact current
+    manifest version a consumer must require are all read from the live definitions rather than
+    restated by hand.
+    """
+
+    repository_root = Path(__file__).parents[2]
+    readme = (repository_root / "README.md").read_text(encoding="utf-8")
+    master_doc = (repository_root / "docs/game-contract.md").read_text(encoding="utf-8")
+    schema_doc = (repository_root / "docs/spec/game/authored-contract-schema.md").read_text(
+        encoding="utf-8"
+    )
+    sequence_doc = (
+        repository_root / "docs/spec/game/dialogue-and-cutscene-sequences.md"
+    ).read_text(encoding="utf-8")
+    docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
+    discoverable_docs = (readme, master_doc, schema_doc, sequence_doc, docs_index)
+
+    for required in (
+        "stage-gen game validate",
+        "stage-gen game digest",
+        "examples/scrolling-preview/game-directed-village.toml",
+        "library/games/<game_id>/game.toml",
+        "STAGE_GEN_GAME_LIBRARY_ROOT",
+        "game-contract-binding-v1",
+    ):
+        assert any(required in document for document in discoverable_docs)
+
+    for required in (
+        "spec/game/authored-contract-schema.md",
+        "spec/game/view-and-style-taxonomy.md",
+        "spec/game/dialogue-and-cutscene-sequences.md",
+        "Visible gameplay requires visual coverage",
+        "player `hurt` motion coverage",
+        "Sequence control is explicit",
+    ):
+        assert required in master_doc
+
+    for required in (
+        "semantic control-flow graph",
+        "orthogonal presentation program",
+        "A **cutscene**",
+        "control leases",
+        "The current bundle and runtime shapes remain valid",
+    ):
+        assert required in sequence_doc
+
+    from stage_gen.components.game_contract import (
+        GameContract,
+        load_game_vocabulary,
+    )
+    from stage_gen.recipes.scrolling_preview.game import ACCEPTED_PROJECTIONS
+    from stage_gen.recipes.scrolling_preview.village import VILLAGE_MANIFEST_SCHEMA_VERSION
+
+    # Every field of the contract appears in the page's worked example, and every field that
+    # carries direction rather than identity additionally has its own section. A field added to
+    # the model without a paragraph explaining it fails here rather than shipping undocumented.
+    identity_fields = {"schema_version", "kind", "game_id", "revision", "display_name"}
+    for field in GameContract.model_fields:
+        assert field in schema_doc
+        if field not in identity_fields:
+            assert f"### `[{field}]`" in schema_doc
+
+    vocabulary = load_game_vocabulary().vocabulary
+    for section in type(vocabulary).model_fields:
+        if section in {"schema_version", "kind"}:
+            continue
+        assert f"`{section}`" in schema_doc
+
+    for projection in ACCEPTED_PROJECTIONS:
+        assert projection in schema_doc
+    assert f'"schema_version": {VILLAGE_MANIFEST_SCHEMA_VERSION}' in schema_doc

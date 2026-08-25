@@ -102,22 +102,93 @@ owner around one backend attempt and caller validation.
 | Retry owner | One initial attempt plus five blind retries in `ImageGenerationService.generate` | Transport, response-envelope, media, and caller-validation failures remain inside this one boundary. Recipes and backends must not stack SDK, outer, or per-stage retry loops. |
 | Accepted response | Exactly one nonempty image with strict base64, media-type, signature, and caller validation | The inspected provider artifact and deterministic normalized artifact retain bound provenance. |
 
-Four exact canvas sizes are used as scrolling-recipe output contracts:
+### Optional authored player profile
+
+The scrolling recipe accepts one opt-in shared binding under `character_profile`:
+
+```json
+{
+  "schema_version": 1,
+  "kind": "character-profile-binding-v1",
+  "ref": "library/characters/mira-vale-cartographer/profile.toml",
+  "source_sha256": "<exact lowercase SHA-256>"
+}
+```
+
+The current `CharacterProfileBinding` accepts exactly these four fields. Its
+`ref` must equal `library/characters/<profile_id>/profile.toml`; camelCase,
+extra keys, absolute paths, URLs, traversal, symlinks, and source-digest
+mismatches fail closed. With an explicit character-library root,
+`profile-resolve` securely reads the bound TOML and its local references,
+validates their digests, and writes canonical UTF-8 JSON plus provenance into
+the ignored run directory. That pair records both authored-source and
+canonical-model digests.
+
+The run tag is derived from the stable portable `ref`, not the profile bytes.
+That is directory ownership, not permission to reuse stale player art: a new
+source digest, profile revision, or canonical digest at the same ref changes
+the resolved identity and invalidates every player cache that binds it. World
+assets do not bind the profile identity, so their cache keys remain unchanged.
+
+Only the player character concept prompt consumes durable profile prose. The
+player concept, isolated turnaround recovery, state strips, attack, climb,
+locally composed master, and derived state slices bind the resolved canonical
+identity in cache metadata and provenance inputs. World concept/spec, layers,
+terrain/materials, props/items/interface/effects, and mobs never receive it;
+their existing cache identities stay unchanged when the profile changes.
+
+Presence adds `profile-resolve` and makes `wave-a` wait for it. The exact
+current manifest V7 envelope then includes a validated `character_profile`
+binding; absence omits that optional field from the same envelope. The binding
+records source and canonical digests, stable profile id and revision, rights
+status, and canonical artifact and provenance paths. It never authorizes
+publication.
+
+Six exact canvas sizes are used as scrolling-recipe output contracts:
 
 | Canvas | Aspect | Pixel area | Used by |
 |---|---|---|---|
 | 1536 × 1024 | 3:2 (landscape) | 1.57 Mpx | World concept, inventory panel |
 | 2048 × 1024 | 2:1 (wide) | 2.10 Mpx | Portal pair sheet (entry / exit) |
-| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, ground tileset, character / creature concepts, single-state motion strips, obstacle sheets, item sheet |
+| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, ground tileset, character / creature / village-resident concepts, single-state motion strips, obstacle sheets, village fixture sheet, item sheet |
 | 2400 × 3440 | ≈ 30:43 (tall, ~5:7) | 8.26 Mpx | Character motion master sheet (5 rows × 4 frames) |
+| 256 × 1024 | 1:4 (tall strip) | 0.26 Mpx | One complete runtime ladder |
+| 256 × 128 | 2:1 (four cells) | 0.03 Mpx | Four-frame character climb strip |
 
 These dimensions are not provider-native size requests or evidence of a model
 pixel-area cap. The recipe derives an aspect-ratio request value from target
 geometry, leaves acceptance to provider/model validation, inspects the
-returned image, and normalizes it deterministically. The 2400 x 3440 character
-master is composed locally from five normalized 2400 x 800 state strips after
-each strip is cropped to 2400 x 688; it is never requested as one provider
-image.
+returned image, and normalizes it deterministically. Each of the five character
+state sources is a 2400 x 800, one-row-by-four-cell strip. The local compositor
+remaps every cell into a 2400 x 688 row with the eight-pixel gutter and bottom
+anchor preserved, then stacks the five rows into the 2400 x 3440 master. The
+master is never requested as one provider image.
+
+### Optional village hub
+
+The scrolling recipe accepts one further opt-in under `village`:
+
+```json
+{
+  "schema_version": 1,
+  "kind": "village_hub_v1"
+}
+```
+
+The object carries no options and must equal those two fields exactly. A bare
+`true`, a missing field, camelCase, an extra key, another schema version, or
+another `kind` is rejected rather than coerced. The current recipe recognizes
+no alternate village input.
+
+Residents are ordinary townsfolk: not creatures from the bestiary, and not the
+player. Their `village-npc` stage family uses resident subjects with the shared
+actor-sheet builders and retains its own isolated-view fallback family; it
+never satisfies the player-asset predicate and therefore never receives the
+authored player profile. Semantic review names a resident as "a game character"
+rather than "a creature" while still applying the facing rule for its current
+render shape. Compiled-theme routing sends resident artwork to character
+direction and `village-fixtures` to the same prop/item direction as obstacle
+sheets. Neither falls through to environment direction.
 
 ---
 
