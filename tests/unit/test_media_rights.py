@@ -5,11 +5,13 @@ import hashlib
 import importlib.util
 import json
 import sys
+from io import BytesIO
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
 
 import pytest
+from PIL import Image
 
 FIXTURES = Path(__file__).parents[2] / "docs/check-fixtures"
 
@@ -330,6 +332,336 @@ def _generated_derivative_record() -> dict[str, Any]:
             },
         },
     }
+
+
+def _generated_concept_cover_record() -> dict[str, Any]:
+    artifact_digest = "a" * 64
+    concept_digest = "c" * 64
+    review_digest = "b" * 64
+    source_digest = "d" * 64
+    notice_digest = "9" * 64
+    attestation = "independent-game-concept-cover-review-a"
+    prompt = (
+        "Create original game concept cover art for a moonlit marsh adventure.\n"
+        "No readable text, logo, signature, watermark, or protected character."
+    )
+    shared_review = {
+        "status": "approved",
+        "result": "pass",
+        "independent": True,
+        "reviewed_by": "independent visual-review subagent",
+        "authority_basis": "reviewer independent from the concept-cover producer",
+        "reviewed_at": "2026-08-25T00:00:00.000Z",
+        "attestation_id": attestation,
+        "attested_at": "2026-08-25T00:00:00.000Z",
+        "artifact_sha256": artifact_digest,
+        "artifact_bytes": 2048,
+        "verification_report_path": (
+            "concept-studio/gallery/moonlit-marsh/images/cover.visual-review.md"
+        ),
+        "verification_report_sha256": review_digest,
+        "verification_report_bytes": 128,
+    }
+    return {
+        "entry": {
+            "path": "concept-studio/gallery/moonlit-marsh/images/cover.png",
+            "provenance_kind": "generated_image",
+            "lineage_kind": "game_concept_cover_v1",
+            "kind": "image",
+            "sidecar_sha256": "e" * 64,
+            "review_status": "repository-approved",
+            "synth_id_expected": False,
+            "visual_review": copy.deepcopy(shared_review),
+        },
+        "observed": {
+            "sha256": artifact_digest,
+            "bytes": 2048,
+            "notice_sha256": notice_digest,
+            "notice_bytes": 64,
+        },
+        "sidecar": {
+            "schema_version": 1,
+            "provenance_kind": "generated_image",
+            "lineage_kind": "game_concept_cover_v1",
+            "state": "redistribution-approved",
+            "artifact": {
+                "path": "concept-studio/gallery/moonlit-marsh/images/cover.png",
+                "media_type": "image/png",
+                "width": 1536,
+                "height": 1024,
+                "sha256": artifact_digest,
+                "bytes": 2048,
+            },
+            "concept": {
+                "path": "concept-studio/gallery/moonlit-marsh/concept.md",
+                "sha256": concept_digest,
+                "bytes": 512,
+            },
+            "generation": {
+                "prompt": prompt,
+                "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                "prompt_hash_scope": "full_exact_utf8_string",
+                "provider": "OpenRouter",
+                "model": "openai/gpt-image-2",
+                "attempt_count": 2,
+                "retry_count": 1,
+                "n": 1,
+                "input_references": [],
+                "source": {
+                    "media_type": "image/jpeg",
+                    "sha256": source_digest,
+                    "bytes": 4096,
+                    "width": 1536,
+                    "height": 1024,
+                },
+                "normalization": {
+                    "tool": "Pillow",
+                    "version": "12.0.0",
+                    "operation": "exif_transpose_and_png_encode",
+                    "input_sha256": source_digest,
+                    "output_sha256": artifact_digest,
+                    "output_media_type": "image/png",
+                    "width": 1536,
+                    "height": 1024,
+                },
+            },
+            "visual_review": {
+                **copy.deepcopy(shared_review),
+                "acceptance_spec": (
+                    "Exact selected concept cover; coherent game premise and original visual "
+                    "direction; no readable text, protected mark, signature, or watermark."
+                ),
+                "evidence": {
+                    "path": shared_review["verification_report_path"],
+                    "verdict": "pass",
+                    "ref": f"sha256:{review_digest}",
+                    "sha256": review_digest,
+                    "bytes": shared_review["verification_report_bytes"],
+                },
+            },
+            "rights": {
+                "status": "redistribution-approved",
+                "notice": "cover.LICENSE.md",
+                "notice_sha256": notice_digest,
+                "notice_bytes": 64,
+                "license_id": "LicenseRef-Synthetic-Game-Concept-Cover",
+                "basis": ["Artifact-specific publication authorization", attestation],
+                "reviewed_at": "2026-08-25T00:00:00.000Z",
+            },
+        },
+    }
+
+
+def _generated_transformed_concept_cover_record() -> dict[str, Any]:
+    value = _generated_concept_cover_record()
+    published_digest = "f" * 64
+    published_bytes = 1024
+    published_path = "concept-studio/gallery/moonlit-marsh/images/cover.webp"
+    value["entry"]["path"] = published_path
+    value["observed"].update({"sha256": published_digest, "bytes": published_bytes})
+    value["sidecar"]["artifact"].update(
+        {
+            "path": published_path,
+            "media_type": "image/webp",
+            "width": 960,
+            "height": 540,
+            "sha256": published_digest,
+            "bytes": published_bytes,
+        }
+    )
+    value["sidecar"]["generation"]["publication_transform"] = {
+        "tool": "cwebp",
+        "version": "1.6.0",
+        "operation": "resize_and_webp_encode",
+        "input_sha256": "a" * 64,
+        "output_sha256": published_digest,
+        "output_media_type": "image/webp",
+        "width": 960,
+        "height": 540,
+        "settings": {
+            "quality": 82,
+            "resize_width": 960,
+            "resize_height": 540,
+            "metadata": "none",
+        },
+    }
+    for review in (value["entry"]["visual_review"], value["sidecar"]["visual_review"]):
+        review.update(
+            {
+                "artifact_sha256": published_digest,
+                "artifact_bytes": published_bytes,
+            }
+        )
+    return value
+
+
+def test_accepts_generated_game_concept_cover() -> None:
+    assert validate_published_media_record(_generated_concept_cover_record()) == []
+
+
+def test_accepts_generated_game_concept_cover_with_publication_transform() -> None:
+    assert validate_published_media_record(_generated_transformed_concept_cover_record()) == []
+
+
+def test_generated_game_concept_cover_rejects_invalid_publication_transform() -> None:
+    value = _generated_transformed_concept_cover_record()
+    value["sidecar"]["generation"]["normalization"]["output_media_type"] = "image/jpeg"
+    transform = value["sidecar"]["generation"]["publication_transform"]
+    transform["tool"] = "x"
+    transform["input_sha256"] = "1" * 64
+    transform["output_sha256"] = "2" * 64
+    transform["output_media_type"] = "image/png"
+    transform["width"] = 959
+    settings = transform["settings"]
+    settings["quality"] = 101
+    settings["resize_width"] = 958
+    settings["resize_height"] = 0
+    settings["metadata"] = "preserve"
+    settings["extra"] = True
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        (
+            "sidecar.generation.normalization.output_media_type must be image/png when "
+            "publication_transform is present"
+        ),
+        "sidecar.generation.publication_transform.tool must be a stable value",
+        (
+            "sidecar.generation.publication_transform.input_sha256 must match the "
+            "normalization output"
+        ),
+        "sidecar.generation.publication_transform.output_sha256 must match the artifact",
+        "sidecar.generation.publication_transform.output_media_type must match the artifact",
+        "sidecar.generation.publication_transform.width must match the artifact",
+        (
+            "game_concept_cover_v1 publication_transform.settings fields are incomplete "
+            "or unsupported"
+        ),
+        ("sidecar.generation.publication_transform.settings.quality must be within [0, 100]"),
+        (
+            "sidecar.generation.publication_transform.settings.resize_width must match "
+            "publication_transform.width"
+        ),
+        (
+            "sidecar.generation.publication_transform.settings.resize_height must be a "
+            "positive integer"
+        ),
+        "sidecar.generation.publication_transform.settings.metadata must be none",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_game_concept_cover_rejects_generation_and_lineage_mismatches() -> None:
+    value = _generated_concept_cover_record()
+    value["entry"]["lineage_kind"] = "unknown_concept_cover_v1"
+    generation = value["sidecar"]["generation"]
+    generation["prompt_sha256"] = "0" * 64
+    generation["attempt_count"] = 7
+    generation["retry_count"] = 0
+    generation["n"] = 2
+    generation["input_references"] = [f"sha256:{'f' * 64}"]
+    generation["normalization"]["input_sha256"] = "1" * 64
+    generation["normalization"]["output_sha256"] = "2" * 64
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "inventory lineage_kind must select supported game_concept_cover_v1",
+        "sidecar.lineage_kind must match inventory lineage_kind",
+        "sidecar.generation.prompt_sha256 must digest the full exact UTF-8 prompt",
+        "sidecar.generation.attempt_count must be within [1, 6]",
+        "sidecar.generation.retry_count must equal attempt_count minus one",
+        "sidecar.generation.n must be exactly 1",
+        "sidecar.generation.input_references must be empty for game_concept_cover_v1",
+        "sidecar.generation.normalization.input_sha256 must match the source media",
+        "sidecar.generation.normalization.output_sha256 must match the artifact",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_game_concept_cover_rejects_unsafe_or_incomplete_records() -> None:
+    value = _generated_concept_cover_record()
+    value["entry"]["reviewStatus"] = value["entry"].pop("review_status")
+    value["sidecar"]["concept"]["path"] = "/private/tmp/concept.md"
+    value["sidecar"]["generation"]["source"]["bytes"] = 0
+    value["sidecar"]["generation"]["normalization"]["working_path"] = "/private/tmp/cover.png"
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "generated-image inventory fields must use lower_snake_case",
+        "generated-image records must not contain private, temporary, file, data, "
+        "authorization, credential, or signed-URL material",
+        "game_concept_cover_v1 inventory fields are incomplete or unsupported",
+        "inventory review_status must be repository-approved",
+        "sidecar.concept.path must be a distinct repository-relative path",
+        "sidecar.generation.source.bytes must be a positive integer",
+        "game_concept_cover_v1 normalization fields are incomplete or unsupported",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_game_concept_cover_rejects_cross_package_bindings() -> None:
+    value = _generated_concept_cover_record()
+    other_root = "concept-studio/gallery/other-concept"
+    value["sidecar"]["concept"]["path"] = f"{other_root}/concept.md"
+    for review in (value["entry"]["visual_review"], value["sidecar"]["visual_review"]):
+        review["verification_report_path"] = f"{other_root}/images/cover.visual-review.md"
+    value["sidecar"]["visual_review"]["evidence"]["path"] = (
+        f"{other_root}/images/cover.visual-review.md"
+    )
+    value["sidecar"]["rights"]["notice"] = "../other-concept/cover.LICENSE.md"
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "sidecar.concept.path must stay inside the artifact concept gallery package",
+        (
+            "inventory visual_review.verification_report_path must stay inside the artifact "
+            "concept gallery package"
+        ),
+        (
+            "sidecar.visual_review.verification_report_path must stay inside the artifact "
+            "concept gallery package"
+        ),
+        (
+            "sidecar.visual_review.evidence.path must stay inside the artifact concept "
+            "gallery package"
+        ),
+        "sidecar.rights.notice must name an adjacent file in the concept gallery package",
+    }
+    assert expected <= set(failures)
+
+
+def test_generated_game_concept_cover_rejects_noncanonical_gallery_path() -> None:
+    value = _generated_concept_cover_record()
+    value["entry"]["path"] = "gallery/moonlit-marsh/images/cover.png"
+    value["sidecar"]["artifact"]["path"] = value["entry"]["path"]
+
+    failures = validate_published_media_record(value)
+
+    assert "inventory artifact path must be inside concept-studio/gallery/<concept_id>" in failures
+
+
+def test_generated_game_concept_cover_reuses_strict_review_and_notice_bindings() -> None:
+    value = _generated_concept_cover_record()
+    value["entry"]["synth_id_expected"] = True
+    value["entry"]["visual_review"]["independent"] = False
+    value["sidecar"]["visual_review"]["verification_report_sha256"] = "1" * 64
+    value["sidecar"]["rights"]["notice_sha256"] = "2" * 64
+
+    failures = validate_published_media_record(value)
+
+    expected = {
+        "inventory synth_id_expected must explicitly be false for generated image",
+        "inventory visual_review.independent must be true",
+        "inventory and sidecar visual_review.independent must match",
+        "inventory and sidecar visual_review.verification_report_sha256 must match",
+        "sidecar.visual_review.evidence.sha256 must match the review report",
+        "sidecar.rights.notice_sha256 must match the adjacent notice",
+    }
+    assert expected <= set(failures)
 
 
 def test_accepts_generated_image_derivative_without_tracked_raw_sources() -> None:
@@ -665,6 +997,89 @@ def _write_generated_derivative_publication(repo: Path) -> tuple[Path, Path, Pat
     return inventory, artifact, sidecar_path, review_path
 
 
+def _encoded_concept_cover_png() -> bytes:
+    output = BytesIO()
+    with Image.new("RGB", (1536, 1024), color=(18, 35, 52)) as image:
+        image.save(output, format="PNG")
+    return output.getvalue()
+
+
+def _write_generated_concept_cover_publication(
+    repo: Path,
+    *,
+    artifact_bytes: bytes | None = None,
+) -> tuple[Path, Path, Path, Path]:
+    record = _generated_concept_cover_record()
+    concept_root = repo / "concept-studio/gallery/moonlit-marsh"
+    media_root = concept_root / "images"
+    media_root.mkdir(parents=True)
+    artifact = media_root / "cover.png"
+    if artifact_bytes is None:
+        artifact_bytes = _encoded_concept_cover_png()
+    artifact.write_bytes(artifact_bytes)
+    artifact_digest = hashlib.sha256(artifact_bytes).hexdigest()
+    concept = concept_root / "concept.md"
+    concept_bytes = b"# Moonlit Marsh\n\nAn original game concept.\n"
+    concept.write_bytes(concept_bytes)
+    concept_digest = hashlib.sha256(concept_bytes).hexdigest()
+    review_path = media_root / "cover.visual-review.md"
+    review_bytes = b"Artifact-bound independent concept-cover review: pass."
+    review_path.write_bytes(review_bytes)
+    review_digest = hashlib.sha256(review_bytes).hexdigest()
+    notice = media_root / "cover.LICENSE.md"
+    notice.write_text("Synthetic artifact-specific permission.", encoding="utf-8")
+    notice_bytes = notice.read_bytes()
+
+    record["observed"] = {
+        "sha256": artifact_digest,
+        "bytes": len(artifact_bytes),
+        "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
+        "notice_bytes": len(notice_bytes),
+    }
+    record["sidecar"]["artifact"].update({"sha256": artifact_digest, "bytes": len(artifact_bytes)})
+    record["sidecar"]["concept"].update({"sha256": concept_digest, "bytes": len(concept_bytes)})
+    record["sidecar"]["generation"]["normalization"]["output_sha256"] = artifact_digest
+    record["sidecar"]["rights"].update(
+        {
+            "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
+            "notice_bytes": len(notice_bytes),
+        }
+    )
+    for review in (record["entry"]["visual_review"], record["sidecar"]["visual_review"]):
+        review.update(
+            {
+                "artifact_sha256": artifact_digest,
+                "artifact_bytes": len(artifact_bytes),
+                "verification_report_sha256": review_digest,
+                "verification_report_bytes": len(review_bytes),
+            }
+        )
+    record["sidecar"]["visual_review"]["evidence"].update(
+        {
+            "ref": f"sha256:{review_digest}",
+            "sha256": review_digest,
+            "bytes": len(review_bytes),
+        }
+    )
+    sidecar_path = Path(f"{artifact}.meta.json")
+    sidecar_bytes = json.dumps(record["sidecar"], indent=2).encode("utf-8")
+    sidecar_path.write_bytes(sidecar_bytes)
+    record["entry"]["sidecar_sha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
+    inventory = repo / "docs/generated-media-inventory.json"
+    inventory.parent.mkdir(parents=True)
+    inventory.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "roots": ["concept-studio/gallery"],
+                "media": [record["entry"]],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return inventory, artifact, concept, sidecar_path
+
+
 def test_publication_discovery_validates_bytes_sidecar_notice_and_inventory(
     tmp_path: Path,
 ) -> None:
@@ -695,6 +1110,67 @@ def test_generated_derivative_publication_binds_review_and_sidecar_without_raw_s
         "inventory sidecar_sha256 does not match adjacent provenance sidecar" in item
         for item in failures
     )
+
+
+def test_generated_concept_cover_publication_binds_concept_document(
+    tmp_path: Path,
+) -> None:
+    inventory, _artifact, concept, _sidecar = _write_generated_concept_cover_publication(tmp_path)
+    assert check_generated_media_publication(tmp_path, inventory).failures == ()
+
+    concept.write_text("# Changed concept\n", encoding="utf-8")
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+
+    assert any("concept document digest does not match" in item for item in failures)
+    assert any("concept document byte size does not match" in item for item in failures)
+
+
+def test_generated_concept_cover_publication_rejects_undecodable_image_bytes(
+    tmp_path: Path,
+) -> None:
+    inventory, _artifact, _concept, _sidecar = _write_generated_concept_cover_publication(
+        tmp_path,
+        artifact_bytes=b"not an encoded image",
+    )
+
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+
+    assert any("generated image artifact must be a decodable image" in item for item in failures)
+
+
+@pytest.mark.parametrize(
+    ("binding", "expected_failure"),
+    (
+        ("artifact", "generated-media roots cannot contain symlinks"),
+        ("sidecar", "adjacent provenance sidecar must be a regular file"),
+        ("concept", "sidecar.concept.path is unsafe"),
+        ("review", "sidecar.visual_review.evidence.path is unsafe"),
+        ("notice", "sidecar rights notice must be a regular file"),
+    ),
+)
+def test_generated_concept_cover_publication_rejects_symlinked_package_bindings(
+    tmp_path: Path,
+    binding: str,
+    expected_failure: str,
+) -> None:
+    inventory, artifact, concept, sidecar = _write_generated_concept_cover_publication(tmp_path)
+    paths = {
+        "artifact": artifact,
+        "sidecar": sidecar,
+        "concept": concept,
+        "review": artifact.parent / "cover.visual-review.md",
+        "notice": artifact.parent / "cover.LICENSE.md",
+    }
+    selected = paths[binding]
+    outside = tmp_path / "outside" / selected.name
+    outside.parent.mkdir()
+    outside.write_bytes(selected.read_bytes())
+    selected.unlink()
+    selected.symlink_to(outside)
+
+    failures = check_generated_media_publication(tmp_path, inventory).failures
+
+    assert any(expected_failure in item for item in failures)
 
 
 def test_publication_discovery_rejects_unlisted_media_and_symlinks(tmp_path: Path) -> None:

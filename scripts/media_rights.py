@@ -1,4 +1,4 @@
-"""Generated-media publication validation without media decoding."""
+"""Generated-media publication validation with artifact-specific media inspection."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 from urllib.parse import parse_qsl, urlsplit
+
+from stage_gen.media import inspect_image
 
 JsonObject = dict[str, Any]
 
@@ -69,7 +71,11 @@ PROVENANCE_ONLY = re.compile(
 LISTENING_RESULT = "no recognizable protected composition, lyrics, performer, voice, brand, or mark"
 VISUAL_REVIEW_RESULT = "pass"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+GENERATED_IMAGE = "generated_image"
 GENERATED_IMAGE_DERIVATIVE = "generated_image_derivative"
+GAME_CONCEPT_COVER = "game_concept_cover_v1"
+CONCEPT_GALLERY_PREFIX = ("concept-studio", "gallery")
+CONCEPT_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 THEME_ART_DIRECTION_COMPARISON = "theme_art_direction_comparison_v1"
 LOWER_SNAKE_FIELD = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
@@ -310,6 +316,10 @@ def _is_generated_image_derivative(entry: JsonObject) -> bool:
     return entry.get("provenance_kind") == GENERATED_IMAGE_DERIVATIVE
 
 
+def _is_generated_image(entry: JsonObject) -> bool:
+    return entry.get("provenance_kind") == GENERATED_IMAGE
+
+
 def _safe_relative_path(value: object) -> bool:
     if not isinstance(value, str) or not value or "\\" in value:
         return False
@@ -329,6 +339,32 @@ def _safe_repo_path(repo: Path, value: object) -> bool:
     except (OSError, RuntimeError, ValueError):
         return False
     return relative == value
+
+
+def _concept_gallery_package(value: object) -> PurePosixPath | None:
+    if not _safe_relative_path(value):
+        return None
+    path = PurePosixPath(cast(str, value))
+    parts = path.parts
+    if (
+        len(parts) < 4
+        or parts[:2] != CONCEPT_GALLERY_PREFIX
+        or len(parts[2]) > 80
+        or CONCEPT_ID.fullmatch(parts[2]) is None
+    ):
+        return None
+    return PurePosixPath(*parts[:3])
+
+
+def _within_concept_gallery_package(value: object, package: PurePosixPath | None) -> bool:
+    if package is None or not _safe_relative_path(value):
+        return False
+    path = PurePosixPath(cast(str, value))
+    try:
+        relative = path.relative_to(package)
+    except ValueError:
+        return False
+    return relative != PurePosixPath(".")
 
 
 def _finite_number(value: object) -> bool:
@@ -890,23 +926,386 @@ def _validate_derivative_generation(
         )
 
 
+def _validate_concept_cover_publication_transform(
+    value: object,
+    normalization: JsonObject,
+    artifact: JsonObject | None,
+    errors: list[str],
+) -> None:
+    publication_transform = _record(value)
+    expected_fields = {
+        "tool",
+        "version",
+        "operation",
+        "input_sha256",
+        "output_sha256",
+        "output_media_type",
+        "width",
+        "height",
+        "settings",
+    }
+    if publication_transform is None:
+        errors.append("sidecar.generation.publication_transform must be an object")
+        return
+    if set(publication_transform) != expected_fields:
+        errors.append(
+            "game_concept_cover_v1 publication_transform fields are incomplete or unsupported"
+        )
+    for field in ("tool", "version", "operation"):
+        if not _stable_text(publication_transform.get(field)):
+            errors.append(
+                f"sidecar.generation.publication_transform.{field} must be a stable value"
+            )
+
+    normalization_digest = normalization.get("output_sha256")
+    if publication_transform.get("input_sha256") != normalization_digest or not _valid_digest(
+        normalization_digest
+    ):
+        errors.append(
+            "sidecar.generation.publication_transform.input_sha256 must match the "
+            "normalization output"
+        )
+    artifact_digest = artifact.get("sha256") if artifact is not None else None
+    if publication_transform.get("output_sha256") != artifact_digest or not _valid_digest(
+        artifact_digest
+    ):
+        errors.append(
+            "sidecar.generation.publication_transform.output_sha256 must match the artifact"
+        )
+    if artifact is not None:
+        for transform_field, artifact_field in (
+            ("output_media_type", "media_type"),
+            ("width", "width"),
+            ("height", "height"),
+        ):
+            if publication_transform.get(transform_field) != artifact.get(artifact_field):
+                errors.append(
+                    f"sidecar.generation.publication_transform.{transform_field} must match "
+                    "the artifact"
+                )
+
+    for field in ("width", "height"):
+        if not _positive_safe_integer(publication_transform.get(field)):
+            errors.append(
+                f"sidecar.generation.publication_transform.{field} must be a positive integer"
+            )
+    output_media_type = publication_transform.get("output_media_type")
+    if not isinstance(output_media_type, str) or not output_media_type.startswith("image/"):
+        errors.append(
+            "sidecar.generation.publication_transform.output_media_type must describe an image"
+        )
+
+    settings = _record(publication_transform.get("settings"))
+    expected_settings_fields = {"quality", "resize_width", "resize_height", "metadata"}
+    if settings is None:
+        errors.append("sidecar.generation.publication_transform.settings must be an object")
+        return
+    if set(settings) != expected_settings_fields:
+        errors.append(
+            "game_concept_cover_v1 publication_transform.settings fields are incomplete "
+            "or unsupported"
+        )
+    quality = settings.get("quality")
+    if not _safe_integer(quality) or not 0 <= cast(int, quality) <= 100:
+        errors.append(
+            "sidecar.generation.publication_transform.settings.quality must be within [0, 100]"
+        )
+    for settings_field, transform_field in (
+        ("resize_width", "width"),
+        ("resize_height", "height"),
+    ):
+        value = settings.get(settings_field)
+        if not _positive_safe_integer(value):
+            errors.append(
+                f"sidecar.generation.publication_transform.settings.{settings_field} "
+                "must be a positive integer"
+            )
+        elif value != publication_transform.get(transform_field):
+            errors.append(
+                f"sidecar.generation.publication_transform.settings.{settings_field} "
+                f"must match publication_transform.{transform_field}"
+            )
+    if settings.get("metadata") != "none":
+        errors.append("sidecar.generation.publication_transform.settings.metadata must be none")
+
+
+def _validate_concept_cover_generation(
+    sidecar: JsonObject,
+    artifact: JsonObject | None,
+    errors: list[str],
+) -> None:
+    generation = _record(sidecar.get("generation"))
+    base_generation_fields = {
+        "prompt",
+        "prompt_sha256",
+        "prompt_hash_scope",
+        "provider",
+        "model",
+        "attempt_count",
+        "retry_count",
+        "n",
+        "input_references",
+        "source",
+        "normalization",
+    }
+    if generation is None:
+        errors.append("sidecar.generation is required for game_concept_cover_v1")
+        return
+    if set(generation) not in (
+        base_generation_fields,
+        base_generation_fields | {"publication_transform"},
+    ):
+        errors.append("game_concept_cover_v1 generation fields are incomplete or unsupported")
+
+    prompt = generation.get("prompt")
+    if not _stable_text(prompt):
+        errors.append("sidecar.generation.prompt must contain the full exact prompt")
+    elif generation.get("prompt_sha256") != _utf8_digest(cast(str, prompt)):
+        errors.append("sidecar.generation.prompt_sha256 must digest the full exact UTF-8 prompt")
+    if generation.get("prompt_hash_scope") != "full_exact_utf8_string":
+        errors.append("sidecar.generation.prompt_hash_scope must declare the full exact prompt")
+    for field in ("provider", "model"):
+        if not _stable_text(generation.get(field)):
+            errors.append(f"sidecar.generation.{field} must be a stable value")
+
+    attempt_count = generation.get("attempt_count")
+    if not _positive_safe_integer(attempt_count) or cast(int, attempt_count) > 6:
+        errors.append("sidecar.generation.attempt_count must be within [1, 6]")
+    retry_count = generation.get("retry_count")
+    if (
+        not _safe_integer(retry_count)
+        or cast(int, retry_count) < 0
+        or (
+            _positive_safe_integer(attempt_count)
+            and cast(int, retry_count) != cast(int, attempt_count) - 1
+        )
+    ):
+        errors.append("sidecar.generation.retry_count must equal attempt_count minus one")
+    if type(generation.get("n")) is not int or generation.get("n") != 1:
+        errors.append("sidecar.generation.n must be exactly 1")
+    if generation.get("input_references") != []:
+        errors.append("sidecar.generation.input_references must be empty for game_concept_cover_v1")
+
+    source = _record(generation.get("source"))
+    expected_source_fields = {"media_type", "sha256", "bytes", "width", "height"}
+    if source is None:
+        errors.append("sidecar.generation.source must record the returned source media")
+    else:
+        if set(source) != expected_source_fields:
+            errors.append("game_concept_cover_v1 source fields are incomplete or unsupported")
+        media_type = source.get("media_type")
+        if not isinstance(media_type, str) or not media_type.startswith("image/"):
+            errors.append("sidecar.generation.source.media_type must describe an image")
+        if not _valid_digest(source.get("sha256")):
+            errors.append("sidecar.generation.source.sha256 must be a content digest")
+        if not _positive_safe_integer(source.get("bytes")):
+            errors.append("sidecar.generation.source.bytes must be a positive integer")
+        for field in ("width", "height"):
+            if not _positive_safe_integer(source.get(field)):
+                errors.append(f"sidecar.generation.source.{field} must be a positive integer")
+
+    normalization = _record(generation.get("normalization"))
+    expected_normalization_fields = {
+        "tool",
+        "version",
+        "operation",
+        "input_sha256",
+        "output_sha256",
+        "output_media_type",
+        "width",
+        "height",
+    }
+    if normalization is None:
+        errors.append("sidecar.generation.normalization must record deterministic normalization")
+        return
+    if set(normalization) != expected_normalization_fields:
+        errors.append("game_concept_cover_v1 normalization fields are incomplete or unsupported")
+    for field in ("tool", "version", "operation"):
+        if not _stable_text(normalization.get(field)):
+            errors.append(f"sidecar.generation.normalization.{field} must be a stable value")
+    source_digest = source.get("sha256") if source is not None else None
+    if normalization.get("input_sha256") != source_digest or not _valid_digest(source_digest):
+        errors.append("sidecar.generation.normalization.input_sha256 must match the source media")
+    if not _valid_digest(normalization.get("output_sha256")):
+        errors.append("sidecar.generation.normalization.output_sha256 must be a content digest")
+    normalization_media_type = normalization.get("output_media_type")
+    if not isinstance(normalization_media_type, str) or not normalization_media_type.startswith(
+        "image/"
+    ):
+        errors.append("sidecar.generation.normalization.output_media_type must describe an image")
+    for field in ("width", "height"):
+        if not _positive_safe_integer(normalization.get(field)):
+            errors.append(f"sidecar.generation.normalization.{field} must be a positive integer")
+
+    if "publication_transform" in generation:
+        if normalization.get("output_media_type") != "image/png":
+            errors.append(
+                "sidecar.generation.normalization.output_media_type must be image/png when "
+                "publication_transform is present"
+            )
+        _validate_concept_cover_publication_transform(
+            generation.get("publication_transform"),
+            normalization,
+            artifact,
+            errors,
+        )
+    else:
+        artifact_digest = artifact.get("sha256") if artifact is not None else None
+        if normalization.get("output_sha256") != artifact_digest or not _valid_digest(
+            artifact_digest
+        ):
+            errors.append("sidecar.generation.normalization.output_sha256 must match the artifact")
+        if artifact is not None:
+            for normalization_field, artifact_field in (
+                ("output_media_type", "media_type"),
+                ("width", "width"),
+                ("height", "height"),
+            ):
+                if normalization.get(normalization_field) != artifact.get(artifact_field):
+                    errors.append(
+                        f"sidecar.generation.normalization.{normalization_field} must match "
+                        "the artifact"
+                    )
+
+
+def _validate_concept_cover_metadata(
+    entry: JsonObject,
+    path: str,
+    sidecar: JsonObject,
+    errors: list[str],
+) -> None:
+    package = _concept_gallery_package(path)
+    if package is None:
+        errors.append("inventory artifact path must be inside concept-studio/gallery/<concept_id>")
+    if _has_non_lower_snake_key(entry):
+        errors.append("generated-image inventory fields must use lower_snake_case")
+    if _has_non_lower_snake_key(sidecar):
+        errors.append("generated-image sidecar fields must use lower_snake_case")
+    if _contains_forbidden_derivative_material({"entry": entry, "sidecar": sidecar}):
+        errors.append(
+            "generated-image records must not contain private, temporary, file, data, "
+            "authorization, credential, or signed-URL material"
+        )
+    if sidecar.get("provenance_kind") != GENERATED_IMAGE:
+        errors.append("sidecar.provenance_kind must match generated_image")
+    if entry.get("lineage_kind") != GAME_CONCEPT_COVER:
+        errors.append("inventory lineage_kind must select supported game_concept_cover_v1")
+    if sidecar.get("lineage_kind") != entry.get("lineage_kind"):
+        errors.append("sidecar.lineage_kind must match inventory lineage_kind")
+
+    expected_entry_fields = {
+        "path",
+        "provenance_kind",
+        "lineage_kind",
+        "kind",
+        "sidecar_sha256",
+        "review_status",
+        "synth_id_expected",
+        "visual_review",
+    }
+    expected_sidecar_fields = {
+        "schema_version",
+        "provenance_kind",
+        "lineage_kind",
+        "state",
+        "artifact",
+        "concept",
+        "generation",
+        "visual_review",
+        "rights",
+    }
+    if set(entry) != expected_entry_fields:
+        errors.append("game_concept_cover_v1 inventory fields are incomplete or unsupported")
+    if set(sidecar) != expected_sidecar_fields:
+        errors.append("game_concept_cover_v1 sidecar fields are incomplete or unsupported")
+    if type(sidecar.get("schema_version")) is not int or sidecar.get("schema_version") != 1:
+        errors.append("generated-image sidecar schema_version must be 1")
+    if sidecar.get("state") != "redistribution-approved":
+        errors.append("generated-image sidecar state must be redistribution-approved")
+
+    artifact = _record(sidecar.get("artifact"))
+    expected_artifact_fields = {"path", "media_type", "width", "height", "sha256", "bytes"}
+    if artifact is None:
+        errors.append("sidecar.artifact is required for game_concept_cover_v1")
+    else:
+        if set(artifact) != expected_artifact_fields:
+            errors.append("game_concept_cover_v1 artifact fields are incomplete or unsupported")
+        if artifact.get("path") != path:
+            errors.append("sidecar.artifact.path must match the inventory artifact path")
+        for field in ("width", "height"):
+            if not _positive_safe_integer(artifact.get(field)):
+                errors.append(f"sidecar.artifact.{field} must be a positive integer")
+
+    concept = _record(sidecar.get("concept"))
+    expected_concept_fields = {"path", "sha256", "bytes"}
+    if concept is None:
+        errors.append("sidecar.concept must bind the concept document")
+    else:
+        if set(concept) != expected_concept_fields:
+            errors.append("game_concept_cover_v1 concept fields are incomplete or unsupported")
+        concept_path = concept.get("path")
+        if not _safe_relative_path(concept_path) or concept_path == path:
+            errors.append("sidecar.concept.path must be a distinct repository-relative path")
+        if not _within_concept_gallery_package(concept_path, package):
+            errors.append(
+                "sidecar.concept.path must stay inside the artifact concept gallery package"
+            )
+        if not _valid_digest(concept.get("sha256")):
+            errors.append("sidecar.concept.sha256 must be a content digest")
+        if not _positive_safe_integer(concept.get("bytes")):
+            errors.append("sidecar.concept.bytes must be a positive integer")
+
+    for label, review in (
+        ("inventory visual_review", _record(entry.get("visual_review"))),
+        ("sidecar.visual_review", _record(sidecar.get("visual_review"))),
+    ):
+        report_path = review.get("verification_report_path") if review is not None else None
+        if not _within_concept_gallery_package(report_path, package):
+            errors.append(
+                f"{label}.verification_report_path must stay inside the artifact "
+                "concept gallery package"
+            )
+
+    sidecar_review = _record(sidecar.get("visual_review"))
+    evidence = _record(sidecar_review.get("evidence")) if sidecar_review is not None else None
+    evidence_path = evidence.get("path") if evidence is not None else None
+    if not _within_concept_gallery_package(evidence_path, package):
+        errors.append(
+            "sidecar.visual_review.evidence.path must stay inside the artifact "
+            "concept gallery package"
+        )
+
+    rights = _record(sidecar.get("rights"))
+    notice = rights.get("notice") if rights is not None else None
+    if (
+        not _safe_relative_path(notice)
+        or len(PurePosixPath(cast(str, notice)).parts) != 1
+        or notice in {".", ".."}
+    ):
+        errors.append(
+            "sidecar.rights.notice must name an adjacent file in the concept gallery package"
+        )
+
+    _validate_concept_cover_generation(sidecar, artifact, errors)
+
+
 def _validate_derivative_review(
     entry: JsonObject,
     sidecar: JsonObject,
     basis: object,
     errors: list[str],
+    *,
+    record_label: str = "generated-image derivative",
 ) -> None:
     if entry.get("synth_id_expected") is not False:
-        errors.append(
-            "inventory synth_id_expected must explicitly be false for generated-image derivative"
-        )
+        errors.append(f"inventory synth_id_expected must explicitly be false for {record_label}")
     inventory_review = _record(entry.get("visual_review"))
     sidecar_review = _record(sidecar.get("visual_review"))
     if inventory_review is None:
-        errors.append("inventory visual_review is required for generated-image derivative")
+        errors.append(f"inventory visual_review is required for {record_label}")
         return
     if sidecar_review is None:
-        errors.append("sidecar.visual_review is required for generated-image derivative")
+        errors.append(f"sidecar.visual_review is required for {record_label}")
         return
     artifact = _record(sidecar.get("artifact"))
     artifact_digest = artifact.get("sha256") if artifact is not None else None
@@ -1074,7 +1473,9 @@ def _validate_rights(
     errors: list[str],
 ) -> None:
     derivative = _is_generated_image_derivative(entry)
-    if derivative:
+    generated_image = _is_generated_image(entry)
+    lower_snake_generated_image = derivative or generated_image
+    if lower_snake_generated_image:
         if entry.get("review_status") != "repository-approved":
             errors.append("inventory review_status must be repository-approved")
     elif entry.get("reviewStatus") != "repository-approved":
@@ -1110,7 +1511,7 @@ def _validate_rights(
             errors.append("sidecar.rights.basis cannot rely only on provider provenance")
         if not _valid_timestamp(rights.get("reviewed_at")):
             errors.append("sidecar.rights.reviewed_at must be an ISO UTC timestamp")
-        if derivative:
+        if lower_snake_generated_image:
             notice_digest = rights.get("notice_sha256")
             notice_bytes = rights.get("notice_bytes")
             if not _valid_digest(notice_digest):
@@ -1135,6 +1536,14 @@ def _validate_rights(
     basis = rights.get("basis") if rights is not None else None
     if derivative:
         _validate_derivative_review(entry, sidecar, basis, errors)
+    elif generated_image:
+        _validate_derivative_review(
+            entry,
+            sidecar,
+            basis,
+            errors,
+            record_label="generated image",
+        )
     elif kind == "audio":
         _validate_audio_review(entry, basis, errors)
     elif kind in CAPTURE_KINDS:
@@ -1225,6 +1634,7 @@ def validate_published_media_record(value: object) -> list[str]:
     errors: list[str] = []
     path = cast(str, entry["path"])
     derivative = _is_generated_image_derivative(entry)
+    generated_image = _is_generated_image(entry)
     kind = _media_kind(entry, path, errors)
     observed_digest = observed.get("sha256") if observed is not None else None
     observed_bytes = observed.get("bytes") if observed is not None else None
@@ -1243,6 +1653,10 @@ def validate_published_media_record(value: object) -> list[str]:
         if kind != "image":
             errors.append("generated_image_derivative provenance requires an image artifact")
         _validate_derivative_metadata(entry, path, sidecar, errors)
+    elif generated_image:
+        if kind != "image":
+            errors.append("generated_image provenance requires an image artifact")
+        _validate_concept_cover_metadata(entry, path, sidecar, errors)
     elif "provenance_kind" in entry:
         errors.append("inventory provenance_kind is unsupported")
     elif kind == "audio":
@@ -1286,6 +1700,31 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _validate_generated_image_artifact_file(
+    path: Path,
+    media_path: str,
+    sidecar: JsonObject,
+    failures: list[str],
+) -> None:
+    artifact = _record(sidecar.get("artifact"))
+    media_type = artifact.get("media_type") if artifact is not None else None
+    expected_media_type = media_type if isinstance(media_type, str) else None
+    try:
+        facts = inspect_image(path.read_bytes(), expected_media_type=expected_media_type)
+    except (OSError, ValueError):
+        failures.append(
+            f"{media_path}: generated image artifact must be a decodable image matching "
+            "its declared media type"
+        )
+        return
+    if artifact is None:
+        return
+    if facts.width != artifact.get("width") or facts.height != artifact.get("height"):
+        failures.append(f"{media_path}: decoded image dimensions must match sidecar.artifact")
+    if facts.media_type != artifact.get("media_type"):
+        failures.append(f"{media_path}: decoded image media type must match sidecar.artifact")
 
 
 def _validate_capture_source_files(
@@ -1346,6 +1785,35 @@ def _validate_derivative_review_file(
         failures.append(f"{media_path}: visual review evidence digest does not match")
     if not _positive_safe_integer(byte_count) or len(evidence_bytes) != byte_count:
         failures.append(f"{media_path}: visual review evidence byte size does not match")
+
+
+def _validate_concept_file(
+    repo: Path,
+    media_path: str,
+    sidecar: JsonObject,
+    failures: list[str],
+) -> None:
+    concept = _record(sidecar.get("concept"))
+    path = concept.get("path") if concept is not None else None
+    digest = concept.get("sha256") if concept is not None else None
+    byte_count = concept.get("bytes") if concept is not None else None
+    if not _safe_repo_path(repo, path) or path == media_path:
+        failures.append(f"{media_path}: sidecar.concept.path is unsafe")
+        return
+    concept_path = repo / cast(str, path)
+    try:
+        concept_path.lstat()
+    except OSError:
+        failures.append(f"{media_path}: concept document is missing")
+        return
+    if concept_path.is_symlink() or not concept_path.is_file():
+        failures.append(f"{media_path}: concept document must be a regular file")
+        return
+    concept_bytes = concept_path.read_bytes()
+    if not _valid_digest(digest) or hashlib.sha256(concept_bytes).hexdigest() != digest:
+        failures.append(f"{media_path}: concept document digest does not match")
+    if not _positive_safe_integer(byte_count) or len(concept_bytes) != byte_count:
+        failures.append(f"{media_path}: concept document byte size does not match")
 
 
 def _discover_media(repo: Path, roots: list[object], failures: list[str]) -> list[str]:
@@ -1447,12 +1915,15 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
         }
         kind = _media_kind(entry, path, [])
         derivative = _is_generated_image_derivative(entry)
-        if derivative:
+        generated_image = _is_generated_image(entry)
+        lower_snake_generated_image = derivative or generated_image
+        if lower_snake_generated_image:
             inventory_sidecar_digest = entry.get("sidecar_sha256")
             if not _valid_digest(inventory_sidecar_digest):
-                failures.append(
-                    f"{path}: inventory sidecar_sha256 is required for generated-image derivative"
+                record_label = (
+                    "generated image" if generated_image else "generated-image derivative"
                 )
+                failures.append(f"{path}: inventory sidecar_sha256 is required for {record_label}")
             elif inventory_sidecar_digest != observed["sidecarSha256"]:
                 failures.append(
                     f"{path}: inventory sidecar_sha256 does not match adjacent provenance sidecar"
@@ -1479,7 +1950,7 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
                 observed["noticeSha256"] = _sha256_file(notice_path)
                 observed["notice_sha256"] = observed["noticeSha256"]
                 observed["notice_bytes"] = notice_path.stat().st_size
-                if kind in CAPTURE_KINDS and not derivative and rights is not None:
+                if kind in CAPTURE_KINDS and not lower_snake_generated_image and rights is not None:
                     license_id = rights.get("license_id")
                     if isinstance(license_id, str):
                         capture_notice_paths_by_license.setdefault(license_id, set()).add(
@@ -1488,6 +1959,10 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
         observations[path] = observed
         if derivative:
             _validate_derivative_review_file(repo, path, sidecar, failures)
+        elif generated_image:
+            _validate_generated_image_artifact_file(absolute, path, sidecar, failures)
+            _validate_derivative_review_file(repo, path, sidecar, failures)
+            _validate_concept_file(repo, path, sidecar, failures)
         elif kind in CAPTURE_KINDS:
             _validate_capture_source_files(repo, path, sidecar, failures)
         for failure in validate_published_media_record(
