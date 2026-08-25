@@ -9,6 +9,8 @@ Start here for the headless, general-purpose system:
 - [Authored character library](character-library.md) — strict TOML/JSON profile
   authoring, CLI validation/digest commands, runnable dialogue/scrolling inputs,
   canonical JSON identity, portable references, and rights ownership.
+- [Canonical game package](game-package.md) — the Git-backed selector, current-only
+  game/soundtrack/map closure, validator, generated-freshness boundary, and authoring workflow.
 - [Theme art-direction controls](theme-art-direction.md) — optional numeric
   content handles, LLM-in-the-middle compilation, prompt boundaries, and a
   shared-seed case study with its strict visual-review result.
