@@ -17,7 +17,11 @@ export type SceneLayerAnchor =
 export type SceneLayerBaseline =
   "viewport-top" | "world-ground" | "screen-ground" | "none";
 export type SceneLayerRepeat =
-  "none" | "repeat-x" | "repeat-x-seam-overlap" | "repeat-x-overlap-add";
+  | "none"
+  | "repeat-x"
+  | "repeat-x-seam-overlap"
+  | "repeat-x-overlap-add"
+  | "repeat-x-verified";
 export type SceneLayerCull = "viewport" | "world-bounds" | "never";
 export type SceneLayerOpacity = "opaque" | "source-alpha";
 export type SceneLayerBlend = "normal" | "multiply" | "screen" | "add";
@@ -119,6 +123,22 @@ export type SceneLayerRenderState = Readonly<{
   clipBounds: SceneLayerBounds;
 }>;
 
+export type SceneLayerImageRepeatSelection = Readonly<{
+  schemaVersion: 2;
+  axis: "x";
+  decision: "admitted" | "repaired";
+  sourcePath: string;
+  repeatUnitPath: string;
+  periodPx: number;
+}>;
+
+export type SceneLayerImageRepeatProbe = SceneLayerImageRepeatSelection &
+  Readonly<{
+    selected: "verified-v2";
+    unverifiedFallbackApplied: false;
+    partnerSpriteCount: number;
+  }>;
+
 export type SceneLayerAssetMetadata = Readonly<{
   width: number;
   height: number;
@@ -183,6 +203,8 @@ export type SceneLayerProbe = Readonly<{
   integerScreenBounds: boolean;
   render: SceneLayerRenderState & Readonly<{ displayBounds: SceneLayerBounds }>;
   foreground: SceneLayerForegroundLayout | null;
+  /** Present only when the promoted v2 repeat unit is selected. */
+  imageRepeat?: SceneLayerImageRepeatProbe;
 }>;
 
 export const SCENE_LAYER_DEPTH = Object.freeze({
@@ -618,6 +640,17 @@ export function resolveSceneLayerStack(
   return Object.freeze(resolved);
 }
 
+/** Replace an unverified repeat mode with one verified exact X period. */
+export function withVerifiedHorizontalRepeat(
+  contract: SceneLayerContract,
+): SceneLayerContract {
+  if (contract.repeat === "none") {
+    throw new Error(`${contract.id} cannot select an X repeat for a non-repeating layer`);
+  }
+  if (contract.repeat === "repeat-x-verified") return contract;
+  return Object.freeze({ ...contract, repeat: "repeat-x-verified" });
+}
+
 export function layoutSceneLayer(
   contract: SceneLayerContract,
   camera: SceneLayerCamera,
@@ -662,15 +695,25 @@ export function layoutSceneLayer(
   if (contract.kind === "near-foreground") {
     const metadata = requireForegroundMetadata(contract, asset);
     targetLeft = 0;
-    targetTop = snapScreenPixel(
-      context.foregroundContactScreenY - metadata.contactSourceY * textureScale,
-      devicePixelRatio,
-    );
     renderWidth = context.viewportWidth;
     // Phaser floors TileSprite constructor dimensions before applying its
     // camera-compensating object scale. Keep the layout contract aligned with
     // that live geometry while retaining the measured source-pixel scale.
     renderHeight = Math.floor(asset.height * textureScale);
+    // A near foreground is cut off by the bottom of the frame, never suspended
+    // above it. Anchoring the contact row is what places the layer, but the
+    // anchor cannot guarantee coverage on its own: an asset whose contact row
+    // is also its last painted row has nothing left to draw underneath, and the
+    // floor above gives back up to a further pixel. Whatever the anchor asks
+    // for, the painted bottom lands on the screen edge or below it.
+    targetTop = Math.max(
+      snapScreenPixel(
+        context.foregroundContactScreenY -
+          metadata.contactSourceY * textureScale,
+        devicePixelRatio,
+      ),
+      context.viewportHeight - renderHeight,
+    );
     screenBounds = Object.freeze({
       left: targetLeft,
       top: targetTop,
@@ -786,6 +829,16 @@ function requireForegroundMetadata(
       `${contract.id} foreground requires measured asset metadata`,
     );
   }
+  const verifiedRepeat = contract.repeat === "repeat-x-verified";
+  const repeatGeometryValid = verifiedRepeat
+    ? metadata.repeatPeriod === asset.width &&
+      metadata.repeatPeriod === metadata.sourceWidth &&
+      metadata.sourceHeight === asset.height &&
+      metadata.overlap === 0
+    : metadata.repeatPeriod === asset.width &&
+      metadata.repeatPeriod === metadata.sourceWidth - metadata.overlap &&
+      metadata.overlap >= 2 &&
+      metadata.overlap * 2 < metadata.sourceWidth;
   if (
     !Number.isSafeInteger(metadata.sourceWidth) ||
     !Number.isSafeInteger(metadata.sourceHeight) ||
@@ -793,10 +846,7 @@ function requireForegroundMetadata(
     metadata.sourceHeight <= 0 ||
     !Number.isSafeInteger(metadata.repeatPeriod) ||
     !Number.isSafeInteger(metadata.overlap) ||
-    metadata.repeatPeriod !== asset.width ||
-    metadata.repeatPeriod !== metadata.sourceWidth - metadata.overlap ||
-    metadata.overlap < 2 ||
-    metadata.overlap * 2 >= metadata.sourceWidth
+    !repeatGeometryValid
   ) {
     throw new Error(`${contract.id} foreground repeat metadata is invalid`);
   }
@@ -968,6 +1018,7 @@ export function sceneLayerProbe(
   layout: SceneLayerLayout,
   camera: SceneLayerCamera,
   rendered: SceneLayerRenderState,
+  imageRepeat: SceneLayerImageRepeatSelection | null = null,
 ): SceneLayerProbe {
   const render = normalizeRenderedState(rendered, camera.zoom);
   const bounds = render.displayBounds;
@@ -1004,6 +1055,16 @@ export function sceneLayerProbe(
           isNearInteger(bounds.top * foreground.devicePixelRatio),
     render,
     foreground,
+    ...(imageRepeat === null
+      ? {}
+      : {
+          imageRepeat: Object.freeze({
+            ...imageRepeat,
+            selected: "verified-v2" as const,
+            unverifiedFallbackApplied: false as const,
+            partnerSpriteCount: Math.max(0, render.spriteCount - 1),
+          }),
+        }),
   });
   assertSceneLayerProbe(probe);
   return probe;
@@ -1338,12 +1399,44 @@ export function assertSceneLayerProbe(probe: SceneLayerProbe): void {
   ) {
     throw new Error(`${probe.id} layer escapes its safe bounds`);
   }
+  // A near foreground is exempted from the bounds check above because only
+  // sparse silhouette rises past the safe band, so its top legitimately sits
+  // higher. Its bottom is not exempt: the layer is meant to be cropped by the
+  // screen edge, and any shortfall is a full-width strip of the layer behind it
+  // showing through. Nothing else measured here would have caught that.
+  if (
+    probe.kind === "near-foreground" &&
+    probe.screenBounds.bottom < probe.safeBounds.bottom - RENDER_EPSILON
+  ) {
+    throw new Error(
+      `${probe.id} near foreground stops short of the screen edge`,
+    );
+  }
+  if (probe.imageRepeat !== undefined) {
+    if (
+      probe.repeat !== "repeat-x-verified" ||
+      probe.imageRepeat.schemaVersion !== 2 ||
+      probe.imageRepeat.axis !== "x" ||
+      probe.imageRepeat.selected !== "verified-v2" ||
+      probe.imageRepeat.unverifiedFallbackApplied !== false ||
+      probe.imageRepeat.partnerSpriteCount !== 0 ||
+      !Number.isSafeInteger(probe.imageRepeat.periodPx) ||
+      probe.imageRepeat.periodPx <= 0 ||
+      probe.render.textureWidth !== probe.imageRepeat.periodPx ||
+      probe.render.spriteCount !== 1
+    ) {
+      throw new Error(`${probe.id} verified repeat selection is inconsistent`);
+    }
+  } else if (probe.repeat === "repeat-x-verified") {
+    throw new Error(`${probe.id} verified repeat lacks its manifest selection`);
+  }
   if (
     probe.kind === "near-foreground" &&
     (probe.anchor !== "screen-ground-left" ||
       probe.baseline !== "screen-ground" ||
       probe.placement !== "screen-ground-contact-strip" ||
-      probe.repeat !== "repeat-x-overlap-add" ||
+      (probe.repeat !== "repeat-x-overlap-add" &&
+        probe.repeat !== "repeat-x-verified") ||
       probe.foreground === null ||
       probe.foreground.spriteCount !== 1 ||
       probe.render.spriteCount !== 1)

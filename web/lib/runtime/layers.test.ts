@@ -10,9 +10,11 @@ import {
   sceneLayerTextureScale,
   sceneLayerProbe,
   snapForegroundPhase,
+  withVerifiedHorizontalRepeat,
   type SceneLayerAssetMetadata,
   type SceneLayerContract,
   type SceneLayerContext,
+  type SceneLayerImageRepeatSelection,
   type SceneLayerLayout,
   type SceneLayerManifestInput,
   type SceneLayerRenderState,
@@ -48,7 +50,36 @@ const FOREGROUND_ASSET: SceneLayerAssetMetadata = Object.freeze({
   }),
 });
 
-const LEGACY_LAYERS: readonly SceneLayerManifestInput[] = Object.freeze([
+const VERIFIED_FOREGROUND_ASSET: SceneLayerAssetMetadata = Object.freeze({
+  width: 1280,
+  height: 720,
+  foreground: Object.freeze({
+    sourceWidth: 1280,
+    sourceHeight: 720,
+    contentBounds: Object.freeze({ left: 0, top: 0, right: 1280, bottom: 720 }),
+    meaningfulContentBounds: Object.freeze({
+      left: 0,
+      top: 492,
+      right: 1280,
+      bottom: 720,
+    }),
+    contactStrip: Object.freeze({ top: 650, bottom: 720 }),
+    contactSourceY: 719,
+    repeatPeriod: 1280,
+    overlap: 0,
+  }),
+});
+
+const VERIFIED_FOREGROUND_REPEAT: SceneLayerImageRepeatSelection = Object.freeze({
+  schemaVersion: 2,
+  axis: "x",
+  decision: "repaired",
+  sourcePath: "layer_storybook_foreground.png",
+  repeatUnitPath: "layer_storybook_foreground.repeat-x.png",
+  periodPx: 1280,
+});
+
+const MANIFEST_LAYERS: readonly SceneLayerManifestInput[] = Object.freeze([
   Object.freeze({
     id: "foreground",
     z_index: 30,
@@ -125,6 +156,62 @@ function signedCircularDelta(
 }
 
 describe("semantic scene layer contracts", () => {
+  test("selects one exact verified period and makes foreground fallback ineligible", () => {
+    const unverified = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
+    const foreground = withVerifiedHorizontalRepeat(unverified);
+    expect(unverified.repeat).toBe("repeat-x-overlap-add");
+    expect(foreground.repeat).toBe("repeat-x-verified");
+    const camera = { scrollX: 941.25, scrollY: 0, zoom: 1.2 } as const;
+    const layout = layoutSceneLayer(
+      foreground,
+      camera,
+      CONTEXT,
+      VERIFIED_FOREGROUND_ASSET,
+      2,
+    );
+    const probe = sceneLayerProbe(
+      foreground,
+      layout,
+      camera,
+      renderedState(foreground, layout),
+      VERIFIED_FOREGROUND_REPEAT,
+    );
+    expect(probe.imageRepeat).toEqual({
+      ...VERIFIED_FOREGROUND_REPEAT,
+      selected: "verified-v2",
+      unverifiedFallbackApplied: false,
+      partnerSpriteCount: 0,
+    });
+    expect(probe.render).toMatchObject({
+      spriteCount: 1,
+      textureWidth: VERIFIED_FOREGROUND_REPEAT.periodPx,
+    });
+    expect(probe.foreground).toMatchObject({
+      repeatPeriodSourcePx: VERIFIED_FOREGROUND_REPEAT.periodPx,
+      overlapSourcePx: 0,
+      spriteCount: 1,
+    });
+
+    expect(() =>
+      sceneLayerProbe(
+        foreground,
+        layout,
+        camera,
+        renderedState(foreground, layout),
+        { ...VERIFIED_FOREGROUND_REPEAT, periodPx: 1279 },
+      ),
+    ).toThrow("verified repeat selection is inconsistent");
+    expect(() =>
+      sceneLayerProbe(
+        foreground,
+        layout,
+        camera,
+        { ...renderedState(foreground, layout), spriteCount: 2 },
+        VERIFIED_FOREGROUND_REPEAT,
+      ),
+    ).toThrow("live render state diverges");
+  });
+
   test("publishes the canonical back-to-front stack and content depth bands", () => {
     expect(CANONICAL_SCENE_STACK).toEqual([
       { kind: "sky", coordinateSpace: "screen", renderDepth: 0 },
@@ -148,8 +235,8 @@ describe("semantic scene layer contracts", () => {
     });
   });
 
-  test("adapts legacy world layers into canonical semantic contracts", () => {
-    const layers = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT);
+  test("adapts manifest world layers into canonical semantic contracts", () => {
+    const layers = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT);
     expect(layers.map(({ id, kind, renderDepth }) => ({ id, kind, renderDepth }))).toEqual([
       { id: "sky", kind: "sky", renderDepth: 0 },
       { id: "ridges", kind: "distant", renderDepth: 100 },
@@ -184,7 +271,7 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("anchors measured foreground contact below the actor-safe lane", () => {
-    const layers = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT);
+    const layers = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT);
     const sky = layers[0]!;
     const skyLayout = layoutSceneLayer(
       sky,
@@ -251,8 +338,71 @@ describe("semantic scene layer contracts", () => {
     }
   });
 
+  test("keeps a bottom-flush foreground down on the screen edge", () => {
+    // FOREGROUND_ASSET carries 57 painted rows below its contact strip, so it
+    // overhangs the frame whatever the anchor asks for and cannot expose this.
+    // Shipped foregrounds are painted to their own last row - the contact strip
+    // ends the asset - and that shape left a full-width band of the layer
+    // behind it showing along the bottom of every frame.
+    const asset: SceneLayerAssetMetadata = Object.freeze({
+      width: 2144,
+      height: 800,
+      foreground: Object.freeze({
+        sourceWidth: 2400,
+        sourceHeight: 800,
+        contentBounds: Object.freeze({
+          left: 0,
+          top: 0,
+          right: 2144,
+          bottom: 800,
+        }),
+        meaningfulContentBounds: Object.freeze({
+          left: 0,
+          top: 598,
+          right: 2144,
+          bottom: 800,
+        }),
+        contactStrip: Object.freeze({ top: 724, bottom: 800 }),
+        contactSourceY: 799,
+        repeatPeriod: 2144,
+        overlap: 256,
+      }),
+    });
+    for (const foregroundContactScreenY of [704, 720]) {
+      const context: SceneLayerContext = Object.freeze({
+        ...CONTEXT,
+        foregroundContactScreenY,
+      });
+      const contract = resolveSceneLayerStack(MANIFEST_LAYERS, context).at(-1)!;
+      for (const devicePixelRatio of [1, 2]) {
+        for (const zoom of [1, 1.2]) {
+          const camera = { scrollX: 101.7, scrollY: 0, zoom };
+          const layout = layoutSceneLayer(
+            contract,
+            camera,
+            context,
+            asset,
+            devicePixelRatio,
+          );
+          expect(layout.screenBounds.bottom).toBeGreaterThanOrEqual(
+            context.viewportHeight,
+          );
+          const probe = sceneLayerProbe(
+            contract,
+            layout,
+            camera,
+            renderedState(contract, layout, context),
+          );
+          expect(probe.screenBounds.bottom).toBeGreaterThanOrEqual(
+            context.viewportHeight,
+          );
+        }
+      }
+    }
+  });
+
   test("keeps phase stable across long traversal and repeat re-entry", () => {
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
     const scale = sceneLayerTextureScale(foreground, FOREGROUND_ASSET, CONTEXT);
     for (const devicePixelRatio of [1, 2]) {
       const first = layoutSceneLayer(
@@ -304,7 +454,7 @@ describe("semantic scene layer contracts", () => {
       }),
     ] as const;
     for (const context of contexts) {
-      const foreground = resolveSceneLayerStack(LEGACY_LAYERS, context).at(-1)!;
+      const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, context).at(-1)!;
       for (const zoom of [1, 1.2]) {
         for (const devicePixelRatio of [1, 1.25, 2, 3, 4]) {
           const first = layoutSceneLayer(
@@ -343,7 +493,7 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("uses the signed closed-form phase for negative, long, wrap, and zoomed travel", () => {
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
     const scale = sceneLayerTextureScale(foreground, FOREGROUND_ASSET, CONTEXT);
     for (const zoom of [1, 1.2]) {
       for (const devicePixelRatio of [1, 2, 3, 4]) {
@@ -411,7 +561,7 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("keeps vertical anchoring independent of scrollY while render depth and motion depth vary independently", () => {
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
     for (const zoom of [1, 1.2]) {
       for (const devicePixelRatio of [1, 2, 3, 4]) {
         const layouts = [0, -128, -512].map((scrollY) =>
@@ -474,7 +624,7 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("rejects a correlated live phase based on the removed source-pixel formula", () => {
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
     const camera = { scrollX: 941.25, scrollY: -101.6666666667, zoom: 1.2 };
     const canonical = layoutSceneLayer(
       foreground,
@@ -516,7 +666,7 @@ describe("semantic scene layer contracts", () => {
       foregroundSafeBandTopY: 405,
       foregroundMaxScale: 0.5625,
     });
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, alternate).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, alternate).at(-1)!;
     for (const zoom of [1, 1.2]) {
       for (const devicePixelRatio of [1, 2]) {
         const layout = layoutSceneLayer(
@@ -544,8 +694,8 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("accepts an explicit contract only when it is the canonical adapter result", () => {
-    const inferred = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT);
-    const explicit = LEGACY_LAYERS.map((layer) => ({
+    const inferred = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT);
+    const explicit = MANIFEST_LAYERS.map((layer) => ({
       ...layer,
       scene_layer: inferred.find((candidate) => candidate.id === layer.id),
     }));
@@ -566,7 +716,7 @@ describe("semantic scene layer contracts", () => {
   });
 
   test("rejects live partner, position, and phase mutations hidden by a planned layout", () => {
-    const foreground = resolveSceneLayerStack(LEGACY_LAYERS, CONTEXT).at(-1)!;
+    const foreground = resolveSceneLayerStack(MANIFEST_LAYERS, CONTEXT).at(-1)!;
     const layout = layoutSceneLayer(
       foreground,
       { scrollX: 941.25, scrollY: 0, zoom: 1.2 },
@@ -591,16 +741,16 @@ describe("semantic scene layer contracts", () => {
   test("rejects ambiguous sky, duplicate ids, and invalid depth bindings", () => {
     expect(() =>
       resolveSceneLayerStack(
-        LEGACY_LAYERS.filter((layer) => layer.id !== "sky"),
+        MANIFEST_LAYERS.filter((layer) => layer.id !== "sky"),
         CONTEXT,
       ),
     ).toThrow("exactly one sky");
     expect(() =>
-      resolveSceneLayerStack([...LEGACY_LAYERS, LEGACY_LAYERS[0]!], CONTEXT),
+      resolveSceneLayerStack([...MANIFEST_LAYERS, MANIFEST_LAYERS[0]!], CONTEXT),
     ).toThrow("unique stable text");
     expect(() =>
       resolveSceneLayerStack(
-        LEGACY_LAYERS.map((layer) =>
+        MANIFEST_LAYERS.map((layer) =>
           layer.id === "ridges" ? { ...layer, id: "../ridges" } : layer,
         ),
         CONTEXT,
@@ -608,7 +758,7 @@ describe("semantic scene layer contracts", () => {
     ).toThrow("unique stable text");
     expect(() =>
       resolveSceneLayerStack(
-        LEGACY_LAYERS.map((layer) =>
+        MANIFEST_LAYERS.map((layer) =>
           layer.id === "ridges" ? { ...layer, z_index: -1 } : layer,
         ),
         CONTEXT,
@@ -616,7 +766,7 @@ describe("semantic scene layer contracts", () => {
     ).toThrow("z_index must be nonnegative");
     expect(() =>
       resolveSceneLayerStack(
-        LEGACY_LAYERS.map((layer) =>
+        MANIFEST_LAYERS.map((layer) =>
           layer.id === "ruins"
             ? { ...layer, scene_layer: { kind: "world-terrain" } }
             : layer,
