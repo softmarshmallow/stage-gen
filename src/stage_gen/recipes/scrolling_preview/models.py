@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
+
+NEAR_FOREGROUND_PARALLAX = 1.8
+WORLD_SPEC_NORMALIZATION_VERSION = "near-foreground-parallax-v1"
+_ALLOW_NEAR_FOREGROUND_NORMALIZATION = "allow_near_foreground_normalization"
 
 
 class StrictModel(BaseModel):
@@ -132,7 +137,7 @@ class WorldSpec(StrictModel):
     layers: list[WorldLayer] = Field(min_length=1, max_length=5)
 
     @model_validator(mode="after")
-    def validate_cross_field_contract(self) -> Self:
+    def validate_cross_field_contract(self, info: ValidationInfo) -> Self:
         previous_plan: str | None = None
         for index, mob in enumerate(self.mobs):
             plan = mob.body_plan.strip().lower()
@@ -168,4 +173,93 @@ class WorldSpec(StrictModel):
             raise ValueError("the opaque layer must have z_index=0")
         if opaque[0].parallax != 0:
             raise ValueError("the opaque layer must have parallax=0")
+
+        layer_ids = [layer.id for layer in self.layers]
+        if len(set(layer_ids)) != len(layer_ids):
+            raise ValueError("layer ids must be unique")
+        z_indexes = [layer.z_index for layer in self.layers]
+        if z_indexes != sorted(z_indexes):
+            raise ValueError("layers must be ordered by increasing z_index")
+
+        transparent = [layer for layer in self.layers if not layer.opaque]
+        if not transparent:
+            raise ValueError("at least one transparent parallax layer is required")
+        highest_z = max(layer.z_index for layer in transparent)
+        frontmost_candidates = [layer for layer in transparent if layer.z_index == highest_z]
+        if len(frontmost_candidates) != 1:
+            raise ValueError("exactly one front-most transparent layer is required")
+        if len(set(z_indexes)) != len(z_indexes):
+            raise ValueError("layer z_index values must be unique")
+        frontmost = frontmost_candidates[0]
+        allow_normalization = bool(
+            info.context and info.context.get(_ALLOW_NEAR_FOREGROUND_NORMALIZATION) is True
+        )
+        if not allow_normalization and frontmost.parallax != NEAR_FOREGROUND_PARALLAX:
+            raise ValueError(
+                "the front-most transparent layer must be the near foreground at parallax=1.8"
+            )
+        if any(layer.parallax > 1 for layer in transparent if layer is not frontmost):
+            raise ValueError("only the front-most transparent layer may use parallax>1")
         return self
+
+
+@dataclass(frozen=True, slots=True)
+class WorldSpecCanonicalization:
+    spec: WorldSpec
+    validation: dict[str, object]
+
+    def artifact_value(self) -> dict[str, object]:
+        return self.spec.model_dump(mode="json")
+
+
+def canonicalize_generated_world_spec(value: object) -> WorldSpecCanonicalization:
+    """Canonicalize only the uniquely front-most transparent layer."""
+
+    generated = WorldSpec.model_validate(
+        value,
+        context={_ALLOW_NEAR_FOREGROUND_NORMALIZATION: True},
+    )
+    transparent = [
+        (index, layer) for index, layer in enumerate(generated.layers) if not layer.opaque
+    ]
+    highest_z = max(layer.z_index for _index, layer in transparent)
+    candidates = [(index, layer) for index, layer in transparent if layer.z_index == highest_z]
+    if len(candidates) != 1:
+        raise ValueError("exactly one front-most transparent layer is required")
+    target_index, target = candidates[0]
+    input_parallax = target.parallax
+    changed = input_parallax != NEAR_FOREGROUND_PARALLAX
+    canonical_layers = [
+        layer.model_copy(update={"parallax": NEAR_FOREGROUND_PARALLAX})
+        if index == target_index
+        else layer
+        for index, layer in enumerate(generated.layers)
+    ]
+    canonical = WorldSpec.model_validate(
+        {
+            **generated.model_dump(mode="python", exclude={"layers"}),
+            "layers": [layer.model_dump(mode="python") for layer in canonical_layers],
+        }
+    )
+    unchanged_layer_ids = [
+        layer.id for index, layer in enumerate(generated.layers) if index != target_index
+    ]
+    return WorldSpecCanonicalization(
+        spec=canonical,
+        validation={
+            "world_spec_normalization": {
+                "version": WORLD_SPEC_NORMALIZATION_VERSION,
+                "target_layer_id": target.id,
+                "target_z_index": target.z_index,
+                "input_parallax": input_parallax,
+                "output_parallax": NEAR_FOREGROUND_PARALLAX,
+                "changed": changed,
+                "changed_fields": [f"layers[{target_index}].parallax"] if changed else [],
+                "layer_ids": [layer.id for layer in generated.layers],
+                "unchanged_layer_ids": unchanged_layer_ids,
+                "layer_order_preserved": True,
+                "unrelated_layers_unchanged": True,
+            },
+            "world_spec_final_validation": True,
+        },
+    )
