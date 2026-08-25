@@ -144,13 +144,16 @@ records source and canonical digests, stable profile id and revision, rights
 status, and canonical artifact and provenance paths. It never authorizes
 publication.
 
-Six exact canvas sizes are used as scrolling-recipe output contracts:
+Six baseline canvas sizes are used as scrolling-recipe output contracts. A
+game-directed village adds one resident-still canvas, for seven current sizes
+in that configuration:
 
 | Canvas | Aspect | Pixel area | Used by |
 |---|---|---|---|
 | 1536 × 1024 | 3:2 (landscape) | 1.57 Mpx | World concept, inventory panel |
 | 2048 × 1024 | 2:1 (wide) | 2.10 Mpx | Portal pair sheet (entry / exit) |
 | 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, ground tileset, character / creature / village-resident concepts, single-state motion strips, obstacle sheets, village fixture sheet, item sheet |
+| 800 × 1200 | 2:3 (portrait) | 0.96 Mpx | One game-directed, forward-facing village-resident still |
 | 2400 × 3440 | ≈ 30:43 (tall, ~5:7) | 8.26 Mpx | Character motion master sheet (5 rows × 4 frames) |
 | 256 × 1024 | 1:4 (tall strip) | 0.26 Mpx | One complete runtime ladder |
 | 256 × 128 | 2:1 (four cells) | 0.03 Mpx | Four-frame character climb strip |
@@ -180,15 +183,38 @@ The object carries no options and must equal those two fields exactly. A bare
 another `kind` is rejected rather than coerced. The current recipe recognizes
 no alternate village input.
 
+It is the only opt-in that does **not** change the run tag. Every other one
+re-directs artwork the run already produces — a theme rewrites the concept
+prompt, a style anchor rewrites all of them, a profile or a proportion rewrites
+the player — so a shared directory would serve cached bytes generated under
+different direction. The village is strictly additive instead: no existing
+prompt, reference, or artifact changes, `world_spec_<tag>.json` keeps its exact
+bytes and gains no village field, and manifest `schema_version` remains 7.
+Enabling the village on an already-generated run therefore costs one structured
+call plus nine image calls and regenerates nothing, where a tag suffix would
+have forked the run directory and redrawn an entire world to gain nine files.
+
+Absent `village`, no village stages, assets, runtime roles, or manifest block
+are added. A current game-directed opt-in adds `village-spec` at wave 4.1,
+`village-concepts` at 4.2, and `village-stills` at 4.3; `manifest` depends on
+`village-stills`, publishes nine further `runtime_assets` roles, and adds one
+top-level `village` block. The first two stages produce the roster, four
+resident concept references, and the fixture sheet; the terminal stage produces
+four one-cell resident stills.
+
 Residents are ordinary townsfolk: not creatures from the bestiary, and not the
 player. Their `village-npc` stage family uses resident subjects with the shared
-actor-sheet builders and retains its own isolated-view fallback family; it
-never satisfies the player-asset predicate and therefore never receives the
-authored player profile. Semantic review names a resident as "a game character"
-rather than "a creature" while still applying the facing rule for its current
-render shape. Compiled-theme routing sends resident artwork to character
-direction and `village-fixtures` to the same prop/item direction as obstacle
-sheets. Neither falls through to environment direction.
+actor-sheet builders and its own isolated-view recovery family; it never
+satisfies the player-asset predicate and therefore never receives the authored
+player profile. Semantic review names a resident as "a game character" rather
+than "a creature" and requires `front` for the current still. Compiled-theme
+routing sends resident artwork to character direction and `village-fixtures`
+to the same prop/item direction as obstacle sheets. Neither falls through to
+environment direction.
+
+Everything documented for the village here is a producer contract; it does not
+assert that any generated village media has been reviewed, approved, or
+published.
 
 ---
 
@@ -219,6 +245,21 @@ the actual processor chain, so a locally keyed artifact is never relabelled as
 AI background removal merely because the run requested `ai`. The world concept
 and the one designated opaque parallax backdrop bypass transparency unchanged.
 An `ai` failure never silently changes to `chroma`.
+
+### Runtime publication gate
+
+Manifest completion requires a digest-bound world spec and every browser
+runtime role declared by that spec: layers, terrain, ladder, climb and other
+character states, attack, mob strips, obstacle sheets, items, inventory, and
+portals. The exact manifest V7 envelope publishes `runtime_assets` entries with
+stable `runtime_slot`, path, `provenance_path`, `alpha_expectation`, layout,
+`geometry_validation`, optional binding, and the required measured
+`scale_reference` for actor roles. Missing roles, wrong dimensions, invalid
+alpha, empty cells, painted gutters, a missing required scale reference, or a
+non-opaque tileset fill fail the manifest stage; `run.json` cannot report a
+completed recipe through a partial manifest.
+Canvas captures such as `gameplay-verification.png` are review evidence, not
+canonical generated assets, and are excluded from manifest publication.
 
 In the asset-specific sections below, **strategy background** means neutral
 grey/natural isolation for `ai` and exact `#FF00FF` for `chroma`.
@@ -923,7 +964,7 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 | Cell | Half | Role |
 |---|---|---|
 | 0 | left half (0…1024) | **Entry portal** — start-of-stage marker; calmer, slightly cooler colour temperature |
-| 1 | right half (1024…2048) | **Exit portal** — end-of-stage marker; more luminous, slightly warmer; walking into it advances the stage |
+| 1 | right half (1024…2048) | **Exit portal** — end-of-stage marker; more luminous, slightly warmer; deliberate entry advances the stage |
 
 Both portals share the same architectural body (gateway / shrine / arch /
 torii / standing stones / runic doorway — chosen by the model to fit the
@@ -949,8 +990,241 @@ matched set.
 
 The runtime slices the 2:1 sheet into two halves, alpha-bbox-crops each
 half, scales both to the portal target height, and places the entry near
-world-start (a few columns in) and the exit near world-end. Walking into
-the exit's hitbox advances the stage — no key press required.
+world-start (a few columns in) and the exit near world-end. Overlapping a
+portal mouth shows its prompt; a fresh Up or W press enters it. The press is
+edge-triggered, so contact or a held key cannot cause an unintended transition.
 
-The same pair is reused across every stage in the same world; only the
-heightmap, mob spawn density, and obstacle scatter change between stages.
+The same pair is reused across every map in the run. The map book and its Level
+Profiles own order and semantics, while the web adapter selects the known
+heightmap, platform graph, population, fixture, and obstacle behavior for that
+map identity.
+
+---
+
+## Village hub (opt-in family)
+
+Nine image artifacts and one bible are generated when the run carries the
+`village` opt-in described under
+[Optional village hub](#optional-village-hub). The current game-directed path
+shares the run's tileset, parallax layers, portal pair, item sheet, and player;
+it adds four resident concept references, four forward-facing resident stills,
+and one settlement-fixture sheet.
+
+The concepts reuse the existing three-view turnaround grid and isolated-view
+recovery machinery. The fixture sheet reuses the obstacle-sheet grid and
+per-cell recovery machinery. The resident still deliberately does not reuse a
+motion-strip grid: it is one portrait cell because the runtime draws one
+unanimated, front-facing resident.
+
+| Artifact | Canvas | Grid | Cell | Gutter | Anchor | Runtime role |
+|---|---|---|---|---|---|---|
+| `npc_concept_<tag>_<i>.png` (i = 0…3) | 2400 × 800 | 1 row × 3 cols | 800 × 800 | 8 px | bottom | `village-npc-concept-<i>` |
+| `npc_<tag>_<i>_still.png` (i = 0…3) | 800 × 1200 | 1 row × 1 col | 800 × 1200 | 8 px | bottom | `village-npc-<i>-still` |
+| `village_fixtures_<tag>.png` | 2400 × 800 | 2 rows × 4 cols | 600 × 400 | 8 px | bottom | `village-fixtures` |
+
+All nine publish `alpha_expectation: "transparent"` and pass the same
+[runtime publication gate](#runtime-publication-gate) the hunting sheets pass:
+exact dimensions, transparency lineage, the declared cell geometry, and a
+provenance sidecar bound to the bytes. Resident roles carry a `binding` of
+`{"slot": i}`, stills `{"slot": i, "state": "still"}`; the fixture sheet
+carries none, because one sheet furnishes the whole settlement and its cells
+are addressed positionally exactly as an obstacle sheet's are.
+
+The two actor contracts attach to the current stills only:
+
+- **Facing review.** `village-npc-<i>-still` is reviewed as one game character
+  and must face `front`. Turnarounds are excluded because three views do not
+  have one facing.
+- **Head-matched scale reference.** `village-npc-<i>-still` publishes a required
+  measured `scale_reference`. The runtime matches its head extent to the
+  player's required idle reference; a missing or stale measurement rejects the
+  current runtime closure rather than selecting an approximate size.
+
+---
+
+## Village bible (`village_spec_<tag>.json`)
+
+| | |
+|---|---|
+| **Output** | `village_spec_<tag>.json` |
+| **Backend** | text-gen LLM via structured-output call — the same route the world-design agent uses |
+| **Inputs** | World concept (vision), user world prompt, resolved game contract and vocabulary, compiled theme/style when present |
+| **Schema** | `scrolling_preview_directed_village_v1`, strict |
+| **Wave** | 4.1 (single call after the mandatory hunting assets) |
+
+A second vision-LLM pass over the **same concept image** the world bible was
+designed from. It designs a peaceful settlement belonging to that world — a hub
+the player travels to between hunts, where nothing is hunted and nothing
+attacks — and nothing else in the run reads it.
+
+It is a separate artifact rather than a field on `world_spec_<tag>.json`
+precisely because a field would have rewritten the bytes of an artifact every
+existing run already holds, and invalidated all of them.
+
+### Output shape
+
+```text
+{
+  name, one_liner, narrative, fixtures_theme,
+  npcs: [
+    {
+      role_label, name, body_plan, brief,
+      body_kind, stance, holding,
+      greeting, remark, farewell
+    },                                                                  // × 4
+  ],
+  fixtures: [
+    { name, brief },                                                     // × 8
+  ],
+}
+```
+
+`role_label`, `body_plan`, and `fixtures_theme` are agent-designed strings.
+`body_kind`, `stance`, and `holding` are closed identifiers from the resolved
+game vocabulary. A game that disables poses or held props narrows the relevant
+schema enum instead of changing the persisted shape.
+
+### Cross-field contract
+
+Every rule is about distinguishability, which no per-field constraint can
+express: four non-empty names, four non-empty role labels and four non-empty
+body plans are all individually valid while describing the same person four
+times over. A request for four townsfolk is answered most readily with four
+interchangeable humans in differently coloured aprons, and four residents that
+read as one resident repeated is the failure the schema exists to prevent.
+
+- Resident `name`s are unique case-insensitively; `role_label`s are unique.
+- Each `body_kind` must be an approved people body from the resolved game
+  vocabulary; its vocabulary entry supplies the anatomy used by image prompts.
+- Consecutive `body_plan`s must differ — the same rule adjacent mob rungs obey,
+  and the cheap half of the check: a generator that has just written "humanoid"
+  writes it again far more readily than it repeats it two entries later.
+- No two residents may share both `stance` and `holding`.
+- Fixture `name`s are unique, because fixture cells are addressed positionally
+  and two cells named the same thing make a placement report unreadable.
+- `greeting`, `remark` and `farewell` are each capped at 160 characters. This is
+  a layout fact, not a style preference: the runtime dialogue box shows one line
+  at a time across the bottom of the viewport, and a line that overflows it is a
+  line the player cannot read.
+
+`body_plan` is separate from `brief` on purpose. `brief` is appearance direction
+— wardrobe, palette, silhouette detail — while `body_plan` describes build and
+trade. In the directed schema, anatomy comes from the closed `body_kind`
+vocabulary rather than being smuggled through prose.
+
+### Downstream consumption
+
+| Image generator | Reads |
+|---|---|
+| Village resident concept generator | `npcs[i]` identity, body, appearance, stance, and held-prop direction through the resolved vocabulary |
+| Village resident still generator | The same resident plus its own concept reference and resolved body build |
+| Village fixture sheet generator | `fixtures_theme` + `fixtures[0..7]` (`name` + `brief`) |
+
+Unlike `world_spec_<tag>.json`, there is **no fallback menu**. A missing or
+unparseable bible fails the village stages rather than degrading to generic
+prompts, because the bible is the single input all nine prompts derive from and
+a generic village is not a village anyone asked for. Cache reuse re-parses the
+file as `DirectedVillageSpec`, re-runs every cross-field and vocabulary rule,
+and re-checks the recorded roster and compiled-theme identity — existence is
+never the test.
+
+The published `village` manifest block is a projection of this file, not the
+file: its exact schema V2 block carries `schema_version`, `name`, `one_liner`,
+`fixtures_theme`, one shared `render` object, and per resident
+`{slot, name, role_label, lines}`. The current render object is
+`{frames: 1, orientation: "front", animation: "still", state: "still"}`.
+`narrative`, body/appearance direction, stance, and held-prop direction stay
+behind because they are generation inputs, not runtime text.
+
+---
+
+## Village resident concept (turnaround) — per resident
+
+| | |
+|---|---|
+| **Output** | `npc_concept_<tag>_<i>.png` (i = 0 … 3) |
+| **Canvas** | 2400 × 800 (aspect 3:1) |
+| **Inputs** | World concept, **village_spec** (`npcs[i]`: name, role_label, body_plan, brief) |
+| **Layout prior** | n/a |
+| **Runtime role** | `village-npc-concept-<i>` |
+| **Wave** | 4.2 (4 parallel calls, alongside the fixture sheet) |
+
+Three-pose turnaround (front / side / back) of one resident, generated from the
+identical isolated-thirds prompt builder the character and creature turnarounds
+use: one centered, fully contained subject per third, wide uniform-background
+separator bands, and no shared baseline, ground, shadow, decoration, panel,
+label, or foreground connection across either internal seam.
+
+### Grid spec — 1 row × 3 columns
+
+Cells are 800 × 800 with an 8 px gutter, anchored bottom — the character and
+creature turnaround contract unchanged.
+
+The subject handed to the shared turnaround builder is assembled from the
+resolved body anatomy, resident name and role, body plan and appearance, plus
+the vocabulary sentences for stance and any held prop. The run's world concept
+is the style reference; the authored player profile is never routed to this
+resident family.
+
+Because it is a turnaround and not a strip, this sheet is **not** facing-reviewed
+and **not** scale-measured. It is the per-resident design reference for that
+resident's still, and it inherits the same isolated-view recovery the character
+and creature turnarounds use: a sheet exhausted specifically by cross-seam
+connection can be regenerated as three independent views and refitted under the
+`village-npc` family. The recovered views are still residents, never creatures
+or player-profile consumers.
+
+---
+
+## Village resident still — per resident
+
+| | |
+|---|---|
+| **Output** | `npc_<tag>_<i>_still.png` (i = 0 … 3) |
+| **Canvas** | 800 × 1200 (aspect 2:3) |
+| **Inputs** | Resident concept (resident `i`), directed village resident, resolved game vocabulary and build |
+| **Runtime role** | `village-npc-<i>-still` |
+| **Wave** | 4.3 (4 parallel calls) |
+
+### Grid spec — 1 row × 1 column
+
+The one cell is 800 × 1200 with an 8 px gutter and bottom anchor. It must contain
+one complete standing figure, crown to soles, on a clean flat background before
+canonical transparency processing. The minimum painted height is half the cell;
+there is no cross-frame camera or symmetry check because there is only one cell.
+
+The prompt requires a direct front view and uses the resolved vocabulary's
+anatomy, stance, and held-prop sentences. This is the artifact the runtime
+actually draws at frame zero without registering an animation or mirroring the
+front-facing figure. The reviewed bytes must pass the `front` facing gate and
+the game build gate, then publish the required head-extent `scale_reference`.
+
+---
+
+## Village fixture sheet
+
+| | |
+|---|---|
+| **Output** | `village_fixtures_<tag>.png` |
+| **Canvas** | 2400 × 800 (aspect 3:1) |
+| **Inputs** | Layout prior (4×2 obstacle template), world concept, **village_spec** (`fixtures_theme` + `fixtures[0..7]`) |
+| **Runtime role** | `village-fixtures` |
+| **Wave** | 4.2 |
+
+### Grid spec — 2 rows × 4 columns
+
+Cells are 600 × 400 with an 8 px gutter, anchored bottom: the obstacle-sheet
+contract unchanged, including its per-cell isolation and its per-cell
+regeneration fallback under the `cell-0-scale-style-anchor` identity policy.
+
+8 self-contained settlement fixtures — stalls, wells, carts, signs, racks —
+ordered left to right across each row, one per cell, named and briefed by the
+bible. The prompt tracks the obstacle-sheet prompt clause for clause, including
+the CLEAN PLATE line; only the subject noun and the named appendages change,
+because a market stall's awning and its hanging goods are what reach across a
+cell boundary here where a tree's branches and a banner do on an obstacle sheet.
+
+The sheet is validated by the identical grid contract and rescued by the
+identical per-cell fallback, which is exactly why the prompt is not allowed to
+drift from the one those were tuned against: it would fail them in ways only a
+generated sheet reveals.
