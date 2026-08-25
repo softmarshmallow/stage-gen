@@ -725,8 +725,22 @@ def _repository_tracking(
         )
         if probe.returncode != 0 or probe.stdout.strip() != b"true":
             return "not_git_checkout", (), ()
+        top_level = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if Path(os.fsdecode(top_level.stdout.strip())).resolve() != root.resolve():
+            return "not_git_checkout", (), ()
         listed = subprocess.run(
             ["git", "-C", str(root), "ls-files", "-z", "--", *refs],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        cached = subprocess.run(
+            ["git", "-C", str(root), "diff", "--cached", "--name-only", "-z", "--", *refs],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -738,7 +752,7 @@ def _repository_tracking(
     if untracked:
         return "untracked", untracked, ()
 
-    modified: list[str] = []
+    modified = {value.decode("utf-8") for value in cached.stdout.split(b"\0") if value}
     for entry in closure:
         ref = cast(str, entry["ref"])
         source_sha256 = cast(str, entry["source_sha256"])
@@ -750,12 +764,12 @@ def _repository_tracking(
                 stderr=subprocess.DEVNULL,
             )
         except (OSError, subprocess.CalledProcessError):
-            modified.append(ref)
+            modified.add(ref)
             continue
         if hashlib.sha256(committed.stdout).hexdigest() != source_sha256:
-            modified.append(ref)
+            modified.add(ref)
     if modified:
-        return "modified", (), tuple(modified)
+        return "modified", (), tuple(ref for ref in refs if ref in modified)
     return "committed", (), ()
 
 

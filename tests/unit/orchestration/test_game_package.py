@@ -463,3 +463,35 @@ def test_validate_game_package_distinguishes_tracked_from_committed_bytes(
     assert caught.value.code == "uncommitted_game_package"
     assert invalid_game_package_report(caught.value)["source_status"] == "current"
     assert invalid_game_package_report(caught.value)["disposition"] == "commit_before_publish"
+
+
+def test_require_committed_rejects_index_bytes_that_differ_from_head(tmp_path: Path) -> None:
+    root = _copy_game_package(tmp_path)
+
+    def git(*arguments: str) -> None:
+        subprocess.run(
+            ["git", *arguments],
+            cwd=root,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    git("init", "-q")
+    git("config", "user.name", "game-package-test")
+    git("config", "user.email", "game-package-test@example.invalid")
+    git("config", "commit.gpgsign", "false")
+    git("add", "library", "examples")
+    git("commit", "-qm", "canonical game fixture")
+
+    selector_path = root / "library" / "games" / "main.toml"
+    committed_bytes = selector_path.read_bytes()
+    selector_path.write_bytes(committed_bytes + b"\n# staged alternate\n")
+    git("add", "library/games/main.toml")
+    selector_path.write_bytes(committed_bytes)
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        validate_game_package(root, require_committed=True)
+
+    assert caught.value.code == "uncommitted_game_package"
+    assert "library/games/main.toml" in str(caught.value)
