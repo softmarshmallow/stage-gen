@@ -41,16 +41,11 @@ the headless `ai` transparency strategy; off explicitly requests the degraded
 shows the selected strategy in run metadata instead of inferring it from the
 prompt or asset colour.
 
-New run manifests declare `input.transparencyMode`. For both `ai` and `chroma`,
-the pipeline's canonical image artifacts are already transparent PNGs, so the
-preview loads their alpha normally. Runtime chroma keying exists only as a
-compatibility path for legacy manifests that do not declare a strategy. It
-must never be applied to a new `ai` or `chroma` run, because doing so could
-erase intentional subject colours.
-
-Because a legacy manifest does not contain a reproducible strategy choice,
-the adapter previews it but refuses per-asset retry. Restart it from the
-picker with an explicit current strategy.
+The current run manifest must declare `input.transparencyMode`. For both `ai`
+and `chroma`, the pipeline's canonical image artifacts are already transparent
+PNGs, so the preview loads their alpha normally and never performs runtime
+chroma keying. A missing or invalid strategy fails closed because the adapter
+cannot reproduce the run's generation policy.
 
 The HTTP start body is `{ prompt, transparencyMode }`, where
 `transparencyMode` is `"ai"` or `"chroma"` and omitted means `"ai"`. The web

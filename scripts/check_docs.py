@@ -256,14 +256,6 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ),
         ("docs/web-preview.md", re.compile(r"input\.transparencyMode"), "manifest strategy field"),
         (
-            "docs/web-preview.md",
-            re.compile(
-                r"legacy manifests?.{0,120}(?:predate|omit|missing|do not declare)",
-                re.IGNORECASE | re.DOTALL,
-            ),
-            "legacy-only compatibility",
-        ),
-        (
             "web/app/Picker.tsx",
             re.compile(r'''aria-label="AI background removal"'''),
             "background removal control",
@@ -272,11 +264,6 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "web/lib/shell/transparency.ts",
             re.compile(r'''DEFAULT_TRANSPARENCY_MODE[^\n]*= "ai"'''),
             "web default",
-        ),
-        (
-            "web/lib/shell/transparency.ts",
-            re.compile(r'''mode === null \? "legacy-chroma" : "canonical-alpha"'''),
-            "legacy preview boundary",
         ),
     )
     for relative, pattern, label in required_contracts:
