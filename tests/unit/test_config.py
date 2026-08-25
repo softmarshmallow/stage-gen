@@ -23,13 +23,23 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
             "IMAGE_MODEL": "old/image",
             "STAGE_GEN_IMAGE_MODEL": "new/image",
             "STAGE_GEN_CAPABILITY_TIMEOUT_MS": "1250",
+            "STAGE_GEN_CHARACTER_LIBRARY_ROOT": "/workspace/characters",
+            "STAGE_GEN_GAME_LIBRARY_ROOT": "/workspace/games",
         }
     )
     assert str(config.out_dir) == "new-out"
     assert config.image_model == "new/image"
+    assert config.text_model == "openai/gpt-5.5"
     assert config.music_model == "google/lyria-3-pro-preview"
     assert config.transparency_mode is TransparencyMode.AI
     assert config.capability_timeout_s == 1.25
+    assert config.character_library_root == Path("/workspace/characters")
+    assert config.game_library_root == Path("/workspace/games")
+
+
+def test_authored_library_roots_are_unset_by_default() -> None:
+    assert load_config(env={}).character_library_root is None
+    assert load_config(env={}).game_library_root is None
 
 
 def test_capability_errors_name_variables_but_not_present_values() -> None:
