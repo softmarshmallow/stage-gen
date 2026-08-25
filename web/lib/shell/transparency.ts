@@ -8,7 +8,7 @@ export interface WebRunInput {
   transparencyMode: TransparencyMode;
 }
 
-export type PreviewTransparencyPolicy = "canonical-alpha" | "legacy-chroma";
+export type PreviewTransparencyPolicy = "canonical-alpha";
 
 export function isTransparencyMode(value: unknown): value is TransparencyMode {
   return value === "ai" || value === "chroma";
@@ -38,15 +38,20 @@ export function modeForAiBackgroundRemoval(enabled: boolean): TransparencyMode {
   return enabled ? "ai" : "chroma";
 }
 
-/** Null means a legacy manifest that predates explicit strategy metadata. */
-export function transparencyModeFromRunManifest(value: unknown): TransparencyMode | null {
-  if (!value || typeof value !== "object") return null;
+/** Read the required generation mode from the one current run manifest contract. */
+export function transparencyModeFromRunManifest(value: unknown): TransparencyMode {
+  if (!value || typeof value !== "object") {
+    throw new Error("run manifest must be an object");
+  }
   const input = (value as { input?: unknown }).input;
-  if (!input || typeof input !== "object") return null;
+  if (!input || typeof input !== "object") {
+    throw new Error("run manifest input must be an object");
+  }
   const mode = (input as { transparencyMode?: unknown }).transparencyMode;
-  if (mode === undefined) return null;
-  if (isTransparencyMode(mode)) return mode;
-  throw new Error("run manifest input.transparencyMode must be ai or chroma");
+  if (!isTransparencyMode(mode)) {
+    throw new Error("run manifest input.transparencyMode must be ai or chroma");
+  }
+  return mode;
 }
 
 export function promptFromRunManifest(value: unknown): string | undefined {
@@ -60,11 +65,14 @@ export function promptFromRunManifest(value: unknown): string | undefined {
 export function previewPolicyForRunMode(
   mode: TransparencyMode | null,
 ): PreviewTransparencyPolicy {
-  return mode === null ? "legacy-chroma" : "canonical-alpha";
+  if (!isTransparencyMode(mode)) {
+    throw new Error("current preview requires a transparency mode");
+  }
+  return "canonical-alpha";
 }
 
 export function transparencyModeLabel(mode: TransparencyMode | null): string {
   if (mode === "ai") return "ai (background removal)";
   if (mode === "chroma") return "chroma (degraded fallback)";
-  return "legacy (compatibility chroma)";
+  throw new Error("current preview requires a transparency mode");
 }

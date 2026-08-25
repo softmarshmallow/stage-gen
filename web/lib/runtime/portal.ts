@@ -1,14 +1,21 @@
 // Portal system (Phase 7).
 //
 // Splits the 2:1 portal sheet into entry (left half) and exit (right half),
-// alpha-bbox-crops each, places them at world start / end, and emits a
-// stage-advance event when the player overlaps the EXIT (TC-089).
+// alpha-bbox-crops each, and places them at world start / end. Both ends are
+// live: the exit carries the player forward through the stage plan and the
+// entry carries them back, so the pair is the run's actual travel mechanism
+// rather than one end-of-stage tripwire (TC-089).
+//
+// Standing in a portal is not using it. Travel needs a deliberate press, which
+// is what lets a route run past a portal, double back through one, or fight
+// beside one without the stage changing underneath the player.
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./layers";
 import { terrainSurfaceY } from "./terrain";
+import type { PortalEnd } from "./stages";
 
-export type PortalKind = "entry" | "exit";
+export type PortalKind = PortalEnd;
 
 export interface PortalSpec {
   kind: PortalKind;
@@ -16,6 +23,14 @@ export interface PortalSpec {
   y: number; // world Y (feet on ground baseline)
   sprite: Phaser.GameObjects.Image;
   bboxHalf: { x: number; y: number; w: number; h: number };
+  /** Stage this end travels to, or null when the end is sealed. */
+  destinationIndex: number | null;
+  /**
+   * Whether the end may fire. An end the player is standing in starts inert
+   * and arms once they step clear, so arriving through a portal cannot bounce
+   * them straight back out of it.
+   */
+  armed: boolean;
 }
 
 export interface PortalSystemOpts {
@@ -27,14 +42,43 @@ export interface PortalSystemOpts {
   /** Heightmap accessor, used to bottom-anchor each portal. */
   heightFn: (col: number) => number;
   stageWidthPx: number;
+  /** Destination stage index per end; null seals that end. */
+  destinations: Readonly<Record<PortalKind, number | null>>;
 }
 
+export type PortalActivation = Readonly<{
+  kind: PortalKind;
+  destinationIndex: number;
+}>;
+
+export type PortalTick = Readonly<{
+  nowMs: number;
+  playerX: number;
+  playerFootY: number;
+  /** A fresh press of the enter key this frame, not the key being held. */
+  enterRequested: boolean;
+  /** Whether the idle shimmer should run; automation owns presentation itself. */
+  shimmer: boolean;
+}>;
+
 const PORTAL_HEIGHT_TILES = 3.6;
+/** Slack around the portal body when testing whether a player is inside it. */
+const PORTAL_CONTACT_TOLERANCE = 32;
+/** Fraction of the sprite's width that counts as the mouth. */
+const PORTAL_MOUTH_WIDTH_RATIO = 0.6;
+const PORTAL_PULSE_PERIOD_MS = 2200;
+const PORTAL_PULSE_SCALE = 0.04;
+const PORTAL_PULSE_ALPHA = 0.12;
+/** Height above a portal's base that its prompt floats at. */
+const PORTAL_PROMPT_RISE = 24;
+const PORTAL_PROMPT_TEXT = "UP to enter";
 
 export class PortalSystem {
   readonly portals: PortalSpec[] = [];
   private opts: PortalSystemOpts;
-  private exitFired = false;
+  private firedKind: PortalKind | null = null;
+  private prompt?: Phaser.GameObjects.Text;
+  private presentationLocked = false;
   private readonly baseDisplaySizes = new Map<
     PortalKind,
     Readonly<{ width: number; height: number }>
@@ -61,6 +105,7 @@ export class PortalSystem {
       const bbox = computeBbox(src, startX, 0, halfW, fullH);
       const frameName = `portal_${kind}`;
       // Use bbox to define a tighter sub-frame.
+      if (tex.has(frameName)) tex.remove(frameName);
       tex.add(frameName, 0, bbox.x, bbox.y, bbox.w, bbox.h);
 
       const targetH = PORTAL_HEIGHT_TILES * this.opts.tilePx;
@@ -85,17 +130,32 @@ export class PortalSystem {
       sprite.setDisplaySize(targetH * aspect, targetH);
       sprite.setDepth(SCENE_CONTENT_DEPTH.portal);
 
+      const destinationIndex = this.opts.destinations[kind];
+
       this.baseDisplaySizes.set(kind, {
         width: targetH * aspect,
         height: targetH,
       });
 
-      this.portals.push({ kind, x, y, sprite, bboxHalf: bbox });
+      this.portals.push({
+        kind,
+        x,
+        y,
+        sprite,
+        bboxHalf: bbox,
+        destinationIndex,
+        armed: false,
+      });
     }
+  }
+
+  portalAt(kind: PortalKind): PortalSpec | undefined {
+    return this.portals.find((portal) => portal.kind === kind);
   }
 
   /** Apply deterministic automation-only emphasis without changing source art. */
   applyAutomationPresentation(scale: number, alpha: number): void {
+    this.presentationLocked = true;
     for (const portal of this.portals) {
       const base = this.baseDisplaySizes.get(portal.kind);
       if (!base) continue;
@@ -104,17 +164,111 @@ export class PortalSystem {
     }
   }
 
-  /** Test whether `playerX` overlaps the exit portal's footprint. */
-  checkExit(playerX: number, playerY: number): boolean {
-    void playerY;
-    const exit = this.portals.find((p) => p.kind === "exit");
-    if (!exit || this.exitFired) return false;
-    const w = (exit.sprite.displayWidth ?? 64) * 0.6;
-    if (Math.abs(playerX - exit.x) < w) {
-      this.exitFired = true;
-      return true;
+  /**
+   * One per-frame tick: arming, presentation, prompt, and the travel a press
+   * asks for.
+   *
+   * Arming and the prompt advance whether or not the key was pressed, so a
+   * player who walks in, waits, and then presses is treated the same as one
+   * who presses on contact.
+   */
+  update(tick: PortalTick): PortalActivation | null {
+    const usable = this.advanceContact(tick.playerX, tick.playerFootY);
+    this.showPrompt(usable);
+    if (tick.shimmer) this.shimmer(tick.nowMs);
+    if (!usable || !tick.enterRequested || this.firedKind !== null) return null;
+    this.firedKind = usable.kind;
+    return Object.freeze({
+      kind: usable.kind,
+      destinationIndex: usable.destinationIndex,
+    });
+  }
+
+  /**
+   * Idle shimmer so an open portal reads as running rather than painted on.
+   *
+   * A sealed end is left exactly as its art was authored. Dimming it was worse
+   * than saying nothing: the opening stage's entry portal is the first thing
+   * on screen, and a washed-out arch there reads as a broken asset rather than
+   * as a door with nothing behind it.
+   *
+   * Skipped once automation has taken presentation over, because that path
+   * owns scale and alpha outright and the two would fight frame by frame.
+   */
+  private shimmer(nowMs: number): void {
+    if (this.presentationLocked) return;
+    const phase = (nowMs % PORTAL_PULSE_PERIOD_MS) / PORTAL_PULSE_PERIOD_MS;
+    const wave = Math.sin(phase * Math.PI * 2);
+    for (const portal of this.portals) {
+      const base = this.baseDisplaySizes.get(portal.kind);
+      if (!base || portal.destinationIndex === null) continue;
+      const scale = 1 + wave * PORTAL_PULSE_SCALE;
+      portal.sprite.setDisplaySize(base.width * scale, base.height * scale);
+      portal.sprite.setAlpha(Math.min(1, 0.94 + wave * PORTAL_PULSE_ALPHA));
     }
-    return false;
+  }
+
+  /**
+   * Advance arming and report the end a press would use right now.
+   *
+   * An end the player is standing in starts inert and arms once they step
+   * clear, so arriving through a portal leaves them free to walk out rather
+   * than holding a live door under their feet.
+   */
+  private advanceContact(
+    playerX: number,
+    playerFootY: number,
+  ): Readonly<{ kind: PortalKind; destinationIndex: number }> | null {
+    let usable: Readonly<{ kind: PortalKind; destinationIndex: number }> | null =
+      null;
+    for (const portal of this.portals) {
+      if (!this.contains(portal, playerX, playerFootY)) {
+        portal.armed = true;
+        continue;
+      }
+      if (!portal.armed || portal.destinationIndex === null || usable) continue;
+      usable = { kind: portal.kind, destinationIndex: portal.destinationIndex };
+    }
+    return usable;
+  }
+
+  /** Say which key opens the door, above the door it opens. */
+  private showPrompt(
+    usable: Readonly<{ kind: PortalKind }> | null,
+  ): void {
+    const portal = usable ? this.portalAt(usable.kind) : undefined;
+    if (!portal || this.firedKind !== null) {
+      this.prompt?.setVisible(false);
+      return;
+    }
+    if (!this.prompt) {
+      this.prompt = this.opts.scene.add.text(0, 0, PORTAL_PROMPT_TEXT, {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#f4f4f4",
+        backgroundColor: "#000000a0",
+        padding: { x: 8, y: 4 },
+      });
+      this.prompt.setOrigin(0.5, 1);
+      this.prompt.setDepth(SCENE_CONTENT_DEPTH.effect);
+    }
+    this.prompt.setPosition(
+      portal.x,
+      portal.y - portal.sprite.displayHeight - PORTAL_PROMPT_RISE,
+    );
+    this.prompt.setVisible(true);
+  }
+
+  /** True while the player's feet are inside `portal`'s mouth. */
+  private contains(portal: PortalSpec, playerX: number, playerY: number): boolean {
+    return portalMouthContainsFoot({
+      portalX: portal.x,
+      portalFootY: portal.y,
+      width: portal.sprite.displayWidth || 64,
+      height: portal.sprite.displayHeight || 64,
+      playerX,
+      playerFootY: playerY,
+    });
   }
 
   snapshot() {
@@ -126,9 +280,54 @@ export class PortalSystem {
       h: p.sprite.displayHeight,
     }));
   }
+
+  destroy(): void {
+    this.prompt?.destroy();
+    this.prompt = undefined;
+    for (const portal of this.portals) portal.sprite.destroy();
+    this.portals.length = 0;
+    this.baseDisplaySizes.clear();
+  }
 }
 
 // --- helpers ---
+
+/**
+ * Whether a player's feet are inside a portal's mouth.
+ *
+ * Both axes matter. Testing X alone meant any deck sharing the portal's column
+ * counted as standing in it, so a player four tiles up on an upper platform
+ * fell through to the next stage without ever touching the thing.
+ */
+export function portalMouthContainsFoot(input: Readonly<{
+  portalX: number;
+  /** Portal base, where its bottom edge meets the ground. */
+  portalFootY: number;
+  width: number;
+  height: number;
+  playerX: number;
+  playerFootY: number;
+}>): boolean {
+  for (const value of [
+    input.portalX,
+    input.portalFootY,
+    input.width,
+    input.height,
+    input.playerX,
+    input.playerFootY,
+  ]) {
+    if (!Number.isFinite(value)) throw new Error("portal contact values must be finite");
+  }
+  if (input.width <= 0 || input.height <= 0) {
+    throw new Error("portal contact footprint must be positive");
+  }
+  const halfWidth = input.width * PORTAL_MOUTH_WIDTH_RATIO * 0.5;
+  if (Math.abs(input.playerX - input.portalX) > halfWidth) return false;
+  return (
+    input.playerFootY <= input.portalFootY + PORTAL_CONTACT_TOLERANCE &&
+    input.playerFootY >= input.portalFootY - input.height - PORTAL_CONTACT_TOLERANCE
+  );
+}
 
 function computeBbox(
   src: HTMLImageElement | HTMLCanvasElement,

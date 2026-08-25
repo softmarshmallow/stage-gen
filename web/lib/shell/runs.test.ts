@@ -48,7 +48,7 @@ describe("web run boundary", () => {
       }),
     ).toEqual({ prompt: "nested request", transparencyMode: "chroma" });
     expect(() =>
-      parseWebRunInput({ prompt: "neutral request", transparencyMode: "legacy" }),
+      parseWebRunInput({ prompt: "neutral request", transparencyMode: "unsupported" }),
     ).toThrow("transparencyMode must be ai or chroma");
     expect(() => parseWebRunInput({ prompt: " " })).toThrow("prompt is required");
   });
@@ -115,15 +115,21 @@ describe("web run boundary", () => {
     ).rejects.toThrow("run tag does not match prompt and transparencyMode");
   });
 
-  test("new manifests use canonical alpha while missing strategy stays legacy-only", () => {
+  test("current manifests require an explicit mode and always use canonical alpha", () => {
     const current = { input: { prompt: "neutral", transparencyMode: "chroma" } };
-    const legacy = { input: { prompt: "neutral" } };
+    const missingMode = { input: { prompt: "neutral" } };
     expect(transparencyModeFromRunManifest(current)).toBe("chroma");
     expect(previewPolicyForRunMode("ai")).toBe("canonical-alpha");
     expect(previewPolicyForRunMode("chroma")).toBe("canonical-alpha");
-    expect(transparencyModeFromRunManifest(legacy)).toBeNull();
-    expect(previewPolicyForRunMode(null)).toBe("legacy-chroma");
-    expect(transparencyModeLabel(null)).toContain("legacy");
+    expect(() => transparencyModeFromRunManifest(missingMode)).toThrow(
+      "input.transparencyMode must be ai or chroma",
+    );
+    expect(() => previewPolicyForRunMode(null)).toThrow(
+      "current preview requires a transparency mode",
+    );
+    expect(() => transparencyModeLabel(null)).toThrow(
+      "current preview requires a transparency mode",
+    );
     expect(() =>
       transparencyModeFromRunManifest({
         input: { prompt: "neutral", transparencyMode: "unknown" },
@@ -182,7 +188,7 @@ describe("web run boundary", () => {
         ok: false,
       }),
     ).toBe("original rain-dark ruins");
-    expect(promptFromRunManifest({ prompt: "legacy shape" })).toBeUndefined();
+    expect(promptFromRunManifest({ prompt: "wrong shape" })).toBeUndefined();
     expect(promptFromRunManifest({ input: { prompt: "  " } })).toBeUndefined();
 
     const tag = `test-input-${process.pid}`;
@@ -256,16 +262,16 @@ describe("web run boundary", () => {
     expect(existsSync(path.join(runDir, "run.json"))).toBe(true);
   });
 
-  test("a legacy retry fails without deleting data or inventing a strategy", async () => {
-    const tag = `test-legacy-retry-${process.pid}`;
+  test("an invalid current retry fails without deleting data or inventing a strategy", async () => {
+    const tag = `test-invalid-retry-${process.pid}`;
     const runDir = runDirFor(tag);
     cleanup.push(runDir);
     await mkdir(runDir, { recursive: true });
-    const asset = "legacy-artifact.txt";
+    const asset = "invalid-artifact.txt";
     const target = artifactPathFor(tag, asset);
     await writeFile(
       path.join(runDir, "run.json"),
-      JSON.stringify({ input: { prompt: "legacy neutral retry" }, ok: false }),
+      JSON.stringify({ input: { prompt: "invalid neutral retry" }, ok: false }),
       "utf8",
     );
     await writeFile(target, "partial", "utf8");
@@ -278,7 +284,7 @@ describe("web run boundary", () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: "legacy run has no transparencyMode; restart it from the picker",
+      reason: "run manifest input.transparencyMode must be ai or chroma",
     });
     expect(starts).toHaveLength(0);
     expect(existsSync(target)).toBe(true);

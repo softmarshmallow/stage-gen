@@ -1,7 +1,9 @@
 import type { SceneLayerProbe } from "./layers";
+import type { MobAggression } from "./combat";
+import type { CombatTextSystemSnapshot } from "./combat-text";
 import { PLATFORMER_FIXED_STEP_SECONDS } from "./vertical";
 
-export const GAMEPLAY_AUTOMATION_MODE = "gameplay-v1" as const;
+export const GAMEPLAY_AUTOMATION_MODE = "gameplay-v2" as const;
 export type GameplayAutomationMode = typeof GAMEPLAY_AUTOMATION_MODE;
 
 export const GAMEPLAY_AUTOMATION_FPS = 1 / PLATFORMER_FIXED_STEP_SECONDS;
@@ -11,6 +13,167 @@ export const GAMEPLAY_AUTOMATION_VIEWPORT = Object.freeze({
   width: 1280,
   height: 720,
 });
+
+export type GameplayOverviewCamera = Readonly<{
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+}>;
+
+export const GAMEPLAY_STILL_SAFE_MARGIN = 32;
+export const GAMEPLAY_STILL_MIN_ACTOR_HEIGHT = 64;
+export const GAMEPLAY_STILL_MIN_PORTAL_HEIGHT = 96;
+export const GAMEPLAY_STILL_MIN_PICKUP_WIDTH = 24;
+export const GAMEPLAY_STILL_MIN_PICKUP_HEIGHT = 28;
+
+export type GameplayStillAnchor = Readonly<{ x: number; y: number }>;
+export type GameplayStillComposition = Readonly<{
+  camera: GameplayOverviewCamera;
+  player: GameplayStillAnchor;
+  mob: GameplayStillAnchor;
+  portal: GameplayStillAnchor;
+  pickup: GameplayStillAnchor;
+}>;
+
+/**
+ * Fit the complete platform-and-ladder route into the initial canvas. The
+ * first fixed gameplay step resumes actor-follow choreography, so this camera
+ * is a deterministic still/composition surface rather than gameplay state.
+ */
+export function gameplayOverviewCamera(input: Readonly<{
+  platforms: readonly Readonly<{
+    left: number;
+    right: number;
+    deckY: number;
+    thickness: number;
+  }>[];
+  ladders: readonly Readonly<{
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }>[];
+  viewport?: Readonly<{ width: number; height: number }>;
+  marginPixels?: number;
+  maximumZoom?: number;
+}>): GameplayOverviewCamera | null {
+  if (input.platforms.length < 3 || input.ladders.length === 0) return null;
+  const viewport = input.viewport ?? GAMEPLAY_AUTOMATION_VIEWPORT;
+  const margin = input.marginPixels ?? 48;
+  const maximumZoom = input.maximumZoom ?? 0.72;
+  if (
+    !Number.isFinite(viewport.width) ||
+    !Number.isFinite(viewport.height) ||
+    viewport.width <= margin * 2 ||
+    viewport.height <= margin * 2 ||
+    !Number.isFinite(maximumZoom) ||
+    maximumZoom <= 0 ||
+    maximumZoom > 1 ||
+    !Number.isFinite(margin) ||
+    margin < 0
+  ) {
+    throw new Error("gameplay overview camera inputs are invalid");
+  }
+  const bounds = [
+    ...input.platforms.map((platform) => ({
+      left: platform.left,
+      right: platform.right,
+      top: platform.deckY,
+      bottom: platform.deckY + platform.thickness,
+    })),
+    ...input.ladders,
+  ];
+  for (const bound of bounds) {
+    if (
+      ![bound.left, bound.right, bound.top, bound.bottom].every(Number.isFinite) ||
+      bound.right <= bound.left ||
+      bound.bottom <= bound.top
+    ) {
+      throw new Error("gameplay overview bounds are invalid");
+    }
+  }
+  const left = Math.min(...bounds.map((bound) => bound.left));
+  const right = Math.max(...bounds.map((bound) => bound.right));
+  const top = Math.min(...bounds.map((bound) => bound.top));
+  const bottom = Math.max(...bounds.map((bound) => bound.bottom));
+  const zoom = Math.min(
+    maximumZoom,
+    (viewport.width - margin * 2) / (right - left),
+    (viewport.height - margin * 2) / (bottom - top),
+  );
+  if (!Number.isFinite(zoom) || zoom <= 0) {
+    throw new Error("gameplay overview route cannot fit the viewport");
+  }
+  return Object.freeze({
+    scrollX: (left + right) / 2 - viewport.width / 2,
+    // Keep the gameplay baseline stable; zoom owns vertical fitting and zero
+    // scroll avoids exposing below-world space in a still capture.
+    scrollY: 0,
+    zoom,
+  });
+}
+
+/**
+ * Place real runtime subjects on three successive platform elevations for the
+ * frame-zero production still. The scene restores their gameplay spawns before
+ * frame one, so the checkpoint is presentation-only and cannot alter the run.
+ */
+export function gameplayStillComposition(input: Readonly<{
+  platforms: readonly Readonly<{
+    left: number;
+    right: number;
+    deckY: number;
+    thickness: number;
+    tier: number;
+  }>[];
+  ladders: readonly Readonly<{
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }>[];
+}>): GameplayStillComposition | null {
+  const elevations = [...input.platforms]
+    .sort(
+      (left, right) =>
+        left.tier - right.tier ||
+        left.deckY - right.deckY ||
+        left.left - right.left,
+    )
+    .filter(
+      (platform, index, all) =>
+        all.findIndex((candidate) => candidate.deckY === platform.deckY) ===
+        index,
+    );
+  if (elevations.length < 3) return null;
+  // Frame the decks the still actually stages subjects on, plus the ladder,
+  // rather than every deck in the world. A branching graph can run far above
+  // and past its route; fitting all of it would shrink the three subjects
+  // this still exists to show until none of them read.
+  const staged = elevations.slice(0, 3);
+  const camera = gameplayOverviewCamera({
+    platforms: staged,
+    ladders: input.ladders,
+  });
+  if (!camera) return null;
+  // The fixed runtime route fits at >= 0.56 zoom. Reject future layouts that
+  // would make the 1.8-tile mob smaller than the locked 64px still contract.
+  if (camera.zoom * 64 * 1.8 < GAMEPLAY_STILL_MIN_ACTOR_HEIGHT) {
+    throw new Error("gameplay still route makes runtime actors too small");
+  }
+  const at = (platform: (typeof elevations)[number], fraction: number) =>
+    Object.freeze({
+      x: platform.left + (platform.right - platform.left) * fraction,
+      y: platform.deckY,
+    });
+  return Object.freeze({
+    camera,
+    player: at(elevations[0]!, 0.22),
+    portal: at(elevations[0]!, 0.78),
+    mob: at(elevations[1]!, 0.5),
+    pickup: at(elevations[2]!, 0.5),
+  });
+}
 
 export const GAMEPLAY_AUTOMATION_ENCOUNTER = Object.freeze({
   focusStartFrame: 1,
@@ -153,7 +316,15 @@ export type GameplayTranscriptEvent = Readonly<{
 }>;
 
 export type GameplayPlayerProbe = Readonly<{
-  state: "idle" | "walk" | "run" | "jump" | "crouch" | "attack" | "climb";
+  state:
+    | "idle"
+    | "walk"
+    | "run"
+    | "jump"
+    | "crouch"
+    | "attack"
+    | "hurt"
+    | "climb";
   facing: "left" | "right";
   x: number;
   y: number;
@@ -161,7 +332,13 @@ export type GameplayPlayerProbe = Readonly<{
   vx: number;
   vy: number;
   airborne: boolean;
+  /** Mid-air jumps spent since the last support. */
+  airJumpsUsed: number;
   attackActive: boolean;
+  hp: number;
+  maxHp: number;
+  invulnerable: boolean;
+  defeated: boolean;
   support: "terrain" | "platform" | "ladder" | "air";
   supportId: string | null;
   ladderId: string | null;
@@ -208,7 +385,7 @@ export type GameplayPlatformRouteProbe = Readonly<{
   id: string;
   from: string;
   to: string;
-  mode: "jump" | "drop" | "ladder";
+  mode: "jump" | "double-jump" | "drop" | "ladder";
   rise: number;
   gap: number;
   landingStep: number | null;
@@ -231,10 +408,15 @@ export type GameplayLadderProbe = Readonly<{
 export type GameplayMobProbe = Readonly<{
   ladderIndex: number;
   hp: number;
-  state: "wander" | "hurt" | "dead";
+  state: "wander" | "chase" | "windup" | "hurt" | "dead";
+  /** Aggression archetype the generator published, or null when the optional profile is absent. */
+  aggression: MobAggression | null;
   x: number;
   y: number;
   alive: boolean;
+  visible: boolean;
+  /** Conservative alpha bounds across every idle and hurt animation frame. */
+  renderBounds: GameplayWorldBoundsProbe;
 }>;
 
 export type GameplayInventoryProbe = Readonly<{
@@ -252,6 +434,7 @@ export type GameplayWorldItemProbe = Readonly<{
   x: number;
   y: number;
   settled: boolean;
+  renderBounds: GameplayWorldBoundsProbe;
 }>;
 
 export type GameplayWorldBoundsProbe = Readonly<{
@@ -285,7 +468,12 @@ export type GameplayAutomationSnapshot = Readonly<{
   state: GameplayAutomationState;
   ready: boolean;
   errors: readonly string[];
+  /** Non-fatal bounded diagnostics, including unavailable optional traversal. */
+  diagnostics: readonly string[];
   assetKeys: readonly string[];
+  /** Position in the stage plan this frame's world belongs to. */
+  stageIndex: number;
+  stageId: string;
   frame: number;
   simulationMs: number;
   player: GameplayPlayerProbe | null;
@@ -297,12 +485,15 @@ export type GameplayAutomationSnapshot = Readonly<{
   mobs: readonly GameplayMobProbe[];
   inventory: Readonly<{
     visible: boolean;
+    bounds: GameplayWorldBoundsProbe | null;
     slots: readonly GameplayInventoryProbe[];
   }>;
   worldItems: readonly GameplayWorldItemProbe[];
   encounter: GameplayEncounterProbe;
   portals: readonly GameplayPortalProbe[];
   presentation: GameplayAutomationPresentation;
+  /** Stage-scoped FCT state; absent before stage construction and during teardown. */
+  combatText?: CombatTextSystemSnapshot;
   events: readonly GameplayTranscriptEvent[];
   heightmapDigest: string | null;
 }>;

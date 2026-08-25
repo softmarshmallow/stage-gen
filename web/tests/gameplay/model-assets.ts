@@ -9,6 +9,7 @@ import {
   gameplayRequiredAssetKeys,
   type GameplayFixture,
 } from "./contracts";
+import { runtimeRoleOwnsScaleReference } from "../../lib/runtime/sprite-scale";
 
 const GAMEPLAY_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(GAMEPLAY_DIR, "../../..");
@@ -292,10 +293,13 @@ const GAMEPLAY_MODEL_TRANSPARENT_ASSET_IDS = Object.freeze(
 
 export const GAMEPLAY_MODEL_FIXTURE_FILES = Object.freeze(
   [
-    ...GAMEPLAY_MODEL_ASSET_CONTRACTS.map((asset) =>
-      asset.runtimeSlot.replace("<tag>", GAMEPLAY_MODEL_TAG),
-    ),
+    ...GAMEPLAY_MODEL_ASSET_CONTRACTS.flatMap((asset) => {
+      const filename = asset.runtimeSlot.replace("<tag>", GAMEPLAY_MODEL_TAG);
+      return [filename, `${filename}.meta.json`];
+    }),
     `world_spec_${GAMEPLAY_MODEL_TAG}.json`,
+    `world_spec_${GAMEPLAY_MODEL_TAG}.json.meta.json`,
+    `manifest_${GAMEPLAY_MODEL_TAG}.json`,
     "run.json",
     GAMEPLAY_FIXTURE_METADATA_FILE,
   ].sort(),
@@ -1221,6 +1225,113 @@ function jsonBytes(value: unknown): Buffer {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function localArtifactProvenance(
+  artifact: Buffer,
+  mediaType: string,
+  prompt: string,
+): Buffer {
+  return jsonBytes({
+    schema_version: 2,
+    provider: "local",
+    model: "approved-gameplay-fixture-adapter",
+    seed: null,
+    prompt,
+    prompt_sha256: sha256(Buffer.from(prompt, "utf8")),
+    references: [],
+    refs: [],
+    inputs: [],
+    params: { stage: "approved-gameplay-fixture-adapter" },
+    validation: { deterministic: true },
+    component: { name: "@stage-gen/web", version: "0.0.0" },
+    tool: { name: "gameplay-model-fixture-adapter", version: "1" },
+    artifact: {
+      sha256: sha256(artifact),
+      bytes: artifact.byteLength,
+      media_type: mediaType,
+    },
+    ts: "1970-01-01T00:00:00Z",
+    attempts: 1,
+    retries: 0,
+  });
+}
+
+function modelRuntimeRole(assetId: string): string {
+  if (assetId === "mob-concept") return "mob-concept-0";
+  if (assetId === "mob-idle") return "mob-0-idle";
+  if (assetId === "mob-hurt") return "mob-0-hurt";
+  return assetId;
+}
+
+function modelScaleReference(
+  cellWidth: number,
+  cellHeight: number,
+  frameIndex: number,
+) {
+  const top = 0.1;
+  const bottom = 0.3;
+  const left = 0.2;
+  const right = 0.4;
+  return {
+    part: "head",
+    top_fraction: top,
+    bottom_fraction: bottom,
+    left_fraction: left,
+    right_fraction: right,
+    extent_pixels:
+      Math.round(
+        Math.max(
+          (bottom - top) * cellHeight,
+          (right - left) * cellWidth,
+        ) * 1_000,
+      ) / 1_000,
+    confident: true,
+    evidence: "Deterministic approved-fixture actor bounds.",
+    frame_index: frameIndex,
+    cell_width: cellWidth,
+    cell_height: cellHeight,
+  };
+}
+
+function modelRuntimeAssets() {
+  return GAMEPLAY_MODEL_ASSET_CONTRACTS.map((asset) => {
+    const role = modelRuntimeRole(asset.id);
+    const runtimePath = asset.runtimeSlot.replace("<tag>", GAMEPLAY_MODEL_TAG);
+    const cellWidth = asset.width / asset.columns;
+    const cellHeight = asset.height / asset.rows;
+    if (!Number.isSafeInteger(cellWidth) || !Number.isSafeInteger(cellHeight)) {
+      throw new Error(`approved gameplay fixture layout is not integral for ${role}`);
+    }
+    return {
+      id: role,
+      runtime_slot: role,
+      path: runtimePath,
+      provenance_path: `${runtimePath}.meta.json`,
+      alpha_expectation: asset.alphaExpectation,
+      layout: {
+        topology: asset.rows === 1 && asset.columns === 1 ? "single" : "grid",
+        rows: asset.rows,
+        columns: asset.columns,
+        cell_width: cellWidth,
+        cell_height: cellHeight,
+        gutter: 0,
+      },
+      geometry_validation: {
+        exact_dimensions: true,
+        alpha_contract: true,
+      },
+      ...(runtimeRoleOwnsScaleReference(role)
+        ? {
+            scale_reference: modelScaleReference(
+              cellWidth,
+              cellHeight,
+              role.endsWith("-attack") ? 1 : 0,
+            ),
+          }
+        : {}),
+    };
+  });
+}
+
 export type GameplayModelAdapterOptions = Readonly<{
   sourceRoot?: string;
 }>;
@@ -1511,10 +1622,47 @@ export async function generateApprovedModelGameplayFixture(
       GAMEPLAY_MODEL_TAG,
     );
     outputs.set(runtimeName, bytes);
+    outputs.set(
+      `${runtimeName}.meta.json`,
+      localArtifactProvenance(
+        bytes,
+        "image/png",
+        `adapt approved gameplay fixture ${contract.id}`,
+      ),
+    );
     sourceAssetHashes[contract.id] = sha256(bytes);
   }
 
-  outputs.set(`world_spec_${GAMEPLAY_MODEL_TAG}.json`, jsonBytes(worldSpec()));
+  const worldSpecPath = `world_spec_${GAMEPLAY_MODEL_TAG}.json`;
+  const worldSpecBytes = jsonBytes(worldSpec());
+  outputs.set(worldSpecPath, worldSpecBytes);
+  outputs.set(
+    `${worldSpecPath}.meta.json`,
+    localArtifactProvenance(
+      worldSpecBytes,
+      "application/json",
+      "adapt approved gameplay fixture world spec",
+    ),
+  );
+  // The current runtime requires the one v7 scrolling manifest and its complete measured actor
+  // closure. The adapter publishes only current lower_snake_case fields.
+  outputs.set(
+    `manifest_${GAMEPLAY_MODEL_TAG}.json`,
+    jsonBytes({
+      schema_version: 7,
+      recipe: "scrolling-preview",
+      tag: GAMEPLAY_MODEL_TAG,
+      transparency_mode: GAMEPLAY_MODEL_TRANSPARENCY_MODE,
+      artifacts: [...outputs.keys()].sort(),
+      canonical_artifacts: [],
+      world_spec: {
+        path: worldSpecPath,
+        provenance_path: `${worldSpecPath}.meta.json`,
+      },
+      runtime_assets: modelRuntimeAssets(),
+      image_repeat: { enabled: false, status: "deferred", artifacts: [] },
+    }),
+  );
   outputs.set(
     "run.json",
     jsonBytes({

@@ -2,11 +2,10 @@
 //
 // Each asset family (parallax, tileset, character, mob, obstacle, items,
 // inventory, portal) flows through the same alpha / bbox / edge-fade
-// primitives. New runs already provide canonical transparent PNGs. Exact
-// magenta keying is retained only for legacy manifests without strategy data.
+// primitives. The current v7 scrolling manifest guarantees canonical-alpha
+// PNGs for both AI and chroma generation modes.
 
 import {
-  chromaKeyToAlpha,
   copyImageToCanvas,
   extractCellsBbox,
   fadeParallaxEdges,
@@ -14,6 +13,7 @@ import {
 } from "./image-ops";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import {
+  measureVerifiedForegroundRepeat,
   prepareForegroundRaster,
   type PreparedForegroundRaster,
 } from "./foreground";
@@ -21,12 +21,20 @@ import {
 export type AssetUrlFn = (file: string) => string;
 
 export async function fetchImage(url: string): Promise<HTMLImageElement> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`${url} → HTTP ${response.status}`);
+  const objectUrl = URL.createObjectURL(await response.blob());
   return await new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = (e) => reject(new Error(`image load failed: ${url} (${e})`));
-    img.src = url;
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(`image decode failed: ${url}`));
+    };
+    img.src = objectUrl;
   });
 }
 
@@ -147,6 +155,61 @@ export async function loadForegroundLayer(
   };
 }
 
+/** Load one producer-verified repeat period without edge treatment or pixel rewriting. */
+export async function loadVerifiedRepeatLayer(
+  url: string,
+  key: string,
+  opaque: boolean,
+  periodPx: number,
+  textures: Phaser.Textures.TextureManager,
+): Promise<LoadedParallaxLayer> {
+  const image = await fetchImage(url);
+  const canvas = copyImageToCanvas(image);
+  if (canvas.width !== periodPx) {
+    throw new Error("verified repeat decoded width does not match period_px");
+  }
+  registerCanvas(textures, key, canvas);
+  return {
+    key,
+    canvas,
+    width: canvas.width,
+    height: canvas.height,
+    opaque,
+  };
+}
+
+/** Load and measure a verified foreground while preserving the full repeat-unit canvas. */
+export async function loadVerifiedForegroundRepeat(
+  url: string,
+  key: string,
+  periodPx: number,
+  textures: Phaser.Textures.TextureManager,
+): Promise<LoadedForegroundLayer> {
+  const image = await fetchImage(url);
+  const canvas = copyImageToCanvas(image);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("verified foreground requires a 2d canvas");
+  }
+  const foreground = measureVerifiedForegroundRepeat(
+    {
+      width: canvas.width,
+      height: canvas.height,
+      data: context.getImageData(0, 0, canvas.width, canvas.height).data,
+    },
+    periodPx,
+  );
+  registerCanvas(textures, key, canvas);
+  return {
+    key,
+    canvas,
+    width: canvas.width,
+    height: canvas.height,
+    opaque: false,
+    foreground,
+  };
+}
+
 // --- Generic transparent sprite (character, mob, portal, inventory). ---
 
 export async function loadTransparentSprite(
@@ -161,8 +224,44 @@ export async function loadTransparentSprite(
   return canvas;
 }
 
-// Opaque concept/backdrop assets never participate in transparency handling,
-// including when a legacy run is previewed.
+/**
+ * Load a single-subject sprite trimmed to the pixels it actually paints.
+ *
+ * A whole-canvas texture makes every display size a statement about the canvas rather than
+ * about the artwork. The ladder is drawn across 89 of its 256 source columns, so asking for an
+ * 80px-wide ladder produced 28px of rails and spent the remaining 52px on transparent margin -
+ * next to a 56px-wide character. Trimming first is what lets a width constant mean the width
+ * that appears on screen.
+ */
+export async function loadTrimmedSprite(
+  url: string,
+  key: string,
+  textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
+): Promise<{ canvas: HTMLCanvasElement; trimmed: CellRect }> {
+  const img = await fetchImage(url);
+  const source = transparencyCanvas(img, policy);
+  const { cells } = extractCellsBbox(source, 1, 1);
+  const cell = cells[0];
+  // A blank or unreadable subject keeps the untrimmed canvas rather than collapsing to nothing.
+  if (!cell || cell.w <= 1 || cell.h <= 1) {
+    registerCanvas(textures, key, source);
+    return {
+      canvas: source,
+      trimmed: { row: 0, col: 0, x: 0, y: 0, w: source.width, h: source.height },
+    };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = cell.w;
+  canvas.height = cell.h;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("2d context unavailable");
+  context.drawImage(source, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h);
+  registerCanvas(textures, key, canvas);
+  return { canvas, trimmed: cell };
+}
+
+// Opaque concept/backdrop assets never participate in transparency handling.
 export async function loadOpaqueSprite(
   url: string,
   key: string,
@@ -529,7 +628,8 @@ function transparencyCanvas(
   image: HTMLImageElement,
   policy: PreviewTransparencyPolicy,
 ): HTMLCanvasElement {
-  return policy === "legacy-chroma"
-    ? chromaKeyToAlpha(image)
-    : copyImageToCanvas(image);
+  if (policy !== "canonical-alpha") {
+    throw new Error("current scrolling assets require canonical-alpha policy");
+  }
+  return copyImageToCanvas(image);
 }

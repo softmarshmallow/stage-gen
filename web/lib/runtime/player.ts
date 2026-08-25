@@ -2,7 +2,7 @@
 //
 // Owns:
 //   - WASD + arrow input → horizontal velocity                     (TC-080)
-//   - State machine: idle / walk / run / jump / crouch / attack    (TC-081)
+//   - State machine: idle / walk / run / jump / crouch / attack / hurt / climb
 //   - Feet locked to heightmap surface during X movement           (TC-082)
 //   - Attack hit-window query for the mob system                   (TC-084/085)
 //
@@ -11,10 +11,24 @@
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./layers";
+import {
+  headMatchedScale,
+  masterSheetScale,
+  type ScaleReference,
+} from "./sprite-scale";
+import {
+  type PlayerDamageResolution,
+  type PlayerHealthState,
+  PLAYER_KNOCKBACK_VX,
+  PLAYER_KNOCKBACK_VY,
+  applyPlayerDamage,
+  initialPlayerHealth,
+  isPlayerInvulnerable,
+} from "./combat";
 import { terrainSurfaceY } from "./terrain";
 import {
+  PLATFORMER_COYOTE_MS,
   PLATFORMER_GRAVITY,
-  PLATFORMER_JUMP_VELOCITY,
   PLATFORMER_RUN_SPEED,
   PLATFORMER_WALK_SPEED,
   PLATFORM_DROP_THROUGH_MS,
@@ -24,6 +38,9 @@ import {
   ladderEntryAt,
   ladderJumpOffVelocity,
   platformDropThroughActive,
+  resolveJumpRequest,
+  resolveTerrainStep,
+  resolveTerrainWalk,
   resolveVerticalLanding,
   type LadderZone,
   type PlayerSupport,
@@ -31,7 +48,14 @@ import {
 } from "./vertical";
 
 export type PlayerState =
-  "idle" | "walk" | "run" | "jump" | "crouch" | "attack" | "climb";
+  | "idle"
+  | "walk"
+  | "run"
+  | "jump"
+  | "crouch"
+  | "attack"
+  | "hurt"
+  | "climb";
 
 export type PlatformDropTraversalPhase =
   | "drop-commanded"
@@ -50,7 +74,10 @@ export type PlayerTransitionKind =
   | "platform-lower-land"
   | "platform-lower-settle"
   | "platform-recovery-launch"
-  | "platform-recovery-land";
+  | "platform-recovery-land"
+  | "air-jump"
+  | "terrain-step-off"
+  | "terrain-step-block";
 
 export type PlayerStateSnapshot = {
   state: PlayerState;
@@ -61,7 +88,13 @@ export type PlayerStateSnapshot = {
   vx: number;
   vy: number;
   airborne: boolean;
+  /** Mid-air jumps spent since the last support. Reset by landing or a ladder. */
+  airJumpsUsed: number;
   attackActive: boolean;
+  hp: number;
+  maxHp: number;
+  invulnerable: boolean;
+  defeated: boolean;
   support: PlayerSupport;
   supportId: string | null;
   ladderId: string | null;
@@ -98,13 +131,42 @@ export interface PlayerOpts {
   targetSpriteHeight: number; // px
   platforms?: readonly UpperPlatform[];
   ladders?: readonly LadderZone[];
+  maximumAirJumps: number;
+  combatEnabled: boolean;
   onTransition?: (
     kind: PlayerTransitionKind,
     data: Record<string, string | number | boolean>,
   ) => void;
   /** Frame rates per state (fps). */
   frameRates?: Partial<Record<PlayerState, number>>;
+  /**
+   * Published anatomical scale reference per texture key.
+   */
+  scaleReferences: ReadonlyMap<string, ScaleReference>;
 }
+
+/** Every player state, in one place so animations and scale resolution cannot diverge. */
+const PLAYER_STATES: readonly PlayerState[] = [
+  "idle",
+  "walk",
+  "run",
+  "jump",
+  "crouch",
+  "attack",
+  "hurt",
+  "climb",
+];
+
+/** Current player roles measured by the producer; hurt remains an optional current role. */
+const MEASURED_PLAYER_STATES: readonly PlayerState[] = [
+  "idle",
+  "walk",
+  "run",
+  "jump",
+  "crouch",
+  "attack",
+  "climb",
+];
 
 const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   idle: 4,
@@ -113,12 +175,14 @@ const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   jump: 8,
   crouch: 6,
   attack: 12,
+  hurt: 7,
   climb: 9,
 };
 
 const ATTACK_DURATION_MS = 333; // 4 frames at 12 fps
 const ATTACK_HIT_WINDOW_MS_FROM = 80; // hit window starts ~frame 1
 const ATTACK_HIT_WINDOW_MS_TO = 250; // …ends after frame 3
+const HURT_DURATION_MS = 600;
 
 export class Player {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -130,6 +194,12 @@ export class Player {
   support: PlayerSupport = "terrain";
   supportId: string | null = null;
   ladderId: string | null = null;
+  /** Mid-air jumps spent since the last grounded or ladder support. */
+  airJumpsUsed = 0;
+  /** Deadline until which a lost support still buys a full grounded jump. */
+  private coyoteExpiresAtMs: number | null = null;
+  /** Column face currently stopping horizontal motion, for edge-triggered logs. */
+  private blockedColumn: number | null = null;
   private opts: PlayerOpts;
   private frameRates: Record<PlayerState, number>;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -148,8 +218,14 @@ export class Player {
   private attackUntil = 0;
   private attackStarted = 0;
   private attackHitConsumed = false;
+  /** The reaction keeps control locked through all four hurt frames. */
+  private hurtUntil = 0;
   private activeLadder?: LadderZone;
   private climbFrame: number | null = null;
+  /** Sprite scale for textures sliced from the character's master sheet. */
+  private masterSheetScale = 1;
+  /** Sprite scale by texture key, for sheets that do not share the master's geometry. */
+  private readonly sheetScale = new Map<string, number>();
   private dropThroughPlatformId: string | null = null;
   private dropThroughUntil = 0;
   private dropTraversal?: {
@@ -164,26 +240,25 @@ export class Player {
     lowerSupportY: number | null;
     stableFrames: number;
   };
+  /** Hit points, invulnerability window and defeat, owned here because they are gameplay. */
+  private health: PlayerHealthState = initialPlayerHealth();
+
   /** Set while the attack swing is in its hit window. */
   attackActive = false;
   /** Toggled by I key to open inventory; consumed externally. */
   inventoryToggleRequested = false;
+  private inventoryKeyHandler?: () => void;
 
   constructor(opts: PlayerOpts) {
+    if (!Number.isSafeInteger(opts.maximumAirJumps) || opts.maximumAirJumps < 0) {
+      throw new Error("maximumAirJumps must be a nonnegative integer");
+    }
     this.opts = opts;
     this.frameRates = { ...DEFAULT_FRAME_RATES, ...(opts.frameRates ?? {}) };
 
     const scene = opts.scene;
     // Build animations for each state once.
-    for (const st of [
-      "idle",
-      "walk",
-      "run",
-      "jump",
-      "crouch",
-      "attack",
-      "climb",
-    ] as PlayerState[]) {
+    for (const st of PLAYER_STATES) {
       const animKey = `player_${st}`;
       const texKey = stateTextureKey(st);
       if (!scene.anims.exists(animKey) && scene.textures.exists(texKey)) {
@@ -191,8 +266,9 @@ export class Player {
           key: animKey,
           frames: [0, 1, 2, 3].map((f) => ({ key: texKey, frame: f })),
           frameRate: this.frameRates[st],
-          // attack/jump/crouch/idle can loop or play-once depending on state machine
-          repeat: st === "attack" || st === "jump" ? 0 : -1,
+          // Reactions and one-shot actions hold their last frame; locomotion loops.
+          repeat:
+            st === "attack" || st === "jump" || st === "hurt" ? 0 : -1,
         });
       }
     }
@@ -200,17 +276,64 @@ export class Player {
     const initialKey = stateTextureKey("idle");
     this.sprite = scene.add.sprite(opts.startX, opts.startY, initialKey, 0);
     this.sprite.setOrigin(0.5, 1.0);
-    const tex = scene.textures.get(initialKey);
-    const f0 = tex.get(0);
-    const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
-    this.sprite.setDisplaySize(
-      opts.targetSpriteHeight * aspect,
-      opts.targetSpriteHeight,
-    );
+    this.resolveSheetScales();
+    this.applySheetScale(initialKey);
     this.sprite.setDepth(SCENE_CONTENT_DEPTH.player);
     if (scene.anims.exists("player_idle")) this.sprite.play("player_idle");
 
     this.bindInput();
+  }
+
+  /**
+   * Work out the sprite scale each state's source sheet needs.
+   *
+   * Each required sheet carries its own producer-published anatomical measurement. Matching each
+   * extent to idle is what preserves apparent character size across unrelated source canvases and
+   * poses. The optional current hurt strip is the sole explicit exception because its producer
+   * role does not yet publish a measurement.
+   */
+  private resolveSheetScales(): void {
+    const scene = this.opts.scene;
+    const idleKey = stateTextureKey("idle");
+    this.masterSheetScale = masterSheetScale(
+      this.opts.targetSpriteHeight,
+      sheetFrameHeight(scene, idleKey, 0),
+    );
+
+    // Idle sets the size the character reads at; every other measured sheet is matched to it.
+    const references = this.opts.scaleReferences;
+    const idleReference = references.get(idleKey);
+    if (!idleReference) {
+      throw new Error("current player requires character_idle scale reference");
+    }
+    const reference = {
+      extentPixels: idleReference.extentPixels,
+      scale: this.masterSheetScale,
+    };
+    for (const state of MEASURED_PLAYER_STATES) {
+      const key = stateTextureKey(state);
+      const sheetReference = references.get(key);
+      if (!sheetReference) {
+        throw new Error(`current player requires ${key} scale reference`);
+      }
+      this.sheetScale.set(key, headMatchedScale(reference, sheetReference));
+    }
+  }
+
+  /** Apply the scale belonging to `textureKey`'s source sheet. */
+  private applySheetScale(textureKey: string): void {
+    const measured = this.sheetScale.get(textureKey);
+    if (measured !== undefined) {
+      this.sprite.setScale(measured);
+      return;
+    }
+    // `character-hurt` is an optional current producer role without a published measurement.
+    // Its explicit current behavior is to retain the anchored master-sheet scale.
+    if (textureKey === "character_hurt") {
+      this.sprite.setScale(this.masterSheetScale);
+      return;
+    }
+    throw new Error(`current player texture ${textureKey} has no resolved scale`);
   }
 
   private bindInput() {
@@ -230,9 +353,25 @@ export class Player {
       inventory: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I),
     };
     // Inventory toggle on JustDown.
-    kb.on("keydown-I", () => {
+    this.inventoryKeyHandler = () => {
       this.inventoryToggleRequested = true;
-    });
+    };
+    kb.on("keydown-I", this.inventoryKeyHandler);
+  }
+
+  /**
+   * Release this controller's scene bindings.
+   *
+   * A stage rebuild constructs a fresh Player, so the retired one has to hand
+   * back its keyboard listener; otherwise every stage travelled adds another
+   * inventory toggle to the same key press.
+   */
+  destroy(): void {
+    if (this.inventoryKeyHandler) {
+      this.opts.scene.input.keyboard?.off("keydown-I", this.inventoryKeyHandler);
+      this.inventoryKeyHandler = undefined;
+    }
+    this.sprite.destroy();
   }
 
   /** Called every frame from the scene. */
@@ -249,14 +388,26 @@ export class Player {
       k?.jump && Phaser.Input.Keyboard.JustDown(k.jump)
     );
     const wantsAttack =
+      this.opts.combatEnabled &&
       (k &&
         (Phaser.Input.Keyboard.JustDown(k.attack1) ||
           Phaser.Input.Keyboard.JustDown(k.attack2) ||
           Phaser.Input.Keyboard.JustDown(k.attack3))) ||
       false;
 
+    // Damage is resolved by the scene after this controller has already stepped for the frame,
+    // so `takeDamage` enters hurt synchronously and this branch owns every later hurt frame. Keep
+    // the ordinary physics path below alive - knockback must travel and land - while refusing
+    // control input. A fatal reaction remains locked after its four frames and holds the final
+    // pose; its horizontal shove stops with the reaction rather than sliding the body forever.
+    const hurtPresentationAvailable = this.hasHurtPresentation();
+    const hurtReaction = hurtPresentationAvailable && this.state === "hurt";
+    const hurtMotionActive = hurtReaction && nowMs < this.hurtUntil;
+    const controlsLocked = hurtMotionActive || this.health.defeated;
+    if (controlsLocked && !hurtMotionActive) this.vx = 0;
+
     // Active ladder traversal has priority over every movement/combat action.
-    if (this.support === "ladder" && this.activeLadder) {
+    if (!controlsLocked && this.support === "ladder" && this.activeLadder) {
       this.continueLadder({ dt, up, down, left, right, wantsJump });
       this.sprite.setFlipX(
         this.support === "ladder" ? false : this.facing === "left",
@@ -265,15 +416,17 @@ export class Player {
     }
 
     // Entering a ladder has priority over platform drop-through.
-    const entry = ladderEntryAt({
-      ladders: this.opts.ladders ?? [],
-      support: this.support,
-      supportId: this.supportId,
-      x: this.sprite.x,
-      footY: this.sprite.y,
-      up,
-      down,
-    });
+    const entry = controlsLocked
+      ? null
+      : ladderEntryAt({
+          ladders: this.opts.ladders ?? [],
+          support: this.support,
+          supportId: this.supportId,
+          x: this.sprite.x,
+          footY: this.sprite.y,
+          up,
+          down,
+        });
     if (entry) {
       this.activeLadder = entry.ladder;
       this.ladderId = entry.ladder.id;
@@ -299,25 +452,32 @@ export class Player {
     this.advanceDropTraversalSettle();
 
     // Determine target horizontal velocity.
-    let targetVx = 0;
-    if (left && !right) {
-      targetVx = -(shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED);
-      this.facing = "left";
-    } else if (right && !left) {
-      targetVx = shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED;
-      this.facing = "right";
+    let targetVx = this.vx;
+    if (!controlsLocked) {
+      targetVx = 0;
+      if (left && !right) {
+        targetVx = -(shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED);
+        this.facing = "left";
+      } else if (right && !left) {
+        targetVx = shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED;
+        this.facing = "right";
+      }
     }
 
     // Crouch reduces speed and locks state on the ground.
-    const crouching = down && this.support !== "air";
+    const crouching = !controlsLocked && down && this.support !== "air";
     if (crouching) targetVx *= 0.4;
 
-    this.vx = targetVx;
+    if (!controlsLocked) this.vx = targetVx;
 
     // Down+Space drops through the current one-way platform. A valid ladder
     // entry was already consumed above, so it cannot be shadowed by this.
     const dropping =
-      wantsJump && down && this.support === "platform" && this.supportId !== null;
+      !controlsLocked &&
+      wantsJump &&
+      down &&
+      this.support === "platform" &&
+      this.supportId !== null;
     if (dropping) {
       const platformId = this.supportId!;
       const platform = (this.opts.platforms ?? []).find(
@@ -349,23 +509,72 @@ export class Player {
         platformRight: this.dropTraversal.platformRight,
         platformBottomY: this.dropTraversal.platformBottomY,
       });
-    } else if (wantsJump && this.support !== "air" && !crouching) {
-      this.beginDropRecoveryIfReady();
-      this.vy = -PLATFORMER_JUMP_VELOCITY;
-      this.setSupport("air", null);
+    } else if (!controlsLocked && wantsJump) {
+      const jump = resolveJumpRequest({
+        support: this.support,
+        airJumpsUsed: this.airJumpsUsed,
+        nowMs,
+        coyoteExpiresAtMs: this.coyoteExpiresAtMs,
+        crouching,
+        maximumAirJumps: this.opts.maximumAirJumps,
+      });
+      if (jump.kind !== "none") {
+        this.beginDropRecoveryIfReady();
+        this.vy = jump.vy;
+        this.airJumpsUsed = jump.airJumpsUsed;
+        this.coyoteExpiresAtMs = null;
+        if (jump.kind === "air") {
+          this.opts.onTransition?.("air-jump", {
+            airJumpsUsed: jump.airJumpsUsed,
+            footY: this.sprite.y,
+            vy: jump.vy,
+          });
+        }
+        if (this.support !== "air") this.setSupport("air", null);
+      }
     }
 
-    // Horizontal motion.
-    this.sprite.x += this.vx * dt;
-    this.sprite.x = Phaser.Math.Clamp(
-      this.sprite.x,
-      this.opts.tilePx / 2,
-      this.opts.worldWidthPx - this.opts.tilePx / 2,
-    );
+    // Horizontal motion, stopped by any column face standing above the feet.
+    // A one-tile rise is a wall now, not a step, so the way up is a jump.
+    const previousX = this.sprite.x;
+    const walk = resolveTerrainWalk({
+      previousX,
+      nextX: Phaser.Math.Clamp(
+        previousX + this.vx * dt,
+        this.opts.tilePx / 2,
+        this.opts.worldWidthPx - this.opts.tilePx / 2,
+      ),
+      footY: this.sprite.y,
+      tilePixels: this.opts.tilePx,
+      surfaceAt: (column) =>
+        terrainSurfaceY(
+          this.opts.heightFn(column),
+          this.opts.tilePx,
+          this.opts.baselineY,
+        ),
+    });
+    this.sprite.x = walk.x;
+    if (walk.blocked) {
+      this.vx = 0;
+      // Edge-triggered: held against a face this would otherwise log every
+      // frame, and the interesting fact is arriving at the wall, not leaning
+      // on it.
+      if (this.blockedColumn !== walk.blockedColumn) {
+        this.blockedColumn = walk.blockedColumn;
+        this.opts.onTransition?.("terrain-step-block", {
+          column: walk.blockedColumn!,
+          footY: this.sprite.y,
+          x: walk.x,
+        });
+      }
+    } else {
+      this.blockedColumn = null;
+    }
 
     // Attack overrides locomotion anim state (still moves but plays attack).
     if (
       wantsAttack &&
+      !controlsLocked &&
       !this.attackActive &&
       nowMs >= this.attackUntil &&
       this.support !== "ladder"
@@ -395,15 +604,32 @@ export class Player {
         (candidate) => candidate.id === this.supportId,
       );
       if (!platform || this.sprite.x < platform.left || this.sprite.x > platform.right) {
+        this.openCoyoteWindow(nowMs);
         this.setSupport("air", null);
         this.vy = 0;
       } else {
         this.sprite.y = platform.deckY;
       }
     } else if (this.support === "terrain") {
-      // Preserve this preview heightfield's established column-locked terrain
-      // traversal. Only an upper-platform edge is a one-way step-off.
-      this.sprite.y = surfaceY;
+      // Uphill columns are still absorbed, which keeps this heightfield's
+      // column-locked climb. A descending column is a real ledge: the foot
+      // holds its height and the airborne branch below drops it under gravity
+      // instead of teleporting it onto the new surface.
+      const step = resolveTerrainStep({
+        footY: this.sprite.y,
+        surfaceY,
+      });
+      this.sprite.y = step.footY;
+      if (step.support === "air") {
+        this.openCoyoteWindow(nowMs);
+        this.setSupport("air", null);
+        this.vy = 0;
+        this.opts.onTransition?.("terrain-step-off", {
+          footY: step.footY,
+          surfaceY,
+          column: col,
+        });
+      }
     }
 
     if (this.support === "air") {
@@ -438,7 +664,13 @@ export class Player {
 
     // Compute new state.
     let next: PlayerState;
-    if (attacking) next = "attack";
+    if (hurtPresentationAvailable && (hurtMotionActive || this.health.defeated)) {
+      next = "hurt";
+    } else if (this.health.defeated) {
+      // The current character-hurt role is optional. When it is absent, defeat still locks
+      // control but must not claim to display `hurt` while holding an unrelated texture.
+      next = this.support === "air" ? "jump" : "idle";
+    } else if (attacking) next = "attack";
     else if (this.support === "air") next = "jump";
     else if (crouching) next = "crouch";
     else if (this.vx !== 0 && shift) next = "run";
@@ -527,6 +759,21 @@ export class Player {
     this.support = support;
     this.supportId = supportId;
     this.airborne = support === "air";
+    if (support !== "air") {
+      this.airJumpsUsed = 0;
+      this.coyoteExpiresAtMs = null;
+    }
+  }
+
+  /**
+   * Open the grace window for a support lost by falling.
+   *
+   * Only fall sites call this. A jump clears the deadline instead, so the
+   * window can never turn one press into two grounded launches.
+   */
+  private openCoyoteWindow(nowMs: number): void {
+    if (this.support === "air") return;
+    this.coyoteExpiresAtMs = nowMs + PLATFORMER_COYOTE_MS;
   }
 
   private activeDropThroughPlatform(nowMs: number): string | null {
@@ -686,41 +933,33 @@ export class Player {
 
   private setClimbFrame(moving: boolean): void {
     const textureKey = "character_climb";
-    if (
-      this.opts.scene.textures.exists(textureKey) &&
-      this.opts.scene.anims.exists("player_climb")
-    ) {
-      const ladder = this.activeLadder;
-      const nextFrame =
-        moving && ladder
-          ? Math.floor(
-              Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12,
-            ) % 4
-          : (this.climbFrame ?? 0);
-      if (
-        this.sprite.anims.currentAnim?.key !== "player_climb" ||
-        !this.sprite.anims.isPlaying
-      ) {
-        this.sprite.play("player_climb", true);
-      }
-      const animationFrame = this.sprite.anims.currentAnim?.frames[nextFrame];
-      if (animationFrame) this.sprite.anims.setCurrentFrame(animationFrame);
-      if (moving) this.sprite.anims.resume();
-      else this.sprite.anims.pause();
-      this.sprite.setFlipX(false);
-      this.climbFrame = nextFrame;
-      return;
+    if (!this.opts.scene.textures.exists(textureKey)) {
+      throw new Error("current climb texture is missing");
     }
-    this.climbFrame = null;
-    this.sprite.anims.stop();
-    const fallback = "character_jump";
-    if (!this.opts.scene.textures.exists(fallback)) return;
+    if (!this.opts.scene.anims.exists("player_climb")) {
+      throw new Error("current climb animation is missing");
+    }
     const ladder = this.activeLadder;
-    const frame =
+    const nextFrame =
       moving && ladder
-        ? Math.floor((ladder.lowerSurfaceY - this.sprite.y) / 20) & 1
-        : 0;
-    this.sprite.setTexture(fallback, frame);
+        ? Math.floor(Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12) % 4
+        : (this.climbFrame ?? 0);
+    if (
+      this.sprite.anims.currentAnim?.key !== "player_climb" ||
+      !this.sprite.anims.isPlaying
+    ) {
+      this.sprite.play("player_climb", true);
+    }
+    const animationFrame = this.sprite.anims.currentAnim?.frames[nextFrame];
+    if (!animationFrame) {
+      throw new Error(`current climb animation frame ${nextFrame} is missing`);
+    }
+    this.sprite.anims.setCurrentFrame(animationFrame);
+    if (moving) this.sprite.anims.resume();
+    else this.sprite.anims.pause();
+    this.sprite.setFlipX(false);
+    this.applySheetScale(textureKey);
+    this.climbFrame = nextFrame;
   }
 
   /** Force the animation matching `next`. */
@@ -732,15 +971,72 @@ export class Player {
     }
     this.climbFrame = null;
     const animKey = `player_${next}`;
+    const texKey = stateTextureKey(next);
     if (this.opts.scene.anims.exists(animKey)) {
       this.sprite.play(animKey, true);
     } else {
       // Fallback to texture swap only.
-      const texKey = stateTextureKey(next);
       if (this.opts.scene.textures.exists(texKey)) {
         this.sprite.setTexture(texKey, 0);
       }
     }
+    this.applySheetScale(texKey);
+  }
+
+  /** A public hurt state exists only when the matching four-frame sheet was actually loaded. */
+  private hasHurtPresentation(): boolean {
+    return (
+      this.opts.scene.textures.exists("character_hurt") &&
+      this.opts.scene.anims.exists("player_hurt")
+    );
+  }
+
+  /** Current health, for the HUD and the probe. */
+  get healthState(): PlayerHealthState {
+    return this.health;
+  }
+
+  /**
+   * Take a blow from a mob and return the authoritative before/after resolution.
+   *
+   * Knockback is applied only on a connect, and away from the striker, so a blow reads as a blow
+   * rather than as the player snagging on geometry. The invulnerability window that follows is
+   * what makes standing beside a mob survivable - without it, contact is continuous and the bar
+   * empties in a single cooldown cycle.
+   */
+  takeDamage(
+    amount: number,
+    nowMs: number,
+    fromDirSign: 1 | -1,
+  ): PlayerDamageResolution {
+    const result = applyPlayerDamage(this.health, amount, nowMs);
+    this.health = result.health;
+    if (!result.connected) return result;
+    this.vx = fromDirSign * PLAYER_KNOCKBACK_VX;
+    this.vy = PLAYER_KNOCKBACK_VY;
+    // Look back toward the striker while the body travels away from it. The source strip faces
+    // right, so a shove to the right means the attacker was on the left and the sheet is flipped.
+    this.facing = fromDirSign === 1 ? "left" : "right";
+    // Through the support machine, not by setting `airborne` behind its back. A blow launches
+    // the player - that is what `PLAYER_KNOCKBACK_VY` is - so the support they had is gone, and
+    // writing the flag alone left the two disagreeing: the state machine kept resolving them
+    // against the terrain it still believed they stood on, which pinned them to the surface and
+    // swallowed the launch whole, while every reader of `airborne` was told they were in the
+    // air. A mob striking a standing player is the ordinary way into that state, so it is the
+    // frame-12 invariant failure in the deterministic transcript.
+    this.setSupport("air", null);
+    this.activeLadder = undefined;
+    this.ladderId = null;
+    this.clearAttack();
+    if (this.hasHurtPresentation()) {
+      this.hurtUntil = nowMs + HURT_DURATION_MS;
+      // The scene resolves strikes after `update`, so waiting for the next state-selection pass
+      // leaves the hit frame in the old pose. Enter now; a fatal hit uses the same sheet and the
+      // update loop holds its final frame instead of inventing a separate death asset.
+      this.setState("hurt");
+      this.sprite.setFlipX(this.facing === "left");
+    }
+    return result;
   }
 
   /** Whether the attack hit window is open AND has not consumed a hit. */
@@ -752,7 +1048,7 @@ export class Player {
     return false;
   }
 
-  snapshot(): PlayerStateSnapshot {
+  snapshot(nowMs?: number): PlayerStateSnapshot {
     const renderBounds = this.playerRenderBounds();
     return {
       state: this.state,
@@ -763,7 +1059,12 @@ export class Player {
       vx: this.vx,
       vy: this.vy,
       airborne: this.airborne,
+      airJumpsUsed: this.airJumpsUsed,
       attackActive: this.attackActive,
+      hp: this.health.hp,
+      maxHp: this.health.maxHp,
+      invulnerable: isPlayerInvulnerable(this.health, nowMs ?? 0),
+      defeated: this.health.defeated,
       support: this.support,
       supportId: this.supportId,
       ladderId: this.ladderId,
@@ -807,6 +1108,9 @@ export class Player {
     this.facing = "right";
     this.vx = 0;
     this.vy = 0;
+    this.airJumpsUsed = 0;
+    this.coyoteExpiresAtMs = null;
+    this.blockedColumn = null;
     this.setSupport("terrain", null);
     this.activeLadder = undefined;
     this.ladderId = null;
@@ -814,6 +1118,8 @@ export class Player {
     this.clearDropThrough();
     this.dropTraversal = undefined;
     this.clearAttack();
+    this.hurtUntil = 0;
+    this.health = initialPlayerHealth();
     this.inventoryToggleRequested = false;
     this.sprite.setPosition(this.opts.startX, this.opts.startY);
     this.sprite.setFlipX(false);
@@ -825,18 +1131,28 @@ export class Player {
     if (this.opts.scene.anims.exists("player_idle")) {
       this.sprite.play("player_idle", true);
     }
-    const f0 = this.opts.scene.textures.get(initialKey).get(0);
-    const aspect = (f0?.width ?? 1) / Math.max(1, f0?.height ?? 1);
-    this.sprite.setDisplaySize(
-      this.opts.targetSpriteHeight * aspect,
-      this.opts.targetSpriteHeight,
-    );
+    this.applySheetScale(initialKey);
   }
 }
 
+/** Height in source pixels of one required loaded strip frame. */
+function sheetFrameHeight(
+  scene: Phaser.Scene,
+  key: string,
+  index: number,
+): number {
+  if (!scene.textures.exists(key)) {
+    throw new Error(`current player texture ${key} is missing`);
+  }
+  const height = scene.textures.get(key).get(index)?.height;
+  if (typeof height !== "number" || !Number.isFinite(height) || height <= 0) {
+    throw new Error(`current player texture ${key} frame ${index} has invalid height`);
+  }
+  return height;
+}
+
 function stateTextureKey(state: PlayerState): string {
-  // Pre-loaded by the scene as character_<state> for the sliced strips, plus
-  // character_attack for the attack strip.
+  // Pre-loaded by the scene as character_<state> for master slices and sibling strips.
   if (state === "attack") return "character_attack";
   if (state === "crouch") return "character_crawl"; // crawl strip used for crouch
   if (state === "climb") return "character_climb";

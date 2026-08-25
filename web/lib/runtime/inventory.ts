@@ -68,6 +68,12 @@ export class InventoryHud {
   private countTexts: Map<number, Phaser.GameObjects.Text> = new Map();
   visible = true;
   private scaleFactor: number;
+  private panelBounds: Readonly<{
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }>;
 
   constructor(opts: InventoryHudOpts) {
     this.opts = opts;
@@ -76,11 +82,18 @@ export class InventoryHud {
     const desiredW = Math.floor(opts.viewW * 0.34);
     this.scaleFactor = opts.scale ?? desiredW / INVENTORY_PANEL_W;
 
-    // Place at top-right with padding.
+    // Place at top-right inside the capture-safe margin.
     const panelDisplayW = INVENTORY_PANEL_W * this.scaleFactor;
     const panelDisplayH = INVENTORY_PANEL_H * this.scaleFactor;
-    const px = opts.viewW - panelDisplayW - 8;
-    const py = 8;
+    const safeMargin = 24;
+    const px = opts.viewW - panelDisplayW - safeMargin;
+    const py = safeMargin;
+    this.panelBounds = Object.freeze({
+      left: px,
+      right: px + panelDisplayW,
+      top: py,
+      bottom: py + panelDisplayH,
+    });
 
     this.container = opts.scene.add.container(px, py);
     this.container.setScrollFactor(0);
@@ -182,5 +195,9 @@ export class InventoryHud {
       expectedPanelX: SLOT_CENTRES[s.kindIndex % SLOT_CENTRES.length].x,
       expectedPanelY: SLOT_CENTRES[s.kindIndex % SLOT_CENTRES.length].y,
     }));
+  }
+
+  bounds() {
+    return this.panelBounds;
   }
 }

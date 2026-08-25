@@ -136,8 +136,7 @@ export function artifactPathFor(tag: string, asset: string): string {
 
 export interface RunInputSnapshot {
   prompt: string;
-  /** Null only for a legacy run manifest that predates explicit strategy metadata. */
-  transparencyMode: TransparencyMode | null;
+  transparencyMode: TransparencyMode;
 }
 
 interface ProcRecord {
@@ -192,8 +191,7 @@ export async function readRunInput(tag: string): Promise<RunInputSnapshot | null
       value = JSON.parse(await fs.readFile(runJson, "utf8"));
     } catch {
       // A live process record can still provide its validated input while the
-      // manifest is being published. A terminal malformed manifest fails
-      // closed instead of being mistaken for a legacy manifest.
+      // manifest is being published. A terminal malformed manifest fails closed.
       const inFlight = procs.get(tag)?.input;
       if (inFlight) return inFlight;
       throw new Error("run manifest is not valid JSON");
@@ -285,16 +283,7 @@ export async function retryAsset(opts: {
     const data = JSON.parse(raw);
     const prompt = promptFromRunManifest(data);
     if (!prompt) return { ok: false, reason: "run manifest has no input.prompt" };
-    // A legacy manifest has no reproducible strategy choice. Its artifacts may
-    // still be previewed through compatibility keying, but mutating retry must
-    // fail rather than silently choose a mode and write into a different tag.
     const transparencyMode = transparencyModeFromRunManifest(data);
-    if (!transparencyMode) {
-      return {
-        ok: false,
-        reason: "legacy run has no transparencyMode; restart it from the picker",
-      };
-    }
     if (tagFor(prompt, transparencyMode) !== tag) {
       return {
         ok: false,

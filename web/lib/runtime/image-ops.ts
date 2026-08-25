@@ -1,14 +1,12 @@
 // Pure runtime image-processing primitives.
 //
-// Three operations the runtime applies as it loads pipeline-generated assets:
+// Two operations the runtime applies as it loads pipeline-generated assets:
 //
-//   1. chromaKeyToAlpha  — legacy exact-key compatibility → alpha 0
-//   2. extractCellsBbox  — per-cell alpha bbox crop on a grid sheet (TC-063)
-//   3. fadeParallaxEdges — left/right alpha taper for seamless loop (TC-064)
+//   1. extractCellsBbox  — per-cell alpha bbox crop on a grid sheet (TC-063)
+//   2. fadeParallaxEdges — left/right alpha taper for seamless loop (TC-064)
 //
 // Everything happens on an in-memory <canvas>; the on-disk PNG is never
-// touched. New manifests already carry canonical alpha and never call the
-// legacy compatibility operation.
+// touched. Current v7 scrolling manifests always carry canonical alpha.
 //
 // Output: a fresh HTMLCanvasElement holding the processed pixels. Callers
 // register it with Phaser via `textures.addCanvas(key, canvas)`.
@@ -29,52 +27,7 @@ export function copyImageToCanvas(img: ImageSource): HTMLCanvasElement {
   return c;
 }
 
-// 1) chromaKeyToAlpha — legacy exact-key compatibility → alpha 0.
-//
-// Default behavior matches the historical exact (255, 0, 255) exterior.
-// Tolerant mode exists only for old parallax outputs that predate explicit
-// strategy metadata. New `ai` and `chroma` runs both publish canonical alpha
-// and must bypass this conversion.
-export interface ChromaKeyOptions {
-  /** Manhattan distance from (255,0,255). 0 = exact match (default). */
-  threshold?: number;
-}
-
-export function chromaKeyToAlpha(
-  img: ImageSource,
-  options: ChromaKeyOptions = {},
-): HTMLCanvasElement {
-  const threshold = options.threshold ?? 0;
-  const canvas = copyImageToCanvas(img);
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("2d context unavailable");
-  const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const px = id.data;
-  if (threshold <= 0) {
-    // Exact-match path — preserves TC-062 for all sprite assets.
-    for (let i = 0; i < px.length; i += 4) {
-      if (px[i] === 255 && px[i + 1] === 0 && px[i + 2] === 255) {
-        px[i + 3] = 0;
-      }
-    }
-  } else {
-    // Tolerant path — layers only. Manhattan distance from (255,0,255).
-    for (let i = 0; i < px.length; i += 4) {
-      const r = px[i];
-      const g = px[i + 1];
-      const b = px[i + 2];
-      // (255 - r) + g + (255 - b), avoiding Math.abs since signs are known.
-      const dist = (255 - r) + g + (255 - b);
-      if (dist <= threshold) {
-        px[i + 3] = 0;
-      }
-    }
-  }
-  ctx.putImageData(id, 0, 0);
-  return canvas;
-}
-
-// 2) extractCellsBbox — slice a grid sheet (rows × cols) and per-cell
+// 1) extractCellsBbox — slice a grid sheet (rows × cols) and per-cell
 // compute the alpha bounding box of the actual content. Returns the cropped
 // region rectangle for each cell (left-to-right, top-to-bottom).
 //
@@ -98,6 +51,19 @@ export type CellRect = {
   /** Cropped content height in source pixels. */
   h: number;
 };
+
+/**
+ * Alpha at or below which a pixel is matte residue rather than subject.
+ *
+ * A chroma matte leaves a faint tail behind - measured at 33 to 64 across the bottom of about
+ * half the animation frames in a run. It is invisible, but a bbox taken on `alpha !== 0` ends at
+ * the tail rather than at the artwork, and since sprites are bottom-anchored the tail is what
+ * lands on the ground while the creature hangs above it. Trimming on meaningful coverage also
+ * makes the frames of one strip agree in height again: measured over a full run it takes
+ * per-frame variation from 1.39-2.58x down to 1.00-1.31x, with the remainder being jump, attack
+ * and hurt poses that genuinely change height.
+ */
+export const SPRITE_PAINTED_ALPHA_THRESHOLD = 64;
 
 export function extractCellsBbox(
   spriteSheet: ImageSource,
@@ -134,8 +100,8 @@ export function extractCellsBbox(
       for (let y = y0; y < y1; y++) {
         const rowOffset = y * W * 4;
         for (let x = x0; x < x1; x++) {
-          const a = px[rowOffset + x * 4 + 3];
-          if (a !== 0) {
+          const a = px[rowOffset + x * 4 + 3]!;
+          if (a > SPRITE_PAINTED_ALPHA_THRESHOLD) {
             if (x < minX) minX = x;
             if (x > maxX) maxX = x;
             if (y < minY) minY = y;
@@ -164,7 +130,7 @@ export function extractCellsBbox(
   return { sourceCanvas, cells };
 }
 
-// 3) fadeParallaxEdges — apply a smooth alpha taper from the outermost
+// 2) fadeParallaxEdges — apply a smooth alpha taper from the outermost
 // L/R columns inward. Outer column ends at alpha 0; ~fadePx inward the
 // alpha is fully restored to its original value. The on-disk PNG is
 // untouched — we only mutate the in-memory canvas. (TC-064)

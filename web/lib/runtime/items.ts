@@ -111,12 +111,37 @@ export class ItemSystem {
     return picked;
   }
 
+  /** Remove one presentation-only or live drop without disturbing its peers. */
+  remove(item: DroppedItem): void {
+    const index = this.items.indexOf(item);
+    if (index < 0) return;
+    if (item.sprite.active) item.sprite.destroy();
+    this.items.splice(index, 1);
+  }
+
+  /** Drop every live item, used when a stage is torn down for the next one. */
+  clearAll(): void {
+    for (const item of this.items) {
+      if (item.sprite.active) item.sprite.destroy();
+    }
+    this.items.length = 0;
+  }
+
   snapshot() {
-    return this.items.map((it) => ({
-      kindIndex: it.kindIndex,
-      x: it.sprite.x,
-      y: it.sprite.y,
-      settled: it.settled,
-    }));
+    return this.items.map((it) => {
+      const bounds = it.sprite.getBounds();
+      return {
+        kindIndex: it.kindIndex,
+        x: it.sprite.x,
+        y: it.sprite.y,
+        settled: it.settled,
+        renderBounds: {
+          left: bounds.left,
+          right: bounds.right,
+          top: bounds.top,
+          bottom: bounds.bottom,
+        },
+      };
+    });
   }
 }

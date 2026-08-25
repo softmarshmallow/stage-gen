@@ -48,26 +48,35 @@ describe("deterministic gameplay timeline", () => {
     );
     const downs = actions.filter((action) => action.type === "down");
     expect(downs.filter((action) => action.key === "j")).toHaveLength(1);
-    expect(downs.filter((action) => action.key === "Space")).toHaveLength(6);
     expect(downs.filter((action) => action.key === "i")).toHaveLength(1);
     expect(downs.filter((action) => action.key === "s")).toHaveLength(1);
-    expect(downs.filter((action) => action.key === "ArrowUp")).toHaveLength(0);
+    // Exactly one: the deliberate press that opens the exit portal. Travel
+    // used to happen on contact, with no key involved at all.
+    expect(downs.filter((action) => action.key === "ArrowUp")).toHaveLength(1);
     expect(downs.filter((action) => action.key === "ArrowLeft")).toHaveLength(1);
     expect(downs.filter((action) => action.key === "ArrowDown")).toHaveLength(3);
-    expect(downs.filter((action) => action.key === "ArrowRight")).toHaveLength(4);
+    expect(downs.filter((action) => action.key === "ArrowRight")).toHaveLength(5);
     expect(downs.filter((action) => action.key === "Shift")).toHaveLength(6);
     expect(
       downs.filter((action) => action.key === "ArrowRight").map((action) => action.frame),
-    ).toEqual([54, 153, 196, 316]);
+    ).toEqual([54, 153, 196, 321, 866]);
+    // Terrain rises are walls, so the route is mostly jumps now. Counting them
+    // exactly would just restate the data; what matters is that the route is
+    // built out of climbs rather than a walk.
+    expect(
+      downs.filter((action) => action.key === "Space").length,
+    ).toBeGreaterThan(12);
     expect(GAMEPLAY_POSTER_FRAME).toBe(35);
     expect(GAMEPLAY_SELECTED_FRAMES).toEqual([
-      1, 31, 35, 43, 49, 67, 130, 131, 145, 153, 154, 161, 162,
+      1, 31, 35, 43, 49, 67, 125, 126, 146, 153, 154, 161, 162,
       165, 171, 172, 175, 176, 190, 196, 197, 211, 217, 231, 242,
-      256, 270, 292, 295, 315, 481, 869, 881, 900,
+      256, 275, 297, 300, 320, 481, 858, 859, 860, 900,
     ]);
+    // Hashed either side of the portal so a stage transition that silently
+    // stopped happening would change the digests rather than pass unnoticed.
     expect(GAMEPLAY_EVENT_VISIBILITY_WINDOWS.stageAdvance).toEqual({
-      start: 869,
-      end: 869,
+      start: 859,
+      end: 859,
     });
   });
 
@@ -90,14 +99,17 @@ describe("deterministic gameplay timeline", () => {
     const actions = GAMEPLAY_TIMELINE.flatMap((frame) =>
       frame.actions.map((action) => ({ frame: frame.index, ...action })),
     );
-    expect(actions.filter((action) => action.key === "ArrowUp")).toEqual([]);
+    expect(actions.filter((action) => action.key === "ArrowUp")).toEqual([
+      { frame: 858, type: "down", key: "ArrowUp" },
+      { frame: 859, type: "up", key: "ArrowUp" },
+    ]);
     expect(actions.filter((action) => action.key === "ArrowDown")).toEqual([
       { frame: 153, type: "down", key: "ArrowDown" },
       { frame: 154, type: "up", key: "ArrowDown" },
-      { frame: 269, type: "down", key: "ArrowDown" },
-      { frame: 291, type: "up", key: "ArrowDown" },
-      { frame: 294, type: "down", key: "ArrowDown" },
-      { frame: 315, type: "up", key: "ArrowDown" },
+      { frame: 274, type: "down", key: "ArrowDown" },
+      { frame: 296, type: "up", key: "ArrowDown" },
+      { frame: 299, type: "down", key: "ArrowDown" },
+      { frame: 320, type: "up", key: "ArrowDown" },
     ]);
   });
 
@@ -105,28 +117,40 @@ describe("deterministic gameplay timeline", () => {
     const actions = GAMEPLAY_TIMELINE.flatMap((frame) =>
       frame.actions.map((action) => ({ frame: frame.index, ...action })),
     );
-    expect(actions.filter((action) => action.key === "Space")).toEqual([
-      { frame: 130, type: "down", key: "Space" },
-      { frame: 131, type: "up", key: "Space" },
-      { frame: 153, type: "down", key: "Space" },
-      { frame: 154, type: "up", key: "Space" },
-      { frame: 175, type: "down", key: "Space" },
-      { frame: 176, type: "up", key: "Space" },
-      { frame: 196, type: "down", key: "Space" },
-      { frame: 197, type: "up", key: "Space" },
-      { frame: 216, type: "down", key: "Space" },
-      { frame: 217, type: "up", key: "Space" },
-      { frame: 241, type: "down", key: "Space" },
-      { frame: 242, type: "up", key: "Space" },
-    ]);
-    expect(153 - 145).toBeGreaterThanOrEqual(6);
-    expect(153 - 145).toBeLessThanOrEqual(10);
+    const space = actions.filter((action) => action.key === "Space");
+    // Every press is released on the very next frame: a held Space would make
+    // the second impulse of a double jump depend on key repeat rather than on
+    // the script.
+    for (let index = 0; index < space.length; index += 2) {
+      expect(space[index]!.type).toBe("down");
+      expect(space[index + 1]).toEqual({
+        frame: space[index]!.frame + 1,
+        type: "up",
+        key: "Space",
+      });
+    }
+    const pressedAt = space
+      .filter((action) => action.type === "down")
+      .map((action) => action.frame);
+    // The choreographed platform beats stay pinned; the rest are terrain climbs.
+    expect(pressedAt).toContain(125); // terrain onto the tier-one deck
+    expect(pressedAt).toContain(153); // drop through it
+    expect(pressedAt).toContain(174); // recovery, off the wall the drop left
+    expect(pressedAt).toContain(184); // and its air jump onto the deck
+    expect(pressedAt).toContain(196); // jump chain to tier two
+    expect(pressedAt).toContain(216);
+    expect(pressedAt).toContain(241);
+    // A double jump's second press has to arrive while the first arc is still
+    // rising, or it lands on the ground and buys an ordinary jump instead.
+    expect(184 - 174).toBeLessThan(21);
+    expect(153 - 146).toBeGreaterThanOrEqual(6);
+    expect(153 - 146).toBeLessThanOrEqual(10);
     expect(172 - 165).toBeGreaterThanOrEqual(6);
     expect(172 - 165).toBeLessThanOrEqual(10);
     expect(196 - 190).toBeGreaterThanOrEqual(6);
     expect(actions.filter((action) => action.key === "ArrowLeft")).toEqual([
       { frame: 172, type: "down", key: "ArrowLeft" },
-      { frame: 175, type: "up", key: "ArrowLeft" },
+      { frame: 185, type: "up", key: "ArrowLeft" },
     ]);
   });
 });

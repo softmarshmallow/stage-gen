@@ -1,3 +1,10 @@
+import {
+  parseScaleReference,
+  REQUIRED_PLAYER_SCALE_REFERENCE_ROLES,
+  runtimeRoleOwnsScaleReference,
+  type ScaleReference,
+} from "./sprite-scale";
+
 const SCROLLING_MANIFEST_SCHEMA_VERSION = 7;
 
 const SCROLLING_MANIFEST_CORE_KEYS = [
@@ -1036,11 +1043,101 @@ function validateScrollingManifestCore(
   if (!Array.isArray(runtimeAssets) || runtimeAssets.some((entry) => !isRecord(entry))) {
     throw new Error("scrolling-preview manifest runtime_assets must be an array of objects");
   }
+  runtimeScaleReferences(value);
 
   if (value["image_repeat"] === undefined) {
     throw new Error("scrolling-preview manifest image_repeat must be an object");
   }
   parseImageRepeatManifest(value["image_repeat"]);
+}
+
+/**
+ * Parse the current manifest's measured actor roles and prove the required player closure.
+ *
+ * Optional current systems remain optional: a run without a village declares no resident roles,
+ * and a run without directed mob attack art declares no mob attack role. Once a measured role is
+ * declared, however, its exact measurement is part of that runtime asset rather than a fallback
+ * hint. The seven player sheets are always part of the current scrolling run.
+ */
+export function runtimeScaleReferences(
+  manifest: Record<string, unknown>,
+): ReadonlyMap<string, ScaleReference> {
+  const entries = manifest["runtime_assets"];
+  if (!Array.isArray(entries) || entries.some((entry) => !isRecord(entry))) {
+    throw new Error("scrolling-preview manifest runtime_assets must be an array of objects");
+  }
+
+  const seenRoles = new Set<string>();
+  const references = new Map<string, ScaleReference>();
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index] as Record<string, unknown>;
+    const label = `runtime_assets[${index}]`;
+    const role = entry["runtime_slot"];
+    if (typeof role !== "string" || role.length === 0) {
+      throw new Error(`${label}.runtime_slot must be nonempty text`);
+    }
+    if (seenRoles.has(role)) {
+      throw new Error(`runtime_assets contains duplicate runtime_slot ${role}`);
+    }
+    seenRoles.add(role);
+
+    const ownsMeasurement = runtimeRoleOwnsScaleReference(role);
+    const declared = Object.prototype.hasOwnProperty.call(entry, "scale_reference");
+    if (ownsMeasurement && !declared) {
+      throw new Error(`runtime asset role ${role} requires scale_reference`);
+    }
+    if (!declared) continue;
+    if (!ownsMeasurement) {
+      throw new Error(`runtime asset role ${role} does not own scale_reference`);
+    }
+
+    const reference = parseScaleReference(
+      entry["scale_reference"],
+      `${label}.scale_reference`,
+    );
+    const layout = entry["layout"];
+    if (!isRecord(layout)) {
+      throw new Error(`${label}.layout must bind the scale_reference cell`);
+    }
+    const cellWidth = boundedInteger(
+      layout["cell_width"],
+      `${label}.layout.cell_width`,
+      1,
+    );
+    const cellHeight = boundedInteger(
+      layout["cell_height"],
+      `${label}.layout.cell_height`,
+      1,
+    );
+    const columns = boundedInteger(
+      layout["columns"],
+      `${label}.layout.columns`,
+      1,
+    );
+    if (
+      reference.cellWidth !== cellWidth ||
+      reference.cellHeight !== cellHeight
+    ) {
+      throw new Error(`runtime asset role ${role} scale_reference cell does not match layout`);
+    }
+    if (reference.frameIndex >= columns) {
+      throw new Error(`runtime asset role ${role} scale_reference frame is outside layout`);
+    }
+    const expectedFrameIndex = role.endsWith("-attack") ? 1 : 0;
+    if (reference.frameIndex !== expectedFrameIndex) {
+      throw new Error(
+        `runtime asset role ${role} scale_reference frame must be ${expectedFrameIndex}`,
+      );
+    }
+    references.set(role, reference);
+  }
+
+  for (const role of REQUIRED_PLAYER_SCALE_REFERENCE_ROLES) {
+    if (!references.has(role)) {
+      throw new Error(`current scrolling manifest requires measured runtime role ${role}`);
+    }
+  }
+  return references;
 }
 
 function validateGameContractProjection(value: unknown, expectedTag: string): void {

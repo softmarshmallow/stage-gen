@@ -16,16 +16,24 @@ import {
 } from "../../lib/runtime/automation";
 import { GAMEPLAY_AUTOMATION_VERSION, type GameplayFixture } from "./contracts";
 import {
+  GAMEPLAY_REQUIRED_ASSET_KEYS as SYNTHETIC_GAMEPLAY_REQUIRED_ASSET_KEYS,
+  generateGameplayFixture,
+} from "./fixture";
+import {
   GAMEPLAY_DEMO_APPROVAL_MANIFEST,
   GAMEPLAY_DEMO_ASSET_MANIFEST,
   GAMEPLAY_MODEL_ASSET_CONTRACTS,
   GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS,
+  GAMEPLAY_MODEL_TERRAIN_SEED,
   generateApprovedModelGameplayFixture,
 } from "./model-assets";
 import {
   PLATFORM_DROP_SETTLE_FRAMES,
   UPPER_PLATFORM_THICKNESS,
+  selectDemoVerticalWorld,
 } from "../../lib/runtime/vertical";
+import { buildHeightmapFromSeed } from "../../lib/runtime/heightmap";
+import { STAGE_PLANS, stageTerrainSeed } from "../../lib/runtime/stages";
 import { NEAR_FOREGROUND_DEPTH_COEFFICIENT } from "../../lib/runtime/layers";
 import {
   GAMEPLAY_DURATION_SECONDS,
@@ -58,6 +66,91 @@ const CAPTURE_VIDEO_PATH = "docs/media/gameplay-showcase.mp4";
 const CAPTURE_POSTER_PATH = "docs/media/gameplay-showcase.poster.png";
 const MODEL_ASSET_AGGREGATE_SHA256 =
   "24f02376a8a561333b1f89403649c954a53ffb7c7cc035c3d4495f1127cfe9b8";
+/** Gameplay viewport, and with it the ground baseline at its bottom edge. */
+const GAMEPLAY_VIEWPORT_HEIGHT = 720;
+const GAMEPLAY_WORLD_WIDTH = 12_800;
+const GAMEPLAY_TILE_PX = 64;
+/**
+ * The vertical geometry this capture must find in the live runtime.
+ *
+ * Derived from the pure selector over the fixture's own terrain seed rather
+ * than transcribed. A copy here would only ever prove that two literals in
+ * this repository agree with each other; `vertical.test.ts` pins the literal
+ * values, and this gate proves the browser built what that module resolves.
+ */
+/**
+ * The vertical geometry this capture must find in the live runtime, per stage.
+ *
+ * Derived from the pure selector over each stage's own seed and layout rather
+ * than transcribed. A copy here would only ever prove that two literals in
+ * this repository agree with each other; `vertical.test.ts` pins the literal
+ * values, and this gate proves the browser built what those modules resolve.
+ * Indexing by stage is what lets the run travel: after the portal fires the
+ * probe legitimately describes a different world, and a single fixed
+ * expectation would call that a regression.
+ */
+export const APPROVED_VERTICAL = STAGE_PLANS.map((plan) => {
+  const heights = buildHeightmapFromSeed(
+    stageTerrainSeed(GAMEPLAY_MODEL_TERRAIN_SEED, plan),
+    { cols: 200, minH: 1, maxH: 4 },
+  );
+  const selected = selectDemoVerticalWorld({
+    heights,
+    tilePixels: GAMEPLAY_TILE_PX,
+    baselineY: GAMEPLAY_VIEWPORT_HEIGHT,
+    worldWidth: GAMEPLAY_WORLD_WIDTH,
+    reservedColumns: new Set(Array.from({ length: 14 }, (_, column) => column)),
+    layout: plan.layout,
+  });
+  if (!selected) {
+    throw new Error(`approved gameplay seed selects no graph for ${plan.id}`);
+  }
+  return {
+    stageId: plan.id,
+    reservedColumns: new Set(selected.reservedColumns),
+    platforms: selected.world.platforms.map((platform) => ({
+      id: platform.id,
+      left: platform.left,
+      right: platform.right,
+      deckY: platform.deckY,
+      tier: platform.tier,
+      thickness: platform.thickness,
+    })),
+    routes: selected.routes.map((route) => ({ ...route })),
+    ladders: selected.world.ladders.map((ladder) => ({
+      id: ladder.id,
+      platformId: ladder.platformId,
+      centerX: ladder.centerX,
+      top: ladder.upperDeckY - ladder.visualTopOvershoot,
+      bottom: ladder.lowerSurfaceY + ladder.visualBottomOvershoot,
+      activationHalfWidth: ladder.activationHalfWidth,
+      visualTopOvershoot: ladder.visualTopOvershoot,
+      visualBottomOvershoot: ladder.visualBottomOvershoot,
+    })),
+  };
+});
+
+/** The stage geometry a snapshot claims to be showing. */
+function approvedVerticalFor(
+  snapshot: Readonly<{ stageIndex: number; stageId: string }>,
+): (typeof APPROVED_VERTICAL)[number] {
+  const approved = APPROVED_VERTICAL[snapshot.stageIndex];
+  if (!approved || approved.stageId !== snapshot.stageId) {
+    throw new Error(
+      `gameplay probe reports unknown stage ${snapshot.stageIndex}/${snapshot.stageId}`,
+    );
+  }
+  return approved;
+}
+/**
+ * Screen row the near foreground's contact strip lands on. The foreground meets
+ * the ground, and the ground baseline is the bottom of the viewport, so this is
+ * the viewport height. This read a standalone 704 while the runtime anchored to
+ * a matching standalone 704, so the pair agreed with each other and not with
+ * the frame: a foreground painted to its own last row ended a quarter-tile
+ * short of the screen edge and this gate called it correct.
+ */
+const FOREGROUND_CONTACT_SCREEN_Y = GAMEPLAY_VIEWPORT_HEIGHT;
 const SERVER_TIMEOUT_MS = 30_000;
 const PROBE_TIMEOUT_MS = 30_000;
 const MAX_SERVER_LOG_CHARS = 64_000;
@@ -83,6 +176,10 @@ export type GameplayRunEvidence = Readonly<{
   states: readonly string[];
   finalSnapshot: GameplayAutomationSnapshot;
 }>;
+
+export type GameplaySnapshotValidator = (
+  snapshot: GameplayAutomationSnapshot,
+) => void;
 
 export type GameplayVerification = Readonly<{
   version: typeof GAMEPLAY_AUTOMATION_VERSION;
@@ -326,6 +423,8 @@ function transcriptLine(snapshot: GameplayAutomationSnapshot): string {
   return JSON.stringify({
     frame: snapshot.frame,
     simulationMs: snapshot.simulationMs,
+    stageIndex: snapshot.stageIndex,
+    stageId: snapshot.stageId,
     player: snapshot.player,
     camera: snapshot.camera,
     layers: snapshot.layers.filter((layer) => layer.kind === "near-foreground"),
@@ -338,6 +437,7 @@ function transcriptLine(snapshot: GameplayAutomationSnapshot): string {
     encounter: snapshot.encounter,
     portals: snapshot.portals,
     presentation: snapshot.presentation,
+    combatText: snapshot.combatText,
     events: snapshot.events,
   });
 }
@@ -406,6 +506,12 @@ function assertSnapshotContract(snapshot: GameplayAutomationSnapshot): void {
         (detail ? `: ${detail}` : ""),
     );
   }
+  if (snapshot.diagnostics.length > 0) {
+    throw new Error(
+      `gameplay probe reported ${snapshot.diagnostics.length} diagnostic(s): ` +
+        sanitizedToolDiagnostic(snapshot.diagnostics.slice(0, 3).join("\n")),
+    );
+  }
   if (!snapshot.ready || snapshot.state !== "ready") {
     throw new Error(`gameplay probe is not ready (${snapshot.state})`);
   }
@@ -413,80 +519,71 @@ function assertSnapshotContract(snapshot: GameplayAutomationSnapshot): void {
     throw new Error("gameplay probe has no stable heightmap digest");
   }
   if (
-    snapshot.platforms.length !== 4 ||
-    JSON.stringify(snapshot.platforms.map(({ visible: _visible, ...platform }) => platform)) !==
-      JSON.stringify([
-        {
-          id: "tier-1-launch",
-          left: 1280,
-          right: 1664,
-          deckY: 528,
-          tier: 1,
-          thickness: 32,
-        },
-        {
-          id: "tier-2-transfer",
-          left: 1728,
-          right: 2112,
-          deckY: 464,
-          tier: 2,
-          thickness: 32,
-        },
-        {
-          id: "tier-3-bridge",
-          left: 2176,
-          right: 2560,
-          deckY: 400,
-          tier: 3,
-          thickness: 32,
-        },
-        {
-          id: "tier-4-summit",
-          left: 2624,
-          right: 3008,
-          deckY: 336,
-          tier: 4,
-          thickness: 32,
-        },
-      ])
+    !snapshot.combatText ||
+    !snapshot.combatText.enabled ||
+    snapshot.combatText.disposed
   ) {
-    throw new Error("gameplay platform probe violates the approved geometry");
+    throw new Error("gameplay probe has no active default-on combat text system");
+  }
+  const currentMobHit = snapshot.events.find(
+    (event) => event.kind === "mob-hit" && event.frame === snapshot.frame,
+  );
+  if (currentMobHit) {
+    const entry = snapshot.combatText.entries.at(-1);
+    if (
+      !entry ||
+      entry.direction !== "outgoing" ||
+      entry.amount !== currentMobHit.data?.damage ||
+      entry.text !== String(currentMobHit.data?.damage)
+    ) {
+      throw new Error("connected mob hit did not publish matching outgoing combat text");
+    }
   }
   if (
-    JSON.stringify(snapshot.platformRoutes) !==
-    JSON.stringify([
-      { id: "jump-1", from: "terrain", to: "tier-1-launch", mode: "jump", rise: 64, gap: 0, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-2", from: "tier-1-launch", to: "tier-2-transfer", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-3", from: "tier-2-transfer", to: "tier-3-bridge", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-4", from: "tier-3-bridge", to: "tier-4-summit", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "drop-1", from: "tier-1-launch", to: "terrain", mode: "drop", rise: -64, gap: 0, landingStep: 9, horizontalRange: null, ladderId: null },
-      { id: "drop-2", from: "tier-2-transfer", to: "terrain", mode: "drop", rise: -192, gap: 0, landingStep: 15, horizontalRange: null, ladderId: null },
-      { id: "drop-3", from: "tier-3-bridge", to: "terrain", mode: "drop", rise: -256, gap: 0, landingStep: 18, horizontalRange: null, ladderId: null },
-      { id: "drop-4", from: "tier-4-summit", to: "terrain", mode: "drop", rise: -320, gap: 0, landingStep: 20, horizontalRange: null, ladderId: null },
-      { id: "ladder-up", from: "terrain", to: "tier-4-summit", mode: "ladder", rise: 256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
-      { id: "ladder-down", from: "tier-4-summit", to: "terrain", mode: "ladder", rise: -256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
-    ])
+    snapshot.frame === GAMEPLAY_EVENT_VISIBILITY_WINDOWS.hit.start + 20 &&
+    snapshot.combatText.activeCount !== 0
   ) {
-    throw new Error("gameplay platform route probes violate the approved graph");
+    throw new Error("outgoing combat text did not expire on its fixed simulation clock");
   }
-  if (
-    snapshot.ladders.length !== 1 ||
-    JSON.stringify(snapshot.ladders.map(({ visible: _visible, ...ladder }) => ladder)) !==
-      JSON.stringify([
-        {
-          id: "ladder-summit",
-          platformId: "tier-4-summit",
-          centerX: 2976,
-          top: 304,
-          bottom: 624,
-          activationHalfWidth: 30,
-          visualTopOvershoot: 32,
-          visualBottomOvershoot: 32,
-        },
-      ])
-  ) {
-    throw new Error("gameplay ladder probes violate the approved geometry");
+  for (const mob of snapshot.mobs) {
+    if (
+      mob.renderBounds.left < 0 ||
+      mob.renderBounds.right > 12_800 ||
+      mob.renderBounds.top >= mob.renderBounds.bottom ||
+      mob.x < mob.renderBounds.left ||
+      mob.x > mob.renderBounds.right
+    ) {
+      throw new Error("mob full alpha bounds escape the gameplay world");
+    }
   }
+  if (snapshot.inventory.visible) {
+    const bounds = snapshot.inventory.bounds;
+    if (
+      !bounds ||
+      bounds.left < 24 ||
+      bounds.right > GAMEPLAY_AUTOMATION_VIEWPORT.width - 24 ||
+      bounds.top < 24 ||
+      bounds.bottom > GAMEPLAY_AUTOMATION_VIEWPORT.height - 24
+    ) {
+      throw new Error("inventory HUD escapes the capture-safe viewport");
+    }
+  }
+  const approved = approvedVerticalFor(snapshot);
+  assertMatchesApprovedGeometry(
+    "platform",
+    snapshot.platforms.map(({ visible: _visible, ...platform }) => platform),
+    approved.platforms,
+  );
+  assertMatchesApprovedGeometry(
+    "platform route",
+    snapshot.platformRoutes.map((route) => ({ ...route })),
+    approved.routes,
+  );
+  assertMatchesApprovedGeometry(
+    "ladder",
+    snapshot.ladders.map(({ visible: _visible, ...ladder }) => ladder),
+    approved.ladders,
+  );
   if (snapshot.player) assertPlayerSupportInvariant(snapshot.frame, snapshot.player);
   assertGameplayForegroundProbe(
     snapshot.frame,
@@ -494,6 +591,34 @@ function assertSnapshotContract(snapshot: GameplayAutomationSnapshot): void {
     snapshot.presentation,
     snapshot.camera,
   );
+}
+
+/**
+ * Compare a live vertical probe against the geometry the pure selector
+ * resolves, naming the first row that disagrees.
+ *
+ * A bare "violates the approved geometry" says nothing about which deck moved,
+ * which turned every layout change into a bisect against a browser capture.
+ */
+function assertMatchesApprovedGeometry(
+  label: string,
+  actual: readonly unknown[],
+  expected: readonly unknown[],
+): void {
+  if (actual.length !== expected.length) {
+    throw new Error(
+      `gameplay ${label} probe has ${actual.length} entries, approved geometry has ${expected.length}`,
+    );
+  }
+  for (let index = 0; index < expected.length; index += 1) {
+    const left = JSON.stringify(actual[index]);
+    const right = JSON.stringify(expected[index]);
+    if (left !== right) {
+      throw new Error(
+        `gameplay ${label} probe violates the approved geometry at ${index}: ${left} !== ${right}`,
+      );
+    }
+  }
 }
 
 function assertPlayerSupportInvariant(
@@ -674,7 +799,9 @@ function assertGameplayForegroundProbe(
     !approximately(display.top, layer.screenBounds.top) ||
     !approximately(display.right, layer.screenBounds.right) ||
     !approximately(display.bottom, layer.screenBounds.bottom) ||
-    Math.abs(foreground.contactScreenY - 704) > tolerance ||
+    Math.abs(foreground.contactScreenY - FOREGROUND_CONTACT_SCREEN_Y) >
+      tolerance ||
+    display.bottom < GAMEPLAY_VIEWPORT_HEIGHT - tolerance ||
     foreground.meaningfulContentScreenBounds.top < 540 - tolerance ||
     foreground.sourceScaleScreenX > 0.75 + 1e-6 ||
     foreground.sourceScaleScreenY > 0.75 + 1e-6 ||
@@ -719,7 +846,33 @@ function assertGameplayForegroundProbe(
     !approximately(layer.render.scaleX * camera.zoom, 1) ||
     !approximately(layer.render.scaleY * camera.zoom, 1)
   ) {
-    throw new Error(`frame ${frame} foreground layer probe violates contract`);
+    throw new Error(
+      `frame ${frame} foreground layer probe violates contract: ${JSON.stringify({
+        camera,
+        layerCamera: {
+          x: layer.cameraScrollX,
+          y: layer.cameraScrollY,
+          zoom: layer.cameraZoom,
+        },
+        plannedBounds: layer.screenBounds,
+        displayBounds: display,
+        visible: layer.render.visible,
+        expectedVisible: presentation.foregroundVisible,
+        scale: {
+          sourceX: foreground.sourceScaleScreenX,
+          sourceY: foreground.sourceScaleScreenY,
+          liveX: liveSourceScaleScreenX,
+          liveY: liveSourceScaleScreenY,
+          objectX: layer.render.scaleX,
+          objectY: layer.render.scaleY,
+        },
+        phase: {
+          actual: actualPhaseScreenPx,
+          expected: expectedPhaseScreenPx,
+          source: foreground.phaseSourcePx,
+        },
+      })}`,
+    );
   }
 }
 
@@ -912,6 +1065,8 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
       (line) =>
         JSON.parse(line) as {
           frame: number;
+          stageIndex: number;
+          stageId: string;
           player: GameplayAutomationSnapshot["player"];
           camera: GameplayAutomationSnapshot["camera"];
           layers: GameplayAutomationSnapshot["layers"];
@@ -938,16 +1093,16 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
       snapshot.camera,
     );
     if (snapshot.player) assertPlayerSupportInvariant(snapshot.frame, snapshot.player);
+    const stage = approvedVerticalFor(snapshot);
     if (
-      snapshot.platforms.length !== 4 ||
-      snapshot.platformRoutes.length !== 10 ||
-      snapshot.ladders.length !== 1
+      snapshot.platforms.length !== stage.platforms.length ||
+      snapshot.platformRoutes.length !== stage.routes.length ||
+      snapshot.ladders.length !== stage.ladders.length
     ) {
       throw new Error(`vertical probes are incomplete at frame ${snapshot.frame}`);
     }
     if (
-      JSON.stringify(snapshot.platformRoutes) !==
-      JSON.stringify(final.platformRoutes)
+      JSON.stringify(snapshot.platformRoutes) !== JSON.stringify(stage.routes)
     ) {
       throw new Error(`platform routes drifted at frame ${snapshot.frame}`);
     }
@@ -1001,8 +1156,8 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     }
   }
   const verticalWindows = [
-    [269, 270],
-    [314, 315],
+    [274, 275],
+    [319, 320],
   ] as const;
   verticalEvents.forEach((event, index) => {
     const window = verticalWindows[index]!;
@@ -1019,9 +1174,9 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     );
   }
   const platformWindows = [
-    [144, 145],
+    [145, 146],
     [153, 154],
-    [189, 190],
+    [195, 196],
     [210, 211],
     [230, 231],
     [255, 256],
@@ -1058,7 +1213,7 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
       `readable drop traversal event count is incomplete: ${JSON.stringify(dropEvents)}`,
     );
   }
-  const dropWindows = [154, 162, 165, 171, 176, 190] as const;
+  const dropWindows = [154, 162, 165, 171, 175, 196] as const;
   dropEvents.forEach((event, index) => {
     const expected = GAMEPLAY_DROP_EVENT_SEQUENCE[index]!;
     if (
@@ -1085,7 +1240,9 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     lowerSettle!.data?.footY !== 656 ||
     lowerSettle!.data?.stableFrames !== PLATFORM_DROP_SETTLE_FRAMES ||
     recoveryLaunch!.data?.support !== "terrain" ||
-    recoveryLaunch!.data?.footY !== 592 ||
+    // The recovery leaves from the height it settled at now. It used to walk
+    // one column uphill first, which a terrain rise no longer permits.
+    recoveryLaunch!.data?.footY !== 656 ||
     recoveryLaunch!.data?.settledFootY !== 656 ||
     recoveryLaunch!.data?.stableFrames !== PLATFORM_DROP_SETTLE_FRAMES ||
     recoveryLand!.data?.support !== "platform" ||
@@ -1105,22 +1262,97 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
   ) {
     throw new Error("drop traversal milestones are too compressed to read");
   }
-  const preJump = byFrame.get(130);
+  const preJump = byFrame.get(125);
   if (
     preJump?.player?.support !== "terrain" ||
-    preJump.player.column !== 20 ||
-    preJump.player.y !== 592
+    preJump.player.column !== 18 ||
+    preJump.player.y !== 528
   ) {
     throw new Error("jump route did not establish the exact grounded launch state");
+  }
+  // Descending terrain is a fall, not a snap. The closing run crosses several
+  // downward columns, and each one has to hand the player to gravity: before
+  // this, the foot was pinned to whatever column it was over, so a cliff and
+  // flat ground were the same walk.
+  const stepOffs = final.events.filter(
+    (event) => event.kind === "terrain-step-off",
+  );
+  if (stepOffs.length === 0) {
+    throw new Error("timeline never stepped off a terrain ledge");
+  }
+  for (const stepOff of stepOffs) {
+    const at = byFrame.get(stepOff.frame)?.player;
+    const next = byFrame.get(stepOff.frame + 1)?.player;
+    if (at?.support !== "air" || !next || next.y <= at.y) {
+      throw new Error(
+        `terrain step-off at frame ${stepOff.frame} did not fall under gravity`,
+      );
+    }
+  }
+  // The two-tile walls this route crosses are past the grounded jump's reach,
+  // so the run spends real air jumps rather than demonstrating one. Each has
+  // to be a genuine extension of an arc that then comes back down: gravity is
+  // what separates a double jump from a hover.
+  const airJumps = final.events.filter((event) => event.kind === "air-jump");
+  if (airJumps.length < 2) {
+    throw new Error(`expected the route to need air jumps, got ${airJumps.length}`);
+  }
+  for (const airJump of airJumps) {
+    const before = byFrame.get(airJump.frame - 1)?.player;
+    const after = byFrame.get(airJump.frame)?.player;
+    // The first support the arc reaches, not a fixed lookahead: the route
+    // jumps again soon after some of these, and sampling one frame later
+    // would read the next launch as a failure to land.
+    let landed = false;
+    for (let frame = airJump.frame + 1; frame <= airJump.frame + 45; frame += 1) {
+      if (byFrame.get(frame)?.player?.support !== "air") {
+        landed = true;
+        break;
+      }
+    }
+    if (
+      before?.support !== "air" ||
+      before.airJumpsUsed !== 0 ||
+      after?.support !== "air" ||
+      after.airJumpsUsed !== 1 ||
+      after.vy >= before.vy ||
+      !landed
+    ) {
+      throw new Error(
+        `air jump at frame ${airJump.frame} did not extend one arc and land again`,
+      );
+    }
+  }
+  // A rise is a wall the route has to climb, not a step it walks up. The run
+  // meets faces it cannot walk through, and every one of them is behind it a
+  // second later because a jump cleared it.
+  const wallContacts = final.events.filter(
+    (event) => event.kind === "terrain-step-block",
+  );
+  if (wallContacts.length === 0) {
+    throw new Error("timeline never met a terrain wall");
+  }
+  for (const contact of wallContacts) {
+    // Only walls the run has time to answer. One met in the closing frames has
+    // nowhere to go, and demanding a climb there would pin the assertion to
+    // where the capture happens to end rather than to the mechanic.
+    const cleared = byFrame.get(contact.frame + 45);
+    const at = byFrame.get(contact.frame)?.player;
+    if (!cleared?.player || !at) continue;
+    if (cleared.player.x === at.x) {
+      throw new Error(
+        `terrain wall at frame ${contact.frame} was never climbed`,
+      );
+    }
   }
   if (
     byFrame.get(154)?.player?.dropThroughPlatformId !== "tier-1-launch" ||
     byFrame.get(160)?.player?.dropThroughPlatformId !== null ||
-    byFrame.get(190)?.player?.supportId !== "tier-1-launch"
+    byFrame.get(196)?.player?.supportId !== "tier-1-launch"
   ) {
     throw new Error("drop-through ignore state did not clear before retry landing");
   }
-  for (let frame = 145; frame <= 153; frame += 1) {
+  for (let frame = 146; frame <= 153; frame += 1) {
     const player = byFrame.get(frame)?.player;
     if (
       player?.support !== "platform" ||
@@ -1147,8 +1379,8 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     [162, "underside-cleared", "air", 603],
     [165, "lower-support-landed", "terrain", 656],
     [171, "lower-support-settled", "terrain", 656],
-    [176, "recovery-airborne", "air", 576.3333333333334],
-    [190, "recovered", "platform", 528],
+    [176, "recovery-airborne", "air", 626.3333333333334],
+    [196, "recovered", "platform", 528],
   ] as const;
   for (const [frame, phase, support, footY] of phaseFrames) {
     const player = byFrame.get(frame)?.player;
@@ -1163,7 +1395,10 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     }
   }
   const clearPlayer = byFrame.get(162)!.player!;
-  const clearPlatform = final.platforms.find(
+  // From the opening stage's geometry, not the final snapshot: the run travels
+  // through the exit portal, so by frame 900 the probe describes a different
+  // world that has never heard of tier-1-launch.
+  const clearPlatform = APPROVED_VERTICAL[0]!.platforms.find(
     (platform) => platform.id === "tier-1-launch",
   )!;
   if (
@@ -1171,9 +1406,10 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     clearPlayer.renderBounds.bottom <= clearPlayer.renderBounds.top ||
     byFrame.get(162)!.player!.x <= byFrame.get(161)!.player!.x ||
     (byFrame.get(176)?.player?.vy ?? 0) >= 0 ||
-    byFrame.get(175)?.player?.support !== "terrain" ||
-    byFrame.get(175)?.player?.y !== 592 ||
-    byFrame.get(190)?.player?.supportId !== "tier-1-launch" ||
+    // The recovery now launches off the wall face the drop left the player
+    // under, one tile below the deck it used to walk back onto.
+    byFrame.get(174)?.player?.support !== "terrain" ||
+    byFrame.get(174)?.player?.y !== 656 ||
     byFrame.get(196)?.player?.supportId !== "tier-1-launch" ||
     byFrame.get(197)?.player?.support !== "air" ||
     byFrame.get(197)?.player?.vx !== 540
@@ -1182,7 +1418,7 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
   }
   const frame231 = byFrame.get(231);
   const frame256 = byFrame.get(256);
-  const frame315 = byFrame.get(315);
+  const frameLadderExit = byFrame.get(320);
   if (
     frame231?.camera.scrollY !==
       GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.tierThree ||
@@ -1199,17 +1435,18 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     throw new Error("jump-only route does not reach the exact summit state");
   }
   if (
-    frame315?.camera.scrollY !== GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.recovery ||
-    frame315.player?.support !== "terrain" ||
-    frame315.player.y !== 592 ||
-    frame315.player.climbAnimationKey !== null ||
-    frame315.player.rearFacing
+    frameLadderExit?.camera.scrollY !==
+      GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS.recovery ||
+    frameLadderExit.player?.support !== "terrain" ||
+    frameLadderExit.player.y !== 592 ||
+    frameLadderExit.player.climbAnimationKey !== null ||
+    frameLadderExit.player.rearFacing
   ) {
     throw new Error("ladder descent does not reset on exact recovery terrain");
   }
   if (
-    byFrame.get(292)?.player?.climbAnimationPaused !== true ||
-    byFrame.get(295)?.player?.climbAnimationPaused !== false ||
+    byFrame.get(297)?.player?.climbAnimationPaused !== true ||
+    byFrame.get(300)?.player?.climbAnimationPaused !== false ||
     new Set(climbSnapshots.map((snapshot) => snapshot.player?.climbFrame)).size < 2
   ) {
     throw new Error("climb presentation does not pause and advance deterministically");
@@ -1306,15 +1543,23 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
   }
   const entryColumn = Math.floor(final.portals[0]!.x / 64);
   const exitColumn = Math.floor(final.portals[1]!.x / 64);
+  const finalReservation = approvedVerticalFor(final).reservedColumns;
   if (
     entryColumn !== 3 ||
     exitColumn !== 196 ||
-    (entryColumn >= 19 && entryColumn <= 47) ||
-    (exitColumn >= 19 && exitColumn <= 47)
+    finalReservation.has(entryColumn) ||
+    finalReservation.has(exitColumn)
   ) {
     throw new Error("portal columns violate encounter/vertical reservations");
   }
-  if (final.camera.scrollX <= 0)
+  // Measured across the run, not at the final frame. Travelling through the
+  // exit portal legitimately puts the camera back at the next stage's start,
+  // and reading only the last frame would call a completed traversal a
+  // camera that never moved.
+  const farthestScrollX = Math.max(
+    ...transcript.map((snapshot) => snapshot.camera.scrollX),
+  );
+  if (farthestScrollX <= 0)
     throw new Error("camera did not traverse the stage");
   if (
     Object.keys(run.selectedFrameHashes).length !==
@@ -1364,6 +1609,7 @@ async function runOnce(
     selectedFrames: readonly number[];
     frameDirectory?: string;
     validate?: (run: GameplayRunEvidence) => void;
+    validateSnapshot?: GameplaySnapshotValidator;
     signal?: AbortSignal;
     deviceScaleFactor?: number;
   }>,
@@ -1373,6 +1619,7 @@ async function runOnce(
     selectedFrames,
     frameDirectory,
     validate,
+    validateSnapshot = assertSnapshotContract,
     signal,
     deviceScaleFactor = 1,
   } = options;
@@ -1416,9 +1663,22 @@ async function runOnce(
     if (!response?.ok())
       throw new Error(`preview route returned HTTP ${response?.status() ?? 0}`);
     const initial = await waitForProbe(page, signal);
-    assertSnapshotContract(initial);
+    validateSnapshot(initial);
     if (initial.frame !== 0 || initial.simulationMs !== 0) {
       throw new Error("gameplay probe did not start at frame zero");
+    }
+    const visiblePlatformElevations = new Set(
+      initial.platforms
+        .filter((platform) => platform.visible)
+        .map((platform) => platform.deckY),
+    );
+    if (
+      visiblePlatformElevations.size < 3 ||
+      !initial.ladders.some((ladder) => ladder.visible)
+    ) {
+      throw new Error(
+        "initial gameplay composition must show at least three tiers and one ladder",
+      );
     }
     const canvas = page.locator("canvas").first();
     await abortable(
@@ -1473,7 +1733,7 @@ async function runOnce(
           `gameplay frame skipped from ${frame.index} to ${snapshot.frame}`,
         );
       }
-      assertSnapshotContract(snapshot);
+      validateSnapshot(snapshot);
       if (snapshot.player) states.add(snapshot.player.state);
       transcript.push(transcriptLine(snapshot));
       if (selected.has(snapshot.frame) || frameDirectory) {
@@ -1577,9 +1837,13 @@ async function verifyForegroundDprMatrix(
         if (
           !visibleStart.presentation.foregroundVisible ||
           summit.camera.scrollY >= 0 ||
-          Math.abs(startForeground.contactScreenY - 704) >
+          Math.abs(
+            startForeground.contactScreenY - FOREGROUND_CONTACT_SCREEN_Y,
+          ) >
             0.5 / deviceScaleFactor + 1e-6 ||
-          Math.abs(summitForeground.contactScreenY - 704) >
+          Math.abs(
+            summitForeground.contactScreenY - FOREGROUND_CONTACT_SCREEN_Y,
+          ) >
             0.5 / deviceScaleFactor + 1e-6 ||
           Math.abs(
             summitForeground.projectedCameraTravelScreenPx -
@@ -1632,6 +1896,8 @@ export type GameplaySessionOptions = Readonly<{
   captureFrames?: boolean;
   verifyDuplicate?: boolean;
   validateRun?: (run: GameplayRunEvidence) => void;
+  validateSnapshot?: GameplaySnapshotValidator;
+  verifyForegroundDpr?: boolean;
   applicationRoot?: string;
   validateApplication?: () => Promise<void>;
   signal?: AbortSignal;
@@ -1695,6 +1961,7 @@ export async function withGameplaySession<T>(
       selectedFrames: options.selectedFrames,
       frameDirectory,
       validate: options.validateRun,
+      validateSnapshot: options.validateSnapshot,
       signal: options.signal,
     });
     if (options.verifyDuplicate ?? true) {
@@ -1702,17 +1969,21 @@ export async function withGameplaySession<T>(
         timeline: options.timeline,
         selectedFrames: options.selectedFrames,
         validate: options.validateRun,
+        validateSnapshot: options.validateSnapshot,
         signal: options.signal,
       });
       compareRuns(first, second);
     }
-    const foregroundDprVerified = await verifyForegroundDprMatrix(
-      browser,
-      server.baseUrl,
-      fixture.route,
-      options.timeline,
-      options.signal,
-    );
+    const foregroundDprVerified =
+      options.verifyForegroundDpr === false
+        ? Object.freeze([] as number[])
+        : await verifyForegroundDprMatrix(
+            browser,
+            server.baseUrl,
+            fixture.route,
+            options.timeline,
+            options.signal,
+          );
     return await operation(
       Object.freeze({
         fixtureDigest: fixture.digest,
@@ -1732,6 +2003,193 @@ export async function withGameplaySession<T>(
       run: async () => await fs.rm(workspace, { recursive: true, force: true }),
     },
   ]);
+}
+
+export const PLAYER_HURT_FRAME_COUNT = 40;
+export const PLAYER_HURT_EVENT_FRAME = 12;
+export const PLAYER_HURT_LAST_REACTION_FRAME = 29;
+export const PLAYER_HURT_RECOVERY_FRAME = 30;
+
+const PLAYER_HURT_ACTIONS = new Map<
+  number,
+  readonly GameplayFrame["actions"][number][]
+>([
+  // The mob's committed strike lands on frame 12. Hold left two frames later: knockback points
+  // right, so a negative velocity before recovery would prove player input leaked into hurt.
+  [13, Object.freeze([{ type: "down", key: "ArrowLeft" } as const])],
+  [34, Object.freeze([{ type: "up", key: "ArrowLeft" } as const])],
+]);
+
+export const PLAYER_HURT_TIMELINE: readonly GameplayFrame[] = Object.freeze(
+  Array.from({ length: PLAYER_HURT_FRAME_COUNT }, (_, index) =>
+    Object.freeze({
+      index,
+      actions: PLAYER_HURT_ACTIONS.get(index) ?? Object.freeze([]),
+    }),
+  ),
+);
+
+function assertPlayerHurtSnapshotContract(
+  snapshot: GameplayAutomationSnapshot,
+): void {
+  if (!snapshot.ready || snapshot.state !== "ready") {
+    throw new Error(`player-hurt probe is not ready (${snapshot.state})`);
+  }
+  if (snapshot.errors.length > 0 || snapshot.diagnostics.length > 0) {
+    throw new Error(
+      `player-hurt probe reported errors or diagnostics: ${[
+        ...snapshot.errors,
+        ...snapshot.diagnostics,
+      ].join(" | ")}`,
+    );
+  }
+  if (!snapshot.player) throw new Error("player-hurt probe has no player");
+  if (
+    !snapshot.combatText ||
+    !snapshot.combatText.enabled ||
+    snapshot.combatText.disposed
+  ) {
+    throw new Error("player-hurt probe has no active default-on combat text system");
+  }
+  const currentHurt = snapshot.events.find(
+    (event) => event.kind === "player-hurt" && event.frame === snapshot.frame,
+  );
+  if (currentHurt) {
+    const entry = snapshot.combatText.entries.at(-1);
+    if (
+      !entry ||
+      entry.direction !== "incoming" ||
+      entry.amount !== currentHurt.data?.damage ||
+      entry.text !== String(currentHurt.data?.damage)
+    ) {
+      throw new Error("connected player hit did not publish matching incoming combat text");
+    }
+  }
+  if (
+    snapshot.frame === PLAYER_HURT_EVENT_FRAME + 20 &&
+    snapshot.combatText.activeCount !== 0
+  ) {
+    throw new Error("incoming combat text did not expire on its fixed simulation clock");
+  }
+  const actualAssets = [...snapshot.assetKeys].sort();
+  if (
+    JSON.stringify(actualAssets) !==
+    JSON.stringify(SYNTHETIC_GAMEPLAY_REQUIRED_ASSET_KEYS)
+  ) {
+    throw new Error("player-hurt probe asset keys do not match the synthetic contract");
+  }
+}
+
+type PlayerHurtTranscriptSnapshot = Readonly<{
+  frame: number;
+  player: GameplayAutomationSnapshot["player"];
+  events: GameplayAutomationSnapshot["events"];
+}>;
+
+export function validatePlayerHurtRun(run: GameplayRunEvidence): void {
+  const snapshots = run.transcript
+    .trimEnd()
+    .split("\n")
+    .map((line) => JSON.parse(line) as PlayerHurtTranscriptSnapshot);
+  const byFrame = new Map(snapshots.map((snapshot) => [snapshot.frame, snapshot]));
+  if (
+    snapshots.length !== PLAYER_HURT_FRAME_COUNT ||
+    run.finalSnapshot.frame !== PLAYER_HURT_FRAME_COUNT
+  ) {
+    throw new Error("player-hurt transcript has the wrong frame count");
+  }
+  const hurtEvents = run.finalSnapshot.events.filter(
+    (event) => event.kind === "player-hurt",
+  );
+  const hurtEvent = hurtEvents[0];
+  if (
+    hurtEvents.length !== 1 ||
+    hurtEvent?.frame !== PLAYER_HURT_EVENT_FRAME ||
+    hurtEvent.data?.damage !== 1 ||
+    hurtEvent.data?.hpLeft !== 5
+  ) {
+    throw new Error("player-hurt event is not the one deterministic connected blow");
+  }
+  const hit = byFrame.get(PLAYER_HURT_EVENT_FRAME)?.player;
+  if (
+    hit?.state !== "hurt" ||
+    hit.hp !== 5 ||
+    hit.maxHp !== 6 ||
+    !hit.invulnerable ||
+    hit.facing !== "left" ||
+    hit.vx <= 0
+  ) {
+    throw new Error("connected blow did not synchronously enter player hurt");
+  }
+  for (
+    let frame = PLAYER_HURT_EVENT_FRAME;
+    frame <= PLAYER_HURT_LAST_REACTION_FRAME;
+    frame += 1
+  ) {
+    const player = byFrame.get(frame)?.player;
+    if (player?.state !== "hurt") {
+      throw new Error(`player hurt ended early at frame ${frame}`);
+    }
+    if (frame >= 14 && player.vx < 0) {
+      throw new Error(`held movement escaped the hurt lock at frame ${frame}`);
+    }
+  }
+  const beforeRecovery = byFrame.get(PLAYER_HURT_LAST_REACTION_FRAME)?.player;
+  const recovered = byFrame.get(PLAYER_HURT_RECOVERY_FRAME)?.player;
+  if (
+    !beforeRecovery ||
+    !recovered ||
+    recovered.state === "hurt" ||
+    recovered.hp !== 5 ||
+    recovered.vx >= 0 ||
+    recovered.x >= beforeRecovery.x
+  ) {
+    throw new Error("player did not recover into held movement on the exact frame");
+  }
+  const released = byFrame.get(35)?.player;
+  if (!released || released.state !== "idle" || released.vx !== 0) {
+    throw new Error("player did not return to idle after the held input was released");
+  }
+  if (!run.states.includes("hurt")) {
+    throw new Error("player-hurt transcript did not publish the hurt state");
+  }
+}
+
+export type PlayerHurtVerification = Readonly<{
+  version: typeof GAMEPLAY_AUTOMATION_VERSION;
+  verdict: "pass";
+  frameCount: typeof PLAYER_HURT_FRAME_COUNT;
+  fixtureDigest: string;
+  transcriptDigest: string;
+  eventFrame: typeof PLAYER_HURT_EVENT_FRAME;
+  recoveryFrame: typeof PLAYER_HURT_RECOVERY_FRAME;
+  duplicateVerified: true;
+}>;
+
+export async function verifyDeterministicPlayerHurtGameplay(): Promise<PlayerHurtVerification> {
+  return await withGameplaySession(
+    {
+      prepareFixture: async (workspace) =>
+        await generateGameplayFixture(path.join(workspace, "out")),
+      timeline: PLAYER_HURT_TIMELINE,
+      selectedFrames: [12, 14, 24, 30, 35],
+      verifyDuplicate: true,
+      validateRun: validatePlayerHurtRun,
+      validateSnapshot: assertPlayerHurtSnapshotContract,
+      verifyForegroundDpr: false,
+    },
+    (evidence) =>
+      Object.freeze({
+        version: GAMEPLAY_AUTOMATION_VERSION,
+        verdict: "pass" as const,
+        frameCount: PLAYER_HURT_FRAME_COUNT,
+        fixtureDigest: evidence.fixtureDigest,
+        transcriptDigest: evidence.first.transcriptDigest,
+        eventFrame: PLAYER_HURT_EVENT_FRAME,
+        recoveryFrame: PLAYER_HURT_RECOVERY_FRAME,
+        duplicateVerified: true as const,
+      }),
+  );
 }
 
 type VerifiedGameplay = GameplaySessionEvidence;
@@ -1827,7 +2285,11 @@ function verificationFrom(evidence: VerifiedGameplay): GameplayVerification {
 }
 
 export async function verifyDeterministicGameplay(): Promise<GameplayVerification> {
-  return await withVerifiedGameplay((evidence) => verificationFrom(evidence));
+  const verification = await withVerifiedGameplay((evidence) =>
+    verificationFrom(evidence),
+  );
+  await verifyDeterministicPlayerHurtGameplay();
+  return verification;
 }
 
 type Mp4Probe = Readonly<{

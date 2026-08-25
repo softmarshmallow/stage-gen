@@ -15,6 +15,65 @@ const combatText = (enabled = true) => ({
   enabled,
 });
 
+const scaleReference = (
+  cellWidth: number,
+  cellHeight: number,
+  frameIndex = 0,
+) => {
+  const top = 0.1;
+  const bottom = 0.3;
+  const left = 0.2;
+  const right = 0.4;
+  return {
+    part: "head",
+    top_fraction: top,
+    bottom_fraction: bottom,
+    left_fraction: left,
+    right_fraction: right,
+    extent_pixels:
+      Math.round(
+        Math.max(
+          (bottom - top) * cellHeight,
+          (right - left) * cellWidth,
+        ) * 1_000,
+      ) / 1_000,
+    confident: true,
+    evidence: "Visible head bounds.",
+    frame_index: frameIndex,
+    cell_width: cellWidth,
+    cell_height: cellHeight,
+  };
+};
+
+const measuredRuntimeAsset = (
+  runtimeSlot: string,
+  cellWidth: number,
+  cellHeight: number,
+  frameIndex = 0,
+) => ({
+  id: runtimeSlot,
+  runtime_slot: runtimeSlot,
+  layout: {
+    topology: "grid",
+    rows: 1,
+    columns: 4,
+    cell_width: cellWidth,
+    cell_height: cellHeight,
+    gutter: 0,
+  },
+  scale_reference: scaleReference(cellWidth, cellHeight, frameIndex),
+});
+
+const currentMeasuredRuntimeAssets = () => [
+  measuredRuntimeAsset("character-idle", 600, 688),
+  measuredRuntimeAsset("character-walk", 600, 688),
+  measuredRuntimeAsset("character-run", 600, 688),
+  measuredRuntimeAsset("character-jump", 600, 688),
+  measuredRuntimeAsset("character-crawl", 600, 688),
+  measuredRuntimeAsset("character-climb", 64, 128),
+  measuredRuntimeAsset("character-attack", 600, 800, 1),
+];
+
 const currentEnvelope = (overrides: Record<string, unknown> = {}) => ({
   schema_version: 7,
   recipe: "scrolling-preview",
@@ -26,7 +85,7 @@ const currentEnvelope = (overrides: Record<string, unknown> = {}) => ({
     path: `world_spec_${TAG}.json`,
     provenance_path: `world_spec_${TAG}.json.meta.json`,
   },
-  runtime_assets: [],
+  runtime_assets: currentMeasuredRuntimeAssets(),
   image_repeat: { enabled: false, status: "deferred", artifacts: [] },
   ...overrides,
 });
@@ -670,6 +729,149 @@ describe("parseScrollingManifestEnvelope", () => {
     ]) {
       expect(() => parseScrollingManifestEnvelope(currentEnvelope(overrides), TAG)).toThrow();
     }
+  });
+
+  test("requires the complete current player measurement closure", () => {
+    for (const missingRole of [
+      "character-idle",
+      "character-walk",
+      "character-run",
+      "character-jump",
+      "character-crawl",
+      "character-climb",
+      "character-attack",
+    ]) {
+      expect(() =>
+        parseScrollingManifestEnvelope(
+          currentEnvelope({
+            runtime_assets: currentMeasuredRuntimeAssets().filter(
+              (entry) => entry.runtime_slot !== missingRole,
+            ),
+          }),
+          TAG,
+        ),
+      ).toThrow(`requires measured runtime role ${missingRole}`);
+    }
+  });
+
+  test("requires exact measurements on every declared mob and resident role", () => {
+    for (const runtime_slot of [
+      "mob-0-idle",
+      "mob-0-hurt",
+      "mob-0-attack",
+      "village-npc-0-idle",
+      "village-npc-1-still",
+    ]) {
+      expect(() =>
+        parseScrollingManifestEnvelope(
+          currentEnvelope({
+            runtime_assets: [
+              ...currentMeasuredRuntimeAssets(),
+              {
+                runtime_slot,
+                layout: {
+                  columns: 4,
+                  cell_width: 600,
+                  cell_height: 800,
+                },
+              },
+            ],
+          }),
+          TAG,
+        ),
+      ).toThrow(`runtime asset role ${runtime_slot} requires scale_reference`);
+
+      expect(() =>
+        parseScrollingManifestEnvelope(
+          currentEnvelope({
+            runtime_assets: [
+              ...currentMeasuredRuntimeAssets(),
+              measuredRuntimeAsset(
+                runtime_slot,
+                600,
+                800,
+                runtime_slot.endsWith("-attack") ? 1 : 0,
+              ),
+            ],
+          }),
+          TAG,
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  test("rejects malformed, mismatched, duplicate, and unowned measurements", () => {
+    const malformed = currentMeasuredRuntimeAssets();
+    malformed[0] = {
+      ...malformed[0],
+      scale_reference: {
+        ...malformed[0].scale_reference,
+        extent_pixels: 1,
+      },
+    };
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({ runtime_assets: malformed }),
+        TAG,
+      ),
+    ).toThrow("extent_pixels does not match");
+
+    const mismatched = currentMeasuredRuntimeAssets();
+    mismatched[0] = {
+      ...mismatched[0],
+      scale_reference: {
+        ...mismatched[0].scale_reference,
+        cell_width: 601,
+        extent_pixels: 137.6,
+      },
+    };
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({ runtime_assets: mismatched }),
+        TAG,
+      ),
+    ).toThrow();
+
+    const wrongAttackFrame = currentMeasuredRuntimeAssets();
+    const attackIndex = wrongAttackFrame.findIndex(
+      (entry) => entry.runtime_slot === "character-attack",
+    );
+    wrongAttackFrame[attackIndex] = measuredRuntimeAsset(
+      "character-attack",
+      600,
+      800,
+      0,
+    );
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({ runtime_assets: wrongAttackFrame }),
+        TAG,
+      ),
+    ).toThrow("scale_reference frame must be 1");
+
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({
+          runtime_assets: [
+            ...currentMeasuredRuntimeAssets(),
+            currentMeasuredRuntimeAssets()[0],
+          ],
+        }),
+        TAG,
+      ),
+    ).toThrow("duplicate runtime_slot character-idle");
+
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({
+          runtime_assets: [
+            ...currentMeasuredRuntimeAssets(),
+            measuredRuntimeAsset("character-hurt", 64, 128),
+          ],
+        }),
+        TAG,
+      ),
+    ).toThrow("does not own scale_reference");
   });
 
   test("accepts game-contract-v3 only and rejects orphan gameplay", () => {

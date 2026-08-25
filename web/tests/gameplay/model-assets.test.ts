@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PNG, type PngWriteInput } from "pngjs";
+import { parseScrollingManifestEnvelope } from "../../lib/runtime/manifest";
 import { GAMEPLAY_FIXTURE_METADATA_FILE } from "./contracts";
 import {
   GAMEPLAY_DEMO_APPROVAL_MANIFEST,
@@ -663,12 +664,69 @@ describe("approved model gameplay fixture adapter", () => {
     const run = JSON.parse(
       await fs.readFile(path.join(first.runDir, "run.json"), "utf8"),
     );
-    const spec = JSON.parse(
+    const worldSpecPath = `world_spec_${GAMEPLAY_MODEL_TAG}.json`;
+    const worldSpecBytes = await fs.readFile(
+      path.join(first.runDir, worldSpecPath),
+    );
+    const spec = JSON.parse(worldSpecBytes.toString("utf8"));
+    const manifest = JSON.parse(
       await fs.readFile(
-        path.join(first.runDir, `world_spec_${GAMEPLAY_MODEL_TAG}.json`),
+        path.join(first.runDir, `manifest_${GAMEPLAY_MODEL_TAG}.json`),
         "utf8",
       ),
     );
+    expect(
+      parseScrollingManifestEnvelope(manifest, GAMEPLAY_MODEL_TAG),
+    ).toEqual(manifest);
+    expect(Object.keys(manifest).sort()).toEqual(
+      [
+        "schema_version",
+        "recipe",
+        "tag",
+        "transparency_mode",
+        "artifacts",
+        "canonical_artifacts",
+        "world_spec",
+        "runtime_assets",
+        "image_repeat",
+      ].sort(),
+    );
+    const runtimeByRole = new Map(
+      manifest.runtime_assets.map((entry: Record<string, unknown>) => [
+        entry.runtime_slot,
+        entry,
+      ]),
+    );
+    for (const role of [
+      "character-idle",
+      "character-walk",
+      "character-run",
+      "character-jump",
+      "character-crawl",
+      "character-climb",
+      "character-attack",
+      "mob-0-idle",
+      "mob-0-hurt",
+    ]) {
+      expect(runtimeByRole.get(role)).toHaveProperty("scale_reference");
+    }
+    expect(manifest).not.toHaveProperty("schemaVersion");
+    expect(manifest).not.toHaveProperty("runtimeAssets");
+    expect(manifest.world_spec).toEqual({
+      path: worldSpecPath,
+      provenance_path: `${worldSpecPath}.meta.json`,
+    });
+    const worldSpecProvenance = JSON.parse(
+      await fs.readFile(
+        path.join(first.runDir, `${worldSpecPath}.meta.json`),
+        "utf8",
+      ),
+    );
+    expect(worldSpecProvenance.artifact).toEqual({
+      sha256: sha256(worldSpecBytes),
+      bytes: worldSpecBytes.byteLength,
+      media_type: "application/json",
+    });
     expect(run.input).toEqual({
       recipe: "scrolling-preview",
       prompt: GAMEPLAY_MODEL_PROMPT,
@@ -843,7 +901,7 @@ describe("approved model gameplay fixture adapter", () => {
     ).rejects.toThrow("must be fully opaque");
   });
 
-  test("requires the role gutters while leaving undeclared legacy atlas edges unchanged", async () => {
+  test("requires declared role gutters while leaving undeclared atlas edges unchanged", async () => {
     const missing = await createApprovedSource();
     delete missing.producer.assets.find(
       (asset) => asset.id === "character-attack",

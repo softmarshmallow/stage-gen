@@ -12,7 +12,13 @@ import {
 } from "../../lib/runtime/automation";
 import { GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS } from "./model-assets";
 import {
+  APPROVED_VERTICAL,
   GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS,
+  PLAYER_HURT_EVENT_FRAME,
+  PLAYER_HURT_FRAME_COUNT,
+  PLAYER_HURT_LAST_REACTION_FRAME,
+  PLAYER_HURT_RECOVERY_FRAME,
+  PLAYER_HURT_TIMELINE,
   acquireAbortableGameplayResource,
   installCaptureFiles,
   modelAssetBundleReference,
@@ -24,10 +30,12 @@ import {
   validateFastStartMp4,
   validateGameplayMp4Probe,
   validateGameplayRun,
+  validatePlayerHurtRun,
   validatePosterPng,
   type GameplayRunEvidence,
 } from "./harness";
 import { GAMEPLAY_POSTER_FRAME, GAMEPLAY_SELECTED_FRAMES } from "./timeline";
+import { STAGE_PLANS } from "../../lib/runtime/stages";
 import {
   NEAR_FOREGROUND_DEPTH_COEFFICIENT,
   layoutSceneLayer,
@@ -43,7 +51,9 @@ const FOREGROUND_CONTEXT = Object.freeze({
   viewportHeight: 720,
   worldWidth: 12_800,
   groundBaselineY: 720,
-  foregroundContactScreenY: 704,
+  // Matches the runtime rule: the foreground meets the ground baseline, not a
+  // separate row 16px above it.
+  foregroundContactScreenY: 720,
   foregroundSafeBandTopY: 540,
   foregroundMaxScale: 0.75,
 });
@@ -231,6 +241,39 @@ function encounterProbe(frame: number): GameplayEncounterProbe {
   };
 }
 
+function combatTextProbe(
+  frame: number,
+  eventFrame: number,
+  direction: "outgoing" | "incoming",
+): NonNullable<GameplayAutomationSnapshot["combatText"]> {
+  const active = frame >= eventFrame && frame < eventFrame + 20;
+  const startedAtMs = eventFrame * (1000 / 30);
+  return Object.freeze({
+    enabled: true,
+    reducedMotion: true,
+    disposed: false,
+    activeCount: active ? 1 : 0,
+    pooledCount: active ? 0 : frame >= eventFrame + 20 ? 1 : 0,
+    entries: active
+      ? Object.freeze([
+          Object.freeze({
+            eventId: 1,
+            direction,
+            amount: 1,
+            text: "1",
+            startedAtMs,
+            anchorX: 730,
+            anchorY: 290,
+            x: 730,
+            y: 290,
+            alpha: 1,
+            scale: 1,
+          }),
+        ])
+      : Object.freeze([]),
+  });
+}
+
 function validRun(): GameplayRunEvidence {
   const eventFrames: Readonly<Record<string, number>> = {
     "mob-hit": 34,
@@ -238,22 +281,53 @@ function validRun(): GameplayRunEvidence {
     "mob-drop": 49,
     "item-pickup": 67,
     "inventory-toggle": 480,
-    "stage-advance": 869,
+    "stage-advance": 859,
   };
   const events: Array<GameplayAutomationSnapshot["events"][number]> = Object.entries(
     eventFrames,
-  ).map(([kind, frame]) => ({
-    kind,
-    frame,
-    simulationMs: frame * (1000 / 30),
-    data: kind === "inventory-toggle" ? { visible: false } : null,
-  }));
+  ).map(
+    ([kind, frame]): GameplayAutomationSnapshot["events"][number] => ({
+      kind,
+      frame,
+      simulationMs: frame * (1000 / 30),
+      data:
+        kind === "inventory-toggle"
+          ? { visible: false }
+          : kind === "mob-hit"
+            ? { damage: 1, hpLeft: 0, died: true, ladderIndex: 0 }
+            : null,
+    }),
+  );
   events.push(
     {
       kind: "platform-land",
       frame: 145,
       simulationMs: 145 * (1000 / 30),
       data: { platformId: "tier-1-launch" },
+    },
+    {
+      kind: "terrain-step-off",
+      frame: 700,
+      simulationMs: 700 * (1000 / 30),
+      data: { footY: 592, surfaceY: 656, column: 140 },
+    },
+    {
+      kind: "terrain-step-block",
+      frame: 596,
+      simulationMs: 596 * (1000 / 30),
+      data: { column: 118, footY: 592, x: 7551 },
+    },
+    {
+      kind: "air-jump",
+      frame: 610,
+      simulationMs: 610 * (1000 / 30),
+      data: { airJumpsUsed: 1, footY: 556, vy: -440 },
+    },
+    {
+      kind: "air-jump",
+      frame: 720,
+      simulationMs: 720 * (1000 / 30),
+      data: { airJumpsUsed: 1, footY: 556, vy: -440 },
     },
     {
       kind: "platform-drop",
@@ -304,26 +378,26 @@ function validRun(): GameplayRunEvidence {
     },
     {
       kind: "platform-recovery-launch",
-      frame: 176,
-      simulationMs: 176 * (1000 / 30),
+      frame: 175,
+      simulationMs: 175 * (1000 / 30),
       data: {
         platformId: "tier-1-launch",
         support: "terrain",
-        footY: 592,
+        footY: 656,
         settledFootY: 656,
         stableFrames: 7,
       },
     },
     {
       kind: "platform-recovery-land",
-      frame: 190,
-      simulationMs: 190 * (1000 / 30),
+      frame: 196,
+      simulationMs: 196 * (1000 / 30),
       data: { platformId: "tier-1-launch", support: "platform", footY: 528 },
     },
     {
       kind: "platform-land",
-      frame: 190,
-      simulationMs: 190 * (1000 / 30),
+      frame: 196,
+      simulationMs: 196 * (1000 / 30),
       data: { platformId: "tier-1-launch" },
     },
     {
@@ -346,81 +420,29 @@ function validRun(): GameplayRunEvidence {
     },
     {
       kind: "ladder-enter",
-      frame: 270,
-      simulationMs: 270 * (1000 / 30),
+      frame: 275,
+      simulationMs: 275 * (1000 / 30),
       data: { ladderId: "ladder-summit", from: "platform", direction: "down" },
     },
     {
       kind: "ladder-exit",
-      frame: 315,
-      simulationMs: 315 * (1000 / 30),
+      frame: 320,
+      simulationMs: 320 * (1000 / 30),
       data: { ladderId: "ladder-summit", to: "terrain" },
     },
   );
   events.sort((left, right) => left.frame - right.frame);
-  const platforms: GameplayAutomationSnapshot["platforms"] = [
-    {
-      id: "tier-1-launch",
-      left: 1280,
-      right: 1664,
-      deckY: 528,
-      tier: 1,
-      thickness: 32,
-      visible: false,
-    },
-    {
-      id: "tier-2-transfer",
-      left: 1728,
-      right: 2112,
-      deckY: 464,
-      tier: 2,
-      thickness: 32,
-      visible: false,
-    },
-    {
-      id: "tier-3-bridge",
-      left: 2176,
-      right: 2560,
-      deckY: 400,
-      tier: 3,
-      thickness: 32,
-      visible: false,
-    },
-    {
-      id: "tier-4-summit",
-      left: 2624,
-      right: 3008,
-      deckY: 336,
-      tier: 4,
-      thickness: 32,
-      visible: false,
-    },
-  ];
+  // Mirrors what the runtime builds for the fixture's terrain seed, so this
+  // fixture stays a fixture rather than a second hand-copied world spec.
+  const approved = APPROVED_VERTICAL[0]!;
+  const platforms: GameplayAutomationSnapshot["platforms"] =
+    approved.platforms.map((platform) => ({ ...platform, visible: false }));
   const platformRoutes: GameplayAutomationSnapshot["platformRoutes"] = [
-    { id: "jump-1", from: "terrain", to: "tier-1-launch", mode: "jump", rise: 64, gap: 0, landingStep: 15, horizontalRange: 270, ladderId: null },
-    { id: "jump-2", from: "tier-1-launch", to: "tier-2-transfer", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-    { id: "jump-3", from: "tier-2-transfer", to: "tier-3-bridge", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-    { id: "jump-4", from: "tier-3-bridge", to: "tier-4-summit", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-    { id: "drop-1", from: "tier-1-launch", to: "terrain", mode: "drop", rise: -64, gap: 0, landingStep: 9, horizontalRange: null, ladderId: null },
-    { id: "drop-2", from: "tier-2-transfer", to: "terrain", mode: "drop", rise: -192, gap: 0, landingStep: 15, horizontalRange: null, ladderId: null },
-    { id: "drop-3", from: "tier-3-bridge", to: "terrain", mode: "drop", rise: -256, gap: 0, landingStep: 18, horizontalRange: null, ladderId: null },
-    { id: "drop-4", from: "tier-4-summit", to: "terrain", mode: "drop", rise: -320, gap: 0, landingStep: 20, horizontalRange: null, ladderId: null },
-    { id: "ladder-up", from: "terrain", to: "tier-4-summit", mode: "ladder", rise: 256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
-    { id: "ladder-down", from: "tier-4-summit", to: "terrain", mode: "ladder", rise: -256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+    ...approved.routes,
   ];
-  const ladders: GameplayAutomationSnapshot["ladders"] = [
-    {
-      id: "ladder-summit",
-      platformId: "tier-4-summit",
-      centerX: 2976,
-      top: 304,
-      bottom: 624,
-      activationHalfWidth: 30,
-      visualTopOvershoot: 32,
-      visualBottomOvershoot: 32,
-      visible: false,
-    },
-  ];
+  const ladders: GameplayAutomationSnapshot["ladders"] = approved.ladders.map(
+    (ladder) => ({ ...ladder, visible: false }),
+  );
   const finalPresentation = gameplayAutomationPresentation(900);
   const finalCamera = { scrollX: 11_520, scrollY: 0, zoom: 1 } as const;
   const snapshot: GameplayAutomationSnapshot = {
@@ -428,7 +450,10 @@ function validRun(): GameplayRunEvidence {
     state: "ready",
     ready: true,
     errors: [],
+    diagnostics: [],
     assetKeys: GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS,
+    stageIndex: 0,
+    stageId: STAGE_PLANS[0]!.id,
     frame: 900,
     simulationMs: 30_000,
     player: {
@@ -440,7 +465,12 @@ function validRun(): GameplayRunEvidence {
       vx: 0,
       vy: 0,
       airborne: false,
+      airJumpsUsed: 0,
       attackActive: false,
+    hp: 6,
+    maxHp: 6,
+    invulnerable: false,
+    defeated: false,
       support: "terrain",
       supportId: null,
       ladderId: null,
@@ -475,6 +505,7 @@ function validRun(): GameplayRunEvidence {
     mobs: [],
     inventory: {
       visible: false,
+      bounds: { left: 821, right: 1256, top: 24, bottom: 314 },
       slots: [
         {
           kindIndex: 0,
@@ -494,39 +525,63 @@ function validRun(): GameplayRunEvidence {
       { kind: "exit", x: 12_576, y: 512, w: 100, h: 200 },
     ],
     presentation: finalPresentation,
+    combatText: combatTextProbe(900, eventFrames["mob-hit"]!, "outgoing"),
     events,
     heightmapDigest: "a".repeat(64),
   };
+  // One synthetic frame per index, shaped to the same choreography the live
+  // capture produces. It exists to exercise the validators, so it only has to
+  // be self-consistent with what they read: support and height through the
+  // platform route, the paused ladder descent, and the arcs the air jumps
+  // extend.
+  const CLIMB_FROM = 275;
+  const CLIMB_TO = 320;
+  const PAUSE_FROM = 297;
+  const PAUSE_TO = 300;
+  /** Grounded jump arc height after `steps` fixed steps, in pixels risen. */
+  const arcRise = (steps: number) => (495 * steps - 25 * steps * steps) / 30;
   const transcript = Array.from({ length: 900 }, (_, index) => {
     const frame = index + 1;
     const presentation = gameplayAutomationPresentation(frame);
-    const climbing = frame >= 270 && frame < 315;
-    const pausedClimb = frame >= 292 && frame < 295;
+    const climbing = frame >= CLIMB_FROM && frame < CLIMB_TO;
+    const pausedClimb = frame >= PAUSE_FROM && frame < PAUSE_TO;
     const descentSteps =
-      frame < 270
+      frame < CLIMB_FROM
         ? 0
-        : frame < 292
-          ? frame - 269
-          : frame < 295
-            ? 22
-            : 22 + (frame - 294);
+        : frame < PAUSE_FROM
+          ? frame - (CLIMB_FROM - 1)
+          : frame < PAUSE_TO
+            ? PAUSE_FROM - CLIMB_FROM
+            : PAUSE_FROM - CLIMB_FROM + (frame - (PAUSE_TO - 1));
     const platformId =
-      (frame >= 145 && frame <= 153) || (frame >= 190 && frame <= 196)
+      (frame >= 145 && frame <= 153) || frame === 196
         ? "tier-1-launch"
         : frame >= 211 && frame <= 216
           ? "tier-2-transfer"
           : frame >= 231 && frame <= 241
             ? "tier-3-bridge"
-            : frame >= 256 && frame < 270
+            : frame >= 256 && frame < CLIMB_FROM
               ? "tier-4-summit"
               : null;
+    // Two air jumps over two-tile walls, and one terrain ledge that drops the
+    // player under gravity, each with the arc the validators walk.
+    const firstAirArc = frame >= 601 && frame <= 640;
+    const secondAirArc = frame >= 711 && frame <= 750;
+    const airJumpsUsed =
+      (frame >= 610 && frame <= 640) || (frame >= 720 && frame <= 750) ? 1 : 0;
+    const stepOffFall = frame >= 700 && frame <= 704;
+    // A face met at 596 and left behind by the climb that follows it.
+    const wallHold = frame >= 592 && frame <= 596;
     const airborne =
-      (frame >= 131 && frame < 145) ||
+      (frame >= 126 && frame < 145) ||
       (frame >= 154 && frame < 165) ||
-      (frame >= 176 && frame < 190) ||
+      (frame >= 175 && frame < 196) ||
       (frame >= 197 && frame < 211) ||
       (frame >= 217 && frame < 231) ||
-      (frame >= 242 && frame < 256);
+      (frame >= 242 && frame < 256) ||
+      firstAirArc ||
+      secondAirArc ||
+      stepOffFall;
     const support = climbing
       ? "ladder"
       : platformId
@@ -534,9 +589,8 @@ function validRun(): GameplayRunEvidence {
         : airborne
           ? "air"
           : "terrain";
-    const y = climbing
-      ? Math.min(592, 336 + descentSteps * 6)
-      : platformId === "tier-1-launch"
+    const deckY =
+      platformId === "tier-1-launch"
         ? 528
         : platformId === "tier-2-transfer"
           ? 464
@@ -544,20 +598,31 @@ function validRun(): GameplayRunEvidence {
             ? 400
             : platformId === "tier-4-summit"
               ? 336
-              : frame >= 154 && frame < 165
-                ? 528 + (5 / 6) * (frame - 153) * (frame - 152)
-                : frame >= 165 && frame < 175
-                  ? 656
-                  : frame === 175
-                    ? 592
-                  : frame >= 176 && frame < 190
-                    ? 592 +
-                      (-520 * (frame - 175) +
-                        25 * (frame - 175) * (frame - 174)) /
-                        30
-                    : frame === 130 || frame >= 315
-                      ? 592
-                      : snapshot.player!.y;
+              : null;
+    const airArcY = (start: number, base: number) => base - arcRise(frame - start);
+    const y = climbing
+      ? Math.min(592, 336 + descentSteps * 6)
+      : deckY !== null
+        ? deckY
+        : frame >= 154 && frame < 165
+          ? 528 + (5 / 6) * (frame - 153) * (frame - 152)
+          : frame >= 165 && frame < 175
+            ? 656
+            : frame >= 175 && frame < 196
+              ? 656 - arcRise(frame - 174) - (frame >= 185 ? 40 : 0)
+              : frame >= 197 && frame < 211
+                ? airArcY(196, 528)
+                : firstAirArc
+                  ? 656 - arcRise(frame - 600) - (frame >= 610 ? 40 : 0)
+                  : secondAirArc
+                    ? 656 - arcRise(frame - 710) - (frame >= 720 ? 40 : 0)
+                    : stepOffFall
+                      ? 592 + (5 / 6) * (frame - 699) * (frame - 698)
+                      : frame === 125
+                        ? 528
+                        : frame >= CLIMB_TO
+                          ? 592
+                          : snapshot.player!.y;
     const camera = presentation.encounterFocus
       ? { scrollX: 0, scrollY: 0, zoom: presentation.cameraZoom }
       : {
@@ -576,7 +641,9 @@ function validRun(): GameplayRunEvidence {
     const ladderId = climbing ? "ladder-summit" : null;
     const climbFrame = climbing ? Math.floor(Math.abs(592 - y) / 12) % 4 : null;
     const x =
-      frame === 130
+      frame === 125
+        ? 1192.6666666666667
+        : frame === 130
         ? 1282.6666666666667
         : frame >= 145 && frame <= 153
           ? 1552.6666666666667
@@ -598,11 +665,21 @@ function validRun(): GameplayRunEvidence {
                           ? 2290.666666666667 + 18 * (frame - 231)
                           : frame >= 242 && frame <= 256
                             ? 2470.666666666667 + 18 * (frame - 241)
-                            : frame >= 257 && frame < 270
+                            : frame >= 257 && frame < CLIMB_FROM
                               ? 2740.666666666667 + 18 * (frame - 256)
-                              : climbing || frame === 315
+                              : climbing || frame === CLIMB_TO
                                 ? 2976
-                                : snapshot.player!.x;
+                                : frame > CLIMB_TO
+                                  ? // The closing run advances, held for the
+                                    // frames spent against a column face.
+                                    Math.min(
+                                      snapshot.player!.x,
+                                      2976 +
+                                        18 *
+                                          (Math.min(frame, wallHold ? 592 : frame) -
+                                            CLIMB_TO),
+                                    )
+                                  : snapshot.player!.x;
     const renderBounds = {
       left: x - 35.2,
       top: y - 140.8,
@@ -611,6 +688,8 @@ function validRun(): GameplayRunEvidence {
     };
     return JSON.stringify({
       frame,
+      stageIndex: 0,
+      stageId: STAGE_PLANS[0]!.id,
       player: {
         ...snapshot.player,
         state:
@@ -624,26 +703,38 @@ function validRun(): GameplayRunEvidence {
         x,
         column: Math.floor(x / 64),
         y,
-        vx:
-          (frame >= 154 && frame <= 162) ||
-          (frame >= 197 && frame < 270) ||
-          (frame >= 846 && frame <= 899)
+        vx: wallHold
+          ? 0
+          : (frame >= 154 && frame <= 162) ||
+              (frame >= 197 && frame < CLIMB_FROM) ||
+              (frame >= 846 && frame <= 899)
             ? 540
-            : frame >= 173 && frame <= 175
+            : frame >= 173 && frame <= 180
               ? -540
               : 0,
         vy: climbing
           ? pausedClimb
             ? 0
             : 180
-          : frame >= 154 && frame < 165
-            ? 50 * (frame - 153)
-            : frame >= 176 && frame < 190
-              ? -520 + 50 * (frame - 175)
-              : airborne
-                ? 100
-                : 0,
+          : firstAirArc
+            ? frame < 610
+              ? -520 + 50 * (frame - 600)
+              : -440 + 50 * (frame - 610)
+            : secondAirArc
+              ? frame < 720
+                ? -520 + 50 * (frame - 710)
+                : -440 + 50 * (frame - 720)
+              : frame >= 154 && frame < 165
+                ? 50 * (frame - 153)
+                : frame >= 175 && frame < 196
+                  ? frame < 185
+                    ? -520 + 50 * (frame - 174)
+                    : -440 + 50 * (frame - 185)
+                  : airborne
+                    ? 100
+                    : 0,
         airborne,
+        airJumpsUsed,
         support,
         supportId: ladderId ?? platformId,
         ladderId,
@@ -659,9 +750,9 @@ function validRun(): GameplayRunEvidence {
                 ? "underside-cleared"
                 : frame < 171
                   ? "lower-support-landed"
-                  : frame < 176
+                  : frame < 175
                     ? "lower-support-settled"
-                    : frame < 190
+                    : frame < 196
                       ? "recovery-airborne"
                       : "recovered",
         dropTraversalPlatformId: frame >= 154 ? "tier-1-launch" : null,
@@ -686,10 +777,23 @@ function validRun(): GameplayRunEvidence {
       mobs: [],
       worldItems:
         frame >= eventFrames["mob-drop"] && frame < eventFrames["item-pickup"]
-          ? [{ kindIndex: 0, x: 100, y: 100, settled: true }]
+          ? [
+              {
+                kindIndex: 0,
+                x: 100,
+                y: 100,
+                settled: true,
+                renderBounds: { left: 84, right: 116, top: 68, bottom: 100 },
+              },
+            ]
           : [],
       encounter: encounterProbe(frame),
       presentation,
+      combatText: combatTextProbe(
+        frame,
+        eventFrames["mob-hit"]!,
+        "outgoing",
+      ),
       events: events.filter((event) => event.frame <= frame),
     });
   }).join("\n");
@@ -704,8 +808,96 @@ function validRun(): GameplayRunEvidence {
   };
 }
 
+function validPlayerHurtRun(): GameplayRunEvidence {
+  const events: GameplayAutomationSnapshot["events"] = Object.freeze([
+    Object.freeze({
+      kind: "player-hurt",
+      frame: PLAYER_HURT_EVENT_FRAME,
+      simulationMs: PLAYER_HURT_EVENT_FRAME * (1000 / 30),
+      data: Object.freeze({ ladderIndex: 0, damage: 1, hpLeft: 5 }),
+    }),
+  ]);
+  const snapshots = Array.from({ length: PLAYER_HURT_FRAME_COUNT }, (_, index) => {
+    const frame = index + 1;
+    const hurt =
+      frame >= PLAYER_HURT_EVENT_FRAME &&
+      frame <= PLAYER_HURT_LAST_REACTION_FRAME;
+    const movingAfterRecovery =
+      frame >= PLAYER_HURT_RECOVERY_FRAME && frame < 35;
+    const x =
+      frame <= PLAYER_HURT_LAST_REACTION_FRAME
+        ? 96 + Math.max(0, frame - PLAYER_HURT_EVENT_FRAME) * 8
+        : 96 +
+          (PLAYER_HURT_LAST_REACTION_FRAME - PLAYER_HURT_EVENT_FRAME) * 8 -
+          (frame - PLAYER_HURT_LAST_REACTION_FRAME) * 6;
+    const player: NonNullable<GameplayAutomationSnapshot["player"]> = {
+      state: hurt ? "hurt" : movingAfterRecovery ? "walk" : "idle",
+      facing: "left",
+      x,
+      y: 592,
+      column: Math.floor(x / 64),
+      vx: hurt ? 260 : movingAfterRecovery ? -180 : 0,
+      vy: 0,
+      airborne: false,
+      airJumpsUsed: 0,
+      attackActive: false,
+      hp: frame >= PLAYER_HURT_EVENT_FRAME ? 5 : 6,
+      maxHp: 6,
+      invulnerable: frame >= PLAYER_HURT_EVENT_FRAME,
+      defeated: false,
+      support: "terrain",
+      supportId: null,
+      ladderId: null,
+      platformId: null,
+      dropThroughPlatformId: null,
+      dropTraversalPhase: null,
+      dropTraversalPlatformId: null,
+      dropTraversalPlatformBottomY: null,
+      dropTraversalLowerSupport: null,
+      dropTraversalLowerSupportId: null,
+      dropTraversalLowerSupportY: null,
+      dropTraversalStableFrames: 0,
+      renderBounds: { left: x - 24, right: x + 24, top: 472, bottom: 592 },
+      climbAnimationKey: null,
+      climbTextureKey: null,
+      climbFrame: null,
+      climbAnimationPaused: null,
+      rearFacing: false,
+    };
+    return Object.freeze({ frame, player, events });
+  });
+  return {
+    transcript: `${snapshots.map((snapshot) => JSON.stringify(snapshot)).join("\n")}\n`,
+    transcriptDigest: "d".repeat(64),
+    selectedFrameHashes: {},
+    states: ["hurt", "idle", "walk"],
+    finalSnapshot: {
+      frame: PLAYER_HURT_FRAME_COUNT,
+      events,
+    } as GameplayAutomationSnapshot,
+  };
+}
+
 describe("gameplay harness verdict", () => {
-  test("binds the legacy capture entrypoint to the live approved 20-asset set", async () => {
+  test("ratifies one deterministic player hurt reaction and its control lock", () => {
+    const actions = PLAYER_HURT_TIMELINE.flatMap((frame) => frame.actions);
+    expect(actions).toEqual([
+      { type: "down", key: "ArrowLeft" },
+      { type: "up", key: "ArrowLeft" },
+    ]);
+    expect(() => validatePlayerHurtRun(validPlayerHurtRun())).not.toThrow();
+
+    const invalid = validPlayerHurtRun();
+    const lines = invalid.transcript.trimEnd().split("\n");
+    const locked = JSON.parse(lines[19]!) as { player: { vx: number } };
+    locked.player.vx = -180;
+    lines[19] = JSON.stringify(locked);
+    expect(() =>
+      validatePlayerHurtRun({ ...invalid, transcript: `${lines.join("\n")}\n` }),
+    ).toThrow("held movement escaped the hurt lock");
+  });
+
+  test("binds the current capture entrypoint to the approved 20-asset set", async () => {
     const assetSet = await modelAssetBundleReference();
     expect(assetSet.count).toBe(20);
     expect(assetSet.assets).toHaveLength(20);
@@ -1008,14 +1200,14 @@ describe("gameplay harness verdict", () => {
     };
     expect(() =>
       validateGameplayRun({ ...source, finalSnapshot: visualDrift }),
-    ).toThrow("ladder probes");
+    ).toThrow("ladder probe violates");
 
     const climbLines = source.transcript.trimEnd().split("\n");
-    const climb = JSON.parse(climbLines[270]!) as {
+    const climb = JSON.parse(climbLines[280]!) as {
       player: { rearFacing: boolean };
     };
     climb.player.rearFacing = false;
-    climbLines[270] = JSON.stringify(climb);
+    climbLines[280] = JSON.stringify(climb);
     expect(() =>
       validateGameplayRun({
         ...source,

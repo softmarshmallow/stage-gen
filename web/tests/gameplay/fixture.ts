@@ -8,6 +8,7 @@ import {
   gameplayRequiredAssetKeys,
   type GameplayFixture,
 } from "./contracts";
+import { runtimeRoleOwnsScaleReference } from "../../lib/runtime/sprite-scale";
 
 export {
   GAMEPLAY_AUTOMATION_VERSION,
@@ -52,7 +53,10 @@ const LAYERS = Object.freeze([
   },
 ]);
 
-export const GAMEPLAY_REQUIRED_ASSET_KEYS = gameplayRequiredAssetKeys(WORLD_NAME);
+export const GAMEPLAY_REQUIRED_ASSET_KEYS = gameplayRequiredAssetKeys(
+  WORLD_NAME,
+  { includePlayerHurt: true },
+);
 
 export const GAMEPLAY_PNG_DIMENSIONS = Object.freeze({
   [`concept_${GAMEPLAY_TAG}.png`]: [1280, 720],
@@ -60,13 +64,16 @@ export const GAMEPLAY_PNG_DIMENSIONS = Object.freeze({
   [`layer_${GAMEPLAY_TAG}_ridges.png`]: [1280, 720],
   [`layer_${GAMEPLAY_TAG}_foreground.png`]: [1280, 720],
   [`tileset_${GAMEPLAY_TAG}.png`]: [384, 128],
+  [`ladder_${GAMEPLAY_TAG}.png`]: [128, 256],
   [`character_concept_${GAMEPLAY_TAG}.png`]: [128, 192],
   [`character_${GAMEPLAY_TAG}-fromcombined_idle.png`]: [256, 128],
   [`character_${GAMEPLAY_TAG}-fromcombined_walk.png`]: [256, 128],
   [`character_${GAMEPLAY_TAG}-fromcombined_run.png`]: [256, 128],
   [`character_${GAMEPLAY_TAG}-fromcombined_jump.png`]: [256, 128],
+  [`character_${GAMEPLAY_TAG}-fromcombined_climb.png`]: [256, 128],
   [`character_${GAMEPLAY_TAG}-fromcombined_crawl.png`]: [256, 128],
   [`character_${GAMEPLAY_TAG}_attack.png`]: [256, 128],
+  [`character_${GAMEPLAY_TAG}_hurt.png`]: [256, 128],
   [`mob_concept_${GAMEPLAY_TAG}_0.png`]: [128, 128],
   [`mob_${GAMEPLAY_TAG}_0_idle.png`]: [256, 128],
   [`mob_${GAMEPLAY_TAG}_0_hurt.png`]: [256, 128],
@@ -76,10 +83,47 @@ export const GAMEPLAY_PNG_DIMENSIONS = Object.freeze({
 } satisfies Record<string, readonly [number, number]>);
 
 export const GAMEPLAY_FIXTURE_FILES = Object.freeze([
-  ...Object.keys(GAMEPLAY_PNG_DIMENSIONS).sort(),
+  ...Object.keys(GAMEPLAY_PNG_DIMENSIONS).flatMap((filename) => [
+    filename,
+    `${filename}.meta.json`,
+  ]),
   `world_spec_${GAMEPLAY_TAG}.json`,
+  `world_spec_${GAMEPLAY_TAG}.json.meta.json`,
+  `manifest_${GAMEPLAY_TAG}.json`,
   "run.json",
   GAMEPLAY_FIXTURE_METADATA_FILE,
+].sort());
+
+type FixtureRuntimeAsset = Readonly<{
+  role: string;
+  path: string;
+  rows: number;
+  columns: number;
+  alphaExpectation: "opaque" | "transparent";
+}>;
+
+const GAMEPLAY_RUNTIME_ASSETS: readonly FixtureRuntimeAsset[] = Object.freeze([
+  { role: "concept", path: `concept_${GAMEPLAY_TAG}.png`, rows: 1, columns: 1, alphaExpectation: "opaque" },
+  { role: "layer-sky", path: `layer_${GAMEPLAY_TAG}_sky.png`, rows: 1, columns: 1, alphaExpectation: "opaque" },
+  { role: "layer-ridges", path: `layer_${GAMEPLAY_TAG}_ridges.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "layer-foreground", path: `layer_${GAMEPLAY_TAG}_foreground.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "tileset", path: `tileset_${GAMEPLAY_TAG}.png`, rows: 4, columns: 12, alphaExpectation: "transparent" },
+  { role: "ladder", path: `ladder_${GAMEPLAY_TAG}.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "character-concept", path: `character_concept_${GAMEPLAY_TAG}.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "character-idle", path: `character_${GAMEPLAY_TAG}-fromcombined_idle.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-walk", path: `character_${GAMEPLAY_TAG}-fromcombined_walk.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-run", path: `character_${GAMEPLAY_TAG}-fromcombined_run.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-jump", path: `character_${GAMEPLAY_TAG}-fromcombined_jump.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-crawl", path: `character_${GAMEPLAY_TAG}-fromcombined_crawl.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-climb", path: `character_${GAMEPLAY_TAG}-fromcombined_climb.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-attack", path: `character_${GAMEPLAY_TAG}_attack.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "character-hurt", path: `character_${GAMEPLAY_TAG}_hurt.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "mob-concept-0", path: `mob_concept_${GAMEPLAY_TAG}_0.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "mob-0-idle", path: `mob_${GAMEPLAY_TAG}_0_idle.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "mob-0-hurt", path: `mob_${GAMEPLAY_TAG}_0_hurt.png`, rows: 1, columns: 4, alphaExpectation: "transparent" },
+  { role: "items", path: `items_${GAMEPLAY_TAG}.png`, rows: 2, columns: 4, alphaExpectation: "transparent" },
+  { role: "inventory", path: `inventory_${GAMEPLAY_TAG}.png`, rows: 1, columns: 1, alphaExpectation: "transparent" },
+  { role: "portal", path: `portal_${GAMEPLAY_TAG}.png`, rows: 1, columns: 2, alphaExpectation: "transparent" },
 ]);
 
 type Rgba = readonly [number, number, number, number];
@@ -316,13 +360,16 @@ function generatedPngs(): Readonly<Record<string, Raster>> {
     [`layer_${GAMEPLAY_TAG}_ridges.png`]: transparentLayer("ridges"),
     [`layer_${GAMEPLAY_TAG}_foreground.png`]: transparentLayer("foreground"),
     [`tileset_${GAMEPLAY_TAG}.png`]: tileset(),
+    [`ladder_${GAMEPLAY_TAG}.png`]: conceptSprite(128, 256, COLORS.amber),
     [`character_concept_${GAMEPLAY_TAG}.png`]: conceptSprite(128, 192, COLORS.cyan),
     [`character_${GAMEPLAY_TAG}-fromcombined_idle.png`]: frameStrip(COLORS.cyan, 0),
     [`character_${GAMEPLAY_TAG}-fromcombined_walk.png`]: frameStrip(COLORS.cyan, 1),
     [`character_${GAMEPLAY_TAG}-fromcombined_run.png`]: frameStrip(COLORS.green, 2),
     [`character_${GAMEPLAY_TAG}-fromcombined_jump.png`]: frameStrip(COLORS.amber, 3),
+    [`character_${GAMEPLAY_TAG}-fromcombined_climb.png`]: frameStrip(COLORS.cyan, 4),
     [`character_${GAMEPLAY_TAG}-fromcombined_crawl.png`]: frameStrip(COLORS.violet, 4),
     [`character_${GAMEPLAY_TAG}_attack.png`]: frameStrip(COLORS.coral, 5),
+    [`character_${GAMEPLAY_TAG}_hurt.png`]: frameStrip(COLORS.violet, 6),
     [`mob_concept_${GAMEPLAY_TAG}_0.png`]: conceptSprite(128, 128, COLORS.coral),
     [`mob_${GAMEPLAY_TAG}_0_idle.png`]: frameStrip(COLORS.coral, 0),
     [`mob_${GAMEPLAY_TAG}_0_hurt.png`]: frameStrip(COLORS.amber, 2),
@@ -334,6 +381,114 @@ function generatedPngs(): Readonly<Record<string, Raster>> {
 
 function jsonBytes(value: unknown): Buffer {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function localArtifactProvenance(
+  artifact: Buffer,
+  mediaType: string,
+  prompt: string,
+  tool: string,
+): Buffer {
+  const digest = (bytes: Uint8Array | string) =>
+    createHash("sha256").update(bytes).digest("hex");
+  return jsonBytes({
+    schema_version: 2,
+    provider: "local",
+    model: "deterministic-gameplay-fixture",
+    seed: null,
+    prompt,
+    prompt_sha256: digest(prompt),
+    references: [],
+    refs: [],
+    inputs: [],
+    params: { stage: "gameplay-fixture" },
+    validation: { deterministic: true },
+    component: { name: "@stage-gen/web", version: "0.0.0" },
+    tool: { name: tool, version: "1" },
+    artifact: {
+      sha256: digest(artifact),
+      bytes: artifact.byteLength,
+      media_type: mediaType,
+    },
+    ts: "1970-01-01T00:00:00Z",
+    attempts: 1,
+    retries: 0,
+  });
+}
+
+function fixtureScaleReference(
+  cellWidth: number,
+  cellHeight: number,
+  frameIndex: number,
+) {
+  const top = 0.1;
+  const bottom = 0.3;
+  const left = 0.2;
+  const right = 0.4;
+  return {
+    part: "head",
+    top_fraction: top,
+    bottom_fraction: bottom,
+    left_fraction: left,
+    right_fraction: right,
+    extent_pixels:
+      Math.round(
+        Math.max(
+          (bottom - top) * cellHeight,
+          (right - left) * cellWidth,
+        ) * 1_000,
+      ) / 1_000,
+    confident: true,
+    evidence: "Deterministic synthetic actor bounds.",
+    frame_index: frameIndex,
+    cell_width: cellWidth,
+    cell_height: cellHeight,
+  };
+}
+
+function fixtureRuntimeAssets() {
+  return GAMEPLAY_RUNTIME_ASSETS.map((asset) => {
+    const dimensions = (
+      GAMEPLAY_PNG_DIMENSIONS as Readonly<
+        Record<string, readonly [number, number]>
+      >
+    )[asset.path];
+    if (!dimensions) throw new Error(`gameplay fixture dimensions missing for ${asset.path}`);
+    const [width, height] = dimensions;
+    const cellWidth = width / asset.columns;
+    const cellHeight = height / asset.rows;
+    if (!Number.isSafeInteger(cellWidth) || !Number.isSafeInteger(cellHeight)) {
+      throw new Error(`gameplay fixture layout is not integral for ${asset.role}`);
+    }
+    return {
+      id: asset.role,
+      runtime_slot: asset.role,
+      path: asset.path,
+      provenance_path: `${asset.path}.meta.json`,
+      alpha_expectation: asset.alphaExpectation,
+      layout: {
+        topology: asset.rows === 1 && asset.columns === 1 ? "single" : "grid",
+        rows: asset.rows,
+        columns: asset.columns,
+        cell_width: cellWidth,
+        cell_height: cellHeight,
+        gutter: 0,
+      },
+      geometry_validation: {
+        exact_dimensions: true,
+        alpha_contract: true,
+      },
+      ...(runtimeRoleOwnsScaleReference(asset.role)
+        ? {
+            scale_reference: fixtureScaleReference(
+              cellWidth,
+              cellHeight,
+              asset.role.endsWith("-attack") ? 1 : 0,
+            ),
+          }
+        : {}),
+    };
+  });
 }
 
 /** Create a fresh, fully synthetic run directory without reading media files. */
@@ -351,9 +506,49 @@ export async function generateGameplayFixture(outRoot: string): Promise<Gameplay
 
   const outputs = new Map<string, Buffer>();
   for (const [filename, image] of Object.entries(generatedPngs())) {
-    outputs.set(filename, encodePng(image));
+    const bytes = encodePng(image);
+    outputs.set(filename, bytes);
+    outputs.set(
+      `${filename}.meta.json`,
+      localArtifactProvenance(
+        bytes,
+        "image/png",
+        `emit deterministic gameplay fixture ${filename}`,
+        "gameplay-fixture-raster",
+      ),
+    );
   }
-  outputs.set(`world_spec_${GAMEPLAY_TAG}.json`, jsonBytes(worldSpec()));
+  const worldSpecPath = `world_spec_${GAMEPLAY_TAG}.json`;
+  const worldSpecBytes = jsonBytes(worldSpec());
+  outputs.set(worldSpecPath, worldSpecBytes);
+  outputs.set(
+    `${worldSpecPath}.meta.json`,
+    localArtifactProvenance(
+      worldSpecBytes,
+      "application/json",
+      "emit deterministic gameplay fixture world spec",
+      "gameplay-fixture-world-spec",
+    ),
+  );
+  // The current runtime requires the one v7 scrolling manifest. Optional subsystems may be
+  // absent, but the current core envelope and every published nested key are lower_snake_case.
+  outputs.set(
+    `manifest_${GAMEPLAY_TAG}.json`,
+    jsonBytes({
+      schema_version: 7,
+      recipe: "scrolling-preview",
+      tag: GAMEPLAY_TAG,
+      transparency_mode: GAMEPLAY_TRANSPARENCY_MODE,
+      artifacts: [...outputs.keys()].sort(),
+      canonical_artifacts: [],
+      world_spec: {
+        path: worldSpecPath,
+        provenance_path: `${worldSpecPath}.meta.json`,
+      },
+      runtime_assets: fixtureRuntimeAssets(),
+      image_repeat: { enabled: false, status: "deferred", artifacts: [] },
+    }),
+  );
   outputs.set(
     "run.json",
     jsonBytes({

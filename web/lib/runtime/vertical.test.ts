@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { buildHeightmapFromSeed } from "./heightmap";
 import {
+  DEMO_VERTICAL_LAYOUT_KINDS,
   LADDER_ENDPOINT_TOLERANCE,
+  PLATFORMER_AIR_JUMP_VELOCITY,
+  PLATFORMER_COYOTE_MS,
+  PLATFORMER_JUMP_VELOCITY,
   VERTICAL_ASSET_ERROR_MAX_LENGTH,
   activateVerticalFeatureTransaction,
   advanceLadderMotion,
@@ -12,6 +16,9 @@ import {
   ladderVisualBounds,
   platformDropThroughActive,
   prepareVerticalTraversalAssets,
+  resolveJumpRequest,
+  resolveTerrainStep,
+  resolveTerrainWalk,
   resolveVerticalLanding,
   selectDemoVerticalWorld,
   simulatePlatformJump,
@@ -23,6 +30,7 @@ import {
   verticalSpawnAllowed,
   verticalViewportWorldBounds,
   type UpperPlatform,
+  LADDER_VISUAL_WIDTH,
 } from "./vertical";
 
 const HEIGHTS = buildHeightmapFromSeed(1235206006, {
@@ -50,70 +58,43 @@ describe("vertical world contracts", () => {
   test("selects, sorts, freezes, and reserves the approved seed geometry", () => {
     const selected = approvedWorld();
     expect(selected.world.platforms).toEqual([
-      {
-        id: "tier-1-launch",
-        left: 1280,
-        right: 1664,
-        deckY: 528,
-        tier: 1,
-        thickness: 32,
-        sourceColumns: { start: 20, end: 26 },
-      },
-      {
-        id: "tier-2-transfer",
-        left: 1728,
-        right: 2112,
-        deckY: 464,
-        tier: 2,
-        thickness: 32,
-        sourceColumns: { start: 27, end: 33 },
-      },
-      {
-        id: "tier-3-bridge",
-        left: 2176,
-        right: 2560,
-        deckY: 400,
-        tier: 3,
-        thickness: 32,
-        sourceColumns: { start: 34, end: 40 },
-      },
-      {
-        id: "tier-4-summit",
-        left: 2624,
-        right: 3008,
-        deckY: 336,
-        tier: 4,
-        thickness: 32,
-        sourceColumns: { start: 41, end: 47 },
-      },
+      {"id":"tier-1-launch","left":1280,"right":1664,"deckY":528,"tier":1,"sourceColumns":{"start":20,"end":26},"thickness":32},
+      {"id":"tier-2-transfer","left":1728,"right":2112,"deckY":464,"tier":2,"sourceColumns":{"start":27,"end":33},"thickness":32},
+      {"id":"tier-3-bridge","left":2176,"right":2560,"deckY":400,"tier":3,"sourceColumns":{"start":34,"end":40},"thickness":32},
+      {"id":"sky-ledge","left":2304,"right":2560,"deckY":208,"tier":6,"sourceColumns":{"start":36,"end":40},"thickness":32},
+      {"id":"tier-4-summit","left":2624,"right":3008,"deckY":336,"tier":4,"sourceColumns":{"start":41,"end":47},"thickness":32},
+      {"id":"sky-cap","left":2688,"right":2944,"deckY":144,"tier":7,"sourceColumns":{"start":42,"end":46},"thickness":32},
+      {"id":"stone-first","left":3072,"right":3200,"deckY":336,"tier":4,"sourceColumns":{"start":48,"end":50},"thickness":32},
+      {"id":"stone-second","left":3264,"right":3392,"deckY":208,"tier":6,"sourceColumns":{"start":51,"end":53},"thickness":32},
+      {"id":"sky-span","left":3456,"right":3776,"deckY":208,"tier":6,"sourceColumns":{"start":54,"end":59},"thickness":32},
     ]);
     expect(selected.world.ladders).toEqual([
-      {
-        id: "ladder-summit",
-        platformId: "tier-4-summit",
-        centerX: 2976,
-        upperDeckY: 336,
-        lowerSurfaceY: 592,
-        activationHalfWidth: 30,
-        visualTopOvershoot: 32,
-        visualBottomOvershoot: 32,
-        visualWidth: 80,
-      },
+      {"id":"ladder-summit","platformId":"tier-4-summit","centerX":2976,"upperDeckY":336,"lowerSurfaceY":592,"activationHalfWidth":30,"visualTopOvershoot":32,"visualBottomOvershoot":32,"visualWidth":64},
     ]);
     expect(selected.reservedColumns).toEqual(
-      Array.from({ length: 29 }, (_, index) => index + 19),
+      Array.from({ length: 40 }, (_, index) => index + 19),
     );
     expect(selected.routes).toEqual([
-      { id: "jump-1", from: "terrain", to: "tier-1-launch", mode: "jump", rise: 64, gap: 0, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-2", from: "tier-1-launch", to: "tier-2-transfer", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-3", from: "tier-2-transfer", to: "tier-3-bridge", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "jump-4", from: "tier-3-bridge", to: "tier-4-summit", mode: "jump", rise: 64, gap: 64, landingStep: 15, horizontalRange: 270, ladderId: null },
-      { id: "drop-1", from: "tier-1-launch", to: "terrain", mode: "drop", rise: -64, gap: 0, landingStep: 9, horizontalRange: null, ladderId: null },
-      { id: "drop-2", from: "tier-2-transfer", to: "terrain", mode: "drop", rise: -192, gap: 0, landingStep: 15, horizontalRange: null, ladderId: null },
-      { id: "drop-3", from: "tier-3-bridge", to: "terrain", mode: "drop", rise: -256, gap: 0, landingStep: 18, horizontalRange: null, ladderId: null },
-      { id: "drop-4", from: "tier-4-summit", to: "terrain", mode: "drop", rise: -320, gap: 0, landingStep: 20, horizontalRange: null, ladderId: null },
-      { id: "ladder-up", from: "terrain", to: "tier-4-summit", mode: "ladder", rise: 256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
-      { id: "ladder-down", from: "tier-4-summit", to: "terrain", mode: "ladder", rise: -256, gap: 0, landingStep: null, horizontalRange: null, ladderId: "ladder-summit" },
+      {"id":"jump-1","from":"terrain","to":"tier-1-launch","mode":"jump","rise":64,"gap":0,"landingStep":15,"horizontalRange":270,"ladderId":null},
+      {"id":"jump-2","from":"tier-1-launch","to":"tier-2-transfer","mode":"jump","rise":64,"gap":64,"landingStep":15,"horizontalRange":270,"ladderId":null},
+      {"id":"jump-3","from":"tier-2-transfer","to":"tier-3-bridge","mode":"jump","rise":64,"gap":64,"landingStep":15,"horizontalRange":270,"ladderId":null},
+      {"id":"jump-4","from":"tier-3-bridge","to":"tier-4-summit","mode":"jump","rise":64,"gap":64,"landingStep":15,"horizontalRange":270,"ladderId":null},
+      {"id":"jump-5","from":"tier-4-summit","to":"sky-ledge","mode":"double-jump","rise":128,"gap":64,"landingStep":25,"horizontalRange":450,"ladderId":null},
+      {"id":"jump-6","from":"sky-ledge","to":"sky-cap","mode":"jump","rise":64,"gap":128,"landingStep":15,"horizontalRange":270,"ladderId":null},
+      {"id":"jump-7","from":"tier-4-summit","to":"stone-first","mode":"jump","rise":0,"gap":64,"landingStep":20,"horizontalRange":360,"ladderId":null},
+      {"id":"jump-8","from":"stone-first","to":"stone-second","mode":"double-jump","rise":128,"gap":64,"landingStep":25,"horizontalRange":450,"ladderId":null},
+      {"id":"jump-9","from":"stone-second","to":"sky-span","mode":"jump","rise":0,"gap":64,"landingStep":20,"horizontalRange":360,"ladderId":null},
+      {"id":"drop-tier-1-launch","from":"tier-1-launch","to":"terrain","mode":"drop","rise":-64,"gap":0,"landingStep":9,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-tier-2-transfer","from":"tier-2-transfer","to":"terrain","mode":"drop","rise":-192,"gap":0,"landingStep":15,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-tier-3-bridge","from":"tier-3-bridge","to":"terrain","mode":"drop","rise":-256,"gap":0,"landingStep":18,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-sky-ledge","from":"sky-ledge","to":"tier-3-bridge","mode":"drop","rise":-192,"gap":0,"landingStep":15,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-tier-4-summit","from":"tier-4-summit","to":"terrain","mode":"drop","rise":-320,"gap":0,"landingStep":20,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-sky-cap","from":"sky-cap","to":"tier-4-summit","mode":"drop","rise":-192,"gap":0,"landingStep":15,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-stone-first","from":"stone-first","to":"terrain","mode":"drop","rise":-256,"gap":0,"landingStep":18,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-stone-second","from":"stone-second","to":"terrain","mode":"drop","rise":-448,"gap":0,"landingStep":23,"horizontalRange":null,"ladderId":null},
+      {"id":"drop-sky-span","from":"sky-span","to":"terrain","mode":"drop","rise":-448,"gap":0,"landingStep":23,"horizontalRange":null,"ladderId":null},
+      {"id":"ladder-summit-up","from":"terrain","to":"tier-4-summit","mode":"ladder","rise":256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
+      {"id":"ladder-summit-down","from":"tier-4-summit","to":"terrain","mode":"ladder","rise":-256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
     ]);
     expect(
       selected.reservedColumns.filter((column) => ENCOUNTER_RESERVED.has(column)),
@@ -123,7 +104,7 @@ describe("vertical world contracts", () => {
       expect(verticalSpawnAllowed(reservation, column)).toBeFalse();
     }
     expect(verticalSpawnAllowed(reservation, 18)).toBeTrue();
-    expect(verticalSpawnAllowed(reservation, 48)).toBeTrue();
+    expect(verticalSpawnAllowed(reservation, 59)).toBeTrue();
     expect(Object.isFrozen(selected)).toBeTrue();
     expect(Object.isFrozen(selected.world.platforms[0]!.sourceColumns)).toBeTrue();
     for (const ladder of selected.world.ladders) {
@@ -342,19 +323,27 @@ describe("vertical world contracts", () => {
 
   test("proves the skilled jump chain without relying on ladder edges", () => {
     const selected = approvedWorld();
-    const jumps = selected.routes.filter((route) => route.mode === "jump");
-    expect(jumps).toHaveLength(4);
+    const jumps = selected.routes.filter(
+      (route) => route.mode === "jump" || route.mode === "double-jump",
+    );
+    expect(jumps).toHaveLength(9);
     expect(jumps.every((route) => route.ladderId === null)).toBeTrue();
     expect(jumps.map((route) => route.to)).toEqual([
       "tier-1-launch",
       "tier-2-transfer",
       "tier-3-bridge",
       "tier-4-summit",
+      "sky-ledge",
+      "sky-cap",
+      "stone-first",
+      "stone-second",
+      "sky-span",
     ]);
     expect(simulatePlatformJump({ rise: 64, gap: 64 })).toMatchObject({
       reachable: true,
       landingStep: 15,
       horizontalRange: 270,
+      airJumpStep: null,
     });
     expect(simulatePlatformJump({ rise: 64, gap: 64 }).apexRise).toBeCloseTo(
       81.6666666667,
@@ -368,6 +357,9 @@ describe("vertical world contracts", () => {
         (candidate) =>
           candidate.mode === "drop" && candidate.from === platform.id,
       )!;
+      // Stacked decks fall onto the deck below them, so only the platforms
+      // whose route actually names terrain are checked against terrain here.
+      if (route.to !== "terrain") continue;
       for (
         let column = platform.sourceColumns.start;
         column < platform.sourceColumns.end;
@@ -391,6 +383,304 @@ describe("vertical world contracts", () => {
         ).toBe("terrain");
       }
     }
+  });
+
+  test("declares an air-jump gate only where the ground jump falls short", () => {
+    const selected = approvedWorld();
+    const gates = selected.routes.filter((route) => route.mode === "double-jump");
+    expect(gates.map((route) => route.id)).toEqual(["jump-5", "jump-8"]);
+    for (const gate of gates) {
+      // Both halves of the claim: out of reach from the ground, in reach with
+      // the second impulse. A gate a single jump clears is mislabelled.
+      expect(
+        simulatePlatformJump({ rise: gate.rise, gap: gate.gap }).reachable,
+      ).toBeFalse();
+      expect(
+        simulatePlatformJump({
+          rise: gate.rise,
+          gap: gate.gap,
+          airJumpVelocity: PLATFORMER_AIR_JUMP_VELOCITY,
+        }),
+      ).toMatchObject({ reachable: true, airJumpStep: 11 });
+    }
+    for (const route of selected.routes) {
+      if (route.mode !== "jump") continue;
+      expect(
+        simulatePlatformJump({
+          rise: Math.max(0, route.rise),
+          gap: route.gap,
+        }).reachable,
+      ).toBeTrue();
+    }
+    const doubled = simulatePlatformJump({
+      rise: 128,
+      gap: 0,
+      airJumpVelocity: PLATFORMER_AIR_JUMP_VELOCITY,
+    });
+    expect(doubled.apexRise).toBeGreaterThan(128);
+    expect(doubled.apexRise).toBeLessThan(
+      simulatePlatformJump({ rise: 128, gap: 0 }).apexRise * 2,
+    );
+  });
+
+  test("stacks decks that share columns and drops onto the one below", () => {
+    const selected = approvedWorld();
+    const byId = new Map(
+      selected.world.platforms.map((platform) => [platform.id, platform]),
+    );
+    const ledge = byId.get("sky-ledge")!;
+    const bridge = byId.get("tier-3-bridge")!;
+    // Columns shared, bands apart: the branch runs directly over the spine.
+    expect(ledge.left).toBeGreaterThanOrEqual(bridge.left);
+    expect(ledge.right).toBeLessThanOrEqual(bridge.right);
+    expect(bridge.deckY - ledge.deckY).toBe(192);
+    expect(
+      selected.routes.find((route) => route.id === "drop-sky-ledge"),
+    ).toMatchObject({ to: "tier-3-bridge", rise: -192 });
+    expect(
+      selected.routes.find((route) => route.id === "drop-sky-cap"),
+    ).toMatchObject({ to: "tier-4-summit", rise: -192 });
+    // And the runtime resolver agrees: a foot falling through both bands
+    // stops on the higher deck rather than the ground under them.
+    expect(
+      resolveVerticalLanding({
+        x: ledge.left + 32,
+        previousFootY: ledge.deckY - 4,
+        nextFootY: bridge.deckY + 40,
+        vy: 600,
+        terrainY: 592,
+        platforms: selected.world.platforms,
+      }),
+    ).toMatchObject({ support: "platform", supportId: "sky-ledge" });
+  });
+
+  test("selects a distinct graph for every stage layout", () => {
+    const shapes = DEMO_VERTICAL_LAYOUT_KINDS.map((layout) => {
+      const selected = selectDemoVerticalWorld({
+        heights: HEIGHTS,
+        tilePixels: 64,
+        baselineY: 720,
+        worldWidth: 12_800,
+        reservedColumns: ENCOUNTER_RESERVED,
+        layout,
+      });
+      if (!selected) throw new Error(`layout ${layout} selected nothing`);
+      return { layout, selected };
+    });
+    const signatures = new Set(
+      shapes.map(({ selected }) =>
+        JSON.stringify(
+          selected.world.platforms.map((platform) => [
+            platform.id,
+            platform.left,
+            platform.deckY,
+          ]),
+        ),
+      ),
+    );
+    expect(signatures.size).toBe(DEMO_VERTICAL_LAYOUT_KINDS.length);
+    for (const { selected } of shapes) {
+      expect(selected.world.platforms.length).toBeGreaterThanOrEqual(7);
+      expect(selected.world.ladders).toHaveLength(1);
+      expect(
+        selected.routes.some((route) => route.mode === "double-jump"),
+      ).toBeTrue();
+      expect(
+        selected.reservedColumns.filter((column) =>
+          ENCOUNTER_RESERVED.has(column),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  test("resolves a ledge as a fall and recovers a foot under solid ground", () => {
+    // Walking off a raised column used to snap the foot straight down onto the
+    // new surface, so a four-tile cliff read exactly like flat ground.
+    expect(resolveTerrainStep({ footY: 528, surfaceY: 592 })).toEqual({
+      footY: 528,
+      support: "air",
+    });
+    // Lifting is a recovery, not a climb: the walk resolver stops a foot at
+    // the face before it can arrive here, and the alternative to lifting is a
+    // player sealed inside a hill.
+    expect(resolveTerrainStep({ footY: 592, surfaceY: 528 })).toEqual({
+      footY: 528,
+      support: "terrain",
+    });
+    expect(resolveTerrainStep({ footY: 592, surfaceY: 592 })).toEqual({
+      footY: 592,
+      support: "terrain",
+    });
+    // Sub-pixel drift is absorbed rather than launching a fall every frame.
+    expect(resolveTerrainStep({ footY: 591.5, surfaceY: 592 }).support).toBe(
+      "terrain",
+    );
+    expect(() =>
+      resolveTerrainStep({ footY: Number.NaN, surfaceY: 592 }),
+    ).toThrow("finite");
+    expect(() =>
+      resolveTerrainStep({ footY: 592, surfaceY: 592, tolerance: -1 }),
+    ).toThrow("nonnegative");
+  });
+
+  test("stops a walk at a raised column face so the way up is a jump", () => {
+    // Columns 0-1 at 592, column 2 raised to 528, column 3 dropped to 656.
+    const surfaceAt = (column: number) =>
+      column === 2 ? 528 : column >= 3 ? 656 : 592;
+    const walk = (previousX: number, nextX: number, footY: number) =>
+      resolveTerrainWalk({
+        previousX,
+        nextX,
+        footY,
+        tilePixels: 64,
+        surfaceAt,
+      });
+    // Walking right into the raised face stops a pixel short of it, still
+    // inside column 1, instead of climbing a whole tile for free.
+    expect(walk(120, 140, 592)).toEqual({
+      x: 127,
+      blocked: true,
+      blockedColumn: 2,
+    });
+    // Held against it, the resolved position is stable rather than creeping.
+    expect(walk(127, 145, 592).x).toBe(127);
+    // Coming back the other way stops on the open side of the same face.
+    expect(walk(200, 180, 656)).toEqual({
+      x: 192,
+      blocked: true,
+      blockedColumn: 2,
+    });
+    // A jump that has cleared the surface passes over it.
+    expect(walk(120, 140, 520)).toEqual({
+      x: 140,
+      blocked: false,
+      blockedColumn: null,
+    });
+    // Descents are never walls: walking off column 2 stays a fall.
+    expect(walk(180, 200, 528).blocked).toBeFalse();
+    // Movement inside one column is never resolved against a neighbour.
+    expect(walk(130, 140, 592).blocked).toBeFalse();
+    expect(() =>
+      walk(Number.NaN, 140, 592),
+    ).toThrow("finite");
+    expect(() =>
+      resolveTerrainWalk({
+        previousX: 0,
+        nextX: 10,
+        footY: 0,
+        tilePixels: 0,
+        surfaceAt,
+      }),
+    ).toThrow("positive");
+  });
+
+  test("clears a one-tile rise with the grounded jump it now requires", () => {
+    // Every terrain step in this heightfield is a whole tile, so the wall the
+    // walk resolver puts up has to be one the grounded jump can actually clear
+    // — otherwise a rise would be an unpassable seam rather than a climb.
+    const oneTile = simulatePlatformJump({ rise: 64, gap: 0 });
+    expect(oneTile.reachable).toBeTrue();
+    expect(oneTile.apexRise).toBeGreaterThan(64);
+    // And the clearance window is wide enough to cross the face while over it:
+    // at run speed the foot travels more than a tile inside that window.
+    expect(oneTile.horizontalRange!).toBeGreaterThan(64);
+  });
+
+  test("spends one air jump per airborne stretch and honours coyote time", () => {
+    expect(
+      resolveJumpRequest({
+        support: "terrain",
+        airJumpsUsed: 0,
+        nowMs: 1000,
+        coyoteExpiresAtMs: null,
+        crouching: false,
+      }),
+    ).toEqual({
+      kind: "ground",
+      vy: -PLATFORMER_JUMP_VELOCITY,
+      airJumpsUsed: 0,
+    });
+    expect(
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: 0,
+        nowMs: 1000,
+        coyoteExpiresAtMs: null,
+        crouching: false,
+      }),
+    ).toEqual({
+      kind: "air",
+      vy: -PLATFORMER_AIR_JUMP_VELOCITY,
+      airJumpsUsed: 1,
+    });
+    // The budget is one: a third press in the same airborne stretch buys
+    // nothing, which is what keeps a double jump from becoming flight.
+    expect(
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: 1,
+        nowMs: 1000,
+        coyoteExpiresAtMs: null,
+        crouching: false,
+      }),
+    ).toEqual({ kind: "none", vy: 0, airJumpsUsed: 1 });
+    // Inside the grace window a lost ledge still buys the full launch.
+    expect(
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: 0,
+        nowMs: 1000,
+        coyoteExpiresAtMs: 1000 + PLATFORMER_COYOTE_MS,
+        crouching: false,
+      }).kind,
+    ).toBe("ground");
+    expect(
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: 0,
+        nowMs: 1000 + PLATFORMER_COYOTE_MS + 1,
+        coyoteExpiresAtMs: 1000 + PLATFORMER_COYOTE_MS,
+        crouching: false,
+      }).kind,
+    ).toBe("air");
+    // A spent air jump closes the grace window too, so one press cannot be
+    // redeemed twice by a stale deadline.
+    expect(
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: 1,
+        nowMs: 1000,
+        coyoteExpiresAtMs: 1000 + PLATFORMER_COYOTE_MS,
+        crouching: false,
+      }).kind,
+    ).toBe("none");
+    expect(
+      resolveJumpRequest({
+        support: "terrain",
+        airJumpsUsed: 0,
+        nowMs: 0,
+        coyoteExpiresAtMs: null,
+        crouching: true,
+      }).kind,
+    ).toBe("none");
+    expect(
+      resolveJumpRequest({
+        support: "ladder",
+        airJumpsUsed: 0,
+        nowMs: 0,
+        coyoteExpiresAtMs: null,
+        crouching: false,
+      }).kind,
+    ).toBe("none");
+    expect(() =>
+      resolveJumpRequest({
+        support: "air",
+        airJumpsUsed: -1,
+        nowMs: 0,
+        coyoteExpiresAtMs: null,
+        crouching: false,
+      }),
+    ).toThrow("nonnegative");
   });
 
   test("rejects malformed, overlapping, non-flat, and out-of-world geometry", () => {
@@ -881,12 +1171,16 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
   });
 
   test("binds visual overshoot once and rejects mutation drift", () => {
+    // Overshoot is what this pins, so the vertical numbers stay literal. The horizontal ones
+    // derive from the width constant: it sizes the trimmed rails and is a presentation choice,
+    // and re-pinning it here would only mean editing two files to change one number.
+    const halfWidth = LADDER_VISUAL_WIDTH / 2;
     expect(ladderVisualBounds(up)).toEqual({
-      left: 2936,
-      right: 3016,
+      left: 2976 - halfWidth,
+      right: 2976 + halfWidth,
       top: 304,
       bottom: 624,
-      width: 80,
+      width: LADDER_VISUAL_WIDTH,
       height: 320,
     });
     const mutated = {

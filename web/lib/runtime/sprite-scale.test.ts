@@ -3,6 +3,7 @@ import {
   headMatchedScale,
   masterSheetScale,
   parseScaleReference,
+  runtimeRoleOwnsScaleReference,
   type ScaleReference,
 } from "./sprite-scale";
 
@@ -28,7 +29,34 @@ const reference = () => ({
 });
 
 const sheet = (extentPixels: number, confident = true): ScaleReference =>
-  Object.freeze({ part: "head", extentPixels, confident });
+  Object.freeze({
+    part: "head",
+    topFraction: 0.1,
+    bottomFraction: 0.3,
+    leftFraction: 0.2,
+    rightFraction: 0.4,
+    extentPixels,
+    confident,
+    evidence: "Visible head bounds.",
+    frameIndex: 0,
+    cellWidth: 600,
+    cellHeight: 688,
+  });
+
+const publishedReference = (overrides: Record<string, unknown> = {}) => ({
+  part: "head",
+  top_fraction: 0.1,
+  bottom_fraction: 0.3,
+  left_fraction: 0.2,
+  right_fraction: 0.4,
+  extent_pixels: 137.6,
+  confident: true,
+  evidence: "Visible head bounds.",
+  frame_index: 0,
+  cell_width: 600,
+  cell_height: 688,
+  ...overrides,
+});
 
 describe("headMatchedScale", () => {
   test("renders every sheet's head at the same size on screen", () => {
@@ -76,41 +104,103 @@ describe("headMatchedScale", () => {
     expect(HEAD.climb * scale!).toBeCloseTo(HEAD.idle * ref.scale, 6);
   });
 
-  test("falls back rather than resizing a character off a bad number", () => {
+  test("rejects bad inputs rather than inventing a fallback scale", () => {
     const ref = reference();
-    expect(headMatchedScale(ref, null)).toBeNull();
-    expect(headMatchedScale(ref, sheet(0))).toBeNull();
-    expect(headMatchedScale(ref, sheet(Number.NaN))).toBeNull();
-    expect(headMatchedScale({ extentPixels: 0, scale: 1 }, sheet(50))).toBeNull();
-    expect(headMatchedScale({ extentPixels: 100, scale: 0 }, sheet(50))).toBeNull();
+    expect(() => headMatchedScale(ref, sheet(0))).toThrow("sheet extent");
+    expect(() => headMatchedScale(ref, sheet(Number.NaN))).toThrow("sheet extent");
+    expect(() =>
+      headMatchedScale({ extentPixels: 0, scale: 1 }, sheet(50)),
+    ).toThrow("reference extent");
+    expect(() =>
+      headMatchedScale({ extentPixels: 100, scale: 0 }, sheet(50)),
+    ).toThrow("reference scale");
+    expect(() => masterSheetScale(TARGET_SPRITE_HEIGHT, 0)).toThrow(
+      "standing frame height",
+    );
   });
 });
 
 describe("parseScaleReference", () => {
   test("reads a published reference", () => {
-    const parsed = parseScaleReference({
+    const parsed = parseScaleReference(publishedReference());
+    expect(parsed).toEqual({
       part: "head",
-      extent_pixels: 222.981,
+      topFraction: 0.1,
+      bottomFraction: 0.3,
+      leftFraction: 0.2,
+      rightFraction: 0.4,
+      extentPixels: 137.6,
       confident: true,
+      evidence: "Visible head bounds.",
+      frameIndex: 0,
+      cellWidth: 600,
+      cellHeight: 688,
     });
-    expect(parsed).toEqual({ part: "head", extentPixels: 222.981, confident: true });
   });
 
   test("accepts a body reference for an undivided creature", () => {
     // A slime is one dome; its head is its body, and that is the same reference applied.
-    expect(parseScaleReference({ part: "body", extent_pixels: 90, confident: true })?.part).toBe(
-      "body",
-    );
+    expect(
+      parseScaleReference(
+        publishedReference({
+          part: "body",
+          top_fraction: 0,
+          bottom_fraction: 1,
+          left_fraction: 0.1,
+          right_fraction: 0.9,
+          extent_pixels: 688,
+        }),
+      ).part,
+    ).toBe("body");
   });
 
-  test("returns null for a run generated before the measurement existed", () => {
-    // Absence means "scale this the way you always did", not a broken manifest.
-    expect(parseScaleReference(undefined)).toBeNull();
-    expect(parseScaleReference(null)).toBeNull();
-    expect(parseScaleReference({})).toBeNull();
-    expect(parseScaleReference({ part: "head" })).toBeNull();
-    expect(parseScaleReference({ part: "elbow", extent_pixels: 10 })).toBeNull();
-    expect(parseScaleReference({ part: "head", extent_pixels: 0 })).toBeNull();
-    expect(parseScaleReference({ part: "head", extent_pixels: -4 })).toBeNull();
+  test("rejects absent, partial, aliased, and inconsistent payloads", () => {
+    for (const value of [
+      undefined,
+      null,
+      {},
+      { part: "head" },
+      publishedReference({ part: "elbow" }),
+      publishedReference({ extent_pixels: 0 }),
+      publishedReference({ top_fraction: 0.3, bottom_fraction: 0.1 }),
+      publishedReference({ extent_pixels: 100 }),
+      publishedReference({ frameIndex: 0 }),
+    ]) {
+      expect(() => parseScaleReference(value)).toThrow();
+    }
+  });
+});
+
+describe("runtimeRoleOwnsScaleReference", () => {
+  test("recognizes the exact current measured actor roles", () => {
+    for (const role of [
+      "character-idle",
+      "character-walk",
+      "character-run",
+      "character-jump",
+      "character-crawl",
+      "character-climb",
+      "character-attack",
+      "mob-0-idle",
+      "mob-12-hurt",
+      "mob-2-attack",
+      "village-npc-0-idle",
+      "village-npc-3-still",
+    ]) {
+      expect(runtimeRoleOwnsScaleReference(role)).toBeTrue();
+    }
+  });
+
+  test("does not classify concepts, fixtures, or optional hurt as measured roles", () => {
+    for (const role of [
+      "character-concept",
+      "character-hurt",
+      "mob-concept-0",
+      "mob-0-concept",
+      "village-npc-concept-0",
+      "village-fixtures",
+    ]) {
+      expect(runtimeRoleOwnsScaleReference(role)).toBeFalse();
+    }
   });
 });
