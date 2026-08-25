@@ -60,8 +60,10 @@ from stage_gen.recipes.scrolling_preview.map_book import (
 from stage_gen.recipes.scrolling_preview.mob_states import (
     BASE_MOB_STRIP_STATES,
     MOB_STRIP_STATES,
+    is_mob_strip_runtime_role,
     mob_strip_artifact,
     mob_strip_runtime_role,
+    mob_strip_stage,
 )
 from stage_gen.recipes.scrolling_preview.models import WorldSpec
 from stage_gen.recipes.scrolling_preview.profile import PROFILE_RESOLUTION_VERSION
@@ -73,6 +75,12 @@ from stage_gen.recipes.scrolling_preview.raster_contracts import (
     validate_canonical_grid,
 )
 from stage_gen.recipes.scrolling_preview.resident import village_spec_shape
+from stage_gen.recipes.scrolling_preview.scale_reference import (
+    evaluate_actor_scale_reference,
+    measures_scale_reference,
+    parse_actor_scale_reference,
+    scale_reference_frame,
+)
 from stage_gen.recipes.scrolling_preview.soundtrack import collect_scrolling_soundtrack
 from stage_gen.recipes.scrolling_preview.village import (
     STRIP_RESIDENT_RENDER,
@@ -99,6 +107,9 @@ _CAMEL_BOUNDARY = re.compile(r"(?<!^)(?=[A-Z])")
 # Population zones are authored in those same half-open column coordinates, so the producer
 # validates the consumer limit before publishing rather than clipping a malformed zone at runtime.
 _SCROLLING_PREVIEW_STAGE_COLUMN_COUNT = 200
+_POST_SPLIT_SCALE_REFERENCE_ROLES = frozenset(
+    f"character-{state}" for state in ("idle", "walk", "run", "jump", "crawl")
+)
 
 
 def _lower_snake_case_manifest(value: Any) -> Any:
@@ -903,7 +914,12 @@ def _collect_runtime_assets(
         provenance = entry.get("provenancePath")
         if not isinstance(provenance, str):
             raise ValueError(f"runtime-required role {requirement.role} lacks provenance binding")
-        scale_reference = _read_scale_reference(run_dir, requirement.path)
+        scale_reference_stage = _scale_reference_owner_stage(requirement)
+        scale_reference = (
+            _read_required_scale_reference(run_dir, requirement, scale_reference_stage)
+            if scale_reference_stage is not None
+            else None
+        )
         results.append(
             {
                 "id": requirement.role,
@@ -913,65 +929,147 @@ def _collect_runtime_assets(
                 "alphaExpectation": requirement.alpha,
                 "layout": geometry.pop("layout"),
                 "geometryValidation": geometry,
-                **({"scale_reference": scale_reference} if scale_reference else {}),
+                **({"scale_reference": scale_reference} if scale_reference is not None else {}),
                 **({"binding": requirement.metadata} if requirement.metadata else {}),
             }
         )
     return results, {"path": world_name, "provenancePath": world_meta}
 
 
-def _read_scale_reference(run_dir: Path, asset_path: str) -> dict[str, Any] | None:
-    """The anatomical scale reference measured for this sheet, when one was taken.
+def _scale_reference_owner_stage(requirement: _RuntimeRequirement) -> str | None:
+    """Return the stage that owns this runtime asset's mandatory measurement.
 
-    Optional on purpose. Only actor sheets carry one, and a run generated before the measurement
-    existed has none - so its absence means "scale this sheet the way you always did" rather
-    than a broken manifest. The consumer needs it because cell geometry differs sheet to sheet
-    and every sheet is a separate provider call, leaving nothing in the pixels to tie their draw
-    scale together.
-
-    The reading is bound to the exact bytes it was taken from before it is published. A
-    measurement names the artwork it measured in its own sidecar, and a sheet can legitimately be
-    replaced after being measured - a rejected facing verdict regenerates one - so path existence
-    alone does not establish that the two still describe each other. Publishing an unbound
-    reference is worse than publishing none: the runtime would scale the sheet by a head that
-    belongs to a discarded image, and every deterministic gate would still pass. A reference that
-    does not match falls back to "no reference", which is a supported state.
+    Most generated sheets use the same identifier at generation and runtime. Mob runtime roles
+    retain their established `mob-<slot>-<state>` spelling while their generating stages are
+    `mob-<state>-<slot>`, so that one case is mapped back before asking the shared ownership
+    predicate. The five player master states are the deliberate exception to that predicate:
+    `post-split` measures the final re-sliced runtime bytes, after the generated sheets have been
+    composed. They are nevertheless part of the current runtime measurement closure.
     """
 
-    reference = run_dir / f"{Path(asset_path).stem}.scale-reference.json"
-    try:
-        payload = json.loads(reference.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    if requirement.role in _POST_SPLIT_SCALE_REFERENCE_ROLES:
+        return requirement.role
+    if measures_scale_reference(requirement.role):
+        return requirement.role
+    if not is_mob_strip_runtime_role(requirement.role):
         return None
+    metadata = requirement.metadata
+    slot = metadata.get("slot") if isinstance(metadata, dict) else None
+    state = metadata.get("state") if isinstance(metadata, dict) else None
+    if (
+        isinstance(slot, bool)
+        or not isinstance(slot, int)
+        or slot < 0
+        or not isinstance(state, str)
+    ):
+        raise ValueError(f"runtime-required role {requirement.role} has invalid binding")
+    stage = mob_strip_stage(state, slot)
+    if not measures_scale_reference(stage):
+        raise ValueError(f"runtime-required role {requirement.role} has no measurement owner")
+    return stage
+
+
+def _read_required_scale_reference(
+    run_dir: Path,
+    requirement: _RuntimeRequirement,
+    stage: str,
+) -> dict[str, Any]:
+    """Read one current, provenance-bound measurement or reject the runtime asset.
+
+    A required measurement is part of manifest-v7 validity, not an optional hint. Both bindings
+    matter: provenance binds the JSON bytes to their sidecar, while `measured_sha256` binds the
+    reading to the exact PNG bytes. The payload is then re-evaluated against the runtime role's
+    current cell geometry so a stale frame index, cell size, extent, or partial object cannot be
+    published as though it were a current measurement.
+    """
+
+    reference_name = f"{Path(requirement.path).stem}.scale-reference.json"
+    reference_path = run_dir / reference_name
+    sidecar_path = Path(f"{reference_path}.meta.json")
+    try:
+        reference_data = reference_path.read_bytes()
+    except OSError as error:
+        raise ValueError(
+            f"runtime-required role {requirement.role} scale reference is missing"
+        ) from error
+    try:
+        provenance = ArtifactProvenance.model_validate_json(sidecar_path.read_bytes())
+    except (OSError, ValueError) as error:
+        raise ValueError(
+            f"runtime-required role {requirement.role} scale reference provenance is invalid"
+        ) from error
+    artifact = provenance.artifact
+    if (
+        artifact is None
+        or artifact.media_type != "application/json"
+        or artifact.sha256 != hashlib.sha256(reference_data).hexdigest()
+        or artifact.bytes != len(reference_data)
+    ):
+        raise ValueError(
+            f"runtime-required role {requirement.role} scale reference binding mismatch"
+        )
+    try:
+        measured_sha256 = hashlib.sha256((run_dir / requirement.path).read_bytes()).hexdigest()
+    except OSError as error:
+        raise ValueError(f"runtime-required role {requirement.role} is missing") from error
+    metadata = provenance.params.get("metadata")
+    if (
+        not isinstance(metadata, dict)
+        or metadata.get("stage") != f"{stage}-scale-reference"
+        or metadata.get("measured_sha256") != measured_sha256
+    ):
+        raise ValueError(f"runtime-required role {requirement.role} scale reference is stale")
+    try:
+        payload = json.loads(reference_data)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"runtime-required role {requirement.role} scale reference is invalid"
+        ) from error
+    return _validate_scale_reference_payload(payload, requirement, stage)
+
+
+def _validate_scale_reference_payload(
+    payload: object,
+    requirement: _RuntimeRequirement,
+    stage: str,
+) -> dict[str, Any]:
+    """Validate the exact evaluated scale-reference object published by the current producer."""
+
+    contract = contract_for_runtime_role(requirement.role)
+    if contract is None:
+        raise ValueError(f"runtime-required role {requirement.role} has no scale grid contract")
+    cell_width, cell_height = contract.cell_size(requirement.width, requirement.height)
     if not isinstance(payload, dict):
-        return None
-    extent = payload.get("extent_pixels")
-    if not isinstance(extent, (int, float)) or isinstance(extent, bool) or extent <= 0:
-        return None
-    if not _scale_reference_measures(reference, run_dir / asset_path):
-        return None
-    return payload
-
-
-def _scale_reference_measures(reference: Path, artifact: Path) -> bool:
-    """Whether current provenance binds the measurement to the exact artifact bytes."""
-
+        raise ValueError(f"runtime-required role {requirement.role} scale reference is invalid")
     try:
-        sidecar = json.loads(Path(f"{reference}.meta.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    if not isinstance(sidecar, dict):
-        return False
-    params = sidecar.get("params")
-    metadata = params.get("metadata") if isinstance(params, dict) else None
-    recorded = metadata.get("measured_sha256") if isinstance(metadata, dict) else None
-    if not isinstance(recorded, str) or not recorded:
-        return False
-    try:
-        measured = hashlib.sha256(artifact.read_bytes()).hexdigest()
-    except OSError:
-        return False
-    return measured == recorded
+        parsed = parse_actor_scale_reference(
+            {
+                "part": payload["part"],
+                "top": payload["top_fraction"],
+                "bottom": payload["bottom_fraction"],
+                "left": payload["left_fraction"],
+                "right": payload["right_fraction"],
+                "confident": payload["confident"],
+                "evidence": payload["evidence"],
+            }
+        )
+        expected = {
+            **evaluate_actor_scale_reference(
+                parsed,
+                frame_width=cell_width,
+                frame_height=cell_height,
+            ),
+            "frame_index": scale_reference_frame(stage),
+            "cell_width": cell_width,
+            "cell_height": cell_height,
+        }
+    except (KeyError, ValueError) as error:
+        raise ValueError(
+            f"runtime-required role {requirement.role} scale reference is invalid"
+        ) from error
+    if payload != expected:
+        raise ValueError(f"runtime-required role {requirement.role} scale reference is invalid")
+    return cast(dict[str, Any], payload)
 
 
 def _read_village_spec(

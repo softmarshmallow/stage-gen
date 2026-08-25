@@ -27,6 +27,11 @@ from stage_gen.recipes.scrolling_preview.raster_contracts import (
     normalize_canonical_grid,
     validate_canonical_grid,
 )
+from stage_gen.recipes.scrolling_preview.scale_reference import (
+    evaluate_actor_scale_reference,
+    parse_actor_scale_reference,
+    scale_reference_frame,
+)
 from stage_gen.recipes.scrolling_preview.village import (
     VillageSpec,
     village_manifest_block,
@@ -483,6 +488,11 @@ async def test_manifest_publishes_complete_pixel_validated_runtime_bindings(
     assert runtime["ladder"]["layout"]["cell_height"] == 1024
     assert runtime["character-climb"]["layout"]["cell_width"] == 64
     assert runtime["layer-near_ruins"]["binding"]["parallax"] == 1.8
+    assert {role for role, entry in runtime.items() if "scale_reference" in entry} == {
+        requirement.role
+        for requirement in manifest_module._runtime_requirements(tag, world)
+        if manifest_module._scale_reference_owner_stage(requirement) is not None
+    }
     assert "gameplay-verification.png" not in manifest["artifacts"]
     assert all(name not in manifest["artifacts"] for name in hidden_material_names)
     assert [entry["id"] for entry in manifest["runtime_assets"]].count("tileset") == 1
@@ -1091,30 +1101,130 @@ async def test_a_declared_unreadable_village_bible_is_rejected(
         )
 
 
-def test_scale_reference_requires_a_current_content_digest_sidecar(tmp_path: Path) -> None:
-    artifact = tmp_path / "actor.png"
-    reference = tmp_path / "actor.scale-reference.json"
-    artifact.write_bytes(b"current actor bytes")
-    reference.write_text('{"extent_pixels": 42}', encoding="utf-8")
+def test_scale_reference_ownership_matches_the_current_runtime_closure() -> None:
+    world = WorldSpec.model_validate(valid_world())
+    village = VillageSpec.model_validate(valid_village())
+    requirements = manifest_module._runtime_requirements("closure", world, village)
 
-    assert not manifest_module._scale_reference_measures(reference, artifact)
+    owners = {
+        requirement.role: manifest_module._scale_reference_owner_stage(requirement)
+        for requirement in requirements
+        if manifest_module._scale_reference_owner_stage(requirement) is not None
+    }
 
-    Path(f"{reference}.meta.json").write_text(
-        json.dumps(
-            {
-                "params": {
-                    "metadata": {
-                        "measured_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()
-                    }
-                }
-            }
+    assert owners == {
+        "character-idle": "character-idle",
+        "character-walk": "character-walk",
+        "character-run": "character-run",
+        "character-jump": "character-jump",
+        "character-crawl": "character-crawl",
+        "character-attack": "character-attack",
+        "character-climb": "character-climb",
+        "mob-0-idle": "mob-idle-0",
+        "mob-0-hurt": "mob-hurt-0",
+        "mob-1-idle": "mob-idle-1",
+        "mob-1-hurt": "mob-hurt-1",
+        "village-npc-0-idle": "village-npc-0-idle",
+        "village-npc-1-idle": "village-npc-1-idle",
+        "village-npc-2-idle": "village-npc-2-idle",
+        "village-npc-3-idle": "village-npc-3-idle",
+    }
+
+
+async def test_manifest_rejects_a_missing_required_scale_reference(tmp_path: Path) -> None:
+    tag = "missing-scale-reference"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _write_village_run(run_dir, tag, village=None)
+    reference = run_dir / f"character_{tag}_attack.scale-reference.json"
+    await asyncio.to_thread(reference.unlink)
+    await asyncio.to_thread(Path(f"{reference}.meta.json").unlink)
+
+    with pytest.raises(
+        ValueError,
+        match="runtime-required role character-attack scale reference is missing",
+    ):
+        await write_scrolling_preview_manifest(
+            run_dir=run_dir,
+            tag=tag,
+            transparency_mode=TransparencyMode.CHROMA,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("extent_pixels", 999.0),
+        ("frame_index", 0),
+        ("cell_width", 1),
+    ],
+)
+async def test_manifest_rejects_malformed_required_scale_reference(
+    tmp_path: Path,
+    field: str,
+    replacement: object,
+) -> None:
+    tag = f"malformed-scale-{field}"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _write_village_run(run_dir, tag, village=None)
+    reference = run_dir / f"character_{tag}_attack.scale-reference.json"
+    payload = json.loads(await asyncio.to_thread(reference.read_text, encoding="utf-8"))
+    payload[field] = replacement
+    measured_bytes = await asyncio.to_thread((run_dir / f"character_{tag}_attack.png").read_bytes)
+    write_artifact_with_provenance(
+        reference,
+        BinaryArtifact(
+            data=(json.dumps(payload, indent=2) + "\n").encode(),
+            media_type="application/json",
         ),
-        encoding="utf-8",
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="measure actor scale",
+            params={
+                "metadata": {
+                    "stage": "character-attack-scale-reference",
+                    "measured_sha256": sha256_hex(measured_bytes),
+                }
+            },
+            attempts=1,
+        ),
     )
-    assert manifest_module._scale_reference_measures(reference, artifact)
 
-    artifact.write_bytes(b"replacement actor bytes")
-    assert not manifest_module._scale_reference_measures(reference, artifact)
+    with pytest.raises(
+        ValueError,
+        match="runtime-required role character-attack scale reference is invalid",
+    ):
+        await write_scrolling_preview_manifest(
+            run_dir=run_dir,
+            tag=tag,
+            transparency_mode=TransparencyMode.CHROMA,
+        )
+
+
+async def test_manifest_rejects_a_stale_scale_reference_digest(
+    tmp_path: Path,
+) -> None:
+    tag = "stale-scale-reference"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _write_village_run(run_dir, tag, village=None)
+    reference = run_dir / f"character_{tag}_attack.scale-reference.json"
+    sidecar = Path(f"{reference}.meta.json")
+    provenance = json.loads(await asyncio.to_thread(sidecar.read_text, encoding="utf-8"))
+    provenance["params"]["metadata"]["measured_sha256"] = "0" * 64
+    await asyncio.to_thread(sidecar.write_text, json.dumps(provenance), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="runtime-required role character-attack scale reference is stale",
+    ):
+        await write_scrolling_preview_manifest(
+            run_dir=run_dir,
+            tag=tag,
+            transparency_mode=TransparencyMode.CHROMA,
+        )
 
 
 def _write_runtime_pair(
@@ -1197,6 +1307,61 @@ def _write_runtime_pair(
                 "output_width": requirement.width,
                 "output_height": requirement.height,
                 **geometry,
+            },
+            attempts=1,
+        ),
+    )
+    _write_required_scale_reference(run_dir, requirement)
+
+
+def _write_required_scale_reference(
+    run_dir: Path,
+    requirement: manifest_module._RuntimeRequirement,
+) -> None:
+    stage = manifest_module._scale_reference_owner_stage(requirement)
+    if stage is None:
+        return
+    contract = contract_for_runtime_role(requirement.role)
+    assert contract is not None
+    cell_width, cell_height = contract.cell_size(requirement.width, requirement.height)
+    measured = parse_actor_scale_reference(
+        {
+            "part": "head",
+            "top": 0.1,
+            "bottom": 0.2,
+            "left": 0.1,
+            "right": 0.2,
+            "confident": True,
+            "evidence": "head bounded inside the selected frame",
+        }
+    )
+    payload = {
+        **evaluate_actor_scale_reference(
+            measured,
+            frame_width=cell_width,
+            frame_height=cell_height,
+        ),
+        "frame_index": scale_reference_frame(stage),
+        "cell_width": cell_width,
+        "cell_height": cell_height,
+    }
+    artifact = run_dir / requirement.path
+    reference = artifact.with_name(f"{artifact.stem}.scale-reference.json")
+    write_artifact_with_provenance(
+        reference,
+        BinaryArtifact(
+            data=(json.dumps(payload, indent=2) + "\n").encode(),
+            media_type="application/json",
+        ),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="measure actor scale",
+            params={
+                "metadata": {
+                    "stage": f"{stage}-scale-reference",
+                    "measured_sha256": sha256_hex(artifact.read_bytes()),
+                }
             },
             attempts=1,
         ),
