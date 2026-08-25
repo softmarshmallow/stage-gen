@@ -7,14 +7,6 @@ import json
 from pathlib import Path
 
 import pytest
-from test_soundtrack_pipeline import (
-    _context,
-    _FakeMusicRuntime,
-    _game_binding,
-    _input,
-    _map_binding,
-    _write_soundtrack,
-)
 
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.recipes.scrolling_preview import manifest as manifest_module
@@ -25,6 +17,15 @@ from stage_gen.recipes.scrolling_preview.soundtrack import (
     resolve_scrolling_soundtrack,
 )
 from stage_gen.recipes.scrolling_preview.stages import scrolling_preview_stages
+
+from .test_soundtrack_pipeline import (
+    _context,
+    _FakeMusicRuntime,
+    _game_binding,
+    _input,
+    _map_binding,
+    _write_soundtrack,
+)
 
 
 def test_parser_requires_a_matching_game_binding(tmp_path: Path) -> None:
