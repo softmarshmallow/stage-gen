@@ -3,15 +3,33 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
+from io import BytesIO
 from pathlib import Path
 
 import pytest
+from PIL import Image, ImageDraw
 from pydantic import ValidationError
 
+import stage_gen.recipes.scrolling_preview.manifest as manifest_module
 from stage_gen.config import TransparencyMode
 from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.recipes.scrolling_preview.manifest import write_scrolling_preview_manifest
-from stage_gen.recipes.scrolling_preview.models import WorldSpec
+from stage_gen.recipes.scrolling_preview.models import (
+    NEAR_FOREGROUND_PARALLAX,
+    WORLD_SPEC_NORMALIZATION_VERSION,
+    WorldSpec,
+    canonicalize_generated_world_spec,
+)
+from stage_gen.recipes.scrolling_preview.raster_contracts import (
+    contract_for_runtime_role,
+    normalize_canonical_grid,
+    validate_canonical_grid,
+)
+from stage_gen.recipes.scrolling_preview.village import (
+    VillageSpec,
+    village_manifest_block,
+)
 from stage_gen.reliability import sha256_hex, write_artifact_with_provenance
 
 
@@ -66,7 +84,7 @@ def valid_world() -> dict[str, object]:
                 "id": "near_ruins",
                 "title": "Near ruins",
                 "z_index": 1,
-                "parallax": 0.5,
+                "parallax": 1.8,
                 "opaque": False,
                 "paint_region": "lower half",
                 "description": "Arches",
@@ -84,7 +102,395 @@ def test_world_schema_enforces_cross_asset_invariants() -> None:
         WorldSpec.model_validate(duplicate)
 
 
-async def test_manifest_v2_copies_only_approved_fallback(tmp_path: Path) -> None:
+def test_world_schema_requires_one_canonical_near_foreground() -> None:
+    stale = valid_world()
+    stale["layers"][1]["parallax"] = 1.0  # type: ignore[index]
+    with pytest.raises(ValidationError, match=r"near foreground at parallax=1\.8"):
+        WorldSpec.model_validate(stale)
+
+    extra_near = valid_world()
+    layers = extra_near["layers"]
+    assert isinstance(layers, list)
+    layers.insert(
+        1,
+        {
+            "id": "middle_ruins",
+            "title": "Middle ruins",
+            "z_index": 1,
+            "parallax": 1.2,
+            "opaque": False,
+            "paint_region": "middle",
+            "description": "Arches",
+        },
+    )
+    extra_near["layers"][2]["z_index"] = 2  # type: ignore[index]
+    with pytest.raises(ValidationError, match="only the front-most"):
+        WorldSpec.model_validate(extra_near)
+
+
+@pytest.mark.parametrize("input_parallax", [1.0, 1.2])
+def test_generated_world_canonicalizes_only_frontmost_parallax(
+    input_parallax: float,
+) -> None:
+    payload = valid_world()
+    layers = payload["layers"]
+    assert isinstance(layers, list)
+    layers.insert(
+        1,
+        {
+            "id": "middle_ruins",
+            "title": "Middle ruins",
+            "z_index": 1,
+            "parallax": 0.6,
+            "opaque": False,
+            "paint_region": "middle",
+            "description": "Arches",
+        },
+    )
+    near = layers[2]
+    assert isinstance(near, dict)
+    near["z_index"] = 2
+    near["parallax"] = input_parallax
+    source_layers = json.loads(json.dumps(layers))
+
+    result = canonicalize_generated_world_spec(payload)
+
+    assert [layer.id for layer in result.spec.layers] == [
+        "deep_sky",
+        "middle_ruins",
+        "near_ruins",
+    ]
+    assert result.spec.layers[0].parallax == 0
+    assert result.spec.layers[1].parallax == 0.6
+    assert result.spec.layers[2].parallax == NEAR_FOREGROUND_PARALLAX
+    assert payload["layers"] == source_layers
+    record = result.validation["world_spec_normalization"]
+    assert isinstance(record, dict)
+    assert record == {
+        "version": WORLD_SPEC_NORMALIZATION_VERSION,
+        "target_layer_id": "near_ruins",
+        "target_z_index": 2,
+        "input_parallax": input_parallax,
+        "output_parallax": NEAR_FOREGROUND_PARALLAX,
+        "changed": True,
+        "changed_fields": ["layers[2].parallax"],
+        "layer_ids": ["deep_sky", "middle_ruins", "near_ruins"],
+        "unchanged_layer_ids": ["deep_sky", "middle_ruins"],
+        "layer_order_preserved": True,
+        "unrelated_layers_unchanged": True,
+    }
+
+
+def test_generated_world_preserves_already_canonical_foreground() -> None:
+    result = canonicalize_generated_world_spec(valid_world())
+    record = result.validation["world_spec_normalization"]
+
+    assert isinstance(record, dict)
+    assert result.spec.layers[-1].parallax == NEAR_FOREGROUND_PARALLAX
+    assert record["input_parallax"] == NEAR_FOREGROUND_PARALLAX
+    assert record["changed"] is False
+    assert record["changed_fields"] == []
+
+
+def test_generated_world_rejects_missing_or_ambiguous_foreground() -> None:
+    missing = valid_world()
+    layers = missing["layers"]
+    assert isinstance(layers, list)
+    missing["layers"] = layers[:1]
+    with pytest.raises(ValidationError, match="at least one transparent"):
+        canonicalize_generated_world_spec(missing)
+
+    ambiguous = valid_world()
+    layers = ambiguous["layers"]
+    assert isinstance(layers, list)
+    layers.append(
+        {
+            "id": "near_branches",
+            "title": "Near branches",
+            "z_index": 1,
+            "parallax": 1.0,
+            "opaque": False,
+            "paint_region": "edges",
+            "description": "Branches",
+        }
+    )
+    with pytest.raises(ValidationError, match="exactly one front-most transparent"):
+        canonicalize_generated_world_spec(ambiguous)
+
+
+def test_runtime_requirements_include_exact_ladder_climb_items_and_layers() -> None:
+    world = WorldSpec.model_validate(valid_world())
+    requirements = {
+        requirement.role: requirement
+        for requirement in manifest_module._runtime_requirements("storybook-ai", world)
+    }
+
+    assert (requirements["concept"].width, requirements["concept"].height) == (1536, 1024)
+    assert requirements["concept"].alpha == "opaque"
+    assert (
+        requirements["character-concept"].width,
+        requirements["character-concept"].height,
+    ) == (2400, 800)
+    assert requirements["character-concept"].alpha == "transparent"
+    assert {role for role in requirements if role.startswith("mob-concept-")} == {
+        f"mob-concept-{index}" for index in range(len(world.mobs))
+    }
+    assert (requirements["ladder"].width, requirements["ladder"].height) == (256, 1024)
+    assert (
+        requirements["character-climb"].width,
+        requirements["character-climb"].height,
+    ) == (256, 128)
+    assert (requirements["items"].width, requirements["items"].height) == (2400, 800)
+    assert requirements["layer-near_ruins"].metadata == {
+        "zIndex": 1,
+        "parallax": 1.8,
+        "opaque": False,
+    }
+
+
+def test_runtime_manifest_contract_rejects_missing_world_and_required_roles(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="world spec artifact pair is missing"):
+        manifest_module._collect_runtime_assets(tmp_path, "missing", set(), [])
+
+    tag = "incomplete-ai"
+    world_path = tmp_path / f"world_spec_{tag}.json"
+    world_data = (json.dumps(valid_world()) + "\n").encode()
+    world_meta = write_artifact_with_provenance(
+        world_path,
+        BinaryArtifact(data=world_data, media_type="application/json"),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="create world spec",
+            params={"metadata": {"stage": "world-spec"}},
+            attempts=1,
+        ),
+    )
+    names = {world_path.name, Path(world_meta).name}
+    with pytest.raises(ValueError, match="runtime-required role concept is missing"):
+        manifest_module._collect_runtime_assets(tmp_path, tag, names, [])
+
+
+async def test_runtime_publication_rejects_each_missing_concept_role(tmp_path: Path) -> None:
+    tag = "missing-concepts"
+    world = WorldSpec.model_validate(valid_world())
+    world_path = tmp_path / f"world_spec_{tag}.json"
+    world_data = (world.model_dump_json(indent=2) + "\n").encode()
+    write_artifact_with_provenance(
+        world_path,
+        BinaryArtifact(data=world_data, media_type="application/json"),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="create complete world",
+            params={"metadata": {"stage": "world-spec"}},
+            attempts=1,
+        ),
+    )
+    requirements = manifest_module._runtime_requirements(tag, world)
+    for requirement in requirements:
+        _write_runtime_pair(tmp_path, requirement, mode="chroma")
+
+    concept_requirements = [
+        requirement
+        for requirement in requirements
+        if requirement.role in {"concept", "character-concept"}
+        or requirement.role.startswith("mob-concept-")
+    ]
+    assert len(concept_requirements) == len(world.mobs) + 2
+    for missing in concept_requirements:
+        artifact = tmp_path / missing.path
+        await asyncio.to_thread(artifact.unlink)
+        await asyncio.to_thread(Path(f"{artifact}.meta.json").unlink)
+        with pytest.raises(
+            ValueError,
+            match=rf"runtime-required role {re.escape(missing.role)} is missing",
+        ):
+            await write_scrolling_preview_manifest(
+                run_dir=tmp_path,
+                tag=tag,
+                transparency_mode=TransparencyMode.CHROMA,
+            )
+        _write_runtime_pair(tmp_path, missing, mode="chroma")
+
+
+@pytest.mark.parametrize(
+    ("processor", "kind"),
+    [
+        ("ai-background-removal", "ai-background-removal"),
+        ("chroma-key", "chroma-key"),
+        ("imagegen/remove_chroma_key.py", "chroma-key"),
+        ("tileset-topology-mask", "tileset-topology-mask"),
+        (
+            "ai-background-removal+grid-cell-normalization",
+            "ai-background-removal+grid-cell-normalization",
+        ),
+        (
+            "isolated-view-fallback-v1+grid-cell-normalization",
+            "isolated-view-fallback-v1",
+        ),
+        (
+            "per-cell-generation-v1+grid-cell-normalization",
+            "per-cell-generation-v1",
+        ),
+        (
+            "tileset-material-synthesis-v1+tileset-topology-mask",
+            "tileset-material-synthesis-v1",
+        ),
+    ],
+)
+def test_manifest_derivation_uses_actual_processor(processor: str, kind: str) -> None:
+    assert manifest_module._generated_derivation_kind(processor, "asset.png") == kind
+
+
+def test_canonical_scan_excludes_unprovenanced_gameplay_evidence(tmp_path: Path) -> None:
+    evidence = tmp_path / "gameplay-verification.png"
+    evidence.write_bytes(b"not-a-publishable-artifact")
+
+    assert (
+        manifest_module._collect_canonical_images(
+            tmp_path,
+            {evidence.name},
+            TransparencyMode.AI,
+        )
+        == []
+    )
+
+
+def test_canonical_scan_excludes_hidden_fallback_components_and_priors(
+    tmp_path: Path,
+) -> None:
+    names = {
+        ".mob_concept_storybook_0.view-0.png",
+        ".mob_concept_storybook_0.view-0.png.meta.json",
+        ".mob_concept_storybook_0.view-0.raw.png",
+        ".mob_concept_storybook_0.view-0.raw.png.meta.json",
+        ".items_storybook.cell-0-0.png",
+        ".items_storybook.cell-0-0.png.meta.json",
+        ".items_storybook.cell-0-0.raw.png",
+        ".items_storybook.cell-0-0.raw.png.meta.json",
+        ".obstacles_storybook_0.cell-1-3.png",
+        ".obstacles_storybook_0.cell-1-3.png.meta.json",
+        ".obstacles_storybook_0.cell-1-3.raw.png",
+        ".obstacles_storybook_0.cell-1-3.raw.png.meta.json",
+        ".obstacles_storybook_0.cell-1-3.prior.png",
+        ".obstacles_storybook_0.cell-1-3.prior.png.meta.json",
+        ".tileset_storybook.material-fill.raw.png",
+        ".tileset_storybook.material-fill.raw.png.meta.json",
+        ".tileset_storybook.material-fill.png",
+        ".tileset_storybook.material-fill.png.meta.json",
+        ".tileset_storybook.material-cap.raw.png",
+        ".tileset_storybook.material-cap.raw.png.meta.json",
+        ".tileset_storybook.material-cap.png",
+        ".tileset_storybook.material-cap.png.meta.json",
+        ".tileset_storybook.material-edge.raw.png",
+        ".tileset_storybook.material-edge.raw.png.meta.json",
+        ".tileset_storybook.material-edge.png",
+        ".tileset_storybook.material-edge.png.meta.json",
+    }
+
+    assert (
+        manifest_module._collect_canonical_images(
+            tmp_path,
+            names,
+            TransparencyMode.CHROMA,
+        )
+        == []
+    )
+
+
+async def test_manifest_publishes_complete_pixel_validated_runtime_bindings(
+    tmp_path: Path,
+) -> None:
+    tag = "complete-chroma"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    world = WorldSpec.model_validate(valid_world())
+    world_data = (world.model_dump_json(indent=2) + "\n").encode()
+    write_artifact_with_provenance(
+        run_dir / f"world_spec_{tag}.json",
+        BinaryArtifact(data=world_data, media_type="application/json"),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="create complete world",
+            params={"metadata": {"stage": "world-spec"}},
+            attempts=1,
+        ),
+    )
+    for requirement in manifest_module._runtime_requirements(tag, world):
+        _write_runtime_pair(
+            run_dir,
+            requirement,
+            mode="chroma",
+            processor_override=(
+                "tileset-material-synthesis-v1+tileset-topology-mask"
+                if requirement.role == "tileset"
+                else None
+            ),
+        )
+    (run_dir / "gameplay-verification.png").write_bytes(b"review-only")
+    hidden_material_names = (
+        f".tileset_{tag}.material-fill.raw.png",
+        f".tileset_{tag}.material-fill.raw.png.meta.json",
+        f".tileset_{tag}.material-fill.png",
+        f".tileset_{tag}.material-fill.png.meta.json",
+        f".tileset_{tag}.material-cap.raw.png",
+        f".tileset_{tag}.material-cap.raw.png.meta.json",
+        f".tileset_{tag}.material-cap.png",
+        f".tileset_{tag}.material-cap.png.meta.json",
+        f".tileset_{tag}.material-edge.raw.png",
+        f".tileset_{tag}.material-edge.raw.png.meta.json",
+        f".tileset_{tag}.material-edge.png",
+        f".tileset_{tag}.material-edge.png.meta.json",
+    )
+    for name in hidden_material_names:
+        (run_dir / name).write_bytes(b"private-resume-state")
+
+    result = await write_scrolling_preview_manifest(
+        run_dir=run_dir,
+        tag=tag,
+        transparency_mode=TransparencyMode.CHROMA,
+    )
+
+    manifest_text = await asyncio.to_thread(Path(result.manifest_path).read_text, encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    runtime = {entry["id"]: entry for entry in manifest["runtime_assets"]}
+    tileset_entry = next(
+        entry for entry in manifest["canonical_artifacts"] if entry["path"] == f"tileset_{tag}.png"
+    )
+    assert tileset_entry["transparency"]["derivation"]["kind"] == ("tileset-material-synthesis-v1")
+    assert runtime["tileset"]["layout"] == {
+        "topology": "tileset",
+        "rows": 4,
+        "columns": 12,
+        "cell_width": 200,
+        "cell_height": 200,
+        "gutter": 2,
+    }
+    assert runtime["tileset"]["geometry_validation"]["canonical_fill_opaque"] is True
+    assert runtime["concept"]["layout"]["columns"] == 1
+    assert runtime["character-concept"]["layout"]["columns"] == 3
+    assert all(
+        runtime[f"mob-concept-{index}"]["layout"]["columns"] == 3
+        for index in range(len(world.mobs))
+    )
+    assert runtime["items"]["layout"]["rows"] == 2
+    assert runtime["items"]["layout"]["columns"] == 4
+    assert runtime["ladder"]["layout"]["cell_height"] == 1024
+    assert runtime["character-climb"]["layout"]["cell_width"] == 64
+    assert runtime["layer-near_ruins"]["binding"]["parallax"] == 1.8
+    assert "gameplay-verification.png" not in manifest["artifacts"]
+    assert all(name not in manifest["artifacts"] for name in hidden_material_names)
+    assert [entry["id"] for entry in manifest["runtime_assets"]].count("tileset") == 1
+
+
+async def test_current_manifest_copies_only_approved_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _allow_music_only_manifest(monkeypatch)
     fallback = tmp_path / "fallback.mp3"
     fallback.write_bytes(b"offline-music")
     notice = tmp_path / "fallback.LICENSE.md"
@@ -127,15 +533,19 @@ async def test_manifest_v2_copies_only_approved_fallback(tmp_path: Path) -> None
     )
     manifest_text = await asyncio.to_thread(Path(result.manifest_path).read_text)
     manifest = json.loads(manifest_text)
-    assert manifest["schemaVersion"] == 2
-    assert manifest["transparencyMode"] == "ai"
-    assert manifest["music"]["source"] == "generated-fallback"
-    assert manifest["music"]["rightsStatus"] == "redistribution-approved"
+    assert manifest["schema_version"] == 7
+    assert manifest["transparency_mode"] == "ai"
+    assert "music" not in manifest
+    assert result.music_source == "generated-fallback"
+    assert result.music_rights_status == "redistribution-approved"
     assert ".raw.png" not in "".join(manifest["artifacts"])
     assert await asyncio.to_thread(Path(result.manifest_provenance_path).is_file)
 
 
-async def test_manifest_uses_real_bundled_fallback_without_live_calls(tmp_path: Path) -> None:
+async def test_manifest_uses_real_bundled_fallback_without_live_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _allow_music_only_manifest(monkeypatch)
     result = await write_scrolling_preview_manifest(
         run_dir=tmp_path / "run",
         tag="bundled-ai",
@@ -146,7 +556,7 @@ async def test_manifest_uses_real_bundled_fallback_without_live_calls(tmp_path: 
     assert result.music_source == "generated-fallback"
     assert result.music_rights_status == "redistribution-approved"
     assert await asyncio.to_thread(Path(result.music_path).read_bytes)
-    assert manifest["music"]["rightsStatus"] == "redistribution-approved"
+    assert "music" not in manifest
 
 
 @pytest.mark.parametrize(
@@ -236,7 +646,10 @@ async def test_manifest_reports_missing_per_run_and_fallback_music(tmp_path: Pat
         )
 
 
-async def test_manifest_preserves_existing_unreviewed_per_run_music(tmp_path: Path) -> None:
+async def test_manifest_preserves_existing_unreviewed_per_run_music(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _allow_music_only_manifest(monkeypatch)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     music = run_dir / "music_custom-ai.mp3"
@@ -273,8 +686,9 @@ async def test_manifest_preserves_existing_unreviewed_per_run_music(tmp_path: Pa
 
 
 async def test_manifest_accepts_executor_shaped_lineage_and_is_idempotent(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _allow_music_only_manifest(monkeypatch)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     tag = "executor-chroma"
@@ -410,9 +824,9 @@ async def test_manifest_accepts_executor_shaped_lineage_and_is_idempotent(
     )
     manifest_text = await asyncio.to_thread(Path(second.manifest_path).read_text, encoding="utf-8")
     manifest = json.loads(manifest_text)
-    entries = {entry["path"]: entry for entry in manifest["canonicalArtifacts"]}
-    assert entries[master_name]["transparency"]["lineage"]["sourcePaths"] == [strip_name]
-    assert entries[slice_name]["transparency"]["lineage"]["sourcePaths"] == [master_name]
+    entries = {entry["path"]: entry for entry in manifest["canonical_artifacts"]}
+    assert entries[master_name]["transparency"]["lineage"]["source_paths"] == [strip_name]
+    assert entries[slice_name]["transparency"]["lineage"]["source_paths"] == [master_name]
     assert Path(first.manifest_provenance_path).name not in manifest["artifacts"]
     assert second.music_source == first.music_source == "generated-fallback"
     assert second.music_rights_status == first.music_rights_status
@@ -422,6 +836,389 @@ async def test_manifest_accepts_executor_shaped_lineage_and_is_idempotent(
         await asyncio.to_thread(Path(second.manifest_provenance_path).read_bytes)
         == first_provenance_bytes
     )
+
+
+def valid_village() -> dict[str, object]:
+    """A village bible whose residents are four different anatomies rather than four aprons."""
+
+    residents = (
+        ("Provisioner", "Bela Ash", "stocky humanoid"),
+        ("Toolwright", "Oro Kem", "tall bipedal"),
+        ("Archivist", "Sable Wren", "winged avian"),
+        ("Ferrier", "Tomas Reed", "reptilian lizard"),
+    )
+    fixtures = (
+        "Awning stall",
+        "Stone well",
+        "Notice post",
+        "Hand cart",
+        "Drying rack",
+        "Rope winch",
+        "Grain bin",
+        "Lamp post",
+    )
+    return {
+        "name": "Kettlebrook",
+        "one_liner": "A quiet crossing where nothing is hunted.",
+        "narrative": "Four trades share one square between the ridges.",
+        "fixtures_theme": "riverside market furniture",
+        "npcs": [
+            {
+                "role_label": role_label,
+                "name": name,
+                "body_plan": body_plan,
+                "brief": f"Original townsfolk direction for {name}.",
+                "greeting": f"{name} greets you.",
+                "remark": f"{name} mentions the weather.",
+                "farewell": f"{name} says goodbye.",
+            }
+            for role_label, name, body_plan in residents
+        ],
+        "fixtures": [
+            {"name": name, "brief": f"A readable isolated {name.lower()}."} for name in fixtures
+        ],
+    }
+
+
+def _write_village_run(run_dir: Path, tag: str, *, village: VillageSpec | None) -> None:
+    """A complete run directory, optionally including the nine village sheets and the bible."""
+
+    world = WorldSpec.model_validate(valid_world())
+    write_artifact_with_provenance(
+        run_dir / f"world_spec_{tag}.json",
+        BinaryArtifact(
+            data=(world.model_dump_json(indent=2) + "\n").encode(),
+            media_type="application/json",
+        ),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt="create complete world",
+            params={"metadata": {"stage": "world-spec"}},
+            attempts=1,
+        ),
+    )
+    for requirement in manifest_module._runtime_requirements(tag, world, village):
+        _write_runtime_pair(run_dir, requirement, mode="chroma")
+    if village is not None:
+        write_artifact_with_provenance(
+            run_dir / f"village_spec_{tag}.json",
+            BinaryArtifact(
+                data=(village.model_dump_json(indent=2) + "\n").encode(),
+                media_type="application/json",
+            ),
+            ProvenanceInput(
+                provider="local",
+                model="offline",
+                prompt="design the village hub",
+                params={"metadata": {"stage": "village-spec"}},
+                attempts=1,
+            ),
+        )
+
+
+async def test_a_village_less_run_omits_the_optional_village_block(
+    tmp_path: Path,
+) -> None:
+    """An undeclared village remains optional and does not require a bible or resident assets."""
+
+    tag = "village-less-chroma"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _write_village_run(run_dir, tag, village=None)
+
+    without = await write_scrolling_preview_manifest(
+        run_dir=run_dir, tag=tag, transparency_mode=TransparencyMode.CHROMA
+    )
+    village_less_bytes = await asyncio.to_thread(Path(without.manifest_path).read_bytes)
+
+    manifest = json.loads(village_less_bytes.decode("utf-8"))
+    assert "village" not in manifest
+    world = WorldSpec.model_validate(valid_world())
+    assert [entry["id"] for entry in manifest["runtime_assets"]] == [
+        requirement.role for requirement in manifest_module._runtime_requirements(tag, world)
+    ]
+    assert not any(name.startswith("village") for name in manifest["artifacts"])
+
+
+async def test_a_village_publishes_its_block_and_the_nine_sheets_the_block_describes(
+    tmp_path: Path,
+) -> None:
+    tag = "village-chroma"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    village = VillageSpec.model_validate(valid_village())
+    _write_village_run(run_dir, tag, village=village)
+
+    result = await write_scrolling_preview_manifest(
+        run_dir=run_dir, tag=tag, transparency_mode=TransparencyMode.CHROMA, village=True
+    )
+    manifest = json.loads(
+        await asyncio.to_thread(Path(result.manifest_path).read_text, encoding="utf-8")
+    )
+
+    assert manifest["village"] == village_manifest_block(village)
+    assert manifest["schema_version"] == 7
+    runtime = {entry["id"]: entry for entry in manifest["runtime_assets"]}
+    village_roles = [role for role in runtime if role.startswith("village-")]
+    assert village_roles == [
+        *(
+            role
+            for slot in range(4)
+            for role in (f"village-npc-concept-{slot}", f"village-npc-{slot}-idle")
+        ),
+        "village-fixtures",
+    ]
+    assert len(village_roles) == 9
+    for slot in range(4):
+        concept = runtime[f"village-npc-concept-{slot}"]
+        assert concept["path"] == f"npc_concept_{tag}_{slot}.png"
+        assert concept["layout"]["columns"] == 3
+        assert concept["binding"] == {"slot": slot}
+        idle = runtime[f"village-npc-{slot}-idle"]
+        assert idle["path"] == f"npc_{tag}_{slot}_idle.png"
+        assert idle["layout"]["columns"] == 4
+        assert idle["binding"] == {"slot": slot, "state": "idle"}
+        assert idle["alpha_expectation"] == "transparent"
+    fixtures = runtime["village-fixtures"]
+    assert fixtures["path"] == f"village_fixtures_{tag}.png"
+    assert (fixtures["layout"]["rows"], fixtures["layout"]["columns"]) == (2, 4)
+    # One sheet for the whole settlement, so it carries no positional binding of its own.
+    assert "binding" not in fixtures
+
+    provenance = Path(result.manifest_provenance_path)
+    sidecar = json.loads(await asyncio.to_thread(provenance.read_text, encoding="utf-8"))
+    # The published block is copied out of the bible, so the bible is a genuine input to these
+    # bytes rather than merely another file in the run.
+    assert f"village_spec_{tag}.json" in sidecar["refs"]
+
+
+async def test_the_village_block_survives_current_key_normalization_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The current envelope snake-cases every producer-owned key.
+
+    The village block is already `lower_snake_case` at the source, which is the reason it needs no
+    aliasing at this boundary - but "needs none" is a claim about a normalizer that walks the whole
+    document, renames keys and raises on a collision. Enabling both opt-ins at once is the only
+    arrangement that exercises it, and a run that had both would otherwise be the first to find out.
+    """
+
+    tag = "village-profile-chroma"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    village = VillageSpec.model_validate(valid_village())
+    _write_village_run(run_dir, tag, village=village)
+    monkeypatch.setattr(
+        manifest_module,
+        "_collect_character_profile_binding",
+        lambda _run_dir, tag, _names: {
+            "profile_id": "mira-vale-cartographer",
+            "source_sha256": "a" * 64,
+            "canonical_sha256": "b" * 64,
+            "path": f"character_profile_{tag}.json",
+            "provenance_path": f"character_profile_{tag}.json.meta.json",
+        },
+    )
+
+    result = await write_scrolling_preview_manifest(
+        run_dir=run_dir,
+        tag=tag,
+        transparency_mode=TransparencyMode.CHROMA,
+        character_profile=True,
+        village=True,
+    )
+    manifest = json.loads(
+        await asyncio.to_thread(Path(result.manifest_path).read_text, encoding="utf-8")
+    )
+
+    assert manifest["schema_version"] == 7
+    assert manifest["village"] == village_manifest_block(village)
+    village_roles = [
+        entry["id"] for entry in manifest["runtime_assets"] if entry["id"].startswith("village-")
+    ]
+    assert len(village_roles) == 9
+
+
+async def test_a_declared_unreadable_village_bible_is_rejected(
+    tmp_path: Path,
+) -> None:
+    tag = "village-broken-chroma"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _write_village_run(run_dir, tag, village=VillageSpec.model_validate(valid_village()))
+    spec_path = run_dir / f"village_spec_{tag}.json"
+    await asyncio.to_thread(spec_path.write_text, "{ not a bible", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="declared village specification is invalid"):
+        await write_scrolling_preview_manifest(
+            run_dir=run_dir, tag=tag, transparency_mode=TransparencyMode.CHROMA, village=True
+        )
+
+
+def test_scale_reference_requires_a_current_content_digest_sidecar(tmp_path: Path) -> None:
+    artifact = tmp_path / "actor.png"
+    reference = tmp_path / "actor.scale-reference.json"
+    artifact.write_bytes(b"current actor bytes")
+    reference.write_text('{"extent_pixels": 42}', encoding="utf-8")
+
+    assert not manifest_module._scale_reference_measures(reference, artifact)
+
+    Path(f"{reference}.meta.json").write_text(
+        json.dumps(
+            {
+                "params": {
+                    "metadata": {
+                        "measured_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert manifest_module._scale_reference_measures(reference, artifact)
+
+    artifact.write_bytes(b"replacement actor bytes")
+    assert not manifest_module._scale_reference_measures(reference, artifact)
+
+
+def _write_runtime_pair(
+    run_dir: Path,
+    requirement: manifest_module._RuntimeRequirement,
+    *,
+    mode: str,
+    processor_override: str | None = None,
+) -> None:
+    canonical_data, geometry = _runtime_png(requirement)
+    canonical_path = run_dir / requirement.path
+    if requirement.alpha == "opaque":
+        write_artifact_with_provenance(
+            canonical_path,
+            BinaryArtifact(data=canonical_data, media_type="image/png"),
+            ProvenanceInput(
+                provider="local",
+                model="offline",
+                prompt=f"create {requirement.role}",
+                params={"metadata": {"stage": requirement.role, "opaque": True}},
+                validation={"exact_contract_dimensions": True},
+                attempts=1,
+            ),
+        )
+        return
+
+    raw_path = canonical_path.with_name(f"{canonical_path.stem}.raw.png")
+    raw_data = _solid_png(requirement.width, requirement.height, alpha=False)
+    write_artifact_with_provenance(
+        raw_path,
+        BinaryArtifact(data=raw_data, media_type="image/png"),
+        ProvenanceInput(
+            provider="local",
+            model="offline",
+            prompt=f"create raw {requirement.role}",
+            params={"metadata": {"stage": requirement.role, "transparency_mode": mode}},
+            validation={
+                "exact_contract_dimensions": True,
+                "output_width": requirement.width,
+                "output_height": requirement.height,
+            },
+            attempts=1,
+        ),
+    )
+    with Image.open(BytesIO(canonical_data)) as opened:
+        alpha = opened.convert("RGBA").getchannel("A").tobytes()
+    transparent = sum(value < 255 for value in alpha)
+    nontransparent = sum(value > 0 for value in alpha)
+    contract = contract_for_runtime_role(requirement.role)
+    processor = processor_override or (
+        "tileset-topology-mask"
+        if contract is not None and contract.topology == "tileset"
+        else "chroma-key+grid-cell-normalization"
+        if contract is not None
+        else "chroma-key"
+    )
+    write_artifact_with_provenance(
+        canonical_path,
+        BinaryArtifact(data=canonical_data, media_type="image/png"),
+        ProvenanceInput(
+            provider="local",
+            model=processor,
+            prompt=f"normalize {requirement.role}",
+            refs=[raw_path.name],
+            params={
+                "transparency": {
+                    "mode": mode,
+                    "retained_raw_path": raw_path.name,
+                    "raw_sha256": sha256_hex(raw_data),
+                    "output_sha256": sha256_hex(canonical_data),
+                    "processor": {"kind": processor, "version": "1"},
+                },
+                "metadata": {"stage": requirement.role},
+            },
+            validation={
+                "alpha_nontrivial": True,
+                "transparent_pixels": transparent,
+                "nontransparent_pixels": nontransparent,
+                "dimensions_preserved": True,
+                "output_width": requirement.width,
+                "output_height": requirement.height,
+                **geometry,
+            },
+            attempts=1,
+        ),
+    )
+
+
+def _runtime_png(
+    requirement: manifest_module._RuntimeRequirement,
+) -> tuple[bytes, dict[str, object]]:
+    if requirement.alpha == "opaque":
+        return _solid_png(requirement.width, requirement.height, alpha=False), {}
+    contract = contract_for_runtime_role(requirement.role)
+    if contract is not None and contract.topology == "tileset":
+        return normalize_canonical_grid(
+            _solid_png(requirement.width, requirement.height, alpha=True), contract
+        )
+    image = Image.new("RGBA", (requirement.width, requirement.height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if contract is None:
+        draw.rectangle(
+            (
+                requirement.width // 4,
+                requirement.height // 4,
+                requirement.width * 3 // 4,
+                requirement.height * 3 // 4,
+            ),
+            fill=(70, 120, 180, 255),
+        )
+        return _png_bytes(image), {}
+    cell_width, cell_height = contract.cell_size(requirement.width, requirement.height)
+    for row in range(contract.rows):
+        for column in range(contract.columns):
+            left = column * cell_width + contract.gutter
+            top = row * cell_height + contract.gutter
+            draw.rectangle(
+                (
+                    left,
+                    top,
+                    (column + 1) * cell_width - contract.gutter - 1,
+                    (row + 1) * cell_height - contract.gutter - 1,
+                ),
+                fill=(70 + column * 10, 100 + row * 20, 180, 255),
+            )
+    data = _png_bytes(image)
+    return data, validate_canonical_grid(data, contract)
+
+
+def _solid_png(width: int, height: int, *, alpha: bool) -> bytes:
+    mode = "RGBA" if alpha else "RGB"
+    colour = (80, 120, 60, 255) if alpha else (80, 120, 60)
+    return _png_bytes(Image.new(mode, (width, height), colour))
+
+
+def _png_bytes(image: Image.Image) -> bytes:
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def _fallback_fixture(
@@ -481,3 +1278,17 @@ def _fallback_fixture(
     }
     Path(f"{fallback}.meta.json").write_text(json.dumps(sidecar), encoding="utf-8")
     return fallback
+
+
+def _allow_music_only_manifest(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        manifest_module,
+        "_collect_runtime_assets",
+        lambda _run_dir, tag, *_args: (
+            [],
+            {
+                "path": f"world_spec_{tag}.json",
+                "provenancePath": f"world_spec_{tag}.json.meta.json",
+            },
+        ),
+    )

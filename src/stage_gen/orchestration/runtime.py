@@ -445,11 +445,10 @@ def _create_scrolling_preview_executor(
     background_service: BackgroundRemovalService | None,
 ) -> RecipeExecutor:
     from stage_gen.recipes.scrolling_preview.executor import ScrollingPreviewExecutor
-    from stage_gen.recipes.scrolling_preview.models import WorldSpec
 
     executor = ScrollingPreviewExecutor(
         image_service=image_service,
-        structured_service=cast("StructuredGenerationService[WorldSpec]", structured_service),
+        structured_service=structured_service,
         background_service=background_service,
     )
     return _CallableRecipeExecutor(executor.run_scrolling_preview_stage)

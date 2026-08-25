@@ -27,6 +27,7 @@ from stage_gen.recipes.scrolling_preview.recipe import (
     scrolling_preview_tag,
 )
 from stage_gen.tags import tag_for
+from stage_gen.theme import parse_theme_handles, theme_digest
 
 
 async def test_runner_stops_at_first_failure_and_publishes_run_json(tmp_path: Path) -> None:
@@ -217,19 +218,26 @@ async def test_runner_reports_task_group_leaf_and_cancels_sibling(tmp_path: Path
 def test_prepare_validates_mode_before_capability_and_preserves_tag() -> None:
     config = StageGenConfig(open_router_api_key="fake", fal_key="fake")
     prepared = prepare_generate_request(
-        GenerateRequest(input={"prompt": "neutral prompt", "transparencyMode": "chroma"}),
+        GenerateRequest(input={"prompt": "neutral prompt", "transparency_mode": "chroma"}),
         config,
     )
-    assert prepared.input["transparencyMode"] == "chroma"
+    assert prepared.input["transparency_mode"] == "chroma"
+    assert "transparencyMode" not in prepared.input
     assert prepared.tag.endswith("-chroma")
     with pytest.raises(ValueError, match="conflicts"):
         prepare_generate_request(
             GenerateRequest(
-                input={"prompt": "neutral", "transparencyMode": "ai"},
+                input={"prompt": "neutral", "transparency_mode": "ai"},
                 transparency_mode="chroma",
             ),
             config,
         )
+
+
+@pytest.mark.parametrize("field", ["mapBook", "transparencyMode", "unknown"])
+def test_scrolling_recipe_rejects_unknown_or_camel_case_input_fields(field: str) -> None:
+    with pytest.raises(ValueError, match="unexpected fields"):
+        parse_scrolling_preview_input({"prompt": "neutral", field: "invalid"})
 
 
 @pytest.mark.parametrize(
@@ -312,7 +320,7 @@ async def test_generate_prepared_selects_recipe_executor_and_closes_owned_runtim
     assert (Path(summary.run_dir) / "stable-artifact.bin").read_bytes() == b"stable-artifact"
 
 
-def test_scrolling_recipe_keeps_legacy_identity_and_stages_when_theme_is_absent() -> None:
+def test_scrolling_recipe_keeps_base_identity_and_stages_when_theme_is_absent() -> None:
     parsed = parse_scrolling_preview_input({"prompt": "neutral prompt"})
 
     assert parsed == {"prompt": "neutral prompt"}
@@ -326,3 +334,61 @@ def test_scrolling_recipe_keeps_legacy_identity_and_stages_when_theme_is_absent(
         "post-split",
         "manifest",
     ]
+
+
+def test_scrolling_recipe_theme_identity_is_canonical_and_compiler_versioned() -> None:
+    parsed = parse_scrolling_preview_input(
+        {"prompt": "neutral prompt", "theme": {"hostile_action": 3}}
+    )
+    handles = parse_theme_handles(parsed["theme"])
+
+    assert scrolling_preview_tag(parsed) == (
+        f"{tag_for('neutral prompt')}-theme-{theme_digest(handles)}"
+    )
+    assert [stage.name for stage in scrolling_preview_recipe.stages_for(parsed)] == [
+        "theme-compile",
+        "concept",
+        "world-spec",
+        "wave-a",
+        "wave-b",
+        "post-split",
+        "manifest",
+    ]
+
+
+def test_scrolling_recipe_style_anchor_is_explicit_versioned_and_keeps_legacy_default() -> None:
+    parsed = parse_scrolling_preview_input(
+        {
+            "prompt": "neutral prompt",
+            "style_anchor": {
+                "schema_version": 1,
+                "kind": "automatic_style_anchor_v1",
+            },
+        }
+    )
+
+    assert parsed["style_anchor"] == {
+        "schema_version": 1,
+        "kind": "automatic_style_anchor_v1",
+    }
+    assert "-style-v1-" in scrolling_preview_tag(parsed)
+    assert [stage.name for stage in scrolling_preview_recipe.stages_for(parsed)] == [
+        "style-select",
+        "concept",
+        "world-spec",
+        "wave-a",
+        "wave-b",
+        "post-split",
+        "manifest",
+    ]
+    with pytest.raises(ValueError, match="style_anchor must equal"):
+        parse_scrolling_preview_input(
+            {
+                "prompt": "neutral prompt",
+                "style_anchor": {
+                    "schema_version": 1,
+                    "kind": "automatic_style_anchor_v1",
+                    "style_mode": "invented_mode",
+                },
+            }
+        )
