@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "kind": "game_vocabulary_v1",
+  "style_keywords": [
+    { "keyword": "hand-painted gouache", "facet": "medium" },
+    { "keyword": "storybook watercolour", "facet": "medium" },
+    { "keyword": "inked cel illustration", "facet": "medium" },
+    { "keyword": "soft pastel drawing", "facet": "medium" },
+    { "keyword": "crisp pixel art", "facet": "medium" },
+    { "keyword": "cut-paper collage", "facet": "medium" },
+    { "keyword": "warm dusk palette", "facet": "palette" },
+    { "keyword": "cool overcast palette", "facet": "palette" },
+    { "keyword": "muted earth palette", "facet": "palette" },
+    { "keyword": "high-chroma candy palette", "facet": "palette" },
+    { "keyword": "limited two-tone palette", "facet": "palette" },
+    { "keyword": "moonlit blue palette", "facet": "palette" },
+    { "keyword": "soft diffuse light", "facet": "light" },
+    { "keyword": "low golden backlight", "facet": "light" },
+    { "keyword": "flat even light", "facet": "light" },
+    { "keyword": "hard directional light", "facet": "light" },
+    { "keyword": "lantern-lit pools of light", "facet": "light" },
+    { "keyword": "rounded friendly shapes", "facet": "shape" },
+    { "keyword": "angular geometric shapes", "facet": "shape" },
+    { "keyword": "tapered organic shapes", "facet": "shape" },
+    { "keyword": "chunky readable silhouettes", "facet": "shape" },
+    { "keyword": "delicate spindly forms", "facet": "shape" },
+    { "keyword": "visible brush texture", "facet": "surface" },
+    { "keyword": "clean flat fills", "facet": "surface" },
+    { "keyword": "paper grain", "facet": "surface" },
+    { "keyword": "woven fabric texture", "facet": "surface" },
+    { "keyword": "weathered painted wood", "facet": "surface" },
+    { "keyword": "gentle and welcoming mood", "facet": "mood" },
+    { "keyword": "quiet and melancholy mood", "facet": "mood" },
+    { "keyword": "brisk and adventurous mood", "facet": "mood" },
+    { "keyword": "eerie and hushed mood", "facet": "mood" },
+    { "keyword": "bustling and cheerful mood", "facet": "mood" }
+  ],
+  "style_avoidances": [
+    "photographic depth of field",
+    "lens flare",
+    "3D rendering",
+    "glossy digital airbrushing",
+    "harsh drop shadows",
+    "text and lettering",
+    "watermarks and signatures",
+    "visible grid lines",
+    "cast ground shadows",
+    "motion blur"
+  ],
+  "body_kinds": [
+    {
+      "body_kind": "human",
+      "anatomy": "an upright human body with two arms and two legs",
+      "people": true
+    },
+    {
+      "body_kind": "dwarf",
+      "anatomy": "a short, broad, upright humanoid body with heavy shoulders",
+      "people": true
+    },
+    {
+      "body_kind": "elf",
+      "anatomy": "a slender, upright humanoid body with tapered ears",
+      "people": true
+    },
+    {
+      "body_kind": "gnome",
+      "anatomy": "a very small upright humanoid body with a large head",
+      "people": true
+    },
+    {
+      "body_kind": "halfling",
+      "anatomy": "a small, sturdy, upright humanoid body with bare feet",
+      "people": true
+    },
+    {
+      "body_kind": "beastfolk",
+      "anatomy": "an upright humanoid body with an animal head, fur, and a tail",
+      "people": true
+    },
+    {
+      "body_kind": "avian",
+      "anatomy": "an upright bird-bodied figure with a beak, feathers, and folded wings",
+      "people": true
+    },
+    {
+      "body_kind": "reptilian",
+      "anatomy": "an upright scaled figure with a blunt snout and a heavy tail",
+      "people": true
+    },
+    {
+      "body_kind": "construct",
+      "anatomy": "an upright assembled figure of jointed plates and fittings",
+      "people": true
+    },
+    {
+      "body_kind": "quadruped",
+      "anatomy": "a four-legged animal body carried level above the ground",
+      "people": false
+    },
+    {
+      "body_kind": "insectoid",
+      "anatomy": "a segmented six-limbed body with a carapace and antennae",
+      "people": false
+    },
+    {
+      "body_kind": "amorphous",
+      "anatomy": "a soft limbless mass with no fixed skeleton",
+      "people": false
+    }
+  ],
+  "resident_stances": [
+    {
+      "stance": "standing_at_ease",
+      "direction": "standing straight with the weight even and the arms relaxed at the sides"
+    },
+    {
+      "stance": "arms_crossed",
+      "direction": "standing straight with the arms folded across the chest"
+    },
+    {
+      "stance": "hands_on_hips",
+      "direction": "standing straight with both hands planted on the hips and the elbows out"
+    },
+    {
+      "stance": "leaning_on_counter",
+      "direction": "standing with one forearm resting on a waist-high counter edge"
+    },
+    {
+      "stance": "leaning_on_staff",
+      "direction": "standing with the weight tipped onto a tall staff held in one hand"
+    },
+    {
+      "stance": "hands_clasped",
+      "direction": "standing straight with both hands clasped together at the waist"
+    },
+    {
+      "stance": "one_hand_raised",
+      "direction": "standing straight with one hand raised beside the head in greeting"
+    },
+    {
+      "stance": "seated_on_stool",
+      "direction": "seated upright on a low stool with both feet on the ground"
+    },
+    {
+      "stance": "kneeling_at_crate",
+      "direction": "kneeling on one knee beside a low crate"
+    },
+    {
+      "stance": "stooped_forward",
+      "direction": "standing with the back stooped forward and the shoulders rounded"
+    }
+  ],
+  "resident_props": [
+    { "prop": "none", "direction": "carrying nothing; both hands empty" },
+    { "prop": "broom", "direction": "holding a long-handled broom upright in one hand" },
+    { "prop": "ledger", "direction": "holding an open ledger against the forearm" },
+    { "prop": "lantern", "direction": "holding a lit lantern by its ring handle" },
+    { "prop": "basket", "direction": "carrying a woven basket against the hip" },
+    { "prop": "herb_bundle", "direction": "holding a tied bundle of dried herbs" },
+    { "prop": "hammer", "direction": "holding a short work hammer head-down at the side" },
+    { "prop": "ladle", "direction": "holding a long wooden ladle" },
+    { "prop": "fishing_rod", "direction": "holding a slim fishing rod resting on the shoulder" },
+    { "prop": "bread_loaf", "direction": "holding a round loaf of bread in both hands" },
+    { "prop": "walking_staff", "direction": "gripping a tall walking staff planted on the ground" },
+    { "prop": "scroll", "direction": "holding a partly unrolled paper scroll" },
+    { "prop": "watering_can", "direction": "holding a small watering can by its handle" },
+    { "prop": "hand_bell", "direction": "holding a small hand bell by its grip" }
+  ]
+}

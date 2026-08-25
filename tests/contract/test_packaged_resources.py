@@ -21,6 +21,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/music/preview-loop.mp3.meta.json",
     "stage_gen/resources/music/preview-loop.LICENSE.md",
     "stage_gen/resources/prompting/image_style_vocabulary_v1.json",
+    "stage_gen/resources/prompting/game_vocabulary_v1.json",
     "stage_gen/resources/skills/anchor-image-style/SKILL.md",
     "stage_gen/resources/skills/compile-theme-art-direction/SKILL.md",
 }
@@ -135,7 +136,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert all(member.isfile() or member.isdir() for member in members)
         root, sdist_entries = _sdist_file_entries(members)
         _assert_archive_hygiene(sdist_entries, resource_prefix="src/stage_gen/resources/")
-        assert len(sdist_entries) <= 240
+        # A guard against accidental bloat - a stray directory swept into the sdist - and not
+        # a cap on the project growing. Raised from 240, which the working tree already exceeded
+        # at 245 before the world contract was written; the authored-world work took it to 256.
+        # The size assertions below are the ones that actually bound the archive.
+        assert len(sdist_entries) <= 290
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
@@ -181,7 +186,7 @@ from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 14
+assert len(paths) == 15
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(

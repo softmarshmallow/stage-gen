@@ -19,6 +19,7 @@ _REQUIRED_RELATIVE_PATHS = (
     "music/preview-loop.mp3.meta.json",
     "music/preview-loop.LICENSE.md",
     "prompting/image_style_vocabulary_v1.json",
+    "prompting/game_vocabulary_v1.json",
     "skills/anchor-image-style/SKILL.md",
     "skills/compile-theme-art-direction/SKILL.md",
 )
@@ -54,6 +55,12 @@ def image_style_vocabulary_path() -> Path:
     return _RESOURCE_ROOT / "prompting" / "image_style_vocabulary_v1.json"
 
 
+def game_vocabulary_path() -> Path:
+    """Return the versioned closed vocabulary an authored game contract draws from."""
+
+    return _RESOURCE_ROOT / "prompting" / "game_vocabulary_v1.json"
+
+
 def image_style_resource_digests() -> dict[str, str]:
     """Hash the exact packaged bytes consumed by the image-style compiler."""
 
@@ -77,4 +84,5 @@ __all__ = [
     "image_template_dir",
     "required_resource_paths",
     "theme_compiler_skill_path",
+    "game_vocabulary_path",
 ]
