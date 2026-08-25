@@ -57,7 +57,7 @@ async def test_api_health_run_status_sse_and_path_limits(tmp_path: Path) -> None
                 break
             await asyncio.sleep(0.01)
         assert status.json()["summary"]["ok"] is True
-        run_dir = Path(status.json()["summary"]["runDir"])
+        run_dir = Path(status.json()["summary"]["run_dir"])
         outside = tmp_path / "outside.txt"
         await asyncio.to_thread(outside.write_text, "private", encoding="utf-8")
         await asyncio.to_thread((run_dir / "escape.txt").symlink_to, outside)

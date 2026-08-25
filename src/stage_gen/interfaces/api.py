@@ -166,7 +166,7 @@ def create_app(
             id=run_id,
             recipe=prepared.recipe.id,
             tag=tag,
-            transparency_mode=prepared.input["transparencyMode"],
+            transparency_mode=prepared.input["transparency_mode"],
         )
         runs[run_id] = record
         record.task = asyncio.create_task(execute(record, prepared))
