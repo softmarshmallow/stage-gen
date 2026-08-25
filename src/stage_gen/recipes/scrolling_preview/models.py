@@ -51,7 +51,38 @@ class WorldLayer(StrictModel):
     description: str = Field(min_length=1)
 
 
-_ANATOMICAL_NOUNS = frozenset(
+#: Plain body-part and body-class nouns, unioned into `ANATOMICAL_NOUNS` below.
+#:
+#: The original list is called nouns and is mostly *adjectives*. It has `legged`, `winged`,
+#: `limbed`, `armed`, `headed`, `tailed`, `horned`, `antlered` and `insectoid`, and none of
+#: `legs`, `wings`, `limbs`, `arms`, `head`, `tail`, `horns`, `antennae` or `insect`. There is no
+#: stemming anywhere in the check - `anatomical_tokens` lowercases and strips punctuation and
+#: nothing else - so the two forms are unrelated strings.
+#:
+#: That makes the rule reject the most natural way to write a body plan. Measured on a live run:
+#: "Lightweight aerial insect with a segmented body, six legs, two antennae, and four broad
+#: petal-like wings" matched nothing in the list and failed, while the same creature described as
+#: "six-legged winged insectoid" would have passed. The `world-spec` stage burned all six provider
+#: attempts on it and the run ended with two artifacts on disk.
+#:
+#: `body` is deliberately absent. It appears in almost any phrase, including the vague masses the
+#: rule exists to reject, so admitting it would retire the check rather than repair it.
+_BODY_PART_NOUNS = frozenset(
+    re.findall(
+        r"[a-z]+",
+        """leg legs arm arms limb limbs head heads tail tails wing wings
+        horn horns antler antlers antenna antennae feeler feelers claw claws talon talons
+        paw paws hoof hooves fin fins fang fangs tusk tusks pincer pincers mandible mandibles
+        tentacle tentacles tendril tendrils beak snout muzzle torso thorax abdomen exoskeleton
+        mane plume ruff insect mammal marsupial ungulate hexapod octopod""",
+    )
+)
+
+#: Words that name a body: a `body_plan` containing none of them is prose about mood or
+#: profession rather than a description an image model can draw a silhouette from. Shared
+#: rather than private because the village schema in `village.py` holds its residents to the
+#: same rule as the mob roster, and a second copy of this list would drift from this one.
+ANATOMICAL_NOUNS = _BODY_PART_NOUNS | frozenset(
     re.findall(
         r"[a-z]+",
         """humanoid biped bipedal quadruped quadrupedal insectoid arachnid spider
@@ -77,7 +108,15 @@ _ITEM_BUCKETS: tuple[tuple[str, frozenset[str]], ...] = (
 )
 
 
-def _tokens(value: str) -> list[str]:
+def anatomical_tokens(value: str) -> list[str]:
+    """Split a phrase into the bare alphabetic words the noun sets are matched against.
+
+    Punctuation, digits and separators are dropped rather than kept, so "six-limbed" and
+    "six limbed" both yield "limbed" and a hyphenated body plan is not silently read as
+    containing no anatomical noun. Public for the same reason `ANATOMICAL_NOUNS` is: the village
+    schema matches residents against the identical token set.
+    """
+
     return [
         cleaned
         for token in re.split(r"[\s\-_/]+", value.lower())
@@ -101,7 +140,7 @@ class WorldSpec(StrictModel):
                 raise ValueError(
                     f"mobs[{index}].body_plan must differ from mobs[{index - 1}].body_plan"
                 )
-            if not (_ANATOMICAL_NOUNS & set(_tokens(plan))):
+            if not (ANATOMICAL_NOUNS & set(anatomical_tokens(plan))):
                 raise ValueError(
                     f'mobs[{index}].body_plan ("{mob.body_plan}") must contain an anatomical noun'
                 )
@@ -111,7 +150,7 @@ class WorldSpec(StrictModel):
         if len(set(kinds)) != len(kinds):
             raise ValueError("item kinds must be unique")
         for bucket_name, words in _ITEM_BUCKETS:
-            hits = [kind for kind in kinds if words & set(_tokens(kind))]
+            hits = [kind for kind in kinds if words & set(anatomical_tokens(kind))]
             if len(hits) > 1:
                 raise ValueError(
                     "item kinds must use semantically distinct categories; "
