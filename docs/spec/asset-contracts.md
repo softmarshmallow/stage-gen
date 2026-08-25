@@ -37,7 +37,7 @@ For subjects that get rendered many times in different states or with many
 variants — the player character, every creature variant — a one-call **design
 reference** is generated first. Throughout this spec it's called the
 **concept turnaround**: a multi-view sheet (front / side / back) of the
-subject on a shared baseline. _Equivalent terms in the wider art pipeline:
+subject with one isolated view per cell. _Equivalent terms in the wider art pipeline:
 **model sheet**, **anatomy sheet**, **subject concept**, **turnaround sheet**._
 
 Specialized generations (motion strips, hurt strips, attack strips) then take
@@ -131,9 +131,22 @@ Every transparency-producing asset declares one run-level strategy:
 - `chroma` (explicit degraded fallback): generate an exact `#FF00FF` exterior
   and deterministically key it to alpha without calling the remover.
 
-Both paths publish canonical transparent PNGs. Consumers read the manifest and
-load alpha normally; they do not infer strategy from colour. The world concept
-and the one designated opaque parallax backdrop bypass both paths unchanged.
+Both paths publish canonical transparent PNGs. Layout-critical sheets then use
+deterministic per-cell isolation: slice declared cells, alpha-crop each subject,
+aspect-fit it into the safe inset, clear exact gutters, and reassemble the exact
+canvas before strict byte validation. Provenance and cache evidence bind every
+source/target transform, expected semantic role/layout contract, retained raw
+byte length and SHA-256, pre-normalization hash, and canonical hash. Fixable
+one-sided gutter contact is recorded and normalized; empty cells or any
+8-connected foreground component crossing a declared cell seam remain inside
+the six-attempt AI retry. The terrain sheet first validates all 48 source cells
+against the documented positive and negative silhouette zones, then applies its
+exact 12 x 4 role mask and restores the canonical fill inset to alpha 255.
+Consumers read the manifest and load
+alpha normally; they do not infer strategy from colour. The manifest records
+the actual processor chain, so a locally keyed artifact is never relabelled as
+AI background removal merely because the run requested `ai`. The world concept
+and the one designated opaque parallax backdrop bypass transparency unchanged.
 An `ai` failure never silently changes to `chroma`.
 
 In the asset-specific sections below, **strategy background** means neutral
@@ -313,9 +326,11 @@ agent designs the entire parallax stack: it picks how many layers
 exist (1-5), what each one paints, where on the canvas (in
 canvas-fraction language — Y axis 0/5 top to 5/5 bottom), z-index for
 draw order, parallax speed, and whether the layer is opaque. Exactly
-one layer must be the opaque backdrop (z=0, parallax=0); all others
-are transparent overlays that show deeper layers through their strategy-background
-regions after derivation.
+one layer must be the opaque backdrop (z=0, parallax=0); at least one
+transparent layer is required. The front-most transparent layer is the one
+canonical near foreground at parallax 1.8; every other transparent layer stays
+at or behind the gameplay plane (`parallax <= 1`). Transparent overlays show
+deeper layers through their strategy-background regions after derivation.
 
 There is no separate "skybox" generator — the deepest opaque layer the
 agent designs IS the skybox.
@@ -359,7 +374,7 @@ rendered without overlap.
 | `id` | Lowercase snake-case slug used as filename suffix. |
 | `title` | Human-readable name. |
 | `z_index` | Integer; lower = deeper (drawn first). 0 for the opaque backdrop, ascending for layers painted on top. |
-| `parallax` | Browser screen-velocity ratio to the gameplay plane. 0 for the opaque backdrop; typical distant/mid layers are ~0.15/~0.4/~0.75, while the current near-foreground design uses 1.8. |
+| `parallax` | Browser screen-velocity ratio to the gameplay plane. 0 for the opaque backdrop; distant/mid layers are `<=1`; the one front-most transparent near foreground is exactly 1.8. |
 | `opaque` | `true` for exactly ONE layer (the deepest backdrop). All others must be `false`. |
 | `paint_region` | Free-form text describing which Y/X range to paint in canvas fractions (e.g. "paint Y 3/5..5/5") and which remains exterior background. |
 | `description` | One sentence — what to paint (e.g. "silhouettes of jagged ash mountains receding into haze"). |
@@ -448,6 +463,36 @@ for the complete trigger and material contract.
 
 ---
 
+## Runtime ladder
+
+| | |
+|---|---|
+| **Output** | `ladder_<tag>.png` |
+| **Canvas** | 256 × 1024 |
+| **Inputs** | World concept |
+| **Wave** | 2 |
+
+One complete front-facing ladder uses two registered rails and evenly spaced
+rungs across most of the canvas height. A 2 px transparent border isolates it
+from neighboring geometry. Deterministic fitting preserves the full ladder;
+publication rejects an empty, boundary-touching, too-short, or implausibly
+narrow result.
+
+## Character climb strip
+
+| | |
+|---|---|
+| **Output** | `character_<tag>-fromcombined_climb.png` |
+| **Canvas** | 256 × 128 |
+| **Inputs** | Character concept |
+| **Wave** | 3 |
+
+The strip is one row by four 64 x 128 rear-facing climb frames with alternating
+hands and feet. Each frame is independently fitted behind a 2 px transparent
+gutter. The ladder itself is not painted into the character strip.
+
+---
+
 ## Character concept (turnaround)
 
 | | |
@@ -458,9 +503,37 @@ for the complete trigger and material contract.
 | **Layout prior** | n/a |
 | **Wave** | 2 |
 
-Three-pose turnaround sheet (front / side / back) of the same character on a
-shared horizontal baseline. Used as the design reference for every
-character motion sheet.
+Three-pose turnaround sheet (front / side / back) of the same character in an
+exact 1 x 3 grid. Each view is an independent isolated subject centered wholly
+inside its own third with generous internal padding and wide uninterrupted
+strategy-background separator bands. A shared ground plane or baseline,
+shadows, vines/flourishes, labels/arrows, panels/borders, scenery, and any
+foreground connection across a seam are forbidden. Used as the design
+reference for every character motion sheet.
+
+No authoritative 1 x 3 wireframe is bundled, so the producer does not invent
+or attach one. Instead, raw-cache metadata binds the complete isolation prompt,
+the exact rows/columns/gutter contract, and the actual world-concept reference
+path, byte length, and SHA-256 under `isolated-turnaround-thirds-v1`. Changing
+this prompt/reference contract invalidates character and creature concept raws
+without invalidating unrelated asset caches.
+
+If the normal sheet call exhausts all six attempts specifically because a
+foreground component crosses a declared internal seam, the producer uses
+`isolated-view-fallback-v1`. It generates front, side, and back as three
+independent 1:1 images. The front view references the world concept; the other
+views reference both the world concept and the successful front-view identity
+anchor. Each view retains the standard six-attempt image and transparency
+contracts. Empty cells, wrong semantics, and non-concept grids never select
+this fallback.
+
+The validated views are fitted into the canonical 1 x 3 cells with exact clear
+gutters, then the composite is revalidated under Grid v2. Hidden
+`.<stem>.view-N.raw.png` and `.<stem>.view-N.png` pairs retain per-view prompts,
+model, seed, references, parameters, attempts, and content hashes. Composite
+provenance records the original sheet exhaustion and identity-anchor linkage.
+Publication excludes those hidden components, and cache reuse verifies every
+component, sidecar, composite digest, and prompt/reference contract.
 
 ---
 
@@ -537,7 +610,11 @@ template.
 | **Layout prior** | n/a |
 | **Wave** | 2 (N parallel calls) |
 
-Three-pose turnaround (front / side / back) of one creature variant.
+Three-pose turnaround (front / side / back) of one creature variant. It uses
+the same isolated-thirds contract as the character turnaround: one centered,
+fully contained subject per third, clear uniform-background separator bands,
+and no shared baseline, ground, shadow, decoration, panel, label, or foreground
+connection across either internal seam.
 
 ### Ladder structure (agent-designed)
 
