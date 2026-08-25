@@ -729,6 +729,40 @@ async def test_ai_removal_contract_retries_before_persistence_and_selection(
 
 
 @pytest.mark.asyncio
+async def test_canonicalize_cache_binds_deterministic_transparency_versions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = request_value()
+    executor = DialogueSceneExecutor(
+        DialogueExecutorContext(structured=FakeStructured(request), images=FakeImages())
+    )
+    context = _context(tmp_path, request)
+    await executor.run_stage("prepare", context)
+    raw_root = tmp_path / "raw"
+    raw_root.mkdir()
+    for state in ("neutral", "delighted", "flustered", "concerned"):
+        (raw_root / f"expression-{state}.png").write_bytes(_png())
+
+    await executor.run_stage("canonicalize", context)
+    cache_path = tmp_path / ".dialogue-cache/canonicalize.json"
+    first_key = json.loads(cache_path.read_text(encoding="utf-8"))["key"]
+
+    monkeypatch.setattr(executor_module, "CHROMA_MATTE_VERSION", "test-chroma-matte-v-next")
+    await executor.run_stage("canonicalize", context)
+    matte_key = json.loads(cache_path.read_text(encoding="utf-8"))["key"]
+    assert matte_key != first_key
+
+    monkeypatch.setattr(
+        executor_module,
+        "MAGENTA_EDGE_DECONTAMINATION_VERSION",
+        "test-magenta-edge-v-next",
+    )
+    await executor.run_stage("canonicalize", context)
+    edge_key = json.loads(cache_path.read_text(encoding="utf-8"))["key"]
+    assert edge_key != matte_key
+
+
+@pytest.mark.asyncio
 async def test_service_retry_exhaustion_is_surfaced_and_recorded(tmp_path: Path) -> None:
     request = request_value()
     images = FakeImages(exhausted=True)

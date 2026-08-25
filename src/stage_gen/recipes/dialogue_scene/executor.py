@@ -42,7 +42,14 @@ from stage_gen.image_prompting import (
     image_style_compiler_cache_key,
     load_image_style_resources,
 )
-from stage_gen.media import apply_chroma_transparency, compose_source_with_alpha, inspect_image
+from stage_gen.media import (
+    CHROMA_MATTE_VERSION,
+    MAGENTA_EDGE_DECONTAMINATION_VERSION,
+    apply_chroma_transparency,
+    compose_source_with_alpha,
+    decontaminate_magenta_edges,
+    inspect_image,
+)
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene.cache import DialogueStageCache
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -191,6 +198,12 @@ class DialogueSceneExecutor:
                 _STYLE_ASSET_KINDS,
                 resources=self._style_resources,
             )
+        if stage_name == "canonicalize":
+            cache_inputs["magenta_edge_decontamination_version"] = (
+                MAGENTA_EDGE_DECONTAMINATION_VERSION
+            )
+            if request.transparency_mode == "chroma":
+                cache_inputs["chroma_matte_version"] = CHROMA_MATTE_VERSION
         key = cache.key(
             stage_name,
             inputs=cache_inputs,
@@ -565,6 +578,11 @@ class DialogueSceneExecutor:
                     **asdict(facts),
                 }
                 artifacts.extend((removed_relative, _relative(context, result.provenance_path)))
+            data, edge_facts = decontaminate_magenta_edges(data)
+            derivation["edge_decontamination"] = {
+                "version": MAGENTA_EDGE_DECONTAMINATION_VERSION,
+                **edge_facts.as_dict(),
+            }
             provenance = await _write_local_bytes(
                 context,
                 output,
