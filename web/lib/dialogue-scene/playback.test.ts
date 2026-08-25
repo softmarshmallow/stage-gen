@@ -3,6 +3,7 @@ import { dialogueSceneDemoFixture } from "./demo-fixture";
 import {
   currentDialogueSceneBeat,
   currentDialogueSceneExpressionState,
+  dialogueSceneActionForDocumentKey,
   dialogueSceneActionForKey,
   dialogueSceneIsComplete,
   initialDialogueScenePlayback,
@@ -44,6 +45,12 @@ describe("dialogue-scene deterministic playback", () => {
     expect(
       currentDialogueSceneExpressionState(dialogueSceneDemoFixture.dialogue, completed),
     ).toBe("delighted");
+
+    state = reduceDialogueScenePlayback(count, completed, "restart");
+    expect(state).toEqual(initialDialogueScenePlayback());
+    expect(currentDialogueSceneBeat(dialogueSceneDemoFixture.dialogue, state)?.id).toBe(
+      "late-arrival",
+    );
   });
 
   test("toggles the asset-only composition without changing the current line", () => {
@@ -117,5 +124,28 @@ describe("dialogue-scene deterministic playback", () => {
     expect(dialogueSceneActionForKey("ArrowRight")).toBe("next");
     expect(dialogueSceneActionForKey("ArrowLeft")).toBe("back");
     expect(dialogueSceneActionForKey("Escape")).toBeNull();
+  });
+
+  test("advances from neutral document focus without duplicating native controls", () => {
+    const neutralFocus = {
+      defaultPrevented: false,
+      modified: false,
+      editableTarget: false,
+      activationTarget: false,
+    } as const;
+    expect(dialogueSceneActionForDocumentKey("Enter", neutralFocus)).toBe("next");
+    expect(dialogueSceneActionForDocumentKey(" ", neutralFocus)).toBe("next");
+
+    const focusedButton = { ...neutralFocus, activationTarget: true };
+    expect(dialogueSceneActionForDocumentKey("Enter", focusedButton)).toBeNull();
+    expect(dialogueSceneActionForDocumentKey(" ", focusedButton)).toBeNull();
+    expect(dialogueSceneActionForDocumentKey("ArrowRight", focusedButton)).toBe("next");
+
+    expect(
+      dialogueSceneActionForDocumentKey("Enter", {
+        ...neutralFocus,
+        editableTarget: true,
+      }),
+    ).toBeNull();
   });
 });

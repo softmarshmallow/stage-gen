@@ -8,7 +8,18 @@ export interface DialogueScenePlaybackState {
   readonly dialogueVisible: boolean;
 }
 
-export type DialogueScenePlaybackAction = "next" | "back" | "toggle-dialogue";
+export type DialogueScenePlaybackAction =
+  | "next"
+  | "back"
+  | "restart"
+  | "toggle-dialogue";
+
+export interface DialogueSceneDocumentKeyContext {
+  readonly defaultPrevented: boolean;
+  readonly modified: boolean;
+  readonly editableTarget: boolean;
+  readonly activationTarget: boolean;
+}
 
 export function initialDialogueScenePlayback(): DialogueScenePlaybackState {
   return Object.freeze({ cursor: 0, dialogueVisible: true });
@@ -31,6 +42,7 @@ export function reduceDialogueScenePlayback(
     if (state.cursor === 0) return state;
     return Object.freeze({ ...state, cursor: state.cursor - 1 });
   }
+  if (action === "restart") return initialDialogueScenePlayback();
   return Object.freeze({ ...state, dialogueVisible: !state.dialogueVisible });
 }
 
@@ -42,6 +54,22 @@ export function dialogueSceneActionForKey(
     return "next";
   }
   return null;
+}
+
+export function dialogueSceneActionForDocumentKey(
+  key: string,
+  context: DialogueSceneDocumentKeyContext,
+): Extract<DialogueScenePlaybackAction, "next" | "back"> | null {
+  if (context.defaultPrevented || context.modified || context.editableTarget) return null;
+  const action = dialogueSceneActionForKey(key);
+  if (action === null) return null;
+  if (
+    context.activationTarget &&
+    (key === "Enter" || key === " " || key === "Spacebar")
+  ) {
+    return null;
+  }
+  return action;
 }
 
 export function currentDialogueSceneBeat(

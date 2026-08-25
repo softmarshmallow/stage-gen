@@ -871,25 +871,29 @@ button:disabled {
 
 /* Signal at Blue Hour: recipe-local anime romance showcase theme. */
 body:has(.sg-dialogue-demo-page) {
-  background: #07152e;
+  background: #08142c;
 }
 .sg-dialogue-demo-page {
-  --vn-night: #07152e;
-  --vn-panel: rgba(12, 32, 66, 0.92);
-  --vn-paper: #f8fbff;
-  --vn-ink: #18294d;
-  --vn-teal: #69e3dc;
-  --vn-amber: #ffd58a;
-  --vn-rose: #f5a9c6;
-  --vn-muted: #a8b9d7;
+  --vn-night: #08142c;
+  --vn-panel: rgba(19, 29, 66, 0.92);
+  --vn-paper: #fff9fc;
+  --vn-ink: #28203f;
+  --vn-teal: #75ddd8;
+  --vn-amber: #ffd69b;
+  --vn-rose: #f29abb;
+  --vn-magenta: #a6507f;
+  --vn-muted: #b3bfd9;
+  --vn-glass: rgba(9, 22, 51, 0.66);
+  --vn-glass-border: rgba(255, 225, 239, 0.24);
   position: relative;
   width: min(1360px, 100%);
   min-height: 100dvh;
   padding: clamp(16px, 3vw, 38px);
   background:
-    radial-gradient(circle at 12% 0%, rgba(65, 190, 193, 0.2), transparent 34%),
-    radial-gradient(circle at 92% 4%, rgba(239, 164, 194, 0.17), transparent 30%),
-    linear-gradient(180deg, #102b53 0%, var(--vn-night) 52%, #050d1d 100%);
+    radial-gradient(circle at 12% 0%, rgba(74, 187, 194, 0.18), transparent 34%),
+    radial-gradient(circle at 91% 4%, rgba(213, 104, 163, 0.2), transparent 31%),
+    radial-gradient(circle at 72% 84%, rgba(242, 154, 187, 0.09), transparent 35%),
+    linear-gradient(180deg, #142d56 0%, var(--vn-night) 52%, #060c1c 100%);
   color: var(--vn-paper);
   font-family: ui-rounded, "Avenir Next", "Segoe UI", sans-serif;
   overflow: hidden;
@@ -922,7 +926,9 @@ body:has(.sg-dialogue-demo-page) {
   font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  text-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.32),
+    0 0 32px rgba(242, 154, 187, 0.1);
 }
 .sg-dialogue-demo-back {
   color: var(--vn-muted);
@@ -935,7 +941,7 @@ body:has(.sg-dialogue-demo-page) {
 }
 .sg-dialogue-demo-eyebrow {
   margin: 12px 0 0 !important;
-  color: var(--vn-teal) !important;
+  color: var(--vn-rose) !important;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -948,11 +954,16 @@ body:has(.sg-dialogue-demo-page) {
 .sg-dialogue-demo-status {
   align-items: flex-start;
   min-width: 230px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--vn-glass-border);
   border-radius: 14px;
   padding: 10px 14px;
-  background: rgba(5, 17, 40, 0.5);
-  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.16);
+  background:
+    linear-gradient(135deg, rgba(203, 112, 166, 0.12), transparent 62%),
+    var(--vn-glass);
+  box-shadow:
+    0 12px 38px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px) saturate(1.08);
   text-align: left;
 }
 .sg-dialogue-demo-status strong {
@@ -973,10 +984,12 @@ body:has(.sg-dialogue-demo-page) {
   gap: 16px;
 }
 .sg-dialogue-stage {
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 225, 239, 0.42);
   border-radius: 20px;
   background: #08162d;
-  box-shadow: 0 22px 64px rgba(0, 4, 18, 0.46);
+  box-shadow:
+    0 24px 68px rgba(0, 4, 18, 0.48),
+    0 0 0 1px rgba(242, 154, 187, 0.05);
 }
 .sg-dialogue-background {
   filter: saturate(1.05) contrast(1.02);
@@ -1022,7 +1035,7 @@ body:has(.sg-dialogue-demo-page) {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  border: 1px solid rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(255, 225, 239, 0.38);
   border-radius: 11px;
   padding: 6px 10px;
   background: rgba(7, 21, 46, 0.7);
@@ -1034,7 +1047,7 @@ body:has(.sg-dialogue-demo-page) {
   text-transform: uppercase;
 }
 .sg-dialogue-expression-badge strong {
-  color: var(--vn-amber);
+  color: var(--vn-rose);
   font-size: 12px;
 }
 .sg-dialogue-stage-advance:focus-visible {
@@ -1047,20 +1060,22 @@ body:has(.sg-dialogue-demo-page) {
   right: clamp(14px, 3vw, 36px);
   bottom: clamp(14px, 3vw, 30px);
   min-height: clamp(118px, 16vw, 158px);
-  border: 1px solid rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 225, 239, 0.68);
   border-radius: 16px;
   padding: clamp(24px, 3vw, 32px) clamp(18px, 3vw, 30px) 24px;
   background:
-    linear-gradient(120deg, rgba(9, 28, 59, 0.96), rgba(19, 39, 77, 0.9)),
+    linear-gradient(125deg, rgba(13, 29, 63, 0.97), rgba(43, 29, 68, 0.92)),
     var(--vn-panel);
-  box-shadow: 0 14px 48px rgba(0, 3, 18, 0.42);
-  backdrop-filter: blur(10px);
+  box-shadow:
+    0 18px 52px rgba(0, 3, 18, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px) saturate(1.12);
 }
 .sg-dialogue-panel::after {
   position: absolute;
   right: 16px;
   top: 12px;
-  color: rgba(105, 227, 220, 0.72);
+  color: rgba(242, 154, 187, 0.78);
   content: "✦";
   font-size: 15px;
 }
@@ -1071,14 +1086,15 @@ body:has(.sg-dialogue-demo-page) {
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 999px;
   padding: 5px 15px;
-  background: linear-gradient(90deg, #f4a7c5, #ffd58a);
+  background: linear-gradient(100deg, #f29abb, #f6bed2 52%, #ffd69b);
+  box-shadow: 0 7px 22px rgba(203, 112, 166, 0.24);
   color: var(--vn-ink);
   font-weight: 800;
   text-align: center;
 }
 .sg-dialogue-panel p {
   max-width: 68ch;
-  color: #fff;
+  color: var(--vn-paper);
   font-family: ui-rounded, "Avenir Next", "Segoe UI", sans-serif;
   font-size: clamp(16px, 1.8vw, 21px);
   line-height: 1.48;
@@ -1099,10 +1115,12 @@ body:has(.sg-dialogue-demo-page) {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 225, 239, 0.34);
   border-radius: 20px;
-  background: rgba(248, 251, 255, 0.96);
-  box-shadow: 0 22px 64px rgba(0, 4, 18, 0.28);
+  background: linear-gradient(180deg, rgba(255, 252, 254, 0.98), rgba(246, 248, 255, 0.96));
+  box-shadow:
+    0 22px 64px rgba(0, 4, 18, 0.3),
+    0 0 0 1px rgba(203, 112, 166, 0.05);
   color: var(--vn-ink);
 }
 .sg-dialogue-profile-art {
@@ -1143,7 +1161,7 @@ body:has(.sg-dialogue-demo-page) {
 .sg-dialogue-profile-kicker,
 .sg-dialogue-framing-kicker {
   margin: 0 0 2px;
-  color: #508e99;
+  color: var(--vn-magenta);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.15em;
@@ -1163,7 +1181,7 @@ body:has(.sg-dialogue-demo-page) {
 }
 .sg-dialogue-profile-tagline {
   margin: 13px 0 0;
-  color: #804d72;
+  color: #86466f;
   font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   font-size: 16px;
   line-height: 1.35;
@@ -1176,10 +1194,10 @@ body:has(.sg-dialogue-demo-page) {
 }
 .sg-dialogue-expression-set {
   margin: auto 12px 12px;
-  border: 1px solid #cfdaea;
+  border: 1px solid #e3cddd;
   border-radius: 13px;
   padding: 11px 12px;
-  background: #eef4fb;
+  background: linear-gradient(135deg, #fff5f9, #eef4fb 72%);
 }
 .sg-dialogue-expression-set > div {
   display: flex;
@@ -1214,7 +1232,7 @@ body:has(.sg-dialogue-demo-page) {
   color: #98a8c0;
 }
 .sg-dialogue-expression-set li.is-active {
-  background: #fbdbe7;
+  background: #f9d8e6;
   color: #713c62;
   font-weight: 800;
 }
@@ -1233,25 +1251,37 @@ body:has(.sg-dialogue-demo-page) {
 }
 .sg-dialogue-controls .sg-btn {
   min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
+  border: 1px solid var(--vn-glass-border);
   border-radius: 999px;
   padding: 7px 16px;
-  background: rgba(7, 21, 46, 0.5);
+  background: var(--vn-glass);
   color: var(--vn-paper);
+  backdrop-filter: blur(10px) saturate(1.08);
 }
 .sg-dialogue-controls .sg-btn:hover:not(:disabled) {
-  border-color: var(--vn-teal);
-  background: rgba(105, 227, 220, 0.12);
+  border-color: var(--vn-rose);
+  background: rgba(242, 154, 187, 0.12);
 }
 .sg-dialogue-controls .sg-btn:disabled {
   border-color: rgba(255, 255, 255, 0.12);
   color: #667792;
 }
-.sg-dialogue-controls .sg-dialogue-next:not(:disabled) {
+.sg-dialogue-controls .sg-dialogue-advance:not(:disabled) {
   border-color: var(--vn-rose);
-  background: linear-gradient(90deg, #f4a7c5, #ffd58a);
+  background: linear-gradient(100deg, #f29abb, #f7bfd3 56%, #ffd69b);
   color: var(--vn-ink);
   font-weight: 800;
+  box-shadow: 0 8px 24px rgba(203, 112, 166, 0.24);
+}
+.sg-dialogue-controls .sg-dialogue-advance:focus-visible:not(:disabled) {
+  border-color: #fff4f8;
+  background: linear-gradient(100deg, #f29abb, #f7bfd3 56%, #ffd69b);
+  color: var(--vn-ink);
+  outline: 3px solid var(--vn-teal);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 2px var(--vn-night),
+    0 9px 28px rgba(203, 112, 166, 0.32);
 }
 .sg-dialogue-control-status,
 .sg-dialogue-key-help {
@@ -1259,11 +1289,14 @@ body:has(.sg-dialogue-demo-page) {
 }
 .sg-dialogue-framing {
   margin-top: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--vn-glass-border);
   border-radius: 18px;
   padding: 16px;
-  background: rgba(5, 17, 40, 0.62);
-  box-shadow: 0 14px 42px rgba(0, 4, 18, 0.18);
+  background: var(--vn-glass);
+  box-shadow:
+    0 14px 42px rgba(0, 4, 18, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(1.06);
 }
 .sg-dialogue-framing-heading h2 {
   color: #fff;
@@ -1449,5 +1482,156 @@ body:has(.sg-dialogue-demo-page) {
   }
   .sg-dialogue-expression-set ul {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Game-first shell for the generic dialogue-scene consumer. */
+.sg-dialogue-demo-page {
+  display: grid;
+  width: 100%;
+  place-items: center;
+  overflow-x: hidden;
+}
+.sg-dialogue-game-shell {
+  width: min(1120px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--vn-glass-border);
+  border-radius: 24px;
+  padding: 10px;
+  background: rgba(4, 12, 31, 0.82);
+  box-shadow:
+    0 30px 90px rgba(0, 2, 14, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+.sg-dialogue-game-shell .sg-dialogue-demo-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding: 3px 5px 12px;
+}
+.sg-dialogue-game-shell .sg-dialogue-demo-back {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 7px 11px;
+  text-decoration: none;
+}
+.sg-dialogue-game-shell .sg-dialogue-demo-back:hover,
+.sg-dialogue-game-shell .sg-dialogue-demo-back:focus-visible {
+  border-color: var(--vn-glass-border);
+  background: rgba(255, 255, 255, 0.06);
+}
+.sg-dialogue-game-title {
+  min-width: 0;
+  text-align: center;
+}
+.sg-dialogue-game-shell .sg-dialogue-demo-header h1 {
+  overflow: hidden;
+  margin: 0 0 2px;
+  font-size: clamp(20px, 3vw, 34px);
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-dialogue-game-shell .sg-dialogue-demo-scene-label {
+  overflow: hidden;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-dialogue-game-progress {
+  min-width: 58px;
+  color: var(--vn-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+.sg-dialogue-game-shell .sg-dialogue-stage {
+  border-radius: 16px;
+}
+.sg-dialogue-game-shell .sg-dialogue-controls {
+  margin: 0;
+  padding: 10px 6px 2px;
+}
+.sg-dialogue-game-shell .sg-dialogue-key-help {
+  margin: 4px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.sg-dialogue-game-shell > .sg-dialogue-framing {
+  margin: 6px 4px 2px;
+  border-radius: 12px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: none;
+}
+.sg-dialogue-game-shell > .sg-dialogue-framing > summary {
+  cursor: pointer;
+  padding: 9px 12px;
+  color: var(--vn-muted);
+  font-size: 11px;
+}
+.sg-dialogue-game-shell > .sg-dialogue-framing[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--vn-paper);
+}
+.sg-dialogue-game-shell .sg-dialogue-framing-heading {
+  padding: 10px 12px 0;
+}
+.sg-dialogue-game-shell .sg-dialogue-framing-output {
+  align-items: flex-start;
+  color: var(--vn-muted);
+  text-align: left;
+}
+.sg-dialogue-game-shell .sg-dialogue-framing-inputs {
+  margin: 0;
+  padding: 10px 12px 12px;
+}
+
+@media (max-width: 700px) {
+  .sg-dialogue-demo-page {
+    padding: 8px;
+  }
+  .sg-dialogue-game-shell {
+    border-radius: 17px;
+    padding: 6px;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-demo-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 2px 2px 7px;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-demo-back {
+    min-height: 36px;
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-demo-header h1 {
+    font-size: clamp(18px, 6vw, 26px);
+  }
+  .sg-dialogue-game-shell .sg-dialogue-demo-scene-label {
+    font-size: 9px;
+  }
+  .sg-dialogue-game-progress {
+    min-width: 44px;
+    font-size: 9px;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-stage {
+    border-radius: 12px;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-controls {
+    padding: 7px 2px 0;
+  }
+  .sg-dialogue-game-shell .sg-dialogue-key-help {
+    font-size: 9px;
   }
 }
