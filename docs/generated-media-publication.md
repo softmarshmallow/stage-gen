@@ -29,6 +29,59 @@ Every enumerated artifact needs an adjacent `.meta.json` sidecar whose
 - at least one stable, documented `basis` entry; and
 - an ISO UTC `reviewed_at` timestamp.
 
+### Direct game-concept covers
+
+A directly generated concept cover uses `provenance_kind: "generated_image"`
+and `lineage_kind: "game_concept_cover_v1"`. This contract publishes one final
+cover beside a digest-bound repository concept document; it does not publish a
+game package, runtime manifest, or the losing exploration candidates.
+
+The inventory entry has exactly `path`, `provenance_kind`, `lineage_kind`,
+`kind`, `sidecar_sha256`, `review_status`, `synth_id_expected`, and
+`visual_review`. The adjacent sidecar has exactly `schema_version`,
+`provenance_kind`, `lineage_kind`, `state`, `artifact`, `concept`, `generation`,
+`visual_review`, and `rights`. These records and all of their nested fields use
+`lower_snake_case`.
+
+`artifact` binds the repository path, media type, SHA-256 digest, byte count,
+width, and height of the cover. `concept` binds a distinct repository-relative
+regular file by path, SHA-256 digest, and byte count. Publication verifies the
+concept file itself and rejects a missing, changed, or symlinked document.
+
+`generation` records the full exact prompt and its UTF-8 SHA-256 digest, with
+`prompt_hash_scope: "full_exact_utf8_string"`; stable provider and model
+identities; `attempt_count` within one through six; `retry_count` equal to
+`attempt_count - 1`; and `n: 1`. Version 1 requires `input_references: []`.
+Referenced-image concept generation needs a future explicit lineage contract
+rather than weakening this one.
+
+The returned `source` media record binds media type, digest, bytes, width, and
+height. The deterministic `normalization` record names its tool, version, and
+operation; binds the source digest as `input_sha256`; and binds its normalized
+output digest, media type, width, and height. Source media does not need to be
+tracked, but its content identity must remain portable.
+
+By default the normalization output is the published artifact and its digest,
+media type, width, and height must match exactly. An optional
+`generation.publication_transform` may instead bind the reviewed normalized PNG
+to a smaller tracked preview. Its exact fields are `tool`, `version`,
+`operation`, `input_sha256`, `output_sha256`, `output_media_type`, `width`,
+`height`, and `settings`. `input_sha256` must match the normalization output;
+the remaining output facts must match the published artifact.
+
+The transform's `settings` has exactly `quality`, `resize_width`,
+`resize_height`, and `metadata`. Quality is an integer from zero through 100;
+resize dimensions are positive and match the transform output; and metadata is
+exactly `none`. The normalization still binds provider source to the reviewed
+workspace PNG, while the publication transform binds that PNG to the final
+gallery bytes. The full workspace PNG remains unpublished.
+
+The independent `visual_review`, digest-bound report, adjacent rights notice,
+and `redistribution-approved` artifact-specific rights decision use the same
+strict bindings as generated-image documentation derivatives below. Selecting
+a candidate is not itself publication approval: the verdict must be a pass on
+the exact final bytes that are committed.
+
 The inventory carries review facts outside the runtime provenance schema.
 Audio needs an approved listening review with reviewer and timestamp. When
 SynthID is expected, the inventory records that expectation separately from
@@ -87,12 +140,13 @@ The derivative rights record also binds the adjacent notice with
 `notice_sha256` and `notice_bytes`; changing the permission text after approval
 fails the same gate.
 
-Every derivative entry and sidecar is scanned recursively. Private or temporary
-paths, file/data references, authorization or credential material, and signed
-URL query parameters fail publication wherever they appear. Null image-model or
-numeric-seed facts require an explicit unavailable status; reported model or
-seed facts require `reported`. Provider operations remain capped at six
-attempts, and semantic image-candidate regeneration remains capped at two.
+Every lower-snake generated-image entry and sidecar is scanned recursively.
+Private or temporary paths, file/data references, authorization or credential
+material, and signed URL query parameters fail publication wherever they
+appear. Null image-model or numeric-seed facts in derivative records require an
+explicit unavailable status; reported model or seed facts require `reported`.
+Provider operations remain capped at six attempts, and semantic image-candidate
+regeneration remains capped at two.
 
 ## Portable lineage
 
@@ -110,10 +164,11 @@ verifies that:
 1. generated media in the declared roots is intentionally enumerated;
 2. the adjacent sidecar's artifact digest and byte size match, and the
    inventory's branch-specific sidecar digest matches the sidecar itself;
-3. source references are portable and content-addressed, with exact prompt
-   digests and source-specific rights for generated-image derivatives;
-4. deterministic derivative transformations record stable tool, version,
-   parameters, ordered inputs, and output facts;
+3. direct concept documents match their recorded digest and byte size, and
+   source references are portable and content-addressed, with exact prompt
+   digests and source-specific rights where required;
+4. deterministic derivative transformations and direct-cover normalizations
+   record stable tool, version, inputs, operation, and output facts;
 5. rights are explicitly redistribution-approved with stable evidence; and
 6. required listening or independent visual-review facts and their exact report
    digests are present.

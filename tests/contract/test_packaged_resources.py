@@ -71,6 +71,8 @@ MEDIA_SUFFIXES = {
     ".webm",
     ".webp",
 }
+IMAGE_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
+CONCEPT_GALLERY_PREFIX = ("concept-studio", "gallery")
 GIT_MEDIA_LIMITS = {
     "audio": 20 * 1024 * 1024,
     "image": 5 * 1024 * 1024,
@@ -244,10 +246,23 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         for path in docs_root.rglob("*")
         if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
     )
+    concept_gallery_root = repository.joinpath(*CONCEPT_GALLERY_PREFIX)
+    assert not concept_gallery_root.is_symlink()
+    if concept_gallery_root.exists():
+        assert concept_gallery_root.is_dir()
+        for path in concept_gallery_root.rglob("*"):
+            assert not path.is_symlink()
+            if path.suffix.lower() in MEDIA_SUFFIXES:
+                relative_paths.add(PurePosixPath(path.relative_to(repository).as_posix()))
 
     total = 0
     for relative in sorted(relative_paths):
-        assert relative.parts[0] in {"docs", "fixtures", "src", "web"}
+        assert relative.parts[0] in {"concept-studio", "docs", "fixtures", "src", "web"}
+        is_concept_gallery = relative.parts[:2] == CONCEPT_GALLERY_PREFIX
+        if relative.parts[0] == "concept-studio":
+            assert is_concept_gallery
+            assert len(relative.parts) > len(CONCEPT_GALLERY_PREFIX)
+            assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "src":
             assert relative.parts[:3] == ("src", "stage_gen", "resources")
         if relative.parts[0] == "web":
@@ -260,14 +275,23 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         family = _media_family(relative.suffix.lower())
         assert 0 < size <= GIT_MEDIA_LIMITS[family]
         total += size
-        if relative.parts[0] == "docs":
-            assert Path(f"{path}.meta.json").is_file()
+        if relative.parts[0] == "docs" or is_concept_gallery:
+            sidecar = Path(f"{path}.meta.json")
+            assert sidecar.is_file() and not sidecar.is_symlink()
             ignored = subprocess.run(
                 ["git", "check-ignore", "--quiet", "--", relative.as_posix()],
                 cwd=repository,
                 check=False,
             )
             assert ignored.returncode == 1
+            if is_concept_gallery:
+                sidecar_relative = sidecar.relative_to(repository).as_posix()
+                sidecar_ignored = subprocess.run(
+                    ["git", "check-ignore", "--quiet", "--", sidecar_relative],
+                    cwd=repository,
+                    check=False,
+                )
+                assert sidecar_ignored.returncode == 1
     assert total <= GIT_MEDIA_TOTAL_LIMIT
 
 
