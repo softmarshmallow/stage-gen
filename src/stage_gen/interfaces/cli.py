@@ -47,7 +47,15 @@ from stage_gen.config import (
 )
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.service import GenerateRequest, generate
+from stage_gen.recipes.dialogue_scene.character_bundle import (
+    package_dialogue_character_spike,
+    review_dialogue_character_bundle,
+    sanitize_dialogue_character_spike,
+)
 from stage_gen.recipes.registry import list_recipes, run_recipe_action
+from stage_gen.recipes.scrolling_preview.dialogue_character import (
+    bind_dialogue_character_to_scrolling_manifest,
+)
 
 COMMANDS = {
     "generate",
@@ -66,6 +74,7 @@ COMMANDS = {
     "map",
     "map-book",
     "soundtrack",
+    "dialogue-character",
 }
 
 
@@ -154,6 +163,87 @@ def build_parser() -> argparse.ArgumentParser:
             required=True,
             help="workspace root containing library/games",
         )
+
+    dialogue_character_parser = commands.add_parser(
+        "dialogue-character",
+        description="Sanitize, package, review, and bind a four-state dialogue character",
+    )
+    dialogue_character_commands = dialogue_character_parser.add_subparsers(
+        dest="dialogue_character_command", required=True
+    )
+    sanitize_parser = dialogue_character_commands.add_parser(
+        "sanitize",
+        help="sanitize one pending local character spike in place",
+    )
+    sanitize_parser.add_argument(
+        "--spike",
+        required=True,
+        dest="spike_path",
+        metavar="RUN/spike-assets/character-only.json",
+        help="pending character-only spike to sanitize in place",
+    )
+    package_parser = dialogue_character_commands.add_parser(
+        "package",
+        help="package one validated spike at its canonical run path",
+    )
+    package_parser.add_argument(
+        "--spike",
+        required=True,
+        dest="spike_path",
+        metavar="RUN/spike-assets/character-only.json",
+        help="validated character-only spike to package",
+    )
+    character_review_parser = dialogue_character_commands.add_parser(
+        "review",
+        help="apply an independent review to one pending character bundle",
+    )
+    character_review_parser.add_argument(
+        "--bundle",
+        required=True,
+        dest="bundle_path",
+        metavar="RUN/dialogue-character.bundle.json",
+        help="pending character bundle to review",
+    )
+    character_review_parser.add_argument(
+        "--review",
+        required=True,
+        dest="review_path",
+        metavar="REVIEW.json",
+        help="independent digest-bound review input",
+    )
+    character_review_parser.add_argument(
+        "--acceptance-spec",
+        required=True,
+        dest="acceptance_spec_path",
+        metavar="ACCEPTANCE.json",
+        help="acceptance specification bound by the review",
+    )
+    bind_parser = dialogue_character_commands.add_parser(
+        "bind",
+        help="bind one reviewed character bundle into a current scrolling manifest",
+    )
+    bind_parser.add_argument(
+        "--bundle",
+        required=True,
+        dest="bundle_path",
+        metavar="RUN/dialogue-character.bundle.reviewed.json",
+        help="reviewed local-demo character bundle to bind",
+    )
+    bind_parser.add_argument(
+        "--manifest",
+        required=True,
+        dest="manifest_path",
+        metavar="RUN/manifest_TAG.json",
+        help="current scrolling manifest to update in place",
+    )
+    bind_parser.add_argument(
+        "--npc-slot",
+        required=True,
+        type=int,
+        choices=range(4),
+        dest="npc_slot",
+        help="verified scrolling NPC slot",
+    )
 
     map_parser = commands.add_parser(
         "map",
@@ -354,6 +444,31 @@ def _dispatch(
             stdout.write(
                 f"{json.dumps(soundtrack_report, sort_keys=True, separators=(',', ':'))}\n"
             )
+        return 0
+    if command == "dialogue-character":
+        if args.dialogue_character_command == "sanitize":
+            dialogue_character_result = sanitize_dialogue_character_spike(args.spike_path)
+        elif args.dialogue_character_command == "package":
+            dialogue_character_result = package_dialogue_character_spike(args.spike_path)
+        elif args.dialogue_character_command == "review":
+            dialogue_character_result = review_dialogue_character_bundle(
+                args.bundle_path,
+                review_path=args.review_path,
+                acceptance_spec_path=args.acceptance_spec_path,
+            )
+        elif args.dialogue_character_command == "bind":
+            dialogue_character_result = bind_dialogue_character_to_scrolling_manifest(
+                args.bundle_path,
+                manifest_path=args.manifest_path,
+                npc_slot=args.npc_slot,
+            )
+        else:
+            raise CliUsageError(
+                f"unsupported dialogue-character command: {args.dialogue_character_command}"
+            )
+        stdout.write(
+            f"{json.dumps(dialogue_character_result, sort_keys=True, separators=(',', ':'))}\n"
+        )
         return 0
     if command == "map":
         resolved_map = _resolve_cli_game_map(
