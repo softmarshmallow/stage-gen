@@ -29,7 +29,7 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     )
     assert str(config.out_dir) == "new-out"
     assert config.image_model == "new/image"
-    assert config.text_model == "openai/gpt-5.5"
+    assert config.text_model == "openai/gpt-5.6-sol"
     assert config.music_model == "google/lyria-3-pro-preview"
     assert config.transparency_mode is TransparencyMode.AI
     assert config.capability_timeout_s == 1.25

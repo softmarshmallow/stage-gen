@@ -38,7 +38,7 @@ class StageGenConfig(ContractModel):
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
     image_model: str = "openai/gpt-image-2"
-    text_model: str = "openai/gpt-5.5"
+    text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
     background_removal_model: str = "fal-ai/birefnet/v2"
     transparency_mode: TransparencyMode = DEFAULT_TRANSPARENCY_MODE
@@ -85,7 +85,7 @@ def load_config(
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
         image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL") or "openai/gpt-image-2",
-        text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.5",
+        text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.6-sol",
         music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
         or "google/lyria-3-pro-preview",
         background_removal_model=_first(
