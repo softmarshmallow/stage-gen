@@ -29,6 +29,9 @@ def test_absolute_regular_file_read_rejects_parent_segments_before_open(tmp_path
         ("library", "..", "secret.toml"),
         ("library", "bad\\name.toml"),
         ("library", "bad:name.toml"),
+        ("/etc/passwd",),
+        ("library", "bad/name.toml"),
+        ("library", "bad\x00name.toml"),
     ],
 )
 def test_relative_regular_file_read_rejects_nonportable_parts(

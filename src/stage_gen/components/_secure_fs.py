@@ -130,5 +130,5 @@ def _validate_portable_relative_parts(parts: tuple[str, ...], *, label: str) -> 
         raise SecurePathError(
             f"{label} must use non-empty portable relative path segments without dot or parent"
         )
-    if any("\\" in part or ":" in part for part in parts):
+    if any("/" in part or "\\" in part or ":" in part or "\x00" in part for part in parts):
         raise SecurePathError(f"{label} must use portable relative path segments")
