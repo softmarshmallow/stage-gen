@@ -16,7 +16,8 @@ component contract.
   for recipe-normalized output; 32 x 32 for the browser-demo fixture).
 - Columns 0-3 are canonical roles; 4-7 and 8-11 repeat those four roles as
   visual variants.
-- Every browser-demo cell has a 2-pixel transparent source gutter. The gutter
+- Every normalized cell has a 2-pixel transparent source gutter (including the
+  2400 x 800 recipe output and the smaller browser-demo fixture). The gutter
   isolates generated cells and is not drawable terrain content.
 
 | Row | Columns 0-3 |
@@ -33,7 +34,8 @@ the geometry remains stable enough to slice deterministically.
 ## Role behavior
 
 - Air/outside regions use the recipe's background-removal/chroma convention.
-- Interior fill is opaque edge to edge.
+- Interior fill is fully opaque across its complete inset; only the contracted
+  2-pixel cell gutter remains transparent.
 - Surface roles share a consistent ground line.
 - Slopes express one-cell transitions for the preview's one-dimensional
   heightmap.
@@ -138,6 +140,76 @@ otherwise `fill`.
    surface, and adjacent overlap pixels use one global material phase; and
 10. a failed sheet is retried or reported, never accepted only because a file
    exists.
+
+The producer enforces the first five raster facts before publication. The
+opaque AI source is normalized to 2400 x 800 and checked for all 48 nonempty
+cells, every documented role's required and forbidden silhouette zones, no
+8-connected component crossing a declared cell seam, and a substantially
+covered fill source inside the image-generation caller validator. A continuous
+scene, wrong role, or empty cell stays inside that service's six-attempt
+boundary; one-sided gutter contact that does not connect to a neighbor remains
+recoverable. Transparency derivation isolates and aspect-fits each declared
+cell, records every transform, semantic role/layout identity, retained raw byte
+length and digest, normalization-input digest, and output digest, then applies
+the deterministic 12 x 4 semantic role mask, clears every 2-pixel gutter, and
+sets the canonical fill inset to alpha 255. A second byte-level validator
+compares the complete alpha plane to that topology; a single alpha-254 fill
+pixel or painted gutter invalidates the artifact and manifest.
+
+## Material-synthesis recovery
+
+`tileset-material-synthesis-v1` is a tileset-only recovery for one narrowly
+typed sheet-layout failure. It is eligible only when the normal sheet request
+uses all six attempts and every ordered failure is
+`scrolling-grid-cross-cell-isolation-v1`. Provider, network, timeout,
+cancellation, moderation, decoding, semantic-role, fill-coverage,
+transparency, cache, provenance, and final-validation failures remain hard
+failures. Free-form exception text never activates recovery.
+
+Recovery generates three opaque, texture-only 1024 x 1024 material swatches:
+`FILL` first, then `CAP` and `EDGE`, each referencing the accepted fill anchor
+and world concept. Each swatch remains one image-generation operation with the
+normal six-attempt owner. Swatches must be seamless material fields without a
+scene, horizon, object, character, symbol, text, border, or role silhouette;
+the pipeline never generates 48 independent cells.
+
+Acceptance is measured, not inferred from the prompt: the immutable swatch
+contract caps a dominant quantized colour at 38%, any flat or salient connected
+component at 20%, and dependent-material frequency ratio at 0.40--2.00. It
+also requires palette linkage to `FILL`, the documented cap/fill and edge/fill
+luminance separations, bounded axis breaks, and exact periodic edges.
+
+The swatch contract also binds the canonical world-spec digest and its complete
+ordered layer records. The highest-z layer at `parallax <= 1` supplies a
+deterministic textual material cue; a concurrently generated layer PNG is not
+an image input. The packaged wireframe is likewise a local, digest-bound layout
+prior and is not sent to material generation. Recovery validates its exact
+packaged bytes and RGB-class inventory, but does not treat its pixels as the
+canonical role geometry.
+
+Deterministic synthesis applies those materials through the authoritative
+`tileset-12x4-v1` role mask, which remains the sole topology and alpha source of
+truth. It owns every contour, slope, corner, interface, variant phase, and exact
+2-pixel gutter. The canonical alpha plane, all 48
+roles, compatible joins, representative cap and side samples, and fully opaque
+fill inset remain the same publication requirements as a normally generated
+sheet. The visible parent records derivation kind
+`tileset-material-synthesis-v1`, the original six failures, the
+`FILL -> {CAP, EDGE}` dependency graph, input and swatch digests, synthesis
+versions, and final validation evidence.
+
+Final evidence is recomputed from pixels and masks: every opaque RGB pixel has
+an exact `FILL`/`CAP`/`EDGE` source attribution, runtime extraction corridors
+are opaque and material-correct, all 16 three-variant groups have distinct
+hashes with luminance drift at most 0.05 and DeltaE00 at most 8, and legal flat
+and platform joins stay within 12/255 mean-channel and 0.04 luminance deltas.
+
+Swatch raw files, canonical files, and sidecars use leading-dot names and are
+resumable implementation artifacts, not manifest entries. Only
+`tileset_<tag>.png` may satisfy the runtime terrain role. Its raw PNG, raw
+sidecar, canonical PNG, and canonical sidecar publish as one rollback-protected
+bundle after validation; a failed install restores the complete previous
+bundle or leaves no visible parent.
 
 ## Floating upper-platform consumer
 

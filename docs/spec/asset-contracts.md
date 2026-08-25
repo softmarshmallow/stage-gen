@@ -388,21 +388,63 @@ much to soften based on closeness-to-camera.
 | **Output** | `tileset_<tag>.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (terrain wireframe), world concept |
-| **Slicing at runtime** | 12 cols × 4 rows = 48 cells, gutter 8 px |
+| **Slicing at runtime** | 12 cols × 4 rows = 48 cells, 2 px transparent gutter per normalized cell |
 | **Material** | Inferred from world concept (grass / snow / sand / moss / leaf litter / etc.) — the generator prompt is intentionally material-agnostic |
 
 ### Tile grid spec
 
 The tile-role layout (which cell is "top-left corner", "slope up", "interior
 fill", "floating platform left", etc.) is governed by [tileset.md](tileset.md).
-The wireframe layout prior encodes the same role layout in three colours:
+The packaged wireframe is a layout prior, not a pixel mask. Its version-locked
+four-class inventory communicates the role arrangement:
 
+- Dark separator ink — cell and layout structure
 - Strategy background — sky / above-surface
 - Green — surface cover (the walkable layer; whatever material the world uses)
 - Gray — underground fill
 
-The model textures these regions in the world's painterly style without
-changing their shapes.
+Its painted regions are not pixel-equal to the delivery topology and never
+own canonical alpha. The producer validates the prior's exact packaged bytes
+and class inventory for identity, while the code-native `tileset-12x4-v1`
+role mask remains the sole geometry authority. The model uses the prior only
+for sheet-layout guidance on the normal sheet path.
+
+The normalized source validator runs inside `ImageGenerationService`'s one
+initial attempt plus five retries. It rejects a uniform sheet, an empty cell,
+any connected foreground component crossing a cell seam, a mismatch in any of
+the 48 role-specific required/forbidden silhouette zones, or an incomplete
+canonical fill source. Isolated one-sided gutter contact remains recoverable.
+After transparency extraction, deterministic normalization imposes the exact
+role silhouette mask, clears all gutters, and requires every canonical cell to
+remain nonempty. The row-4/column-1 fill inset is byte-validated as alpha 255;
+even one alpha-254 pixel rejects publication.
+
+If and only if all six sheet attempts fail with the typed
+`scrolling-grid-cross-cell-isolation-v1` layout error,
+`tileset-material-synthesis-v1` may recover without asking the model to lay out
+48 cells. It generates an opaque seamless `FILL` material, then linked `CAP`
+and `EDGE` materials that reference the fill anchor and world concept. The
+three calls create texture only: deterministic recipe code owns the complete
+12 x 4 role geometry, gutters, contour joins, and variants. Other provider,
+semantic, media, transparency, cache, or validation failures do not select the
+fallback.
+
+The swatch request identity binds the canonical world spec and all ordered
+layer records. Its selected layer cue is the highest-z record at
+`parallax <= 1`, passed as text rather than reading a concurrently generated
+layer image. The packaged terrain wireframe remains a local, digest-bound
+layout-prior input, not a material-generation reference or a pixel-geometry
+source. The code-native `tileset-12x4-v1` mask owns every synthesized contour
+and alpha pixel.
+
+The leading-dot swatch artifacts and sidecars are cache/resume inputs and are
+excluded from publication. The visible raw and canonical tileset pairs publish
+as one rollback-protected four-file bundle, and only the validated canonical
+parent satisfies the unchanged runtime tileset requirement. Its manifest
+derivation is `tileset-material-synthesis-v1`; provenance binds the six
+failures, world and wireframe inputs, linked swatches, algorithm versions, and
+final geometry facts. See [tileset.md](tileset.md#material-synthesis-recovery)
+for the complete trigger and material contract.
 
 ---
 
