@@ -420,6 +420,8 @@ def _decode_image(data: bytes) -> Image.Image:
         raise ValueError("image data must be non-empty")
     try:
         with Image.open(BytesIO(data)) as image:
+            if getattr(image, "n_frames", 1) != 1:
+                raise ValueError("animated images are not supported")
             image.load()
             return image.copy()
     except (UnidentifiedImageError, OSError) as exc:
