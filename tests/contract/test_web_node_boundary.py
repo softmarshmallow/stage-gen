@@ -28,6 +28,7 @@ EXCLUDED_DIRECTORIES = frozenset(
         "htmlcov",
         "node_modules",
         "out",
+        "tmp",
         "venv",
     }
 )

@@ -76,24 +76,20 @@ def test_run_summary_normalizes_semantically_integral_json_numbers() -> None:
         ),
         (lambda value: value.update(run_dir="another-run"), "run_dir must equal tag"),
         (
-            lambda value: value["input"].update(mapBook={}),  # type: ignore[union-attr]
+            lambda value: value["input"].update(mapBook={}),
             "lower_snake_case",
         ),
         (
-            lambda value: value["input"].update(  # type: ignore[union-attr]
-                transparencyMode="chroma"
-            ),
+            lambda value: value["input"].update(transparencyMode="chroma"),
             "legacy transparencyMode",
         ),
         (lambda value: value.update(duration_ms=MAX_JSON_SAFE_INTEGER + 1), "less_than_equal"),
         (
-            lambda value: value["input"].update(  # type: ignore[union-attr]
-                seed=MAX_JSON_SAFE_INTEGER + 1
-            ),
+            lambda value: value["input"].update(seed=MAX_JSON_SAFE_INTEGER + 1),
             "outside the JSON safe range",
         ),
         (
-            lambda value: value["input"].update(seed=1e20),  # type: ignore[union-attr]
+            lambda value: value["input"].update(seed=1e20),
             "outside the JSON safe range",
         ),
         (
@@ -101,38 +97,30 @@ def test_run_summary_normalizes_semantically_integral_json_numbers() -> None:
             "at most six fractional digits",
         ),
         (
-            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
-                durationMs=value["stages"][0].pop("duration_ms")  # type: ignore[index,union-attr]
+            lambda value: value["stages"][0].update(
+                durationMs=value["stages"][0].pop("duration_ms")
             ),
             "duration_ms",
         ),
         (lambda value: value.update(failed_stage=None), "must omit failed_stage"),
         (
-            lambda value: value["stages"][0].update(error=None),  # type: ignore[index,union-attr]
+            lambda value: value["stages"][0].update(error=None),
             "must omit error",
         ),
         (
-            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
-                error="bad\x00error"
-            ),
+            lambda value: value["stages"][0].update(error="bad\x00error"),
             "must not contain NUL",
         ),
         (
-            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
-                artifacts=["/tmp/private.png"]
-            ),
+            lambda value: value["stages"][0].update(artifacts=["/tmp/private.png"]),
             "portable relative POSIX reference",
         ),
         (
-            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
-                artifacts=["../escape.png"]
-            ),
+            lambda value: value["stages"][0].update(artifacts=["../escape.png"]),
             "portable relative POSIX reference",
         ),
         (
-            lambda value: value["stages"][0].update(  # type: ignore[index,union-attr]
-                artifacts=["captures/bad%20name.png"]
-            ),
+            lambda value: value["stages"][0].update(artifacts=["captures/bad%20name.png"]),
             "portable relative POSIX reference",
         ),
     ],
