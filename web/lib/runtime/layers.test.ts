@@ -143,6 +143,7 @@ describe("semantic scene layer contracts", () => {
       item: 850,
       player: 900,
       effect: 950,
+      actorHud: 1300,
       hud: SCENE_LAYER_DEPTH.screenHud,
     });
   });

@@ -203,6 +203,14 @@ export const SCENE_CONTENT_DEPTH = Object.freeze({
   item: SCENE_LAYER_DEPTH.actorsEffects + 150,
   player: SCENE_LAYER_DEPTH.actorsEffects + 200,
   effect: SCENE_LAYER_DEPTH.actorsEffects + 250,
+  /**
+   * Readouts drawn at a world position but belonging to the interface.
+   *
+   * Above the near foreground, because a health bar hidden behind the fern its owner is walking
+   * through has stopped being a readout; below `hud`, because the inventory panel and the
+   * dialogue box are screen furniture and an actor standing under one must not punch through it.
+   */
+  actorHud: SCENE_LAYER_DEPTH.nearForeground + 100,
   hud: SCENE_LAYER_DEPTH.screenHud,
 });
 
