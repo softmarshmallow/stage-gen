@@ -134,6 +134,8 @@ describe("web run boundary", () => {
   test("accepts generated tags and rejects traversal or encoded separators", () => {
     expect(isSafeRunTag("rain-dark-stone-0123abcd")).toBe(true);
     expect(isSafeRunTag("a")).toBe(true);
+    expect(isSafeRunTag("a".repeat(128))).toBe(true);
+    expect(isSafeRunTag("a".repeat(129))).toBe(false);
 
     for (const tag of [
       "",

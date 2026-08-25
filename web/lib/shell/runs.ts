@@ -24,7 +24,18 @@ export const OUT_ROOT = process.env.STAGE_GEN_OUT_DIR?.trim()
   ? path.resolve(REPO_ROOT, process.env.STAGE_GEN_OUT_DIR.trim())
   : path.join(REPO_ROOT, "out");
 
-const RUN_TAG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+// Length matches the producer's own bound. Python writes run directories through
+// `assert_safe_path_segment`, whose `_SAFE_SEGMENT` allows 128 characters, and this consumer
+// capped at 64 - so a tag the generator legitimately produced simply 404'd here, with no error
+// naming the length. Two dialogue-scene runs at 65 characters were already unreachable before
+// any game contract existed; a bound game adds a 27-character suffix and makes it routine.
+//
+// The character class stays narrower than the producer's on purpose: run tags are lowercased
+// slugs, and `.` in particular must never reach a path segment here. Only the length moved.
+const RUN_TAG_MAXIMUM_LENGTH = 128;
+const RUN_TAG_PATTERN = new RegExp(
+  `^[a-z0-9](?:[a-z0-9-]{0,${RUN_TAG_MAXIMUM_LENGTH - 2}}[a-z0-9])?$`,
+);
 const ARTIFACT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 const ALLOWED_EXECUTABLE_NAMES = new Set(["uv", "stage-gen", "stage-gen-py"]);
 
