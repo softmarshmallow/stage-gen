@@ -126,6 +126,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
         assert not any(name.startswith("tests/") for name in wheel_entries)
         assert not any(name.startswith("library/") for name in wheel_entries)
+        assert not any(name.startswith("concept-studio/") for name in wheel_entries)
         assert not any(_is_docs_media(name) for name in wheel_entries)
         assert not any(_is_gameplay_demo_fixture(name) for name in wheel_entries)
         wheel.extractall(installed)
@@ -145,6 +146,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
+        assert not any(name.startswith("concept-studio/") for name in sdist_entries)
         assert all(sdist_entries[name] > 0 for name in SDIST_RESOURCES)
         assert not any(_is_docs_media(name) for name in sdist_entries)
         assert not any(_is_gameplay_demo_fixture(name) for name in sdist_entries)
