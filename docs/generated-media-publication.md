@@ -54,9 +54,11 @@ selector and records `inputs`, `transformation`, `visual_review`, and `rights`;
 it must not masquerade as a browser `capture`.
 
 `provenance_kind` selects the generic derivative safeguards. A required
-`lineage_kind` selects the lineage-specific validator. The theme comparison uses
-`theme_art_direction_comparison_v1`, which fixes the supported top-level fields
-and validates its exact two-input, shared-seed, and six-handle compiler lineage.
+`lineage_kind` selects the lineage-specific validator. The published
+[Visual Content Direction example](visual-content-direction-case-study.md) uses
+the machine identifier `theme_art_direction_comparison_v1`, which fixes the
+supported top-level fields and validates its exact two-input, shared-seed, and
+six-control compiler lineage.
 Any future derivative subtype needs its own explicit validator before it can
 pass publication; unknown or missing lineage kinds fail closed.
 

@@ -296,6 +296,18 @@ def _stages_after_style() -> tuple[StageSpec, ...]:
     return (styled_concept, *remaining)
 
 
+def _stages_after_theme() -> tuple[StageSpec, ...]:
+    concept, *remaining = STAGES
+    themed_concept = StageSpec(
+        name=concept.name,
+        wave=concept.wave,
+        description=concept.description,
+        run=concept.run,
+        depends_on=("theme-compile",),
+    )
+    return (themed_concept, *remaining)
+
+
 def _stages_with_village(
     configured: tuple[StageSpec, ...],
     *,
@@ -390,7 +402,7 @@ def scrolling_preview_stages(input_value: Mapping[str, Any]) -> tuple[StageSpec,
     ):
         return STAGES
     if has_theme and not has_style:
-        configured = (THEME_COMPILE_STAGE, *STAGES)
+        configured = (THEME_COMPILE_STAGE, *_stages_after_theme())
     elif has_style:
         style_stage = STYLE_SELECT_AFTER_THEME_STAGE if has_theme else STYLE_SELECT_STAGE
         prefix = (THEME_COMPILE_STAGE, style_stage) if has_theme else (style_stage,)

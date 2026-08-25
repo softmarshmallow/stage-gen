@@ -74,7 +74,7 @@ selector, use a JSON or TOML input containing:
 When `style_anchor` is absent, the current recipe uses its current default rendering direction;
 no older request schema is selected. When present, the selector chooses only a tracked
 rendering-medium vocabulary mode. Recipe content and optional
-[theme art-direction compilation](docs/theme-art-direction.md) remain separate.
+[Visual Content Direction](docs/visual-content-direction.md) remain separate.
 
 A separate `village` opt-in — `{"schema_version": 1, "kind": "village_hub_v1"}` — adds a
 [village hub](docs/spec/asset-contracts.md#optional-village-hub) of four residents and eight

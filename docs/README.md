@@ -39,9 +39,17 @@ Start here for the headless, general-purpose system:
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
   core-first taxonomy, ownership boundaries, manifest composition, runtime lifecycle,
   and floating-combat-text feedback contract.
-- [Theme art-direction controls](theme-art-direction.md) — optional numeric
-  content handles, LLM-in-the-middle compilation, prompt boundaries, and a
-  shared-seed case study with its strict visual-review result.
+- [Visual Content Direction](visual-content-direction.md) — the optional
+  `scrolling-preview` content-intensity compiler, its ownership boundary, and
+  supported caller workflow.
+- [Content controls v1](spec/content-controls-v1.md) — the normative six-axis
+  input and level contract for the current `[theme]` field.
+- [Scrolling content direction plan v1](spec/scrolling-content-direction-plan-v1.md)
+  — the recipe-specific seven-field artifact, stage mapping, cache, provenance,
+  and failure contract.
+- [Visual Content Direction A/B case study](visual-content-direction-case-study.md)
+  — the shared-reference experiment, exact evidence scope, and strict
+  visual-review result.
 - [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
   provider-neutral grid detection, cell extraction, and anchor-aligned packing;
   not implemented.

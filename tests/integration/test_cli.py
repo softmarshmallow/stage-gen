@@ -389,6 +389,71 @@ def test_profile_enabled_examples_route_without_provider_calls(
     assert set(runtime.character_library_roots) == {repository}
 
 
+@pytest.mark.parametrize(
+    ("suffix", "document"),
+    [
+        (
+            ".json",
+            json.dumps(
+                {
+                    "prompt": "ink-lined moonlit ruins",
+                    "theme": {"hostile_action": 3, "threat_disturbance": 2},
+                }
+            ),
+        ),
+        (
+            ".input",
+            json.dumps(
+                {
+                    "prompt": "ink-lined moonlit ruins",
+                    "theme": {"hostile_action": 3, "threat_disturbance": 2},
+                }
+            ),
+        ),
+        (
+            ".toml",
+            'prompt = "ink-lined moonlit ruins"\n\n'
+            "[theme]\n"
+            "hostile_action = 3\n"
+            "threat_disturbance = 2\n",
+        ),
+    ],
+)
+def test_cli_input_accepts_json_and_toml_theme_documents(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    suffix: str,
+    document: str,
+) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
+    monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
+    input_path = tmp_path / f"generation{suffix}"
+    input_path.write_text(document, encoding="utf-8")
+    runtime = CliRuntime()
+    output = StringIO()
+
+    assert (
+        main(
+            ["generate", "--input", str(input_path), "--transparency", "chroma"],
+            runtime=runtime,
+            stdout=output,
+        )
+        == 0
+    )
+
+    assert runtime.phases[0] == "theme-compile"
+    assert runtime.phases.count("theme-compile") == 1
+    assert runtime.inputs[0]["theme"] == {
+        "sexual_content": 0,
+        "nudity_exposure": 0,
+        "hostile_action": 3,
+        "injury_detail": 0,
+        "substance_depiction": 0,
+        "threat_disturbance": 2,
+    }
+    assert "stages=7" in output.getvalue()
+
+
 def test_dialogue_sample_routes_through_public_cli_with_force_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

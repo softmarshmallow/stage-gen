@@ -621,6 +621,7 @@ def test_scrolling_recipe_theme_identity_is_canonical_and_compiler_versioned() -
         "post-split",
         "manifest",
     ]
+    assert scrolling_preview_recipe.stages_for(parsed)[1].depends_on == ("theme-compile",)
 
 
 def test_scrolling_recipe_style_anchor_is_explicit_versioned_and_keeps_legacy_default() -> None:

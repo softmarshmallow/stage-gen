@@ -254,18 +254,33 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
-Generation runs in five waves. All calls within a wave fire concurrently;
-waves are serial because each wave depends on outputs from the previous
-one. Wave 1.5 is the only **text-gen** wave (a vision LLM with structured
-output); every other generation wave is image-gen.
+Generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. The
+runner executes stages sequentially. The two image waves own their internal
+fan-out, while every other stage is one local or provider-neutral operation.
+An optional Visual Content Direction compile runs at wave 0.5; omitting the one
+current v1 `theme` field preserves the exact six-stage graph.
 
 | Wave | Purpose | Parallelism | Backend |
 |---|---|---|---|
+| 0.5 (controlled only) | Compile the original brief and six v1 content controls into a validated seven-field scrolling plan. | Single call; omitted when `theme` is unset. | text agent |
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
-| 2 | World concept dependants — L parallax layers (agent-designed count), tileset, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
-| 3 | Concept dependants — five character state strips, character attack strip, N creature idle strips, N creature hurt strips; then deterministic character-master composition | Fan-out: `6 + 2N` image calls, followed by one local composition. | image + local CPU |
+| 2 | World concept dependants — L parallax layers (agent-designed count), tileset, ladder, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `6 + L + N + M` calls fired together. | image |
+| 3 | Concept dependants — five character state strips, character attack and climb strips, N creature idle strips, N creature hurt strips; then deterministic character-master composition | Fan-out: `7 + 2N` image calls, followed by one local composition. | image + local CPU |
 | 4 | Split the composed character master into five fixed state rows. | Single deterministic pass; no provider call. | local CPU |
+| 5 | Write the per-tag artifact manifest and resolve preview music. | Single deterministic assembly after post-processing. | local CPU |
+
+Current opt-ins add explicit nodes without changing the baseline definition:
+`game-resolve` at 0.1, `soundtrack-resolve` at 0.2, `profile-resolve` at 0.25,
+`map-book-resolve` at 0.3, `theme-compile` at 0.5, and `style-select` at 0.75.
+Village generation runs only after the mandatory artwork at waves 4.1 through
+4.3, and soundtrack generation runs at 4.5. The wave-5 manifest depends on
+every enabled terminal node, so it cannot publish a partial optional feature.
+
+The compiled Visual Content Direction plan is specific to
+`scrolling-preview`; it is not a generic character or image-generation
+contract. See the normative [content controls](content-controls-v1.md) and
+[scrolling plan](scrolling-content-direction-plan-v1.md) contracts.
 
 Provider latency, service concurrency, and account throttling are operational
 observations rather than recipe contracts. The executor may fan out independent
@@ -297,7 +312,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 | | |
 |---|---|
 | **Output** | `world_spec_<tag>.json` |
-| **Backend** | text-gen LLM via structured-output (`generateObject`-style) call — `openai/gpt-5.5` |
+| **Backend** | text-gen LLM via structured-output (`generateObject`-style) call — `openai/gpt-5.6-sol` by default |
 | **Inputs** | World concept (vision), user world prompt (text), `mob_count`, `obstacle_count` |
 | **Wave** | 1.5 (single call, between concept and image fan-out) |
 
