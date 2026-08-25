@@ -47,7 +47,7 @@ async def test_api_health_run_status_sse_and_path_limits(tmp_path: Path) -> None
         assert (await client.get("/healthz")).json() == {"ok": True, "service": "stage-gen"}
         start = await client.post(
             "/v1/runs",
-            json={"input": {"prompt": "neutral city"}, "transparencyMode": "chroma"},
+            json={"input": {"prompt": "neutral city"}, "transparency_mode": "chroma"},
         )
         assert start.status_code == 202
         run_id = start.json()["id"]
@@ -57,7 +57,14 @@ async def test_api_health_run_status_sse_and_path_limits(tmp_path: Path) -> None
                 break
             await asyncio.sleep(0.01)
         assert status.json()["summary"]["ok"] is True
-        run_dir = Path(status.json()["summary"]["run_dir"])
+        assert status.json()["transparency_mode"] == "chroma"
+        assert status.json()["summary"]["schema_version"] == 3
+        assert status.json()["summary"]["kind"] == "recipe_run_v3"
+        assert "transparencyMode" not in status.json()
+        assert status.json()["summary"]["run_dir"] == status.json()["tag"]
+        record = app.state.stage_gen_runs[run_id]
+        assert record.summary is not None
+        run_dir = Path(record.summary.run_dir)
         outside = tmp_path / "outside.txt"
         await asyncio.to_thread(outside.write_text, "private", encoding="utf-8")
         await asyncio.to_thread((run_dir / "escape.txt").symlink_to, outside)
@@ -106,15 +113,15 @@ async def test_api_round_trips_chroma_and_conditionally_requires_fal(tmp_path: P
     ) as client:
         chroma = await client.post(
             "/v1/runs",
-            json={"input": {"prompt": "neutral asset"}, "transparencyMode": "chroma"},
+            json={"input": {"prompt": "neutral asset"}, "transparency_mode": "chroma"},
         )
         assert chroma.status_code == 202
-        assert chroma.json()["transparencyMode"] == "chroma"
+        assert chroma.json()["transparency_mode"] == "chroma"
         assert chroma.json()["tag"].endswith("-chroma")
 
         ai = await client.post(
             "/v1/runs",
-            json={"input": {"prompt": "neutral asset"}, "transparencyMode": "ai"},
+            json={"input": {"prompt": "neutral asset"}, "transparency_mode": "ai"},
         )
         assert ai.status_code == 400
         assert "FAL_KEY" in ai.text
@@ -129,10 +136,25 @@ async def test_api_rejects_invalid_mode_before_capability_checks(tmp_path: Path)
     ) as client:
         response = await client.post(
             "/v1/runs",
-            json={"input": {"prompt": "neutral asset"}, "transparencyMode": "none"},
+            json={"input": {"prompt": "neutral asset"}, "transparency_mode": "none"},
         )
     assert response.status_code == 400
-    assert response.json() == {"error": "transparencyMode must be ai or chroma"}
+    assert response.json() == {"error": "transparency_mode must be ai or chroma"}
+
+
+@pytest.mark.asyncio
+async def test_run_api_rejects_legacy_camel_case_fields(tmp_path: Path) -> None:
+    app = create_app(StageGenConfig(out_dir=tmp_path, open_router_api_key="offline"))
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/v1/runs",
+            json={"input": {"prompt": "neutral asset"}, "transparencyMode": "chroma"},
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "run request has unexpected fields: 'transparencyMode'"}
 
 
 @pytest.mark.asyncio

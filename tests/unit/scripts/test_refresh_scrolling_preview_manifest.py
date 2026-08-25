@@ -48,22 +48,28 @@ def _fixture_run(tmp_path: Path, *, ok: bool = True) -> tuple[Path, StageGenConf
     run_dir = tmp_path / "proof-ai"
     run_dir.mkdir()
     summary = {
+        "schema_version": 3,
+        "kind": "recipe_run_v3",
         "recipe": "scrolling-preview",
         "tag": run_dir.name,
-        "runDir": str(run_dir),
+        "run_dir": run_dir.name,
+        "started_at": "2026-08-25T00:00:00Z",
+        "ended_at": "2026-08-25T00:00:00.002Z",
+        "duration_ms": 2,
         "ok": ok,
-        **({"failedStage": "wave-b"} if not ok else {}),
+        **({"failed_stage": "manifest"} if not ok else {}),
         "input": {
             "prompt": "quiet proof world",
-            "transparencyMode": "ai",
+            "transparency_mode": "ai",
         },
         "stages": [
-            {"stage": "concept", "ok": True, "durationMs": 1, "artifacts": []},
+            {"stage": "concept", "ok": True, "duration_ms": 1, "artifacts": []},
             {
                 "stage": "manifest",
                 "ok": ok,
-                "durationMs": 1,
+                "duration_ms": 1,
                 "artifacts": [],
+                **({"error": "manifest failed"} if not ok else {}),
             },
         ],
     }

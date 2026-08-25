@@ -47,27 +47,28 @@ def prepare_generate_request(
     request: GenerateRequest, config: StageGenConfig
 ) -> PreparedGenerateRequest:
     recipe = get_recipe(request.recipe)
-    input_mode_key = "transparency_mode" if recipe.contract_version == 2 else "transparencyMode"
-    nested_mode = request.input.get(input_mode_key) if isinstance(request.input, dict) else None
+    nested_mode = (
+        request.input.get("transparency_mode") if isinstance(request.input, dict) else None
+    )
     parsed_input = recipe.parse_input(request.input)
     parsed_explicit: TransparencyMode | None = (
         None
         if request.transparency_mode is None
-        else parse_transparency_mode(request.transparency_mode, "transparencyMode")
+        else parse_transparency_mode(request.transparency_mode, "transparency_mode")
     )
     parsed_nested: TransparencyMode | None = (
         None
         if nested_mode is None
-        else parse_transparency_mode(nested_mode, f"input.{input_mode_key}")
+        else parse_transparency_mode(nested_mode, "input.transparency_mode")
     )
     if (
         parsed_explicit is not None
         and parsed_nested is not None
         and parsed_explicit != parsed_nested
     ):
-        raise ValueError(f"transparencyMode conflicts with input.{input_mode_key}")
+        raise ValueError("transparency_mode conflicts with input.transparency_mode")
     mode = parsed_explicit or parsed_nested or config.transparency_mode
-    input_value = {**parsed_input, input_mode_key: mode.value}
+    input_value = {**parsed_input, "transparency_mode": mode.value}
     resolve_force_stage_plan(recipe.stages_for(input_value), request.force_stages)
     required = (*recipe.required_capabilities, *transparency_capabilities(mode))
     assert_capabilities(config, required)

@@ -19,7 +19,7 @@ client, persist them in provenance, print them in errors, or commit a populated
 env file.
 
 `OPENROUTER_API_KEY` is required by the scrolling recipe's image and structured
-generation. `FAL_KEY` is required only when `transparencyMode` is `ai`, which is
+generation. `FAL_KEY` is required only when `transparency_mode` is `ai`, which is
 the default. An explicit `chroma` run does not call fal. Missing or failed fal
 access never causes an automatic strategy change; the default path fails
 closed.

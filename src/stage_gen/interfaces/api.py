@@ -54,7 +54,7 @@ class RunRecord:
             "id": self.id,
             "recipe": self.recipe,
             "tag": self.tag,
-            "transparencyMode": self.transparency_mode,
+            "transparency_mode": self.transparency_mode,
             "status": self.status,
             "error": self.error,
             "summary": self.summary.to_dict() if self.summary is not None else None,
@@ -146,12 +146,23 @@ def create_app(
             return _json_error(str(error), error.status)
         if not isinstance(body, dict):
             return _json_error("request body must be an object", 400)
+        unexpected = sorted(repr(key) for key in body if key not in _RUN_REQUEST_FIELDS)
+        if unexpected:
+            return _json_error(
+                "run request has unexpected fields: " + ", ".join(unexpected),
+                400,
+            )
+        if "input" not in body:
+            return _json_error("run request requires input", 400)
+        recipe_value = body.get("recipe", "scrolling-preview")
+        if not isinstance(recipe_value, str) or not recipe_value.strip():
+            return _json_error("run request recipe must be a non-empty string", 400)
         try:
             prepared = prepare_generate_request(
                 GenerateRequest(
-                    recipe=str(body.get("recipe", "scrolling-preview")),
+                    recipe=recipe_value,
                     input=body.get("input"),
-                    transparency_mode=body.get("transparencyMode"),
+                    transparency_mode=body.get("transparency_mode"),
                 ),
                 config,
             )
@@ -291,6 +302,9 @@ def create_app(
         return JSONResponse(result.to_dict(), status_code=201)
 
     return app
+
+
+_RUN_REQUEST_FIELDS = frozenset({"recipe", "input", "transparency_mode"})
 
 
 async def _read_json_body(request: Request) -> object:

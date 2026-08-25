@@ -59,6 +59,5 @@ dialogue_scene_recipe = Recipe(
     tag_for=dialogue_scene_tag,
     stages=STAGES,
     stage_resolver=dialogue_scene_stages,
-    contract_version=2,
     actions={"review": transition_dialogue_review},
 )

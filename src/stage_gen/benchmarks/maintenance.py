@@ -28,7 +28,7 @@ from stage_gen.config import (
     parse_transparency_mode,
     transparency_capabilities,
 )
-from stage_gen.contracts import ArtifactProvenance
+from stage_gen.contracts import ArtifactProvenance, load_recipe_run_summary
 from stage_gen.media import inspect_image
 from stage_gen.recipes.base import RecipeRuntime, StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
@@ -288,34 +288,21 @@ def _existing_run_input(
     run_dir: Path, tag: str, config: StageGenConfig
 ) -> tuple[dict[str, Any], TransparencyMode]:
     run_path = run_dir / "run.json"
-    try:
-        run_path.lstat()
-    except FileNotFoundError:
-        return {"prompt": "tileset maintenance", "transparencyMode": config.transparency_mode}, (
-            config.transparency_mode
-        )
     _validated_regular_file_within(run_dir, run_path, "tileset run summary")
-    try:
-        payload = json.loads(run_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        raise ValueError("tileset run summary is not valid JSON") from error
-    if not isinstance(payload, dict):
-        raise ValueError("tileset run summary must be an object")
-    recorded_tag = payload.get("tag")
-    if recorded_tag is not None and recorded_tag != tag:
+    summary = load_recipe_run_summary(run_path, label="tileset run summary")
+    if summary.tag != tag:
         raise ValueError("tileset run summary tag does not match the requested tag")
-    recipe = payload.get("recipe")
-    if recipe is not None and recipe != "scrolling-preview":
+    if summary.run_dir != run_dir.name:
+        raise ValueError("tileset run summary run_dir does not match the requested run directory")
+    if summary.recipe != "scrolling-preview":
         raise ValueError("tileset run summary is not for scrolling-preview")
-    raw_input = payload.get("input")
-    if not isinstance(raw_input, dict):
-        raise ValueError("tileset run summary input must be an object")
+    raw_input = summary.input
     prompt = raw_input.get("prompt")
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("tileset run summary requires a non-empty prompt")
-    raw_mode = raw_input.get("transparencyMode", config.transparency_mode)
-    mode = parse_transparency_mode(raw_mode, "run input.transparencyMode")
-    return {**raw_input, "prompt": prompt.strip(), "transparencyMode": mode}, mode
+    raw_mode = raw_input.get("transparency_mode", config.transparency_mode)
+    mode = parse_transparency_mode(raw_mode, "run input.transparency_mode")
+    return {**raw_input, "prompt": prompt.strip(), "transparency_mode": mode.value}, mode
 
 
 def _discover_spotcheck_assets(root: Path) -> list[str]:

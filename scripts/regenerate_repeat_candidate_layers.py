@@ -32,6 +32,7 @@ from stage_gen.config import (
     load_config,
     parse_transparency_mode,
 )
+from stage_gen.contracts import load_recipe_run_summary
 from stage_gen.media import inspect_image
 from stage_gen.orchestration.runtime import (
     create_background_removal_service,
@@ -205,34 +206,28 @@ def prepare_regeneration(
             "unsupported layer selection; allowed layers are " + ", ".join(sorted(_PROMPTS))
         )
 
-    summary = _read_json_object(
+    summary = load_recipe_run_summary(
         _validated_regular_file_within(
             resolved_run_dir,
             resolved_run_dir / "run.json",
             "run summary",
-        ),
-        "run summary",
+        )
     )
-    if summary.get("recipe") != "scrolling-preview":
+    if summary.recipe != "scrolling-preview":
         raise ValueError("run summary is not for scrolling-preview")
-    tag_value = summary.get("tag")
-    if not isinstance(tag_value, str):
-        raise ValueError("run summary must declare a string tag")
-    tag = assert_safe_path_segment(tag_value, "run tag")
-    recorded_run_dir = summary.get("runDir")
-    if not isinstance(recorded_run_dir, str):
-        raise ValueError("run summary must declare runDir")
-    if Path(recorded_run_dir).resolve(strict=False) != resolved_run_dir:
-        raise ValueError("run summary runDir does not match the requested run directory")
+    tag = assert_safe_path_segment(summary.tag, "run tag")
+    if summary.run_dir != resolved_run_dir.name:
+        raise ValueError("run summary run_dir does not match the requested run directory")
     if resolved_run_dir.name != tag:
         raise ValueError("run directory name does not match the run tag")
-    raw_input = summary.get("input")
-    if not isinstance(raw_input, dict):
-        raise ValueError("run summary input must be an object")
+    raw_input = summary.input
     prompt = raw_input.get("prompt")
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("run summary input requires a non-empty prompt")
-    mode = parse_transparency_mode(raw_input.get("transparencyMode"), "run input.transparencyMode")
+    mode = parse_transparency_mode(
+        raw_input.get("transparency_mode"),
+        "run input.transparency_mode",
+    )
     world_path = resolved_run_dir / f"world_spec_{tag}.json"
     _require_valid_pair(world_path, "world specification")
     try:
@@ -252,7 +247,7 @@ def prepare_regeneration(
 
     context_input = cast(
         dict[str, Any],
-        {**raw_input, "prompt": prompt.strip(), "transparencyMode": mode},
+        {**raw_input, "prompt": prompt.strip(), "transparency_mode": mode.value},
     )
     run_config = config.model_copy(
         update={"out_dir": resolved_run_dir.parent, "transparency_mode": mode}
@@ -827,16 +822,6 @@ def _is_relative_to(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     return True
-
-
-def _read_json_object(path: Path, label: str) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f"{label} is not readable canonical JSON") from error
-    if not isinstance(value, dict):
-        raise ValueError(f"{label} must be a JSON object")
-    return cast(dict[str, Any], value)
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> CliOptions:

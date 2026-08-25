@@ -33,6 +33,7 @@ from stage_gen.config import (
     StageGenConfig,
     load_config,
 )
+from stage_gen.contracts import load_recipe_run_summary
 from stage_gen.orchestration.image_repeat_reviewer import (
     StructuredIntendedLoopReviewer,
 )
@@ -437,16 +438,18 @@ def _error_record(error: Exception, secrets: tuple[str, ...]) -> dict[str, objec
 
 def _read_run_tag(run_dir: Path) -> str:
     summary_path = run_dir / "run.json"
-    if summary_path.is_file():
-        try:
-            payload = json.loads(summary_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
-            raise ValueError("run.json is not readable canonical JSON") from error
-        tag = payload.get("tag") if isinstance(payload, dict) else None
-        if not isinstance(tag, str):
-            raise ValueError("run.json does not declare a string tag")
-    else:
-        tag = run_dir.name
+    if summary_path.is_symlink():
+        raise ValueError("run.json must not be a symlink")
+    if not summary_path.is_file():
+        raise ValueError("run.json is required for an image-repeat game proof")
+    summary = load_recipe_run_summary(summary_path, label="run.json")
+    if summary.recipe != "scrolling-preview":
+        raise ValueError("run.json is not for scrolling-preview")
+    if summary.run_dir != run_dir.name:
+        raise ValueError("run.json run_dir does not match the requested run directory")
+    tag = summary.tag
+    if run_dir.name != tag:
+        raise ValueError("run directory name does not match the run tag")
     return assert_safe_path_segment(tag, "run tag")
 
 

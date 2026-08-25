@@ -215,13 +215,27 @@ def _fixture_run(
     (run_dir / "run.json").write_text(
         json.dumps(
             {
+                "schema_version": 3,
+                "kind": "recipe_run_v3",
                 "recipe": "scrolling-preview",
                 "tag": tag,
-                "runDir": str(run_dir),
+                "run_dir": tag,
+                "started_at": "2026-08-25T00:00:00Z",
+                "ended_at": "2026-08-25T00:00:00.001Z",
+                "duration_ms": 1,
+                "ok": True,
                 "input": {
                     "prompt": "A quiet original world",
-                    "transparencyMode": str(transparency_mode),
+                    "transparency_mode": str(transparency_mode),
                 },
+                "stages": [
+                    {
+                        "stage": "concept",
+                        "ok": True,
+                        "duration_ms": 1,
+                        "artifacts": [],
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -332,7 +346,7 @@ def test_prepare_preserves_run_mode_and_builds_exact_production_specs(
     )
 
     assert plan.transparency_mode is transparency_mode
-    assert plan.context.input["transparencyMode"] == transparency_mode
+    assert plan.context.input["transparency_mode"] == str(transparency_mode)
     assert plan.context.config.transparency_mode is transparency_mode
     assert [layer.transparent for layer in plan.layers] == [False, True, True]
     for layer in plan.layers:
@@ -543,7 +557,7 @@ def test_preflight_rejects_run_mode_mismatch_before_any_move(tmp_path: Path) -> 
     run_dir, backup_dir, config = _fixture_run(tmp_path)
     summary_path = run_dir / "run.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    summary["input"]["transparencyMode"] = "chroma"
+    summary["input"]["transparency_mode"] = "chroma"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
 
     with pytest.raises(ValueError, match="existing raw artifact pair is invalid"):

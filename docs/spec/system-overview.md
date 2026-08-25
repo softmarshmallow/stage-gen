@@ -64,7 +64,7 @@ Every headless run has:
 4. component-level progress and failure state;
 5. resumable skip-if-valid behavior;
 6. artifact results with adjacent provenance; and
-7. a top-level run manifest that records the graph and final status.
+7. one exact `recipe_run_v3` summary that records the graph and final status.
 
 An artifact is valid only after media inspection succeeds. HTTP success or a
 non-empty URL is insufficient. Partial files do not satisfy the cache.
@@ -83,7 +83,7 @@ See [the component contract](../component-contract.md) and
 
 ## Provenance
 
-The run manifest links each artifact to its component, exact provider/model or
+The recipe manifest links each artifact to its component, exact provider/model or
 endpoint, prompt and non-secret parameters, input hashes, attempt count,
 timestamp, media facts, post-processing, and output hash. Provenance supports
 debugging and reproducibility; it is not an IP license.

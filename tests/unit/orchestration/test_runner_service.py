@@ -33,8 +33,9 @@ from stage_gen.theme import parse_theme_handles, theme_digest
 async def test_runner_stops_at_first_failure_and_publishes_run_json(tmp_path: Path) -> None:
     visited: list[str] = []
 
-    async def pass_stage(_context: StageContext) -> tuple[str, ...]:
+    async def pass_stage(context: StageContext) -> tuple[str, ...]:
         visited.append("one")
+        (context.run_dir / "one.txt").write_text("one", encoding="utf-8")
         return ("one.txt",)
 
     async def fail_stage(_context: StageContext) -> tuple[str, ...]:
@@ -68,8 +69,247 @@ async def test_runner_stops_at_first_failure_and_publishes_run_json(tmp_path: Pa
     assert summary.ok is False
     assert summary.failed_stage == "two"
     saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
-    assert saved["failedStage"] == "two"
+    assert saved["schema_version"] == 3
+    assert saved["kind"] == "recipe_run_v3"
+    assert saved["failed_stage"] == "two"
+    assert saved["input"]["transparency_mode"] == "chroma"
+    assert "transparencyMode" not in saved["input"]
     assert saved["stages"][0]["artifacts"] == ["one.txt"]
+    assert saved["stages"][0]["duration_ms"] >= 0
+
+
+async def test_runner_rejects_legacy_transparency_input_before_any_stage(tmp_path: Path) -> None:
+    visited = False
+
+    async def run(_context: StageContext) -> tuple[str, ...]:
+        nonlocal visited
+        visited = True
+        return ()
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", run),),
+    )
+
+    with pytest.raises(ValueError, match="legacy transparencyMode"):
+        await run_recipe(
+            RunOptions(
+                recipe=recipe,
+                input={"prompt": "hello", "transparencyMode": "chroma"},
+                config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+            )
+        )
+
+    assert visited is False
+
+
+async def test_runner_publishes_a_nonempty_error_for_message_less_exception(
+    tmp_path: Path,
+) -> None:
+    async def fail(_context: StageContext) -> tuple[str, ...]:
+        raise RuntimeError
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", fail),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.stages[0].error == "RuntimeError"
+    saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
+    assert saved["stages"][0]["error"] == "RuntimeError"
+
+
+async def test_runner_serializes_only_portable_run_local_artifact_references(
+    tmp_path: Path,
+) -> None:
+    async def write_artifact(context: StageContext) -> tuple[str, ...]:
+        artifact = context.run_dir / "nested" / "artifact.bin"
+        artifact.parent.mkdir()
+        artifact.write_bytes(b"artifact")
+        return (str(artifact),)
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", write_artifact),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.run_dir == str((tmp_path / "safe-tag-chroma").resolve())
+    assert summary.stages[0].artifacts == ("nested/artifact.bin",)
+    saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
+    assert saved["run_dir"] == summary.tag
+    assert saved["stages"][0]["artifacts"] == ["nested/artifact.bin"]
+    assert str(tmp_path) not in json.dumps(saved)
+
+
+async def test_runner_fails_a_stage_that_returns_an_outside_artifact(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.bin"
+
+    async def escape(_context: StageContext) -> tuple[str, ...]:
+        outside.write_bytes(b"outside")
+        return (str(outside),)
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", escape),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.ok is False
+    assert summary.stages[0].artifacts == ()
+    assert summary.stages[0].error == "stage artifact escapes the run directory"
+
+
+@pytest.mark.parametrize("symlink_kind", ["artifact", "parent"])
+async def test_runner_rejects_artifact_symlink_escapes(
+    tmp_path: Path,
+    symlink_kind: str,
+) -> None:
+
+    async def link_outside(context: StageContext) -> tuple[str, ...]:
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir()
+        outside = outside_dir / "artifact.bin"
+        outside.write_bytes(b"outside")
+        if symlink_kind == "artifact":
+            link = context.run_dir / "linked.bin"
+            link.symlink_to(outside)
+            return (str(link),)
+        linked_parent = context.run_dir / "linked-parent"
+        linked_parent.symlink_to(outside_dir, target_is_directory=True)
+        return (str(linked_parent / outside.name),)
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", link_outside),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.ok is False
+    assert summary.stages[0].artifacts == ()
+    assert summary.stages[0].error == (
+        "stage artifact must not be a symlink or use symlinked parents"
+    )
+
+
+async def test_runner_records_duplicate_artifacts_as_a_failed_stage(tmp_path: Path) -> None:
+    async def duplicate(context: StageContext) -> tuple[str, ...]:
+        artifact = context.run_dir / "artifact.bin"
+        artifact.write_bytes(b"artifact")
+        return (str(artifact), str(artifact))
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", duplicate),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.ok is False
+    assert summary.stages[0].artifacts == ()
+    assert summary.stages[0].error == "stage artifacts must be unique"
+    saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
+    assert saved["failed_stage"] == "one"
+
+
+@pytest.mark.parametrize(
+    ("artifact_kind", "expected_error"),
+    [
+        ("missing", "stage artifact does not resolve to an existing file"),
+        ("directory", "stage artifact must be a regular file"),
+    ],
+)
+async def test_runner_rejects_non_file_artifacts_without_persisting_private_paths(
+    tmp_path: Path,
+    artifact_kind: str,
+    expected_error: str,
+) -> None:
+    async def invalid(context: StageContext) -> tuple[str, ...]:
+        artifact = context.run_dir / "not-an-artifact"
+        if artifact_kind == "directory":
+            artifact.mkdir()
+        return (str(artifact),)
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", invalid),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.ok is False
+    assert summary.stages[0].error == expected_error
+    saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
+    assert str(tmp_path) not in json.dumps(saved)
 
 
 def test_force_stage_plan_validates_roots_and_computes_dag_descendants() -> None:
@@ -305,7 +545,7 @@ async def test_generate_prepared_selects_recipe_executor_and_closes_owned_runtim
     summary = await generate_prepared(
         PreparedGenerateRequest(
             recipe=recipe,
-            input={"prompt": "custom", "transparencyMode": "chroma"},
+            input={"prompt": "custom", "transparency_mode": "chroma"},
             tag="custom-tag-chroma",
             required_capabilities=(),
         ),

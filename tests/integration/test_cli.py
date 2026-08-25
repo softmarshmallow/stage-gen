@@ -429,9 +429,10 @@ def test_dialogue_sample_routes_through_public_cli_with_force_env(
     run_files = list((tmp_path / "out").glob("*/run.json"))
     assert len(run_files) == 1
     run_state = json.loads(run_files[0].read_text(encoding="utf-8"))
-    assert run_state["schema_version"] == 2
-    assert run_state["kind"] == "dialogue_run_v2"
+    assert run_state["schema_version"] == 3
+    assert run_state["kind"] == "recipe_run_v3"
     assert "runDir" not in run_state
+    assert "run_dir" in run_state
     assert "transparencyMode" not in run_state["input"]
     assert run_state["input"]["transparency_mode"] == "ai"
     assert "stages=9" in output.getvalue()

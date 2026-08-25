@@ -173,5 +173,4 @@ scrolling_preview_recipe = Recipe(
     tag_for=scrolling_preview_tag,
     stages=STAGES,
     stage_resolver=scrolling_preview_stages,
-    contract_version=2,
 )

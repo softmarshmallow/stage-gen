@@ -94,8 +94,10 @@ uv run stage-gen remove-background \
 ```
 
 Generated runs default to `out/<prompt-tag>-<mode>/`. Every run writes an
-atomic `run.json`; scrolling-preview emits only the exact current manifest V7
-envelope. Optional current systems such as soundtrack, map book, population,
+atomic `run.json` with `schema_version = 3` and `kind = "recipe_run_v3"`;
+its `run_dir` is the portable run tag and every stage artifact is a confined
+run-relative reference. Scrolling-preview emits only the exact current manifest
+V7 envelope. Optional current systems such as soundtrack, map book, population,
 village, and reviewed dialogue-character imports are omitted when not authored
 and validated; their absence never selects an older envelope. Generated
 artifacts retain adjacent provenance. A bare prompt is the current CLI shorthand

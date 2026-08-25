@@ -68,9 +68,24 @@ async def test_regenerate_tileset_uses_existing_run_mode_and_targeted_public_sta
     (run_dir / "run.json").write_text(
         json.dumps(
             {
+                "schema_version": 3,
+                "kind": "recipe_run_v3",
                 "recipe": "scrolling-preview",
                 "tag": tag,
-                "input": {"prompt": "existing prompt", "transparencyMode": "chroma"},
+                "run_dir": tag,
+                "started_at": "2026-08-25T00:00:00Z",
+                "ended_at": "2026-08-25T00:00:00.001Z",
+                "duration_ms": 1,
+                "ok": True,
+                "input": {"prompt": "existing prompt", "transparency_mode": "chroma"},
+                "stages": [
+                    {
+                        "stage": "concept",
+                        "ok": True,
+                        "duration_ms": 1,
+                        "artifacts": [],
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -89,13 +104,27 @@ async def test_regenerate_tileset_uses_existing_run_mode_and_targeted_public_sta
     assert runtime.context is not None
     assert runtime.context.input == {
         "prompt": "existing prompt",
-        "transparencyMode": TransparencyMode.CHROMA,
+        "transparency_mode": "chroma",
     }
     assert runtime.context.config.transparency_mode is TransparencyMode.CHROMA
     assert result.attempts == 4
     assert (result.width, result.height) == (2400, 800)
     assert result.bytes > 0
     assert result.to_dict()["imagePath"] == str(run_dir / f"tileset_{tag}.png")
+
+
+async def test_regenerate_tileset_requires_a_current_run_summary(tmp_path: Path) -> None:
+    tag = "existing-run"
+    run_dir = tmp_path / tag
+    run_dir.mkdir()
+    (run_dir / f"concept_{tag}.png").write_bytes(_png(1, 1, [(10, 20, 30, 255)]))
+
+    with pytest.raises(ValueError, match="tileset run summary does not exist"):
+        await regenerate_tileset(
+            tag,
+            StageGenConfig(out_dir=tmp_path, open_router_api_key="offline-key"),
+            runtime=_TilesetRuntime(),
+        )
 
 
 @pytest.mark.parametrize("linked_boundary", ["output-root", "run-directory"])

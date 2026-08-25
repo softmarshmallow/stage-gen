@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import stat
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
 from stage_gen.config import parse_transparency_mode
+from stage_gen.contracts import validate_run_artifact_ref
 from stage_gen.recipes.base import (
     RunOptions,
     RunSummary,
@@ -24,14 +27,13 @@ from stage_gen.tags import tag_for_transparency_mode
 
 
 async def run_recipe(options: RunOptions) -> RunSummary:
-    transparency_key = (
-        "transparency_mode" if options.recipe.contract_version == 2 else "transparencyMode"
-    )
+    if "transparencyMode" in options.input:
+        raise ValueError("recipe input must not declare legacy transparencyMode")
     mode = parse_transparency_mode(
-        options.input.get(transparency_key, options.config.transparency_mode),
-        f"input.{transparency_key}",
+        options.input.get("transparency_mode", options.config.transparency_mode),
+        "input.transparency_mode",
     )
-    input_value = {**options.input, transparency_key: mode}
+    input_value = {**options.input, "transparency_mode": mode.value}
     stages = options.recipe.stages_for(input_value)
     force_plan = resolve_force_stage_plan(stages, options.force_stages)
     run_config = options.config.model_copy(update={"transparency_mode": mode})
@@ -76,7 +78,7 @@ async def run_recipe(options: RunOptions) -> RunSummary:
                     stage=stage.name,
                     ok=True,
                     duration_ms=round((time.perf_counter() - start) * 1_000),
-                    artifacts=tuple(str(path) for path in paths),
+                    artifacts=_portable_stage_artifacts(paths, run_dir),
                 )
             )
         except asyncio.CancelledError as error:
@@ -106,14 +108,18 @@ async def run_recipe(options: RunOptions) -> RunSummary:
             break
         except Exception as error:
             failed_stage = stage.name
+            actionable = _actionable_exception(error)
+            actionable_message = str(actionable).strip() or type(actionable).__name__
             message = redact_secrets(
-                str(_actionable_exception(error)),
+                actionable_message,
                 tuple(
                     secret
                     for secret in (run_config.open_router_api_key, run_config.fal_key)
                     if secret is not None
                 ),
-            )
+            ).strip()
+            if not message:  # Defensive if a future redactor removes the entire message.
+                message = type(actionable).__name__
             stage_results.append(
                 StageResult(
                     stage=stage.name,
@@ -137,7 +143,6 @@ async def run_recipe(options: RunOptions) -> RunSummary:
         ok=failed_stage is None,
         failed_stage=failed_stage,
         stages=tuple(stage_results),
-        contract_version=options.recipe.contract_version,
     )
     await asyncio.to_thread(atomic_write_json, run_dir / "run.json", summary.to_dict())
     if cancelled is not None:
@@ -151,3 +156,56 @@ def _actionable_exception(error: Exception) -> Exception:
             if isinstance(child, Exception):
                 return _actionable_exception(child)
     return error
+
+
+def _portable_stage_artifacts(paths: Sequence[str | Path], run_dir: Path) -> tuple[str, ...]:
+    try:
+        run_root = run_dir.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ValueError("run directory is not a readable real directory") from error
+    if run_root != run_dir:
+        raise ValueError("run directory must not be a symlink")
+    portable: list[str] = []
+    for raw_path in paths:
+        value = str(raw_path)
+        path = Path(value)
+        if path.is_absolute():
+            if (
+                value != value.strip()
+                or "\x00" in value
+                or "\\" in value
+                or value.startswith("//")
+                or "//" in value[1:]
+                or any(part in {".", ".."} for part in path.parts)
+            ):
+                raise ValueError("stage artifact absolute path is ambiguous")
+            try:
+                relative = path.relative_to(run_dir)
+            except ValueError as error:
+                raise ValueError("stage artifact escapes the run directory") from error
+            reference = relative.as_posix()
+        else:
+            reference = validate_run_artifact_ref(value)
+            relative = Path(*reference.split("/"))
+        reference = validate_run_artifact_ref(reference)
+        lexical = run_dir / relative
+        try:
+            resolved = lexical.resolve(strict=True)
+        except (OSError, RuntimeError) as error:
+            raise ValueError("stage artifact does not resolve to an existing file") from error
+        if resolved != lexical:
+            raise ValueError("stage artifact must not be a symlink or use symlinked parents")
+        try:
+            resolved.relative_to(run_root)
+        except ValueError as error:
+            raise ValueError("stage artifact escapes the run directory") from error
+        try:
+            artifact_mode = lexical.lstat().st_mode
+        except OSError as error:
+            raise ValueError("stage artifact metadata is not readable") from error
+        if not stat.S_ISREG(artifact_mode):
+            raise ValueError("stage artifact must be a regular file")
+        if reference in portable:
+            raise ValueError("stage artifacts must be unique")
+        portable.append(reference)
+    return tuple(portable)

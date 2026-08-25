@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from stage_gen.config import CapabilityName, StageGenConfig
+from stage_gen.contracts import (
+    RUN_SUMMARY_KIND,
+    RUN_SUMMARY_SCHEMA_VERSION,
+    parse_recipe_run_summary,
+)
 from stage_gen.reliability import CancellationToken
 
 type JsonObject = dict[str, Any]
@@ -55,7 +60,6 @@ class Recipe:
     tag_for: Callable[[Mapping[str, Any]], str]
     stages: tuple[StageSpec, ...]
     stage_resolver: StageResolver | None = None
-    contract_version: int = 1
     actions: Mapping[str, RecipeAction] = field(default_factory=dict)
 
     def stages_for(self, input_value: Mapping[str, Any]) -> tuple[StageSpec, ...]:
@@ -148,11 +152,11 @@ class StageResult:
     artifacts: tuple[str, ...]
     error: str | None = None
 
-    def to_dict(self, *, contract_version: int = 1) -> JsonObject:
+    def to_dict(self) -> JsonObject:
         result: JsonObject = {
             "stage": self.stage,
             "ok": self.ok,
-            "duration_ms" if contract_version == 2 else "durationMs": self.duration_ms,
+            "duration_ms": self.duration_ms,
             "artifacts": list(self.artifacts),
         }
         if self.error is not None:
@@ -172,42 +176,26 @@ class RunSummary:
     ok: bool
     stages: tuple[StageResult, ...]
     failed_stage: str | None = None
-    contract_version: int = 1
 
     def to_dict(self) -> JsonObject:
-        if self.contract_version == 2:
-            v2_result: JsonObject = {
-                "schema_version": 2,
-                "kind": "dialogue_run_v2",
-                "recipe": self.recipe,
-                "input": self.input,
-                "tag": self.tag,
-                "run_dir": self.run_dir,
-                "started_at": self.started_at,
-                "ended_at": self.ended_at,
-                "duration_ms": self.duration_ms,
-                "ok": self.ok,
-                "stages": [
-                    stage.to_dict(contract_version=self.contract_version) for stage in self.stages
-                ],
-            }
-            if self.failed_stage is not None:
-                v2_result["failed_stage"] = self.failed_stage
-            return v2_result
+        if Path(self.run_dir).name != self.tag:
+            raise ValueError("in-memory run_dir must end with the run tag")
         result: JsonObject = {
+            "schema_version": RUN_SUMMARY_SCHEMA_VERSION,
+            "kind": RUN_SUMMARY_KIND,
             "recipe": self.recipe,
             "input": self.input,
             "tag": self.tag,
-            "runDir": self.run_dir,
-            "startedAt": self.started_at,
-            "endedAt": self.ended_at,
-            "durationMs": self.duration_ms,
+            "run_dir": self.tag,
+            "started_at": self.started_at,
+            "ended_at": self.ended_at,
+            "duration_ms": self.duration_ms,
             "ok": self.ok,
             "stages": [stage.to_dict() for stage in self.stages],
         }
         if self.failed_stage is not None:
-            result["failedStage"] = self.failed_stage
-        return result
+            result["failed_stage"] = self.failed_stage
+        return parse_recipe_run_summary(result).to_dict()
 
 
 @dataclass(frozen=True, slots=True)

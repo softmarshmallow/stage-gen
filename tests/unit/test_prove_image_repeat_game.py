@@ -75,9 +75,33 @@ def _non_looping_png() -> bytes:
 
 
 def _prepared_run_dir(tmp_path: Path) -> Path:
-    run_dir = tmp_path / "proof-run"
+    run_dir = tmp_path / "proof-v1"
     run_dir.mkdir()
-    (run_dir / "run.json").write_text(json.dumps({"tag": "proof-v1"}), encoding="utf-8")
+    (run_dir / "run.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 3,
+                "kind": "recipe_run_v3",
+                "recipe": "scrolling-preview",
+                "input": {"prompt": "proof", "transparency_mode": "chroma"},
+                "tag": "proof-v1",
+                "run_dir": "proof-v1",
+                "started_at": "2026-08-25T00:00:00Z",
+                "ended_at": "2026-08-25T00:00:00.001Z",
+                "duration_ms": 1,
+                "ok": True,
+                "stages": [
+                    {
+                        "stage": "concept",
+                        "ok": True,
+                        "duration_ms": 1,
+                        "artifacts": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     for layer in ("playfield", "near_foreground"):
         source = run_dir / f"layer_proof-v1_{layer}.png"
         source.write_bytes(_non_looping_png())
@@ -99,6 +123,14 @@ def test_regenerated_layer_policies_reject_salient_motifs() -> None:
     assert foreground.coverage_policy == "sparse_allowed"
     assert "no recognizable landmark" in foreground.intended_behavior
     assert "tall plant" in foreground.repair_prompt
+
+
+def test_prepare_proof_requires_a_current_run_summary(tmp_path: Path) -> None:
+    run_dir = tmp_path / "proof-v1"
+    run_dir.mkdir()
+
+    with pytest.raises(ValueError, match=r"run\.json is required"):
+        prepare_proof(run_dir, ("playfield",))
 
 
 @pytest.mark.asyncio

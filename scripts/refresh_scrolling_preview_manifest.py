@@ -27,6 +27,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from stage_gen.config import StageGenConfig, load_config, parse_transparency_mode
+from stage_gen.contracts import load_recipe_run_summary
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
 from stage_gen.recipes.scrolling_preview.executor import ScrollingPreviewExecutor
@@ -70,41 +71,30 @@ def prepare_refresh(run_dir: Path, config: StageGenConfig) -> RefreshPlan:
         resolved_run_dir / "run.json",
         "run summary",
     )
-    summary = _read_json_object(summary_path, "run summary")
-    if summary.get("recipe") != "scrolling-preview":
+    summary = load_recipe_run_summary(summary_path)
+    if summary.recipe != "scrolling-preview":
         raise ValueError("run summary is not for scrolling-preview")
-    if summary.get("ok") is not True or summary.get("failedStage") is not None:
+    if not summary.ok:
         raise ValueError("manifest refresh requires a completed successful run")
 
-    tag_value = summary.get("tag")
-    if not isinstance(tag_value, str):
-        raise ValueError("run summary must declare a string tag")
-    tag = assert_safe_path_segment(tag_value, "run tag")
+    tag = assert_safe_path_segment(summary.tag, "run tag")
     if resolved_run_dir.name != tag:
         raise ValueError("run directory name does not match the run tag")
-    recorded_run_dir = summary.get("runDir")
-    if not isinstance(recorded_run_dir, str):
-        raise ValueError("run summary must declare runDir")
-    if Path(recorded_run_dir).resolve(strict=False) != resolved_run_dir:
-        raise ValueError("run summary runDir does not match the requested run directory")
+    if summary.run_dir != resolved_run_dir.name:
+        raise ValueError("run summary run_dir does not match the requested run directory")
 
-    stages = summary.get("stages")
-    if not isinstance(stages, list) or not stages:
+    if not summary.stages:
         raise ValueError("run summary must contain completed stages")
-    manifest_stages = [
-        stage for stage in stages if isinstance(stage, dict) and stage.get("stage") == "manifest"
-    ]
-    if len(manifest_stages) != 1 or manifest_stages[0].get("ok") is not True:
+    manifest_stages = [stage for stage in summary.stages if stage.stage == "manifest"]
+    if len(manifest_stages) != 1 or not manifest_stages[0].ok:
         raise ValueError("run summary does not contain one successful manifest stage")
-    if any(not isinstance(stage, dict) or stage.get("ok") is not True for stage in stages):
+    if any(not stage.ok for stage in summary.stages):
         raise ValueError("run summary contains an incomplete stage")
 
-    raw_input = summary.get("input")
-    if not isinstance(raw_input, dict):
-        raise ValueError("run summary input must be an object")
+    raw_input = summary.input
     mode = parse_transparency_mode(
-        raw_input.get("transparencyMode"),
-        "run input.transparencyMode",
+        raw_input.get("transparency_mode"),
+        "run input.transparency_mode",
     )
     if "game" in raw_input and config.game_library_root is None:
         raise ValueError("game-directed manifest refresh requires game_library_root")
