@@ -41,6 +41,8 @@ def open_absolute_directory(path: str | Path, *, label: str) -> Iterator[int]:
 
 def read_absolute_regular_file(path: str | Path, *, label: str) -> bytes:
     absolute = Path(path).absolute()
+    if any(part in {".", ".."} for part in absolute.parts[1:]):
+        raise SecurePathError(f"{label} must not contain dot or parent path segments")
     with open_absolute_directory(absolute.parent, label=label) as directory_fd:
         return read_relative_regular_file(
             directory_fd,
@@ -55,6 +57,7 @@ def read_relative_regular_file(
     *,
     label: str,
 ) -> bytes:
+    _validate_portable_relative_parts(parts, label=label)
     descriptors: list[int] = []
     current_fd = directory_fd
     try:
@@ -120,3 +123,12 @@ def _read_all(descriptor: int) -> bytes:
     while chunk := os.read(descriptor, 1024 * 1024):
         chunks.append(chunk)
     return b"".join(chunks)
+
+
+def _validate_portable_relative_parts(parts: tuple[str, ...], *, label: str) -> None:
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        raise SecurePathError(
+            f"{label} must use non-empty portable relative path segments without dot or parent"
+        )
+    if any("\\" in part or ":" in part for part in parts):
+        raise SecurePathError(f"{label} must use portable relative path segments")

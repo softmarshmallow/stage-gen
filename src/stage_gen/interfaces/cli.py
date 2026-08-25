@@ -19,9 +19,24 @@ from stage_gen.capabilities import (
     generate_music,
     remove_background,
 )
+from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
 from stage_gen.components.character_profile import (
     ResolvedCharacterProfile,
     resolve_character_profile_binding,
+)
+from stage_gen.components.game_contract import (
+    ResolvedGameContract,
+    resolve_game_contract_binding,
+)
+from stage_gen.components.game_map import (
+    ResolvedGameMap,
+    ResolvedGameMapBook,
+    resolve_game_map_book_binding,
+    resolve_game_map_source,
+)
+from stage_gen.components.game_soundtrack import (
+    ResolvedGameSoundtrack,
+    resolve_game_soundtrack_binding,
 )
 from stage_gen.config import (
     ConfigError,
@@ -47,6 +62,10 @@ COMMANDS = {
     "import-env",
     "doctor",
     "character-profile",
+    "game",
+    "map",
+    "map-book",
+    "soundtrack",
 }
 
 
@@ -77,6 +96,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--character-library-root",
         help="explicit workspace root containing library/characters",
     )
+    generate_parser.add_argument(
+        "--game-library-root",
+        help="explicit workspace root containing library/games",
+    )
     generate_parser.add_argument("--transparency", choices=("ai", "chroma"))
     generate_parser.add_argument(
         "--force-stage",
@@ -102,6 +125,62 @@ def build_parser() -> argparse.ArgumentParser:
             "--character-library-root",
             required=True,
             help="workspace root containing library/characters",
+        )
+
+    game_parser = commands.add_parser(
+        "game",
+        description="Validate and inspect an authored game contract",
+    )
+    game_commands = game_parser.add_subparsers(dest="game_command", required=True)
+    for action in ("validate", "digest"):
+        game_action_parser = game_commands.add_parser(action)
+        game_action_parser.add_argument("--input", required=True, dest="input_path")
+        game_action_parser.add_argument(
+            "--game-library-root",
+            required=True,
+            help="workspace root containing library/games",
+        )
+
+    soundtrack_parser = commands.add_parser(
+        "soundtrack",
+        description="Validate and inspect an authored game soundtrack",
+    )
+    soundtrack_commands = soundtrack_parser.add_subparsers(dest="soundtrack_command", required=True)
+    for action in ("validate", "digest"):
+        soundtrack_action_parser = soundtrack_commands.add_parser(action)
+        soundtrack_action_parser.add_argument("--input", required=True, dest="input_path")
+        soundtrack_action_parser.add_argument(
+            "--game-library-root",
+            required=True,
+            help="workspace root containing library/games",
+        )
+
+    map_parser = commands.add_parser(
+        "map",
+        description="Validate and inspect one authored game map",
+    )
+    map_commands = map_parser.add_subparsers(dest="map_command", required=True)
+    for action in ("validate", "digest"):
+        map_action_parser = map_commands.add_parser(action)
+        map_action_parser.add_argument("--input", required=True, dest="input_path")
+        map_action_parser.add_argument(
+            "--game-library-root",
+            required=True,
+            help="workspace root containing library/games",
+        )
+
+    map_book_parser = commands.add_parser(
+        "map-book",
+        description="Validate and inspect an authored ordered game map book",
+    )
+    map_book_commands = map_book_parser.add_subparsers(dest="map_book_command", required=True)
+    for action in ("validate", "digest"):
+        map_book_action_parser = map_book_commands.add_parser(action)
+        map_book_action_parser.add_argument("--input", required=True, dest="input_path")
+        map_book_action_parser.add_argument(
+            "--game-library-root",
+            required=True,
+            help="workspace root containing library/games",
         )
 
     review_parser = commands.add_parser(
@@ -252,6 +331,52 @@ def _dispatch(
             report = {"valid": True, **resolved.identity()}
             stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
+    if command == "game":
+        resolved_game = _resolve_cli_game_contract(
+            input_path=Path(args.input_path),
+            game_library_root=Path(args.game_library_root),
+        )
+        if args.game_command == "digest":
+            stdout.write(f"{resolved_game.source_sha256}\n")
+        else:
+            game_report = {"valid": True, **resolved_game.identity()}
+            stdout.write(f"{json.dumps(game_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
+    if command == "soundtrack":
+        resolved_soundtrack = _resolve_cli_game_soundtrack(
+            input_path=Path(args.input_path),
+            game_library_root=Path(args.game_library_root),
+        )
+        if args.soundtrack_command == "digest":
+            stdout.write(f"{resolved_soundtrack.source_sha256}\n")
+        else:
+            soundtrack_report = {"valid": True, **resolved_soundtrack.identity()}
+            stdout.write(
+                f"{json.dumps(soundtrack_report, sort_keys=True, separators=(',', ':'))}\n"
+            )
+        return 0
+    if command == "map":
+        resolved_map = _resolve_cli_game_map(
+            input_path=Path(args.input_path),
+            game_library_root=Path(args.game_library_root),
+        )
+        if args.map_command == "digest":
+            stdout.write(f"{resolved_map.source_sha256}\n")
+        else:
+            map_report = {"valid": True, **resolved_map.identity()}
+            stdout.write(f"{json.dumps(map_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
+    if command == "map-book":
+        resolved_map_book = _resolve_cli_game_map_book(
+            input_path=Path(args.input_path),
+            game_library_root=Path(args.game_library_root),
+        )
+        if args.map_book_command == "digest":
+            stdout.write(f"{resolved_map_book.source_sha256}\n")
+        else:
+            map_book_report = {"valid": True, **resolved_map_book.identity()}
+            stdout.write(f"{json.dumps(map_book_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
     if command == "doctor":
         config = load_config()
         mode = (
@@ -330,6 +455,8 @@ async def _dispatch_async(
             config = config.model_copy(
                 update={"character_library_root": Path(args.character_library_root)}
             )
+        if args.game_library_root is not None:
+            config = config.model_copy(update={"game_library_root": Path(args.game_library_root)})
         prompt = " ".join(args.prompt).strip()
         if args.input_file:
             input_path = Path(args.input_file)
@@ -399,6 +526,119 @@ def _parse_input_document(text: str, *, suffix: str) -> object:
     return json.loads(text)
 
 
+def _secure_cli_source_sha256(source: Path, *, label: str) -> str:
+    """Digest one regular authored source without following any path symlink."""
+
+    try:
+        source_bytes = read_absolute_regular_file(source, label=label)
+    except SecurePathError as error:
+        raise ValueError(str(error)) from error
+    return hashlib.sha256(source_bytes).hexdigest()
+
+
+def _resolve_cli_game_contract(
+    *, input_path: Path, game_library_root: Path
+) -> ResolvedGameContract:
+    """Digest an authored game in place and resolve it exactly as a run would.
+
+    Shaped identically to `_resolve_cli_character_profile`, including computing the digest from
+    the file rather than asking for one: this command exists so an author can find out whether
+    what they wrote is valid, and requiring them to already know its digest to ask would make it
+    useless for the case it is for.
+    """
+
+    root = game_library_root.absolute()
+    source = input_path.absolute()
+    try:
+        relative = source.relative_to(root)
+    except ValueError as error:
+        raise ValueError("game contract input must be inside game library root") from error
+    parts = relative.parts
+    if len(parts) != 4 or parts[:2] != ("library", "games") or parts[3] != "game.toml":
+        raise ValueError("game contract input must equal ROOT/library/games/<game_id>/game.toml")
+    source_sha256 = _secure_cli_source_sha256(source, label="game contract input")
+    return resolve_game_contract_binding(
+        {
+            "schema_version": 1,
+            "kind": "game-contract-binding-v1",
+            "ref": relative.as_posix(),
+            "source_sha256": source_sha256,
+        },
+        game_library_root=root,
+    )
+
+
+def _resolve_cli_game_soundtrack(
+    *, input_path: Path, game_library_root: Path
+) -> ResolvedGameSoundtrack:
+    """Digest one authored soundtrack in place and resolve its exact source bytes."""
+
+    root = game_library_root.absolute()
+    source = input_path.absolute()
+    try:
+        relative = source.relative_to(root)
+    except ValueError as error:
+        raise ValueError("game soundtrack input must be inside game library root") from error
+    parts = relative.parts
+    if len(parts) != 4 or parts[:2] != ("library", "games") or parts[3] != "soundtrack.toml":
+        raise ValueError(
+            "game soundtrack input must equal ROOT/library/games/<game_id>/soundtrack.toml"
+        )
+    source_sha256 = _secure_cli_source_sha256(source, label="game soundtrack input")
+    return resolve_game_soundtrack_binding(
+        {
+            "schema_version": 1,
+            "kind": "game-soundtrack-binding-v1",
+            "ref": relative.as_posix(),
+            "source_sha256": source_sha256,
+        },
+        game_library_root=root,
+    )
+
+
+def _resolve_cli_game_map(*, input_path: Path, game_library_root: Path) -> ResolvedGameMap:
+    """Validate one fixed-path map and report its exact authored source digest."""
+
+    return resolve_game_map_source(
+        input_path,
+        game_library_root=game_library_root,
+    )
+
+
+def _resolve_cli_game_map_book(*, input_path: Path, game_library_root: Path) -> ResolvedGameMapBook:
+    """Digest an ordered map index and validate every map digest it locks."""
+
+    root = game_library_root.absolute()
+    source = input_path.absolute()
+    try:
+        relative = source.relative_to(root)
+    except ValueError as error:
+        raise ValueError("game map book input must be inside game library root") from error
+    parts = relative.parts
+    if (
+        len(parts) != 5
+        or parts[:2] != ("library", "games")
+        or parts[3:]
+        != (
+            "maps",
+            "index.toml",
+        )
+    ):
+        raise ValueError(
+            "game map book input must equal ROOT/library/games/<game_id>/maps/index.toml"
+        )
+    source_sha256 = _secure_cli_source_sha256(source, label="game map book input")
+    return resolve_game_map_book_binding(
+        {
+            "schema_version": 1,
+            "kind": "game-map-book-binding-v1",
+            "ref": relative.as_posix(),
+            "source_sha256": source_sha256,
+        },
+        game_library_root=root,
+    )
+
+
 def _resolve_cli_character_profile(
     *, input_path: Path, character_library_root: Path
 ) -> ResolvedCharacterProfile:
@@ -413,10 +653,7 @@ def _resolve_cli_character_profile(
         raise ValueError(
             "character profile input must equal ROOT/library/characters/<profile_id>/profile.toml"
         )
-    try:
-        source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
-    except OSError as error:
-        raise ValueError("character profile input is unreadable") from error
+    source_sha256 = _secure_cli_source_sha256(source, label="character profile input")
     return resolve_character_profile_binding(
         {
             "schema_version": 1,
