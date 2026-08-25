@@ -36,7 +36,6 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
                 "data": [
                     {
                         "b64_json": base64.b64encode(image).decode(),
-                        "media_type": "image/png",
                     }
                 ],
                 "created": 731,
@@ -68,10 +67,12 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
             )
         )
     assert calls == result.attempts == 2
+    assert result.media_type == "image/png"
     assert output.read_bytes() == image
     sidecar_text = (tmp_path / "asset.png.meta.json").read_text()
     sidecar = json.loads(sidecar_text)
     assert sidecar["attempts"] == 2
+    assert sidecar["response"]["media_type"] == "image/png"
     assert sidecar["validation"]["decoded_bytes"] == len(image)
     assert "image-secret" not in sidecar_text
     assert request_bodies[-1]["input_references"][0]["type"] == "image_url"
@@ -145,10 +146,11 @@ async def test_image_caller_validation_retries_inside_provider_boundary(tmp_path
         ("image/png; charset=binary", b"\x89PNG\r\n\x1a\nparameterized"),
         ("image/bmp", b"BMunsupported"),
         ("image/jpg", b"\xff\xd8\xffalias"),
+        (None, b"\x89PNG\r\n\x1a\nexplicit-null"),
     ],
 )
 async def test_openrouter_image_rejects_unsupported_or_parameterized_media(
-    media_type: str,
+    media_type: object,
     data: bytes,
 ) -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
@@ -169,4 +171,50 @@ async def test_openrouter_image_rejects_unsupported_or_parameterized_media(
         with pytest.raises(ValueError, match="PNG, JPEG, or WebP"):
             await backend.generate_once(
                 ImageGenerationRequest(prompt="neutral icon", artifact_path="unused.png")
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("data", "expected_media_type"),
+    [
+        (b"\x89PNG\r\n\x1a\nsynthetic", "image/png"),
+        (b"\xff\xd8\xffsynthetic", "image/jpeg"),
+        (b"RIFF\x04\x00\x00\x00WEBPsynthetic", "image/webp"),
+    ],
+)
+async def test_openrouter_image_infers_supported_media_type_when_omitted(
+    data: bytes,
+    expected_media_type: str,
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(data).decode()}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenRouterImageBackend(api_key="secret", client=client).generate_once(
+            ImageGenerationRequest(prompt="neutral icon", artifact_path="unused")
+        )
+
+    assert result.media_type == expected_media_type
+    assert result.data == data
+
+
+@pytest.mark.asyncio
+async def test_openrouter_image_rejects_unknown_bytes_when_media_type_is_omitted() -> None:
+    data = b"GIF89asynthetic"
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(data).decode()}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        backend = OpenRouterImageBackend(api_key="secret", client=client)
+        with pytest.raises(ValueError, match="omitted media_type"):
+            await backend.generate_once(
+                ImageGenerationRequest(prompt="neutral icon", artifact_path="unused")
             )

@@ -76,7 +76,11 @@ class OpenRouterImageBackend:
             raise ValueError("OpenRouter image generation returned no single image")
         encoded = data[0].get("b64_json")
         image_data = decode_base64_strict(encoded, "OpenRouter image b64_json")
-        media_type = _openrouter_image_media_type(data[0].get("media_type"))
+        media_type = (
+            _openrouter_image_media_type(data[0]["media_type"])
+            if "media_type" in data[0]
+            else _infer_openrouter_image_media_type(image_data)
+        )
         assert_image_signature(image_data, media_type)
         return ProviderImage(
             data=image_data,
@@ -92,3 +96,15 @@ def _openrouter_image_media_type(value: object) -> str:
     if media_type not in {"image/png", "image/jpeg", "image/webp"}:
         raise ValueError("OpenRouter image media type must be PNG, JPEG, or WebP")
     return media_type
+
+
+def _infer_openrouter_image_media_type(data: bytes) -> str:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    raise ValueError(
+        "OpenRouter image response omitted media_type and bytes are not PNG, JPEG, or WebP"
+    )
