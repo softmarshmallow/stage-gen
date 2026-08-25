@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from io import StringIO
@@ -214,6 +215,121 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     assert "invalid character profile contract" in invalid_output.getvalue()
 
 
+def _soundtrack_toml() -> str:
+    return """schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "test-game"
+revision = 1
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "field_theme"
+display_name = "Field Theme"
+creative_brief = "An original optimistic instrumental for outdoor exploration."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "village_evening"
+display_name = "Village Evening"
+creative_brief = "An original warm instrumental for a safe village at dusk."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 120
+"""
+
+
+def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_path: Path) -> None:
+    soundtrack = tmp_path / "library/games/test-game/soundtrack.toml"
+    soundtrack.parent.mkdir(parents=True)
+    soundtrack.write_text(_soundtrack_toml(), encoding="utf-8")
+    expected_source_sha256 = hashlib.sha256(soundtrack.read_bytes()).hexdigest()
+
+    validate_output = StringIO()
+    assert (
+        main(
+            [
+                "soundtrack",
+                "validate",
+                "--input",
+                str(soundtrack),
+                "--game-library-root",
+                str(tmp_path),
+            ],
+            stdout=validate_output,
+        )
+        == 0
+    )
+    validated = json.loads(validate_output.getvalue())
+    assert validated["valid"] is True
+    assert validated["kind"] == "resolved-game-soundtrack-v1"
+    assert validated["game_id"] == "test-game"
+    assert validated["track_ids"] == ["field_theme", "village_evening"]
+    assert validated["playback"] == {
+        "selection": "shuffle",
+        "no_immediate_repeat": True,
+    }
+    assert validated["source_sha256"] == expected_source_sha256
+    assert validated["binding"] == {
+        "schema_version": 1,
+        "kind": "game-soundtrack-binding-v1",
+        "ref": "library/games/test-game/soundtrack.toml",
+        "source_sha256": expected_source_sha256,
+    }
+
+    digest_output = StringIO()
+    assert (
+        main(
+            [
+                "soundtrack",
+                "digest",
+                "--input",
+                str(soundtrack),
+                "--game-library-root",
+                str(tmp_path),
+            ],
+            stdout=digest_output,
+        )
+        == 0
+    )
+    assert digest_output.getvalue() == f"{expected_source_sha256}\n"
+
+
+def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: Path) -> None:
+    soundtrack = tmp_path / "library/soundtracks/test-game/soundtrack.toml"
+    soundtrack.parent.mkdir(parents=True)
+    soundtrack.write_text(_soundtrack_toml(), encoding="utf-8")
+    error_output = StringIO()
+
+    assert (
+        main(
+            [
+                "soundtrack",
+                "validate",
+                "--input",
+                str(soundtrack),
+                "--game-library-root",
+                str(tmp_path),
+            ],
+            stderr=error_output,
+        )
+        == 1
+    )
+    assert (
+        "game soundtrack input must equal ROOT/library/games/<game_id>/soundtrack.toml"
+    ) in error_output.getvalue()
+
+
 @pytest.mark.parametrize(
     ("recipe", "relative_example", "expected_first", "expected_count"),
     [
@@ -222,6 +338,12 @@ def test_character_profile_cli_validate_digest_help_and_errors(
             "examples/dialogue-theme/profile-enabled-date.toml",
             "prepare",
             10,
+        ),
+        (
+            "scrolling-preview",
+            "examples/scrolling-preview/profile-enabled-coast.toml",
+            "profile-resolve",
+            7,
         ),
     ],
 )
