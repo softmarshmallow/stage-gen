@@ -1,0 +1,1 @@
+"""Image-repeat component tests."""
