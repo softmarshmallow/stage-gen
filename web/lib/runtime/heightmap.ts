@@ -38,6 +38,17 @@ export type HeightmapOpts = {
 };
 
 /**
+ * Numeric seed a tag hashes to.
+ *
+ * Exposed so a caller that derives further seeds from a run (one per stage,
+ * say) can start from the same value `buildHeightmap` would have used, instead
+ * of re-implementing the hash or losing the run's authored terrain.
+ */
+export function heightmapSeedForTag(tag: string): number {
+  return fnv1a32(tag);
+}
+
+/**
  * Build a heightmap from an explicit seed. This lets a run preserve its
  * terrain independently from display metadata such as its prompt or tag.
  */
