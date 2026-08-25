@@ -9,8 +9,30 @@ Start here for the headless, general-purpose system:
 - [Authored character library](character-library.md) — strict TOML/JSON profile
   authoring, CLI validation/digest commands, runnable dialogue/scrolling inputs,
   canonical JSON identity, portable references, and rights ownership.
-- [Canonical game package](game-package.md) — the Git-backed selector, current-only
-  game/soundtrack/map closure, validator, generated-freshness boundary, and authoring workflow.
+- [Canonical game package](game-package.md) — the repository's bundled-demo and
+  schema-test SSOT: its Git-backed selector, exact current-only game/soundtrack/map
+  closure, validator, generated-freshness boundary, and authoring workflow.
+- [Game contract](game-contract.md) — current-only game-domain composition,
+  ownership boundaries, cross-contract invariants, and subordinate authorities.
+- [Authored game contract schema](spec/game/authored-contract-schema.md) — the
+  implemented current `game-contract-v3` fields, closed vocabulary, validation,
+  binding, and manifest projection.
+- [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
+  TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
+  module-namespace terminology; it does not claim implementation support.
+- [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md)
+  — proposed TO-BE dialogue graph, choice, shot, cue-track, control-lease,
+  skip/resume, checkpoint, and cutscene-realization semantics.
+- [Authored game soundtracks](game-soundtrack.md) — the current separate,
+  digest-bound game-global track catalog, scrolling generation pipeline, shuffle
+  playback, absence semantics, and listening/publication boundary.
+- [Authored game maps](game-maps.md) — current per-map durable identity and
+  game-global soundtrack references, embedded Level Profiles, an ordered
+  digest-locked map book, absence semantics, manifest projection, and the
+  static-geometry adapter boundary.
+- [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
+  core-first taxonomy, ownership boundaries, manifest composition, runtime lifecycle,
+  and floating-combat-text feedback contract.
 - [Theme art-direction controls](theme-art-direction.md) — optional numeric
   content handles, LLM-in-the-middle compilation, prompt boundaries, and a
   shared-seed case study with its strict visual-review result.
@@ -45,6 +67,13 @@ Start here for the headless, general-purpose system:
   deterministic consumer mapping and prompt research.
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred
   video, sprite-grid, and layered-rig ideas; no implementation commitment.
+- [Dialogue character runtime pipeline](dialogue-character-runtime-pipeline.md)
+  — current-only manifest V7 sanitize/package/review/bind responsibilities for
+  importing an optional reviewed character-only expression bundle into scrolling
+  gameplay without cross-run paths or background assets.
+- [Game Concept Studio](../concept-studio/README.md) — the pre-production concept
+  document and exploratory-cover workflow before game-package authoring, governed
+  by the root [`game-concept-studio` skill](../.agents/skills/game-concept-studio/SKILL.md).
 - [Dialogue character direction and observation](spec/dialogue-character-direction.md)
   — proposed semantic per-shot direction, optional pose conditioning, and
   digest-bound observation contracts; research-only and not implemented.

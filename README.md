@@ -3,7 +3,7 @@
 `stage-gen` is a general-purpose, headless Python pipeline and component library
 for producing coherent 2D game assets with validation, deterministic
 post-processing, and content-bound provenance. The repository includes one
-reference scrolling-world recipe and an optional web-based scrolling-game
+reference scrolling-game recipe and an optional web-based scrolling-game
 preview; gameplay remains a consumer of the generated artifacts, not part of
 the reusable core.
 
@@ -13,6 +13,11 @@ _Current deterministic 20-asset model demo. The screenshot is a canvas-only
 capture from the multi-tier gameplay fixture. Its adjacent
 [provenance and review record](docs/media/gameplay-model-demo.png.meta.json)
 binds the published bytes to the verified source state._
+
+[`library/games/main.toml`](library/games/main.toml) selects the repository's one
+[canonical bundled demo package](docs/game-package.md). That digest-locked closure is the
+single source of truth for current game-schema tests, authored validation, and a future hosted
+demo; examples and generated runs do not replace it as schema authority.
 
 [Watch the historical deterministic 30-second capture (18-asset build)](docs/media/gameplay-showcase.mp4).
 Its [poster](docs/media/gameplay-showcase.poster.png), adjacent provenance
@@ -53,8 +58,8 @@ uv run stage-gen generate --recipe scrolling-preview \
   "original rain-dark stone ruins with pale moss"
 ```
 
-Scrolling preview keeps its historical prompt and six-stage identity by default. To opt into
-the versioned pre-image style selector, use a JSON or TOML input containing:
+Scrolling preview accepts a prompt-only current request. To include the optional pre-image style
+selector, use a JSON or TOML input containing:
 
 ```json
 {
@@ -100,6 +105,19 @@ prompt remains a compatibility alias for `generate --recipe scrolling-preview`.
   without moving gameplay assumptions into Python components.
 - A reusable, provider-neutral [authored character library](docs/character-library.md)
   shared by opt-in dialogue-scene and scrolling-preview requests.
+- One [canonical bundled demo package](docs/game-package.md), selected by
+  `library/games/main.toml`, that current-schema validation and future demo serving can share.
+- A canonical [game contract](docs/game-contract.md) that separates game-wide
+  presentation, cast, motion, sequences, gameplay, content catalogs, and consumer bindings,
+  plus an executable [authored `game.toml` schema](docs/spec/game/authored-contract-schema.md).
+- A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
+  with stable track IDs and digest-bound generation, plus [authored map books](docs/game-maps.md)
+  that order map identities and select game-global track pools without owning geometry.
+- A current-only [dialogue-character runtime pipeline](docs/dialogue-character-runtime-pipeline.md)
+  for reviewed character-bundle import into manifest V7.
+- An agent-facing [Game Concept Studio](concept-studio/README.md), governed by the root
+  [`game-concept-studio` skill](.agents/skills/game-concept-studio/SKILL.md), for pre-production
+  concept text and cover exploration before any game package is authored.
 
 ## Recipe boundary
 
@@ -182,6 +200,59 @@ Installed CLI users must provide their own workspace root containing
 `STAGE_GEN_CHARACTER_LIBRARY_ROOT`. Profiles describe durable identity only;
 per-shot direction, pose conditioning, image observation, and consistency
 reports remain [future research](docs/spec/dialogue-character-direction.md).
+
+## Authored game contracts
+
+A profile says who the player is. The
+[canonical bundled demo package](docs/game-package.md), selected by
+`library/games/main.toml`, is the repository source of truth for the exact
+authored request and game/soundtrack/map closure used by tests and the future
+hosted demo. The [game contract](docs/game-contract.md) is the current-only
+domain authority beneath that selector: it says how presentation, cast,
+motion, sequences, gameplay, catalogs, and consumer bindings compose without
+making one recipe or runtime the source of truth. The implemented
+[authored contract schema](docs/spec/game/authored-contract-schema.md) fixes the
+current run's camera, style keywords, cast-wide build in heads, and supported
+role render profiles in `library/games/<game_id>/game.toml`. Authored libraries
+are excluded from wheel and sdist packages exactly as character profiles are.
+
+Music remains a sibling contract at `library/games/<game_id>/soundtrack.toml`.
+Maps are another sibling under `library/games/<game_id>/maps/`: the soundtrack
+owns tracks, each map owns references to an allowed track pool, and neither adds
+fields to the visual game contract. Only the exact current identities listed in
+the [canonical package policy](docs/game-package.md#current-only-policy) are
+valid. See [Authored game soundtracks](docs/game-soundtrack.md),
+[Authored game maps](docs/game-maps.md), and the current-only
+[dialogue-character runtime pipeline](docs/dialogue-character-runtime-pipeline.md).
+
+These systems remain optional outside the selected demo. An absent soundtrack,
+map book, or reviewed dialogue-character binding omits its stages and manifest
+block from the current envelope; absence never asks a validator or consumer to
+interpret an old schema.
+
+```sh
+uv run stage-gen game validate \
+  --input library/games/whimsical-storybook-fantasy/game.toml \
+  --game-library-root .
+uv run stage-gen game digest \
+  --input library/games/whimsical-storybook-fantasy/game.toml \
+  --game-library-root .
+uv run stage-gen soundtrack validate \
+  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
+  --game-library-root .
+uv run stage-gen soundtrack digest \
+  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
+  --game-library-root .
+uv run stage-gen generate --recipe scrolling-preview \
+  --input examples/scrolling-preview/game-directed-village.toml \
+  --game-library-root . --transparency ai
+```
+
+The root may also come from `STAGE_GEN_GAME_LIBRARY_ROOT`. Every authored word
+is checked against the closed vocabulary in
+`src/stage_gen/resources/prompting/game_vocabulary_v1.json`, so a contract
+cannot introduce a style keyword, body kind, stance, or held prop the pipeline
+has not reviewed.
 
 ## Architecture
 
