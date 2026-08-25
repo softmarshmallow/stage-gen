@@ -71,8 +71,10 @@ Start here for the headless, general-purpose system:
   integration decision.
 - [Web preview adapter](web-preview.md) — optional first consumer.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
-  implemented strict lower_snake_case dialogue wire V2 and profile-enabled wire
-  V3/recipe V4, portable bundle, six-asset contract, and producer/consumer boundary.
+  the current producer/consumer boundary: Python still exposes strict wire
+  V2/recipe V3 with bundle V2 and profile-bound wire V3/recipe V4 with bundle
+  V3, while the web installer accepts only wire V3/recipe V4; the planned single
+  contract keeps `character_profile` optional by presence.
 - [Dialogue-theme operator workflow](dialogue-theme-pipeline.md) — generation,
   resume/force, install, review/rights gates, activation, status, and rollback.
 - [Dialogue-scene preview](dialogue-scene-preview.md) — implemented
@@ -97,12 +99,17 @@ characters, mobs, inventory, and portals are the first scrolling-preview
 recipe. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
 
-The Visual Novel Scene Kit headless recipe produces strict wire V2 and
-profile-enabled wire V3 portable bundles consumed by the deterministic web installer. The installer validates
-and copies immutable bundle files, then projects accepted `scene_data` into the
-active fixture without generating or inventing copy. Only
-`web/public/dialogue-scene/demo/anime/` is historical: it preserves the legacy
-showcase provenance and is not an accepted current wire-schema example.
+The Visual Novel Scene Kit Python producer currently has two strict
+lower_snake_case paths: wire V2/recipe V3 produces bundle V2, and the
+profile-bound wire V3/recipe V4 produces bundle V3. The deterministic web
+installer accepts only wire V3/recipe V4, validates and copies its immutable
+files, then projects accepted `scene_data` into the active fixture without
+generating or inventing copy. The pending
+[atomic producer cutover](../TODO.md#exact-current-contracts) will replace the
+two Python paths with one exact contract whose optional `character_profile`
+binding is selected by presence. Only `web/public/dialogue-scene/demo/anime/`
+is historical: it preserves its showcase provenance and is not an accepted
+current portable-bundle example.
 
 Provider facts in this repository were last verified on 2026-08-14. Re-check
 capability metadata before changing adapters because hosted model contracts

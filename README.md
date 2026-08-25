@@ -164,13 +164,17 @@ crop. Mio's committed sprites are authored upper-body at baseline `70`, so
 looser values make that source smaller but correctly do not claim to reveal
 unauthored full-body pixels.
 
-The provider-backed `dialogue-scene` headless recipe uses strict lower_snake_case
-wire V2 for legacy appearance requests and wire V3/recipe V4 for reusable
-character-profile requests.
-The deterministic web installer is implemented. Start with the
-[operator workflow](docs/dialogue-theme-pipeline.md) and its
-[legacy request example](examples/dialogue-theme/adult-university-date.json) or
-[profile-enabled request](examples/dialogue-theme/profile-enabled-date.toml).
+The provider-backed Python `dialogue-scene` producer is still in a deliberate
+transition: strict lower_snake_case wire V2/recipe V3 produces bundle V2,
+while profile-bound wire V3/recipe V4 produces bundle V3. The deterministic
+web installer is implemented and accepts only wire V3/recipe V4; it does not
+maintain V2 compatibility. The pending
+[atomic producer cutover](TODO.md#exact-current-contracts) will replace the two
+Python paths with one exact contract in which optional `character_profile`
+presence selects profile binding and its absence leaves appearance on the same
+request. Until then, start with the
+[operator workflow](docs/dialogue-theme-pipeline.md) and the
+[current installer-compatible request](examples/dialogue-theme/profile-enabled-date.toml).
 The recipe pairs one appearance concept with a finite expression-variant set;
 choices, rigging, lip sync, and motion stay outside the committed slice. The
 boundaries are also recorded in the
