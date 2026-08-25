@@ -110,14 +110,18 @@ async def run_recipe(options: RunOptions) -> RunSummary:
             failed_stage = stage.name
             actionable = _actionable_exception(error)
             actionable_message = str(actionable).strip() or type(actionable).__name__
-            message = redact_secrets(
-                actionable_message,
-                tuple(
-                    secret
-                    for secret in (run_config.open_router_api_key, run_config.fal_key)
-                    if secret is not None
-                ),
-            ).strip()
+            message = (
+                redact_secrets(
+                    actionable_message,
+                    tuple(
+                        secret
+                        for secret in (run_config.open_router_api_key, run_config.fal_key)
+                        if secret is not None
+                    ),
+                )
+                .replace("\x00", "[NUL]")
+                .strip()
+            )
             if not message:  # Defensive if a future redactor removes the entire message.
                 message = type(actionable).__name__
             stage_results.append(

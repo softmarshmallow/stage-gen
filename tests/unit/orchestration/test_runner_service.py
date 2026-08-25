@@ -135,6 +135,33 @@ async def test_runner_publishes_a_nonempty_error_for_message_less_exception(
     assert saved["stages"][0]["error"] == "RuntimeError"
 
 
+async def test_runner_normalizes_nul_in_failed_stage_diagnostics(tmp_path: Path) -> None:
+    async def fail(_context: StageContext) -> tuple[str, ...]:
+        raise RuntimeError("bad\x00error")
+
+    recipe = Recipe(
+        id="test",
+        description="test",
+        required_capabilities=(),
+        parse_input=lambda value: {"prompt": str(value)},
+        tag_for=lambda _value: "safe-tag",
+        stages=(StageSpec("one", 1, "first", fail),),
+    )
+
+    summary = await run_recipe(
+        RunOptions(
+            recipe=recipe,
+            input={"prompt": "hello"},
+            config=StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        )
+    )
+
+    assert summary.ok is False
+    assert summary.stages[0].error == "bad[NUL]error"
+    saved = json.loads((Path(summary.run_dir) / "run.json").read_text())
+    assert saved["stages"][0]["error"] == "bad[NUL]error"
+
+
 async def test_runner_serializes_only_portable_run_local_artifact_references(
     tmp_path: Path,
 ) -> None:
