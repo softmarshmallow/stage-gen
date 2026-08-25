@@ -15,8 +15,10 @@ Start here for the headless, general-purpose system:
 - [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
   provider-neutral grid detection, cell extraction, and anchor-aligned packing;
   not implemented.
-- [Endpoint-conditioned loop synthesis](loop-synthesis.md) — deferred masked
-  bridge generation, seam gates, and runtime consumption.
+- [Verified single-axis image repeat](image-repeat.md) — unchanged admission,
+  explicit masked repair with deterministic alpha-topology reconstruction and
+  endpoint anchoring, retained provider evidence, deterministic gates, and
+  independent semantic review.
 - [Testing stage-gen](testing.md) — focused, full, live, and web gates.
 - [Verification rules](../VERIFICATION.md) — evidence and independent media
   verification requirements.

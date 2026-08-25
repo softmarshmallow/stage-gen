@@ -89,8 +89,8 @@ prompt remains a compatibility alias for `generate --recipe scrolling-preview`.
 ## What it provides
 
 - Typed, provider-neutral components for image and structured generation,
-  background removal, experimental music generation, and endpoint-conditioned
-  loop synthesis.
+  background removal, experimental music generation, and semantically reviewed
+  one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
 - Recipe orchestration with progress, cache validation, atomic summaries,
@@ -192,7 +192,7 @@ TypeScript are confined to `web/`.
 src/stage_gen/
   contracts/           typed artifact and provenance contracts
   components/          provider-neutral image, structured, removal, music,
-                       and endpoint-conditioned loop-synthesis operations
+                       and verified single-axis image-repeat operations
   providers/           OpenRouter and FAL HTTP adapters
   media/               deterministic image/audio inspection and normalization
   reliability/         retries, cancellation, redaction, paths, and persistence
@@ -208,10 +208,12 @@ library/characters/     source-checkout or external authored profile workspace
 Dependencies point inward: providers implement component protocols, recipes
 compose components, and `orchestration.runtime` joins concrete providers to
 recipes for the interfaces. Components and recipes do not import providers or
-the web preview. The Python loop-synthesis service defines endpoint-conditioned
-masked-bridge generation and seam validation, but its recipe activation is
-deferred until a configured provider adapter supports the exact masked-edit
-contract.
+the web preview. The Python `image_repeat` service admits unchanged sources or
+performs an explicitly requested endpoint-conditioned repair. Repair keeps the
+provider-owned RGB appearance, deterministically reconstructs alpha topology
+from the source endpoint profiles, anchors only its endpoint bands to the source
+in premultiplied RGBA, and then requires deterministic continuity plus independent
+intended-loop review.
 
 See [Architecture](ARCHITECTURE.md), the
 [system overview](docs/spec/system-overview.md), and the
@@ -331,7 +333,7 @@ review by an agent other than its producer.
 
 - [Documentation index](docs/README.md)
 - [Asset contracts](docs/spec/asset-contracts.md)
-- [Endpoint-conditioned loop synthesis](docs/loop-synthesis.md)
+- [Verified single-axis image repeat](docs/image-repeat.md)
 - [Scene-layer contract](docs/scene-layers.md)
 - [Verification rules](VERIFICATION.md)
 - [Generated-media publication](docs/generated-media-publication.md)

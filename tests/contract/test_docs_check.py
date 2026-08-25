@@ -61,19 +61,29 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     assert "strict v2 lower_snake_case `dialogue-scene` recipe" not in docs_index
 
 
-def test_loop_preview_fallback_is_temporary_and_verified_loop_scoped() -> None:
+def test_image_repeat_contract_and_preview_fallback_are_scoped() -> None:
     repository_root = Path(__file__).parents[2]
-    documents = (
-        repository_root / "docs/loop-synthesis.md",
+    image_repeat = (repository_root / "docs/image-repeat.md").read_text(encoding="utf-8")
+    for required in (
+        "one image in, one image proven to repeat on a declared axis out",
+        "await service.admit(ImageRepeatAdmissionRequest(...))",
+        "await service.repair(ImageRepeatRepairRequest(...))",
+        "exactly three unmarked, pixel-identical copies",
+        "Legacy preview fallbacks are ineligible",
+        "Two-axis tileability is a non-goal",
+    ):
+        assert required in image_repeat
+
+    legacy_fallback_documents = (
         repository_root / "docs/scene-layers.md",
         repository_root / "docs/spec/asset-contracts.md",
     )
 
-    for document in documents:
+    for document in legacy_fallback_documents:
         contract = document.read_text(encoding="utf-8")
         assert "repeat-x-seam-overlap" in contract
         assert re.search(r"temporary legacy.{0,100}fallback", contract, re.DOTALL)
-        assert re.search(r"no\s+verified loop artifact", contract)
+        assert re.search(r"no\s+verified (?:loop|repeat) artifact", contract)
         assert "sourceWidthPx - 256" in contract
         assert re.search(r"alpha", contract, re.IGNORECASE)
         assert re.search(r"verified\s+repeat\s+(?:unit|artifact)", contract)

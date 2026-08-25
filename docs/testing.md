@@ -9,7 +9,7 @@ All routine verification is credential-free. Provider-backed tests carry the
 |---|---|
 | Config, contracts, reliability | `uv run pytest tests/unit/test_config.py tests/unit/contracts tests/unit/reliability -q` |
 | Reusable components/providers | `uv run pytest tests/unit/components -q` |
-| Endpoint-conditioned loops | `uv run pytest tests/unit/components/loop_synthesis -q` |
+| Verified single-axis image repeats | `uv run pytest tests/unit/components/image_repeat tests/unit/orchestration/test_image_repeat_reviewer.py -q` |
 | Deterministic media | `uv run pytest tests/unit/media -q` |
 | Recipes and orchestration | `uv run pytest tests/unit/recipes tests/unit/orchestration tests/integration/test_scrolling_preview.py -q` |
 | CLI and HTTP/SSE boundaries | `uv run pytest tests/integration/test_cli.py tests/integration/test_api.py -q` |

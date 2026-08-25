@@ -320,33 +320,35 @@ regions after derivation.
 There is no separate "skybox" generator — the deepest opaque layer the
 agent designs IS the skybox.
 
-### Looping — deferred endpoint-conditioned bridge
+### Looping — verified single-axis image repeat
 
-The model is not expected to infer a repeatable edge from prompt wording. A
-future generation stage will give it both answers explicitly: the source's
-ending context on the left and starting context on the right, with only the
-middle transition bridge editable. The accepted repeat period is the untouched
-source followed by that bridge.
+The model is not expected to infer a repeatable edge from prompt wording. The
+provider-neutral `image_repeat` component instead exposes two distinct
+operations. Admission preserves the source bytes and proves the declared `x`
+or `y` wrap. Explicit repair supplies the source's ending and starting contexts
+around a masked editable span and reimposes both immutable contexts. The provider
+owns the bridge's RGB appearance. The component owns alpha topology: it
+reconstructs alpha from the exact source endpoint profiles, anchors the repair's
+short endpoint bands to exact source RGBA in premultiplied space, and appends the
+accepted repair span. The exact provider candidate is retained for deterministic
+reconstruction. Neither operation claims the other axis.
 
-The Python core now defines this provider-neutral contract, but the recipe
-leaves it disabled until a configured adapter supports exact masked image edit:
+Every successful repeat unit passes multi-scale deterministic continuity checks
+and an independent intended-loop review over exactly three repeats. The
+lower-snake-case v2 artifact records the declared axis, period, construction,
+validation policy and reports, provenance, rights, and complete lineage. The
+scrolling manifest projects verified records under `image_repeat.artifacts`.
 
-1. construct `[source-end context | masked bridge | source-start context]`;
-2. edit only the middle mask and reimpose both immutable context bands;
-3. crop the bridge and form `[source | bridge]`;
-4. measure mean, p95, and maximum pixel, gradient, and perceptual continuity at
-   both joins; and
-5. retry failed candidates rather than hiding a seam with blur or crossfade.
-
-See [endpoint-conditioned loop synthesis](../loop-synthesis.md) for the typed
-manifest, provenance, rights, activation, and runtime contracts. When no
-verified loop artifact exists, the browser preview may use the explicitly
-temporary legacy `repeat-x-seam-overlap` fallback for an alpha-bearing source
-layer. It tapers the source alpha across both 256-source-pixel edge bands and
+See [verified single-axis image repeat](../image-repeat.md) for the typed
+manifest, admission, repair, validation, provenance, rights, and runtime
+contracts. When no verified repeat artifact exists, the browser preview may use
+the explicitly temporary legacy `repeat-x-seam-overlap` fallback for an
+alpha-bearing source layer. It tapers the source alpha across both
+256-source-pixel edge bands and
 composites a second copy at a phase of `sourceWidthPx - 256`; complementary
 edge bands overlap under normal alpha blending. Opaque layers use ordinary
 `repeat-x` without a partner. This in-memory preview treatment neither changes
-the published PNG nor claims that it is a verified loop. Once a verified
+the published PNG nor claims that it is a verified repeat. Once a verified
 repeat unit is selected, the fallback is ineligible and the declared period is
 rendered without overlap.
 
