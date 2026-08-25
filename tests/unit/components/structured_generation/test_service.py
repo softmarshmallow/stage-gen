@@ -218,3 +218,75 @@ async def test_structured_rejects_nonfinite_json_on_all_six_attempts(tmp_path: P
             )
     assert calls == 6
     assert not (tmp_path / "value.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_structured_http_failure_keeps_only_bounded_safe_provider_detail(
+    tmp_path: Path,
+) -> None:
+    calls = 0
+    prompt = "private prompt content"
+    api_key = "sk-or-1234567890"
+    signed_url = "https://private.example/schema.json?signature=do-not-persist"
+    private_path = "/Users/private/project/schema.json"
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raw = {
+            "error": {
+                "message": (
+                    "Invalid schema for response_format: required must include every key; "
+                    f"prompt={prompt}; credential={api_key}; source={signed_url}; "
+                    f"path={private_path}"
+                ),
+                "type": "invalid_request_error",
+                "code": "invalid_json_schema",
+                "param": "response_format",
+                "unrelated": "must-not-survive",
+            }
+        }
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "message": "Provider returned error",
+                    "metadata": {
+                        "raw": json.dumps(raw),
+                        "headers": {"authorization": api_key},
+                        "unrelated": "must-not-survive",
+                    },
+                },
+                "unrelated_response": "must-not-survive",
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = StructuredGenerationService[object](
+            OpenRouterStructuredBackend(api_key=api_key, model="author/text", client=client),
+            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
+        )
+        with pytest.raises(RetryExhaustedError) as raised:
+            await service.generate(
+                StructuredGenerationRequest(
+                    prompt=prompt,
+                    artifact_path=tmp_path / "value.json",
+                    schema=StructuredOutputSchema(name="value", json_schema={}),
+                    parse=lambda value: value,
+                )
+            )
+
+    message = str(raised.value)
+    assert calls == 6
+    assert "HTTP 400" in message
+    assert "invalid_json_schema" in message
+    assert "required must include every key" in message
+    assert prompt not in message
+    assert api_key not in message
+    assert signed_url not in message
+    assert private_path not in message
+    assert "https://" not in message
+    assert "/Users/" not in message
+    assert "must-not-survive" not in message
+    assert len(message) < 1000
+    assert not (tmp_path / "value.json").exists()

@@ -89,7 +89,17 @@ class OpenRouterStructuredBackend:
             },
             json=body,
         )
-        assert_success(response, "OpenRouter structured generation")
+        assert_success(
+            response,
+            "OpenRouter structured generation",
+            include_safe_error_detail=True,
+            redactions=(
+                self._api_key,
+                request.prompt,
+                request.system or "",
+                *(reference.url for reference in request.references),
+            ),
+        )
         payload = json_object(response, "OpenRouter structured generation")
         choices = payload.get("choices")
         first = choices[0] if isinstance(choices, list) and choices else None
