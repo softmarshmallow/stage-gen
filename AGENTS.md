@@ -15,6 +15,12 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   own runtime camera, scene, engine, and gameplay assumptions. Neither may leak them into generic components. `web/`
   consumes public headless CLI and manifest contracts; it is not a second generator.
 
+## Schema naming
+
+- Schema definitions and persisted/public contract fields use `lower_snake_case`; do not add camelCase aliases for
+  convenience. Translate to language-native runtime shapes only at explicit adapters or boundaries. Preserve mandatory
+  external-standard vocabulary exactly, including JSON Schema `$ref`, `$defs`, and `additionalProperties`.
+
 ## Provider and artifact safety
 
 - Each AI/provider operation has one retry owner and at most six attempts: one initial plus five retries with capped
