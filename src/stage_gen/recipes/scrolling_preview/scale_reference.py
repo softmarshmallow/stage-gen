@@ -49,7 +49,7 @@ ScaleReferencePart = Literal["head", "body"]
 
 
 class ActorScaleReference(BaseModel):
-    """Where the scale reference sits in a frame, as fractions of the frame's height."""
+    """Where the scale reference sits, as fractions of the inspected frame."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -86,20 +86,38 @@ class ActorScaleReferenceError(ValueError):
         self.code = ACTOR_SCALE_REFERENCE_ERROR_CODE
 
 
-def actor_scale_reference_prompt(subject: str, frame_index: int) -> str:
-    """Ask for one measurable part, in frame-relative terms the answer can be checked against."""
+def actor_scale_reference_prompt(
+    subject: str,
+    frame_index: int,
+    *,
+    still: bool = False,
+) -> str:
+    """Ask for one measurable part, in frame-relative terms the answer can be checked against.
 
+    The evaluator receives one cell's dimensions, so strip coordinates must be normalized to
+    that selected cell rather than to the full sheet. A resident still is already one cell and
+    must not be described to the reviewer as a strip.
+    """
+
+    if still:
+        opening = f"This image is a single still figure of {subject}.\n"
+        coordinate_space = "whole image"
+    else:
+        opening = (
+            f"This image is a four-frame animation strip of {subject}, read left to right. Look "
+            f"only at frame {frame_index + 1}, counting from the left.\n"
+        )
+        coordinate_space = "selected frame"
     return (
-        f"This image is a four-frame animation strip of {subject}, read left to right. Look only "
-        f"at frame {frame_index + 1}, counting from the left.\n"
-        "Measure the subject's head: report the vertical position of the top of the head "
+        opening + "Measure the subject's head: report the vertical position of the top of the head "
         "(including hair, ears, horns, or a hat that sits on the skull) and the bottom of the "
         "head at the chin or jaw.\n"
         "Also report the left and right edges of the head at its widest.\n"
-        "Report top and bottom as fractions of the whole image's height, and left and right as "
-        "fractions of the whole image's width, where 0.0 is the very top or left edge of the "
-        "image and 1.0 is the very bottom or right edge. Measure against the image, not against "
-        "the subject, and bound only the head - not the neck, shoulders, or body.\n"
+        f"Report top and bottom as fractions of the {coordinate_space}'s height, and left and "
+        f"right as fractions of the {coordinate_space}'s width, where 0.0 is the very top or "
+        f"left edge of the {coordinate_space} and 1.0 is the very bottom or right edge. Measure "
+        f"against the {coordinate_space}, not against the subject, and bound only the head - "
+        "not the neck, shoulders, or body.\n"
         "Set part to 'head' when the subject has a head that can be told apart from its body. "
         "For a creature that is one undivided mass - a slime, a blob, a boulder - set part to "
         "'body' and measure the whole creature from its highest point to its lowest instead.\n"
