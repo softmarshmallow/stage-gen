@@ -1,37 +1,24 @@
 import type { Metadata } from "next";
 import DialogueSceneDemo from "./DialogueSceneDemo";
-import { dialogueSceneDemoFixture } from "@/lib/dialogue-scene/demo-fixture";
+import { loadDialogueSceneFixture } from "@/lib/dialogue-scene/active-fixture";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Signal at Blue Hour · Anime dating-sim demo",
-  description:
-    "A playable 15+ slow-burn romance vignette starring adult astronomy researcher Mio Amamiya, with state-driven expression variants.",
+  title: "Visual Novel Scene · stage-gen",
+  description: "Play an interactive visual-novel dialogue scene.",
   alternates: { canonical: "/dialogue-scene/demo" },
   openGraph: {
     type: "website",
-    title: "Signal at Blue Hour · Anime dating-sim demo",
-    description:
-      "A playable Visual Novel Scene Kit vignette with an adult heroine and four expression variants.",
+    title: "Visual Novel Scene · stage-gen",
+    description: "Play an interactive visual-novel dialogue scene.",
     url: "/dialogue-scene/demo",
     siteName: "stage-gen",
-    images: [
-      {
-        url: "/dialogue-scene/demo/anime/concept-key-art.png",
-        alt: "Signal at Blue Hour · Mio Amamiya concept key art",
-      },
-    ],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Signal at Blue Hour · Anime dating-sim demo",
-    description:
-      "A playable Visual Novel Scene Kit vignette with an adult heroine and four expression variants.",
-    images: [
-      {
-        url: "/dialogue-scene/demo/anime/concept-key-art.png",
-        alt: "Signal at Blue Hour · Mio Amamiya concept key art",
-      },
-    ],
+    card: "summary",
+    title: "Visual Novel Scene · stage-gen",
+    description: "Play an interactive visual-novel dialogue scene.",
   },
   icons: {
     icon: [
@@ -43,6 +30,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DialogueSceneDemoPage() {
-  return <DialogueSceneDemo fixture={dialogueSceneDemoFixture} />;
+export default async function DialogueSceneDemoPage() {
+  return <DialogueSceneDemo fixture={await loadDialogueSceneFixture()} />;
 }

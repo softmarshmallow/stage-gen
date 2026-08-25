@@ -1,4 +1,4 @@
 import rawFixture from "./demo-fixture.json";
-import { parseDialogueSceneDemoFixture } from "./schema";
+import { parseDialogueSceneThemeFixture } from "./schema";
 
-export const dialogueSceneDemoFixture = parseDialogueSceneDemoFixture(rawFixture);
+export const dialogueSceneDemoFixture = parseDialogueSceneThemeFixture(rawFixture);

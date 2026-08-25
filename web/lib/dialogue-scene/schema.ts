@@ -1,6 +1,9 @@
 export const DIALOGUE_SCENE_DEMO_SCHEMA_VERSION = 1 as const;
 export const DIALOGUE_SCENE_DEMO_MODE = "deterministic-demo" as const;
 export const DIALOGUE_SCENE_DEMO_AUTHORSHIP = "caller-authored" as const;
+export const DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION = 1 as const;
+export const DIALOGUE_SCENE_THEME_FIXTURE_KIND =
+  "dialogue-scene-theme-fixture-v1" as const;
 export const DIALOGUE_SCENE_EXPRESSION_STATES = Object.freeze([
   "neutral",
   "delighted",
@@ -61,13 +64,68 @@ export interface DialogueSceneDemoFixture {
   readonly appearance: DialogueSceneDemoAppearance;
   readonly expressionVariants: readonly DialogueSceneDemoExpressionVariant[];
   readonly dialogue: readonly DialogueSceneDemoBeat[];
+  readonly profileIdentity: {
+    readonly profileId: string;
+    readonly revision: number;
+  };
+}
+
+export interface DialogueSceneThemeFixtureV1 {
+  readonly schema_version: typeof DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION;
+  readonly kind: typeof DIALOGUE_SCENE_THEME_FIXTURE_KIND;
+  readonly fixture_id: string;
+  readonly mode: typeof DIALOGUE_SCENE_DEMO_MODE;
+  readonly authorship: typeof DIALOGUE_SCENE_DEMO_AUTHORSHIP;
+  readonly title: string;
+  readonly scene_label: string;
+  readonly profile_identity: {
+    readonly profile_id: string;
+    readonly revision: number;
+  };
+  readonly presentation: {
+    readonly framing_zoom: number;
+    readonly source_framing_zoom: number;
+  };
+  readonly background: DialogueSceneDemoAsset;
+  readonly appearance: Readonly<{
+    id: string;
+    label: string;
+    age: number;
+    role: string;
+    tagline: string;
+    description: string;
+    visual_identity: string;
+    art_direction: string;
+    concept_src: string;
+  }>;
+  readonly expression_variants: readonly Readonly<{
+    id: string;
+    src: string;
+    alt: string;
+    appearance_id: string;
+    state: DialogueSceneExpressionState;
+    label: string;
+    description: string;
+    slot: "right";
+  }>[];
+  readonly dialogue: readonly Readonly<{
+    id: string;
+    speaker: string;
+    text: string;
+    expression_state: DialogueSceneExpressionState;
+  }>[];
 }
 
 const DEMO_ASSET_PATH =
   /^\/dialogue-scene\/demo(?:\/[a-z0-9][a-z0-9-]*)*\/[a-z0-9][a-z0-9.-]*\.png$/;
+const INSTALLED_THEME_ASSET_PATH =
+  /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
 const STABLE_ID = /^[a-z][a-z0-9-]{0,63}$/;
 
-export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemoFixture {
+/** Validate the camelCase runtime/UI projection; this is not a persisted parser. */
+export function validateDialogueSceneRuntimeFixture(
+  value: unknown,
+): DialogueSceneDemoFixture {
   const root = strictRecord(
     value,
     [
@@ -77,13 +135,14 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
       "authorship",
       "title",
       "sceneLabel",
+      "profileIdentity",
       "presentation",
       "background",
       "appearance",
       "expressionVariants",
       "dialogue",
     ],
-    "dialogue-scene demo fixture",
+    "dialogue-scene runtime fixture",
   );
 
   if (root.schemaVersion !== DIALOGUE_SCENE_DEMO_SCHEMA_VERSION) {
@@ -101,6 +160,23 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
     ["framingZoom", "sourceFramingZoom"],
     "dialogue-scene demo presentation",
   );
+  const profileIdentityRaw = strictRecord(
+    root.profileIdentity,
+    ["profileId", "revision"],
+    "dialogue-scene runtime profile identity",
+  );
+  const profileIdentity = Object.freeze({
+    profileId: stableId(
+      profileIdentityRaw.profileId,
+      "profileIdentity.profileId",
+    ),
+    revision: strictInteger(
+      profileIdentityRaw.revision,
+      "profileIdentity.revision",
+      1,
+      2147483647,
+    ),
+  });
 
   const backgroundRaw = strictRecord(
     root.background,
@@ -134,6 +210,7 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
   }
 
   const variantStates = new Set<DialogueSceneExpressionState>();
+  const variantIds = new Set<string>();
   const expressionVariants = Object.freeze(
     root.expressionVariants.map((rawVariant, index) => {
       const variant = strictRecord(
@@ -172,8 +249,13 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
         throw new Error(`dialogue-scene demo expression state is duplicated: ${state}`);
       }
       variantStates.add(state);
+      const id = stableId(variant.id, `expressionVariants[${index}].id`);
+      if (variantIds.has(id)) {
+        throw new Error(`dialogue-scene demo expression variant id is duplicated: ${id}`);
+      }
+      variantIds.add(id);
       return Object.freeze({
-        id: stableId(variant.id, `expressionVariants[${index}].id`),
+        id,
         src: assetPath(variant.src, `expressionVariants[${index}].src`),
         alt: strictText(variant.alt, `expressionVariants[${index}].alt`, 160),
         appearanceId: variantAppearanceId,
@@ -216,8 +298,8 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
       beatIds.add(id);
       return Object.freeze({
         id,
-        speaker: strictText(beat.speaker, `dialogue[${index}].speaker`, 64),
-        text: strictText(beat.text, `dialogue[${index}].text`, 320),
+        speaker: strictText(beat.speaker, `dialogue[${index}].speaker`, 80),
+        text: strictText(beat.text, `dialogue[${index}].text`, 1000),
         expressionState: expressionState(
           beat.expressionState,
           `dialogue[${index}].expressionState`,
@@ -235,13 +317,13 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
     id: appearanceId,
     label: strictText(appearanceRaw.label, "appearance.label", 96),
     age: strictInteger(appearanceRaw.age, "appearance.age", 21, 120),
-    role: strictText(appearanceRaw.role, "appearance.role", 120),
+    role: strictText(appearanceRaw.role, "appearance.role", 160),
     tagline: strictText(appearanceRaw.tagline, "appearance.tagline", 160),
-    description: strictText(appearanceRaw.description, "appearance.description", 280),
+    description: strictText(appearanceRaw.description, "appearance.description", 3000),
     visualIdentity: strictText(
       appearanceRaw.visualIdentity,
       "appearance.visualIdentity",
-      320,
+      3000,
     ),
     artDirection: strictText(
       appearanceRaw.artDirection,
@@ -250,15 +332,39 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
     ),
     conceptSrc: assetPath(appearanceRaw.conceptSrc, "appearance.conceptSrc"),
   });
+  if (profileIdentity.profileId !== appearance.id) {
+    throw new Error("dialogue-scene profile identity must reference appearance.id");
+  }
+  const assetPaths = [
+    background.src,
+    appearance.conceptSrc,
+    ...expressionVariants.map((variant) => variant.src),
+  ];
   if (
-    new Set([
-      background.src,
-      appearance.conceptSrc,
-      ...expressionVariants.map((variant) => variant.src),
-    ]).size !==
+    new Set(assetPaths).size !==
     2 + expressionVariants.length
   ) {
     throw new Error("dialogue-scene demo asset paths must be distinct");
+  }
+  const installedBundleIds = assetPaths.map(
+    (assetPathValue) => INSTALLED_THEME_ASSET_PATH.exec(assetPathValue)?.[1] ?? null,
+  );
+  const installedCount = installedBundleIds.filter(
+    (bundleId): bundleId is string => bundleId !== null,
+  ).length;
+  if (installedCount !== 0 && installedCount !== assetPaths.length) {
+    throw new Error(
+      "dialogue-scene fixture assets must all use the committed demo or one installed bundle",
+    );
+  }
+  const installedBundleIdValues = installedBundleIds.filter(
+    (bundleId): bundleId is string => bundleId !== null,
+  );
+  if (
+    installedCount > 0 &&
+    new Set(installedBundleIdValues).size !== 1
+  ) {
+    throw new Error("dialogue-scene installed fixture assets must share one bundle id");
   }
   const presentation = Object.freeze({
     framingZoom: strictFiniteNumber(
@@ -287,6 +393,205 @@ export function parseDialogueSceneDemoFixture(value: unknown): DialogueSceneDemo
     appearance,
     expressionVariants,
     dialogue,
+    profileIdentity,
+  });
+}
+
+/** Parse the one current persisted/public theme fixture and adapt it to the UI shape. */
+export function parseDialogueSceneThemeFixture(
+  value: unknown,
+): DialogueSceneDemoFixture {
+  const root = strictRecord(
+    value,
+    [
+      "schema_version",
+      "kind",
+      "fixture_id",
+      "mode",
+      "authorship",
+      "title",
+      "scene_label",
+      "profile_identity",
+      "presentation",
+      "background",
+      "appearance",
+      "expression_variants",
+      "dialogue",
+    ],
+    "dialogue-scene theme fixture",
+  );
+  if (root.schema_version !== DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION) {
+    throw new Error("dialogue-scene theme fixture schema_version must be 1");
+  }
+  if (root.kind !== DIALOGUE_SCENE_THEME_FIXTURE_KIND) {
+    throw new Error(
+      `dialogue-scene theme fixture kind must be ${DIALOGUE_SCENE_THEME_FIXTURE_KIND}`,
+    );
+  }
+  const profile = strictRecord(
+    root.profile_identity,
+    ["profile_id", "revision"],
+    "dialogue-scene theme fixture profile_identity",
+  );
+  const presentation = strictRecord(
+    root.presentation,
+    ["framing_zoom", "source_framing_zoom"],
+    "dialogue-scene theme fixture presentation",
+  );
+  const background = strictRecord(
+    root.background,
+    ["id", "src", "alt"],
+    "dialogue-scene theme fixture background",
+  );
+  const appearance = strictRecord(
+    root.appearance,
+    [
+      "id",
+      "label",
+      "age",
+      "role",
+      "tagline",
+      "description",
+      "visual_identity",
+      "art_direction",
+      "concept_src",
+    ],
+    "dialogue-scene theme fixture appearance",
+  );
+  if (!Array.isArray(root.expression_variants)) {
+    throw new Error("dialogue-scene theme fixture expression_variants must be an array");
+  }
+  const variants = root.expression_variants.map((value, index) => {
+    const variant = strictRecord(
+      value,
+      [
+        "id",
+        "src",
+        "alt",
+        "appearance_id",
+        "state",
+        "label",
+        "description",
+        "slot",
+      ],
+      `dialogue-scene theme fixture expression_variants[${index}]`,
+    );
+    return {
+      id: variant.id,
+      src: variant.src,
+      alt: variant.alt,
+      appearanceId: variant.appearance_id,
+      state: variant.state,
+      label: variant.label,
+      description: variant.description,
+      slot: variant.slot,
+    };
+  });
+  if (!Array.isArray(root.dialogue)) {
+    throw new Error("dialogue-scene theme fixture dialogue must be an array");
+  }
+  const dialogue = root.dialogue.map((value, index) => {
+    const beat = strictRecord(
+      value,
+      ["id", "speaker", "text", "expression_state"],
+      `dialogue-scene theme fixture dialogue[${index}]`,
+    );
+    return {
+      id: beat.id,
+      speaker: beat.speaker,
+      text: beat.text,
+      expressionState: beat.expression_state,
+    };
+  });
+  return validateDialogueSceneRuntimeFixture({
+    schemaVersion: DIALOGUE_SCENE_DEMO_SCHEMA_VERSION,
+    fixtureId: root.fixture_id,
+    mode: root.mode,
+    authorship: root.authorship,
+    title: root.title,
+    sceneLabel: root.scene_label,
+    profileIdentity: {
+      profileId: profile.profile_id,
+      revision: profile.revision,
+    },
+    presentation: {
+      framingZoom: presentation.framing_zoom,
+      sourceFramingZoom: presentation.source_framing_zoom,
+    },
+    background,
+    appearance: {
+      id: appearance.id,
+      label: appearance.label,
+      age: appearance.age,
+      role: appearance.role,
+      tagline: appearance.tagline,
+      description: appearance.description,
+      visualIdentity: appearance.visual_identity,
+      artDirection: appearance.art_direction,
+      conceptSrc: appearance.concept_src,
+    },
+    expressionVariants: variants,
+    dialogue,
+  });
+}
+
+/** Project the internal UI fixture to the one current persisted/public contract. */
+export function serializeDialogueSceneThemeFixture(
+  fixture: DialogueSceneDemoFixture,
+): DialogueSceneThemeFixtureV1 {
+  const parsed = validateDialogueSceneRuntimeFixture(fixture);
+  return Object.freeze({
+    schema_version: DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION,
+    kind: DIALOGUE_SCENE_THEME_FIXTURE_KIND,
+    fixture_id: parsed.fixtureId,
+    mode: parsed.mode,
+    authorship: parsed.authorship,
+    title: parsed.title,
+    scene_label: parsed.sceneLabel,
+    profile_identity: Object.freeze({
+      profile_id: parsed.profileIdentity.profileId,
+      revision: parsed.profileIdentity.revision,
+    }),
+    presentation: Object.freeze({
+      framing_zoom: parsed.presentation.framingZoom,
+      source_framing_zoom: parsed.presentation.sourceFramingZoom,
+    }),
+    background: Object.freeze({ ...parsed.background }),
+    appearance: Object.freeze({
+      id: parsed.appearance.id,
+      label: parsed.appearance.label,
+      age: parsed.appearance.age,
+      role: parsed.appearance.role,
+      tagline: parsed.appearance.tagline,
+      description: parsed.appearance.description,
+      visual_identity: parsed.appearance.visualIdentity,
+      art_direction: parsed.appearance.artDirection,
+      concept_src: parsed.appearance.conceptSrc,
+    }),
+    expression_variants: Object.freeze(
+      parsed.expressionVariants.map((variant) =>
+        Object.freeze({
+          id: variant.id,
+          src: variant.src,
+          alt: variant.alt,
+          appearance_id: variant.appearanceId,
+          state: variant.state,
+          label: variant.label,
+          description: variant.description,
+          slot: variant.slot,
+        }),
+      ),
+    ),
+    dialogue: Object.freeze(
+      parsed.dialogue.map((beat) =>
+        Object.freeze({
+          id: beat.id,
+          speaker: beat.speaker,
+          text: beat.text,
+          expression_state: beat.expressionState,
+        }),
+      ),
+    ),
   });
 }
 
@@ -369,9 +674,11 @@ function stableId(value: unknown, label: string): string {
 }
 
 function assetPath(value: unknown, label: string): string {
-  const parsed = strictText(value, label, 160);
-  if (!DEMO_ASSET_PATH.test(parsed)) {
-    throw new Error(`${label} must be a confined /dialogue-scene/demo/**/*.png path`);
+  const parsed = strictText(value, label, 240);
+  if (!DEMO_ASSET_PATH.test(parsed) && !INSTALLED_THEME_ASSET_PATH.test(parsed)) {
+    throw new Error(
+      `${label} must be a confined dialogue-scene demo or installed-theme PNG path`,
+    );
   }
   return parsed;
 }

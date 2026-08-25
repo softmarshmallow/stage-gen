@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "stage-gen": "bun scripts/stage-gen.ts",
+    "dialogue-theme": "bun scripts/dialogue-theme.ts",
     "gameplay:verify": "bun scripts/gameplay/showcase.ts --verify",
     "gameplay:capture": "bun scripts/gameplay/showcase.ts --capture docs/media/gameplay-showcase.mp4",
     "gameplay:record": "bun scripts/gameplay/record.ts",
