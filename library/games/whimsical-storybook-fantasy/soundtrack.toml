@@ -1,0 +1,41 @@
+schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "whimsical-storybook-fantasy"
+revision = 1
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "highwhim_spires"
+display_name = "Highwhim Spires"
+creative_brief = "An original energetic storybook-fantasy instrumental for climbing bright castle approaches, led by nimble strings, soft brass, hand percussion, and airy woodwinds."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "sunpetal_road"
+display_name = "Sunpetal Road"
+creative_brief = "An original warm exploration instrumental with plucked strings, gentle mallets, light hand percussion, and a hopeful melody suited to a long painted road at sunset."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "village_lanterns"
+display_name = "Village Lanterns"
+creative_brief = "An original restful village instrumental with acoustic strings, mellow woodwinds, soft bells, and restrained percussion that leaves room for conversation."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 75

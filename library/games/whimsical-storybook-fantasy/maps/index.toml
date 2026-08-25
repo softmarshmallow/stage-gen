@@ -1,0 +1,21 @@
+schema_version = 1
+kind = "game-map-book-v1"
+game_id = "whimsical-storybook-fantasy"
+revision = 2
+entry_map_id = "village-hub"
+
+[[maps]]
+map_id = "village-hub"
+source_sha256 = "5151f8a3273803c4c860b239e5c4bf8c66c1fc2710ea789e30129f9409b81ede"
+
+[[maps]]
+map_id = "stage-1-approach"
+source_sha256 = "281ae1cc2405823648da63e2836d385b55772cb414dd14e0778a945637c8ab8d"
+
+[[maps]]
+map_id = "stage-2-gauntlet"
+source_sha256 = "8857afa630ca3cdc337bec6a0f0c0ad87e24b8938aa464cef3df0053e1d9e64c"
+
+[[maps]]
+map_id = "stage-3-spires"
+source_sha256 = "857586fcbe686ba79750f222725644429ca711e7e87ad07e0a80217012b58a22"

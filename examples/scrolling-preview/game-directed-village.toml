@@ -1,0 +1,34 @@
+# A game-directed scrolling-preview run.
+#
+# Everything about this run's look, build, and cast rules lives in the bound game contract
+# rather than in this file: see library/games/whimsical-storybook-fantasy/game.toml.
+#
+#   uv run stage-gen generate --input examples/scrolling-preview/game-directed-village.toml \
+#     --game-library-root .
+#
+# After editing a bound source, update its source_sha256 lock. Map edits first update their lock
+# in maps/index.toml, then update the map_book lock here. Validate the complete closure with:
+#   uv run python scripts/validate_game_package.py --root .
+prompt = "whimsical storybook fantasy"
+
+[game]
+schema_version = 1
+kind = "game-contract-binding-v1"
+ref = "library/games/whimsical-storybook-fantasy/game.toml"
+source_sha256 = "759e5a1b3ecfeef47a21d18389e101f831ff5c56f8f4af6a9b9e2d3b4717d3b8"
+
+[soundtrack]
+schema_version = 1
+kind = "game-soundtrack-binding-v1"
+ref = "library/games/whimsical-storybook-fantasy/soundtrack.toml"
+source_sha256 = "6bec22b53d6478b77298f58d890827389dda8ac95140c7424822d35cba612574"
+
+[map_book]
+schema_version = 1
+kind = "game-map-book-binding-v1"
+ref = "library/games/whimsical-storybook-fantasy/maps/index.toml"
+source_sha256 = "8f589ee8f11e79f62dac15b4965f624c8ebe01b8d278864d902852e034d856be"
+
+[village]
+schema_version = 1
+kind = "village_hub_v1"
