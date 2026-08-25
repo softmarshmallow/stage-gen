@@ -35,6 +35,20 @@ export default async function PreviewPage({
   }
   const input = await readRunInput(tag);
   const policy = previewPolicyForRunMode(input?.transparencyMode ?? null);
+  if (automationMode) {
+    return (
+      <main
+        data-testid="gameplay-canvas-only-shell"
+        style={{ width: 1280, height: 720, margin: 0, padding: 0, overflow: "hidden" }}
+      >
+        <PreviewCanvas
+          tag={tag}
+          transparencyPolicy={policy}
+          automationMode={automationMode}
+        />
+      </main>
+    );
+  }
   return (
     <main style={{ padding: 0, margin: 0, background: "#0a0a0a" }}>
       <div
