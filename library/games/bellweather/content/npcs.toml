@@ -1,22 +1,50 @@
 schema_version = 1
 kind = "npc-content-v1"
 game_id = "bellweather"
-revision = 1
+revision = 3
 
 [[references]]
 reference_id = "cover_style"
 source = "references/cover.png"
-source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 rights_status = "redistribution-approved"
 rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[references]]
+reference_id = "mara_crumbwell_identity"
+source = "references/npc-mara-crumbwell.png"
+source_sha256 = "1ad67392e11ea29ed941d044f1b80e96c3bbcd36b9a161e4529de51b43060e4a"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather NPC identity concept approved by the authenticated task owner on 2026-08-26."]
+
+[[references]]
+reference_id = "elowen_thistledew_identity"
+source = "references/npc-elowen-thistledew.png"
+source_sha256 = "27bcfeb369c5c25c2c120ecb0920a18d0b426d64a04c306583e0027f7b279908"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather NPC identity concept approved by the authenticated task owner on 2026-08-26."]
+
+[[references]]
+reference_id = "brom_copperkeg_identity"
+source = "references/npc-brom-copperkeg.png"
+source_sha256 = "a52e6cbe0bb8d246afa54c4b6777cf4eef4ab964ed56e1502ddbbdfa87485fd3"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather NPC identity concept approved by the authenticated task owner on 2026-08-26."]
+
+[[references]]
+reference_id = "pip_pennant_identity"
+source = "references/npc-pip-pennant.png"
+source_sha256 = "a4a3db1c4b33860086895c4e2a8d6f0f87a575bb387a2a9aae23d12eb1217cd6"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather NPC identity concept approved by the authenticated task owner on 2026-08-26."]
 
 [[npcs]]
 npc_id = "mara_crumbwell"
 display_name = "Mara Crumbwell"
 role = "baker"
 body_kind = "human"
-reference_ids = ["cover_style"]
-prompt = "A sturdy flour-dusted adult village baker in a cream blouse, coral apron, and moss-green skirt, holding a round loaf; 2.25-head-tall chibi proportions and a warm confident expression."
+reference_ids = ["cover_style", "mara_crumbwell_identity"]
+prompt = "An attractive sturdy adult village baker with amber eyes, freckles, a chestnut braided crown, cream blouse, coral apron, and moss-green skirt, presenting a bellflower-scored loaf in an old blue-embroidered cloth; 2.25-head-tall chibi proportions, warm confidence, and the protective resolve of a family baker who became the village's calm center."
 world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "welcoming", "amused", "concerned"]
 
@@ -25,8 +53,8 @@ npc_id = "elowen_thistledew"
 display_name = "Elowen Thistledew"
 role = "herbalist"
 body_kind = "elf"
-reference_ids = ["cover_style"]
-prompt = "A willowy adult village herbalist with short pointed ears, lavender braid, teal field coat, practical boots, and a herb bundle; compact chibi build, gentle rather than ethereal."
+reference_ids = ["cover_style", "elowen_thistledew_identity"]
+prompt = "An attractive willowy adult elf herbalist with thoughtful hazel eyes, short pointed ears, a lavender-brown side braid, tailored teal field coat, cream tunic dress, practical boots, and a botanical folio holding a fresh skybell sprig; compact chibi build and the gentle private sadness of a scholar mapping a healing flower lost from her childhood valley."
 world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "delighted", "thoughtful", "concerned"]
 
@@ -35,8 +63,8 @@ npc_id = "brom_copperkeg"
 display_name = "Brom Copperkeg"
 role = "blacksmith"
 body_kind = "dwarf"
-reference_ids = ["cover_style"]
-prompt = "A broad adult village blacksmith with a neat square beard, rolled cream sleeves, dark teal apron, warm brass buckles, and a small hammer; sturdy 2.25-head-tall chibi silhouette."
+reference_ids = ["cover_style", "brom_copperkeg_identity"]
+prompt = "A handsome broad adult dwarf blacksmith with warm copper eyes, tousled auburn hair, a neat beard with one brass clasp, rolled cream sleeves, coral neckerchief, dark teal apron, compact boots, and a small well-used hammer; sturdy 2.1-head-tall chibi silhouette with a repaired toy-windmill charm that hints he quietly fixes village children's treasures after closing."
 world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "focused", "proud", "worried"]
 
@@ -45,7 +73,7 @@ npc_id = "pip_pennant"
 display_name = "Pip Pennant"
 role = "waykeeper"
 body_kind = "halfling"
-reference_ids = ["cover_style"]
-prompt = "A nimble adult village waykeeper in a short turquoise coat, coral scarf, brown boots, and a brass hand lantern; compact chibi proportions, lively pose, and no insignia or readable sign."
+reference_ids = ["cover_style", "pip_pennant_identity"]
+prompt = "An attractive nimble adult halfling waykeeper with lively sea-green eyes, tousled honey-brown hair, a short turquoise travel coat, coral scarf, map tube, compact boots, and a brass lantern carrying a tiny blue guiding flame; 2-head-tall chibi proportions, bright adventurous resolve, and a quiet longing tied to a sibling lost on an old expedition, with no insignia or readable map."
 world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "cheerful", "alert", "puzzled"]

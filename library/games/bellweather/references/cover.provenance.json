@@ -8,8 +8,8 @@
     "media_type": "image/png",
     "width": 1536,
     "height": 864,
-    "bytes": 2332679,
-    "sha256": "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+    "bytes": 2263298,
+    "sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
   },
   "generation": {
     "provider": "openrouter",
@@ -20,26 +20,26 @@
     "retry_count": 0,
     "n": 1,
     "input_references": [],
-    "prompt_sha256": "5cc89c0726bef56aef5baa47c1e54d8234e4c18fa538ae20ba8ffaa701cd3cb5"
+    "prompt_sha256": "63e660d7041d3d41d5462f168c593310926dfa9b158071b18f6c94b6a69ea69d"
   },
   "visual_review": {
     "status": "approved",
     "result": "pass",
     "independent": true,
-    "reviewed_by": "independent visual-review subagent",
-    "reviewed_at": "2026-08-26T09:47:37Z",
-    "artifact_sha256": "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0",
-    "artifact_bytes": 2332679,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-08-26T12:39:16Z",
+    "artifact_sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5",
+    "artifact_bytes": 2263298,
     "verification_report": "references/cover.visual-review.md",
-    "verification_report_sha256": "906c483ce7cf9ba895944703f84f29eaa73e53c2ebda40827de8b00025807a31"
+    "verification_report_sha256": "02309e73ff7388487f88d158dbf0d6c4b85502cfd5c318b7ab95ac820f0e1798"
   },
   "rights": {
     "status": "redistribution-approved",
-    "reviewed_at": "2026-08-26T09:47:37Z",
+    "reviewed_at": "2026-08-26T12:39:16Z",
     "basis": [
-      "Original brand-neutral prompt with no third-party image input.",
-      "Independent digest-bound semantic review passed the exact PNG.",
-      "Authenticated task owner selected the exact candidate for canonical package use on 2026-08-26."
+      "Original brand-neutral text-only prompt with no third-party image input.",
+      "The authenticated task owner inspected and approved the exact digest-bound PNG for canonical package use on 2026-08-26.",
+      "The accepted image contains no observed protected character, copied costume, recognizable mascot, logo, signature, watermark, or pseudo-text."
     ]
   }
 }

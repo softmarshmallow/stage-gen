@@ -6,8 +6,8 @@ blowing out of the sealed royal chronicle, familiar local creatures become
 mischievous story-beasts and paths rearrange themselves around missing
 chapters.
 
-The Wayfarer is a young-adult novice adventurer from Sunpetal Crossing. They
-leave the village with a wooden training sword, a travel satchel, and no chosen
+The Wayfarer is an adult female novice adventurer from Sunpetal Crossing. She
+leaves the village with a wooden training sword, a travel satchel, and no chosen
 class, recover scattered pages, help residents, grow into a specialized role,
 and follow Crowncrag Road through Amberbell Forest to the distant castle.
 

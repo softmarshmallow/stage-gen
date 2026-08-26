@@ -1,12 +1,12 @@
 schema_version = 1
 kind = "player-content-v1"
 game_id = "bellweather"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_wayfarer"
 source = "references/cover.png"
-source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 rights_status = "redistribution-approved"
 rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
 
@@ -14,16 +14,17 @@ rights_basis = ["AI-generated Bellweather concept cover approved by the authenti
 player_id = "wayfarer"
 display_name = "The Wayfarer"
 body_kind = "human"
-age = 18
+age = 20
 reference_ids = ["cover_wayfarer"]
 prompt = """
-The selected cover's gender-neutral young-adult novice adventurer, approximately
-2.25 heads tall with a very large expressive head and eyes, compact torso,
-short simplified limbs, oversized boots and gloves, and a crisp readable
-silhouette. Preserve the cream tunic, teal short cloak, coral scarf, warm brown
-boots, travel satchel, and simple wooden training sword. Keep the presentation
-modest, practical, non-sexual, original, and recognizably young-adult despite
-the deliberate super-deformed proportions.
+The selected cover's adult female novice adventurer, age 20 and approximately
+2.25 heads tall, with a very large expressive head and amber eyes, chestnut bob,
+compact torso, short simplified limbs, oversized boots and gloves, and a bold
+dark outer contour with thinner controlled interior lines. Preserve the cream
+tunic, teal short cloak, coral scarf, dark shorts over opaque leggings, warm
+brown boots, travel satchel, and simple wooden training sword. Keep the
+presentation modest, practical, non-sexual, original, and unmistakably adult
+despite the deliberate super-deformed proportions.
 """
 motion_states = ["idle", "walk", "run", "jump", "climb", "basic_attack", "skill_cast", "hurt", "death"]
 

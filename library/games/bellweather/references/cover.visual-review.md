@@ -1,29 +1,34 @@
 # Cover visual review
 
-- Artifact: `images/cover.png`
-- SHA-256: `107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0`
-- Byte size: `2332679`
+- Artifact: `references/cover.png`
+- SHA-256: `e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5`
+- Byte size: `2263298`
 - Dimensions: `1536 x 864`
 - Review date: `2026-08-26`
-- Verdict: **pass for exploratory concept cover**
+- Reviewer: authenticated task owner
+- Verdict: **pass for canonical prepared-package concept cover**
 
-The exact artifact was inspected at original detail against `concept.md` and
-`concept-art-prompt-01.txt`. It presents a polished, high-resolution chibi/SD
-fantasy RPG world with a compact, expressive novice hero whose upright posture,
-travel gear, practical costume, and adventuring role provide young-adult rather
-than infant cues. The village hub, navigable road, bridge, windmill, floating
-bluffs, waterfalls, and distant castle clearly establish an original,
-welcoming fantasy journey. Both story-beasts are readable and internally
-coherent original designs; neither is visually identifiable as a protected
-mascot or franchise creature.
+The exact artifact was displayed at original detail and explicitly selected by
+the task owner after rejecting earlier derivative and text-only candidates. It
+presents a clean, high-resolution chibi/SD fantasy RPG world with a fully
+clothed adult female novice hero. The approximately 2.25-head-tall heroine and
+both compact story-beasts use consistent bold dark outer contours, thinner
+interior lines, controlled cel shading, and readable foreground silhouettes.
+The softer painted village, windmill, bridge, floating valley, waterfalls,
+large blue sky, luminous clouds, and distant castle preserve strong atmospheric
+depth and a clear left-to-right journey.
 
-No text, pseudo-text, logo, signature, watermark, protected character, copied
-costume, or recognizable protected landmark was observed. The image uses
-three-quarter panoramic depth rather than a strict lateral gameplay view, but
-the left-to-right route and distant destination remain clear. That known
-deviation is acceptable for this world-establishing concept cover; it must not
-be treated as a strict side-view gameplay or layer-composition reference.
+The leaf-eared cream story-beast and indigo jewel-winged beetle are readable,
+internally coherent original designs. No text, pseudo-text, logo, signature,
+watermark, protected character, copied costume, recognizable mascot, or
+protected landmark was observed. The image is clean and natively generated
+from text with no image references or derivative chain.
 
-This review is bound only to the artifact hash above. It is an independent
-semantic acceptance record, not publication authorization and not approval of
-any TOML, library package, runtime asset, or implementation.
+The three-quarter world panorama is concept and style evidence, not a strict
+gameplay-camera or map-layer composition reference. Dedicated reviewed map
+scene images remain authoritative for map generation.
+
+This review is bound only to the artifact hash above. It records the task
+owner's independent semantic acceptance of the exact selected bytes for the
+canonical prepared game package; it does not claim generated runtime assets or
+a playable build.

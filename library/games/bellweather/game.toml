@@ -1,12 +1,12 @@
 schema_version = 4
 kind = "game-contract-v4"
 game_id = "bellweather"
-revision = 5
+revision = 7
 display_name = "Bellweather"
 
 [universe]
 source = "universe.md"
-source_sha256 = "3c353a30bd135afac84f7850056317c04c0ca07710c18dacfdf437e989a09170"
+source_sha256 = "4fff78555bd0961f9542b9a0f5903758c9a66f81082ba5b59f251c202b4b917d"
 
 [presentation]
 view_profile = "side_view_2d"
@@ -79,15 +79,15 @@ source_sha256 = "63af7fcb4b47b3714d7def2d719e0c3043eb9c7a59b79a4bd3de411f9e96ee6
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "af260dd4b313731f2bde9b4cb648b9c53e2392b8e23606c6256e64672e5c599c"
+source_sha256 = "16d03a2f475bdd9ee5f97eba86a60bcf08b3b3de3f0cde41488dde9e89b72b2f"
 
 [content.mobs]
 source = "content/mobs.toml"
-source_sha256 = "05cdb484878bc90a2abc2b58484d4544ef897fdb82476e1b54990e91c344f37d"
+source_sha256 = "358ddc76abdd84fd8f715f5da8dce42bbdf5acdb7ff7e663c76c22869f0b63df"
 
 [content.npcs]
 source = "content/npcs.toml"
-source_sha256 = "c470d8cf867a778085da09f4590f0569e3d74babcd8ff0d52aaba3377c253054"
+source_sha256 = "877625cb30dca191af9796b41269f20d8b57c774f03cbce5eaf41f4b7ab37b1d"
 
 [content.props]
 source = "content/props.toml"
@@ -95,7 +95,7 @@ source_sha256 = "78e100039cbccacecd2d537ce5df62d9bf91081f696fcbba4d504d582fabe75
 
 [content.items]
 source = "content/items.toml"
-source_sha256 = "0989e4229a8d7bb928da9543eb026090b9435e1af634111fc60506b37f3cc2d6"
+source_sha256 = "ed52a26e766e833391dcd246f209f242710cfd61a0429bf23ce7507bcca0fef1"
 
 [sequences]
 index_source = "sequences/index.toml"
@@ -103,11 +103,11 @@ index_sha256 = "e31500223caf2f99bf75b9d410a849364db8155c0165089bad661fc6b3e5c90e
 
 [evidence.cover]
 artifact_source = "references/cover.png"
-artifact_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+artifact_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 provenance_source = "references/cover.provenance.json"
-provenance_sha256 = "f56da28239f5802b75a1a0d9cfae364aaad388c0a93b126b8fb2b1ef582166a8"
+provenance_sha256 = "53182eaff1d239336ed19c58fc050b8f8a6a112004c9b28f64c3f252c6a3ec4c"
 review_source = "references/cover.visual-review.md"
-review_sha256 = "906c483ce7cf9ba895944703f84f29eaa73e53c2ebda40827de8b00025807a31"
+review_sha256 = "02309e73ff7388487f88d158dbf0d6c4b85502cfd5c318b7ab95ac820f0e1798"
 
 [evidence.sunpetal_crossing_scene]
 artifact_source = "references/sunpetal-crossing-scene.png"
@@ -125,10 +125,43 @@ provenance_sha256 = "e18a8cc9c52de544b3a48219fc1dfe64cc15ea30e003426b698bcbee157
 review_source = "references/amberbell-forest-scene.visual-review.md"
 review_sha256 = "fd021dc3750cebc7e358c3d3e33cdb36763d1324dd440333042a790568c334e6"
 
+[evidence.npc_mara_crumbwell]
+artifact_source = "references/npc-mara-crumbwell.png"
+artifact_sha256 = "1ad67392e11ea29ed941d044f1b80e96c3bbcd36b9a161e4529de51b43060e4a"
+provenance_source = "references/npc-mara-crumbwell.provenance.json"
+provenance_sha256 = "82d7862e306cf684b12c6ed0e94aba0a85fca19e1b5650bd413f0160c4fe10e2"
+review_source = "references/npc-mara-crumbwell.visual-review.md"
+review_sha256 = "36e0a48ef1ffbe53e1cbf04313526461e33920e35bc850fec9c487dde1d62ba4"
+
+[evidence.npc_elowen_thistledew]
+artifact_source = "references/npc-elowen-thistledew.png"
+artifact_sha256 = "27bcfeb369c5c25c2c120ecb0920a18d0b426d64a04c306583e0027f7b279908"
+provenance_source = "references/npc-elowen-thistledew.provenance.json"
+provenance_sha256 = "cddc9ae91152fec4b74d7ae4bba493b69aaea7ea419cc65349e12230c6eea86e"
+review_source = "references/npc-elowen-thistledew.visual-review.md"
+review_sha256 = "333360e8165fb0f7fa3d737b11aa533ce3c4c203a580ed36e6394ee42cfca8be"
+
+[evidence.npc_brom_copperkeg]
+artifact_source = "references/npc-brom-copperkeg.png"
+artifact_sha256 = "a52e6cbe0bb8d246afa54c4b6777cf4eef4ab964ed56e1502ddbbdfa87485fd3"
+provenance_source = "references/npc-brom-copperkeg.provenance.json"
+provenance_sha256 = "74d63d87750e356ec37436a08bbc8fd65765342fa6ef687d77e5e92b848bc8c0"
+review_source = "references/npc-brom-copperkeg.visual-review.md"
+review_sha256 = "d9c47ff2efceee0b2f18e3df1e4bbf1bf08f63b13c0316202ca4e660580a67b3"
+
+[evidence.npc_pip_pennant]
+artifact_source = "references/npc-pip-pennant.png"
+artifact_sha256 = "a4a3db1c4b33860086895c4e2a8d6f0f87a575bb387a2a9aae23d12eb1217cd6"
+provenance_source = "references/npc-pip-pennant.provenance.json"
+provenance_sha256 = "ff843abb028dbe7b4a2f157455742bde73bcc5497afcb10fd1da27c0c5df3fcc"
+review_source = "references/npc-pip-pennant.visual-review.md"
+review_sha256 = "c4a45b3c0fbda12c4ab84c5e3d5f075e093c01e92c92fdec5756511a8f9c4660"
+
 [rights]
 status = "redistribution-approved"
 basis = [
   "Authored package text and prompts are original and brand-neutral.",
   "The cover and loop-aware Sunpetal reference are AI-generated and have digest-bound acceptance records.",
   "The loop-aware Amberbell reference is AI-generated and has a digest-bound acceptance record.",
+  "The four NPC identity references are AI-generated and have digest-bound acceptance records.",
 ]

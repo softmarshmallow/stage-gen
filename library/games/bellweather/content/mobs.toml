@@ -1,12 +1,12 @@
 schema_version = 1
 kind = "mob-content-v1"
 game_id = "bellweather"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_style"
 source = "references/cover.png"
-source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 rights_status = "redistribution-approved"
 rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
 
