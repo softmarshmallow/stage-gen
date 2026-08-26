@@ -6,7 +6,23 @@ from stage_gen.recipes.scrolling_preview.scale_reference import (
     actor_scale_reference_prompt,
     evaluate_actor_scale_reference,
     parse_actor_scale_reference,
+    scale_reference_artifact_name,
 )
+
+
+def test_scale_reference_name_is_descriptive_until_its_sidecar_needs_bounding() -> None:
+    assert scale_reference_artifact_name("character_idle.png") == (
+        "character_idle.scale-reference.json"
+    )
+
+    long_source = f"character_{'a' * 90}-fromcombined_idle.png"
+    bounded = scale_reference_artifact_name(long_source)
+
+    assert bounded.startswith("actor-scale-")
+    assert bounded.endswith(".json")
+    assert len(f"{bounded}.meta.json") <= 128
+    assert bounded == scale_reference_artifact_name(long_source)
+    assert bounded != scale_reference_artifact_name(long_source.replace("idle", "walk"))
 
 
 def test_strip_prompt_uses_the_selected_frames_coordinate_space() -> None:

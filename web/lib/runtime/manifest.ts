@@ -108,7 +108,7 @@ const DEFERRED_IMAGE_REPEAT_MANIFEST: ImageRepeatManifest = Object.freeze({
   artifacts: Object.freeze([]),
 });
 
-const SAFE_ARTIFACT_PATH = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const SAFE_ARTIFACT_PATH = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 const IMAGE_REPEAT_SHA256 = /^[a-f0-9]{64}$/;
 const IMAGE_REPEAT_BACKEND_LABEL =
   /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})(?:\/[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63}))*$/;

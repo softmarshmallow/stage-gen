@@ -138,7 +138,7 @@ STAGES: tuple[StageSpec, ...] = (
         name="wave-b",
         wave=3,
         description=(
-            "Wave B fan-out: character master sheet, character attack, per-mob idle + hurt strips"
+            "Wave B fan-outs: player master, attack + climb, and per-mob required state strips"
         ),
         run=_wave_b,
         depends_on=("wave-a",),

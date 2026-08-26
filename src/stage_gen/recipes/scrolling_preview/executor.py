@@ -155,6 +155,7 @@ from stage_gen.recipes.scrolling_preview.scale_reference import (
     evaluate_actor_scale_reference,
     measures_scale_reference,
     parse_actor_scale_reference,
+    scale_reference_artifact_name,
     scale_reference_frame,
 )
 from stage_gen.recipes.scrolling_preview.soundtrack import (
@@ -1219,7 +1220,7 @@ class ScrollingPreviewExecutor:
     ) -> Sequence[str]:
         """Measure a published actor sheet's scale reference, reusing any reading on these bytes."""
 
-        reference_path = published.with_name(f"{published.stem}.scale-reference.json")
+        reference_path = published.with_name(scale_reference_artifact_name(published.name))
         artifact = await asyncio.to_thread(published.read_bytes)
         measured_sha256 = sha256_hex(artifact)
         if await _cached_actor_scale_reference(reference_path, measured_sha256) is not None:
@@ -4458,7 +4459,7 @@ def _actor_facing_review_path(spec: _ImageSpec) -> Path:
 
 
 def _actor_scale_reference_path(spec: _ImageSpec) -> Path:
-    return spec.output.with_name(f"{spec.output.stem}.scale-reference.json")
+    return spec.output.with_name(scale_reference_artifact_name(spec.output.name))
 
 
 async def _cached_actor_scale_reference(

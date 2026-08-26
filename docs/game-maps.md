@@ -221,6 +221,10 @@ unexpected population entries fail during local resolution before provider-backe
 
 ## Scrolling-preview binding and pipeline
 
+This section is the map-book projection of the
+[canonical game-generation pipeline](spec/game/generation-pipeline.md). The canonical document
+owns the complete graph and current scheduling semantics.
+
 A map book is bound separately from `game.toml` and `soundtrack.toml`:
 
 ```toml

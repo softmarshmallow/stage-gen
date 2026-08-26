@@ -271,6 +271,7 @@ does not by itself define a core game contract.
 | Contract | Authority |
 | --- | --- |
 | [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v3` fields, vocabulary, validation, binding, and manifest V7 projection |
+| [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |

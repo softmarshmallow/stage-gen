@@ -125,6 +125,8 @@ for `generate --recipe scrolling-preview`.
 - A canonical [game contract](docs/game-contract.md) that separates game-wide
   presentation, cast, motion, sequences, gameplay, content catalogs, and consumer bindings,
   plus an executable [authored `game.toml` schema](docs/spec/game/authored-contract-schema.md).
+- A machine-checked [canonical game-generation pipeline](docs/spec/game/generation-pipeline.md)
+  covering the current scrolling DAG, operation contracts, internal fan-out, and execution semantics.
 - A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
   with stable track IDs and digest-bound generation, plus [authored map books](docs/game-maps.md)
   that order map identities and select game-global track pools without owning geometry.

@@ -24,6 +24,10 @@ The soundtrack is game-global. Each map owns only its ordered pool of allowed
 track IDs. This keeps track identity and generation intent independent from map
 identity while allowing map-aware playback.
 
+This selector is the SSOT for which authored request is canonical. The
+[canonical game-generation pipeline](spec/game/generation-pipeline.md) separately owns the
+human overview of how that selected request is resolved and executed.
+
 ## Current-only policy
 
 Only the versions implemented by the live models are accepted:

@@ -7,6 +7,10 @@
 > binding, and manifest projection. The canonical game-domain model and ownership
 > boundaries live in the [Game contract](../../game-contract.md).
 
+The game contract describes durable authored direction, not execution order. The
+[canonical game-generation pipeline](generation-pipeline.md) documents and checks how the
+current scrolling recipe resolves that direction into generated artifacts.
+
 ## Scope
 
 An authored game contract fixes direction that must remain coherent across the

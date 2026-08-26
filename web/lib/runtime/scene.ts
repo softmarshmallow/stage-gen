@@ -669,8 +669,7 @@ export class StageScene extends Phaser.Scene {
   };
   private heightmapDigest: string | null = null;
   private stageIndex = 0;
-  private levelCapabilities: ScrollingDemoLevelCapabilities =
-    scrollingDemoLevelCapabilities(undefined);
+  private levelCapabilities!: ScrollingDemoLevelCapabilities;
   /**
    * The stage index this run was asked to open on, before any book existed to clamp it against.
    *

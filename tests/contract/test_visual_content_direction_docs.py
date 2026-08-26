@@ -82,4 +82,5 @@ def test_scrolling_plan_spec_tracks_the_v1_model_and_graph() -> None:
     assert controlled_stages[0] is THEME_COMPILE_STAGE
     assert controlled_stages[1].depends_on == ("theme-compile",)
     assert "six baseline stages across waves 1, 1.5, 2, 3, 4, and 5" in asset_contract
-    assert "| 5 | Write the per-tag artifact manifest" in asset_contract
+    assert "[canonical game-generation pipeline](game/generation-pipeline.md)" in asset_contract
+    assert "| 5 | Validate and write the per-tag artifact manifest" in asset_contract

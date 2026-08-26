@@ -299,6 +299,10 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
+The [canonical game-generation pipeline](game/generation-pipeline.md) owns the current top-level
+graph, conditional composition, operation counts, and execution semantics. This section summarizes
+the baseline asset phases and remains the detailed authority for the assets each phase produces.
+
 Generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. The
 runner executes stages sequentially. The two image waves own their internal
 fan-out, while every other stage is one local or provider-neutral operation.
@@ -311,9 +315,9 @@ current v1 `theme` field preserves the exact six-stage graph.
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
 | 2 | World concept dependants — L parallax layers (agent-designed count), tileset, ladder, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `6 + L + N + M` calls fired together. | image |
-| 3 | Concept dependants — five character state strips, character attack and climb strips, N creature idle strips, N creature hurt strips; then deterministic character-master composition | Fan-out: `7 + 2N` image calls, followed by one local composition. | image + local CPU |
-| 4 | Split the composed character master into five fixed state rows. | Single deterministic pass; no provider call. | local CPU |
-| 5 | Write the per-tag artifact manifest and resolve preview music. | Single deterministic assembly after post-processing. | local CPU |
+| 3 | Actor concept dependants — five player state strips; deterministic player-master composition; then player attack/climb and per-mob state strips. Game-directed mobs add attack to idle and hurt. | Two fan-outs separated by local composition. Exact current call counts live in the canonical pipeline document. | image + structured review + local CPU |
+| 4 | Split the composed player master into five fixed state rows and measure the final published bytes. | One deterministic split followed by five currently sequential structured vision measurements. | local CPU + text/vision agent |
+| 5 | Validate and write the per-tag artifact manifest; bind fallback preview music only when no authored soundtrack is present. | Single deterministic assembly after every enabled terminal stage. | local CPU |
 
 Current opt-ins add explicit nodes without changing the baseline definition:
 `game-resolve` at 0.1, `soundtrack-resolve` at 0.2, `profile-resolve` at 0.25,

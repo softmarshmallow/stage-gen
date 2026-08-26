@@ -104,6 +104,10 @@ source-digest mismatch fails before generation. See the runnable
 
 ## Scrolling-preview pipeline and artifacts
 
+This section is the soundtrack projection of the
+[canonical game-generation pipeline](spec/game/generation-pipeline.md). The canonical document
+owns the complete graph and current scheduling semantics.
+
 The optional soundtrack binding adds two stages. When `soundtrack` is omitted,
 the current stage graph omits both stages and manifest V7 omits the `soundtrack`
 block:

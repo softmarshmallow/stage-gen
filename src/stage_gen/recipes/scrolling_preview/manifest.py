@@ -79,6 +79,7 @@ from stage_gen.recipes.scrolling_preview.scale_reference import (
     evaluate_actor_scale_reference,
     measures_scale_reference,
     parse_actor_scale_reference,
+    scale_reference_artifact_name,
     scale_reference_frame,
 )
 from stage_gen.recipes.scrolling_preview.soundtrack import collect_scrolling_soundtrack
@@ -983,7 +984,7 @@ def _read_required_scale_reference(
     published as though it were a current measurement.
     """
 
-    reference_name = f"{Path(requirement.path).stem}.scale-reference.json"
+    reference_name = scale_reference_artifact_name(Path(requirement.path).name)
     reference_path = run_dir / reference_name
     sidecar_path = Path(f"{reference_path}.meta.json")
     try:

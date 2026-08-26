@@ -14,6 +14,9 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 - Recipes own generation-specific genre, composition, layout, artifact, and validation assumptions; consumer adapters
   own runtime camera, scene, engine, and gameplay assumptions. Neither may leak them into generic components. `web/`
   consumes public headless CLI and manifest contracts; it is not a second generator.
+- `docs/spec/game/generation-pipeline.md` is the canonical human overview of the game-generation graph. Changes to
+  recipe stages, asset fan-out or dependencies, input composition, provider operation counts, cache/manifest boundaries,
+  or scheduling semantics must update that document and its executable graph contract in the same change.
 
 ## Schema naming
 

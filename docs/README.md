@@ -17,6 +17,9 @@ Start here for the headless, general-purpose system:
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
   implemented current `game-contract-v3` fields, closed vocabulary, validation,
   binding, and manifest projection.
+- [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
+  machine-checked current scrolling DAG, stage and operation contracts, internal
+  fan-out, execution semantics, and explicitly separated target evolution.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.

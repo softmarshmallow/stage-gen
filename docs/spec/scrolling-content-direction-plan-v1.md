@@ -144,7 +144,7 @@ digest-bound decisions.
 | --- | --- |
 | `stage_gen.theme` | v1 controls and plan models, policy loading, canonical identity, request construction, and deterministic validation. |
 | `recipes.scrolling_preview.recipe` | Input parsing, absence semantics, and run-tag derivation. |
-| `recipes.scrolling_preview.stages` | Optional DAG insertion and explicit compiler-to-concept dependency. |
+| `recipes.scrolling_preview.stages` | Optional declared-stage insertion and explicit compiler-to-concept dependency; see the [canonical game-generation pipeline](game/generation-pipeline.md) for actual scheduling semantics. |
 | `recipes.scrolling_preview.executor` | Execution, cache checks, artifact reading, stage mapping, prompt composition, boundary checks, and downstream provenance. |
 | `components.structured_generation` | Provider-neutral structured call, retry ownership, validation handoff, persistence, and result contract. |
 | `components.image_generation` | Provider-neutral image call over already composed prose. |

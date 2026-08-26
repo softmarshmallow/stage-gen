@@ -25,6 +25,8 @@ body instead, which is the same reference applied to a subject whose head is its
 
 from __future__ import annotations
 
+from hashlib import sha256
+from pathlib import Path
 from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -46,6 +48,19 @@ MINIMUM_REFERENCE_FRACTION = 0.02
 MAXIMUM_HEAD_FRACTION = 0.75
 
 ScaleReferencePart = Literal["head", "body"]
+
+
+def scale_reference_artifact_name(artifact_name: str) -> str:
+    """Return the descriptive scale-reference name, bounded with its provenance sidecar."""
+
+    source = Path(artifact_name)
+    if source.name != artifact_name or source.suffix != ".png":
+        raise ValueError("scale-reference source must be one portable PNG artifact name")
+    descriptive = f"{source.stem}.scale-reference.json"
+    if len(f"{descriptive}.meta.json") <= 128:
+        return descriptive
+    digest = sha256(artifact_name.encode()).hexdigest()[:24]
+    return f"actor-scale-{digest}.json"
 
 
 class ActorScaleReference(BaseModel):

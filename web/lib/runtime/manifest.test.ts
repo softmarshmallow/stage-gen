@@ -736,6 +736,23 @@ describe("parseScrollingManifestEnvelope", () => {
     }
   });
 
+  test("accepts portable artifact filenames through the filesystem segment limit", () => {
+    const maximumLengthName = "a".repeat(255);
+    expect(
+      parseScrollingManifestEnvelope(
+        currentEnvelope({ artifacts: [maximumLengthName] }),
+        TAG,
+      ).artifacts,
+    ).toEqual([maximumLengthName]);
+
+    expect(() =>
+      parseScrollingManifestEnvelope(
+        currentEnvelope({ artifacts: ["a".repeat(256)] }),
+        TAG,
+      ),
+    ).toThrow("artifacts must be unique safe filenames");
+  });
+
   test("requires the complete current player measurement closure", () => {
     for (const missingRole of [
       "character-idle",
