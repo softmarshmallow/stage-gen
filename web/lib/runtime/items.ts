@@ -27,8 +27,8 @@ export interface ItemSystemOpts {
   baselineY: number;
   heightFn: (col: number) => number;
   /** Frame keys on the items texture (e.g. "item_0".."item_7"). */
-  itemFrameKey: (kindIndex: number) => string;
-  itemTextureKey: string;
+  itemFrameKey?: (kindIndex: number) => string | number | undefined;
+  itemTextureKey: string | ((kindIndex: number) => string);
   itemHeightPx?: number;
 }
 
@@ -47,8 +47,11 @@ export class ItemSystem {
    * until it lands on the heightmap surface for that column.
    */
   drop(x: number, y: number, kindIndex: number): DroppedItem | null {
-    const tex = this.opts.itemTextureKey;
-    const frameKey = this.opts.itemFrameKey(kindIndex);
+    const tex =
+      typeof this.opts.itemTextureKey === "function"
+        ? this.opts.itemTextureKey(kindIndex)
+        : this.opts.itemTextureKey;
+    const frameKey = this.opts.itemFrameKey?.(kindIndex);
     if (!this.opts.scene.textures.exists(tex)) return null;
     const sprite = this.opts.scene.add.image(x, y, tex, frameKey);
     sprite.setOrigin(0.5, 1.0);

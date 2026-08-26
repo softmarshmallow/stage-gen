@@ -222,10 +222,13 @@ export function resolveDamage(
   });
 }
 
-export function initialPlayerHealth(): PlayerHealthState {
+export function initialPlayerHealth(maxHp = PLAYER_MAX_HP): PlayerHealthState {
+  if (!Number.isSafeInteger(maxHp) || maxHp <= 0) {
+    throw new RangeError("player max HP must be a positive integer");
+  }
   return Object.freeze({
-    hp: PLAYER_MAX_HP,
-    maxHp: PLAYER_MAX_HP,
+    hp: maxHp,
+    maxHp,
     invulnerableUntilMs: 0,
     defeated: false,
   });

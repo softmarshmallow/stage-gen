@@ -45,9 +45,11 @@ export interface InventoryHudOpts {
   /** Phaser texture key holding the canonical inventory panel. */
   panelKey: string;
   /** Phaser texture key holding the items grid. */
-  itemsKey: string;
+  itemsKey?: string;
+  /** Optional stable-ID texture resolver for prepared packages with one image per item. */
+  itemTextureKey?: (kindIndex: number) => string;
   /** items_x → frame name on the items texture. */
-  itemFrameKey: (kindIndex: number) => string;
+  itemFrameKey?: (kindIndex: number) => string | number | undefined;
   viewW: number;
   viewH: number;
   /** Display scale of the panel inside the viewport. */
@@ -122,7 +124,9 @@ export class InventoryHud {
     const sy = slot.y * this.scaleFactor;
     const iconSizeWorld = 192 * this.scaleFactor; // ~75% of 256-px slot
 
-    if (!this.opts.scene.textures.exists(this.opts.itemsKey)) {
+    const textureKey =
+      this.opts.itemTextureKey?.(kindIndex) ?? this.opts.itemsKey ?? "";
+    if (!textureKey || !this.opts.scene.textures.exists(textureKey)) {
       // No texture — still create a placeholder rectangle so the slot is filled.
       const g = this.opts.scene.add.rectangle(
         sx,
@@ -141,15 +145,15 @@ export class InventoryHud {
       });
       return;
     }
-    const frameKey = this.opts.itemFrameKey(kindIndex);
-    const tex = this.opts.scene.textures.get(this.opts.itemsKey);
+    const frameKey = this.opts.itemFrameKey?.(kindIndex);
+    const tex = this.opts.scene.textures.get(textureKey);
     const phaserFrame = tex.get(frameKey);
     const aspect =
       (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
     const icon = this.opts.scene.add.image(
       sx,
       sy,
-      this.opts.itemsKey,
+      textureKey,
       frameKey,
     );
     icon.setOrigin(0.5, 0.5);

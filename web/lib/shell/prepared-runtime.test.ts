@@ -1,0 +1,75 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { preparedRuntimeManifestFixture } from "./prepared-runtime.fixture";
+import { readPreparedRuntimeManifest } from "./prepared-runtime";
+import { runDirFor } from "./runs";
+
+const cleanup: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    cleanup.splice(0).map((target) =>
+      rm(target, { recursive: true, force: true }),
+    ),
+  );
+});
+
+describe("prepared runtime manifest reading", () => {
+  test("returns null for a missing run and parses a real manifest", async () => {
+    const missingTag = `test-prepared-missing-${process.pid}`;
+    expect(await readPreparedRuntimeManifest(missingTag)).toBeNull();
+
+    const tag = `test-prepared-reader-${process.pid}`;
+    const runDir = runDirFor(tag);
+    cleanup.push(runDir);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(
+      path.join(runDir, "manifest.json"),
+      JSON.stringify(preparedRuntimeManifestFixture()),
+      "utf8",
+    );
+
+    const manifest = await readPreparedRuntimeManifest(tag);
+    expect(manifest?.kind).toBe("prepared-game-runtime-v1");
+    expect(manifest?.display_name).toBe("Prepared Fixture");
+    expect(manifest?.player.concept.path).toBe("content/player/concept.png");
+  });
+
+  test("rejects symlinked manifest files", async () => {
+    const tag = `test-prepared-symlink-${process.pid}`;
+    const targetTag = `${tag}-target`;
+    const runDir = runDirFor(tag);
+    const targetDir = runDirFor(targetTag);
+    cleanup.push(runDir, targetDir);
+    await mkdir(runDir, { recursive: true });
+    await mkdir(targetDir, { recursive: true });
+    const target = path.join(targetDir, "foreign-manifest.json");
+    await writeFile(
+      target,
+      JSON.stringify(preparedRuntimeManifestFixture()),
+      "utf8",
+    );
+    await symlink(target, path.join(runDir, "manifest.json"), "file");
+
+    await expect(readPreparedRuntimeManifest(tag)).rejects.toThrow(
+      "prepared runtime manifest must be a real regular file",
+    );
+  });
+
+  test("rejects malformed prepared manifest contracts", async () => {
+    const tag = `test-prepared-malformed-${process.pid}`;
+    const runDir = runDirFor(tag);
+    cleanup.push(runDir);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(
+      path.join(runDir, "manifest.json"),
+      JSON.stringify({ schema_version: 1, kind: "not-prepared" }),
+      "utf8",
+    );
+
+    await expect(readPreparedRuntimeManifest(tag)).rejects.toThrow(
+      "prepared runtime manifest identity is invalid",
+    );
+  });
+});

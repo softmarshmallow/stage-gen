@@ -63,6 +63,17 @@ describe("aggression archetypes", () => {
 });
 
 describe("player health", () => {
+  test("accepts authored starting health and rejects invalid maxima", () => {
+    expect(initialPlayerHealth(10)).toEqual({
+      hp: 10,
+      maxHp: 10,
+      invulnerableUntilMs: 0,
+      defeated: false,
+    });
+    expect(() => initialPlayerHealth(0)).toThrow(RangeError);
+    expect(() => initialPlayerHealth(1.5)).toThrow(RangeError);
+  });
+
   test("starts full and survives more than two blows from the worst archetype", () => {
     const h = initialPlayerHealth();
     expect(h.hp).toBe(PLAYER_MAX_HP);

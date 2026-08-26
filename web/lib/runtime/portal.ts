@@ -94,7 +94,7 @@ export class PortalSystem {
     if (!scene.textures.exists(this.opts.portalKey)) return;
 
     const tex = scene.textures.get(this.opts.portalKey);
-    const src = tex.getSourceImage(0) as HTMLImageElement | HTMLCanvasElement;
+    const src = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
     const fullW = (src as { width: number }).width;
     const fullH = (src as { height: number }).height;
     const halfW = Math.floor(fullW / 2);

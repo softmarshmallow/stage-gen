@@ -291,6 +291,15 @@ button:disabled {
   justify-content: center;
   overflow: hidden;
 }
+.sg-slot-inner.alpha-checker {
+  background-color: #111111;
+  background-image: linear-gradient(45deg, #252525 25%, transparent 25%),
+    linear-gradient(-45deg, #252525 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #252525 75%),
+    linear-gradient(-45deg, transparent 75%, #252525 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
 .sg-slot-img {
   max-width: 100%;
   max-height: 100%;
@@ -340,6 +349,32 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 6px;
+}
+.sg-audio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
+}
+.sg-audio-card {
+  min-width: 0;
+  border: 1px solid var(--accent);
+  padding: 10px;
+  background: var(--bg);
+}
+.sg-audio-card audio {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.sg-asset-label {
+  color: var(--fg);
+}
+.sg-asset-path {
+  color: var(--dim);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Log strip — append-only, dim, monospace. */

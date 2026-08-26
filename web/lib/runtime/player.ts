@@ -133,6 +133,8 @@ export interface PlayerOpts {
   ladders?: readonly LadderZone[];
   maximumAirJumps: number;
   combatEnabled: boolean;
+  /** Authored starting/max health for this run. */
+  startingHealth?: number;
   onTransition?: (
     kind: PlayerTransitionKind,
     data: Record<string, string | number | boolean>,
@@ -254,6 +256,7 @@ export class Player {
       throw new Error("maximumAirJumps must be a nonnegative integer");
     }
     this.opts = opts;
+    this.health = initialPlayerHealth(opts.startingHealth);
     this.frameRates = { ...DEFAULT_FRAME_RATES, ...(opts.frameRates ?? {}) };
 
     const scene = opts.scene;
@@ -1119,7 +1122,7 @@ export class Player {
     this.dropTraversal = undefined;
     this.clearAttack();
     this.hurtUntil = 0;
-    this.health = initialPlayerHealth();
+    this.health = initialPlayerHealth(this.opts.startingHealth);
     this.inventoryToggleRequested = false;
     this.sprite.setPosition(this.opts.startX, this.opts.startY);
     this.sprite.setFlipX(false);

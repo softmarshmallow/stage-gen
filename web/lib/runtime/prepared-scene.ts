@@ -5,7 +5,6 @@ import {
   fetchJson,
   loadFrameStrip,
   loadGridSheet,
-  loadOpaqueSprite,
   loadTileset,
   loadTransparentSprite,
   loadVerifiedRepeatLayer,
@@ -17,54 +16,50 @@ import {
   type PreparedRuntimeManifest,
 } from "./prepared-manifest";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
+import { Player } from "./player";
+import { Mob } from "./mob";
+import { ItemSystem } from "./items";
+import { InventoryHud } from "./inventory";
+import { PortalSystem, type PortalKind } from "./portal";
+import { CombatTextSystem } from "./combat-text";
+import {
+  FloatingHealthBar,
+  PLAYER_HEALTH_BAR_STYLE,
+} from "./health-bar";
+import { aggressionProfile } from "./combat";
+import { mobRenderEnvelope } from "./mob-geometry";
+import {
+  MobPopulationDirector,
+  type SpawnReservation,
+} from "./spawn-director";
+import {
+  ladderVisualBounds,
+  selectDemoVerticalWorld,
+  type VerticalWorld,
+} from "./vertical";
+import type { ScaleReference } from "./sprite-scale";
+import {
+  registerGridPresentationFallback,
+  registerPresentationFallback,
+  type PresentationFallbackKind,
+} from "./presentation-fallback";
+import {
+  assertPreparedGameplayManifestClosure,
+  parsePreparedGameplayContract,
+  type PreparedGameplayContract,
+} from "./prepared-gameplay";
+import { projectPreparedMobPopulation } from "./prepared-population";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
 const WORLD_W = 12800;
 const GROUND_Y = 610;
+const TILE_PX = 64;
+const GROUND_BASELINE_Y = GROUND_Y + TILE_PX;
+const WORLD_COLUMNS = WORLD_W / TILE_PX;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
-
-type Gameplay = Readonly<{
-  entry_map_id: string;
-  entry_spawn_id: string;
-  player: Readonly<{ starting_health: number; starting_item_ids: readonly string[] }>;
-  spawns: readonly Readonly<{ spawn_id: string; map_id: string; normalized_x: number }>[];
-  transitions: readonly Readonly<{ from_map_id: string; to_map_id: string; to_spawn_id: string }>[];
-  mob_population: Readonly<{
-    maps: readonly Readonly<{
-      map_id: string;
-      zones: readonly Readonly<{
-        left_fraction: number;
-        right_fraction: number;
-        initial_population: number;
-        spawn_table: readonly Readonly<{ mob_id: string; weight: number }>[];
-      }>[];
-    }>[];
-  }>;
-  boss_encounters: readonly Readonly<{
-    map_id: string;
-    mob_id: string;
-  }>[];
-  loot_rules: readonly Readonly<{
-    mob_id: string;
-    item_id: string;
-    chance: number;
-    quantity_min: number;
-    quantity_max: number;
-  }>[];
-  npc_placements: readonly Readonly<{ map_id: string; npc_id: string; normalized_x: number }>[];
-  prop_placements: readonly Readonly<{ map_id: string; prop_id: string; normalized_x: number }>[];
-  interactions: readonly Readonly<{ map_id: string; actor_id: string; sequence_id: string }>[];
-  quests: readonly Readonly<{
-    quest_id: string;
-    completion_item_id: string;
-    completion_count: number;
-    completion_effect_id: string;
-  }>[];
-  effects: readonly Record<string, unknown>[];
-}>;
 
 type SequenceNode = Readonly<Record<string, unknown>>;
 type Sequence = Readonly<{
@@ -73,43 +68,27 @@ type Sequence = Readonly<{
   nodes: readonly SequenceNode[];
 }>;
 
-type MobActor = {
-  mobId: string;
-  sprite: Phaser.GameObjects.Sprite;
-  homeX: number;
-  direction: 1 | -1;
-  hp: number;
-  hurtUntil: number;
-  defeated: boolean;
-};
-
 type NpcActor = {
   npcId: string;
   sprite: Phaser.GameObjects.Sprite;
 };
 
-type DropActor = {
-  itemId: string;
-  sprite: Phaser.GameObjects.Image;
-  quantity: number;
-};
-
-function asGameplay(value: Record<string, unknown>): Gameplay {
-  return value as unknown as Gameplay;
-}
-
 function asSequences(values: readonly Record<string, unknown>[]): readonly Sequence[] {
   return values as unknown as readonly Sequence[];
 }
 
-function frameRate(state: string): number {
-  if (state === "run") return 13;
-  if (state === "walk" || state === "move") return 8;
-  if (state.includes("attack") || state === "skill_cast") return 11;
-  return 6;
+function preparedItemTextureKey(
+  manifest: PreparedRuntimeManifest,
+  index: number,
+): string {
+  const item = manifest.items[index];
+  if (!item) {
+    throw new Error(`prepared item index ${index} is outside the manifest catalog`);
+  }
+  return `prepared_item_${item.item_id}`;
 }
 
-function hpForRank(rank: string): number {
+function mobHealthForRank(rank: string): number {
   if (rank === "boss") return 12;
   if (rank === "elite") return 6;
   if (rank === "uncommon") return 3;
@@ -120,25 +99,37 @@ export class PreparedStageScene extends Phaser.Scene {
   private readonly tag: string;
   private readonly transparencyPolicy: PreviewTransparencyPolicy;
   private manifest?: PreparedRuntimeManifest;
-  private gameplay?: Gameplay;
+  private gameplay?: PreparedGameplayContract;
   private ready = false;
   private loading = false;
   private currentMap?: PreparedMap;
-  private player?: Phaser.GameObjects.Sprite;
-  private playerFacing: "left" | "right" = "right";
-  private playerVy = 0;
-  private playerHp = 1;
-  private playerAttackUntil = 0;
-  private playerHurtUntil = 0;
+  private player?: Player;
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
   private layerSprites: Phaser.GameObjects.TileSprite[] = [];
   private groundSprites: Phaser.GameObjects.TileSprite[] = [];
   private props: Phaser.GameObjects.Image[] = [];
   private worldLabels: Phaser.GameObjects.Text[] = [];
-  private mobs: MobActor[] = [];
+  private mobs: Mob[] = [];
+  private readonly mobInstanceIds = new Map<Mob, string>();
+  private nextMobInstance = 1;
+  private mobPopulationDirector?: MobPopulationDirector;
+  private mobPopulationMapId?: string;
+  private mobIdByPopulationSlot: readonly string[] = [];
   private npcs: NpcActor[] = [];
-  private drops: DropActor[] = [];
-  private inventory = new Map<string, number>();
+  private items?: ItemSystem;
+  private inventoryHud?: InventoryHud;
+  private readonly inventory = new Map<string, number>();
+  private portal?: PortalSystem;
+  private combatText?: CombatTextSystem;
+  private healthBar?: FloatingHealthBar;
+  private verticalWorld: VerticalWorld = Object.freeze({
+    platforms: Object.freeze([]),
+    ladders: Object.freeze([]),
+  });
+  private verticalSprites: Phaser.GameObjects.GameObject[] = [];
+  private readonly heights = Array.from({ length: WORLD_COLUMNS }, () => 1);
+  private readonly scaleReferences = new Map<string, ScaleReference>();
+  private readonly diagnostics: string[] = [];
   private questStates = new Map<string, string>();
   private hud?: Phaser.GameObjects.Text;
   private mapLabel?: Phaser.GameObjects.Text;
@@ -154,7 +145,6 @@ export class PreparedStageScene extends Phaser.Scene {
   constructor(
     tag: string,
     transparencyPolicy: PreviewTransparencyPolicy,
-    _automationMode: GameplayAutomationMode | null,
   ) {
     super({ key: "PreparedStageScene" });
     this.tag = tag;
@@ -182,12 +172,13 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!this.ready || this.loading || !this.player || !this.keys) return;
     const now = performance.now();
     if (this.activeSequence) {
+      this.player.inventoryToggleRequested = false;
       this.updateDialogueInput();
       return;
     }
     this.updatePlayer(delta, now);
     this.updateMobs(delta, now);
-    this.collectDrops();
+    this.collectDrops(delta, now);
     this.updateInteractionPrompt();
     this.updateHud();
     for (const layer of this.layerSprites) {
@@ -203,8 +194,10 @@ export class PreparedStageScene extends Phaser.Scene {
   private async loadAll(): Promise<void> {
     const raw = await fetchJson<unknown>(this.url("manifest.json"));
     const manifest = parsePreparedRuntimeManifest(raw);
+    const gameplay = parsePreparedGameplayContract(manifest.gameplay);
+    assertPreparedGameplayManifestClosure(manifest, gameplay);
     this.manifest = manifest;
-    this.gameplay = asGameplay(manifest.gameplay);
+    this.gameplay = gameplay;
     await Promise.all([
       this.loadPlayerAssets(manifest),
       this.loadMobAssets(manifest),
@@ -213,9 +206,25 @@ export class PreparedStageScene extends Phaser.Scene {
       this.loadMapTextures(manifest),
     ]);
     this.installAnimations(manifest);
+    this.prepareGameplayPresentation(manifest);
     this.installInput();
+    this.inventoryHud = new InventoryHud({
+      scene: this,
+      panelKey: "inventory",
+      itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
+      viewW: VIEW_W,
+      viewH: VIEW_H,
+    });
+    this.healthBar = new FloatingHealthBar(
+      this,
+      this.gameplay.player.starting_health,
+      PLAYER_HEALTH_BAR_STYLE,
+    );
+    this.combatText = new CombatTextSystem({
+      scene: this,
+      enabled: this.gameplay.combat_text.enabled,
+    });
     for (const itemId of this.gameplay.player.starting_item_ids) this.addInventory(itemId, 1);
-    this.playerHp = this.gameplay.player.starting_health;
     const openingSpawn = this.gameplay.spawns.find(
       (spawn) => spawn.spawn_id === this.gameplay?.entry_spawn_id,
     );
@@ -235,133 +244,331 @@ export class PreparedStageScene extends Phaser.Scene {
         packageSha256: manifest.package_sha256,
         artifactCount: manifest.closure.artifact_count,
         mapIds: manifest.maps.map((map) => map.map_id),
+        diagnostics: Object.freeze([...this.diagnostics]),
       });
+      (window as unknown as { __sceneProbes?: unknown }).__sceneProbes = {
+        diagnostics: this.diagnostics,
+        consoleErrors: [],
+      };
     }
   }
 
   private async loadPlayerAssets(manifest: PreparedRuntimeManifest): Promise<void> {
+    const runtimeKeys: Readonly<Record<string, string>> = Object.freeze({
+      idle: "character_idle",
+      walk: "character_walk",
+      run: "character_run",
+      jump: "character_jump",
+      climb: "character_climb",
+      basic_attack: "character_attack",
+      hurt: "character_hurt",
+    });
     await Promise.all(
-      Object.entries(manifest.player.states).map(([state, binding]) =>
-        loadFrameStrip(
-          this.url(binding.asset.path),
-          `prepared_player_${state}`,
-          4,
-          this.textures,
-          this.transparencyPolicy,
-        ),
-      ),
+      Object.entries(manifest.player.states).flatMap(([state, binding]) => {
+        const runtimeKey = runtimeKeys[state];
+        if (!runtimeKey) return [];
+        const url = this.url(binding.asset.path);
+        return [
+          this.loadPresentationOrFallback(
+            loadFrameStrip(
+              url,
+              runtimeKey,
+              4,
+              this.textures,
+              this.transparencyPolicy,
+            ),
+            runtimeKey,
+            "four_frame_strip",
+          ),
+        ];
+      }),
     );
-    await loadGridSheet(
-      this.url(manifest.player.dialogue.asset.path),
+    await this.loadGridOrFallback(
+      loadGridSheet(
+        this.url(manifest.player.dialogue.asset.path),
+        "prepared_player_dialogue",
+        manifest.player.dialogue.rows,
+        manifest.player.dialogue.columns,
+        "expression",
+        this.textures,
+        this.transparencyPolicy,
+      ),
       "prepared_player_dialogue",
-      manifest.player.dialogue.rows,
       manifest.player.dialogue.columns,
-      "expression",
-      this.textures,
-      this.transparencyPolicy,
+      manifest.player.dialogue.rows,
     );
   }
 
   private async loadMobAssets(manifest: PreparedRuntimeManifest): Promise<void> {
+    const consumedStates = new Set(["idle", "hurt", "attack"]);
     await Promise.all(
       manifest.mobs.flatMap((mob) =>
-        Object.entries(mob.states).map(([state, binding]) =>
-          loadFrameStrip(
-            this.url(binding.asset.path),
-            `prepared_mob_${mob.mob_id}_${state}`,
-            4,
-            this.textures,
-            this.transparencyPolicy,
-          ),
-        ),
+        Object.entries(mob.states).flatMap(([state, binding]) => {
+          if (!consumedStates.has(state)) return [];
+          const key = `prepared_mob_${mob.mob_id}_${state}`;
+          return [
+            this.loadPresentationOrFallback(
+              loadFrameStrip(
+                this.url(binding.asset.path),
+                key,
+                4,
+                this.textures,
+                this.transparencyPolicy,
+              ),
+              key,
+              "four_frame_strip",
+            ),
+          ];
+        }),
       ),
     );
   }
 
   private async loadNpcAssets(manifest: PreparedRuntimeManifest): Promise<void> {
     await Promise.all(
-      manifest.npcs.flatMap((npc) => [
-        loadFrameStrip(
-          this.url(npc.world.asset.path),
-          `prepared_npc_${npc.npc_id}_world`,
-          4,
-          this.textures,
-          this.transparencyPolicy,
-        ),
-        loadGridSheet(
-          this.url(npc.dialogue.asset.path),
-          `prepared_npc_${npc.npc_id}_dialogue`,
-          npc.dialogue.rows,
-          npc.dialogue.columns,
-          "expression",
-          this.textures,
-          this.transparencyPolicy,
-        ),
-      ]),
+      manifest.npcs.flatMap((npc) => {
+        const worldKey = `prepared_npc_${npc.npc_id}_world`;
+        const dialogueKey = `prepared_npc_${npc.npc_id}_dialogue`;
+        return [
+          this.loadPresentationOrFallback(
+            loadFrameStrip(
+              this.url(npc.world.asset.path),
+              worldKey,
+              4,
+              this.textures,
+              this.transparencyPolicy,
+            ),
+            worldKey,
+            "four_frame_strip",
+          ),
+          this.loadGridOrFallback(
+            loadGridSheet(
+              this.url(npc.dialogue.asset.path),
+              dialogueKey,
+              npc.dialogue.rows,
+              npc.dialogue.columns,
+              "expression",
+              this.textures,
+              this.transparencyPolicy,
+            ),
+            dialogueKey,
+            npc.dialogue.columns,
+            npc.dialogue.rows,
+          ),
+        ];
+      }),
     );
   }
 
   private async loadCatalogAssets(manifest: PreparedRuntimeManifest): Promise<void> {
     await Promise.all([
-      ...manifest.props.map((prop) =>
-        loadTransparentSprite(
-          this.url(prop.asset.path),
-          `prepared_prop_${prop.prop_id}`,
-          this.textures,
-          this.transparencyPolicy,
-        ),
-      ),
-      ...manifest.items.map((item) =>
-        loadTransparentSprite(
-          this.url(item.asset.path),
-          `prepared_item_${item.item_id}`,
-          this.textures,
-          this.transparencyPolicy,
-        ),
-      ),
+      ...manifest.props.map((prop) => {
+        const key = `prepared_prop_${prop.prop_id}`;
+        return this.loadPresentationOrFallback(
+          loadTransparentSprite(
+            this.url(prop.asset.path),
+            key,
+            this.textures,
+            this.transparencyPolicy,
+          ),
+          key,
+          "sprite",
+        );
+      }),
+      ...manifest.items.map((item) => {
+        const key = `prepared_item_${item.item_id}`;
+        return this.loadPresentationOrFallback(
+          loadTransparentSprite(
+            this.url(item.asset.path),
+            key,
+            this.textures,
+            this.transparencyPolicy,
+          ),
+          key,
+          "sprite",
+        );
+      }),
     ]);
   }
 
   private async loadMapTextures(manifest: PreparedRuntimeManifest): Promise<void> {
     await Promise.all(
       manifest.maps.flatMap((map) => [
-        ...map.layers.map((layer) =>
-          loadVerifiedRepeatLayer(
-            this.url(layer.asset.path),
-            `prepared_map_${map.map_id}_${layer.layer_id}`,
-            layer.alpha_mode === "opaque",
-            layer.asset.width ?? 1536,
-            this.textures,
-          ),
-        ),
-        loadTileset(
-          this.url(map.ground.asset.path),
-          `prepared_ground_${map.map_id}`,
-          this.textures,
-          this.transparencyPolicy,
-        ),
+        ...map.layers.map((layer) => {
+          const key = `prepared_map_${map.map_id}_${layer.layer_id}`;
+          return this.loadPresentationOrFallback(
+            loadVerifiedRepeatLayer(
+              this.url(layer.asset.path),
+              key,
+              layer.alpha_mode === "opaque",
+              layer.asset.width ?? 1536,
+              this.textures,
+            ),
+            key,
+            "sprite",
+          );
+        }),
+        this.loadGroundOrFallback(map),
       ]),
     );
   }
 
-  private installAnimations(manifest: PreparedRuntimeManifest): void {
-    for (const state of Object.keys(manifest.player.states)) {
-      const key = `prepared_player_${state}`;
-      this.anims.create({
+  private async loadGroundOrFallback(map: PreparedMap): Promise<void> {
+    const key = `prepared_ground_${map.map_id}`;
+    try {
+      await loadTileset(
+        this.url(map.ground.asset.path),
         key,
-        frames: [0, 1, 2, 3].map((frame) => ({ key, frame })),
-        frameRate: frameRate(state),
-        repeat: state.includes("attack") || state === "hurt" || state === "death" ? 0 : -1,
-      });
+        this.textures,
+        this.transparencyPolicy,
+      );
+    } catch {
+      registerPresentationFallback(
+        this.textures,
+        `${key}_continuous_fill`,
+        "sprite",
+        (message) => this.recordDiagnostic(message),
+      );
+      registerPresentationFallback(
+        this.textures,
+        `${key}_continuous_surface`,
+        "sprite",
+        (message) => this.recordDiagnostic(message),
+      );
     }
+  }
+
+  /** Keep gameplay constructible when optional presentation roles were not generated. */
+  private prepareGameplayPresentation(manifest: PreparedRuntimeManifest): void {
+    const report = (message: string) => this.recordDiagnostic(message);
+    for (const key of [
+      "character_idle",
+      "character_walk",
+      "character_run",
+      "character_jump",
+      "character_climb",
+      "character_attack",
+      "character_hurt",
+    ]) {
+      if (!this.textures.exists(key)) {
+        registerPresentationFallback(this.textures, key, "four_frame_strip", report);
+      }
+    }
+    if (!this.textures.exists("character_crawl")) {
+      registerPresentationFallback(
+        this.textures,
+        "character_crawl",
+        "four_frame_strip",
+        report,
+      );
+    }
+    if (!this.textures.exists("portal")) {
+      registerPresentationFallback(this.textures, "portal", "portal_sheet", report);
+    }
+    if (!this.textures.exists("inventory")) {
+      registerPresentationFallback(
+        this.textures,
+        "inventory",
+        "inventory_panel",
+        report,
+      );
+    }
+    if (!this.textures.exists("ladder")) {
+      registerPresentationFallback(this.textures, "ladder", "sprite", report);
+    }
+    this.scaleReferences.clear();
+    for (const key of [
+      "character_idle",
+      "character_walk",
+      "character_run",
+      "character_jump",
+      "character_crawl",
+      "character_climb",
+      "character_attack",
+    ]) {
+      const frame = this.textures.get(key).get(0);
+      const width = Math.max(1, frame?.width ?? 64);
+      const height = Math.max(1, frame?.height ?? 64);
+      this.scaleReferences.set(
+        key,
+        Object.freeze({
+          part: "body",
+          topFraction: 0,
+          bottomFraction: 1,
+          leftFraction: 0,
+          rightFraction: 1,
+          extentPixels: height,
+          confident: false,
+          evidence: "Runtime frame bounds fallback for prepared package.",
+          frameIndex: 0,
+          cellWidth: width,
+          cellHeight: height,
+        }),
+      );
+    }
+    if (manifest.player.states.crouch === undefined) {
+      this.recordDiagnostic(
+        "Player crouch mechanics use a runtime placeholder because no crouch strip was generated.",
+      );
+    }
+  }
+
+  private recordDiagnostic(message: string): void {
+    const bounded = message.trim().slice(0, 256);
+    if (!bounded || this.diagnostics.includes(bounded)) return;
+    this.diagnostics.push(bounded);
+    console.warn(`[prepared-scene] ${bounded}`);
+  }
+
+  private async loadPresentationOrFallback(
+    operation: Promise<unknown>,
+    key: string,
+    kind: PresentationFallbackKind,
+  ): Promise<void> {
+    try {
+      await operation;
+    } catch {
+      registerPresentationFallback(
+        this.textures,
+        key,
+        kind,
+        (message) => this.recordDiagnostic(message),
+      );
+    }
+  }
+
+  private async loadGridOrFallback(
+    operation: Promise<unknown>,
+    key: string,
+    columns: number,
+    rows: number,
+  ): Promise<void> {
+    try {
+      await operation;
+    } catch {
+      registerGridPresentationFallback(
+        this.textures,
+        key,
+        columns,
+        rows,
+        "expression",
+        (message) => this.recordDiagnostic(message),
+      );
+    }
+  }
+
+  private installAnimations(manifest: PreparedRuntimeManifest): void {
     for (const mob of manifest.mobs) {
-      for (const state of Object.keys(mob.states)) {
+      for (const state of ["idle", "attack"] as const) {
+        if (!mob.states[state]) continue;
         const texture = `prepared_mob_${mob.mob_id}_${state}`;
+        const animationKey = state === "attack" ? `${texture}_anim` : texture;
+        if (this.anims.exists(animationKey)) continue;
         this.anims.create({
-          key: texture,
+          key: animationKey,
           frames: [0, 1, 2, 3].map((frame) => ({ key: texture, frame })),
-          frameRate: frameRate(state),
-          repeat: state === "death" || state === "hurt" || state === "attack" ? 0 : -1,
+          frameRate: state === "attack" ? 11 : 6,
+          repeat: state === "attack" ? 0 : -1,
         });
       }
     }
@@ -380,19 +587,11 @@ export class PreparedStageScene extends Phaser.Scene {
     const keyboard = this.input.keyboard;
     if (!keyboard) return;
     this.keys = {
-      left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-      a: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      d: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
       jump: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
       w: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      attack: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J),
-      attack2: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X),
-      attack3: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
       interact: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
       enter: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-      shift: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
     };
     const startAudio = () => {
       if (!this.soundtrack) return;
@@ -413,14 +612,35 @@ export class PreparedStageScene extends Phaser.Scene {
     this.currentMap = map;
     this.clearWorld();
     this.renderMap(map);
+    this.installVerticalWorld(map);
     this.renderPlacements(map);
-    if (map.hostile_population_enabled) this.spawnMapMobs(map);
-    const player = this.add.sprite(normalizedX * WORLD_W, GROUND_Y, "prepared_player_idle", 0);
-    player.setOrigin(0.5, 1).setDisplaySize(PLAYER_HEIGHT * 0.8, PLAYER_HEIGHT).setDepth(40);
-    player.play("prepared_player_idle");
-    this.player = player;
+    this.player = new Player({
+      scene: this,
+      startX: Phaser.Math.Clamp(normalizedX * WORLD_W, TILE_PX / 2, WORLD_W - TILE_PX / 2),
+      startY: GROUND_Y,
+      tilePx: TILE_PX,
+      worldWidthPx: WORLD_W,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (column) => this.heightAt(column),
+      targetSpriteHeight: PLAYER_HEIGHT,
+      platforms: this.verticalWorld.platforms,
+      ladders: this.verticalWorld.ladders,
+      maximumAirJumps: 1,
+      combatEnabled: gameplay.combat.enabled,
+      startingHealth: gameplay.player.starting_health,
+      scaleReferences: this.scaleReferences,
+    });
+    this.items = new ItemSystem({
+      scene: this,
+      tilePx: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (column) => this.heightAt(column),
+      itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
+    });
+    this.installPortals(map);
+    if (map.hostile_population_enabled) this.initializeMobPopulation(map);
     this.cameras.main.setBounds(0, 0, WORLD_W, VIEW_H);
-    this.cameras.main.startFollow(player, true, 0.12, 0.12, 0, 50);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 50);
     this.cameras.main.setDeadzone(300, 180);
     this.cameras.main.scrollY = 0;
     this.mapLabel?.setText(map.display_name);
@@ -430,6 +650,11 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private clearWorld(): void {
+    this.mobPopulationDirector?.dispose();
+    this.mobPopulationDirector = undefined;
+    this.mobPopulationMapId = undefined;
+    this.mobIdByPopulationSlot = [];
+    this.mobInstanceIds.clear();
     this.player?.destroy();
     this.player = undefined;
     for (const sprite of [
@@ -439,16 +664,22 @@ export class PreparedStageScene extends Phaser.Scene {
       ...this.worldLabels,
     ])
       sprite.destroy();
-    for (const mob of this.mobs) mob.sprite.destroy();
+    for (const mob of this.mobs) mob.destroy();
     for (const npc of this.npcs) npc.sprite.destroy();
-    for (const drop of this.drops) drop.sprite.destroy();
+    this.items?.clearAll();
+    this.items = undefined;
+    this.combatText?.clear();
+    this.portal?.destroy();
+    this.portal = undefined;
+    for (const sprite of this.verticalSprites) sprite.destroy();
     this.layerSprites = [];
     this.groundSprites = [];
     this.props = [];
     this.worldLabels = [];
     this.mobs = [];
     this.npcs = [];
-    this.drops = [];
+    this.verticalSprites = [];
+    this.verticalWorld = Object.freeze({ platforms: Object.freeze([]), ladders: Object.freeze([]) });
   }
 
   private renderMap(map: PreparedMap): void {
@@ -520,167 +751,431 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
-  private spawnMapMobs(map: PreparedMap): void {
+  private installVerticalWorld(map: PreparedMap): void {
+    if (!map.hostile_population_enabled) return;
+    const selection = selectDemoVerticalWorld({
+      heights: this.heights,
+      tilePixels: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      worldWidth: WORLD_W,
+      afterColumn: 24,
+      maximumColumnExclusive: 115,
+      layout: "ascent",
+    });
+    if (!selection) {
+      this.recordDiagnostic(`Map ${map.map_id} could not place its optional vertical route.`);
+      return;
+    }
+    this.verticalWorld = selection.world;
+    for (const platform of selection.world.platforms) {
+      const body = this.add
+        .rectangle(
+          (platform.left + platform.right) / 2,
+          platform.deckY + platform.thickness / 2,
+          platform.right - platform.left,
+          platform.thickness,
+          0x7a5432,
+          1,
+        )
+        .setDepth(22);
+      body.setStrokeStyle(3, 0xd7aa5c, 1);
+      this.verticalSprites.push(body);
+    }
+    for (const ladder of selection.world.ladders) {
+      const bounds = ladderVisualBounds(ladder);
+      const sprite = this.add
+        .image(ladder.centerX, bounds.bottom, "ladder")
+        .setOrigin(0.5, 1)
+        .setDisplaySize(bounds.width, bounds.height)
+        .setDepth(23);
+      this.verticalSprites.push(sprite);
+    }
+  }
+
+  private heightAt(column: number): number {
+    const index = Phaser.Math.Clamp(Math.floor(column), 0, this.heights.length - 1);
+    return this.heights[index] ?? 1;
+  }
+
+  private installPortals(map: PreparedMap): void {
+    const gameplay = this.gameplay;
     const manifest = this.manifest;
-    const population = this.gameplay?.mob_population.maps.find((entry) => entry.map_id === map.map_id);
-    if (!manifest || !population) return;
-    for (const zone of population.zones) {
-      for (let index = 0; index < zone.initial_population; index += 1) {
-        const tableWeight = zone.spawn_table.reduce((sum, entry) => sum + entry.weight, 0);
-        let cursor = (index * 7 + zone.initial_population) % tableWeight;
-        const selected = zone.spawn_table.find((entry) => {
-          cursor -= entry.weight;
-          return cursor < 0;
-        }) ?? zone.spawn_table[0];
-        if (!selected) continue;
-        const spec = manifest.mobs.find((entry) => entry.mob_id === selected.mob_id);
-        if (!spec) continue;
-        const fraction = zone.left_fraction + ((index + 1) / (zone.initial_population + 1)) * (zone.right_fraction - zone.left_fraction);
-        const sprite = this.add
-          .sprite(fraction * WORLD_W, GROUND_Y, `prepared_mob_${spec.mob_id}_idle`, 0)
-          .setOrigin(0.5, 1)
-          .setDisplaySize(MOB_HEIGHT, MOB_HEIGHT)
-          .setDepth(38);
-        sprite.play(`prepared_mob_${spec.mob_id}_idle`);
-        this.mobs.push({
-          mobId: spec.mob_id,
-          sprite,
-          homeX: sprite.x,
-          direction: index % 2 === 0 ? 1 : -1,
-          hp: hpForRank(spec.rank),
-          hurtUntil: 0,
-          defeated: false,
-        });
+    if (!gameplay || !manifest) return;
+    const destinations: Record<PortalKind, number | null> = {
+      entry: null,
+      exit: null,
+    };
+    for (const transition of gameplay.transitions.filter(
+      (entry) => entry.from_map_id === map.map_id,
+    )) {
+      const kind: PortalKind = transition.from_anchor.includes("west")
+        ? "entry"
+        : "exit";
+      const index = manifest.maps.findIndex(
+        (candidate) => candidate.map_id === transition.to_map_id,
+      );
+      if (index >= 0) destinations[kind] = index;
+    }
+    this.portal = new PortalSystem({
+      scene: this,
+      portalKey: "portal",
+      tilePx: TILE_PX,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (column) => this.heightAt(column),
+      stageWidthPx: WORLD_W,
+      destinations,
+    });
+  }
+
+  private transitionForPortal(
+    destinationMapId: string,
+    kind: PortalKind,
+  ): PreparedGameplayContract["transitions"][number] | undefined {
+    return this.gameplay?.transitions.find(
+      (transition) =>
+        transition.from_map_id === this.currentMap?.map_id &&
+        transition.to_map_id === destinationMapId &&
+        (kind === "entry"
+          ? transition.from_anchor.includes("west")
+          : !transition.from_anchor.includes("west")),
+    );
+  }
+
+  private createMobAtColumn(
+    mobSlot: number,
+    spawnColumn: number,
+    wanderExtentPx?: number,
+    pursuitLeashPx?: number,
+  ): Mob | null {
+    const spec = this.manifest?.mobs[mobSlot];
+    if (!spec) return null;
+    const idleKey = `prepared_mob_${spec.mob_id}_idle`;
+    const hurtKey = `prepared_mob_${spec.mob_id}_hurt`;
+    if (!this.textures.exists(idleKey)) return null;
+    const idleFrame = this.textures.get(idleKey).get(0);
+    const hurtFrame = this.textures.exists(hurtKey)
+      ? this.textures.get(hurtKey).get(0)
+      : idleFrame;
+    const renderEnvelope = mobRenderEnvelope({
+      idleFrames: [
+        {
+          w: Math.max(1, idleFrame?.width ?? 64),
+          h: Math.max(1, idleFrame?.height ?? 64),
+        },
+      ],
+      hurtFrames: [
+        {
+          w: Math.max(1, hurtFrame?.width ?? idleFrame?.width ?? 64),
+          h: Math.max(1, hurtFrame?.height ?? idleFrame?.height ?? 64),
+        },
+      ],
+      targetFrameZeroHeight: MOB_HEIGHT,
+    });
+    const attackKey = `prepared_mob_${spec.mob_id}_attack`;
+    const aggression =
+      spec.rank === "boss" || spec.rank === "elite"
+        ? "relentless"
+        : spec.rank === "uncommon"
+          ? "hunting"
+          : "territorial";
+    return new Mob({
+      scene: this,
+      ladderIndex: mobSlot,
+      startingHealth: mobHealthForRank(spec.rank),
+      spawnCol: spawnColumn,
+      tilePx: TILE_PX,
+      worldWidthPx: WORLD_W,
+      baselineY: GROUND_BASELINE_Y,
+      heightFn: (column) => this.heightAt(column),
+      wanderExtentPx,
+      pursuitLeashPx,
+      spriteHeightPx: spec.rank === "boss" ? MOB_HEIGHT * 1.45 : MOB_HEIGHT,
+      idleAnimKey: idleKey,
+      hurtTextureKey: this.textures.exists(hurtKey) ? hurtKey : idleKey,
+      renderEnvelope,
+      aggression,
+      attackTextureKey: this.textures.exists(attackKey) ? attackKey : undefined,
+    });
+  }
+
+  private initializeMobPopulation(map: PreparedMap): void {
+    const gameplay = this.gameplay;
+    const manifest = this.manifest;
+    if (!gameplay || !manifest) return;
+    const reservedColumns = new Set<number>([0, 1, 2, 3, 4, 5]);
+    for (let column = WORLD_COLUMNS - 6; column < WORLD_COLUMNS; column += 1) {
+      reservedColumns.add(column);
+    }
+    for (const platform of this.verticalWorld.platforms) {
+      for (
+        let column = platform.sourceColumns.start;
+        column < platform.sourceColumns.end;
+        column += 1
+      ) {
+        reservedColumns.add(column);
       }
     }
-    for (const encounter of this.gameplay?.boss_encounters.filter(
+    const projection = projectPreparedMobPopulation(
+      gameplay.mob_population,
+      map.map_id,
+      {
+        world_columns: WORLD_COLUMNS,
+        tile_pixels: TILE_PX,
+        baseline_y: GROUND_BASELINE_Y,
+        height_at_column: (column) => this.heightAt(column),
+        is_spawnable_column: (column) => !reservedColumns.has(column),
+      },
+    );
+    if (projection) {
+      this.mobIdByPopulationSlot = projection.mob_id_by_slot;
+      this.mobPopulationDirector = new MobPopulationDirector(
+        projection.manifest,
+        projection.candidates,
+        { seed: gameplay.revision },
+      );
+      this.mobPopulationMapId = map.map_id;
+    }
+
+    for (const encounter of gameplay.boss_encounters.filter(
       (entry) => entry.map_id === map.map_id,
-    ) ?? []) {
-      const spec = manifest.mobs.find((entry) => entry.mob_id === encounter.mob_id);
-      if (!spec) continue;
-      const sprite = this.add
-        .sprite(WORLD_W * 0.91, GROUND_Y, `prepared_mob_${spec.mob_id}_idle`, 0)
-        .setOrigin(0.5, 1)
-        .setDisplaySize(MOB_HEIGHT * 1.55, MOB_HEIGHT * 1.55)
-        .setDepth(39);
-      sprite.play(`prepared_mob_${spec.mob_id}_idle`);
-      this.mobs.push({
-        mobId: spec.mob_id,
-        sprite,
-        homeX: sprite.x,
-        direction: -1,
-        hp: hpForRank(spec.rank),
-        hurtUntil: 0,
-        defeated: false,
+    )) {
+      const mobSlot = manifest.mobs.findIndex(
+        (candidate) => candidate.mob_id === encounter.mob_id,
+      );
+      if (mobSlot < 0) continue;
+      const mob = this.createMobAtColumn(mobSlot, Math.floor(WORLD_COLUMNS * 0.91), 96, 420);
+      if (mob) this.mobs.push(mob);
+    }
+  }
+
+  private updateMobPopulation(now: number): void {
+    const director = this.mobPopulationDirector;
+    const mapId = this.mobPopulationMapId;
+    if (!director || !mapId) return;
+    const nowMs = Math.max(0, Math.trunc(now));
+    for (const [mob, instanceId] of this.mobInstanceIds) {
+      if (!mob.isAlive()) continue;
+      director.updateInstancePosition(instanceId, {
+        x_px: mob.sprite.x,
+        y_px: mob.sprite.y,
       });
+    }
+    const view = this.cameras.main.worldView;
+    const reservations = director.update(mapId, nowMs, {
+      players: this.player
+        ? [{ x_px: this.player.sprite.x, y_px: this.player.sprite.y }]
+        : [],
+      cameras: [
+        {
+          left_px: view.left,
+          right_px_exclusive: view.right,
+          top_px: view.top,
+          bottom_px_exclusive: view.bottom,
+        },
+      ],
+      occupied_points: [
+        ...this.props
+          .filter((sprite) => sprite.active)
+          .map((sprite) => ({ x_px: sprite.x, y_px: sprite.y })),
+        ...this.mobs
+          .filter((mob) => !mob.isAlive() && mob.sprite.active)
+          .map((mob) => ({ x_px: mob.sprite.x, y_px: mob.sprite.y })),
+      ],
+    });
+    for (const reservation of reservations) {
+      this.materializeMobReservation(director, reservation, nowMs);
+    }
+  }
+
+  private materializeMobReservation(
+    director: MobPopulationDirector,
+    reservation: SpawnReservation,
+    nowMs: number,
+  ): void {
+    const mobId = this.mobIdByPopulationSlot[reservation.mob_slot];
+    const mobSlot = this.manifest?.mobs.findIndex((candidate) => candidate.mob_id === mobId) ?? -1;
+    let mob: Mob | null = null;
+    try {
+      if (mobSlot < 0) {
+        director.reject(reservation.reservation_id, nowMs);
+        return;
+      }
+      mob = this.createMobAtColumn(
+        mobSlot,
+        reservation.candidate_column,
+        reservation.wander_radius_px,
+        reservation.pursuit_leash_px,
+      );
+      if (!mob) {
+        director.reject(reservation.reservation_id, nowMs);
+        return;
+      }
+      const instanceId =
+        `${reservation.map_id}/mob/${this.nextMobInstance++}`;
+      director.confirm(reservation.reservation_id, instanceId);
+      this.mobs.push(mob);
+      this.mobInstanceIds.set(mob, instanceId);
+    } catch (error) {
+      mob?.destroy();
+      director.reject(reservation.reservation_id, nowMs);
+      this.recordDiagnostic(
+        `Mob reservation ${reservation.reservation_id} was rejected: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   private updatePlayer(delta: number, now: number): void {
     const player = this.player;
     const keys = this.keys;
-    if (!player || !keys || !this.currentMap) return;
-    const left = keys.left.isDown || keys.a.isDown;
-    const right = keys.right.isDown || keys.d.isDown;
-    const running = keys.shift.isDown;
-    const speed = running ? 380 : 235;
-    let vx = 0;
-    if (left !== right) {
-      vx = left ? -speed : speed;
-      this.playerFacing = left ? "left" : "right";
+    const gameplay = this.gameplay;
+    if (!player || !keys || !gameplay || !this.currentMap) return;
+    player.update(delta, now);
+    if (player.inventoryToggleRequested) {
+      this.inventoryHud?.toggle();
+      player.inventoryToggleRequested = false;
     }
-    const grounded = player.y >= GROUND_Y - 0.5;
-    if (grounded && Phaser.Input.Keyboard.JustDown(keys.jump)) this.playerVy = -570;
-    this.playerVy += 1550 * (delta / 1000);
-    player.x = Phaser.Math.Clamp(player.x + vx * (delta / 1000), 30, WORLD_W - 30);
-    player.y = Math.min(GROUND_Y, player.y + this.playerVy * (delta / 1000));
-    if (player.y >= GROUND_Y) this.playerVy = 0;
-    player.setFlipX(this.playerFacing === "left");
 
-    const attacking =
-      Phaser.Input.Keyboard.JustDown(keys.attack) ||
-      Phaser.Input.Keyboard.JustDown(keys.attack2) ||
-      Phaser.Input.Keyboard.JustDown(keys.attack3);
-    if (attacking && now >= this.playerAttackUntil) {
-      this.playerAttackUntil = now + 380;
-      player.play("prepared_player_basic_attack", true);
+    const health = player.healthState;
+    if (gameplay.combat.enabled && gameplay.combat.contact_damage) {
       for (const mob of this.mobs) {
-        if (!mob.defeated && Math.abs(mob.sprite.x - player.x) < 145) this.hitMob(mob, now);
+        if (!mob.isAlive()) continue;
+        mob.observePlayer(player.sprite.x, health.defeated);
+        const strike = mob.consumeStrike();
+        if (!strike || strike.damage <= 0) continue;
+        const profile = aggressionProfile(mob.snapshot().aggression);
+        if (Math.abs(mob.sprite.x - player.sprite.x) > profile.strikeRangePx * 1.35) {
+          continue;
+        }
+        const resolution = player.takeDamage(strike.damage, now, strike.dirSign);
+        if (resolution.connected) {
+          this.combatText?.showDamage({
+            resolution,
+            direction: "incoming",
+            x: player.sprite.x,
+            y: player.sprite.getBounds().top - 18,
+            nowMs: now,
+          });
+        }
+      }
+    } else {
+      for (const mob of this.mobs) mob.observePlayer(null, health.defeated);
+    }
+
+    if (gameplay.combat.enabled && player.consumeAttackHit()) {
+      const facing = player.facing === "left" ? -1 : 1;
+      const reach = TILE_PX * 1.4;
+      const hitX = player.sprite.x + facing * reach * 0.5;
+      for (const mob of this.mobs) {
+        if (!mob.isAlive()) continue;
+        if (
+          Math.abs(mob.sprite.x - hitX) >= reach ||
+          Math.abs(mob.sprite.y - player.sprite.y) >= TILE_PX * 2.5
+        ) {
+          continue;
+        }
+        const result = mob.takeHit(now, facing as 1 | -1);
+        this.combatText?.showDamage({
+          resolution: result,
+          direction: "outgoing",
+          x: mob.sprite.x,
+          y: mob.sprite.getBounds().top - 18,
+          nowMs: now,
+        });
+        if (result.died) {
+          this.recordManagedMobDeath(mob, now);
+          this.dropLoot(mob);
+        }
+        break;
       }
     }
-    if (now < this.playerAttackUntil || now < this.playerHurtUntil) return;
-    const state = !grounded ? "jump" : vx === 0 ? "idle" : running ? "run" : "walk";
-    const animation = `prepared_player_${state}`;
-    if (player.anims.currentAnim?.key !== animation) player.play(animation, true);
 
-    const travelRequested =
-      Phaser.Input.Keyboard.JustDown(keys.up) || Phaser.Input.Keyboard.JustDown(keys.w);
-    if (travelRequested && (player.x < 110 || player.x > WORLD_W - 110)) {
-      const transition = this.gameplay?.transitions.find(
-        (entry) => entry.from_map_id === this.currentMap?.map_id,
+    const enterRequested =
+      Phaser.Input.Keyboard.JustDown(keys.up) ||
+      Phaser.Input.Keyboard.JustDown(keys.w);
+    const activation = this.portal?.update({
+      nowMs: now,
+      playerX: player.sprite.x,
+      playerFootY: player.sprite.y,
+      enterRequested,
+      shimmer: true,
+    });
+    if (activation) {
+      const destination = this.manifest?.maps[activation.destinationIndex];
+      const transition = destination
+        ? this.transitionForPortal(destination.map_id, activation.kind)
+        : undefined;
+      const spawn = gameplay.spawns.find(
+        (candidate) => candidate.spawn_id === transition?.to_spawn_id,
       );
-      const spawn = this.gameplay?.spawns.find((entry) => entry.spawn_id === transition?.to_spawn_id);
-      if (transition && spawn) void this.enterMap(transition.to_map_id, spawn.normalized_x);
+      if (destination && transition && spawn) {
+        void this.enterMap(destination.map_id, spawn.normalized_x);
+      }
     }
+
+    const currentHealth = player.healthState;
+    this.healthBar?.update({
+      hp: currentHealth.hp,
+      maxHp: currentHealth.maxHp,
+      invulnerable: now < currentHealth.invulnerableUntilMs,
+      actorX: player.sprite.x,
+      actorFootY: player.sprite.y,
+    });
+    this.combatText?.update(now);
   }
 
   private updateMobs(delta: number, now: number): void {
-    const player = this.player;
-    if (!player) return;
+    this.updateMobPopulation(now);
     for (const mob of this.mobs) {
-      if (mob.defeated || now < mob.hurtUntil) continue;
-      const distance = player.x - mob.sprite.x;
-      if (Math.abs(distance) < 420) mob.direction = distance < 0 ? -1 : 1;
-      else if (Math.abs(mob.sprite.x - mob.homeX) > 170) mob.direction = mob.sprite.x < mob.homeX ? 1 : -1;
-      const speed = Math.abs(distance) < 420 ? 62 : 32;
-      mob.sprite.x += mob.direction * speed * (delta / 1000);
-      mob.sprite.setFlipX(mob.direction < 0);
-      const animation = `prepared_mob_${mob.mobId}_${Math.abs(distance) < 420 ? "move" : "idle"}`;
-      if (mob.sprite.anims.currentAnim?.key !== animation) mob.sprite.play(animation, true);
-      if (Math.abs(distance) < 62 && now >= this.playerHurtUntil) {
-        this.playerHp = Math.max(0, this.playerHp - 1);
-        this.playerHurtUntil = now + 800;
-        this.player?.play("prepared_player_hurt", true);
+      if (mob.isAlive()) mob.update(delta, now);
+    }
+    this.mobs = this.mobs.filter((mob) => mob.isAlive() || mob.sprite.active);
+  }
+
+  private recordManagedMobDeath(mob: Mob, now: number): void {
+    const instanceId = this.mobInstanceIds.get(mob);
+    if (!instanceId) return;
+    this.mobPopulationDirector?.recordDeath(instanceId, Math.max(0, Math.trunc(now)));
+    this.mobInstanceIds.delete(mob);
+  }
+
+  private dropLoot(mob: Mob): void {
+    const manifest = this.manifest;
+    const gameplay = this.gameplay;
+    const items = this.items;
+    const spec = manifest?.mobs[mob.ladderIndex];
+    if (!manifest || !gameplay || !items || !spec) return;
+    const rules = gameplay.loot_rules.filter((entry) => entry.mob_id === spec.mob_id);
+    for (const rule of rules) {
+      const seed =
+        (Math.floor(mob.sprite.x) * 2654435761 + mob.ladderIndex * 2246822519) >>> 0;
+      if (seed / 0xffffffff > rule.chance) continue;
+      const itemIndex = manifest.items.findIndex((item) => item.item_id === rule.item_id);
+      if (itemIndex < 0) continue;
+      const span = rule.quantity_max - rule.quantity_min + 1;
+      const quantity = rule.quantity_min + (seed % span);
+      for (let index = 0; index < quantity; index += 1) {
+        items.drop(
+          mob.sprite.x + (index - (quantity - 1) / 2) * 28,
+          mob.sprite.y - TILE_PX,
+          itemIndex,
+        );
       }
     }
   }
 
-  private hitMob(mob: MobActor, now: number): void {
-    mob.hp -= 1;
-    if (mob.hp > 0) {
-      mob.hurtUntil = now + 420;
-      mob.sprite.play(`prepared_mob_${mob.mobId}_hurt`, true);
-      return;
-    }
-    mob.defeated = true;
-    mob.sprite.play(`prepared_mob_${mob.mobId}_death`, true);
-    this.tweens.add({ targets: mob.sprite, alpha: 0, duration: 650, onComplete: () => mob.sprite.destroy() });
-    this.rollLoot(mob);
-  }
-
-  private rollLoot(mob: MobActor): void {
-    const rules = this.gameplay?.loot_rules.filter((entry) => entry.mob_id === mob.mobId) ?? [];
-    for (const rule of rules) {
-      const deterministicRoll = ((Math.floor(mob.homeX) * 2654435761) >>> 0) / 0xffffffff;
-      if (deterministicRoll > rule.chance) continue;
-      const span = rule.quantity_max - rule.quantity_min + 1;
-      const quantity = rule.quantity_min + (Math.floor(mob.homeX / 64) % span);
-      const sprite = this.add
-        .image(mob.sprite.x, GROUND_Y - 20, `prepared_item_${rule.item_id}`)
-        .setDisplaySize(54, 54)
-        .setDepth(42);
-      this.drops.push({ itemId: rule.item_id, sprite, quantity });
-    }
-  }
-
-  private collectDrops(): void {
+  private collectDrops(delta: number, now: number): void {
     const player = this.player;
-    if (!player) return;
-    for (const drop of [...this.drops]) {
-      if (Math.abs(drop.sprite.x - player.x) > 70) continue;
-      this.addInventory(drop.itemId, drop.quantity);
-      drop.sprite.destroy();
-      this.drops.splice(this.drops.indexOf(drop), 1);
+    const items = this.items;
+    const manifest = this.manifest;
+    if (!player || !items || !manifest) return;
+    items.update(delta, now);
+    for (const item of items.tryPickup(
+      player.sprite.x,
+      player.sprite.y,
+      TILE_PX * 0.9,
+    )) {
+      const itemId = manifest.items[item.kindIndex]?.item_id;
+      if (itemId) this.addInventory(itemId, 1);
     }
   }
 
@@ -689,25 +1184,36 @@ export class PreparedStageScene extends Phaser.Scene {
     const keys = this.keys;
     if (!player || !keys || !this.currentMap) return;
     const nearest = this.npcs
-      .filter((npc) => Math.abs(npc.sprite.x - player.x) < 145)
-      .sort((left, right) => Math.abs(left.sprite.x - player.x) - Math.abs(right.sprite.x - player.x))[0];
-    const atPortal = player.x < 110 || player.x > WORLD_W - 110;
-    this.prompt?.setText(nearest ? "E  Talk" : atPortal ? "W / ↑  Travel" : "");
+      .filter(
+        (npc) =>
+          Math.abs(npc.sprite.x - player.sprite.x) < 145 &&
+          this.interactionSequenceForNpc(npc.npcId) !== undefined,
+      )
+      .sort(
+        (left, right) =>
+          Math.abs(left.sprite.x - player.sprite.x) -
+          Math.abs(right.sprite.x - player.sprite.x),
+      )[0];
+    this.prompt?.setText(nearest ? "E  Talk" : "");
     if (nearest && (Phaser.Input.Keyboard.JustDown(keys.interact) || Phaser.Input.Keyboard.JustDown(keys.enter))) {
       this.openInteraction(nearest.npcId);
     }
   }
 
   private openInteraction(npcId: string): void {
-    const interaction = this.gameplay?.interactions.find(
-      (entry) => entry.map_id === this.currentMap?.map_id && entry.actor_id === npcId,
-    );
-    const sequence = asSequences(this.manifest?.sequences ?? []).find(
-      (entry) => entry.sequence_id === interaction?.sequence_id,
-    );
+    const sequence = this.interactionSequenceForNpc(npcId);
     if (!sequence) return;
     this.activeSequence = { sequence, nodeId: sequence.entry_node_id };
     this.renderDialogueNode();
+  }
+
+  private interactionSequenceForNpc(npcId: string): Sequence | undefined {
+    const interaction = this.gameplay?.interactions.find(
+      (entry) => entry.map_id === this.currentMap?.map_id && entry.actor_id === npcId,
+    );
+    return asSequences(this.manifest?.sequences ?? []).find(
+      (entry) => entry.sequence_id === interaction?.sequence_id,
+    );
   }
 
   private updateDialogueInput(): void {
@@ -801,12 +1307,22 @@ export class PreparedStageScene extends Phaser.Scene {
       .filter(([, quantity]) => quantity > 0)
       .map(([itemId, quantity]) => `${manifest.items.find((item) => item.item_id === itemId)?.display_name ?? itemId} ×${quantity}`)
       .join("  ·  ");
-    this.hud.setText(`HP ${this.playerHp}/${this.gameplay?.player.starting_health ?? this.playerHp}\n${inventory}`);
+    const health = this.player?.healthState;
+    this.hud.setText(
+      `HP ${health?.hp ?? 0}/${health?.maxHp ?? this.gameplay?.player.starting_health ?? 0}\n${inventory}`,
+    );
   }
 
   private addInventory(itemId: string, quantity: number): void {
     if (!Number.isFinite(quantity) || quantity <= 0) return;
-    this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + Math.floor(quantity));
+    const integerQuantity = Math.floor(quantity);
+    this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + integerQuantity);
+    const itemIndex = this.manifest?.items.findIndex((item) => item.item_id === itemId) ?? -1;
+    if (itemIndex >= 0) {
+      for (let index = 0; index < integerQuantity; index += 1) {
+        this.inventoryHud?.addItem(itemIndex);
+      }
+    }
     for (const quest of this.gameplay?.quests ?? []) {
       if (
         quest.completion_item_id !== itemId ||
@@ -861,7 +1377,7 @@ export function bootPreparedGame(
     height: GAMEPLAY_AUTOMATION_VIEWPORT.height,
     parent,
     backgroundColor: "#000000",
-    scene: [new PreparedStageScene(tag, transparencyPolicy, automationMode)],
+    scene: [new PreparedStageScene(tag, transparencyPolicy)],
     scale: {
       mode: automationMode ? Phaser.Scale.NONE : Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

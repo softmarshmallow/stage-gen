@@ -56,6 +56,7 @@ export type PreparedRuntimeManifest = Readonly<{
   player: Readonly<{
     player_id: string;
     display_name: string;
+    concept: RuntimeArtifact;
     states: Readonly<Record<string, MotionBinding>>;
     dialogue: DialogueBinding;
   }>;
@@ -63,6 +64,7 @@ export type PreparedRuntimeManifest = Readonly<{
     mob_id: string;
     display_name: string;
     rank: string;
+    concept: RuntimeArtifact;
     states: Readonly<Record<string, MotionBinding>>;
   }>[];
   npcs: readonly Readonly<{
@@ -267,6 +269,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       mob_id: id(mob.mob_id, "mob_id"),
       display_name: text(mob.display_name, "mob display_name"),
       rank: text(mob.rank, "mob rank"),
+      concept: artifact(mob.concept, `mobs[${index}].concept`),
       states: motionStates(mob.states, `mobs[${index}].states`),
     });
   });
@@ -317,7 +320,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     entry_map_id: entryMapId,
     entry_spawn_id: id(root.entry_spawn_id, "entry_spawn_id"),
     maps: Object.freeze(maps),
-    player: Object.freeze({ player_id: id(player.player_id, "player_id"), display_name: text(player.display_name, "player display_name"), states: motionStates(player.states, "player.states"), dialogue: dialogue(player.dialogue, "player.dialogue") }),
+    player: Object.freeze({ player_id: id(player.player_id, "player_id"), display_name: text(player.display_name, "player display_name"), concept: artifact(player.concept, "player.concept"), states: motionStates(player.states, "player.states"), dialogue: dialogue(player.dialogue, "player.dialogue") }),
     mobs: Object.freeze(mobs),
     npcs: Object.freeze(npcs),
     props: Object.freeze(props),

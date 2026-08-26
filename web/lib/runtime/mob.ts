@@ -1,7 +1,7 @@
 // Mob controller (Phase 7).
 //
 // Owns:
-//   - HP scaling: hp = ladderIndex + 1                     (TC-084)
+//   - HP scaling: hp = ladderIndex + 1 by default          (TC-084)
 //   - Wander state machine (idle/wander/hurt/dead)         (TC-083, TC-085)
 //   - Hit reception → turn to the swing, hurt anim, drop   (TC-085, TC-086)
 //   - Its own floating health bar, the player's widget at mob size
@@ -68,6 +68,8 @@ function mobHitResult(resolution: DamageResolution): MobHitResult {
 export interface MobOpts {
   scene: Phaser.Scene;
   ladderIndex: number;
+  /** Optional authored max health; omitted preserves the established ladder-index rule. */
+  startingHealth?: number;
   spawnCol: number;
   tilePx: number;
   worldWidthPx: number;
@@ -114,6 +116,7 @@ export class Mob {
   /** Set on the frame a wind-up completes, for the scene to resolve into player damage. */
   pendingStrike: { damage: number; dirSign: 1 | -1 } | null = null;
   private readonly profile: AggressionProfile;
+  private readonly maxHp: number;
   private attackReadyAtMs = 0;
   private strikeLandsAtMs = 0;
   private playerX: number | null = null;
@@ -137,7 +140,12 @@ export class Mob {
   constructor(opts: MobOpts) {
     this.opts = opts;
     this.ladderIndex = opts.ladderIndex;
-    this.hp = opts.ladderIndex + 1; // TC-084: i+1 hits
+    const maxHp = opts.startingHealth ?? opts.ladderIndex + 1;
+    if (!Number.isSafeInteger(maxHp) || maxHp <= 0) {
+      throw new Error("mob startingHealth must be a positive integer");
+    }
+    this.maxHp = maxHp;
+    this.hp = maxHp;
     this.profile = aggressionProfile(opts.aggression);
     // Null when the run drew no attack strip. The swing still happens - the wind-up, the damage
     // and the cooldown are behaviour, not artwork - it simply plays without a dedicated pose.
@@ -227,7 +235,7 @@ export class Mob {
   private syncHealthBar(): void {
     this.healthBar.update({
       hp: this.hp,
-      maxHp: this.ladderIndex + 1,
+      maxHp: this.maxHp,
       invulnerable: false,
       actorX: this.sprite.x,
       actorFootY: this.sprite.y,
@@ -507,7 +515,7 @@ export class Mob {
 
   /** Restore the exact frame-zero state before deterministic automation starts. */
   resetAutomationState(): void {
-    this.hp = this.ladderIndex + 1;
+    this.hp = this.maxHp;
     this.state = "wander";
     this.dirSign = this.ladderIndex % 2 === 0 ? 1 : -1;
     this.hurtUntil = 0;
@@ -532,7 +540,7 @@ export class Mob {
       this.opts.spriteHeightPx * aspect,
       this.opts.spriteHeightPx,
     );
-    this.healthBar.reset(this.hp, this.ladderIndex + 1);
+    this.healthBar.reset(this.hp, this.maxHp);
     this.syncHealthBar();
   }
 
@@ -540,6 +548,7 @@ export class Mob {
     return {
       ladderIndex: this.ladderIndex,
       hp: this.hp,
+      maxHp: this.maxHp,
       state: this.state,
       aggression: this.opts.aggression ?? null,
       x: this.sprite.x,

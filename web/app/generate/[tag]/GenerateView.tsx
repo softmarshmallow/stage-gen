@@ -28,6 +28,7 @@ import {
   transparencyModeLabel,
   type TransparencyMode,
 } from "@/lib/shell/transparency";
+import ImageLightbox, { type LightboxImage } from "./ImageLightbox";
 
 interface InitialState {
   tag: string;
@@ -37,16 +38,6 @@ interface InitialState {
   failedStage: string | null;
   spec: WorldSpecLite | null;
   present: string[];
-}
-
-interface LightboxState {
-  filename: string;
-  label: string;
-  url: string;
-  /** True when the canonical artifact is expected to carry alpha. */
-  transparent: boolean;
-  width?: number;
-  height?: number;
 }
 
 const LOG_MAX = 500;
@@ -98,8 +89,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
     initial.failedStage,
   );
   const [logLines, setLogLines] = useState<string[]>([]);
-  const [lightbox, setLightbox] = useState<LightboxState | null>(null);
-  const [showAlpha, setShowAlpha] = useState(false);
+  const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
   const [retryError, setRetryError] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -190,16 +180,6 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
     }
   }, [logLines.length]);
 
-  // Esc closes the lightbox.
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox]);
-
   // Build the canonical slot list. spec change re-derives it.
   const slots = useMemo(() => expectedSlots(tag, spec), [tag, spec]);
   const grouped = useMemo(() => groupSlots(slots), [slots]);
@@ -228,9 +208,8 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
 
   function openLightbox(slot: SlotDef, filename: string) {
     const url = `/api/assets/${tag}/${filename}`;
-    setShowAlpha(false);
     setLightbox({
-      filename,
+      path: filename,
       label: slot.label,
       url,
       transparent: assetUsesTransparency(slot, filename, spec),
@@ -453,59 +432,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       </div>
 
       {lightbox ? (
-        <div
-          className="sg-lightbox"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            // Click-anywhere-to-dismiss, but ignore clicks inside the meta
-            // strip (where the toggle lives).
-            if ((e.target as HTMLElement).closest(".sg-lightbox-meta"))
-              return;
-            setLightbox(null);
-          }}
-        >
-          <img
-            className={`sg-lightbox-img${
-              lightbox.transparent && showAlpha ? " alpha-checker" : ""
-            }`}
-            src={lightbox.url}
-            alt={lightbox.label}
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              setLightbox((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      width: img.naturalWidth,
-                      height: img.naturalHeight,
-                    }
-                  : prev,
-              );
-            }}
-          />
-          <div className="sg-lightbox-meta">
-            <span>{lightbox.filename}</span>
-            {lightbox.width && lightbox.height ? (
-              <span>
-                {lightbox.width}×{lightbox.height}
-              </span>
-            ) : null}
-            {lightbox.transparent ? (
-              <button
-                type="button"
-                className="sg-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAlpha((s) => !s);
-                }}
-              >
-                [ {showAlpha ? "hide" : "show"} alpha ]
-              </button>
-            ) : null}
-            <span style={{ color: "var(--dim)" }}>(esc to close)</span>
-          </div>
-        </div>
+        <ImageLightbox asset={lightbox} onClose={() => setLightbox(null)} />
       ) : null}
     </main>
   );

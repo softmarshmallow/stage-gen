@@ -42,6 +42,20 @@ motion run can replace stale motion without copying unrelated older content into
 providers. Every selected byte is recorded once in `closure.artifacts` with path, SHA-256, byte
 count, media type, and image dimensions. The closure list has its own canonical digest.
 
+## Prepared asset explorer
+
+The details route is `/generate/<run-tag>`. For a prepared package it reads the same validated
+`manifest.json` and projects every explicitly bound closure artifact exactly once into semantic
+map, player, mob, NPC, prop, item, and soundtrack groups. It does not use directory scans,
+filename conventions, `run.json`, `WorldSpec`, retry controls, or pipeline events. Images open in
+an alpha-aware lightbox and soundtrack artifacts use native audio controls. The home page also
+discovers prepared packages from this manifest, without requiring a legacy prompt-run summary.
+
+This explorer is intentionally runtime-closure-only. Producer review evidence, contact sheets,
+map composites, authored references, and validation reports remain in their checkpoint artifact
+roots; they must not be copied into the gameplay closure merely to populate this page. A future
+review explorer needs its own explicit review-manifest boundary.
+
 ## Consumer ownership
 
 [`prepared-scene.ts`](../web/lib/runtime/prepared-scene.ts) owns preview-specific implementation:
@@ -61,15 +75,16 @@ invent entity relationships or infer artifacts from positional filenames. Array 
 local iteration order only; authored relationships resolve through IDs in the manifest.
 
 The current controls are Left/Right or A/D to move, Shift to run, Space to jump, J/X/Z to attack,
-E or Enter to interact/advance dialogue, and Up or W to travel at a map boundary. Generated audio
+E or Enter to interact/advance dialogue, and Up or W to use an active portal. Generated audio
 starts only after a keyboard gesture because browsers block autoplay.
 
 ## Legacy boundary
 
-The former prompt-launching Generate view, scrolling manifest V7 parser, `WorldSpec`,
+The former prompt-launching live Generate view, scrolling manifest V7 parser, `WorldSpec`,
 `VillageSpec`, map-book adapter, and slot-derived filename scene are not authorities for prepared
-package runs. They remain repository code only while their independent historical tests and
-evidence are retired safely; `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
+package runs. They remain repository code only for historical prompt runs while their independent
+tests and evidence are retired safely. Prepared `/generate/<run-tag>` routes use the manifest
+asset explorer, and `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
 `game.toml` is the only game-generation input, and `prepared-game-runtime-v1` is the only manifest
