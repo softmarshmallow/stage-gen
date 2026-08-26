@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "dedicated_map_scene_reference_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/amberbell-forest-scene.png",
+    "media_type": "image/png",
+    "width": 1672,
+    "height": 941,
+    "bytes": 2956988,
+    "sha256": "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+  },
+  "generation": {
+    "tool": "codex/image_gen",
+    "provider": "not_exposed_by_builtin_tool",
+    "model": "not_exposed_by_builtin_tool",
+    "quality": "built-in-default",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [
+      {
+        "path": "references/cover.png",
+        "sha256": "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0",
+        "role": "style-color-material-and-world-direction-only"
+      }
+    ],
+    "prompt_sha256": "169edfa36278f00a502abf465911b0af183b0ecb10c06636b656cca4ebf5aa9b"
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-08-26",
+    "artifact_sha256": "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98",
+    "verification_report": "references/amberbell-forest-scene.visual-review.md",
+    "verification_report_sha256": "18e0b1fefa20f54d5770c908aed3d330c0718e9c9dd7e9079f3642f4a3dc9c46"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-08-26",
+    "basis": [
+      "Original brand-neutral prompt with no third-party visual input.",
+      "The approved synthetic Bellweather cover was used only as visual direction.",
+      "The authenticated task owner approved the exact displayed output for canonical map-input use."
+    ]
+  }
+}

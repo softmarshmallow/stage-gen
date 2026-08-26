@@ -1,8 +1,5 @@
-schema_version = 1
-kind = "game-package-v1"
-game_id = "whimsical-storybook-fantasy"
-recipe = "scrolling-preview"
-request_ref = "examples/scrolling-preview/game-directed-village.toml"
-request_sha256 = "932797dcedf6707da1d566c770bc08809c953306c9677f545d5bac96d3c42ee6"
-transparency_mode = "native"
-required_features = ["game", "soundtrack", "map_book", "village"]
+schema_version = 2
+kind = "game-package-v2"
+game_id = "bellweather"
+package_ref = "library/games/bellweather/game.toml"
+package_sha256 = "323d4cc7c1227e81125f2a4152e1e3dfbdd5fff957098cee92f1bbca788831ff"

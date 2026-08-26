@@ -1,0 +1,66 @@
+schema_version = 1
+kind = "prop-content-v1"
+game_id = "bellweather"
+revision = 3
+
+[[references]]
+reference_id = "sunpetal_scene"
+source = "references/sunpetal-crossing-scene.png"
+source_sha256 = "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather scene reference approved by the authenticated task owner."]
+
+[[references]]
+reference_id = "amberbell_scene"
+source = "references/amberbell-forest-scene.png"
+source_sha256 = "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather scene reference approved by the authenticated task owner."]
+
+[[props]]
+prop_id = "sunwheel_bread_stall"
+display_name = "Sunwheel Bread Stall"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A warm timber market counter beneath a cream-and-coral awning, stacked with round loaves and plain jars; strict side view, no labels or text, isolated on transparent background."
+
+[[props]]
+prop_id = "petalstone_well"
+display_name = "Petalstone Well"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A low cream-stone village well ringed by moss, tiny flowers, a simple wooden beam, and one copper cup; strict side view, isolated on transparent background."
+
+[[props]]
+prop_id = "homeward_signpost"
+display_name = "Homeward Signpost"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A crooked timber trail post with four differently shaped blank wooden arrows, flower garland, and no writing, symbols, or pseudo-text; strict side view, transparent background."
+
+[[props]]
+prop_id = "menders_handcart"
+display_name = "Menders' Handcart"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A honey-colored wooden handcart holding spare shingles, rope coils, toolboxes, and folded teal cloth; strict side view, no labels, transparent background."
+
+[[props]]
+prop_id = "herb_drying_rack"
+display_name = "Herb-Drying Rack"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A shaded timber rack hung with mint, lavender, and moonbalm bundles, using color-coded blank tags with no writing; strict side view, transparent background."
+
+[[props]]
+prop_id = "bridge_lantern_stand"
+display_name = "Bridge Lantern Stand"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A low dark iron rack holding several warm brass-and-glass village lanterns, decorative curls, strict side view, isolated on transparent background."
+
+[[props]]
+prop_id = "millers_grain_stall"
+display_name = "Millers' Grain Stall"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A small striped canvas market stall displaying oat sacks, wooden scoops, and plain jars of golden flour; no text or brands, strict side view, transparent background."
+
+[[props]]
+prop_id = "flowered_village_bench"
+display_name = "Flowered Village Bench"
+reference_ids = ["sunpetal_scene", "amberbell_scene"]
+prompt = "A rounded timber-and-stone village bench with moss, cream flowers, and warm brass fasteners; strict side view, isolated on transparent background."

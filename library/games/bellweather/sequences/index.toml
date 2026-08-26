@@ -1,0 +1,9 @@
+schema_version = 1
+kind = "game-sequence-catalog-v1"
+game_id = "bellweather"
+revision = 1
+
+[[sequences]]
+sequence_id = "sunpetal-welcome"
+source = "sequences/sunpetal-welcome.toml"
+source_sha256 = "ff3b360c554b701781f716302b9c8a35f3605dd316d4760aba30c955bbead5b7"

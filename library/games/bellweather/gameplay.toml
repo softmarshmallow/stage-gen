@@ -1,0 +1,297 @@
+schema_version = 1
+kind = "gameplay-contract-v1"
+game_id = "bellweather"
+revision = 2
+entry_map_id = "sunpetal-crossing"
+entry_spawn_id = "village_west_gate"
+
+[navigation]
+allowed_movements = ["move_left", "move_right", "jump", "climb"]
+logical_world_wrap = false
+fall_recovery = "last_safe_ground"
+
+[player]
+player_id = "wayfarer"
+starting_level = 1
+starting_health = 10
+starting_item_ids = ["rosehip_tart"]
+
+[progression]
+maximum_level = 20
+experience_curve = "gentle_rpg_v1"
+stat_growth = "balanced_novice_v1"
+
+[inventory]
+currency_item_id = "sunleaf_coin"
+starting_capacity = 24
+
+[combat]
+enabled = true
+basic_action = "basic_attack"
+secondary_action = "skill_cast"
+contact_damage = true
+lethal_presentation = false
+defeat_presentation = "story_beast_disperses_into_page_light"
+
+[combat_text]
+enabled = true
+
+[[map_uses]]
+map_id = "sunpetal-crossing"
+role = "safe_village_hub"
+hostile_population_enabled = false
+track_ids = ["sunpetal_morning"]
+
+[[map_uses]]
+map_id = "crowncrag-road"
+role = "scrolling_hunting_route"
+hostile_population_enabled = true
+track_ids = ["crowncrag_road", "chronicle_unbound"]
+
+[[spawns]]
+spawn_id = "village_west_gate"
+map_id = "sunpetal-crossing"
+anchor = "west_gate"
+normalized_x = 0.08
+
+[[spawns]]
+spawn_id = "village_east_gate"
+map_id = "sunpetal-crossing"
+anchor = "east_gate"
+normalized_x = 0.92
+
+[[spawns]]
+spawn_id = "road_west_gate"
+map_id = "crowncrag-road"
+anchor = "west_gate"
+normalized_x = 0.05
+
+[[transitions]]
+transition_id = "village_to_road"
+from_map_id = "sunpetal-crossing"
+from_anchor = "east_gate"
+to_map_id = "crowncrag-road"
+to_spawn_id = "road_west_gate"
+
+[[transitions]]
+transition_id = "road_to_village"
+from_map_id = "crowncrag-road"
+from_anchor = "west_gate"
+to_map_id = "sunpetal-crossing"
+to_spawn_id = "village_east_gate"
+
+[mob_population]
+update_interval_ms = 250
+max_spawn_batch_per_update = 2
+
+[[mob_population.maps]]
+map_id = "crowncrag-road"
+seed_salt = 1705
+
+[[mob_population.maps.zones]]
+zone_id = "amberbell_edge"
+surface = "terrain"
+left_fraction = 0.08
+right_fraction = 0.34
+initial_population = 4
+target_population = 5
+population_cap = 6
+respawn_delay_ms = 6500
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "petal_puff"
+weight = 4
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "jewelwing_beetle"
+weight = 3
+
+[[mob_population.maps.zones]]
+zone_id = "bellroot_glade"
+surface = "terrain"
+left_fraction = 0.36
+right_fraction = 0.68
+initial_population = 4
+target_population = 5
+population_cap = 6
+respawn_delay_ms = 6000
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "thimblejay"
+weight = 3
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "bellbelly_toad"
+weight = 3
+
+[[mob_population.maps.zones]]
+zone_id = "crowncrag_approach"
+surface = "terrain"
+left_fraction = 0.70
+right_fraction = 0.94
+initial_population = 3
+target_population = 4
+population_cap = 5
+respawn_delay_ms = 8000
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "bramblehart"
+weight = 2
+
+[[mob_population.maps.zones.spawn_table]]
+mob_id = "thimblejay"
+weight = 1
+
+[[boss_encounters]]
+encounter_id = "page_eater_gate"
+map_id = "crowncrag-road"
+anchor = "castle_gate"
+mob_id = "crowncrag_page_eater"
+track_id = "chronicle_unbound"
+respawn_policy = "quest_reset_only"
+
+[[loot_rules]]
+mob_id = "petal_puff"
+item_id = "runaway_story_page"
+chance = 0.25
+quantity_min = 1
+quantity_max = 1
+
+[[loot_rules]]
+mob_id = "jewelwing_beetle"
+item_id = "sunleaf_coin"
+chance = 0.80
+quantity_min = 1
+quantity_max = 3
+
+[[loot_rules]]
+mob_id = "thimblejay"
+item_id = "sunleaf_coin"
+chance = 0.65
+quantity_min = 2
+quantity_max = 4
+
+[[loot_rules]]
+mob_id = "bellbelly_toad"
+item_id = "rosehip_tart"
+chance = 0.30
+quantity_min = 1
+quantity_max = 1
+
+[[loot_rules]]
+mob_id = "bramblehart"
+item_id = "spindlehook"
+chance = 0.12
+quantity_min = 1
+quantity_max = 1
+
+[[loot_rules]]
+mob_id = "crowncrag_page_eater"
+item_id = "castle_moonkey"
+chance = 1.0
+quantity_min = 1
+quantity_max = 1
+
+[[npc_placements]]
+map_id = "sunpetal-crossing"
+npc_id = "mara_crumbwell"
+anchor = "bakery_stall"
+normalized_x = 0.20
+
+[[npc_placements]]
+map_id = "sunpetal-crossing"
+npc_id = "elowen_thistledew"
+anchor = "herb_garden"
+normalized_x = 0.42
+
+[[npc_placements]]
+map_id = "sunpetal-crossing"
+npc_id = "brom_copperkeg"
+anchor = "village_forge"
+normalized_x = 0.64
+
+[[npc_placements]]
+map_id = "sunpetal-crossing"
+npc_id = "pip_pennant"
+anchor = "east_gate"
+normalized_x = 0.86
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "sunwheel_bread_stall"
+anchor = "bakery_stall"
+normalized_x = 0.16
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "petalstone_well"
+anchor = "village_square"
+normalized_x = 0.32
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "flowered_village_bench"
+anchor = "village_square"
+normalized_x = 0.36
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "herb_drying_rack"
+anchor = "herb_garden"
+normalized_x = 0.46
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "menders_handcart"
+anchor = "village_forge"
+normalized_x = 0.61
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "millers_grain_stall"
+anchor = "windmill_lane"
+normalized_x = 0.73
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "bridge_lantern_stand"
+anchor = "east_bridge"
+normalized_x = 0.80
+
+[[prop_placements]]
+map_id = "sunpetal-crossing"
+prop_id = "homeward_signpost"
+anchor = "east_gate"
+normalized_x = 0.90
+
+[[interactions]]
+interaction_id = "village_welcome"
+map_id = "sunpetal-crossing"
+actor_id = "mara_crumbwell"
+sequence_id = "sunpetal-welcome"
+
+[[quests]]
+quest_id = "first_chapter"
+display_name = "The First Missing Chapter"
+start_effect_id = "start_first_chapter"
+completion_item_id = "runaway_story_page"
+completion_count = 5
+completion_effect_id = "complete_first_chapter"
+
+[[effects]]
+effect_id = "start_first_chapter"
+operation = "set_quest_state"
+quest_id = "first_chapter"
+state = "active"
+
+[[effects]]
+effect_id = "grant_welcome_tart"
+operation = "grant_item"
+item_id = "rosehip_tart"
+quantity = 1
+
+[[effects]]
+effect_id = "complete_first_chapter"
+operation = "set_quest_state"
+quest_id = "first_chapter"
+state = "completed"

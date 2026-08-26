@@ -1,0 +1,133 @@
+schema_version = 4
+kind = "game-contract-v4"
+game_id = "bellweather"
+revision = 4
+display_name = "Bellweather"
+
+[universe]
+source = "universe.md"
+source_sha256 = "3c353a30bd135afac84f7850056317c04c0ca07710c18dacfdf437e989a09170"
+
+[presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[style]
+label = "clean chibi storybook fantasy"
+keywords = [
+  "high-resolution 2D digital game art",
+  "2.25-head-tall super-deformed characters",
+  "controlled dark character contours",
+  "two-to-three-band cel shading",
+  "clean saturated color fields",
+  "digital gouache-like environmental color blocking",
+  "rounded irregular silhouettes and decorative curls",
+  "object-local stone wood leaf cloth water and cloud texture",
+  "distinct lateral painted planes with atmospheric depth",
+  "high-key sky blue moss turquoise brass peach coral and lavender",
+  "cheerful adventurous sociable gently magical mood",
+]
+avoid = [
+  "franchise characters mascots costumes landmarks or trade dress",
+  "strict pixel-grid retro imitation",
+  "photorealism or 3D-rendered materials",
+  "full-frame paper grain canvas texture or sepia cast",
+  "realistic adult body proportions",
+  "infant anatomy or ambiguous baby presentation",
+  "sexualized character presentation",
+  "grim violence gore or firearms",
+  "text pseudo-text logos signatures or watermarks",
+]
+
+[proportion]
+heads_tall = 2.25
+
+[proportion.by_body_kind]
+dwarf = 2.1
+elf = 2.35
+halfling = 2.0
+
+[cast]
+player_id = "wayfarer"
+mob_ids = [
+  "petal_puff",
+  "jewelwing_beetle",
+  "thimblejay",
+  "bellbelly_toad",
+  "bramblehart",
+  "crowncrag_page_eater",
+]
+npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant"]
+
+[gameplay]
+source = "gameplay.toml"
+source_sha256 = "229d322cfdc6fb3fc58fc9df5006c1d61d52431909a7a6a3a529d260434764ee"
+
+[soundtrack]
+source = "soundtrack.toml"
+source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f5730"
+
+[[maps]]
+map_id = "sunpetal-crossing"
+source = "maps/sunpetal-crossing.toml"
+source_sha256 = "decc9c729b8ce82e04c3b7531050522540cd7a1688806fd42f504498c89e76ae"
+
+[[maps]]
+map_id = "crowncrag-road"
+source = "maps/crowncrag-road.toml"
+source_sha256 = "74a696ba48576e8833c52974a36d61f888caa6488a94b52196e0f85123724565"
+
+[content.player]
+source = "content/player.toml"
+source_sha256 = "4b5e444f85114efc00f00b4bd4c9651d5e5ee2c4b648de682aabb8d4cafddff7"
+
+[content.mobs]
+source = "content/mobs.toml"
+source_sha256 = "05cdb484878bc90a2abc2b58484d4544ef897fdb82476e1b54990e91c344f37d"
+
+[content.npcs]
+source = "content/npcs.toml"
+source_sha256 = "c470d8cf867a778085da09f4590f0569e3d74babcd8ff0d52aaba3377c253054"
+
+[content.props]
+source = "content/props.toml"
+source_sha256 = "247701d305b068c8be28ce7b3b37277c7c2a90e1d545dceed0854f5c96b86256"
+
+[content.items]
+source = "content/items.toml"
+source_sha256 = "0989e4229a8d7bb928da9543eb026090b9435e1af634111fc60506b37f3cc2d6"
+
+[sequences]
+index_source = "sequences/index.toml"
+index_sha256 = "e31500223caf2f99bf75b9d410a849364db8155c0165089bad661fc6b3e5c90e"
+
+[evidence.cover]
+artifact_source = "references/cover.png"
+artifact_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+provenance_source = "references/cover.provenance.json"
+provenance_sha256 = "f56da28239f5802b75a1a0d9cfae364aaad388c0a93b126b8fb2b1ef582166a8"
+review_source = "references/cover.visual-review.md"
+review_sha256 = "906c483ce7cf9ba895944703f84f29eaa73e53c2ebda40827de8b00025807a31"
+
+[evidence.sunpetal_crossing_scene]
+artifact_source = "references/sunpetal-crossing-scene.png"
+artifact_sha256 = "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+provenance_source = "references/sunpetal-crossing-scene.provenance.json"
+provenance_sha256 = "3e572e928aeed2d3220e7a6069b57ddfae9f74d214256ecdd515993b74a65d05"
+review_source = "references/sunpetal-crossing-scene.visual-review.md"
+review_sha256 = "448c3bcc9634a3e512b18dcd286054b0beda1f914d35ae12c1de83a8f7823849"
+
+[evidence.amberbell_forest_scene]
+artifact_source = "references/amberbell-forest-scene.png"
+artifact_sha256 = "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+provenance_source = "references/amberbell-forest-scene.provenance.json"
+provenance_sha256 = "59d40d88e87b2aad2fb82b6eb1ddcee4e8b9e9759d4b8bb2eaf3e29c4ee65a6e"
+review_source = "references/amberbell-forest-scene.visual-review.md"
+review_sha256 = "18e0b1fefa20f54d5770c908aed3d330c0718e9c9dd7e9079f3642f4a3dc9c46"
+
+[rights]
+status = "redistribution-approved"
+basis = [
+  "Authored package text and prompts are original and brand-neutral.",
+  "The cover and both dedicated map references are AI-generated and have independent digest-bound reviews.",
+]

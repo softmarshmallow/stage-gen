@@ -1,0 +1,46 @@
+schema_version = 1
+kind = "item-content-v1"
+game_id = "bellweather"
+revision = 2
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[items]]
+item_id = "sunleaf_coin"
+display_name = "Sunleaf Coin"
+item_kind = "currency"
+reference_ids = ["cover_style"]
+prompt = "A small original warm-brass coin shaped like a rounded leaf with one recessed vein and no text, number, face, or emblem; clean collectible icon on transparent background."
+
+[[items]]
+item_id = "rosehip_tart"
+display_name = "Rosehip Tart"
+item_kind = "healing_consumable"
+reference_ids = ["cover_style"]
+prompt = "A warm round rosehip-and-berry tart with a coral jam center and simple cream pastry lattice, no lettering, isolated collectible icon on transparent background."
+
+[[items]]
+item_id = "spindlehook"
+display_name = "Spindlehook"
+item_kind = "traversal_tool"
+reference_ids = ["cover_style"]
+prompt = "A compact warm-brass climbing hook wrapped with turquoise ribbon and attached to a short rope coil, original design, isolated on transparent background."
+
+[[items]]
+item_id = "castle_moonkey"
+display_name = "Castle Moonkey"
+item_kind = "key_item"
+reference_ids = ["cover_style"]
+prompt = "A silver key with a simple crescent-shaped tooth profile, warm brass bow, and no crest, letters, or known symbol, isolated on transparent background."
+
+[[items]]
+item_id = "runaway_story_page"
+display_name = "Runaway Story Page"
+item_kind = "quest_collectible"
+reference_ids = ["cover_style"]
+prompt = "A living cream paper page curled into winglike corners with blank decorative color blocks only, absolutely no readable or pseudo writing, isolated on transparent background."

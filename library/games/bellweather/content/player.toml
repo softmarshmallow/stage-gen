@@ -1,0 +1,34 @@
+schema_version = 1
+kind = "player-content-v1"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_wayfarer"
+source = "references/cover.png"
+source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[players]]
+player_id = "wayfarer"
+display_name = "The Wayfarer"
+body_kind = "human"
+age = 18
+reference_ids = ["cover_wayfarer"]
+prompt = """
+The selected cover's gender-neutral young-adult novice adventurer, approximately
+2.25 heads tall with a very large expressive head and eyes, compact torso,
+short simplified limbs, oversized boots and gloves, and a crisp readable
+silhouette. Preserve the cream tunic, teal short cloak, coral scarf, warm brown
+boots, travel satchel, and simple wooden training sword. Keep the presentation
+modest, practical, non-sexual, original, and recognizably young-adult despite
+the deliberate super-deformed proportions.
+"""
+motion_states = ["idle", "walk", "run", "jump", "climb", "basic_attack", "skill_cast", "hurt", "death"]
+required_facings = ["left", "right"]
+
+[players.dialogue_art]
+enabled = true
+subject_view = "front_three_quarter"
+expressions = ["neutral", "curious", "determined", "delighted", "concerned"]

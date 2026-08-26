@@ -1,0 +1,41 @@
+schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "bellweather"
+revision = 2
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "sunpetal_morning"
+display_name = "Sunpetal Morning"
+creative_brief = "An original cheerful fantasy village instrumental led by pizzicato strings, wooden flute, soft accordion, hand percussion, and small warm brass bells; sociable, gently bustling, and spacious enough for dialogue."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "crowncrag_road"
+display_name = "Amberbell Forest"
+creative_brief = "An original bright autumn-forest adventure instrumental with nimble strings, wooden flute, plucked harp, light frame drum, warm handbells, and restrained brass; playful forward momentum, rustling color, and open-air wonder without military weight or a recognizable melody."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 105
+
+[[tracks]]
+track_id = "chronicle_unbound"
+display_name = "Chronicle Unbound"
+creative_brief = "An original climactic but family-friendly fantasy battle cue using energetic strings, low hand drums, bright brass, choir-like wordless pads, and a bell motif that remains wholly original; urgent rather than grim."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90

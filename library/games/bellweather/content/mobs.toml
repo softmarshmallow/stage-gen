@@ -1,0 +1,65 @@
+schema_version = 1
+kind = "mob-content-v1"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[mobs]]
+mob_id = "petal_puff"
+display_name = "Petal Puff"
+body_kind = "round_biped"
+rank = "common"
+reference_ids = ["cover_style"]
+prompt = "The cover's original cream-colored round story-beast with large green leaf ears, tiny paws, and a friendly expressive face; compact side-view silhouette, playful rather than mascot-like."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
+
+[[mobs]]
+mob_id = "jewelwing_beetle"
+display_name = "Jewelwing Beetle"
+body_kind = "insect"
+rank = "common"
+reference_ids = ["cover_style"]
+prompt = "The cover's original navy-blue beetle story-beast with two curled antennae, a large turquoise eye, and faceted cyan-violet crystal wings; readable lateral flying silhouette."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
+
+[[mobs]]
+mob_id = "thimblejay"
+display_name = "Thimblejay"
+body_kind = "avian"
+rank = "uncommon"
+reference_ids = ["cover_style"]
+prompt = "A tiny blue-violet bird thief with a rounded head, hooked beak, fan tail, and a brass thimble carried like a cap; bright cel-shaded side-view design with no text or insignia."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
+
+[[mobs]]
+mob_id = "bellbelly_toad"
+display_name = "Bellbelly Toad"
+body_kind = "amphibian"
+rank = "uncommon"
+reference_ids = ["cover_style"]
+prompt = "A squat moss-green toad with oversized springing legs, cream-and-gold spots, and a rounded brass-colored throat sac that rings when it leaps; friendly storybook menace, not grotesque."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
+
+[[mobs]]
+mob_id = "bramblehart"
+display_name = "Bramblehart"
+body_kind = "quadruped"
+rank = "elite"
+reference_ids = ["cover_style"]
+prompt = "A compact moss-backed deer spirit with long leaf ears, split hooves, small branching twig antlers, coral flowers, and a plume tail; graceful side-view silhouette and restrained magical glow."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
+
+[[mobs]]
+mob_id = "crowncrag_page_eater"
+display_name = "Crowncrag Page-Eater"
+body_kind = "draconic"
+rank = "boss"
+reference_ids = ["cover_style"]
+prompt = "A large but chibi-readable six-limbed castle guardian dragon with four sturdy legs, two compact wings, gilded page-like armor plates, a horned head, and an ink-dark tail; original and imposing without horror, text, or written symbols."
+motion_states = ["idle", "move", "attack", "hurt", "death"]
