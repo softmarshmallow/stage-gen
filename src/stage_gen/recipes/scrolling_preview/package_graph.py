@@ -20,8 +20,17 @@ from stage_gen.orchestration.execution_graph import (
     finalize_execution_graph,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.motion_contract import motion_source_facing
 
-PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v1"
+PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v3"
+CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
+CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v2"
+CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
+CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
+CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
+CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v4"
+CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
+CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,15 +92,18 @@ def build_package_execution_graph(
         description="validate gameplay, sequence, placement, drop, and stable-ID bindings",
         operation=OperationKind.LOCAL,
         depends_on=(package_root,),
-        input_digests=_file_digests(
-            package,
-            (
-                "gameplay.toml",
-                "sequences/index.toml",
-                *(entry.source for entry in package.sequence_catalog.sequences),
+        input_digests=(
+            _object_sha256({"contract": CONTENT_BINDING_CONTRACT_VERSION}),
+            *_file_digests(
+                package,
+                (
+                    "gameplay.toml",
+                    "sequences/index.toml",
+                    *(entry.source for entry in package.sequence_catalog.sequences),
+                ),
             ),
         ),
-        outputs=("gameplay.bindings.json",),
+        outputs=("gameplay.bindings.json", "content/coverage-matrix.json"),
         duration_seconds=0.5,
     )
     terminal_nodes.append(binding.node_id)
@@ -143,7 +155,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 operation=OperationKind.IMAGE_GENERATION,
                 depends_on=(package_root,),
                 input_digests=input_digests,
-                outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png",),
+                outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",),
             )
             validated = builder.add(
                 f"map-{game_map.map_id}-layer-{layer.layer_id}-validate",
@@ -151,8 +163,15 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 description=f"validate alpha and x-axis repeat admission for {layer.layer_id}",
                 operation=OperationKind.LOCAL,
                 depends_on=(generated.node_id,),
-                input_digests=(_object_sha256(layer.model_dump(mode="json")),),
-                outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json",),
+                input_digests=(
+                    _object_sha256(layer.model_dump(mode="json")),
+                    _object_sha256({"canonicalizer": "prepared-map-minimum-alpha-wrap-v1"}),
+                ),
+                outputs=(
+                    f"maps/{game_map.map_id}/layers/{layer.layer_id}.png",
+                    f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json",
+                    f"maps/{game_map.map_id}/layers/{layer.layer_id}.repeat.png",
+                ),
                 duration_seconds=1.0,
             )
             layer_validations.append(validated.node_id)
@@ -168,7 +187,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 _object_sha256(game_map.ground.model_dump(mode="json")),
                 *_reference_digests(references, game_map.ground.reference_ids),
             ),
-            outputs=(f"maps/{game_map.map_id}/ground.png",),
+            outputs=(f"maps/{game_map.map_id}/ground.raw.png",),
         )
         ground_validation = builder.add(
             f"map-{game_map.map_id}-ground-validate",
@@ -176,8 +195,14 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"validate the {game_map.ground.mode} ground contract",
             operation=OperationKind.LOCAL,
             depends_on=(ground.node_id,),
-            input_digests=(_object_sha256(game_map.ground.model_dump(mode="json")),),
-            outputs=(f"maps/{game_map.map_id}/ground.validation.json",),
+            input_digests=(
+                _object_sha256(game_map.ground.model_dump(mode="json")),
+                _object_sha256({"canonicalizer": "prepared-ground-grid-v1"}),
+            ),
+            outputs=(
+                f"maps/{game_map.map_id}/ground.png",
+                f"maps/{game_map.map_id}/ground.validation.json",
+            ),
             duration_seconds=1.5,
         )
         composite = builder.add(
@@ -189,6 +214,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 builder.package.file(map_source).sha256,
                 _object_sha256(game_map.model_dump(mode="json")),
+                _object_sha256({"compositor": "prepared-map-compositor-v5"}),
             ),
             outputs=(f"maps/{game_map.map_id}/composite.png",),
             duration_seconds=2.0,
@@ -199,7 +225,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"review complete map composition {game_map.map_id}",
             operation=OperationKind.STRUCTURED_GENERATION,
             depends_on=(composite.node_id,),
-            input_digests=(map_direction,),
+            input_digests=(
+                map_direction,
+                _object_sha256({"review_contract": "prepared-map-review-v3"}),
+            ),
             outputs=(f"maps/{game_map.map_id}/review.json",),
         )
         terminals.append(review.node_id)
@@ -212,6 +241,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     for player in builder.package.player.players:
         identity = (
             _visual_direction_digest(builder.package),
+            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
             _object_sha256(player.model_dump(mode="json")),
             *_reference_digests(references, player.reference_ids),
         )
@@ -226,14 +256,16 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         validations: list[str] = []
         for state in player.motion_states:
+            source_facing = motion_source_facing("player", state)
             generated = builder.add_external(
                 f"player-{player.player_id}-state-{state}-generate",
                 domain=f"player-{player.player_id}",
-                description=f"generate {state} state with both required facings",
+                description=f"generate {state} state from one {source_facing}-facing source strip",
                 operation=OperationKind.IMAGE_GENERATION,
                 depends_on=(concept.node_id,),
                 input_digests=(
-                    _object_sha256({"state": state, "facings": player.required_facings}),
+                    _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                    _object_sha256({"state": state, "source_facing": source_facing}),
                 ),
                 outputs=(f"content/players/{player.player_id}/states/{state}.png",),
             )
@@ -242,7 +274,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     f"player-{player.player_id}-state-{state}-validate",
                     domain=f"player-{player.player_id}",
                     description=(
-                        f"validate player {state} geometry, alpha, facings, and registration"
+                        f"validate player {state} geometry, alpha, source facing, and registration"
                     ),
                     operation=OperationKind.LOCAL,
                     depends_on=(generated.node_id,),
@@ -257,7 +289,10 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"generate declared dialogue expressions for player {player.player_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(concept.node_id,),
-            input_digests=(_object_sha256(player.dialogue_art.model_dump(mode="json")),),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
+                _object_sha256(player.dialogue_art.model_dump(mode="json")),
+            ),
             outputs=(f"content/players/{player.player_id}/dialogue.png",),
         )
         dialogue_validation = builder.add(
@@ -289,7 +324,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ),
             operation=OperationKind.STRUCTURED_GENERATION,
             depends_on=(contact.node_id,),
-            input_digests=identity,
+            input_digests=(
+                *identity,
+                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                _object_sha256({"contract": CONTENT_PLAYER_REVIEW_CONTRACT_VERSION}),
+            ),
             outputs=(f"content/players/{player.player_id}/review.json",),
         )
         terminals.append(review.node_id)
@@ -302,6 +341,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     for mob in builder.package.mobs.mobs:
         identity = (
             _visual_direction_digest(builder.package),
+            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
             _object_sha256(mob.model_dump(mode="json")),
             *_reference_digests(references, mob.reference_ids),
         )
@@ -316,13 +356,20 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         validations: list[str] = []
         for state in mob.motion_states:
+            source_facing = motion_source_facing("mob", state)
             generated = builder.add_external(
                 f"mob-{mob.mob_id}-state-{state}-generate",
                 domain=f"mob-{mob.mob_id}",
-                description=f"generate {state} state for mob {mob.mob_id}",
+                description=(
+                    f"generate {state} state for mob {mob.mob_id} from one "
+                    f"{source_facing}-facing source strip"
+                ),
                 operation=OperationKind.IMAGE_GENERATION,
                 depends_on=(concept.node_id,),
-                input_digests=(_object_sha256({"state": state}),),
+                input_digests=(
+                    _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                    _object_sha256({"state": state, "source_facing": source_facing}),
+                ),
                 outputs=(f"content/mobs/{mob.mob_id}/states/{state}.png",),
             )
             validations.append(
@@ -353,7 +400,10 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"review identity and state continuity for mob {mob.mob_id}",
             operation=OperationKind.STRUCTURED_GENERATION,
             depends_on=(contact.node_id,),
-            input_digests=identity,
+            input_digests=(
+                *identity,
+                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+            ),
             outputs=(f"content/mobs/{mob.mob_id}/review.json",),
         )
         terminals.append(review.node_id)
@@ -366,6 +416,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     for npc in builder.package.npcs.npcs:
         identity = (
             _visual_direction_digest(builder.package),
+            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
             _object_sha256(npc.model_dump(mode="json")),
             *_reference_digests(references, npc.reference_ids),
         )
@@ -381,10 +432,21 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         world = builder.add_external(
             f"npc-{npc.npc_id}-world-generate",
             domain=f"npc-{npc.npc_id}",
-            description=f"generate NPC {npc.npc_id} world sprite",
+            description=(
+                f"generate NPC {npc.npc_id} world sprite from one "
+                f"{motion_source_facing('npc', 'idle')}-facing source strip"
+            ),
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(concept.node_id,),
-            input_digests=(_object_sha256(npc.world_motion_states),),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                _object_sha256(
+                    {
+                        "states": npc.world_motion_states,
+                        "source_facing": motion_source_facing("npc", "idle"),
+                    }
+                ),
+            ),
             outputs=(f"content/npcs/{npc.npc_id}/world.png",),
         )
         world_validation = builder.add(
@@ -403,7 +465,10 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"generate NPC {npc.npc_id} dialogue expressions",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(concept.node_id,),
-            input_digests=(_object_sha256(npc.dialogue_expressions),),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
+                _object_sha256(npc.dialogue_expressions),
+            ),
             outputs=(f"content/npcs/{npc.npc_id}/dialogue.png",),
         )
         dialogue_validation = builder.add(
@@ -432,7 +497,10 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"review world and dialogue identity for NPC {npc.npc_id}",
             operation=OperationKind.STRUCTURED_GENERATION,
             depends_on=(contact.node_id,),
-            input_digests=identity,
+            input_digests=(
+                *identity,
+                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+            ),
             outputs=(f"content/npcs/{npc.npc_id}/review.json",),
         )
         terminals.append(review.node_id)
@@ -451,6 +519,7 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
             depends_on=(package_root,),
             input_digests=(
                 _visual_direction_digest(builder.package),
+                _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
                 _object_sha256(prop.model_dump(mode="json")),
                 *_reference_digests(references, prop.reference_ids),
             ),
@@ -474,7 +543,10 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
         description="assemble the complete prop catalog review board",
         operation=OperationKind.LOCAL,
         depends_on=tuple(validations),
-        input_digests=(_object_sha256(builder.package.props.model_dump(mode="json")),),
+        input_digests=(
+            _object_sha256(builder.package.props.model_dump(mode="json")),
+            _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+        ),
         outputs=("content/props/contact-sheet.png",),
         duration_seconds=1.0,
     )
@@ -501,6 +573,7 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
             depends_on=(package_root,),
             input_digests=(
                 _visual_direction_digest(builder.package),
+                _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
                 _object_sha256(item.model_dump(mode="json")),
                 *_reference_digests(references, item.reference_ids),
             ),
@@ -524,7 +597,10 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
         description="assemble the complete item catalog review board",
         operation=OperationKind.LOCAL,
         depends_on=tuple(validations),
-        input_digests=(_object_sha256(builder.package.items.model_dump(mode="json")),),
+        input_digests=(
+            _object_sha256(builder.package.items.model_dump(mode="json")),
+            _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+        ),
         outputs=("content/items/contact-sheet.png",),
         duration_seconds=1.0,
     )
@@ -548,7 +624,10 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
             description=f"generate soundtrack track {track.track_id}",
             operation=OperationKind.MUSIC_GENERATION,
             depends_on=(package_root,),
-            input_digests=(_object_sha256(track.model_dump(mode="json")),),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
+                _object_sha256(track.model_dump(mode="json")),
+            ),
             outputs=(f"soundtrack/{track.track_id}.mp3",),
         )
         validation = builder.add(

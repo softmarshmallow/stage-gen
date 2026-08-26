@@ -22,9 +22,9 @@ export default function PreviewCanvas({
     // The browser adapter touches window at construction time, so load it
     // lazily and keep its lifecycle out of the headless pipeline.
     void (async () => {
-      const { bootGame } = await import("@/lib/runtime/scene");
+      const { bootPreparedGame } = await import("@/lib/runtime/prepared-scene");
       if (cancelled || !ref.current) return;
-      preview = bootGame(ref.current, tag, transparencyPolicy, automationMode);
+      preview = bootPreparedGame(ref.current, tag, transparencyPolicy, automationMode);
     })();
 
     return () => {

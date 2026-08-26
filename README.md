@@ -306,8 +306,8 @@ Run `bun run gameplay:record -- --help` for custom-source, output, and dry-run
 options.
 
 The former prompt-launching web adapter is not an active generation authority after the prepared
-package cutover. Checkpoint 5 reconnects it to completed package manifests. Browser code never
-receives provider credentials.
+package cutover. The active preview consumes the provider-free `prepared-game-runtime-v1`
+integration output. Browser code never receives provider credentials.
 
 ## Configuration and providers
 

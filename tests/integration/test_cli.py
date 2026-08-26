@@ -91,7 +91,7 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     report = json.loads(validate_output.getvalue())
     assert report["valid"] is True
     assert report["game_id"] == "bellweather"
-    assert report["file_count"] == 22
+    assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
 
     digest_output = StringIO()
     assert (
@@ -170,7 +170,23 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
 
     error = StringIO()
     assert main(["generate", "--input", str(package)], stderr=error) == 1
-    assert "provider execution is not connected yet" in error.getvalue()
+    assert "generate requires --output" in error.getvalue()
+
+    error = StringIO()
+    assert (
+        main(
+            [
+                "generate",
+                "--input",
+                str(package),
+                "--output",
+                str(tmp_path / "live-run"),
+            ],
+            stderr=error,
+        )
+        == 1
+    )
+    assert "requires --checkpoint world, content, or integration" in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -578,6 +594,8 @@ def test_generate_help_exposes_package_dry_run_controls(
 
     assert exit_info.value.code == 0
     assert "--dry-run" in help_text
+    assert "--checkpoint {world,content,integration}" in help_text
+    assert "--artifact-root ARTIFACT_ROOTS" in help_text
     assert "--failure-node FAILURE_NODE" in help_text
     assert "--force-stage" not in help_text
 

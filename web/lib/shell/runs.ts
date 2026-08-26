@@ -33,7 +33,7 @@ const RUN_TAG_MAXIMUM_LENGTH = 128;
 const RUN_TAG_PATTERN = new RegExp(
   `^[A-Za-z0-9][A-Za-z0-9._-]{0,${RUN_TAG_MAXIMUM_LENGTH - 1}}$`,
 );
-const ARTIFACT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+const ARTIFACT_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 const ALLOWED_EXECUTABLE_NAMES = new Set(["uv", "stage-gen", "stage-gen-py"]);
 
 export interface StageGenCommand {
@@ -119,12 +119,41 @@ export function runJsonPathFor(tag: string): string {
   return path.join(runDirFor(tag), "run.json");
 }
 
+export async function isPreparedRuntimeRun(tag: string): Promise<boolean> {
+  const manifestPath = artifactPathFor(tag, "manifest.json");
+  try {
+    const stat = await fs.lstat(manifestPath);
+    if (!stat.isFile() || stat.isSymbolicLink()) return false;
+    const parsed = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    return (
+      parsed["schema_version"] === 1 &&
+      parsed["kind"] === "prepared-game-runtime-v1"
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    return false;
+  }
+}
+
 export function artifactPathFor(tag: string, asset: string): string {
-  if (!isAlreadyDecoded(asset) || !ARTIFACT_NAME_PATTERN.test(asset)) {
-    throw new Error("invalid artifact name");
+  const segments = asset.split("/");
+  if (
+    !isAlreadyDecoded(asset) ||
+    segments.length === 0 ||
+    segments.some(
+      (segment) =>
+        segment === "." ||
+        segment === ".." ||
+        !ARTIFACT_SEGMENT_PATTERN.test(segment),
+    )
+  ) {
+    throw new Error("invalid artifact path");
   }
   const runDir = runDirFor(tag);
-  const target = path.resolve(runDir, asset);
+  const target = path.resolve(runDir, ...segments);
   if (!target.startsWith(`${runDir}${path.sep}`)) {
     throw new Error("artifact path escapes run directory");
   }

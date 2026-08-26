@@ -495,23 +495,31 @@ class DependencyExecutor:
         *,
         invocation_id: str,
         trace_sink: TraceSink | None = None,
+        target_node_ids: Sequence[str] | None = None,
     ) -> ExecutionSummary:
         if tuple(self._resources) != tuple(resource.resource_id for resource in graph.resources):
             raise ValueError("executor resources must exactly match the execution graph")
+        selected_nodes = _execution_node_closure(graph, target_node_ids)
+        selected_ids = {node.node_id for node in selected_nodes}
+        targets = (
+            (graph.terminal_node_id,)
+            if target_node_ids is None
+            else tuple(dict.fromkeys(target_node_ids))
+        )
         sink = trace_sink or MemoryTraceSink()
         started = time.perf_counter()
         sink.emit(_event("run_started", invocation_id, graph, offset_ms=0))
-        pending = {node.node_id for node in graph.nodes}
+        pending = set(selected_ids)
         results: dict[str, NodeExecutionResult] = {}
         traces: dict[str, NodeTrace] = {}
         running: dict[asyncio.Task[tuple[NodeTrace, NodeExecutionResult | None]], str] = {}
-        ready_at: dict[str, int] = {node.node_id: 0 for node in graph.nodes}
+        ready_at: dict[str, int] = {node.node_id: 0 for node in selected_nodes}
 
         while pending or running:
             changed = True
             while changed:
                 changed = False
-                for node in graph.nodes:
+                for node in selected_nodes:
                     node_id = node.node_id
                     if node_id not in pending:
                         continue
@@ -581,12 +589,12 @@ class DependencyExecutor:
                         raise RuntimeError("successful execution task did not retain its result")
                     results[node_id] = result
 
-        ordered = tuple(traces[node.node_id] for node in graph.nodes)
+        ordered = tuple(traces[node.node_id] for node in selected_nodes)
         duration_ms = _elapsed_ms(started)
         provider_counts = {
             operation.value: sum(
                 trace.provider_operations
-                for node, trace in zip(graph.nodes, ordered, strict=True)
+                for node, trace in zip(selected_nodes, ordered, strict=True)
                 if node.operation is operation
             )
             for operation in OperationKind
@@ -598,7 +606,7 @@ class DependencyExecutor:
             kind="prepared-game-execution-summary-v1",
             invocation_id=invocation_id,
             graph_sha256=graph.graph_sha256,
-            ok=traces[graph.terminal_node_id].status is NodeStatus.SUCCEEDED,
+            ok=all(traces[node_id].status is NodeStatus.SUCCEEDED for node_id in targets),
             duration_ms=duration_ms,
             nodes=ordered,
             provider_operation_counts=provider_counts,
@@ -715,6 +723,25 @@ def _dependency_ancestors(node_id: str, nodes: Sequence[ExecutionNode]) -> set[s
         ancestors.add(dependency)
         frontier.extend(dependencies[dependency])
     return ancestors
+
+
+def _execution_node_closure(
+    graph: ExecutionGraph,
+    target_node_ids: Sequence[str] | None,
+) -> tuple[ExecutionNode, ...]:
+    if target_node_ids is None:
+        return graph.nodes
+    targets = tuple(dict.fromkeys(target_node_ids))
+    if not targets:
+        raise ValueError("target_node_ids must not be empty")
+    known = {node.node_id for node in graph.nodes}
+    unknown = sorted(set(targets) - known)
+    if unknown:
+        raise ValueError("execution targets are undeclared: " + ", ".join(unknown))
+    selected = set(targets)
+    for target in targets:
+        selected.update(_dependency_ancestors(target, graph.nodes))
+    return tuple(node for node in graph.nodes if node.node_id in selected)
 
 
 def _topological_node_ids(nodes: Sequence[ExecutionNode]) -> tuple[str, ...]:

@@ -100,7 +100,6 @@ class PlayerContent(PersistedContractModel):
             "death",
         ]
     ] = Field(min_length=1)
-    required_facings: list[Literal["left", "right"]] = Field(min_length=2, max_length=2)
     dialogue_art: DialogueArtDirection
 
     @field_validator("display_name", "body_kind")
@@ -113,17 +112,11 @@ class PlayerContent(PersistedContractModel):
     def validate_prompt(cls, value: str) -> str:
         return normalized_text(value, "player prompt", multiline=True)
 
-    @field_validator("reference_ids", "motion_states", "required_facings")
+    @field_validator("reference_ids", "motion_states")
     @classmethod
     def validate_lists(cls, value: list[str], info: ValidationInfo) -> list[str]:
         unique_values(value, f"player {info.field_name}")
         return value
-
-    @model_validator(mode="after")
-    def validate_facings(self) -> PlayerContent:
-        if set(self.required_facings) != {"left", "right"}:
-            raise ValueError("player required_facings must contain left and right")
-        return self
 
 
 class PlayerContentCatalog(PersistedContractModel):

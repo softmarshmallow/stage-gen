@@ -11,7 +11,7 @@ import tomllib
 import uuid
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Never, TextIO
+from typing import Never, TextIO, cast
 
 from stage_gen.benchmarks import list_benchmark_suites, run_benchmark
 from stage_gen.capabilities import (
@@ -116,12 +116,24 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument(
         "--output",
         dest="output_path",
-        help="new immutable dry-run output directory",
+        help="new immutable execution output directory",
     )
     generate_parser.add_argument(
         "--cache-dir",
         dest="cache_dir",
-        help="content-and-lineage validated dry-run cache directory",
+        help="content-and-lineage validated execution cache directory",
+    )
+    generate_parser.add_argument(
+        "--checkpoint",
+        choices=("world", "content", "integration"),
+        help="execute one explicitly bounded live checkpoint",
+    )
+    generate_parser.add_argument(
+        "--artifact-root",
+        action="append",
+        default=[],
+        dest="artifact_roots",
+        help="accepted run root searched for integration artifacts; repeat in priority order",
     )
     generate_parser.add_argument("--invocation-id")
     generate_parser.add_argument(
@@ -612,18 +624,81 @@ async def _dispatch_async(
         return 0
     config = load_config()
     if args.command == "generate":
-        if not args.dry_run:
-            raise ValueError(
-                "prepared-package provider execution is not connected yet; use --dry-run"
-            )
         if args.output_path is None:
-            raise ValueError("generate --dry-run requires --output")
+            raise ValueError("generate requires --output")
         output_path = Path(args.output_path)
         cache_dir = (
             Path(args.cache_dir)
             if args.cache_dir is not None
-            else output_path.parent / ".stage-gen-dry-run-cache"
+            else output_path.parent / ".stage-gen-cache"
         )
+        if not args.dry_run:
+            if args.checkpoint not in {"world", "content", "integration"}:
+                raise ValueError(
+                    "prepared-package execution requires --checkpoint "
+                    "world, content, or integration"
+                )
+            if args.failure_node is not None:
+                raise ValueError("--failure-node is available only with --dry-run")
+            checkpoint = cast("str", args.checkpoint)
+            invocation_id = args.invocation_id or f"{checkpoint}-{uuid.uuid4().hex}"
+            prepared_executor = PreparedPackageExecutor(config)
+            if checkpoint == "integration":
+                if not args.artifact_roots:
+                    raise ValueError("integration requires at least one --artifact-root")
+                integration_result = prepared_executor.run_integration(
+                    Path(args.input_path),
+                    run_dir=output_path,
+                    artifact_roots=tuple(Path(path) for path in args.artifact_roots),
+                )
+                integration_report: dict[str, object] = {
+                    "ok": True,
+                    "checkpoint": checkpoint,
+                    "invocation_id": invocation_id,
+                    "graph_sha256": integration_result.plan.graph.graph_sha256,
+                    "topology_sha256": integration_result.plan.graph.topology_sha256,
+                    "artifact_count": integration_result.result.artifact_count,
+                    "package_sha256": integration_result.plan.package.package_sha256,
+                    "provider_operation_counts": {},
+                    "run_dir": str(output_path),
+                }
+                stdout.write(
+                    f"{json.dumps(integration_report, sort_keys=True, separators=(',', ':'))}\n"
+                )
+                return 0
+            if args.artifact_roots:
+                raise ValueError("--artifact-root is available only with --checkpoint integration")
+            if checkpoint == "world":
+                live_result = await prepared_executor.run_world(
+                    Path(args.input_path),
+                    run_dir=output_path,
+                    cache_dir=cache_dir,
+                    invocation_id=invocation_id,
+                )
+                live_summary = live_result.summary
+                live_graph = live_result.plan.graph
+            else:
+                content_result = await prepared_executor.run_content(
+                    Path(args.input_path),
+                    run_dir=output_path,
+                    cache_dir=cache_dir,
+                    invocation_id=invocation_id,
+                )
+                live_summary = content_result.summary
+                live_graph = content_result.plan.graph
+            report = {
+                "ok": live_summary.ok,
+                "checkpoint": checkpoint,
+                "invocation_id": invocation_id,
+                "graph_sha256": live_graph.graph_sha256,
+                "topology_sha256": live_graph.topology_sha256,
+                "executed_node_count": len(live_summary.nodes),
+                "provider_operation_counts": live_summary.provider_operation_counts,
+                "duration_ms": live_summary.duration_ms,
+                "run_dir": str(output_path),
+            }
+            stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+            return 0 if live_summary.ok else 1
         invocation_id = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
         dry_run_result = await PreparedPackageExecutor(config).dry_run(
             Path(args.input_path),

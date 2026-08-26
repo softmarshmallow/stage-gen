@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isSafeRunTag, readRunInput } from "@/lib/shell/runs";
+import {
+  isPreparedRuntimeRun,
+  isSafeRunTag,
+  readRunInput,
+} from "@/lib/shell/runs";
 import {
   previewPolicyForRunMode,
   transparencyModeLabel,
@@ -34,7 +38,9 @@ export default async function PreviewPage({
     throw error;
   }
   const input = await readRunInput(tag);
-  const policy = previewPolicyForRunMode(input?.transparencyMode ?? null);
+  const prepared = await isPreparedRuntimeRun(tag);
+  const transparencyMode = input?.transparencyMode ?? (prepared ? "native" : null);
+  const policy = previewPolicyForRunMode(transparencyMode);
   if (automationMode) {
     return (
       <main
@@ -74,7 +80,7 @@ export default async function PreviewPage({
         <span data-testid="preview-transparency-mode">
           transparency:{" "}
           <span style={{ color: "#e6e6e6" }}>
-            {transparencyModeLabel(input?.transparencyMode ?? null)}
+            {transparencyModeLabel(transparencyMode)}
           </span>
         </span>
       </div>

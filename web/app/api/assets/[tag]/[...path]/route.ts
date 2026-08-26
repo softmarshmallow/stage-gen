@@ -7,7 +7,7 @@
 //
 // Route shape: /api/assets/<tag>/<...filename-segments>
 //   - <tag>       : the per-run output directory under repo-root /out
-//   - <...path>   : one bare artifact filename under that run directory
+//   - <...path>   : one portable run-local artifact path
 //
 // Examples:
 //   GET /api/assets/foo/world_spec_foo.json
@@ -15,12 +15,12 @@
 //   GET /api/assets/foo/layer_foo_clear_peak_sky.png
 //
 // Path-traversal hardening: route values must already be decoded safe tokens;
-// encoded separators, nested paths, symlinks, and run-directory escapes fail.
+// encoded separators, symlink traversal, and run-directory escapes fail.
 
 import { NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { artifactPathFor, isSafeRunTag } from "@/lib/shell/runs";
+import { artifactPathFor, isSafeRunTag, runDirFor } from "@/lib/shell/runs";
 
 function contentTypeFor(filename: string): string {
   const ext = path.extname(filename).toLowerCase();
@@ -28,6 +28,7 @@ function contentTypeFor(filename: string): string {
   if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
   if (ext === ".webp") return "image/webp";
   if (ext === ".gif") return "image/gif";
+  if (ext === ".mp3") return "audio/mpeg";
   if (ext === ".json") return "application/json; charset=utf-8";
   if (ext === ".txt") return "text/plain; charset=utf-8";
   return "application/octet-stream";
@@ -38,18 +39,23 @@ export async function GET(
   { params }: { params: Promise<{ tag: string; path: string[] }> },
 ) {
   const { tag, path: parts } = await params;
-  if (!isSafeRunTag(tag) || !parts || parts.length !== 1) {
+  if (!isSafeRunTag(tag) || !parts || parts.length === 0) {
     return new Response("missing tag/path", { status: 400 });
   }
   let requested: string;
   try {
-    requested = artifactPathFor(tag, parts[0]);
+    requested = artifactPathFor(tag, parts.join("/"));
   } catch {
     return new Response("forbidden", { status: 403 });
   }
   try {
     const file = await fs.lstat(requested);
     if (!file.isFile() || file.isSymbolicLink()) {
+      return new Response("forbidden", { status: 403 });
+    }
+    const runRoot = await fs.realpath(runDirFor(tag));
+    const real = await fs.realpath(requested);
+    if (!real.startsWith(`${runRoot}${path.sep}`)) {
       return new Response("forbidden", { status: 403 });
     }
     const data = await fs.readFile(requested);

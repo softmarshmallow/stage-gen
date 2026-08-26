@@ -26,7 +26,6 @@ modest, practical, non-sexual, original, and recognizably young-adult despite
 the deliberate super-deformed proportions.
 """
 motion_states = ["idle", "walk", "run", "jump", "climb", "basic_attack", "skill_cast", "hurt", "death"]
-required_facings = ["left", "right"]
 
 [players.dialogue_art]
 enabled = true

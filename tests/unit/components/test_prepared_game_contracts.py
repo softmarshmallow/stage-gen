@@ -51,13 +51,10 @@ def test_map_contract_rejects_a_second_opaque_layer() -> None:
         load_prepared_game_map_bytes(source)
 
 
-def test_player_contract_rejects_incomplete_facing_coverage() -> None:
-    source = _bytes("content/player.toml").replace(
-        b'required_facings = ["left", "right"]',
-        b'required_facings = ["left", "left"]',
-    )
+def test_player_contract_rejects_obsolete_authored_facing_coverage() -> None:
+    source = _bytes("content/player.toml") + b'\nrequired_facings = ["left", "right"]\n'
 
-    with pytest.raises(AuthoredContractLoadError, match="must be unique"):
+    with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
         load_player_content_bytes(source)
 
 

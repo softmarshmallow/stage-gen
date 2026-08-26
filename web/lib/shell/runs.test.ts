@@ -212,23 +212,27 @@ describe("web run boundary", () => {
     }
   });
 
-  test("resolves only a bare artifact inside the selected run", () => {
+  test("resolves portable nested artifacts inside the selected run", () => {
     const tag = "neutral-run-0123abcd";
     const runDir = runDirFor(tag);
     const artifact = artifactPathFor(tag, `world_spec_${tag}.json`);
     expect(path.dirname(artifact)).toBe(runDir);
+    expect(
+      artifactPathFor(tag, "content/players/wayfarer/states/idle.png"),
+    ).toBe(
+      path.join(runDir, "content", "players", "wayfarer", "states", "idle.png"),
+    );
 
     for (const name of [
       "",
       ".hidden",
       "..",
       "../secret",
-      "nested/asset.png",
       "nested\\asset.png",
       "asset%2Fsecret.png",
       "asset%252Fsecret.png",
     ]) {
-      expect(() => artifactPathFor(tag, name)).toThrow("invalid artifact name");
+      expect(() => artifactPathFor(tag, name)).toThrow("invalid artifact path");
     }
   });
 

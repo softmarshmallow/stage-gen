@@ -4,8 +4,11 @@ import json
 from pathlib import Path
 
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_graph import NodeStatus
+from stage_gen.orchestration.execution_graph import DependencyExecutor, NodeStatus
+from stage_gen.orchestration.fake_execution import FakeNodeHandler
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.scrolling_preview.prepared_content import content_target_node_ids
+from stage_gen.recipes.scrolling_preview.prepared_world import world_target_node_ids
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
@@ -114,3 +117,58 @@ async def test_cache_replay_rejects_modified_content_and_lineage(tmp_path: Path)
     assert by_id["items-review"].cache is not None
     assert by_id["items-review"].cache.value == "miss"
     assert replay.summary.provider_operation_counts["structured_generation"] == 2
+
+
+async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
+    prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
+    targets = world_target_node_ids(prepared.package)
+    summary = await DependencyExecutor(prepared.graph.resources).run(
+        prepared.graph,
+        FakeNodeHandler(
+            prepared.graph,
+            run_dir=tmp_path / "run",
+            cache_dir=tmp_path / "cache",
+            time_scale=0,
+        ),
+        invocation_id="world-closure",
+        target_node_ids=targets,
+    )
+
+    assert summary.ok is True
+    assert len(summary.nodes) == 25
+    assert summary.provider_operation_counts == {
+        "image_generation": 10,
+        "structured_generation": 2,
+        "music_generation": 0,
+    }
+    assert {trace.node_id for trace in summary.nodes}.isdisjoint(
+        {"player-wayfarer-concept-generate", "soundtrack-title_theme-generate"}
+    )
+
+
+async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) -> None:
+    prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
+    targets = content_target_node_ids(prepared.package)
+    summary = await DependencyExecutor(prepared.graph.resources).run(
+        prepared.graph,
+        FakeNodeHandler(
+            prepared.graph,
+            run_dir=tmp_path / "run",
+            cache_dir=tmp_path / "cache",
+            time_scale=0,
+        ),
+        invocation_id="content-closure",
+        target_node_ids=targets,
+    )
+
+    assert summary.ok is True
+    assert len(summary.nodes) == 167
+    assert summary.provider_operation_counts == {
+        "image_generation": 72,
+        "structured_generation": 13,
+        "music_generation": 3,
+    }
+    node_ids = {trace.node_id for trace in summary.nodes}
+    assert "gameplay-bindings-validate" in node_ids
+    assert "manifest-assemble" not in node_ids
+    assert not any(node_id.startswith("map-") for node_id in node_ids)

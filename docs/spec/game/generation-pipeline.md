@@ -15,17 +15,24 @@
 | Asset-level fan-out, dependencies, outputs, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/scrolling_preview/package_graph.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
 | Scrolling-preview resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/scrolling_preview/package_executor.py) |
+| Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_world.py) |
+| Prepared-package cast, catalog, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_content.py) |
 | Leaf provider retries, decoding, validation, and atomic persistence | Provider-neutral components and adapters |
-| Runtime artifact binding | Terminal manifest contract; connected in Checkpoint 5 |
+| Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_manifest.py) |
 
 The scrolling-preview executor is deliberately thin. It resolves one directory or ZIP, asks the
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
 game, hide asset fan-outs inside a coarse stage, or implement provider retry loops.
 
 `stage-gen generate` now requires `--input` pointing to a prepared directory or ZIP whose root
-contains `game.toml`. There is no bare-prompt fallback. Provider-backed package execution remains
-fail-closed until the world and content handlers are connected; the implemented `--dry-run` path
-uses the same graph and scheduler with deterministic fake operations.
+contains `game.toml`. There is no bare-prompt fallback. `--checkpoint world` executes only the
+map-review targets and their complete dependency closure. `--checkpoint content` independently
+executes cast, catalog, soundtrack, and stable-ID binding targets and their dependency closure.
+Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
+provider-free terminal operation over accepted artifact roots. It validates the complete
+package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
+publishes one immutable run, and emits `prepared-game-runtime-v1`. The `--dry-run` path still
+exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
 
@@ -33,10 +40,10 @@ uses the same graph and scheduler with deterministic fake operations.
 flowchart TD
     PKG["directory or ZIP"] --> PR["package-resolve · local"]
 
-    PR --> ML["map layer generate[*]"]
-    PR --> MG["map ground generate[*]"]
-    ML --> MLV["alpha + repeat validate[*]"]
-    MG --> MGV["ground validate[*]"]
+    PR --> ML["map layer raw generate[*]"]
+    PR --> MG["map ground raw generate[*]"]
+    ML --> MLV["canonical alpha + repeat validate[*]"]
+    MG --> MGV["canonical ground-grid validate[*]"]
     MLV --> MC["map composite[*]"]
     MGV --> MC
     MC --> MR["whole-map review[*]"]
@@ -86,7 +93,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "cb6b4b7fc0dc2410abd2de95daea2c24d6b3579c3a0b811272bf335911bfbf76",
+  "topology_sha256": "80c539baebf9c690dcfb5fa9fe4663e55a2ded6d3b20d0caf1e153e52bc6428c",
   "node_count": 192,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -139,7 +146,7 @@ reported by the owning node.
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Maps | 2 maps × (4 layers + 1 ground), validation, composite, map review | 10 | 2 | 0 | 12 |
-| Player | concept, 9 two-facing states, dialogue, validations, board, review | 11 | 1 | 0 | 11 |
+| Player | concept, 9 canonical-source states, dialogue, validations, board, review | 11 | 1 | 0 | 11 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + world + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
@@ -148,9 +155,38 @@ reported by the owning node.
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
 | **Total** | **192 nodes** | **82** | **15** | **3** | **92** |
 
-Each state image is one accepted state-sheet operation, not one call per animation frame. Player
-states include both required facings. Concept nodes intentionally precede actor state nodes to
-anchor identity; unrelated actors, maps, catalogs, and tracks do not wait for one another.
+Each state image is one accepted state-strip operation, not one call per animation frame. Actor
+motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
+intentionally precede actor state nodes to anchor identity; unrelated actors, maps, catalogs, and
+tracks do not wait for one another.
+
+The live World checkpoint is the exact 25-node closure rooted at both map-review nodes: one
+package capture, 10 image edits, 12 local canonicalization/composition operations, and two
+structured reviews. It cannot schedule any cast, catalog, soundtrack, gameplay-binding, or
+manifest node. Each layer and ground generation writes a retained `*.raw.png`; only its dependent
+validator may write the canonical runtime-facing PNG.
+
+The live Content checkpoint is the exact 167-node closure rooted at every cast/catalog review,
+every soundtrack validation, and `gameplay-bindings-validate`: one package capture, 72 image
+operations, 13 structured reviews, three music operations, and 79 local nodes. It cannot schedule
+map or manifest nodes. Twenty-four identity/catalog images are initially independent; each actor's
+state and dialogue descendants become ready immediately after that actor's concept succeeds.
+Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
+
+Every actor motion-state output is a native-alpha 4-column by 1-row source strip. Ordinary
+side-view states contain four right-facing frames; the runtime mirrors that canonical source for
+left-facing play. Player `climb` is the explicit exception: it is rear-facing and is not mirrored
+during ladder traversal. Facing is therefore a recipe/runtime projection contract, not authored
+game-content input, and `content/player.toml` has no `required_facings` field. Generating both
+directions is intentionally forbidden by the canonical path because it adds cross-row consistency
+work without a runtime consumer. Separately authored directions may become an explicit future
+opt-in for asymmetric handedness, but are not accepted silently.
+
+Dialogue atlases use a deterministic row-major 2-by-2 or 3-by-N layout derived from the authored
+expression count. Local validators persist dimensions, cell occupancy, canonical source facing,
+runtime-mirroring policy, state/expression stable IDs, and alpha facts; they never use AI
+background removal. Prop and item nodes produce one isolated native-alpha asset per stable ID.
+Contact sheets are deterministic review artifacts, not runtime atlases.
 
 ## Scheduling semantics
 
@@ -163,7 +199,8 @@ The generic executor repeatedly starts every node whose declared prerequisites s
 - the scheduler calls a node handler once and never retries provider work;
 - provider components remain the sole retry owners, with at most six attempts;
 - provider adapters retain their request-start pacing; and
-- terminal success requires `manifest-assemble` to succeed.
+- full-run success requires `manifest-assemble` to succeed; a bounded checkpoint succeeds only
+  when every explicit target succeeds.
 
 The resource-aware Bellweather projection uses planning assumptions of 120 seconds per image,
 30 seconds per structured review, and 180 seconds per music operation. With the Tier 4
@@ -197,7 +234,22 @@ counts one successful provider operation per provider node.
 | `execution-projection.json` | Resource spans, critical path, call counts, time, and budget range |
 | `execution-trace.jsonl` | Immutable run/node events with queue, duration, cache, attempts, calls, and errors |
 | `execution-summary.json` | Terminal status and per-node result projection |
+| `maps/*/layers/*.raw.png` | Retained provider layer output and provider provenance |
+| `maps/*/layers/*.png` | Deterministically canonicalized horizontal repeat unit |
+| `maps/*/layers/*.repeat.png` | Three-repeat checkerboard evidence for visual review |
+| `maps/*/ground.raw.png` | Retained provider ground-atlas output and provider provenance |
+| `maps/*/ground.png` | Canonical 12-by-4 ground topology |
+| `maps/*/composite.png`, `review.json` | Whole-map composition and structured semantic verdict |
+| `content/{players,mobs,npcs}/*/concept.png` | Canonical generated actor identity and provider provenance |
+| `content/{players,mobs}/*/states/*.png` | Native-alpha 4-by-1 canonical-source motion strip per authored state |
+| `content/{players,npcs}/*/dialogue.png` | Row-major native-alpha authored-expression atlas |
+| `content/{players,mobs,npcs}/*/contact-sheet.png`, `review.json` | Deterministic actor board and independent structured verdict |
+| `content/{props,items}/*.png` | One native-alpha isolated asset per stable ID |
+| `content/{props,items}/contact-sheet.png`, `review.json` | Deterministic catalog board and independent structured verdict |
+| `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
+| `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
+| `manifest.json` | Portable `prepared-game-runtime-v1` authored projection and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.
@@ -208,10 +260,34 @@ uv run stage-gen generate \
   --input library/games/bellweather \
   --dry-run \
   --output /tmp/bellweather-dry-run
+
+uv run stage-gen generate \
+  --input library/games/bellweather \
+  --checkpoint world \
+  --output /tmp/bellweather-world
+
+uv run stage-gen generate \
+  --input library/games/bellweather \
+  --checkpoint content \
+  --output /tmp/bellweather-content
+
+uv run stage-gen generate \
+  --input library/games/bellweather \
+  --checkpoint integration \
+  --artifact-root /tmp/bellweather-actor-correction \
+  --artifact-root /tmp/bellweather-content \
+  --artifact-root /tmp/bellweather-world \
+  --output out/bellweather-prepared-v1
 ```
 
-`--failure-node <node_id>` injects a deterministic failure. Reusing `--cache-dir` proves warm
-cache behavior. Neither command requires or calls a provider.
+`--failure-node <node_id>` injects a deterministic dry-run failure. Reusing `--cache-dir` proves
+content-and-lineage validated warm-cache behavior. Package planning and dry-run do not call a
+provider. `--checkpoint world` requires direct OpenAI image and OpenRouter structured
+capabilities. `--checkpoint content` additionally requires OpenRouter music generation and local
+`ffprobe` technical inspection. Listening acceptance remains a separate human verdict and is
+never inferred from a valid audio container. `--checkpoint integration` performs no provider
+operations and requires no provider credential; it fails before publication when any expected
+runtime artifact is absent or unsafe.
 
 ## Change protocol
 

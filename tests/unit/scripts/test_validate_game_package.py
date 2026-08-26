@@ -36,7 +36,8 @@ def test_validate_game_package_script_prints_the_machine_report(
     assert report["generated_status"] == "not_checked"
     assert report["game_id"] == "bellweather"
     assert report["kind"] == "game-package-validation-v2"
-    assert report["file_count"] == 22
+    package = REPOSITORY_ROOT / "library" / "games" / "bellweather"
+    assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
 
 
 def test_validate_game_package_script_rejects_an_invalid_root(

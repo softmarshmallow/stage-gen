@@ -79,7 +79,7 @@ source_sha256 = "63af7fcb4b47b3714d7def2d719e0c3043eb9c7a59b79a4bd3de411f9e96ee6
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "4b5e444f85114efc00f00b4bd4c9651d5e5ee2c4b648de682aabb8d4cafddff7"
+source_sha256 = "af260dd4b313731f2bde9b4cb648b9c53e2392b8e23606c6256e64672e5c599c"
 
 [content.mobs]
 source = "content/mobs.toml"

@@ -56,7 +56,7 @@ def test_resolve_bellweather_directory_captures_complete_exact_current_package()
 
     assert package.game.game_id == "bellweather"
     assert package.package_sha256 == _sha256(SOURCE_PACKAGE / "game.toml")
-    assert len(package.files) == 22
+    assert len(package.files) == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
     assert [entry.map_id for entry in package.maps] == [
         "sunpetal-crossing",
         "crowncrag-road",
@@ -92,7 +92,7 @@ def test_validate_repository_selector_resolves_bellweather() -> None:
     assert report["kind"] == "game-package-validation-v2"
     assert report["game_id"] == "bellweather"
     assert report["generated_status"] == "not_checked"
-    assert report["file_count"] == 22
+    assert report["file_count"] == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
 
 
 def test_rejects_stale_member_digest_before_returning_a_package(tmp_path: Path) -> None:
