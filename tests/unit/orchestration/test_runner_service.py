@@ -545,11 +545,11 @@ async def test_generate_prepared_selects_recipe_executor_and_closes_owned_runtim
         async def aclose(self) -> None:
             self.closed = True
 
-    selected: list[str] = []
+    selected: list[tuple[str, TransparencyMode]] = []
     owned = OwnedRuntime()
 
-    def create_runtime(_config: StageGenConfig, recipe_id: str) -> OwnedRuntime:
-        selected.append(recipe_id)
+    def create_runtime(runtime_config: StageGenConfig, recipe_id: str) -> OwnedRuntime:
+        selected.append((recipe_id, runtime_config.transparency_mode))
         return owned
 
     monkeypatch.setattr(
@@ -559,6 +559,7 @@ async def test_generate_prepared_selects_recipe_executor_and_closes_owned_runtim
 
     async def delegate(context: StageContext) -> tuple[str, ...]:
         assert context.runtime is not None
+        assert context.config.transparency_mode is TransparencyMode.CHROMA
         return tuple(await context.runtime.run_recipe_stage("custom-recipe", "only", context))
 
     recipe = Recipe(
@@ -576,12 +577,12 @@ async def test_generate_prepared_selects_recipe_executor_and_closes_owned_runtim
             tag="custom-tag-chroma",
             required_capabilities=(),
         ),
-        StageGenConfig(out_dir=tmp_path, transparency_mode="chroma"),
+        StageGenConfig(out_dir=tmp_path, transparency_mode="native"),
         log=lambda _message: None,
     )
 
     assert summary.ok
-    assert selected == ["custom-recipe"]
+    assert selected == [("custom-recipe", TransparencyMode.CHROMA)]
     assert owned.calls == [("custom-recipe", "only")]
     assert owned.closed
     assert (Path(summary.run_dir) / "stable-artifact.bin").read_bytes() == b"stable-artifact"

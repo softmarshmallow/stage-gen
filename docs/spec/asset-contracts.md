@@ -59,7 +59,7 @@ size rails, and forbidden zones using a fixed colour contract:
 
 | Channel | Meaning |
 |---|---|
-| Strategy background | Removable exterior field: neutral grey/natural isolation in `ai`; exact `#FF00FF` in degraded `chroma`. |
+| Strategy exterior | Transparent/no painted matte in `native`; neutral grey/natural isolation in compatibility `ai`; exact `#FF00FF` in degraded `chroma`. |
 | Yellow lines / outlines | Cell, panel, or frame boundaries (positional only; never painted). |
 | Cyan rails / outlines | Hard limits and anchor lines (head-top rails, slot outlines). |
 | Green rails | Ground / feet baselines (full-row, shared across cells in a row). |
@@ -96,9 +96,9 @@ owner around one backend attempt and caller validation.
 
 | Concern | Current contract | Notes |
 |---|---|---|
-| Model and route | `openai/gpt-image-2` through OpenRouter's dedicated image endpoint | Re-query endpoint metadata before expanding the adapter contract. |
-| Request surface | Prompt, optional ordered references, `aspect_ratio`, `quality`, `background`, optional `output_compression`, and provider moderation; `n` is fixed to 1 | The current endpoint advertises quality values including `high`. It does not advertise arbitrary pixel `size`, `resolution`, `seed`, or `output_format`. |
-| Scrolling-recipe request | An `aspect_ratio` request value derived from target geometry, `quality="high"`, `background="opaque"`, and moderation `low` | Provider/model validation owns which request values are accepted. Deterministic PNG normalization owns the final target dimensions; target geometry does not establish native provider support. |
+| Model and route | `gpt-image-2` through direct OpenAI for `native`; `openai/gpt-image-2` through OpenRouter for `ai`/`chroma` compatibility | Re-check the selected route before expanding its adapter contract. |
+| Request surface | Provider-neutral prompt, ordered references, quality, background intent, target geometry, and `n=1`; adapters translate only supported route-specific fields | Direct OpenAI native requests transparent PNG; OpenRouter compatibility requests aspect ratio and opaque output. |
+| Scrolling-recipe request | `quality="high"`; transparent background for native cutouts, opaque output for concepts/backdrops and compatibility modes | Deterministic alpha-safe PNG normalization owns exact final dimensions; target geometry does not establish native provider support. |
 | Retry owner | One initial attempt plus five blind retries in `ImageGenerationService.generate` | Transport, response-envelope, media, and caller-validation failures remain inside this one boundary. Recipes and backends must not stack SDK, outer, or per-stage retry loops. |
 | Accepted response | Exactly one nonempty image with strict base64, media-type, signature, and caller validation | The inspected provider artifact and deterministic normalized artifact retain bound provenance. |
 
@@ -222,13 +222,16 @@ published.
 
 Every transparency-producing asset declares one run-level strategy:
 
-- `ai` (default): generate on neutral grey or a naturally isolated background,
-  then require validated background removal. The remover's alpha-bearing PNG
-  is canonical; the raw opaque artifact remains lineage metadata.
+- `native` (default): ask the image model to produce alpha directly, validate
+  decoded nontrivial alpha, and retain provider output as direct lineage. This
+  avoids quality loss from estimating a second matte after generation.
+- `ai` (explicit compatibility): generate on neutral grey or a naturally
+  isolated background, then require validated background removal. The remover's
+  alpha-bearing PNG is canonical; the raw opaque artifact remains lineage.
 - `chroma` (explicit degraded fallback): generate an exact `#FF00FF` exterior
   and deterministically key it to alpha without calling the remover.
 
-Both paths publish canonical transparent PNGs. Layout-critical sheets then use
+All paths publish canonical transparent PNGs. Layout-critical sheets then use
 deterministic per-cell isolation: slice declared cells, alpha-crop each subject,
 aspect-fit it into the safe inset, clear exact gutters, and reassemble the exact
 canvas before strict byte validation. Provenance and cache evidence bind every
@@ -236,15 +239,15 @@ source/target transform, expected semantic role/layout contract, retained raw
 byte length and SHA-256, pre-normalization hash, and canonical hash. Fixable
 one-sided gutter contact is recorded and normalized; empty cells or any
 8-connected foreground component crossing a declared cell seam remain inside
-the six-attempt AI retry. The terrain sheet first validates all 48 source cells
+the six-attempt provider retry. The terrain sheet first validates all 48 source cells
 against the documented positive and negative silhouette zones, then applies its
 exact 12 x 4 role mask and restores the canonical fill inset to alpha 255.
 Consumers read the manifest and load
 alpha normally; they do not infer strategy from colour. The manifest records
-the actual processor chain, so a locally keyed artifact is never relabelled as
-AI background removal merely because the run requested `ai`. The world concept
-and the one designated opaque parallax backdrop bypass transparency unchanged.
-An `ai` failure never silently changes to `chroma`.
+the actual processor chain, so native provider alpha, background removal, and
+local keying never masquerade as one another. The world concept and the one
+designated opaque parallax backdrop bypass transparency unchanged. A failure
+never silently changes the selected strategy.
 
 ### Runtime publication gate
 
@@ -261,8 +264,9 @@ completed recipe through a partial manifest.
 Canvas captures such as `gameplay-verification.png` are review evidence, not
 canonical generated assets, and are excluded from manifest publication.
 
-In the asset-specific sections below, **strategy background** means neutral
-grey/natural isolation for `ai` and exact `#FF00FF` for `chroma`.
+In the asset-specific sections below, **strategy background** means no painted
+exterior for `native`, neutral grey/natural isolation for `ai`, and exact
+`#FF00FF` for `chroma`.
 
 ---
 

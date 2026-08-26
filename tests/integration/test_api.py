@@ -103,6 +103,7 @@ async def test_api_round_trips_chroma_and_conditionally_requires_fal(tmp_path: P
     app = create_app(
         StageGenConfig(
             out_dir=tmp_path,
+            openai_api_key="synthetic-openai",
             open_router_api_key="synthetic-openrouter",
             transparency_mode="chroma",
         ),
@@ -118,6 +119,14 @@ async def test_api_round_trips_chroma_and_conditionally_requires_fal(tmp_path: P
         assert chroma.status_code == 202
         assert chroma.json()["transparency_mode"] == "chroma"
         assert chroma.json()["tag"].endswith("-chroma")
+
+        native = await client.post(
+            "/v1/runs",
+            json={"input": {"prompt": "neutral asset"}, "transparency_mode": "native"},
+        )
+        assert native.status_code == 202
+        assert native.json()["transparency_mode"] == "native"
+        assert native.json()["tag"].endswith("-native")
 
         ai = await client.post(
             "/v1/runs",
@@ -139,7 +148,7 @@ async def test_api_rejects_invalid_mode_before_capability_checks(tmp_path: Path)
             json={"input": {"prompt": "neutral asset"}, "transparency_mode": "none"},
         )
     assert response.status_code == 400
-    assert response.json() == {"error": "transparency_mode must be ai or chroma"}
+    assert response.json() == {"error": "transparency_mode must be native, ai, or chroma"}
 
 
 @pytest.mark.asyncio

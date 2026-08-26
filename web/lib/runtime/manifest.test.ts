@@ -712,6 +712,11 @@ describe("parseScrollingManifestEnvelope", () => {
   });
 
   test("validates current core value shapes and run-bound world paths", () => {
+    expect(
+      parseScrollingManifestEnvelope(currentEnvelope({ transparency_mode: "native" }), TAG)
+        .transparency_mode,
+    ).toBe("native");
+
     for (const overrides of [
       { transparency_mode: "legacy" },
       { artifacts: ["../escape.json"] },

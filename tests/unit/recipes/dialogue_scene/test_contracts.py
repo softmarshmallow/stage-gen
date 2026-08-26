@@ -93,6 +93,15 @@ def test_request_is_strict_canonical_and_rejects_v1_or_camel_case() -> None:
         )
 
 
+def test_request_accepts_native_alpha_and_defaults_new_documents_to_native() -> None:
+    explicit = DialogueThemeRequest.model_validate(request_value(transparency_mode="native"))
+    assert explicit.transparency_mode == "native"
+
+    omitted = request_value()
+    del omitted["transparency_mode"]
+    assert DialogueThemeRequest.model_validate(omitted).transparency_mode == "native"
+
+
 def test_request_rejects_underage_duplicate_beats_and_unknown_expression() -> None:
     underage = request_value()
     appearance = underage["appearance"]

@@ -126,6 +126,23 @@ def test_validate_game_package_accepts_the_current_complete_closure(tmp_path: Pa
     }
 
 
+def test_validate_game_package_accepts_native_transparency_selection(tmp_path: Path) -> None:
+    root = _copy_game_package(tmp_path)
+    selector_path = root / "library" / "games" / "main.toml"
+    selector_path.write_text(
+        selector_path.read_text(encoding="utf-8").replace(
+            'transparency_mode = "ai"',
+            'transparency_mode = "native"',
+        ),
+        encoding="utf-8",
+    )
+
+    report = validate_game_package(root)
+
+    assert report["valid"] is True
+    assert report["transparency_mode"] == "native"
+
+
 def test_validate_game_package_rejects_a_previous_selector_schema(tmp_path: Path) -> None:
     root = _copy_game_package(tmp_path)
     selector_path = root / "library" / "games" / "main.toml"

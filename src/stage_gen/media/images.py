@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from array import array
 from dataclasses import asdict, dataclass
 from hashlib import sha256
@@ -38,6 +39,7 @@ MAGENTA_EDGE_MINIMUM_BLUE_GREEN_DELTA = 70
 MAGENTA_EDGE_MAXIMUM_RED_BLUE_DELTA = 255
 MAGENTA_EDGE_HIGH_ALPHA_THRESHOLD = 224
 MAGENTA_EDGE_DECONTAMINATION_VERSION = "rgba-magenta-transparency-boundary-v2"
+NATIVE_ALPHA_OPAQUE_THRESHOLD = 250
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +154,90 @@ def normalize_png(
         transform={
             "fit": "fill",
             "kernel": "lanczos3",
+            "format": "png",
+            "compression_level": 9,
+        },
+        tool={"name": "Pillow", "version": pillow_version},
+    )
+    return output, record
+
+
+def normalize_png_cover(
+    data: bytes, *, width: int, height: int
+) -> tuple[bytes, ImageNormalizationRecord]:
+    """Resize a PNG without distortion, then center-crop it to the exact canvas.
+
+    RGBA inputs are resized in premultiplied-alpha space. That prevents colour from fully
+    transparent pixels bleeding into antialiased edges when a provider canvas must be adapted
+    to a narrower recipe-owned artifact contract.
+    """
+
+    _positive_dimension(width, "width")
+    _positive_dimension(height, "height")
+    source = inspect_image(data, expected_media_type="image/png")
+    decoded = _decode_image(data)
+    has_alpha = "A" in decoded.getbands() or "transparency" in decoded.info
+    if (source.width, source.height) == (width, height):
+        resized_width, resized_height = width, height
+        crop_box = (0, 0, width, height)
+        normalized = decoded.convert("RGBA" if has_alpha else "RGB")
+        operation = "png-reencode"
+    else:
+        scale = max(width / source.width, height / source.height)
+        resized_width = max(width, math.ceil(source.width * scale))
+        resized_height = max(height, math.ceil(source.height * scale))
+        resize_source = decoded.convert("RGBa" if has_alpha else "RGB")
+        resized = resize_source.resize(
+            (resized_width, resized_height),
+            resample=Image.Resampling.LANCZOS,
+        )
+        if has_alpha:
+            resized = resized.convert("RGBA")
+        left = (resized_width - width) // 2
+        top = (resized_height - height) // 2
+        crop_box = (left, top, left + width, top + height)
+        normalized = resized.crop(crop_box)
+        operation = "resize-cover"
+    promoted_to_opaque_pixels = 0
+    if has_alpha:
+        normalized = normalized.convert("RGBA")
+        alpha = normalized.getchannel("A")
+        promoted_to_opaque_pixels = sum(
+            NATIVE_ALPHA_OPAQUE_THRESHOLD <= value < 255 for value in alpha.tobytes()
+        )
+        alpha = alpha.point(lambda value: 255 if value >= NATIVE_ALPHA_OPAQUE_THRESHOLD else value)
+        normalized.putalpha(alpha)
+    output = _encode_png(normalized)
+    result = inspect_image(output, expected_media_type="image/png")
+    if (result.width, result.height) != (width, height):
+        raise ValueError(
+            f"normalization produced {result.width}x{result.height}, expected {width}x{height}"
+        )
+    record = ImageNormalizationRecord(
+        operation=operation,
+        source={
+            "width": source.width,
+            "height": source.height,
+            "bytes": len(data),
+            "sha256": sha256(data).hexdigest(),
+            "media_type": "image/png",
+        },
+        output={
+            "width": width,
+            "height": height,
+            "bytes": len(output),
+            "sha256": sha256(output).hexdigest(),
+            "media_type": "image/png",
+        },
+        transform={
+            "fit": "cover",
+            "kernel": "lanczos3",
+            "resized_width": resized_width,
+            "resized_height": resized_height,
+            "crop_box": list(crop_box),
+            "premultiplied_alpha": has_alpha,
+            "near_opaque_threshold": NATIVE_ALPHA_OPAQUE_THRESHOLD if has_alpha else None,
+            "promoted_to_opaque_pixels": promoted_to_opaque_pixels,
             "format": "png",
             "compression_level": 9,
         },

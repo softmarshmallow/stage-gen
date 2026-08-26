@@ -35,12 +35,13 @@ def _tag_vectors() -> list[TagVector]:
     return [cast("TagVector", vector) for vector in vectors]
 
 
-def test_config_defaults_and_conditional_fal_requirement() -> None:
+def test_config_defaults_to_native_and_conditionally_requires_fal() -> None:
     config = load_config(env={})
     assert config.out_dir == Path("out")
     assert config.image_model == "openai/gpt-image-2"
     assert config.music_model == "google/lyria-3-pro-preview"
-    assert config.transparency_mode == "ai"
+    assert config.transparency_mode == "native"
+    assert transparency_capabilities(TransparencyMode.NATIVE) == ("native-image-generation",)
     assert tuple(map(str, transparency_capabilities(TransparencyMode.AI))) == (
         "background-removal",
     )
@@ -54,7 +55,7 @@ def test_config_validation_never_includes_present_secret() -> None:
     with pytest.raises(ConfigError) as caught:
         assert_capabilities(config, ("background-removal",))
     assert "do-not-render" not in str(caught.value)
-    with pytest.raises(ValueError, match="must be ai or chroma"):
+    with pytest.raises(ValueError, match="must be native, ai, or chroma"):
         parse_transparency_mode("AI", "--transparency")
 
 

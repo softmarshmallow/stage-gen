@@ -161,15 +161,15 @@ a track to a location.
 
 The authored contract and both offline commands above are provider-free. Generating the bound
 scrolling run is a separate live operation that requires explicit task intent, local
-`OPENROUTER_API_KEY` configuration, and the current configured music model. The shown
-`--transparency ai` run also requires `FAL_KEY` for background removal. The repository default
+`OPENROUTER_API_KEY` and `OPENAI_API_KEY` configuration, and the current configured music model.
+The shown `--transparency native` run obtains alpha directly from the image model. The repository default
 music model is `google/lyria-3-pro-preview`; re-check the current provider contract before
 changing it. After that authorization and setup, the bound example is run with:
 
 ```sh
 uv run stage-gen generate \
   --input examples/scrolling-preview/game-directed-village.toml \
-  --game-library-root . --transparency ai
+  --game-library-root . --transparency native
 ```
 
 That command runs the complete scrolling recipe, including its image and text calls; it is not

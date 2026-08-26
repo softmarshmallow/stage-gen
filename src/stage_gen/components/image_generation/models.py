@@ -16,12 +16,14 @@ from stage_gen.reliability.cancellation import CancellationToken
 from .style import CanonicalStyleAnchor, ImageAssetKind
 
 ImageQuality = Literal["auto", "low", "medium", "high"]
-ImageBackground = Literal["auto", "opaque"]
+ImageBackground = Literal["auto", "opaque", "transparent"]
+ImageOutputFormat = Literal["png", "jpeg", "webp"]
 ImageModeration = Literal["auto", "low"]
 ImageResolution = Literal["512", "1K", "2K", "4K"]
 
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
 _ASPECT_RE = re.compile(r"^[1-9]\d*:[1-9]\d*$")
+_SIZE_RE = re.compile(r"^[1-9]\d*x[1-9]\d*$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +46,7 @@ class ImageGenerationRequest:
     aspect_ratio: str | None = None
     quality: ImageQuality | None = None
     background: ImageBackground | None = None
+    output_format: ImageOutputFormat | None = None
     output_compression: int | None = None
     moderation: ImageModeration | None = None
     metadata: Mapping[str, object] = field(default_factory=dict)
@@ -54,6 +57,7 @@ class ImageGenerationRequest:
     style_anchor: CanonicalStyleAnchor | None = None
     asset_kind: ImageAssetKind | None = None
     resolution: ImageResolution | None = None
+    size: str | None = None
 
     def __post_init__(self) -> None:
         if not self.prompt.strip():
@@ -76,8 +80,14 @@ class ImageGenerationRequest:
             raise ValueError("resolution must be 512, 1K, 2K, or 4K")
         if self.quality not in {None, "auto", "low", "medium", "high"}:
             raise ValueError("quality must be auto, low, medium, or high")
-        if self.background not in {None, "auto", "opaque"}:
-            raise ValueError("background must be auto or opaque")
+        if self.background not in {None, "auto", "opaque", "transparent"}:
+            raise ValueError("background must be auto, opaque, or transparent")
+        if self.output_format not in {None, "png", "jpeg", "webp"}:
+            raise ValueError("output_format must be png, jpeg, or webp")
+        if self.background == "transparent" and self.output_format not in {None, "png", "webp"}:
+            raise ValueError("transparent background requires png or webp output")
+        if self.size not in {None, "auto"} and not _SIZE_RE.fullmatch(self.size or ""):
+            raise ValueError("size must be auto or WIDTHxHEIGHT with positive integer edges")
         if self.moderation not in {None, "auto", "low"}:
             raise ValueError("moderation must be auto or low")
         validate_optional_timeout(self.timeout_seconds)
@@ -92,12 +102,14 @@ class ProviderImage:
     data: bytes
     media_type: str
     response_metadata: ProviderResponseMetadata
+    applied_params: Mapping[str, object] | None = None
 
 
 class ImageGenerationBackend(Protocol):
     provider: str
     model: str
     secrets: tuple[str, ...]
+    supports_native_alpha: bool
 
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage: ...
 

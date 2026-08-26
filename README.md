@@ -48,12 +48,15 @@ keys. Do not overwrite an existing file:
 test -e .env || cp .env.example .env
 ```
 
-The CLI default is `--transparency ai`; it requires both `OPENROUTER_API_KEY`
-and `FAL_KEY`. A doctor run with blank keys intentionally reports an incomplete
-configuration and exits with status 2.
+The CLI default is `--transparency native`. GPT Image 2 creates alpha directly
+through the OpenAI Images API, avoiding a second model that can soften or
+misclassify sprite edges. Native image generation requires `OPENAI_API_KEY`;
+structured generation still requires `OPENROUTER_API_KEY`. A doctor run with
+blank keys intentionally reports an incomplete configuration and exits with
+status 2.
 
 ```sh
-uv run stage-gen doctor --transparency ai --json
+uv run stage-gen doctor --transparency native --json
 uv run stage-gen generate --recipe scrolling-preview \
   "original rain-dark stone ruins with pale moss"
 ```
@@ -82,11 +85,11 @@ fixtures to the same run. When `village` is absent, the current run omits its vi
 artifacts, and manifest block. Presence means inclusion in the same current contract, not a
 different or older manifest version.
 
-Use `--transparency chroma` for the explicit degraded local-keying path.
-`FAL_KEY` is not required for an explicit `--transparency chroma` run, although
-OpenRouter remains required for image and structured generation. Standalone
-background removal always requires `FAL_KEY`, independent of the recipe's
-transparency setting:
+Use `--transparency ai` when the selected image route cannot emit alpha; that
+compatibility path generates opaque art and uses FAL BiRefNet for removal. Use
+`--transparency chroma` for the explicit degraded local-keying path. `FAL_KEY`
+is required only for `ai` and standalone removal. The fallback modes remain
+explicit and never replace a failed native request automatically:
 
 ```sh
 uv run stage-gen remove-background \
@@ -188,7 +191,7 @@ From `web/`, the shortest generation and installation commands are:
 ```sh
 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency ai
+  --character-library-root .. --transparency native
 bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
 ```
 
@@ -207,10 +210,10 @@ uv run stage-gen character-profile digest \
   --character-library-root .
 uv run stage-gen generate --recipe scrolling-preview \
   --input examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root . --transparency ai
+  --character-library-root . --transparency native
 uv run stage-gen generate --recipe dialogue-scene \
   --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency ai
+  --character-library-root . --transparency native
 ```
 
 Installed CLI users must provide their own workspace root containing
@@ -263,7 +266,7 @@ uv run stage-gen soundtrack digest \
   --game-library-root .
 uv run stage-gen generate --recipe scrolling-preview \
   --input examples/scrolling-preview/game-directed-village.toml \
-  --game-library-root . --transparency ai
+  --game-library-root . --transparency native
 ```
 
 The root may also come from `STAGE_GEN_GAME_LIBRARY_ROOT`. Every authored word
@@ -357,13 +360,16 @@ progress, and confined artifacts—not provider credentials.
 ## Configuration and providers
 
 `.env.example` is the configuration reference. The Python application imports
-only `OPENROUTER_API_KEY` and `FAL_KEY` from a root `.env`; existing process
+only the allowlisted provider keys from a root `.env`; existing process
 environment values take precedence. Endpoints, model overrides, output paths,
 timeouts, force mode, transparency mode, and the optional web executable are
 read from the process environment.
 
-- OpenRouter backs image, structured, and experimental music generation.
-- FAL backs the default recipe `ai` transparency mode and the standalone
+- The direct OpenAI Images route backs the default `native` mode and returns
+  provider-generated alpha.
+- OpenRouter backs structured generation, experimental music generation, and
+  image generation for the explicit compatibility modes.
+- FAL backs the explicit recipe `ai` compatibility mode and the standalone
   `remove-background` capability.
 - `chroma` is an explicit degraded local-keying fallback, never an automatic
   replacement for failed AI removal.

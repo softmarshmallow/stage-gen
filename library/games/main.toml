@@ -4,5 +4,5 @@ game_id = "whimsical-storybook-fantasy"
 recipe = "scrolling-preview"
 request_ref = "examples/scrolling-preview/game-directed-village.toml"
 request_sha256 = "932797dcedf6707da1d566c770bc08809c953306c9677f545d5bac96d3c42ee6"
-transparency_mode = "ai"
+transparency_mode = "native"
 required_features = ["game", "soundtrack", "map_book", "village"]

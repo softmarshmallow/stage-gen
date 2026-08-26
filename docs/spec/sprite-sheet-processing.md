@@ -80,11 +80,12 @@ padding; any alpha value greater than `0` is content. A future threshold or
 alternate predicate must be explicit, versioned, and included in cache
 identity. It must never be inferred from colours.
 
-Background derivation happens before this operation. In an `ai` run, validated
-background removal produces canonical alpha. In an explicit degraded `chroma`
-run, deterministic keying produces the same canonical alpha boundary. The
-sheet processor never searches for magenta, chooses a transparency strategy,
-or silently changes strategies.
+Background handling happens before this operation. In a `native` run, decoded
+provider alpha is validated directly. In an `ai` run, validated background
+removal produces canonical alpha. In an explicit degraded `chroma` run,
+deterministic keying produces the same canonical alpha boundary. The sheet
+processor never searches for magenta, chooses a transparency strategy, or
+silently changes strategies.
 
 ## Grid resolution
 

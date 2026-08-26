@@ -141,8 +141,8 @@ class RecipeRunSummary(PersistedContractModel):
         invalid_fields = sorted(key for key in value if _LOWER_SNAKE_FIELD.fullmatch(key) is None)
         if invalid_fields:
             raise ValueError("input fields must use lower_snake_case: " + ", ".join(invalid_fields))
-        if value.get("transparency_mode") not in {"ai", "chroma"}:
-            raise ValueError("input.transparency_mode must be ai or chroma")
+        if value.get("transparency_mode") not in {"native", "ai", "chroma"}:
+            raise ValueError("input.transparency_mode must be native, ai, or chroma")
         return value
 
     @field_validator("failed_stage")

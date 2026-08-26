@@ -19,7 +19,6 @@ import { tagFor } from "./tag";
 import { parseRecipeRunSummary } from "./run-summary";
 import {
   DEFAULT_TRANSPARENCY_MODE,
-  modeForAiBackgroundRemoval,
   parseWebRunInput,
   previewPolicyForRunMode,
   transparencyModeFromRunSummary,
@@ -77,12 +76,15 @@ afterEach(async () => {
 });
 
 describe("web run boundary", () => {
-  test("API input defaults to AI and validates an explicit strategy", () => {
-    expect(DEFAULT_TRANSPARENCY_MODE).toBe("ai");
+  test("API input defaults to native alpha and validates explicit strategies", () => {
+    expect(DEFAULT_TRANSPARENCY_MODE).toBe("native");
     expect(parseWebRunInput({ prompt: "  neutral request  " })).toEqual({
       prompt: "neutral request",
-      transparencyMode: "ai",
+      transparencyMode: "native",
     });
+    expect(
+      parseWebRunInput({ prompt: "neutral request", transparency_mode: "ai" }),
+    ).toEqual({ prompt: "neutral request", transparencyMode: "ai" });
     expect(
       parseWebRunInput({ prompt: "neutral request", transparency_mode: "chroma" }),
     ).toEqual({ prompt: "neutral request", transparencyMode: "chroma" });
@@ -96,22 +98,19 @@ describe("web run boundary", () => {
     ).toThrow("request body.unknown is not a supported key");
     expect(() =>
       parseWebRunInput({ prompt: "neutral request", transparency_mode: "unsupported" }),
-    ).toThrow("transparency_mode must be ai or chroma");
+    ).toThrow("transparency_mode must be native, ai, or chroma");
     expect(() =>
       parseWebRunInput({ prompt: "neutral request", transparencyMode: "ai" }),
     ).toThrow("request body.transparencyMode is not a supported key");
     expect(() => parseWebRunInput({ prompt: " " })).toThrow("prompt is required");
   });
 
-  test("the picker control maps on to AI and off to the degraded fallback", () => {
-    expect(modeForAiBackgroundRemoval(true)).toBe("ai");
-    expect(modeForAiBackgroundRemoval(false)).toBe("chroma");
-  });
-
   test("mode is part of the run tag and public CLI arguments", () => {
     const prompt = "neutral request";
+    const nativeTag = tagFor(prompt, "native");
     const aiTag = tagFor(prompt, "ai");
     const chromaTag = tagFor(prompt, "chroma");
+    expect(nativeTag).toEndWith("-native");
     expect(aiTag).toEndWith("-ai");
     expect(chromaTag).toEndWith("-chroma");
     expect(aiTag).not.toBe(chromaTag);
@@ -170,10 +169,11 @@ describe("web run boundary", () => {
     const missingMode = successfulRunSummary("neutral", "chroma");
     missingMode["input"] = { prompt: "neutral" };
     expect(transparencyModeFromRunSummary(current)).toBe("chroma");
+    expect(previewPolicyForRunMode("native")).toBe("canonical-alpha");
     expect(previewPolicyForRunMode("ai")).toBe("canonical-alpha");
     expect(previewPolicyForRunMode("chroma")).toBe("canonical-alpha");
     expect(() => transparencyModeFromRunSummary(missingMode)).toThrow(
-      "run_summary.input.transparency_mode must be ai or chroma",
+      "run_summary.input.transparency_mode must be native, ai, or chroma",
     );
     expect(() => previewPolicyForRunMode(null)).toThrow(
       "current preview requires a transparency mode",
@@ -186,7 +186,7 @@ describe("web run boundary", () => {
         ...successfulRunSummary("neutral", "chroma"),
         input: { prompt: "neutral", transparency_mode: "unknown" },
       }),
-    ).toThrow("run_summary.input.transparency_mode must be ai or chroma");
+    ).toThrow("run_summary.input.transparency_mode must be native, ai, or chroma");
   });
 
   test("accepts generated tags and rejects traversal or encoded separators", () => {
@@ -422,7 +422,7 @@ describe("web run boundary", () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: "run_summary.input.transparency_mode must be ai or chroma",
+      reason: "run_summary.input.transparency_mode must be native, ai, or chroma",
     });
     expect(starts).toHaveLength(0);
     expect(existsSync(target)).toBe(true);

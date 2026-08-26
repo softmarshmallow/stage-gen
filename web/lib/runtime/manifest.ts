@@ -1008,8 +1008,14 @@ function validateScrollingManifestCore(
     }
   }
 
-  if (value["transparency_mode"] !== "ai" && value["transparency_mode"] !== "chroma") {
-    throw new Error("scrolling-preview manifest transparency_mode must be ai or chroma");
+  if (
+    value["transparency_mode"] !== "native" &&
+    value["transparency_mode"] !== "ai" &&
+    value["transparency_mode"] !== "chroma"
+  ) {
+    throw new Error(
+      "scrolling-preview manifest transparency_mode must be native, ai, or chroma",
+    );
   }
 
   const artifacts = value["artifacts"];

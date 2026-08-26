@@ -43,7 +43,12 @@ from stage_gen.recipes.dialogue_scene.models import (
     SceneData,
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
-from stage_gen.recipes.dialogue_scene.prompts import PROFILE_TEMPLATE_DIGEST, TEMPLATE_DIGEST
+from stage_gen.recipes.dialogue_scene.prompts import (
+    NATIVE_ALPHA_TEMPLATE_DIGEST,
+    PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST,
+    PROFILE_TEMPLATE_DIGEST,
+    TEMPLATE_DIGEST,
+)
 from stage_gen.reliability import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
@@ -83,7 +88,11 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
             "reference_sha256": _reference_digests(request),
             "policy_sha256": POLICY_DIGEST,
             "profile": "romance-core-v2",
-            "template_sha256": TEMPLATE_DIGEST,
+            "template_sha256": (
+                NATIVE_ALPHA_TEMPLATE_DIGEST
+                if request.transparency_mode == "native"
+                else TEMPLATE_DIGEST
+            ),
             "transparency_mode": request.transparency_mode,
             "normalization": "pillow-dialogue-v2",
             **style_binding,
@@ -263,7 +272,11 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
             "character_profile_sha256": profile_sha256,
             "policy_sha256": POLICY_DIGEST,
             "profile": "romance-core-v2",
-            "template_sha256": PROFILE_TEMPLATE_DIGEST,
+            "template_sha256": (
+                PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST
+                if request.transparency_mode == "native"
+                else PROFILE_TEMPLATE_DIGEST
+            ),
             "transparency_mode": request.transparency_mode,
             "normalization": "pillow-dialogue-v2",
             **style_binding,

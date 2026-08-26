@@ -249,7 +249,7 @@ async def write_scrolling_preview_manifest(
     *,
     run_dir: str | Path,
     tag: str,
-    transparency_mode: TransparencyMode = TransparencyMode.AI,
+    transparency_mode: TransparencyMode = TransparencyMode.NATIVE,
     fallback_music_path: str | Path | None = None,
     character_profile: bool = False,
     village: bool = False,
@@ -2147,9 +2147,13 @@ def _generated_derivation_kind(processor: str, canonical: str) -> str:
         return _PER_CELL_GENERATION_VERSION
     if _ISOLATED_VIEW_FALLBACK_VERSION in normalized:
         return _ISOLATED_VIEW_FALLBACK_VERSION
+    if "native-alpha" in normalized and "tileset-topology-mask" in normalized:
+        return "native-alpha+tileset-topology-mask"
     if "tileset-topology-mask" in normalized:
         return "tileset-topology-mask"
     if "grid-cell-normalization" in normalized:
+        if "native-alpha" in normalized:
+            return "native-alpha+grid-cell-normalization"
         if "chroma" in normalized:
             return "chroma-key+grid-cell-normalization"
         if "background-removal" in normalized:
@@ -2159,6 +2163,8 @@ def _generated_derivation_kind(processor: str, canonical: str) -> str:
         return "chroma-key"
     if "background-removal" in normalized:
         return "ai-background-removal"
+    if "native-alpha" in normalized:
+        return "native-alpha"
     raise ValueError(f"unknown generated transparency processor for {canonical}")
 
 

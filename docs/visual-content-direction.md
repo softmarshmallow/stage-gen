@@ -112,7 +112,7 @@ Run the recipe through its supported interface:
 
 ```sh
 uv run stage-gen generate --recipe scrolling-preview \
-  --input ./content-direction.toml --transparency ai
+  --input ./content-direction.toml --transparency native
 ```
 
 The CLI parses files ending in `.toml` as TOML and other input files as JSON.

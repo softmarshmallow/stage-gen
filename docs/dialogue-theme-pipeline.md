@@ -5,10 +5,10 @@ installation:
 
 ```sh
 cd web
-bun run stage-gen -- doctor --transparency ai --json
+bun run stage-gen -- doctor --transparency native --json
 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency ai
+  --transparency native
 bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
 bun run dialogue-theme -- status
 ```
@@ -83,7 +83,7 @@ From the repository root, the complete repository profile-enabled request is:
 ```sh
 uv run stage-gen generate --recipe dialogue-scene \
   --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency ai
+  --character-library-root . --transparency native
 ```
 
 From `web/`, use the same public command through the stable forwarding script:
@@ -91,7 +91,7 @@ From `web/`, use the same public command through the stable forwarding script:
 ```sh
 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency ai
+  --character-library-root .. --transparency native
 ```
 
 Before any image call, the resumable `style-selection` stage sends the request
@@ -163,7 +163,7 @@ stage cache entry; unset it for normal resume behavior:
 cd web
 STAGE_GEN_FORCE=1 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency ai
+  --transparency native
 ```
 
 For a bounded retry, repeat `--force-stage` with exact stage IDs. The generic
@@ -176,7 +176,7 @@ dependency digests, so byte-identical unaffected artifacts remain reusable:
 cd web
 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency ai \
+  --transparency native \
   --force-stage appearance-concept
 ```
 
@@ -219,10 +219,11 @@ prior state.
 
 ## Transparency and reusable references
 
-`--transparency ai` requires `OPENROUTER_API_KEY` and `FAL_KEY`.
-`--transparency chroma` is an explicit degraded keying mode and still requires
-OpenRouter; it is never an automatic fallback from failed AI removal. The CLI
-rejects a command-line transparency mode that conflicts with the request.
+`--transparency native` requires `OPENAI_API_KEY` for images and
+`OPENROUTER_API_KEY` for structured generation. Explicit `ai` also requires
+`FAL_KEY`; `chroma` is the degraded local-keying mode. Neither is an automatic
+fallback from failed native alpha. The CLI rejects a command-line transparency
+mode that conflicts with the request.
 
 The tracked sample is the strict `dialogue-theme-request-v2` wire contract: all
 JSON/TOML keys are lower_snake_case, and v1 or camelCase input is rejected. It

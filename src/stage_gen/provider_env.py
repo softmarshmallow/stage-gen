@@ -7,11 +7,15 @@ import re
 from pathlib import Path
 from typing import Literal, cast
 
-ProviderEnvKey = Literal["OPENROUTER_API_KEY", "FAL_KEY"]
-PROVIDER_ENV_KEYS: tuple[ProviderEnvKey, ...] = ("OPENROUTER_API_KEY", "FAL_KEY")
+ProviderEnvKey = Literal["OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY"]
+PROVIDER_ENV_KEYS: tuple[ProviderEnvKey, ...] = (
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "FAL_KEY",
+)
 
 _ASSIGNMENT = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
-_ALLOWLIST_MENTION = re.compile(r"^\s*(?:export\s+)?(OPENROUTER_API_KEY|FAL_KEY)\b")
+_ALLOWLIST_MENTION = re.compile(r"^\s*(?:export\s+)?(OPENAI_API_KEY|OPENROUTER_API_KEY|FAL_KEY)\b")
 
 
 def parse_provider_env(

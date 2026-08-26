@@ -1,6 +1,6 @@
 // POST /api/run — kick off (or attach to) a pipeline run for one prompt.
 //
-// Body: { prompt: string, transparency_mode?: "ai" | "chroma" }
+// Body: { prompt: string, transparency_mode?: "native" | "ai" | "chroma" }
 // Response (200):
 //   { tag: string, status: "started" | "running" | "cached", transparency_mode: string }
 //

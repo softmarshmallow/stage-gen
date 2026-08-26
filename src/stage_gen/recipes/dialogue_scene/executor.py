@@ -7,8 +7,11 @@ import base64
 import os
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass, field
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Protocol
+
+from PIL import Image
 
 from stage_gen.components import (
     BackgroundMaskArtifact,
@@ -45,10 +48,13 @@ from stage_gen.image_prompting import (
 from stage_gen.media import (
     CHROMA_MATTE_VERSION,
     MAGENTA_EDGE_DECONTAMINATION_VERSION,
+    NATIVE_ALPHA_OPAQUE_THRESHOLD,
     apply_chroma_transparency,
     compose_source_with_alpha,
     decontaminate_magenta_edges,
     inspect_image,
+    normalize_png,
+    normalize_png_cover,
 )
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene.cache import DialogueStageCache
@@ -80,6 +86,8 @@ from stage_gen.recipes.dialogue_scene.policy import (
     assert_dialogue_policy,
 )
 from stage_gen.recipes.dialogue_scene.prompts import (
+    NATIVE_ALPHA_TEMPLATE_DIGEST,
+    PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST,
     PROFILE_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
     background_prompt,
@@ -181,6 +189,12 @@ class DialogueSceneExecutor:
             "policy": POLICY_DIGEST,
             "templates": _template_digest(request),
         }
+        if stage_name in {"appearance-concept", "background", "neutral", "expressions"}:
+            image_provider = getattr(self._services.images, "provider", None)
+            image_model = getattr(self._services.images, "model", None)
+            if isinstance(image_provider, str) and isinstance(image_model, str):
+                cache_inputs["image_provider"] = image_provider
+                cache_inputs["image_model"] = image_model
         if isinstance(request, DialogueThemeRequestV3):
             resolved = _resolve_dialogue_profile(context, request.character_profile)
             cache_inputs["character_profile_source_sha256"] = content_sha256(resolved.source_bytes)
@@ -199,9 +213,10 @@ class DialogueSceneExecutor:
                 resources=self._style_resources,
             )
         if stage_name == "canonicalize":
-            cache_inputs["magenta_edge_decontamination_version"] = (
-                MAGENTA_EDGE_DECONTAMINATION_VERSION
-            )
+            if request.transparency_mode != "native":
+                cache_inputs["magenta_edge_decontamination_version"] = (
+                    MAGENTA_EDGE_DECONTAMINATION_VERSION
+                )
             if request.transparency_mode == "chroma":
                 cache_inputs["chroma_matte_version"] = CHROMA_MATTE_VERSION
         key = cache.key(
@@ -367,10 +382,20 @@ class DialogueSceneExecutor:
                     ],
                     prompt_templates=[
                         PromptTemplateBinding(
-                            id="profile-neutral-v1", sha256=PROFILE_TEMPLATE_DIGEST
+                            id=(
+                                "profile-native-neutral-v1"
+                                if request.transparency_mode == "native"
+                                else "profile-neutral-v1"
+                            ),
+                            sha256=_template_digest(request),
                         ),
                         PromptTemplateBinding(
-                            id="profile-expression-edit-v1", sha256=PROFILE_TEMPLATE_DIGEST
+                            id=(
+                                "profile-native-expression-edit-v1"
+                                if request.transparency_mode == "native"
+                                else "profile-expression-edit-v1"
+                            ),
+                            sha256=_template_digest(request),
                         ),
                     ],
                 )
@@ -403,8 +428,22 @@ class DialogueSceneExecutor:
                     for state in EXPRESSION_STATES
                 ],
                 prompt_templates=[
-                    PromptTemplateBinding(id="neutral-v5", sha256=TEMPLATE_DIGEST),
-                    PromptTemplateBinding(id="expression-edit-v5", sha256=TEMPLATE_DIGEST),
+                    PromptTemplateBinding(
+                        id=(
+                            "native-neutral-v1"
+                            if request.transparency_mode == "native"
+                            else "neutral-v5"
+                        ),
+                        sha256=_template_digest(request),
+                    ),
+                    PromptTemplateBinding(
+                        id=(
+                            "native-expression-edit-v1"
+                            if request.transparency_mode == "native"
+                            else "expression-edit-v5"
+                        ),
+                        sha256=_template_digest(request),
+                    ),
                 ],
             )
 
@@ -465,10 +504,45 @@ class DialogueSceneExecutor:
         if isinstance(request.background, ReuseSource):
             return await self._copy_ingested(context, "refs/background", output, "background reuse")
         prompt = background_prompt(request, plan)
-        result = await self._image_call(
-            context, "background", "background", prompt, output, (), alpha=False
+        provider_output = (
+            "raw/background-provider.png" if request.transparency_mode == "native" else output
         )
-        return (output, _relative(context, result.provenance_path), "attempts.json")
+        result = await self._image_call(
+            context, "background", "background", prompt, provider_output, (), alpha=False
+        )
+        if request.transparency_mode != "native":
+            return (output, _relative(context, result.provenance_path), "attempts.json")
+
+        normalized, record = normalize_png(result.data, width=1672, height=941)
+        provenance = await _write_local_bytes(
+            context,
+            output,
+            normalized,
+            "image/png",
+            "Normalize the provider-native opaque dialogue background to the runtime canvas.",
+            refs=[provider_output],
+            inputs=[
+                InputProvenance(
+                    ref=provider_output,
+                    sha256=content_sha256(result.data),
+                    source="content",
+                    bytes=len(result.data),
+                    media_type="image/png",
+                )
+            ],
+            params={
+                "normalization": asdict(record),
+                "source_provenance_path": _relative(context, result.provenance_path),
+            },
+            attempts=result.attempts,
+        )
+        return (
+            provider_output,
+            _relative(context, result.provenance_path),
+            output,
+            provenance,
+            "attempts.json",
+        )
 
     async def _neutral(self, context: StageContext) -> tuple[str, ...]:
         request, plan = _request(context), _plan(context)
@@ -480,7 +554,7 @@ class DialogueSceneExecutor:
             neutral_prompt(request, plan),
             "raw/expression-neutral.png",
             ((concept, "assets/concept.png"),),
-            alpha=False,
+            alpha=request.transparency_mode == "native",
         )
         return (
             "raw/expression-neutral.png",
@@ -489,7 +563,7 @@ class DialogueSceneExecutor:
         )
 
     async def _expressions(self, context: StageContext) -> tuple[str, ...]:
-        plan = _plan(context)
+        request, plan = _request(context), _plan(context)
         neutral = _read(context, "raw/expression-neutral.png")
         artifacts: list[str] = []
         for state in EXPRESSION_STATES[1:]:
@@ -498,10 +572,10 @@ class DialogueSceneExecutor:
                 context,
                 "expressions",
                 state,
-                expression_prompt(state, plan),
+                expression_prompt(state, plan, transparency_mode=request.transparency_mode),
                 output,
                 ((neutral, "raw/expression-neutral.png"),),
-                alpha=False,
+                alpha=request.transparency_mode == "native",
             )
             artifacts.extend((output, _relative(context, result.provenance_path)))
         artifacts.append("attempts.json")
@@ -518,6 +592,17 @@ class DialogueSceneExecutor:
                 data, facts = apply_chroma_transparency(source)
                 attempts = 1
                 derivation = {"mode": "chroma", **asdict(facts)}
+            elif request.transparency_mode == "native":
+                transparent_pixels, nontransparent_pixels = _native_alpha_counts(source)
+                data, normalization = normalize_png_cover(source, width=1024, height=1536)
+                attempts = 1
+                derivation = {
+                    "mode": "native",
+                    "source_sha256": content_sha256(source),
+                    "transparent_pixels": transparent_pixels,
+                    "nontransparent_pixels": nontransparent_pixels,
+                    "alpha_canonicalization": asdict(normalization),
+                }
             else:
                 if self._services.background is None:
                     raise ValueError("ai transparency requires an injected background service")
@@ -578,11 +663,12 @@ class DialogueSceneExecutor:
                     **asdict(facts),
                 }
                 artifacts.extend((removed_relative, _relative(context, result.provenance_path)))
-            data, edge_facts = decontaminate_magenta_edges(data)
-            derivation["edge_decontamination"] = {
-                "version": MAGENTA_EDGE_DECONTAMINATION_VERSION,
-                **edge_facts.as_dict(),
-            }
+            if request.transparency_mode != "native":
+                data, edge_facts = decontaminate_magenta_edges(data)
+                derivation["edge_decontamination"] = {
+                    "version": MAGENTA_EDGE_DECONTAMINATION_VERSION,
+                    **edge_facts.as_dict(),
+                }
             provenance = await _write_local_bytes(
                 context,
                 output,
@@ -651,9 +737,17 @@ class DialogueSceneExecutor:
         image_references = tuple(_image_reference(data, path) for data, path in references)
         reference_bytes = [data for data, _path in references]
         width, height = (1672, 941) if role == "background" else (1024, 1536)
+        native = _request(context).transparency_mode == "native"
+        provider_width, provider_height = (
+            (1680, 944) if native and role == "background" else (width, height)
+        )
         chroma = (
             role not in {"concept", "background"}
             and _request(context).transparency_mode == "chroma"
+        )
+        native_alpha = (
+            role not in {"concept", "background"}
+            and _request(context).transparency_mode == "native"
         )
         style_anchor = _style_anchor(context)
         asset_kind: ImageAssetKind
@@ -672,13 +766,23 @@ class DialogueSceneExecutor:
                     input_references=image_references,
                     aspect_ratio="2:3" if role not in {"concept", "background"} else "auto",
                     quality="high",
-                    background="opaque",
+                    background="transparent" if native_alpha else "opaque",
+                    output_format="png" if native else None,
+                    size=f"{provider_width}x{provider_height}" if native else None,
                     metadata={
                         "recipe": _recipe_version(_request(context)),
                         "stage": stage,
                         "role": role,
                         "width": width,
                         "height": height,
+                        **(
+                            {
+                                "provider_width": provider_width,
+                                "provider_height": provider_height,
+                            }
+                            if native
+                            else {}
+                        ),
                         **(
                             _profile_provenance(context)
                             if isinstance(_request(context), DialogueThemeRequestV3)
@@ -689,8 +793,8 @@ class DialogueSceneExecutor:
                     cancellation=context.cancellation,
                     validate=_image_validator(
                         alpha=alpha,
-                        width=width,
-                        height=height,
+                        width=provider_width,
+                        height=provider_height,
                         chroma=chroma,
                         recipe_contract=_recipe_version(_request(context)),
                     ),
@@ -822,7 +926,13 @@ def _style_selection_brief(context: StageContext, request: DialogueRequest) -> s
 
 def _template_digest(request: DialogueRequest) -> str:
     return (
-        PROFILE_TEMPLATE_DIGEST if isinstance(request, DialogueThemeRequestV3) else TEMPLATE_DIGEST
+        PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST
+        if isinstance(request, DialogueThemeRequestV3) and request.transparency_mode == "native"
+        else PROFILE_TEMPLATE_DIGEST
+        if isinstance(request, DialogueThemeRequestV3)
+        else NATIVE_ALPHA_TEMPLATE_DIGEST
+        if request.transparency_mode == "native"
+        else TEMPLATE_DIGEST
     )
 
 
@@ -943,8 +1053,10 @@ def _image_validator(
                 f"dialogue image dimensions must be {width}x{height}; "
                 f"received {facts.width}x{facts.height}"
             )
-        if alpha and not facts.has_alpha:
-            raise ValueError("dialogue image requires alpha")
+        transparent_pixels: int | None = None
+        nontransparent_pixels: int | None = None
+        if alpha:
+            transparent_pixels, nontransparent_pixels = _native_alpha_counts(artifact.data)
         validation: dict[str, object] = {
             "width": facts.width,
             "height": facts.height,
@@ -955,9 +1067,33 @@ def _image_validator(
             _output, chroma_facts = apply_chroma_transparency(artifact.data)
             validation["chroma_transparent_pixels"] = chroma_facts.transparent_pixels
             validation["chroma_nontransparent_pixels"] = chroma_facts.nontransparent_pixels
+        if transparent_pixels is not None and nontransparent_pixels is not None:
+            validation["transparent_pixels"] = transparent_pixels
+            validation["nontransparent_pixels"] = nontransparent_pixels
         return validation
 
     return validate
+
+
+def _native_alpha_counts(data: bytes) -> tuple[int, int]:
+    facts = inspect_image(data, expected_media_type="image/png")
+    if not facts.has_alpha:
+        raise ValueError("dialogue image requires native alpha")
+    with Image.open(BytesIO(data)) as opened:
+        alpha = opened.convert("RGBA").getchannel("A").tobytes()
+    transparent_pixels = sum(value < 255 for value in alpha)
+    nontransparent_pixels = sum(value > 0 for value in alpha)
+    if (
+        transparent_pixels == 0
+        or nontransparent_pixels == 0
+        or min(alpha) != 0
+        or max(alpha) < NATIVE_ALPHA_OPAQUE_THRESHOLD
+    ):
+        raise ValueError(
+            "dialogue native alpha must contain fully transparent and substantially opaque "
+            "visible pixels"
+        )
+    return transparent_pixels, nontransparent_pixels
 
 
 def _background_validator(

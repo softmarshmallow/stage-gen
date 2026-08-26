@@ -127,9 +127,10 @@ The deterministic boundary pipeline is implemented in
 The recoverable/hard-fail split is already the healing system. It needs no vision model.
 
 `ScrollingPreviewExecutor._derive_transparency` executes these contracts on generated assets.
-The `chroma` branch applies `apply_chroma_transparency`; the `ai` branch composes the source with
-the background-removal alpha. Grid and per-cell normalization then validate and canonicalize the
-result before the artifact is accepted. This is active code, not an unexercised later wave.
+The `native` branch validates provider alpha directly, the `chroma` branch applies
+`apply_chroma_transparency`, and the `ai` branch composes the source with background-removal
+alpha. Grid and per-cell normalization then validate and canonicalize the result before the
+artifact is accepted. This is active code, not an unexercised later wave.
 
 ### Anchor policy
 
@@ -170,8 +171,8 @@ parameter rejection.
 
 For scrolling-preview artifacts, the executor records `matte_version` in the canonical
 transparency provenance and cache validation requires the same current value. The run-level
-`transparency_mode` selects `ai` or `chroma` for transparent assets; an `ai` failure does not
-switch to `chroma`. Choosing between those modes by individual asset role is not implemented and
+`transparency_mode` selects `native`, `ai`, or `chroma` for transparent assets; failures do not
+switch strategies. Choosing between those modes by individual asset role is not implemented and
 remains a possible future policy, not a current contract.
 
 ## Semantic review

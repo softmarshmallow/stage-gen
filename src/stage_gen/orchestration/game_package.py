@@ -86,7 +86,7 @@ class GamePackageSelector(PersistedContractModel):
     recipe: Literal["scrolling-preview"]
     request_ref: str
     request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    transparency_mode: Literal["ai", "chroma"]
+    transparency_mode: Literal["native", "ai", "chroma"]
     required_features: list[GamePackageFeature] = Field(min_length=1)
 
     @field_validator("request_ref")

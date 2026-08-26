@@ -30,6 +30,7 @@ from stage_gen.components.structured_generation import ProviderStructuredOutput
 from stage_gen.config import StageGenConfig
 from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.image_prompting import load_image_style_resources
+from stage_gen.media import inspect_image
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene import executor as executor_module
 from stage_gen.recipes.dialogue_scene.executor import (
@@ -73,10 +74,17 @@ def _removed_png() -> bytes:
     return output.getvalue()
 
 
+def _uniform_partial_alpha_png() -> bytes:
+    output = BytesIO()
+    Image.new("RGBA", (1024, 1536), (20, 30, 80, 128)).save(output, format="PNG")
+    return output.getvalue()
+
+
 class SequencedImageBackend:
     provider = "fake"
     model = "fake-image"
     secrets: tuple[str, ...] = ()
+    supports_native_alpha = True
 
     def __init__(self, outputs: list[bytes]) -> None:
         self.outputs = outputs
@@ -145,8 +153,12 @@ class FakeImages:
         data = (
             _sized_png(1024, 1536)
             if role == "concept" and self.vary_forced_concept and self.concept_calls > 1
+            else _removed_png()
+            if request.background == "transparent"
             else _png()
             if role != "background"
+            else _sized_png(1680, 944)
+            if request.size == "1680x944"
             else _sized_png(1672, 941)
         )
         if request.validate is not None:
@@ -726,6 +738,91 @@ async def test_ai_removal_contract_retries_before_persistence_and_selection(
     ]
     assert [entry["outcome"] for entry in selected] == ["rejected", "selected"]
     assert selected[-1]["artifact_sha256"] != content_sha256(invalid)
+
+
+@pytest.mark.asyncio
+async def test_native_expressions_request_alpha_and_skip_background_removal(
+    tmp_path: Path,
+) -> None:
+    request = request_value(transparency_mode="native")
+    images = FakeImages()
+    structured = FakeStructured(request)
+    executor = DialogueSceneExecutor(
+        DialogueExecutorContext(structured=structured, images=images, background=None)
+    )
+    context = _context(tmp_path, request)
+
+    for stage in (
+        "prepare",
+        "style-selection",
+        "appearance-concept",
+        "scene-plan",
+        "background",
+        "neutral",
+        "expressions",
+        "canonicalize",
+    ):
+        await executor.run_stage(stage, context)
+
+    sprite_requests = [
+        image_request
+        for image_request in images.requests
+        if image_request.metadata.get("role") not in {"concept", "background"}
+    ]
+    assert len(sprite_requests) == 4
+    assert all(image_request.background == "transparent" for image_request in sprite_requests)
+    assert all(image_request.output_format == "png" for image_request in sprite_requests)
+    assert all(image_request.size == "1024x1536" for image_request in sprite_requests)
+    assert all("#ff00ff" not in image_request.prompt.lower() for image_request in sprite_requests)
+    concept_request = next(
+        image_request
+        for image_request in images.requests
+        if image_request.metadata.get("role") == "concept"
+    )
+    assert concept_request.size == "1024x1536"
+    assert concept_request.output_format == "png"
+    background_request = next(
+        image_request
+        for image_request in images.requests
+        if image_request.metadata.get("role") == "background"
+    )
+    assert background_request.size == "1680x944"
+    assert background_request.output_format == "png"
+    provider_background = inspect_image((tmp_path / "raw/background-provider.png").read_bytes())
+    assert (provider_background.width, provider_background.height) == (1680, 944)
+    canonical_background = inspect_image((tmp_path / "assets/background.png").read_bytes())
+    assert (canonical_background.width, canonical_background.height) == (1672, 941)
+    background_sidecar = json.loads(
+        (tmp_path / "assets/background.png.meta.json").read_text(encoding="utf-8")
+    )
+    assert background_sidecar["params"]["normalization"]["operation"] == "resize"
+    plan = json.loads((tmp_path / "plan.json").read_text(encoding="utf-8"))
+    assert [binding["id"] for binding in plan["prompt_templates"]] == [
+        "native-neutral-v1",
+        "native-expression-edit-v1",
+    ]
+    for state in ("neutral", "delighted", "flustered", "concerned"):
+        raw = tmp_path / f"raw/expression-{state}.png"
+        output = tmp_path / f"assets/expression-{state}.png"
+        assert raw.read_bytes() != output.read_bytes()
+        with Image.open(output) as canonical:
+            assert canonical.convert("RGBA").getchannel("A").getextrema() == (0, 255)
+        assert not (tmp_path / f"raw/expression-{state}.removed.png").exists()
+        sidecar = json.loads(
+            await asyncio.to_thread(Path(f"{output}.meta.json").read_text, encoding="utf-8")
+        )
+        derivation = sidecar["params"]["derivation"]
+        assert derivation["mode"] == "native"
+        assert derivation["transparent_pixels"] > 0
+        assert derivation["nontransparent_pixels"] > 0
+        assert derivation["alpha_canonicalization"]["operation"] == "png-reencode"
+        assert derivation["alpha_canonicalization"]["transform"]["near_opaque_threshold"] == 250
+        assert "edge_decontamination" not in derivation
+
+
+def test_native_alpha_rejects_a_uniform_partial_matte() -> None:
+    with pytest.raises(ValueError, match="fully transparent and substantially opaque visible"):
+        executor_module._native_alpha_counts(_uniform_partial_alpha_png())
 
 
 @pytest.mark.asyncio

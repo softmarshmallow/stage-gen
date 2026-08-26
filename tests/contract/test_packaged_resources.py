@@ -107,6 +107,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
     repository = Path(__file__).resolve().parents[2]
     distribution_directory = tmp_path / "distributions"
     environment = os.environ.copy()
+    environment.pop("OPENAI_API_KEY", None)
     environment.pop("OPENROUTER_API_KEY", None)
     environment.pop("FAL_KEY", None)
     subprocess.run(
@@ -162,10 +163,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         _assert_archive_hygiene(sdist_entries, resource_prefix="src/stage_gen/resources/")
         # A guard against accidental bloat - a stray directory swept into the sdist - and not
         # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
-        # the hardened Concept Studio core bring the clean source distribution to 322 files;
+        # the hardened Concept Studio core and direct native-alpha provider bring the clean
+        # source distribution to 337 files;
         # retain a small explicit margin.
         # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 335
+        assert len(sdist_entries) <= 345
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
@@ -176,6 +178,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         env_handle = sdist.extractfile(f"{root}/.env.example")
         assert env_handle is not None
         env_example = env_handle.read().decode("utf-8")
+        assert _env_value(env_example, "OPENAI_API_KEY") == ""
         assert _env_value(env_example, "OPENROUTER_API_KEY") == ""
         assert _env_value(env_example, "FAL_KEY") == ""
         sdist.extractall(extracted_sdist_parent, filter="data")

@@ -92,6 +92,7 @@ def test_image_request_requires_anchor_and_asset_kind_as_a_pair(tmp_path: Path) 
 class _RecordingBackend:
     provider = "test"
     model = "test-image"
+    supports_native_alpha = False
     secrets: tuple[str, ...] = ()
 
     def __init__(self) -> None:

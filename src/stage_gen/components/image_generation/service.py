@@ -75,6 +75,12 @@ class ImageGenerationService:
 
         return self._backend.model
 
+    @property
+    def supports_native_alpha(self) -> bool:
+        """Whether this exact backend can request provider-generated alpha."""
+
+        return bool(getattr(self._backend, "supports_native_alpha", False))
+
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         attempts = 0
         provider_request = request
@@ -135,18 +141,25 @@ class ImageGenerationService:
         if metadata.usage is not None:
             response["usage"] = metadata.usage
         params: dict[str, object] = {"n": 1, "validated": request.validate is not None}
-        if request.aspect_ratio is not None:
-            params["aspect_ratio"] = request.aspect_ratio
-        if request.resolution is not None:
-            params["resolution"] = request.resolution
-        if request.quality is not None:
-            params["quality"] = request.quality
-        if request.background is not None:
-            params["background"] = request.background
-        if request.output_compression is not None:
-            params["output_compression"] = request.output_compression
-        if request.moderation is not None:
-            params["moderation"] = request.moderation
+        if generated.applied_params is not None:
+            params.update(generated.applied_params)
+        else:
+            if request.aspect_ratio is not None:
+                params["aspect_ratio"] = request.aspect_ratio
+            if request.resolution is not None:
+                params["resolution"] = request.resolution
+            if request.quality is not None:
+                params["quality"] = request.quality
+            if request.background is not None:
+                params["background"] = request.background
+            if request.output_format is not None:
+                params["output_format"] = request.output_format
+            if request.output_compression is not None:
+                params["output_compression"] = request.output_compression
+            if request.size is not None:
+                params["size"] = request.size
+            if request.moderation is not None:
+                params["moderation"] = request.moderation
         if request.metadata:
             params["metadata"] = dict(request.metadata)
         if style_binding is not None:

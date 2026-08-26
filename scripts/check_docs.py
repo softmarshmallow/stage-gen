@@ -80,9 +80,9 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     for name in sorted(consumed_env_names):
         if name not in env_assignments:
             failures.append(f".env.example: missing Python/web config name {name}")
-    if env_assignments.get("TRANSPARENCY_MODE") != "ai":
-        failures.append(".env.example: TRANSPARENCY_MODE must document the ai default")
-    for secret_name in ("OPENROUTER_API_KEY", "FAL_KEY"):
+    if env_assignments.get("TRANSPARENCY_MODE") != "native":
+        failures.append(".env.example: TRANSPARENCY_MODE must document the native default")
+    for secret_name in ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY"):
         if env_assignments.get(secret_name, "") != "":
             failures.append(f".env.example: {secret_name} must remain blank")
 
@@ -239,8 +239,13 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     required_contracts = (
         (
             "README.md",
-            re.compile(r"default[^\n]*--transparency ai", re.IGNORECASE),
-            "AI CLI default",
+            re.compile(r"default[^\n]*--transparency native", re.IGNORECASE),
+            "native-alpha CLI default",
+        ),
+        (
+            "README.md",
+            re.compile(r"--transparency ai", re.IGNORECASE),
+            "explicit AI-removal compatibility mode",
         ),
         (
             "README.md",
@@ -249,8 +254,16 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ),
         (
             "README.md",
-            re.compile(r"FAL_KEY.{0,160}not\s+required", re.IGNORECASE | re.DOTALL),
+            re.compile(r"FAL_KEY.{0,160}required only for `ai`", re.IGNORECASE | re.DOTALL),
             "conditional FAL_KEY requirement",
+        ),
+        (
+            "docs/spec/agent-prompts.md",
+            re.compile(
+                r"`native` is the default.{0,240}transparent background",
+                re.IGNORECASE | re.DOTALL,
+            ),
+            "native-alpha prompt",
         ),
         (
             "docs/spec/agent-prompts.md",
@@ -279,12 +292,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ),
         (
             "web/app/Picker.tsx",
-            re.compile(r'''aria-label="AI background removal"'''),
-            "background removal control",
+            re.compile(r'''aria-label="Transparency strategy"'''),
+            "transparency strategy control",
         ),
         (
             "web/lib/shell/transparency.ts",
-            re.compile(r'''DEFAULT_TRANSPARENCY_MODE[^\n]*= "ai"'''),
+            re.compile(r'''DEFAULT_TRANSPARENCY_MODE[^\n]*= "native"'''),
             "web default",
         ),
     )

@@ -62,7 +62,7 @@ rejected.
     "framing_zoom": 70,
     "source_framing_zoom": 70
   },
-  "transparency_mode": "ai"
+  "transparency_mode": "native"
 }
 ```
 
@@ -70,7 +70,8 @@ Exactly one appearance and a required background are supported. Appearance age
 is `21..120`; the recipe owns the locked `neutral`, `delighted`, `flustered`,
 and `concerned` taxonomy. Dialogue contains `1..12` caller-authored beats and
 passes through unchanged. Every beat must select a locked expression state.
-`transparency_mode` is `ai` or the explicit degraded `chroma` path.
+`transparency_mode` is quality-first `native`, explicit compatibility `ai`, or
+the explicit degraded `chroma` path.
 
 Concept and background sources use `mode: "generate"` or `mode: "reuse"`.
 Reuse requires a portable reference, exact SHA-256, and explicit rights state;

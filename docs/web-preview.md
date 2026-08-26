@@ -36,22 +36,24 @@ rooted at `STAGE_GEN_OUT_DIR` (default `out/`) for both processes. The adapter
 consumes manifests, run summaries, SSE progress, and confined artifacts through
 server routes. Browser code never receives provider credentials.
 
-The Generate view exposes **AI background removal**, on by default. On maps to
-the headless `ai` transparency strategy; off explicitly requests the degraded
-`chroma` fallback. Launches and per-asset retries preserve that choice. The UI
-shows the selected strategy in run metadata instead of inferring it from the
-prompt or asset colour.
+The Generate view exposes a three-way transparency strategy selector. `native`
+is the default and asks GPT Image 2 to create alpha directly. `ai` is the
+explicit compatibility path that generates opaque art and then calls FAL
+background removal. `chroma` is the explicit degraded local-keying path.
+Launches and per-asset retries preserve that choice; failures do not silently
+change strategies.
 
-The exact current `recipe_run_v3` summary must declare `input.transparency_mode`. For both `ai`
-and `chroma`, the pipeline's canonical image artifacts are already transparent
-PNGs, so the preview loads their alpha normally and never performs runtime
-chroma keying. A missing or invalid strategy fails closed because the adapter
-cannot reproduce the run's generation policy.
+The exact current `recipe_run_v3` summary must declare
+`input.transparency_mode`. For `native`, `ai`, and `chroma`, the pipeline's
+canonical image artifacts are already transparent PNGs, so the preview loads
+their alpha normally and never performs runtime chroma keying. A missing or
+invalid strategy fails closed because the adapter cannot reproduce the run's
+generation policy.
 
 The HTTP start body is `{ prompt, transparency_mode }`, where
-`transparency_mode` is `"ai"` or `"chroma"` and omitted means `"ai"`. The web
-adapter treats the returned run tag as opaque; it does not assume equal prompts
-share a cache entry across strategies.
+`transparency_mode` is `"native"`, `"ai"`, or `"chroma"` and omitted means
+`"native"`. The web adapter treats the returned run tag as opaque; it does not
+assume equal prompts share a cache entry across strategies.
 
 Static third-party background music is not part of this adapter. Generated
 music is a headless component artifact and may be previewed only after its

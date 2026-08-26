@@ -57,10 +57,12 @@ from stage_gen.contracts import (
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.media import (
     CHROMA_MATTE_VERSION,
+    NATIVE_ALPHA_OPAQUE_THRESHOLD,
     apply_chroma_transparency,
     compose_source_with_alpha,
     inspect_image,
     normalize_png,
+    normalize_png_cover,
 )
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
@@ -1892,6 +1894,7 @@ class ScrollingPreviewExecutor:
         )
         grid_contract = _spec_grid_contract(spec)
         mode = context.config.transparency_mode if spec.transparent else None
+        uses_direct_openai = context.config.transparency_mode is TransparencyMode.NATIVE
         raw_path = _retained_raw_path(spec)
         if not force:
             image_provider = self._images.provider if spec.stage == "tileset" else ""
@@ -1923,6 +1926,8 @@ class ScrollingPreviewExecutor:
                     contract=grid_contract,
                     mode=mode,
                     theme_identity=compiled.identity if compiled is not None else None,
+                    image_provider=self._images.provider,
+                    image_model=self._images.model,
                 )
                 if resume_record is not None:
                     return await self._generate_per_cell_grid(
@@ -1938,7 +1943,15 @@ class ScrollingPreviewExecutor:
             raw_path,
             transparency_mode=mode,
             validator=lambda path, meta: (
-                _valid_raw_asset_cache(path, meta, spec=spec, contract=grid_contract)
+                _valid_raw_asset_cache(
+                    path,
+                    meta,
+                    spec=spec,
+                    contract=grid_contract,
+                    mode=mode,
+                    image_provider=self._images.provider,
+                    image_model=self._images.model,
+                )
                 and _optional_theme_identity_matches(
                     meta, compiled.identity if compiled is not None else None
                 )
@@ -2044,6 +2057,7 @@ class ScrollingPreviewExecutor:
                 artifact.data,
                 spec=spec,
                 contract=grid_contract,
+                mode=mode,
             )
 
         try:
@@ -2055,7 +2069,13 @@ class ScrollingPreviewExecutor:
                         input_references=references,
                         aspect_ratio=_provider_aspect_ratio(spec.width, spec.height),
                         quality="high",
-                        background="opaque",
+                        background=("transparent" if str(mode) == "native" else "opaque"),
+                        output_format="png" if uses_direct_openai else None,
+                        size=(
+                            _native_provider_size(spec.width, spec.height)
+                            if uses_direct_openai
+                            else None
+                        ),
                         moderation="low",
                         metadata=request_metadata,
                         timeout_seconds=context.config.capability_timeout_s,
@@ -2114,7 +2134,15 @@ class ScrollingPreviewExecutor:
             upstream = await _read_provenance(Path(generated.provenance_path))
             embedded_upstream = _embedded_provenance(upstream)
             _assert_temp_path_absent(embedded_upstream, provider_path)
-            normalized, record = normalize_png(generated.data, width=spec.width, height=spec.height)
+            # The direct GPT Image 2 route accepts exact flexible sizes. Apply the same
+            # aspect-preserving safety net to opaque and transparent results so a provider
+            # dimension mismatch can crop but can never stretch the art.
+            normalizer = normalize_png_cover if uses_direct_openai else normalize_png
+            normalized, record = normalizer(
+                generated.data,
+                width=spec.width,
+                height=spec.height,
+            )
             source_metadata = upstream.params.get("metadata")
             source_metadata = source_metadata if isinstance(source_metadata, dict) else {}
             source_hash = sha256_hex(generated.data)
@@ -2337,6 +2365,8 @@ class ScrollingPreviewExecutor:
             spec,
             contract=contract,
             mode=str(context.config.transparency_mode),
+            image_provider=self._images.provider,
+            image_model=self._images.model,
             sheet_error=sheet_error,
             components=component_records,
             raw=raw,
@@ -2558,7 +2588,12 @@ class ScrollingPreviewExecutor:
             raw_path = _retained_raw_path(cell_spec)
             raw = await asyncio.to_thread(raw_path.read_bytes)
             canonical = await asyncio.to_thread(cell_output.read_bytes)
-            _validate_per_cell_component_bytes(raw, canonical, cell_contract)
+            _validate_per_cell_component_bytes(
+                raw,
+                canonical,
+                cell_contract,
+                mode=context.config.transparency_mode,
+            )
             raw_record = await _read_provenance(Path(f"{raw_path}.meta.json"))
             canonical_record = await _read_provenance(Path(f"{cell_output}.meta.json"))
             component_records[cell.index] = _per_cell_component_record(
@@ -2656,6 +2691,8 @@ class ScrollingPreviewExecutor:
             plan=plan,
             contract=contract,
             mode=str(context.config.transparency_mode),
+            image_provider=self._images.provider,
+            image_model=self._images.model,
             sheet_failures=sheet_failures,
             sheet_exhaustion=sheet_exhaustion,
             components=records,
@@ -3284,7 +3321,28 @@ class ScrollingPreviewExecutor:
         embedded_removal: dict[str, Any] | None = None
         removal_mask_used = False
         geometry_validation: dict[str, object] = {}
-        if str(mode) == "chroma":
+        if str(mode) == "native":
+            _alpha_counts(raw)
+            output = raw
+            processor = "native-alpha"
+            if spec.isolated_view:
+                per_cell = _per_cell_contract_from_spec(spec)
+                if per_cell is None:
+                    geometry_validation.update(validate_isolated_view_alpha(output))
+                else:
+                    recovered = validate_recoverable_isolated_view_alpha(output)
+                    geometry_validation.update(recovered)
+                    geometry_validation.update(
+                        _validate_recoverable_per_cell_scale(
+                            recovered,
+                            per_cell,
+                            bbox_key="isolated_view_alpha_bbox",
+                            height=spec.height,
+                        )
+                    )
+            if grid_contract is not None:
+                output, geometry_validation = normalize_canonical_grid(output, grid_contract)
+        elif str(mode) == "chroma":
             output, _alpha = apply_chroma_transparency(raw)
             processor = "chroma-key"
             if spec.isolated_view:
@@ -3293,7 +3351,7 @@ class ScrollingPreviewExecutor:
                     geometry_validation.update(validate_isolated_view_alpha(output))
             if grid_contract is not None:
                 output, geometry_validation = normalize_canonical_grid(output, grid_contract)
-        else:
+        elif str(mode) == "ai":
             if self._background is None:
                 raise RuntimeError("ai transparency requires the background-removal component")
             provider_path = spec.output.parent / (
@@ -3390,6 +3448,8 @@ class ScrollingPreviewExecutor:
                 await asyncio.to_thread(provider_path.unlink, missing_ok=True)
                 await asyncio.to_thread(Path(f"{provider_path}.meta.json").unlink, missing_ok=True)
             processor = "ai-background-removal"
+        else:
+            raise ValueError(f"unsupported transparency mode: {mode}")
         per_cell_fit: dict[str, object] | None = None
         per_cell_cleanup: dict[str, object] | None = None
         isolated_view_fit: dict[str, object] | None = None
@@ -3411,7 +3471,10 @@ class ScrollingPreviewExecutor:
             processor = f"{processor}+{ISOLATED_ALPHA_CLEANUP_VERSION}"
             if per_cell_fit is not None:
                 processor = f"{processor}+{ISOLATED_SUBJECT_FIT_VERSION}"
-        if isolated_view_contract is not None and str(mode) == str(TransparencyMode.CHROMA):
+        if isolated_view_contract is not None and str(mode) in {
+            str(TransparencyMode.CHROMA),
+            "native",
+        }:
             (
                 output,
                 isolated_view_validation,
@@ -3424,7 +3487,9 @@ class ScrollingPreviewExecutor:
                 processor = f"{processor}+{ISOLATED_SUBJECT_FIT_VERSION}"
         if grid_contract is not None:
             processor = (
-                "tileset-topology-mask"
+                f"{processor}+tileset-topology-mask"
+                if str(mode) == "native" and grid_contract.topology == "tileset"
+                else "tileset-topology-mask"
                 if grid_contract.topology == "tileset"
                 else f"{processor}+grid-cell-normalization"
             )
@@ -4454,7 +4519,11 @@ def _data_url(data: bytes) -> str:
 
 
 def _validate_provider_asset(
-    data: bytes, *, spec: _ImageSpec, contract: GridContract | None
+    data: bytes,
+    *,
+    spec: _ImageSpec,
+    contract: GridContract | None,
+    mode: object | None = None,
 ) -> dict[str, object]:
     facts = inspect_image(data, expected_media_type="image/png")
     validation: dict[str, object] = {
@@ -4462,6 +4531,32 @@ def _validate_provider_asset(
         "source_width": facts.width,
         "source_height": facts.height,
     }
+    if str(mode) == "native":
+        transparent_pixels, nontransparent_pixels = _alpha_counts(data)
+        validation.update(
+            {
+                "native_alpha": True,
+                "transparent_pixels": transparent_pixels,
+                "nontransparent_pixels": nontransparent_pixels,
+            }
+        )
+        if spec.isolated_view:
+            per_cell = _per_cell_contract_from_spec(spec)
+            isolated = validate_recoverable_isolated_view_alpha(data)
+            validation.update(isolated)
+            if per_cell is not None:
+                validation.update(
+                    _validate_recoverable_per_cell_scale(
+                        isolated,
+                        per_cell,
+                        bbox_key="isolated_view_alpha_bbox",
+                        height=spec.height,
+                    )
+                )
+        elif contract is not None:
+            _normalized, grid_validation = normalize_canonical_grid(data, contract)
+            validation.update(grid_validation)
+        return validation
     if spec.isolated_view:
         per_cell = _per_cell_contract_from_spec(spec)
         isolated = validate_isolated_view_source(
@@ -4498,8 +4593,16 @@ def _valid_raw_asset_cache(
     *,
     spec: _ImageSpec,
     contract: GridContract | None,
+    mode: object | None = None,
+    image_provider: str | None = None,
+    image_model: str | None = None,
 ) -> bool:
-    if not _exact_image(path, spec.width, spec.height, alpha=False):
+    native = str(mode) == "native"
+    per_cell_fallback = _per_cell_record_from_raw_sidecar(sidecar)
+    isolated_fallback = _fallback_record_from_raw_sidecar(sidecar)
+    parent_fallback = per_cell_fallback or isolated_fallback
+    native_provider_output = native and parent_fallback is None
+    if not _exact_image(path, spec.width, spec.height, alpha=native_provider_output):
         return False
     if not _asset_metadata_matches(
         sidecar,
@@ -4508,6 +4611,15 @@ def _valid_raw_asset_cache(
         width=spec.width,
         height=spec.height,
     ):
+        return False
+    if parent_fallback is None:
+        if image_provider is not None and sidecar.get("provider") != image_provider:
+            return False
+        if image_model is not None and sidecar.get("model") != image_model:
+            return False
+    elif (
+        image_provider is not None and parent_fallback.get("image_provider") != image_provider
+    ) or (image_model is not None and parent_fallback.get("image_model") != image_model):
         return False
     # Reuse is only sound while the request that produced this artifact still stands. Sidecars
     # written before this record carry no digest and correctly fail closed.
@@ -4523,31 +4635,41 @@ def _valid_raw_asset_cache(
     if spec.isolated_view:
         try:
             per_cell = _per_cell_contract_from_spec(spec)
-            isolated = validate_isolated_view_source(
-                path.read_bytes(),
-                width=spec.width,
-                height=spec.height,
-                allow_recoverable_inset=per_cell is not None,
-            )
+            if native:
+                isolated = validate_recoverable_isolated_view_alpha(path.read_bytes())
+                bbox_key = "isolated_view_alpha_bbox"
+            else:
+                isolated = validate_isolated_view_source(
+                    path.read_bytes(),
+                    width=spec.width,
+                    height=spec.height,
+                    allow_recoverable_inset=per_cell is not None,
+                )
+                bbox_key = "isolated_view_bbox"
             if per_cell is not None:
                 _validate_recoverable_per_cell_scale(
                     isolated,
                     per_cell,
-                    bbox_key="isolated_view_bbox",
+                    bbox_key=bbox_key,
                     height=spec.height,
                 )
+            elif native:
+                validate_isolated_view_alpha(path.read_bytes())
         except (OSError, ValueError):
             return False
         return True
     if contract is None:
         return True
     try:
-        validate_generated_source(
-            path.read_bytes(),
-            width=spec.width,
-            height=spec.height,
-            contract=contract,
-        )
+        if native_provider_output:
+            normalize_canonical_grid(path.read_bytes(), contract)
+        else:
+            validate_generated_source(
+                path.read_bytes(),
+                width=spec.width,
+                height=spec.height,
+                contract=contract,
+            )
     except (OSError, ValueError):
         return False
     if _tileset_material_fallback_from_sidecar(sidecar) is not None:
@@ -4555,7 +4677,7 @@ def _valid_raw_asset_cache(
         # return this cache. Never downgrade a synthesis cache to the generic
         # raw -> transparency derivation path.
         return False
-    per_cell = _per_cell_record_from_raw_sidecar(sidecar)
+    per_cell = per_cell_fallback
     if per_cell is not None:
         recorded_theme = per_cell.get("theme_identity")
         return _valid_per_cell_fallback_cache(
@@ -4572,7 +4694,7 @@ def _valid_raw_asset_cache(
                 else None
             ),
         )
-    fallback = _fallback_record_from_raw_sidecar(sidecar)
+    fallback = isolated_fallback
     return fallback is None or _valid_isolated_view_fallback_cache(
         composite=spec.output,
         retained_raw=path,
@@ -5377,22 +5499,29 @@ def _validate_per_cell_component_bytes(
     raw: bytes,
     canonical: bytes,
     contract: Mapping[str, object],
+    *,
+    mode: object | None = None,
 ) -> None:
     raw_facts = inspect_image(raw, expected_media_type="image/png")
     alpha_facts = inspect_image(canonical, expected_media_type="image/png")
     if (raw_facts.width, raw_facts.height) != (alpha_facts.width, alpha_facts.height):
         raise ValueError("per-cell raw and canonical dimensions differ")
-    raw_validation = validate_isolated_view_source(
-        raw,
-        width=raw_facts.width,
-        height=raw_facts.height,
-        allow_recoverable_inset=True,
-    )
+    if str(mode) == "native":
+        raw_validation = validate_recoverable_isolated_view_alpha(raw)
+        raw_bbox_key = "isolated_view_alpha_bbox"
+    else:
+        raw_validation = validate_isolated_view_source(
+            raw,
+            width=raw_facts.width,
+            height=raw_facts.height,
+            allow_recoverable_inset=True,
+        )
+        raw_bbox_key = "isolated_view_bbox"
     alpha_validation = validate_isolated_view_alpha(canonical)
     _validate_recoverable_per_cell_scale(
         raw_validation,
         contract,
-        bbox_key="isolated_view_bbox",
+        bbox_key=raw_bbox_key,
         height=raw_facts.height,
     )
     _validate_per_cell_scale(
@@ -5710,10 +5839,17 @@ async def _build_tileset_material_plan(
         "image_generation": {
             "provider": image_provider,
             "model": image_model,
-            "aspect_ratio": "1:1",
+            **(
+                {
+                    "operation": "edit",
+                    "size": "1024x1024",
+                    "output_format": "png",
+                }
+                if str(context.config.transparency_mode) == "native"
+                else {"aspect_ratio": "1:1", "moderation": "low"}
+            ),
             "quality": "high",
             "background": "opaque",
-            "moderation": "low",
             "validated": True,
             "max_attempts": 6,
         },
@@ -5950,6 +6086,8 @@ def _isolated_view_fallback_record(
     *,
     contract: GridContract,
     mode: str,
+    image_provider: str,
+    image_model: str,
     sheet_error: RetryExhaustedError,
     components: Sequence[Mapping[str, object]],
     raw: bytes,
@@ -5959,6 +6097,8 @@ def _isolated_view_fallback_record(
         "version": _ISOLATED_VIEW_FALLBACK_VERSION,
         "parent_stage": spec.stage,
         "mode": mode,
+        "image_provider": image_provider,
+        "image_model": image_model,
         "contract": contract.as_dict(spec.width, spec.height),
         "prompt_reference_contract": (
             (spec.metadata or {}).get("turnaround_prompt_reference_contract")
@@ -6075,6 +6215,8 @@ def _per_cell_fallback_record(
     plan: _PerCellAdapterPlan,
     contract: GridContract,
     mode: str,
+    image_provider: str,
+    image_model: str,
     sheet_failures: Sequence[Mapping[str, object]],
     sheet_exhaustion: Mapping[str, object],
     components: Sequence[Mapping[str, object]],
@@ -6101,6 +6243,8 @@ def _per_cell_fallback_record(
         "adapter": plan.adapter,
         "parent_stage": spec.stage,
         "mode": mode,
+        "image_provider": image_provider,
+        "image_model": image_model,
         "contract": contract.as_dict(spec.width, spec.height),
         "parent_contract": plan.parent_contract,
         "parent_prompt_sha256": sha256_hex(spec.prompt.encode()),
@@ -6395,14 +6539,18 @@ def _valid_tileset_material_component_provenance(
             return False
         style_input = (style_ref, cast(str, style_digest), cast(int, style_bytes))
     prompt_digest = component_contract.get("prompt_sha256")
-    request_params = {
-        "n": 1,
-        "validated": True,
-        "aspect_ratio": generation.get("aspect_ratio"),
-        "quality": generation.get("quality"),
-        "background": generation.get("background"),
-        "moderation": generation.get("moderation"),
-    }
+    request_params: dict[str, object] = {"n": 1, "validated": True}
+    for key in (
+        "operation",
+        "aspect_ratio",
+        "size",
+        "output_format",
+        "quality",
+        "background",
+        "moderation",
+    ):
+        if key in generation:
+            request_params[key] = generation[key]
     raw_metadata = raw_record.params.get("metadata")
     upstream_value = raw_record.params.get("upstream_provenance")
     if isinstance(upstream_value, Mapping):
@@ -6629,7 +6777,14 @@ def _image_png_bytes(image: Image.Image) -> bytes:
 def _prompt_for_transparency(prompt: str, mode: object | None) -> str:
     if mode is None:
         return prompt.strip()
-    if str(mode) == "chroma":
+    if str(mode) == "native":
+        fragment = (
+            "Render only the requested foreground on a fully transparent canvas using native "
+            "alpha with clean, naturally antialiased edges. Keep every exterior pixel transparent. "
+            "No backdrop, scenery, ground plane, baseline, cast or contact shadow, matte colour, "
+            "checkerboard, text, border, or panel."
+        )
+    elif str(mode) == "chroma":
         fragment = (
             "Render all exterior background pixels as exact solid #FF00FF, without shadows "
             "or subject-coloured magenta spill. The key is a degraded fallback."
@@ -6640,6 +6795,35 @@ def _prompt_for_transparency(prompt: str, mode: object | None) -> str:
             "background suitable for a dedicated background-removal pass."
         )
     return f"{prompt.strip()}\n\n{fragment}"
+
+
+def _native_provider_size(width: int, height: int) -> str:
+    """Return a valid GPT Image 2 canvas while preserving the target ratio when possible."""
+
+    minimum_pixels = 655_360
+    maximum_pixels = 8_294_400
+    maximum_edge = 3_840
+    if width <= 0 or height <= 0:
+        raise ValueError("native image target dimensions must be positive")
+    requested_width, requested_height = width, height
+    if width > height * 3:
+        height = math.ceil(width / 3)
+    elif height > width * 3:
+        width = math.ceil(height / 3)
+    pixels = width * height
+    if pixels < minimum_pixels:
+        scale = math.sqrt(minimum_pixels / pixels)
+        width = math.ceil(width * scale)
+        height = math.ceil(height * scale)
+    width = math.ceil(width / 16) * 16
+    height = math.ceil(height / 16) * 16
+    if width > maximum_edge or height > maximum_edge or width * height > maximum_pixels:
+        raise ValueError(
+            f"native image target {requested_width}x{requested_height} exceeds GPT Image 2 limits"
+        )
+    if max(width, height) > min(width, height) * 3:
+        raise ValueError("native image provider size must not exceed a 3:1 aspect ratio")
+    return f"{width}x{height}"
 
 
 def _effective_image_prompt(
@@ -7116,7 +7300,7 @@ def _valid_transparency_cache(
     )
     if (
         isinstance(isolated_view_contract, Mapping)
-        and str(mode) == str(TransparencyMode.CHROMA)
+        and str(mode) in {str(TransparencyMode.CHROMA), "native"}
         and not _valid_isolated_view_transparency_evidence(
             raw=raw,
             canonical=canonical,
@@ -7243,10 +7427,13 @@ def _valid_isolated_view_transparency_evidence(
     width: int,
     height: int,
 ) -> bool:
-    if str(mode) != str(TransparencyMode.CHROMA):
+    if str(mode) not in {str(TransparencyMode.CHROMA), "native"}:
         return False
     try:
-        validate_isolated_view_source(raw, width=width, height=height)
+        if str(mode) == "native":
+            validate_recoverable_isolated_view_alpha(raw)
+        else:
+            validate_isolated_view_source(raw, width=width, height=height)
         validate_isolated_view_alpha(canonical)
     except (OSError, ValueError):
         return False
@@ -7272,13 +7459,20 @@ def _valid_isolated_view_transparency_evidence(
     ):
         return False
     try:
-        normalization_input, _alpha = apply_chroma_transparency(raw)
+        if str(mode) == str(TransparencyMode.CHROMA):
+            normalization_input, _alpha = apply_chroma_transparency(raw)
+        else:
+            normalization_input = raw
         expected, expected_validation, expected_fit, expected_cleanup = (
             _normalize_isolated_fallback_alpha(normalization_input, contract)
         )
     except (OSError, ValueError):
         return False
-    expected_kind = f"chroma-key+{ISOLATED_ALPHA_CLEANUP_VERSION}"
+    expected_kind = (
+        f"native-alpha+{ISOLATED_ALPHA_CLEANUP_VERSION}"
+        if str(mode) == "native"
+        else f"chroma-key+{ISOLATED_ALPHA_CLEANUP_VERSION}"
+    )
     if expected_fit is not None:
         expected_kind = f"{expected_kind}+{ISOLATED_SUBJECT_FIT_VERSION}"
     return (
@@ -7310,16 +7504,21 @@ def _valid_per_cell_transparency_evidence(
     height: int,
 ) -> bool:
     try:
-        raw_validation = validate_isolated_view_source(
-            raw,
-            width=width,
-            height=height,
-            allow_recoverable_inset=True,
-        )
+        if str(mode) == "native":
+            raw_validation = validate_recoverable_isolated_view_alpha(raw)
+            raw_bbox_key = "isolated_view_alpha_bbox"
+        else:
+            raw_validation = validate_isolated_view_source(
+                raw,
+                width=width,
+                height=height,
+                allow_recoverable_inset=True,
+            )
+            raw_bbox_key = "isolated_view_bbox"
         _validate_recoverable_per_cell_scale(
             raw_validation,
             contract,
-            bbox_key="isolated_view_bbox",
+            bbox_key=raw_bbox_key,
             height=height,
         )
         canonical_validation = validate_isolated_view_alpha(canonical)
@@ -7351,8 +7550,11 @@ def _valid_per_cell_transparency_evidence(
         return False
 
     try:
-        if str(mode) == str(TransparencyMode.CHROMA):
-            normalization_input, _alpha = apply_chroma_transparency(raw)
+        if str(mode) in {str(TransparencyMode.CHROMA), "native"}:
+            if str(mode) == str(TransparencyMode.CHROMA):
+                normalization_input, _alpha = apply_chroma_transparency(raw)
+            else:
+                normalization_input = raw
             expected, expected_validation, expected_fit, expected_cleanup = (
                 _normalize_per_cell_alpha(normalization_input, contract)
             )
@@ -8537,6 +8739,8 @@ def _per_cell_resume_record(
     contract: GridContract | None,
     mode: object | None,
     theme_identity: Mapping[str, object] | None,
+    image_provider: str,
+    image_model: str,
 ) -> Mapping[str, object] | None:
     if contract is None or mode is None or not _eligible_per_cell_stage(spec):
         return None
@@ -8563,12 +8767,17 @@ def _per_cell_resume_record(
     ):
         return None
     fallback = _per_cell_record_from_raw_sidecar(sidecar_value)
-    if fallback is None or not _valid_per_cell_record_structure(
-        fallback,
-        spec=spec,
-        contract=contract,
-        mode=mode,
-        theme_identity=theme_identity,
+    if (
+        fallback is None
+        or fallback.get("image_provider") != image_provider
+        or fallback.get("image_model") != image_model
+        or not _valid_per_cell_record_structure(
+            fallback,
+            spec=spec,
+            contract=contract,
+            mode=mode,
+            theme_identity=theme_identity,
+        )
     ):
         return None
     if _valid_per_cell_fallback_cache(
@@ -8957,11 +9166,14 @@ def _valid_isolated_view_fallback_cache(
         ):
             return False
         try:
-            validate_isolated_view_source(
-                component_raw,
-                width=cell_width,
-                height=cell_height,
-            )
+            if str(mode) == "native":
+                validate_recoverable_isolated_view_alpha(component_raw)
+            else:
+                validate_isolated_view_source(
+                    component_raw,
+                    width=cell_width,
+                    height=cell_height,
+                )
             validate_isolated_view_alpha(component_canonical)
         except ValueError:
             return False
@@ -8991,7 +9203,7 @@ def _valid_isolated_view_fallback_cache(
             or not _valid_fallback_record_digest(view_contract)
         ):
             return False
-        if str(mode) == str(TransparencyMode.CHROMA) and not (
+        if str(mode) in {str(TransparencyMode.CHROMA), "native"} and not (
             _valid_isolated_view_transparency_evidence(
                 raw=component_raw,
                 canonical=component_canonical,
@@ -9082,15 +9294,23 @@ def _valid_cell_bbox(
 
 
 def _alpha_counts(data: bytes) -> tuple[int, int]:
+    facts = inspect_image(data, expected_media_type="image/png")
+    if not facts.has_alpha:
+        raise ValueError("image has no alpha channel")
     with Image.open(BytesIO(data)) as image:
         image.load()
-        if "A" not in image.convert("RGBA").getbands():
-            raise ValueError("image has no alpha channel")
         alpha = image.convert("RGBA").getchannel("A").tobytes()
     transparent_pixels = sum(value < 255 for value in alpha)
     nontransparent_pixels = sum(value > 0 for value in alpha)
-    if transparent_pixels == 0 or nontransparent_pixels == 0:
-        raise ValueError("image must contain transparent and nontransparent pixels")
+    if (
+        transparent_pixels == 0
+        or nontransparent_pixels == 0
+        or min(alpha) != 0
+        or max(alpha) < NATIVE_ALPHA_OPAQUE_THRESHOLD
+    ):
+        raise ValueError(
+            "image must contain fully transparent and substantially opaque visible pixels"
+        )
     return transparent_pixels, nontransparent_pixels
 
 

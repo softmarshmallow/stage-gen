@@ -3,7 +3,7 @@
 export const RECIPE_RUN_SCHEMA_VERSION = 3 as const;
 export const RECIPE_RUN_KIND = "recipe_run_v3" as const;
 
-export type RunTransparencyMode = "ai" | "chroma";
+export type RunTransparencyMode = "native" | "ai" | "chroma";
 
 export interface JsonObject {
   readonly [key: string]: JsonValue;
@@ -259,8 +259,8 @@ function runInput(value: unknown): RecipeRunSummary["input"] {
     }
   }
   const mode = root["transparency_mode"];
-  if (mode !== "ai" && mode !== "chroma") {
-    fail("run_summary.input.transparency_mode", "must be ai or chroma");
+  if (mode !== "native" && mode !== "ai" && mode !== "chroma") {
+    fail("run_summary.input.transparency_mode", "must be native, ai, or chroma");
   }
   return jsonValue(root, "run_summary.input") as RecipeRunSummary["input"];
 }

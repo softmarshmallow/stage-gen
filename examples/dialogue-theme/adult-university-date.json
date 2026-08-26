@@ -72,5 +72,5 @@
     "framing_zoom": 70,
     "source_framing_zoom": 70
   },
-  "transparency_mode": "ai"
+  "transparency_mode": "native"
 }

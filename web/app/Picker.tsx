@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   DEFAULT_TRANSPARENCY_MODE,
-  modeForAiBackgroundRemoval,
+  type TransparencyMode,
 } from "@/lib/shell/transparency";
 
 // Neutral, repository-authored prompts for the scrolling-preview recipe.
@@ -50,8 +50,8 @@ export default function Picker(_props: { presets: string[] }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiBackgroundRemoval, setAiBackgroundRemoval] = useState(
-    DEFAULT_TRANSPARENCY_MODE === "ai",
+  const [transparencyMode, setTransparencyMode] = useState<TransparencyMode>(
+    DEFAULT_TRANSPARENCY_MODE,
   );
 
   const trimmed = prompt.trim();
@@ -67,7 +67,7 @@ export default function Picker(_props: { presets: string[] }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           prompt: trimmed,
-          transparency_mode: modeForAiBackgroundRemoval(aiBackgroundRemoval),
+          transparency_mode: transparencyMode,
         }),
       });
       if (!res.ok) {
@@ -98,30 +98,24 @@ export default function Picker(_props: { presets: string[] }) {
         />
       </div>
 
-      <label
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 8,
-          marginBottom: 16,
-          color: "var(--fg)",
-          cursor: busy ? "default" : "pointer",
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={aiBackgroundRemoval}
+      <label style={{ display: "block", marginBottom: 16, color: "var(--fg)" }}>
+        <span style={{ display: "block", marginBottom: 4 }}>transparency strategy:</span>
+        <select
+          value={transparencyMode}
           disabled={busy}
-          onChange={(event) => setAiBackgroundRemoval(event.target.checked)}
-          aria-label="AI background removal"
-        />
-        <span>
-          <span>AI background removal: {aiBackgroundRemoval ? "on" : "off"}</span>
-          <span style={{ display: "block", color: "var(--dim)", marginTop: 2 }}>
-            {aiBackgroundRemoval
-              ? "default; requires server-side FAL_KEY and fails closed if removal is unavailable"
-              : "explicit degraded chroma fallback; no background-removal call"}
-          </span>
+          onChange={(event) => setTransparencyMode(event.target.value as TransparencyMode)}
+          aria-label="Transparency strategy"
+        >
+          <option value="native">Native alpha — best quality</option>
+          <option value="ai">AI background removal — compatibility fallback</option>
+          <option value="chroma">Chroma key — degraded local fallback</option>
+        </select>
+        <span style={{ display: "block", color: "var(--dim)", marginTop: 4 }}>
+          {transparencyMode === "native"
+            ? "default; the image model creates alpha directly, preserving edge detail"
+            : transparencyMode === "ai"
+              ? "generates opaque art, then uses server-side FAL background removal"
+              : "generates a keyed background and removes it locally"}
         </span>
       </label>
 

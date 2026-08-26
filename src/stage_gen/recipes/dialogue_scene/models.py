@@ -26,7 +26,7 @@ class PersistedContractModel(BaseModel):
 
 
 ExpressionState = Literal["neutral", "delighted", "flustered", "concerned"]
-TransparencyMode = Literal["ai", "chroma"]
+TransparencyMode = Literal["native", "ai", "chroma"]
 RightsStatus = Literal["unreviewed", "restricted", "redistribution-approved"]
 
 EXPRESSION_STATES: tuple[ExpressionState, ...] = (
@@ -110,7 +110,7 @@ class DialogueThemeRequest(PersistedContractModel):
     background: BackgroundSource
     dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
     presentation: PresentationRequest = Field(default_factory=PresentationRequest)
-    transparency_mode: TransparencyMode = "ai"
+    transparency_mode: TransparencyMode = "native"
 
     @model_validator(mode="after")
     def unique_beats_and_known_speaker(self) -> DialogueThemeRequest:
@@ -130,7 +130,7 @@ class DialogueThemeRequestV3(PersistedContractModel):
     background: BackgroundSource
     dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
     presentation: PresentationRequest = Field(default_factory=PresentationRequest)
-    transparency_mode: TransparencyMode = "ai"
+    transparency_mode: TransparencyMode = "native"
 
     @model_validator(mode="after")
     def unique_beats(self) -> DialogueThemeRequestV3:

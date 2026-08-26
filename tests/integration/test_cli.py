@@ -360,6 +360,7 @@ def test_profile_enabled_examples_route_without_provider_calls(
     expected_count: int,
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
+    monkeypatch.setenv("OPENAI_API_KEY", "offline")
     monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
     monkeypatch.setenv("FAL_KEY", "offline")
     monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
@@ -376,7 +377,7 @@ def test_profile_enabled_examples_route_without_provider_calls(
                 "--character-library-root",
                 str(repository),
                 "--transparency",
-                "ai",
+                "native",
             ],
             runtime=runtime,
             stdout=output,
@@ -457,6 +458,7 @@ def test_cli_input_accepts_json_and_toml_theme_documents(
 def test_dialogue_sample_routes_through_public_cli_with_force_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "offline")
     monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
     monkeypatch.setenv("FAL_KEY", "offline")
     monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
@@ -499,7 +501,7 @@ def test_dialogue_sample_routes_through_public_cli_with_force_env(
     assert "runDir" not in run_state
     assert "run_dir" in run_state
     assert "transparencyMode" not in run_state["input"]
-    assert run_state["input"]["transparency_mode"] == "ai"
+    assert run_state["input"]["transparency_mode"] == "native"
     assert "stages=9" in output.getvalue()
 
 
@@ -518,6 +520,7 @@ def test_generate_help_exposes_repeatable_force_stage(
 def test_dialogue_public_force_stage_forwards_validated_dag_plan(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "offline")
     monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
     monkeypatch.setenv("FAL_KEY", "offline")
     monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
@@ -632,10 +635,15 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    for name in ("OPENROUTER_API_KEY", "FAL_KEY", "_STAGE_GEN_DISABLE_DOTENV"):
+    for name in (
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "FAL_KEY",
+        "_STAGE_GEN_DISABLE_DOTENV",
+    ):
         monkeypatch.delenv(name, raising=False)
     (tmp_path / ".env").write_text(
-        "OPENROUTER_API_KEY=doctor-openrouter\nFAL_KEY=doctor-fal\n",
+        "OPENAI_API_KEY=doctor-openai\nOPENROUTER_API_KEY=doctor-openrouter\nFAL_KEY=doctor-fal\n",
         encoding="utf-8",
     )
     output = StringIO()
@@ -645,6 +653,7 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
     rendered = output.getvalue()
     report = json.loads(rendered)
     assert report["ok"] is True
-    assert report["capabilities"] == {"openrouter": True, "fal": True}
+    assert report["capabilities"] == {"openai": True, "openrouter": True, "fal": True}
+    assert "doctor-openai" not in rendered
     assert "doctor-openrouter" not in rendered
     assert "doctor-fal" not in rendered

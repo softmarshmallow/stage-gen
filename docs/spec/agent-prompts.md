@@ -21,9 +21,15 @@ studio, game, album, track, or recognizable creator style.
 
 ## Transparency prompt variants
 
-`ai` is the default. For sheets and isolated sprites, request a uniform neutral
-grey field with clear subject separation, hard readable silhouettes, no cast
-shadow crossing into the field, and no text or layout marks in the final art.
+`native` is the default. Request a transparent background and no painted
+backdrop, floor, exterior shadow, matte, or layout marks. Subjects may retain
+intentional soft edge coverage, hair, foliage, glow, and translucent material;
+decoded output must prove nontrivial alpha before it becomes canonical.
+
+`ai` is an explicit compatibility mode. For sheets and isolated sprites,
+request a uniform neutral grey field with clear subject separation, hard
+readable silhouettes, no cast shadow crossing into the field, and no text or
+layout marks in the final art.
 For a depth layer where a flat field would obscure the intended band, request a
 naturally isolated foreground region with clear separation from an uncluttered
 background. Never request magenta in this variant. The generated opaque image
@@ -40,9 +46,9 @@ variant. They remain full-bleed and unchanged.
 ## Layout references
 
 Layout references communicate geometry only: grid cells, top/bottom rails,
-feet baselines, slot rectangles, and reserved padding. Their removable field
-is adapted to the selected strategy before use. A reference must not force an
-`ai` run back to magenta.
+feet baselines, slot rectangles, and reserved padding. Their exterior is
+adapted to the selected strategy before use. A reference must not force a
+`native` run to paint a matte or an `ai` run back to magenta.
 
 The prompt tells the model to use rails and outlines as positional guides, not
 painted output. Every subject stays inside its cell and respects shared anchor
@@ -97,6 +103,6 @@ reference rails are not painted.
 Mode is part of the run identity and cache contract. A cached artifact is valid
 only when its prompt, mode, dimensions, hashes, and derivation metadata match.
 For transparency-producing assets, provenance records the selected mode,
-retained raw path/hash, canonical path/hash, derivation kind, component/tool,
-validation, attempts, and failure state. Opaque artifacts omit transparency
-derivation metadata.
+provider/raw path and hash, canonical path and hash, derivation kind,
+component/tool, alpha validation, attempts, and failure state. Opaque artifacts
+omit transparency derivation metadata.

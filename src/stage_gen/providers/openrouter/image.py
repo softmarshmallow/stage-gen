@@ -20,6 +20,7 @@ OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2"
 
 class OpenRouterImageBackend:
     provider = "openrouter"
+    supports_native_alpha = False
 
     def __init__(
         self,

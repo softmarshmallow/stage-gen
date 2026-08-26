@@ -3,6 +3,14 @@
   "algorithm": "ascii-slug-sha256-v1",
   "vectors": [
     {
+      "name": "empty-native",
+      "prompt": "",
+      "transparencyMode": "native",
+      "slug": "untitled",
+      "baseTag": "untitled-e3b0c442",
+      "tag": "untitled-e3b0c442-native"
+    },
+    {
       "name": "empty-ai",
       "prompt": "",
       "transparencyMode": "ai",

@@ -1,10 +1,29 @@
 # Image-model adapter contract
 
-Verified 2026-08-14. This page records the model-specific boundary used by the
-scrolling-preview recipe. The general component contract lives in
+Direct native alpha verified from official OpenAI documentation on 2026-08-25;
+the compatibility OpenRouter route was verified on 2026-08-14. This page
+records the model-specific boundary used by the scrolling-preview recipe. The
+general component contract lives in
 [../component-contract.md](../component-contract.md).
 
-## Route
+## Direct OpenAI route
+
+- Model: `gpt-image-2`.
+- Text-only endpoint: `POST https://api.openai.com/v1/images/generations`.
+- Reference-edit endpoint: multipart `POST https://api.openai.com/v1/images/edits`.
+- Credential: `OPENAI_API_KEY`.
+- Inputs: text and optional reference images.
+- Transparency-producing output: `background="transparent"`, PNG.
+
+This is the default `native` strategy. Success requires fully transparent
+exterior pixels and a visible interior whose maximum alpha is at least 250, not
+merely an alpha-capable container. Canonicalization promotes near-opaque values
+250–254 to 255. Provider request dimensions must obey OpenAI's current size
+constraints; deterministic recipe normalization still owns exact final
+geometry. GPT Image 2 automatically uses high fidelity for edit inputs, so this
+adapter does not send an `input_fidelity` field.
+
+## OpenRouter compatibility route
 
 - OpenRouter slug: `openai/gpt-image-2`.
 - Endpoint: `POST https://openrouter.ai/api/v1/images`.
@@ -51,14 +70,14 @@ The scrolling recipe has exact legacy canvas/grid contracts. These are output
 contracts, not proof that the provider accepts arbitrary pixel dimensions.
 Request a supported aspect ratio, inspect the returned canvas, then use an
 explicit deterministic normalization step where the recipe requires exact
-dimensions.
+dimensions. Native-alpha outputs use premultiplied-alpha, aspect-preserving
+cover/crop normalization; they are never stretched to an incompatible ratio.
 
-Transparent sprites default to an opaque neutral grey or naturally isolated
-background followed by the background-removal component. A layout prior may
-still communicate cell geometry, but its removable field must follow the
-selected recipe strategy. Exact `#FF00FF` is reserved for the explicit degraded
-`chroma` fallback. Provider transparency is not part of this model's verified
-contract. Opaque concept/backdrop assets bypass removal.
+Transparent sprites default to direct provider alpha. A layout prior may still
+communicate cell geometry while leaving the exterior transparent. Explicit
+`ai` uses an opaque neutral grey or naturally isolated background followed by
+the background-removal component. Exact `#FF00FF` is reserved for explicit
+degraded `chroma`. Opaque concepts and backdrops stay opaque in every mode.
 
 ## Retry and provenance
 

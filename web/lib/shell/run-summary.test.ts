@@ -144,13 +144,13 @@ describe("recipe run summary v3", () => {
     const missing = successfulRun();
     missing["input"] = { prompt: "moonlit ruins" };
     expect(() => parseRecipeRunSummary(missing)).toThrow(
-      "run_summary.input.transparency_mode must be ai or chroma",
+      "run_summary.input.transparency_mode must be native, ai, or chroma",
     );
 
     const invalid = successfulRun();
     invalid["input"] = { prompt: "moonlit ruins", transparency_mode: "legacy" };
     expect(() => parseRecipeRunSummary(invalid)).toThrow(
-      "run_summary.input.transparency_mode must be ai or chroma",
+      "run_summary.input.transparency_mode must be native, ai, or chroma",
     );
 
     const camelField = successfulRun();

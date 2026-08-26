@@ -31,7 +31,7 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     assert config.image_model == "new/image"
     assert config.text_model == "openai/gpt-5.6-sol"
     assert config.music_model == "google/lyria-3-pro-preview"
-    assert config.transparency_mode is TransparencyMode.AI
+    assert config.transparency_mode is TransparencyMode.NATIVE
     assert config.capability_timeout_s == 1.25
     assert config.character_library_root == Path("/workspace/characters")
     assert config.game_library_root == Path("/workspace/games")
@@ -49,11 +49,18 @@ def test_capability_errors_name_variables_but_not_present_values() -> None:
     assert "FAL_KEY" in str(captured.value)
     assert "secret-value" not in str(captured.value)
 
+    with pytest.raises(ConfigError, match="OPENAI_API_KEY"):
+        assert_capabilities(config, [CapabilityName.NATIVE_IMAGE_GENERATION])
+
 
 def test_transparency_validation_and_conditional_capability() -> None:
+    assert parse_transparency_mode("native") is TransparencyMode.NATIVE
     assert parse_transparency_mode("chroma") is TransparencyMode.CHROMA
-    with pytest.raises(ValueError, match="must be ai or chroma"):
+    with pytest.raises(ValueError, match="must be native, ai, or chroma"):
         parse_transparency_mode("AI")
+    assert transparency_capabilities(TransparencyMode.NATIVE) == (
+        CapabilityName.NATIVE_IMAGE_GENERATION,
+    )
     assert transparency_capabilities(TransparencyMode.AI) == (CapabilityName.BACKGROUND_REMOVAL,)
     assert transparency_capabilities(TransparencyMode.CHROMA) == ()
 
@@ -72,9 +79,15 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    for name in ("OPENROUTER_API_KEY", "FAL_KEY", "_STAGE_GEN_DISABLE_DOTENV"):
+    for name in (
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "FAL_KEY",
+        "_STAGE_GEN_DISABLE_DOTENV",
+    ):
         monkeypatch.delenv(name, raising=False)
     (tmp_path / ".env").write_text(
+        "OPENAI_API_KEY=file-openai\n"
         "OPENROUTER_API_KEY=file-openrouter\n"
         "FAL_KEY='file-fal'\n"
         "STAGE_GEN_IMAGE_MODEL=ignored/from-file\n"
@@ -84,9 +97,11 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
 
     config = load_config()
 
+    assert config.openai_api_key == "file-openai"
     assert config.open_router_api_key == "file-openrouter"
     assert config.fal_key == "file-fal"
     assert config.image_model == "openai/gpt-image-2"
+    assert "file-openai" not in repr(config)
     assert "file-openrouter" not in repr(config)
     assert "file-fal" not in repr(config)
     assert "ignored-value" not in repr(config)
@@ -97,17 +112,20 @@ def test_process_provider_environment_takes_precedence_over_cwd_dotenv(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("_STAGE_GEN_DISABLE_DOTENV", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "process-openai")
     monkeypatch.setenv("OPENROUTER_API_KEY", "process-openrouter")
     monkeypatch.delenv("FAL_KEY", raising=False)
     (tmp_path / ".env").write_text(
-        "OPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
+        "OPENAI_API_KEY=file-openai\nOPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
         encoding="utf-8",
     )
 
     config = load_config()
 
+    assert config.openai_api_key == "process-openai"
     assert config.open_router_api_key == "process-openrouter"
     assert config.fal_key == "file-fal"
+    assert "process-openai" not in repr(config)
     assert "process-openrouter" not in repr(config)
     assert "file-fal" not in repr(config)
 
@@ -116,16 +134,18 @@ def test_offline_gate_switch_prevents_cwd_dotenv_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("FAL_KEY", raising=False)
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     (tmp_path / ".env").write_text(
-        "OPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
+        "OPENAI_API_KEY=file-openai\nOPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
         encoding="utf-8",
     )
 
     config = load_config()
 
+    assert config.openai_api_key is None
     assert config.open_router_api_key is None
     assert config.fal_key is None
 
@@ -149,7 +169,12 @@ def test_config_rejects_unsafe_allowlisted_dotenv_entries(
     message: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    for name in ("OPENROUTER_API_KEY", "FAL_KEY", "_STAGE_GEN_DISABLE_DOTENV"):
+    for name in (
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "FAL_KEY",
+        "_STAGE_GEN_DISABLE_DOTENV",
+    ):
         monkeypatch.delenv(name, raising=False)
     (tmp_path / ".env").write_text(contents, encoding="utf-8")
 

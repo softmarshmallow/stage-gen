@@ -26,11 +26,12 @@ from stage_gen.components.music_generation import (
 )
 from stage_gen.components.music_generation.models import MusicOutputFormat
 from stage_gen.components.structured_generation import StructuredGenerationService
-from stage_gen.config import StageGenConfig
+from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.contracts import ArtifactRights, BinaryArtifact
 from stage_gen.media import inspect_image
 from stage_gen.providers import (
     FalBackgroundRemovalBackend,
+    OpenAIImageBackend,
     OpenRouterImageBackend,
     OpenRouterMusicBackend,
     OpenRouterStructuredBackend,
@@ -158,6 +159,21 @@ def create_image_service(
     )
 
 
+def create_openai_image_service(
+    *,
+    api_key: str,
+    model: str = "gpt-image-2",
+    base_url: str = "https://api.openai.com/v1",
+    retry_policy: RetryPolicy | None = None,
+) -> ImageGenerationService:
+    """Compose the direct OpenAI GPT Image backend behind the shared retry owner."""
+
+    return ImageGenerationService(
+        OpenAIImageBackend(api_key=api_key, model=model, base_url=base_url),
+        retry_policy=retry_policy,
+    )
+
+
 def create_structured_service(
     *,
     api_key: str,
@@ -210,15 +226,7 @@ class DefaultHeadlessRuntime:
     ) -> None:
         self._config = config
         openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
-        self._image = image_service or (
-            create_image_service(
-                api_key=config.open_router_api_key,
-                model=config.image_model,
-                base_url=openrouter_url,
-            )
-            if config.open_router_api_key
-            else None
-        )
+        self._image = image_service or _configured_image_service(config)
         self._music = music_service or (
             create_music_service(
                 api_key=config.open_router_api_key,
@@ -274,7 +282,11 @@ class DefaultHeadlessRuntime:
         aspect_ratio: str,
         reference_paths: Sequence[str],
     ) -> CapabilityArtifactResult:
-        service = self._image or _missing("OPENROUTER_API_KEY")
+        service = self._image or _missing(
+            "OPENAI_API_KEY"
+            if self._config.transparency_mode is TransparencyMode.NATIVE
+            else "OPENROUTER_API_KEY"
+        )
         references: list[ImageReference] = []
         for reference in reference_paths:
             path = await asyncio.to_thread(Path(reference).resolve)
@@ -305,6 +317,7 @@ class DefaultHeadlessRuntime:
                 input_references=tuple(references),
                 quality="high",
                 background="opaque",
+                output_format="png",
                 moderation="low",
                 timeout_seconds=self._config.capability_timeout_ms / 1000,
                 metadata={"source": "stage-gen-headless"},
@@ -495,9 +508,20 @@ def create_default_runtime(
     if api_key is None:
         raise RuntimeError("OPENROUTER_API_KEY is required to compose the generation runtime")
     openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
-    image_service = create_image_service(
-        api_key=api_key, model=config.image_model, base_url=openrouter_url
-    )
+    if config.transparency_mode is TransparencyMode.NATIVE:
+        if config.openai_api_key is None:
+            raise RuntimeError("OPENAI_API_KEY is required for native image generation")
+        image_service = create_openai_image_service(
+            api_key=config.openai_api_key,
+            model=config.openai_image_model,
+            base_url=config.openai_base_url or "https://api.openai.com/v1",
+        )
+        if not image_service.supports_native_alpha:
+            raise RuntimeError("configured OpenAI image model is not verified for native alpha")
+    else:
+        image_service = create_image_service(
+            api_key=api_key, model=config.image_model, base_url=openrouter_url
+        )
     structured_service = create_structured_service(
         api_key=api_key, model=config.text_model, base_url=openrouter_url
     )
@@ -532,6 +556,24 @@ def create_default_runtime(
         {recipe_id: recipe_executor},
         standalone_resource=standalone_runtime,
         resources=(structured_service,),
+    )
+
+
+def _configured_image_service(config: StageGenConfig) -> ImageGenerationService | None:
+    if config.transparency_mode is TransparencyMode.NATIVE:
+        if config.openai_api_key is None:
+            return None
+        return create_openai_image_service(
+            api_key=config.openai_api_key,
+            model=config.openai_image_model,
+            base_url=config.openai_base_url or "https://api.openai.com/v1",
+        )
+    if config.open_router_api_key is None:
+        return None
+    return create_image_service(
+        api_key=config.open_router_api_key,
+        model=config.image_model,
+        base_url=config.open_router_base_url or "https://openrouter.ai/api/v1",
     )
 
 

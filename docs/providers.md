@@ -1,17 +1,18 @@
 # Provider operations
 
-Image, background-removal, and music contracts were verified against primary
-provider documentation and live unauthenticated metadata on 2026-08-14. The
-structured GPT-5.6 route was exercised on 2026-08-20 as recorded in the
-Visual Content Direction case study. Hosted capabilities can drift; query
-discovery endpoints or repeat the smoke tests before widening an adapter
-contract.
+The direct GPT Image 2 transparency contract was verified against OpenAI's
+official image-generation guide on 2026-08-25. The OpenRouter image,
+background-removal, and music contracts were last verified on 2026-08-14, and
+the structured GPT-5.6 route was exercised on 2026-08-20. Hosted capabilities
+can drift; repeat the scoped smoke tests before widening an adapter contract.
 
 ## Configuration
 
 ```dotenv
+OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 FAL_KEY=
+STAGE_GEN_OPENAI_IMAGE_MODEL=gpt-image-2
 STAGE_GEN_IMAGE_MODEL=openai/gpt-image-2
 STAGE_GEN_MUSIC_MODEL=google/lyria-3-pro-preview
 STAGE_GEN_BACKGROUND_REMOVAL_MODEL=fal-ai/birefnet/v2
@@ -21,11 +22,12 @@ Credentials are server-side only. Do not expose them to the optional web
 client, persist them in provenance, print them in errors, or commit a populated
 env file.
 
-`OPENROUTER_API_KEY` is required by the scrolling recipe's image and structured
-generation. `FAL_KEY` is required only when `transparency_mode` is `ai`, which is
-the default. An explicit `chroma` run does not call fal. Missing or failed fal
-access never causes an automatic strategy change; the default path fails
-closed.
+The default `native` mode sends image calls directly to OpenAI and requires
+`OPENAI_API_KEY`. The scrolling recipe's structured calls still require
+`OPENROUTER_API_KEY`. The explicit compatibility modes send image calls through
+OpenRouter; `ai` additionally requires `FAL_KEY`, while `chroma` keys locally.
+Missing credentials or failed native alpha never cause an automatic strategy
+change.
 
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.
@@ -37,7 +39,40 @@ outputs for that slug, but this repository has not persisted a live contract
 probe for the migration. Hosted capabilities can drift, so keep the provider
 smoke test as a release gate for recipes that require structured generation.
 
-## Image generation through OpenRouter
+## Native-alpha image generation through OpenAI
+
+- Model: `gpt-image-2`.
+- Text-only endpoint: `POST https://api.openai.com/v1/images/generations`.
+- Reference-edit endpoint: `POST https://api.openai.com/v1/images/edits` with repeated
+  multipart `image[]` fields.
+- Credential: `OPENAI_API_KEY`.
+- Transparency request: `background: "transparent"`.
+- Output: PNG so alpha is preserved.
+
+Native alpha is the quality-first default for transparency-producing assets.
+The provider output must decode with fully transparent exterior pixels and a
+substantially opaque visible interior. A PNG container or RGBA colour mode alone
+is not enough. The observed GPT Image 2 output peaks at alpha 254, so the
+provider validator accepts a near-opaque maximum of at least 250 and the local
+canonicalizer deterministically promotes 250–254 to 255. Opaque concepts and
+designated opaque backdrops still request opaque output. GPT Image 2 applies high
+input fidelity automatically; the edits request deliberately omits the
+unsupported `input_fidelity` field.
+
+GPT Image 2 accepts flexible sizes within its documented pixel, alignment, and
+aspect-ratio bounds. Recipe target geometry remains a separate local contract:
+request one valid provider size, inspect the result, then normalize it with
+premultiplied-alpha, aspect-preserving cover/crop resampling to the exact sprite
+sheet or layer dimensions. The direct adapter serializes request starts at five
+per minute, matching the documented lowest usage tier and preventing a recipe
+wave from turning normal fan-out into a retry storm.
+
+Primary sources:
+
+- [OpenAI image generation guide](https://developers.openai.com/api/docs/guides/image-generation)
+- [GPT Image 2 model](https://developers.openai.com/api/docs/models/gpt-image-2)
+
+## Compatibility image generation through OpenRouter
 
 - Model slug: `openai/gpt-image-2`.
 - Image endpoint: `POST https://openrouter.ai/api/v1/images`.
@@ -58,16 +93,14 @@ can be identified. Decode, inspect, validate, and normalize the output before
 writing a successful artifact record.
 
 The scrolling-preview recipe historically asked the model for exact canvases.
-The provider adapter must now separate provider-supported aspect/quality
-requests from deterministic output normalization. Alpha cutouts belong to the
-background-removal component.
+The provider adapter must separate provider-supported aspect/quality requests
+from deterministic output normalization. This route is used only by explicit
+`ai` and `chroma` compatibility modes and does not provide native alpha under
+the repository's verified contract.
 
-For transparency-producing assets, the default prompt asks for a neutral grey
-or naturally isolated background. The raw opaque result is retained as
-lineage, background removal produces the canonical transparent PNG, and both
-hashes plus removal provenance are recorded. Fully opaque concept/backdrop
-assets bypass this step. Exact `#FF00FF` is reserved for the explicit degraded
-`chroma` fallback.
+For `ai`, the prompt asks for a neutral grey or naturally isolated background;
+the raw opaque result is retained and background removal produces canonical
+alpha. Exact `#FF00FF` is reserved for the explicit degraded `chroma` fallback.
 
 Primary sources:
 
@@ -83,8 +116,9 @@ Primary sources:
 - Authentication: `Authorization: Key $FAL_KEY`.
 - Recommended initial variant: `General Use (Light)`.
 
-This capability powers the scrolling recipe's default `ai` transparency
-strategy. It is not used by the explicit `chroma` fallback.
+This capability powers the scrolling recipe's explicit `ai` compatibility
+strategy and the standalone removal command. It is not used by `native` or
+`chroma`.
 
 Required input is `image_url`. The initial contract uses PNG output,
 foreground refinement, no separate mask, and `1024x1024` operating resolution.
@@ -108,13 +142,14 @@ uv run stage-gen remove-background --input ./input.png --output ./out/subject.pn
 Recipe selection is separate:
 
 ```sh
+uv run stage-gen generate --recipe scrolling-preview --transparency native "an original 2D asset set"
 uv run stage-gen generate --recipe scrolling-preview --transparency ai "an original 2D asset set"
 uv run stage-gen generate --recipe scrolling-preview --transparency chroma "an original 2D asset set"
 ```
 
-The first command requires `FAL_KEY`; the second is a degraded local-keying
-fallback and does not. Removal failures remain failures rather than silently
-changing the requested strategy.
+The first command requires direct OpenAI native alpha. The second requires
+OpenRouter plus `FAL_KEY`; the third is a degraded local-keying fallback.
+Failures remain failures rather than silently changing the requested strategy.
 
 Primary sources:
 

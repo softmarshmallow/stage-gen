@@ -39,6 +39,23 @@ PROFILE_TEMPLATE_DIGEST = canonical_sha256(
         "profile_precedence": "authored-identity-wardrobe-invariants-override",
     }
 )
+NATIVE_ALPHA_PROMPT_VERSION = 1
+NATIVE_ALPHA_TEMPLATE_DIGEST = canonical_sha256(
+    {
+        "version": NATIVE_ALPHA_PROMPT_VERSION,
+        "base_template_sha256": TEMPLATE_DIGEST,
+        "neutral_background": "native-transparent-alpha-no-shadow-v1",
+        "expression_background": "preserve-native-transparent-alpha-v1",
+    }
+)
+PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST = canonical_sha256(
+    {
+        "version": NATIVE_ALPHA_PROMPT_VERSION,
+        "base_template_sha256": PROFILE_TEMPLATE_DIGEST,
+        "neutral_background": "native-transparent-alpha-no-shadow-v1",
+        "expression_background": "preserve-native-transparent-alpha-v1",
+    }
+)
 
 
 def plan_prompt(
@@ -48,7 +65,13 @@ def plan_prompt(
 ) -> str:
     payload = request.model_dump_json(exclude_none=True)
     template_digest = (
-        PROFILE_TEMPLATE_DIGEST if isinstance(request, DialogueThemeRequestV3) else TEMPLATE_DIGEST
+        PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST
+        if isinstance(request, DialogueThemeRequestV3) and request.transparency_mode == "native"
+        else PROFILE_TEMPLATE_DIGEST
+        if isinstance(request, DialogueThemeRequestV3)
+        else NATIVE_ALPHA_TEMPLATE_DIGEST
+        if request.transparency_mode == "native"
+        else TEMPLATE_DIGEST
     )
     profile_line = ""
     if isinstance(request, DialogueThemeRequestV3):
@@ -132,21 +155,49 @@ def background_prompt(
 
 
 def neutral_prompt(request: DialogueRequest, plan: DialogueScenePlan | DialogueScenePlanV3) -> str:
+    template = (
+        "Create a full-body neutral sprite with native alpha."
+        if request.transparency_mode == "native"
+        else TEMPLATES["neutral"]
+    )
+    background_direction = (
+        "native transparent background with clean, naturally antialiased alpha edges; no "
+        "environment, backdrop, floor, cast shadow, or contact shadow."
+        if request.transparency_mode == "native"
+        else "perfectly flat #ff00ff background."
+    )
     return (
-        f"{TEMPLATES['neutral']} {_BASE}\n{plan.direction_for('neutral')}. "
+        f"{template} {_BASE}\n{plan.direction_for('neutral')}. "
         f"Required identity: {plan.shared_locks.identity}. Required wardrobe: "
         f"{plan.shared_locks.wardrobe}. Preserve those locks from the sole reference. "
         "Full body, isolated character with a clear silhouette and separable edges for a "
         "cutout-friendly composition; no environmental staging. Fixed pose and crop, "
-        "perfectly flat #ff00ff background."
+        f"{background_direction}"
     )
 
 
-def expression_prompt(state: ExpressionState, plan: DialogueScenePlan | DialogueScenePlanV3) -> str:
+def expression_prompt(
+    state: ExpressionState,
+    plan: DialogueScenePlan | DialogueScenePlanV3,
+    *,
+    transparency_mode: str = "ai",
+) -> str:
+    if transparency_mode != "native":
+        return (
+            f"{TEMPLATES['expression']} {_BASE}\nTarget expression: {state}. "
+            f"Direction: {plan.direction_for(state)}. Required identity: "
+            f"{plan.shared_locks.identity}. Required wardrobe: {plan.shared_locks.wardrobe}. "
+            "Preserve identity, hair, wardrobe, body, pose, crop, palette, rendering, and flat "
+            "#ff00ff background exactly."
+        )
+    background_direction = (
+        "Preserve the native transparent background and clean alpha edge exactly; do not add "
+        "an environment, backdrop, floor, cast shadow, or contact shadow."
+    )
     return (
         f"{TEMPLATES['expression']} {_BASE}\nTarget expression: {state}. "
         f"Direction: {plan.direction_for(state)}. Required identity: "
         f"{plan.shared_locks.identity}. Required wardrobe: {plan.shared_locks.wardrobe}. "
-        "Preserve identity, hair, wardrobe, body, pose, crop, palette, rendering, and flat "
-        "#ff00ff background exactly."
+        "Preserve identity, hair, wardrobe, body, pose, crop, palette, and rendering exactly. "
+        f"{background_direction}"
     )

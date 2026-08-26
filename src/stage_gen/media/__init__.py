@@ -16,6 +16,7 @@ from .images import (
     CHROMA_DISTANCE_THRESHOLD,
     CHROMA_MATTE_VERSION,
     MAGENTA_EDGE_DECONTAMINATION_VERSION,
+    NATIVE_ALPHA_OPAQUE_THRESHOLD,
     AlphaFacts,
     ImageFacts,
     ImageNormalizationRecord,
@@ -26,6 +27,7 @@ from .images import (
     inspect_image,
     normalize_image_to_png,
     normalize_png,
+    normalize_png_cover,
 )
 from .validation import (
     assert_image_signature,
@@ -45,6 +47,7 @@ __all__ = [
     "LoudnessMeasurement",
     "CHROMA_MATTE_VERSION",
     "MAGENTA_EDGE_DECONTAMINATION_VERSION",
+    "NATIVE_ALPHA_OPAQUE_THRESHOLD",
     "MagentaEdgeDecontaminationFacts",
     "apply_chroma_transparency",
     "assert_audio_signature",
@@ -57,6 +60,7 @@ __all__ = [
     "normalize_media_type",
     "normalize_image_to_png",
     "normalize_png",
+    "normalize_png_cover",
     "parse_loudnorm_json",
     "probe_audio",
     "run_process",

@@ -2219,7 +2219,7 @@ function validateRequestEnvelope(
   );
   enumValue(
     root.transparency_mode,
-    ["ai", "chroma"] as const,
+    ["native", "ai", "chroma"] as const,
     "bundle request transparency_mode",
   );
 }

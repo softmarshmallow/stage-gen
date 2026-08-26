@@ -166,11 +166,11 @@ Activation uses a typed 30px horizontal half-width and is vertically clamped
 to explicit deck/terrain endpoints. The distinct typed 32px visual overshoot
 does not expand collision; platform reservation covers its visual overhang.
 
-Current run manifests identify an `ai` or `chroma` transparency strategy and both
+Current run manifests identify a `native`, `ai`, or `chroma` transparency strategy and all
 publish canonical alpha-bearing PNGs. The adapter preserves that alpha. A
-current v7 manifest selects either AI transparency or explicit degraded chroma
-through `transparency_mode`; no missing-strategy manifest is interpreted.
-Opaque concept and backdrop assets bypass either path.
+current v7 manifest selects native provider alpha, AI removal, or explicit
+degraded chroma through `transparency_mode`; no missing-strategy manifest is
+interpreted. Opaque concept and backdrop assets bypass transparency handling.
 
 ## Canvas-only still capture
 

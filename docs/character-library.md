@@ -93,10 +93,10 @@ The repository examples bind the exact current sample bytes:
 ```sh
 uv run stage-gen generate --recipe scrolling-preview \
   --input examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root . --transparency ai
+  --character-library-root . --transparency native
 uv run stage-gen generate --recipe dialogue-scene \
   --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency ai
+  --character-library-root . --transparency native
 ```
 
 The same public CLI is available through the stable web forwarding script:
@@ -105,10 +105,10 @@ The same public CLI is available through the stable web forwarding script:
 cd web
 bun run stage-gen -- generate --recipe scrolling-preview \
   --input ../examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root .. --transparency ai
+  --character-library-root .. --transparency native
 bun run stage-gen -- generate --recipe dialogue-scene \
   --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency ai
+  --character-library-root .. --transparency native
 ```
 
 The scrolling run persists `character_profile_<tag>.json` with provenance and

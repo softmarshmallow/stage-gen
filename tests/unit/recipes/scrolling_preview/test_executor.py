@@ -286,13 +286,16 @@ def test_grid_transparency_cache_requires_bound_normalization_evidence(tmp_path:
 
 
 class _FakeImageService:
+    provider = "fake-image"
+    model = "image-model"
+
     def __init__(self) -> None:
         self.requests: list[ImageGenerationRequest] = []
 
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         self.requests.append(request)
         artifact_path = Path(request.artifact_path)
-        data = _png(alpha=False)
+        data = _png(alpha=request.background == "transparent")
         provenance_path = write_artifact_with_provenance(
             artifact_path,
             BinaryArtifact(data=data, media_type="image/png"),
@@ -1198,6 +1201,55 @@ def test_provider_aspect_ratio_uses_verified_values(canvas: tuple[int, int], exp
 def test_provider_aspect_ratio_rejects_unverified_ratio() -> None:
     with pytest.raises(ValueError, match="has no verified provider aspect ratio"):
         executor_module._provider_aspect_ratio(5, 2)
+
+
+@pytest.mark.parametrize(
+    ("canvas", "expected"),
+    [
+        ((2400, 800), "2400x800"),
+        ((1536, 1024), "1536x1024"),
+        ((256, 128), "1152x576"),
+        ((256, 1024), "480x1408"),
+    ],
+)
+def test_native_provider_size_preserves_valid_targets_and_scales_small_canvases(
+    canvas: tuple[int, int], expected: str
+) -> None:
+    assert executor_module._native_provider_size(*canvas) == expected
+
+
+def test_native_provider_validation_requires_nontrivial_alpha() -> None:
+    spec = _ImageSpec("sprite", "isolated sprite", Path("unused.png"), 2, 2)
+    with pytest.raises(ValueError, match="alpha channel"):
+        executor_module._validate_provider_asset(
+            _png(alpha=False), spec=spec, contract=None, mode=TransparencyMode.NATIVE
+        )
+
+    partial = BytesIO()
+    Image.new("RGBA", (2, 2), (40, 80, 120, 128)).save(partial, format="PNG")
+    with pytest.raises(ValueError, match="fully transparent and substantially opaque visible"):
+        executor_module._validate_provider_asset(
+            partial.getvalue(), spec=spec, contract=None, mode=TransparencyMode.NATIVE
+        )
+
+    validation = executor_module._validate_provider_asset(
+        _png(alpha=True), spec=spec, contract=None, mode=TransparencyMode.NATIVE
+    )
+    assert validation["native_alpha"] is True
+    assert validation["transparent_pixels"] == 1
+    assert validation["nontransparent_pixels"] == 3
+
+
+@pytest.mark.parametrize(
+    ("processor", "expected"),
+    [
+        ("native-alpha", "native-alpha"),
+        ("native-alpha+grid-cell-normalization", "native-alpha+grid-cell-normalization"),
+        ("native-alpha+tileset-topology-mask", "native-alpha+tileset-topology-mask"),
+    ],
+)
+def test_manifest_preserves_native_alpha_derivation(processor: str, expected: str) -> None:
+    assert manifest_module._generated_derivation_kind(processor, "asset.png") == expected
 
 
 def test_transparent_parallax_prompt_requires_sparse_uniform_background() -> None:
@@ -2889,6 +2941,16 @@ async def test_concept_cross_seam_exhaustion_uses_linked_isolated_view_fallback(
         raw_sidecar,
         spec=spec,
         contract=contract,
+        image_provider=backend.provider,
+        image_model=backend.model,
+    )
+    assert not executor_module._valid_raw_asset_cache(
+        raw_path,
+        raw_sidecar,
+        spec=spec,
+        contract=contract,
+        image_provider=backend.provider,
+        image_model="replacement-model",
     )
     await executor._generate_image_asset(context, spec)
     assert backend.calls == 9
@@ -3785,6 +3847,82 @@ async def test_normalized_raw_embeds_upstream_provenance_before_temp_cleanup(
     assert sidecar["params"]["upstream_provenance"]["provider"] == "fake-image"
     assert ".provider-" not in serialized
     assert not await asyncio.to_thread(lambda: list(tmp_path.glob(".*.provider-*.png")))
+
+
+async def test_native_generation_preserves_provider_alpha_and_skips_background_removal(
+    tmp_path: Path,
+) -> None:
+    images = _FakeImageService()
+    background = _FakeBackgroundService()
+    executor = ScrollingPreviewExecutor(
+        image_service=cast(ImageGenerationService, images),
+        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
+        background_service=cast(BackgroundRemovalService, background),
+    )
+    context = StageContext(
+        input={"prompt": "offline"},
+        tag="offline",
+        run_dir=tmp_path,
+        config=StageGenConfig(out_dir=tmp_path, transparency_mode=TransparencyMode.NATIVE),
+    )
+    output = tmp_path / "asset.png"
+
+    await executor._generate_image_asset(
+        context,
+        _ImageSpec("asset", "one isolated sprite", output, 2, 2),
+    )
+
+    request = images.requests[0]
+    assert request.background == "transparent"
+    assert request.output_format == "png"
+    assert request.size == executor_module._native_provider_size(2, 2)
+    assert background.requests == []
+    raw_path = tmp_path / "asset.raw.png"
+    assert raw_path.read_bytes() == output.read_bytes()
+    with Image.open(raw_path) as image:
+        assert image.mode == "RGBA"
+        assert image.getchannel("A").getextrema() == (0, 255)
+    sidecar = json.loads(
+        await asyncio.to_thread(Path(f"{output}.meta.json").read_text, encoding="utf-8")
+    )
+    transparency = sidecar["params"]["transparency"]
+    assert transparency["mode"] == "native"
+    assert transparency["processor"] == {"kind": "native-alpha", "version": "1"}
+    assert "removal" not in transparency
+    assert transparency["source_provenance"]["provider"] == "fake-image"
+
+
+async def test_native_provider_requests_exact_opaque_canvas_without_stretching(
+    tmp_path: Path,
+) -> None:
+    images = _FakeImageService()
+    executor = ScrollingPreviewExecutor(
+        image_service=cast(ImageGenerationService, images),
+        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
+        background_service=None,
+    )
+    context = StageContext(
+        input={"prompt": "offline"},
+        tag="offline",
+        run_dir=tmp_path,
+        config=StageGenConfig(out_dir=tmp_path, transparency_mode=TransparencyMode.NATIVE),
+    )
+    output = tmp_path / "backdrop.png"
+
+    await executor._generate_image_asset(
+        context,
+        _ImageSpec("backdrop", "wide opaque backdrop", output, 2400, 800, transparent=False),
+    )
+
+    request = images.requests[0]
+    assert request.background == "opaque"
+    assert request.output_format == "png"
+    assert request.size == "2400x800"
+    sidecar = json.loads(
+        await asyncio.to_thread(Path(f"{output}.meta.json").read_text, encoding="utf-8")
+    )
+    normalization = sidecar["params"]["metadata"]["normalization"]
+    assert normalization["transform"]["fit"] == "cover"
 
 
 async def test_ai_transparency_embeds_removal_provenance_without_dangling_temp_path(

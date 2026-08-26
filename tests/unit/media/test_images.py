@@ -14,6 +14,7 @@ from stage_gen.media import (
     inspect_image,
     normalize_image_to_png,
     normalize_png,
+    normalize_png_cover,
 )
 
 
@@ -47,6 +48,51 @@ def test_normalize_png_is_deterministic_and_records_transform() -> None:
     }
     with pytest.raises(ValueError, match="positive integer"):
         normalize_png(source, width=0, height=3)
+
+
+def test_normalize_png_cover_preserves_aspect_and_uses_premultiplied_alpha() -> None:
+    source = _png(
+        "RGBA",
+        (6, 4),
+        [
+            (255, 0, 255, 0) if x < 2 or x > 3 else (20, 40, 80, 255)
+            for _y in range(4)
+            for x in range(6)
+        ],
+    )
+
+    first, first_record = normalize_png_cover(source, width=4, height=4)
+    second, second_record = normalize_png_cover(source, width=4, height=4)
+
+    assert first == second
+    assert first_record == second_record
+    assert inspect_image(first).has_alpha
+    assert first_record.operation == "resize-cover"
+    assert first_record.transform == {
+        "fit": "cover",
+        "kernel": "lanczos3",
+        "resized_width": 6,
+        "resized_height": 4,
+        "crop_box": [1, 0, 5, 4],
+        "premultiplied_alpha": True,
+        "near_opaque_threshold": 250,
+        "promoted_to_opaque_pixels": 0,
+        "format": "png",
+        "compression_level": 9,
+    }
+    with Image.open(BytesIO(first)) as image:
+        assert image.convert("RGBA").getchannel("A").getextrema() == (0, 255)
+
+
+def test_normalize_png_cover_promotes_provider_near_opaque_interior() -> None:
+    source = _png("RGBA", (2, 1), [(20, 40, 80, 0), (20, 40, 80, 253)])
+
+    output, record = normalize_png_cover(source, width=2, height=1)
+
+    with Image.open(BytesIO(output)) as image:
+        assert list(image.convert("RGBA").getchannel("A").tobytes()) == [0, 255]
+    assert record.transform["near_opaque_threshold"] == 250
+    assert record.transform["promoted_to_opaque_pixels"] == 1
 
 
 @pytest.mark.parametrize("source_format", ["JPEG", "PNG", "WEBP"])

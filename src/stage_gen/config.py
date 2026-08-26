@@ -17,26 +17,31 @@ from stage_gen.provider_env import load_provider_dotenv
 class CapabilityName(StrEnum):
     STRUCTURED_GENERATION = "structured-generation"
     IMAGE_GENERATION = "image-generation"
+    NATIVE_IMAGE_GENERATION = "native-image-generation"
     BACKGROUND_REMOVAL = "background-removal"
     MUSIC_GENERATION = "music-generation"
 
 
 class TransparencyMode(StrEnum):
+    NATIVE = "native"
     AI = "ai"
     CHROMA = "chroma"
 
 
-DEFAULT_TRANSPARENCY_MODE = TransparencyMode.AI
+DEFAULT_TRANSPARENCY_MODE = TransparencyMode.NATIVE
 
 
 class StageGenConfig(ContractModel):
     out_dir: Path = Path("out")
     character_library_root: Path | None = None
     game_library_root: Path | None = None
+    openai_api_key: str | None = Field(default=None, repr=False)
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
+    openai_base_url: str | None = None
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
+    openai_image_model: str = "gpt-image-2"
     image_model: str = "openai/gpt-image-2"
     text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
@@ -45,7 +50,13 @@ class StageGenConfig(ContractModel):
     stage_timeout_ms: int = Field(default=1_800_000, gt=0)
     capability_timeout_ms: int = Field(default=600_000, gt=0)
 
-    @field_validator("image_model", "text_model", "music_model", "background_removal_model")
+    @field_validator(
+        "openai_image_model",
+        "image_model",
+        "text_model",
+        "music_model",
+        "background_removal_model",
+    )
     @classmethod
     def validate_model(cls, value: str) -> str:
         if not value.strip():
@@ -80,10 +91,13 @@ def load_config(
         out_dir=_first(values, "STAGE_GEN_OUT_DIR", "OUT_DIR") or "out",
         character_library_root=_first(values, "STAGE_GEN_CHARACTER_LIBRARY_ROOT"),
         game_library_root=_first(values, "STAGE_GEN_GAME_LIBRARY_ROOT"),
+        openai_api_key=_first(values, "OPENAI_API_KEY"),
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
         fal_key=_first(values, "FAL_KEY"),
+        openai_base_url=_first(values, "OPENAI_BASE_URL"),
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
+        openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL") or "gpt-image-2",
         image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL") or "openai/gpt-image-2",
         text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.6-sol",
         music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
@@ -139,21 +153,27 @@ def assert_capabilities(
             missing.append("OPENROUTER_API_KEY")
         if capability is CapabilityName.BACKGROUND_REMOVAL and not config.fal_key:
             missing.append("FAL_KEY")
+        if capability is CapabilityName.NATIVE_IMAGE_GENERATION and not config.openai_api_key:
+            missing.append("OPENAI_API_KEY")
     if missing:
         raise ConfigError(missing)
 
 
 def parse_transparency_mode(value: object, label: str = "transparency mode") -> TransparencyMode:
     if not isinstance(value, str):
-        raise ValueError(f"{label} must be ai or chroma")
+        raise ValueError(f"{label} must be native, ai, or chroma")
     try:
         return TransparencyMode(value)
     except (TypeError, ValueError) as error:
-        raise ValueError(f"{label} must be ai or chroma") from error
+        raise ValueError(f"{label} must be native, ai, or chroma") from error
 
 
 def transparency_capabilities(mode: TransparencyMode) -> tuple[CapabilityName, ...]:
-    return (CapabilityName.BACKGROUND_REMOVAL,) if mode is TransparencyMode.AI else ()
+    if mode is TransparencyMode.NATIVE:
+        return (CapabilityName.NATIVE_IMAGE_GENERATION,)
+    if mode is TransparencyMode.AI:
+        return (CapabilityName.BACKGROUND_REMOVAL,)
+    return ()
 
 
 def _first(env: Mapping[str, str | None], *keys: str) -> str | None:

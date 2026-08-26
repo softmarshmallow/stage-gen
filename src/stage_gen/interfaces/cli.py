@@ -109,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--game-library-root",
         help="explicit workspace root containing library/games",
     )
-    generate_parser.add_argument("--transparency", choices=("ai", "chroma"))
+    generate_parser.add_argument("--transparency", choices=("native", "ai", "chroma"))
     generate_parser.add_argument(
         "--force-stage",
         action="append",
@@ -312,7 +312,7 @@ def build_parser() -> argparse.ArgumentParser:
     env_parser.add_argument("--destination", required=True)
 
     doctor_parser = commands.add_parser("doctor")
-    doctor_parser.add_argument("--transparency", choices=("ai", "chroma"))
+    doctor_parser.add_argument("--transparency", choices=("native", "ai", "chroma"))
     doctor_parser.add_argument("--json", action="store_true", dest="json_output")
     return parser
 
@@ -339,20 +339,28 @@ def create_doctor_report(
     config: StageGenConfig, requested_mode: TransparencyMode | None = None
 ) -> dict[str, object]:
     mode = requested_mode or config.transparency_mode
-    requires_background = mode == "ai"
-    ready = bool(config.open_router_api_key and (not requires_background or config.fal_key))
+    requires_openai = mode is TransparencyMode.NATIVE
+    requires_background = mode is TransparencyMode.AI
+    ready = bool(
+        config.open_router_api_key
+        and (not requires_openai or config.openai_api_key)
+        and (not requires_background or config.fal_key)
+    )
     return {
         "ok": ready,
         "transparencyMode": mode,
         "requirements": {
+            "openai": requires_openai,
             "openrouter": True,
             "backgroundRemoval": requires_background,
         },
         "capabilities": {
+            "openai": bool(config.openai_api_key),
             "openrouter": bool(config.open_router_api_key),
             "fal": bool(config.fal_key),
         },
         "models": {
+            "nativeImage": config.openai_image_model,
             "image": config.image_model,
             "text": config.text_model,
             "music": config.music_model,

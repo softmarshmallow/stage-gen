@@ -91,11 +91,15 @@ async def generate_prepared(
 ) -> RunSummary:
     from stage_gen.orchestration.runner import run_recipe
 
+    effective_mode = parse_transparency_mode(
+        prepared.input.get("transparency_mode"), "input.transparency_mode"
+    )
+    effective_config = config.model_copy(update={"transparency_mode": effective_mode})
     owned_runtime = None
     if runtime is None:
         from stage_gen.orchestration.runtime import create_default_runtime
 
-        owned_runtime = create_default_runtime(config, prepared.recipe.id)
+        owned_runtime = create_default_runtime(effective_config, prepared.recipe.id)
         runtime = owned_runtime
 
     try:
@@ -104,7 +108,7 @@ async def generate_prepared(
                 recipe=prepared.recipe,
                 input=prepared.input,
                 tag=prepared.tag,
-                config=config,
+                config=effective_config,
                 log=log,
                 runtime=runtime,
                 cancellation=cancellation,
