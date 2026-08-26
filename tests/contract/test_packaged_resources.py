@@ -21,7 +21,6 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/fixtures/styles.txt",
     "stage_gen/resources/music/preview-loop.mp3",
     "stage_gen/resources/music/preview-loop.mp3.meta.json",
-    "stage_gen/resources/music/preview-loop.LICENSE.md",
     "stage_gen/resources/prompting/image_style_vocabulary_v1.json",
     "stage_gen/resources/prompting/game_vocabulary_v1.json",
     "stage_gen/resources/skills/anchor-image-style/SKILL.md",
@@ -82,10 +81,7 @@ CONCEPT_MEDIA_PREFIXES = {
 }
 STYLE_DICTIONARY_ROOT = PurePosixPath(*CONCEPT_STYLE_DICTIONARY_PREFIX)
 STYLE_DICTIONARY_MANIFEST = STYLE_DICTIONARY_ROOT / "manifest.json"
-STYLE_DICTIONARY_REVIEW = (
-    STYLE_DICTIONARY_ROOT / "images/style-dictionary.visual-review.md"
-)
-STYLE_DICTIONARY_NOTICE = STYLE_DICTIONARY_ROOT / "images/style-dictionary.LICENSE.md"
+STYLE_DICTIONARY_REVIEW = STYLE_DICTIONARY_ROOT / "images/style-dictionary.visual-review.md"
 STYLE_DICTIONARY_REVIEWERS = {
     "mobile-live-service": ("mobile_exact_webp_reviewer_2026_08_26",),
     "indie-pc-console": (
@@ -215,7 +211,7 @@ from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 15
+assert len(paths) == 14
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
@@ -236,7 +232,6 @@ assert image_style_resource_digests() == {
 }
 music = bundled_music_path()
 assert Path(f"{music}.meta.json").is_file()
-assert (music.parent / "preview-loop.LICENSE.md").is_file()
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(
@@ -328,12 +323,11 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
     assert total <= GIT_MEDIA_TOTAL_LIMIT
 
 
-def test_style_dictionary_collection_has_shared_publication_record() -> None:
+def test_style_dictionary_collection_has_shared_review_record() -> None:
     repository = Path(__file__).resolve().parents[2]
     for relative in (
         STYLE_DICTIONARY_MANIFEST,
         STYLE_DICTIONARY_REVIEW,
-        STYLE_DICTIONARY_NOTICE,
     ):
         _assert_tracked_regular_file(repository, relative)
 
@@ -375,9 +369,7 @@ def test_style_dictionary_collection_has_shared_publication_record() -> None:
             preview_path = preview.get("path")
             assert isinstance(preview_path, str)
             relative = PurePosixPath(preview_path)
-            assert relative == STYLE_DICTIONARY_ROOT / "images" / (
-                f"{entry_id}--{model_slot}.webp"
-            )
+            assert relative == STYLE_DICTIONARY_ROOT / "images" / (f"{entry_id}--{model_slot}.webp")
             assert relative not in preview_paths
             preview_paths.add(relative)
             digest = preview.get("sha256")
@@ -396,9 +388,7 @@ def test_style_dictionary_collection_has_shared_publication_record() -> None:
     assert preview_paths == discovered_previews
 
     review = (repository / STYLE_DICTIONARY_REVIEW).read_text(encoding="utf-8")
-    notice = (repository / STYLE_DICTIONARY_NOTICE).read_text(encoding="utf-8")
     assert manifest_sha256 in review
-    assert manifest_sha256 in notice
     assert "92/92 exact previews: PASS" in review
     for category, reviewer_ids in STYLE_DICTIONARY_REVIEWERS.items():
         assert category in review

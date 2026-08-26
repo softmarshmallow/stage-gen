@@ -55,7 +55,7 @@ def _contract_payload(**overrides: Any) -> dict[str, Any]:
             "player": {"body_kind": "human"},
             "resident": {"body_kind_default": "human"},
         },
-        "rights": {"status": "unreviewed", "notice": "Test fixture."},
+        "rights": {"status": "unreviewed"},
     }
     payload.update(overrides)
     return payload

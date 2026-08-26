@@ -95,20 +95,42 @@ def test_rejects_non_positive_or_non_integer_observed_and_input_byte_counts() ->
         )
 
 
-def test_does_not_infer_generated_media_rights_from_bsd_or_blanket_cc0() -> None:
-    bsd = _fixture("media-rights-approved.json")
-    bsd["sidecar"]["rights"]["license_id"] = "BSD-3-Clause"
-    assert (
-        "the repository source license cannot be inherited by generated media"
-        in validate_published_media_record(bsd)
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("license_id", "LicenseRef-Legacy"),
+        ("notice", "example.LICENSE.md"),
+        ("notice_sha256", "a" * 64),
+        ("notice_bytes", 64),
+    ),
+)
+def test_rejects_legacy_license_and_notice_fields(field: str, value: object) -> None:
+    legacy = _fixture("media-rights-approved.json")
+    legacy["sidecar"]["rights"][field] = value
+    assert "sidecar.rights fields are incomplete or unsupported" in validate_published_media_record(
+        legacy
     )
 
-    cc0 = _fixture("media-rights-approved.json")
-    cc0["sidecar"]["rights"]["license_id"] = "CC0-1.0"
-    cc0["sidecar"]["rights"]["basis"] = ["provider provenance only"]
-    failures = validate_published_media_record(cc0)
-    assert "CC0 requires an artifact-specific rights-holder dedication basis" in failures
-    assert "sidecar.rights.basis cannot rely only on provider provenance" in failures
+
+def test_rejects_provider_only_rights_basis() -> None:
+    provenance_only = _fixture("media-rights-approved.json")
+    provenance_only["sidecar"]["rights"]["basis"] = ["provider provenance only"]
+    assert (
+        "sidecar.rights.basis cannot rely only on provider provenance"
+        in validate_published_media_record(provenance_only)
+    )
+
+
+def test_accepts_optional_stable_attribution_and_rejects_unsafe_values() -> None:
+    attributed = _fixture("media-rights-approved.json")
+    attributed["sidecar"]["rights"]["attribution"] = ["Example source author"]
+    assert validate_published_media_record(attributed) == []
+
+    attributed["sidecar"]["rights"]["attribution"] = ["source at /private/tmp/input.png"]
+    assert (
+        "sidecar.rights.attribution must contain stable reviewed values"
+        in validate_published_media_record(attributed)
+    )
 
 
 def test_requires_role_based_listening_attestation_without_legal_name() -> None:
@@ -127,7 +149,6 @@ def test_requires_generated_media_copies_to_remain_byte_identical() -> None:
     observed = {
         "sha256": digest,
         "sidecarSha256": digest,
-        "noticeSha256": digest,
     }
     assert (
         validate_published_media_copy(
@@ -154,7 +175,6 @@ def test_requires_generated_media_copies_to_remain_byte_identical() -> None:
 def _generated_derivative_record() -> dict[str, Any]:
     artifact_digest = "a" * 64
     review_digest = "b" * 64
-    notice_digest = "9" * 64
     attestation = "independent-generated-derivative-review-a"
     skill_name = "compile-theme-art-direction"
     skill_digest = "f" * 64
@@ -243,8 +263,6 @@ def _generated_derivative_record() -> dict[str, Any]:
         "observed": {
             "sha256": artifact_digest,
             "bytes": 2048,
-            "notice_sha256": notice_digest,
-            "notice_bytes": 64,
         },
         "sidecar": {
             "schema_version": 1,
@@ -323,10 +341,6 @@ def _generated_derivative_record() -> dict[str, Any]:
             },
             "rights": {
                 "status": "redistribution-approved",
-                "notice": "example.LICENSE.md",
-                "notice_sha256": notice_digest,
-                "notice_bytes": 64,
-                "license_id": "LicenseRef-Synthetic-Generated-Derivative",
                 "basis": ["Artifact-specific publication authorization", attestation],
                 "reviewed_at": "2026-08-20T00:00:00.000Z",
             },
@@ -339,7 +353,6 @@ def _generated_concept_cover_record() -> dict[str, Any]:
     concept_digest = "c" * 64
     review_digest = "b" * 64
     source_digest = "d" * 64
-    notice_digest = "9" * 64
     attestation = "independent-game-concept-cover-review-a"
     prompt = (
         "Create original game concept cover art for a moonlit marsh adventure.\n"
@@ -376,8 +389,6 @@ def _generated_concept_cover_record() -> dict[str, Any]:
         "observed": {
             "sha256": artifact_digest,
             "bytes": 2048,
-            "notice_sha256": notice_digest,
-            "notice_bytes": 64,
         },
         "sidecar": {
             "schema_version": 1,
@@ -441,10 +452,6 @@ def _generated_concept_cover_record() -> dict[str, Any]:
             },
             "rights": {
                 "status": "redistribution-approved",
-                "notice": "cover.LICENSE.md",
-                "notice_sha256": notice_digest,
-                "notice_bytes": 64,
-                "license_id": "LicenseRef-Synthetic-Game-Concept-Cover",
                 "basis": ["Artifact-specific publication authorization", attestation],
                 "reviewed_at": "2026-08-25T00:00:00.000Z",
             },
@@ -611,7 +618,6 @@ def test_generated_game_concept_cover_rejects_cross_package_bindings() -> None:
     value["sidecar"]["visual_review"]["evidence"]["path"] = (
         f"{other_root}/images/cover.visual-review.md"
     )
-    value["sidecar"]["rights"]["notice"] = "../other-concept/cover.LICENSE.md"
 
     failures = validate_published_media_record(value)
 
@@ -629,7 +635,6 @@ def test_generated_game_concept_cover_rejects_cross_package_bindings() -> None:
             "sidecar.visual_review.evidence.path must stay inside the artifact concept "
             "gallery package"
         ),
-        "sidecar.rights.notice must name an adjacent file in the concept gallery package",
     }
     assert expected <= set(failures)
 
@@ -644,12 +649,11 @@ def test_generated_game_concept_cover_rejects_noncanonical_gallery_path() -> Non
     assert "inventory artifact path must be inside concept-studio/gallery/<concept_id>" in failures
 
 
-def test_generated_game_concept_cover_reuses_strict_review_and_notice_bindings() -> None:
+def test_generated_game_concept_cover_reuses_strict_review_bindings() -> None:
     value = _generated_concept_cover_record()
     value["entry"]["synth_id_expected"] = True
     value["entry"]["visual_review"]["independent"] = False
     value["sidecar"]["visual_review"]["verification_report_sha256"] = "1" * 64
-    value["sidecar"]["rights"]["notice_sha256"] = "2" * 64
 
     failures = validate_published_media_record(value)
 
@@ -659,7 +663,6 @@ def test_generated_game_concept_cover_reuses_strict_review_and_notice_bindings()
         "inventory and sidecar visual_review.independent must match",
         "inventory and sidecar visual_review.verification_report_sha256 must match",
         "sidecar.visual_review.evidence.sha256 must match the review report",
-        "sidecar.rights.notice_sha256 must match the adjacent notice",
     }
     assert expected <= set(failures)
 
@@ -722,13 +725,11 @@ def test_generated_image_derivative_rejects_prompt_digest_rights_and_review_mism
     )
 
 
-def test_generated_image_derivative_rejects_unbound_generation_and_notice_facts() -> None:
+def test_generated_image_derivative_rejects_unbound_generation_facts() -> None:
     value = _generated_derivative_record()
     compiled = value["sidecar"]["generation"]["compiled_variant"]
     compiled["reference_refs"] = []
     compiled["theme_digest"] = "0" * 64
-    value["sidecar"]["rights"]["notice_sha256"] = "1" * 64
-    value["sidecar"]["rights"]["notice_bytes"] = 65
 
     failures = validate_published_media_record(value)
 
@@ -738,8 +739,6 @@ def test_generated_image_derivative_rejects_unbound_generation_and_notice_facts(
             "sidecar.generation.compiled_variant.theme_digest must bind canonical theme "
             "and compiler skill identity"
         ),
-        "sidecar.rights.notice_sha256 must match the adjacent notice",
-        "sidecar.rights.notice_bytes must match the adjacent notice",
     }
     assert expected <= set(failures)
 
@@ -908,8 +907,6 @@ def _write_synthetic_publication(repo: Path) -> tuple[Path, Path]:
     payload = b"synthetic publication bytes, not encoded media"
     artifact.write_bytes(payload)
     digest = hashlib.sha256(payload).hexdigest()
-    notice = media_root / "NOTICE.md"
-    notice.write_text("Synthetic fixture permission record.", encoding="utf-8")
     fixture = _fixture("media-rights-approved.json")
     fixture["entry"]["path"] = "media/clip.mp3"
     fixture["observed"] = {"sha256": digest, "bytes": len(payload)}
@@ -918,7 +915,6 @@ def _write_synthetic_publication(repo: Path) -> tuple[Path, Path]:
         "bytes": len(payload),
         "media_type": "audio/mpeg",
     }
-    fixture["sidecar"]["rights"]["notice"] = notice.name
     sidecar = artifact.with_name(f"{artifact.name}.meta.json")
     sidecar.write_text(json.dumps(fixture["sidecar"]), encoding="utf-8")
     inventory = repo / "inventory.json"
@@ -947,22 +943,11 @@ def _write_generated_derivative_publication(repo: Path) -> tuple[Path, Path, Pat
     review_bytes = b"Artifact-bound independent review: pass."
     review_path.write_bytes(review_bytes)
     review_digest = hashlib.sha256(review_bytes).hexdigest()
-    notice = media_root / "example.LICENSE.md"
-    notice.write_text("Synthetic artifact-specific permission.", encoding="utf-8")
-    notice_bytes = notice.read_bytes()
     record["observed"] = {
         "sha256": artifact_digest,
         "bytes": len(artifact_bytes),
-        "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
-        "notice_bytes": len(notice_bytes),
     }
     record["sidecar"]["artifact"].update({"sha256": artifact_digest, "bytes": len(artifact_bytes)})
-    record["sidecar"]["rights"].update(
-        {
-            "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
-            "notice_bytes": len(notice_bytes),
-        }
-    )
     for review in (record["entry"]["visual_review"], record["sidecar"]["visual_review"]):
         review.update(
             {
@@ -1026,25 +1011,14 @@ def _write_generated_concept_cover_publication(
     review_bytes = b"Artifact-bound independent concept-cover review: pass."
     review_path.write_bytes(review_bytes)
     review_digest = hashlib.sha256(review_bytes).hexdigest()
-    notice = media_root / "cover.LICENSE.md"
-    notice.write_text("Synthetic artifact-specific permission.", encoding="utf-8")
-    notice_bytes = notice.read_bytes()
 
     record["observed"] = {
         "sha256": artifact_digest,
         "bytes": len(artifact_bytes),
-        "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
-        "notice_bytes": len(notice_bytes),
     }
     record["sidecar"]["artifact"].update({"sha256": artifact_digest, "bytes": len(artifact_bytes)})
     record["sidecar"]["concept"].update({"sha256": concept_digest, "bytes": len(concept_bytes)})
     record["sidecar"]["generation"]["normalization"]["output_sha256"] = artifact_digest
-    record["sidecar"]["rights"].update(
-        {
-            "notice_sha256": hashlib.sha256(notice_bytes).hexdigest(),
-            "notice_bytes": len(notice_bytes),
-        }
-    )
     for review in (record["entry"]["visual_review"], record["sidecar"]["visual_review"]):
         review.update(
             {
@@ -1080,7 +1054,7 @@ def _write_generated_concept_cover_publication(
     return inventory, artifact, concept, sidecar_path
 
 
-def test_publication_discovery_validates_bytes_sidecar_notice_and_inventory(
+def test_publication_discovery_validates_bytes_sidecar_and_inventory(
     tmp_path: Path,
 ) -> None:
     inventory, artifact = _write_synthetic_publication(tmp_path)
@@ -1145,7 +1119,6 @@ def test_generated_concept_cover_publication_rejects_undecodable_image_bytes(
         ("sidecar", "adjacent provenance sidecar must be a regular file"),
         ("concept", "sidecar.concept.path is unsafe"),
         ("review", "sidecar.visual_review.evidence.path is unsafe"),
-        ("notice", "sidecar rights notice must be a regular file"),
     ),
 )
 def test_generated_concept_cover_publication_rejects_symlinked_package_bindings(
@@ -1159,7 +1132,6 @@ def test_generated_concept_cover_publication_rejects_symlinked_package_bindings(
         "sidecar": sidecar,
         "concept": concept,
         "review": artifact.parent / "cover.visual-review.md",
-        "notice": artifact.parent / "cover.LICENSE.md",
     }
     selected = paths[binding]
     outside = tmp_path / "outside" / selected.name
@@ -1375,9 +1347,6 @@ def _capture_record(kind: str) -> dict[str, Any]:
             "capture": capture,
             "rights": {
                 "status": "redistribution-approved",
-                "notice": "SHOWCASE-NOTICE.md",
-                "license_id": "LicenseRef-Project-Showcase",
-                "attribution": [],
                 "basis": ["Artifact-specific browser capture authorization", attestation],
                 "reviewed_at": "2026-08-16T00:00:00.000Z",
             },
@@ -1456,8 +1425,6 @@ def _write_capture_publication(repo: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"synthetic {label} input", encoding="utf-8")
     media_root = repo / "docs/showcase"
-    notice = media_root / "SHOWCASE-NOTICE.md"
-    notice.write_text("Synthetic artifact-specific permission.", encoding="utf-8")
     entries: list[dict[str, Any]] = []
     for kind in ("video", "image"):
         record = _capture_record(kind)
@@ -1517,7 +1484,7 @@ def test_capture_fixture_generator_preserves_historical_content_identity() -> No
     )
 
 
-def test_browser_capture_publication_checks_hashes_shared_notice_and_symlinks(
+def test_browser_capture_publication_checks_hashes_and_symlinks(
     tmp_path: Path,
 ) -> None:
     inventory = _write_capture_publication(tmp_path)
@@ -1534,41 +1501,6 @@ def test_browser_capture_publication_checks_hashes_shared_notice_and_symlinks(
     timeline.symlink_to(target)
     failures = check_generated_media_publication(tmp_path, inventory).failures
     assert sum("sidecar.capture.timeline.path is unsafe" in item for item in failures) == 2
-
-
-def test_browser_capture_video_and_poster_must_share_notice(tmp_path: Path) -> None:
-    inventory = _write_capture_publication(tmp_path)
-    poster_sidecar = tmp_path / "docs/showcase/gameplay.png.meta.json"
-    value = cast(dict[str, Any], json.loads(poster_sidecar.read_text(encoding="utf-8")))
-    second_notice = poster_sidecar.parent / "POSTER-NOTICE.md"
-    second_notice.write_text("Different notice.", encoding="utf-8")
-    value["rights"]["notice"] = second_notice.name
-    poster_sidecar.write_text(json.dumps(value), encoding="utf-8")
-
-    failures = check_generated_media_publication(tmp_path, inventory).failures
-
-    assert "browser capture video and poster must share one adjacent rights notice" in failures
-
-
-def test_unrelated_capture_license_may_use_its_own_notice(tmp_path: Path) -> None:
-    inventory = _write_capture_publication(tmp_path)
-    poster_sidecar = tmp_path / "docs/showcase/gameplay.png.meta.json"
-    value = cast(dict[str, Any], json.loads(poster_sidecar.read_text(encoding="utf-8")))
-    second_notice = poster_sidecar.parent / "SECOND-SHOWCASE-NOTICE.md"
-    second_notice.write_text("Independent synthetic showcase permission.", encoding="utf-8")
-    value["rights"]["notice"] = second_notice.name
-    value["rights"]["license_id"] = "LicenseRef-Independent-Synthetic-Showcase"
-    sidecar_bytes = json.dumps(value).encode()
-    poster_sidecar.write_bytes(sidecar_bytes)
-
-    inventory_value = cast(dict[str, Any], json.loads(inventory.read_text(encoding="utf-8")))
-    poster_entry = next(
-        entry for entry in inventory_value["media"] if entry["path"] == "docs/showcase/gameplay.png"
-    )
-    poster_entry["sidecarSha256"] = hashlib.sha256(sidecar_bytes).hexdigest()
-    inventory.write_text(json.dumps(inventory_value), encoding="utf-8")
-
-    assert check_generated_media_publication(tmp_path, inventory).failures == ()
 
 
 def test_browser_capture_verifier_digest_tracks_current_hardened_code(tmp_path: Path) -> None:
@@ -1624,12 +1556,9 @@ def test_current_theme_art_direction_derivative_is_exactly_bound() -> None:
     sidecar_path = Path(f"{artifact}.meta.json")
     sidecar_bytes = sidecar_path.read_bytes()
     sidecar = cast(dict[str, Any], json.loads(sidecar_bytes.decode("utf-8")))
-    notice = artifact.parent / cast(str, sidecar["rights"]["notice"])
     observed = {
         "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "bytes": artifact.stat().st_size,
-        "notice_sha256": hashlib.sha256(notice.read_bytes()).hexdigest(),
-        "notice_bytes": notice.stat().st_size,
     }
 
     assert entry["sidecar_sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
@@ -1661,12 +1590,9 @@ def test_current_game_concept_cover_is_exactly_bound() -> None:
     sidecar_path = Path(f"{artifact}.meta.json")
     sidecar_bytes = sidecar_path.read_bytes()
     sidecar = cast(dict[str, Any], json.loads(sidecar_bytes.decode("utf-8")))
-    notice = artifact.parent / cast(str, sidecar["rights"]["notice"])
     observed = {
         "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "bytes": artifact.stat().st_size,
-        "notice_sha256": hashlib.sha256(notice.read_bytes()).hexdigest(),
-        "notice_bytes": notice.stat().st_size,
     }
 
     assert entry["sidecar_sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
@@ -1742,9 +1668,6 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
     assert all(asset["visualReview"]["independent"] is True for asset in approved_assets)
     assert all(asset["rights"]["status"] == "redistribution-approved" for asset in approved_assets)
     publication_text = inventory_path.read_text(encoding="utf-8")
-    publication_text += (repository / "docs/media/gameplay-showcase.LICENSE.md").read_text(
-        encoding="utf-8"
-    )
     for path, (digest, byte_count) in expected.items():
         review = cast(dict[str, Any], entries[path]["visualReview"])
         assert review["artifactSha256"] == digest

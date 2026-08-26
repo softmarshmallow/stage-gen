@@ -1308,8 +1308,6 @@ def _input(ref: str, data: bytes, media_type: str) -> InputProvenance:
 def _unreviewed_rights() -> ArtifactRights:
     return ArtifactRights(
         status="unreviewed",
-        license_id=None,
-        notice="Independent review and a separate rights decision are required before use.",
         attribution=[],
         basis=[],
         reviewed_at=None,
@@ -1319,8 +1317,6 @@ def _unreviewed_rights() -> ArtifactRights:
 def _restricted_rights(reviewed_at: str) -> ArtifactRights:
     return ArtifactRights(
         status="restricted",
-        license_id=None,
-        notice="Restricted to local demo use; publication is not authorized.",
         attribution=[],
         basis=["Independent digest-bound review passed for local demo use."],
         reviewed_at=reviewed_at,

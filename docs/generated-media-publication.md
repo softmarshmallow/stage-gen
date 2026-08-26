@@ -12,6 +12,12 @@ inherited by generated media. Likewise, do not label generated media CC0 as a
 blanket project policy. CC0 is acceptable only when the recorded basis is an
 artifact-specific rights-holder dedication.
 
+This gate governs generated outputs committed to repository publication roots.
+It does not impose generated-output sidecars on manually prepared game inputs.
+Those inputs keep their exact digest, origin and rights basis in the authored
+contract and bind semantic review separately; they do not need adjacent
+`.meta.json`, `.source.meta.json`, or `.LICENSE.md` files.
+
 ## Publication records
 
 [`generated-media-inventory.json`](generated-media-inventory.json) enumerates
@@ -25,9 +31,13 @@ Every enumerated artifact needs an adjacent `.meta.json` sidecar whose
 `rights` object must be artifact-specific and contain:
 
 - `status: "redistribution-approved"`;
-- a stable `license_id` and `notice`;
 - at least one stable, documented `basis` entry; and
 - an ISO UTC `reviewed_at` timestamp.
+
+The sidecar is operational generated-output provenance, not a license file.
+First-party AI-generated artifacts do not need an adjacent `.LICENSE.md` or a
+synthetic asset-license identifier. Provider/model identity alone is not a
+rights basis.
 
 ### Direct game-concept covers
 
@@ -76,11 +86,11 @@ exactly `none`. The normalization still binds provider source to the reviewed
 workspace PNG, while the publication transform binds that PNG to the final
 gallery bytes. The full workspace PNG remains unpublished.
 
-The independent `visual_review`, digest-bound report, adjacent rights notice,
-and `redistribution-approved` artifact-specific rights decision use the same
-strict bindings as generated-image documentation derivatives below. Selecting
-a candidate is not itself publication approval: the verdict must be a pass on
-the exact final bytes that are committed.
+The independent `visual_review`, digest-bound report, and
+`redistribution-approved` artifact-specific rights decision use the same strict
+bindings as generated-image documentation derivatives below. Selecting a
+candidate is not itself publication approval: the verdict must be a pass on the
+exact final bytes that are committed.
 
 ### Style-dictionary collection
 
@@ -95,16 +105,15 @@ independent generated-media inventory records. Its tracked publication boundary 
   `grok_image_2`; blocked slots have no placeholder;
 - one `concept-studio/style-dictionary/images/style-dictionary.visual-review.md`
   report that names the independent category reviewers, binds the exact manifest
-  digest, and records a pass for all 92 final previews; and
-- one adjacent `style-dictionary.LICENSE.md` rights notice bound to the same
-  manifest digest.
+  digest, and records a pass for all 92 final previews.
 
 These files must be regular, tracked files. The collection is intentionally absent
 from `docs/generated-media-inventory.json`, and its preview images do not use
 adjacent per-image sidecars. The repository storage contract validates the one
-manifest against every preview and requires the shared review and notice. Changing
+manifest against every preview and requires the shared review. Changing
 any preview invalidates the manifest binding and requires a new exact-image review
-and rights notice. Raw provider responses and lossless working files remain ignored.
+and repository publication approval. Raw provider responses and lossless working files
+remain ignored.
 
 The inventory carries review facts outside the runtime provenance schema.
 Audio needs an approved listening review with reviewer and timestamp. When
@@ -117,10 +126,9 @@ Browser-capture video and poster entries explicitly record `kind`, set
 `synthIdExpected` to false, and require an independent visual-review pass tied
 to a stable attestation. Their inventory entries also record `sidecarSha256`,
 which must match the exact adjacent provenance-sidecar bytes. Related video and
-poster artifacts share one adjacent, artifact-specific rights notice. The
-showcase notice permits redistribution of the unchanged, digest-matched files
-only with this repository; it is not a blanket media license or a grant for
-standalone reuse.
+poster artifacts each carry the artifact-specific redistribution decision in
+their generated-output provenance. Approval applies only to the unchanged,
+digest-matched files and is not a blanket grant for standalone reuse.
 
 Generated-image documentation derivatives use a separate, backward-compatible
 inventory branch selected by
@@ -160,9 +168,6 @@ repository-relative verification report with its exact digest and byte count.
 Inventory and sidecar review facts must match exactly. The checker hashes the
 report itself; copying an old verdict or changing the report after approval
 fails publication.
-The derivative rights record also binds the adjacent notice with
-`notice_sha256` and `notice_bytes`; changing the permission text after approval
-fails the same gate.
 
 Every lower-snake generated-image entry and sidecar is scanned recursively.
 Private or temporary paths, file/data references, authorization or credential
@@ -180,6 +185,16 @@ temporary paths, private home paths, `file:` or `data:` references, signed
 URLs, or machine-specific build locations. A digest identifies bytes; it does
 not establish their rights.
 
+## Third-party inputs and notices
+
+Removing the synthetic adjacent-notice contract does not remove real external
+obligations. If an input or derivative incorporates third-party material, its
+source record must preserve the actual license, attribution, and notice terms
+required for the intended use. Keep a genuine upstream notice when its terms
+require one; do not manufacture a `.LICENSE.md` merely because the artifact was
+AI-generated. The repository's root `LICENSE` continues to govern source code,
+not media.
+
 ## Gate
 
 `uv run python scripts/check_docs.py` hashes bytes without decoding media and
@@ -193,16 +208,16 @@ verifies that:
    digests and source-specific rights where required;
 4. deterministic derivative transformations and direct-cover normalizations
    record stable tool, version, inputs, operation, and output facts;
-5. rights are explicitly redistribution-approved with stable evidence; and
+5. rights are explicitly redistribution-approved with a stable basis and review
+   timestamp; and
 6. required listening or independent visual-review facts and their exact report
    digests are present.
 
 Validator behavior is covered by synthetic JSON fixtures in
 [`check-fixtures/`](check-fixtures/) and does not need a media fixture.
 
-The sole authoritative packaged preview loop is `repository-approved` after
-an artifact-specific maintainer rights decision and listening review. Its conservative
-[generated-asset notice](../src/stage_gen/resources/music/preview-loop.LICENSE.md)
-limits CC0 to project-controlled rights, if any. This approval applies only to
-that digest-matched artifact; updating model/provider provenance alone cannot
-satisfy the gate for another output.
+The sole authoritative packaged preview loop is `repository-approved` after an
+artifact-specific maintainer rights decision and listening review. Its rights
+basis is recorded with the generated-output provenance. This approval applies
+only to that digest-matched artifact; updating model/provider provenance alone
+cannot satisfy the gate for another output.

@@ -316,14 +316,11 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "notice": "gameplay-showcase.LICENSE.md",
-    "license_id": "LicenseRef-Stage-Gen-Gameplay-Showcase-Repository-Sharing",
     "attribution": [],
     "basis": [
       "Artifact-specific repository publication authorization by the authenticated task owner",
       "Exact digest-matched deterministic current-source real-gameplay canvas checkpoint",
       "Independently approved 20-asset image-model-generated set with FAL alpha-removal lineage",
-      "gameplay-showcase.LICENSE.md",
       "sha256:cc6287d9d2fcd30aa6cb24e5d99d1b9b690315adc87c1359433af68fe919fac6",
       "independent-readme-screenshot-visual-9194172d56b405d8",
       "docs/media/gameplay-model-demo.visual-review.md",

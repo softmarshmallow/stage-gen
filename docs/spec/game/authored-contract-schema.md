@@ -137,7 +137,6 @@ max_alive = 2
 
 [rights]
 status = "unreviewed"
-notice = "Original repository-authored game direction; no publication approval is implied."
 basis = ["Original repository-authored text with no external game or media reference."]
 ```
 

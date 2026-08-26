@@ -110,10 +110,11 @@ recognizable creator style.
 
 Inputs must be owned, licensed for the intended transformation, or verified as
 public domain. Generated output is not automatically cleared for distribution.
-Before committing or shipping media, record its provenance and intended asset
-license/status, review applicable provider terms, and inspect for protected
-names, marks, characters, text, melodies, or recognizable copying. The source
-license does not grant rights to inputs, outputs, models, or hosted services.
+Before committing or shipping media, record its provenance, artifact-specific
+redistribution status, and stable rights basis; review applicable provider terms;
+and inspect for protected names, marks, characters, text, melodies, or
+recognizable copying. The source license does not grant rights to inputs,
+outputs, models, or hosted services.
 
 ## Deferred work
 

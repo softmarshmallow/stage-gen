@@ -167,8 +167,6 @@ async def test_normalizer_rejects_unsafe_approved_source_reference_before_tools(
         source_path,
         rights=ArtifactRights(
             status="redistribution-approved",
-            license_id="LicenseRef-Project",
-            notice="RIGHTS.md",
             attribution=[],
             basis=["Recorded project authorization."],
             reviewed_at="2026-08-14T10:00:00.000Z",

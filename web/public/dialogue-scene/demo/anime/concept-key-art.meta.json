@@ -48,9 +48,6 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "ownership": "project-owned AI-generated artifact",
-    "license_id": "LicenseRef-Stage-Gen-Dialogue-Scene-Repository-Sharing",
-    "notice": "dialogue-scene-assets.LICENSE.md",
     "basis": [
       "Artifact-specific repository publication authorization by the authenticated project owner",
       "Original project-authored prompt with no third-party visual reference",

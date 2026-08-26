@@ -187,8 +187,6 @@ class _FakeMusicRuntime:
                 attempts=1,
                 rights=ArtifactRights(
                     status="unreviewed",
-                    license_id=None,
-                    notice="Synthetic offline test artifact; no publication review recorded.",
                     attribution=[],
                     basis=[],
                     reviewed_at=None,

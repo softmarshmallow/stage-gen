@@ -101,7 +101,6 @@ body_kind_default = "human"
 {gameplay}
 [rights]
 status = "unreviewed"
-notice = "Test fixture."
 """,
         encoding="utf-8",
     )

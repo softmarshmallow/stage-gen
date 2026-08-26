@@ -26,7 +26,7 @@
     },
     {
       "path": "docs/media/gameplay-showcase.mp4",
-      "sidecarSha256": "d8a526be3ae9c424baefdd797bfa98a9afb9902c4288b48891e4e1eff3dcbd8c",
+      "sidecarSha256": "c7a1a9a730a222a85b5edb9a6730f641eed81d7a2902b6fde42045517d1d3e86",
       "kind": "video",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,
@@ -46,7 +46,7 @@
     },
     {
       "path": "docs/media/gameplay-showcase.poster.png",
-      "sidecarSha256": "67c28ff08b3bc334e725e12691b17ea3eb8e93f9b733bfd1652ebfa41f814bf2",
+      "sidecarSha256": "7172d35cb30f103020301fd23d30eec31f74137f541d305a4751a2d8e289d924",
       "kind": "image",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,
@@ -66,7 +66,7 @@
     },
     {
       "path": "docs/media/gameplay-model-demo.png",
-      "sidecarSha256": "1b77327d818701c6230e4c84a6989c999ab4d906067498354fa723088980e6f1",
+      "sidecarSha256": "a28ba532df1dc2b5d72ff8fb815c60d2e770a3d7efde3b819cdab1eceea4111e",
       "kind": "image",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,
@@ -87,7 +87,7 @@
     },
     {
       "path": "docs/media/dialogue-scene-showcase.webp",
-      "sidecarSha256": "8e6abe4feeb95175b9517bbc33e028375b8b66aeb2c144667f0a726c34cc4a0e",
+      "sidecarSha256": "08551963421bf1bb18637fdd4f147d8f3d1c7e164c1094062651f52cb0b5d170",
       "kind": "image",
       "reviewStatus": "repository-approved",
       "synthIdExpected": false,
@@ -111,7 +111,7 @@
       "provenance_kind": "generated_image_derivative",
       "lineage_kind": "theme_art_direction_comparison_v1",
       "kind": "image",
-      "sidecar_sha256": "415333a665719432fce566f8a9dbae94d329029130b60f9f1a5629fdbd7a42e3",
+      "sidecar_sha256": "82582d6558fdaa6e2843e2d480cc012ee9638e1db7fa1a47cc931a72d4e19db4",
       "review_status": "repository-approved",
       "synth_id_expected": false,
       "visual_review": {
@@ -135,7 +135,7 @@
       "provenance_kind": "generated_image",
       "lineage_kind": "game_concept_cover_v1",
       "kind": "image",
-      "sidecar_sha256": "565bc5b7f604515505633369357cf8813c4544e3aa21e8e553ad10ab2c3ac9fd",
+      "sidecar_sha256": "6dc837bf014065c93f0c73fd08c201654f52ee9cf6b08b283817aeed1c100ee2",
       "review_status": "repository-approved",
       "synth_id_expected": false,
       "visual_review": {

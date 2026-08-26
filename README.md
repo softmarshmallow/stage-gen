@@ -21,9 +21,8 @@ demo; examples and generated runs do not replace it as schema authority.
 
 [Watch the historical deterministic 30-second capture (18-asset build)](docs/media/gameplay-showcase.mp4).
 Its [poster](docs/media/gameplay-showcase.poster.png), adjacent provenance
-sidecars, and [artifact-specific media notice](docs/media/gameplay-showcase.LICENSE.md)
-remain bound to that older capture. They must not be presented as a recording
-of the current 20-asset fixture.
+sidecars, and digest-bound review remain tied to that older capture. They must
+not be presented as a recording of the current 20-asset fixture.
 
 ## Quickstart
 

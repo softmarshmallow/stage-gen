@@ -296,8 +296,6 @@ def _response_record(
 def _unreviewed_rights() -> ArtifactRights:
     return ArtifactRights(
         status="unreviewed",
-        license_id=None,
-        notice="No redistribution review has been recorded for this concept image.",
         attribution=[],
         basis=[],
         reviewed_at=None,

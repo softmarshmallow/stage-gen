@@ -87,19 +87,15 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "license_id": "CC0-1.0",
-    "notice": "preview-loop.LICENSE.md",
     "attribution": [],
     "basis": [
       "preview-loop.mp3.meta.json",
-      "preview-loop.LICENSE.md",
       "terms-reviewed-2026-08-14",
       "repository maintainer (authenticated task owner)",
       "project maintainer and authorized generation workflow operator",
       "no recognizable protected composition, lyrics, performer, voice, brand, or mark",
       "project-controlled rights, if any",
-      "conversation-attestation-2026-08-14T123808Z",
-      "artifact-specific rights-holder dedication of project-controlled rights only"
+      "conversation-attestation-2026-08-14T123808Z"
     ],
     "reviewed_at": "2026-08-14T12:38:08.000Z"
   },

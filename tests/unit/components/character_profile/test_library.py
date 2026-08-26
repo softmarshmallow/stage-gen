@@ -26,7 +26,6 @@ invariants = ["Amber eyes"]
 
 [rights]
 status = "unreviewed"
-notice = "Original test text; publication is not authorized."
 basis = ["Original test text"]
 """
 

@@ -504,8 +504,6 @@ async def test_current_manifest_copies_only_approved_fallback(
     _allow_music_only_manifest(monkeypatch)
     fallback = tmp_path / "fallback.mp3"
     fallback.write_bytes(b"offline-music")
-    notice = tmp_path / "fallback.LICENSE.md"
-    notice.write_text("approved notice", encoding="utf-8")
     sha = hashlib.sha256(fallback.read_bytes()).hexdigest()
     sidecar = {
         "schema_version": 2,
@@ -523,8 +521,6 @@ async def test_current_manifest_copies_only_approved_fallback(
         ],
         "rights": {
             "status": "redistribution-approved",
-            "license_id": "CC0-1.0",
-            "notice": notice.name,
             "attribution": [],
             "basis": [f"sha256:{sha}"],
             "reviewed_at": "2026-08-14T00:00:00Z",
@@ -602,8 +598,6 @@ async def test_manifest_rejects_nonportable_fallback_references(
 ) -> None:
     fallback = tmp_path / "fallback.mp3"
     fallback.write_bytes(b"offline-music")
-    notice = tmp_path / "fallback.LICENSE.md"
-    notice.write_text("approved notice", encoding="utf-8")
     sha = hashlib.sha256(fallback.read_bytes()).hexdigest()
     sidecar = {
         "schema_version": 2,
@@ -613,8 +607,6 @@ async def test_manifest_rejects_nonportable_fallback_references(
         "inputs": [],
         "rights": {
             "status": "redistribution-approved",
-            "license_id": "CC0-1.0",
-            "notice": notice.name,
             "attribution": [],
             "basis": [f"sha256:{sha}"],
             "reviewed_at": "2026-08-14T00:00:00Z",
@@ -659,17 +651,6 @@ async def test_manifest_rejects_fallback_digest_mismatch(tmp_path: Path) -> None
         )
 
 
-async def test_manifest_rejects_approved_fallback_without_notice(tmp_path: Path) -> None:
-    fallback = _fallback_fixture(tmp_path, write_notice=False)
-    with pytest.raises(ValueError, match="rights notice is missing"):
-        await write_scrolling_preview_manifest(
-            run_dir=tmp_path / "run",
-            tag="missing-notice-ai",
-            transparency_mode=TransparencyMode.AI,
-            fallback_music_path=fallback,
-        )
-
-
 async def test_manifest_rejects_legacy_v1_fallback_provenance(tmp_path: Path) -> None:
     fallback = _fallback_fixture(tmp_path, schema_version=1)
     with pytest.raises(ValueError, match="bundled fallback provenance is invalid"):
@@ -706,8 +687,6 @@ async def test_manifest_preserves_existing_unreviewed_per_run_music(
             {
                 "rights": {
                     "status": "unreviewed",
-                    "license_id": None,
-                    "notice": "No redistribution review recorded.",
                     "attribution": [],
                     "basis": [],
                     "reviewed_at": None,
@@ -875,7 +854,6 @@ async def test_manifest_accepts_executor_shaped_lineage_and_is_idempotent(
     assert Path(first.manifest_provenance_path).name not in manifest["artifacts"]
     assert second.music_source == first.music_source == "generated-fallback"
     assert second.music_rights_status == first.music_rights_status
-    assert second.music_notice_path == first.music_notice_path
     assert await asyncio.to_thread(Path(second.manifest_path).read_bytes) == first_manifest_bytes
     assert (
         await asyncio.to_thread(Path(second.manifest_provenance_path).read_bytes)
@@ -1426,22 +1404,16 @@ def _fallback_fixture(
     *,
     status: str = "redistribution-approved",
     digest: str | None = None,
-    write_notice: bool = True,
     schema_version: int = 2,
 ) -> Path:
     fallback = root / "fallback.mp3"
     data = b"offline-fallback-fixture"
     fallback.write_bytes(data)
     actual_digest = hashlib.sha256(data).hexdigest()
-    notice_name = "fallback.LICENSE.md"
-    if write_notice:
-        (root / notice_name).write_text("Synthetic asset notice.\n", encoding="utf-8")
     rights: dict[str, object]
     if status == "unreviewed":
         rights = {
             "status": status,
-            "license_id": None,
-            "notice": "No redistribution review recorded.",
             "attribution": [],
             "basis": [],
             "reviewed_at": None,
@@ -1449,10 +1421,6 @@ def _fallback_fixture(
     else:
         rights = {
             "status": status,
-            "license_id": "LicenseRef-Synthetic-Test"
-            if status == "redistribution-approved"
-            else None,
-            "notice": notice_name,
             "attribution": [],
             "basis": [f"sha256:{actual_digest}"],
             "reviewed_at": "2026-08-14T00:00:00.000Z",

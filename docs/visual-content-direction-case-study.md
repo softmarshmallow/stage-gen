@@ -73,6 +73,5 @@ prompts, transformation parameters, review, and redistribution scope:
 
 - [portable provenance sidecar](media/theme-art-direction-example.webp.meta.json)
 - [independent visual review](media/theme-art-direction-example.visual-review.md)
-- [artifact-specific media notice](media/theme-art-direction-example.LICENSE.md)
 
 Raw PNG sources and rejected candidates remain ignored and unpublished.

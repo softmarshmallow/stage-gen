@@ -85,15 +85,11 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "notice": "cover.LICENSE.md",
-    "notice_sha256": "f72083eb7a4b690ac748a66734b23df369094461995e5573e3f1988a2b6d0daa",
-    "notice_bytes": 2391,
-    "license_id": "LicenseRef-Synthetic-Game-Concept-Cover",
     "basis": [
       "Authenticated task owner selected Candidate 04 and explicitly authorized committing and pushing all remaining repository work, including this exact independently reviewed gallery package, on 2026-08-25",
       "the-sky-remembers-publication-review-6006077d867b3f3e",
       "No input reference images or third-party source media were submitted to the provider",
-      "Current OpenRouter model-terms routing and OpenAI output-ownership terms were reviewed in the adjacent artifact-specific notice"
+      "Current OpenRouter model-terms routing and OpenAI output-ownership terms were reviewed on 2026-08-25"
     ],
     "reviewed_at": "2026-08-25T09:09:35Z"
   }

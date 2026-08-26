@@ -48,8 +48,10 @@ cover, but must not include the player, NPCs, mobs, UI, or text.
 Only those dedicated scene images may appear in the map's `[[references]]`.
 Each layer and ground prompt must identify what to derive or separate from its
 chosen reference. Different layers may use different scene references. Obtain
-authorization before any billable image generation, then record rights,
-provenance, review status, and exact hashes before ingest.
+authorization before any billable image generation, then record exact hashes
+and inline origin/rights basis in the authored contract and bind semantic review
+to the accepted bytes. Prepared inputs do not need `.meta.json`,
+`.source.meta.json`, or `.LICENSE.md` sidecars.
 
 ## Review and close the package
 

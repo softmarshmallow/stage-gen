@@ -15,5 +15,4 @@ invariants = [
 
 [rights]
 status = "unreviewed"
-notice = "Original fictional character text authored as a stage-gen contract sample; no publication or redistribution approval is implied."
 basis = ["Original repository-authored text with no external character or media reference."]

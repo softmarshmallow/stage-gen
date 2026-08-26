@@ -9,8 +9,6 @@ from stage_gen.contracts import ArtifactProvenance, ArtifactResult, ArtifactRigh
 def unreviewed_rights() -> ArtifactRights:
     return ArtifactRights(
         status="unreviewed",
-        license_id=None,
-        notice="No redistribution approval has been recorded.",
         attribution=[],
         basis=[],
         reviewed_at=None,
@@ -21,30 +19,24 @@ def test_rights_statuses_never_infer_approval() -> None:
     assert unreviewed_rights().status == "unreviewed"
     restricted = ArtifactRights(
         status="restricted",
-        license_id=None,
-        notice="Internal evaluation only.",
         attribution=["Example provider"],
         basis=["Provider terms require a restricted disposition."],
         reviewed_at="2026-08-14T10:00:00.000Z",
     )
     approved = ArtifactRights(
         status="redistribution-approved",
-        license_id="CC0-1.0",
-        notice="RIGHTS.md",
         attribution=[],
         basis=["Authorized project-owned rights only."],
         reviewed_at="2026-08-14T10:00:00.000Z",
     )
     assert restricted.status == "restricted"
-    assert approved.license_id == "CC0-1.0"
+    assert approved.basis == ["Authorized project-owned rights only."]
 
 
 @pytest.mark.parametrize(
     "changes",
     [
-        {"license_id": "CC0-1.0"},
         {"reviewed_at": "2026-08-14T10:00:00.000Z"},
-        {"notice": " untrimmed "},
         {"unexpected": True},
     ],
 )
@@ -55,17 +47,14 @@ def test_unreviewed_rights_reject_invalid_fields(changes: dict[str, object]) -> 
         ArtifactRights.model_validate(value)
 
 
-def test_approved_rights_require_license_basis_and_utc_review() -> None:
+def test_approved_rights_require_basis_and_utc_review() -> None:
     base = {
         "status": "redistribution-approved",
-        "license_id": "CC0-1.0",
-        "notice": "RIGHTS.md",
         "attribution": [],
         "basis": ["Project authorization."],
         "reviewed_at": "2026-08-14T10:00:00.000Z",
     }
     invalid_changes: list[dict[str, object]] = [
-        {"license_id": None},
         {"basis": []},
         {"reviewed_at": None},
         {"reviewed_at": "2026-08-14T10:00:00+09:00"},

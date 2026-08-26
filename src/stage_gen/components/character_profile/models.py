@@ -46,26 +46,14 @@ class CharacterProfileRights(PersistedContractModel):
     """An explicit rights statement that never implies publication approval."""
 
     status: CharacterProfileRightsStatus
-    notice: str
     attribution: list[str] = Field(default_factory=list)
     basis: list[str] = Field(default_factory=list)
-    license_id: str | None = None
     reviewed_at: str | None = None
-
-    @field_validator("notice")
-    @classmethod
-    def validate_notice(cls, value: str) -> str:
-        return _normalized_text(value, "rights notice")
 
     @field_validator("attribution", "basis")
     @classmethod
     def validate_text_list(cls, value: list[str], info: Any) -> list[str]:
         return [_normalized_text(item, str(info.field_name)) for item in value]
-
-    @field_validator("license_id")
-    @classmethod
-    def validate_license_id(cls, value: str | None) -> str | None:
-        return None if value is None else _normalized_text(value, "rights license_id")
 
     @field_validator("reviewed_at")
     @classmethod
@@ -86,13 +74,11 @@ class CharacterProfileRights(PersistedContractModel):
     @model_validator(mode="after")
     def validate_status(self) -> CharacterProfileRights:
         if self.status == "unreviewed":
-            if self.license_id is not None or self.reviewed_at is not None:
-                raise ValueError("unreviewed rights must not claim a license or review time")
+            if self.reviewed_at is not None:
+                raise ValueError("unreviewed rights must not claim a review time")
             return self
         if not self.basis or self.reviewed_at is None:
             raise ValueError(f"{self.status} rights require basis and reviewed_at")
-        if self.status == "redistribution-approved" and self.license_id is None:
-            raise ValueError("redistribution-approved rights require license_id")
         return self
 
 

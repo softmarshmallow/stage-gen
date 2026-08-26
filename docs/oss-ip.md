@@ -39,8 +39,9 @@ an output:
 2. inspect for recognizable protected material, logos, signatures, or copied
    text/music;
 3. document prompt, provider/model, inputs, hashes, and post-processing;
-4. record the intended asset license or an explicit restricted-use notice; and
-5. retain any required attribution or provider notice.
+4. record an artifact-specific redistribution decision and stable rights basis;
+   and
+5. retain any externally required attribution or provider notice.
 
 The repository's BSD-3-Clause license covers its source code. It does not by
 itself license user inputs, generated artifacts, model weights, hosted media,
@@ -72,7 +73,7 @@ existence does not establish training-data provenance or downstream clearance.
 - [ ] Prompt is neutral and requests original work.
 - [ ] Every input/reference has a recorded rights basis.
 - [ ] Every committed generated-media file is enumerated and has matching
-      provenance plus a repository-approved asset license/status.
+      provenance plus a repository-approved rights status and basis.
 - [ ] Output was reviewed for protected names, marks, characters, text, and
       recognizable visual or musical copying.
 - [ ] No secret, signed URL, or private local path is committed.

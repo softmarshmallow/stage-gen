@@ -84,11 +84,11 @@ out/illustration-style-taxonomy/
 The 92 selected previews are the only generated images tracked by this dictionary.
 Their exact final bytes are bound by the manifest, the shared
 [independent visual review](images/style-dictionary.visual-review.md), and the
-[artifact-specific repository notice](images/style-dictionary.LICENSE.md). A
+repository publication gate. A
 style-recognition failure remains visible as a negative dictionary result; it does
 not make the exact reviewed preview invalid evidence. This collection is not a
 runtime fixture, a Concept Studio game gallery, or a standalone reusable asset pack.
-New or replaced previews must update all three collection records and pass the
+New or replaced previews must update the manifest and review record and pass the
 repository media gates before commit.
 
 ## Core rule: labels are candidates; observable facets are controls
@@ -3706,8 +3706,7 @@ Before a result appears as a reviewed showcase:
 - [ ] No artist, studio, franchise, product, character, signature, logo, or
       recognizable protected expression leaked into the output.
 - [ ] Inputs and references, if any, have an explicit rights basis.
-- [ ] The artifact-specific redistribution decision and notice are complete.
-- [ ] The manifest, exact-image review report, and repository notice agree.
+- [ ] The manifest and exact-image review report agree.
 - [ ] Documentation and repository media gates pass.
 
 ## Research notes and sources

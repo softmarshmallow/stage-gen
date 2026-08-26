@@ -223,7 +223,6 @@ class ManifestWriteResult:
     music_provenance_path: str
     music_source: Literal["per-run", "generated-fallback"]
     music_rights_status: MusicRightsStatus
-    music_notice_path: str | None = None
     soundtrack_paths: tuple[str, ...] = ()
     map_book_paths: tuple[str, ...] = ()
 
@@ -237,8 +236,6 @@ class ManifestWriteResult:
             *self.soundtrack_paths,
             *self.map_book_paths,
         ]
-        if self.music_notice_path is not None:
-            paths.append(self.music_notice_path)
         return tuple(dict.fromkeys(paths))
 
 
@@ -324,7 +321,6 @@ def _write_scrolling_preview_manifest(
         music_path.name,
         music_meta.name,
         *soundtrack_paths,
-        *([Path(music["notice_path"]).name] if isinstance(music.get("notice_path"), str) else []),
     }
     active_map_book_paths = set(map_book_paths)
     artifacts = [
@@ -453,7 +449,6 @@ def _write_scrolling_preview_manifest(
                     music_meta.name,
                     *soundtrack_paths,
                     *map_book_paths,
-                    *([Path(music["notice_path"]).name] if music.get("notice_path") else []),
                     *(
                         [
                             str(profile_binding["path"]),
@@ -534,7 +529,6 @@ def _write_scrolling_preview_manifest(
             "music_artifact_present": True,
             "music_provenance_present": True,
             "music_rights_status": music["rights_status"],
-            "music_notice_present": True if music.get("notice_path") else None,
             **({"soundtrack_complete": True} if collected_soundtrack is not None else {}),
             **({"map_book_complete": True} if collected_map_book is not None else {}),
             "retained_raw_excluded_from_top_level": all(
@@ -574,7 +568,6 @@ def _write_scrolling_preview_manifest(
         music_provenance_path=str(music_meta),
         music_source=music["source"],
         music_rights_status=music["rights_status"],
-        music_notice_path=music.get("notice_path"),
         soundtrack_paths=tuple(str(run_dir / path) for path in soundtrack_paths),
         map_book_paths=tuple(str(run_dir / path) for path in map_book_paths),
     )
@@ -584,14 +577,10 @@ def _is_inactive_music_artifact(name: str, active: set[str]) -> bool:
     if name in active:
         return False
     return (
-        name == "preview-loop.LICENSE.md"
-        or (
-            name.startswith("music_") and (name.endswith(".mp3") or name.endswith(".mp3.meta.json"))
-        )
-        or (
-            name.startswith("soundtrack_")
-            and (name.endswith(".json") or name.endswith(".json.meta.json"))
-        )
+        name.startswith("music_") and (name.endswith(".mp3") or name.endswith(".mp3.meta.json"))
+    ) or (
+        name.startswith("soundtrack_")
+        and (name.endswith(".json") or name.endswith(".json.meta.json"))
     )
 
 
@@ -2353,11 +2342,6 @@ def _ensure_run_music_pair(target: Path, fallback: Path) -> dict[str, Any]:
             "generate-music capability or provide a redistribution-approved bundled fallback"
         )
     validated = _validate_fallback(fallback, fallback_meta)
-    notice_target = target.parent / validated["notice_name"]
-    if notice_target.exists() and notice_target.read_bytes() != validated["notice_bytes"]:
-        raise ValueError(
-            f"bundled fallback notice target already exists: {validated['notice_name']}"
-        )
     target.parent.mkdir(parents=True, exist_ok=True)
     installed: list[Path] = []
     temporary: list[Path] = []
@@ -2365,7 +2349,6 @@ def _ensure_run_music_pair(target: Path, fallback: Path) -> dict[str, Any]:
         for destination, data in (
             (target, validated["artifact_bytes"]),
             (target_meta, validated["sidecar_text"].encode()),
-            *(() if notice_target.exists() else ((notice_target, validated["notice_bytes"]),)),
         ):
             handle, temp_name = tempfile.mkstemp(
                 prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
@@ -2390,7 +2373,6 @@ def _ensure_run_music_pair(target: Path, fallback: Path) -> dict[str, Any]:
     return {
         "source": "generated-fallback",
         "rights_status": validated["rights"]["status"],
-        "notice_path": str(notice_target),
     }
 
 
@@ -2409,13 +2391,9 @@ def _existing_fallback_metadata(
     except OSError:
         return None
     validated = _validate_fallback(fallback, fallback_meta)
-    notice_target = target.parent / validated["notice_name"]
-    if not notice_target.is_file() or notice_target.read_bytes() != validated["notice_bytes"]:
-        raise ValueError("bundled fallback notice is missing or does not match its source")
     return {
         "source": "generated-fallback",
         "rights_status": validated["rights"]["status"],
-        "notice_path": str(notice_target),
     }
 
 
@@ -2442,26 +2420,12 @@ def _validate_fallback(fallback: Path, meta: Path) -> dict[str, Any]:
         raise ValueError(
             "bundled fallback is not publication-approved "
             f"(rights.status={rights['status']}); generate per-run music or record "
-            "an approved asset license and notice"
+            "an explicit reviewed rights decision"
         )
     _assert_publishable_references(sidecar, rights)
-    notice_name = _publication_notice_name(rights["notice"])
-    fallback_directory = fallback.parent.resolve()
-    notice = (fallback_directory / notice_name).resolve()
-    try:
-        notice.relative_to(fallback_directory)
-    except ValueError as error:
-        raise ValueError("bundled fallback rights notice must stay beside the artifact") from error
-    if not notice.is_file():
-        raise ValueError(f"bundled fallback rights notice is missing: {notice_name}")
-    notice_bytes = notice.read_bytes()
-    if not notice_bytes:
-        raise ValueError(f"bundled fallback rights notice is empty: {notice_name}")
     return {
         "artifact_bytes": artifact_bytes,
         "sidecar_text": sidecar_text,
-        "notice_bytes": notice_bytes,
-        "notice_name": notice_name,
         "rights": rights,
     }
 
@@ -2514,19 +2478,6 @@ def _assert_publishable_references(sidecar: dict[str, Any], rights: dict[str, An
 def _assert_portable(reference: str, label: str) -> None:
     if not is_portable_artifact_reference(reference):
         raise ValueError(f"bundled fallback {label} must use a stable non-temporary reference")
-
-
-def _publication_notice_name(notice: str) -> str:
-    stripped = notice.strip()
-    if (
-        not stripped
-        or stripped != Path(stripped).name
-        or stripped in {".", ".."}
-        or "\\" in stripped
-        or re.match(r"^[a-z][a-z0-9+.-]*:", stripped, re.IGNORECASE)
-    ):
-        raise ValueError("bundled fallback rights notice must name an adjacent file")
-    return stripped
 
 
 def _json_object(path: Path, label: str) -> dict[str, Any]:

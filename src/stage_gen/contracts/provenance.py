@@ -67,21 +67,9 @@ class ArtifactRights(PersistedContractModel):
     """Explicit rights decision; the model never infers approval."""
 
     status: RightsStatus
-    license_id: str | None
-    notice: str
-    attribution: list[str]
+    attribution: list[str] = Field(default_factory=list)
     basis: list[str]
     reviewed_at: str | None
-
-    @field_validator("notice")
-    @classmethod
-    def validate_notice(cls, value: str) -> str:
-        return _non_empty_trimmed(value, "artifact rights notice")
-
-    @field_validator("license_id")
-    @classmethod
-    def validate_license(cls, value: str | None) -> str | None:
-        return None if value is None else _non_empty_trimmed(value, "artifact rights license_id")
 
     @field_validator("attribution", "basis")
     @classmethod
@@ -103,8 +91,6 @@ class ArtifactRights(PersistedContractModel):
     @model_validator(mode="after")
     def validate_status_fields(self) -> ArtifactRights:
         if self.status == "unreviewed":
-            if self.license_id is not None:
-                raise ValueError("unreviewed artifact rights must not name a license")
             if self.reviewed_at is not None:
                 raise ValueError("unreviewed artifact rights must have reviewed_at=null")
             return self
@@ -112,8 +98,6 @@ class ArtifactRights(PersistedContractModel):
             raise ValueError(f"{self.status} artifact rights must record at least one basis")
         if self.reviewed_at is None:
             raise ValueError(f"{self.status} artifact rights must record reviewed_at")
-        if self.status == "redistribution-approved" and self.license_id is None:
-            raise ValueError("redistribution-approved artifact rights must name a license")
         return self
 
 

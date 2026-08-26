@@ -149,8 +149,6 @@ def _transition_dialogue_review_sync(input_value: Mapping[str, object]) -> JsonO
         attempts=1,
         rights=ArtifactRights(
             status="restricted",
-            license_id=None,
-            notice="Restricted to local demo use; publication is not authorized.",
             attribution=[],
             basis=["Independent digest-bound review passed for local demo use."],
             reviewed_at=canonical_review.reviewed_at,
@@ -278,8 +276,6 @@ def _transition_dialogue_review_v3(
         attempts=1,
         rights=ArtifactRights(
             status="restricted",
-            license_id=None,
-            notice="Restricted to local demo use; publication is not authorized.",
             attribution=[],
             basis=["Independent digest-bound review passed for local demo use."],
             reviewed_at=canonical_review.reviewed_at,

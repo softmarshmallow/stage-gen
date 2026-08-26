@@ -145,15 +145,10 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "notice": "theme-art-direction-example.LICENSE.md",
-    "notice_sha256": "9337569ffdc9b33779ba76ee1aa55aa8f17599dc83454e3eab1523fc57dd7f92",
-    "notice_bytes": 1854,
-    "license_id": "LicenseRef-Stage-Gen-Theme-Art-Direction-Example-Repository-Sharing",
     "attribution": [],
     "basis": [
       "Artifact-specific repository publication authorization in the authenticated project owner's direct 2026-08-20 request to make this documentation and include a WebP in Git",
       "Exact digest-matched deterministic derivative of two content-addressed project-controlled experiment outputs with source-specific rights bases",
-      "theme-art-direction-example.LICENSE.md",
       "independent-theme-art-direction-webp-7ad7b8d619664aff",
       "docs/media/theme-art-direction-example.visual-review.md",
       "sha256:cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5"

@@ -88,7 +88,7 @@ def _game(**overrides: Any) -> dict[str, Any]:
             "resident": {"body_kind_default": "human"},
         },
         "gameplay": {"mob_population": _direction()},
-        "rights": {"status": "unreviewed", "notice": "Test fixture."},
+        "rights": {"status": "unreviewed"},
     }
     value.update(overrides)
     return value

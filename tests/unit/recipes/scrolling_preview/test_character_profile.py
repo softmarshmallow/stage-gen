@@ -41,7 +41,6 @@ invariants = ["Gray-green eyes", "Teal field jacket"]
 
 [rights]
 status = "unreviewed"
-notice = "Original test character; publication is not authorized."
 basis = ["Original test text"]
 """
 

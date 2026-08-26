@@ -38,7 +38,6 @@ invariants = ["Gray-green eyes", "Teal field jacket"]
 
 [rights]
 status = "unreviewed"
-notice = "Original test character; publication is not authorized."
 basis = ["Original test text"]
 """
 
@@ -312,7 +311,7 @@ def test_revision_is_part_of_digest_but_profile_id_is_stable(tmp_path: Path) -> 
         {"status": "restricted"},
         {
             "status": "redistribution-approved",
-            "basis": ["Reviewed original text"],
+            "basis": [],
             "reviewed_at": "2026-08-21T00:00:00Z",
         },
     ],
@@ -320,9 +319,21 @@ def test_revision_is_part_of_digest_but_profile_id_is_stable(tmp_path: Path) -> 
 def test_rights_states_fail_closed(tmp_path: Path, rights_update: dict[str, object]) -> None:
     profile = load_character_profile(_write_profile(tmp_path, PROFILE_TOML))
     payload = json.loads(canonical_character_profile_json(profile))
-    payload["rights"] = {"notice": payload["rights"]["notice"], **rights_update}
+    payload["rights"] = rights_update
     with pytest.raises(CharacterProfileLoadError, match="invalid character profile contract"):
         load_character_profile(_write_profile(tmp_path, json.dumps(payload), ".json"))
+
+
+def test_reviewed_rights_need_no_license_or_notice(tmp_path: Path) -> None:
+    profile = load_character_profile(_write_profile(tmp_path, PROFILE_TOML))
+    payload = json.loads(canonical_character_profile_json(profile))
+    payload["rights"] = {
+        "status": "redistribution-approved",
+        "basis": ["Authenticated task owner approved the exact source."],
+        "reviewed_at": "2026-08-21T00:00:00Z",
+    }
+    reviewed = load_character_profile(_write_profile(tmp_path, json.dumps(payload), ".json"))
+    assert reviewed.rights.status == "redistribution-approved"
 
 
 def test_repository_sample_is_strict_original_and_reference_free() -> None:

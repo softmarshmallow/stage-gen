@@ -282,8 +282,6 @@ class DialogueSceneExecutor:
             },
             rights=ArtifactRights(
                 status=rights.status,
-                license_id=rights.license_id,
-                notice=rights.notice,
                 attribution=rights.attribution,
                 basis=rights.basis,
                 reviewed_at=rights.reviewed_at,
@@ -1171,8 +1169,6 @@ async def _write_local_bytes(
             rights=rights
             or ArtifactRights(
                 status="unreviewed",
-                license_id=None,
-                notice="Rights review is required before publication.",
                 attribution=[],
                 basis=[],
                 reviewed_at=None,

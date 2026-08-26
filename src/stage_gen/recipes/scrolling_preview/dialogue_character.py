@@ -898,8 +898,6 @@ def _input(ref: str, data: bytes, media_type: str) -> InputProvenance:
 def _restricted_rights(reviewed_at: str) -> ArtifactRights:
     return ArtifactRights(
         status="restricted",
-        license_id=None,
-        notice="Restricted to local demo use; publication is not authorized.",
         attribution=[],
         basis=["Independent digest-bound dialogue character review passed."],
         reviewed_at=reviewed_at,

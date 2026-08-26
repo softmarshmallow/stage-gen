@@ -586,8 +586,6 @@ def _minimum_audio_size(data: bytes) -> dict[str, object]:
 def _unreviewed_generated_music_rights() -> ArtifactRights:
     return ArtifactRights(
         status="unreviewed",
-        license_id=None,
-        notice="No redistribution review has been recorded for this generated output.",
         attribution=[],
         basis=[],
         reviewed_at=None,

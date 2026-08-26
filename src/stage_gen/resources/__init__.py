@@ -17,7 +17,6 @@ _REQUIRED_RELATIVE_PATHS = (
     "fixtures/styles.txt",
     "music/preview-loop.mp3",
     "music/preview-loop.mp3.meta.json",
-    "music/preview-loop.LICENSE.md",
     "prompting/image_style_vocabulary_v1.json",
     "prompting/game_vocabulary_v1.json",
     "skills/anchor-image-style/SKILL.md",

@@ -163,7 +163,7 @@ async def test_profile_v3_review_rejects_noncanonical_profile_json(
         ("revision", 99, "params mismatch"),
         ("model", "deterministic-dialogue-scene-v3", "producer lineage mismatch"),
         ("input_sha256", "f" * 64, "source input binding mismatch"),
-        ("rights_notice", "Tampered rights notice.", "rights mismatch"),
+        ("rights_basis", ["Tampered rights basis."], "rights mismatch"),
     ],
 )
 async def test_profile_v3_review_rejects_profile_provenance_lineage_tamper(
@@ -180,8 +180,8 @@ async def test_profile_v3_review_rejects_profile_provenance_lineage_tamper(
         provenance[field] = value
     elif field == "input_sha256":
         provenance["inputs"][0]["sha256"] = value
-    elif field == "rights_notice":
-        provenance["rights"]["notice"] = value
+    elif field == "rights_basis":
+        provenance["rights"]["basis"] = value
     else:
         provenance["params"][field] = value
     provenance_bytes = json.dumps(provenance, sort_keys=True).encode("utf-8")

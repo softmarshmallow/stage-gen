@@ -64,8 +64,6 @@ def _provenance_input(prompt: str) -> ProvenanceInput:
         attempts=1,
         rights=ArtifactRights(
             status="unreviewed",
-            license_id=None,
-            notice="Unreviewed local test fixture; publication is not authorized.",
             attribution=[],
             basis=[],
             reviewed_at=None,

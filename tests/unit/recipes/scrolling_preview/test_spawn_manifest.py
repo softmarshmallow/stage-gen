@@ -129,7 +129,7 @@ def _game_contract(
                     right_column_exclusive=right_column_exclusive,
                 )
             },
-            "rights": {"status": "unreviewed", "notice": "Test fixture."},
+            "rights": {"status": "unreviewed"},
         }
     )
 

@@ -36,8 +36,6 @@
     },
     "rights": {
       "status": "redistribution-approved",
-      "notice": "Fixture-only artifact notice identifier",
-      "license_id": "LicenseRef-Fixture-Artifact-Permission",
       "attribution": [],
       "basis": [
         "Fixture-only artifact-specific documented authorization",

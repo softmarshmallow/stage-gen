@@ -46,8 +46,6 @@ def provenance(**changes: object) -> ProvenanceInput:
 def approved_rights() -> ArtifactRights:
     return ArtifactRights(
         status="redistribution-approved",
-        license_id="CC0-1.0",
-        notice="RIGHTS.md",
         attribution=[],
         basis=["Authorized project-owned rights only."],
         reviewed_at="2026-08-14T10:00:00.000Z",

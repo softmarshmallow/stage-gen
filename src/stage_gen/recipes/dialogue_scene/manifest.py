@@ -214,8 +214,6 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
             attempts=1,
             rights=ArtifactRights(
                 status="unreviewed",
-                license_id=None,
-                notice="Publication requires a separate explicit rights decision.",
                 attribution=[],
                 basis=[],
                 reviewed_at=None,
@@ -376,8 +374,6 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
             attempts=1,
             rights=ArtifactRights(
                 status="unreviewed",
-                license_id=None,
-                notice="Publication requires a separate explicit rights decision.",
                 attribution=[],
                 basis=[],
                 reviewed_at=None,

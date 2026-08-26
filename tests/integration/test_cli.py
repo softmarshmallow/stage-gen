@@ -138,7 +138,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
             "kind": "character-profile-binding-v1",
             "ref": "library/characters/mira-vale-cartographer/profile.toml",
             "schema_version": 1,
-            "source_sha256": "4b0ae65d60c355b4312dc928b27827188b2b2b820c8467376e4f50ecee2f36ff",
+            "source_sha256": "3637614c8d5a13cfa6d4f7aa889a750bdecac2c1f14375483e26ef37aedfb0cf",
         },
         "canonical_bytes": validated["canonical_bytes"],
         "canonical_sha256": validated["canonical_sha256"],
@@ -148,7 +148,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
         "revision": 1,
         "rights_status": "unreviewed",
         "schema_version": 1,
-        "source_sha256": "4b0ae65d60c355b4312dc928b27827188b2b2b820c8467376e4f50ecee2f36ff",
+        "source_sha256": "3637614c8d5a13cfa6d4f7aa889a750bdecac2c1f14375483e26ef37aedfb0cf",
         "valid": True,
     }
     digest_output = StringIO()

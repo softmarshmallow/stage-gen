@@ -142,13 +142,10 @@
   },
   "rights": {
     "status": "redistribution-approved",
-    "notice": "dialogue-scene-showcase.LICENSE.md",
-    "license_id": "LicenseRef-Stage-Gen-Dialogue-Scene-Showcase-Repository-Sharing",
     "attribution": [],
     "basis": [
       "Artifact-specific repository publication authorization by the authenticated project owner",
       "Exact digest-matched deterministic browser capture of project UI and project-owned AI-generated runtime assets",
-      "dialogue-scene-showcase.LICENSE.md",
       "independent-dialogue-showcase-webp-94efbbfba6485fad",
       "docs/media/dialogue-scene-showcase.visual-review.md",
       "sha256:ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba"

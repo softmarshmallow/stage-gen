@@ -92,8 +92,8 @@ uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py 
 audio inspection. Component tests inject process runners where possible, but a
 real music pipeline should fail clearly when those tools are unavailable.
 
-The wheel includes immutable layout templates and the approved fallback music,
-provenance, and notice under `stage_gen.resources`. The contract test builds a
+The wheel includes immutable layout templates and the approved fallback music
+with its provenance under `stage_gen.resources`. The contract test builds a
 wheel in isolation, inspects its entries, extracts it away from the checkout,
 and resolves every required resource through the installed helper API. Do not
 restore checkout-relative resource lookup or symlink fixtures into a build.

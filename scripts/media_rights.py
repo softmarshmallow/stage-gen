@@ -1275,17 +1275,6 @@ def _validate_concept_cover_metadata(
             "concept gallery package"
         )
 
-    rights = _record(sidecar.get("rights"))
-    notice = rights.get("notice") if rights is not None else None
-    if (
-        not _safe_relative_path(notice)
-        or len(PurePosixPath(cast(str, notice)).parts) != 1
-        or notice in {".", ".."}
-    ):
-        errors.append(
-            "sidecar.rights.notice must name an adjacent file in the concept gallery package"
-        )
-
     _validate_concept_cover_generation(sidecar, artifact, errors)
 
 
@@ -1469,7 +1458,6 @@ def _validate_rights(
     sidecar: JsonObject,
     *,
     kind: str | None,
-    observed: JsonObject | None,
     errors: list[str],
 ) -> None:
     derivative = _is_generated_image_derivative(entry)
@@ -1484,16 +1472,21 @@ def _validate_rights(
     if rights is None:
         errors.append("sidecar.rights is required for repository publication")
     else:
+        required_rights_fields = {"status", "basis", "reviewed_at"}
+        allowed_rights_fields = required_rights_fields | {"attribution"}
+        if not required_rights_fields <= set(rights) or not set(rights) <= allowed_rights_fields:
+            errors.append("sidecar.rights fields are incomplete or unsupported")
         if rights.get("status") != "redistribution-approved":
             errors.append("sidecar.rights.status must be redistribution-approved")
-        for key, label in (("notice", "notice"), ("license_id", "license_id")):
-            value = rights.get(key)
-            if (
-                not _stable_text(value)
-                or not isinstance(value, str)
-                or UNSTABLE_REF.search(value) is not None
-            ):
-                errors.append(f"sidecar.rights.{label} must be a stable reviewed value")
+        attribution = rights.get("attribution")
+        if "attribution" in rights and (
+            not isinstance(attribution, list)
+            or not all(
+                _stable_text(item) and isinstance(item, str) and UNSTABLE_REF.search(item) is None
+                for item in attribution
+            )
+        ):
+            errors.append("sidecar.rights.attribution must contain stable reviewed values")
         basis_value = rights.get("basis")
         valid_basis = (
             isinstance(basis_value, list)
@@ -1511,28 +1504,6 @@ def _validate_rights(
             errors.append("sidecar.rights.basis cannot rely only on provider provenance")
         if not _valid_timestamp(rights.get("reviewed_at")):
             errors.append("sidecar.rights.reviewed_at must be an ISO UTC timestamp")
-        if lower_snake_generated_image:
-            notice_digest = rights.get("notice_sha256")
-            notice_bytes = rights.get("notice_bytes")
-            if not _valid_digest(notice_digest):
-                errors.append("sidecar.rights.notice_sha256 must be a content digest")
-            elif observed is None or notice_digest != observed.get("notice_sha256"):
-                errors.append("sidecar.rights.notice_sha256 must match the adjacent notice")
-            if not _positive_safe_integer(notice_bytes):
-                errors.append("sidecar.rights.notice_bytes must be a positive integer")
-            elif observed is None or notice_bytes != observed.get("notice_bytes"):
-                errors.append("sidecar.rights.notice_bytes must match the adjacent notice")
-        if rights.get("license_id") == "BSD-3-Clause":
-            errors.append("the repository source license cannot be inherited by generated media")
-        if rights.get("license_id") == "CC0-1.0" and not (
-            isinstance(basis_value, list)
-            and any(
-                isinstance(item, str)
-                and re.search("artifact-specific rights-holder dedication", item, re.IGNORECASE)
-                for item in basis_value
-            )
-        ):
-            errors.append("CC0 requires an artifact-specific rights-holder dedication basis")
     basis = rights.get("basis") if rights is not None else None
     if derivative:
         _validate_derivative_review(entry, sidecar, basis, errors)
@@ -1663,7 +1634,7 @@ def validate_published_media_record(value: object) -> list[str]:
         _validate_source_inputs(sidecar, errors)
     elif kind in CAPTURE_KINDS:
         _validate_capture_metadata(sidecar, kind, errors)
-    _validate_rights(entry, sidecar, kind=kind, observed=observed, errors=errors)
+    _validate_rights(entry, sidecar, kind=kind, errors=errors)
     return errors
 
 
@@ -1683,7 +1654,6 @@ def validate_published_media_copy(value: object) -> list[str]:
     for field, label in (
         ("sha256", "media bytes"),
         ("sidecarSha256", "provenance sidecar"),
-        ("noticeSha256", "rights notice"),
     ):
         digest = observed.get(field) if observed is not None else None
         canonical_digest = canonical_observed.get(field) if canonical_observed is not None else None
@@ -1883,7 +1853,6 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             failures.append(f"{path}: binary media is not enumerated in the inventory")
 
     observations: dict[str, JsonObject] = {}
-    capture_notice_paths_by_license: dict[str, set[str]] = {}
     for path, entry in entries.items():
         if path not in discovered:
             failures.append(f"{path}: inventory entry does not resolve to discovered binary media")
@@ -1909,9 +1878,6 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             "bytes": absolute.stat().st_size,
             "sha256": _sha256_file(absolute),
             "sidecarSha256": hashlib.sha256(sidecar_bytes).hexdigest(),
-            "noticeSha256": None,
-            "notice_sha256": None,
-            "notice_bytes": None,
         }
         kind = _media_kind(entry, path, [])
         derivative = _is_generated_image_derivative(entry)
@@ -1936,26 +1902,6 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
                 failures.append(
                     f"{path}: inventory sidecarSha256 does not match adjacent provenance sidecar"
                 )
-        rights = _record(sidecar.get("rights"))
-        notice = rights.get("notice") if rights is not None else None
-        if not isinstance(notice, str) or Path(notice).name != notice or notice in {".", ".."}:
-            failures.append(f"{path}: sidecar rights notice must name an adjacent file")
-        else:
-            notice_path = absolute.parent / notice
-            if not notice_path.exists():
-                failures.append(f"{path}: sidecar rights notice is missing")
-            elif notice_path.is_symlink() or not notice_path.is_file():
-                failures.append(f"{path}: sidecar rights notice must be a regular file")
-            else:
-                observed["noticeSha256"] = _sha256_file(notice_path)
-                observed["notice_sha256"] = observed["noticeSha256"]
-                observed["notice_bytes"] = notice_path.stat().st_size
-                if kind in CAPTURE_KINDS and not lower_snake_generated_image and rights is not None:
-                    license_id = rights.get("license_id")
-                    if isinstance(license_id, str):
-                        capture_notice_paths_by_license.setdefault(license_id, set()).add(
-                            notice_path.relative_to(repo).as_posix()
-                        )
         observations[path] = observed
         if derivative:
             _validate_derivative_review_file(repo, path, sidecar, failures)
@@ -1969,9 +1915,6 @@ def check_generated_media_publication(repo: Path, inventory_path: Path) -> Publi
             {"entry": entry, "observed": observed, "sidecar": sidecar}
         ):
             failures.append(f"{path}: {failure}")
-
-    if any(len(paths) > 1 for paths in capture_notice_paths_by_license.values()):
-        failures.append("browser capture video and poster must share one adjacent rights notice")
 
     for path, entry in entries.items():
         copy_of = entry.get("copyOf")

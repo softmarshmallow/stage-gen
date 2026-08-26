@@ -878,8 +878,6 @@ def _resolve_rights(
         return requested
     return ArtifactRights(
         status="unreviewed",
-        license_id=None,
-        notice="Image-repeat output requires an independent rights review before publication.",
         attribution=[],
         basis=[],
         reviewed_at=None,
