@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "category": "western-card-casual",
+  "review_basis": "Independent direct inspection of each raw GPT Image 2 and Grok Image 2 original. Marker hits follow the four frozen profile markers in order. Attractive but generic output does not count as style recognition; the review judges style and asset surface rather than incidental pose or subject details.",
+  "entries": [
+    {
+      "entry_id": "league_champion_splash_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The face-led armored champion, thrust lightning blade, diagonal storm platform, selectively sharp metal, and blue emissive effect against deep atmospheric ruins reproduce the premium champion-splash surface."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A dominant armored duelist, aggressively foreshortened electric sword, sweeping cloak diagonal, sharp painted materials, and bright magic isolated from a storm vortex retain all four splash-art markers."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT gives the environment more narrative scale; Grok drives a tighter action diagonal, while both reproduce the same champion-splash grammar."
+    },
+    {
+      "entry_id": "hearthstone_minion_card_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The enormous goblin face, hands and mitt, fresh tavern-bakery palette, turquoise enchanted whisk, and compact flaming-pie accident read clearly at card size; broad clean brush masses replace the former PBR-like microtexture."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Grok preserves the oversized comic expression, rounded simplified props, warm workshop color, one cyan magical accent, and thumbnail-readable pie mishap with broad object-local painted blocking and no pervasive weathering."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both now control caricature, palette, broad brush handling, and the card-scale gag without the previous gritty material drift; GPT is the stronger overall replacement while Grok remains slightly flatter."
+    },
+    {
+      "entry_id": "runeterra_follower_full_art_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Courier, archivist, opened reliquary, and spectral birds form a complete lore incident, with a coherent rain-dark regional palette, crisp foreground figures, softened city depth, and subordinate evidence props."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The intruder, alarmed scholar, spectral flock, scattered papers, books and rainbound archive stage a narrative card event rather than a beauty pose, with clear foreground silhouettes and painterly depth."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more cinematic and materially polished; Grok is more visibly painterly, but both preserve the narrative full-art follower surface."
+    },
+    {
+      "entry_id": "mtg_arena_borderless_card_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Lineless classical anatomy, restrained desert earths, a single golden supernatural focus, solemn symbolic staging, and physically lit cloth, brass, parchment and stone reproduce borderless mythic card painting."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The aged astronomer is rendered without contour lines in a natural umber palette, holding one radiant gold armillary in a static symbolic ritual with coherent tactile cloth, metal and ruin lighting."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT adds more surrounding ritual objects and atmospheric depth; Grok simplifies the icon, with equally specific borderless fantasy-card realism."
+    },
+    {
+      "entry_id": "afk_ascended_hero_portrait_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The extremely elongated full-body collection pose, repeated Art Nouveau leaf and moth curves, cel-shaped costume masses with soft gradients, and limited moonlit faction palette establish an ascended hero portrait."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A long fashion-illustration silhouette, repeated crescent and botanical curves, clean cel-shaped garment planes softened by gradients, and a shallow lavender ornamental field retain the registered ascended collection surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is denser and more East-Asian-gacha ornate; Grok is flatter and closer to a collection portrait, while both meet the specific Art Nouveau silhouette grammar."
+    },
+    {
+      "entry_id": "cookie_kingdom_gacha_splash_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The tiny gingerbread body, chocolate-brown contour, flat candy color, shallow glossy shading, telescope prop and dense circular star burst unmistakably form a cookie-character acquisition splash."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Grok uses the same compressed cookie construction, thick edible-brown outline, bright flat confectionery palette, minimal depth, and circular starburst reveal around the featured character."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT supplies a denser premium reveal burst; Grok is simpler and more sticker-flat, but both strongly reproduce the cookie gacha surface."
+    },
+    {
+      "entry_id": "angry_birds_loading_ensemble_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Near-spherical limbless birds, severe eyebrow-and-beak acting, smooth vector-like gradients, and a single left-to-right pear confrontation create an immediately readable casual loading-screen gag."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The round primary-color birds, minimal anatomy, exaggerated angry brows, toy-polish shading, and frightened burrowers organized around the stolen pears retain every ensemble marker."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT uses richer lighting and foreground depth; Grok is cleaner and more vector-flat, with the same unmistakable casual gag language."
+    },
+    {
+      "entry_id": "pvz2_almanac_portrait_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A clean lumpy anthropomorphic cactus is built around an enormous polished horn, with asymmetrical spikes, thick contour, saturated fills, controlled gradients, and an absurd hose-and-clamp garden contraption; no patina or surface mottling remains."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The clean irregular plant, oversized polished brass nozzle, annoyed face, strong outline, simple saturated volume, and wrapped household hose reproduce an almanac unit portrait without weathering or global texture."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both remove the previous bruising and brass patina while retaining the functional plant-comedy surface; GPT is more grotesquely shaped and Grok is cleaner and more compact."
+    },
+    {
+      "entry_id": "clash_royale_troop_card_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, false],
+        "style_recognized": true,
+        "diagnostic": "The squat mushroom rider, enormous cap and lance, tight low-angle thumbnail pose, and blue-orange separation read as a troop-card character, though heavily weathered wood, shell and cloth exceed the restrained surface texture marker."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Chunky toy anatomy, oversized mushroom and lance, low-angle vertical crop, blue mount against orange dust, bright rim light, and clean lightly textured 3D painting preserve all four troop-card markers."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is grittier than the target but remains recognizable through shape and framing; Grok is the cleaner and more faithful toy-painted rendering."
+    },
+    {
+      "entry_id": "brawl_seasonal_loading_art_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Three compressed fighters with huge hands, shoes and tools form a strong triangle around a flat impact burst, using smooth 3D shading, saturated cyan-magenta-orange light and shallow carnival depth."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The oversized hammer, wrench, wheel and heads, triangular three-fighter staging, graphic ground hit, smooth toy shading and neon amusement-park palette reproduce a phone-readable seasonal loading illustration."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT pushes more cinematic foreshortening; Grok gives the three-character triangle a cleaner read, with equivalent seasonal-loading style control."
+    },
+    {
+      "entry_id": "rayman_gouache_platformer_world_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Clean digitally rendered opaque color blocks, elastic floating limbs and machinery, dark foreground curls, saturated gameplay ledges, and separated parallax depth create a decorative traversable platform world without a global craft-paper substrate."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Clean irregular silhouette layers, detached elastic hands and shoes, restrained object-local texture, strong foreground-to-backdrop separation, and an exposed sequence of platforms and hazards retain all four side-scroller markers."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both remove the previous all-over paper and rubbed-pigment treatment: GPT is richer and more scenic, while Grok gives the cleanest and most route-explicit gameplay frame."
+    },
+    {
+      "entry_id": "banner_saga_caravan_panorama_v1",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A minute dark caravan crosses a monumental ultra-wide snowfield under hard-edged flattened arches, muted blue-gray and ivory planes, one oxblood banner, crisp figures and lineless distant terrain."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Tiny silhouetted travelers and wagons remain subordinate to austere geometric mountains and arches, using a muted Nordic palette, one red banner accent, decisive figure contours and flat distant shapes."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT sustains the more monumental 21:9 scale; Grok's 16:9 fallback compresses the panorama but does not materially weaken the caravan-to-landscape contrast or flattened shape language."
+    }
+  ]
+}

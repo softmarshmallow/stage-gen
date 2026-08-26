@@ -31,7 +31,7 @@ def test_repository_storage_policy_uses_live_enforced_limits() -> None:
     policy = (repository_root / "docs/repository-storage.md").read_text(encoding="utf-8")
 
     assert re.search(r"\bapproximately\s+\d+(?:\.\d+)?\s+MiB\b", policy) is None
-    for limit in ("audio: 20 MiB", "image: 5 MiB", "video: 25 MiB", "combined: 50 MiB"):
+    for limit in ("audio: 20 MiB", "image: 5 MiB", "video: 25 MiB", "combined: 100 MiB"):
         assert limit in policy
     assert "uv run python scripts/check_docs.py" in policy
     assert (

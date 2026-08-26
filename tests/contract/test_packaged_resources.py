@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -73,12 +75,31 @@ MEDIA_SUFFIXES = {
 }
 IMAGE_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 CONCEPT_GALLERY_PREFIX = ("concept-studio", "gallery")
+CONCEPT_STYLE_DICTIONARY_PREFIX = ("concept-studio", "style-dictionary")
+CONCEPT_MEDIA_PREFIXES = {
+    CONCEPT_GALLERY_PREFIX,
+    CONCEPT_STYLE_DICTIONARY_PREFIX,
+}
+STYLE_DICTIONARY_ROOT = PurePosixPath(*CONCEPT_STYLE_DICTIONARY_PREFIX)
+STYLE_DICTIONARY_MANIFEST = STYLE_DICTIONARY_ROOT / "manifest.json"
+STYLE_DICTIONARY_REVIEW = (
+    STYLE_DICTIONARY_ROOT / "images/style-dictionary.visual-review.md"
+)
+STYLE_DICTIONARY_NOTICE = STYLE_DICTIONARY_ROOT / "images/style-dictionary.LICENSE.md"
+STYLE_DICTIONARY_REVIEWERS = {
+    "mobile-live-service": ("mobile_exact_webp_reviewer_2026_08_26",),
+    "indie-pc-console": (
+        "indie_exact_webp_reviewer_a_2026_08_26",
+        "indie_exact_webp_reviewer_b_2026_08_26",
+    ),
+    "western-card-casual": ("western_exact_webp_reviewer_2026_08_26",),
+}
 GIT_MEDIA_LIMITS = {
     "audio": 20 * 1024 * 1024,
     "image": 5 * 1024 * 1024,
     "video": 25 * 1024 * 1024,
 }
-GIT_MEDIA_TOTAL_LIMIT = 50 * 1024 * 1024
+GIT_MEDIA_TOTAL_LIMIT = 100 * 1024 * 1024
 SECRET_SUFFIXES = {".key", ".p12", ".pem", ".pfx"}
 
 
@@ -246,23 +267,29 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         for path in docs_root.rglob("*")
         if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
     )
-    concept_gallery_root = repository.joinpath(*CONCEPT_GALLERY_PREFIX)
-    assert not concept_gallery_root.is_symlink()
-    if concept_gallery_root.exists():
-        assert concept_gallery_root.is_dir()
-        for path in concept_gallery_root.rglob("*"):
-            assert not path.is_symlink()
-            if path.suffix.lower() in MEDIA_SUFFIXES:
-                relative_paths.add(PurePosixPath(path.relative_to(repository).as_posix()))
+    for prefix in CONCEPT_MEDIA_PREFIXES:
+        concept_media_root = repository.joinpath(*prefix)
+        assert not concept_media_root.is_symlink()
+        if concept_media_root.exists():
+            assert concept_media_root.is_dir()
+            for path in concept_media_root.rglob("*"):
+                assert not path.is_symlink()
+                if path.suffix.lower() in MEDIA_SUFFIXES:
+                    relative_paths.add(PurePosixPath(path.relative_to(repository).as_posix()))
 
     total = 0
     for relative in sorted(relative_paths):
         assert relative.parts[0] in {"concept-studio", "docs", "fixtures", "src", "web"}
-        is_concept_gallery = relative.parts[:2] == CONCEPT_GALLERY_PREFIX
+        concept_prefix = relative.parts[:2]
+        is_concept_media = concept_prefix in CONCEPT_MEDIA_PREFIXES
+        is_style_dictionary = concept_prefix == CONCEPT_STYLE_DICTIONARY_PREFIX
         if relative.parts[0] == "concept-studio":
-            assert is_concept_gallery
-            assert len(relative.parts) > len(CONCEPT_GALLERY_PREFIX)
+            assert is_concept_media
+            assert len(relative.parts) > len(concept_prefix)
             assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
+        if is_style_dictionary:
+            assert relative.parent == STYLE_DICTIONARY_ROOT / "images"
+            assert relative.suffix.lower() == ".webp"
         if relative.parts[0] == "src":
             assert relative.parts[:3] == ("src", "stage_gen", "resources")
         if relative.parts[0] == "web":
@@ -275,16 +302,17 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         family = _media_family(relative.suffix.lower())
         assert 0 < size <= GIT_MEDIA_LIMITS[family]
         total += size
-        if relative.parts[0] == "docs" or is_concept_gallery:
-            sidecar = Path(f"{path}.meta.json")
-            assert sidecar.is_file() and not sidecar.is_symlink()
+        if relative.parts[0] == "docs" or is_concept_media:
             ignored = subprocess.run(
                 ["git", "check-ignore", "--quiet", "--", relative.as_posix()],
                 cwd=repository,
                 check=False,
             )
             assert ignored.returncode == 1
-            if is_concept_gallery:
+        if relative.parts[0] == "docs" or concept_prefix == CONCEPT_GALLERY_PREFIX:
+            sidecar = Path(f"{path}.meta.json")
+            assert sidecar.is_file() and not sidecar.is_symlink()
+            if concept_prefix == CONCEPT_GALLERY_PREFIX:
                 sidecar_relative = sidecar.relative_to(repository).as_posix()
                 sidecar_ignored = subprocess.run(
                     ["git", "check-ignore", "--quiet", "--", sidecar_relative],
@@ -292,7 +320,107 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                     check=False,
                 )
                 assert sidecar_ignored.returncode == 1
+        if is_style_dictionary:
+            assert not Path(f"{path}.meta.json").exists()
     assert total <= GIT_MEDIA_TOTAL_LIMIT
+
+
+def test_style_dictionary_collection_has_shared_publication_record() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    for relative in (
+        STYLE_DICTIONARY_MANIFEST,
+        STYLE_DICTIONARY_REVIEW,
+        STYLE_DICTIONARY_NOTICE,
+    ):
+        _assert_tracked_regular_file(repository, relative)
+
+    manifest_path = repository / STYLE_DICTIONARY_MANIFEST
+    manifest_bytes = manifest_path.read_bytes()
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    manifest = json.loads(manifest_bytes)
+    assert isinstance(manifest, dict)
+    assert manifest.get("schema_version") == 1
+    assert manifest.get("dictionary_id") == "illustration_style_dictionary_v1"
+
+    entries = manifest.get("entries")
+    assert isinstance(entries, list)
+    assert len(entries) == manifest.get("entry_count") == 48
+    preview_paths: set[PurePosixPath] = set()
+    slot_count = 0
+    blocked_slot_count = 0
+    for entry in entries:
+        assert isinstance(entry, dict)
+        entry_id = entry.get("entry_id")
+        assert isinstance(entry_id, str) and entry_id
+        slots = entry.get("slots")
+        assert isinstance(slots, list) and len(slots) == 2
+        model_slots: set[str] = set()
+        for slot in slots:
+            assert isinstance(slot, dict)
+            slot_count += 1
+            model_slot = slot.get("model_slot")
+            assert model_slot in {"gpt_image_2", "grok_image_2"}
+            assert isinstance(model_slot, str) and model_slot not in model_slots
+            model_slots.add(model_slot)
+            if slot.get("status") == "blocked":
+                blocked_slot_count += 1
+                assert slot.get("preview") is None
+                continue
+            assert slot.get("status") == "preview"
+            preview = slot.get("preview")
+            assert isinstance(preview, dict)
+            preview_path = preview.get("path")
+            assert isinstance(preview_path, str)
+            relative = PurePosixPath(preview_path)
+            assert relative == STYLE_DICTIONARY_ROOT / "images" / (
+                f"{entry_id}--{model_slot}.webp"
+            )
+            assert relative not in preview_paths
+            preview_paths.add(relative)
+            digest = preview.get("sha256")
+            assert isinstance(digest, str) and len(digest) == 64
+            image_bytes = (repository / relative).read_bytes()
+            assert len(image_bytes) == preview.get("bytes")
+            assert hashlib.sha256(image_bytes).hexdigest() == digest
+
+    assert slot_count == manifest.get("slot_count") == 96
+    assert len(preview_paths) == manifest.get("preview_count") == 92
+    assert blocked_slot_count == manifest.get("blocked_slot_count") == 4
+    discovered_previews = {
+        PurePosixPath(path.relative_to(repository).as_posix())
+        for path in (repository / STYLE_DICTIONARY_ROOT / "images").glob("*.webp")
+    }
+    assert preview_paths == discovered_previews
+
+    review = (repository / STYLE_DICTIONARY_REVIEW).read_text(encoding="utf-8")
+    notice = (repository / STYLE_DICTIONARY_NOTICE).read_text(encoding="utf-8")
+    assert manifest_sha256 in review
+    assert manifest_sha256 in notice
+    assert "92/92 exact previews: PASS" in review
+    for category, reviewer_ids in STYLE_DICTIONARY_REVIEWERS.items():
+        assert category in review
+        assert all(reviewer_id in review for reviewer_id in reviewer_ids)
+
+    inventory = json.loads(
+        (repository / "docs/generated-media-inventory.json").read_text(encoding="utf-8")
+    )
+    assert STYLE_DICTIONARY_ROOT.as_posix() not in inventory["roots"]
+    assert all(
+        not item["path"].startswith(f"{STYLE_DICTIONARY_ROOT.as_posix()}/")
+        for item in inventory["media"]
+    )
+
+
+def _assert_tracked_regular_file(repository: Path, relative: PurePosixPath) -> None:
+    path = repository / relative
+    assert path.is_file() and not path.is_symlink()
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", relative.as_posix()],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+    )
+    assert tracked.returncode == 0
 
 
 def _sdist_file_entries(members: list[tarfile.TarInfo]) -> tuple[str, dict[str, int]]:

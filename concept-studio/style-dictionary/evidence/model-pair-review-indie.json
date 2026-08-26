@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "category": "indie-pc-console",
+  "review_basis": "Independent direct inspection of each raw GPT Image 2 and Grok Image 2 original. Marker hits follow the four profile markers in order; the Cuphead fourth marker uses the static-image amendment in review-marker-amendments.json. Attractive but generic output does not count as style recognition.",
+  "entries": [
+    {
+      "entry_id": "graphic_novel_mythic_underworld_dialogue_portrait",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Heavy variable inks, angular anatomy, hatched cel-shadow planes, orange rim light over violet shadows, and an offset magistrate over a softened tribunal reproduce the target dialogue-portrait surface."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Bold black contours, carved cel planes with selective texture, warm rim light against cool skin, and the asymmetrical underworld portrait hierarchy clearly preserve the graphic-novel style."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more densely hatched and environmentally layered; Grok is cleaner and more emblematic, but both reproduce the specific surface."
+    },
+    {
+      "entry_id": "melancholic_insect_gothic_side_scroller",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A minute ivory pilgrim, five-plus blue-black depth layers, clean organic bell silhouettes, cyan fog, and a readable platform route make the insect-gothic exploration style unmistakable."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The tiny pale avatar remains isolated within deep navy bell architecture, layered cyan mist, restrained contour detail, and a clearly legible side-view path."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT offers more platform variety while Grok uses a stronger dark aperture; both retain the same quiet insect-gothic language."
+    },
+    {
+      "entry_id": "thirties_rubber_hose_boss_cartoon",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Rubber-hose anatomy, pie-cut eyes, white gloves, inked cels over watercolor scenery, a warm period palette, and visible grain, dust, irregular ink, and registration error strongly establish the 1930s boss-cartoon surface."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The teapot fighter and organ boss use elastic limbs, pie eyes, gloves, aged watercolor paint, period color, and the amended static evidence of grain, dust, irregular ink, and imperfect registration."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more texturally distressed and theatrical; Grok is cleaner but still carries every static rubber-hose and aged-cel marker."
+    },
+    {
+      "entry_id": "luminous_painterly_spirit_forest_side_scroller",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A small blooming white spirit crosses readable roots framed by near-black foliage, saturated cyan-violet depth, outline-free painterly vegetation, and monumental forest scale."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The luminous foxlike spirit, dark framing trunks, jewel-toned mist layers, painterly organic growth, and legible side-view gap consistently reproduce the spirit-forest surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT emphasizes environmental depth and route complexity; Grok enlarges the spirit slightly but preserves the same light, scale, and painterly grammar."
+    },
+    {
+      "entry_id": "high_density_pixel_roguelite_combat",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Crisp clustered pixels, cool prison ruins split by orange-magenta impacts, a compact faceless fighter with long smear arcs, and a dense but readable combat lane reproduce premium roguelite pixel combat."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Deliberate pixel ramps, blue-gray ruins, hot chain-blade arcs, the hooded silhouette, and a clearly staged horizontal hit moment retain all four high-density pixel markers."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT packs in more distant prison texture; Grok stages larger sprites and a cleaner hit read, with equivalent style control."
+    },
+    {
+      "entry_id": "cozy_sixteen_bit_farm_tilemap",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The consistent top-down grid, compact pixel farmer and animals, clean stepped edges, warm autumn palette, separated crop rows, and readable props establish the cozy farm tilemap."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A coherent tiled farm, compact sprites, crisp pixel boundaries with simple shadows, golden seasonal color, and strongly separated interactive zones reproduce the intended gameplay surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is denser and more textural; Grok is simpler and more grid-explicit, but both read immediately as the same farm-RPG style."
+    },
+    {
+      "entry_id": "rough_gothic_sixteen_bit_swarm_survival",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A tiny centered hero is engulfed edge to edge by coarse repeated sprites, rotating blades, spell rings, lightning, meteors, and jewel effects over a flat dark plaza."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The compact hero, enormous repeated enemy field, layered radial and diagonal spell geometry, coarse arcade pixels, and dark supporting ground exactly reproduce swarm-survival overload."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more chaotic and shard-dense; Grok leaves a cleaner central safety ring, while both strongly control the same accumulation-driven style."
+    },
+    {
+      "entry_id": "hd_two_d_fantasy_town_diorama",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Sharp pixel travelers remain visibly separate from modeled snowbound scenery, with miniature foreground blur, bokeh, bloom, volumetric lamps, and warm windows against cobalt shadows."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Chunky pixel travelers cross a physically lit diorama bridge framed by shallow focus, falling snow, amber lamps, blue-hour depth, and strong foreground occlusion."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT separates flat sprites more sharply; Grok integrates them slightly into the miniature lighting, yet both unmistakably reproduce the HD-2D diorama surface."
+    },
+    {
+      "entry_id": "modern_high_detail_sixteen_bit_jrpg_battle",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Characters, crab, water, cliffs, and moonlight share disciplined pixel clustering, rich color ramps, fixed opposed formations, and turquoise spell light that colors nearby surfaces."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The fully pixel-rendered tidal arena, saturated multi-step ramps, three-against-one formation, and locally illuminating crescent spell clearly reproduce premium modern JRPG pixel craft."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is denser and more spectacular; Grok is cleaner and more screenshot-like, with all four battle-surface markers intact."
+    },
+    {
+      "entry_id": "baroque_penitential_pixel_horror",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Hand-clustered baroque relic detail, umber-gold-ivory-crimson restraint, solemn side-view silhouettes, oppressive chapel height, and material religious horror reproduce the target style."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Dense pixel ornament, tarnished ecclesiastical materials, a strict side-view duel, towering ruined arches, and wax-and-reliquary horror retain every penitential marker."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more elaborate and processional; Grok is more combat-focused and austere, while both are specific rather than generic gothic pixel art."
+    },
+    {
+      "entry_id": "cute_occult_woodland_settlement",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Irregular dark outlines, compact chibi animals, a readable isometric village, direct cute-occult juxtaposition, and the scarlet-charcoal-cream-moss palette reproduce the settlement-management style."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Thick outlined woodland figures, an explicit isometric base grid, cheerful ritual props, minimal cel shading, and the restricted red-black-cream-green palette preserve the cute occult surface rather than drifting to generic mascot art."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT uses more irregular storybook texture; Grok is cleaner and flatter, but its ritual-base composition and palette remain specifically controlled."
+    },
+    {
+      "entry_id": "scratchy_paper_puppet_wilderness",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Nervous contours and sparse hatching remain clipped to spindly, large-headed puppet forms on a clean dark digital ground; the muted olive-charcoal-bone palette and fresh orange fire retain the wilderness grammar without an aged-paper overlay."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The flatter clean olive ground has no global substrate texture, while scratchy contours, puppet-like anatomy, isolated fire warmth, crooked perspective, and separately readable survival props retain the macabre gameplay surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both remove the previous parchment treatment: GPT retains richer ink detail and night lighting, while Grok provides the cleanest flat game-surface exemplar."
+    },
+    {
+      "entry_id": "grim_inked_dungeon_combat_tableau",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Crushed blacks dominate angular carved figures, one torch drives the parchment-red-gold palette, and the compressed left-right ranks form a grim, minimally deep comic tableau."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Massive black wedges, chipped angular planes, narrow torchlit color, and tightly opposed adventurer and parasite ranks reproduce the specific dungeon-comic surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more fractured and expressionistic; Grok is slightly cleaner, but neither drifts into generic dark fantasy illustration."
+    },
+    {
+      "entry_id": "loose_oil_painted_isometric_coastal_ruin",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Oblique coastal space softened by loose paint, bruised teal-violet-ochre color, posture-led small figures, and architecture dissolving into atmospheric stains reproduce the narrative-RPG surface."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Visible oil-gouache strokes soften the isometric plaza, the harbor palette stays bruised and political, tiny figures read through posture, and edge structures fade into haze and paint."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is darker and more spatially cinematic; Grok is looser and paler, but both remain specific expressionistic coastal narrative environments."
+    },
+    {
+      "entry_id": "minimalist_watercolor_dream_platformer",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Most of the frame is ivory space around translucent pigment blooms, a tiny side-view traveler, monumental hand architecture, and a tightly restricted saffron-coral emotional palette."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Large pale negative space, granular watercolor edges, the minute caped figure, colossal broken hand, and restrained coral-saffron family reproduce the contemplative dream-platforming style."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is more asymmetric and abstract; Grok is more centered and architectural, with equally strong watercolor minimalism."
+    },
+    {
+      "entry_id": "warm_hand_drawn_spirit_boat_cutaway",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Clean rounded animation linework, a multi-room side-view ferry cutaway, amber domestic interiors against lavender-coral dusk, and delicately glowing animal spirits reproduce the boat-management surface."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The readable side-on greenhouse, kitchen, workshop, and cabin use soft animated contours, warm sunset color, and translucent heron and moth spirits with restrained glow."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "GPT is denser and more cinematic; Grok simplifies the rooms and poses, but both control the same hand-drawn domestic spirit-ferry language."
+    }
+  ]
+}

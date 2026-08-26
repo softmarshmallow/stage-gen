@@ -23,9 +23,9 @@ Start here for the headless, general-purpose system:
 - [Game visual reference and vocabulary](game-visual-reference.md) — global
   research anchors, neutral style facets, prompt boundaries, and candidate
   vocabulary governance for 2D-game art.
-- [Illustration style taxonomy lab](research/illustration-style-taxonomy/README.md)
-  — active research into atomic visual descriptors, role separation, controlled
-  provider evidence, and promotion gates.
+- [2D game style dictionary](../concept-studio/style-dictionary/README.md) — the
+  canonical tracked prompt gallery, atomic visual vocabulary, role-separated
+  provider evidence, and promotion boundary for Concept Studio.
 - [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md)
   — proposed TO-BE dialogue graph, choice, shot, cue-track, control-lease,
   skip/resume, checkpoint, and cutscene-realization semantics.

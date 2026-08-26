@@ -337,12 +337,12 @@ value is an approved provider prompt until it passes the gates above.
 
 ## Relationship to experiments
 
-The [illustration style taxonomy lab](research/illustration-style-taxonomy/README.md)
-consumes selected game records from this catalog, verifies stronger sources,
-decomposes them into neutral profiles, and records model-specific concept-to-
-asset evidence. Experimental success does not mutate this global catalog
-automatically: accepted changes return through a reviewed keyword record with
-their basis and scope intact.
+The [2D game style dictionary](../concept-studio/style-dictionary/README.md) consumes
+selected game records from this catalog, verifies stronger sources, decomposes
+them into neutral profiles, and records model-specific prompt and concept-to-asset
+evidence. Experimental success does not mutate this global catalog automatically:
+accepted changes return through a reviewed keyword record with their basis and
+scope intact.
 
 ## Initial decisions
 

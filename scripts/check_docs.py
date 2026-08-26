@@ -48,9 +48,15 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     ]
     governance = [repo / "AGENTS.md", repo / "TODO.md"]
     prompt_fixtures = [repo / "fixtures/prompts.txt", repo / "fixtures/styles.txt"]
+    concept_markdown = [
+        path
+        for path in _walk_files(repo / "concept-studio", frozenset({".md"}))
+        if "workspaces" not in path.relative_to(repo / "concept-studio").parts
+    ]
     markdown = [
         *[path for path in doctrine if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
+        *concept_markdown,
     ]
     failures: list[str] = []
 
@@ -95,7 +101,14 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
                 failures.append(f"{relative}: missing link {raw_target}")
 
     text_files: list[Path] = []
-    for path in [*doctrine, *governance, *prompt_fixtures, repo / "docs", repo / "web"]:
+    for path in [
+        *doctrine,
+        *governance,
+        *prompt_fixtures,
+        *concept_markdown,
+        repo / "docs",
+        repo / "web",
+    ]:
         text_files.extend(
             _walk_files(
                 path, frozenset({".md", ".txt", ".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"})

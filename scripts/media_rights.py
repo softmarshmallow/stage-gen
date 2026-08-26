@@ -57,7 +57,7 @@ MEDIA_SIZE_LIMITS = {
     "image": 5 * 1024 * 1024,
     "video": 25 * 1024 * 1024,
 }
-MAX_TOTAL_MEDIA_BYTES = 50 * 1024 * 1024
+MAX_TOTAL_MEDIA_BYTES = 100 * 1024 * 1024
 SHA256 = re.compile(r"^[a-f0-9]{64}$")
 ISO_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$")
 UNSTABLE_REF = re.compile(

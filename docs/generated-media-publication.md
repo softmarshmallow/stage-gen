@@ -82,6 +82,30 @@ strict bindings as generated-image documentation derivatives below. Selecting
 a candidate is not itself publication approval: the verdict must be a pass on
 the exact final bytes that are committed.
 
+### Style-dictionary collection
+
+The paired-model style dictionary is one canonical research collection, not 92
+independent generated-media inventory records. Its tracked publication boundary is:
+
+- `concept-studio/style-dictionary/manifest.json`, which enumerates each final
+  preview path, digest, byte count, dimensions, source content identifier, prompt,
+  model route, and publication transform;
+- `concept-studio/style-dictionary/images/<entry_id>--<model_slot>.webp`, where
+  `entry_id` is lower snake case and `model_slot` is `gpt_image_2` or
+  `grok_image_2`; blocked slots have no placeholder;
+- one `concept-studio/style-dictionary/images/style-dictionary.visual-review.md`
+  report that names the independent category reviewers, binds the exact manifest
+  digest, and records a pass for all 92 final previews; and
+- one adjacent `style-dictionary.LICENSE.md` rights notice bound to the same
+  manifest digest.
+
+These files must be regular, tracked files. The collection is intentionally absent
+from `docs/generated-media-inventory.json`, and its preview images do not use
+adjacent per-image sidecars. The repository storage contract validates the one
+manifest against every preview and requires the shared review and notice. Changing
+any preview invalidates the manifest binding and requires a new exact-image review
+and rights notice. Raw provider responses and lossless working files remain ignored.
+
 The inventory carries review facts outside the runtime provenance schema.
 Audio needs an approved listening review with reviewer and timestamp. When
 SynthID is expected, the inventory records that expectation separately from

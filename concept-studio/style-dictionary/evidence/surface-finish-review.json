@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "review_status": "independently_reviewed",
+  "review_scope": "Surface cleanliness and retention of the four preregistered visible style markers.",
+  "entries": [
+    {
+      "entry_id": "scratchy_paper_puppet_wilderness",
+      "gpt_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "Clean dark neutral ground with no parchment substrate; nervous ink, sparse hatching, puppet anatomy, uneven gameplay staging, and the warm fire focal point remain."
+      },
+      "grok_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "The cleanest surface exemplar: flat olive digital ground with no global texture, while the scratchy puppet-like wilderness grammar remains legible."
+      }
+    },
+    {
+      "entry_id": "hearthstone_minion_card_v1",
+      "gpt_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "Fresh saturated digital color and broad shape-based material rendering replace the former PBR microdetail while retaining the compact caricatured pie gag."
+      },
+      "grok_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "Broad object-local painted blocking, clean materials, strong caricature, and centered comic action survive without global grain or patina."
+      }
+    },
+    {
+      "entry_id": "pvz2_almanac_portrait_v1",
+      "gpt_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "Clean plant skin and polished brass remove weathering while the outlined lumpy silhouette, exaggerated trumpet function, saturated fills, and controlled gradients remain."
+      },
+      "grok_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "A clean framebuffer and simple polished materials retain the thorny plant, broad leaf-feet, hose strap, and immediately readable trumpet gag."
+      }
+    },
+    {
+      "entry_id": "rayman_gouache_platformer_world_v1",
+      "gpt_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "The global substrate is gone while object-local felt, brass, flowers, decorative curls, elastic character logic, and separated gameplay depth remain."
+      },
+      "grok_image_2": {
+        "surface_clean": true,
+        "style_retained": true,
+        "replace_old": true,
+        "diagnostic": "A completely clean framebuffer retains restrained object-local texture, clear hazards and pickups, elastic floating limbs, and the strongest left-to-right route readability."
+      }
+    }
+  ]
+}

@@ -10,6 +10,10 @@ images that help a person decide what game they want before full generation.
 - Use the dedicated `stage-gen-concept` CLI for live images. Live calls require explicit user intent.
 - Keep provider prompts original and brand-neutral. Research game names never cross the provider
   boundary.
+- `style-dictionary/` is the canonical tracked vocabulary, reviewed-prompt, and research reference.
+  Its Markdown consumes individual previews directly; do not add a grid, contact sheet, or document
+  render. Keep prompts brand-neutral and keep its manifest, shared exact-image review, and rights
+  notice synchronized with the tracked preview set.
 - `gallery/` is a publication surface. Promotion requires explicit authorization plus provenance,
   independent review, rights, inventory, and storage gates.
 - Keep repository identifiers, logs, prompts intended for persistence, and authored files in

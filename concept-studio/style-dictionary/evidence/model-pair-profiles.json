@@ -1,0 +1,866 @@
+[
+  {
+    "entry_id": "dokkan_super_attack",
+    "category": "mobile-live-service",
+    "anchor_game": "Dragon Ball Z Dokkan Battle",
+    "anchor_surface": "one-screen mobile super-attack cut-in with extreme impact staging",
+    "source_url": "https://dbz-dokkan.bn-ent.net/en/",
+    "prompt": "Use case: stylized-concept\nAsset type: mobile super-attack cut-in\nCommercial visual family: explosive shonen battle-card and super-attack cut-in\n\nORIGINAL SCENE AND CONTENT LOCK\nOne 28-year-old storm boxer drives a charged straight punch\n        toward one enormous original basalt golem in a shattered red-rock arena. The\n        boxer wears a sleeveless cobalt training jacket over a high-neck shirt,\n        full-length cream trousers, wraps, and boots. Keep both combatants readable;\n        the fist is foregrounded but does not hide the adult face. Exactly one punch,\n        one golem, and one impact locus.\n\nVISIBLE STYLE AXES\nHeavy tapered black outer contour with forceful angular\n        interior marks; hard two-band cel shading; saturated cobalt, orange, cream,\n        and electric yellow; extreme but anatomically coherent foreshortening; radial\n        energy wedges, debris arcs, diagonal speed strokes, and one white-hot impact\n        core; strong dark-light separation; compact mobile-readable silhouettes. One\n        uninterrupted cinematic cut-in, no panels or typography.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral content only. Do not depict or\nname an existing game, franchise, publisher, studio, artist, character, costume,\nweapon, creature, robot, emblem, interface, location, or protected trade dress. No\nwords, letters, numbers, pseudo-writing, card borders, HUD, menus, captions, dialogue\nboxes, logos, signatures, watermarks, or presentation labels. All human characters\nare unambiguously adults. No school uniforms, child or teen anatomy, sexualization,\nfetishized camera, underwear, exposed cleavage, gore, photorealism, or realistic 3D\nrendering. Make one coherent production-quality 2D game asset, not a style sampler or\ncomparison grid. Preserve the named subject count and asset role.",
+    "prompt_sha256": "c6cd4aecdb7eaf6dc867204cc84e279060284b466e4d7902e90de5c3fdc00719",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "heavy tapered contour, angular marks, and hard two-band cel shading",
+      "saturated primary palette with deep value split and white-hot impact core",
+      "coherent extreme foreshortening plus radial energy and debris motion grammar",
+      "single mobile-readable super-attack cut-in composition"
+    ],
+    "gpt_existing_artifact": "male-commercial-v1/concepts/explosive_shonen_battle_card_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "g_generation_sd_tactics",
+    "category": "mobile-live-service",
+    "anchor_game": "SD Gundam G Generation ETERNAL",
+    "anchor_surface": "compact SD mechanical units on an oblique tactical battlefield",
+    "source_url": "https://gget.ggame.jp/en/",
+    "prompt": "Use case: stylized-concept\nAsset type: isometric tactical battle concept\nCommercial visual family: super-deformed mecha tactical-unit illustration\n\nORIGINAL SCENE AND CONTENT LOCK\nOne original compact biped salvage mech defends a flooded orbital\n        shipyard from exactly two small angular maintenance drones. The hero mech holds\n        one broad magnetic cutter and one rectangular shield. Cranes, shallow water,\n        cargo lanes, and one damaged launch gantry form an oblique isometric tactical\n        field. No pilot, cockpit portrait, insignia, or second hero unit.\n\nVISIBLE STYLE AXES\nMechanical super-deformation at approximately 2.5 head units:\n        oversized armored head and chest, shortened thick limbs, enlarged hands and\n        feet; crisp dark panel lines; bright hard two-band cel shading with small\n        metallic specular accents; white, marine teal, navy, safety orange, and steel;\n        large readable armor masses, sparse panel seams, and clear tool-versus-shield\n        silhouette; oblique isometric staging with compact restrained energy effects.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral content only. Do not depict or\nname an existing game, franchise, publisher, studio, artist, character, costume,\nweapon, creature, robot, emblem, interface, location, or protected trade dress. No\nwords, letters, numbers, pseudo-writing, card borders, HUD, menus, captions, dialogue\nboxes, logos, signatures, watermarks, or presentation labels. All human characters\nare unambiguously adults. No school uniforms, child or teen anatomy, sexualization,\nfetishized camera, underwear, exposed cleavage, gore, photorealism, or realistic 3D\nrendering. Make one coherent production-quality 2D game asset, not a style sampler or\ncomparison grid. Preserve the named subject count and asset role.",
+    "prompt_sha256": "deb79976d644177b722e2be0049a9cffef0de2e184d8bfb4131bd2039619e62c",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "approximately 2.5-head mechanical super-deformation with oversized head and chest",
+      "crisp panel line, bright hard cel bands, and selective metallic highlights",
+      "large mobile-readable armor masses with clear tool and shield silhouette",
+      "oblique isometric tactical battlefield rather than a character poster"
+    ],
+    "gpt_existing_artifact": "male-commercial-v1/concepts/sd_mecha_tactics_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "arknights_operator_promo",
+    "category": "mobile-live-service",
+    "anchor_game": "Arknights",
+    "anchor_surface": "restrained full-body operator promotion/upgrade illustration",
+    "source_url": "https://www.arknights.global/",
+    "prompt": "Use case: stylized-concept\nAsset type: full-body operator promotion or upgrade illustration\nCommercial visual family: matte tactical-industrial operator promotion art\n\nORIGINAL SCENE AND CONTENT LOCK\nOne 34-year-old flood-control operator stands full-body beside\n        one immense portable turbine gate in a rain-darkened concrete spillway. They\n        wear an asymmetrical charcoal technical coat, layered slate workwear, gloves,\n        reinforced boots, and one small acid-yellow utility pouch. One folded survey\n        staff rests in their left hand. Angular flood barriers, mist, cable fragments,\n        and sparse blank geometric diagrams frame the figure. No other person.\n\nVISIBLE STYLE AXES\nNatural 8-head fashion anatomy; thin broken local-colored\n        line; matte digital paint with opaque planar masses and dry granular edge\n        texture; desaturated charcoal, concrete gray, muted blue, and one acid-yellow\n        accent; restrained face and pose; asymmetrical techwear silhouette; generous\n        negative space; shards, mist, cable diagonals, and abstract blank diagrams kept\n        subordinate to the full-body read. No glossy bloom or ornamental fantasy VFX.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral content only. Do not depict or\nname an existing game, franchise, publisher, studio, artist, character, costume,\nweapon, creature, robot, emblem, interface, location, or protected trade dress. No\nwords, letters, numbers, pseudo-writing, card borders, HUD, menus, captions, dialogue\nboxes, logos, signatures, watermarks, or presentation labels. All human characters\nare unambiguously adults. No school uniforms, child or teen anatomy, sexualization,\nfetishized camera, underwear, exposed cleavage, gore, photorealism, or realistic 3D\nrendering. Make one coherent production-quality 2D game asset, not a style sampler or\ncomparison grid. Preserve the named subject count and asset role.",
+    "prompt_sha256": "c29a0eb6ca1403c8b8cf80829b75217852d55292ee516ff3075506005ac8e417",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "natural fashion anatomy and an asymmetrical full-body technical silhouette",
+      "thin broken colored line with matte textured planar digital paint",
+      "desaturated industrial palette controlled by one small high-chroma accent",
+      "restrained operator-promotion hierarchy with generous negative space"
+    ],
+    "gpt_existing_artifact": "male-commercial-v1/concepts/matte_tactical_operator_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "mobile_monster_evolution",
+    "category": "mobile-live-service",
+    "anchor_game": "Monster Strike / Puzzle & Dragons",
+    "anchor_surface": "square high-rarity monster evolution/special-skill splash",
+    "source_url": "https://sensortower.com/ja/blog/dokkan-battle-10th-anniversary",
+    "prompt": "Use case: stylized-concept\nAsset type: unit evolution or special-skill splash\nCommercial visual family: mobile monster-evolution and skill-splash illustration\n\nORIGINAL SCENE AND CONTENT LOCK\nOne original horned sky-serpent guardian coils around exactly\n        two large floating slate runestones above a storm-lit canyon. The serpent has\n        a white plated face, cobalt scales, gold fin membranes, four foreclaws, and one\n        forked tail. One circular thunder burst sits behind the creature. No rider,\n        human, second creature, letters, symbols, or small collectible gems.\n\nVISIBLE STYLE AXES\nBold clean dark contour with selective fine scale lines;\n        hard cel bases plus narrow airbrushed glow; saturated cobalt, white, gold,\n        magenta-violet, and electric cyan; symmetric circular unit silhouette broken by\n        one strong diagonal head direction; concentrated lightning arcs, orbiting chips,\n        and one controlled back burst; high local contrast and simplified outer mass\n        for mobile icon readability; maximal evolution-splash energy without UI.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral content only. Do not depict or\nname an existing game, franchise, publisher, studio, artist, character, costume,\nweapon, creature, robot, emblem, interface, location, or protected trade dress. No\nwords, letters, numbers, pseudo-writing, card borders, HUD, menus, captions, dialogue\nboxes, logos, signatures, watermarks, or presentation labels. All human characters\nare unambiguously adults. No school uniforms, child or teen anatomy, sexualization,\nfetishized camera, underwear, exposed cleavage, gore, photorealism, or realistic 3D\nrendering. Make one coherent production-quality 2D game asset, not a style sampler or\ncomparison grid. Preserve the named subject count and asset role.",
+    "prompt_sha256": "cb8469fa24db9f5a635fc6642a24b71aff833bc6e8158d96c8c90ff0908fe55c",
+    "aspect_ratio": "1:1",
+    "style_markers": [
+      "bold clean contour with selective internal detail and hard-cel-plus-glow rendering",
+      "saturated high-contrast palette and concentrated circular thunder VFX",
+      "one iconic symmetric unit mass broken by a strong diagonal focal direction",
+      "mobile-readable evolution splash rather than narrative full-art environment"
+    ],
+    "gpt_existing_artifact": "male-commercial-v1/concepts/monster_evolution_splash_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "nikke_rear_combat",
+    "category": "mobile-live-service",
+    "anchor_game": "GODDESS OF VICTORY: NIKKE",
+    "anchor_surface": "rear-facing combat pose and premium animated lobby/costume art",
+    "source_url": "https://game.watch.impress.co.jp/docs/interview/1627639.html",
+    "prompt": "Use case: stylized-concept\nAsset type: premium animated lobby skin and rear-combat pose source\nCommercial asset family: rear-view tactical shooter lobby skin\n\nADULT EROTIC CONTROL VECTOR\n- sexual_intensity: S3 deliberate pin-up\n- coverage: C3 high-cut rear with lower gluteal curves exposed\n- focal_order: buttocks > hips and thick thighs > over-shoulder face > weapon\n- body_build: athletic-curvy with powerful legs, full buttocks, and defined waist\n- garment: cheeky graphite compression bodysuit, open-back harness, cropped armor jacket\n- pose: rear three-quarter crouched firing stance with hip lift and torso twist\n- camera: hip-height rear three-quarter, body first but face still visible\n- expression: knowing adult smirk and focused eyes\n- motion: recoil-driven breast and buttock secondary motion; hair and straps follow through\n- surface: matte ballistic cloth, glossy stretch panels, visible gluteal and thigh compression\n\nORIGINAL SCENE AND CONTENT LOCK\nA 29-year-old veteran woman rail-defense operator crouches behind\n        low cover in a rain-dark elevated transit depot while firing one original heavy\n        rail projector into the distance. Her buttocks and strong thighs remain centered\n        and unobscured; her torso twists enough to show her mature face looking back.\n        Wet rails, blank warning lights, steam, and distant damaged towers form a shallow\n        cinematic environment.\n\nVISIBLE RENDERING AXES\nGlossy semi-painted Japanese mobile-game anime rendering;\n        crisp fine near-dark contour; clean cel foundation with controlled soft gradients;\n        precise weapon, harness, buckle, fabric-tension, skin, and hair detail; charcoal,\n        muted olive, steel, and amber-red accents; cool rain light plus hard warm rim;\n        layer-readable hair, jacket, arms, weapon, thighs, and support gear.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral production-quality 2D game\nart. The overt adult erotic pin-up direction and registered breasts, cleavage, hips,\nbuttocks, thighs, garment, pose, gaze, and camera emphasis are required; do not turn\nthe subject into neutral fashion art. Depict exactly one fictional adult woman with the\nstated age from 25 to 35, mature facial structure, mature anatomy, an adult profession,\nan adult setting, confident agency, and no second person. Preserve the exact body focal\norder, coverage, garment construction, material behavior, pose, expression, camera,\nsubject count, and asset role. Original content only: no existing title, franchise,\npublisher, studio, artist, character, costume, weapon, emblem, interface, location, or\ntrade dress. No words, letters, numbers, pseudo-writing, logo, signature, watermark,\ncard border, HUD, menu, caption, label, or comparison grid. Make one coherent image.",
+    "prompt_sha256": "4768cc29ac46448d7f581a63207f5e74195a73b6fcff08b4559ad8935883854f",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "buttocks are the primary focal region in a rear three-quarter combat view",
+      "high rear cut, both hips, thick thighs, compression, and mature face are visible",
+      "one functional rail weapon and a readable firing pose survive the pin-up framing",
+      "semi-painted cel render, wet depot palette, and separable silhouette are present"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "browndust2_summer_costume",
+    "category": "mobile-live-service",
+    "anchor_game": "BrownDust2",
+    "anchor_surface": "premium summer costume illustration and body-forward event CG",
+    "source_url": "https://www.browndust2.com/2nd-anniversary/en/",
+    "prompt": "Use case: stylized-concept\nAsset type: premium swimsuit skin card or resort event CG\nCommercial asset family: wet swimsuit gravure memory and summer event CG\n\nADULT EROTIC CONTROL VECTOR\n- sexual_intensity: S3 deliberate wet pin-up\n- coverage: C2 small opaque string bikini\n- focal_order: face > full breasts and deep cleavage > wet abdomen > high-cut hips and thighs\n- body_build: athletic-curvy with full natural breasts, narrow waist, full hips, strong thighs\n- garment: small side-tie string bikini with high-cut bottoms and translucent open cover-up\n- pose: arms raised squeezing water from hair, slight back arch, confident hip pop\n- camera: frontal three-quarter knee-up gravure framing\n- expression: playful direct gaze and flushed coy smile\n- motion: wet hair weight, moving cover-up, bikini-string tension\n- surface: water trails and droplets, glossy wet skin, opaque wet fabric\n\nORIGINAL SCENE AND CONTENT LOCK\nA clearly adult 25-year-old professional woman surfer stands alone\n        under an outdoor beach-resort shower. She raises both arms to squeeze water from\n        her long hair, arches her back slightly, and pops one hip toward the camera.\n        Tropical plants, pale resort stone, pool water, and warm beach backlight remain\n        shallow and subordinate to her body.\n\nVISIBLE RENDERING AXES\nPolished anime realism with fine local-colored contour;\n        cel bases plus soft volume gradients; premium water, skin, hair, lace-up string,\n        and translucent-fabric rendering; tropical cyan, coral, cream, and warm gold;\n        luminous rim light and shallow depth without photorealism or 3D plasticity.\n\nHARD CONSTRAINTS\nOriginal and brand-neutral production-quality 2D game\nart. The overt adult erotic pin-up direction and registered breasts, cleavage, hips,\nbuttocks, thighs, garment, pose, gaze, and camera emphasis are required; do not turn\nthe subject into neutral fashion art. Depict exactly one fictional adult woman with the\nstated age from 25 to 35, mature facial structure, mature anatomy, an adult profession,\nan adult setting, confident agency, and no second person. Preserve the exact body focal\norder, coverage, garment construction, material behavior, pose, expression, camera,\nsubject count, and asset role. Original content only: no existing title, franchise,\npublisher, studio, artist, character, costume, weapon, emblem, interface, location, or\ntrade dress. No words, letters, numbers, pseudo-writing, logo, signature, watermark,\ncard border, HUD, menu, caption, label, or comparison grid. Make one coherent image.",
+    "prompt_sha256": "2d3bb6699db171884b843d75a549155278706e923063f01b27d308d77b9deff9",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "adult face, full breasts, deep cleavage, wet abdomen, high-cut hips, and thighs are legible",
+      "both bikini ties connect plausibly and the wet bikini remains opaque",
+      "water follows gravity on skin and hair rather than reading as generic sparkles",
+      "premium anime-realist resort-event role and focal hierarchy are preserved"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "fate_grand_order_final_ascension_card",
+    "category": "mobile-live-service",
+    "anchor_game": "Fate/Grand Order",
+    "anchor_surface": "Final-ascension Servant card illustration",
+    "source_url": "https://www.sony.com/en/SonyInfo/IR/library/presen/business_segment_meeting/pdf/2025/Music_Japan_E.pdf",
+    "prompt": "Create a vertical final-evolution card illustration for an original fantasy mobile RPG. Show a clearly adult woman, age 29, as a storm-calling royal lancer in an elegant three-quarter pose, her full figure readable from head to boots. Give her an extremely intricate ceremonial costume combining layered silk, fitted armor, gold filigree, translucent ribbons, jewelry, and one oversized signature weapon. Surround her with a dense but controlled supernatural tableau: curling storm clouds, luminous lightning threads, scattered petals, magical seals, and fragments of a ruined celestial palace. Use precise Japanese collectible-card linework, polished cel-painted skin and fabric, selectively painterly effects, jewel-bright accents, and luminous edge lighting. The composition should feel like a rare character's ultimate unlocked form—ornate, theatrical, sensual, and prestigious. No interface, typography, logo, frame, or existing character.",
+    "prompt_sha256": "c2eedb71fa8c8aeb5b47c3608468f95b55bab00cdddea492e37480ef96658213",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Readable full figure inside a symbolic effects halo",
+      "Fine anime contours with selective painterly rendering",
+      "Extremely dense costume and weapon ornament",
+      "Ultimate-form escalation through light and particles"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/fate_grand_order_final_ascension_card/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "azur_lane_live2d_swimsuit_skin",
+    "category": "mobile-live-service",
+    "anchor_game": "Azur Lane",
+    "anchor_surface": "Premium Live2D swimsuit skin base illustration",
+    "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2025/0821/2025082100737.pdf",
+    "prompt": "Create a wide premium home-screen skin illustration for a naval-themed character-collection game. Feature one clearly adult woman, age 27, with a voluptuous chest, deep cleavage, soft abdomen, full thighs, and a strongly readable hip curve. Place her close to the viewer at a luxury tropical pool, leaning back on one arm in a high-cut strappy swimsuit while lifting wet sunglasses with the other. Her long damp hair should spread across her shoulders and the water. Render beads of water, taut wet fabric, glossy skin highlights, translucent pool reflections, tropical leaves, towels, drinks, and small maritime accessories with lavish detail. Use clean anime facial drawing blended into soft airbrushed body rendering, saturated aquatic blues, warm sunlight, and intimate viewer-facing eye contact. Make the pose deliberately flirtatious and commercially fanservice-forward. No text, logo, interface, or known character.",
+    "prompt_sha256": "873ae2ffb2cde807329498335d02fcf664d1133ad03bed2f71489fc1142ae634",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Intimate foreground body placement for a home screen",
+      "Explicit cleavage thigh hip and wet-surface emphasis",
+      "Clean anime face with glossy airbrushed anatomy",
+      "Dense resort props and layered environmental depth"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": "dictionary-volume-v1/concepts/azur_lane_live2d_swimsuit_skin/r01.jpg"
+  },
+  {
+    "entry_id": "blue_archive_memorial_lobby_scene",
+    "category": "mobile-live-service",
+    "anchor_game": "Blue Archive",
+    "anchor_surface": "Memorial Lobby relationship scene",
+    "source_url": "https://www.nexon.co.jp/ir/uploads/0a8b8122afe757b9377820a80ac7b0b29a89a323.pdf",
+    "prompt": "Create a cinematic relationship-lobby illustration for an original mobile character RPG. Show a clearly adult woman, age 25, sitting across from the viewer in a quiet academy archive after closing time. Frame the scene from intimate first-person conversational distance, as though the viewer has just entered a private shared moment. She pauses over an open notebook, meets the viewer's eyes, and gives a small emotionally specific smile. Add one thin floating geometric halo above her head, a tidy uniform-inspired jacket adapted as adult professional clothing, scattered stationery, a cooling drink, shelves, and late-afternoon window light. Use pristine modern anime linework, simple but expressive eyes, soft cel shading, pale bloom, cool blue shadows, warm sunlit skin, and restrained cinematic depth of field. Keep the environment calm and narratively meaningful rather than decorative. No interface, captions, logo, or existing character.",
+    "prompt_sha256": "3cfea953dd22549c6bf49305084f0ad1b83aa3912f0ae084d0651453c30454db",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Direct first-person emotional framing",
+      "Thin individualized geometric halo",
+      "Airy blue-white palette with warm bloom",
+      "Clean cel drawing in a detailed everyday environment"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/blue_archive_memorial_lobby_scene/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "umamusume_ssr_support_card",
+    "category": "mobile-live-service",
+    "anchor_game": "Umamusume: Pretty Derby",
+    "anchor_surface": "SSR support-card event illustration",
+    "source_url": "https://www.cygames.co.jp/en/news/id-24452",
+    "prompt": "Create a vertical premium support-card illustration for an original sports-training mobile game. Depict a clearly adult female sprinter, age 25, with horse ears and a matching tail, exploding from the final bend of a grass racetrack during a championship relay. Use an aggressive low trackside camera and strong foreshortening: one shoe drives toward the viewer, her torso twists forward, and her ponytail, jacket, race bib, and tail whip backward under speed. Show two competitors falling behind, a packed grandstand, flying turf, sunlight, and diagonal speed streaks. Render it as lavish television-anime key art with crisp contours, bright cel colors, selective gradient shading, highly expressive eyes, and polished environmental painting. The image should capture one decisive story beat rather than a generic runner portrait. No title, interface, readable sponsor text, logo, or existing character.",
+    "prompt_sha256": "424965fdf73b60832d5bb0f709440e56f92791731890ec0ae740f535691ae038",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Freeze-frame narrative climax",
+      "Low-angle foreshortening and diagonal velocity",
+      "Bright broadcast-anime cel finish",
+      "Racing traits costume motion and crowd context"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/umamusume_ssr_support_card/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "genshin_impact_five_star_wish_splash",
+    "category": "mobile-live-service",
+    "anchor_game": "Genshin Impact",
+    "anchor_surface": "Five-star character wish splash",
+    "source_url": "https://blog.playstation.com/?p=386899",
+    "prompt": "Create a wide five-star acquisition splash for an original open-world elemental fantasy RPG. Center a clearly adult desert cartographer, age 30, turning through a graceful airborne combat pose while unfurling a crescent-shaped brass instrument that controls wind and sand. Build a sweeping circular composition from pale turquoise wind ribbons, amber sand, map fragments, feathers, and stylized cloud curls. Her ornate travel costume should combine layered cloth, fitted leather, gemstone accents, tassels, and a sharply readable silhouette. Use refined anime linework, softly modeled faces, painterly fantasy materials, luminous elemental gradients, and large areas of pale atmospheric negative space. The character, weapon, and elemental motif must remain immediately legible even amid the effects. Aim for optimistic high-fantasy elegance rather than dark realism. No interface, rarity stars, text, logo, mascot, or existing character.",
+    "prompt_sha256": "667550ed571f011d46eee41e78316f90d925d92dfb2698b48fe1aaa77b3462dd",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Circular elemental gesture framing the character",
+      "Pale atmospheric space behind saturated focal colors",
+      "Refined cel-painterly character finish",
+      "Unified costume region weapon and power motif"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/genshin_impact_five_star_wish_splash/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "honkai_star_rail_five_star_splash",
+    "category": "mobile-live-service",
+    "anchor_game": "Honkai: Star Rail",
+    "anchor_surface": "Five-star space-opera character splash",
+    "source_url": "https://thegameawards.com/rewind/year-2023",
+    "prompt": "Create a wide five-star character splash for an original turn-based space-fantasy RPG. Show a clearly adult woman, age 31, an aristocratic orbital investigator seated sideways on a floating observatory chair while a long segmented telescope unfolds behind her like a mechanical halo. Arrange pocket watches, star charts, glass prisms, orbital rings, and red thread into a symbolic stage rather than a literal room. Use a deep midnight background interrupted by ivory panels, thin gold geometry, saturated burgundy fabric, cyan starlight, and tiny constellations. Render the character with immaculate luxury-anime linework, controlled cel shading, softly painted skin, intricate metallic accessories, and theatrical rim light. Her relaxed expression and asymmetrical pose should communicate authority and mystery. The composition must feel like a complete visual metaphor for her personality and combat role. No interface, text, logo, train imagery, or existing character.",
+    "prompt_sha256": "adea440c02d8ea01181198c64fc453b09fdceb1f8e5e0b57350bfbd440572009",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Character inside a symbolic cosmic stage",
+      "Midnight ground with ivory gold and one signature color",
+      "Luxury fashion combined with science-fiction instruments",
+      "Controlled asymmetry and orbital geometry"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/honkai_star_rail_five_star_splash/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "zenless_zone_zero_signal_search_splash",
+    "category": "mobile-live-service",
+    "anchor_game": "Zenless Zone Zero",
+    "anchor_surface": "S-rank Signal Search agent splash",
+    "source_url": "https://zenless.hoyoverse.com/en-us/news/124534",
+    "prompt": "Create a wide S-rank recruitment splash for an original urban action game. Depict a clearly adult motorcycle courier, age 26, vaulting over a roadside barrier while swinging an oversized modular wrench toward the camera. Exaggerate the lens: huge foreground boot and tool, compact torso, sharply receding street. Surround her with cream-and-black comic panels, fluorescent orange warning shapes, cyan stickers, torn poster edges, halftone dots, speed arrows, and chunky graffiti marks, but include no readable words. Her outfit should mix workwear, street fashion, protective pads, dangling tags, and bold color blocking. Use crisp anime contours, thick graphic shadows, occasional dry-brush texture, posterized highlights, and a playful commercial attitude. The result should feel noisy, fashionable, physical, and deliberately designed like an animated streetwear advertisement. No logo, interface, existing mascot, or known character.",
+    "prompt_sha256": "8beefda2398d834104a7290262e1964ed74ba3b2b112134ebd38dccf4e7e43a5",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Extreme foreshortening and wide-lens urban action",
+      "Halftone sticker graffiti and torn-poster collage",
+      "Thick black shadows with fluorescent accents",
+      "Streetwear silhouette and playful physical animation"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/zenless_zone_zero_signal_search_splash/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "granblue_fantasy_ssr_final_uncap",
+    "category": "mobile-live-service",
+    "anchor_game": "Granblue Fantasy",
+    "anchor_surface": "SSR final-uncap character illustration",
+    "source_url": "https://magazine.cygames.co.jp/en/archives/473138300/",
+    "prompt": "Create a landscape final-uncap illustration for an original skyfaring fantasy RPG. Show a clearly adult male windship captain, age 38, drawing an antique saber while his long coat and scarf unfurl into a broad spiral across the image. Behind him, suggest floating islands, weathered airship timber, pale clouds, distant rigging, and one enormous translucent bird formed from wind. Render the figure with delicate hand-inked contours, restrained old-school JRPG proportions, muted watercolor and gouache textures, warm parchment undertones, desaturated blues, and selective gold and crimson accents. Let feathers, rope, cloth, leaves, and clouds interlock into a dense decorative rhythm without losing the face or weapon. The image should feel artisanal, literary, and slightly weathered rather than glossy or digitally sterile. No card frame, interface, title, logo, or existing character.",
+    "prompt_sha256": "e42b915f7377ea6a726bfc82aea94aef2ed966835cf34dddd88e20ae7b27254f",
+    "aspect_ratio": "4:3",
+    "style_markers": [
+      "Delicate ink and parchment-like paint texture",
+      "Dense decorative motion from natural materials",
+      "Muted palette with small rich accents",
+      "Classic JRPG proportions and weathered finish"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/granblue_fantasy_ssr_final_uncap/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "epic_seven_s3_skill_climax",
+    "category": "mobile-live-service",
+    "anchor_game": "Epic Seven",
+    "anchor_surface": "Full-frame S3 skill animation climax",
+    "source_url": "https://www.smilegate.com/en/game/epicseven.do",
+    "prompt": "Create one widescreen climax frame from a premium 2D anime RPG ultimate attack. A clearly adult female fire knight, age 32, has just completed a horizontal sword strike through a colossal armored demon. Freeze the instant before the explosion: her face and upper body occupy one side in sharp profile, the blade creates a brilliant diagonal across the frame, and the enemy silhouette breaks into black fragments on the other side. Use decisive animation contours, saturated red-orange fire, deep crushed shadows, white-hot impact shapes, motion smears, flying embers, and two or three simplified background planes. Preserve accurate anatomy and an unmistakable weapon arc while allowing effects to dominate the frame. It should resemble an expensive hand-drawn television-anime cut-in, not a static card illustration. No UI, subtitles, logo, or known character.",
+    "prompt_sha256": "e5d6c6db6766ff63424cd3bf5766e69a8ff644ea6442434c5399924abbde09e9",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Single precise attack-impact instant",
+      "Hard cel shadows and white-hot effect shapes",
+      "Profile close-up with readable enemy silhouette",
+      "Animation smears and simplified background planes"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/epic_seven_s3_skill_climax/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "wuthering_waves_resonator_convene",
+    "category": "mobile-live-service",
+    "anchor_game": "Wuthering Waves",
+    "anchor_surface": "Limited Resonator convene illustration",
+    "source_url": "https://www.kurogames.com/introduction",
+    "prompt": "Create a wide limited-character recruitment illustration for an original post-calamity action RPG. Show a clearly adult male sound researcher, age 28, standing on a flooded concrete platform while drawing a slender frequency blade from a portable acoustic instrument. His coat, hair, and loose cables should drift in opposing currents as if moved by invisible sound waves. Build the backdrop from misty coastal ruins, pale sky, distant black monoliths, water reflections, and concentric waveform rings that distort the environment. Use elegant semi-real anime anatomy, fine cool-gray linework, desaturated blue-green paint, matte technical fabrics, subtle skin rendering, black calligraphic fractures, and a single vivid red frequency accent. Keep the composition spacious, melancholic, and controlled, with technology embedded into organic wave motifs. No interface, text, logo, or existing character.",
+    "prompt_sha256": "a20d3730b04a9e066a66e2e6aaa34ad3c55e1f39b1e2ac2120cfc1eac3c49e50",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Desaturated coast and large quiet spaces",
+      "Concentric resonance and waveform structures",
+      "Fine semi-real anime character rendering",
+      "One high-chroma accent against gray-green surroundings"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/wuthering_waves_resonator_convene/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "snowbreak_premium_outfit_key_art",
+    "category": "mobile-live-service",
+    "anchor_game": "Snowbreak: Containment Zone",
+    "anchor_surface": "Premium outfit event key art",
+    "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2025/0416/2025041600794.pdf",
+    "prompt": "Create a wide premium outfit-event key visual for an original near-future shooter. Feature one clearly adult woman, age 29, seated sideways on a transparent medical-console table in a private orbital clinic. Give her a full, mature figure emphasized by a skin-tight white tactical bodysuit with a deep front cutout, exposed upper thighs, black thigh straps, translucent panels, and visible elastic tension around the breasts, waist, and hips. She looks directly at the viewer while loosely holding a compact precision rifle beside her rather than aiming it. Render glossy synthetic fabric, warm skin, cool glass, condensation, blue diagnostic light, and metallic equipment with high-end semi-real anime polish approaching a luxury 3D render. Use a close, low camera and deliberate sexual presentation while preserving weapon and science-fiction identity. No text, interface, insignia, logo, or existing character.",
+    "prompt_sha256": "1f29a0ce378517d5b4743abfcf23398945c52ef42ad1bf919e1fdf47811498fb",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Mature sexualized body presentation with tactical identity",
+      "Glossy near-3D materials and softly modeled anime face",
+      "Clean luxury science-fiction environment",
+      "Weapon subordinate to outfit and intimacy"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": "dictionary-volume-v1/concepts/snowbreak_premium_outfit_key_art/r01.jpg"
+  },
+  {
+    "entry_id": "honor_of_kings_mythic_skin_splash",
+    "category": "mobile-live-service",
+    "anchor_game": "Honor of Kings",
+    "anchor_surface": "Premium mythic hero-skin launch splash",
+    "source_url": "https://static.www.tencent.com/uploads/2020/11/12/401d8dc30afe99cf54753beed1c06fa7.pdf",
+    "prompt": "Create a wide premium mythic-skin launch illustration for an original mobile arena game. Show a clearly adult male celestial spear general, age 34, descending through storm clouds above a vast jade palace. His torso twists toward the viewer while an impossibly long crescent spear sweeps around him, establishing a circular composition. Dress him in layered white, black, and turquoise robes over sculpted armor with luminous gold filigree, jade ornaments, a crown-like headpiece, and enormous ribbon streamers. Surround him with coiling cloud dragons, shattered roof tiles, lightning, floating seals, and a bright heavenly aperture. Use high-end Chinese fantasy splash painting: realistic material rendering, idealized heroic anatomy, sharp focal detail, deep atmospheric scale, saturated energy light, and painterly peripheral effects. No interface, title, calligraphy, logo, or existing hero.",
+    "prompt_sha256": "4be2a1474b84ccb440560e202716ffef5333060d67fb970c76c8454a9712b0e4",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Monumental diagonal hero and oversized curved weapon",
+      "Chinese-fantasy armor jade ribbons and cloud motifs",
+      "Polished focal rendering fading into painterly effects",
+      "Celestial environment communicating skin rarity"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/honor_of_kings_mythic_skin_splash/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "onmyoji_sp_shikigami_summon_splash",
+    "category": "mobile-live-service",
+    "anchor_game": "Onmyoji",
+    "anchor_surface": "SP Shikigami summon splash",
+    "source_url": "https://ir.netease.com/news-releases/news-release-details/english-version-asian-blockbuster-onmyoji-soft-launches-canada",
+    "prompt": "Create a wide SP-rarity spirit-summon illustration for an original supernatural RPG inspired by classical Japanese court culture. Show a clearly adult male fox spirit, age 30, reclining asymmetrically across a broken lacquer screen while drawing a glowing paper talisman between two fingers. Give him layered ivory and black robes, exposed collarbones, long silver hair, red eye makeup, gold hair ornaments, and nine abstract smoke tails curling through the composition. Surround him with ink-painted moonlight, chrysanthemums, torn paper screens, small spirit flames, black branches, and vermilion seals containing no readable writing. Blend elegant anime facial drawing with ukiyo-e-like flattening, mineral-pigment colors, ink wash, gold-leaf texture, and intricately patterned textiles. Keep the result eerie, sensual, decorative, and unmistakably ceremonial. No interface, logo, title, or existing mythological character design.",
+    "prompt_sha256": "27332a3c04e4119d60579e3dbb2c9d46704f5c00cd52618245a238c0e15dd511",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Heian-derived robes screens talismans and flora",
+      "Flat pattern combined with dimensional anime rendering",
+      "Ink wash mineral color vermilion and gold leaf",
+      "Asymmetrical silhouette from hair smoke and fabric"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/onmyoji_sp_shikigami_summon_splash/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "black_desert_class_awakening_key_art",
+    "category": "mobile-live-service",
+    "anchor_game": "Black Desert",
+    "anchor_surface": "Class-awakening promotional key art",
+    "source_url": "https://www.pearlabyss.com/ja-JP/Board/Detail?_boardNo=13705",
+    "prompt": "Create a wide class-awakening promotional painting for an original dark-fantasy online RPG. Depict a clearly adult male mercenary, age 42, stepping from a wall of smoke while raising a newly awakened two-handed chain blade. Give him weathered features, powerful realistic anatomy, layered black leather, scarred steel plates, fur, buckles, and a torn crimson cloak. The weapon should dominate one diagonal, with links whipping through sparks and ash toward the viewer. Behind him, suggest a burning fortress, mounted silhouettes, storm clouds, and orange fire diffused through charcoal smoke. Render the face, armor, and weapon in sharply detailed semi-real digital painting, then dissolve the outer composition into rough brushwork, particles, fog, and backlight. The mood is brutal, prestigious, and physically grounded rather than anime-clean. No UI, title, logo, or existing class.",
+    "prompt_sha256": "97f88041e4c0860a4bc5dc36ae7b44e4d855922cd2be7e1319b57a941465a3ed",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Semi-real adult anatomy and weathered facial structure",
+      "Rendered leather and metal against loose smoky edges",
+      "Black steel ember-orange and restrained crimson palette",
+      "Massive awakened weapon and battlefield scale"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/black_desert_class_awakening_key_art/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "graphic_novel_mythic_underworld_dialogue_portrait",
+    "category": "indie-pc-console",
+    "anchor_game": "Hades",
+    "anchor_surface": "Full-height dialogue character illustration over a shallow underworld environmental vignette, not isometric gameplay.",
+    "source_url": "https://www.supergiantgames.com/blog/hades-faq/",
+    "prompt": "Create an original 16:9 dialogue-scene illustration for a mythic action game. Show an adult underworld magistrate from thighs upward, turned three-quarters toward the viewer, wearing layered black-and-copper ceremonial armor and holding a smoking obsidian tablet. Render the figure with strong variable-width black contours, angular facial planes, hard-edged cel-shadow blocks, selective cross-hatching, and saturated orange rim light against cool violet skin shadows. Behind the character, suggest a cavernous tribunal with red pillars, drifting ash, patterned bronze architecture, and a river of dim blue fire, kept softer and less detailed than the figure. Use a graphic-novel composition with an asymmetrical crop, exaggerated costume silhouette, sharply designed jewelry, and decorative geometric borders integrated into the environment. Preserve readable shapes and rich local color. No logo, interface, caption, existing character, or recognizable franchise symbol.",
+    "prompt_sha256": "ea75df800c32846748d11829c9cce363e7a44dc5c6ffea08b1c4d0238b9018a9",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Heavy variable black contours with angular anatomy",
+      "Cel-shadow planes supplemented by selective hatching",
+      "Saturated warm rim light against cool local shadows",
+      "Asymmetrical character crop over a softened mythic vignette"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/graphic_novel_mythic_underworld_dialogue_portrait/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "melancholic_insect_gothic_side_scroller",
+    "category": "indie-pc-console",
+    "anchor_game": "Hollow Knight",
+    "anchor_surface": "Side-view subterranean exploration gameplay environment with a small player silhouette.",
+    "source_url": "https://www.teamcherry.com.au/blog/the-grimm-troupe-descends",
+    "prompt": "Create an original 16:9 side-view exploration frame for a quiet insect-fantasy platform game. A tiny masked moth pilgrim stands on a curved stone ledge inside a vast abandoned bell cavern. Give the pilgrim an extremely simple ivory face, a black cloak body, and two leaflike antennae, occupying less than one tenth of the frame. Build the cavern from elegant black silhouettes, rounded organic masonry, hanging roots, broken bells, and distant architectural arches. Separate at least five depth layers with desaturated navy, blue-gray mist, pale cyan backlight, and soft atmospheric bloom. Use clean hand-drawn contours, restrained interior texture, delicate floating dust, and pools of darkness that frame the bright character. The mood should be lonely and storybook-like rather than horrific. Keep the platform route immediately readable. No interface, text, logo, existing character, or recognizable map layout.",
+    "prompt_sha256": "4d86e821db9e111a2a080b3c1ac2cd8b24aa7eaa60dc508be8b31dbc7b34dc04",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Tiny pale protagonist isolated against dark negative space",
+      "Five or more blue-black atmospheric depth layers",
+      "Clean organic silhouettes with restrained internal detail",
+      "Soft cyan fog and bloom rather than realistic lighting"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/melancholic_insect_gothic_side_scroller/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "thirties_rubber_hose_boss_cartoon",
+    "category": "indie-pc-console",
+    "anchor_game": "Cuphead",
+    "anchor_surface": "Side-view boss-battle gameplay frame with hand-inked cels and watercolor scenery, not modern vector key art.",
+    "source_url": "https://studiomdhr.com/cuphead-goes-triple-platinum/",
+    "prompt": "Create an original 4:3 boss-battle frame resembling a restored theatrical cartoon produced in the early 1930s. On a vaudeville stage, a small teapot-headed acrobat confronts a gigantic angry pipe-organ whose keys curl like teeth. Draw every figure with black hand-inked outlines, pie-cut eyes, white gloves, rubber-hose limbs, squash-and-stretch curvature, and broad readable expressions. Paint the theater scenery in translucent watercolor washes over warm paper, with muted burgundy curtains, faded mint props, and ochre footlights. Add slight line boil, imperfect color registration, dust, fine film grain, subtle vignette, and gently uneven exposure, while keeping the principal silhouettes crisp enough for gameplay. Use period-appropriate visual rhythm without copying any known character. No modern gradients, glossy vector edges, 3D rendering, interface, logo, or written signage.",
+    "prompt_sha256": "c4e85152f39b85af3e8e2192692c954273bd9ba032e6daf4b5878656a9b93344",
+    "aspect_ratio": "4:3",
+    "style_markers": [
+      "Rubber-hose limbs, pie-cut eyes, white gloves, and elastic expressions",
+      "Black cel outlines over translucent watercolor scenery",
+      "Warm limited period palette with imperfect registration",
+      "Visible film grain, line boil, dust, and exposure variation"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/thirties_rubber_hose_boss_cartoon/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "luminous_painterly_spirit_forest_side_scroller",
+    "category": "indie-pc-console",
+    "anchor_game": "Ori",
+    "anchor_surface": "Side-view environmental traversal gameplay frame dominated by layered bioluminescent light and vegetation.",
+    "source_url": "https://news.xbox.com/en-us/2023/12/07/no-rest-for-wicked-moon-studios-ori-game-awards/",
+    "prompt": "Create an original 16:9 side-view fantasy-platforming scene in a vast bioluminescent forest. A small foxlike spirit made of soft white-blue light leaps between moss-covered roots above a dark reflecting pool. Surround it with enormous curved tree trunks, translucent leaves, luminous fungi, hanging seed pods, drifting motes, and a distant waterfall. Render the environment as richly layered digital painting rather than outlined cartoon art: near foliage nearly black and sharply silhouetted, middle layers saturated in turquoise and violet, and far layers softened into luminous mist. Let light bloom around the spirit, fungi, and water while retaining a clearly readable path of platforms. Use flowing organic shapes, jewel-like color, fine natural texture, and dramatic scale contrast. Avoid photorealism, hard comic outlines, interface elements, text, logos, and any existing creature design or recognizable location.",
+    "prompt_sha256": "94fdf28b4af10465912ec1bfc08bf04361f4a241d9c04a28ed53c18b8d1b1ac9",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Small white luminous protagonist with a strong bloom halo",
+      "Near-black foreground framing saturated cyan-violet depth",
+      "Painterly outline-free organic vegetation",
+      "Extreme scale contrast with a readable side-view route"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/luminous_painterly_spirit_forest_side_scroller/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "high_density_pixel_roguelite_combat",
+    "category": "indie-pc-console",
+    "anchor_game": "Dead Cells",
+    "anchor_surface": "Side-view pixel-art action gameplay frame captured at the instant of a melee hit.",
+    "source_url": "https://motiontwin.com/",
+    "prompt": "Create an original 16:9 side-view pixel-art combat frame in a ruined cliffside prison. An athletic faceless alchemist in a torn cobalt coat swings a glowing orange chain-blade through two fungal guards while rolling sparks and fragments cross the screen. Use crisp, deliberately pixelated sprites with compact proportions, strong silhouette poses, limited per-material color ramps, and single-pixel highlights. Build the environment from dense stone blocks, iron cages, damp vegetation, broken beams, and a distant storm coast, with painterly pixel clusters rather than tiled repetition. Contrast cool blue-green ruins against hot orange and magenta attack effects. Add long directional smear frames, impact arcs, particles, and selective bloom without smoothing away the pixels. Preserve a readable horizontal combat lane and layered background depth. No interface, text, logo, existing hero, recognizable weapon, or copied level layout.",
+    "prompt_sha256": "4b7f514264ea157c7f2d5cc885f4bf50f753e9aa1128c5f54f006cbc907a4f4e",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Crisp pixel clusters and limited material color ramps",
+      "Cool ruined environment punctured by hot neon impacts",
+      "Compact faceless fighter silhouette with exaggerated smear arcs",
+      "Dense painterly pixel background with a readable combat lane"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/high_density_pixel_roguelite_combat/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "cozy_sixteen_bit_farm_tilemap",
+    "category": "indie-pc-console",
+    "anchor_game": "Stardew Valley",
+    "anchor_surface": "Top-down farm gameplay tilemap, not a character portrait or promotional painting.",
+    "source_url": "https://www.stardewvalley.net/press/",
+    "prompt": "Create an original 4:3 top-down farming-RPG gameplay scene in crisp 16-bit-inspired pixel art. Show a compact hillside farm on an early autumn afternoon: an adult farmer in a teal cap waters rows of red peppers, pumpkins, and pale-blue flowers beside a small timber cottage. Include a square pond, fruit trees, a chicken fence, a stone path, stacked hay, a weathered mailbox with no writing, and a wooded boundary. Construct the scene from a consistent tile grid with compact character and animal sprites, clean one-pixel outlines, simple two-step shadows, and small repeated texture clusters. Use a warm, cheerful palette of russet soil, golden grass, green foliage, and blue water. Keep every interactive object immediately legible from above. No perspective rendering, painted brushwork, interface, text, logo, or recognizable farm layout.",
+    "prompt_sha256": "785acdb2f277c76ea16d9ab90e17798a1e7cd5f41597024994e9f2c1321c21cc",
+    "aspect_ratio": "4:3",
+    "style_markers": [
+      "Consistent top-down tile grid and compact pixel sprites",
+      "Clean one-pixel edges with simple stepped shadows",
+      "Warm seasonal palette with clearly separated crop rows",
+      "High gameplay readability across many small interactive props"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/cozy_sixteen_bit_farm_tilemap/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "rough_gothic_sixteen_bit_swarm_survival",
+    "category": "indie-pc-console",
+    "anchor_game": "Vampire Survivors",
+    "anchor_surface": "Top-down late-run combat field crowded with enemies and overlapping automatic effects.",
+    "source_url": "https://www.bafta.org/media-centre/press-releases/bafta-announces-the-winners-of-the-2023-bafta-games-awards/",
+    "prompt": "Create an original 16:9 top-down survival-combat frame using deliberately rough, arcade-like 16-bit pixel art. Place a tiny armored astrologer at the center of a dark ruined plaza while hundreds of compact skeleton, bat, and slime sprites press inward from every edge. Surround the hero with overlapping automatic attacks: rotating silver blades, a pulsing emerald ring, diagonal lightning chains, falling amber meteors, and dense jewel-like experience shards. Keep the ground nearly flat and dark, patterned only with sparse cracked tiles and dead weeds, so the moving sprite field dominates. Use limited sprite animation cues, chunky outlines, repeated enemy variations, saturated spell colors, and controlled visual overload. The image should feel inexpensive in individual assets but spectacular through accumulation. No perspective camera, smooth painting, readable interface, numbers, text, logo, or existing character design.",
+    "prompt_sha256": "267b0974734e22b0b08d8d824994ca70f692373fa782125f933be21ea61b38c4",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Tiny central hero surrounded by an edge-to-edge enemy swarm",
+      "Deliberately coarse repeated sixteen-bit sprite vocabulary",
+      "Overlapping radial and rotating spell geometry",
+      "Flat dark ground supporting saturated jewel-colored effects"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/rough_gothic_sixteen_bit_swarm_survival/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "hd_two_d_fantasy_town_diorama",
+    "category": "indie-pc-console",
+    "anchor_game": "Octopath Traveler",
+    "anchor_surface": "Oblique exploration scene combining crisp pixel sprites with physically lit modeled scenery.",
+    "source_url": "https://www.square-enix-games.com/en_US/home/octopath-traveler-ii-release-24-february-2023-switch-steam-ps5-ps4",
+    "prompt": "Create an original 16:9 fantasy-RPG exploration frame presented as a miniature theatrical diorama. Two crisp pixel-art travelers cross a stone bridge into a snow-covered clockmaker town at blue hour. Render the characters, market signs without lettering, birds, and small props as sharply stepped pixel sprites, but construct the bridge, timber houses, clock tower, snowbanks, and canal as richly textured three-dimensional scenery. Use an oblique side view, strong foreground occlusion, shallow depth of field, miniature-scale bokeh, volumetric lamplight, soft bloom, and tiny glittering snow particles. Let warm amber windows contrast with cobalt evening shadows. Maintain an obvious separation between flat pixel characters and physically lit environmental geometry; do not convert everything into smooth illustration. No interface, readable text, logo, existing character, or recognizable town layout.",
+    "prompt_sha256": "f2c40124bb31cd4bd81ba736f2d172abd0904f88cbe91316b64c085d5d3674e5",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Sharp pixel sprites visibly distinct from modeled scenery",
+      "Miniature-diorama camera with foreground occlusion",
+      "Shallow focus, bloom, bokeh, and volumetric lighting",
+      "Warm practical lights contrasted against cool atmospheric shadows"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/hd_two_d_fantasy_town_diorama/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "modern_high_detail_sixteen_bit_jrpg_battle",
+    "category": "indie-pc-console",
+    "anchor_game": "Sea of Stars",
+    "anchor_surface": "Fixed-camera turn-based battle frame with fully pixel-rendered characters and environment.",
+    "source_url": "https://sabotagestudio.com/press-release/sea-of-stars-gains-a-constellation-of-new-features-in-free-dawn-of-equinox-update/",
+    "prompt": "Create an original 16:9 turn-based fantasy-RPG battle frame in polished, high-detail 16-bit-inspired pixel art. Three compact adventurer sprites face a giant moss-backed river crab on a circular tidal platform beneath a moonlit waterfall. Render every element—including characters, water, cliffs, plants, clouds, and spell effects—as deliberate pixel clusters with no smooth 3D geometry. Use generous sprite animation poses, expressive silhouettes, rich multi-step color ramps, sparkling reflected moonlight, and finely tiled environmental detail. A crescent-shaped turquoise spell should illuminate nearby surfaces while warm lanterns mark the party side. Compose the battlefield with a slightly elevated fixed camera and clear opposing formations. The result should feel like premium modern pixel craft rather than a literal low-resolution screenshot. No interface, text, logo, existing monster, or recognizable party design.",
+    "prompt_sha256": "3df9a9c3d43c71356c60d1cc95f37b45b93bcf01eb0aacb61adca6ccdecc021d",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Characters and scenery share carefully clustered pixel treatment",
+      "Bright saturated natural environment with multi-step color ramps",
+      "Fixed elevated battle stage with clearly opposed formations",
+      "Celestial spell lighting colors nearby pixel surfaces"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/modern_high_detail_sixteen_bit_jrpg_battle/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "baroque_penitential_pixel_horror",
+    "category": "indie-pc-console",
+    "anchor_game": "Blasphemous",
+    "anchor_surface": "Side-scrolling combat frame inside an Iberian ecclesiastical ruin.",
+    "source_url": "https://www.team17.com/news/blasphemous-one-million-players",
+    "prompt": "Create an original 16:9 side-scrolling pixel-art combat scene steeped in Iberian baroque religious horror. An adult flagellant knight wearing a tall bronze reliquary helm confronts a many-armed wax saint inside a ruined processional chapel. Render elaborate cracked tilework, twisted silver votives, heavy embroidered banners, candle racks, bone reliquaries, and distant bell arches with dense hand-placed pixel clusters. Use a restrained palette of umber stone, tarnished gold, dried crimson, corpse ivory, and deep black, interrupted by a single cold shaft of light. Give figures solemn, weighty silhouettes and anatomically readable attack poses; blood may appear as stylized rust-red pixel sprays rather than glossy realism. Maintain a strict side-view platform plane and oppressive vertical architecture. No interface, text, logo, existing iconography, copied enemy, or recognizable protagonist.",
+    "prompt_sha256": "810d275f30a2d41e90ea203bf206fc41b81051c856b61722ddfa63c4421fc99a",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Dense baroque ornament rendered as hand-placed pixel clusters",
+      "Restricted umber, tarnished gold, ivory, and dried-crimson palette",
+      "Solemn side-view silhouettes beneath oppressive vertical architecture",
+      "Religious-horror imagery expressed through material relics"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/baroque_penitential_pixel_horror/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "cute_occult_woodland_settlement",
+    "category": "indie-pc-console",
+    "anchor_game": "Cult of the Lamb",
+    "anchor_surface": "Isometric base-management ritual scene, not flat promotional mascot art.",
+    "source_url": "https://investors.devolverdigital.com/files/downloads-and-publications/2026/devo-fy25-investor-presentation.pdf",
+    "prompt": "Create an original 16:9 isometric settlement-management scene combining adorable woodland characters with cheerful occult imagery. At the center, a small rabbit abbess in a crimson hood conducts a moonlit harvest ritual while round-bodied foxes, frogs, raccoons, and deer dance around a painted stone circle. Surround them with tiny wooden shelters, vegetable plots, a cooking fire, devotional statues, hanging pennants without symbols, and black pine trees. Draw everything with thick, slightly irregular black outlines, compact chibi proportions, flat saturated colors, minimal cel shading, and paper-cutout readability. Use a limited dominant palette of scarlet, charcoal, cream, and moss green, with pale cyan moonlight. The mood should be mischievous and inviting despite skull-shaped decorations and candles. Preserve a clear isometric ground grid. No interface, text, logo, existing mascot, crown, or recognizable doctrine symbol.",
+    "prompt_sha256": "175224a0bbd9440a97c4a3f07f0400337211a1ef72080b3aa7f90f871cd95afc",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Thick irregular black outlines around compact chibi woodland figures",
+      "Isometric base layout with individually readable structures",
+      "Cute expressions juxtaposed directly with occult props",
+      "Dominant scarlet-charcoal-cream palette with minimal cel shading"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/cute_occult_woodland_settlement/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "scratchy_paper_puppet_wilderness",
+    "category": "indie-pc-console",
+    "anchor_game": "Don't Starve",
+    "anchor_surface": "Angled top-down survival gameplay frame centered on a wilderness camp.",
+    "source_url": "https://forums.kleientertainment.com/forums/topic/147424-game-update-111430/",
+    "prompt": "Use case: stylized-concept\nAsset type: clean 2D angled top-down wilderness-survival gameplay frame.\nPrimary request: Create an original night camp where a lanky botanist with triangular hair tends a tiny fire while a nervous pack animal and several long-legged shadow birds watch from beyond the light. Surround them with grass marks, thorn bushes, twisted bare trees, scattered stones, traps, and a crooked hand-built science device.\nStyle and shape language: macabre digitally inked animation design; thin nervous contour lines; sparse repeated hatching clipped to characters, props, and selected grass marks; oversized heads; spindly limbs; separately readable puppet-like silhouette layers; deliberately imperfect perspective. Use muted olive, charcoal, bone, and dark burgundy, with fresh orange reserved for the campfire.\nSurface finish: contemporary clean game framebuffer. Use a smooth neutral digital ground beneath the drawn vegetation. The puppet construction is shape language only, without physical paper fibers. Texture is object-local only; the image plane remains clean.\nComposition: Keep the camp, character, pack animal, birds, traps, and science device clearly separated at gameplay scale.\nConstraints: no paper or canvas substrate, parchment color, full-frame grain, dust, scratches, stains, foxing, faded print wash, sepia filter, vignette, scanned-page appearance, interface, text, logo, existing survivor, or recognizable creature design.",
+    "prompt_sha256": "32fc3b5bf38e012b249dce166c577ed6212cbf0afa93465cb23e745e9da9d096",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Nervous digital ink contours and sparse repeated hatching clipped to forms",
+      "Spindly puppet-like anatomy with oversized heads and separated silhouette layers",
+      "Muted olive-charcoal-bone palette punctuated by one fresh orange fire pool",
+      "Intentionally uneven perspective on a clean digital ground without global substrate texture"
+    ],
+    "gpt_existing_artifact": "surface-finish-revision-v1/model-pairs/scratchy_paper_puppet_wilderness/gpt-image-2.png",
+    "grok_existing_artifact": "surface-finish-revision-v1/model-pairs/scratchy_paper_puppet_wilderness/grok-image-2.jpg"
+  },
+  {
+    "entry_id": "grim_inked_dungeon_combat_tableau",
+    "category": "indie-pc-console",
+    "anchor_game": "Darkest Dungeon",
+    "anchor_surface": "Side-on turn-based combat tableau with an adventuring party left and monsters right.",
+    "source_url": "https://www.gamedeveloper.com/business/1-million-copies-and-the-road-ahead",
+    "prompt": "Create an original 16:9 side-on turn-based dungeon battle tableau. Four exhausted adult adventurers—a shield bearer, grave physician, torch monk, and crossbow scout—stand in a compressed rank on the left, facing two swollen tunnel parasites on the right. Draw the scene with extremely heavy angular black inks, chipped contour edges, blocky anatomy, carved facial planes, and large areas of crushed shadow. Use a narrow palette of soot black, parchment beige, oxidized green, blood red, and dull gold. Light the characters from one low torch so their faces and equipment emerge in hard graphic wedges while the corridor disappears into darkness. Frame the clash like a grim comic panel with minimal depth and strong opposing silhouettes. No interface, captions, numbers, logo, existing class costume, or recognizable monster design.",
+    "prompt_sha256": "76e699f8ab333b4af9cd66f460daec8e5643f3e790669685d74f998840f84ec5",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Crushed blacks occupy a major portion of every figure",
+      "Thick angular inks and carved planes replace soft modeling",
+      "Narrow parchment-red-gold palette under one hard torch",
+      "Compressed opposing combat ranks with minimal perspective depth"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/grim_inked_dungeon_combat_tableau/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "loose_oil_painted_isometric_coastal_ruin",
+    "category": "indie-pc-console",
+    "anchor_game": "Disco Elysium",
+    "anchor_surface": "Isometric narrative exploration environment without dialogue interface.",
+    "source_url": "https://zaumstudio.com/",
+    "prompt": "Create an original 16:9 isometric narrative-RPG environment painted with loose, expressive oil-and-gouache brushwork. An exhausted middle-aged harbor inspector and a neatly dressed union archivist stand beside a broken public fountain in a wind-beaten coastal district. Surround them with peeling apartment walls, wet cobblestones, a shuttered kiosk, leaning utility poles, dead grass, distant cranes, and gray sea haze. Use an elevated oblique camera, but allow architectural edges to dissolve into brush marks and stained color rather than precise 3D geometry. Build the palette from bruised violet, oxidized teal, dirty ochre, nicotine yellow, and occasional hot magenta accents. Figures should remain small yet identifiable through posture and color blocks. Convey political decay and melancholy without readable propaganda. No interface, dialogue boxes, text, logo, existing detective costume, or recognizable city location.",
+    "prompt_sha256": "3c4e774051702aebbf16c8efca1dbadb9ebc6f34d7d329867b86b41b76b681d2",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Isometric spatial logic softened by visibly loose brushwork",
+      "Bruised violet, teal, ochre, and magenta urban palette",
+      "Small human figures defined by posture and color masses",
+      "Architecture dissolves into atmospheric stains at frame edges"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/loose_oil_painted_isometric_coastal_ruin/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "minimalist_watercolor_dream_platformer",
+    "category": "indie-pc-console",
+    "anchor_game": "GRIS",
+    "anchor_surface": "Side-view traversal tableau with one small figure and monumental surreal architecture.",
+    "source_url": "https://steamcommunity.com/app/683320/announcements/",
+    "prompt": "Create an original 16:9 side-view dream-platforming tableau painted in delicate watercolor and ink. A small adult traveler wearing a long saffron cape crosses the wrist of a colossal broken stone hand suspended above a white desert. Place thin stairways, fragments of circular observatories, two distant birds, and a shallow reflective pool along the route. Leave at least half the frame as clean ivory negative space. Use translucent washes that bleed from saffron into coral and dusty rose, sparse pencil-thin contours, granular pigment edges, and occasional opaque geometric shapes. The character should be tiny, elegant, and readable through a single dark silhouette. Avoid conventional texture everywhere; let color collect only around architecture, cloth, and reflection. The image should feel contemplative and weightless. No interface, text, logo, existing dress design, or recognizable monument.",
+    "prompt_sha256": "0a1b55910f450ffe061c144a43f50761a9f8564a226a00385ee695420dd78a2a",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "At least half the composition remains pale negative space",
+      "Translucent watercolor blooms with visible pigment edges",
+      "Tiny side-view traveler dwarfed by surreal architecture",
+      "Restricted emotional color family rather than full-spectrum scenery"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/minimalist_watercolor_dream_platformer/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "warm_hand_drawn_spirit_boat_cutaway",
+    "category": "indie-pc-console",
+    "anchor_game": "Spiritfarer",
+    "anchor_surface": "Side-view boat-management gameplay frame showing several readable rooms.",
+    "source_url": "https://thunderlotusgames.com/press-releases/spiritfarer-farewell-edition-press/",
+    "prompt": "Create an original 16:9 side-view boat-management scene rendered like a high-quality hand-drawn animated film. Show a broad wooden ferry crossing a calm indigo sea at sunset, its deck arranged as a readable cutaway of a greenhouse, kitchen, workshop, sleeping cabin, and tiny bell tower. An adult ferrymaster in a wide ochre coat carries tea to three gentle animal-shaped spirits: a translucent heron, an elderly marmot, and a tall moth. Use clean dark-blue linework, softly rounded anatomy, flat local colors enriched by subtle painted gradients, expressive animation-ready poses, and warm amber windows against lavender and coral sky. Let constellations and spirit trails glow delicately without overwhelming the domestic details. Preserve clear side-view platforms and ladders. No interface, text, logo, existing ferrymaster, recognizable cat companion, or copied boat configuration.",
+    "prompt_sha256": "e9f5059e07c955d5c34f253dfa801690580c3d46264338a5792acc7f47dd389e",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Clean animation-ready linework and softly rounded silhouettes",
+      "Side-view boat cutaway with multiple readable domestic rooms",
+      "Warm amber interiors against a lavender-coral dusk",
+      "Animal-shaped spirits rendered with delicate translucent glow"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/warm_hand_drawn_spirit_boat_cutaway/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "league_champion_splash_v1",
+    "category": "western-card-casual",
+    "anchor_game": "League of Legends",
+    "anchor_surface": "Full-width champion or skin splash illustration",
+    "source_url": "https://www.riotgames.com/darkroom/original/8e2a0ca2dbd5c484ff503513ed591f32%3Adb0dce6771e17a4e90bf6ba43a32c7ab/leagueoflegends-fact-sheet.pdf",
+    "prompt": "Use case: premium 2D game marketing art.\nAsset type: full-width champion or cosmetic-skin splash illustration, without interface.\nPrimary request: Create a cinematic horizontal fantasy-game splash illustration for an original adult storm duelist on a broken celestial observatory rim. She has an original face, black hair, engraved silver armor over dark leather, a long split indigo coat, and a narrow lightning-charged blade.\nStyle: polished semi-realistic digital painting; carefully rendered adult face, leather, engraved metal, windswept cloth, rain, and luminous weather effects; selective sharpness at the face, hands, and weapon; painterly atmospheric haze elsewhere; cool blue-gray atmosphere against one concentrated amber-white magical light.\nComposition: Make her silhouette dominant and immediately readable, occupying roughly forty percent of the frame, viewed from a low three-quarter camera with the weapon thrust toward the viewer. Build a strong diagonal from the foreground blade through the character to a distant lightning vortex. Keep collapsing brass instruments, cloud layers, and airborne debris deep but subordinate.\nConstraints: one original adult character; no text, logo, interface, card frame, copied costume, recognizable character, photorealistic camera look, or crowded ensemble.",
+    "prompt_sha256": "7a8824070b3c4ec74f31e4252b35e6618e90dfb416980df7b2774337ae54d0df",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "One dominant champion silhouette with face-level focal contrast",
+      "Strong cinematic diagonal and aggressive foreground foreshortening",
+      "Semi-realistic material painting with selective sharpness",
+      "Emissive magic separated from a deep atmospheric environment"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/league_champion_splash_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "hearthstone_minion_card_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Hearthstone",
+    "anchor_surface": "Cropped collectible minion-card illustration without the card frame",
+    "source_url": "https://hearthstone.blizzard.com/en-us/news/22636890/celebrating-100-million-players",
+    "prompt": "Use case: stylized-concept\nAsset type: small collectible-card artwork cropped for the illustration window, without the card frame.\nPrimary request: Create an original goblin pastry alchemist accidentally launching a flaming berry pie across a busy workshop. The goblin has a huge expressive nose, color-blocked oven mitts, a flour-dusted clean leather apron, and a copper whisk-wand; the flying pie and the goblin's horrified delight form the central gag.\nStyle and shape language: broad friendly caricature rather than realistic anatomy; oversized face, hands, eyebrows, and props; thick confident digital brush shapes; smooth matte color fields; rounded simplified materials. Differentiate clean copper, wood, glazed ceramic, dough, and smoke through silhouette, hue, and broad highlight shapes rather than realistic roughness. Use warm honey brown, clean gold, saturated berry red, and one turquoise magical accent.\nSurface finish: contemporary clean digital card-game illustration. Allow only one or two deliberate painted accents per object. Keep colors fresh and the image plane clean.\nComposition: Use a compact centered circular action readable at thumbnail size, with flour, sparks, and utensils framing but not obscuring the face.\nConstraints: no PBR rendering, photorealistic microdetail, patina, grime, scratches, chipped paint, paper or canvas texture, full-frame grain, sepia grading, brown edge wear, vignette, card border, text, icon, number, rarity gem, logo, copied fantasy character, horror, or distant scenic composition.",
+    "prompt_sha256": "cceadbba1641f49ce76b3001b4a9142b5bdd5284f571e8cdb3a04012bc5c8219",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Broad caricature with oversized face, hands, and readable expression",
+      "Rounded simplified materials described by broad digital brush masses rather than microtexture",
+      "Fresh warm tavern palette punctuated by one saturated magical color",
+      "Central comic action designed to survive a very small crop"
+    ],
+    "gpt_existing_artifact": "surface-finish-revision-v1/model-pairs/hearthstone_minion_card_v1/gpt-image-2.png",
+    "grok_existing_artifact": "surface-finish-revision-v1/model-pairs/hearthstone_minion_card_v1/grok-image-2.jpg"
+  },
+  {
+    "entry_id": "runeterra_follower_full_art_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Legends of Runeterra",
+    "anchor_surface": "Full uncropped follower or spell card artwork",
+    "source_url": "https://apps.apple.com/ca/story/id1535415720",
+    "prompt": "Use case: narrative full-art illustration revealed from a digital collectible card.\nAsset type: full-width fantasy follower or spell artwork, without any card frame.\nPrimary request: Show an original adult canal-city courier arriving one second too late to stop a forbidden relic from opening. The courier enters in a rain cape from the lower left; a frightened archivist recoils in the middle distance; an opened brass reliquary releases spectral birds toward the upper right. Include wet footprints, dropped sealing wax, and tilting shelves as small story clues.\nStyle: sophisticated painterly fantasy illustration; believable adult anatomy; simplified but convincing architecture; crisp foreground silhouettes; carefully controlled atmospheric depth; teal canal light, oxidized copper, parchment cream, muted violet, and brilliant cyan reserved for the supernatural event.\nComposition: Stage a complete narrative incident rather than a posed hero poster. Keep the courier, relic, and spectral eruption readable at card size while letting distant areas soften into broad strokes.\nConstraints: no text, card frame, existing symbols, recognizable character, modern object, logo, interface, ornamental border, or generic single-character beauty pose.",
+    "prompt_sha256": "05bddcc3b8c146b063f003623d8000cd537fd1b9f9f4faf90d49afab2468ccc3",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "A complete narrative incident rather than a hero beauty pose",
+      "Regional palette carried consistently through costume and environment",
+      "Crisp foreground silhouettes against softer painterly depth",
+      "Numerous lore-bearing props subordinate to the main event"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/runeterra_follower_full_art_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "mtg_arena_borderless_card_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Magic: The Gathering Arena",
+    "anchor_surface": "Borderless vertical creature or planeswalker card illustration",
+    "source_url": "https://investor.hasbro.com/node/35596",
+    "prompt": "Use case: premium borderless fantasy artwork for a digital collectible card.\nAsset type: vertical creature or planeswalker-style card painting, without typography or frame ornament.\nPrimary request: Paint an original adult desert astronomer binding a fallen star inside a bronze astrolabe. She wears layered sun-bleached robes and practical leather gloves; her weathered face is lit by the captive star while rotating engraved rings form a symbolic halo above her.\nStyle: serious classical representational fantasy painting; convincing adult anatomy, observed fabric folds, weathered skin, dense engraved metal, granular sandstone, and physically coherent firelight; restrained umber, ochre, charcoal, and tarnished green interrupted by one white-gold celestial focal point; depth built through value, temperature, and atmospheric dust rather than outlines.\nComposition: Place the figure slightly below center so the luminous star and astrolabe dominate the upper field. Make every ritual prop imply history while preserving a clear portrait-card silhouette.\nConstraints: no border, mana-like symbol, text, logo, contemporary technology, copied costume, glossy anime rendering, comic ink lines, game interface, or explosive action-poster pose.",
+    "prompt_sha256": "f0ad2f3bb8f24080600f9cbc3e5c72eabc626021351b537f3a4809135457a780",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Classical representational anatomy with no enclosing contour lines",
+      "Restrained natural palette plus one supernatural focal color",
+      "Symbolic mythic staging rather than explosive action",
+      "Historically tactile surfaces and physically coherent illumination"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/mtg_arena_borderless_card_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "afk_ascended_hero_portrait_v1",
+    "category": "western-card-casual",
+    "anchor_game": "AFK Arena",
+    "anchor_surface": "Full-body ascended hero collection portrait",
+    "source_url": "https://ancient.lilith.com/en/news?id=350",
+    "prompt": "Use case: collectible idle-RPG hero reveal and collection-screen portrait.\nAsset type: vertical full-body ascended hero key art, not a combat sprite.\nPrimary request: Create an original adult moth-oracle from an ancient moonlit forest faction. Present her in elegant contrapposto with a narrow waist, sweeping layered sleeves, wing-shaped mantle panels, a crescent staff, and an original serene face. Her ribbons, antennae, leaves, and crescent ornaments should repeat one coherent botanical motif.\nStyle: elongated fashion-illustration silhouette; delicate animation-like facial and shape design combined with softly painted volume; simplified anatomy, jewel-like eyes, brushed fabric gradients, ornate botanical filigree, and graceful Art Nouveau curves; dusty lavender, midnight blue, bone ivory, and small luminous mint accents.\nComposition: Show the complete uncropped figure and feet. Frame the body with decorative curves and a shallow faded moon disc, mist, and flat foliage arabesques rather than a deep scene.\nConstraints: no text, interface, faction emblem, copied costume, recognizable wings, cropped feet, gritty realism, photorealistic texture, battle scene, or unrelated ornamental clutter.",
+    "prompt_sha256": "7b98d7afc92c35051148858dbb0e13807b49033e153f1b20b304fb177f388983",
+    "aspect_ratio": "2:3",
+    "style_markers": [
+      "Elongated fashion-illustration silhouette with elegant full-body pose",
+      "Art Nouveau curves repeated through costume effects and backdrop",
+      "Hybrid cel-shaped forms and soft painterly gradients",
+      "Limited faction palette with a shallow ornamental background"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/afk_ascended_hero_portrait_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "cookie_kingdom_gacha_splash_v1",
+    "category": "western-card-casual",
+    "anchor_game": "CookieRun: Kingdom",
+    "anchor_surface": "Square character acquisition or featured-cookie illustration",
+    "source_url": "https://www.devsisters.com/en/games/cookierun-kingdom",
+    "prompt": "Use case: cheerful character acquisition reveal for a collectible mobile RPG.\nAsset type: square featured-character gacha splash, not a battle sprite or kingdom environment.\nPrimary request: Create an original living gingerbread astronomer called Comet Candy Cookie, but do not write the name. Build the character from a large round cookie head, tiny body, stubby limbs, icing hair, candy-glass telescope, and a cape shaped like a shooting star. Surround the triumphant pose with oversized star jellies, sugar crumbs, curved speed streaks, and a bright circular reveal burst.\nStyle: unmistakably flat cookie silhouette; thick dark-chocolate outlines of nearly uniform weight; rounded corners; simple facial marks; large expressive eyes; flat confectionery colors of deep blueberry, lemon icing, raspberry, and pale sugar; only minimal soft shading; every detail should resemble edible material.\nComposition: Center the complete character and organize effects as a sticker-like circular burst that remains legible as a thumbnail.\nConstraints: no realistic human anatomy, textured painting, text, logo, interface button, copied cookie design, complex perspective, photorealistic food, or crowded background.",
+    "prompt_sha256": "02a7ca757549e0bb7393a25e8a17c337b56df054d6536481c2396804215cffc0",
+    "aspect_ratio": "1:1",
+    "style_markers": [
+      "Gingerbread-body construction with extremely compressed proportions",
+      "Thick chocolate-colored uniform contours and rounded geometry",
+      "Flat candy palette with very shallow shading",
+      "Sticker-like effects arranged as a circular acquisition burst"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/cookie_kingdom_gacha_splash_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "angry_birds_loading_ensemble_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Angry Birds 2",
+    "anchor_surface": "Wide small-ensemble loading or promotional illustration",
+    "source_url": "https://www.rovio.com/articles/rovio-games-have-surpassed-5-billion-total-downloads/",
+    "prompt": "Use case: instantly readable comedic loading illustration for a casual mobile game.\nAsset type: wide small-ensemble promotional scene, not an app icon or cinematic movie render.\nPrimary request: Show three original round orchard birds defending a basket of glowing pears from two bean-shaped burrowing thieves. Construct every creature from circles, ovals, wedges, and simple tufts; give the birds no visible arms and only tiny feet. The angriest bird is pulled backward in a leafy sling at left while the thieves react in panic at right.\nStyle: thick smooth contours; bright primary colors; clean vector-like gradients; small glossy highlights suggesting polished toy surfaces without becoming fully three-dimensional; expressions driven by huge eyebrows, compressed beaks, narrowed eyes, and elastic squash-and-stretch.\nComposition: Arrange the entire cast along one rising left-to-right action curve and make the gag understandable at phone size. Keep the sunny orchard broad and simple.\nConstraints: no text, logo, realistic feathers, movie-style 3D rendering, human anatomy, copied birds, pigs, eggs, recognizable level geometry, interface, or background clutter.",
+    "prompt_sha256": "2308ba4f0e1773a0729cd027d62e2de16dca0aa4f3a2bccc818c171239c77c30",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Characters assembled from near-spherical geometric bodies",
+      "Extreme eyebrow-and-beak expressions with minimal anatomy",
+      "Smooth vector-like gradients and toy-polish highlights",
+      "Entire ensemble organized around one immediately readable gag"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/angry_birds_loading_ensemble_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "pvz2_almanac_portrait_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Plants vs. Zombies 2",
+    "anchor_surface": "Square almanac or selection portrait for one unit",
+    "source_url": "https://www.ea.com/games/plants-vs-zombies/plants-vs-zombies-2/features",
+    "prompt": "Use case: stylized-concept\nAsset type: square almanac portrait of one original plant unit, not a full lawn battle.\nPrimary request: Create a defensive garden character shaped like a trumpet cactus that blasts sticky pollen through a polished brass bell with one shallow dent. Show the complete plant in a clear three-quarter view with an oversized mouth, tiny suspicious eyes, uneven thorns, broad leaf-feet, and one ridiculous improvised accessory: a loose suburban garden-hose strap.\nStyle and shape language: clean modern mobile-game cartoon rendering; lumpy asymmetrical silhouette; thick dark outlines with slight weight variation; flat saturated yellow-green and turquoise color fields; one smooth controlled gradient per form; small hard highlights. Express the mildly grotesque botanical quality through lobes, uneven thorns, and three or four deliberate pores, not through surface dirt or noise.\nSurface finish: contemporary clean digital game raster. Use clean unblemished plant skin and clean stylized brass without oxidation. Texture is sparse and object-local only.\nComposition: Make the functional joke obvious immediately. Ground the character with one small oval shadow and only a softly blurred clean fence and lawn behind it.\nConstraints: no mottled skin, stippled fill, watercolor granulation, patina, corrosion, grime, scratches, chipped finish, paper or canvas texture, global grain, faded or olive color wash, vignette, typography, stats, interface frame, realistic botanical rendering, known unit design, zombie, copied weapon, complex environment, photorealism, or multiple characters.",
+    "prompt_sha256": "d5759771d908b6ee0cc5c15c214132c3da0dc453f564cd913b867d6f561e17b0",
+    "aspect_ratio": "1:1",
+    "style_markers": [
+      "Anthropomorphic plant built around one exaggerated functional feature",
+      "Irregular lumpy contour with botanical grotesquery expressed through shape design",
+      "Thick outlines, flat saturated fills, and one smooth controlled gradient per form",
+      "Clean plant skin and polished brass without weathering or global texture"
+    ],
+    "gpt_existing_artifact": "surface-finish-revision-v1/model-pairs/pvz2_almanac_portrait_v1/gpt-image-2.png",
+    "grok_existing_artifact": "surface-finish-revision-v1/model-pairs/pvz2_almanac_portrait_v1/grok-image-2.jpg"
+  },
+  {
+    "entry_id": "clash_royale_troop_card_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Clash Royale",
+    "anchor_surface": "Vertical troop portrait inside a collection card",
+    "source_url": "https://supercell.com/en/news/best-days/7600/",
+    "prompt": "Use case: instantly recognizable troop artwork for a competitive mobile card collection.\nAsset type: vertical troop-card portrait without rarity border, level, cost, or interface.\nPrimary request: Create an original mushroom lancer charging toward the viewer on a squat blue beetle. Give the rider an enormous mushroom-cap helmet, thick forearms, a tiny torso, a blunt wooden lance, and simplified armor plates; give the mount oversized beetle mandibles and short powerful legs.\nStyle: exaggerated toy-sculpted forms; clean polished 3D-like illustration; broad color zones; soft ambient occlusion; bright rim light; restrained painted texture suggesting wood, leather, chitin, and hammered metal; royal blue opposed to warm orange-brown arena dust with a pale sky glow behind the silhouette.\nComposition: Frame the pair tightly from a low three-quarter angle so the face, lance tip, and mount read at thumbnail size. Keep the mood energetic and mischievous.\nConstraints: no card frame, number, rarity icon, text, crown, known troop, photorealism, detailed landscape, logo, interface, or realistic anatomy.",
+    "prompt_sha256": "cb90e08b07ca4c5643a7dd2d583e68972a42d6862a21356bf476d5164a3d3a4d",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Chunky toy-sculpted anatomy and greatly enlarged equipment",
+      "Tight low-angle portrait composed for thumbnail recognition",
+      "Broad blue-orange color separation with bright silhouette rim",
+      "Clean 3D-painted finish with restrained surface texture"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/clash_royale_troop_card_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "brawl_seasonal_loading_art_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Brawl Stars",
+    "anchor_surface": "Wide seasonal loading illustration showing several fighters",
+    "source_url": "https://supercell.com/en/news/comfortable-feeling-uncomfortable/",
+    "prompt": "Use case: seasonal loading key art for a fast casual multiplayer mobile game.\nAsset type: wide themed conflict featuring a small fighter ensemble, not individual portrait icons or gameplay capture.\nPrimary request: Show three original adult toy-like competitors battling over a runaway parade float in a neon desert carnival: a square-jawed ticket collector with a punch stamper, a tiny masked stunt rider on one enormous wheel, and a broad cactus mechanic wielding a foam wrench. Give every fighter a distinct oversized silhouette and readable emotional reaction.\nStyle: huge heads, hands, footwear, and props; torsos and joints simplified into rounded sculpted masses; smooth colorful 3D-like shading; crisp edges; flat graphic dust clouds and starburst impacts; saturated cyan, magenta, and orange lighting.\nComposition: Arrange a clear action triangle with one foreground impact, one airborne figure, and one reacting figure. Keep the environment bold but shallow enough for phone-screen readability.\nConstraints: no words, logo, interface, copied weapon, recognizable character, realistic anatomy, detailed crowd, photorealism, gore, or visually equal background figures.",
+    "prompt_sha256": "430c5cebc22243d1b7b3b312812393eb122d1779c6f8c0a67fded4957ed1a7af",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Huge heads hands shoes and signature props on compressed bodies",
+      "Three-character triangular action composition",
+      "Smooth 3D-like shading combined with flat graphic impact effects",
+      "Saturated complementary lighting and shallow phone-readable depth"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/brawl_seasonal_loading_art_v1/r01.png",
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "rayman_gouache_platformer_world_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Rayman Legends",
+    "anchor_surface": "Playable hand-painted side-scrolling level vista",
+    "source_url": "https://www.ubisoft.com/en-us/company/about-us/our-brands/rayman",
+    "prompt": "Use case: stylized-concept\nAsset type: wide playable 2D side-scrolling level vista showing character scale, foreground footing, hazards, and a readable traversal route.\nPrimary request: Set the level inside an enormous overgrown music box. Show an original limbless blue courier leaping from a felt piano hammer toward a rotating brass drum, with floating gloves and shoes clearly separated from the body. Mechanical flowers, curled vines, bellows, and music-box teeth create the path.\nStyle and shape language: clean contemporary digitally painted 2D platformer art; gouache-like opaque color blocking rendered digitally; cut-paper-inspired silhouette layering without paper fibers; soft matte shadows; clean saturated color fields; deliberately irregular shape contours without fraying; decorative curls; richly colored mechanical foliage; elastic animation logic. Use plum, moss green, turquoise, and clean warm brass with spotlight-like pools guiding movement.\nSurface finish: polished modern game framebuffer. Material texture may appear only inside the specific felt, brass, leaf, and flower surfaces. Keep brass clean and stylized rather than tarnished. Keep the image plane perfectly clean.\nComposition: Establish a dark foreground silhouette for playable footing, a saturated middle layer containing hazards and pickups, and two progressively softer parallax backgrounds. Make the route travel clearly left to right.\nConstraints: no paper, canvas, or felt substrate across the frame; no full-frame grain, rubbed-pigment noise, frayed fibers, age stains, faded wash, sepia cast, tarnish overlay, vignette, scanned illustration, photographed craft diorama, interface, text, logo, photorealistic machinery, sterile straight-edged geometry, existing hero costume, purely scenic composition, hidden route, 3D-rendered materials, or realistic human anatomy.",
+    "prompt_sha256": "632e5e4f7852c8c49b0966e59162b9d22adbdbd569e20f7429239802115b8785",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Digitally rendered gouache-like color blocking and irregular silhouette edges without paper fibers",
+      "Elastic character and environmental shapes",
+      "Strong foreground gameplay and parallax-depth layer separation",
+      "Decorative readable traversal route with object-local texture and a clean image plane"
+    ],
+    "gpt_existing_artifact": "surface-finish-revision-v1/model-pairs/rayman_gouache_platformer_world_v1/gpt-image-2.png",
+    "grok_existing_artifact": "surface-finish-revision-v1/model-pairs/rayman_gouache_platformer_world_v1/grok-image-2.jpg"
+  },
+  {
+    "entry_id": "banner_saga_caravan_panorama_v1",
+    "category": "western-card-casual",
+    "anchor_game": "The Banner Saga",
+    "anchor_surface": "Wide caravan-travel landscape with a tiny marching party",
+    "source_url": "https://www.kickstarter.com/projects/stoic/the-banner-saga/description",
+    "prompt": "Use case: story-map travel panorama for a solemn 2D tactical role-playing game.\nAsset type: ultrawide caravan landscape with small marching figures, not tactical combat or dialogue portrait art.\nPrimary request: Show an original column of refugees crossing a frozen red-grass valley beneath three monumental stone arches. The travelers occupy only the lower tenth of the frame as small dark figures with angular cloaks, wagons, horned pack animals, and one tall plain banner, emphasizing the hostile scale of the land.\nStyle: flattened mid-century animation-background design; hard-edged mountain shapes, elegant tapering trees, long horizontal snow bands, restrained surface texture, muted slate blue, weathered cream, oxblood red, charcoal, and a pale low sun producing simple graphic shadows; decisive figure contours with distant terrain kept largely lineless and shape-driven.\nComposition: Use monumental horizontal bands and ample negative sky. Maintain clear left-to-right procession and an emotion of solemn endurance rather than heroic combat.\nConstraints: no text, logo, interface, grid, specific cultural symbol, copied costume, glossy rendering, detailed faces, modern equipment, atmospheric photorealism, or fantasy spectacle effects.",
+    "prompt_sha256": "00f8f2c296bcd7f32e8a9e2173e2860ef0d8d0f6564ea10cebffc1646f1a3905",
+    "aspect_ratio": "21:9",
+    "style_markers": [
+      "Tiny caravan contrasted against monumental horizontal landscape",
+      "Flattened hard-edged mid-century background shapes",
+      "Muted Nordic palette with one recurring banner accent color",
+      "Decisive figure contours but largely lineless distant terrain"
+    ],
+    "gpt_existing_artifact": "dictionary-volume-v1/concepts/banner_saga_caravan_panorama_v1/r01.png",
+    "grok_existing_artifact": null
+  }
+]

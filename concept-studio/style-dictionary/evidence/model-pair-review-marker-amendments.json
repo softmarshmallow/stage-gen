@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "amendments": [
+    {
+      "entry_id": "thirties_rubber_hose_boss_cartoon",
+      "original_marker": "Visible film grain, line boil, dust, and exposure variation",
+      "effective_marker": "Visible film grain, dust, irregular ink, and imperfect color registration",
+      "reason": "Static generated images can establish grain, dust, irregular ink, and imperfect color registration, but they cannot establish temporal line boil or exposure variation across animation frames.",
+      "prompt_changed": false
+    }
+  ]
+}

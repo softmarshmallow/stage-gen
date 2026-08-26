@@ -17,7 +17,16 @@ The repository gates enforce these binary-media limits:
 - audio: 20 MiB per file;
 - image: 5 MiB per file;
 - video: 25 MiB per file; and
-- all tracked/generated media combined: 50 MiB.
+- all tracked/generated media combined: 100 MiB.
+
+The aggregate ceiling intentionally accommodates the canonical 92-image style-dictionary
+preview family under `concept-studio/style-dictionary/`. That family uses full-resolution,
+deterministic lossy WebP encodes and remains subject to the unchanged 5 MiB per-image limit.
+Its lossless and provider-returned originals remain ignored run output.
+
+Git LFS remains disabled for this publication. The bounded preview family stays below the existing
+50 MiB family-level reconsideration threshold, no individual preview approaches the large-source
+threshold, and a public checkout therefore remains independent of an authenticated LFS service.
 
 Run the canonical current-tree checks from the repository root:
 

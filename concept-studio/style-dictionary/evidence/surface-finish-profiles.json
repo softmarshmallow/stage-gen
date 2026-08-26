@@ -1,0 +1,74 @@
+[
+  {
+    "entry_id": "scratchy_paper_puppet_wilderness",
+    "category": "indie-pc-console",
+    "anchor_game": "Don't Starve",
+    "anchor_surface": "Angled top-down survival gameplay frame centered on a wilderness camp.",
+    "source_url": "https://forums.kleientertainment.com/forums/topic/147424-game-update-111430/",
+    "prompt": "Use case: stylized-concept\nAsset type: clean 2D angled top-down wilderness-survival gameplay frame.\nPrimary request: Create an original night camp where a lanky botanist with triangular hair tends a tiny fire while a nervous pack animal and several long-legged shadow birds watch from beyond the light. Surround them with grass marks, thorn bushes, twisted bare trees, scattered stones, traps, and a crooked hand-built science device.\nStyle and shape language: macabre digitally inked animation design; thin nervous contour lines; sparse repeated hatching clipped to characters, props, and selected grass marks; oversized heads; spindly limbs; separately readable puppet-like silhouette layers; deliberately imperfect perspective. Use muted olive, charcoal, bone, and dark burgundy, with fresh orange reserved for the campfire.\nSurface finish: contemporary clean game framebuffer. Use a smooth neutral digital ground beneath the drawn vegetation. The puppet construction is shape language only, without physical paper fibers. Texture is object-local only; the image plane remains clean.\nComposition: Keep the camp, character, pack animal, birds, traps, and science device clearly separated at gameplay scale.\nConstraints: no paper or canvas substrate, parchment color, full-frame grain, dust, scratches, stains, foxing, faded print wash, sepia filter, vignette, scanned-page appearance, interface, text, logo, existing survivor, or recognizable creature design.",
+    "prompt_sha256": "32fc3b5bf38e012b249dce166c577ed6212cbf0afa93465cb23e745e9da9d096",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Nervous digital ink contours and sparse repeated hatching clipped to forms",
+      "Spindly puppet-like anatomy with oversized heads and separated silhouette layers",
+      "Muted olive-charcoal-bone palette punctuated by one fresh orange fire pool",
+      "Intentionally uneven perspective on a clean digital ground without global substrate texture"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "hearthstone_minion_card_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Hearthstone",
+    "anchor_surface": "Cropped collectible minion-card illustration without the card frame",
+    "source_url": "https://hearthstone.blizzard.com/en-us/news/22636890/celebrating-100-million-players",
+    "prompt": "Use case: stylized-concept\nAsset type: small collectible-card artwork cropped for the illustration window, without the card frame.\nPrimary request: Create an original goblin pastry alchemist accidentally launching a flaming berry pie across a busy workshop. The goblin has a huge expressive nose, color-blocked oven mitts, a flour-dusted clean leather apron, and a copper whisk-wand; the flying pie and the goblin's horrified delight form the central gag.\nStyle and shape language: broad friendly caricature rather than realistic anatomy; oversized face, hands, eyebrows, and props; thick confident digital brush shapes; smooth matte color fields; rounded simplified materials. Differentiate clean copper, wood, glazed ceramic, dough, and smoke through silhouette, hue, and broad highlight shapes rather than realistic roughness. Use warm honey brown, clean gold, saturated berry red, and one turquoise magical accent.\nSurface finish: contemporary clean digital card-game illustration. Allow only one or two deliberate painted accents per object. Keep colors fresh and the image plane clean.\nComposition: Use a compact centered circular action readable at thumbnail size, with flour, sparks, and utensils framing but not obscuring the face.\nConstraints: no PBR rendering, photorealistic microdetail, patina, grime, scratches, chipped paint, paper or canvas texture, full-frame grain, sepia grading, brown edge wear, vignette, card border, text, icon, number, rarity gem, logo, copied fantasy character, horror, or distant scenic composition.",
+    "prompt_sha256": "cceadbba1641f49ce76b3001b4a9142b5bdd5284f571e8cdb3a04012bc5c8219",
+    "aspect_ratio": "3:4",
+    "style_markers": [
+      "Broad caricature with oversized face, hands, and readable expression",
+      "Rounded simplified materials described by broad digital brush masses rather than microtexture",
+      "Fresh warm tavern palette punctuated by one saturated magical color",
+      "Central comic action designed to survive a very small crop"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "pvz2_almanac_portrait_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Plants vs. Zombies 2",
+    "anchor_surface": "Square almanac or selection portrait for one unit",
+    "source_url": "https://www.ea.com/games/plants-vs-zombies/plants-vs-zombies-2/features",
+    "prompt": "Use case: stylized-concept\nAsset type: square almanac portrait of one original plant unit, not a full lawn battle.\nPrimary request: Create a defensive garden character shaped like a trumpet cactus that blasts sticky pollen through a polished brass bell with one shallow dent. Show the complete plant in a clear three-quarter view with an oversized mouth, tiny suspicious eyes, uneven thorns, broad leaf-feet, and one ridiculous improvised accessory: a loose suburban garden-hose strap.\nStyle and shape language: clean modern mobile-game cartoon rendering; lumpy asymmetrical silhouette; thick dark outlines with slight weight variation; flat saturated yellow-green and turquoise color fields; one smooth controlled gradient per form; small hard highlights. Express the mildly grotesque botanical quality through lobes, uneven thorns, and three or four deliberate pores, not through surface dirt or noise.\nSurface finish: contemporary clean digital game raster. Use clean unblemished plant skin and clean stylized brass without oxidation. Texture is sparse and object-local only.\nComposition: Make the functional joke obvious immediately. Ground the character with one small oval shadow and only a softly blurred clean fence and lawn behind it.\nConstraints: no mottled skin, stippled fill, watercolor granulation, patina, corrosion, grime, scratches, chipped finish, paper or canvas texture, global grain, faded or olive color wash, vignette, typography, stats, interface frame, realistic botanical rendering, known unit design, zombie, copied weapon, complex environment, photorealism, or multiple characters.",
+    "prompt_sha256": "d5759771d908b6ee0cc5c15c214132c3da0dc453f564cd913b867d6f561e17b0",
+    "aspect_ratio": "1:1",
+    "style_markers": [
+      "Anthropomorphic plant built around one exaggerated functional feature",
+      "Irregular lumpy contour with botanical grotesquery expressed through shape design",
+      "Thick outlines, flat saturated fills, and one smooth controlled gradient per form",
+      "Clean plant skin and polished brass without weathering or global texture"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  },
+  {
+    "entry_id": "rayman_gouache_platformer_world_v1",
+    "category": "western-card-casual",
+    "anchor_game": "Rayman Legends",
+    "anchor_surface": "Playable hand-painted side-scrolling level vista",
+    "source_url": "https://www.ubisoft.com/en-us/company/about-us/our-brands/rayman",
+    "prompt": "Use case: stylized-concept\nAsset type: wide playable 2D side-scrolling level vista showing character scale, foreground footing, hazards, and a readable traversal route.\nPrimary request: Set the level inside an enormous overgrown music box. Show an original limbless blue courier leaping from a felt piano hammer toward a rotating brass drum, with floating gloves and shoes clearly separated from the body. Mechanical flowers, curled vines, bellows, and music-box teeth create the path.\nStyle and shape language: clean contemporary digitally painted 2D platformer art; gouache-like opaque color blocking rendered digitally; cut-paper-inspired silhouette layering without paper fibers; soft matte shadows; clean saturated color fields; deliberately irregular shape contours without fraying; decorative curls; richly colored mechanical foliage; elastic animation logic. Use plum, moss green, turquoise, and clean warm brass with spotlight-like pools guiding movement.\nSurface finish: polished modern game framebuffer. Material texture may appear only inside the specific felt, brass, leaf, and flower surfaces. Keep brass clean and stylized rather than tarnished. Keep the image plane perfectly clean.\nComposition: Establish a dark foreground silhouette for playable footing, a saturated middle layer containing hazards and pickups, and two progressively softer parallax backgrounds. Make the route travel clearly left to right.\nConstraints: no paper, canvas, or felt substrate across the frame; no full-frame grain, rubbed-pigment noise, frayed fibers, age stains, faded wash, sepia cast, tarnish overlay, vignette, scanned illustration, photographed craft diorama, interface, text, logo, photorealistic machinery, sterile straight-edged geometry, existing hero costume, purely scenic composition, hidden route, 3D-rendered materials, or realistic human anatomy.",
+    "prompt_sha256": "632e5e4f7852c8c49b0966e59162b9d22adbdbd569e20f7429239802115b8785",
+    "aspect_ratio": "16:9",
+    "style_markers": [
+      "Digitally rendered gouache-like color blocking and irregular silhouette edges without paper fibers",
+      "Elastic character and environmental shapes",
+      "Strong foreground gameplay and parallax-depth layer separation",
+      "Decorative readable traversal route with object-local texture and a clean image plane"
+    ],
+    "gpt_existing_artifact": null,
+    "grok_existing_artifact": null
+  }
+]

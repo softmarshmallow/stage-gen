@@ -1,0 +1,39 @@
+{
+  "batch_id": "game-style-prompt-dictionary-model-pair-aspect-fallback-v1",
+  "completed_at": "2026-08-25T06:48:15.856927+00:00",
+  "failed_count": 0,
+  "models": [
+    "x-ai/grok-imagine-image-2.0"
+  ],
+  "provider": "openrouter",
+  "reported_cost_usd": 0.06,
+  "results": [
+    {
+      "artifact_bytes": 371062,
+      "artifact_path": "model-pairs/banner_saga_caravan_panorama_v1/grok-image-2.jpg",
+      "artifact_sha256": "75b94ba74d4f6640b75dc7b6c288141ccb4d03ef04c12cc50fbadfb773efdaed",
+      "attempts": 1,
+      "completed_at": "2026-08-25T06:48:15.855723+00:00",
+      "duration_seconds": 97.683,
+      "effective_aspect_ratio": "16:9",
+      "entry_id": "banner_saga_caravan_panorama_v1",
+      "media_type": "image/jpeg",
+      "model": "x-ai/grok-imagine-image-2.0",
+      "model_slot": "grok_image_2",
+      "prompt_sha256": "00f8f2c296bcd7f32e8a9e2173e2860ef0d8d0f6564ea10cebffc1646f1a3905",
+      "registered_aspect_ratio": "21:9",
+      "reported_cost_usd": 0.06,
+      "reported_model": "x-ai/grok-imagine-image-2.0",
+      "reported_provider": "openrouter",
+      "returncode": 0,
+      "sample_id": "banner_saga_caravan_panorama_v1:grok_image_2",
+      "sidecar_path": "model-pairs/banner_saga_caravan_panorama_v1/grok-image-2.jpg.meta.json",
+      "sidecar_sha256": "b37f84c33f6a3c48096b29b4252c5bb13b507808f404f4e3605a4f90900911eb",
+      "started_at": "2026-08-25T06:46:38.176050+00:00"
+    }
+  ],
+  "sample_count": 1,
+  "schema_version": 1,
+  "status": "completed",
+  "successful_count": 1
+}

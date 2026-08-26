@@ -7,6 +7,10 @@ deciding whether to run the full generation pipeline.
 It is deliberately not a recipe authoring surface. A concept workspace never contains
 `game.toml`, maps, manifests, runtime assets, or implementation code.
 
+The tracked [2D game style dictionary](style-dictionary/README.md) is the studio's shared
+prompt-writing and research reference. It is separate from ignored concept workspaces and from the
+publication-only gallery.
+
 ## Start an agent here
 
 ```sh
@@ -42,6 +46,13 @@ uv run stage-gen-concept check --workspace <concept_id>
 
 The CLI reads only allowlisted provider credentials from the repository-root `.env`; it never
 copies credentials into this project. Live image calls are billable and require explicit intent.
+
+## Style dictionary
+
+[`style-dictionary/README.md`](style-dictionary/README.md) is the canonical tracked guide to
+illustration vocabulary, reviewed model-pair prompts, exact verdicts, and concept-to-asset research.
+Durable concept handoffs may use its neutral visual facets, but must not depend on ignored `out/`
+artifacts or send its game-anchor names across the provider boundary.
 
 ## Gallery
 

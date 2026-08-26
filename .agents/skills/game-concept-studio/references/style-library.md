@@ -3,7 +3,7 @@
 This is a prompt-writing map, not a schema or closed menu. It condenses the repository's global
 game visual reference, illustration research, and runtime vocabulary into orthogonal decisions.
 Read `docs/game-visual-reference.md` and
-`docs/research/illustration-style-taxonomy/README.md` when deeper evidence exists in the checkout;
+`concept-studio/style-dictionary/README.md` when deeper evidence exists in the checkout;
 read `src/stage_gen/resources/prompting/image_style_vocabulary_v1.json` when exact shipped runtime
 anchors matter. Do not depend on ignored `out/` evidence for a durable handoff.
 

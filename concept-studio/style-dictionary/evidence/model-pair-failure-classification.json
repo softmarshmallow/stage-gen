@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-08-25",
+  "purpose": "Classify exact-prompt model-pair calls that produced no image without weakening or rewriting the registered prompt.",
+  "openrouter_execution": "model-pair-execution.json",
+  "records": [
+    {
+      "entry_id": "nikke_rear_combat",
+      "model": "openai/gpt-image-2",
+      "prompt_sha256": "4768cc29ac46448d7f581a63207f5e74195a73b6fcff08b4559ad8935883854f",
+      "openrouter_result": "retry_exhausted_no_image",
+      "alternate_openai_image_endpoint_result": "moderation_blocked",
+      "moderation_stage": "input",
+      "moderation_category": "sexual",
+      "prompt_changed": false
+    },
+    {
+      "entry_id": "browndust2_summer_costume",
+      "model": "openai/gpt-image-2",
+      "prompt_sha256": "2d3bb6699db171884b843d75a549155278706e923063f01b27d308d77b9deff9",
+      "openrouter_result": "retry_exhausted_no_image",
+      "alternate_openai_image_endpoint_result": "moderation_blocked",
+      "moderation_stage": "input",
+      "moderation_category": "sexual",
+      "prompt_changed": false
+    },
+    {
+      "entry_id": "azur_lane_live2d_swimsuit_skin",
+      "model": "openai/gpt-image-2",
+      "prompt_sha256": "873ae2ffb2cde807329498335d02fcf664d1133ad03bed2f71489fc1142ae634",
+      "openrouter_result": "retry_exhausted_no_image",
+      "alternate_openai_image_endpoint_result": "moderation_blocked",
+      "moderation_stage": "input",
+      "moderation_category": "sexual",
+      "prompt_changed": false
+    },
+    {
+      "entry_id": "snowbreak_premium_outfit_key_art",
+      "model": "openai/gpt-image-2",
+      "prompt_sha256": "1f29a0ce378517d5b4743abfcf23398945c52ef42ad1bf919e1fdf47811498fb",
+      "openrouter_result": "retry_exhausted_no_image",
+      "alternate_openai_image_endpoint_result": "moderation_blocked",
+      "moderation_stage": "output",
+      "moderation_category": "sexual",
+      "prompt_changed": false
+    },
+    {
+      "entry_id": "banner_saga_caravan_panorama_v1",
+      "model": "x-ai/grok-imagine-image-2.0",
+      "prompt_sha256": "00f8f2c296bcd7f32e8a9e2173e2860ef0d8d0f6564ea10cebffc1646f1a3905",
+      "openrouter_result": "retry_exhausted_no_image",
+      "requested_aspect_ratio": "21:9",
+      "fallback_aspect_ratio": "16:9",
+      "fallback_result": "generated",
+      "fallback_execution": "model-pair-aspect-fallback-execution.json",
+      "prompt_changed": false
+    }
+  ]
+}

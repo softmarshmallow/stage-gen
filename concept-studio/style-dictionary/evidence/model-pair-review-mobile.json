@@ -1,0 +1,359 @@
+{
+  "reviewer_id": "mobile_cross_model_style_reviewer",
+  "category": "mobile-live-service",
+  "review_basis": "Independent semantic review of each available raw original, viewed directly rather than through a sheet or composite. Each model output was judged only against the four registered visible style markers in their recorded order and the anchored asset surface. Attractive generic illustration was not accepted as recognition of the named game-art surface.",
+  "summary": {
+    "entry_count": 20,
+    "generated_slot_count": 36,
+    "blocked_slot_count": 4,
+    "recognized_generated_slot_count": 29,
+    "pair_outcomes": {
+      "BOTH": 12,
+      "GPT_ONLY": 0,
+      "GROK_ONLY": 5,
+      "NEITHER": 3
+    }
+  },
+  "entries": [
+    {
+      "entry_id": "dokkan_super_attack",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Heavy tapered ink, hard cel bands, saturated blue-orange impact color, extreme fist foreshortening, and one uninterrupted golem strike read clearly as a mobile shonen super-attack cut-in."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The side-on punch keeps the same heavy contour, hard value split, white-hot impact core, debris grammar, and compact single-screen attack staging."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both models reproduce the super-attack surface; GPT pushes the foreground fist harder, while Grok gives the impact locus and two combat silhouettes cleaner separation."
+    },
+    {
+      "entry_id": "g_generation_sd_tactics",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The squat large-headed machine, broad chest, crisp panel lines, hard highlights, shield-and-tool silhouette, and oblique dock battlefield form a readable SD tactical unit scene."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A compact super-deformed central mech and small support units retain bright cel-panel rendering, large armor masses, and a clearly isometric flooded industrial map."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both understand the SD-mecha tactics surface; GPT emphasizes one hero unit, while Grok reads more strongly as a multi-unit tactical battlefield."
+    },
+    {
+      "entry_id": "arknights_operator_promo",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Natural fashion anatomy, an asymmetric technical coat, thin broken edges, matte planar texture, a single yellow accent, and controlled negative space preserve the restrained operator-promotion language."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The full-body operator remains isolated in a desaturated industrial field with fractured colored line, planar digital paint, one yellow pouch accent, and an asymmetric utility silhouette."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both reproduce the restrained industrial operator hierarchy; GPT is more semi-real, while Grok is closer to an anime-fashion character finish."
+    },
+    {
+      "entry_id": "mobile_monster_evolution",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The clean outlined dragon, hard cel-plus-glow finish, saturated circular thunder, diagonal rock mass, and square icon-like staging read as a high-rarity monster evolution splash."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A bold blue-gold dragon and concentrated lightning ring surround a compact central rock break, retaining a single mobile-readable evolution unit rather than a narrative scene."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both models recognize the mobile evolution-splash grammar; GPT is denser and more ornate, while Grok is flatter and more immediately icon-readable."
+    },
+    {
+      "entry_id": "nikke_rear_combat",
+      "gpt_image_2": {
+        "generation_status": "blocked",
+        "marker_hits": null,
+        "style_recognized": null,
+        "diagnostic": "The exact-prompt route produced no image and was independently confirmed as a sexual moderation boundary; there is no visual output to judge."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The buttocks-led rear three-quarter view keeps both hips, thick thighs, compression, mature face, an actively firing rail-like weapon, wet depot lighting, and a separable semi-painted silhouette."
+      },
+      "pair_outcome": "GROK_ONLY",
+      "comparison": "Only Grok is visually judgeable and it reproduces the rear-combat premium-skin hierarchy; GPT's exact-prompt route yielded no image at the independently confirmed sexual moderation boundary."
+    },
+    {
+      "entry_id": "browndust2_summer_costume",
+      "gpt_image_2": {
+        "generation_status": "blocked",
+        "marker_hits": null,
+        "style_recognized": null,
+        "diagnostic": "The exact-prompt route produced no image and was independently confirmed as a sexual moderation boundary; there is no visual output to judge."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The adult face, full bust and cleavage, wet abdomen, high-cut hips and thighs, plausibly connected opaque string bikini, gravity-led shower water, and polished resort-event finish are all legible."
+      },
+      "pair_outcome": "GROK_ONLY",
+      "comparison": "Grok clearly reproduces the body-forward premium summer-event surface; GPT's same prompt produced no image at the independently confirmed sexual moderation boundary."
+    },
+    {
+      "entry_id": "fate_grand_order_final_ascension_card",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": false,
+        "diagnostic": "The full figure, effects halo, fine contour, painterly finish, extreme ornament, and ultimate-form particles are present, but the glossy blue-gold xianxia treatment reads as generic fantasy gacha rather than a distinct FGO final-ascension card."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": false,
+        "diagnostic": "Grok repeats every literal marker with an ornate full figure, weapon, halo, and lightning, yet the same polished Chinese-fantasy glamour suppresses the anchor's artist-led Japanese card character."
+      },
+      "pair_outcome": "NEITHER",
+      "comparison": "The prompt is cross-model reproducible as ornate ultimate-form gacha art, but neither output identifies the specific FGO final-ascension finish."
+    },
+    {
+      "entry_id": "azur_lane_live2d_swimsuit_skin",
+      "gpt_image_2": {
+        "generation_status": "blocked",
+        "marker_hits": null,
+        "style_recognized": null,
+        "diagnostic": "The exact-prompt route produced no image and was independently confirmed as a sexual moderation boundary; there is no visual output to judge."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The close home-screen body placement, explicit wet cleavage-thigh-hip emphasis, clean glossy anime face, and dense maritime resort props with layered pool depth reproduce a premium Live2D swimsuit base."
+      },
+      "pair_outcome": "GROK_ONLY",
+      "comparison": "Grok supplies a specific naval-resort Live2D skin surface; GPT's exact same prompt produced no image at the independently confirmed sexual moderation boundary."
+    },
+    {
+      "entry_id": "blue_archive_memorial_lobby_scene",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Direct desk-level eye contact, a thin individualized geometric halo, blue-white room color warmed by sunset bloom, and clean cel drawing in a detailed archive create a convincing Memorial Lobby relationship scene."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The viewer-facing study moment, notched luminous halo, airy blue-gray office, warm window glow, and crisp everyday-environment rendering preserve the same intimate lobby asset role."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both reproduce the halo-marked everyday relationship lobby; GPT is more intimate and foregrounded, while Grok is calmer and more spatially reserved."
+    },
+    {
+      "entry_id": "umamusume_ssr_support_card",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The sole-first race climax, aggressive low-angle foreshortening, diagonal speed field, bright broadcast cel finish, horse traits, moving costume, and stadium ensemble read as an SSR support-card event image."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A frozen sprint apex combines low lens distortion, diagonal track motion, vivid sports-anime cel rendering, horse ears and tail, uniform movement, and a crowded race context."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both strongly recognize the support-card surface; GPT uses a more extreme near-camera shoe and facial close-up, while Grok keeps the runner's full racing action clearer."
+    },
+    {
+      "entry_id": "genshin_impact_five_star_wish_splash",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, false, true],
+        "style_recognized": false,
+        "diagnostic": "The circular elemental gesture, pale atmosphere, and unified desert-costume-weapon motif are present, but diffuse sepia watercolor dominates the character and misses the defining clean cel-painterly wish-splash finish."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Grok retains a cleaner outlined character inside a strong circular aqua-sand gesture, pale negative field, and tightly unified regional costume, crescent weapon, and elemental motif, narrowly preserving the wish-splash identity."
+      },
+      "pair_outcome": "GROK_ONLY",
+      "comparison": "Both find the elemental composition, but GPT drifts into generic watercolor concept art; Grok's cleaner silhouette and cel-painterly character finish keep the anchored recruitment surface legible."
+    },
+    {
+      "entry_id": "honkai_star_rail_five_star_splash",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The investigator occupies a symbolic cosmic observatory stage with midnight ground, ivory-gold orbits, burgundy luxury fashion, scientific instruments, and controlled asymmetric orbital geometry."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Luxury burgundy fashion, an enormous telescope, ivory charts, gold orbital rings, blue crystal accents, and an asymmetrical cosmic set reproduce the five-star space-opera splash language."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both models build a symbolic luxury sci-fi character stage rather than a literal space backdrop; GPT is roomier, while Grok is denser and more graphic."
+    },
+    {
+      "entry_id": "zenless_zone_zero_signal_search_splash",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Huge boot-and-wrench perspective, wide-lens urban action, torn halftone manga collage, hard black shapes, orange-cyan fluorescent accents, and animated courier streetwear form an unmistakable Signal Search splash."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The lunging wrench pose, near-camera sole, halftone bursts, ripped poster shapes, thick black shadows, orange-cyan street palette, and playful workwear silhouette retain the same recruitment surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both are highly specific; GPT layers more character stickers and environmental panels, while Grok simplifies the collage into a cleaner comic-action poster."
+    },
+    {
+      "entry_id": "granblue_fantasy_ssr_final_uncap",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, false],
+        "style_recognized": false,
+        "diagnostic": "Delicate ink, parchment paint, feather-and-scarf motion, and muted blue-red accents are convincing, but the realistic western pirate anatomy reads as vintage fantasy concept art rather than classic anime-JRPG final-uncap art."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, false],
+        "style_recognized": false,
+        "diagnostic": "The weathered parchment skyfarer tableau repeats the ink texture, natural motion, and restrained accents, yet its mature historical-illustration proportions again omit the anchor's anime character language."
+      },
+      "pair_outcome": "NEITHER",
+      "comparison": "The phrase is stable across models as handsome weathered sky-pirate watercolor, but that stability demonstrates the same western-concept-art drift rather than Granblue final-uncap recognition."
+    },
+    {
+      "entry_id": "epic_seven_s3_skill_climax",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "One exact slash-impact instant, hard cel shadows, a white-hot blade shape, close profile attacker, readable armored enemy, fragmented smears, and compressed background planes read as a full-frame S3 climax."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The profile swordsman, opposing dark silhouette, single white-hot diagonal strike, ember smears, and simplified fiery stage retain expensive hand-drawn ultimate-skill animation grammar."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both models reproduce the animation-climax surface; GPT resolves the enemy and attack beat more narratively, while Grok abstracts the hit into a stronger single effect shape."
+    },
+    {
+      "entry_id": "wuthering_waves_resonator_convene",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, false, true],
+        "style_recognized": false,
+        "diagnostic": "The spacious desaturated coast, concentric resonance rings, and single red waveform accent are precise, but the distant charcoal-painted figure reads as post-calamity environment concept art rather than a polished semi-real anime Resonator convene."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, false, true],
+        "style_recognized": false,
+        "diagnostic": "Grok repeats the quiet gray-green shoreline, resonance circles, and red frequency line, yet the character remains muted and painterly rather than a legible premium anime recruitment focal point."
+      },
+      "pair_outcome": "NEITHER",
+      "comparison": "Both consistently understand the resonance-themed world palette but prioritize bleak environmental concept painting over the defining character-convene rendering."
+    },
+    {
+      "entry_id": "snowbreak_premium_outfit_key_art",
+      "gpt_image_2": {
+        "generation_status": "blocked",
+        "marker_hits": null,
+        "style_recognized": null,
+        "diagnostic": "The exact-prompt route produced no image and was independently confirmed as a sexual moderation boundary; there is no visual output to judge."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Mature tactical sexuality, glossy near-3D materials, a softly modeled anime face, pristine luxury science-fiction architecture, and a deliberately secondary rifle clearly reproduce premium outfit-event key art."
+      },
+      "pair_outcome": "GROK_ONLY",
+      "comparison": "Grok reproduces the intimate premium tactical-outfit hierarchy; GPT's exact-prompt route produced no image at the independently confirmed sexual moderation boundary."
+    },
+    {
+      "entry_id": "honor_of_kings_mythic_skin_splash",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "A monumental diagonal hero and oversized curved polearm combine jade armor, gold trim, streaming ribbons, cloud dragons, polished focal detail, painterly effects, and celestial scale appropriate to a mythic skin launch."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The airborne diagonal hero, huge crescent blade, jade-and-gold Chinese-fantasy armor, ribbon trails, cloud dragons, and luminous heavenly city strongly signal premium mythic rarity."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both models recognize the top-tier Chinese MOBA skin surface; GPT is more serene and polished, while Grok intensifies action, contrast, and environmental destruction."
+    },
+    {
+      "entry_id": "onmyoji_sp_shikigami_summon_splash",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Heian-derived robes, screens, talismans and chrysanthemums combine with a dimensional fox-spirit figure, flat gold pattern, ink wash, mineral color, vermilion, and asymmetric smoke-tail fabric motion."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Ceremonial layered robes, screens, glowing talismans, flowers, ink-mineral-gold surface, and a hair-and-smoke-driven asymmetrical silhouette reproduce the SP summon-painting language."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both are highly specific to the supernatural Heian summon surface; GPT is more spacious and figural, while Grok leans flatter and more densely decorative."
+    },
+    {
+      "entry_id": "black_desert_class_awakening_key_art",
+      "gpt_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "Weathered adult realism, rendered black leather and metal, smoky edges, ember orange, restrained crimson, a massive foreground chain weapon, and a burning army-scale battlefield establish class-awakening key art."
+      },
+      "grok_image_2": {
+        "generation_status": "generated",
+        "marker_hits": [true, true, true, true],
+        "style_recognized": true,
+        "diagnostic": "The mature scarred warrior, hard black plate, loose smoke, ember-crimson palette, enormous chained blade, and distant cavalry preserve the prestige dark-fantasy class-awakening surface."
+      },
+      "pair_outcome": "BOTH",
+      "comparison": "Both reproduce the awakening-poster language; GPT foregrounds the chain as the weapon identity, while Grok makes the chained blade and battlefield scale more explicit."
+    }
+  ]
+}
