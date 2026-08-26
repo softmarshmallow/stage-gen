@@ -51,13 +51,13 @@ flowchart TD
     PR --> PC["player concept"]
     PC --> PS["player state generate[*]"]
     PC --> PD["player dialogue art"]
-    PS --> PV["state validate[*]"]
+    PS --> PV["alpha-component repack + validate[*]"]
     PD --> PV
     PV --> PCR["player contact sheet + review"]
 
     PR --> XC["mob / NPC concepts[*]"]
     XC --> XS["mob states / NPC world + dialogue[*]"]
-    XS --> XV["per-asset validate[*]"]
+    XS --> XV["alpha-component repack + validate[*]"]
     XV --> XR["per-entity contact sheet + review[*]"]
 
     PR --> PI["prop + item generate[*]"]
@@ -93,7 +93,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "80c539baebf9c690dcfb5fa9fe4663e55a2ded6d3b20d0caf1e153e52bc6428c",
+  "topology_sha256": "87c8f7e4961b6ec1d2f9d76e624a4a75afb5fd5e0068703402964f4dcc804704",
   "node_count": 192,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -173,20 +173,37 @@ map or manifest nodes. Twenty-four identity/catalog images are initially indepen
 state and dialogue descendants become ready immediately after that actor's concept succeeds.
 Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
 
-Every actor motion-state output is a native-alpha 4-column by 1-row source strip. Ordinary
-side-view states contain four right-facing frames; the runtime mirrors that canonical source for
-left-facing play. Player `climb` is the explicit exception: it is rear-facing and is not mirrored
-during ladder traversal. Facing is therefore a recipe/runtime projection contract, not authored
-game-content input, and `content/player.toml` has no `required_facings` field. Generating both
-directions is intentionally forbidden by the canonical path because it adds cross-row consistency
-work without a runtime consumer. Separately authored directions may become an explicit future
-opt-in for asymmetric handedness, but are not accepted silently.
+Every actor motion-state provider output is retained as a native-alpha 4-column by 1-row
+`*.source.png`. Before runtime publication, its local validation node runs
+`alpha-component-repack-v1`: threshold native alpha at greater than 16, find 8-connected
+components, retain candidates whose area is at least 2% of thresholded visible area (with a
+32-pixel floor), select the largest required count, order them by source row and horizontal
+centroid, and translate them without rescaling into equal canonical cells with 12-pixel transparent
+gutters. The resulting `*.png`, not the provider source, is the runtime artifact.
 
-Dialogue atlases use a deterministic row-major 2-by-2 or 3-by-N layout derived from the authored
-expression count. Local validators persist dimensions, cell occupancy, canonical source facing,
-runtime-mirroring policy, state/expression stable IDs, and alpha facts; they never use AI
-background removal. Prop and item nodes produce one isolated native-alpha asset per stable ID.
-Contact sheets are deterministic review artifacts, not runtime atlases.
+This deliberately simple default is stronger than equal-XY slicing but is not semantic instance
+ownership. It can drop detached weapons, projectiles, magic, debris, or other components below the
+selection boundary. When more candidates exist than required, it retains the largest required
+count and records a warning; when fewer principal components exist than required, it fails closed.
+The validation record binds source/output digests, placements, rejected-component facts, retained
+alpha, and this caveat. Smarter component attachment or segmentation is not silently invoked.
+
+Ordinary side-view states contain four right-facing frames; the runtime mirrors that canonical
+source for left-facing play. Player `climb` is the explicit exception: it is rear-facing and is not
+mirrored during ladder traversal. Facing is therefore a recipe/runtime projection contract, not
+authored game-content input, and `content/player.toml` has no `required_facings` field. Generating
+both directions is intentionally forbidden by the canonical path because it adds cross-row
+consistency work without a runtime consumer. Separately authored directions may become an explicit
+future opt-in for asymmetric handedness, but are not accepted silently.
+
+Dialogue provider atlases use a deterministic row-major 2-by-2 or 3-by-N requested layout derived
+from the authored expression count. Their local validation nodes apply the same alpha-component
+repacker with centered placement and permit only the declared leading cells; unused canonical cells
+remain transparent. Local validators persist dimensions, source and canonical digests, component
+selection, cell placement, source facing where applicable, runtime-mirroring policy,
+state/expression stable IDs, and alpha facts; they never use AI background removal. Prop and item
+nodes produce one isolated native-alpha asset per stable ID. Contact sheets consume repacked
+atlases and remain deterministic review artifacts, not runtime atlases.
 
 ## Scheduling semantics
 
@@ -241,8 +258,10 @@ counts one successful provider operation per provider node.
 | `maps/*/ground.png` | Canonical 12-by-4 ground topology |
 | `maps/*/composite.png`, `review.json` | Whole-map composition and structured semantic verdict |
 | `content/{players,mobs,npcs}/*/concept.png` | Canonical generated actor identity and provider provenance |
-| `content/{players,mobs}/*/states/*.png` | Native-alpha 4-by-1 canonical-source motion strip per authored state |
-| `content/{players,npcs}/*/dialogue.png` | Row-major native-alpha authored-expression atlas |
+| `content/{players,mobs}/*/states/*.source.png` | Retained native-alpha provider motion source and provider provenance |
+| `content/{players,mobs}/*/states/*.png`, `*.validation.json` | Alpha-component-repacked 4-by-1 runtime strip plus selection, placement, loss, and lineage facts |
+| `content/{players,npcs}/*/dialogue.source.png` | Retained native-alpha provider dialogue source and provider provenance |
+| `content/{players,npcs}/*/dialogue.png`, `dialogue.validation.json` | Row-major alpha-component-repacked authored-expression atlas plus deterministic report |
 | `content/{players,mobs,npcs}/*/contact-sheet.png`, `review.json` | Deterministic actor board and independent structured verdict |
 | `content/{props,items}/*.png` | One native-alpha isolated asset per stable ID |
 | `content/{props,items}/contact-sheet.png`, `review.json` | Deterministic catalog board and independent structured verdict |

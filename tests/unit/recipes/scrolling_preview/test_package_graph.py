@@ -41,6 +41,14 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     assert graph.node("package-resolve").depends_on == ()
     assert graph.node("manifest-assemble").operation is OperationKind.LOCAL
 
+    generated = graph.node("player-wayfarer-state-run-generate")
+    validated = graph.node("player-wayfarer-state-run-validate")
+    assert generated.outputs == ("content/players/wayfarer/states/run.source.png",)
+    assert validated.outputs == (
+        "content/players/wayfarer/states/run.png",
+        "content/players/wayfarer/states/run.validation.json",
+    )
+
     outputs = [output for node in graph.nodes for output in node.outputs]
     assert len(outputs) == len(set(outputs))
     assert all(node.cache_key for node in graph.nodes)

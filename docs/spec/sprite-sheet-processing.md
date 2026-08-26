@@ -1,9 +1,10 @@
 # Provider-neutral sprite-sheet processing contract
 
-> **Status: planned deterministic core operation — not implemented.**
-> This document is a normative target for reusable Python media processing. It
-> does not describe a shipped component, CLI command, recipe stage, or consumer
-> capability.
+> **Status: minimal alpha-component repacker implemented; broader geometry contract planned.**
+> `src/stage_gen/media/sprite_sheets.py` implements the intentionally simple
+> `alpha-component-repack-v1` subset used by prepared-game actor assets. Uniform-grid and
+> padding-derived geometry, normalized per-cell artifacts, and ambiguous-instance ownership below
+> remain the normative target rather than shipped behavior.
 
 Sprite-sheet processing turns one validated, alpha-bearing image into explicit
 cell geometry and, when requested, normalized cell artifacts. The operation is
@@ -12,22 +13,25 @@ semantic cell identifiers; the processor owns deterministic pixel geometry.
 
 ## Current Python capability boundary
 
-The Python core currently provides image inspection, exact-dimension PNG
-normalization, chroma-to-alpha conversion, and alpha composition under
-`src/stage_gen/media/`. The scrolling-preview recipe separately generates five
-canonical 2400 x 800 character-state strips, crops each strip to its top
-2400 x 688 rectangle, and composes those rectangles into one 2400 x 3440
-master. Its following stage splits that master into five fixed 2400 x 688 row
-artifacts. This is recipe-specific composition and fixed-coordinate slicing,
-not an implementation of the generic operation specified here.
+The Python core provides image inspection, exact-dimension PNG normalization,
+chroma-to-alpha conversion, alpha composition, and native-alpha connected-component repacking
+under `src/stage_gen/media/`. Prepared-game actor generation retains each provider sheet, then its
+local validation node calls `repack_alpha_components` to publish the runtime-facing sheet.
+
+The shipped v1 repacker uses 8-connectivity, `alpha > 16`, a candidate area of at least 2% of
+thresholded visible area with a 32-pixel floor, and the largest declared number of components. It
+orders those components row-major using source-row bands and horizontal centroids, then translates
+them without rescaling into equal cells with transparent gutters. It records all rejected
+components and retained alpha. It deliberately does not attach detached effects to a body; it can
+drop them. It fails when fewer principal components than required remain.
 
 The Python core does **not** currently implement:
 
-- generic uniform-grid cell extraction;
+- generic uniform-grid cell extraction as described below;
 - padding-derived row or column detection;
 - per-cell tight alpha bounds;
 - anchor-aligned common-canvas normalization; or
-- a reusable sprite-sheet artifact manifest.
+- semantic ownership of compound instances or a reusable sprite-sheet artifact manifest.
 
 If implemented, pure detection, cropping, and packing belong under
 `src/stage_gen/media/`. A provider-neutral component or recipe wrapper may own

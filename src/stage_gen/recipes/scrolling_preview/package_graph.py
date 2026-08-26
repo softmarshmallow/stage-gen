@@ -22,10 +22,11 @@ from stage_gen.orchestration.execution_graph import (
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import motion_source_facing
 
-PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v3"
+PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v4"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
 CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v2"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
+CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v1"
 CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
 CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v4"
@@ -267,7 +268,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
                     _object_sha256({"state": state, "source_facing": source_facing}),
                 ),
-                outputs=(f"content/players/{player.player_id}/states/{state}.png",),
+                outputs=(f"content/players/{player.player_id}/states/{state}.source.png",),
             )
             validations.append(
                 builder.add(
@@ -278,8 +279,14 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     ),
                     operation=OperationKind.LOCAL,
                     depends_on=(generated.node_id,),
-                    input_digests=(_object_sha256({"state": state}),),
-                    outputs=(f"content/players/{player.player_id}/states/{state}.validation.json",),
+                    input_digests=(
+                        _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                        _object_sha256({"state": state}),
+                    ),
+                    outputs=(
+                        f"content/players/{player.player_id}/states/{state}.png",
+                        f"content/players/{player.player_id}/states/{state}.validation.json",
+                    ),
                     duration_seconds=0.75,
                 ).node_id
             )
@@ -293,7 +300,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
                 _object_sha256(player.dialogue_art.model_dump(mode="json")),
             ),
-            outputs=(f"content/players/{player.player_id}/dialogue.png",),
+            outputs=(f"content/players/{player.player_id}/dialogue.source.png",),
         )
         dialogue_validation = builder.add(
             f"player-{player.player_id}-dialogue-validate",
@@ -301,8 +308,14 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description="validate player dialogue expression coverage",
             operation=OperationKind.LOCAL,
             depends_on=(dialogue.node_id,),
-            input_digests=(_object_sha256(player.dialogue_art.model_dump(mode="json")),),
-            outputs=(f"content/players/{player.player_id}/dialogue.validation.json",),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                _object_sha256(player.dialogue_art.model_dump(mode="json")),
+            ),
+            outputs=(
+                f"content/players/{player.player_id}/dialogue.png",
+                f"content/players/{player.player_id}/dialogue.validation.json",
+            ),
             duration_seconds=0.75,
         )
         contact = builder.add(
@@ -370,7 +383,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
                     _object_sha256({"state": state, "source_facing": source_facing}),
                 ),
-                outputs=(f"content/mobs/{mob.mob_id}/states/{state}.png",),
+                outputs=(f"content/mobs/{mob.mob_id}/states/{state}.source.png",),
             )
             validations.append(
                 builder.add(
@@ -379,8 +392,14 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     description=f"validate mob {mob.mob_id} {state} state",
                     operation=OperationKind.LOCAL,
                     depends_on=(generated.node_id,),
-                    input_digests=(_object_sha256({"state": state}),),
-                    outputs=(f"content/mobs/{mob.mob_id}/states/{state}.validation.json",),
+                    input_digests=(
+                        _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                        _object_sha256({"state": state}),
+                    ),
+                    outputs=(
+                        f"content/mobs/{mob.mob_id}/states/{state}.png",
+                        f"content/mobs/{mob.mob_id}/states/{state}.validation.json",
+                    ),
                     duration_seconds=0.75,
                 ).node_id
             )
@@ -447,7 +466,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     }
                 ),
             ),
-            outputs=(f"content/npcs/{npc.npc_id}/world.png",),
+            outputs=(f"content/npcs/{npc.npc_id}/world.source.png",),
         )
         world_validation = builder.add(
             f"npc-{npc.npc_id}-world-validate",
@@ -455,8 +474,14 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"validate NPC {npc.npc_id} world sprite",
             operation=OperationKind.LOCAL,
             depends_on=(world.node_id,),
-            input_digests=(_object_sha256(npc.world_motion_states),),
-            outputs=(f"content/npcs/{npc.npc_id}/world.validation.json",),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                _object_sha256(npc.world_motion_states),
+            ),
+            outputs=(
+                f"content/npcs/{npc.npc_id}/world.png",
+                f"content/npcs/{npc.npc_id}/world.validation.json",
+            ),
             duration_seconds=0.75,
         )
         dialogue = builder.add_external(
@@ -469,7 +494,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
                 _object_sha256(npc.dialogue_expressions),
             ),
-            outputs=(f"content/npcs/{npc.npc_id}/dialogue.png",),
+            outputs=(f"content/npcs/{npc.npc_id}/dialogue.source.png",),
         )
         dialogue_validation = builder.add(
             f"npc-{npc.npc_id}-dialogue-validate",
@@ -477,8 +502,14 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"validate NPC {npc.npc_id} dialogue expression coverage",
             operation=OperationKind.LOCAL,
             depends_on=(dialogue.node_id,),
-            input_digests=(_object_sha256(npc.dialogue_expressions),),
-            outputs=(f"content/npcs/{npc.npc_id}/dialogue.validation.json",),
+            input_digests=(
+                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                _object_sha256(npc.dialogue_expressions),
+            ),
+            outputs=(
+                f"content/npcs/{npc.npc_id}/dialogue.png",
+                f"content/npcs/{npc.npc_id}/dialogue.validation.json",
+            ),
             duration_seconds=0.75,
         )
         contact = builder.add(

@@ -14,6 +14,7 @@ from typing import Any
 from PIL import Image
 
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.motion_contract import dialogue_atlas_grid
 from stage_gen.reliability import atomic_write_json
 
 PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 1
@@ -261,8 +262,7 @@ def _assemble_prepared_runtime(
 
 
 def _dialogue_binding(artifact: dict[str, object], expressions: Sequence[str]) -> dict[str, object]:
-    columns = min(3, len(expressions))
-    rows = (len(expressions) + columns - 1) // columns
+    columns, rows = dialogue_atlas_grid(len(expressions))
     return {
         "columns": columns,
         "rows": rows,

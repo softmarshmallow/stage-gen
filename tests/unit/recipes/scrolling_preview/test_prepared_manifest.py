@@ -53,6 +53,12 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "sunpetal-crossing",
         "crowncrag-road",
     ]
+    player = result.manifest["player"]
+    assert isinstance(player, dict)
+    assert (player["dialogue"]["columns"], player["dialogue"]["rows"]) == (3, 2)
+    npcs = result.manifest["npcs"]
+    assert isinstance(npcs, list)
+    assert all((npc["dialogue"]["columns"], npc["dialogue"]["rows"]) == (2, 2) for npc in npcs)
     corrected = output / corrected_path
     assert (
         hashlib.sha256(corrected.read_bytes()).hexdigest()

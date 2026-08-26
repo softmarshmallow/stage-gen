@@ -29,6 +29,11 @@ from .images import (
     normalize_png,
     normalize_png_cover,
 )
+from .sprite_sheets import (
+    ALPHA_COMPONENT_REPACK_VERSION,
+    AlphaComponentRepackContract,
+    repack_alpha_components,
+)
 from .validation import (
     assert_image_signature,
     decode_base64_strict,
@@ -39,6 +44,7 @@ __all__ = [
     "CHROMA_DISTANCE_THRESHOLD",
     "DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS",
     "AlphaFacts",
+    "AlphaComponentRepackContract",
     "AudioProbe",
     "AudioProcessResult",
     "AudioProcessRunner",
@@ -48,6 +54,7 @@ __all__ = [
     "CHROMA_MATTE_VERSION",
     "MAGENTA_EDGE_DECONTAMINATION_VERSION",
     "NATIVE_ALPHA_OPAQUE_THRESHOLD",
+    "ALPHA_COMPONENT_REPACK_VERSION",
     "MagentaEdgeDecontaminationFacts",
     "apply_chroma_transparency",
     "assert_audio_signature",
@@ -63,5 +70,6 @@ __all__ = [
     "normalize_png_cover",
     "parse_loudnorm_json",
     "probe_audio",
+    "repack_alpha_components",
     "run_process",
 ]

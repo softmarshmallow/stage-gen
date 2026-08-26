@@ -133,12 +133,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             entry.filename: entry.file_size for entry in wheel.infolist() if not entry.is_dir()
         }
         _assert_archive_hygiene(wheel_entries, resource_prefix="stage_gen/resources/")
-        # The prepared-package cutover adds eight deliberate headless modules: the generic DAG,
+        # The prepared-package cutover adds nine deliberate headless modules: the generic DAG,
         # fake verifier, recipe graph builder, thin package executor, live prepared-world handler,
         # live prepared-content handler, runtime-manifest assembler, and shared motion-source
-        # contract. Keep the ceiling exact enough to catch accidental packaging growth without
-        # treating those boundaries as bloat.
-        assert len(wheel_entries) <= 168
+        # contract, plus the provider-neutral sprite repacker. Keep the ceiling exact enough to
+        # catch accidental packaging growth without treating those boundaries as bloat.
+        assert len(wheel_entries) <= 169
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -165,10 +165,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # A guard against accidental bloat - a stray directory swept into the sdist - and not
         # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
         # the hardened Concept Studio core and direct native-alpha provider bring the clean
-        # source distribution to 337 files. Prepared-package execution adds eight source
-        # modules and four focused test modules; retain the existing small explicit margin.
+        # source distribution to 337 files. Prepared-package execution adds nine source
+        # modules and five focused test modules; retain the existing small explicit margin.
         # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 357
+        assert len(sdist_entries) <= 359
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)

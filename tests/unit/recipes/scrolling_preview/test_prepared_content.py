@@ -17,13 +17,13 @@ from stage_gen.components import (
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_graph import DependencyExecutor
 from stage_gen.recipes.scrolling_preview.motion_contract import (
+    dialogue_atlas_grid,
     motion_source_facing,
     runtime_mirrors_source,
 )
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.scrolling_preview.prepared_content import (
     PreparedContentNodeHandler,
-    _dialogue_grid,
     _validate_atlas,
     _validate_transparent_image,
     content_target_node_ids,
@@ -85,8 +85,8 @@ def test_transparent_image_rejects_opaque_and_dialogue_grid_is_stable() -> None:
     with pytest.raises(ValueError, match="alpha contamination at the canvas border"):
         _validate_transparent_image(stream.getvalue(), width=1024, height=1024)
 
-    assert _dialogue_grid(4) == (2, 2)
-    assert _dialogue_grid(5) == (3, 2)
+    assert dialogue_atlas_grid(4) == (2, 2)
+    assert dialogue_atlas_grid(5) == (3, 2)
 
 
 class _FakeImageService:
@@ -104,10 +104,25 @@ def _write_fake_image(request: ImageGenerationRequest) -> SimpleNamespace:
     size = (int(width), int(height))
     image = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    draw.rectangle(
-        (size[0] // 20, size[1] // 20, size[0] * 19 // 20, size[1] * 19 // 20),
-        fill=(100, 170, 230, 255),
-    )
+    atlas_columns = request.metadata.get("atlas_columns")
+    atlas_rows = request.metadata.get("atlas_rows")
+    if isinstance(atlas_columns, int) and isinstance(atlas_rows, int):
+        expressions = request.metadata.get("expressions")
+        required_cells = len(expressions) if isinstance(expressions, list) else 4
+        cell_width = size[0] / atlas_columns
+        cell_height = size[1] / atlas_rows
+        for index in range(required_cells):
+            row, column = divmod(index, atlas_columns)
+            left = round(column * cell_width + cell_width * 0.15)
+            top = round(row * cell_height + cell_height * 0.15)
+            right = round((column + 1) * cell_width - cell_width * 0.15)
+            bottom = round((row + 1) * cell_height - cell_height * 0.15)
+            draw.ellipse((left, top, right, bottom), fill=(100, 170, 230, 255))
+    else:
+        draw.rectangle(
+            (size[0] // 20, size[1] // 20, size[0] * 19 // 20, size[1] * 19 // 20),
+            fill=(100, 170, 230, 255),
+        )
     output = Path(request.artifact_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output, format="PNG")
@@ -203,6 +218,13 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert coverage["required_structured_reviews"] == 13
     assert coverage["required_music_operations"] == 3
     assert (run_dir / "content/players/wayfarer/contact-sheet.png").is_file()
+    assert (run_dir / "content/players/wayfarer/states/idle.source.png").is_file()
+    assert (run_dir / "content/players/wayfarer/states/idle.png").is_file()
+    idle_validation = json.loads(
+        (run_dir / "content/players/wayfarer/states/idle.validation.json").read_text()
+    )
+    assert idle_validation["kind"] == "prepared-motion-atlas-validation-v3"
+    assert idle_validation["repack"]["processor_version"] == "alpha-component-repack-v1"
     assert (run_dir / "content/mobs/crowncrag_page_eater/review.json").is_file()
     assert (run_dir / "content/npcs/mara_crumbwell/dialogue.validation.json").is_file()
     assert (run_dir / "content/props/contact-sheet.png").is_file()

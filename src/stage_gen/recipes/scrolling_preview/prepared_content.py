@@ -35,7 +35,11 @@ from stage_gen.components.game_sequence import DialogueNode
 from stage_gen.components.image_generation import ImageReference
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
-from stage_gen.media import probe_audio
+from stage_gen.media import (
+    AlphaComponentRepackContract,
+    probe_audio,
+    repack_alpha_components,
+)
 from stage_gen.orchestration.execution_graph import (
     CacheDisposition,
     ExecutionGraph,
@@ -52,6 +56,7 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_REQUIRED_CELLS,
     MOTION_ATLAS_ROWS,
     MotionActorKind,
+    dialogue_atlas_grid,
     motion_source_facing,
     runtime_mirrors_source,
 )
@@ -62,8 +67,8 @@ from stage_gen.reliability import (
     write_artifact_with_provenance_async,
 )
 
-CONTENT_HANDLER_VERSION = "prepared-content-v2"
-CONTENT_CACHE_VERSION = "prepared-content-v1"
+CONTENT_HANDLER_VERSION = "prepared-content-v3"
+CONTENT_CACHE_VERSION = "prepared-content-v2"
 _PLAYER_NODE = re.compile(
     r"^player-(?P<entity_id>[a-z0-9_]+)-(?:(?:state-(?P<state>[a-z0-9_]+)-(?P<state_action>generate|validate))|(?P<action>concept-generate|dialogue-generate|dialogue-validate|contact-sheet|review))$"
 )
@@ -159,7 +164,7 @@ class PreparedContentNodeHandler:
         if match["state"] is not None:
             if match["state_action"] == "generate":
                 return await self._generate_motion(node, "player", player, match["state"])
-            return self._validate_motion(node, "player", player.player_id, match["state"])
+            return await self._validate_motion(node, "player", player.player_id, match["state"])
         action = match["action"]
         if action == "concept-generate":
             return await self._generate_concept(
@@ -170,7 +175,7 @@ class PreparedContentNodeHandler:
                 node, "player", player.player_id, player.dialogue_art.expressions
             )
         if action == "dialogue-validate":
-            return self._validate_dialogue(
+            return await self._validate_dialogue(
                 node, "player", player.player_id, player.dialogue_art.expressions
             )
         if action == "contact-sheet":
@@ -190,7 +195,7 @@ class PreparedContentNodeHandler:
         if match["state"] is not None:
             if match["state_action"] == "generate":
                 return await self._generate_motion(node, "mob", mob, match["state"])
-            return self._validate_motion(node, "mob", mob.mob_id, match["state"])
+            return await self._validate_motion(node, "mob", mob.mob_id, match["state"])
         action = match["action"]
         if action == "concept-generate":
             return await self._generate_concept(node, "mob", mob, self._package.mobs.references)
@@ -212,11 +217,11 @@ class PreparedContentNodeHandler:
         if action == "world-generate":
             return await self._generate_motion(node, "npc", npc, "idle")
         if action == "world-validate":
-            return self._validate_motion(node, "npc", npc.npc_id, "idle")
+            return await self._validate_motion(node, "npc", npc.npc_id, "idle")
         if action == "dialogue-generate":
             return await self._generate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
         if action == "dialogue-validate":
-            return self._validate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
+            return await self._validate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
         if action == "contact-sheet":
             return await self._actor_contact_sheet(node, "npc", npc.npc_id)
         return await self._actor_review(
@@ -407,7 +412,7 @@ class PreparedContentNodeHandler:
         output = self._run_dir / node.outputs[0]
         concept = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}/concept.png"
         concept_data = concept.read_bytes()
-        columns, rows = _dialogue_grid(len(expressions))
+        columns, rows = dialogue_atlas_grid(len(expressions))
         expression_text = ", ".join(
             f"cell {index + 1}: {expression}" for index, expression in enumerate(expressions)
         )
@@ -501,23 +506,47 @@ class PreparedContentNodeHandler:
             provider_operations=result.attempts,
         )
 
-    def _validate_motion(
+    async def _validate_motion(
         self, node: ExecutionNode, kind: MotionActorKind, entity_id: str, state: str
     ) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
         source_facing = motion_source_facing(kind, state)
-        facts = _validate_atlas(
-            source.read_bytes(),
+        source_data = source.read_bytes()
+        source_facts = _validate_atlas(
+            source_data,
             columns=MOTION_ATLAS_COLUMNS,
             rows=MOTION_ATLAS_ROWS,
             required_cells=MOTION_ATLAS_REQUIRED_CELLS,
         )
-        output = self._run_dir / node.outputs[0]
+        canonical_data, repack = repack_alpha_components(
+            source_data,
+            AlphaComponentRepackContract(
+                rows=MOTION_ATLAS_ROWS,
+                columns=MOTION_ATLAS_COLUMNS,
+                required_cells=MOTION_ATLAS_REQUIRED_CELLS,
+                anchor="bottom",
+            ),
+        )
+        canonical = self._run_dir / node.outputs[0]
+        source_ref = (
+            f"run://{source.relative_to(self._run_dir).as_posix()}#sha256={_sha(source_data)}"
+        )
+        provenance = await _write_local_image(
+            canonical,
+            canonical_data,
+            prompt=(
+                f"Repack the {kind} {entity_id} {state} source atlas using native-alpha "
+                "connected components."
+            ),
+            inputs=((source_ref, source_data),),
+            validation=repack,
+        )
+        validation = self._run_dir / node.outputs[1]
         atomic_write_json(
-            output,
+            validation,
             {
                 "schema_version": 1,
-                "kind": "prepared-motion-atlas-validation-v2",
+                "kind": "prepared-motion-atlas-validation-v3",
                 "entity_kind": kind,
                 "entity_id": entity_id,
                 "state": state,
@@ -526,12 +555,13 @@ class PreparedContentNodeHandler:
                 "source_facing": source_facing,
                 "frames": MOTION_ATLAS_REQUIRED_CELLS,
                 "runtime_horizontal_mirroring": runtime_mirrors_source(source_facing),
-                **facts,
+                "source_validation": source_facts,
+                "repack": repack,
             },
         )
-        return self._result(node, (output,), provider_operations=0)
+        return self._result(node, (canonical, provenance, validation), provider_operations=0)
 
-    def _validate_dialogue(
+    async def _validate_dialogue(
         self,
         node: ExecutionNode,
         kind: str,
@@ -539,26 +569,51 @@ class PreparedContentNodeHandler:
         expressions: Sequence[str],
     ) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
-        columns, rows = _dialogue_grid(len(expressions))
-        facts = _validate_atlas(
-            source.read_bytes(), columns=columns, rows=rows, required_cells=len(expressions)
+        columns, rows = dialogue_atlas_grid(len(expressions))
+        source_data = source.read_bytes()
+        source_facts = _validate_atlas(
+            source_data, columns=columns, rows=rows, required_cells=len(expressions)
         )
-        output = self._run_dir / node.outputs[0]
+        canonical_data, repack = repack_alpha_components(
+            source_data,
+            AlphaComponentRepackContract(
+                rows=rows,
+                columns=columns,
+                required_cells=len(expressions),
+                anchor="center",
+            ),
+        )
+        canonical = self._run_dir / node.outputs[0]
+        source_ref = (
+            f"run://{source.relative_to(self._run_dir).as_posix()}#sha256={_sha(source_data)}"
+        )
+        provenance = await _write_local_image(
+            canonical,
+            canonical_data,
+            prompt=(
+                f"Repack the {kind} {entity_id} dialogue atlas using native-alpha connected "
+                "components."
+            ),
+            inputs=((source_ref, source_data),),
+            validation=repack,
+        )
+        validation = self._run_dir / node.outputs[1]
         atomic_write_json(
-            output,
+            validation,
             {
                 "schema_version": 1,
-                "kind": "prepared-dialogue-atlas-validation-v1",
+                "kind": "prepared-dialogue-atlas-validation-v2",
                 "entity_kind": kind,
                 "entity_id": entity_id,
                 "columns": columns,
                 "rows": rows,
                 "index_order": "row_major",
                 "expressions": list(expressions),
-                **facts,
+                "source_validation": source_facts,
+                "repack": repack,
             },
         )
-        return self._result(node, (output,), provider_operations=0)
+        return self._result(node, (canonical, provenance, validation), provider_operations=0)
 
     def _validate_catalog_asset(
         self, node: ExecutionNode, kind: str, entity_id: str
@@ -987,7 +1042,7 @@ class PreparedContentNodeHandler:
                     )
                 elif player_match["action"] == "dialogue-generate":
                     expressions = self._player(player_match["entity_id"]).dialogue_art.expressions
-                    columns, rows = _dialogue_grid(len(expressions))
+                    columns, rows = dialogue_atlas_grid(len(expressions))
                     _validate_atlas(
                         data,
                         columns=columns,
@@ -1020,7 +1075,7 @@ class PreparedContentNodeHandler:
                     )
                 elif npc_match["action"] == "dialogue-generate":
                     expressions = self._npc(npc_match["entity_id"]).dialogue_expressions
-                    columns, rows = _dialogue_grid(len(expressions))
+                    columns, rows = dialogue_atlas_grid(len(expressions))
                     _validate_atlas(
                         data,
                         columns=columns,
@@ -1141,12 +1196,6 @@ def _entity_id(entry: PlayerContent | MobContent | NpcContent) -> str:
 
 def _kind_directory(kind: str) -> str:
     return {"player": "players", "mob": "mobs", "npc": "npcs"}[kind]
-
-
-def _dialogue_grid(expression_count: int) -> tuple[int, int]:
-    if expression_count <= 4:
-        return 2, 2
-    return 3, math.ceil(expression_count / 3)
 
 
 def _validate_transparent_image(data: bytes, *, width: int, height: int) -> dict[str, object]:

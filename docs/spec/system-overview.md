@@ -48,8 +48,8 @@ Examples of reusable operations include:
 - image generation from text and optional references;
 - background removal and mask extraction;
 - media validation and deterministic normalization;
-- [grid/sheet slicing and packing](sprite-sheet-processing.md), a planned
-  deterministic core operation that is not implemented yet;
+- [sprite-sheet component recovery and packing](sprite-sheet-processing.md), with a minimal
+  alpha-connected-component repacker implemented and richer geometry/ownership still planned;
 - structured text/vision design data; and
 - music generation and audio inspection.
 
