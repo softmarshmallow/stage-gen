@@ -1,5 +1,11 @@
 # Authored game soundtracks
 
+> **Target ownership note.** The layout and map-owned track pools below remain
+> CURRENT. Under the ratified
+> [map-generation contract](spec/game/map-generation-contract.md), maps contain
+> no soundtrack usage. `soundtrack.toml` continues to own track generation;
+> root `gameplay.toml` owns map-specific playback and flow bindings.
+
 An authored soundtrack is one game-global catalog of stable music identities. It is separate
 from the authored [`game.toml`](spec/game/authored-contract-schema.md) contract, but it lives under the same game directory:
 
@@ -163,22 +169,17 @@ a track to a location.
 
 ## Live generation is a separate opt-in
 
-The authored contract and both offline commands above are provider-free. Generating the bound
-scrolling run is a separate live operation that requires explicit task intent, local
-`OPENROUTER_API_KEY` and `OPENAI_API_KEY` configuration, and the current configured music model.
-The shown `--transparency native` run obtains alpha directly from the image model. The repository default
-music model is `google/lyria-3-pro-preview`; re-check the current provider contract before
-changing it. After that authorization and setup, the bound example is run with:
+The authored contract and offline commands above are provider-free. The prepared package graph
+contains one music node per declared track, but provider-backed package execution is intentionally
+not connected at the current execution-truth checkpoint. Its provider-free operation plan is:
 
 ```sh
-uv run stage-gen generate \
-  --input examples/scrolling-preview/game-directed-village.toml \
-  --game-library-root . --transparency native
+uv run stage-gen package plan --input library/games/bellweather
 ```
 
-That command runs the complete scrolling recipe, including its image and text calls; it is not
-an offline soundtrack validator. The smaller provider-envelope smoke test is also explicitly
-live:
+Before a later checkpoint authorizes live generation, re-check the current configured music model,
+operation count, expected duration, and cost. The smaller provider-envelope smoke test remains
+explicitly live:
 
 ```sh
 STAGE_GEN_RUN_LIVE=1 uv run pytest tests/live/test_music_generation.py -q

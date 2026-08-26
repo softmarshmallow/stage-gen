@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import json
 import re
-import tomllib
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from stage_gen.orchestration.game_package import validate_game_package
-from stage_gen.recipes.scrolling_preview.recipe import (
-    parse_scrolling_preview_input,
-    scrolling_preview_recipe,
+from stage_gen.config import StageGenConfig
+from stage_gen.orchestration.game_package import resolve_game_package
+from stage_gen.recipes.scrolling_preview.package_graph import (
+    build_package_execution_graph,
+    package_graph_profile,
 )
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
@@ -35,37 +34,25 @@ def _graph_contract() -> dict[str, Any]:
     return value
 
 
-def _project_graph(input_value: object) -> dict[str, Any]:
-    parsed = parse_scrolling_preview_input(input_value)
-    return {
-        "nodes": [
-            {
-                "id": stage.name,
-                "wave": format(Decimal(str(stage.wave)).normalize(), "f"),
-                "depends_on": sorted(stage.depends_on),
-            }
-            for stage in scrolling_preview_recipe.stages_for(parsed)
-        ]
-    }
-
-
-def _canonical_game_input(selector_ref: str) -> object:
-    report = validate_game_package(REPOSITORY_ROOT, selector_ref=selector_ref)
-    assert report["valid"] is True
-    assert report["recipe"] == "scrolling-preview"
-    request_ref = report["request_ref"]
-    assert isinstance(request_ref, str)
-    return tomllib.loads((REPOSITORY_ROOT / request_ref).read_text(encoding="utf-8"))
-
-
 def test_generation_pipeline_document_tracks_the_executable_stage_graphs() -> None:
     contract = _graph_contract()
+    fixture_ref = contract["fixture_ref"]
+    assert isinstance(fixture_ref, str)
+    package = resolve_game_package(REPOSITORY_ROOT / fixture_ref)
+    graph = build_package_execution_graph(
+        package,
+        profile=package_graph_profile(StageGenConfig()),
+    )
 
-    assert contract["kind"] == "scrolling-preview-stage-graphs-v1"
-    assert contract["selector_ref"] == "library/games/main.toml"
-    assert contract["graphs"] == {
-        "minimal": _project_graph({"prompt": "graph contract"}),
-        "canonical_game": _project_graph(_canonical_game_input(contract["selector_ref"])),
+    assert contract == {
+        "kind": "prepared-game-execution-graph-contract-v1",
+        "fixture_ref": "library/games/bellweather",
+        "graph_schema_version": graph.schema_version,
+        "topology_sha256": graph.topology_sha256,
+        "node_count": len(graph.nodes),
+        "terminal_node_id": graph.terminal_node_id,
+        "operation_counts": graph.operation_counts(),
+        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
     }
 
 

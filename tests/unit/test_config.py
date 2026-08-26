@@ -23,6 +23,7 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
             "IMAGE_MODEL": "old/image",
             "STAGE_GEN_IMAGE_MODEL": "new/image",
             "STAGE_GEN_CAPABILITY_TIMEOUT_MS": "1250",
+            "STAGE_GEN_OPENAI_IMAGE_IPM": "150",
             "STAGE_GEN_CHARACTER_LIBRARY_ROOT": "/workspace/characters",
             "STAGE_GEN_GAME_LIBRARY_ROOT": "/workspace/games",
         }
@@ -32,6 +33,7 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     assert config.text_model == "openai/gpt-5.6-sol"
     assert config.music_model == "google/lyria-3-pro-preview"
     assert config.transparency_mode is TransparencyMode.NATIVE
+    assert config.openai_image_ipm == 150
     assert config.capability_timeout_s == 1.25
     assert config.character_library_root == Path("/workspace/characters")
     assert config.game_library_root == Path("/workspace/games")
@@ -73,6 +75,17 @@ def test_timeout_env_requires_canonical_positive_integer(value: str) -> None:
 
 def test_timeout_env_accepts_integer_valued_numeric_text() -> None:
     assert load_config(env={"STAGE_GEN_STAGE_TIMEOUT_MS": " 1000.0 "}).stage_timeout_ms == 1000
+
+
+def test_openai_image_ipm_is_tier_four_by_default_and_configurable() -> None:
+    assert load_config(env={}).openai_image_ipm == 150
+    assert load_config(env={"STAGE_GEN_OPENAI_IMAGE_IPM": "50"}).openai_image_ipm == 50
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", "not-a-number"])
+def test_openai_image_ipm_requires_a_positive_integer(value: str) -> None:
+    with pytest.raises(ValueError, match="STAGE_GEN_OPENAI_IMAGE_IPM"):
+        load_config(env={"STAGE_GEN_OPENAI_IMAGE_IPM": value})
 
 
 def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(

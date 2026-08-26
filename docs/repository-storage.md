@@ -2,7 +2,9 @@
 
 Generated run output belongs below the configured output directory and stays
 gitignored. Commit only small, deliberate fixtures needed to build, test, or
-explain a contract.
+explain a contract. A canonical prepared game may also commit its explicitly
+digest-bound image inputs under `library/games/<game_id>/references/`; those
+are authored package members, not generated run output.
 
 ## Git LFS decision
 
@@ -60,6 +62,10 @@ does not move older blobs automatically.
 - Do not commit populated env files, run output, caches, or screenshots created
   solely by local verification.
 - Every committed binary needs a reason, provenance, and rights status.
+- Prepared-package image inputs are allowed only beneath
+  `library/games/<game_id>/references/`. Their owning TOML contracts must bind
+  exact digests and inline rights basis, while `game.toml` binds the selected
+  evidence and reviews. They do not use generated-output `.meta.json` sidecars.
 - Generated media in declared publication roots must be enumerated in
   [`generated-media-inventory.json`](generated-media-inventory.json) and pass
   the [generated-media publication gate](generated-media-publication.md).

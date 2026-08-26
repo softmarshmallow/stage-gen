@@ -5,6 +5,11 @@ remains an asset generator: the Python core validates what a level requires and 
 that intent with generated artifacts, while a consumer decides how to realize movement, physics,
 camera motion, combat, and presentation in an engine.
 
+The table and profile below describe CURRENT `game-map-v2`. The ratified target
+[Authored map-generation contract](game/map-generation-contract.md) removes
+gameplay mechanisms from maps entirely: `game-map-v3` owns referenced visual
+generation, while root `gameplay.toml` owns map use, spawning, and simulation.
+
 There is no `maple_story`, `hunting_ground_engine`, or other game-specific umbrella mode. A level
 is composed from orthogonal, versioned facts. A consumer can support that combination, reject it
 before provider work, or implement it differently without changing the authored game.
@@ -93,9 +98,12 @@ and reduced-motion behavior are static choices in the optional web demo. This pr
 asset contract from becoming a Phaser styling API while still letting an agent turn the feedback
 mechanism off for a game.
 
-The existing population policy continues to be authored independently. A future coordinate-space
-contract may move spatial zones into map files. Until then, the scrolling recipe owns the meaning
-of column coordinates and validates them against its map width and walkable surfaces.
+The existing population policy continues to be authored independently. In the
+ratified target, spatial population zones remain in `gameplay.toml`; they do not
+move into map-generation files. The scrolling recipe owns the current meaning
+of column coordinates and validates them against its map width and walkable
+surfaces. A later gameplay-neutral topology contract may expose stable surfaces
+or regions, but that would not make spawning a visual-map responsibility.
 
 ## Manifest composition
 

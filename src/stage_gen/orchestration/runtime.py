@@ -164,12 +164,18 @@ def create_openai_image_service(
     api_key: str,
     model: str = "gpt-image-2",
     base_url: str = "https://api.openai.com/v1",
+    images_per_minute: int = 150,
     retry_policy: RetryPolicy | None = None,
 ) -> ImageGenerationService:
     """Compose the direct OpenAI GPT Image backend behind the shared retry owner."""
 
     return ImageGenerationService(
-        OpenAIImageBackend(api_key=api_key, model=model, base_url=base_url),
+        OpenAIImageBackend(
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            images_per_minute=images_per_minute,
+        ),
         retry_policy=retry_policy,
     )
 
@@ -515,6 +521,7 @@ def create_default_runtime(
             api_key=config.openai_api_key,
             model=config.openai_image_model,
             base_url=config.openai_base_url or "https://api.openai.com/v1",
+            images_per_minute=config.openai_image_ipm,
         )
         if not image_service.supports_native_alpha:
             raise RuntimeError("configured OpenAI image model is not verified for native alpha")
@@ -567,6 +574,7 @@ def _configured_image_service(config: StageGenConfig) -> ImageGenerationService 
             api_key=config.openai_api_key,
             model=config.openai_image_model,
             base_url=config.openai_base_url or "https://api.openai.com/v1",
+            images_per_minute=config.openai_image_ipm,
         )
     if config.open_router_api_key is None:
         return None

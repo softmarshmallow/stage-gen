@@ -133,7 +133,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             entry.filename: entry.file_size for entry in wheel.infolist() if not entry.is_dir()
         }
         _assert_archive_hygiene(wheel_entries, resource_prefix="stage_gen/resources/")
-        assert len(wheel_entries) <= 160
+        # The prepared-package cutover adds four deliberate headless modules: the generic DAG,
+        # fake verifier, recipe graph builder, and thin package executor. Keep the ceiling exact
+        # enough to catch accidental packaging growth without treating those boundaries as bloat.
+        assert len(wheel_entries) <= 164
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -160,10 +163,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # A guard against accidental bloat - a stray directory swept into the sdist - and not
         # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
         # the hardened Concept Studio core and direct native-alpha provider bring the clean
-        # source distribution to 337 files;
-        # retain a small explicit margin.
+        # source distribution to 337 files. Prepared-package execution adds four source
+        # modules and two focused test modules; retain the existing small explicit margin.
         # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 345
+        assert len(sdist_entries) <= 351
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
@@ -277,7 +280,14 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
 
     total = 0
     for relative in sorted(relative_paths):
-        assert relative.parts[0] in {"concept-studio", "docs", "fixtures", "src", "web"}
+        assert relative.parts[0] in {
+            "concept-studio",
+            "docs",
+            "fixtures",
+            "library",
+            "src",
+            "web",
+        }
         concept_prefix = relative.parts[:2]
         is_concept_media = concept_prefix in CONCEPT_MEDIA_PREFIXES
         is_style_dictionary = concept_prefix == CONCEPT_STYLE_DICTIONARY_PREFIX
@@ -290,6 +300,11 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert relative.suffix.lower() == ".webp"
         if relative.parts[0] == "src":
             assert relative.parts[:3] == ("src", "stage_gen", "resources")
+        if relative.parts[0] == "library":
+            assert len(relative.parts) >= 5
+            assert relative.parts[:2] == ("library", "games")
+            assert relative.parts[3] == "references"
+            assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "web":
             assert relative.parts[:2] in {("web", "public"), ("web", "scripts")}
         if relative.suffix.lower() in {".mp4", ".webm"}:

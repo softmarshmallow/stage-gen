@@ -1,11 +1,19 @@
 # Authored game contract schema
 
-> **Contract maturity: implemented.**
+> **Contract maturity: prepared-package root validation implemented; generation cutover pending.**
 >
 > This specification documents the currently executable `game.toml` contract,
 > including its exact current version, closed vocabulary, validation rules, recipe
 > binding, and manifest projection. The canonical game-domain model and ownership
 > boundaries live in the [Game contract](../../game-contract.md).
+
+The prepared-package resolver now validates exact `game-contract-v4`, splits
+gameplay into root `gameplay.toml`, makes `game.toml` the membership and
+digest-closure root, and binds compound maps defined by the
+[Authored map-generation contract](map-generation-contract.md). The provider
+recipe and public manifest still consume their prior internal contracts until
+the next implementation checkpoints; successful v4 package validation is not
+yet a generation or playability claim.
 
 The game contract describes durable authored direction, not execution order. The
 [canonical game-generation pipeline](generation-pipeline.md) documents and checks how the

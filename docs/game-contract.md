@@ -1,6 +1,6 @@
 # Game contract
 
-> **Contract maturity: proposed TO-BE master.**
+> **Contract maturity: ratified TO-BE master.**
 >
 > This document is the canonical high-level contract for game-oriented
 > generation in `stage-gen`. It defines the target domain model, contract
@@ -22,9 +22,10 @@ The shared container is therefore a **game**, not a world, scene, recipe, or web
 preview. A world is generated content inside a game; a scene is one presentation
 and interaction context; a recipe is a producer; and a preview is one consumer.
 
-This naming also keeps the contract distinct from `WorldSpec` and
-`world_spec_<tag>.json`, which already mean the generated bible for one
-scrolling stage.
+This naming also keeps the contract distinct from the CURRENT `WorldSpec` and
+`world_spec_<tag>.json` recipe artifacts. In the ratified target, authored map
+sources replace `WorldSpec.layers` as the authority for map references, layer
+planning, and ground direction.
 
 ## Why this is a contract
 
@@ -93,9 +94,12 @@ Authored game material lives under one confined game identity:
 ```text
 library/games/<game_id>/
 ├── game.toml
+├── gameplay.toml
 ├── soundtrack.toml
 ├── maps/
 │   └── <map_id>.toml
+├── content/
+├── references/
 └── sequences/
     ├── index.toml
     └── <sequence_id>.toml
@@ -185,9 +189,11 @@ the [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-se
 
 ### Gameplay
 
-Gameplay contracts own semantic simulation rules: navigation, interaction,
-combat, population, and other systems. They describe what must happen without
-embedding a particular engine's object graph or update loop.
+The target root `gameplay.toml` owns semantic simulation rules: navigation,
+interaction, combat, population, map usage, and other systems. It describes
+what must happen without embedding a particular engine's object graph or update
+loop. Entry-map selection, stage flow, transitions, spawning, and map-specific
+soundtrack usage belong here rather than in a map-generation source.
 
 Gameplay may require presentation and motion capabilities through explicit
 references. It MUST NOT silently manufacture values absent from the current
@@ -196,9 +202,14 @@ authored contract.
 ### Content catalogs
 
 Maps and soundtracks are sibling contracts under the same game identity. A map
-owns durable map identity and references to allowed game-global content. A
-soundtrack owns tracks. Neither becomes an unstructured extension table inside
-`game.toml` merely because the same consumer uses it.
+is one compound visual-generation contract: it owns its image-reference
+closure, view and continuity envelope, ordered layer plan, ground-generation
+mode, and whole-map review unit. A soundtrack owns tracks. Neither owns
+gameplay flow merely because the same consumer uses it.
+
+`game.toml` catalogs and digest-locks the maps belonging to the package.
+`gameplay.toml` references them by durable `map_id`. The canonical target map
+shape is the [Authored map-generation contract](spec/game/map-generation-contract.md).
 
 ### Consumer bindings
 
@@ -236,9 +247,9 @@ does not by itself define a core game contract.
 6. **Sequence control is explicit.** Dialogue, branches, camera shots, actor
    blocking, player-agency changes, skips, and outcomes are authored semantics,
    not array-order or consumer-side inference.
-7. **Mechanism coverage composes exactly.** A map that requires a managed
-   mechanism has exactly one matching game-owned policy entry; missing or
-   unexpected entries are rejected rather than approximated.
+7. **Map generation is not map usage.** A map owns referenced visual inputs,
+   layer composition, ground direction, and review. Gameplay owns entry,
+   transitions, spawning, interactions, and other use of that map.
 8. **Recipes fail before paid generation.** Unsupported profiles or incoherent
    cross-contract references are rejected during local resolution.
 9. **Consumers fail closed.** A consumer requires the exact current contract
@@ -250,6 +261,9 @@ does not by itself define a core game contract.
    reuse of assets they directed.
 12. **Publication remains separate.** Contract validity and visual acceptance do
     not authorize generated-media publication.
+13. **References are explicit.** Paid map generation consumes only image files
+    explicitly bound by the map source, with exact digests and a documented
+    rights basis. Directory presence and filename similarity never imply use.
 
 ## Current identity principles
 
@@ -272,10 +286,11 @@ does not by itself define a core game contract.
 | --- | --- |
 | [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v3` fields, vocabulary, validation, binding, and manifest V7 projection |
 | [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
+| [Authored map-generation contract](spec/game/map-generation-contract.md) | Ratified TARGET `game-map-v3` reference closure, layer and ground ownership, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |
-| [Authored game maps](game-maps.md) | Map identity, ordering, and map-owned references |
+| [Authored game maps](game-maps.md) | CURRENT executable `game-map-v2` and map-book behavior until the exact-current cutover |
 | [Authored game soundtracks](game-soundtrack.md) | Game-global track catalog and generation binding |
 | [Sprite-sheet processing](spec/sprite-sheet-processing.md) | Planned provider-neutral grid detection, extraction, alignment, and packing |
 | [Generated-media publication](generated-media-publication.md) | Rights review and repository publication gates |

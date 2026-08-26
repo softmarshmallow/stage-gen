@@ -8,6 +8,7 @@ import hashlib
 import json
 import sys
 import tomllib
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Never, TextIO
@@ -46,7 +47,7 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.env_import import import_provider_env
-from stage_gen.orchestration.service import GenerateRequest, generate
+from stage_gen.orchestration.game_package import resolve_game_package
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     package_dialogue_character_spike,
     review_dialogue_character_bundle,
@@ -56,6 +57,7 @@ from stage_gen.recipes.registry import list_recipes, run_recipe_action
 from stage_gen.recipes.scrolling_preview.dialogue_character import (
     bind_dialogue_character_to_scrolling_manifest,
 )
+from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
 
 COMMANDS = {
     "generate",
@@ -75,6 +77,7 @@ COMMANDS = {
     "map-book",
     "soundtrack",
     "dialogue-character",
+    "package",
 }
 
 
@@ -93,32 +96,52 @@ def build_parser() -> argparse.ArgumentParser:
         description="headless 2D asset pipeline",
         epilog=(
             "Every generated artifact reports its output and provenance paths. "
-            "A bare prompt is the current shorthand for scrolling-preview generation."
+            "Prepared game generation requires a directory or ZIP containing game.toml."
         ),
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
     generate_parser = commands.add_parser("generate")
-    generate_parser.add_argument("--recipe", default="scrolling-preview")
-    generate_parser.add_argument("--input", dest="input_file")
     generate_parser.add_argument(
-        "--character-library-root",
-        help="explicit workspace root containing library/characters",
+        "--input",
+        required=True,
+        dest="input_path",
+        help="prepared game directory or ZIP",
     )
     generate_parser.add_argument(
-        "--game-library-root",
-        help="explicit workspace root containing library/games",
+        "--dry-run",
+        action="store_true",
+        help="execute deterministic fake operations without provider access",
     )
-    generate_parser.add_argument("--transparency", choices=("native", "ai", "chroma"))
     generate_parser.add_argument(
-        "--force-stage",
-        action="append",
-        default=[],
-        dest="force_stages",
-        metavar="STAGE_ID",
-        help="rerun one recipe stage; repeat to select multiple stages",
+        "--output",
+        dest="output_path",
+        help="new immutable dry-run output directory",
     )
-    generate_parser.add_argument("prompt", nargs="*")
+    generate_parser.add_argument(
+        "--cache-dir",
+        dest="cache_dir",
+        help="content-and-lineage validated dry-run cache directory",
+    )
+    generate_parser.add_argument("--invocation-id")
+    generate_parser.add_argument(
+        "--failure-node",
+        help="inject one deterministic node failure during a dry run",
+    )
+
+    package_parser = commands.add_parser(
+        "package",
+        description="Validate and inspect one prepared game directory or ZIP",
+    )
+    package_commands = package_parser.add_subparsers(dest="package_command", required=True)
+    for action in ("validate", "digest", "plan"):
+        package_action_parser = package_commands.add_parser(action)
+        package_action_parser.add_argument(
+            "--input",
+            required=True,
+            dest="input_path",
+            help="prepared package directory or ZIP",
+        )
 
     profile_parser = commands.add_parser(
         "character-profile",
@@ -429,6 +452,21 @@ def _dispatch(
             report = {"valid": True, **resolved.identity()}
             stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
+    if command == "package":
+        resolved_package = resolve_game_package(Path(args.input_path))
+        if args.package_command == "digest":
+            stdout.write(f"{resolved_package.package_sha256}\n")
+        elif args.package_command == "plan":
+            plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))
+            plan_report = {
+                "graph": plan.graph.model_dump(mode="json"),
+                "projection": plan.projection.model_dump(mode="json"),
+            }
+            stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
+        else:
+            package_report = {"valid": True, **resolved_package.identity()}
+            stdout.write(f"{json.dumps(package_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
     if command == "game":
         resolved_game = _resolve_cli_game_contract(
             input_path=Path(args.input_path),
@@ -574,40 +612,38 @@ async def _dispatch_async(
         return 0
     config = load_config()
     if args.command == "generate":
-        if args.character_library_root is not None:
-            config = config.model_copy(
-                update={"character_library_root": Path(args.character_library_root)}
-            )
-        if args.game_library_root is not None:
-            config = config.model_copy(update={"game_library_root": Path(args.game_library_root)})
-        prompt = " ".join(args.prompt).strip()
-        if args.input_file:
-            input_path = Path(args.input_file)
-            input_text = await asyncio.to_thread(input_path.read_text, encoding="utf-8")
-            input_value = _parse_input_document(input_text, suffix=input_path.suffix.lower())
-        else:
-            input_value = {"prompt": prompt}
-        summary = await generate(
-            GenerateRequest(
-                recipe=args.recipe,
-                input=input_value,
-                transparency_mode=args.transparency,
-                force_stages=tuple(args.force_stages),
-            ),
-            config,
-            runtime=runtime,
-        )
-        if not summary.ok:
-            failed = next((stage for stage in summary.stages if not stage.ok), None)
+        if not args.dry_run:
             raise ValueError(
-                f"stage failed - {failed.stage if failed else 'unknown'}: "
-                f"{failed.error if failed else 'unknown'}"
+                "prepared-package provider execution is not connected yet; use --dry-run"
             )
-        stdout.write(
-            f"stage-gen: done recipe={summary.recipe} tag={summary.tag} "
-            f"stages={len(summary.stages)} duration={summary.duration_ms}ms\n"
+        if args.output_path is None:
+            raise ValueError("generate --dry-run requires --output")
+        output_path = Path(args.output_path)
+        cache_dir = (
+            Path(args.cache_dir)
+            if args.cache_dir is not None
+            else output_path.parent / ".stage-gen-dry-run-cache"
         )
-        return 0
+        invocation_id = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
+        dry_run_result = await PreparedPackageExecutor(config).dry_run(
+            Path(args.input_path),
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+            failure_node_id=args.failure_node,
+        )
+        dry_run_report = {
+            "ok": dry_run_result.summary.ok,
+            "invocation_id": invocation_id,
+            "graph_sha256": dry_run_result.plan.graph.graph_sha256,
+            "topology_sha256": dry_run_result.plan.graph.topology_sha256,
+            "node_count": len(dry_run_result.plan.graph.nodes),
+            "provider_operation_counts": dry_run_result.summary.provider_operation_counts,
+            "duration_ms": dry_run_result.summary.duration_ms,
+            "run_dir": str(output_path),
+        }
+        stdout.write(f"{json.dumps(dry_run_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0 if dry_run_result.summary.ok else 1
     if args.command == "generate-image":
         aspect_ratio: str = args.aspect_ratio
         if aspect_ratio != "auto":

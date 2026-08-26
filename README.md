@@ -38,72 +38,46 @@ uv run stage-gen recipes
 uv run stage-gen benchmark smoke
 ```
 
-### Generate the reference recipe
+### Validate and plan the prepared reference game
 
-Create `.env` only when it does not already exist, then populate the required
-keys. Do not overwrite an existing file:
+No provider key is required for these commands. Before a later live-provider checkpoint, create
+`.env` only when it does not already exist; never overwrite an existing file:
 
 ```sh
 test -e .env || cp .env.example .env
 ```
 
-The CLI default is `--transparency native`. GPT Image 2 creates alpha directly
-through the OpenAI Images API, avoiding a second model that can soften or
-misclassify sprite edges. Native image generation requires `OPENAI_API_KEY`;
-structured generation still requires `OPENROUTER_API_KEY`. A doctor run with
-blank keys intentionally reports an incomplete configuration and exits with
-status 2.
+The canonical game input is a directory or ZIP whose root contains `game.toml`. Package
+validation, digesting, graph planning, and dry execution are provider-free:
 
 ```sh
-uv run stage-gen doctor --transparency native --json
-uv run stage-gen generate --recipe scrolling-preview \
-  "original rain-dark stone ruins with pale moss"
+uv run stage-gen package validate --input library/games/bellweather
+uv run stage-gen package digest --input library/games/bellweather
+uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen generate \
+  --input library/games/bellweather \
+  --dry-run \
+  --output /tmp/bellweather-dry-run
 ```
 
-Scrolling preview accepts a prompt-only current request. To include the optional pre-image style
-selector, use a JSON or TOML input containing:
+The plan expands Bellweather into the exact map, actor, catalog, soundtrack, validation, review,
+and manifest DAG. `--dry-run` executes the graph with deterministic fake operations and writes a
+sanitized trace. Calling package generation without `--dry-run` currently fails before provider
+construction; live map and content handlers are connected in the following implementation
+checkpoints. There is no bare-prompt fallback.
 
-```json
-{
-  "prompt": "original rain-dark stone ruins with pale moss",
-  "style_anchor": {
-    "schema_version": 1,
-    "kind": "automatic_style_anchor_v1"
-  }
-}
-```
-
-When `style_anchor` is absent, the current recipe uses its current default rendering direction;
-no older request schema is selected. When present, the selector chooses only a tracked
-rendering-medium vocabulary mode. Recipe content and optional
-[Visual Content Direction](docs/visual-content-direction.md) remain separate.
-
-A separate `village` opt-in — `{"schema_version": 1, "kind": "village_hub_v1"}` — adds a
-[village hub](docs/spec/asset-contracts.md#optional-village-hub) of four residents and eight
-fixtures to the same run. When `village` is absent, the current run omits its village stages,
-artifacts, and manifest block. Presence means inclusion in the same current contract, not a
-different or older manifest version.
-
-Use `--transparency ai` when the selected image route cannot emit alpha; that
-compatibility path generates opaque art and uses FAL BiRefNet for removal. Use
-`--transparency chroma` for the explicit degraded local-keying path. `FAL_KEY`
-is required only for `ai` and standalone removal. The fallback modes remain
-explicit and never replace a failed native request automatically:
+GPT Image 2 native alpha remains the quality-first live route once those handlers are enabled.
+The standalone compatibility background-removal command remains available:
 
 ```sh
 uv run stage-gen remove-background \
   --input ./input.png --output ./out/subject.png
 ```
 
-Generated runs default to `out/<prompt-tag>-<mode>/`. Every run writes an
-atomic `run.json` with `schema_version = 3` and `kind = "recipe_run_v3"`;
-its `run_dir` is the portable run tag and every stage artifact is a confined
-run-relative reference. Scrolling-preview emits only the exact current manifest
-V7 envelope. Optional current systems such as soundtrack, map book, population,
-village, and reviewed dialogue-character imports are omitted when not authored
-and validated; their absence never selects an older envelope. Generated
-artifacts retain adjacent provenance. A bare prompt is the current CLI shorthand
-for `generate --recipe scrolling-preview`.
+The dry-run directory contains `package.json`, `execution-plan.json`,
+`execution-projection.json`, `execution-trace.jsonl`, and `execution-summary.json`. See the
+[canonical generation pipeline](docs/spec/game/generation-pipeline.md) for the executable graph,
+resource limits, cache lineage, retry ownership, and operation counts.
 
 ## What it provides
 
@@ -187,12 +161,10 @@ boundaries are also recorded in the
 [framing control](docs/dialogue-scene-framing.md), and
 [deferred animation notes](docs/dialogue-scene-animation.md).
 
-From `web/`, the shortest generation and installation commands are:
+The former generic recipe-generation command is no longer exposed by the game CLI. Existing
+dialogue bundles can still be installed from `web/` with:
 
 ```sh
-bun run stage-gen -- generate --recipe dialogue-scene \
-  --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency native
 bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
 ```
 
@@ -200,7 +172,7 @@ bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
 
 Profiles live in an explicit workspace root and are intentionally excluded from
 wheel and sdist packages. In a source checkout, validate the repository sample and
-generate both profile-aware recipes with:
+validate the repository sample with:
 
 ```sh
 uv run stage-gen character-profile validate \
@@ -209,12 +181,6 @@ uv run stage-gen character-profile validate \
 uv run stage-gen character-profile digest \
   --input library/characters/mira-vale-cartographer/profile.toml \
   --character-library-root .
-uv run stage-gen generate --recipe scrolling-preview \
-  --input examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root . --transparency native
-uv run stage-gen generate --recipe dialogue-scene \
-  --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency native
 ```
 
 Installed CLI users must provide their own workspace root containing
@@ -253,28 +219,13 @@ block from the current envelope; absence never asks a validator or consumer to
 interpret an old schema.
 
 ```sh
-uv run stage-gen game validate \
-  --input library/games/whimsical-storybook-fantasy/game.toml \
-  --game-library-root .
-uv run stage-gen game digest \
-  --input library/games/whimsical-storybook-fantasy/game.toml \
-  --game-library-root .
-uv run stage-gen soundtrack validate \
-  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
-  --game-library-root .
-uv run stage-gen soundtrack digest \
-  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
-  --game-library-root .
-uv run stage-gen generate --recipe scrolling-preview \
-  --input examples/scrolling-preview/game-directed-village.toml \
-  --game-library-root . --transparency native
+uv run stage-gen package validate --input library/games/bellweather
+uv run stage-gen package digest --input library/games/bellweather
+uv run stage-gen package plan --input library/games/bellweather
 ```
 
-The root may also come from `STAGE_GEN_GAME_LIBRARY_ROOT`. Every authored word
-is checked against the closed vocabulary in
-`src/stage_gen/resources/prompting/game_vocabulary_v1.json`, so a contract
-cannot introduce a style keyword, body kind, stance, or held prop the pipeline
-has not reviewed.
+The package resolver validates the exact game, gameplay, map, content, sequence, soundtrack, and
+referenced-media closure before any provider operation.
 
 ## Architecture
 
@@ -354,9 +305,9 @@ media-probe hashes and remain `unreviewed` until independently reviewed.
 Run `bun run gameplay:record -- --help` for custom-source, output, and dry-run
 options.
 
-The web server launches `uv run stage-gen generate ...` from the repository
-root with an argument array and no shell. Browser code receives manifests,
-progress, and confined artifacts—not provider credentials.
+The former prompt-launching web adapter is not an active generation authority after the prepared
+package cutover. Checkpoint 5 reconnects it to completed package manifests. Browser code never
+receives provider credentials.
 
 ## Configuration and providers
 

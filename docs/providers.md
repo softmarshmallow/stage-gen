@@ -13,6 +13,7 @@ OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 FAL_KEY=
 STAGE_GEN_OPENAI_IMAGE_MODEL=gpt-image-2
+STAGE_GEN_OPENAI_IMAGE_IPM=150
 STAGE_GEN_IMAGE_MODEL=openai/gpt-image-2
 STAGE_GEN_MUSIC_MODEL=google/lyria-3-pro-preview
 STAGE_GEN_BACKGROUND_REMOVAL_MODEL=fal-ai/birefnet/v2
@@ -63,9 +64,12 @@ GPT Image 2 accepts flexible sizes within its documented pixel, alignment, and
 aspect-ratio bounds. Recipe target geometry remains a separate local contract:
 request one valid provider size, inspect the result, then normalize it with
 premultiplied-alpha, aspect-preserving cover/crop resampling to the exact sprite
-sheet or layer dimensions. The direct adapter serializes request starts at five
-per minute, matching the documented lowest usage tier and preventing a recipe
-wave from turning normal fan-out into a retry storm.
+sheet or layer dimensions. The direct adapter paces request starts to
+`STAGE_GEN_OPENAI_IMAGE_IPM`. This deployment defaults to 150 IPM, matching its
+OpenAI Tier 4 project. Set the value to the active project's documented GPT
+Image 2 limit; it is not a universal model constant. Requests already in flight
+remain concurrent, and orchestration adds no separate remote-operation
+concurrency ceiling.
 
 Primary sources:
 
@@ -139,17 +143,21 @@ The key-backed CLI path is:
 uv run stage-gen remove-background --input ./input.png --output ./out/subject.png
 ```
 
-Recipe selection is separate:
+Prepared-game planning is separate and provider-free:
 
 ```sh
-uv run stage-gen generate --recipe scrolling-preview --transparency native "an original 2D asset set"
-uv run stage-gen generate --recipe scrolling-preview --transparency ai "an original 2D asset set"
-uv run stage-gen generate --recipe scrolling-preview --transparency chroma "an original 2D asset set"
+uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen generate \
+  --input library/games/bellweather \
+  --dry-run \
+  --output /tmp/bellweather-dry-run
 ```
 
-The first command requires direct OpenAI native alpha. The second requires
-OpenRouter plus `FAL_KEY`; the third is a degraded local-keying fallback.
-Failures remain failures rather than silently changing the requested strategy.
+Provider-backed package handlers are not connected at the current execution-truth checkpoint;
+calling package generation without `--dry-run` fails before provider construction. Once enabled,
+the prepared package graph uses direct OpenAI native alpha for its transparent image nodes.
+Compatibility background removal remains an explicit standalone capability and never silently
+replaces failed native generation.
 
 Primary sources:
 

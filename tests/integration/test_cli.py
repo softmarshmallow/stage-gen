@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import zipfile
 from io import StringIO
 from pathlib import Path
 
@@ -62,54 +63,114 @@ class DialogueCliRuntime(CliRuntime):
         return (str(path),)
 
 
-def test_cli_offline_surfaces_and_prompt_shorthand(monkeypatch: object, tmp_path: Path) -> None:
+def test_cli_offline_surfaces_require_a_prepared_package() -> None:
     help_text = " ".join(build_parser().format_help().split())
-    assert "A bare prompt is the current shorthand for scrolling-preview generation." in help_text
-    assert "legacy-compatible" not in help_text
+    assert "Prepared game generation requires a directory or ZIP containing game.toml." in help_text
+    assert "bare prompt" not in help_text
 
-    monkeypatch.setenv("OPENROUTER_API_KEY", "offline")  # type: ignore[attr-defined]
-    monkeypatch.setenv("OUT_DIR", str(tmp_path))  # type: ignore[attr-defined]
     output = StringIO()
     assert main(["recipes"], stdout=output) == 0
     assert "scrolling-preview" in output.getvalue()
     output = StringIO()
     assert main(["benchmark", "smoke"], stdout=output) == 0
     assert '"ok": true' in output.getvalue()
-    output = StringIO()
+
+
+def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: Path) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/bellweather"
+    validate_output = StringIO()
+
     assert (
         main(
-            ["original", "neutral", "ruins", "--transparency", "chroma"],
-            runtime=CliRuntime(),
-            stdout=output,
+            ["package", "validate", "--input", str(package)],
+            stdout=validate_output,
         )
         == 0
     )
-    assert "stage-gen: done recipe=scrolling-preview" in output.getvalue()
+    report = json.loads(validate_output.getvalue())
+    assert report["valid"] is True
+    assert report["game_id"] == "bellweather"
+    assert report["file_count"] == 22
+
+    digest_output = StringIO()
+    assert (
+        main(
+            ["package", "digest", "--input", str(package)],
+            stdout=digest_output,
+        )
+        == 0
+    )
+    assert digest_output.getvalue() == f"{report['package_sha256']}\n"
+
+    archive = tmp_path / "bellweather.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
+        for source in sorted(package.rglob("*")):
+            if source.is_file():
+                output.write(source, Path("bellweather", source.relative_to(package)).as_posix())
+    zip_output = StringIO()
+    assert (
+        main(
+            ["package", "validate", "--input", str(archive)],
+            stdout=zip_output,
+        )
+        == 0
+    )
+    assert json.loads(zip_output.getvalue())["package_sha256"] == report["package_sha256"]
+
+    plan_output = StringIO()
+    assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0
+    plan = json.loads(plan_output.getvalue())
+    assert len(plan["graph"]["nodes"]) == 192
+    assert plan["projection"]["operation_counts"] == {
+        "local": 92,
+        "image_generation": 82,
+        "structured_generation": 15,
+        "music_generation": 3,
+    }
 
 
-def test_generate_cli_injects_explicit_character_library_root(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
-    monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
-    runtime = CliRuntime()
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/bellweather"
+    output = StringIO()
 
     assert (
         main(
             [
                 "generate",
-                "--character-library-root",
-                str(tmp_path),
-                "--transparency",
-                "chroma",
-                "original ruins",
+                "--input",
+                str(package),
+                "--dry-run",
+                "--output",
+                str(tmp_path / "run"),
+                "--cache-dir",
+                str(tmp_path / "cache"),
+                "--invocation-id",
+                "integration-test",
             ],
-            runtime=runtime,
+            stdout=output,
         )
         == 0
     )
-    assert runtime.character_library_roots
-    assert set(runtime.character_library_roots) == {tmp_path}
+    report = json.loads(output.getvalue())
+    assert report["ok"] is True
+    assert report["node_count"] == 192
+    assert report["provider_operation_counts"] == {
+        "image_generation": 82,
+        "structured_generation": 15,
+        "music_generation": 3,
+    }
+    assert (tmp_path / "run/execution-plan.json").is_file()
+    assert (tmp_path / "run/execution-trace.jsonl").is_file()
+
+    error = StringIO()
+    assert main(["generate", "--input", str(package)], stderr=error) == 1
+    assert "provider execution is not connected yet" in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -334,6 +395,7 @@ def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: P
     ) in error_output.getvalue()
 
 
+@pytest.mark.skip(reason="prompt and recipe-file generation were removed by the package cutover")
 @pytest.mark.parametrize(
     ("recipe", "relative_example", "expected_first", "expected_count"),
     [
@@ -390,6 +452,7 @@ def test_profile_enabled_examples_route_without_provider_calls(
     assert set(runtime.character_library_roots) == {repository}
 
 
+@pytest.mark.skip(reason="prompt and recipe-file generation were removed by the package cutover")
 @pytest.mark.parametrize(
     ("suffix", "document"),
     [
@@ -455,6 +518,7 @@ def test_cli_input_accepts_json_and_toml_theme_documents(
     assert "stages=7" in output.getvalue()
 
 
+@pytest.mark.skip(reason="generic recipe generation was removed from the game package CLI")
 def test_dialogue_sample_routes_through_public_cli_with_force_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -505,7 +569,7 @@ def test_dialogue_sample_routes_through_public_cli_with_force_env(
     assert "stages=9" in output.getvalue()
 
 
-def test_generate_help_exposes_repeatable_force_stage(
+def test_generate_help_exposes_package_dry_run_controls(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exit_info:
@@ -513,10 +577,12 @@ def test_generate_help_exposes_repeatable_force_stage(
     help_text = capsys.readouterr().out
 
     assert exit_info.value.code == 0
-    assert "--force-stage STAGE_ID" in help_text
-    assert "repeat to select multiple stages" in " ".join(help_text.split())
+    assert "--dry-run" in help_text
+    assert "--failure-node FAILURE_NODE" in help_text
+    assert "--force-stage" not in help_text
 
 
+@pytest.mark.skip(reason="generic recipe generation was removed from the game package CLI")
 def test_dialogue_public_force_stage_forwards_validated_dag_plan(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -562,6 +628,7 @@ def test_dialogue_public_force_stage_forwards_validated_dag_plan(
     assert set(runtime.affected_stages) == {expected_affected}
 
 
+@pytest.mark.skip(reason="generic recipe generation was removed from the game package CLI")
 @pytest.mark.parametrize(
     "force_args",
     [
@@ -603,6 +670,7 @@ def test_dialogue_public_force_stage_rejects_before_runtime_calls(
     assert "forced stage" in errors.getvalue()
 
 
+@pytest.mark.skip(reason="generic recipe generation was removed from the game package CLI")
 def test_dialogue_cli_rejects_a_bundle_without_background(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

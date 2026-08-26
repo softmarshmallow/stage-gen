@@ -413,6 +413,13 @@ actor_asset_view     = side
 This mapping does not add another accepted profile or prove that every painted
 asset is metrically orthographic. The adapter rejects every other projection.
 
+The ratified TARGET
+[map-generation contract](map-generation-contract.md) reuses
+`side_view_2d` as an opaque initial `view.profile` while separately declaring
+`gameplay_space = "side_plane"`, scrolling behavior, the raster scroll axis,
+and the seamless visual axis. This prevents the convenience profile name from
+becoming the authority for movement abilities or repeat behavior.
+
 The current role value `three_quarter` is interpreted as subject-relative asset
 view only. It must not be reused as a scene-camera projection.
 

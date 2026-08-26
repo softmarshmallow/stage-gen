@@ -157,6 +157,12 @@ def create_app(
         recipe_value = body.get("recipe", "scrolling-preview")
         if not isinstance(recipe_value, str) or not recipe_value.strip():
             return _json_error("run request recipe must be a non-empty string", 400)
+        if recipe_value == "scrolling-preview":
+            return _json_error(
+                "scrolling-preview runs require a prepared directory or ZIP; "
+                "the legacy JSON request surface is removed",
+                400,
+            )
         try:
             prepared = prepare_generate_request(
                 GenerateRequest(

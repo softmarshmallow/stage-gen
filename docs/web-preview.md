@@ -21,48 +21,23 @@ not directly become Phaser depths.
 These belong in `web/lib/runtime/` and preview routes. They must not leak into
 `src/stage_gen/components/`, the public CLI contract, or provider adapters.
 
-The server-only adapter invokes the authoritative Python command from the
-repository root. Its default launch is exactly:
+The former prompt-launching adapter is not an active generation authority after the prepared
+package cutover. The current public game CLI requires a directory or ZIP containing `game.toml`,
+and provider-backed package execution remains disabled until its map and content handlers are
+connected. Checkpoint 5 reconnects the server adapter to completed prepared-package manifests.
+Browser code never receives provider credentials.
 
-```text
-uv run stage-gen generate --recipe scrolling-preview --transparency <mode> <prompt>
-```
+The existing Generate view still describes the retired prompt request and transparency selector;
+it is not a supported launch surface during the cutover. The package runtime will consume native
+alpha artifacts and an exact execution/manifest identity when it is wired in Checkpoint 5.
 
-The process API receives an executable and argument array with `shell: false`;
-prompt text is never interpolated into a command string. The optional
-`STAGE_GEN_EXECUTABLE` override accepts only `uv`, `stage-gen`, `stage-gen-py`,
-or a normalized absolute path whose basename is one of those values. Output is
-rooted at `STAGE_GEN_OUT_DIR` (default `out/`) for both processes. The adapter
-consumes manifests, run summaries, SSE progress, and confined artifacts through
-server routes. Browser code never receives provider credentials.
-
-The Generate view exposes a three-way transparency strategy selector. `native`
-is the default and asks GPT Image 2 to create alpha directly. `ai` is the
-explicit compatibility path that generates opaque art and then calls FAL
-background removal. `chroma` is the explicit degraded local-keying path.
-Launches and per-asset retries preserve that choice; failures do not silently
-change strategies.
-
-The exact current `recipe_run_v3` summary must declare
-`input.transparency_mode`. For `native`, `ai`, and `chroma`, the pipeline's
-canonical image artifacts are already transparent PNGs, so the preview loads
-their alpha normally and never performs runtime chroma keying. A missing or
-invalid strategy fails closed because the adapter cannot reproduce the run's
-generation policy.
-
-The HTTP start body is `{ prompt, transparency_mode }`, where
-`transparency_mode` is `"native"`, `"ai"`, or `"chroma"` and omitted means
-`"native"`. The web adapter treats the returned run tag as opaque; it does not
+The legacy `{ prompt, transparency_mode }` HTTP start body is rejected for scrolling-preview.
+The future package adapter treats the returned run identity as opaque; it does not
 assume equal prompts share a cache entry across strategies.
 
-Static third-party background music is not part of this adapter. Generated
-music is a headless component artifact and may be previewed only after its
-provenance and media contract are present. The one current public projection is
-`game-soundtrack-manifest-v2`: a game-global, gesture-gated shuffle bag whose
-track identities remain owned by the game catalog. The current authored map
-book narrows that catalog to each map's referenced pool; travel keeps an
-allowed current track or switches when the destination excludes it. See
-[Authored game soundtracks](game-soundtrack.md).
+Static third-party background music is not part of this adapter. Generated music may be previewed
+only after its provenance and media contract are present. Track identities remain owned by the
+prepared game soundtrack and gameplay contracts. See [Authored game soundtracks](game-soundtrack.md).
 
 The browser gameplay implementation remains optional. All Node and TypeScript
 code is confined to `web/`; the headless implementation is Python.

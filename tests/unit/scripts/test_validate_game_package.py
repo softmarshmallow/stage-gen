@@ -34,8 +34,9 @@ def test_validate_game_package_script_prints_the_machine_report(
     assert report["valid"] is True
     assert report["source_status"] == "current"
     assert report["generated_status"] == "not_checked"
-    assert report["game_id"] == "whimsical-storybook-fantasy"
-    assert report["applied_defaults"] == []
+    assert report["game_id"] == "bellweather"
+    assert report["kind"] == "game-package-validation-v2"
+    assert report["file_count"] == 22
 
 
 def test_validate_game_package_script_rejects_an_invalid_root(
@@ -46,8 +47,8 @@ def test_validate_game_package_script_rejects_an_invalid_root(
 
     captured = capsys.readouterr()
     report = json.loads(captured.out)
-    assert report["schema_version"] == 1
-    assert report["kind"] == "game-package-validation-v1"
+    assert report["schema_version"] == 2
+    assert report["kind"] == "game-package-validation-v2"
     assert report["valid"] is False
     assert report["source_status"] == "invalid"
     assert report["generated_status"] == "not_checked"

@@ -1,110 +1,143 @@
-# Canonical game package
+# Canonical prepared game package
 
-The repository ships one authored-source demonstration selected by
-[`library/games/main.toml`](../library/games/main.toml). That selector is the
-single source of truth for which game request CI, tests, future hosted demos,
-and release tooling should validate.
+> **Implementation status:** exact-current package validation is implemented.
+>
+> Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
+> cross-contract validation, and repository selection are executable. Provider
+> scheduling and generation from the resolved package remain the next pipeline
+> checkpoint; successful package validation is not a generation claim.
 
-The selector does not embed a game. It digest-locks one scrolling-preview
-request, and that request binds the game-owned sources:
+The canonical prepared package is selected by
+[`library/games/main.toml`](../library/games/main.toml). The selector points
+directly to one package-root `game.toml`; there is no examples request wrapper
+or map-book index:
 
 ```text
 library/games/main.toml
-└── examples/scrolling-preview/game-directed-village.toml
-    ├── library/games/whimsical-storybook-fantasy/game.toml
-    ├── library/games/whimsical-storybook-fantasy/soundtrack.toml
-    └── library/games/whimsical-storybook-fantasy/maps/index.toml
-        ├── maps/village-hub.toml
-        ├── maps/stage-1-approach.toml
-        ├── maps/stage-2-gauntlet.toml
-        └── maps/stage-3-spires.toml
+└── library/games/bellweather/game.toml
+    ├── universe.md
+    ├── gameplay.toml
+    ├── soundtrack.toml
+    ├── maps/<map_id>.toml
+    ├── content/{player,mobs,npcs,props,items}.toml
+    ├── sequences/index.toml
+    ├── sequences/<sequence_id>.toml
+    └── references/*
 ```
 
-The soundtrack is game-global. Each map owns only its ordered pool of allowed
-track IDs. This keeps track identity and generation intent independent from map
-identity while allowing map-aware playback.
+`game.toml` is the membership and digest-closure root. It locks every direct
+contract and evidence member. Map and content contracts in turn lock the image
+references they actually use; the sequence catalog locks every sequence.
+Unreferenced files are rejected rather than becoming implicit input.
 
-This selector is the SSOT for which authored request is canonical. The
-[canonical game-generation pipeline](spec/game/generation-pipeline.md) separately owns the
-human overview of how that selected request is resolved and executed.
+## Exact-current identities
 
-## Current-only policy
+Only these prepared-package identities are accepted by the resolver:
 
-Only the versions implemented by the live models are accepted:
+| Boundary | Current identity |
+| --- | --- |
+| Repository selector | `game-package-v2` |
+| Package root | `game-contract-v4` |
+| Gameplay | `gameplay-contract-v1` |
+| Map generation | `game-map-v3` |
+| Soundtrack | `game-soundtrack-v1` |
+| Player catalog | `player-content-v1` |
+| Mob catalog | `mob-content-v1` |
+| NPC catalog | `npc-content-v1` |
+| Prop catalog | `prop-content-v1` |
+| Item catalog | `item-content-v1` |
+| Sequence catalog | `game-sequence-catalog-v1` |
+| Sequence | `game-sequence-v1` |
 
-- selector `game-package-v1`;
-- request `contract_version = 2`;
-- `game-contract-v3`;
-- `game-soundtrack-v1`;
-- `game-map-book-v1` containing only `game-map-v2` sources; and
-- scrolling manifest envelope V7 with soundtrack and map-book projection V2.
+The resolver does not upgrade, translate, or infer another shape. In
+particular, package ingest does not reconstruct a prompt request, `WorldSpec`,
+`VillageSpec`, or map book.
 
-These independently versioned identities do not imply support for earlier
-versions. When an authored schema changes, update or regenerate the canonical
-package and drop stale development games. Validators never upgrade or infer old
-contracts.
+## Directory and ZIP input
 
-Optional recipe systems remain optional in general. The selector's
-`required_features` list makes the canonical demo stricter: every selected
-feature must be present and valid.
+A package may be supplied directly as a directory:
 
-## Validation
+```sh
+uv run stage-gen package validate --input library/games/bellweather
+uv run stage-gen package digest --input library/games/bellweather
+```
 
-Validate authored sources without consulting Git state:
+Or as a ZIP whose archive root is the package itself or one wrapper directory
+named for the game:
+
+```sh
+uv run stage-gen package validate --input /path/to/bellweather.zip
+uv run stage-gen package digest --input /path/to/bellweather.zip
+```
+
+Both forms capture every closure byte once and produce the same
+`package_sha256`, canonical game digest, stable IDs, and file identities.
+Later stages consume that captured closure rather than reopening mutable input
+or retaining a temporary extraction path.
+
+The directory, ZIP filename, and optional ZIP wrapper are transport names and
+do not determine game identity. `game_id` comes only from the validated root
+contract. `package_sha256` is the SHA-256 of the exact root `game.toml` bytes.
+That root locks the rest of the closure, so changing any member requires
+relocking its owner and then relocking the root selector as applicable.
+
+## Pre-provider validation
+
+Resolution is local and provider-free. Before it returns a package it verifies:
+
+- strict TOML parsing and exact unknown-field rejection;
+- the root game identity and every member schema identity;
+- every locked source digest;
+- shared `game_id` ownership;
+- map, actor, item, prop, soundtrack, quest, effect, and sequence references;
+- map layer ordering, alpha base, ground mode, and reference closure;
+- content state, facing, expression, and reference closure;
+- sequence node reachability, targets, outcomes, speakers, expressions, and effects;
+- image decoding for every selected visual reference;
+- JSON syntax for selected evidence provenance and nonempty UTF-8 review text;
+- exact closure membership with no orphan file; and
+- portable paths with no traversal, symlink, ambiguous archive root, duplicate
+  ZIP entry, encryption, or unsafe size/compression behavior.
+
+The resolver imports no provider, recipe, or composed runtime module. A
+malformed package therefore cannot perform a paid operation.
+
+## Canonical repository validation
+
+Validate the repository-selected package without consulting provider state:
 
 ```sh
 uv run python scripts/validate_game_package.py --root .
 ```
 
-Before committing or serving the canonical demo, require every closure byte to
-match `HEAD`:
+Before committing or serving the canonical package, require its exact closure
+to be tracked and equal to Git `HEAD`:
 
 ```sh
 uv run python scripts/validate_game_package.py --root . --require-committed
 ```
 
-The JSON report distinguishes three independent states:
+The report keeps authored, repository, and generated truth separate:
 
-- `source_status` proves the authored closure is current and internally valid;
-- `repository.status` reports whether those exact bytes are committed; and
-- `generated_status` reports generated-demo freshness.
+- `source_status = "current"` means the complete prepared closure validates;
+- `repository.status` reports whether those exact bytes are tracked or committed;
+- `generated_status = "not_checked"` means generation and playability have not
+  been claimed; and
+- `package_sha256` and `closure` identify the validated bytes.
 
-`generated_status = "not_checked"` is not a successful generation claim. The
-authored package can be valid while generated output is absent, stale,
-unreviewed, or unpublished.
+An internally valid package may still have absent, stale, unreviewed, or
+unpublished generated output. Validation never promotes media or activates a
+consumer.
 
-The validator fails closed for an invalid selector or request digest, missing
-required feature, old schema, symlink or path escape, cross-game identity,
-unknown soundtrack reference, stale map lock, orphan TOML source, untracked
-closure source, or committed-byte mismatch.
+## Ownership
 
-## Authoring workflow
+Python under `src/stage_gen/` owns package contracts and resolution. The
+scrolling recipe will own generation from the resolved closure, and `web/`
+will remain a consumer of the resulting public manifest. Neither recipe nor
+consumer may reinterpret missing authored direction.
 
-1. Edit one current authored source.
-2. If a map changed, update its SHA-256 in `maps/index.toml`.
-3. Update the changed binding SHA-256 in the selected request.
-4. If the request changed, update `request_sha256` in `library/games/main.toml`.
-5. Run the validator with `--require-committed` after committing.
-
-Use the public commands for a focused authored source:
-
-```sh
-uv run stage-gen game validate --input library/games/whimsical-storybook-fantasy/game.toml --game-library-root .
-uv run stage-gen soundtrack validate --input library/games/whimsical-storybook-fantasy/soundtrack.toml --game-library-root .
-uv run stage-gen map validate --input library/games/whimsical-storybook-fantasy/maps/village-hub.toml --game-library-root .
-uv run stage-gen map-book validate --input library/games/whimsical-storybook-fantasy/maps/index.toml --game-library-root .
-```
-
-Each command also provides `digest`. Validation and digest both resolve the
-complete relevant source boundary; `map-book digest` therefore rejects a stale
-locked map instead of merely hashing `index.toml`.
-
-## Ownership and publication
-
-Python under `src/stage_gen/` owns the contract, resolver, producer, and package
-validator. `web/` is an optional consumer and is not schema authority.
-
-The canonical authored package is intended to be Git-tracked. Generated audio,
-images, archives, and hosted-demo activation remain separate publication
-decisions governed by rights review, storage limits, semantic verification, and
-explicit authorization.
+The [canonical generation pipeline](spec/game/generation-pipeline.md) owns the
+execution graph. The [map-generation contract](spec/game/map-generation-contract.md)
+owns one map's visual inputs, layers, continuity, ground, and review unit.
+`gameplay.toml` alone owns map use, spawning, transitions, encounters, loot,
+placements, interactions, quests, and effects.

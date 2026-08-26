@@ -239,23 +239,29 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     required_contracts = (
         (
             "README.md",
-            re.compile(r"default[^\n]*--transparency native", re.IGNORECASE),
-            "native-alpha CLI default",
+            re.compile(r"directory or ZIP whose root contains `game\.toml`", re.IGNORECASE),
+            "prepared-package CLI input",
         ),
         (
             "README.md",
-            re.compile(r"--transparency ai", re.IGNORECASE),
-            "explicit AI-removal compatibility mode",
+            re.compile(
+                r"--dry-run.{0,200}deterministic fake operations",
+                re.IGNORECASE | re.DOTALL,
+            ),
+            "provider-free execution dry run",
         ),
         (
             "README.md",
-            re.compile(r"--transparency chroma", re.IGNORECASE),
-            "explicit chroma CLI fallback",
+            re.compile(r"There is no bare-prompt fallback", re.IGNORECASE),
+            "removed prompt fallback",
         ),
         (
             "README.md",
-            re.compile(r"FAL_KEY.{0,160}required only for `ai`", re.IGNORECASE | re.DOTALL),
-            "conditional FAL_KEY requirement",
+            re.compile(
+                r"without `--dry-run`.{0,160}fails before provider",
+                re.IGNORECASE | re.DOTALL,
+            ),
+            "fail-closed live package boundary",
         ),
         (
             "docs/spec/agent-prompts.md",
@@ -282,13 +288,19 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ),
         (
             "docs/web-preview.md",
-            re.compile(r"input\.transparency_mode"),
-            "run-summary strategy field",
+            re.compile(
+                r"prompt-launching adapter is not an active generation authority",
+                re.IGNORECASE,
+            ),
+            "retired prompt adapter boundary",
         ),
         (
             "docs/web-preview.md",
-            re.compile(r"HTTP start body is `\{ prompt, transparency_mode \}`"),
-            "web run-request strategy field",
+            re.compile(
+                r"legacy `\{ prompt, transparency_mode \}` HTTP start body is rejected",
+                re.IGNORECASE,
+            ),
+            "rejected legacy web request",
         ),
         (
             "web/app/Picker.tsx",

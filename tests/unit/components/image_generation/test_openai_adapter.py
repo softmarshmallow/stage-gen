@@ -44,8 +44,8 @@ async def test_openai_native_alpha_capability_is_model_specific() -> None:
 
 
 def test_openai_rate_limit_must_be_positive() -> None:
-    with pytest.raises(ValueError, match="requests_per_minute"):
-        OpenAIImageBackend(api_key="secret", requests_per_minute=0)
+    with pytest.raises(ValueError, match="images_per_minute"):
+        OpenAIImageBackend(api_key="secret", images_per_minute=0)
 
 
 @pytest.mark.asyncio

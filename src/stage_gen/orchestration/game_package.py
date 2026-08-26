@@ -1,73 +1,82 @@
-"""Validation of one canonical, recipe-bound game source package.
-
-The component contracts deliberately know nothing about one another.  A game package does: it
-selects a recipe request, resolves every digest-bound source that request names, and proves that
-the resulting game, soundtrack, and map catalog form one current closure.  That composition
-belongs here rather than in any component or in ``web/``.
-
-This validator is intentionally current-only.  It never upgrades, rewrites, or interprets an old
-contract.  Optional recipe systems remain optional, but a selector can require the systems its
-demo promises to ship.
-"""
+"""Resolve one exact-current prepared game directory or ZIP before provider work."""
 
 from __future__ import annotations
 
-import hashlib
+import io
 import json
 import os
 import stat
 import subprocess
-import tomllib
-from collections.abc import Mapping
+import zipfile
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal, cast
+from typing import Literal
 
+from PIL import Image, UnidentifiedImageError
 from pydantic import Field, field_validator, model_validator
 
+from stage_gen.components._game_input import (
+    GAME_ID_PATTERN,
+    SHA256_PATTERN,
+    AuthoredContractLoadError,
+    parse_toml_contract,
+    portable_relative_path,
+    sha256_bytes,
+)
 from stage_gen.components._secure_fs import (
     SecurePathError,
     open_absolute_directory,
+    read_absolute_regular_file,
     read_relative_regular_file,
 )
+from stage_gen.components.game_content import (
+    ItemContentCatalog,
+    MobContentCatalog,
+    NpcContentCatalog,
+    PlayerContentCatalog,
+    PropContentCatalog,
+    load_item_content_bytes,
+    load_mob_content_bytes,
+    load_npc_content_bytes,
+    load_player_content_bytes,
+    load_prop_content_bytes,
+)
 from stage_gen.components.game_contract import (
-    GAME_CONTRACT_SCHEMA_VERSION,
-    ResolvedGameContract,
-    resolve_game_contract_binding,
+    PreparedGameContract,
+    canonical_prepared_game_contract_json,
+    load_prepared_game_contract_bytes,
 )
-from stage_gen.components.game_map import (
-    GAME_MAP_BOOK_SCHEMA_VERSION,
-    GAME_MAP_SCHEMA_VERSION,
-    GameMapBook,
-    ResolvedGameMapBook,
-    resolve_game_map_book_binding,
+from stage_gen.components.game_map import PreparedGameMap, load_prepared_game_map_bytes
+from stage_gen.components.game_sequence import (
+    DialogueNode,
+    GameSequence,
+    GameSequenceCatalog,
+    OutcomeNode,
+    load_game_sequence_bytes,
+    load_game_sequence_catalog_bytes,
 )
-from stage_gen.components.game_soundtrack import (
-    GAME_SOUNDTRACK_SCHEMA_VERSION,
-    ResolvedGameSoundtrack,
-    resolve_game_soundtrack_binding,
+from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
+from stage_gen.components.gameplay_contract import (
+    GameplayContract,
+    GrantItemEffect,
+    SetQuestStateEffect,
+    load_gameplay_contract_bytes,
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
-from stage_gen.recipes.scrolling_preview.recipe import parse_scrolling_preview_input
 
-GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 1
-GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 1
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
+GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 2
+GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 2
 
-GamePackageFeature = Literal["game", "soundtrack", "map_book", "village"]
-RepositoryStatus = Literal["committed", "modified", "untracked", "not_git_checkout"]
-
-_FEATURE_ORDER: tuple[GamePackageFeature, ...] = (
-    "game",
-    "soundtrack",
-    "map_book",
-    "village",
-)
-_REQUEST_PREFIX = ("examples", "scrolling-preview")
-_PACKAGE_REQUEST_FIELDS = frozenset({"prompt", *_FEATURE_ORDER})
+_MAX_PACKAGE_FILES = 512
+_MAX_PACKAGE_FILE_BYTES = 64 * 1024 * 1024
+_MAX_PACKAGE_BYTES = 512 * 1024 * 1024
+_MAX_ZIP_COMPRESSION_RATIO = 200
 
 
 class GamePackageValidationError(ValueError):
-    """One actionable reason a selected source package is not current and complete."""
+    """Stable package rejection with a machine-readable category."""
 
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
@@ -75,46 +84,103 @@ class GamePackageValidationError(ValueError):
 
 
 class GamePackageSelector(PersistedContractModel):
-    """The repository-level pointer to one canonical demo request."""
+    schema_version: Literal[2]
+    kind: Literal["game-package-v2"]
+    game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
+    package_ref: str
+    package_sha256: str = Field(pattern=SHA256_PATTERN)
 
-    schema_version: Literal[1]
-    kind: Literal["game-package-v1"]
-    game_id: str = Field(
-        pattern=r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
-        max_length=96,
-    )
-    recipe: Literal["scrolling-preview"]
-    request_ref: str
-    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    transparency_mode: Literal["native", "ai", "chroma"]
-    required_features: list[GamePackageFeature] = Field(min_length=1)
-
-    @field_validator("request_ref")
+    @field_validator("package_ref")
     @classmethod
-    def validate_request_ref(cls, value: str) -> str:
-        parts = _portable_parts(value, label="game package request_ref")
-        if len(parts) != 3 or parts[:2] != _REQUEST_PREFIX or not parts[2].endswith(".toml"):
-            raise ValueError(
-                "game package request_ref must equal examples/scrolling-preview/<request>.toml"
-            )
-        return value
-
-    @field_validator("required_features")
-    @classmethod
-    def validate_required_features(
-        cls, value: list[GamePackageFeature]
-    ) -> list[GamePackageFeature]:
-        if len(set(value)) != len(value):
-            raise ValueError("required_features must be unique")
-        if value != [feature for feature in _FEATURE_ORDER if feature in value]:
-            raise ValueError("required_features must use canonical feature order")
-        return value
+    def validate_package_ref(cls, value: str) -> str:
+        return portable_relative_path(value, "package_ref")
 
     @model_validator(mode="after")
-    def require_game(self) -> GamePackageSelector:
-        if "game" not in self.required_features:
-            raise ValueError("a game package must require the game feature")
+    def validate_layout(self) -> GamePackageSelector:
+        expected = f"library/games/{self.game_id}/game.toml"
+        if self.package_ref != expected:
+            raise ValueError(f"package_ref must equal {expected}")
         return self
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedPackageFile:
+    path: str
+    sha256: str
+    data: bytes
+
+    def identity(self) -> dict[str, object]:
+        return {"path": self.path, "sha256": self.sha256, "bytes": len(self.data)}
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedGamePackage:
+    """Fully captured and cross-validated prepared input."""
+
+    source_kind: Literal["directory", "zip"]
+    package_name: str
+    package_sha256: str
+    canonical_game_sha256: str
+    game: PreparedGameContract
+    gameplay: GameplayContract
+    soundtrack: GameSoundtrack
+    maps: tuple[PreparedGameMap, ...]
+    player: PlayerContentCatalog
+    mobs: MobContentCatalog
+    npcs: NpcContentCatalog
+    props: PropContentCatalog
+    items: ItemContentCatalog
+    sequence_catalog: GameSequenceCatalog
+    sequences: tuple[GameSequence, ...]
+    files: tuple[ResolvedPackageFile, ...]
+
+    def file(self, path: str) -> ResolvedPackageFile:
+        for entry in self.files:
+            if entry.path == path:
+                return entry
+        raise KeyError(path)
+
+    def identity(self) -> dict[str, object]:
+        return {
+            "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
+            "kind": "resolved-game-package-v2",
+            "game_id": self.game.game_id,
+            "revision": self.game.revision,
+            "package_sha256": self.package_sha256,
+            "canonical_game_sha256": self.canonical_game_sha256,
+            "source_kind": self.source_kind,
+            "file_count": len(self.files),
+            "map_ids": [entry.map_id for entry in self.maps],
+            "player_ids": [entry.player_id for entry in self.player.players],
+            "mob_ids": [entry.mob_id for entry in self.mobs.mobs],
+            "npc_ids": [entry.npc_id for entry in self.npcs.npcs],
+            "prop_ids": [entry.prop_id for entry in self.props.props],
+            "item_ids": [entry.item_id for entry in self.items.items],
+            "sequence_ids": [entry.sequence_id for entry in self.sequences],
+            "track_ids": list(self.soundtrack.track_ids),
+        }
+
+
+def resolve_game_package(input_path: str | Path) -> ResolvedGamePackage:
+    """Resolve a prepared directory or ZIP with identical closure semantics."""
+
+    source = Path(input_path).absolute()
+    try:
+        if source.suffix.lower() == ".zip":
+            files, package_name = _capture_zip(source)
+            source_kind: Literal["directory", "zip"] = "zip"
+        else:
+            files, package_name = _capture_directory(source)
+            source_kind = "directory"
+        return _resolve_captured_package(
+            files,
+            package_name=package_name,
+            source_kind=source_kind,
+        )
+    except GamePackageValidationError:
+        raise
+    except (AuthoredContractLoadError, SecurePathError, OSError, ValueError) as error:
+        raise GamePackageValidationError("invalid_package", str(error)) from error
 
 
 def validate_game_package(
@@ -124,144 +190,64 @@ def validate_game_package(
     require_tracked: bool = False,
     require_committed: bool = False,
 ) -> dict[str, object]:
-    """Validate one exact-current source closure and return a JSON-ready report.
-
-    Repository state is not part of source validity.  ``require_tracked`` checks Git membership;
-    the stronger ``require_committed`` proves that ``HEAD`` contains the exact bytes validated.
-    The default works in copied package forks and source archives.
-    """
+    """Validate the repository-selected exact-current prepared package."""
 
     root = Path(workspace_root).absolute()
     if selector_ref != MAIN_GAME_SELECTOR_REF:
         raise GamePackageValidationError(
-            "invalid_selector_ref",
-            f"selector_ref must equal {MAIN_GAME_SELECTOR_REF!r}",
+            "invalid_selector", f"selector must equal {MAIN_GAME_SELECTOR_REF}"
         )
-
-    selector_bytes, selector_document = _read_toml(
-        root,
-        selector_ref,
-        label="game package selector",
-        code="invalid_selector",
-    )
+    selector_bytes = _read_workspace_file(root, selector_ref, label="game package selector")
     try:
-        selector = GamePackageSelector.model_validate(selector_document)
-    except ValueError as error:
-        raise GamePackageValidationError(
-            "invalid_selector", f"invalid game package selector: {error}"
-        ) from error
+        selector = parse_toml_contract(
+            selector_bytes,
+            model=GamePackageSelector,
+            label="game package selector",
+        )
+    except AuthoredContractLoadError as error:
+        raise GamePackageValidationError("invalid_selector", str(error)) from error
 
-    request_bytes, request_document = _read_toml(
+    package_root = root.joinpath(*PurePosixPath(selector.package_ref).parts).parent
+    resolved = resolve_game_package(package_root)
+    if resolved.game.game_id != selector.game_id:
+        raise GamePackageValidationError(
+            "cross_game_identity", "selector game_id does not match prepared package"
+        )
+    if resolved.package_sha256 != selector.package_sha256:
+        raise GamePackageValidationError(
+            "stale_package_digest",
+            "selector package_sha256 does not match selected game.toml bytes",
+        )
+
+    closure_refs = [
+        selector_ref,
+        *[f"library/games/{selector.game_id}/{entry.path}" for entry in resolved.files],
+    ]
+    repository = _repository_report(
         root,
-        selector.request_ref,
-        label="game package request",
-        code="invalid_request",
+        closure_refs,
+        require_tracked=require_tracked or require_committed,
+        require_committed=require_committed,
     )
-    if hashlib.sha256(request_bytes).hexdigest() != selector.request_sha256:
-        raise GamePackageValidationError(
-            "request_digest_mismatch",
-            "game package request_sha256 does not match the selected request bytes",
-        )
-    request = _parse_exact_request(request_document)
-    _require_selected_features(selector, request)
-
-    game, applied_defaults = _resolve_game(root, request, selector.game_id)
-    soundtrack = _resolve_soundtrack(root, request, selector.game_id)
-    map_book = _resolve_map_book(root, request, selector.game_id)
-
-    _validate_cross_contract_closure(game, soundtrack, map_book)
-    expected_game_sources = _expected_game_sources(game, soundtrack, map_book)
-    actual_game_sources = _list_game_toml_sources(root, selector.game_id)
-    orphan_sources = sorted(actual_game_sources - expected_game_sources)
-    if orphan_sources:
-        raise GamePackageValidationError(
-            "orphan_game_source",
-            "selected game directory contains TOML sources outside the request closure: "
-            + ", ".join(orphan_sources),
-        )
-
-    closure = _closure_entries(
-        selector_ref=selector_ref,
-        selector_bytes=selector_bytes,
-        request_ref=selector.request_ref,
-        request_bytes=request_bytes,
-        game=game,
-        soundtrack=soundtrack,
-        map_book=map_book,
-    )
-    repository_status, untracked_refs, modified_refs = _repository_tracking(root, closure)
-    if (require_tracked or require_committed) and repository_status in {
-        "untracked",
-        "not_git_checkout",
-    }:
-        detail = (
-            ", ".join(untracked_refs) if untracked_refs else "workspace root is not a Git checkout"
-        )
-        raise GamePackageValidationError(
-            "untracked_game_package",
-            f"canonical game package must be Git-tracked: {detail}",
-        )
-    if require_committed and repository_status != "committed":
-        detail_refs = untracked_refs or modified_refs
-        detail = ", ".join(detail_refs) if detail_refs else "workspace root is not a Git checkout"
-        raise GamePackageValidationError(
-            "uncommitted_game_package",
-            f"canonical game package bytes must match Git HEAD: {detail}",
-        )
-
-    identity: dict[str, object] = {
-        "selector": selector.model_dump(mode="json"),
-        "request": request,
-        "game": game.identity(),
-        **({"soundtrack": soundtrack.identity()} if soundtrack is not None else {}),
-        **({"map_book": map_book.identity()} if map_book is not None else {}),
-    }
-    package_sha256 = _canonical_json_sha256(identity)
-    features = [feature for feature in _FEATURE_ORDER if feature in request]
-
-    schema_versions: dict[str, int] = {
-        "game_contract": game.contract.schema_version,
-    }
-    if soundtrack is not None:
-        schema_versions["game_soundtrack"] = soundtrack.soundtrack.schema_version
-    if map_book is not None:
-        schema_versions["game_map_book"] = map_book.book.schema_version
-        schema_versions["game_map"] = map_book.document.schema_version
-
     return {
+        **resolved.identity(),
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v1",
+        "kind": "game-package-validation-v2",
         "valid": True,
         "source_status": "current",
         "generated_status": "not_checked",
-        "disposition": (
-            "track_before_publish"
-            if repository_status == "untracked"
-            else "commit_before_publish"
-            if repository_status == "modified"
-            else "keep_source"
-        ),
-        "game_id": selector.game_id,
-        "recipe": selector.recipe,
-        "transparency_mode": selector.transparency_mode,
-        "request_ref": selector.request_ref,
-        "features": features,
-        "required_features": list(selector.required_features),
-        "schema_versions": schema_versions,
-        "applied_defaults": list(applied_defaults),
-        "package_sha256": package_sha256,
-        "closure": closure,
-        "repository": {
-            "status": repository_status,
-            "untracked_refs": list(untracked_refs),
-            "modified_refs": list(modified_refs),
+        "disposition": "generate_or_review",
+        "selector": {
+            "path": MAIN_GAME_SELECTOR_REF,
+            "sha256": sha256_bytes(selector_bytes),
+            "package_ref": selector.package_ref,
         },
+        "closure": [entry.identity() for entry in resolved.files],
+        "repository": repository,
     }
 
 
 def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, object]:
-    """Return the stable machine-readable rejection shape used by the standalone tool."""
-
     source_is_current = error.code in {
         "untracked_game_package",
         "uncommitted_game_package",
@@ -270,12 +256,12 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
         "commit_before_publish"
         if error.code == "uncommitted_game_package"
         else "track_before_publish"
-        if source_is_current
+        if error.code == "untracked_game_package"
         else "drop_or_repair_source"
     )
     return {
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v1",
+        "kind": "game-package-validation-v2",
         "valid": False,
         "source_status": "current" if source_is_current else "invalid",
         "generated_status": "not_checked",
@@ -284,512 +270,694 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
     }
 
 
-def _portable_parts(value: str, *, label: str) -> tuple[str, ...]:
-    if not value or value != value.strip():
-        raise ValueError(f"{label} must be a non-empty trimmed string")
-    if "\\" in value or ":" in value or value.startswith("/"):
-        raise ValueError(f"{label} must be a portable relative path")
-    parts = tuple(value.split("/"))
-    if any(part in {"", ".", ".."} for part in parts):
-        raise ValueError(f"{label} must not contain empty, dot, or parent segments")
-    return parts
-
-
-def _read_toml(
-    root: Path,
-    ref: str,
-    *,
-    label: str,
-    code: str,
-) -> tuple[bytes, dict[str, object]]:
+def _capture_directory(root: Path) -> tuple[dict[str, bytes], str]:
     try:
-        parts = _portable_parts(ref, label=label)
-        with open_absolute_directory(root, label="game package workspace root") as root_fd:
-            data = read_relative_regular_file(root_fd, parts, label=label)
-        decoded = data.decode("utf-8")
-        raw: object = tomllib.loads(decoded)
-    except (
-        OSError,
-        SecurePathError,
-        UnicodeDecodeError,
-        ValueError,
-        tomllib.TOMLDecodeError,
-    ) as error:
-        raise GamePackageValidationError(code, f"{label} is invalid: {error}") from error
-    if not isinstance(raw, dict) or any(not isinstance(key, str) for key in raw):
-        raise GamePackageValidationError(code, f"{label} must decode to a TOML table")
-    return data, cast(dict[str, object], raw)
+        with open_absolute_directory(root, label="prepared package root"):
+            pass
+    except SecurePathError as error:
+        raise GamePackageValidationError("invalid_package_root", str(error)) from error
+
+    relative_paths: list[str] = []
+    total_bytes = 0
+    for current, directory_names, file_names in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        for name in [*directory_names, *file_names]:
+            candidate = current_path / name
+            try:
+                mode = os.lstat(candidate).st_mode
+            except OSError as error:
+                raise GamePackageValidationError(
+                    "invalid_package_path", f"cannot inspect package path: {candidate.name}"
+                ) from error
+            if stat.S_ISLNK(mode):
+                raise GamePackageValidationError(
+                    "symlink_escape", "prepared packages must not contain symlinks"
+                )
+            if name in file_names and not stat.S_ISREG(mode):
+                raise GamePackageValidationError(
+                    "invalid_package_path", "prepared packages may contain only regular files"
+                )
+        for name in file_names:
+            relative = (current_path / name).relative_to(root).as_posix()
+            portable_relative_path(relative, "prepared package path")
+            relative_paths.append(relative)
+
+    if len(relative_paths) > _MAX_PACKAGE_FILES:
+        raise GamePackageValidationError("package_too_large", "prepared package has too many files")
+
+    captured: dict[str, bytes] = {}
+    with open_absolute_directory(root, label="prepared package root") as root_fd:
+        for relative in sorted(relative_paths):
+            data = read_relative_regular_file(
+                root_fd,
+                tuple(PurePosixPath(relative).parts),
+                label=f"prepared package file {relative}",
+            )
+            _validate_file_size(relative, len(data))
+            total_bytes += len(data)
+            if total_bytes > _MAX_PACKAGE_BYTES:
+                raise GamePackageValidationError(
+                    "package_too_large", "prepared package exceeds the total size limit"
+                )
+            captured[relative] = data
+    return captured, root.name
 
 
-def _parse_exact_request(document: dict[str, object]) -> dict[str, object]:
-    prompt = document.get("prompt")
-    if not isinstance(prompt, str) or not prompt or prompt != prompt.strip():
-        raise GamePackageValidationError(
-            "invalid_request",
-            "game package request prompt must be a non-empty trimmed string",
-        )
-    unsupported = sorted(set(document) - _PACKAGE_REQUEST_FIELDS)
-    if unsupported:
-        raise GamePackageValidationError(
-            "unsupported_request_field",
-            "game package request contains unsupported fields: " + ", ".join(unsupported),
-        )
+def _capture_zip(path: Path) -> tuple[dict[str, bytes], str]:
     try:
-        parsed = parse_scrolling_preview_input(document)
-    except ValueError as error:
+        archive_bytes = read_absolute_regular_file(path, label="prepared package ZIP")
+    except SecurePathError as error:
+        raise GamePackageValidationError("invalid_package_zip", str(error)) from error
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(archive_bytes))
+    except zipfile.BadZipFile as error:
         raise GamePackageValidationError(
-            "invalid_request", f"game package request is invalid: {error}"
+            "invalid_package_zip", "invalid prepared package ZIP"
         ) from error
-    unknown = sorted(set(document) - set(parsed))
-    if unknown:
-        raise GamePackageValidationError(
-            "unsupported_request_field",
-            "game package request contains unsupported fields: " + ", ".join(unknown),
-        )
-    if set(document) != set(parsed):
-        missing = sorted(set(parsed) - set(document))
-        raise GamePackageValidationError(
-            "noncanonical_request",
-            "game package request does not use the canonical authored shape: " + ", ".join(missing),
-        )
-    return cast(dict[str, object], parsed)
+
+    with archive:
+        entries = archive.infolist()
+        if len(entries) > _MAX_PACKAGE_FILES + 32:
+            raise GamePackageValidationError(
+                "package_too_large", "prepared package ZIP has too many entries"
+            )
+        normalized: dict[str, zipfile.ZipInfo] = {}
+        for entry in entries:
+            raw_name = entry.filename.rstrip("/") if entry.is_dir() else entry.filename
+            if not raw_name:
+                continue
+            relative = portable_relative_path(raw_name, "prepared package ZIP entry")
+            if relative in normalized:
+                raise GamePackageValidationError(
+                    "duplicate_archive_entry", f"duplicate ZIP entry: {relative}"
+                )
+            unix_mode = entry.external_attr >> 16
+            if unix_mode and stat.S_ISLNK(unix_mode):
+                raise GamePackageValidationError(
+                    "symlink_escape", "prepared package ZIP must not contain symlinks"
+                )
+            if entry.flag_bits & 0x1:
+                raise GamePackageValidationError(
+                    "invalid_package_zip", "encrypted ZIP entries are not supported"
+                )
+            normalized[relative] = entry
+
+        game_roots = []
+        for relative, entry in normalized.items():
+            if entry.is_dir():
+                continue
+            parts = PurePosixPath(relative).parts
+            if parts[-1] == "game.toml" and len(parts) in {1, 2}:
+                game_roots.append(parts[:-1])
+        if len(game_roots) != 1:
+            raise GamePackageValidationError(
+                "ambiguous_package_root",
+                "prepared package ZIP must contain exactly one root game.toml",
+            )
+        prefix = game_roots[0]
+        captured: dict[str, bytes] = {}
+        total_bytes = 0
+        for relative, entry in sorted(normalized.items()):
+            parts = PurePosixPath(relative).parts
+            if entry.is_dir():
+                continue
+            if prefix and parts[: len(prefix)] != prefix:
+                raise GamePackageValidationError(
+                    "orphan_package_file", "ZIP contains files outside its package root"
+                )
+            stripped_parts = parts[len(prefix) :]
+            if not stripped_parts:
+                continue
+            stripped = PurePosixPath(*stripped_parts).as_posix()
+            _validate_file_size(stripped, entry.file_size)
+            if (
+                entry.file_size > 10 * 1024 * 1024
+                and entry.compress_size > 0
+                and entry.file_size > entry.compress_size * _MAX_ZIP_COMPRESSION_RATIO
+            ):
+                raise GamePackageValidationError(
+                    "package_too_large", f"ZIP entry has an unsafe compression ratio: {stripped}"
+                )
+            total_bytes += entry.file_size
+            if total_bytes > _MAX_PACKAGE_BYTES:
+                raise GamePackageValidationError(
+                    "package_too_large", "prepared package ZIP exceeds the total size limit"
+                )
+            data = archive.read(entry)
+            if len(data) != entry.file_size:
+                raise GamePackageValidationError(
+                    "invalid_package_zip", f"ZIP entry size changed while reading: {stripped}"
+                )
+            captured[stripped] = data
+        package_name = prefix[0] if prefix else path.stem
+        return captured, package_name
 
 
-def _require_selected_features(
-    selector: GamePackageSelector,
-    request: Mapping[str, object],
-) -> None:
-    missing = [feature for feature in selector.required_features if feature not in request]
+def _resolve_captured_package(
+    files: dict[str, bytes],
+    *,
+    package_name: str,
+    source_kind: Literal["directory", "zip"],
+) -> ResolvedGamePackage:
+    game_bytes = _required_file(files, "game.toml")
+    try:
+        game = load_prepared_game_contract_bytes(game_bytes)
+    except AuthoredContractLoadError as error:
+        raise GamePackageValidationError("invalid_game_contract", str(error)) from error
+    expected: dict[str, str] = {"game.toml": sha256_bytes(game_bytes)}
+
+    def locked(source: str, digest: str, label: str) -> bytes:
+        previous = expected.setdefault(source, digest)
+        if previous != digest:
+            raise GamePackageValidationError(
+                "conflicting_source_digest", f"{label} has conflicting locked digests"
+            )
+        data = _required_file(files, source)
+        actual = sha256_bytes(data)
+        if actual != digest:
+            raise GamePackageValidationError(
+                "stale_source_digest",
+                f"{label} source_sha256 mismatch for {source}: expected {digest}, got {actual}",
+            )
+        return data
+
+    universe_bytes = locked(game.universe.source, game.universe.source_sha256, "universe")
+    _validate_utf8_text(universe_bytes, "universe source")
+
+    gameplay = _load_locked(
+        locked(game.gameplay.source, game.gameplay.source_sha256, "gameplay"),
+        load_gameplay_contract_bytes,
+        "invalid_gameplay_contract",
+    )
+    soundtrack = _load_locked(
+        locked(game.soundtrack.source, game.soundtrack.source_sha256, "soundtrack"),
+        lambda data: load_game_soundtrack_bytes(data, source_suffix=".toml"),
+        "invalid_soundtrack_contract",
+    )
+    maps = tuple(
+        _load_locked(
+            locked(binding.source, binding.source_sha256, f"map {binding.map_id}"),
+            load_prepared_game_map_bytes,
+            "invalid_map_contract",
+        )
+        for binding in game.maps
+    )
+    player = _load_locked(
+        locked(game.content.player.source, game.content.player.source_sha256, "player content"),
+        load_player_content_bytes,
+        "invalid_player_content",
+    )
+    mobs = _load_locked(
+        locked(game.content.mobs.source, game.content.mobs.source_sha256, "mob content"),
+        load_mob_content_bytes,
+        "invalid_mob_content",
+    )
+    npcs = _load_locked(
+        locked(game.content.npcs.source, game.content.npcs.source_sha256, "NPC content"),
+        load_npc_content_bytes,
+        "invalid_npc_content",
+    )
+    props = _load_locked(
+        locked(game.content.props.source, game.content.props.source_sha256, "prop content"),
+        load_prop_content_bytes,
+        "invalid_prop_content",
+    )
+    items = _load_locked(
+        locked(game.content.items.source, game.content.items.source_sha256, "item content"),
+        load_item_content_bytes,
+        "invalid_item_content",
+    )
+    sequence_catalog = _load_locked(
+        locked(
+            game.sequences.index_source,
+            game.sequences.index_sha256,
+            "sequence catalog",
+        ),
+        load_game_sequence_catalog_bytes,
+        "invalid_sequence_catalog",
+    )
+    sequences = tuple(
+        _load_locked(
+            locked(binding.source, binding.source_sha256, f"sequence {binding.sequence_id}"),
+            load_game_sequence_bytes,
+            "invalid_sequence_contract",
+        )
+        for binding in sequence_catalog.sequences
+    )
+
+    for evidence_id, evidence in game.evidence.items():
+        artifact = locked(
+            evidence.artifact_source,
+            evidence.artifact_sha256,
+            f"evidence {evidence_id} artifact",
+        )
+        _validate_image(artifact, evidence.artifact_source)
+        provenance = locked(
+            evidence.provenance_source,
+            evidence.provenance_sha256,
+            f"evidence {evidence_id} provenance",
+        )
+        _validate_json_object(provenance, f"evidence {evidence_id} provenance")
+        review = locked(
+            evidence.review_source,
+            evidence.review_sha256,
+            f"evidence {evidence_id} review",
+        )
+        _validate_utf8_text(review, f"evidence {evidence_id} review")
+
+    for game_map in maps:
+        for map_reference in game_map.references:
+            data = locked(
+                map_reference.source,
+                map_reference.source_sha256,
+                f"map {game_map.map_id} reference {map_reference.reference_id}",
+            )
+            _validate_image(data, map_reference.source)
+    for label, catalog in (
+        ("player", player),
+        ("mob", mobs),
+        ("NPC", npcs),
+        ("prop", props),
+        ("item", items),
+    ):
+        for content_reference in catalog.references:
+            data = locked(
+                content_reference.source,
+                content_reference.source_sha256,
+                f"{label} reference {content_reference.reference_id}",
+            )
+            _validate_image(data, content_reference.source)
+
+    _validate_cross_contracts(
+        game=game,
+        gameplay=gameplay,
+        soundtrack=soundtrack,
+        maps=maps,
+        player=player,
+        mobs=mobs,
+        npcs=npcs,
+        props=props,
+        items=items,
+        sequence_catalog=sequence_catalog,
+        sequences=sequences,
+    )
+
+    actual_paths = set(files)
+    expected_paths = set(expected)
+    missing = sorted(expected_paths - actual_paths)
     if missing:
         raise GamePackageValidationError(
-            "missing_required_feature",
-            "game package request is missing required features: " + ", ".join(missing),
+            "missing_package_file", "package is missing files: " + ", ".join(missing)
         )
-
-
-def _resolve_game(
-    root: Path,
-    request: Mapping[str, object],
-    game_id: str,
-) -> tuple[ResolvedGameContract, tuple[str, ...]]:
-    value = request.get("game")
-    if value is None:
+    orphaned = sorted(actual_paths - expected_paths)
+    if orphaned:
         raise GamePackageValidationError(
-            "missing_required_feature", "game package request is missing required feature: game"
+            "orphan_package_file", "package contains unreferenced files: " + ", ".join(orphaned)
         )
-    ref = _binding_ref(value, label="game contract")
-    game_document = _preflight_current_document(
-        root,
-        ref,
-        label="game contract",
-        code="invalid_game_contract",
-        schema_version=GAME_CONTRACT_SCHEMA_VERSION,
-        kind=f"game-contract-v{GAME_CONTRACT_SCHEMA_VERSION}",
+
+    resolved_files = tuple(
+        ResolvedPackageFile(path=path, sha256=sha256_bytes(files[path]), data=files[path])
+        for path in sorted(expected_paths)
     )
-    try:
-        resolved = resolve_game_contract_binding(value, game_library_root=root)
-    except ValueError as error:
-        raise GamePackageValidationError(
-            "invalid_game_contract", f"game contract is invalid: {error}"
-        ) from error
-    expected_ref = f"library/games/{game_id}/game.toml"
-    if resolved.binding.ref != expected_ref or resolved.contract.game_id != game_id:
-        raise GamePackageValidationError(
-            "game_id_mismatch",
-            "selector game_id must match the bound game contract and library directory",
-        )
-    if resolved.contract.schema_version != GAME_CONTRACT_SCHEMA_VERSION:
-        raise GamePackageValidationError(
-            "unsupported_schema_version",
-            "game contract schema_version must equal current version "
-            f"{GAME_CONTRACT_SCHEMA_VERSION}",
-        )
-    gameplay_document = game_document.get("gameplay")
-    combat_text_was_declared = isinstance(gameplay_document, Mapping) and (
-        "combat_text" in gameplay_document
+    return ResolvedGamePackage(
+        source_kind=source_kind,
+        package_name=package_name,
+        package_sha256=sha256_bytes(game_bytes),
+        canonical_game_sha256=sha256_bytes(canonical_prepared_game_contract_json(game)),
+        game=game,
+        gameplay=gameplay,
+        soundtrack=soundtrack,
+        maps=maps,
+        player=player,
+        mobs=mobs,
+        npcs=npcs,
+        props=props,
+        items=items,
+        sequence_catalog=sequence_catalog,
+        sequences=sequences,
+        files=resolved_files,
     )
-    applied_defaults = () if combat_text_was_declared else ("gameplay.combat_text",)
-    return resolved, applied_defaults
 
 
-def _resolve_soundtrack(
-    root: Path,
-    request: Mapping[str, object],
-    game_id: str,
-) -> ResolvedGameSoundtrack | None:
-    value = request.get("soundtrack")
-    if value is None:
-        return None
-    ref = _binding_ref(value, label="game soundtrack")
-    _preflight_current_document(
-        root,
-        ref,
-        label="game soundtrack",
-        code="invalid_game_soundtrack",
-        schema_version=GAME_SOUNDTRACK_SCHEMA_VERSION,
-        kind=f"game-soundtrack-v{GAME_SOUNDTRACK_SCHEMA_VERSION}",
-    )
-    try:
-        resolved = resolve_game_soundtrack_binding(value, game_library_root=root)
-    except ValueError as error:
-        raise GamePackageValidationError(
-            "invalid_game_soundtrack", f"game soundtrack is invalid: {error}"
-        ) from error
-    expected_ref = f"library/games/{game_id}/soundtrack.toml"
-    if resolved.binding.ref != expected_ref or resolved.soundtrack.game_id != game_id:
-        raise GamePackageValidationError(
-            "game_id_mismatch",
-            "selector game_id must match the bound soundtrack and library directory",
-        )
-    if resolved.soundtrack.schema_version != GAME_SOUNDTRACK_SCHEMA_VERSION:
-        raise GamePackageValidationError(
-            "unsupported_schema_version",
-            "game soundtrack schema_version must equal current version "
-            f"{GAME_SOUNDTRACK_SCHEMA_VERSION}",
-        )
-    return resolved
-
-
-def _resolve_map_book(
-    root: Path,
-    request: Mapping[str, object],
-    game_id: str,
-) -> ResolvedGameMapBook | None:
-    value = request.get("map_book")
-    if value is None:
-        return None
-    ref = _binding_ref(value, label="game map book")
-    map_book_document = _preflight_current_document(
-        root,
-        ref,
-        label="game map book",
-        code="invalid_game_map_book",
-        schema_version=GAME_MAP_BOOK_SCHEMA_VERSION,
-        kind=f"game-map-book-v{GAME_MAP_BOOK_SCHEMA_VERSION}",
-    )
-    try:
-        current_map_book = GameMapBook.model_validate(map_book_document)
-    except ValueError as error:
-        raise GamePackageValidationError(
-            "invalid_game_map_book", f"game map book is invalid: {error}"
-        ) from error
-    for map_reference in current_map_book.maps:
-        map_ref = f"library/games/{current_map_book.game_id}/maps/{map_reference.map_id}.toml"
-        _preflight_current_document(
-            root,
-            map_ref,
-            label=f"game map {map_reference.map_id}",
-            code="invalid_game_map_book",
-            schema_version=GAME_MAP_SCHEMA_VERSION,
-            kind=f"game-map-v{GAME_MAP_SCHEMA_VERSION}",
-        )
-    try:
-        resolved = resolve_game_map_book_binding(value, game_library_root=root)
-    except ValueError as error:
-        raise GamePackageValidationError(
-            "invalid_game_map_book", f"game map book is invalid: {error}"
-        ) from error
-    expected_ref = f"library/games/{game_id}/maps/index.toml"
-    if resolved.binding.ref != expected_ref or resolved.book.game_id != game_id:
-        raise GamePackageValidationError(
-            "game_id_mismatch",
-            "selector game_id must match the bound map book and library directory",
-        )
-    if resolved.book.schema_version != GAME_MAP_BOOK_SCHEMA_VERSION:
-        raise GamePackageValidationError(
-            "unsupported_schema_version",
-            "game map book schema_version must equal current version "
-            f"{GAME_MAP_BOOK_SCHEMA_VERSION}",
-        )
-    if resolved.document.schema_version != GAME_MAP_SCHEMA_VERSION:
-        raise GamePackageValidationError(
-            "unsupported_schema_version",
-            f"every game map schema_version must equal current version {GAME_MAP_SCHEMA_VERSION}",
-        )
-    return resolved
-
-
-def _binding_ref(value: object, *, label: str) -> str:
-    if not isinstance(value, Mapping) or not isinstance(value.get("ref"), str):
-        raise GamePackageValidationError(
-            f"invalid_{label.replace(' ', '_')}", f"{label} binding must contain a ref"
-        )
-    return cast(str, value["ref"])
-
-
-def _preflight_current_document(
-    root: Path,
-    ref: str,
-    *,
-    label: str,
+def _load_locked[ContractT](
+    data: bytes,
+    loader: Callable[[bytes], ContractT],
     code: str,
-    schema_version: int,
-    kind: str,
-) -> dict[str, object]:
-    _, document = _read_toml(root, ref, label=label, code=code)
-    actual_version = document.get("schema_version")
-    actual_kind = document.get("kind")
-    if type(actual_version) is not int or actual_version != schema_version or actual_kind != kind:
-        raise GamePackageValidationError(
-            "unsupported_schema_version",
-            f"{label} must use exact current identity schema_version={schema_version}, "
-            f"kind={kind!r}",
-        )
-    return document
+) -> ContractT:
+    try:
+        return loader(data)
+    except (AuthoredContractLoadError, ValueError) as error:
+        raise GamePackageValidationError(code, str(error)) from error
 
 
-def _validate_cross_contract_closure(
-    game: ResolvedGameContract,
-    soundtrack: ResolvedGameSoundtrack | None,
-    map_book: ResolvedGameMapBook | None,
+def _validate_cross_contracts(
+    *,
+    game: PreparedGameContract,
+    gameplay: GameplayContract,
+    soundtrack: GameSoundtrack,
+    maps: tuple[PreparedGameMap, ...],
+    player: PlayerContentCatalog,
+    mobs: MobContentCatalog,
+    npcs: NpcContentCatalog,
+    props: PropContentCatalog,
+    items: ItemContentCatalog,
+    sequence_catalog: GameSequenceCatalog,
+    sequences: tuple[GameSequence, ...],
 ) -> None:
-    population = game.contract.gameplay.mob_population if game.contract.gameplay else None
-    if map_book is None:
-        if population is not None:
-            raise GamePackageValidationError(
-                "incomplete_game_closure",
-                "gameplay.mob_population requires a map_book in the selected request",
-            )
-        return
-    if soundtrack is None:
+    owned = [
+        gameplay.game_id,
+        soundtrack.game_id,
+        *(entry.game_id for entry in maps),
+        player.game_id,
+        mobs.game_id,
+        npcs.game_id,
+        props.game_id,
+        items.game_id,
+        sequence_catalog.game_id,
+        *(entry.game_id for entry in sequences),
+    ]
+    if any(game_id != game.game_id for game_id in owned):
         raise GamePackageValidationError(
-            "incomplete_game_closure",
-            "map_book requires a soundtrack in the selected request",
+            "cross_game_identity", "every package contract must share game.toml game_id"
         )
 
-    known_track_ids = set(soundtrack.soundtrack.track_ids)
-    unknown_track_ids = sorted(map_book.document.referenced_track_ids - known_track_ids)
-    if unknown_track_ids:
+    map_ids = {entry.map_id for entry in maps}
+    if [entry.map_id for entry in maps] != [entry.map_id for entry in game.maps]:
         raise GamePackageValidationError(
-            "unknown_soundtrack_track",
-            "game maps reference track IDs absent from the game soundtrack: "
-            + ", ".join(unknown_track_ids),
+            "map_identity_mismatch", "resolved map order and IDs must match game.toml"
         )
-
-    continuous_population_maps = {
-        resolved.game_map.map_id
-        for resolved in map_book.maps
-        if resolved.game_map.level_profile is not None
-        and resolved.game_map.level_profile.mechanisms.encounter_model == "continuous_population"
+    if {entry.map_id for entry in gameplay.map_uses} != map_ids:
+        raise GamePackageValidationError(
+            "gameplay_map_mismatch", "gameplay map_uses must cover every package map exactly"
+        )
+    gameplay_map_refs = {
+        gameplay.entry_map_id,
+        *(entry.map_id for entry in gameplay.spawns),
+        *(entry.from_map_id for entry in gameplay.transitions),
+        *(entry.to_map_id for entry in gameplay.transitions),
+        *(entry.map_id for entry in gameplay.mob_population.maps),
+        *(entry.map_id for entry in gameplay.boss_encounters),
+        *(entry.map_id for entry in gameplay.npc_placements),
+        *(entry.map_id for entry in gameplay.prop_placements),
+        *(entry.map_id for entry in gameplay.interactions),
     }
-    population_maps = (
-        {population_map.map_id for population_map in population.maps}
-        if population is not None
-        else set()
-    )
-    if population_maps != continuous_population_maps:
+    _assert_subset(gameplay_map_refs, map_ids, "gameplay map_id")
+    hostile_map_ids = {
+        entry.map_id for entry in gameplay.map_uses if entry.hostile_population_enabled
+    }
+    population_map_ids = {entry.map_id for entry in gameplay.mob_population.maps}
+    if hostile_map_ids != population_map_ids:
         raise GamePackageValidationError(
             "population_map_mismatch",
-            "gameplay.mob_population map IDs must exactly equal maps whose level profile "
-            "declares continuous_population",
+            "hostile map uses and mob-population maps must match exactly",
         )
-
-
-def _expected_game_sources(
-    game: ResolvedGameContract,
-    soundtrack: ResolvedGameSoundtrack | None,
-    map_book: ResolvedGameMapBook | None,
-) -> set[str]:
-    expected = {game.binding.ref}
-    if soundtrack is not None:
-        expected.add(soundtrack.binding.ref)
-    if map_book is not None:
-        expected.add(map_book.binding.ref)
-        expected.update(resolved.source_ref for resolved in map_book.maps)
-    return expected
-
-
-def _list_game_toml_sources(root: Path, game_id: str) -> set[str]:
-    base_parts = ("library", "games", game_id)
-    sources: set[str] = set()
-    try:
-        with open_absolute_directory(
-            root.joinpath(*base_parts), label="selected game directory"
-        ) as game_fd:
-            _walk_toml_sources(game_fd, base_parts, sources)
-    except (OSError, SecurePathError) as error:
+    reachable_maps = {gameplay.entry_map_id}
+    changed = True
+    while changed:
+        changed = False
+        for transition in gameplay.transitions:
+            if (
+                transition.from_map_id in reachable_maps
+                and transition.to_map_id not in reachable_maps
+            ):
+                reachable_maps.add(transition.to_map_id)
+                changed = True
+    if reachable_maps != map_ids:
         raise GamePackageValidationError(
-            "invalid_game_directory", f"selected game directory is invalid: {error}"
-        ) from error
-    return sources
-
-
-def _walk_toml_sources(
-    directory_fd: int,
-    prefix: tuple[str, ...],
-    sources: set[str],
-) -> None:
-    for name in sorted(os.listdir(directory_fd)):
-        mode = os.stat(name, dir_fd=directory_fd, follow_symlinks=False).st_mode
-        ref_parts = (*prefix, name)
-        ref = PurePosixPath(*ref_parts).as_posix()
-        if stat.S_ISLNK(mode):
-            raise SecurePathError(f"selected game directory must not contain symlink: {ref}")
-        if stat.S_ISDIR(mode):
-            child_fd = os.open(
-                name,
-                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_DIRECTORY,
-                dir_fd=directory_fd,
-            )
-            try:
-                _walk_toml_sources(child_fd, ref_parts, sources)
-            finally:
-                os.close(child_fd)
-        elif stat.S_ISREG(mode) and name.endswith(".toml"):
-            sources.add(ref)
-
-
-def _closure_entries(
-    *,
-    selector_ref: str,
-    selector_bytes: bytes,
-    request_ref: str,
-    request_bytes: bytes,
-    game: ResolvedGameContract,
-    soundtrack: ResolvedGameSoundtrack | None,
-    map_book: ResolvedGameMapBook | None,
-) -> list[dict[str, object]]:
-    entries: list[dict[str, object]] = [
-        _source_entry("selector", selector_ref, selector_bytes),
-        _source_entry("request", request_ref, request_bytes),
-        _source_entry(
-            "game",
-            game.binding.ref,
-            game.source_bytes,
-            canonical_sha256=game.canonical_sha256,
-        ),
-    ]
-    if soundtrack is not None:
-        entries.append(
-            _source_entry(
-                "soundtrack",
-                soundtrack.binding.ref,
-                soundtrack.source_bytes,
-                canonical_sha256=soundtrack.canonical_sha256,
-            )
+            "unreachable_gameplay_map",
+            "every package map must be reachable from entry_map_id through transitions",
         )
-    if map_book is not None:
-        entries.append(
-            _source_entry(
-                "map_book",
-                map_book.binding.ref,
-                map_book.source_bytes,
-                canonical_sha256=map_book.canonical_sha256,
-            )
+
+    player_ids = {entry.player_id for entry in player.players}
+    mob_ids = {entry.mob_id for entry in mobs.mobs}
+    npc_ids = {entry.npc_id for entry in npcs.npcs}
+    prop_ids = {entry.prop_id for entry in props.props}
+    item_ids = {entry.item_id for entry in items.items}
+    track_ids = set(soundtrack.track_ids)
+    sequence_ids = {entry.sequence_id for entry in sequences}
+
+    if player_ids != {game.cast.player_id} or gameplay.player.player_id != game.cast.player_id:
+        raise GamePackageValidationError(
+            "player_identity_mismatch", "game, gameplay, and player content must name one player"
         )
-        entries.extend(
-            _source_entry(
-                "map",
-                resolved.source_ref,
-                resolved.source_bytes,
-                canonical_sha256=resolved.canonical_sha256,
-                source_id=resolved.game_map.map_id,
-            )
-            for resolved in map_book.maps
+    if mob_ids != set(game.cast.mob_ids):
+        raise GamePackageValidationError(
+            "mob_identity_mismatch", "game cast mob_ids must equal the mob catalog"
         )
-    return entries
+    if npc_ids != set(game.cast.npc_ids):
+        raise GamePackageValidationError(
+            "npc_identity_mismatch", "game cast npc_ids must equal the NPC catalog"
+        )
+    if sequence_ids != {entry.sequence_id for entry in sequence_catalog.sequences}:
+        raise GamePackageValidationError(
+            "sequence_identity_mismatch", "sequence catalog and resolved sequences disagree"
+        )
+    for source, sequence in zip(sequence_catalog.sequences, sequences, strict=True):
+        if source.sequence_id != sequence.sequence_id:
+            raise GamePackageValidationError(
+                "sequence_identity_mismatch", "sequence source ID does not match its contract"
+            )
+
+    required_player_states = {"idle", "walk"}
+    movement_states = {"jump": "jump", "climb": "climb"}
+    for movement, state in movement_states.items():
+        if movement in gameplay.navigation.allowed_movements:
+            required_player_states.add(state)
+    if gameplay.combat.enabled:
+        required_player_states.update(
+            {
+                gameplay.combat.basic_action,
+                gameplay.combat.secondary_action,
+                "hurt",
+                "death",
+            }
+        )
+    _assert_subset(
+        required_player_states,
+        set(player.players[0].motion_states),
+        "required player motion state",
+    )
+    required_mob_states = {"idle", "move", "attack", "hurt", "death"}
+    for mob in mobs.mobs:
+        _assert_subset(
+            required_mob_states,
+            set(mob.motion_states),
+            f"required motion state for mob {mob.mob_id}",
+        )
+
+    _assert_subset(gameplay.player.starting_item_ids, item_ids, "starting item_id")
+    _assert_subset({gameplay.inventory.currency_item_id}, item_ids, "currency item_id")
+    _assert_subset(
+        {
+            entry.mob_id
+            for map_entry in gameplay.mob_population.maps
+            for zone in map_entry.zones
+            for entry in zone.spawn_table
+        },
+        mob_ids,
+        "population mob_id",
+    )
+    _assert_subset({entry.mob_id for entry in gameplay.boss_encounters}, mob_ids, "boss mob_id")
+    _assert_subset(
+        {entry.track_id for entry in gameplay.boss_encounters}, track_ids, "boss track_id"
+    )
+    _assert_subset(
+        {track_id for entry in gameplay.map_uses for track_id in entry.track_ids},
+        track_ids,
+        "map-use track_id",
+    )
+    _assert_subset({entry.mob_id for entry in gameplay.loot_rules}, mob_ids, "loot mob_id")
+    _assert_subset({entry.item_id for entry in gameplay.loot_rules}, item_ids, "loot item_id")
+    _assert_subset({entry.npc_id for entry in gameplay.npc_placements}, npc_ids, "placed npc_id")
+    _assert_subset(
+        {entry.prop_id for entry in gameplay.prop_placements}, prop_ids, "placed prop_id"
+    )
+    _assert_subset(
+        {entry.actor_id for entry in gameplay.interactions}, npc_ids, "interaction actor_id"
+    )
+    _assert_subset(
+        {entry.sequence_id for entry in gameplay.interactions},
+        sequence_ids,
+        "interaction sequence_id",
+    )
+    _assert_subset(
+        {entry.completion_item_id for entry in gameplay.quests}, item_ids, "quest item_id"
+    )
+
+    quest_ids = {entry.quest_id for entry in gameplay.quests}
+    effect_ids = {entry.effect_id for entry in gameplay.effects}
+    for effect in gameplay.effects:
+        if isinstance(effect, SetQuestStateEffect):
+            _assert_subset({effect.quest_id}, quest_ids, "effect quest_id")
+        elif isinstance(effect, GrantItemEffect):
+            _assert_subset({effect.item_id}, item_ids, "effect item_id")
+
+    npc_by_id = {entry.npc_id: entry for entry in npcs.npcs}
+    player_entry = player.players[0]
+    actor_ids = player_ids | npc_ids
+    for sequence in sequences:
+        _assert_subset({sequence.presentation.map_id}, map_ids, "sequence map_id")
+        for node in sequence.nodes:
+            if isinstance(node, DialogueNode):
+                _assert_subset(
+                    {
+                        node.speaker_id,
+                        node.listener_id,
+                        node.focus_subject_id,
+                        *node.visible_subject_ids,
+                    },
+                    actor_ids,
+                    "sequence actor_id",
+                )
+                if node.speaker_id == player_entry.player_id:
+                    expressions = set(player_entry.dialogue_art.expressions)
+                else:
+                    expressions = set(npc_by_id[node.speaker_id].dialogue_expressions)
+                _assert_subset({node.expression}, expressions, "sequence expression")
+            elif isinstance(node, OutcomeNode):
+                _assert_subset(node.effect_ids, effect_ids, "sequence effect_id")
 
 
-def _source_entry(
-    role: str,
-    ref: str,
-    data: bytes,
-    *,
-    canonical_sha256: str | None = None,
-    source_id: str | None = None,
-) -> dict[str, object]:
-    entry: dict[str, object] = {
-        "role": role,
-        "ref": ref,
-        "source_sha256": hashlib.sha256(data).hexdigest(),
-        "bytes": len(data),
-    }
-    if source_id is not None:
-        entry["source_id"] = source_id
-    if canonical_sha256 is not None:
-        entry["canonical_sha256"] = canonical_sha256
-    return entry
+def _assert_subset(values: Iterable[str], allowed: set[str], label: str) -> None:
+    unknown = sorted(set(values) - allowed)
+    if unknown:
+        raise GamePackageValidationError(
+            "unresolved_cross_reference", f"{label} values do not resolve: {', '.join(unknown)}"
+        )
 
 
-def _repository_tracking(
-    root: Path,
-    closure: list[dict[str, object]],
-) -> tuple[RepositoryStatus, tuple[str, ...], tuple[str, ...]]:
-    refs = tuple(cast(str, entry["ref"]) for entry in closure)
+def _required_file(files: dict[str, bytes], path: str) -> bytes:
     try:
-        probe = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        )
-        if probe.returncode != 0 or probe.stdout.strip() != b"true":
-            return "not_git_checkout", (), ()
-        top_level = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        )
-        if Path(os.fsdecode(top_level.stdout.strip())).resolve() != root.resolve():
-            return "not_git_checkout", (), ()
-        listed = subprocess.run(
-            ["git", "-C", str(root), "ls-files", "-z", "--", *refs],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        )
-        cached = subprocess.run(
-            ["git", "-C", str(root), "diff", "--cached", "--name-only", "-z", "--", *refs],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return "not_git_checkout", (), ()
-    tracked = {value.decode("utf-8") for value in listed.stdout.split(b"\0") if value}
-    untracked = tuple(ref for ref in refs if ref not in tracked)
-    if untracked:
-        return "untracked", untracked, ()
+        return files[path]
+    except KeyError as error:
+        raise GamePackageValidationError(
+            "missing_package_file", f"prepared package is missing {path}"
+        ) from error
 
-    modified = {value.decode("utf-8") for value in cached.stdout.split(b"\0") if value}
-    for entry in closure:
-        ref = cast(str, entry["ref"])
-        source_sha256 = cast(str, entry["source_sha256"])
-        try:
-            committed = subprocess.run(
-                ["git", "-C", str(root), "show", f"HEAD:{ref}"],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+
+def _validate_file_size(path: str, size: int) -> None:
+    if size > _MAX_PACKAGE_FILE_BYTES:
+        raise GamePackageValidationError(
+            "package_too_large", f"prepared package file exceeds the size limit: {path}"
+        )
+
+
+def _validate_image(data: bytes, path: str) -> None:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            image.verify()
+    except (OSError, UnidentifiedImageError) as error:
+        raise GamePackageValidationError(
+            "invalid_reference_image", f"prepared reference image cannot be decoded: {path}"
+        ) from error
+
+
+def _validate_utf8_text(data: bytes, label: str) -> None:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise GamePackageValidationError("invalid_text_source", f"{label} is not UTF-8") from error
+    if not text.strip():
+        raise GamePackageValidationError("invalid_text_source", f"{label} must not be empty")
+
+
+def _validate_json_object(data: bytes, label: str) -> None:
+    try:
+        value = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise GamePackageValidationError(
+            "invalid_evidence", f"{label} is not valid JSON"
+        ) from error
+    if not isinstance(value, dict):
+        raise GamePackageValidationError("invalid_evidence", f"{label} must be a JSON object")
+
+
+def _read_workspace_file(root: Path, relative: str, *, label: str) -> bytes:
+    try:
+        with open_absolute_directory(root, label="workspace root") as root_fd:
+            return read_relative_regular_file(
+                root_fd,
+                tuple(PurePosixPath(relative).parts),
+                label=label,
             )
-        except (OSError, subprocess.CalledProcessError):
-            modified.add(ref)
+    except SecurePathError as error:
+        raise GamePackageValidationError("invalid_selector", str(error)) from error
+
+
+def _repository_report(
+    root: Path,
+    refs: list[str],
+    *,
+    require_tracked: bool,
+    require_committed: bool,
+) -> dict[str, object]:
+    probe = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if probe.returncode != 0:
+        if require_tracked or require_committed:
+            raise GamePackageValidationError(
+                "not_git_checkout", "repository verification requires a Git checkout"
+            )
+        return {"status": "not_git_checkout", "untracked_refs": [], "modified_refs": []}
+
+    untracked: list[str] = []
+    modified: list[str] = []
+    for ref in refs:
+        tracked = (
+            subprocess.run(
+                ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", ref],
+                check=False,
+                capture_output=True,
+            ).returncode
+            == 0
+        )
+        if not tracked:
+            untracked.append(ref)
             continue
-        if hashlib.sha256(committed.stdout).hexdigest() != source_sha256:
-            modified.add(ref)
-    if modified:
-        return "modified", (), tuple(ref for ref in refs if ref in modified)
-    return "committed", (), ()
-
-
-def _canonical_json_sha256(value: object) -> str:
-    data = json.dumps(
-        value,
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(data).hexdigest()
+        if require_committed:
+            head = subprocess.run(
+                ["git", "-C", str(root), "show", f"HEAD:{ref}"],
+                check=False,
+                capture_output=True,
+            )
+            if head.returncode != 0 or head.stdout != _read_workspace_file(
+                root, ref, label=f"repository source {ref}"
+            ):
+                modified.append(ref)
+    if require_tracked and untracked:
+        raise GamePackageValidationError(
+            "untracked_game_package", "package closure contains untracked files"
+        )
+    if require_committed and modified:
+        raise GamePackageValidationError(
+            "uncommitted_game_package", "package closure differs from Git HEAD"
+        )
+    return {
+        "status": (
+            "committed"
+            if require_committed and not modified
+            else "tracked"
+            if not untracked
+            else "mixed"
+        ),
+        "untracked_refs": untracked,
+        "modified_refs": modified,
+    }
 
 
 __all__ = [
-    "GAME_PACKAGE_SELECTOR_SCHEMA_VERSION",
     "GAME_PACKAGE_VALIDATION_SCHEMA_VERSION",
+    "GAME_PACKAGE_SELECTOR_SCHEMA_VERSION",
     "MAIN_GAME_SELECTOR_REF",
     "GamePackageSelector",
     "GamePackageValidationError",
+    "ResolvedGamePackage",
+    "ResolvedPackageFile",
     "invalid_game_package_report",
+    "resolve_game_package",
     "validate_game_package",
 ]

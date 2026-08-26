@@ -1,5 +1,12 @@
 # Browser scene-layer contract
 
+> **CURRENT consumer contract.** The inference rules below remain executable
+> for manifest V7. The ratified
+> [Authored map-generation contract](spec/game/map-generation-contract.md)
+> makes layer plane and order explicit per map; the implementation cutover will
+> remove browser inference from opaque/parallax thresholds and select each
+> map's own generated layer bundle.
+
 The optional Phaser preview composes generated art through a typed semantic
 layer contract in `web/lib/runtime/layers.ts`. Generation still publishes the
 portable `id`, `z_index`, `parallax`, and `opaque` fields; the browser adapter

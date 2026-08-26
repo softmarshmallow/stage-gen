@@ -48,3 +48,22 @@ def test_components_do_not_import_application_or_provider_layers() -> None:
                     relative = path.relative_to(SOURCE_ROOT.parent)
                     violations.append(f"{relative}:{node.lineno} imports {imported}")
     assert not violations, "component import boundary violations:\n" + "\n".join(violations)
+
+
+def test_prepared_package_resolution_has_no_provider_or_recipe_dependency() -> None:
+    path = SOURCE_ROOT / "stage_gen" / "orchestration" / "game_package.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    forbidden = (
+        "stage_gen.capabilities",
+        "stage_gen.providers",
+        "stage_gen.recipes",
+        "stage_gen.orchestration.runtime",
+    )
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        for imported in _imported_modules(node, "stage_gen.orchestration"):
+            if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden):
+                violations.append(f"{path.name}:{node.lineno} imports {imported}")
+    assert not violations, "package resolution must remain provider-free:\n" + "\n".join(violations)

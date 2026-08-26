@@ -1,5 +1,40 @@
 # Authored game maps
 
+> **Contract maturity: CURRENT executable behavior plus ratified replacement.**
+>
+> This document remains authoritative for the implemented `game-map-v2`, map
+> book, manifest V7 projection, and optional browser adapter. The ratified
+> replacement is the
+> [Authored map-generation contract](spec/game/map-generation-contract.md).
+> Until that implementation lands, TARGET statements do not change accepted
+> inputs or runtime behavior.
+
+## Ratified target boundary
+
+`game-map-v3` replaces the semantic-profile map with one compound visual asset
+generation source. Each `maps/<map_id>.toml` owns an explicit image-reference
+catalog, side-view generation envelope, seamless axis, ordered layer prompts,
+the current stable ground-generation mode, and whole-map composite review.
+
+The target has no `maps/index.toml`. `game.toml` catalogs and digest-locks map
+sources; the separate root `gameplay.toml` owns entry-map selection, stage flow,
+transitions, spawning, encounters, NPC and item use, and map-specific soundtrack
+usage. Reference filenames are arbitrary, references may be shared or
+layer-specific, and every layer and ground operation must explicitly bind one
+or more existing digest-locked images.
+
+The target does not reinterpret the current `level-profile-v1`. It removes
+gameplay mechanisms and consumer geometry from the map-generation contract.
+The optional prompt-only demo may synthesize a prepared package first, but
+standard package ingest requires the complete map reference closure before any
+provider call.
+
+The target fields, validation, ground mode, review unit, cache granularity, and
+cutover policy are defined only in the canonical target contract linked above;
+they are not duplicated here.
+
+## Current executable contract
+
 Authored game maps give a game a durable, ordered set of map identities and, in
 `game-map-v2`, one complete engine-neutral **Level Profile** per map. A profile classifies the
 view, camera behavior, traversal model, and gameplay mechanisms a level requires. It does not

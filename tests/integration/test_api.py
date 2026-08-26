@@ -36,6 +36,7 @@ class ApiRuntime:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="legacy JSON scrolling runs were removed by the prepared-package cutover")
 async def test_api_health_run_status_sse_and_path_limits(tmp_path: Path) -> None:
     config = StageGenConfig(
         out_dir=str(tmp_path), open_router_api_key="offline", transparency_mode="chroma"
@@ -99,6 +100,7 @@ def test_public_binding_requires_explicit_opt_in() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="legacy JSON scrolling runs were removed by the prepared-package cutover")
 async def test_api_round_trips_chroma_and_conditionally_requires_fal(tmp_path: Path) -> None:
     app = create_app(
         StageGenConfig(
@@ -148,7 +150,12 @@ async def test_api_rejects_invalid_mode_before_capability_checks(tmp_path: Path)
             json={"input": {"prompt": "neutral asset"}, "transparency_mode": "none"},
         )
     assert response.status_code == 400
-    assert response.json() == {"error": "transparency_mode must be native, ai, or chroma"}
+    assert response.json() == {
+        "error": (
+            "scrolling-preview runs require a prepared directory or ZIP; "
+            "the legacy JSON request surface is removed"
+        )
+    }
 
 
 @pytest.mark.asyncio

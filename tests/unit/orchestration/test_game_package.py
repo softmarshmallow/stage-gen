@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import shutil
-import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -11,504 +11,180 @@ import pytest
 from stage_gen.orchestration.game_package import (
     GamePackageValidationError,
     invalid_game_package_report,
+    resolve_game_package,
     validate_game_package,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-GAME_ID = "whimsical-storybook-fantasy"
+SOURCE_PACKAGE = REPOSITORY_ROOT / "library" / "games" / "bellweather"
 
 
-def _copy_game_package(tmp_path: Path) -> Path:
-    root = tmp_path / "workspace"
-    game_parent = root / "library" / "games"
-    request_parent = root / "examples" / "scrolling-preview"
-    game_parent.mkdir(parents=True)
-    request_parent.mkdir(parents=True)
-    shutil.copytree(
-        REPOSITORY_ROOT / "library" / "games" / GAME_ID,
-        game_parent / GAME_ID,
-    )
-    shutil.copy2(REPOSITORY_ROOT / "library" / "games" / "main.toml", game_parent)
-    shutil.copy2(
-        REPOSITORY_ROOT / "examples" / "scrolling-preview" / "game-directed-village.toml",
-        request_parent,
-    )
-    return root
+def _copy_package(tmp_path: Path) -> Path:
+    target = tmp_path / "bellweather"
+    shutil.copytree(SOURCE_PACKAGE, target)
+    return target
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _replace_binding_digest(root: Path, section: str, digest: str) -> None:
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    source = request_path.read_text(encoding="utf-8")
-    pattern = rf'(\[{re.escape(section)}\][\s\S]*?source_sha256 = ")[a-f0-9]{{64}}(")'
-    updated, replacements = re.subn(pattern, rf"\g<1>{digest}\g<2>", source, count=1)
-    assert replacements == 1
-    request_path.write_text(updated, encoding="utf-8")
-    _relock_request(root)
-
-
-def _relock_request(root: Path) -> None:
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    selector_path = root / "library" / "games" / "main.toml"
-    source = selector_path.read_text(encoding="utf-8")
-    pattern = r'(request_sha256 = ")[a-f0-9]{64}(")'
-    updated, replacements = re.subn(
-        pattern,
-        rf"\g<1>{_sha256(request_path)}\g<2>",
-        source,
-        count=1,
-    )
-    assert replacements == 1
-    selector_path.write_text(updated, encoding="utf-8")
-
-
-def _relock_game(root: Path) -> None:
-    _replace_binding_digest(
-        root,
-        "game",
-        _sha256(root / "library" / "games" / GAME_ID / "game.toml"),
-    )
-
-
-def _relock_soundtrack(root: Path) -> None:
-    _replace_binding_digest(
-        root,
-        "soundtrack",
-        _sha256(root / "library" / "games" / GAME_ID / "soundtrack.toml"),
-    )
-
-
-def _relock_map(root: Path, map_id: str) -> None:
-    map_path = root / "library" / "games" / GAME_ID / "maps" / f"{map_id}.toml"
-    index_path = root / "library" / "games" / GAME_ID / "maps" / "index.toml"
-    source = index_path.read_text(encoding="utf-8")
+def _replace_root_digest(package: Path, source: str, digest: str) -> None:
+    root = package / "game.toml"
+    text = root.read_text(encoding="utf-8")
     pattern = (
-        rf'(\[\[maps\]\]\nmap_id = "{re.escape(map_id)}"\n'
-        rf'source_sha256 = ")[a-f0-9]{{64}}(")'
+        rf'(source = "{re.escape(source)}"\nsource_sha256 = ")'
+        r"[a-f0-9]{64}(\")"
     )
-    updated, replacements = re.subn(pattern, rf"\g<1>{_sha256(map_path)}\g<2>", source)
+    updated, replacements = re.subn(pattern, rf"\g<1>{digest}\g<2>", text, count=1)
     assert replacements == 1
-    index_path.write_text(updated, encoding="utf-8")
+    root.write_text(updated, encoding="utf-8")
 
 
-def _relock_map_book(root: Path) -> None:
-    _replace_binding_digest(
-        root,
-        "map_book",
-        _sha256(root / "library" / "games" / GAME_ID / "maps" / "index.toml"),
-    )
+def _write_zip(package: Path, output: Path, *, wrapped: bool = True) -> None:
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for source in sorted(package.rglob("*")):
+            if not source.is_file():
+                continue
+            relative = source.relative_to(package)
+            archive_name = Path(package.name, relative) if wrapped else relative
+            archive.write(source, archive_name.as_posix())
 
 
-def test_validate_game_package_accepts_the_current_complete_closure(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
+def test_resolve_bellweather_directory_captures_complete_exact_current_package() -> None:
+    package = resolve_game_package(SOURCE_PACKAGE)
 
-    report = validate_game_package(root)
+    assert package.game.game_id == "bellweather"
+    assert package.package_sha256 == _sha256(SOURCE_PACKAGE / "game.toml")
+    assert len(package.files) == 22
+    assert [entry.map_id for entry in package.maps] == [
+        "sunpetal-crossing",
+        "crowncrag-road",
+    ]
+    assert [entry.mob_id for entry in package.mobs.mobs] == package.game.cast.mob_ids
+    assert [entry.npc_id for entry in package.npcs.npcs] == package.game.cast.npc_ids
+    assert package.sequence_catalog.sequences[0].sequence_id == "sunpetal-welcome"
+
+
+@pytest.mark.parametrize("wrapped", [True, False])
+def test_directory_and_zip_resolve_to_the_same_canonical_identity(
+    tmp_path: Path, wrapped: bool
+) -> None:
+    package = _copy_package(tmp_path)
+    archive = tmp_path / "bellweather.zip"
+    _write_zip(package, archive, wrapped=wrapped)
+
+    directory = resolve_game_package(package)
+    zipped = resolve_game_package(archive)
+
+    assert zipped.source_kind == "zip"
+    assert zipped.package_sha256 == directory.package_sha256
+    assert zipped.canonical_game_sha256 == directory.canonical_game_sha256
+    assert [entry.identity() for entry in zipped.files] == [
+        entry.identity() for entry in directory.files
+    ]
+
+
+def test_validate_repository_selector_resolves_bellweather() -> None:
+    report = validate_game_package(REPOSITORY_ROOT)
 
     assert report["valid"] is True
-    assert report["source_status"] == "current"
+    assert report["kind"] == "game-package-validation-v2"
+    assert report["game_id"] == "bellweather"
     assert report["generated_status"] == "not_checked"
-    assert report["game_id"] == GAME_ID
-    assert report["applied_defaults"] == []
-    assert report["features"] == ["game", "soundtrack", "map_book", "village"]
-    assert report["schema_versions"] == {
-        "game_contract": 3,
-        "game_soundtrack": 1,
-        "game_map_book": 1,
-        "game_map": 2,
-    }
-    assert report["repository"] == {
-        "status": "not_git_checkout",
-        "untracked_refs": [],
-        "modified_refs": [],
-    }
+    assert report["file_count"] == 22
 
 
-def test_validate_game_package_accepts_native_transparency_selection(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    selector_path = root / "library" / "games" / "main.toml"
-    selector_path.write_text(
-        selector_path.read_text(encoding="utf-8").replace(
-            'transparency_mode = "ai"',
-            'transparency_mode = "native"',
-        ),
-        encoding="utf-8",
-    )
-
-    report = validate_game_package(root)
-
-    assert report["valid"] is True
-    assert report["transparency_mode"] == "native"
-
-
-def test_validate_game_package_rejects_a_previous_selector_schema(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    selector_path = root / "library" / "games" / "main.toml"
-    selector_path.write_text(
-        selector_path.read_text(encoding="utf-8").replace(
-            "schema_version = 1",
-            "schema_version = 0",
-            1,
+def test_rejects_stale_member_digest_before_returning_a_package(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    gameplay = package / "gameplay.toml"
+    gameplay.write_text(
+        gameplay.read_text(encoding="utf-8").replace(
+            "starting_health = 10", "starting_health = 11"
         ),
         encoding="utf-8",
     )
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(package)
 
-    assert caught.value.code == "invalid_selector"
-
-
-def test_validate_game_package_rejects_a_previous_game_schema(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    game_path = root / "library" / "games" / GAME_ID / "game.toml"
-    source = game_path.read_text(encoding="utf-8")
-    source = source.replace("schema_version = 3", "schema_version = 2", 1)
-    source = source.replace('kind = "game-contract-v3"', 'kind = "game-contract-v2"', 1)
-    combat_start = source.index("[gameplay.combat_text]")
-    population_start = source.index("[gameplay.mob_population]")
-    game_path.write_text(source[:combat_start] + source[population_start:], encoding="utf-8")
-    _relock_game(root)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "unsupported_schema_version"
-    assert "schema_version=3" in str(caught.value)
+    assert caught.value.code == "stale_source_digest"
+    assert "gameplay.toml" in str(caught.value)
 
 
-def test_validate_game_package_rejects_previous_map_sources(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    maps_dir = root / "library" / "games" / GAME_ID / "maps"
-    for map_path in sorted(maps_dir.glob("*.toml")):
-        if map_path.name == "index.toml":
-            continue
-        source = map_path.read_text(encoding="utf-8")
-        source = source.replace("schema_version = 2", "schema_version = 1", 1)
-        source = source.replace('kind = "game-map-v2"', 'kind = "game-map-v1"', 1)
-        map_path.write_text(source[: source.index("[level_profile]")], encoding="utf-8")
-        _relock_map(root, map_path.stem)
-    _relock_map_book(root)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "unsupported_schema_version"
-    assert "schema_version=2" in str(caught.value)
-
-
-def test_validate_game_package_rejects_a_previous_soundtrack_schema(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    soundtrack_path = root / "library" / "games" / GAME_ID / "soundtrack.toml"
-    source = soundtrack_path.read_text(encoding="utf-8")
-    source = source.replace("schema_version = 1", "schema_version = 0", 1)
-    source = source.replace('kind = "game-soundtrack-v1"', 'kind = "game-soundtrack-v0"', 1)
-    soundtrack_path.write_text(source, encoding="utf-8")
-    _relock_soundtrack(root)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "unsupported_schema_version"
-    assert "schema_version=1" in str(caught.value)
-
-
-def test_validate_game_package_rejects_a_previous_map_book_schema(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    index_path = root / "library" / "games" / GAME_ID / "maps" / "index.toml"
-    source = index_path.read_text(encoding="utf-8")
-    source = source.replace("schema_version = 1", "schema_version = 0", 1)
-    source = source.replace('kind = "game-map-book-v1"', 'kind = "game-map-book-v0"', 1)
-    index_path.write_text(source, encoding="utf-8")
-    _relock_map_book(root)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "unsupported_schema_version"
-    assert "schema_version=1" in str(caught.value)
-
-
-def test_validate_game_package_rejects_a_stale_digest(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    game_path = root / "library" / "games" / GAME_ID / "game.toml"
-    game_path.write_text(
-        game_path.read_text(encoding="utf-8").replace(
-            'display_name = "Whimsical Storybook Fantasy"',
-            'display_name = "Changed Without Relocking"',
+def test_rejects_unresolved_cross_contract_id_after_relocking(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    gameplay = package / "gameplay.toml"
+    gameplay.write_text(
+        gameplay.read_text(encoding="utf-8").replace(
+            'mob_id = "petal_puff"', 'mob_id = "missing_mob"', 1
         ),
         encoding="utf-8",
     )
+    _replace_root_digest(package, "gameplay.toml", _sha256(gameplay))
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(package)
 
-    assert caught.value.code == "invalid_game_contract"
-    assert "source_sha256 mismatch" in str(caught.value)
+    assert caught.value.code == "unresolved_cross_reference"
+    assert "missing_mob" in str(caught.value)
 
 
-def test_validate_game_package_rejects_unknown_request_fields(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    source = request_path.read_text(encoding="utf-8")
-    request_path.write_text(
-        source.replace(
-            'prompt = "whimsical storybook fantasy"',
-            'prompt = "whimsical storybook fantasy"\nlegacy_mode = true',
-        ),
-        encoding="utf-8",
-    )
-    _relock_request(root)
+def test_rejects_orphaned_package_files(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    (package / "unused.toml").write_text("unused = true\n", encoding="utf-8")
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(package)
 
-    assert caught.value.code == "unsupported_request_field"
-    assert "legacy_mode" in str(caught.value)
+    assert caught.value.code == "orphan_package_file"
+    assert "unused.toml" in str(caught.value)
 
 
-def test_validate_game_package_rejects_general_recipe_fields_outside_its_closure(
-    tmp_path: Path,
-) -> None:
-    root = _copy_game_package(tmp_path)
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    source = request_path.read_text(encoding="utf-8")
-    request_path.write_text(
-        source.replace(
-            'prompt = "whimsical storybook fantasy"',
-            'prompt = "whimsical storybook fantasy"\ncharacter_heads_tall = 6',
-        ),
-        encoding="utf-8",
-    )
-    _relock_request(root)
+def test_rejects_directory_symlinks(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    (package / "references" / "linked.png").symlink_to(package / "references" / "cover.png")
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(package)
 
-    assert caught.value.code == "unsupported_request_field"
-    assert "character_heads_tall" in str(caught.value)
+    assert caught.value.code == "symlink_escape"
 
 
-def test_validate_game_package_rejects_a_missing_required_feature(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    source = request_path.read_text(encoding="utf-8")
-    request_path.write_text(source[: source.index("[village]")], encoding="utf-8")
-    _relock_request(root)
+def test_rejects_zip_traversal(tmp_path: Path) -> None:
+    archive = tmp_path / "bellweather.zip"
+    with zipfile.ZipFile(archive, "w") as output:
+        output.writestr("bellweather/game.toml", "schema_version = 4\n")
+        output.writestr("../outside.txt", "escape")
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(archive)
 
-    assert caught.value.code == "missing_required_feature"
-    assert "village" in str(caught.value)
-
-
-def test_validate_game_package_allows_undeclared_optional_systems_to_be_absent(
-    tmp_path: Path,
-) -> None:
-    root = _copy_game_package(tmp_path)
-    game_dir = root / "library" / "games" / GAME_ID
-    game_path = game_dir / "game.toml"
-    source = game_path.read_text(encoding="utf-8")
-    gameplay_start = source.index("[gameplay.combat_text]")
-    rights_start = source.index("[rights]")
-    game_path.write_text(source[:gameplay_start] + source[rights_start:], encoding="utf-8")
-    _relock_game(root)
-
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    request_source = request_path.read_text(encoding="utf-8")
-    request_path.write_text(
-        request_source[: request_source.index("[soundtrack]")], encoding="utf-8"
-    )
-    _relock_request(root)
-    (game_dir / "soundtrack.toml").unlink()
-    shutil.rmtree(game_dir / "maps")
-
-    selector_path = root / "library" / "games" / "main.toml"
-    selector_path.write_text(
-        selector_path.read_text(encoding="utf-8").replace(
-            '["game", "soundtrack", "map_book", "village"]',
-            '["game"]',
-        ),
-        encoding="utf-8",
-    )
-
-    report = validate_game_package(root)
-
-    assert report["valid"] is True
-    assert report["features"] == ["game"]
-    assert report["required_features"] == ["game"]
-    assert report["applied_defaults"] == ["gameplay.combat_text"]
+    assert caught.value.code == "invalid_package"
+    assert "parent segments" in str(caught.value)
 
 
-def test_validate_game_package_rejects_unknown_map_track_ids(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    map_id = "village-hub"
-    map_path = root / "library" / "games" / GAME_ID / "maps" / f"{map_id}.toml"
-    map_path.write_text(
-        map_path.read_text(encoding="utf-8").replace(
-            '["sunpetal_road", "village_lanterns"]',
-            '["missing_track", "sunpetal_road"]',
-        ),
-        encoding="utf-8",
-    )
-    _relock_map(root, map_id)
-    _relock_map_book(root)
+def test_invalid_report_is_machine_readable(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    (package / "game.toml").unlink()
 
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
+        resolve_game_package(package)
 
-    assert caught.value.code == "unknown_soundtrack_track"
-    assert "missing_track" in str(caught.value)
-
-
-def test_validate_game_package_rejects_population_map_drift(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    game_path = root / "library" / "games" / GAME_ID / "game.toml"
-    source = game_path.read_text(encoding="utf-8")
-    last_population_map = source.rindex("[[gameplay.mob_population.maps]]")
-    rights_start = source.index("[rights]")
-    game_path.write_text(source[:last_population_map] + source[rights_start:], encoding="utf-8")
-    _relock_game(root)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "population_map_mismatch"
+    report = invalid_game_package_report(caught.value)
+    assert report["valid"] is False
+    assert report["source_status"] == "invalid"
+    assert report["errors"] == [
+        {"code": "missing_package_file", "message": "prepared package is missing game.toml"}
+    ]
 
 
-def test_validate_game_package_rejects_orphan_toml_sources(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    orphan = root / "library" / "games" / GAME_ID / "retired-map.toml"
-    orphan.write_text('schema_version = 1\nkind = "retired"\n', encoding="utf-8")
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "orphan_game_source"
-    assert "retired-map.toml" in str(caught.value)
-
-
-def test_validate_game_package_rejects_symlinked_sources(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    selector = root / "library" / "games" / "main.toml"
-    replacement = root / "replacement.toml"
-    replacement.write_bytes(selector.read_bytes())
-    selector.unlink()
-    selector.symlink_to(replacement)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "invalid_selector"
-    assert "symlink" in str(caught.value)
-
-
-def test_validate_game_package_can_require_git_inclusion(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root, require_tracked=True)
-
-    assert caught.value.code == "untracked_game_package"
-    assert "not a Git checkout" in str(caught.value)
-    assert invalid_game_package_report(caught.value)["source_status"] == "current"
-    assert invalid_game_package_report(caught.value)["disposition"] == "track_before_publish"
-
-
-def test_validate_game_package_rejects_a_stale_request_lock(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-    request_path = root / "examples" / "scrolling-preview" / "game-directed-village.toml"
-    request_path.write_text(
-        request_path.read_text(encoding="utf-8").replace(
-            'prompt = "whimsical storybook fantasy"',
-            'prompt = "changed without promoting"',
-        ),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root)
-
-    assert caught.value.code == "request_digest_mismatch"
-
-
-def test_validate_game_package_distinguishes_tracked_from_committed_bytes(
-    tmp_path: Path,
-) -> None:
-    root = _copy_game_package(tmp_path)
-
-    def git(*arguments: str) -> None:
-        subprocess.run(
-            ["git", *arguments],
-            cwd=root,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+def test_repository_gate_failure_keeps_source_truth_separate() -> None:
+    report = invalid_game_package_report(
+        GamePackageValidationError(
+            "uncommitted_game_package", "package closure differs from Git HEAD"
         )
-
-    git("init", "-q")
-    git("config", "user.name", "game-package-test")
-    git("config", "user.email", "game-package-test@example.invalid")
-    git("config", "commit.gpgsign", "false")
-    git("add", "library", "examples")
-    git("commit", "-qm", "canonical game fixture")
-
-    committed = validate_game_package(root, require_committed=True)
-    assert committed["repository"] == {
-        "status": "committed",
-        "untracked_refs": [],
-        "modified_refs": [],
-    }
-
-    selector_path = root / "library" / "games" / "main.toml"
-    selector_path.write_text(
-        selector_path.read_text(encoding="utf-8") + "\n# local modification\n",
-        encoding="utf-8",
     )
-    tracked = validate_game_package(root, require_tracked=True)
-    repository = tracked["repository"]
-    assert isinstance(repository, dict)
-    assert repository["status"] == "modified"
-    assert tracked["disposition"] == "commit_before_publish"
 
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root, require_committed=True)
-
-    assert caught.value.code == "uncommitted_game_package"
-    assert invalid_game_package_report(caught.value)["source_status"] == "current"
-    assert invalid_game_package_report(caught.value)["disposition"] == "commit_before_publish"
-
-
-def test_require_committed_rejects_index_bytes_that_differ_from_head(tmp_path: Path) -> None:
-    root = _copy_game_package(tmp_path)
-
-    def git(*arguments: str) -> None:
-        subprocess.run(
-            ["git", *arguments],
-            cwd=root,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-    git("init", "-q")
-    git("config", "user.name", "game-package-test")
-    git("config", "user.email", "game-package-test@example.invalid")
-    git("config", "commit.gpgsign", "false")
-    git("add", "library", "examples")
-    git("commit", "-qm", "canonical game fixture")
-
-    selector_path = root / "library" / "games" / "main.toml"
-    committed_bytes = selector_path.read_bytes()
-    selector_path.write_bytes(committed_bytes + b"\n# staged alternate\n")
-    git("add", "library/games/main.toml")
-    selector_path.write_bytes(committed_bytes)
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(root, require_committed=True)
-
-    assert caught.value.code == "uncommitted_game_package"
-    assert "library/games/main.toml" in str(caught.value)
+    assert report["source_status"] == "current"
+    assert report["disposition"] == "commit_before_publish"

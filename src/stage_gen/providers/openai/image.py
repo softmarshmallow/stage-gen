@@ -21,7 +21,7 @@ from stage_gen.providers._http import (
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPENAI_IMAGE_MODEL = "gpt-image-2"
-OPENAI_IMAGE_REQUESTS_PER_MINUTE = 5
+OPENAI_IMAGE_IPM_DEFAULT = 150
 
 _SIZE_RE = re.compile(r"^([1-9]\d*)x([1-9]\d*)$")
 _MIN_PIXELS = 655_360
@@ -68,18 +68,18 @@ class OpenAIImageBackend:
         model: str = OPENAI_IMAGE_MODEL,
         base_url: str = OPENAI_BASE_URL,
         client: httpx.AsyncClient | None = None,
-        requests_per_minute: int = OPENAI_IMAGE_REQUESTS_PER_MINUTE,
+        images_per_minute: int = OPENAI_IMAGE_IPM_DEFAULT,
     ) -> None:
         if not api_key.strip():
             raise ValueError("OpenAI api_key must be non-empty")
         if not model.strip():
             raise ValueError("OpenAI image model must be non-empty")
         if (
-            isinstance(requests_per_minute, bool)
-            or not isinstance(requests_per_minute, int)
-            or requests_per_minute <= 0
+            isinstance(images_per_minute, bool)
+            or not isinstance(images_per_minute, int)
+            or images_per_minute <= 0
         ):
-            raise ValueError("OpenAI image requests_per_minute must be a positive integer")
+            raise ValueError("OpenAI image images_per_minute must be a positive integer")
         self._api_key = api_key
         self.secrets: tuple[str, ...] = (api_key,)
         self.model = model.strip()
@@ -89,7 +89,7 @@ class OpenAIImageBackend:
         self._base_url = normalized_base_url(base_url, "OpenAI base_url")
         self._client = client or httpx.AsyncClient(timeout=None)
         self._owns_client = client is None
-        self._request_interval_seconds = 60.0 / requests_per_minute
+        self._request_interval_seconds = 60.0 / images_per_minute
         self._request_start_lock = asyncio.Lock()
         self._next_request_start = 0.0
 
@@ -182,7 +182,7 @@ class OpenAIImageBackend:
         )
 
     async def _pace_request_start(self) -> None:
-        """Conservatively respect the lowest supported GPT Image 2 IPM tier."""
+        """Pace starts to the configured GPT Image 2 project IPM allowance."""
 
         loop = asyncio.get_running_loop()
         async with self._request_start_lock:
@@ -234,6 +234,6 @@ def _validate_gpt_image_2_size(value: str) -> None:
 __all__ = [
     "OPENAI_BASE_URL",
     "OPENAI_IMAGE_MODEL",
-    "OPENAI_IMAGE_REQUESTS_PER_MINUTE",
+    "OPENAI_IMAGE_IPM_DEFAULT",
     "OpenAIImageBackend",
 ]

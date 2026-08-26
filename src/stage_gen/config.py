@@ -42,6 +42,7 @@ class StageGenConfig(ContractModel):
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
     openai_image_model: str = "gpt-image-2"
+    openai_image_ipm: int = Field(default=150, ge=1)
     image_model: str = "openai/gpt-image-2"
     text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
@@ -98,6 +99,11 @@ def load_config(
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
         openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL") or "gpt-image-2",
+        openai_image_ipm=_positive_integer(
+            values.get("STAGE_GEN_OPENAI_IMAGE_IPM"),
+            "STAGE_GEN_OPENAI_IMAGE_IPM",
+            150,
+        ),
         image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL") or "openai/gpt-image-2",
         text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.6-sol",
         music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
@@ -190,10 +196,10 @@ def _positive_integer(value: str | None, name: str, fallback: int) -> int:
     try:
         numeric = float(value.strip())
     except ValueError as error:
-        raise ValueError(f"{name} must be a positive integer in milliseconds") from error
+        raise ValueError(f"{name} must be a positive integer") from error
     if not math.isfinite(numeric) or numeric <= 0 or not numeric.is_integer():
-        raise ValueError(f"{name} must be a positive integer in milliseconds")
+        raise ValueError(f"{name} must be a positive integer")
     parsed = int(numeric)
     if parsed > 9_007_199_254_740_991:
-        raise ValueError(f"{name} must be a positive integer in milliseconds")
+        raise ValueError(f"{name} must be a positive integer")
     return parsed

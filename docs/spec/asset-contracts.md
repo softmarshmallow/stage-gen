@@ -358,6 +358,12 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 
 ## World-design agent (`world_spec_<tag>.json`)
 
+> **CURRENT only.** The ratified prepared-package target removes layer planning
+> from this generated bible. `game-map-v3` authors references and layer prompts
+> before ingest; see the
+> [Authored map-generation contract](game/map-generation-contract.md). Mob,
+> prop, and item migration is a separate content-contract boundary.
+
 | | |
 |---|---|
 | **Output** | `world_spec_<tag>.json` |
@@ -448,6 +454,13 @@ back to generic menus so they remain runnable in isolation.
 
 ## Parallax depth layers (agent-designed stack)
 
+> **CURRENT only.** The implemented producer still reads
+> `world_spec.layers[]`. In the ratified target, each map source owns its layer
+> records, arbitrary digest-locked image-reference bindings, authored `prompt`,
+> explicit background/foreground plane, order, parallax, and alpha mode. The
+> target contract, rather than this current section, is authoritative for that
+> shape.
+
 | | |
 |---|---|
 | **Output** | `layer_<tag>_<layer.id>.png` (one per `world_spec.layers[]` entry) |
@@ -532,6 +545,13 @@ much to soften based on closeness-to-camera.
 ---
 
 ## Ground tileset
+
+> **CURRENT producer and ratified target mode.** The existing
+> `tileset-12x4-v1` generation, deterministic topology mask, validation, and
+> typed material-synthesis recovery remain the initial ground implementation.
+> The target moves selection, reference binding, and authored `prompt` under
+> `[ground]` in each `game-map-v3`; it does not make runtime heightfields or
+> collision part of the map-generation source.
 
 | | |
 |---|---|

@@ -12,8 +12,9 @@ Start here for the headless, general-purpose system:
 - [Canonical game package](game-package.md) — the repository's bundled-demo and
   schema-test SSOT: its Git-backed selector, exact current-only game/soundtrack/map
   closure, validator, generated-freshness boundary, and authoring workflow.
-- [Game contract](game-contract.md) — current-only game-domain composition,
-  ownership boundaries, cross-contract invariants, and subordinate authorities.
+- [Game contract](game-contract.md) — ratified target game-domain composition,
+  ownership boundaries, cross-contract invariants, and subordinate authorities,
+  with current executable identities kept explicitly separate.
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
   implemented current `game-contract-v3` fields, closed vocabulary, validation,
   binding, and manifest projection.
@@ -23,6 +24,10 @@ Start here for the headless, general-purpose system:
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
+- [Authored map-generation contract](spec/game/map-generation-contract.md) —
+  ratified TARGET `game-map-v3`: explicit image-reference closure, side-view
+  continuity, per-map layer prompts, stable ground mode, bundle review, cache,
+  and gameplay exclusion.
 - [Game visual reference and vocabulary](game-visual-reference.md) — global
   research anchors, neutral style facets, prompt boundaries, and candidate
   vocabulary governance for 2D-game art.
@@ -35,10 +40,9 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate,
   digest-bound game-global track catalog, scrolling generation pipeline, shuffle
   playback, absence semantics, and listening/publication boundary.
-- [Authored game maps](game-maps.md) — current per-map durable identity and
-  game-global soundtrack references, embedded Level Profiles, an ordered
-  digest-locked map book, absence semantics, manifest projection, and the
-  static-geometry adapter boundary.
+- [Authored game maps](game-maps.md) — current executable `game-map-v2`, embedded
+  Level Profiles, ordered digest-locked map book, manifest projection, and the
+  pointer to its ratified map-generation replacement.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
   core-first taxonomy, ownership boundaries, manifest composition, runtime lifecycle,
   and floating-combat-text feedback contract.
