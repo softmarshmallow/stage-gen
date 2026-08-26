@@ -6,10 +6,10 @@
   "artifact": {
     "path": "references/sunpetal-crossing-scene.png",
     "media_type": "image/png",
-    "width": 1672,
-    "height": 941,
-    "bytes": 2768980,
-    "sha256": "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+    "width": 1983,
+    "height": 793,
+    "bytes": 2425806,
+    "sha256": "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
   },
   "generation": {
     "tool": "codex/image_gen",
@@ -21,12 +21,15 @@
     "n": 1,
     "input_references": [
       {
-        "path": "references/cover.png",
-        "sha256": "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0",
-        "role": "style-color-material-and-world-direction-only"
+        "sha256": "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473",
+        "role": "superseded-sunpetal-theme-and-world-reference"
+      },
+      {
+        "sha256": "7b65231699634589c05c2391ee8ead008f0a3cf95611f85d88045bb2d71ff534",
+        "role": "unpromoted-side-view-and-loop-aware-composition-study"
       }
     ],
-    "prompt_sha256": "17af7a887da64d023e04fbf66fb8e59f80f86a54ce23e5da8054b71eb2135d23"
+    "prompt_sha256": "64fd67aed8c9e8edce786ed30574b4b12b980bf78b19a0451149d80ae680e08b"
   },
   "visual_review": {
     "status": "approved",
@@ -34,17 +37,17 @@
     "independent": true,
     "reviewed_by": "authenticated task owner",
     "reviewed_at": "2026-08-26",
-    "artifact_sha256": "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473",
+    "artifact_sha256": "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb",
     "verification_report": "references/sunpetal-crossing-scene.visual-review.md",
-    "verification_report_sha256": "448c3bcc9634a3e512b18dcd286054b0beda1f914d35ae12c1de83a8f7823849"
+    "verification_report_sha256": "9d8baf0fabde02ee5e449356c708e568a572ef041f6923974c3b02f35e0c41f9"
   },
   "rights": {
     "status": "redistribution-approved",
     "reviewed_at": "2026-08-26",
     "basis": [
       "Original brand-neutral prompt with no third-party visual input.",
-      "The approved synthetic Bellweather cover was used only as visual direction.",
-      "The authenticated task owner approved the exact displayed output for canonical map-input use."
+      "Only synthetic Bellweather scene studies were used as visual direction.",
+      "The authenticated task owner approved the exact displayed loop-aware output for prepared map-input use."
     ]
   }
 }

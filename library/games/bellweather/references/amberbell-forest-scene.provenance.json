@@ -6,10 +6,10 @@
   "artifact": {
     "path": "references/amberbell-forest-scene.png",
     "media_type": "image/png",
-    "width": 1672,
-    "height": 941,
-    "bytes": 2956988,
-    "sha256": "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+    "width": 1942,
+    "height": 809,
+    "bytes": 2917611,
+    "sha256": "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
   },
   "generation": {
     "tool": "codex/image_gen",
@@ -21,12 +21,16 @@
     "n": 1,
     "input_references": [
       {
-        "path": "references/cover.png",
-        "sha256": "107ccb1b56a05917637d69fad18dd7caa1054c1b1c9ff1458aefd7d7367ae5d0",
-        "role": "style-color-material-and-world-direction-only"
+        "sha256": "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98",
+        "role": "superseded-amberbell-theme-landmark-and-material-reference"
+      },
+      {
+        "path": "references/sunpetal-crossing-scene.png",
+        "sha256": "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb",
+        "role": "side-view-scale-and-loop-aware-composition-only"
       }
     ],
-    "prompt_sha256": "169edfa36278f00a502abf465911b0af183b0ecb10c06636b656cca4ebf5aa9b"
+    "prompt_sha256": "2bf116e6aa105b2b60ab93265d3a450171073a143efb22e18de0026328ac0101"
   },
   "visual_review": {
     "status": "approved",
@@ -34,17 +38,16 @@
     "independent": true,
     "reviewed_by": "authenticated task owner",
     "reviewed_at": "2026-08-26",
-    "artifact_sha256": "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98",
+    "artifact_sha256": "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589",
     "verification_report": "references/amberbell-forest-scene.visual-review.md",
-    "verification_report_sha256": "18e0b1fefa20f54d5770c908aed3d330c0718e9c9dd7e9079f3642f4a3dc9c46"
+    "verification_report_sha256": "fd021dc3750cebc7e358c3d3e33cdb36763d1324dd440333042a790568c334e6"
   },
   "rights": {
     "status": "redistribution-approved",
     "reviewed_at": "2026-08-26",
     "basis": [
-      "Original brand-neutral prompt with no third-party visual input.",
-      "The approved synthetic Bellweather cover was used only as visual direction.",
-      "The authenticated task owner approved the exact displayed output for canonical map-input use."
+      "Original brand-neutral prompt using only synthetic Bellweather references.",
+      "The authenticated task owner approved the exact displayed output together with the loop-aware Sunpetal reference."
     ]
   }
 }

@@ -2,7 +2,7 @@ schema_version = 3
 kind = "game-map-v3"
 game_id = "bellweather"
 map_id = "sunpetal-crossing"
-revision = 2
+revision = 3
 display_name = "Sunpetal Crossing"
 
 [view]
@@ -17,10 +17,10 @@ seamless_axis = "x"
 [[references]]
 reference_id = "sunpetal_scene"
 source = "references/sunpetal-crossing-scene.png"
-source_sha256 = "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+source_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
 rights_status = "redistribution-approved"
 rights_basis = [
-  "AI-generated Bellweather scene reference approved by the authenticated task owner.",
+  "AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner.",
   "Digest-bound review in references/sunpetal-crossing-scene.visual-review.md.",
 ]
 
@@ -32,11 +32,11 @@ order = 0
 parallax = 0.0
 alpha_mode = "opaque"
 prompt = """
-Reconstruct only the uninterrupted high-key blue late-afternoon sky as a
-strict lateral side-view plate. Preserve the clean digital finish and soft
-cream cloud-light color variation, but remove every cloud mass, mountain,
-island, castle, building, tree, character, creature, and foreground object.
-Complete all exposed sky naturally and make the horizontal edges seamless.
+Reconstruct only the uninterrupted high-key blue sky plate behind Sunpetal
+Crossing. Preserve its clean digital finish, broad calm color field, and gentle
+horizontal light variation. Remove clouds, mountains, islands, buildings,
+trees, water, characters, creatures, and near decoration, then complete newly
+exposed sky naturally.
 """
 
 [[layers]]
@@ -47,11 +47,11 @@ order = 1
 parallax = 0.16
 alpha_mode = "transparent"
 prompt = """
-Separate and reinterpret the monumental cream clouds, lavender mountains,
-distant floating bluffs, and ribbon waterfalls as one strict lateral
-atmospheric background. Preserve the selected scene's palette, rounded
-silhouettes, and progressively softer depth. Exclude the village, near route,
-characters, creatures, and foreground vegetation.
+Separate the monumental cream clouds, lavender-blue mountains, floating
+islands, and fine waterfalls as one distant atmospheric layer. Preserve their
+rounded silhouettes, progressively softer depth, generous blue-sky spacing,
+and the reference's quiet recurring rhythm near both lateral boundaries.
+Exclude the village, trees, route, characters, creatures, and near decoration.
 """
 
 [[layers]]
@@ -62,12 +62,12 @@ order = 2
 parallax = 0.58
 alpha_mode = "transparent"
 prompt = """
-Separate and reconstruct Sunpetal Crossing as a strict side-view village
-strip: warm timber-and-stone cottages, flower boxes, a turning hill windmill,
-market awnings, broad trees, lantern posts, low stone bridge, fences, and
-decorative pennants without writing or symbols. Keep a clean open playfield
-through the lower middle. Exclude sky, distant scenery, hero, creatures, and
-close foreground plants.
+Separate Sunpetal Crossing's readable midground village: warm timber-and-stone
+cottages, flower boxes, market awnings, one windmill, broad trees, lantern
+posts, bridge architecture, fences, and blank decorative pennants. Preserve
+the selected scene's strict side-view scale and centered landmark rhythm.
+Exclude sky, far scenery, paving and terrain fill, close fence and flowers,
+characters, and creatures.
 """
 
 [[layers]]
@@ -78,18 +78,20 @@ order = 0
 parallax = 1.32
 alpha_mode = "transparent"
 prompt = """
-Separate only the closest leaves, flowers, curved roots, and dark garden-edge
-foliage that frame the bottom and sparse outer edges. Preserve coral, cream,
-teal, and moss accents while keeping the center route unobstructed. Exclude
-characters, creatures, buildings, bridge, sky, mountains, and distant trees.
+Separate only the restrained near fence, flower heads, grass tips, and low
+garden foliage along the bottom edge. Preserve their sparse coral, cream,
+turquoise, and moss rhythm without introducing large framing anchors. Exclude
+the route, masonry, buildings, bridge, sky, distant scenery, characters, and
+creatures.
 """
 
 [ground]
 mode = "tileset-12x4-v1"
 reference_ids = ["sunpetal_scene"]
 prompt = """
-Create the stable Sunpetal Crossing ground material: warm cream stone path and
-low bridge masonry, moss-softened edges, small grass tufts and flowers along
-the surface, and darker soil or stone beneath. Match the clean digital
-gouache-like finish and preserve a crisp readable footing line.
+Create Sunpetal Crossing's stable terrain material from the selected scene:
+warm cream paving, moss-softened stone edges, restrained grass and tiny flowers
+at the surface, and darker compacted soil or masonry beneath. Match the clean
+digital-gouache-like finish and preserve broad quiet areas around a crisp
+readable footing line.
 """

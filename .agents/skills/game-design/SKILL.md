@@ -53,6 +53,12 @@ and inline origin/rights basis in the authored contract and bind semantic review
 to the accepted bytes. Prepared inputs do not need `.meta.json`,
 `.source.meta.json`, or `.LICENSE.md` sidecars.
 
+If the map loops, compose its scene references with looping in mind instead of
+blindly passing a general concept image. Give each intended depth band compatible
+left/right boundary conditions, keep unique landmarks away from the edges, and
+use quiet recurring motifs at both sides. The reference only communicates
+composition; generated layers still require their own seamlessness validation.
+
 ## Review and close the package
 
 Review the authored package as a game design, not only as valid TOML: check that

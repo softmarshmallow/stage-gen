@@ -1,21 +1,21 @@
 schema_version = 1
 kind = "prop-content-v1"
 game_id = "bellweather"
-revision = 3
+revision = 4
 
 [[references]]
 reference_id = "sunpetal_scene"
 source = "references/sunpetal-crossing-scene.png"
-source_sha256 = "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+source_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
 rights_status = "redistribution-approved"
 rights_basis = ["AI-generated Bellweather scene reference approved by the authenticated task owner."]
 
 [[references]]
 reference_id = "amberbell_scene"
 source = "references/amberbell-forest-scene.png"
-source_sha256 = "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+source_sha256 = "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
 rights_status = "redistribution-approved"
-rights_basis = ["AI-generated Bellweather scene reference approved by the authenticated task owner."]
+rights_basis = ["AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner."]
 
 [[props]]
 prop_id = "sunwheel_bread_stall"

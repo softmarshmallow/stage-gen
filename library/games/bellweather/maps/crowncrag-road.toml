@@ -2,7 +2,7 @@ schema_version = 3
 kind = "game-map-v3"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 3
+revision = 4
 display_name = "Amberbell Forest"
 
 [view]
@@ -17,10 +17,10 @@ seamless_axis = "x"
 [[references]]
 reference_id = "amberbell_scene"
 source = "references/amberbell-forest-scene.png"
-source_sha256 = "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+source_sha256 = "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
 rights_status = "redistribution-approved"
 rights_basis = [
-  "AI-generated Bellweather scene reference selected and approved by the authenticated task owner.",
+  "AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner.",
   "Digest-bound review in references/amberbell-forest-scene.visual-review.md.",
 ]
 
@@ -32,11 +32,10 @@ order = 0
 parallax = 0.0
 alpha_mode = "opaque"
 prompt = """
-Reconstruct only the uninterrupted saturated blue late-afternoon sky as an
-opaque strict lateral plate. Preserve its calm high-key color variation while
-removing clouds, mountains, castle, trees, shrines, road, water, plants,
-characters, and creatures. Complete exposed areas naturally and make the
-horizontal edges seamless.
+Reconstruct only the uninterrupted saturated blue sky plate behind Amberbell
+Forest. Preserve its calm high-key color variation and warm autumn light.
+Remove clouds, mountains, castle, trees, shrines, water, route, characters,
+creatures, and near decoration, then complete newly exposed sky naturally.
 """
 
 [[layers]]
@@ -47,12 +46,12 @@ order = 1
 parallax = 0.14
 alpha_mode = "transparent"
 prompt = """
-Separate and reinterpret the monumental cream clouds, lavender mountains,
-soft autumn valley, winding turquoise stream, and distant many-spired
-Crowncrag Castle as one strict lateral horizon layer. Preserve the castle as a
-small unmistakable destination and keep atmospheric depth restrained. Exclude
-the dominant tree, near road, shrines, characters, creatures, and foreground
-foliage.
+Separate the monumental cream clouds, lavender-blue mountains, soft autumn
+valley, distant turquoise water, and many-spired Crowncrag Castle as one far
+horizon layer. Preserve the castle as a small destination safely inside the
+composition and retain the reference's compatible atmospheric rhythm at both
+lateral boundaries. Exclude the ancient tree, shrines, route, characters,
+creatures, and near decoration.
 """
 
 [[layers]]
@@ -63,13 +62,12 @@ order = 2
 parallax = 0.62
 alpha_mode = "transparent"
 prompt = """
-Separate and reconstruct Amberbell Forest's strict side-view route from the
-selected scene: one monumental old tree, exposed roots, a broad continuous
-cream-stone road, selective bell shrines, autumn canopy masses, mossy rocks,
-and the clear stream basin. Preserve the simple traversal band and strong
-large-shape hierarchy. Exclude characters, interface, sky plate, distant
-castle horizon, and close framing plants. Do not invent repeated modules or
-uniform micro-detail.
+Separate Amberbell Forest's readable midground landmarks: one monumental
+bell-hung tree, exposed roots, selective cream-stone shrines, layered autumn
+canopy masses, mossy rocks, and the clear stream banks. Preserve the strict
+side-view scale, broad quiet shapes, and centered landmark hierarchy. Exclude
+sky, distant castle and mountains, route paving and terrain fill, close edge
+foliage, characters, creatures, and interface elements.
 """
 
 [[layers]]
@@ -80,19 +78,19 @@ order = 0
 parallax = 1.42
 alpha_mode = "transparent"
 prompt = """
-Separate only the closest dark teal, amber, and coral leaves, stream-edge
-roots, and a few near mossy stones. Frame the lower edge sparsely without
-hiding the road or flattening the composition. Exclude characters, creatures,
-shrines, dominant tree, distant scenery, clouds, and the sky plate.
+Separate only restrained near stream-edge leaves, small roots, and a few mossy
+stones along the bottom edge. Preserve sparse dark-teal, amber, and coral
+accents without introducing a large edge anchor or uniform decoration. Exclude
+the route, shrines, ancient tree, distant scenery, characters, and creatures.
 """
 
 [ground]
 mode = "tileset-12x4-v1"
 reference_ids = ["amberbell_scene"]
 prompt = """
-Create the stable Amberbell Forest ground material: broad warm cream path
-stone interwoven with old roots, moss-softened edges, sparse amber leaf litter,
-rounded darker stones, and compact forest soil beneath. Keep the footing line
-crisp for traversal and preserve broad quiet material areas rather than dense
-repeated decoration.
+Create Amberbell Forest's stable terrain material from the selected scene:
+broad warm cream paving interwoven with old roots, moss-softened edges, sparse
+amber leaf litter, rounded darker stones, and compact forest soil beneath.
+Keep the footing line crisp and preserve broad quiet material areas rather
+than dense repeated decoration.
 """

@@ -1,7 +1,7 @@
 schema_version = 4
 kind = "game-contract-v4"
 game_id = "bellweather"
-revision = 4
+revision = 5
 display_name = "Bellweather"
 
 [universe]
@@ -70,12 +70,12 @@ source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f573
 [[maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
-source_sha256 = "decc9c729b8ce82e04c3b7531050522540cd7a1688806fd42f504498c89e76ae"
+source_sha256 = "1afc24c797ce736411c052330b6d7a9b9548906848ca28d4a6460863c3b1e75a"
 
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "74a696ba48576e8833c52974a36d61f888caa6488a94b52196e0f85123724565"
+source_sha256 = "63af7fcb4b47b3714d7def2d719e0c3043eb9c7a59b79a4bd3de411f9e96ee6b"
 
 [content.player]
 source = "content/player.toml"
@@ -91,7 +91,7 @@ source_sha256 = "c470d8cf867a778085da09f4590f0569e3d74babcd8ff0d52aaba3377c25305
 
 [content.props]
 source = "content/props.toml"
-source_sha256 = "247701d305b068c8be28ce7b3b37277c7c2a90e1d545dceed0854f5c96b86256"
+source_sha256 = "78e100039cbccacecd2d537ce5df62d9bf91081f696fcbba4d504d582fabe758"
 
 [content.items]
 source = "content/items.toml"
@@ -111,23 +111,24 @@ review_sha256 = "906c483ce7cf9ba895944703f84f29eaa73e53c2ebda40827de8b00025807a3
 
 [evidence.sunpetal_crossing_scene]
 artifact_source = "references/sunpetal-crossing-scene.png"
-artifact_sha256 = "805989d74634f8e53ddec295cbb2e8aa82df651fb1022eec89d6aecfcc41a473"
+artifact_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
 provenance_source = "references/sunpetal-crossing-scene.provenance.json"
-provenance_sha256 = "3e572e928aeed2d3220e7a6069b57ddfae9f74d214256ecdd515993b74a65d05"
+provenance_sha256 = "3042c8a991f7c586feaf3b4666ab30d14ed0d995dc24f0c8f1a6350133a3a09f"
 review_source = "references/sunpetal-crossing-scene.visual-review.md"
-review_sha256 = "448c3bcc9634a3e512b18dcd286054b0beda1f914d35ae12c1de83a8f7823849"
+review_sha256 = "9d8baf0fabde02ee5e449356c708e568a572ef041f6923974c3b02f35e0c41f9"
 
 [evidence.amberbell_forest_scene]
 artifact_source = "references/amberbell-forest-scene.png"
-artifact_sha256 = "05e596afc744fdd4da8b7b58b3ba30ada25ec0b614ad512af81dad6dc25dbd98"
+artifact_sha256 = "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
 provenance_source = "references/amberbell-forest-scene.provenance.json"
-provenance_sha256 = "59d40d88e87b2aad2fb82b6eb1ddcee4e8b9e9759d4b8bb2eaf3e29c4ee65a6e"
+provenance_sha256 = "e18a8cc9c52de544b3a48219fc1dfe64cc15ea30e003426b698bcbee157e8979"
 review_source = "references/amberbell-forest-scene.visual-review.md"
-review_sha256 = "18e0b1fefa20f54d5770c908aed3d330c0718e9c9dd7e9079f3642f4a3dc9c46"
+review_sha256 = "fd021dc3750cebc7e358c3d3e33cdb36763d1324dd440333042a790568c334e6"
 
 [rights]
 status = "redistribution-approved"
 basis = [
   "Authored package text and prompts are original and brand-neutral.",
-  "The cover and both dedicated map references are AI-generated and have independent digest-bound reviews.",
+  "The cover and loop-aware Sunpetal reference are AI-generated and have digest-bound acceptance records.",
+  "The loop-aware Amberbell reference is AI-generated and has a digest-bound acceptance record.",
 ]
