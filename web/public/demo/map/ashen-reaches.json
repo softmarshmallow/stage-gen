@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "kind": "illustrated-map-manifest-v1",
+  "map_id": "ashen-reaches",
+  "revision": 1,
+  "display_name": "The Ashen Reaches",
+  "coordinate_space": {
+    "kind": "image-pixel-v1",
+    "origin": "top_left",
+    "x_axis": "right",
+    "y_axis": "down",
+    "width": 1536,
+    "height": 1024
+  },
+  "raster": {
+    "delivery_kind": "single_image",
+    "path": "ashen-reaches.png",
+    "media_type": "image/png",
+    "sha256": "4dbf0250304f86362b2df5b2f18d6f871552bfb8a1e478bc9e54a37d428266cd",
+    "bytes": 4269237,
+    "width": 1536,
+    "height": 1024
+  },
+  "initial_view": {
+    "mode": "fit_extent",
+    "min_screen_pixels_per_image_pixel": 0.08,
+    "max_screen_pixels_per_image_pixel": 4
+  },
+  "features": [
+    {
+      "feature_id": "frostglass-hold",
+      "feature_kind": "settlement",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [270, 96]
+      },
+      "label": {
+        "fallback_text": "Frostglass Hold",
+        "placement": "right",
+        "priority": 88,
+        "min_screen_pixels_per_image_pixel": 0.32
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 32
+      },
+      "summary": "A fortified settlement built above the northwestern ice shelf.",
+      "tags": ["citadel", "ice", "settlement"]
+    },
+    {
+      "feature_id": "cinder-crown",
+      "feature_kind": "natural_feature",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [659, 116]
+      },
+      "label": {
+        "fallback_text": "The Cinder Crown",
+        "placement": "below",
+        "priority": 92,
+        "min_screen_pixels_per_image_pixel": 0.25
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 38
+      },
+      "summary": "A dark volcanic massif with exposed vents across its central ridge.",
+      "tags": ["ash", "mountain", "volcanic"]
+    },
+    {
+      "feature_id": "tanglewood-maze",
+      "feature_kind": "natural_feature",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [350, 355]
+      },
+      "label": {
+        "fallback_text": "Tanglewood Maze",
+        "placement": "below",
+        "priority": 64,
+        "min_screen_pixels_per_image_pixel": 0.55
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 42
+      },
+      "summary": "A dense western forest crossed by an irregular network of paths.",
+      "tags": ["forest", "maze", "route"]
+    },
+    {
+      "feature_id": "duskport",
+      "feature_kind": "settlement",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [332, 555]
+      },
+      "label": {
+        "fallback_text": "Duskport",
+        "placement": "above",
+        "priority": 90,
+        "min_screen_pixels_per_image_pixel": 0.3
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 36
+      },
+      "summary": "A sheltered port settlement on the western bay.",
+      "tags": ["harbor", "port", "settlement"]
+    },
+    {
+      "feature_id": "moonmere-isle",
+      "feature_kind": "sanctuary",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [754, 414]
+      },
+      "label": {
+        "fallback_text": "Moonmere Isle",
+        "placement": "below",
+        "priority": 76,
+        "min_screen_pixels_per_image_pixel": 0.38
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 34
+      },
+      "summary": "A small inhabited island near the center of the inland lake.",
+      "tags": ["island", "lake", "sanctuary"]
+    },
+    {
+      "feature_id": "hollow-crown",
+      "feature_kind": "settlement",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [732, 587]
+      },
+      "label": {
+        "fallback_text": "Hollow Crown",
+        "placement": "below",
+        "priority": 100,
+        "min_screen_pixels_per_image_pixel": 0.2
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 40
+      },
+      "summary": "A circular walled settlement at the convergence of several roads.",
+      "tags": ["capital", "roads", "settlement"]
+    },
+    {
+      "feature_id": "reedveil-delta",
+      "feature_kind": "natural_feature",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [425, 686]
+      },
+      "label": {
+        "fallback_text": "Reedveil Delta",
+        "placement": "left",
+        "priority": 58,
+        "min_screen_pixels_per_image_pixel": 0.58
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 44
+      },
+      "summary": "A branching river delta containing marsh channels and small islands.",
+      "tags": ["delta", "marsh", "wetland"]
+    },
+    {
+      "feature_id": "emberstep-canyons",
+      "feature_kind": "natural_feature",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [1108, 388]
+      },
+      "label": {
+        "fallback_text": "Emberstep Canyons",
+        "placement": "above",
+        "priority": 72,
+        "min_screen_pixels_per_image_pixel": 0.45
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 46
+      },
+      "summary": "An eastern field of red mesas divided by narrow canyon channels.",
+      "tags": ["canyon", "geology", "mesa"]
+    },
+    {
+      "feature_id": "sunken-ring",
+      "feature_kind": "ruin",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [1097, 732]
+      },
+      "label": {
+        "fallback_text": "The Sunken Ring",
+        "placement": "above",
+        "priority": 78,
+        "min_screen_pixels_per_image_pixel": 0.4
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 46
+      },
+      "summary": "A circular standing-stone ruin partially buried by southeastern dunes.",
+      "tags": ["desert", "ruin", "stones"]
+    },
+    {
+      "feature_id": "lantern-isle",
+      "feature_kind": "landmark",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [586, 856]
+      },
+      "label": {
+        "fallback_text": "Lantern Isle",
+        "placement": "right",
+        "priority": 54,
+        "min_screen_pixels_per_image_pixel": 0.65
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 32
+      },
+      "summary": "A lighthouse landmark on the largest island in the southern chain.",
+      "tags": ["island", "lighthouse", "navigation"]
+    },
+    {
+      "feature_id": "needlewatch",
+      "feature_kind": "landmark",
+      "geometry": {
+        "kind": "point",
+        "coordinates": [1331, 290]
+      },
+      "label": {
+        "fallback_text": "Needlewatch",
+        "placement": "left",
+        "priority": 50,
+        "min_screen_pixels_per_image_pixel": 0.7
+      },
+      "interaction": {
+        "selectable": true,
+        "hit_radius_image_pixels": 32
+      },
+      "summary": "A solitary sea tower among the eastern broken islands.",
+      "tags": ["island", "sea", "tower"]
+    }
+  ]
+}
