@@ -31,7 +31,6 @@ export type PreparedPopulationProjectionPolicy = Readonly<{
   min_player_distance_px: number;
   minimum_spawn_separation_px: number;
   wander_radius_px: number;
-  pursuit_leash_px: number;
 }>;
 
 export type PreparedPopulationProjection = Readonly<{
@@ -90,7 +89,6 @@ function defaultPolicy(
     min_player_distance_px: Math.round(tilePixels * 2.5),
     minimum_spawn_separation_px: Math.round(tilePixels * 1.25),
     wander_radius_px: Math.round(tilePixels * 1.5),
-    pursuit_leash_px: tilePixels * 6,
   });
 }
 
@@ -110,12 +108,6 @@ function resolvePolicy(
     "policy.minimum_spawn_separation_px",
   );
   nonnegativeSafeInteger(policy.wander_radius_px, "policy.wander_radius_px");
-  nonnegativeSafeInteger(policy.pursuit_leash_px, "policy.pursuit_leash_px");
-  if (policy.pursuit_leash_px < policy.wander_radius_px) {
-    throw new PreparedPopulationProjectionError(
-      "policy.pursuit_leash_px must be at least policy.wander_radius_px",
-    );
-  }
   return Object.freeze(policy);
 }
 
@@ -202,7 +194,6 @@ export function projectPreparedMobPopulation(
       min_player_distance_px: policy.min_player_distance_px,
       minimum_spawn_separation_px: policy.minimum_spawn_separation_px,
       wander_radius_px: policy.wander_radius_px,
-      pursuit_leash_px: policy.pursuit_leash_px,
       replacement_policy: "reroll_spawn_table" as const,
       spawn_table: sourceZone.spawn_table.map((entry) => ({
         mob_slot: slotByMobId.get(entry.mob_id)!,
@@ -214,8 +205,8 @@ export function projectPreparedMobPopulation(
   });
 
   const manifest = parseMobPopulationManifest({
-    schema_version: 1,
-    kind: "mob-population-v1",
+    schema_version: 2,
+    kind: "mob-population-v2",
     update_interval_ms: population.update_interval_ms,
     max_spawn_batch_per_update: population.max_spawn_batch_per_update,
     maps: [{ map_id: sourceMap.map_id, seed_salt: sourceMap.seed_salt, zones }],

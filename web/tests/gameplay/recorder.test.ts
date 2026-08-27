@@ -146,7 +146,6 @@ describe("reusable gameplay recorder options", () => {
       "lib/runtime/assets.ts",
       "lib/runtime/heightmap.ts",
       "lib/runtime/image-ops.ts",
-      "lib/runtime/tiles.ts",
       "tests/gameplay/contracts.ts",
       "next.config.mjs",
     ]) {

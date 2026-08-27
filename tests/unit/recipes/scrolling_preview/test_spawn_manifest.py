@@ -40,8 +40,8 @@ def _mob_population(
     right_column_exclusive: int = 48,
 ) -> dict[str, object]:
     return {
-        "schema_version": 1,
-        "kind": "mob-population-v1",
+        "schema_version": 2,
+        "kind": "mob-population-v2",
         "update_interval_ms": 100,
         "max_spawn_batch_per_update": 2,
         "maps": [
@@ -67,7 +67,6 @@ def _mob_population(
                         "min_player_distance_px": 256,
                         "minimum_spawn_separation_px": 64,
                         "wander_radius_px": 128,
-                        "pursuit_leash_px": 192,
                         "replacement_policy": "same_archetype",
                         "spawn_table": [
                             {

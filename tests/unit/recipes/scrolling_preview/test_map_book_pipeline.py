@@ -41,8 +41,8 @@ kind = "combat-text-v1"
 enabled = true
 
 [gameplay.mob_population]
-schema_version = 1
-kind = "mob-population-v1"
+schema_version = 2
+kind = "mob-population-v2"
 update_interval_ms = 100
 max_spawn_batch_per_update = 1
 
@@ -68,7 +68,6 @@ camera_margin_px = 128
 min_player_distance_px = 256
 minimum_spawn_separation_px = 64
 wander_radius_px = 128
-pursuit_leash_px = 192
 replacement_policy = "same_archetype"
 
 [[gameplay.mob_population.maps.zones.spawn_table]]

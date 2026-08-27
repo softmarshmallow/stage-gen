@@ -16,7 +16,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/fixtures/image_gen_templates/inventory_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/obstacle_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
-    "stage_gen/resources/fixtures/image_gen_templates/wireframe.png",
+    "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
     "stage_gen/resources/fixtures/loading.gif",
     "stage_gen/resources/fixtures/prompts.txt",
     "stage_gen/resources/fixtures/styles.txt",
@@ -142,7 +142,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # and the attributed terrain topology reference.
         # Keep the ceiling exact enough to catch accidental packaging growth without treating
         # those boundaries as bloat.
-        assert len(wheel_entries) <= 178
+        assert len(wheel_entries) <= 180
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -174,8 +174,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # documentation and traversal-contract tests tracked here.
         # The size assertions below are the ones that actually bound the archive. The layer
         # vertical-placement contract adds two source modules and their focused tests.
-        assert len(sdist_entries) <= 379
-        assert sum(sdist_entries.values()) < 6_000_000
+        assert len(sdist_entries) <= 383
+        # Raised once when the loop-construction contract landed: two source modules, their
+        # focused tests, and the concurrent presentation work crossed the previous 6MB line by
+        # about 27KB. The archive is still bounded well under the packaging budget.
+        assert sum(sdist_entries.values()) < 6_500_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
@@ -225,7 +228,7 @@ from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 17
+assert len(paths) == 16
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert terrain_atlas_template_path().is_file()
@@ -271,10 +274,21 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
     )
     relative_paths: set[PurePosixPath] = set()
     if tracked.returncode == 0:
+        deleted = subprocess.run(
+            ["git", "ls-files", "--deleted", "-z"],
+            cwd=repository,
+            check=False,
+            capture_output=True,
+        )
+        deleted_paths = {
+            PurePosixPath(item.decode("utf-8")) for item in deleted.stdout.split(b"\0") if item
+        }
         relative_paths.update(
             PurePosixPath(item.decode("utf-8"))
             for item in tracked.stdout.split(b"\0")
-            if item and PurePosixPath(item.decode("utf-8")).suffix.lower() in MEDIA_SUFFIXES
+            if item
+            and PurePosixPath(item.decode("utf-8")) not in deleted_paths
+            and PurePosixPath(item.decode("utf-8")).suffix.lower() in MEDIA_SUFFIXES
         )
     docs_root = repository / "docs"
     relative_paths.update(

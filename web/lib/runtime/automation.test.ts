@@ -147,15 +147,19 @@ describe("deterministic gameplay presentation", () => {
     });
   });
 
-  test("keeps a deterministic portal pulse and marks every final active frame", () => {
+  test("keeps portal scale fixed during its deterministic subtle shimmer", () => {
     const start = gameplayAutomationPresentation(846);
     const penultimate = gameplayAutomationPresentation(899);
     const final = gameplayAutomationPresentation(900);
     expect(start.finalActiveWindow).toBeTrue();
     expect(penultimate.finalActiveWindow).toBeTrue();
     expect(final.finalActiveWindow).toBeTrue();
-    expect(penultimate.portalScale).not.toBe(final.portalScale);
+    expect(start.portalScale).toBe(1);
+    expect(penultimate.portalScale).toBe(1);
+    expect(final.portalScale).toBe(1);
     expect(penultimate.portalAlpha).not.toBe(final.portalAlpha);
+    expect(penultimate.portalAlpha).toBeGreaterThanOrEqual(0.97);
+    expect(penultimate.portalAlpha).toBeLessThanOrEqual(1);
     expect(() => gameplayAutomationPresentation(-1)).toThrow(
       "nonnegative integer",
     );

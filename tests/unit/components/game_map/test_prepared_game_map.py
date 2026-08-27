@@ -23,7 +23,8 @@ def test_canonical_maps_own_portal_endpoints_and_optional_ladder_geometry() -> N
     village = load_prepared_game_map_bytes(_map_bytes("sunpetal-crossing"))
     road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
 
-    assert village.kind == road.kind == "game-map-v5"
+    assert village.kind == road.kind == "game-map-v6"
+    assert village.layers[2].presentation.detail_blur_screen_pixels == 0.65
     assert village.ladder is None
     assert village.portal is not None
     assert [endpoint.anchor for endpoint in village.portal.endpoints] == [
@@ -54,10 +55,10 @@ def test_canonical_maps_own_portal_endpoints_and_optional_ladder_geometry() -> N
     assert occupancy[lower_surface - 3][ladder_column] == "0"
 
 
-def test_map_rejects_the_obsolete_v4_identity() -> None:
+def test_map_rejects_the_obsolete_v5_identity() -> None:
     source = _map_bytes("sunpetal-crossing").replace(
+        b'schema_version = 6\nkind = "game-map-v6"',
         b'schema_version = 5\nkind = "game-map-v5"',
-        b'schema_version = 4\nkind = "game-map-v4"',
         1,
     )
 

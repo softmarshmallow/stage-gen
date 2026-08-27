@@ -61,6 +61,10 @@ change must advance that identity so cached paintovers cannot mask stale atlases
 
 The machine-readable lookup in
 `stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json` is authoritative.
+The tracked companion
+`fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.md`
+explains every atlas coordinate and mask beside the attributed reference image;
+its cell table is contract-tested against that lookup.
 Mask order is `nw, n, ne, w, center, e, sw, s, se`. The center bit is always
 one. A diagonal bit may be one only when both adjacent cardinal bits are one.
 There are exactly 47 reachable masks and 47 unique non-placeholder
@@ -127,18 +131,3 @@ or runtime assets.
 The coordinate arrangement and modified paintover template have documented
 Godot documentation lineage. See
 [Terrain-atlas provenance](../terrain-atlas-provenance.md).
-
-## Legacy scrolling-demo mode
-
-The older tag-based scrolling demo still contains `tileset-12x4-v1`, its
-16-role/three-variant mask, material-synthesis recovery, and continuous-strip
-browser treatment. It is a separate legacy recipe path. Prepared
-`game-map-v6` packages do not select it, and it must not be interpreted as the
-47-mask contract above.
-
-That legacy browser consumer does not register or render per-role atlas frames.
-It derives a 512 x 512 toroidal material from a luminance-sorted color palette,
-uses 3/7/19/43 harmonic families, paints connected-run fill TileSprites, and
-adds runtime-only 12-pixel side bands. Those phrases describe the retained
-legacy implementation and are intentionally not requirements of the dynamic
-47-mask adapter.

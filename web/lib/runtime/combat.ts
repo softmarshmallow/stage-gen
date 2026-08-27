@@ -78,6 +78,16 @@ export type AggressionProfile = Readonly<{
   damage: number;
   /** True when the archetype retreats instead of closing. */
   flees: boolean;
+  /** Horizontal half-width patrolled around a player the mob cannot reach vertically. */
+  inaccessibleSweepHalfWidthPx: number;
+  /** Endpoint tolerance for that patrol, preventing sub-pixel turn jitter. */
+  pursuitArrivalRadiusPx: number;
+  /** Per-instance symmetric movement-speed variation, expressed as a ratio around 1. */
+  movementSpeedVarianceRatio: number;
+  /** Per-instance symmetric pursuit-corridor variation, expressed as a ratio around 1. */
+  pursuitSweepVarianceRatio: number;
+  /** Per-action symmetric wind-up/cooldown variation, expressed as a ratio around 1. */
+  actionTimingVarianceRatio: number;
 }>;
 
 /**
@@ -97,6 +107,11 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 0,
       damage: 0,
       flees: true,
+      inaccessibleSweepHalfWidthPx: 96,
+      pursuitArrivalRadiusPx: 12,
+      movementSpeedVarianceRatio: 0.1,
+      pursuitSweepVarianceRatio: 0.2,
+      actionTimingVarianceRatio: 0,
     }),
     territorial: Object.freeze({
       aggroRadiusPx: 256,
@@ -106,6 +121,11 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 1400,
       damage: 1,
       flees: false,
+      inaccessibleSweepHalfWidthPx: 96,
+      pursuitArrivalRadiusPx: 12,
+      movementSpeedVarianceRatio: 0.1,
+      pursuitSweepVarianceRatio: 0.2,
+      actionTimingVarianceRatio: 0.2,
     }),
     hunting: Object.freeze({
       aggroRadiusPx: 448,
@@ -115,6 +135,11 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 1100,
       damage: 1,
       flees: false,
+      inaccessibleSweepHalfWidthPx: 112,
+      pursuitArrivalRadiusPx: 12,
+      movementSpeedVarianceRatio: 0.12,
+      pursuitSweepVarianceRatio: 0.24,
+      actionTimingVarianceRatio: 0.16,
     }),
     relentless: Object.freeze({
       aggroRadiusPx: 768,
@@ -124,6 +149,11 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 900,
       damage: 2,
       flees: false,
+      inaccessibleSweepHalfWidthPx: 128,
+      pursuitArrivalRadiusPx: 12,
+      movementSpeedVarianceRatio: 0.14,
+      pursuitSweepVarianceRatio: 0.28,
+      actionTimingVarianceRatio: 0.12,
     }),
   });
 
@@ -328,14 +358,19 @@ export function playerInvulnerabilityBlinkAlpha(
 
 // --- Mob decision --------------------------------------------------------------------------
 
-export type MobIntent = "hold" | "chase" | "flee" | "strike";
+export type MobIntent =
+  | "hold"
+  | "chase"
+  | "flee"
+  | "strike"
+  | "attack_recovery";
 
 /**
  * What a mob should do this frame, given where the player is.
  *
  * Separated from `Mob.update` so the decision can be tested against distances directly. The
  * ordering matters and is asserted in the tests: cooldown outranks range, so a mob that has just
- * swung closes again rather than standing inside the player swinging into its own cooldown.
+ * swung preserves its committed combat pose instead of falling through to idle patrol.
  */
 export function mobIntent(input: {
   profile: AggressionProfile;
@@ -348,7 +383,7 @@ export function mobIntent(input: {
   if (playerDefeated || distancePx > profile.aggroRadiusPx) return "hold";
   if (profile.flees) return "flee";
   if (distancePx <= profile.strikeRangePx) {
-    return nowMs >= attackReadyAtMs ? "strike" : "hold";
+    return nowMs >= attackReadyAtMs ? "strike" : "attack_recovery";
   }
   return "chase";
 }

@@ -8,7 +8,7 @@ from hashlib import sha256
 from io import BytesIO
 from typing import Literal, cast
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageStat
 
 from stage_gen.media import inspect_image, normalize_png
 from stage_gen.recipes.scrolling_preview.mob_states import (
@@ -102,7 +102,7 @@ class GridContract:
     gutter: int
     anchor: Literal["center", "bottom"] = "center"
     allow_upscale: bool = False
-    topology: Literal["grid", "tileset"] = "grid"
+    topology: Literal["grid"] = "grid"
     minimum_width_fraction: float = 0.0
     minimum_height_fraction: float = 0.0
     # Cells are frames of one animation seen from a single fixed side-view camera, so the
@@ -119,8 +119,6 @@ class GridContract:
             raise ValueError("grid rows and columns must be positive")
         if self.gutter <= 0:
             raise ValueError("grid gutter must be positive")
-        if self.topology == "tileset" and (self.rows, self.columns) != (4, 12):
-            raise ValueError("tileset topology must be exactly 12 columns x 4 rows")
         if self.fixed_side_view_frames and (self.rows != 1 or self.columns < 2):
             raise ValueError("fixed side-view frames require a single row of at least two cells")
 
@@ -219,8 +217,6 @@ def contract_for_stage(stage: str) -> GridContract | None:
     per-cell isolation and camera checks in a way only a generated sheet would reveal.
     """
 
-    if stage == "tileset":
-        return GridContract(rows=4, columns=12, gutter=2, topology="tileset")
     if stage == "items":
         return GridContract(rows=2, columns=4, gutter=8)
     if stage.startswith("obstacles-") or stage == "village-fixtures":
@@ -286,8 +282,6 @@ def contract_for_runtime_role(role: str) -> GridContract | None:
     would need a second loader for no gain.
     """
 
-    if role == "tileset":
-        return contract_for_stage("tileset")
     if role == "ladder":
         return contract_for_stage("ladder")
     if role == "character-climb":
@@ -332,17 +326,7 @@ def validate_generated_source(
     with Image.open(BytesIO(normalized)) as opened:
         image = opened.convert("RGB")
     cell_width, cell_height = contract.cell_size(width, height)
-    # The gutter contract compares the gutter sample against the sheet's dominant field, which
-    # only means something while the background is the dominant field. That holds for sheets of
-    # separated subjects and does not hold for a tileset: its cells are deliberately solid and
-    # cover all but a two-pixel lattice, so a densely painted tileset drifts by 96 against a
-    # limit of 48 purely from being a good tileset. Tileset topology is exempt here for the same
-    # reason it is exempt from the painted-ring check below, and keeps its own role and
-    # semantics contracts instead.
-    if contract.topology == "tileset":
-        background = _background_colour(image, contract)
-    else:
-        background = _assert_gutters_carry_the_background(image, contract)
+    background = _assert_gutters_carry_the_background(image, contract)
     foreground = _foreground_mask(image, background)
     nonempty = 0
     gutter_contacts = 0
@@ -364,30 +348,29 @@ def validate_generated_source(
             # gives it away is being a thin ring - it runs along all four edges at once while
             # leaving most of the cell unpainted. A subject can hug one edge, and a deliberately
             # solid cell fills every edge, but neither does both.
-            if contract.topology != "tileset":
-                inset = cell.crop(
-                    (
-                        contract.gutter,
-                        contract.gutter,
-                        cell_width - contract.gutter,
-                        cell_height - contract.gutter,
-                    )
+            inset = cell.crop(
+                (
+                    contract.gutter,
+                    contract.gutter,
+                    cell_width - contract.gutter,
+                    cell_height - contract.gutter,
                 )
-                coverage = _cell_edge_coverage(inset)
-                fill = _painted_fraction(inset)
-                if (
-                    min(coverage.values()) >= _PAINTED_CELL_FRAME_MINIMUM_EDGE_COVERAGE
-                    and fill <= _PAINTED_CELL_FRAME_MAXIMUM_FILL
-                ):
-                    edges = ", ".join(f"{side} {coverage[side]:.2f}" for side in _BORDER_SIDE_ORDER)
-                    raise GridSourceLayoutError(
-                        GRID_PAINTED_CELL_FRAME_ERROR_CODE,
-                        f"grid cell ({row},{column}) has a painted border on every edge "
-                        f"({edges}) around a cell only {fill:.2f} filled, which is the cell "
-                        f"template drawn into the artwork",
-                        row=row,
-                        column=column,
-                    )
+            )
+            coverage = _cell_edge_coverage(inset)
+            fill = _painted_fraction(inset)
+            if (
+                min(coverage.values()) >= _PAINTED_CELL_FRAME_MINIMUM_EDGE_COVERAGE
+                and fill <= _PAINTED_CELL_FRAME_MAXIMUM_FILL
+            ):
+                edges = ", ".join(f"{side} {coverage[side]:.2f}" for side in _BORDER_SIDE_ORDER)
+                raise GridSourceLayoutError(
+                    GRID_PAINTED_CELL_FRAME_ERROR_CODE,
+                    f"grid cell ({row},{column}) has a painted border on every edge "
+                    f"({edges}) around a cell only {fill:.2f} filled, which is the cell "
+                    f"template drawn into the artwork",
+                    row=row,
+                    column=column,
+                )
             boundary = cell.copy()
             draw = ImageDraw.Draw(boundary)
             draw.rectangle(
@@ -415,14 +398,6 @@ def validate_generated_source(
             + ", ".join(cross_cell_components),
         )
 
-    tileset_semantics: dict[str, object] = {}
-    if contract.topology == "tileset":
-        tileset_semantics = _validate_tileset_source_semantics(
-            foreground,
-            contract=contract,
-            cell_width=cell_width,
-            cell_height=cell_height,
-        )
     strip_semantics: dict[str, object] = {}
     if contract.fixed_side_view_frames:
         strip_semantics = _validate_fixed_side_view_frames(
@@ -445,7 +420,6 @@ def validate_generated_source(
         "source_gutter_pixels_painted": gutter_contacts,
         "source_cross_cell_components": 0,
         "source_cell_frames_unpainted": True,
-        **tileset_semantics,
         **strip_semantics,
     }
 
@@ -803,10 +777,7 @@ def normalize_canonical_grid(
     """Normalize accepted alpha output to deterministic isolated cells."""
 
     facts = inspect_image(data, expected_media_type="image/png")
-    if contract.topology == "tileset":
-        normalized, transforms = _normalize_tileset(data, contract)
-    else:
-        normalized, transforms = _normalize_cells(data, contract)
+    normalized, transforms = _normalize_cells(data, contract)
     validation = validate_canonical_grid(normalized, contract)
     if validation["output_width"] != facts.width or validation["output_height"] != facts.height:
         raise ValueError("grid normalization changed the canvas dimensions")
@@ -889,24 +860,6 @@ def validate_canonical_grid(data: bytes, contract: GridContract) -> dict[str, ob
             if bbox_height < (cell_height - 2 * contract.gutter) * contract.minimum_height_fraction:
                 raise ValueError(f"canonical grid cell ({row},{column}) is too short")
 
-    fill_opaque: bool | None = None
-    if contract.topology == "tileset":
-        expected_alpha = _tileset_alpha_mask(width, height, contract)
-        if ImageChops.difference(alpha, expected_alpha).getbbox() is not None:
-            raise ValueError("tileset alpha does not match the canonical 12x4 role topology")
-        fill = alpha.crop(
-            _inset_cell_bounds(
-                column=0,
-                row=3,
-                cell_width=cell_width,
-                cell_height=cell_height,
-                gutter=contract.gutter,
-            )
-        )
-        fill_opaque = fill.getextrema() == (255, 255)
-        if not fill_opaque:
-            raise ValueError("tileset canonical fill inset must be fully opaque")
-
     validation: dict[str, object] = {
         "grid_contract_version": GRID_CONTRACT_VERSION,
         "topology": contract.topology,
@@ -921,8 +874,6 @@ def validate_canonical_grid(data: bytes, contract: GridContract) -> dict[str, ob
         "output_width": facts.width,
         "output_height": facts.height,
     }
-    if fill_opaque is not None:
-        validation["canonical_fill_opaque"] = fill_opaque
     return validation
 
 
@@ -996,148 +947,9 @@ def _place_cells(
     return _png_bytes(result), transforms
 
 
-def _normalize_tileset(
-    data: bytes, contract: GridContract
-) -> tuple[bytes, list[dict[str, object]]]:
-    with Image.open(BytesIO(data)) as opened:
-        source = opened.convert("RGBA")
-    placed_data, transforms = _place_cells(
-        source,
-        width=source.width,
-        height=source.height,
-        contract=contract,
-    )
-    with Image.open(BytesIO(placed_data)) as opened:
-        placed = opened.convert("RGBA")
-    cell_width, cell_height = contract.cell_size(*placed.size)
-    coloured = Image.new("RGBA", placed.size, (0, 0, 0, 0))
-    for row in range(contract.rows):
-        for column in range(contract.columns):
-            bounds = _cell_bounds(column, row, cell_width, cell_height)
-            cell = placed.crop(bounds)
-            alpha = cell.getchannel("A")
-            median = ImageStat.Stat(cell.convert("RGB"), mask=alpha).median
-            base = Image.new(
-                "RGBA",
-                cell.size,
-                (round(median[0]), round(median[1]), round(median[2]), 255),
-            )
-            base.alpha_composite(cell)
-            coloured.paste(base, bounds[:2])
-    coloured.putalpha(_tileset_alpha_mask(source.width, source.height, contract))
-    return _png_bytes(coloured), transforms
-
-
-def _tileset_alpha_mask(width: int, height: int, contract: GridContract) -> Image.Image:
-    cell_width, cell_height = contract.cell_size(width, height)
-    alpha = Image.new("L", (width, height), 0)
-    for row in range(contract.rows):
-        for column in range(contract.columns):
-            variant = column % 4
-            cell_mask = _tileset_cell_mask(row, variant, cell_width, cell_height, contract.gutter)
-            alpha.paste(cell_mask, (column * cell_width, row * cell_height))
-    return alpha
-
-
-def tileset_alpha_mask(width: int, height: int, contract: GridContract) -> Image.Image:
-    """Return a detached copy of the authoritative 12 x 4 alpha topology."""
-
-    if contract.topology != "tileset":
-        raise ValueError("tileset alpha mask requires a tileset grid contract")
-    return _tileset_alpha_mask(width, height, contract).copy()
-
-
-def _tileset_cell_mask(row: int, column: int, width: int, height: int, gutter: int) -> Image.Image:
-    mask = Image.new("L", (width, height), 0)
-    draw = ImageDraw.Draw(mask)
-    left = gutter
-    top = gutter
-    right = width - gutter - 1
-    bottom = height - gutter - 1
-    middle_y = top + (bottom - top) // 2
-    middle_x = left + (right - left) // 2
-    if row == 0:
-        if column == 3:
-            draw.rectangle((left, top, right, min(bottom, top + max(8, height // 5))), fill=255)
-        elif column == 0:
-            draw.rectangle((left, middle_y, right, bottom), fill=255)
-            draw.polygon([(left, top), (left, middle_y), (right, middle_y)], fill=255)
-        elif column == 2:
-            draw.rectangle((left, middle_y, right, bottom), fill=255)
-            draw.polygon([(left, middle_y), (right, top), (right, middle_y)], fill=255)
-        else:
-            draw.rectangle((left, middle_y, right, bottom), fill=255)
-    elif row == 1:
-        if column == 0:
-            draw.polygon([(left, bottom), (right, top), (right, bottom)], fill=255)
-        elif column == 1:
-            draw.polygon([(left, top), (right, bottom), (left, bottom)], fill=255)
-        elif column == 2:
-            draw.rectangle((left, top, right, bottom), fill=255)
-            draw.rectangle((left, top, middle_x, middle_y), fill=0)
-        else:
-            draw.rectangle((left, top, right, bottom), fill=255)
-            draw.rectangle((middle_x, top, right, middle_y), fill=0)
-    elif row == 2:
-        if column == 0:
-            draw.rectangle((left, top, min(right, left + max(8, width // 5)), bottom), fill=255)
-        elif column == 1:
-            draw.rectangle((max(left, right - max(8, width // 5)), top, right, bottom), fill=255)
-        elif column == 2:
-            draw.rectangle((left, top, right, bottom), fill=255)
-            draw.polygon([(middle_x, top), (right, top), (right, middle_y)], fill=0)
-        else:
-            draw.rectangle((left, top, right, bottom), fill=255)
-            draw.polygon([(left, top), (middle_x, top), (left, middle_y)], fill=0)
-    else:
-        if column == 0:
-            draw.rectangle((left, top, right, bottom), fill=255)
-        else:
-            platform_bottom = min(bottom, top + max(12, height // 3))
-            if column == 1:
-                radius = max(1, (platform_bottom - top + 1) // 2)
-                draw.ellipse((left, top, left + radius * 2, platform_bottom), fill=255)
-                draw.rectangle((left + radius, top, right, platform_bottom), fill=255)
-            elif column == 2:
-                draw.rectangle((left, top, right, platform_bottom), fill=255)
-            elif column == 3:
-                radius = max(1, (platform_bottom - top + 1) // 2)
-                draw.ellipse((right - radius * 2, top, right, platform_bottom), fill=255)
-                draw.rectangle((left, top, right - radius, platform_bottom), fill=255)
-    return mask
-
-
-def tileset_cell_mask(
-    row: int,
-    column: int,
-    width: int,
-    height: int,
-    gutter: int,
-) -> Image.Image:
-    """Return one detached canonical role mask for deterministic recipe assembly."""
-
-    if row not in range(4) or column not in range(4):
-        raise ValueError("tileset cell coordinates must address the canonical 4 x 4 role block")
-    if width <= gutter * 2 or height <= gutter * 2:
-        raise ValueError("tileset cell gutter leaves no content area")
-    return _tileset_cell_mask(row, column, width, height, gutter).copy()
-
-
-def _tileset_role(row: int, column: int) -> str:
-    roles = (
-        ("top-left", "top-middle", "top-right", "isolated-top"),
-        ("slope-up", "slope-down", "inner-top-left", "inner-top-right"),
-        ("side-left", "side-right", "bottom-left", "bottom-right"),
-        ("interior-fill", "platform-left", "platform-middle", "platform-right"),
-    )
-    return roles[row][column % 4]
-
-
 def grid_semantic_role(contract: GridContract, row: int, column: int) -> str:
     """Return the stable role name for one declared grid cell."""
 
-    if contract.topology == "tileset":
-        return _tileset_role(row, column)
     return f"cell-{row}-{column}"
 
 
@@ -1155,11 +967,7 @@ def grid_semantic_contract(contract: GridContract, width: int, height: int) -> d
         for column in range(contract.columns)
     ]
     payload: dict[str, object] = {
-        "id": (
-            "tileset-12x4-v1"
-            if contract.topology == "tileset"
-            else f"grid-{contract.rows}x{contract.columns}-v1"
-        ),
+        "id": f"grid-{contract.rows}x{contract.columns}-v1",
         "topology": contract.topology,
         "rows": contract.rows,
         "columns": contract.columns,
@@ -1169,10 +977,6 @@ def grid_semantic_contract(contract: GridContract, width: int, height: int) -> d
         "anchor": contract.anchor,
         "roles": roles,
     }
-    if contract.topology == "tileset":
-        payload["canonical_mask_sha256"] = sha256(
-            _tileset_alpha_mask(width, height, contract).tobytes()
-        ).hexdigest()
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return {**payload, "sha256": sha256(encoded).hexdigest()}
 
@@ -1203,7 +1007,6 @@ def _normalization_record(
         "exact_gutters_cleared": True,
         "cross_cell_contamination": False,
         "semantic_contract": grid_semantic_contract(contract, *target_size),
-        **({"semantic_mask": "tileset-12x4-v1"} if contract.topology == "tileset" else {}),
     }
 
 
@@ -1440,94 +1243,6 @@ def _cross_cell_component_seams(
                     crossings.append(f"horizontal:{row}:{column}:{x - column * cell_width}")
                     break
     return crossings
-
-
-def _validate_tileset_source_semantics(
-    foreground: Image.Image,
-    *,
-    contract: GridContract,
-    cell_width: int,
-    cell_height: int,
-) -> dict[str, object]:
-    """Validate raw role silhouettes before the canonical role mask is imposed."""
-
-    role_facts: list[dict[str, object]] = []
-    erosion_radius = max(1, min(cell_width, cell_height) // 50)
-    kernel = erosion_radius * 2 + 1
-    safe_inset = Image.new("L", (cell_width, cell_height), 0)
-    ImageDraw.Draw(safe_inset).rectangle(
-        (
-            contract.gutter,
-            contract.gutter,
-            cell_width - contract.gutter - 1,
-            cell_height - contract.gutter - 1,
-        ),
-        fill=255,
-    )
-    for row in range(contract.rows):
-        for column in range(contract.columns):
-            role = grid_semantic_role(contract, row, column)
-            source = foreground.crop(_cell_bounds(column, row, cell_width, cell_height)).convert(
-                "L"
-            )
-            expected = _tileset_cell_mask(row, column % 4, cell_width, cell_height, contract.gutter)
-            positive = expected.filter(ImageFilter.MinFilter(kernel))
-            if positive.getbbox() is None:
-                positive = expected
-            expanded = expected.filter(ImageFilter.MaxFilter(kernel))
-            negative = ImageChops.multiply(safe_inset, ImageChops.invert(expanded))
-            positive_occupancy = _zone_occupancy(source, positive)
-            negative_occupancy = _zone_occupancy(source, negative)
-            if positive_occupancy < 0.5:
-                raise ValueError(
-                    f"tileset semantic role {role} at ({row},{column}) "
-                    f"misses required silhouette zones ({positive_occupancy:.3f})"
-                )
-            if negative_occupancy > 0.35:
-                raise ValueError(
-                    f"tileset semantic role {role} at ({row},{column}) "
-                    f"paints forbidden silhouette zones ({negative_occupancy:.3f})"
-                )
-            role_facts.append(
-                {
-                    "row": row,
-                    "column": column,
-                    "semantic_role": role,
-                    "positive_occupancy": round(positive_occupancy, 6),
-                    "negative_occupancy": round(negative_occupancy, 6),
-                    "required_positive_pixels": _painted_pixels(positive),
-                    "required_negative_pixels": _painted_pixels(negative),
-                }
-            )
-
-    fill = foreground.crop(
-        _inset_cell_bounds(
-            column=0,
-            row=3,
-            cell_width=cell_width,
-            cell_height=cell_height,
-            gutter=contract.gutter,
-        )
-    )
-    fill_coverage = _painted_fraction(fill)
-    if fill_coverage < 0.8:
-        raise ValueError("tileset canonical fill source must cover its inset")
-    return {
-        "tileset_semantic_contract": grid_semantic_contract(
-            contract, foreground.width, foreground.height
-        ),
-        "tileset_roles_validated": len(role_facts),
-        "tileset_role_validation": role_facts,
-        "tileset_fill_source_coverage": round(fill_coverage, 6),
-    }
-
-
-def _zone_occupancy(source: Image.Image, zone: Image.Image) -> float:
-    zone_pixels = _painted_pixels(zone)
-    if zone_pixels == 0:
-        return 0.0
-    overlap = ImageChops.multiply(source.convert("L"), zone.convert("L"))
-    return _painted_pixels(overlap) / zone_pixels
 
 
 def _isolated_view_gutter(width: int, height: int) -> int:

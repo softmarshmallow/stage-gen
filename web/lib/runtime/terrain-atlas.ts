@@ -6,9 +6,9 @@ import lookupContract from "./terrain-atlas-lookup.json";
 export const TERRAIN_ATLAS_COLUMNS = 12;
 export const TERRAIN_ATLAS_ROWS = 4;
 export const TERRAIN_ATLAS_CELL_PX = 120;
-// The deterministic atlas mask starts exposed top edges ten source pixels below the cell edge.
-// Collision continues to follow binary occupancy; consumers lift the rendered atlas by this
-// amount so the visible cap, rather than transparent template padding, meets the walk surface.
+// Current canonical Bellweather atlases begin exposed top edges ten source pixels below the cell
+// boundary. Collision continues to follow binary occupancy; lift rendered cells by the scaled
+// inset so the visible cap meets the logical walk surface.
 export const TERRAIN_ATLAS_WALK_SURFACE_INSET_PX = 10;
 export const TERRAIN_ATLAS_WIDTH = 1440;
 export const TERRAIN_ATLAS_HEIGHT = 480;

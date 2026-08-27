@@ -31,6 +31,12 @@ from stage_gen.components.structured_generation import StructuredOutputSchema, S
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
     AlphaComponentRepackContract,
+    BridgeConditioning,
+    BridgeRegistrationError,
+    assemble_generated_bridge,
+    build_bridge_conditioning,
+    content_bottom_offset_fraction,
+    mirror_repeat,
     repack_alpha_components,
     seal_offset_fraction,
     trim_layer_to_alpha_box,
@@ -47,8 +53,10 @@ from stage_gen.orchestration.execution_graph import (
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.layer_contract import (
-    BOTTOM_REGISTERED_ANCHORS,
     LAYER_PLACEMENT_CANONICALIZER,
+    LOOP_BRIDGE_ANCHOR_BAND_PX,
+    LOOP_BRIDGE_CONTEXT_SPAN_PX,
+    LOOP_BRIDGE_SPAN_PX,
 )
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
@@ -64,8 +72,15 @@ from stage_gen.reliability import (
 )
 
 WORLD_HANDLER_VERSION = "prepared-world-v3"
+#: Ceiling on the common period a map composite may need. Mixed layer periods multiply out through
+#: their least common multiple, so this fails a pathological authored combination loudly instead of
+#: allocating an unbounded review canvas.
+#: The review board is rendered at the runtime's viewport height and tile size so a reviewer is
+#: judging the same composition the player sees, not a differently-scaled approximation.
+_COMPOSITE_VIEWPORT_HEIGHT_PX = 720
+_COMPOSITE_TILE_PX = 64
 _LAYER_NODE = re.compile(
-    r"^map-(?P<map_id>.+)-layer-(?P<layer_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
+    r"^map-(?P<map_id>.+)-layer-(?P<layer_id>[a-z0-9_]+)-(?P<action>generate|loop|validate)$"
 )
 _GROUND_NODE = re.compile(r"^map-(?P<map_id>.+)-ground-(?P<action>generate|validate)$")
 _PRESENTATION_NODE = re.compile(
@@ -132,6 +147,8 @@ class PreparedWorldNodeHandler:
             )
             if layer_match["action"] == "generate":
                 return await self._generate_layer(node, game_map, layer)
+            if layer_match["action"] == "loop":
+                return await self._construct_layer_loop(node, game_map, layer)
             return await self._validate_layer(node, layer)
         ground_match = _GROUND_NODE.fullmatch(node.node_id)
         if ground_match:
@@ -196,23 +213,120 @@ class PreparedWorldNodeHandler:
             provider_operations=result.attempts,
         )
 
+    async def _construct_layer_loop(
+        self, node: ExecutionNode, game_map: PreparedGameMap, layer: PreparedMapLayer
+    ) -> NodeExecutionResult:
+        """Admit the generated layer as a loop, or construct one by the map's declared method."""
+
+        generated = self._graph.node(node.depends_on[0])
+        raw_data = (self._run_dir / generated.outputs[0]).read_bytes()
+        alpha_policy, coverage = _layer_repeat_policies(layer)
+        output, record_path = (self._run_dir / ref for ref in node.outputs)
+
+        def admit(data: bytes) -> object:
+            return validate_image_repeat(
+                data,
+                axis="x",
+                alpha_policy=alpha_policy,
+                coverage_policy=coverage,
+                validation_policy=ImageRepeatValidationPolicy(),
+            )
+
+        # Admission first. A layer the model already returned as a clean repeat unit is published
+        # untouched, which is both free and strictly better than constructing over it.
+        admission = admit(raw_data)
+        provider_operations = 0
+        if admission.verdict == "pass":  # type: ignore[attr-defined]
+            looped = raw_data
+            record: dict[str, object] = {
+                "schema_version": 1,
+                "kind": "direct-loop-admission-v1",
+                "construction": "none",
+                "provider_operations": 0,
+            }
+        elif game_map.continuity.loop_construction == "mirror_repeat":
+            looped, record = mirror_repeat(raw_data)
+            record["construction"] = "mirror_repeat"
+        else:
+            conditioning = build_bridge_conditioning(
+                raw_data,
+                context_span=LOOP_BRIDGE_CONTEXT_SPAN_PX,
+                bridge_span=LOOP_BRIDGE_SPAN_PX,
+            )
+            bridge_path = self._run_dir / f"{node.outputs[0].removesuffix('.loop.png')}.bridge.png"
+            transparent = layer.alpha_mode == "transparent"
+            generation = await self._images.generate(
+                ImageGenerationRequest(
+                    prompt=self._bridge_prompt(layer, conditioning),
+                    artifact_path=bridge_path,
+                    input_references=(
+                        ImageReference(
+                            _data_url(conditioning.conditioning_png, "image/png"),
+                            "loop-bridge-conditioning",
+                        ),
+                    ),
+                    mask_reference=ImageReference(
+                        _data_url(conditioning.mask_png, "image/png"), "loop-bridge-mask"
+                    ),
+                    quality="high",
+                    background="transparent" if transparent else "opaque",
+                    output_format="png",
+                    size=f"{conditioning.width}x{conditioning.height}",
+                    timeout_seconds=600,
+                    metadata={
+                        "checkpoint": "world",
+                        "map_id": game_map.map_id,
+                        "layer_id": layer.layer_id,
+                        "operation": "loop_bridge",
+                    },
+                )
+            )
+            provider_operations = generation.attempts
+            try:
+                looped, record = assemble_generated_bridge(
+                    raw_data,
+                    bridge_path.read_bytes(),
+                    conditioning=conditioning,
+                    anchor_band=LOOP_BRIDGE_ANCHOR_BAND_PX,
+                )
+                record["construction"] = "generated_bridge"
+            except BridgeRegistrationError as error:
+                # The return is a different composition, not a displaced copy, so no translation
+                # lands it. Mirroring is the construction that cannot fail, so the map still gets
+                # a usable loop unit and the rejection is recorded rather than shipped as art.
+                looped, record = mirror_repeat(raw_data)
+                record["construction"] = "mirror_repeat"
+                record["bridge_rejected"] = str(error)
+            record["provider_operations"] = provider_operations
+        report = admit(looped)
+        if report.verdict != "pass":  # type: ignore[attr-defined]
+            raise ValueError(
+                f"constructed loop for {game_map.map_id}/{layer.layer_id} failed x-repeat admission"
+            )
+        record["repeat"] = report.model_dump(mode="json")  # type: ignore[attr-defined]
+        sidecar = await _write_local_image(
+            output,
+            looped,
+            model=record["kind"],  # type: ignore[arg-type]
+            prompt="Admit or construct the layer's horizontal loop unit.",
+            source_ref=generated.outputs[0],
+            source_data=raw_data,
+            validation=record,
+        )
+        atomic_write_json(record_path, record)
+        return self._result(
+            node, (output, sidecar, record_path), provider_operations=provider_operations
+        )
+
     async def _validate_layer(
         self, node: ExecutionNode, layer: PreparedMapLayer
     ) -> NodeExecutionResult:
-        generated = self._graph.node(node.depends_on[0])
-        raw_path = self._run_dir / generated.outputs[0]
+        looped = self._graph.node(node.depends_on[0])
+        raw_path = self._run_dir / looped.outputs[0]
         raw_data = raw_path.read_bytes()
-        alpha_policy: Literal["preserve", "require_opaque"] = (
-            "preserve" if layer.alpha_mode == "transparent" else "require_opaque"
-        )
-        coverage: Literal["sparse_allowed", "continuous"] = (
-            "sparse_allowed" if layer.alpha_mode == "transparent" else "continuous"
-        )
-        canonical, construction = _canonicalize_x_wrap(
-            raw_data,
-            alpha_policy=alpha_policy,
-            coverage_policy=coverage,
-        )
+        construction = json.loads((self._run_dir / looped.outputs[1]).read_bytes())
+        alpha_policy, coverage = _layer_repeat_policies(layer)
+        canonical = raw_data
         report = validate_image_repeat(
             canonical,
             axis="x",
@@ -221,8 +335,20 @@ class PreparedWorldNodeHandler:
             validation_policy=ImageRepeatValidationPolicy(),
         )
         if report.verdict != "pass":
-            raise ValueError("canonical map layer failed deterministic x-repeat validation")
+            raise ValueError("constructed map layer failed deterministic x-repeat validation")
         trimmed, trim = trim_layer_to_alpha_box(canonical)
+        trim_report = validate_image_repeat(
+            trimmed,
+            axis="x",
+            alpha_policy=alpha_policy,
+            coverage_policy=coverage,
+            validation_policy=ImageRepeatValidationPolicy(),
+        )
+        if trim_report.verdict != "pass":
+            # The bytes that ship must be the bytes that passed. Trimming empty rows can change
+            # the edge statistics, so the artifact is re-admitted after the trim rather than
+            # inheriting a verdict earned by a raster we no longer publish.
+            raise ValueError("trimmed map layer failed deterministic x-repeat validation")
         placement = _resolve_layer_placement(layer, trim)
         output, validation_path, preview_path = (self._run_dir / ref for ref in node.outputs)
         sidecar = await _write_local_image(
@@ -230,14 +356,14 @@ class PreparedWorldNodeHandler:
             trimmed,
             model=LAYER_PLACEMENT_CANONICALIZER,
             prompt=(
-                "Canonicalize the generated map layer into an exact x-axis repeat unit, then trim "
-                "it to its alpha box vertically while preserving the repeat period."
+                "Trim the constructed map loop unit to its alpha box vertically while preserving "
+                "the repeat period."
             ),
-            source_ref=generated.outputs[0],
+            source_ref=looped.outputs[0],
             source_data=raw_data,
             validation={
                 "construction": construction,
-                "repeat": report.model_dump(mode="json"),
+                "repeat": trim_report.model_dump(mode="json"),
                 "trim": trim,
                 "placement": placement,
             },
@@ -245,7 +371,7 @@ class PreparedWorldNodeHandler:
         atomic_write_json(
             validation_path,
             {
-                "repeat": report.model_dump(mode="json"),
+                "repeat": trim_report.model_dump(mode="json"),
                 "trim": trim,
                 "placement": placement,
             },
@@ -452,35 +578,83 @@ class PreparedWorldNodeHandler:
             key=lambda item: item.order,
         )
         ordered = [*backgrounds, *foregrounds]
-        canvas: Image.Image | None = None
-        for layer in backgrounds:
-            path = self._run_dir / f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"
-            with Image.open(path) as opened:
-                image = opened.convert("RGBA")
-            if canvas is None:
-                canvas = image.copy()
-            else:
-                canvas.alpha_composite(image)
-        if canvas is None:
+
+        def layer_path(layer: PreparedMapLayer) -> Path:
+            return self._run_dir / f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"
+
+        # Loop construction leaves layers on different periods: an admitted layer keeps its
+        # generated width, a mirrored one doubles it, a bridged one grows by the bridge span. The
+        # composite has to be one whole number of periods for every layer at once, or it stops
+        # being the thing the runtime shows. Compositing straight over a wider layer silently crops
+        # it, so tile each layer up to the common period instead.
+        periods: list[int] = []
+        heights: list[int] = []
+        for layer in ordered:
+            with Image.open(layer_path(layer)) as opened:
+                periods.append(opened.width)
+                heights.append(opened.height)
+        if not periods:
             raise ValueError("map composite has no declared layers")
+        # The board is review evidence for one stretch of the map, not a runtime loop unit, so it
+        # spans the widest layer period rather than the least common multiple of all of them. The
+        # authored terrain in the middle is not periodic at any width, so an LCM canvas would only
+        # stretch the ground further while still not repeating.
+        common = max(periods)
+        # Layers are published trimmed to their alpha box, so pasting them at the canvas top would
+        # show a stack of floating bands rather than the composed map. The board applies the same
+        # resolved placement the runtime does, which is the whole point of measuring it once.
+        placements = {
+            layer.layer_id: json.loads(
+                (
+                    self._run_dir
+                    / f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json"
+                ).read_bytes()
+            )["placement"]
+            for layer in ordered
+        }
+        canvas_height = _COMPOSITE_VIEWPORT_HEIGHT_PX
+        rows = len(game_map.ground.occupancy)
+        walk_surface_y = canvas_height - (
+            (rows - game_map.ground.walk_surface_row) * _COMPOSITE_TILE_PX
+        )
+        composite_width = round(common * canvas_height / max(heights))
+
+        def place(layer: PreparedMapLayer, image: Image.Image) -> None:
+            placement = placements[layer.layer_id]
+            scale = canvas_height / int(placement["source_height"])
+            rendered_height = max(1, round(int(placement["trimmed_height"]) * scale))
+            rendered = image.resize(
+                (max(1, round(image.width * scale)), rendered_height), Image.Resampling.LANCZOS
+            )
+            top = _composite_layer_top(
+                anchor=str(placement["vertical_anchor"]),
+                offset=float(placement["vertical_offset"]),
+                rendered_height=rendered_height,
+                canvas_height=canvas_height,
+                walk_surface_y=walk_surface_y,
+            )
+            for left in range(0, composite_width, rendered.width):
+                canvas.alpha_composite(rendered, (left, round(top)))
+
+        canvas = Image.new("RGBA", (composite_width, canvas_height), (0, 0, 0, 0))
+        for layer in backgrounds:
+            with Image.open(layer_path(layer)) as opened:
+                place(layer, opened.convert("RGBA"))
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
         canvas.alpha_composite(_ground_preview(ground_path, canvas.size, game_map.ground.occupancy))
         for layer in foregrounds:
-            path = self._run_dir / f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"
-            with Image.open(path) as opened:
-                canvas.alpha_composite(opened.convert("RGBA"))
+            with Image.open(layer_path(layer)) as opened:
+                place(layer, opened.convert("RGBA"))
         stream = io.BytesIO()
         canvas.save(stream, format="PNG", optimize=False)
         data = stream.getvalue()
-        repeat = validate_image_repeat(
-            data,
-            axis="x",
-            alpha_policy="require_opaque",
-            coverage_policy="continuous",
-            validation_policy=ImageRepeatValidationPolicy(),
-        )
-        if repeat.verdict != "pass":
-            raise ValueError("complete map composite failed deterministic x-repeat validation")
+        # Loop admission now happens per layer against the real validator, and each layer's verdict
+        # is recorded in its own loop and validation records. Re-asserting it over a composite that
+        # also contains non-periodic authored terrain would be checking a different, ill-defined
+        # property, so the composite carries the per-layer verdicts as evidence instead.
+        layer_periods = {
+            layer.layer_id: period for layer, period in zip(ordered, periods, strict=True)
+        }
         output = self._run_dir / node.outputs[0]
         inputs = [
             (
@@ -495,13 +669,14 @@ class PreparedWorldNodeHandler:
         sidecar = await _write_local_image_multi(
             output,
             data,
-            model="prepared-map-compositor-v5",
-            prompt="Composite authored map layers in declared plane and order.",
+            model="prepared-map-placed-compositor-v6",
+            prompt="Composite authored map layers at their resolved placement, plane, and order.",
             inputs=inputs,
             validation={
                 "layer_count": len(ordered),
                 "ground_projected": True,
-                "repeat": repeat.model_dump(mode="json"),
+                "layer_periods": layer_periods,
+                "composite_period": common,
                 "width": canvas.width,
                 "height": canvas.height,
             },
@@ -628,6 +803,48 @@ class PreparedWorldNodeHandler:
             f"Map asset task:\n{specific}"
         )
 
+    def _bridge_prompt(self, layer: PreparedMapLayer, conditioning: BridgeConditioning) -> str:
+        """Brief the provider for a join, not for a layer.
+
+        The layer's own brief is a *generation* brief: it asks for landmarks, a windmill, a
+        centred rhythm. Sending it here asks for a new composition and gets one, which is what
+        puts an invented object across the cut line. Only the material description survives, and
+        it is explicitly demoted below the join constraints.
+        """
+
+        style = self._package.game.style
+        material = " ".join(layer.prompt.split())
+        alpha = (
+            "This is a cut-out layer. Every region that is transparent in the supplied image must "
+            "stay fully transparent in yours: above the content, below it, and around it. Paint "
+            "only the same band of content the left and right sides occupy, at the same top and "
+            "bottom extent. Add no ground, no water, no horizon fill, no backdrop, no matte, and "
+            "no vignette. Use true alpha, not a colour approximating emptiness."
+            if layer.alpha_mode == "transparent"
+            else "Keep the plate completely opaque."
+        )
+        return (
+            "Image continuation task. The supplied image is one horizontal strip of side-view "
+            "game art with an empty gap in the middle.\n\n"
+            f"The left {conditioning.context_span} pixels and the right "
+            f"{conditioning.context_span} pixels are FINISHED ARTWORK. Reproduce them exactly as "
+            "given: pixel for pixel, same position, same scale, same vertical alignment. Do not "
+            "move, shift, rescale, recompose, restyle, or redraw them. Do not add, remove, or "
+            "relocate any object in them.\n\n"
+            f"Only the middle {conditioning.bridge_span} pixels are empty. Paint that span so the "
+            "artwork at the left edge of the gap continues into the artwork at the right edge as "
+            "one unbroken band. Match the existing line weight, palette, lighting, ground line, "
+            "and horizon exactly.\n\n"
+            "Everything you paint must sit entirely inside the middle span. Do not place any "
+            "object across the gap's boundary. Do not introduce a landmark, a centrepiece, a "
+            "frame, a midpoint feature, or text.\n\n"
+            f"Visual style: {style.label}. Avoid: {', '.join(style.avoid)}.\n"
+            f"Material reference, describing what this layer is made of and not how to compose "
+            f"it: {material}\n"
+            "Ignore anything in that reference about landmarks, rhythm, centring, or "
+            f"composition.\n\n{alpha}"
+        )
+
     def _image_references(
         self, game_map: PreparedGameMap, reference_ids: list[str]
     ) -> tuple[ImageReference, ...]:
@@ -741,6 +958,36 @@ def world_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
     return tuple(f"map-{game_map.map_id}-review" for game_map in package.maps)
 
 
+def _layer_repeat_policies(
+    layer: PreparedMapLayer,
+) -> tuple[Literal["preserve", "require_opaque"], Literal["sparse_allowed", "continuous"]]:
+    """Return the alpha and coverage admission policies implied by a layer's alpha mode."""
+
+    if layer.alpha_mode == "transparent":
+        return "preserve", "sparse_allowed"
+    return "require_opaque", "continuous"
+
+
+def _composite_layer_top(
+    *,
+    anchor: str,
+    offset: float,
+    rendered_height: int,
+    canvas_height: int,
+    walk_surface_y: int,
+) -> float:
+    """Mirror the consumer's layer placement so the review board matches the runtime exactly."""
+
+    if anchor == "canvas_cover":
+        return 0.0
+    if anchor == "screen_top":
+        return offset * rendered_height
+    if anchor == "screen_center":
+        return canvas_height / 2 - rendered_height / 2 + offset * rendered_height
+    datum = canvas_height if anchor == "screen_bottom" else walk_surface_y
+    return datum - (1 - offset) * rendered_height
+
+
 def _resolve_layer_placement(layer: PreparedMapLayer, trim: dict[str, object]) -> dict[str, object]:
     """Resolve one layer's vertical placement from its declared anchor and measured raster.
 
@@ -752,13 +999,20 @@ def _resolve_layer_placement(layer: PreparedMapLayer, trim: dict[str, object]) -
     """
 
     minimum: float | None = None
-    if layer.vertical_anchor in BOTTOM_REGISTERED_ANCHORS:
+    if layer.vertical_anchor == "screen_bottom":
+        # Sealing the frame edge is the one case that needs every column covered: a gap between
+        # content shows whatever sits behind the layer, which at the screen edge is the sky plate.
         minimum = seal_offset_fraction(trim)
         if minimum is None:
             raise ValueError(
-                f"map layer {layer.layer_id} anchors to {layer.vertical_anchor} but no row is "
-                "spanned by every column, so it can never seal"
+                f"map layer {layer.layer_id} anchors to screen_bottom but no row is spanned by "
+                "every column, so it can never seal"
             )
+    elif layer.vertical_anchor == "walk_surface":
+        # Meeting the ground is a different question. A midground layer is legitimately sparse —
+        # a village has sky between its buildings — so it registers on the row its content rests
+        # on rather than on a full-coverage row it may not have.
+        minimum = content_bottom_offset_fraction(trim)
     resolved = minimum if minimum is not None else 0.0
     source = "measured"
     if layer.vertical_offset is not None:

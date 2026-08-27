@@ -9,7 +9,7 @@
 
 ## Current boundary
 
-Each `maps/<map_id>.toml` is one `game-map-v5` source. It describes the assets
+Each `maps/<map_id>.toml` is one `game-map-v6` source. It describes the assets
 and composition needed to generate one side-view map and the static topology
 needed to render its ground, ladders, and portal structures.
 
@@ -51,7 +51,8 @@ A current map source contains:
 - a side-view camera and horizontal continuity envelope;
 - explicit, digest-locked reference images with rights statements;
 - any number of ordered background and foreground layer requests, each declaring
-  its vertical anchor from a closed placement vocabulary;
+  its vertical anchor from a closed placement vocabulary and its consumer-only
+  depth treatment;
 - one binary terrain-occupancy grid, its vertical fit and walk-surface row, and a
   ground-material prompt;
 - an optional `ladder-4-tile-v1` definition with terrain-relative placements;
@@ -98,11 +99,21 @@ This split keeps topology exact while allowing the provider to concentrate on
 rendering quality. Structural admission does not imply that a generated paintover
 has passed artistic review.
 
+## Runtime depth presentation
+
+Every layer declares `contrast`, `saturation`, `atmosphere_color`,
+`atmosphere_strength`, and `detail_blur_screen_pixels`. These fields describe
+how the accepted raster is displayed, not what the image model paints. They are
+projected into the prepared manifest and applied once by the consumer; changing
+them does not invalidate provider generation, deterministic layer validation,
+or the authored review composite. Neutral values are `1`, `1`, `#ffffff`, `0`,
+and `0` respectively.
+
 ## Resolution and runtime projection
 
 Package resolution verifies every reference, digest, identity, cross-contract
 map reference, ladder/climb dependency, and portal transition before provider
-work. Integration emits only `prepared-game-runtime-v7`; the web runtime does
+work. Integration emits only `prepared-game-runtime-v8`; the web runtime does
 not infer missing terrain, ladder, portal, or gameplay semantics.
 
 The canonical Bellweather package is the repository example:
@@ -115,7 +126,7 @@ uv run stage-gen package plan --input library/games/bellweather
 See also:
 
 - [Game package](game-package.md) for the complete prepared closure.
-- [Terrain atlas](spec/tileset.md) for the 47-mask artifact contract.
+- [Terrain atlas](spec/terrain-atlas.md) for the 47-mask artifact contract.
 - [Scene and gameplay components](spec/scene-gameplay-components.md) for
   consumer ownership.
 - [Canonical generation pipeline](spec/game/generation-pipeline.md) for DAG,

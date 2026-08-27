@@ -302,7 +302,7 @@ def test_profile_change_invalidates_only_allowlisted_player_asset_metadata() -> 
     )
     assert not any(
         _is_player_asset_stage(stage)
-        for stage in ("concept", "world-spec", "layer-sky", "tileset", "mob-concept-0")
+        for stage in ("concept", "world-spec", "layer-sky", "items", "mob-concept-0")
     )
 
 

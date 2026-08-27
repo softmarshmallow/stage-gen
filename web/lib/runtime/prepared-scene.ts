@@ -9,6 +9,7 @@ import {
   loadTrimmedSprite,
   loadTransparentSprite,
   loadVerifiedRepeatLayer,
+  registerCanvas,
 } from "./assets";
 import {
   parsePreparedRuntimeManifest,
@@ -58,7 +59,6 @@ import {
   installMotionPlayback,
 } from "./motion-playback";
 import {
-  PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
@@ -80,6 +80,13 @@ import {
 } from "./prepared-terrain";
 import { terrainSurfaceY } from "./terrain";
 import { preparedPortalEndpointPlacements } from "./prepared-portals";
+import { presentPreparedLayerCanvas } from "./prepared-layer-presentation";
+import {
+  NPC_TALK_PROMPT_GAP_PX,
+  NPC_TALK_PROMPT_STYLE,
+  NPC_TALK_PROMPT_TEXT,
+} from "./npc";
+import { DebugOverlay } from "./debug-overlay";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
@@ -103,7 +110,15 @@ type Sequence = Readonly<{
 type NpcActor = {
   npcId: string;
   sprite: Phaser.GameObjects.Sprite;
+  talkPrompt: Phaser.GameObjects.Text;
 };
+
+type ContactShadowTarget = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
+
+type ContactShadowBinding = Readonly<{
+  target: ContactShadowTarget;
+  rings: readonly Phaser.GameObjects.Ellipse[];
+}>;
 
 function asSequences(values: readonly Record<string, unknown>[]): readonly Sequence[] {
   return values as unknown as readonly Sequence[];
@@ -172,6 +187,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private layerSprites: Phaser.GameObjects.TileSprite[] = [];
   private groundSprites: Phaser.GameObjects.GameObject[] = [];
   private props: Phaser.GameObjects.Image[] = [];
+  private contactShadows: ContactShadowBinding[] = [];
   private worldLabels: Phaser.GameObjects.Text[] = [];
   private mobs: Mob[] = [];
   private readonly mobInstanceIds = new Map<Mob, string>();
@@ -197,9 +213,8 @@ export class PreparedStageScene extends Phaser.Scene {
   private readonly scaleReferences = new Map<string, ScaleReference>();
   private readonly diagnostics: string[] = [];
   private questStates = new Map<string, string>();
-  private hud?: Phaser.GameObjects.Text;
+  private debugOverlay?: DebugOverlay;
   private mapLabel?: Phaser.GameObjects.Text;
-  private prompt?: Phaser.GameObjects.Text;
   private dialoguePanel?: Phaser.GameObjects.Rectangle;
   private dialogueText?: Phaser.GameObjects.Text;
   private dialogueName?: Phaser.GameObjects.Text;
@@ -237,6 +252,8 @@ export class PreparedStageScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (!this.ready || this.loading || !this.player || !this.keys) return;
     const now = performance.now();
+    this.debugOverlay?.toggleForKey(this.keys.debugOverlay);
+    this.updateDebugOverlay();
     if (this.activeSequence) {
       this.player.inventoryToggleRequested = false;
       this.updateDialogueInput();
@@ -246,7 +263,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.updateMobs(delta, now);
     this.collectDrops(delta, now);
     this.updateInteractionPrompt();
-    this.updateHud();
+    this.updateContactShadows();
     for (const layer of this.layerSprites) {
       const parallax = Number(layer.getData("parallax") ?? 0);
       layer.tilePositionX = this.cameras.main.scrollX * parallax;
@@ -301,7 +318,7 @@ export class PreparedStageScene extends Phaser.Scene {
       openingSpawn?.normalized_x ?? 0.08,
       false,
     );
-    this.createHud();
+    this.createInterface();
     this.children.getByName("loading-label")?.destroy();
     this.ready = true;
     if (typeof window !== "undefined") {
@@ -466,51 +483,65 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private async loadMapTextures(manifest: PreparedRuntimeManifest): Promise<void> {
     await Promise.all(
-      manifest.maps.flatMap((map) => [
-        ...map.layers.map((layer) => {
-          const key = `prepared_map_${map.map_id}_${layer.layer_id}`;
-          return this.loadPresentationOrFallback(
-            loadVerifiedRepeatLayer(
-              this.url(layer.asset.path),
+      manifest.maps.flatMap((map) => {
+        const walkSurfaceY = preparedWalkSurfaceY(map, TILE_PX, VIEW_H);
+        return [
+          ...map.layers.map((layer) => {
+            const key = `prepared_map_${map.map_id}_${layer.layer_id}`;
+            const layout = preparedLayerLayout(layer.placement, {
+              viewportHeight: VIEW_H,
+              walkSurfaceY,
+            });
+            return this.loadPresentationOrFallback(
+              loadVerifiedRepeatLayer(
+                this.url(layer.asset.path),
+                key,
+                layer.alpha_mode === "opaque",
+                layer.asset.width ?? 1536,
+                this.textures,
+              ).then((loaded) => {
+                presentPreparedLayerCanvas(
+                  loaded.canvas,
+                  layer.presentation,
+                  1 / layout.scale,
+                );
+                registerCanvas(this.textures, key, loaded.canvas);
+              }),
               key,
-              layer.alpha_mode === "opaque",
-              layer.asset.width ?? 1536,
-              this.textures,
-            ),
-            key,
-            "sprite",
-          );
-        }),
-        this.loadGroundOrFallback(map),
-        ...(map.ladder
-          ? [
-              this.loadPresentationOrFallback(
-                loadTrimmedSprite(
-                  this.url(map.ladder.asset.path),
+              "sprite",
+            );
+          }),
+          this.loadGroundOrFallback(map),
+          ...(map.ladder
+            ? [
+                this.loadPresentationOrFallback(
+                  loadTrimmedSprite(
+                    this.url(map.ladder.asset.path),
+                    `prepared_ladder_${map.map_id}`,
+                    this.textures,
+                    this.transparencyPolicy,
+                  ),
                   `prepared_ladder_${map.map_id}`,
-                  this.textures,
-                  this.transparencyPolicy,
+                  "sprite",
                 ),
-                `prepared_ladder_${map.map_id}`,
-                "sprite",
-              ),
-            ]
-          : []),
-        ...(map.portal
-          ? [
-              this.loadPresentationOrFallback(
-                loadTransparentSprite(
-                  this.url(map.portal.asset.path),
+              ]
+            : []),
+          ...(map.portal
+            ? [
+                this.loadPresentationOrFallback(
+                  loadTransparentSprite(
+                    this.url(map.portal.asset.path),
+                    `prepared_portal_${map.map_id}`,
+                    this.textures,
+                    this.transparencyPolicy,
+                  ),
                   `prepared_portal_${map.map_id}`,
-                  this.textures,
-                  this.transparencyPolicy,
+                  "portal_sheet",
                 ),
-                `prepared_portal_${map.map_id}`,
-                "portal_sheet",
-              ),
-            ]
-          : []),
-      ]),
+              ]
+            : []),
+        ];
+      }),
     );
   }
 
@@ -670,21 +701,41 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private installInput(): void {
     const keyboard = this.input.keyboard;
-    if (!keyboard) return;
-    this.keys = {
-      jump: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-      up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      w: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      interact: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
-      enter: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+    if (keyboard) {
+      this.keys = {
+        jump: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+        w: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        interact: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
+        enter: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+        debugOverlay: keyboard.addKey(
+          Phaser.Input.Keyboard.KeyCodes.BACKTICK,
+        ),
+      };
+    }
+    let unlockPending = false;
+    const releaseAudioUnlock = () => {
+      keyboard?.off("keydown", startAudio);
+      this.input.off(Phaser.Input.Events.POINTER_DOWN, startAudio);
     };
     const startAudio = () => {
-      if (!this.soundtrack) return;
-      this.audioUnlocked = true;
-      void this.soundtrack?.play().catch(() => undefined);
-      keyboard.off("keydown", startAudio);
+      const soundtrack = this.soundtrack;
+      if (!soundtrack || this.audioUnlocked || unlockPending) return;
+      unlockPending = true;
+      void soundtrack.play().then(
+        () => {
+          this.audioUnlocked = true;
+          releaseAudioUnlock();
+        },
+        () => {
+          // Autoplay policies vary. Keep both gesture routes armed until one
+          // playback attempt actually succeeds.
+          unlockPending = false;
+        },
+      );
     };
-    keyboard.on("keydown", startAudio);
+    keyboard?.on("keydown", startAudio);
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, startAudio);
   }
 
   private async enterMap(mapId: string, normalizedX: number, announce = true): Promise<void> {
@@ -732,8 +783,8 @@ export class PreparedStageScene extends Phaser.Scene {
       scaleReferences: this.scaleReferences,
       preserveSourceScaleStates:
         PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
-      crouchMovementMode: PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
     });
+    this.addContactShadow(this.player.sprite);
     this.items = new ItemSystem({
       scene: this,
       tilePx: TILE_PX,
@@ -761,6 +812,10 @@ export class PreparedStageScene extends Phaser.Scene {
     this.mobInstanceIds.clear();
     this.player?.destroy();
     this.player = undefined;
+    for (const binding of this.contactShadows) {
+      for (const ring of binding.rings) ring.destroy();
+    }
+    this.contactShadows = [];
     for (const sprite of [
       ...this.layerSprites,
       ...this.groundSprites,
@@ -869,6 +924,7 @@ export class PreparedStageScene extends Phaser.Scene {
       const height = prop.prop_id.includes("stall") ? 170 : 110;
       sprite.setDisplaySize(Math.min(220, (sprite.width / sprite.height) * height), height);
       this.props.push(sprite);
+      this.addContactShadow(sprite);
     }
     for (const placement of gameplay.npc_placements.filter((entry) => entry.map_id === map.map_id)) {
       const npc = manifest.npcs.find((entry) => entry.npc_id === placement.npc_id);
@@ -887,7 +943,7 @@ export class PreparedStageScene extends Phaser.Scene {
       );
       scaleSpriteFrameToHeight(sprite, NPC_HEIGHT);
       anchorRepackedMotionFeet(sprite);
-      this.npcs.push({ npcId: npc.npc_id, sprite });
+      this.addContactShadow(sprite);
       const label = this.add
         .text(sprite.x, surfaceY - NPC_HEIGHT - 12, npc.display_name, {
           fontFamily: "system-ui, sans-serif",
@@ -898,7 +954,19 @@ export class PreparedStageScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 1)
         .setDepth(36);
-      this.worldLabels.push(label);
+      const talkPrompt = this.add
+        .text(
+          sprite.x,
+          label.y - label.displayHeight - NPC_TALK_PROMPT_GAP_PX,
+          NPC_TALK_PROMPT_TEXT,
+          NPC_TALK_PROMPT_STYLE,
+        )
+        .setOrigin(0.5, 1)
+        .setScrollFactor(1)
+        .setDepth(SCENE_CONTENT_DEPTH.effect)
+        .setVisible(false);
+      this.npcs.push({ npcId: npc.npc_id, sprite, talkPrompt });
+      this.worldLabels.push(label, talkPrompt);
     }
   }
 
@@ -967,8 +1035,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private createMobAtColumn(
     mobSlot: number,
     spawnColumn: number,
-    wanderExtentPx?: number,
-    pursuitLeashPx?: number,
+    behaviorSeed?: number,
   ): Mob | null {
     const spec = this.manifest?.mobs[mobSlot];
     if (!spec) return null;
@@ -1002,7 +1069,7 @@ export class PreparedStageScene extends Phaser.Scene {
         : spec.rank === "uncommon"
           ? "hunting"
           : "territorial";
-    return new Mob({
+    const mob = new Mob({
       scene: this,
       ladderIndex: mobSlot,
       startingHealth: mobHealthForRank(spec.rank),
@@ -1011,8 +1078,6 @@ export class PreparedStageScene extends Phaser.Scene {
       worldWidthPx: this.worldWidth,
       baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
-      wanderExtentPx,
-      pursuitLeashPx,
       spriteHeightPx: spec.rank === "boss" ? MOB_HEIGHT * 1.45 : MOB_HEIGHT,
       idleAnimKey: idleKey,
       hurtTextureKey: this.textures.exists(hurtKey) ? hurtKey : idleKey,
@@ -1020,7 +1085,55 @@ export class PreparedStageScene extends Phaser.Scene {
       aggression,
       attackTextureKey: this.textures.exists(attackKey) ? attackKey : undefined,
       deathTextureKey: this.textures.exists(deathKey) ? deathKey : undefined,
+      behaviorSeed,
     });
+    this.addContactShadow(mob.sprite);
+    return mob;
+  }
+
+  private addContactShadow(target: ContactShadowTarget): void {
+    const style = this.manifest?.presentation.contact_shadows;
+    if (!style?.enabled || style.opacity <= 0) return;
+    const ringAlpha = [0.22, 0.32, 0.46] as const;
+    const rings = ringAlpha.map((alpha) =>
+      this.add
+        .ellipse(0, 0, 8, 4, 0x172520, style.opacity * alpha)
+        .setDepth(24),
+    );
+    this.contactShadows.push(Object.freeze({ target, rings: Object.freeze(rings) }));
+    this.updateContactShadows();
+  }
+
+  private updateContactShadows(): void {
+    const style = this.manifest?.presentation.contact_shadows;
+    if (!style?.enabled) return;
+    const spreadFactors = [1.5, 0.75, 0.15] as const;
+    const alphaFactors = [0.22, 0.32, 0.46] as const;
+    const retained: ContactShadowBinding[] = [];
+    for (const binding of this.contactShadows) {
+      const { target } = binding;
+      if (!target.active) {
+        for (const ring of binding.rings) ring.destroy();
+        continue;
+      }
+      retained.push(binding);
+      const visible = target.active && target.visible;
+      const surfaceY = this.surfaceYAtX(target.x);
+      const airbornePixels = Math.max(0, surfaceY - target.y);
+      const distanceScale = Math.max(0.55, 1 - airbornePixels / 480);
+      const distanceAlpha = Math.max(0.35, 1 - airbornePixels / 360);
+      const baseWidth = Phaser.Math.Clamp(target.displayWidth * 0.58 * distanceScale, 28, 150);
+      const baseHeight = Phaser.Math.Clamp(baseWidth * 0.12, 5, 18);
+      binding.rings.forEach((ring, index) => {
+        const spread = style.softness_screen_pixels * spreadFactors[index]!;
+        ring
+          .setPosition(target.x, surfaceY + 2)
+          .setDisplaySize(baseWidth + spread * 2, baseHeight + spread)
+          .setAlpha(style.opacity * alphaFactors[index]! * distanceAlpha)
+          .setVisible(visible);
+      });
+    }
+    this.contactShadows = retained;
   }
 
   private initializeMobPopulation(map: PreparedMap): void {
@@ -1087,8 +1200,6 @@ export class PreparedStageScene extends Phaser.Scene {
       const mob = this.createMobAtColumn(
         mobSlot,
         Math.floor(this.heights.length * 0.91),
-        96,
-        420,
       );
       if (mob) this.mobs.push(mob);
     }
@@ -1149,8 +1260,7 @@ export class PreparedStageScene extends Phaser.Scene {
       mob = this.createMobAtColumn(
         mobSlot,
         reservation.candidate_column,
-        reservation.wander_radius_px,
-        reservation.pursuit_leash_px,
+        this.nextMobInstance,
       );
       if (!mob) {
         director.reject(reservation.reservation_id, nowMs);
@@ -1343,7 +1453,9 @@ export class PreparedStageScene extends Phaser.Scene {
           Math.abs(left.sprite.x - player.sprite.x) -
           Math.abs(right.sprite.x - player.sprite.x),
       )[0];
-    this.prompt?.setText(nearest ? "E  Talk" : "");
+    for (const npc of this.npcs) {
+      npc.talkPrompt.setVisible(npc === nearest);
+    }
     if (nearest && (Phaser.Input.Keyboard.JustDown(keys.interact) || Phaser.Input.Keyboard.JustDown(keys.enter))) {
       this.openInteraction(nearest.npcId);
     }
@@ -1352,6 +1464,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private openInteraction(npcId: string): void {
     const sequence = this.interactionSequenceForNpc(npcId);
     if (!sequence) return;
+    for (const npc of this.npcs) npc.talkPrompt.setVisible(false);
     this.activeSequence = { sequence, nodeId: sequence.entry_node_id };
     this.renderDialogueNode();
   }
@@ -1446,24 +1559,27 @@ export class PreparedStageScene extends Phaser.Scene {
     this.dialoguePortrait?.setVisible(false);
   }
 
-  private createHud(): void {
-    this.hud = this.add.text(18, 18, "", { fontFamily: "system-ui, sans-serif", fontSize: "17px", color: "#ffffff", backgroundColor: "#122536bb", padding: { x: 12, y: 9 } }).setScrollFactor(0).setDepth(850);
+  private createInterface(): void {
+    this.debugOverlay = new DebugOverlay(this);
     this.mapLabel = this.add.text(VIEW_W / 2, 20, this.currentMap?.display_name ?? "", { fontFamily: "Georgia, serif", fontSize: "22px", color: "#fff3cc", stroke: "#1a3342", strokeThickness: 5 }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(850);
-    this.prompt = this.add.text(VIEW_W / 2, VIEW_H - 42, "", { fontFamily: "system-ui, sans-serif", fontSize: "20px", color: "#ffffff", backgroundColor: "#172b3ccc", padding: { x: 13, y: 7 } }).setOrigin(0.5).setScrollFactor(0).setDepth(850);
-    this.updateHud();
+    this.updateDebugOverlay();
   }
 
-  private updateHud(): void {
+  private updateDebugOverlay(): void {
     const manifest = this.manifest;
-    if (!manifest || !this.hud) return;
-    const inventory = [...this.inventory.entries()]
-      .filter(([, quantity]) => quantity > 0)
-      .map(([itemId, quantity]) => `${manifest.items.find((item) => item.item_id === itemId)?.display_name ?? itemId} ×${quantity}`)
-      .join("  ·  ");
+    if (!manifest || !this.debugOverlay) return;
     const health = this.player?.healthState;
-    this.hud.setText(
-      `HP ${health?.hp ?? 0}/${health?.maxHp ?? this.gameplay?.player.starting_health ?? 0}\n${inventory}`,
-    );
+    this.debugOverlay.update({
+      health: health?.hp ?? 0,
+      maximumHealth:
+        health?.maxHp ?? this.gameplay?.player.starting_health ?? 0,
+      inventory: [...this.inventory.entries()].map(([itemId, quantity]) => ({
+        label:
+          manifest.items.find((item) => item.item_id === itemId)?.display_name ??
+          itemId,
+        quantity,
+      })),
+    });
   }
 
   private addInventory(itemId: string, quantity: number): void {

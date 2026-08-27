@@ -14,6 +14,7 @@ export type RuntimeArtifact = Readonly<{
 
 export type LayerVerticalAnchor =
   | "canvas_cover"
+  | "screen_center"
   | "screen_top"
   | "screen_bottom"
   | "walk_surface";
@@ -35,6 +36,14 @@ export type PreparedLayerPlacement = Readonly<{
   trimmed_top: number;
 }>;
 
+export type PreparedLayerPresentation = Readonly<{
+  contrast: number;
+  saturation: number;
+  atmosphere_color: string;
+  atmosphere_strength: number;
+  detail_blur_screen_pixels: number;
+}>;
+
 export type PreparedLayer = Readonly<{
   layer_id: string;
   /** Painter order only. Vertical intent lives in `placement`. */
@@ -43,6 +52,7 @@ export type PreparedLayer = Readonly<{
   parallax: number;
   alpha_mode: "opaque" | "transparent";
   placement: PreparedLayerPlacement;
+  presentation: PreparedLayerPresentation;
   asset: RuntimeArtifact;
 }>;
 
@@ -113,12 +123,21 @@ export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 7;
-  kind: "prepared-game-runtime-v7";
+  schema_version: 8;
+  kind: "prepared-game-runtime-v8";
   game_id: string;
   revision: number;
   display_name: string;
   package_sha256: string;
+  presentation: Readonly<{
+    view_profile: "side_view_2d";
+    gameplay_space: "side_plane";
+    contact_shadows: Readonly<{
+      enabled: boolean;
+      opacity: number;
+      softness_screen_pixels: number;
+    }>;
+  }>;
   entry_map_id: string;
   entry_spawn_id: string;
   maps: readonly PreparedMap[];
@@ -177,6 +196,7 @@ const SAFE_ID = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/;
 const SNAKE_ID = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+const HEX_COLOR = /^#[0-9a-f]{6}$/;
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -226,6 +246,23 @@ function normalizedX(value: unknown, label: string): number {
     value >= 1
   ) {
     throw new Error(`${label} must be a finite number between zero and one`);
+  }
+  return value;
+}
+
+function finiteRange(
+  value: unknown,
+  label: string,
+  minimum: number,
+  maximum: number,
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < minimum ||
+    value > maximum
+  ) {
+    throw new Error(`${label} must be between ${minimum} and ${maximum}`);
   }
   return value;
 }
@@ -398,9 +435,42 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 7 || root.kind !== "prepared-game-runtime-v7") {
+  if (root.schema_version !== 8 || root.kind !== "prepared-game-runtime-v8") {
     throw new Error("prepared runtime manifest identity is invalid");
   }
+  const rawPresentation = object(root.presentation, "presentation");
+  if (
+    rawPresentation.view_profile !== "side_view_2d" ||
+    rawPresentation.gameplay_space !== "side_plane"
+  ) {
+    throw new Error("prepared runtime presentation space is invalid");
+  }
+  const rawContactShadows = object(
+    rawPresentation.contact_shadows,
+    "presentation.contact_shadows",
+  );
+  if (typeof rawContactShadows.enabled !== "boolean") {
+    throw new Error("presentation.contact_shadows.enabled must be boolean");
+  }
+  const presentation = Object.freeze({
+    view_profile: "side_view_2d" as const,
+    gameplay_space: "side_plane" as const,
+    contact_shadows: Object.freeze({
+      enabled: rawContactShadows.enabled,
+      opacity: finiteRange(
+        rawContactShadows.opacity,
+        "presentation.contact_shadows.opacity",
+        0,
+        1,
+      ),
+      softness_screen_pixels: finiteRange(
+        rawContactShadows.softness_screen_pixels,
+        "presentation.contact_shadows.softness_screen_pixels",
+        0,
+        32,
+      ),
+    }),
+  });
   const gameId = id(root.game_id, "game_id");
   const maps = array(root.maps, "maps").map((rawMap, mapIndex): PreparedMap => {
     const map = object(rawMap, `maps[${mapIndex}]`);
@@ -422,6 +492,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       const anchor = placement.vertical_anchor;
       if (
         anchor !== "canvas_cover" &&
+        anchor !== "screen_center" &&
         anchor !== "screen_top" &&
         anchor !== "screen_bottom" &&
         anchor !== "walk_surface"
@@ -443,6 +514,17 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       if (trimmedHeight > sourceHeight) {
         throw new Error("map layer trimmed height cannot exceed its painted frame");
       }
+      const rawLayerPresentation = object(
+        layer.presentation,
+        `maps[${mapIndex}].layers[${layerIndex}].presentation`,
+      );
+      const atmosphereColor = text(
+        rawLayerPresentation.atmosphere_color,
+        "layer atmosphere_color",
+      );
+      if (!HEX_COLOR.test(atmosphereColor)) {
+        throw new Error("map layer atmosphere_color must be lowercase #rrggbb");
+      }
       return Object.freeze({
         layer_id: id(layer.layer_id, "layer_id"),
         plane: layer.plane,
@@ -456,6 +538,23 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
           source_height: sourceHeight,
           trimmed_height: trimmedHeight,
           trimmed_top: integer(placement.trimmed_top, "layer trimmed_top", 0),
+        }),
+        presentation: Object.freeze({
+          contrast: finiteRange(rawLayerPresentation.contrast, "layer contrast", 0.25, 2),
+          saturation: finiteRange(rawLayerPresentation.saturation, "layer saturation", 0, 2),
+          atmosphere_color: atmosphereColor,
+          atmosphere_strength: finiteRange(
+            rawLayerPresentation.atmosphere_strength,
+            "layer atmosphere_strength",
+            0,
+            1,
+          ),
+          detail_blur_screen_pixels: finiteRange(
+            rawLayerPresentation.detail_blur_screen_pixels,
+            "layer detail_blur_screen_pixels",
+            0,
+            4,
+          ),
         }),
         asset: artifact(layer.asset, "layer asset"),
       });
@@ -661,12 +760,13 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 7,
-    kind: "prepared-game-runtime-v7",
+    schema_version: 8,
+    kind: "prepared-game-runtime-v8",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),
     package_sha256: packageSha256,
+    presentation,
     entry_map_id: entryMapId,
     entry_spawn_id: id(root.entry_spawn_id, "entry_spawn_id"),
     maps: Object.freeze(maps),

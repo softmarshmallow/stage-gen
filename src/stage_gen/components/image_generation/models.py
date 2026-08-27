@@ -43,6 +43,9 @@ class ImageGenerationRequest:
     prompt: str
     artifact_path: str | Path
     input_references: tuple[ImageReference, ...] = ()
+    #: Optional inpainting mask. Transparent areas mark the editable region. Providers without a
+    #: real masked-edit route must reject it rather than silently ignoring it.
+    mask_reference: ImageReference | None = None
     aspect_ratio: str | None = None
     quality: ImageQuality | None = None
     background: ImageBackground | None = None

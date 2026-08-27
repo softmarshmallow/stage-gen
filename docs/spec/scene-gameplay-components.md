@@ -5,15 +5,15 @@
 The prepared game separates visual/static map composition from semantic game
 use. `gameplay.toml` is the portable simulation contract; each
 `maps/<map_id>.toml` supplies visual layers and static topology; the web runtime
-adapts both from `prepared-game-runtime-v7` into Phaser objects.
+adapts both from `prepared-game-runtime-v8` into Phaser objects.
 
 ## Ownership
 
 | Layer | Owns | Must not own |
 | --- | --- | --- |
-| `game-contract-v5` | Shared identity, art direction, cast IDs, and package membership | Simulation or engine state |
+| `game-contract-v6` | Shared identity, art direction, global runtime presentation, cast IDs, and package membership | Simulation or engine state |
 | `gameplay-contract-v1` | Navigation, player start, progression, inventory semantics, combat, map use, transitions, population, loot, placements, interactions, quests, and effects | Map image generation or Phaser objects |
-| `game-map-v5` | Map references/layers, binary terrain occupancy, ladder geometry/placement, and portal presentation/anchors | Movement permission, destinations, spawning, or interactions |
+| `game-map-v6` | Map references/layers, per-layer runtime presentation, binary terrain occupancy, ladder geometry/placement, and portal presentation/anchors | Movement permission, destinations, spawning, or interactions |
 | Content/UI/sequence contracts | Actor/item/prop presentation, interface presentation, and authored control flow | Physics or mutable runtime state |
 | Recipe and manifest | Generated artifacts, portable contract projection, digests, and provenance | Browser lifecycle or hidden gameplay defaults |
 | Consumer | Rendering, input, collision, camera, audio, object lifecycle, and simulation | Missing authored semantics or generation |
@@ -45,12 +45,16 @@ Movement permission and presentation coverage are separate requirements:
 | --- | --- |
 | `move_left`, `move_right` | Player move state and walkable occupancy |
 | `jump` | Player jump state and terrain collision |
-| `crouch` | Player crouch motion; V1 is a stationary feet-planted posture |
+| `crouch` | Player crouch motion; grounded Left/Right movement uses the slower crouch speed |
 | `climb` | Player climb motion plus at least one map-local ladder placement |
 
 The current prepared runtime constructs terrain collision from the map’s binary
 occupancy and 47-mask atlas. It projects map-local ladders relative to terrain
-and enables climbing only when gameplay permits it. Portal art and endpoint
+and enables climbing only when gameplay permits it. Upward input may attach an
+airborne player anywhere inside the ladder's horizontal activation width and
+vertical span. Jumping from ladder support returns to ordinary air support, so
+the same rule naturally permits a later airborne re-grab; ladder attachment
+resets the ordinary air-jump budget like any other stable support. Portal art and endpoint
 anchors come from the map; destination relationships and target spawns come
 from gameplay.
 
@@ -76,6 +80,22 @@ state. An unsupported or malformed required contract fails closed. Missing
 presentation media may use an explicit visible diagnostic fallback where the
 runtime defines one; it does not disable otherwise valid gameplay semantics.
 
+Layer contrast, saturation, atmospheric wash, and detail blur are consumer-only
+presentation. The browser transforms each decoded repeat texture once, wraps
+blur sampling on the seamless X axis, clamps on Y, and preserves source alpha.
+Global contact shadows are likewise runtime-only: they follow the terrain
+surface under players, NPCs, mobs, and props and soften or contract with height.
+Neither treatment enters an image prompt or provider cache identity.
+
+Interaction affordances belong to their world target. The active portal owns
+its world-anchored entry prompt, and the nearest NPC with an authored sequence
+owns the matching world-anchored talk prompt above its name. The prepared scene
+does not use a shared screen-center interaction label.
+
+The top-left HP/inventory text is a consumer debugging layer, not gameplay UI.
+It is hidden by default and toggles only through Command+Backtick. The player
+health bar and inventory panel remain the authoritative gameplay presentation.
+
 ## Player state selection
 
 The consumer chooses one semantic state from authoritative simulation:
@@ -96,7 +116,9 @@ all four canonical frames as a six-frames-per-second loop.
 Population zones are gameplay-owned half-open map fractions with explicit
 targets, caps, respawn delay, and weighted mob IDs. The consumer derives legal
 terrain positions from occupancy, prefers appropriate offscreen placement, and
-maintains the authored population without exceeding caps.
+maintains the authored population without exceeding caps. Spawn zones own
+placement and population lifecycle only; they do not own an actor's pursuit
+navigation.
 
 Combat resolves attempted/applied damage and defeat before presentation.
 Player and mob attacks connect only when their foot coordinates are on the same
@@ -108,8 +130,51 @@ than a stun: movement and traversal remain available while repeated hits are
 rejected. Defeat alone locks player control.
 Autonomous mob locomotion remains on its current terrain
 shelf and turns at both rises and drops. Player-applied knockback is the only mob
-movement allowed to carry it over a descending shelf edge. Returning from a
-finite attack or hurt presentation must restore the looping locomotion strip.
+movement allowed to carry it over a descending shelf edge. After such forced
+displacement settles, the mob adopts the disconnected landing shelf as its new
+local home because autonomous movement cannot jump or climb back to the authored
+spawn shelf. Deterministic reset still restores the authored spawn territory.
+Displacement that remains on the same connected shelf does not change home;
+boundary resolution permits normal-speed inward travel and blocks further
+outward travel, rather than clamping the actor back to the home range in one
+frame.
+Returning from a finite attack or hurt presentation must restore the looping
+locomotion strip.
+Mob actors compose stateful class-based behavior nodes for independently tunable
+decisions. A terrain-lane navigation node derives one connected shelf from
+occupancy; rises, drops, pits, and world edges terminate it, while ladder metadata
+is deliberately irrelevant. Within that shelf, separate in-code boundaries own
+the natural patrol radius and pursuit territory. These current movement values
+are consumer policy, not authored `gameplay.toml` tuning.
+
+The awareness node acquires the player inside its aggression and pursuit bounds.
+When either interest or pursuit territory ends, it emits `return_home`; a
+dedicated return node selects the spawn point and walks there before normal
+patrol resumes. A mob therefore never stands indefinitely at its pursuit edge.
+Direct pursuit targets the player only while their terrain levels can interact;
+otherwise the pursuit-target node sweeps between points on either side of the
+player, using an arrival radius and remembered target side so crossing the
+player's exact X cannot reverse facing every frame. Blocked-side memory tries an
+alternate route once and holds a stable facing when both directions are blocked;
+successful travel makes that side eligible again. Each mob samples bounded
+deterministic per-instance variation once at spawn for movement speed,
+pursuit-corridor width, and initial target side. Runtime updates never sample
+random frame noise, so mobs separate naturally without visual jitter or
+nondeterministic replays. A separate action-timing node samples bounded wind-up
+and cooldown variation once per committed attack, preventing multiple nearby
+mobs from repeatedly acting on the same frames while preserving deterministic
+replay and automation. The interval after a strike is an explicit
+`attack_recovery` state; it preserves the committed attack facing and cannot
+fall through to patrol while the cooldown is active.
+
+A dedicated facing node is the sole authority for mob sprite mirroring.
+Navigation nodes request movement, while locomotion facing follows only the
+displacement that terrain resolution actually applied. Blocked movement cannot
+turn the sprite. Combat can explicitly face a target, but target movement inside
+a small in-code dead zone preserves the current direction. Patrol heading and
+visual facing are separate state, so a trapped actor may reconsider movement
+without visibly reversing every frame. These are consumer stability policies,
+not authored generation controls.
 Floating combat text consumes that resolution; whiffs, invulnerability, and
 zero applied damage do not emit a number. Loot rolls reference exact authored
 mob/item rules, update inventory, and can advance quest conditions. Presentation

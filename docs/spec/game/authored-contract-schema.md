@@ -2,7 +2,7 @@
 
 > **Contract maturity: exact-current prepared-package root.**
 >
-> This document specifies `game-contract-v5`, the root `game.toml` accepted by
+> This document specifies `game-contract-v6`, the root `game.toml` accepted by
 > prepared-package ingest. The complete package closure and transport rules live
 > in [Canonical prepared game package](../../game-package.md); execution order
 > and provider fan-out live in the [Canonical generation pipeline](generation-pipeline.md).
@@ -20,7 +20,7 @@ The canonical path is:
 library/games/<game_id>/game.toml
 ```
 
-Only `schema_version = 5` and `kind = "game-contract-v5"` are accepted. The
+Only `schema_version = 6` and `kind = "game-contract-v6"` are accepted. The
 resolver does not translate another document shape.
 
 ## Root shape
@@ -28,8 +28,8 @@ resolver does not translate another document shape.
 The exact fields are:
 
 ```toml
-schema_version = 5
-kind = "game-contract-v5"
+schema_version = 6
+kind = "game-contract-v6"
 game_id = "example-game"
 revision = 1
 display_name = "Example Game"
@@ -41,6 +41,11 @@ source_sha256 = "<sha256>"
 [presentation]
 view_profile = "side_view_2d"
 gameplay_space = "side_plane"
+
+[presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
 
 [style]
 label = "concise authored style name"
@@ -117,7 +122,8 @@ basis = ["Original authored package direction."]
 - `game_id` is a portable game identifier and agrees with the selected package
   identity; `revision` is at least one and `display_name` is trimmed text.
 - Presentation is currently exactly `side_view_2d` in `side_plane` gameplay
-  space.
+  space. `contact_shadows` is a consumer-only grounding treatment: `opacity`
+  is zero through one and `softness_screen_pixels` is zero through 32.
 - Style keywords and avoidances are ordered, unique, trimmed lists. Their order
   is prompt-significant.
 - Default and body-specific proportions are between 1.5 and 12 heads tall.
@@ -159,7 +165,7 @@ Prepared-package resolution captures the selected directory or ZIP once,
 checks every digest and exact closure member, validates all cross-contract
 identities locally, and rejects malformed input before a provider operation.
 The scrolling DAG consumes this resolved package and integration emits only
-`prepared-game-runtime-v7`.
+`prepared-game-runtime-v8`.
 
 Validate the canonical package with:
 

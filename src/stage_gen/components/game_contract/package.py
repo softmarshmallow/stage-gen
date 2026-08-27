@@ -1,4 +1,4 @@
-"""Exact-current prepared-package root contract (``game-contract-v5``)."""
+"""Exact-current prepared-package root contract (``game-contract-v6``)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 5
+PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 6
 
 
 class PackageSource(PersistedContractModel):
@@ -58,9 +58,18 @@ class SequenceCatalogSource(PersistedContractModel):
         return portable_relative_path(value, "sequence index source")
 
 
+class PreparedContactShadows(PersistedContractModel):
+    """Runtime-only grounding treatment shared by world entities."""
+
+    enabled: bool
+    opacity: float = Field(ge=0.0, le=1.0)
+    softness_screen_pixels: float = Field(ge=0.0, le=32.0)
+
+
 class PreparedPresentation(PersistedContractModel):
     view_profile: Literal["side_view_2d"]
     gameplay_space: Literal["side_plane"]
+    contact_shadows: PreparedContactShadows
 
 
 class PreparedStyle(PersistedContractModel):
@@ -166,8 +175,8 @@ class PreparedRights(PersistedContractModel):
 class PreparedGameContract(PersistedContractModel):
     """One prepared game's complete, digest-bound membership root."""
 
-    schema_version: Literal[5]
-    kind: Literal["game-contract-v5"]
+    schema_version: Literal[6]
+    kind: Literal["game-contract-v6"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     display_name: str
@@ -263,6 +272,7 @@ __all__ = [
     "PackageSource",
     "PreparedCast",
     "PreparedContentSources",
+    "PreparedContactShadows",
     "PreparedEvidence",
     "PreparedGameContract",
     "PreparedPresentation",

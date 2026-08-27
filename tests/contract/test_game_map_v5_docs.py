@@ -10,7 +10,7 @@ def test_map_contract_documents_exact_v5_placement_terrain_ladder_and_portal_own
     )
 
     for required in (
-        "`game-map-v5`",
+        "`game-map-v6`",
         "`occupancy` is authored gameplay geometry",
         "`ladder-4-tile-v1`",
         '`mode = "portal-pair-1x2-v1"`',

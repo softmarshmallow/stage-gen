@@ -1,7 +1,7 @@
-schema_version = 5
-kind = "game-contract-v5"
+schema_version = 6
+kind = "game-contract-v6"
 game_id = "bellweather"
-revision = 13
+revision = 16
 display_name = "Bellweather"
 
 [universe]
@@ -11,6 +11,11 @@ source_sha256 = "4fff78555bd0961f9542b9a0f5903758c9a66f81082ba5b59f251c202b4b917
 [presentation]
 view_profile = "side_view_2d"
 gameplay_space = "side_plane"
+
+[presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
 
 [style]
 label = "clean chibi storybook fantasy"
@@ -61,7 +66,7 @@ npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant
 
 [gameplay]
 source = "gameplay.toml"
-source_sha256 = "1d594812cefc9966ed439747296042592d04a9a18dea83f10b7973c6a5369b84"
+source_sha256 = "a5a1c93c1b151b8b03ac7b01e032fcd3aac2f57cc370d76bd9f0167c59e08988"
 
 [ui]
 source = "ui.toml"
@@ -74,12 +79,12 @@ source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f573
 [[maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
-source_sha256 = "ab9d42fc9fe65404569dd55ba947ec65eaf43a498388a23bbc26dc921b21886c"
+source_sha256 = "e334ed3dae17648f9274f4a899992175daa0fa4a9c1839bb4c459d0d72582dd9"
 
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "0c7f90155ec9f1888308aae85b3ab410a382326fc5a44d25bd0d05714f6f7f71"
+source_sha256 = "8bd8b661f37d8a8c1c3b21ceec8b910446ba1749afe1bbccb6dc9a660f7c7295"
 
 [content.player]
 source = "content/player.toml"
@@ -103,7 +108,7 @@ source_sha256 = "64eccf0156a1441ddf0c963fa345780aaaafd0960571c8a3fe6f378069e2f97
 
 [sequences]
 index_source = "sequences/index.toml"
-index_sha256 = "e31500223caf2f99bf75b9d410a849364db8155c0165089bad661fc6b3e5c90e"
+index_sha256 = "23eb3c61830e55c4e7fdb93ce14f4bc2b14ee25b6c3989087b90c393862a536e"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

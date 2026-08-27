@@ -7,10 +7,7 @@ already on disk can be resumed.
 
 Nothing fails loudly when the two drift. The recorded digest stops matching the recomputed one,
 every resume check misses, and the stage regenerates from scratch on every run against an
-artifact that was valid the whole time. That is exactly what adding the art-direction clause to
-the generator and not to the mirror did to the tileset: an accepted atlas was rediscarded and
-rebuilt each run - six sheet attempts, three swatches, a fresh composition, roughly twenty-seven
-minutes - re-rolling two stochastic variant contracts every time.
+artifact that was valid the whole time.
 
 These tests pin the clauses and their order, so the next clause added to one side and not the
 other fails here instead of quietly costing half an hour a run.
@@ -28,13 +25,11 @@ from stage_gen.recipes.scrolling_preview.game import GAME_DIRECTION_PREFIX
 COMPONENT_FIXTURE_REF = "library/games/test-game/game.toml"
 
 
-def _spec(
-    prompt: str = "Ground tileset, strict 12-column x 4-row atlas.",
-) -> executor_module._ImageSpec:
+def _spec(prompt: str = "Eight isolated inventory items.") -> executor_module._ImageSpec:
     return executor_module._ImageSpec(
-        stage="tileset",
+        stage="items",
         prompt=prompt,
-        output=Path("tileset.png"),
+        output=Path("items.png"),
         width=2400,
         height=800,
     )
@@ -112,7 +107,7 @@ def test_the_art_direction_sits_after_the_prompt_and_before_transparency(
     # Order is part of the contract: the digest is over the whole string, so a clause in the
     # right place with the wrong neighbours still misses.
     rendered = executor_module._effective_image_prompt(_spec(), None, "chroma", _game(tmp_path))
-    body = rendered.index("Ground tileset")
+    body = rendered.index("Eight isolated inventory items")
     direction = rendered.index(GAME_DIRECTION_PREFIX)
     assert body < direction
     transparency = executor_module._prompt_for_transparency("", "chroma").strip()

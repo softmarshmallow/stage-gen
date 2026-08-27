@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   portalEndpointSurfacePosition,
+  portalIdlePresentation,
   portalMouthContainsFoot,
 } from "./portal";
 
@@ -111,5 +112,23 @@ describe("portal endpoint placement", () => {
         heightFn: () => 1,
       }),
     ).toThrow("outside its world");
+  });
+});
+
+describe("portal idle presentation", () => {
+  test("keeps authored raster scale fixed and uses only a subtle alpha shimmer", () => {
+    const samples = [0, 700, 1400, 2100, 2800].map(
+      portalIdlePresentation,
+    );
+
+    expect(samples.map((sample) => sample.scale)).toEqual([1, 1, 1, 1, 1]);
+    expect(Math.min(...samples.map((sample) => sample.alpha))).toBeCloseTo(
+      0.97,
+    );
+    expect(Math.max(...samples.map((sample) => sample.alpha))).toBeCloseTo(1);
+    expect(samples[0]).toEqual(samples[4]);
+    expect(() => portalIdlePresentation(Number.NaN)).toThrow(
+      "finite and nonnegative",
+    );
   });
 });

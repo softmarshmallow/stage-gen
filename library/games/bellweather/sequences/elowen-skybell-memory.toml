@@ -1,0 +1,127 @@
+schema_version = 1
+kind = "game-sequence-v1"
+game_id = "bellweather"
+sequence_id = "elowen-skybell-memory"
+revision = 1
+display_name = "What the Skybells Remember"
+sequence_kind = "dialogue_sequence"
+entry_node_id = "elowen_notices_wayfarer"
+
+[agency]
+policy = "dialogue_only"
+back_navigation = "history_only"
+world_simulation = "continues"
+
+[presentation]
+map_id = "sunpetal-crossing"
+subject_view = "front_three_quarter"
+soundtrack_policy = "duck"
+
+[interruption]
+policy = "restart_node"
+
+[skip]
+policy = "skip_seen_only"
+target_outcome_id = "skybell_memory_shared"
+
+[[nodes]]
+node_id = "elowen_notices_wayfarer"
+node_kind = "dialogue"
+speaker_id = "elowen_thistledew"
+visible_subject_ids = ["elowen_thistledew"]
+focus_subject_id = "elowen_thistledew"
+listener_id = "wayfarer"
+expression = "concerned"
+text = "Before you take the east road, may I see your sleeve? That silver dust is story-pollen. The missing pages have already brushed past you."
+advance_policy = "manual"
+next_node_id = "wayfarer_asks_about_pollen"
+
+[[nodes]]
+node_id = "wayfarer_asks_about_pollen"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "elowen_thistledew"
+expression = "curious"
+text = "Can a page leave pollen? I thought the chronicle was ink and paper, not a garden."
+advance_policy = "manual"
+next_node_id = "elowen_explains_skybells"
+
+[[nodes]]
+node_id = "elowen_explains_skybells"
+node_kind = "dialogue"
+speaker_id = "elowen_thistledew"
+visible_subject_ids = ["elowen_thistledew"]
+focus_subject_id = "elowen_thistledew"
+listener_id = "wayfarer"
+expression = "thoughtful"
+text = "Stories root wherever people repeat them. Skybells once grew along every remembered path in my childhood valley; when the valley was forgotten, the flowers vanished with it."
+advance_policy = "manual"
+next_node_id = "wayfarer_hears_the_loss"
+
+[[nodes]]
+node_id = "wayfarer_hears_the_loss"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "elowen_thistledew"
+expression = "concerned"
+text = "So recovering the pages might restore more than the road. It might return things people have stopped knowing how to miss."
+advance_policy = "manual"
+next_node_id = "elowen_shows_sprig"
+
+[[nodes]]
+node_id = "elowen_shows_sprig"
+node_kind = "dialogue"
+speaker_id = "elowen_thistledew"
+visible_subject_ids = ["elowen_thistledew"]
+focus_subject_id = "elowen_thistledew"
+listener_id = "wayfarer"
+expression = "delighted"
+text = "Exactly. This one fresh sprig appeared at dawn beside the road marker. A small proof that memory can grow back before anyone is ready to believe it."
+advance_policy = "manual"
+next_node_id = "wayfarer_promises_to_notice"
+
+[[nodes]]
+node_id = "wayfarer_promises_to_notice"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "elowen_thistledew"
+expression = "determined"
+text = "Then I will bring back the pages, but I will also watch what changes around them. Tiny signs deserve witnesses too."
+advance_policy = "manual"
+next_node_id = "elowen_gives_counsel"
+
+[[nodes]]
+node_id = "elowen_gives_counsel"
+node_kind = "dialogue"
+speaker_id = "elowen_thistledew"
+visible_subject_ids = ["elowen_thistledew"]
+focus_subject_id = "elowen_thistledew"
+listener_id = "wayfarer"
+expression = "neutral"
+text = "Keep that instinct. When Crowncrag Road rearranges itself, trust the living details: bent grass, startled birds, and flowers facing light no map remembers."
+advance_policy = "manual"
+next_node_id = "wayfarer_thanks_elowen"
+
+[[nodes]]
+node_id = "wayfarer_thanks_elowen"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "elowen_thistledew"
+expression = "delighted"
+text = "A path read like a garden. That is the first lesson today I am certain I will remember."
+advance_policy = "manual"
+next_node_id = "skybell_memory_shared"
+
+[[nodes]]
+node_id = "skybell_memory_shared"
+node_kind = "outcome"
+outcome_id = "skybell_memory_shared"
+effect_ids = []

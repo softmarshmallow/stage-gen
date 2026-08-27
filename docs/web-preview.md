@@ -10,8 +10,8 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 
 ```json
 {
-  "schema_version": 6,
-  "kind": "prepared-game-runtime-v7"
+  "schema_version": 8,
+  "kind": "prepared-game-runtime-v8"
 }
 ```
 
@@ -64,6 +64,7 @@ review explorer needs its own explicit review-manifest boundary.
 - 1280-by-720 viewport and horizontal follow camera;
 - map width derived from authored occupancy columns at the prepared adapter's tile scale;
 - map-local parallax layer stacks and dynamic 47-mask terrain selection from authored occupancy;
+- one-time, loop-safe layer depth treatment plus terrain-aware dynamic contact shadows;
 - floating terrain runs and four-tile ladder traversal derived from the same occupancy matrix;
 - map-owned portal presentation and endpoint placement resolved against gameplay-owned transitions;
 - 4-by-1 player, mob, and NPC motion strips with runtime mirroring;
@@ -78,11 +79,14 @@ components, image prompts, or the generic dependency executor. Conversely, the s
 invent entity relationships or infer artifacts from positional filenames. Array positions are
 local iteration order only; authored relationships resolve through IDs in the manifest.
 
-The current controls are Left/Right or A/D to move, Shift to run, Down or S to crouch, Space to
+The current controls are Left/Right or A/D to move, Shift to run, Down or S to crouch-walk, Space to
 jump, J/X/Z to attack, I to toggle inventory, E or Enter to interact/advance dialogue, and Up or W
-to enter an active portal or climb from the lower end of a ladder. Down enters a ladder from its
-upper deck; Down+Space drops through a one-way floating platform when no ladder entry takes
-priority. Generated audio starts only after a keyboard gesture because browsers block autoplay.
+to enter an active portal or climb from the lower end of a ladder. An airborne player overlapping
+the ladder span may also press Up or W to grab it; jumping away and grabbing it again uses the same
+rule rather than a separate combo. Down enters a ladder from its upper deck; Down+Space drops
+through a one-way floating platform when no ladder entry takes priority. Generated audio starts
+only after a keyboard gesture because browsers block autoplay. The diagnostic HP/inventory
+overlay is hidden by default and toggles with Command+Backtick; it is not gameplay HUD.
 
 ## Legacy boundary
 
@@ -93,7 +97,7 @@ tests and evidence are retired safely. Prepared `/generate/<run-tag>` routes use
 asset explorer, and `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v7` is the only manifest
+`game.toml` is the package root, and `prepared-game-runtime-v8` is the only manifest
 accepted by the active preview.
 
 The retired prompt-launching adapter is not an active generation authority. The legacy `{ prompt, transparency_mode }` HTTP start body is rejected instead of being translated into a prepared package.

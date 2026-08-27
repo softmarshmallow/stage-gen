@@ -66,11 +66,11 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     game_contract = documents["docs/game-contract.md"]
     for identity in (
         "`game-package-v3`",
-        "`game-contract-v5`",
+        "`game-contract-v6`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
-        "`game-map-v5`",
-        "`prepared-game-runtime-v7`",
+        "`game-map-v6`",
+        "`prepared-game-runtime-v8`",
     ):
         assert identity in game_contract
     assert "ladder geometry and placement" in game_contract
@@ -84,17 +84,17 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     maps = documents["docs/game-maps.md"]
     for identity in (
-        "`game-map-v5`",
+        "`game-map-v6`",
         "`ladder-4-tile-v1`",
         "`portal-pair-1x2-v1`",
-        "`prepared-game-runtime-v7`",
+        "`prepared-game-runtime-v8`",
     ):
         assert identity in maps
     assert "packaged 47-mask" in maps
     assert "is no map index" in maps
 
     schema = documents["docs/spec/game/authored-contract-schema.md"]
-    assert 'Only `schema_version = 5` and `kind = "game-contract-v5"` are accepted' in schema
+    assert 'Only `schema_version = 6` and `kind = "game-contract-v6"` are accepted' in schema
     assert 'source = "ui.toml"' in schema
     assert "gameplay.toml` owns climb permission and portal destinations" in schema
 
@@ -116,12 +116,12 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     soundtrack = documents["docs/game-soundtrack.md"]
     assert "exact identity is\n`game-soundtrack-v1`" in soundtrack
     assert "Provider-free integration" in soundtrack
-    assert "`prepared-game-runtime-v7`" in soundtrack
+    assert "`prepared-game-runtime-v8`" in soundtrack
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue
     assert "dialogue\ncontrol flow in `sequences/*.toml`" in dialogue
-    assert "`prepared-game-runtime-v7`" in dialogue
+    assert "`prepared-game-runtime-v8`" in dialogue
 
     gameplay = documents["docs/spec/scene-gameplay-components.md"]
     assert "`gameplay-contract-v1`" in gameplay
@@ -130,4 +130,4 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     sequences = documents["docs/spec/game/dialogue-and-cutscene-sequences.md"]
     assert "current prepared gameplay consumer" in sequences
-    assert "`prepared-game-runtime-v7`" in sequences
+    assert "`prepared-game-runtime-v8`" in sequences

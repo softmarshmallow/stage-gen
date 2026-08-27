@@ -235,8 +235,8 @@ export function gameplayAutomationPresentation(
     finalActiveWindow:
       frame >= GAMEPLAY_AUTOMATION_ENCOUNTER.finalActiveStartFrame,
     cameraZoom: encounterFocus ? GAMEPLAY_AUTOMATION_ENCOUNTER.cameraZoom : 1,
-    portalScale: 1 + pulse * 0.08,
-    portalAlpha: 0.875 + pulse * 0.125,
+    portalScale: 1,
+    portalAlpha: 0.985 + pulse * 0.015,
   });
 }
 
@@ -409,7 +409,14 @@ export type GameplayLadderProbe = Readonly<{
 export type GameplayMobProbe = Readonly<{
   ladderIndex: number;
   hp: number;
-  state: "wander" | "chase" | "windup" | "hurt" | "dead";
+  state:
+    | "wander"
+    | "chase"
+    | "return_home"
+    | "attack_recovery"
+    | "windup"
+    | "hurt"
+    | "dead";
   /** Aggression archetype the generator published, or null when the optional profile is absent. */
   aggression: MobAggression | null;
   x: number;
@@ -498,6 +505,14 @@ export type GameplayAutomationSnapshot = Readonly<{
   events: readonly GameplayTranscriptEvent[];
   heightmapDigest: string | null;
 }>;
+
+declare global {
+  interface Window {
+    __sceneReady?: boolean;
+    readonly __stageGenGameplayProbe?: GameplayAutomationSnapshot;
+    readonly __stageGenAdvanceGameplayFrame?: () => Promise<GameplayAutomationSnapshot>;
+  }
+}
 
 function deepFreeze(value: unknown): void {
   if (value === null || typeof value !== "object" || Object.isFrozen(value))

@@ -35,12 +35,21 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   ];
 
   return {
-    schema_version: 7,
-    kind: "prepared-game-runtime-v7",
+    schema_version: 8,
+    kind: "prepared-game-runtime-v8",
     game_id: "prepared_fixture",
     revision: 1,
     display_name: "Prepared Fixture",
     package_sha256: "b".repeat(64),
+    presentation: {
+      view_profile: "side_view_2d",
+      gameplay_space: "side_plane",
+      contact_shadows: {
+        enabled: true,
+        opacity: 0.18,
+        softness_screen_pixels: 6,
+      },
+    },
     entry_map_id: "village",
     entry_spawn_id: "arrival",
     maps: [
@@ -65,6 +74,13 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
               source_height: 1024,
               trimmed_height: 1024,
               trimmed_top: 0,
+            },
+            presentation: {
+              contrast: 1,
+              saturation: 1,
+              atmosphere_color: "#ffffff",
+              atmosphere_strength: 0,
+              detail_blur_screen_pixels: 0,
             },
             asset: background,
           },

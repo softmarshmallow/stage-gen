@@ -59,6 +59,20 @@ def _row_span_counts(alpha: Image.Image, threshold: int, width: int, height: int
     return [raw[row * width : (row + 1) * width].count(255) for row in range(height)]
 
 
+def _column_bottoms(alpha: Image.Image, threshold: int, width: int, height: int) -> list[int]:
+    """Return the lowest meaningful row of every column that holds any meaningful alpha."""
+
+    mask = alpha.point(lambda value: 255 if value >= threshold else 0)
+    raw = mask.tobytes()
+    bottoms: list[int] = []
+    for column in range(width):
+        for row in range(height - 1, -1, -1):
+            if raw[row * width + column] == 255:
+                bottoms.append(row)
+                break
+    return bottoms
+
+
 def _full_span_extremes(counts: list[int], width: int) -> tuple[int | None, int | None]:
     rows = [row for row, count in enumerate(counts) if count == width]
     if not rows:
@@ -93,6 +107,8 @@ def measure_layer_raster_bounds(
     opaque_counts = _row_span_counts(alpha, policy.opaque_threshold, width, height)
     coverage_top, coverage_bottom = _full_span_extremes(alpha_counts, width)
     band_top, band_bottom = _full_span_extremes(opaque_counts, width)
+    column_bottoms = _column_bottoms(alpha, policy.alpha_threshold, width, height)
+    median_bottom = sorted(column_bottoms)[len(column_bottoms) // 2] if column_bottoms else None
     return {
         "schema_version": 1,
         "kind": LAYER_RASTER_BOUNDS_VERSION,
@@ -108,6 +124,10 @@ def measure_layer_raster_bounds(
         "full_coverage_bottom": coverage_bottom,
         "opaque_band_top": band_top,
         "opaque_band_bottom": band_bottom,
+        # Where the layer's content actually rests, over the columns that have any. This is the
+        # registration for a sparse layer, which has no full-coverage row to seal against.
+        "column_bottom_median": median_bottom,
+        "content_column_count": len(column_bottoms),
     }
 
 
@@ -152,6 +172,28 @@ def trim_layer_to_alpha_box(
         "removed_bottom_rows": height - 1 - bottom,
     }
     return stream.getvalue(), record
+
+
+def content_bottom_offset_fraction(record: dict[str, object]) -> float:
+    """Fraction of the trimmed height below the row most of the layer's content rests on.
+
+    A midground layer is legitimately sparse: a village has sky between its buildings, so no row is
+    spanned by every column and there is no seal line to register. What those layers share is a
+    ground line, so the registration is the median of the per-column content bottoms. Gaps are
+    meant to show the layer behind, which is exactly why sealing is the wrong question here.
+    """
+
+    bounds = record["bounds"]
+    if not isinstance(bounds, dict):
+        raise ValueError("layer trim record must carry its measured bounds")
+    median = bounds.get("column_bottom_median")
+    if median is None:
+        raise ValueError("layer bounds carry no column bottom distribution")
+    trimmed_height = _require_int(record["trimmed_height"], "trimmed_height")
+    trimmed_bottom = _require_int(record["trimmed_bottom"], "trimmed_bottom")
+    if trimmed_height <= 0:
+        raise ValueError("layer trim record must carry a positive trimmed height")
+    return (trimmed_bottom - _require_int(median, "column_bottom_median")) / trimmed_height
 
 
 def seal_offset_fraction(record: dict[str, object]) -> float | None:

@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v5``)."""
+"""Exact-current compound map-generation contract (``game-map-v6``)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 5
+PREPARED_GAME_MAP_SCHEMA_VERSION = 6
 MAX_UNASSISTED_TERRAIN_RISE_TILES = 2
 
 
@@ -47,6 +47,31 @@ class PreparedMapView(PersistedContractModel):
 
 class PreparedMapContinuity(PersistedContractModel):
     seamless_axis: Literal["x"]
+    # How a layer that does not already loop is made to loop. Admission runs first either way, so a
+    # layer the image model already returned as a clean repeat unit costs nothing here.
+    #
+    # `mirror_repeat` is the baseline: appending a horizontal mirror makes every join a reflection,
+    # which is continuous by definition, so it cannot fail and needs no provider. It doubles the
+    # period and the content reads back on itself.
+    #
+    # `generated_bridge` appends one generated span that carries the tail into the head. It costs
+    # one image operation per layer that needs it and produces no mirrored content.
+    loop_construction: Literal["mirror_repeat", "generated_bridge"]
+
+
+class PreparedMapLayerPresentation(PersistedContractModel):
+    """Consumer-only depth treatment applied without changing generated pixels."""
+
+    contrast: float = Field(ge=0.25, le=2.0)
+    saturation: float = Field(ge=0.0, le=2.0)
+    atmosphere_color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    atmosphere_strength: float = Field(ge=0.0, le=1.0)
+    detail_blur_screen_pixels: float = Field(ge=0.0, le=4.0)
+
+    @field_validator("atmosphere_color")
+    @classmethod
+    def normalize_atmosphere_color(cls, value: str) -> str:
+        return value.lower()
 
 
 class PreparedMapReference(PersistedContractModel):
@@ -89,6 +114,7 @@ class PreparedMapLayer(PersistedContractModel):
     # because an authored fraction is a prediction about pixels that do not exist yet. An override
     # that is too small to seal a bottom-anchored layer is rejected with the measured minimum.
     vertical_offset: float | None = Field(default=None, ge=-1.0, le=1.0)
+    presentation: PreparedMapLayerPresentation
     prompt: str
 
     @field_validator("reference_ids")
@@ -259,8 +285,8 @@ class PreparedMapPortal(PersistedContractModel):
 
 
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[5]
-    kind: Literal["game-map-v5"]
+    schema_version: Literal[6]
+    kind: Literal["game-map-v6"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -387,6 +413,7 @@ __all__ = [
     "PreparedMapLadder",
     "PreparedMapLadderPlacement",
     "PreparedMapLayer",
+    "PreparedMapLayerPresentation",
     "PreparedMapPortal",
     "PreparedMapPortalEndpoint",
     "PreparedMapReference",

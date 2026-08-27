@@ -102,7 +102,6 @@ _NON_CANONICAL_EVIDENCE = frozenset({"gameplay-verification.png"})
 _IMAGE_REPEAT_PROVIDER_CANDIDATE_SUFFIX = ".provider-candidate.png"
 _ISOLATED_VIEW_FALLBACK_VERSION = "isolated-view-fallback-v1"
 _PER_CELL_GENERATION_VERSION = "per-cell-generation-v1"
-_TILESET_MATERIAL_SYNTHESIS_VERSION = "tileset-material-synthesis-v1"
 _CAMEL_BOUNDARY = re.compile(r"(?<!^)(?=[A-Z])")
 # The optional browser adapter builds every scrolling stage over a fixed 200-column terrain grid.
 # Population zones are authored in those same half-open column coordinates, so the producer
@@ -1103,7 +1102,6 @@ def _runtime_requirements(
             800,
             "transparent",
         ),
-        _RuntimeRequirement("tileset", f"tileset_{tag}.png", 2400, 800, "transparent"),
         _RuntimeRequirement("ladder", f"ladder_{tag}.png", 256, 1024, "transparent"),
         _RuntimeRequirement(
             "character-climb",
@@ -2131,16 +2129,10 @@ def _generated_transparency(
 
 def _generated_derivation_kind(processor: str, canonical: str) -> str:
     normalized = processor.strip().lower()
-    if _TILESET_MATERIAL_SYNTHESIS_VERSION in normalized:
-        return _TILESET_MATERIAL_SYNTHESIS_VERSION
     if _PER_CELL_GENERATION_VERSION in normalized:
         return _PER_CELL_GENERATION_VERSION
     if _ISOLATED_VIEW_FALLBACK_VERSION in normalized:
         return _ISOLATED_VIEW_FALLBACK_VERSION
-    if "native-alpha" in normalized and "tileset-topology-mask" in normalized:
-        return "native-alpha+tileset-topology-mask"
-    if "tileset-topology-mask" in normalized:
-        return "tileset-topology-mask"
     if "grid-cell-normalization" in normalized:
         if "native-alpha" in normalized:
             return "native-alpha+grid-cell-normalization"

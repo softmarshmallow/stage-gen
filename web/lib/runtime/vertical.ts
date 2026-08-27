@@ -21,6 +21,7 @@ export const LADDER_JUMP_VELOCITY = -350 as const;
 export const LADDER_JUMP_HORIZONTAL_SPEED = 200 as const;
 export const PLATFORMER_WALK_SPEED = 200 as const;
 export const PLATFORMER_RUN_SPEED = 540 as const;
+export const PLATFORMER_CROUCH_SPEED = 80 as const;
 export const PLATFORMER_JUMP_VELOCITY = 520 as const;
 /**
  * Mid-air jump impulse. Deliberately weaker than the grounded launch so the
@@ -1141,17 +1142,15 @@ export function resolveTerrainWalk(input: Readonly<{
   return unblocked;
 }
 
-export type CrouchMovementMode = "slow" | "stationary";
-
-/** Resolve grounded horizontal intent under the selected crouch semantics. */
-export function resolveCrouchHorizontalVelocity(input: Readonly<{
-  velocity: number;
-  mode: CrouchMovementMode;
-}>): number {
-  if (!Number.isFinite(input.velocity)) {
+/** Keep crouch locomotion directional but always slower than an ordinary walk. */
+export function resolveCrouchHorizontalVelocity(velocity: number): number {
+  if (!Number.isFinite(velocity)) {
     throw new Error("crouch horizontal velocity must be finite");
   }
-  return input.mode === "stationary" ? 0 : input.velocity * 0.4;
+  return (
+    Math.sign(velocity) *
+    Math.min(Math.abs(velocity), PLATFORMER_CROUCH_SPEED)
+  );
 }
 
 export type JumpKind = "ground" | "air" | "none";
@@ -1229,6 +1228,15 @@ export function ladderEntryAt(input: Readonly<{
       input.up &&
       !input.down &&
       Math.abs(input.footY - ladder.lowerSurfaceY) <= LADDER_ENDPOINT_TOLERANCE
+    ) {
+      return deepFreeze({ ladder, direction: "up" });
+    }
+    if (
+      input.support === "air" &&
+      input.up &&
+      !input.down &&
+      input.footY >= ladder.upperDeckY &&
+      input.footY <= ladder.lowerSurfaceY
     ) {
       return deepFreeze({ ladder, direction: "up" });
     }

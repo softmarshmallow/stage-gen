@@ -43,9 +43,6 @@ export const PREPARED_PLAYER_STATE_ADAPTERS: Readonly<
 export const PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES: readonly PlayerState[] =
   Object.freeze(["crouch"]);
 
-/** Prepared crouch is a held low pose, never the mature runtime's slow crawl. */
-export const PREPARED_PLAYER_CROUCH_MOVEMENT_MODE = "stationary" as const;
-
 export function preparedPlayerStateAdapter(
   state: string,
 ): PreparedPlayerStateAdapter | undefined {

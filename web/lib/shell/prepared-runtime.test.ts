@@ -32,7 +32,7 @@ describe("prepared runtime manifest reading", () => {
 
     const manifest = await readPreparedRuntimeManifest(tag);
     expect(await isPreparedRuntimeRun(tag)).toBeTrue();
-    expect(manifest?.kind).toBe("prepared-game-runtime-v7");
+    expect(manifest?.kind).toBe("prepared-game-runtime-v8");
     expect(manifest?.display_name).toBe("Prepared Fixture");
     expect(manifest?.player.concept.path).toBe("content/player/concept.png");
   });

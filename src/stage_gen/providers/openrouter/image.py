@@ -46,6 +46,10 @@ class OpenRouterImageBackend:
             await self._client.aclose()
 
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
+        if request.mask_reference is not None:
+            raise ValueError(
+                "OpenRouter image generation has no masked-edit route; use the OpenAI backend"
+            )
         body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio

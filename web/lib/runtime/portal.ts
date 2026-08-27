@@ -86,12 +86,33 @@ const PORTAL_HEIGHT_TILES = 3.6;
 const PORTAL_CONTACT_TOLERANCE = 32;
 /** Fraction of the sprite's width that counts as the mouth. */
 const PORTAL_MOUTH_WIDTH_RATIO = 0.6;
-const PORTAL_PULSE_PERIOD_MS = 2200;
-const PORTAL_PULSE_SCALE = 0.04;
-const PORTAL_PULSE_ALPHA = 0.12;
+const PORTAL_SHIMMER_PERIOD_MS = 2800;
+const PORTAL_SHIMMER_ALPHA_CENTER = 0.985;
+const PORTAL_SHIMMER_ALPHA_AMPLITUDE = 0.015;
 /** Height above a portal's base that its prompt floats at. */
 const PORTAL_PROMPT_RISE = 24;
 const PORTAL_PROMPT_TEXT = "UP to enter";
+
+export type PortalIdlePresentation = Readonly<{
+  /** Fixed to avoid temporal texture resampling of the authored portal raster. */
+  scale: 1;
+  alpha: number;
+}>;
+
+/** Resolve the subtle active-state shimmer without changing raster scale. */
+export function portalIdlePresentation(nowMs: number): PortalIdlePresentation {
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new Error("portal presentation time must be finite and nonnegative");
+  }
+  const phase = (nowMs % PORTAL_SHIMMER_PERIOD_MS) / PORTAL_SHIMMER_PERIOD_MS;
+  const wave = Math.sin(phase * Math.PI * 2);
+  return Object.freeze({
+    scale: 1,
+    alpha:
+      PORTAL_SHIMMER_ALPHA_CENTER +
+      wave * PORTAL_SHIMMER_ALPHA_AMPLITUDE,
+  });
+}
 
 export class PortalSystem {
   readonly portals: PortalSpec[] = [];
@@ -240,14 +261,12 @@ export class PortalSystem {
    */
   private shimmer(nowMs: number): void {
     if (this.presentationLocked) return;
-    const phase = (nowMs % PORTAL_PULSE_PERIOD_MS) / PORTAL_PULSE_PERIOD_MS;
-    const wave = Math.sin(phase * Math.PI * 2);
+    const presentation = portalIdlePresentation(nowMs);
     for (const portal of this.portals) {
       const base = this.baseDisplaySizes.get(portal.portalId);
       if (!base || portal.destinationIndex === null) continue;
-      const scale = 1 + wave * PORTAL_PULSE_SCALE;
-      portal.sprite.setDisplaySize(base.width * scale, base.height * scale);
-      portal.sprite.setAlpha(Math.min(1, 0.94 + wave * PORTAL_PULSE_ALPHA));
+      portal.sprite.setDisplaySize(base.width, base.height);
+      portal.sprite.setAlpha(presentation.alpha);
     }
   }
 

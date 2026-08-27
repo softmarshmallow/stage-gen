@@ -8,8 +8,13 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from stage_gen.components.game_content import ContentReference
-from stage_gen.components.game_map import PreparedMapReference
+from stage_gen.components.game_map import PreparedGameMap, PreparedMapReference
 from stage_gen.config import StageGenConfig
+from stage_gen.media import (
+    BRIDGE_REGISTRATION_VERSION,
+    GENERATED_BRIDGE_VERSION,
+    MIRROR_REPEAT_VERSION,
+)
 from stage_gen.orchestration.execution_graph import (
     ExecutionGraph,
     ExecutionNode,
@@ -22,10 +27,18 @@ from stage_gen.orchestration.execution_graph import (
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
+    LOOP_BRIDGE_BRIEF_VERSION,
+    LOOP_BRIDGE_CONTEXT_SPAN_PX,
+    LOOP_BRIDGE_SPAN_PX,
+    NON_GENERATIVE_LAYER_FIELDS,
     PLACEMENT_ONLY_GROUND_FIELDS,
-    PLACEMENT_ONLY_LAYER_FIELDS,
+    RUNTIME_ONLY_LAYER_FIELDS,
 )
-from stage_gen.recipes.scrolling_preview.motion_contract import motion_source_facing
+from stage_gen.recipes.scrolling_preview.motion_contract import (
+    MotionActorKind,
+    motion_source_facing,
+    recipe_owned_motion_direction,
+)
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
@@ -37,7 +50,7 @@ from stage_gen.resources import (
     terrain_atlas_topology_reference_path,
 )
 
-PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v9"
+PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v10"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
 CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v3"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
@@ -155,15 +168,17 @@ def build_package_execution_graph(
 def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     terminals: list[str] = []
     for game_map in builder.package.maps:
-        map_source = next(
-            entry.source for entry in builder.package.game.maps if entry.map_id == game_map.map_id
-        )
         references = {entry.reference_id: entry for entry in game_map.references}
+        # Loop construction is consumed after generation, so it is excluded here for the same
+        # reason placement is: switching a map between mirror and bridge must re-run the loop node
+        # only, never re-bill every layer image.
         map_direction = _object_sha256(
             {
                 "game": _visual_direction(builder.package),
                 "view": game_map.view.model_dump(mode="json"),
-                "continuity": game_map.continuity.model_dump(mode="json"),
+                "continuity": game_map.continuity.model_dump(
+                    mode="json", exclude={"loop_construction"}
+                ),
             }
         )
         layer_validations: list[str] = []
@@ -174,7 +189,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests = (
                 map_direction,
                 _object_sha256(
-                    layer.model_dump(mode="json", exclude=set(PLACEMENT_ONLY_LAYER_FIELDS))
+                    layer.model_dump(mode="json", exclude=set(NON_GENERATIVE_LAYER_FIELDS))
                 ),
                 *_reference_digests(references, layer.reference_ids),
             )
@@ -188,17 +203,64 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 input_digests=input_digests,
                 outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",),
             )
+            # Loop construction sits between generation and validation because the bridge variant
+            # needs a provider call, while the mirror variant is purely local. Admission runs
+            # first inside the node, so a layer the model already returned as a clean repeat unit
+            # costs nothing on either route.
+            bridged = game_map.continuity.loop_construction == "generated_bridge"
+            loop_digests = (
+                _object_sha256(
+                    {
+                        "construction": game_map.continuity.loop_construction,
+                        "mirror": MIRROR_REPEAT_VERSION,
+                        "bridge": GENERATED_BRIDGE_VERSION,
+                        "registration": BRIDGE_REGISTRATION_VERSION,
+                        "brief": LOOP_BRIDGE_BRIEF_VERSION,
+                        "context_span": LOOP_BRIDGE_CONTEXT_SPAN_PX,
+                        "bridge_span": LOOP_BRIDGE_SPAN_PX,
+                        "alpha_mode": layer.alpha_mode,
+                    }
+                ),
+            )
+            loop_outputs = (
+                f"maps/{game_map.map_id}/layers/{layer.layer_id}.loop.png",
+                f"maps/{game_map.map_id}/layers/{layer.layer_id}.loop.json",
+            )
+            if bridged:
+                looped = builder.add_external(
+                    f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
+                    domain=f"map-{game_map.map_id}",
+                    description=f"admit or bridge the x-axis loop for {layer.layer_id}",
+                    operation=OperationKind.IMAGE_GENERATION,
+                    depends_on=(generated.node_id,),
+                    cache_depends_on=(),
+                    input_digests=loop_digests,
+                    outputs=loop_outputs,
+                )
+            else:
+                looped = builder.add(
+                    f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
+                    domain=f"map-{game_map.map_id}",
+                    description=f"admit or mirror the x-axis loop for {layer.layer_id}",
+                    operation=OperationKind.LOCAL,
+                    depends_on=(generated.node_id,),
+                    input_digests=loop_digests,
+                    outputs=loop_outputs,
+                    duration_seconds=1.0,
+                )
             validated = builder.add(
                 f"map-{game_map.map_id}-layer-{layer.layer_id}-validate",
                 domain=f"map-{game_map.map_id}",
                 description=f"validate alpha and x-axis repeat admission for {layer.layer_id}",
                 operation=OperationKind.LOCAL,
-                depends_on=(generated.node_id,),
+                depends_on=(looped.node_id,),
                 input_digests=(
-                    _object_sha256(layer.model_dump(mode="json")),
+                    _object_sha256(
+                        layer.model_dump(mode="json", exclude=set(RUNTIME_ONLY_LAYER_FIELDS))
+                    ),
                     _object_sha256(
                         {
-                            "canonicalizer": "prepared-map-minimum-alpha-wrap-v1",
+                            "canonicalizer": "prepared-map-loop-construction-v1",
                             "placement": LAYER_PLACEMENT_CANONICALIZER,
                         }
                     ),
@@ -327,9 +389,8 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             operation=OperationKind.LOCAL,
             depends_on=(*layer_validations, ground_validation.node_id),
             input_digests=(
-                builder.package.file(map_source).sha256,
-                _object_sha256(game_map.model_dump(mode="json")),
-                _object_sha256({"compositor": "prepared-map-compositor-v5"}),
+                _object_sha256(_map_without_runtime_presentation(game_map)),
+                _object_sha256({"compositor": "prepared-map-placed-compositor-v6"}),
             ),
             outputs=(f"maps/{game_map.map_id}/composite.png",),
             duration_seconds=2.0,
@@ -382,7 +443,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 depends_on=(concept.node_id,),
                 input_digests=(
                     _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
-                    _object_sha256({"state": state, "source_facing": source_facing}),
+                    _object_sha256(_motion_identity("player", state, source_facing)),
                 ),
                 outputs=(f"content/players/{player.player_id}/states/{state}.source.png",),
             )
@@ -500,7 +561,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 depends_on=(concept.node_id,),
                 input_digests=(
                     _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
-                    _object_sha256({"state": state, "source_facing": source_facing}),
+                    _object_sha256(_motion_identity("mob", state, source_facing)),
                 ),
                 outputs=(f"content/mobs/{mob.mob_id}/states/{state}.source.png",),
             )
@@ -1014,12 +1075,26 @@ def _visual_direction(package: ResolvedGamePackage) -> dict[str, object]:
         "universe_sha256": package.file(package.game.universe.source).sha256,
         "style": package.game.style.model_dump(mode="json"),
         "proportion": package.game.proportion.model_dump(mode="json"),
-        "presentation": package.game.presentation.model_dump(mode="json"),
+        # Runtime contact shadows are deliberately absent: changing them must not invalidate any
+        # paid generation node. These two fields remain provider-facing visual direction.
+        "presentation": {
+            "view_profile": package.game.presentation.view_profile,
+            "gameplay_space": package.game.presentation.gameplay_space,
+        },
     }
 
 
 def _visual_direction_digest(package: ResolvedGamePackage) -> str:
     return _object_sha256(_visual_direction(package))
+
+
+def _map_without_runtime_presentation(game_map: PreparedGameMap) -> dict[str, object]:
+    """Project the map identity consumed before runtime integration."""
+
+    return game_map.model_dump(
+        mode="json",
+        exclude={"layers": {"__all__": set(RUNTIME_ONLY_LAYER_FIELDS)}},
+    )
 
 
 def _reference_digests(
@@ -1036,6 +1111,23 @@ def _file_digests(package: ResolvedGamePackage, paths: Iterable[str]) -> tuple[s
 def _object_sha256(value: object) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _motion_identity(kind: MotionActorKind, state: str, source_facing: str) -> dict[str, object]:
+    """Everything that decides what a motion atlas is asked to depict.
+
+    The requested motion is part of a strip's identity, so a strip generated under a superseded
+    directive must not be reused: the player climb strip was regenerated precisely because its
+    directive changed, and without this the cached artwork answered the old question forever.
+    Only a recipe-owned override is carried. The default directive is a pure function of `state`,
+    which is already here, so adding it would change every existing digest to say nothing new.
+    """
+
+    identity: dict[str, object] = {"state": state, "source_facing": source_facing}
+    override = recipe_owned_motion_direction(kind, state)
+    if override is not None:
+        identity["motion_direction"] = override
+    return identity
 
 
 __all__ = [

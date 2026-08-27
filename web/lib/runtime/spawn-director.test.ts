@@ -35,7 +35,6 @@ function makeZone(
     min_player_distance_px: 0,
     minimum_spawn_separation_px: 1,
     wander_radius_px: 32,
-    pursuit_leash_px: 128,
     replacement_policy: "same_archetype",
     spawn_table: [
       { mob_slot: 0, weight: 1, min_alive: 1, max_alive: 1 },
@@ -50,8 +49,8 @@ function makeManifest(
   rootOverrides: Partial<Pick<MobPopulationManifest, "update_interval_ms" | "max_spawn_batch_per_update">> = {},
 ): MobPopulationManifest {
   return {
-    schema_version: 1,
-    kind: "mob-population-v1",
+    schema_version: 2,
+    kind: "mob-population-v2",
     update_interval_ms: 1,
     max_spawn_batch_per_update: 8,
     maps: [
@@ -87,9 +86,9 @@ function makeCandidates(
 }
 
 describe("strict manifest and candidate validation", () => {
-  test("parses the exact lower_snake_case mob-population-v1 wire shape", () => {
+  test("parses the exact lower_snake_case mob-population-v2 wire shape", () => {
     const parsed = parseMobPopulationManifest(makeManifest());
-    expect(parsed.kind).toBe("mob-population-v1");
+    expect(parsed.kind).toBe("mob-population-v2");
     expect(parsed.maps[0]?.zones[0]?.right_column_exclusive).toBe(8);
     expect(Object.isFrozen(parsed.maps[0]?.zones[0]?.spawn_table)).toBe(true);
     const zone = parsed.maps[0]!.zones[0]!;

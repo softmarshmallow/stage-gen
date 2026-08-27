@@ -95,36 +95,6 @@ def test_uniform_grid_source_has_narrow_typed_layout_failure() -> None:
     }
 
 
-def test_continuous_tileset_source_is_not_recoverable_by_cell_slicing() -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    source = Image.new("RGB", (240, 80), (128, 128, 128))
-    draw = ImageDraw.Draw(source)
-    for row in range(4):
-        draw.rectangle((0, row * 20 + 5, 239, row * 20 + 14), fill=(40, 120, 180))
-
-    with pytest.raises(ValueError, match="connected foreground component"):
-        validate_generated_source(_png(source), width=240, height=80, contract=contract)
-
-
-def test_tileset_source_must_match_each_documented_semantic_role() -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    source = _tileset_template_source(contract)
-
-    facts = validate_generated_source(_png(source), width=240, height=80, contract=contract)
-
-    assert facts["tileset_roles_validated"] == 48
-    assert facts["tileset_semantic_contract"] == grid_semantic_contract(contract, 240, 80)
-
-    wrong_role = source.copy()
-    draw = ImageDraw.Draw(wrong_role)
-    draw.rectangle((0, 40, 19, 59), fill=(128, 128, 128))
-    draw.rectangle((2, 42, 17, 57), fill=(40, 120, 180))
-    with pytest.raises(ValueError, match="semantic role side-left"):
-        validate_generated_source(_png(wrong_role), width=240, height=80, contract=contract)
-
-
 def test_generic_grid_normalization_isolates_all_cells() -> None:
     contract = GridContract(rows=2, columns=4, gutter=3)
     source = Image.new("RGBA", (160, 80), (0, 0, 0, 0))
@@ -178,29 +148,6 @@ def test_edge_touching_alpha_is_fitted_and_exact_gutters_are_cleared() -> None:
             boundary = cell.copy()
             ImageDraw.Draw(boundary).rectangle((3, 3, 36, 36), fill=0)
             assert boundary.getbbox() is None
-
-
-def test_tileset_normalization_imposes_exact_12x4_topology_and_opaque_fill() -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    source = Image.new("RGBA", (240, 80), (80, 120, 60, 255))
-
-    normalized, facts = normalize_canonical_grid(_png(source), contract)
-
-    assert facts["layout_columns"] == 12
-    assert facts["layout_rows"] == 4
-    assert facts["cells_nonempty"] == 48
-    assert facts["canonical_fill_opaque"] is True
-    record = facts["grid_normalization"]
-    assert isinstance(record, dict)
-    assert record["semantic_mask"] == "tileset-12x4-v1"
-    assert record["transform_count"] == 48
-
-    with Image.open(BytesIO(normalized)) as opened:
-        damaged = opened.convert("RGBA")
-    damaged.putpixel((3, 63), (80, 120, 60, 254))
-    with pytest.raises(ValueError, match="canonical 12x4 role topology"):
-        validate_canonical_grid(_png(damaged), contract)
 
 
 def test_character_strip_remap_preserves_four_isolated_cells() -> None:
@@ -498,18 +445,6 @@ def _opaque_grid(width: int, height: int, contract: GridContract) -> bytes:
                 fill=(40 + column * 20, 80 + row * 40, 180),
             )
     return _png(image)
-
-
-def _tileset_template_source(contract: GridContract) -> Image.Image:
-    canonical, _facts = normalize_canonical_grid(
-        _png(Image.new("RGBA", (240, 80), (40, 120, 180, 255))),
-        contract,
-    )
-    with Image.open(BytesIO(canonical)) as opened:
-        template = opened.convert("RGBA")
-    source = Image.new("RGB", template.size, (128, 128, 128))
-    source.paste(template.convert("RGB"), mask=template.getchannel("A"))
-    return source
 
 
 def _png(image: Image.Image) -> bytes:

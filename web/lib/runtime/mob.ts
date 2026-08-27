@@ -5,7 +5,7 @@
 //   - Wander state machine (idle/wander/hurt/dead)         (TC-083, TC-085)
 //   - Hit reception → turn to the swing, hurt anim, drop   (TC-085, TC-086)
 //   - Its own floating health bar, the player's widget at mob size
-//   - Terrain faces as walls: a mob walks off a ledge but never up one
+//   - Terrain faces and drops bound autonomous movement; knockback may cross drops
 //
 // Each mob is built around an existing Phaser sprite spawned by the scene
 // from the pre-loaded mob_<i>_idle / mob_<i>_hurt frame strips.
@@ -38,21 +38,31 @@ import {
   type AggressionProfile,
   type MobAggression,
   aggressionProfile,
-  mobIntent,
   resolveDamage,
 } from "./combat";
-import { terrainSurfaceY } from "./terrain";
 import { anchorRepackedMotionFeet } from "./motion-playback";
 import {
   constrainMobStrikeToAttackLevel,
+  mobAttackLevelReachable,
+  MobActionTimingNode,
+  MobAwarenessNode,
+  MobBehaviorVariation,
+  MobFacingNode,
   mobLocomotionAnimationNeedsRestart,
+  MobPursuitTargetNode,
+  MobReturnHomeNode,
 } from "./mob-behavior";
-import {
-  resolveTerrainWalk,
-  type TerrainWalkResolution,
-} from "./vertical";
+import { MobNavigationPolicy, MobTerrainLaneNode } from "./mob-navigation";
+import type { TerrainWalkResolution } from "./vertical";
 
-export type MobAiState = "wander" | "chase" | "windup" | "hurt" | "dead";
+export type MobAiState =
+  | "wander"
+  | "chase"
+  | "return_home"
+  | "attack_recovery"
+  | "windup"
+  | "hurt"
+  | "dead";
 
 /**
  * Authoritative damage outcome plus the scene's existing transition aliases.
@@ -85,10 +95,6 @@ export interface MobOpts {
   worldWidthPx: number;
   baselineY: number;
   heightFn: (col: number) => number;
-  /** Wander extent in pixels around spawnCol*tilePx. */
-  wanderExtentPx?: number;
-  /** Maximum chase displacement in pixels from the spawn/home point. */
-  pursuitLeashPx?: number;
   speedPx?: number;
   spriteHeightPx: number;
   idleAnimKey: string;
@@ -103,22 +109,15 @@ export interface MobOpts {
   deathTextureKey?: string;
   /** Use explicit simulation time instead of Phaser's wall-clock tween state. */
   fixedStepMotion?: boolean;
+  /** Stable per-instance seed for bounded movement variation. */
+  behaviorSeed?: number;
 }
 
-const DEFAULT_WANDER_PX = 100;
 const DEFAULT_SPEED = 36;
 const HURT_DURATION_MS = 600;
 const KNOCKBACK_PX = 80;
-
-/**
- * How far a roused mob may stray from its patrol lane while chasing, in pixels.
- *
- * Without a leash a `relentless` creature follows the player across the whole stage and the
- * hunting ground becomes one accumulating train of mobs. The lane is also what `mobWorldLane`
- * clamped so the full alpha envelope stays inside the world, so wandering outside it would put
- * artwork through the world edge.
- */
-const CHASE_LEASH_PX = 384;
+const FACING_TARGET_DEADZONE_TILES = 0.125;
+const FACING_MOVEMENT_EPSILON_PX = 0.01;
 
 export class Mob {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -128,6 +127,15 @@ export class Mob {
   /** Set on the frame a wind-up completes, for the scene to resolve into player damage. */
   pendingStrike: { damage: number; dirSign: 1 | -1 } | null = null;
   private readonly profile: AggressionProfile;
+  private readonly pursuitTarget: MobPursuitTargetNode;
+  private readonly awareness: MobAwarenessNode;
+  private readonly navigation: MobTerrainLaneNode;
+  private readonly navigationPolicy: MobNavigationPolicy;
+  private returnHome: MobReturnHomeNode;
+  private readonly actionTiming: MobActionTimingNode;
+  private readonly movementSpeedScale: number;
+  private readonly initialDirSign: 1 | -1;
+  private readonly facing: MobFacingNode;
   private readonly maxHp: number;
   private attackReadyAtMs = 0;
   private strikeLandsAtMs = 0;
@@ -139,11 +147,9 @@ export class Mob {
   private opts: MobOpts;
   private spawnX: number;
   private spawnY: number;
-  private wanderMin: number;
-  private wanderMax: number;
-  private pursuitMin: number;
-  private pursuitMax: number;
-  private dirSign: 1 | -1 = 1;
+  private readonly spawnColumn: number;
+  private homeX: number;
+  private patrolDirection: 1 | -1;
   private hurtUntil = 0;
   private idleAnim: string;
   private hurtAnim: string;
@@ -161,6 +167,31 @@ export class Mob {
     this.maxHp = maxHp;
     this.hp = maxHp;
     this.profile = aggressionProfile(opts.aggression);
+    this.awareness = new MobAwarenessNode(this.profile);
+    const behaviorSeed =
+      opts.behaviorSeed ??
+      Math.imul(opts.spawnCol + 1, 0x45d9f3b) ^
+        Math.imul(opts.ladderIndex + 1, 0x119de1f3);
+    const variation = new MobBehaviorVariation(behaviorSeed, {
+      movementSpeedVarianceRatio: this.profile.movementSpeedVarianceRatio,
+      pursuitSweepVarianceRatio: this.profile.pursuitSweepVarianceRatio,
+    });
+    this.movementSpeedScale = variation.movementSpeedScale;
+    this.initialDirSign = variation.initialDirection;
+    this.patrolDirection = this.initialDirSign;
+    this.facing = new MobFacingNode(this.initialDirSign, {
+      targetDeadzonePx: opts.tilePx * FACING_TARGET_DEADZONE_TILES,
+      movementEpsilonPx: FACING_MOVEMENT_EPSILON_PX,
+    });
+    this.actionTiming = new MobActionTimingNode(
+      behaviorSeed,
+      this.profile.actionTimingVarianceRatio,
+    );
+    this.pursuitTarget = new MobPursuitTargetNode({
+      inaccessibleSweepHalfWidthPx:
+        this.profile.inaccessibleSweepHalfWidthPx * variation.pursuitSweepScale,
+      arrivalRadiusPx: this.profile.pursuitArrivalRadiusPx,
+    });
     // Null when the run drew no attack strip. The swing still happens - the wind-up, the damage
     // and the cooldown are behaviour, not artwork - it simply plays without a dedicated pose.
     this.attackAnim = opts.attackTextureKey ? `${opts.attackTextureKey}_anim` : null;
@@ -168,37 +199,35 @@ export class Mob {
       ? `${opts.deathTextureKey}_anim`
       : null;
 
-    const ext = opts.wanderExtentPx ?? DEFAULT_WANDER_PX;
+    const navigationPolicy = new MobNavigationPolicy(opts.tilePx);
+    this.navigationPolicy = navigationPolicy;
     this.renderEnvelope = opts.renderEnvelope;
     const lane = mobWorldLane({
       candidateSpawnX: opts.spawnCol * opts.tilePx + opts.tilePx / 2,
-      wanderExtent: ext,
+      wanderExtent: navigationPolicy.patrolHomeRadiusPx,
       worldWidth: opts.worldWidthPx,
       renderedHalfWidth: this.renderEnvelope.halfWidth,
     });
     const spawnX = lane.spawnX;
     this.spawnX = spawnX;
-    this.wanderMin = lane.wanderMin;
-    this.wanderMax = lane.wanderMax;
-    // Authored pursuit leashes are industry-standard home radii, not an extension beyond the
-    // patrol lane. An omitted optional value uses the current deterministic patrol-edge default.
-    // Both forms are clamped to the render-safe world envelope so visible alpha stays on-map.
-    const pursuitMin =
-      opts.pursuitLeashPx === undefined
-        ? lane.wanderMin - CHASE_LEASH_PX
-        : spawnX - opts.pursuitLeashPx;
-    const pursuitMax =
-      opts.pursuitLeashPx === undefined
-        ? lane.wanderMax + CHASE_LEASH_PX
-        : spawnX + opts.pursuitLeashPx;
-    this.pursuitMin = Math.max(this.renderEnvelope.halfWidth, pursuitMin);
-    this.pursuitMax = Math.min(
-      opts.worldWidthPx - this.renderEnvelope.halfWidth,
-      pursuitMax,
+    this.spawnColumn = Math.floor(spawnX / opts.tilePx);
+    this.homeX = spawnX;
+    this.navigation = new MobTerrainLaneNode({
+      spawnColumn: this.spawnColumn,
+      spawnX,
+      tilePixels: opts.tilePx,
+      worldWidthPx: opts.worldWidthPx,
+      baselineY: opts.baselineY,
+      renderedHalfWidth: this.renderEnvelope.halfWidth,
+      heightAtColumn: opts.heightFn,
+      policy: navigationPolicy,
+    });
+    this.returnHome = new MobReturnHomeNode(
+      spawnX,
+      navigationPolicy.returnHomeArrivalRadiusPx,
+      navigationPolicy.returnHomeSpeedPx,
     );
-
-    const colH = opts.heightFn(opts.spawnCol);
-    const surfaceY = terrainSurfaceY(colH, opts.tilePx, opts.baselineY);
+    const surfaceY = this.navigation.surfaceYAt(spawnX);
     this.spawnY = surfaceY;
 
     // Build the idle anim if it doesn't exist (scene may have made it; harmless).
@@ -248,8 +277,7 @@ export class Mob {
     anchorRepackedMotionFeet(sprite);
     this.sprite = sprite;
 
-    // Random initial direction based on ladder index for determinism.
-    this.dirSign = opts.ladderIndex % 2 === 0 ? 1 : -1;
+    this.renderFacing();
 
     // The player's own widget at mob size, so a fight is read the same way from both sides. It
     // is the mob's to own rather than the scene's: a mob is created and destroyed per stage and
@@ -295,6 +323,7 @@ export class Mob {
 
     if (this.state === "hurt") {
       if (nowMs >= this.hurtUntil) {
+        this.adoptForcedLandingTerritory();
         this.state = "wander";
         this.ensureLocomotionAnimation();
       } else {
@@ -308,37 +337,62 @@ export class Mob {
     // mid-frame reads as a glitch rather than as a miss.
     if (this.state === "windup") {
       if (nowMs >= this.strikeLandsAtMs) {
-        this.pendingStrike = { damage: this.profile.damage, dirSign: this.dirSign };
-        this.state = this.playerX === null ? "wander" : "chase";
+        this.pendingStrike = {
+          damage: this.profile.damage,
+          dirSign: this.facing.currentDirection,
+        };
+        this.state =
+          this.playerX === null ? "wander" : "attack_recovery";
       } else {
         this.snapFeet();
         return;
       }
     }
 
-    const requestedIntent =
-      this.playerX === null
-        ? "hold"
-        : mobIntent({
-            profile: this.profile,
-            distancePx: Math.abs(this.playerX - this.sprite.x),
-            nowMs,
-            attackReadyAtMs: this.attackReadyAtMs,
-            playerDefeated: this.playerDefeated,
-          });
+    const directive = this.awareness.step({
+      playerObserved: this.playerX !== null,
+      playerDefeated: this.playerDefeated,
+      playerWithinPursuitTerritory:
+        this.playerX !== null && this.navigation.containsPursuitX(this.playerX),
+      atHome:
+        Math.abs(this.sprite.x - this.homeX) <=
+        this.navigationPolicy.returnHomeArrivalRadiusPx,
+      homeReturnRequired: !this.navigation.containsPatrolX(this.sprite.x),
+      distancePx:
+        this.playerX === null ? 0 : Math.abs(this.playerX - this.sprite.x),
+      nowMs,
+      attackReadyAtMs: this.attackReadyAtMs,
+    });
+    if (directive === "return_home") {
+      this.pursuitTarget.reset();
+      this.state = "return_home";
+      this.ensureLocomotionAnimation();
+      const returning = this.returnHome.step({
+        mobX: this.sprite.x,
+        deltaSeconds: dt,
+        speedScale: this.movementSpeedScale,
+      });
+      this.walkTo(returning.targetX, "pursuit");
+      this.snapFeet();
+      return;
+    }
     const intent = constrainMobStrikeToAttackLevel({
-      requestedIntent,
+      requestedIntent: directive,
       mobFootY: this.sprite.y,
       playerFootY: this.playerY,
       tilePixels: this.opts.tilePx,
     });
 
     if (intent === "strike" && this.playerX !== null) {
-      this.dirSign = this.playerX >= this.sprite.x ? 1 : -1;
-      this.sprite.setFlipX(this.dirSign === -1);
+      const actionTiming = this.actionTiming.step({
+        windupMs: this.profile.windupMs,
+        cooldownMs: this.profile.cooldownMs,
+      });
+      this.facing.faceTarget(this.sprite.x, this.playerX);
+      this.renderFacing();
       this.state = "windup";
-      this.strikeLandsAtMs = nowMs + this.profile.windupMs;
-      this.attackReadyAtMs = nowMs + this.profile.cooldownMs;
+      this.strikeLandsAtMs = nowMs + actionTiming.windupMs;
+      this.attackReadyAtMs = nowMs + actionTiming.cooldownMs;
       if (this.attackAnim && this.opts.scene.anims.exists(this.attackAnim)) {
         this.sprite.play(this.attackAnim, true);
         anchorRepackedMotionFeet(this.sprite);
@@ -347,28 +401,50 @@ export class Mob {
       return;
     }
 
-    if ((intent === "chase" || intent === "flee") && this.playerX !== null) {
-      // Fleeing is chasing with the sign inverted, which is why one branch covers both: a
-      // skittish creature is not a different behaviour, it is the same pursuit pointed away.
+    if (intent === "attack_recovery") {
+      this.pursuitTarget.reset();
+      this.state = "attack_recovery";
+      this.ensureLocomotionAnimation();
+      this.snapFeet();
+      return;
+    }
+
+    if (intent === "chase" && this.playerX !== null) {
+      const pursuit = this.pursuitTarget.step({
+        mobX: this.sprite.x,
+        playerX: this.playerX,
+        attackLevelReachable: mobAttackLevelReachable({
+          mobFootY: this.sprite.y,
+          playerFootY: this.playerY,
+          tilePixels: this.opts.tilePx,
+        }),
+        currentDirection: this.facing.currentDirection,
+      });
+      const speed = this.profile.chaseSpeedPx * this.movementSpeedScale;
+      const next = this.sprite.x + pursuit.direction * speed * dt;
+      const blocked = this.walkTo(next, "pursuit");
+      if (blocked && pursuit.sweeping) {
+        this.pursuitTarget.reportBlocked();
+      } else if (pursuit.sweeping) {
+        this.pursuitTarget.reportProgress();
+      }
+      if (this.state !== "chase") this.state = "chase";
+      this.ensureLocomotionAnimation();
+      this.snapFeet();
+      return;
+    }
+
+    if (intent === "flee" && this.playerX !== null) {
+      this.pursuitTarget.reset();
       const toward = this.playerX >= this.sprite.x ? 1 : -1;
-      this.dirSign = (intent === "flee" ? -toward : toward) as 1 | -1;
-      const speed = this.profile.chaseSpeedPx;
-      const next = this.sprite.x + this.dirSign * speed * dt;
-      // Leashed to the patrol lane so a roused mob cannot be walked across the whole stage, and
-      // so its alpha envelope stays inside the world bounds `mobWorldLane` clamped it to.
-      //
-      // The leash is applied before the terrain, not after: clamping a blocked position back
-      // into the lane would push the creature into the face it was just stopped by.
-      this.walkTo(
-        Math.min(
-          this.pursuitMax,
-          Math.max(this.pursuitMin, next),
-        ),
-      );
-      // Facing still follows the intent even when the ground refuses the step, so a mob held at
-      // the foot of a rise keeps looking at the player standing on top of it rather than turning
-      // away from a fight it simply cannot reach.
-      this.sprite.setFlipX(this.dirSign === -1);
+      const fleeDirection = (toward === 1 ? -1 : 1) as 1 | -1;
+      const next =
+        this.sprite.x +
+        fleeDirection *
+          this.profile.chaseSpeedPx *
+          this.movementSpeedScale *
+          dt;
+      this.walkTo(next, "pursuit");
       if (this.state !== "chase") this.state = "chase";
       this.ensureLocomotionAnimation();
       this.snapFeet();
@@ -376,24 +452,23 @@ export class Mob {
     }
 
     // Nothing nearby: use the current deterministic patrol default.
+    this.pursuitTarget.reset();
+    this.returnHome.reset();
     if (this.state !== "wander") this.state = "wander";
     this.ensureLocomotionAnimation();
-    const speed = this.opts.speedPx ?? DEFAULT_SPEED;
+    const speed = (this.opts.speedPx ?? DEFAULT_SPEED) * this.movementSpeedScale;
     // A face turns a patrol the same way the end of its lane does. Reversing rather than
     // standing still matters because a lane that runs into a rise would otherwise leave the
     // creature pressed against it for the rest of the run, which reads as a stuck mob rather
     // than as one that cannot climb.
-    const blocked = this.walkTo(this.sprite.x + this.dirSign * speed * dt);
+    const blocked = this.walkTo(
+      this.sprite.x + this.patrolDirection * speed * dt,
+      "patrol",
+    );
     if (blocked) {
-      this.dirSign = (this.dirSign === 1 ? -1 : 1) as 1 | -1;
-    } else if (this.sprite.x <= this.wanderMin) {
-      this.sprite.x = this.wanderMin;
-      this.dirSign = 1;
-    } else if (this.sprite.x >= this.wanderMax) {
-      this.sprite.x = this.wanderMax;
-      this.dirSign = -1;
+      this.patrolDirection =
+        this.patrolDirection === 1 ? -1 : 1;
     }
-    this.sprite.setFlipX(this.dirSign === -1);
 
     this.snapFeet();
   }
@@ -413,30 +488,35 @@ export class Mob {
    * were never applied at all, and the chase was simply the one behaviour that walked far enough
    * to show it.
    */
-  private walkTo(nextX: number): boolean {
-    const walk = this.resolveWalk(nextX, false);
+  private walkTo(
+    nextX: number,
+    boundary: "patrol" | "pursuit" = "pursuit",
+  ): boolean {
+    const previousX = this.sprite.x;
+    const walk = this.resolveWalk(nextX, boundary, false);
     this.sprite.x = walk.x;
+    this.facing.followMovement(previousX, this.sprite.x);
+    this.renderFacing();
     return walk.blocked;
+  }
+
+  /** Apply the facing node's stable decision; no behavior branch writes sprite mirroring. */
+  private renderFacing(): void {
+    this.sprite.setFlipX(this.facing.currentDirection === -1);
   }
 
   /** The same resolution without applying it, for a move that is not the mob's own step. */
   private resolveWalk(
     nextX: number,
+    boundary: "patrol" | "pursuit" | "world" = "world",
     allowDescents = true,
   ): TerrainWalkResolution {
-    return resolveTerrainWalk({
-      previousX: this.sprite.x,
+    return this.navigation.walk(
+      this.sprite.x,
       nextX,
-      footY: this.sprite.y,
-      tilePixels: this.opts.tilePx,
-      surfaceAt: (column) =>
-        terrainSurfaceY(
-          this.opts.heightFn(column),
-          this.opts.tilePx,
-          this.opts.baselineY,
-        ),
+      boundary,
       allowDescents,
-    });
+    );
   }
 
   private ensureLocomotionAnimation(): void {
@@ -457,13 +537,27 @@ export class Mob {
 
   /** Keep the mob standing on the terrain column it currently occupies. */
   private snapFeet(): void {
-    const col = Math.floor(this.sprite.x / this.opts.tilePx);
-    const colH = this.opts.heightFn(col);
-    this.sprite.y = terrainSurfaceY(
-      colH,
-      this.opts.tilePx,
-      this.opts.baselineY,
+    this.sprite.y = this.navigation.surfaceYAt(this.sprite.x);
+  }
+
+  /**
+   * Rebase local navigation after player knockback carries the mob over a drop.
+   *
+   * Autonomous movement cannot cross that drop in reverse, so retaining the original upper
+   * shelf as home creates an impossible goal. The terrain node changes home only when the landing
+   * coordinate is disconnected; ordinary knockback on the same shelf leaves territory unchanged.
+   */
+  private adoptForcedLandingTerritory(): void {
+    if (!this.navigation.rehomeAfterForcedDisplacement(this.sprite.x)) return;
+    this.homeX = this.navigation.homeX;
+    this.returnHome = new MobReturnHomeNode(
+      this.homeX,
+      this.navigationPolicy.returnHomeArrivalRadiusPx,
+      this.navigationPolicy.returnHomeSpeedPx,
     );
+    this.awareness.reset();
+    this.pursuitTarget.reset();
+    this.snapFeet();
   }
 
   /** Tell the mob where the player is. Null means "no player to react to". */
@@ -502,19 +596,16 @@ export class Mob {
     // to the patrol lane and cannot push a creature up a raised face; when pushed into a pit the
     // hurt interval carries the horizontal reaction before normal terrain snapping resumes.
     const targetX = this.resolveWalk(
-      Phaser.Math.Clamp(
-        this.sprite.x + knockbackDir * KNOCKBACK_PX,
-        this.wanderMin,
-        this.wanderMax,
-      ),
+      this.sprite.x + knockbackDir * KNOCKBACK_PX,
+      "world",
       true,
     ).x;
     // Turn to look at whoever swung. A mob that keeps facing its patrol
     // direction while being knocked backwards reads as scenery taking damage.
     // Wander resumes along the same heading, so the turn is a reaction rather
     // than a one-frame flicker the next update undoes.
-    this.dirSign = mobHitFacing(knockbackDir);
-    this.sprite.setFlipX(this.dirSign === -1);
+    this.facing.commit(mobHitFacing(knockbackDir));
+    this.renderFacing();
     const died = hitResult.died;
     if (this.opts.fixedStepMotion) {
       this.fixedHitMotion = {
@@ -609,7 +700,8 @@ export class Mob {
   resetAutomationState(): void {
     this.hp = this.maxHp;
     this.state = "wander";
-    this.dirSign = this.ladderIndex % 2 === 0 ? 1 : -1;
+    this.patrolDirection = this.initialDirSign;
+    this.facing.reset(this.initialDirSign);
     this.hurtUntil = 0;
     this.attackReadyAtMs = 0;
     this.strikeLandsAtMs = 0;
@@ -617,9 +709,19 @@ export class Mob {
     this.playerX = null;
     this.playerY = null;
     this.playerDefeated = false;
+    this.awareness.reset();
+    this.actionTiming.reset();
+    this.pursuitTarget.reset();
+    this.navigation.restoreHome(this.spawnColumn, this.spawnX);
+    this.homeX = this.spawnX;
+    this.returnHome = new MobReturnHomeNode(
+      this.homeX,
+      this.navigationPolicy.returnHomeArrivalRadiusPx,
+      this.navigationPolicy.returnHomeSpeedPx,
+    );
     this.fixedHitMotion = undefined;
     this.sprite.setPosition(this.spawnX, this.spawnY);
-    this.sprite.setFlipX(this.dirSign === -1);
+    this.renderFacing();
     this.sprite.setAlpha(1);
     this.sprite.setVisible(true);
     this.sprite.anims.stop();

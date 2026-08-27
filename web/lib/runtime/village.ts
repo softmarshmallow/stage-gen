@@ -1,7 +1,7 @@
 // Village hub data adapter and resident placement.
 //
 // The village is a stage over the run's own art rather than a second world: it shares the
-// tileset, the parallax layers, the portal pair, and the player. What makes it read as a town
+// parallax layers, the portal pair, and the player. What makes it read as a town
 // instead of another hunting ground is entirely data - a manifest block naming the settlement
 // and its residents, and a placement plan that stands those residents on flat ground along the
 // route the player already walks between the two portals.

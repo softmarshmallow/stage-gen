@@ -118,7 +118,6 @@ class TestHeldStages:
             "village-npc-concept-0",
             "character-concept",
             "village-fixtures",
-            "tileset",
             "character-master-strip-idle",
         ],
     )

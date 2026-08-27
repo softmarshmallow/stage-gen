@@ -74,7 +74,6 @@ class MobSpawnZone(PersistedContractModel):
     min_player_distance_px: int = Field(ge=0)
     minimum_spawn_separation_px: int = Field(ge=0)
     wander_radius_px: int = Field(ge=0)
-    pursuit_leash_px: int = Field(ge=0)
     replacement_policy: ReplacementPolicy
     spawn_table: list[MobSpawnEntry] = Field(min_length=1)
 
@@ -98,9 +97,6 @@ class MobSpawnZone(PersistedContractModel):
             )
         if self.spawn_batch_size > self.population_cap:
             raise ValueError("spawn_batch_size must not exceed population_cap")
-        if self.pursuit_leash_px < self.wander_radius_px:
-            raise ValueError("pursuit_leash_px must be greater than or equal to wander_radius_px")
-
         tiers = [entry.mob_tier for entry in self.spawn_table]
         if len(set(tiers)) != len(tiers):
             raise ValueError("spawn_table mob_tier values must be unique within a zone")
@@ -153,8 +149,8 @@ class MobPopulationMap(PersistedContractModel):
 class MobPopulationDirection(PersistedContractModel):
     """Versioned authoring contract for continuous hunting-map repopulation."""
 
-    schema_version: Literal[1] = 1
-    kind: Literal["mob-population-v1"] = "mob-population-v1"
+    schema_version: Literal[2] = 2
+    kind: Literal["mob-population-v2"] = "mob-population-v2"
     update_interval_ms: int = Field(ge=1)
     max_spawn_batch_per_update: int = Field(ge=1)
     maps: list[MobPopulationMap] = Field(min_length=1)

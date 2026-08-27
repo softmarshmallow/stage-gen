@@ -1,7 +1,7 @@
 """Strict schema and manifest projection for the optional village hub.
 
 The village is a hub *inside* an existing run rather than a second recipe. It reuses that run's
-tileset, parallax layers, portal art, items and player, and adds only its residents, their idle
+parallax layers, portal art, items and player, and adds only its residents, their idle
 strips and one sheet of settlement fixtures. That is why nothing here extends `WorldSpec`: a run
 that gains a village keeps `world_spec_<tag>.json` byte-identical and keeps the same tag, so
 every artifact already on disk stays cache-valid and enabling the village costs one structured

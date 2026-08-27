@@ -36,10 +36,14 @@ def _graph() -> ExecutionGraph:
 def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None:
     graph = _graph()
 
-    assert len(graph.nodes) == 203
+    # Eight loop nodes, one per layer. Sunpetal declares `generated_bridge` so its four are image
+    # operations; Crowncrag declares `mirror_repeat` so its four are local. The image count is a
+    # worst case: each loop node admits the generated raster first and only constructs when that
+    # fails, so a layer the model already returned as a clean repeat unit spends nothing.
+    assert len(graph.nodes) == 211
     assert graph.operation_counts() == {
-        "local": 97,
-        "image_generation": 87,
+        "local": 101,
+        "image_generation": 91,
         "structured_generation": 16,
         "music_generation": 3,
     }
@@ -153,14 +157,70 @@ def test_playback_only_change_does_not_invalidate_provider_cache_identity() -> N
     )
 
 
+def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> None:
+    package = resolve_game_package(BELLWEATHER)
+    contact_shadows = package.game.presentation.contact_shadows.model_copy(update={"opacity": 0.24})
+    changed_game = package.game.model_copy(
+        update={
+            "presentation": package.game.presentation.model_copy(
+                update={"contact_shadows": contact_shadows}
+            )
+        }
+    )
+    first_map = package.maps[0]
+    changed_layer = first_map.layers[2].model_copy(
+        update={
+            "presentation": first_map.layers[2].presentation.model_copy(
+                update={"detail_blur_screen_pixels": 0.9}
+            )
+        }
+    )
+    changed_map = first_map.model_copy(
+        update={"layers": [*first_map.layers[:2], changed_layer, *first_map.layers[3:]]}
+    )
+    changed_package = replace(
+        package,
+        package_sha256="f" * 64,
+        canonical_game_sha256="e" * 64,
+        game=changed_game,
+        maps=(changed_map, *package.maps[1:]),
+    )
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(changed_package, profile=profile)
+
+    assert original.node("map-sunpetal-crossing-layer-sunpetal_village-generate").cache_key == (
+        changed.node("map-sunpetal-crossing-layer-sunpetal_village-generate").cache_key
+    )
+    assert original.node("map-sunpetal-crossing-layer-sunpetal_village-validate").cache_key == (
+        changed.node("map-sunpetal-crossing-layer-sunpetal_village-validate").cache_key
+    )
+    assert (
+        original.node("map-sunpetal-crossing-composite").cache_key
+        == changed.node("map-sunpetal-crossing-composite").cache_key
+    )
+    assert {
+        node.node_id: node.cache_key
+        for node in original.nodes
+        if node.operation is not OperationKind.LOCAL
+    } == {
+        node.node_id: node.cache_key
+        for node in changed.nodes
+        if node.operation is not OperationKind.LOCAL
+    }
+    assert (
+        original.node("manifest-assemble").cache_key != changed.node("manifest-assemble").cache_key
+    )
+
+
 def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
     graph = _graph()
     projection = project_execution(graph)
 
     assert projection.duration_ms == 297_250
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 3.86
-    assert projection.estimated_cost_high_usd == 21.08
+    assert projection.estimated_cost_low_usd == 4.02
+    assert projection.estimated_cost_high_usd == 21.88
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

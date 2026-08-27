@@ -90,29 +90,19 @@ def test_image_repeat_contract_and_preview_fallback_are_scoped() -> None:
         assert "ineligible" in contract
 
 
-def test_tileset_documentation_matches_connected_harmonic_runtime() -> None:
+def test_terrain_atlas_documentation_matches_runtime_contract() -> None:
     repository_root = Path(__file__).parents[2]
-    contract = (repository_root / "docs/spec/tileset.md").read_text(encoding="utf-8")
+    contract = (repository_root / "docs/spec/terrain-atlas.md").read_text(encoding="utf-8")
     normalized = " ".join(contract.split())
 
     for required in (
-        "does not register or render per-role atlas frames",
-        "512 x 512 toroidal",
-        "luminance-sorted color palette",
-        "3/7/19/43",
-        "connected-run fill TileSprites",
-        "runtime-only 12-pixel side bands",
+        "terrain-atlas-3x3-minimal-v1",
+        "47 reachable 3x3-minimal",
+        "all eight neighbors",
+        "Dynamic engine tilemaps require `direct_pass`",
+        "Collision comes from occupancy, not alpha",
     ):
         assert required in normalized
-    for retired in (
-        "register frames against the inset content rectangle",
-        "per-channel mean, variance",
-        "three mirror-safe warped samples",
-        "Cull transition frames",
-    ):
-        assert retired not in normalized
-
-
 def test_game_contract_authorities_are_discoverable_and_match_the_live_models() -> None:
     """The master and executable game contracts remain distinct and discoverable.
 
@@ -140,8 +130,8 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "stage-gen package plan",
         "library/games/<game_id>/game.toml",
         "game-package-v3",
-        "game-contract-v5",
-        "prepared-game-runtime-v7",
+        "game-contract-v6",
+        "prepared-game-runtime-v8",
     ):
         assert any(required in document for document in discoverable_docs)
 

@@ -92,8 +92,21 @@ export function preparedLayerLayout(
   const renderedHeight = placement.trimmed_height * scale;
   const anchor = placement.vertical_anchor;
   let topY: number;
-  if (anchor === "canvas_cover" || anchor === "screen_top") {
+  if (anchor === "canvas_cover") {
+    // A cover plate is a full-bleed background. There is nothing to slide, so an offset here is
+    // meaningless and the map contract already rejects one.
     topY = 0;
+  } else if (anchor === "screen_center") {
+    // The most general registration: the trimmed raster's own midline meets the viewport midline,
+    // so neither edge is privileged and a band shorter than the screen is free to sit anywhere.
+    // This only reads as "centered" because the raster is already cropped to its alpha box.
+    topY =
+      viewportHeight / 2 - renderedHeight / 2 + placement.vertical_offset * renderedHeight;
+  } else if (anchor === "screen_top") {
+    // Top-registered layers hang from the viewport ceiling. A positive offset slides the layer
+    // down by that fraction of its rendered height, which is the same sign convention the
+    // bottom-registered branch uses, so one number reads the same way on every layer.
+    topY = placement.vertical_offset * renderedHeight;
   } else {
     const datum = anchor === "screen_bottom" ? viewportHeight : walkSurfaceY;
     topY = datum - (1 - placement.vertical_offset) * renderedHeight;

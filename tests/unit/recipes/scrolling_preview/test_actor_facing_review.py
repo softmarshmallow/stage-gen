@@ -221,7 +221,7 @@ async def test_an_unconfident_left_reading_never_burns_a_regeneration(tmp_path: 
     assert harness.forced == 0
 
 
-@pytest.mark.parametrize("stage", ["character-climb", "tileset", "items", "ladder"])
+@pytest.mark.parametrize("stage", ["character-climb", "items", "ladder"])
 async def test_stages_without_a_facing_contract_are_never_reviewed(
     tmp_path: Path, stage: str
 ) -> None:

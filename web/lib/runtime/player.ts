@@ -56,7 +56,6 @@ import {
   resolveTerrainWalk,
   resolveVerticalLanding,
   type LadderZone,
-  type CrouchMovementMode,
   type PlayerSupport,
   type UpperPlatform,
 } from "./vertical";
@@ -162,8 +161,6 @@ export interface PlayerOpts {
   scaleReferences: ReadonlyMap<string, ScaleReference>;
   /** States whose authored pose height is meaningful and must retain atlas scale. */
   preserveSourceScaleStates?: readonly PlayerState[];
-  /** Prepared crouch is stationary; mature standalone callers retain slow movement. */
-  crouchMovementMode?: CrouchMovementMode;
 }
 
 /** Every player state, in one place so animations and scale resolution cannot diverge. */
@@ -491,18 +488,17 @@ export class Player {
           down,
         });
     if (entry) {
+      const entrySupport = this.support;
       this.activeLadder = entry.ladder;
       this.ladderId = entry.ladder.id;
-      this.support = "ladder";
-      this.supportId = entry.ladder.id;
-      this.airborne = false;
+      this.setSupport("ladder", entry.ladder.id);
       this.vx = 0;
       this.vy = 0;
       this.sprite.x = entry.ladder.centerX;
       this.clearAttack();
       this.opts.onTransition?.("ladder-enter", {
         ladderId: entry.ladder.id,
-        from: entry.direction === "up" ? "terrain" : "platform",
+        from: entrySupport,
         direction: entry.direction,
       });
       this.continueLadder({ dt, up, down, left, right, wantsJump: false });
@@ -527,13 +523,10 @@ export class Player {
       }
     }
 
-    // Crouch reduces speed and locks state on the ground.
+    // Crouch selects the grounded low posture and caps horizontal speed.
     const crouching = !controlsLocked && down && this.support !== "air";
     if (crouching) {
-      targetVx = resolveCrouchHorizontalVelocity({
-        velocity: targetVx,
-        mode: this.opts.crouchMovementMode ?? "slow",
-      });
+      targetVx = resolveCrouchHorizontalVelocity(targetVx);
     }
 
     if (!controlsLocked) this.vx = targetVx;

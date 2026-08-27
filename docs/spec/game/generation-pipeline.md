@@ -31,7 +31,7 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one immutable run, and emits `prepared-game-runtime-v7`. The `--dry-run` path still
+publishes one immutable run, and emits `prepared-game-runtime-v8`. The `--dry-run` path still
 exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -42,7 +42,8 @@ flowchart TD
 
     PR --> ML["map layer raw generate[*]"]
     PR --> MG["map ground 47-mask paintover generate[*]"]
-    ML --> MLV["canonical alpha + repeat validate, vertical trim + placement measure[*]"]
+    ML --> MLC["admit loop, else mirror or bridge[*]"]
+    MLC --> MLV["repeat validate, vertical trim + placement measure[*]"]
     MG --> MGV["validate paintover + deterministically canonicalize 47-mask atlas[*]"]
     PR --> LG["optional map ladder generate[*]"]
     PR --> PG["optional map portal-pair generate[*]"]
@@ -104,12 +105,12 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "7af566ccd74f187e09703fe158257350fdfd7fb5d1181d73c2c9c50e5930c9f5",
-  "node_count": 203,
+  "topology_sha256": "7c412daedef310746437251ddbd2a7844e7f0aed8d579d45e27b97ba28e3f032",
+  "node_count": 211,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 97,
-    "image_generation": 87,
+    "local": 101,
+    "image_generation": 91,
     "structured_generation": 16,
     "music_generation": 3
   },
@@ -144,7 +145,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact digest-locked Bellweather snapshot, the content-sensitive execution-plan identity is
-`graph_sha256 = e14a229cde57141f8df44816c4df9c9c9a46b11c81ac2bd6da64a606347a9ecc`.
+`graph_sha256 = 68a8c2b6b1d12b566e4bdd3abe218fc2da8001aa4721d1a2d31ccf7ab412dae7`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -319,6 +320,11 @@ returned usage remain operational evidence and must be refreshed at the live-pro
 
 Every node cache key includes its stable ID and operation contract version, selected provider and
 model, digests of validated authored inputs and references, and ordered prerequisite cache keys.
+Consumer-only presentation is an explicit exception at the paid boundary: root contact-shadow
+settings and per-layer contrast, saturation, atmospheric wash, and detail blur are excluded from
+generation, local layer admission, map composite, and semantic-review cache identities. They enter
+only package resolution and provider-free `manifest-assemble`, so tuning the accepted runtime look
+cannot schedule or invalidate a provider call.
 Cache admission additionally validates actual upstream artifact digests as lineage. Path
 existence alone is never a hit. A changed model, prompt, reference byte, dependency contract, or
 upstream artifact invalidates the relevant reuse boundary.
@@ -365,7 +371,7 @@ counts one successful provider operation per provider node.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v7` authored projection, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v8` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.

@@ -598,19 +598,12 @@ describe("vertical world contracts", () => {
     expect(oneTile.horizontalRange!).toBeGreaterThan(64);
   });
 
-  test("supports stationary prepared crouch without changing mature slow crouch", () => {
-    expect(
-      resolveCrouchHorizontalVelocity({ velocity: 420, mode: "stationary" }),
-    ).toBe(0);
-    expect(
-      resolveCrouchHorizontalVelocity({ velocity: 420, mode: "slow" }),
-    ).toBe(168);
-    expect(() =>
-      resolveCrouchHorizontalVelocity({
-        velocity: Number.NaN,
-        mode: "stationary",
-      }),
-    ).toThrow("finite");
+  test("crouch walking stays directional and slower than ordinary walking", () => {
+    expect(resolveCrouchHorizontalVelocity(420)).toBe(80);
+    expect(resolveCrouchHorizontalVelocity(-420)).toBe(-80);
+    expect(resolveCrouchHorizontalVelocity(40)).toBe(40);
+    expect(resolveCrouchHorizontalVelocity(0)).toBe(0);
+    expect(() => resolveCrouchHorizontalVelocity(Number.NaN)).toThrow("finite");
   });
 
   test("spends one air jump per airborne stretch and honours coyote time", () => {
@@ -954,6 +947,60 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
         down: true,
       }),
     ).toBeNull();
+  });
+
+  test("captures an overlapping airborne player on Up and naturally permits jump-regrab", () => {
+    expect(
+      ladderEntryAt({
+        ladders: world.ladders,
+        support: "air",
+        supportId: null,
+        x: up.centerX + up.activationHalfWidth,
+        footY: 500,
+        up: true,
+        down: false,
+      })?.ladder.id,
+    ).toBe("ladder-summit");
+    expect(
+      ladderEntryAt({
+        ladders: world.ladders,
+        support: "air",
+        supportId: null,
+        x: up.centerX,
+        footY: up.upperDeckY - 1,
+        up: true,
+        down: false,
+      }),
+    ).toBeNull();
+    expect(
+      ladderEntryAt({
+        ladders: world.ladders,
+        support: "air",
+        supportId: null,
+        x: up.centerX,
+        footY: 500,
+        up: false,
+        down: true,
+      }),
+    ).toBeNull();
+
+    const jump = ladderJumpOffVelocity({
+      left: false,
+      right: false,
+      facing: "right",
+    });
+    const deltaSeconds = 1 / 30;
+    const regrab = ladderEntryAt({
+      ladders: world.ladders,
+      support: "air",
+      supportId: null,
+      x: up.centerX + jump.vx * deltaSeconds,
+      footY: 500 + jump.vy * deltaSeconds,
+      up: true,
+      down: false,
+    });
+    expect(regrab?.ladder.id).toBe("ladder-summit");
+    expect(regrab?.direction).toBe("up");
   });
 
   test("locks ladder motion, holds on neutral input, clamps exits, and jumps off", () => {

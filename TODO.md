@@ -37,6 +37,31 @@ publication still require explicit authorization even when their implementation 
       update the repository media-count/binding test from six to seven and run the publication,
       storage, and documentation gates as one atomic change.
 
+## Climbable band atlas
+
+- [ ] Close the middle-band rung phase before the tiled climbable contract admits generated bands.
+      The model reliably obeys countable direction (how many rungs, which cells carry them) and
+      unreliably obeys proportional direction (`one quarter of the cell height`), so roughly one
+      band in three places its rungs such that every stacked join is 34-38% wider than the spacing
+      inside a band, about 14-18px at the 64px runtime visual width. Cutting one rung period out of
+      the band removes it deterministically and applied to 16 of 16 sampled ladders, but that
+      changes the repeat unit from an authored band to a measured rung gap, so land it together
+      with the world-unit mapping rather than as a patch. Constraining the rung count in the prompt
+      is not the fix: it corrected phase direction but pushed rung spacing to 0.88 of the ladder
+      width against 0.74-0.77 for the accepted baseline, which reads as a ladder no one could climb.
+- [ ] Measure strand-type climbables before any claim of tiling correctness covers them. The rung
+      rhythm metric keys on rows whose ink exceeds the strand baseline width, so a rope or vine
+      carries no crosswise structure for it to see and every strand column reports unmeasurable.
+      Ropes look correct in every composition rendered so far and nothing quantitative supports
+      that. Either add a strand-specific periodicity measurement or restrict the contract to
+      rung-bearing climbables and reject strands at admission.
+- [ ] Replace the operator-supplied band-structure reference before promoting any climbable
+      artwork. Every accepted band was generated with a reference the task owner licensed for spike
+      use only and explicitly excluded from promotion. Its digest is recorded beside each run. A
+      self-authored band template with a documented rights basis, as
+      `fixtures/image_gen_templates/terrain_atlas_12x4_template.png` carries, must replace it and
+      the artwork must be regenerated; do not promote bytes derived from the spike reference.
+
 ## Git reconciliation
 
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare

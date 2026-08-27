@@ -28,8 +28,8 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
 )
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 7
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v7"
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 8
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v8"
 
 
 class PreparedManifestError(ValueError):
@@ -158,6 +158,7 @@ def _assemble_prepared_runtime(
                 "trimmed_height": int(placement["trimmed_height"]),
                 "trimmed_top": int(placement["trimmed_top"]),
             },
+            "presentation": layer.presentation.model_dump(mode="json"),
             "asset": asset,
         }
 

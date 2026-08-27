@@ -1,8 +1,8 @@
-schema_version = 5
-kind = "game-map-v5"
+schema_version = 6
+kind = "game-map-v6"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 7
+revision = 9
 display_name = "Amberbell Forest"
 
 [view]
@@ -13,6 +13,7 @@ scroll_axis = "x"
 
 [continuity]
 seamless_axis = "x"
+loop_construction = "mirror_repeat"
 
 [[references]]
 reference_id = "amberbell_scene"
@@ -32,6 +33,7 @@ order = 0
 parallax = 0.0
 alpha_mode = "opaque"
 vertical_anchor = "canvas_cover"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Reconstruct only the uninterrupted saturated blue sky plate behind Amberbell
 Forest. Preserve its calm high-key color variation and warm autumn light.
@@ -47,6 +49,7 @@ order = 1
 parallax = 0.14
 alpha_mode = "transparent"
 vertical_anchor = "screen_top"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate the monumental cream clouds, lavender-blue mountains, soft autumn
 valley, distant turquoise water, and many-spired Crowncrag Castle as one far
@@ -64,6 +67,7 @@ order = 2
 parallax = 0.62
 alpha_mode = "transparent"
 vertical_anchor = "walk_surface"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate Amberbell Forest's readable midground landmarks: one monumental
 bell-hung tree, exposed roots, selective cream-stone shrines, layered autumn
@@ -81,6 +85,7 @@ order = 0
 parallax = 1.42
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate only restrained near stream-edge leaves, small roots, and a few mossy
 stones along the bottom edge. Preserve sparse dark-teal, amber, and coral

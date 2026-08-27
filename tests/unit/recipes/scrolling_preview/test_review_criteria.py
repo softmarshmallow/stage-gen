@@ -45,7 +45,6 @@ class TestReviewedStages:
             # Turnarounds show every side by definition.
             "character-concept",
             "mob-concept-3",
-            "tileset",
             "items",
             "ladder",
             "portal",

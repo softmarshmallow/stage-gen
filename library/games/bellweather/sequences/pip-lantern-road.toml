@@ -1,0 +1,127 @@
+schema_version = 1
+kind = "game-sequence-v1"
+game_id = "bellweather"
+sequence_id = "pip-lantern-road"
+revision = 1
+display_name = "A Lantern for the Unwritten Road"
+sequence_kind = "dialogue_sequence"
+entry_node_id = "pip_offers_route_check"
+
+[agency]
+policy = "dialogue_only"
+back_navigation = "history_only"
+world_simulation = "continues"
+
+[presentation]
+map_id = "sunpetal-crossing"
+subject_view = "front_three_quarter"
+soundtrack_policy = "duck"
+
+[interruption]
+policy = "restart_node"
+
+[skip]
+policy = "skip_seen_only"
+target_outcome_id = "lantern_promise_shared"
+
+[[nodes]]
+node_id = "pip_offers_route_check"
+node_kind = "dialogue"
+speaker_id = "pip_pennant"
+visible_subject_ids = ["pip_pennant"]
+focus_subject_id = "pip_pennant"
+listener_id = "wayfarer"
+expression = "cheerful"
+text = "Eastbound Wayfarer! Boots tied, tart packed, heroic speech rehearsed? Good. Now show me the route you intend to follow."
+advance_policy = "manual"
+next_node_id = "wayfarer_admits_no_map"
+
+[[nodes]]
+node_id = "wayfarer_admits_no_map"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "pip_pennant"
+expression = "curious"
+text = "I was going to keep the village behind me and the castle ahead. It sounded more reliable before you asked."
+advance_policy = "manual"
+next_node_id = "pip_warns_about_road"
+
+[[nodes]]
+node_id = "pip_warns_about_road"
+node_kind = "dialogue"
+speaker_id = "pip_pennant"
+visible_subject_ids = ["pip_pennant"]
+focus_subject_id = "pip_pennant"
+listener_id = "wayfarer"
+expression = "alert"
+text = "Crowncrag Road can move a landmark without moving the ground beneath it. If the bells sound farther away while you stand still, the story is turning you around."
+advance_policy = "manual"
+next_node_id = "wayfarer_asks_about_flame"
+
+[[nodes]]
+node_id = "wayfarer_asks_about_flame"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "pip_pennant"
+expression = "concerned"
+text = "And your blue flame knows the difference? You hold that lantern as if it has brought someone home before."
+advance_policy = "manual"
+next_node_id = "pip_remembers_sibling"
+
+[[nodes]]
+node_id = "pip_remembers_sibling"
+node_kind = "dialogue"
+speaker_id = "pip_pennant"
+visible_subject_ids = ["pip_pennant"]
+focus_subject_id = "pip_pennant"
+listener_id = "wayfarer"
+expression = "puzzled"
+text = "My sibling carried its twin on an expedition years ago. Their flame never returned, but this one still leans east some nights, as though answering a call too faint for me to hear."
+advance_policy = "manual"
+next_node_id = "wayfarer_offers_to_watch"
+
+[[nodes]]
+node_id = "wayfarer_offers_to_watch"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "pip_pennant"
+expression = "determined"
+text = "If I find another blue light, an old camp, or even a trail that should not be there, I will remember who is waiting for word."
+advance_policy = "manual"
+next_node_id = "pip_sets_boundary"
+
+[[nodes]]
+node_id = "pip_sets_boundary"
+node_kind = "dialogue"
+speaker_id = "pip_pennant"
+visible_subject_ids = ["pip_pennant"]
+focus_subject_id = "pip_pennant"
+listener_id = "wayfarer"
+expression = "neutral"
+text = "Thank you. But do not chase my hope past your good sense. Mark every safe return before exploring farther; a waykeeper values the road home as much as the road ahead."
+advance_policy = "manual"
+next_node_id = "wayfarer_repeats_rule"
+
+[[nodes]]
+node_id = "wayfarer_repeats_rule"
+node_kind = "dialogue"
+speaker_id = "wayfarer"
+visible_subject_ids = ["wayfarer"]
+focus_subject_id = "wayfarer"
+listener_id = "pip_pennant"
+expression = "delighted"
+text = "Castle ahead, village behind, and a return path kept in mind. That is a much better plan than my first one."
+advance_policy = "manual"
+next_node_id = "lantern_promise_shared"
+
+[[nodes]]
+node_id = "lantern_promise_shared"
+node_kind = "outcome"
+outcome_id = "lantern_promise_shared"
+effect_ids = []

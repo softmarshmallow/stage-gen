@@ -159,7 +159,7 @@ asset-specific prepared sections below instead of inheriting this table:
 |---|---|---|---|
 | 1536 × 1024 | 3:2 (landscape) | 1.57 Mpx | World concept, inventory panel |
 | 2048 × 1024 | 2:1 (wide) | 2.10 Mpx | Portal pair sheet (entry / exit) |
-| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, ground tileset, character / creature / village-resident concepts, single-state motion strips, obstacle sheets, village fixture sheet, item sheet |
+| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, character / creature / village-resident concepts, single-state motion strips, obstacle sheets, village fixture sheet, item sheet |
 | 800 × 1200 | 2:3 (portrait) | 0.96 Mpx | One game-directed, forward-facing village-resident still |
 | 2400 × 3440 | ≈ 30:43 (tall, ~5:7) | 8.26 Mpx | Character motion master sheet (5 rows × 4 frames) |
 | 256 × 1024 | 1:4 (tall strip) | 0.26 Mpx | One complete runtime ladder |
@@ -252,10 +252,7 @@ Prepared terrain is a different topology contract. The provider paints the attri
 extracts the 48 cells from both 13-by-5 guide lattices, rejects excessive topology drift, derives
 alpha from magenta chroma, harmonizes legal connectors, validates the 47 reachable 3x3-minimal
 masks and one transparent placeholder, and admits only a direct-pass canonical atlas for dynamic
-runtime use.
-The older tag-based `tileset-12x4-v1` path retains its own fixed-role mask and recovery
-rules; those rules do not redefine prepared terrain.
-Consumers read the manifest and load
+runtime use. Consumers read the manifest and load
 alpha normally; they do not infer strategy from colour. The manifest records
 the actual processor chain, so native provider alpha, background removal, and
 local keying never masquerade as one another. The world concept and the one
@@ -265,7 +262,7 @@ never silently changes the selected strategy.
 ### Runtime publication gate
 
 Prepared manifest completion requires the complete package-derived runtime
-closure. `prepared-game-runtime-v7` publishes every map's layers, 47-mask ground
+closure. `prepared-game-runtime-v8` publishes every map's layers, 47-mask ground
 atlas, authored occupancy, and only the ladder or portal bundles that map declares;
 it also publishes all authored actor motions, dialogue, props, items, inventory UI,
 soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoint
@@ -324,7 +321,7 @@ The [canonical game-generation pipeline](game/generation-pipeline.md) owns the c
 package graph, conditional composition, operation counts, and execution semantics. Prepared
 packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
-to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v7`.
+to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v8`.
 
 The wave table below documents only the older prompt/tag recipe and remains the detailed authority
 for assets produced by that legacy path.
@@ -340,7 +337,7 @@ current v1 `theme` field preserves the exact six-stage graph.
 | 0.5 (controlled only) | Compile the original brief and six v1 content controls into a validated seven-field scrolling plan. | Single call; omitted when `theme` is unset. | text agent |
 | 1 | World concept (style root) | Single call. | image |
 | 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
-| 2 | World concept dependants — L parallax layers (agent-designed count), tileset, ladder, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `6 + L + N + M` calls fired together. | image |
+| 2 | World concept dependants — L parallax layers (agent-designed count), ladder, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
 | 3 | Actor concept dependants — five player state strips; deterministic player-master composition; then player attack/climb and per-mob state strips. Game-directed mobs add attack to idle and hurt. | Two fan-outs separated by local composition. Exact current call counts live in the canonical pipeline document. | image + structured review + local CPU |
 | 4 | Split the composed player master into five fixed state rows and measure the final published bytes. | One deterministic split followed by five currently sequential structured vision measurements. | local CPU + text/vision agent |
 | 5 | Validate and write the per-tag artifact manifest; bind fallback preview music only when no authored soundtrack is present. | Single deterministic assembly after every enabled terminal stage. | local CPU |
@@ -385,7 +382,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 ## World-design agent (`world_spec_<tag>.json`)
 
 > **CURRENT only.** The ratified prepared-package target removes layer planning
-> from this generated bible. `game-map-v5` authors references and layer prompts
+> from this generated bible. `game-map-v6` authors references and layer prompts
 > before ingest; see the
 > [Authored map-generation contract](game/map-generation-contract.md). Mob,
 > prop, and item migration is a separate content-contract boundary.
@@ -470,7 +467,7 @@ agent's design choices into their prompts:
 | Items sheet generator | `items[0..7]` (each: `kind`, `name`, `brief`) |
 | Parallax layer generator | `layers[i]` (full entry: id, z_index, parallax, opaque, paint_region, description) |
 
-Other image generators (tileset, character, inventory, portal) do not
+Other image generators (character, inventory, portal) do not
 read the spec — they take only the concept art as a style reference.
 
 If `world_spec_<tag>.json` is missing, the consuming generators fall
@@ -592,76 +589,15 @@ much to soften based on closeness-to-camera.
 
 The complete topology, paintover-source and direct-pass thresholds, composition
 rules, slope limitation, consumer boundary, and publication status are defined
-in [tileset.md](tileset.md). The packaged mask-to-coordinate lookup is
+in [terrain-atlas.md](terrain-atlas.md). The packaged mask-to-coordinate lookup is
 authoritative. Generated exploratory paintovers remain unreviewed unless
 an independent semantic verdict accepts their exact bytes.
-
-### Legacy tag-based scrolling tileset
-
-The following material-synthesis description applies only to the older
-`tileset-12x4-v1` tag-based demo recipe. Prepared `game-map-v5` packages cannot
-select it.
-
-### Tile grid spec
-
-The tile-role layout (which cell is "top-left corner", "slope up", "interior
-fill", "floating platform left", etc.) is governed by [tileset.md](tileset.md).
-The packaged wireframe is a layout prior, not a pixel mask. Its version-locked
-four-class inventory communicates the role arrangement:
-
-- Dark separator ink — cell and layout structure
-- Strategy background — sky / above-surface
-- Green — surface cover (the walkable layer; whatever material the world uses)
-- Gray — underground fill
-
-Its painted regions are not pixel-equal to the delivery topology and never
-own canonical alpha. The producer validates the prior's exact packaged bytes
-and class inventory for identity, while the code-native `tileset-12x4-v1`
-role mask remains the sole geometry authority. The model uses the prior only
-for sheet-layout guidance on the normal sheet path.
-
-The normalized source validator runs inside `ImageGenerationService`'s one
-initial attempt plus five retries. It rejects a uniform sheet, an empty cell,
-any connected foreground component crossing a cell seam, a mismatch in any of
-the 48 role-specific required/forbidden silhouette zones, or an incomplete
-canonical fill source. Isolated one-sided gutter contact remains recoverable.
-After transparency extraction, deterministic normalization imposes the exact
-role silhouette mask, clears all gutters, and requires every canonical cell to
-remain nonempty. The row-4/column-1 fill inset is byte-validated as alpha 255;
-even one alpha-254 pixel rejects publication.
-
-If and only if all six sheet attempts fail with the typed
-`scrolling-grid-cross-cell-isolation-v1` layout error,
-`tileset-material-synthesis-v1` may recover without asking the model to lay out
-48 cells. It generates an opaque seamless `FILL` material, then linked `CAP`
-and `EDGE` materials that reference the fill anchor and world concept. The
-three calls create texture only: deterministic recipe code owns the complete
-12 x 4 role geometry, gutters, contour joins, and variants. Other provider,
-semantic, media, transparency, cache, or validation failures do not select the
-fallback.
-
-The swatch request identity binds the canonical world spec and all ordered
-layer records. Its selected layer cue is the highest-z record at
-`parallax <= 1`, passed as text rather than reading a concurrently generated
-layer image. The packaged terrain wireframe remains a local, digest-bound
-layout-prior input, not a material-generation reference or a pixel-geometry
-source. The code-native `tileset-12x4-v1` mask owns every synthesized contour
-and alpha pixel.
-
-The leading-dot swatch artifacts and sidecars are cache/resume inputs and are
-excluded from publication. The visible raw and canonical tileset pairs publish
-as one rollback-protected four-file bundle, and only the validated canonical
-parent satisfies the unchanged runtime tileset requirement. Its manifest
-derivation is `tileset-material-synthesis-v1`; provenance binds the six
-failures, world and wireframe inputs, linked swatches, algorithm versions, and
-final geometry facts. See [tileset.md](tileset.md#material-synthesis-recovery)
-for the complete trigger and material contract.
 
 ---
 
 ## Runtime ladder
 
-> **Prepared map-local contract.** In `game-map-v5`, optional `[ladder]`
+> **Prepared map-local contract.** In `game-map-v6`, optional `[ladder]`
 > direction and placements live in the owning map. The appearance is generated
 > once per map and reused only by that map's validated placements. The older
 > prompt-only recipe may still use a run-global `ladder_<tag>.png`; it is not
@@ -727,7 +663,7 @@ shadows, vines/flourishes, labels/arrows, panels/borders, scenery, and any
 foreground connection across a seam are forbidden. Used as the design
 reference for every character motion sheet.
 
-No authoritative 1 x 3 wireframe is bundled, so the producer does not invent
+No separate 1 x 3 image template is bundled, so the producer does not invent
 or attach one. Instead, raw-cache metadata binds the complete isolation prompt,
 the exact rows/columns/gutter contract, and the actual world-concept reference
 path, byte length, and SHA-256 under `isolated-turnaround-thirds-v1`. Changing
@@ -1079,7 +1015,7 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 
 ## Portal pair (entry / exit)
 
-> **Prepared map-local contract.** In `game-map-v5`, optional `[portal]`
+> **Prepared map-local contract.** In `game-map-v6`, optional `[portal]`
 > direction and endpoint anchors live in the owning map. The older prompt-only
 > recipe may still generate one global pair; it is not the prepared-package
 > authority.
@@ -1138,7 +1074,7 @@ stable `anchor`; visual role never implies a destination.
 Nine image artifacts and one bible are generated when the run carries the
 `village` opt-in described under
 [Optional village hub](#optional-village-hub). The current game-directed path
-shares the run's tileset, parallax layers, portal pair, item sheet, and player;
+shares the run's parallax layers, portal pair, item sheet, and player;
 it adds four resident concept references, four forward-facing resident stills,
 and one settlement-fixture sheet.
 

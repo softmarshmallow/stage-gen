@@ -41,7 +41,7 @@ export const NPC_TALK_PROMPT_TEXT = "▲ Talk";
 const NAME_LABEL_GAP_PX = 10;
 
 /** Clearance between the top of the name label and the bottom of the talk prompt. */
-const TALK_PROMPT_GAP_PX = 6;
+export const NPC_TALK_PROMPT_GAP_PX = 6;
 
 const NAME_LABEL_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: "monospace",
@@ -51,7 +51,7 @@ const NAME_LABEL_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   padding: { x: 6, y: 3 },
 };
 
-const TALK_PROMPT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+export const NPC_TALK_PROMPT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: "monospace",
   fontSize: "13px",
   color: "#ffdf8a",
@@ -181,9 +181,9 @@ export class Npc {
 
     const prompt = scene.add.text(
       x,
-      label.y - label.displayHeight - TALK_PROMPT_GAP_PX,
+      label.y - label.displayHeight - NPC_TALK_PROMPT_GAP_PX,
       NPC_TALK_PROMPT_TEXT,
-      TALK_PROMPT_STYLE,
+      NPC_TALK_PROMPT_STYLE,
     );
     prompt.setOrigin(0.5, 1);
     prompt.setScrollFactor(1);

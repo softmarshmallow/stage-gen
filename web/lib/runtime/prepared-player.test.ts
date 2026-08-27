@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { MotionBinding } from "./prepared-manifest";
 import { playerSheetScaleForState } from "./sprite-scale";
-import { resolveCrouchHorizontalVelocity } from "./vertical";
 import {
-  PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
@@ -65,14 +63,5 @@ describe("prepared player adapter", () => {
     } as const;
     expect(playerSheetScaleForState({ ...shared, state: "crouch" })).toBe(0.2);
     expect(playerSheetScaleForState({ ...shared, state: "walk" })).toBe(0.32);
-  });
-
-  test("keeps prepared crouch stationary instead of inheriting slow crawl", () => {
-    expect(
-      resolveCrouchHorizontalVelocity({
-        velocity: 420,
-        mode: PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
-      }),
-    ).toBe(0);
   });
 });

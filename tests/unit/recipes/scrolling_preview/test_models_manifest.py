@@ -24,7 +24,6 @@ from stage_gen.recipes.scrolling_preview.models import (
 )
 from stage_gen.recipes.scrolling_preview.raster_contracts import (
     contract_for_runtime_role,
-    normalize_canonical_grid,
     validate_canonical_grid,
 )
 from stage_gen.recipes.scrolling_preview.scale_reference import (
@@ -328,7 +327,6 @@ async def test_runtime_publication_rejects_each_missing_concept_role(tmp_path: P
         ("ai-background-removal", "ai-background-removal"),
         ("chroma-key", "chroma-key"),
         ("imagegen/remove_chroma_key.py", "chroma-key"),
-        ("tileset-topology-mask", "tileset-topology-mask"),
         (
             "ai-background-removal+grid-cell-normalization",
             "ai-background-removal+grid-cell-normalization",
@@ -340,10 +338,6 @@ async def test_runtime_publication_rejects_each_missing_concept_role(tmp_path: P
         (
             "per-cell-generation-v1+grid-cell-normalization",
             "per-cell-generation-v1",
-        ),
-        (
-            "tileset-material-synthesis-v1+tileset-topology-mask",
-            "tileset-material-synthesis-v1",
         ),
     ],
 )
@@ -383,18 +377,6 @@ def test_canonical_scan_excludes_hidden_fallback_components_and_priors(
         ".obstacles_storybook_0.cell-1-3.raw.png.meta.json",
         ".obstacles_storybook_0.cell-1-3.prior.png",
         ".obstacles_storybook_0.cell-1-3.prior.png.meta.json",
-        ".tileset_storybook.material-fill.raw.png",
-        ".tileset_storybook.material-fill.raw.png.meta.json",
-        ".tileset_storybook.material-fill.png",
-        ".tileset_storybook.material-fill.png.meta.json",
-        ".tileset_storybook.material-cap.raw.png",
-        ".tileset_storybook.material-cap.raw.png.meta.json",
-        ".tileset_storybook.material-cap.png",
-        ".tileset_storybook.material-cap.png.meta.json",
-        ".tileset_storybook.material-edge.raw.png",
-        ".tileset_storybook.material-edge.raw.png.meta.json",
-        ".tileset_storybook.material-edge.png",
-        ".tileset_storybook.material-edge.png.meta.json",
     }
 
     assert (
@@ -427,34 +409,8 @@ async def test_manifest_publishes_complete_pixel_validated_runtime_bindings(
         ),
     )
     for requirement in manifest_module._runtime_requirements(tag, world):
-        _write_runtime_pair(
-            run_dir,
-            requirement,
-            mode="chroma",
-            processor_override=(
-                "tileset-material-synthesis-v1+tileset-topology-mask"
-                if requirement.role == "tileset"
-                else None
-            ),
-        )
+        _write_runtime_pair(run_dir, requirement, mode="chroma")
     (run_dir / "gameplay-verification.png").write_bytes(b"review-only")
-    hidden_material_names = (
-        f".tileset_{tag}.material-fill.raw.png",
-        f".tileset_{tag}.material-fill.raw.png.meta.json",
-        f".tileset_{tag}.material-fill.png",
-        f".tileset_{tag}.material-fill.png.meta.json",
-        f".tileset_{tag}.material-cap.raw.png",
-        f".tileset_{tag}.material-cap.raw.png.meta.json",
-        f".tileset_{tag}.material-cap.png",
-        f".tileset_{tag}.material-cap.png.meta.json",
-        f".tileset_{tag}.material-edge.raw.png",
-        f".tileset_{tag}.material-edge.raw.png.meta.json",
-        f".tileset_{tag}.material-edge.png",
-        f".tileset_{tag}.material-edge.png.meta.json",
-    )
-    for name in hidden_material_names:
-        (run_dir / name).write_bytes(b"private-resume-state")
-
     result = await write_scrolling_preview_manifest(
         run_dir=run_dir,
         tag=tag,
@@ -464,19 +420,6 @@ async def test_manifest_publishes_complete_pixel_validated_runtime_bindings(
     manifest_text = await asyncio.to_thread(Path(result.manifest_path).read_text, encoding="utf-8")
     manifest = json.loads(manifest_text)
     runtime = {entry["id"]: entry for entry in manifest["runtime_assets"]}
-    tileset_entry = next(
-        entry for entry in manifest["canonical_artifacts"] if entry["path"] == f"tileset_{tag}.png"
-    )
-    assert tileset_entry["transparency"]["derivation"]["kind"] == ("tileset-material-synthesis-v1")
-    assert runtime["tileset"]["layout"] == {
-        "topology": "tileset",
-        "rows": 4,
-        "columns": 12,
-        "cell_width": 200,
-        "cell_height": 200,
-        "gutter": 2,
-    }
-    assert runtime["tileset"]["geometry_validation"]["canonical_fill_opaque"] is True
     assert runtime["concept"]["layout"]["columns"] == 1
     assert runtime["character-concept"]["layout"]["columns"] == 3
     assert all(
@@ -494,8 +437,7 @@ async def test_manifest_publishes_complete_pixel_validated_runtime_bindings(
         if manifest_module._scale_reference_owner_stage(requirement) is not None
     }
     assert "gameplay-verification.png" not in manifest["artifacts"]
-    assert all(name not in manifest["artifacts"] for name in hidden_material_names)
-    assert [entry["id"] for entry in manifest["runtime_assets"]].count("tileset") == 1
+    assert "tileset" not in runtime
 
 
 async def test_current_manifest_copies_only_approved_fallback(
@@ -1253,11 +1195,7 @@ def _write_runtime_pair(
     nontransparent = sum(value > 0 for value in alpha)
     contract = contract_for_runtime_role(requirement.role)
     processor = processor_override or (
-        "tileset-topology-mask"
-        if contract is not None and contract.topology == "tileset"
-        else "chroma-key+grid-cell-normalization"
-        if contract is not None
-        else "chroma-key"
+        "chroma-key+grid-cell-normalization" if contract is not None else "chroma-key"
     )
     write_artifact_with_provenance(
         canonical_path,
@@ -1352,10 +1290,6 @@ def _runtime_png(
     if requirement.alpha == "opaque":
         return _solid_png(requirement.width, requirement.height, alpha=False), {}
     contract = contract_for_runtime_role(requirement.role)
-    if contract is not None and contract.topology == "tileset":
-        return normalize_canonical_grid(
-            _solid_png(requirement.width, requirement.height, alpha=True), contract
-        )
     image = Image.new("RGBA", (requirement.width, requirement.height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
     if contract is None:

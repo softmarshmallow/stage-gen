@@ -92,6 +92,20 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "crowncrag-road",
     ]
     assert maps[0]["ground"]["occupancy"] == package.maps[0].ground.occupancy
+    assert maps[0]["layers"][2]["presentation"] == {
+        "contrast": 0.84,
+        "saturation": 0.9,
+        "atmosphere_color": "#b8e8f4",
+        "atmosphere_strength": 0.06,
+        "detail_blur_screen_pixels": 0.65,
+    }
+    presentation = result.manifest["presentation"]
+    assert isinstance(presentation, dict)
+    assert presentation["contact_shadows"] == {
+        "enabled": True,
+        "opacity": 0.18,
+        "softness_screen_pixels": 6.0,
+    }
     assert "ladder" not in maps[0]
     assert maps[0]["portal"]["mode"] == "portal-pair-1x2-v1"
     assert maps[1]["ladder"]["placements"] == [

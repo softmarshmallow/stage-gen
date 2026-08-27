@@ -13,7 +13,6 @@ _REQUIRED_RELATIVE_PATHS = (
     "fixtures/image_gen_templates/obstacle_template.png",
     "fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
-    "fixtures/image_gen_templates/wireframe.png",
     "fixtures/loading.gif",
     "fixtures/prompts.txt",
     "fixtures/styles.txt",

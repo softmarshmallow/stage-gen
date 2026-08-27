@@ -143,6 +143,11 @@ class OpenAIImageBackend:
                 _multipart_reference(reference.url, index=index)
                 for index, reference in enumerate(request.input_references, start=1)
             ]
+            if request.mask_reference is not None:
+                # The real masked-edit field. GPT Image 2 treats it as a strong hint rather than a
+                # protected region, so callers must still reimpose anything they need preserved.
+                _, mask_part = _multipart_reference(request.mask_reference.url, index=0)
+                files.append(("mask", mask_part))
 
         headers = {"Authorization": f"Bearer {self._api_key}"}
         await self._pace_request_start()

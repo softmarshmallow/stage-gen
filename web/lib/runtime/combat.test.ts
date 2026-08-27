@@ -239,12 +239,12 @@ describe("mob intent", () => {
     expect(mobIntent({ ...base, profile, distancePx: profile.strikeRangePx })).toBe("strike");
   });
 
-  test("cooldown outranks range, so it does not swing into its own cooldown", () => {
+  test("cooldown enters explicit attack recovery instead of idle patrol", () => {
     const profile = aggressionProfile("hunting");
     const cooling = mobIntent({
       ...base, profile, distancePx: 0, attackReadyAtMs: base.nowMs + 1,
     });
-    expect(cooling).toBe("hold");
+    expect(cooling).toBe("attack_recovery");
   });
 
   test("skittish flees at every distance inside its radius", () => {

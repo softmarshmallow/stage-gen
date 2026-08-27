@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260" width="980" height="260" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect width="980" height="260" fill="#f7f8fa" stroke="#d5d9e0"/>
+  <text x="20" y="30" font-size="15" font-weight="600" fill="#1d2430">Where loop construction sits in the map branch</text>
+
+  <!-- nodes -->
+  <g font-size="12.5">
+    <rect x="20" y="58" width="150" height="62" rx="7" fill="#e8edf6" stroke="#93a4c4"/>
+    <text x="95" y="82" text-anchor="middle" fill="#1d2430" font-weight="600">layer generate</text>
+    <text x="95" y="100" text-anchor="middle" fill="#5b6577">1 image op</text>
+
+    <rect x="205" y="58" width="180" height="62" rx="7" fill="#fdf0dc" stroke="#d8a250"/>
+    <text x="295" y="82" text-anchor="middle" fill="#1d2430" font-weight="600">loop admit / construct</text>
+    <text x="295" y="100" text-anchor="middle" fill="#5b6577">0 or 1 image op</text>
+
+    <rect x="420" y="58" width="175" height="62" rx="7" fill="#e8edf6" stroke="#93a4c4"/>
+    <text x="507" y="82" text-anchor="middle" fill="#1d2430" font-weight="600">validate + trim</text>
+    <text x="507" y="100" text-anchor="middle" fill="#5b6577">local, re-admits output</text>
+
+    <rect x="630" y="58" width="150" height="62" rx="7" fill="#e8edf6" stroke="#93a4c4"/>
+    <text x="705" y="82" text-anchor="middle" fill="#1d2430" font-weight="600">map composite</text>
+    <text x="705" y="100" text-anchor="middle" fill="#5b6577">local, review board</text>
+
+    <rect x="815" y="58" width="145" height="62" rx="7" fill="#e8edf6" stroke="#93a4c4"/>
+    <text x="887" y="82" text-anchor="middle" fill="#1d2430" font-weight="600">map review</text>
+    <text x="887" y="100" text-anchor="middle" fill="#5b6577">1 structured op</text>
+  </g>
+
+  <g stroke="#7b879c" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M170 89 H200"/><path d="M385 89 H415"/><path d="M595 89 H625"/><path d="M780 89 H810"/>
+  </g>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M0 0 L10 5 L0 10 z" fill="#7b879c"/></marker></defs>
+
+  <!-- decision detail -->
+  <rect x="205" y="150" width="560" height="88" rx="7" fill="#ffffff" stroke="#d5d9e0"/>
+  <text x="222" y="171" font-size="12.5" font-weight="600" fill="#1d2430">Inside the loop node</text>
+  <g font-size="12" fill="#3b4557">
+    <text x="222" y="192">1. Admit the generated raster as it is. If it already repeats, publish it untouched — no cost.</text>
+    <text x="222" y="210">2. Otherwise construct by the map's declared method: mirror_repeat (local) or generated_bridge (1 image op).</text>
+    <text x="222" y="228">3. Re-admit the constructed unit. A construction that does not pass fails the node.</text>
+  </g>
+  <path d="M295 120 V148" stroke="#d8a250" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+</svg>

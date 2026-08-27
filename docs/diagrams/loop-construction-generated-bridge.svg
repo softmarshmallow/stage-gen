@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect width="980" height="470" fill="#f7f8fa" stroke="#d5d9e0"/>
+  <text x="20" y="30" font-size="15" font-weight="600" fill="#1d2430">generated_bridge — one painted span carries the tail into the head</text>
+  <text x="20" y="50" font-size="12.5" fill="#5b6577">The period becomes [ A | B ]. B is generated once and reused, so the strip reads A, B, A, B, …</text>
+
+  <!-- step 1 conditioning -->
+  <text x="20" y="84" font-size="12" font-weight="600" fill="#3b4557">1 · conditioning sent to the provider, with the bridge span masked</text>
+  <g>
+    <rect x="20" y="92" width="150" height="56" fill="#dceaf7" stroke="#7ea6c9"/>
+    <text x="95" y="126" font-size="12" text-anchor="middle" fill="#1d2430">A tail</text>
+    <rect x="170" y="92" width="150" height="56" fill="#f3e6f7" stroke="#a97fbe" stroke-dasharray="6 4"/>
+    <text x="245" y="120" font-size="12" text-anchor="middle" fill="#6c3f85" font-weight="600">editable</text>
+    <text x="245" y="136" font-size="11" text-anchor="middle" fill="#6c3f85">(mask: transparent)</text>
+    <rect x="320" y="92" width="150" height="56" fill="#dceaf7" stroke="#7ea6c9"/>
+    <text x="395" y="126" font-size="12" text-anchor="middle" fill="#1d2430">A head</text>
+  </g>
+  <text x="490" y="112" font-size="12" fill="#3b4557">The provider is shown the real neighbours the</text>
+  <text x="490" y="130" font-size="12" fill="#3b4557">bridge has to meet, not an imagined problem.</text>
+
+  <!-- step 2 return -->
+  <text x="20" y="184" font-size="12" font-weight="600" fill="#3b4557">2 · what actually comes back</text>
+  <g>
+    <rect x="20" y="192" width="450" height="56" fill="#fbe9e7" stroke="#c9736a"/>
+    <text x="245" y="218" font-size="12.5" text-anchor="middle" fill="#8c342a" font-weight="600">the whole canvas is repainted</text>
+    <text x="245" y="236" font-size="11.5" text-anchor="middle" fill="#8c342a">contexts drift by 28–48 mean levels; the mask is a hint, not a protected region</text>
+  </g>
+  <text x="490" y="214" font-size="12" fill="#3b4557">Measured on both OpenRouter and OpenAI</text>
+  <text x="490" y="232" font-size="12" fill="#3b4557">/images/edits. This is why a plain paste fails.</text>
+
+  <!-- step 3 extract + anchor -->
+  <text x="20" y="284" font-size="12" font-weight="600" fill="#3b4557">3 · keep only the bridge span, then anchor its edges</text>
+  <g>
+    <rect x="20" y="292" width="150" height="56" fill="#eceef1" stroke="#c3c8d1" stroke-dasharray="4 4"/>
+    <text x="95" y="326" font-size="11.5" text-anchor="middle" fill="#8b93a1">discarded</text>
+    <rect x="170" y="292" width="150" height="56" fill="#e6f2e6" stroke="#4e8b4e"/>
+    <text x="245" y="326" font-size="12" text-anchor="middle" fill="#1d2430" font-weight="600">B</text>
+    <rect x="320" y="292" width="150" height="56" fill="#eceef1" stroke="#c3c8d1" stroke-dasharray="4 4"/>
+    <text x="395" y="326" font-size="11.5" text-anchor="middle" fill="#8b93a1">discarded</text>
+    <rect x="170" y="292" width="16" height="56" fill="#f2c94c" opacity="0.75"/>
+    <rect x="304" y="292" width="16" height="56" fill="#f2c94c" opacity="0.75"/>
+  </g>
+  <text x="490" y="312" font-size="12" fill="#3b4557">The yellow bands ease B onto its exact neighbours,</text>
+  <text x="490" y="330" font-size="12" fill="#3b4557">so both joins are exact whatever the provider did.</text>
+
+  <!-- step 4 period -->
+  <text x="20" y="384" font-size="12" font-weight="600" fill="#3b4557">4 · resulting period</text>
+  <g>
+    <rect x="20" y="392" width="360" height="52" fill="#dceaf7" stroke="#7ea6c9"/>
+    <text x="200" y="424" font-size="12.5" text-anchor="middle" fill="#1d2430">A — unchanged, byte for byte</text>
+    <rect x="380" y="392" width="110" height="52" fill="#e6f2e6" stroke="#4e8b4e"/>
+    <text x="435" y="424" font-size="12.5" text-anchor="middle" fill="#1d2430">B</text>
+    <line x1="380" y1="386" x2="380" y2="450" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+    <line x1="490" y1="386" x2="490" y2="450" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+    <line x1="20"  y1="386" x2="20"  y2="450" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+  </g>
+  <text x="510" y="412" font-size="12" fill="#3b4557">Period grows by the bridge span only.</text>
+  <text x="510" y="430" font-size="12" fill="#3b4557">No mirrored content anywhere in the strip.</text>
+</svg>

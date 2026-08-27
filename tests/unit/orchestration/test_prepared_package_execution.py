@@ -28,7 +28,7 @@ async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolatio
     )
     assert first.summary.ok is True
     assert first.summary.provider_operation_counts == {
-        "image_generation": 87,
+        "image_generation": 91,
         "structured_generation": 16,
         "music_generation": 3,
     }
@@ -135,9 +135,13 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 31
+    assert len(summary.nodes) == 39
+    # Thirteen asset images plus four Sunpetal loop nodes: that map declares `generated_bridge`,
+    # so each of its layers may need one bridge image. Crowncrag declares `mirror_repeat` and its
+    # loop nodes are local. This is the worst case; admission runs first and a layer that already
+    # loops spends nothing.
     assert summary.provider_operation_counts == {
-        "image_generation": 13,
+        "image_generation": 17,
         "structured_generation": 2,
         "music_generation": 0,
     }

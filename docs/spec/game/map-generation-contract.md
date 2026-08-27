@@ -3,10 +3,10 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v5` as one compound map-generation contract
+> input. It defines `game-map-v6` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
-> recipe executes its typed branches; `prepared-game-runtime-v7` projects the
+> recipe executes its typed branches; `prepared-game-runtime-v8` projects the
 > exact map closure; and the prepared web adapter consumes that projection.
 > This implementation status does not assert that any particular live output
 > has passed semantic review or publication gates.
@@ -56,7 +56,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source and
 locks its exact authored bytes. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v5` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v6` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -64,8 +64,8 @@ Reference image filenames are independent: there is no requirement for
 ## Complete example
 
 ```toml
-schema_version = 5
-kind = "game-map-v5"
+schema_version = 6
+kind = "game-map-v6"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -79,6 +79,7 @@ scroll_axis = "x"
 
 [continuity]
 seamless_axis = "x"
+loop_construction = "mirror_repeat"
 
 [[references]]
 reference_id = "field_composition"
@@ -109,6 +110,7 @@ order = 0
 parallax = 0.0
 alpha_mode = "opaque"
 vertical_anchor = "canvas_cover"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Reconstruct the uninterrupted blue-sky plate behind the other elements.
 Remove the sun, cloud masses, terrain, buildings, and vegetation while
@@ -123,6 +125,7 @@ order = 1
 parallax = 0.15
 alpha_mode = "transparent"
 vertical_anchor = "screen_top"
+presentation = { contrast = 0.9, saturation = 0.92, atmosphere_color = "#b8e8f4", atmosphere_strength = 0.05, detail_blur_screen_pixels = 0.65 }
 prompt = """
 Separate the sunlit cloud masses from the references. Preserve their placement,
 scale, palette, and pixel-art treatment. Exclude terrain, buildings, vegetation,
@@ -137,6 +140,7 @@ order = 0
 parallax = 1.4
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate only the close grass and flowers that frame the lower edge. Preserve
 their relationship to the playfield and omit sky, clouds, town, and distant
@@ -208,7 +212,40 @@ The initial producer supports one complete combination:
 | `view.gameplay_space` | `side_plane` | Composition reserves a readable longitudinal and world-up playfield; it does not grant movement abilities |
 | `view.camera_behavior` | `scrolling` | The generated composition must remain valid while the camera advances |
 | `view.scroll_axis` | `x` | Camera progression is horizontal in the generated image plane |
-| `continuity.seamless_axis` | `x` | Every layer output must be admitted or repaired as a verified horizontal repeat unit |
+| `continuity.seamless_axis` | `x` | Every layer output must be admitted or constructed as a verified horizontal repeat unit |
+| `continuity.loop_construction` | `mirror_repeat` or `generated_bridge` | How a layer that does not already loop is made to loop |
+
+### Loop construction
+
+Admission runs first on every layer, whichever construction is declared. The image model does
+sometimes return a genuinely wrapping plate — Bellweather's two sky layers do — and those are
+published untouched at zero provider cost. Construction only applies to a layer that fails
+admission.
+
+`mirror_repeat` is the baseline. Appending a horizontal mirror makes every join a reflection, and
+a reflection is continuous by definition, so the loop is exact before anything else runs. It cannot
+fail and needs no provider. The period doubles and the content reads back on itself, which is the
+price of that guarantee.
+
+`generated_bridge` appends one generated span that carries the layer's tail into its own head. The
+provider is shown `[ tail context | editable bridge | head context ]` with the bridge masked, and
+it paints only the bridge. It costs one image operation per layer that needs it and leaves no
+mirrored content; the period grows by the bridge span.
+
+The endpoint treats a mask as a hint rather than a protected region: measured against the
+conditioning, the supposedly immutable contexts come back changed by 28 to 48 mean levels on both
+OpenRouter and OpenAI. The construction therefore keeps only the bridge span from the return,
+discards whatever happened to the contexts, and eases the bridge onto its exact neighbours across
+a short anchor band. That is what makes both joins exact regardless of provider drift, and it is
+why a naive paste of the contexts is not sufficient.
+
+The provider owns the bridge's alpha as well as its appearance. Reconstructing alpha by
+interpolating the two endpoint profiles cannot invent a silhouette, so on a cut-out layer such as
+clouds it produces a rectangular blend rather than cloud edges.
+
+Loop construction is excluded from generation cache identity. Switching a map between the two
+methods re-runs the loop node only; it never re-bills the layer images, which would come back
+byte-identical.
 
 `seamless_axis` describes visual continuity. It never means that the player,
 simulation, or logical map wraps at an edge. Jumping, ladders, air movement,
@@ -258,6 +295,7 @@ Each `[[layers]]` record owns one generated visual layer:
 | `alpha_mode` | `opaque` or `transparent`; transparent layers request native alpha from a capable image route |
 | `vertical_anchor` | Required placement vocabulary: `canvas_cover`, `screen_top`, `screen_bottom`, or `walk_surface` |
 | `vertical_offset` | Optional author override as a fraction of the layer's own trimmed height, positive pushing down |
+| `presentation` | Required consumer-only contrast, saturation, atmospheric wash, and screen-space detail blur |
 | `prompt` | Non-empty authored instruction describing what to retain, separate, or reconstruct from the selected references |
 
 The initial scrolling producer accepts one to eight layers. This is a paid-work
@@ -321,6 +359,22 @@ vertical trim — and never position; the consumer applies all position from the
 resolved manifest values and never re-measures the raster. Measurement is a
 fact, not a transform, so there is no double-scaling path.
 
+## Runtime layer presentation
+
+`presentation` is not generation direction. It is a required nested object with
+`contrast` from 0.25 to 2, `saturation` from 0 to 2, a six-digit
+`atmosphere_color`, `atmosphere_strength` from 0 to 1, and
+`detail_blur_screen_pixels` from 0 to 4. Neutral values are `1`, `1`,
+`#ffffff`, `0`, and `0`.
+
+Provider-free integration copies these authored values into the prepared
+manifest. The web consumer applies them once after decoding the accepted layer
+texture. Horizontal blur samples wrap around the admitted repeat period,
+vertical samples clamp, and the canonical alpha silhouette remains byte-for-byte
+unchanged. The values are screen-space presentation so a parameter adjustment
+does not alter the source image, local validation, composite review, or any paid
+provider cache key.
+
 `prompt` is portable creative direction, not the final provider prompt. The
 recipe adds versioned mechanical clauses for output dimensions, alpha,
 isolation, loop continuity, contamination avoidance, and provider capability.
@@ -345,7 +399,7 @@ projects that appearance through the packaged 47-mask topology-silhouette
 template and authoritative lookup into 120-by-120 RGBA cells. The provider does
 not generate topology, alpha, cells, or connectors. Binary map occupancy and
 all eight neighbors select runtime cells, and dynamic tilemaps admit only
-`direct_pass` connector continuity. See [the terrain-atlas contract](../tileset.md).
+`direct_pass` connector continuity. See [the terrain-atlas contract](../terrain-atlas.md).
 
 `occupancy` is authored gameplay geometry, not an image-model instruction. The
 first string is the top row. `1` means occupied terrain and `0` means empty
@@ -468,6 +522,7 @@ identity remains granular:
 - changing shared map view or continuity invalidates every affected map output;
 - changing one layer record or one of its references invalidates that layer and the composite review, not unrelated layers;
 - changing only `vertical_anchor` or `vertical_offset` invalidates that layer's local validation, the composite, and the manifest, but never its image call: placement is consumed downstream of generation, so re-anchoring a layer must not re-bill an image that would return byte-identical. `vertical_fit` and `walk_surface_row` are excluded from the ground appearance request for the same reason;
+- changing only a layer's `presentation` invalidates provider-free manifest integration and browser presentation only. It does not invalidate layer generation, alpha/repeat admission, the authored review composite, or any provider operation. The consumer applies contrast, saturation, atmospheric color wash, and loop-safe detail blur once after texture decode while preserving the canonical alpha silhouette;
 - changing ground appearance direction invalidates the atlas and composite review;
 - changing occupancy invalidates package closure, composed terrain evidence, the layer-and-ground composite, gameplay binding, manifest projection, and map review without changing the appearance-only atlas call;
 - changing any ladder or portal authored record, including placement, invalidates that presentation branch and the map review; the current graph deliberately binds the complete block to its image call;
@@ -480,7 +535,7 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v5` does not contain:
+`game-map-v6` does not contain:
 
 - stage order or entry-map status;
 - spawn zones, spawn tables, population targets, or respawn policy;
@@ -514,4 +569,4 @@ closures fail closed.
 Successful input validation proves only authored closure. A playable build still
 requires successful provider and local graph execution, the required independent
 semantic reviews, provider-free integration of every runtime artifact, and exact
-`prepared-game-runtime-v7` consumer admission.
+`prepared-game-runtime-v8` consumer admission.

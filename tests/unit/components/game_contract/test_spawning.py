@@ -41,7 +41,6 @@ def _zone(zone_id: str = "west-trail", **overrides: Any) -> dict[str, Any]:
         "min_player_distance_px": 320,
         "minimum_spawn_separation_px": 96,
         "wander_radius_px": 100,
-        "pursuit_leash_px": 256,
         "replacement_policy": "reroll_spawn_table",
         "spawn_table": [_entry(1), _entry(2)],
     }
@@ -51,8 +50,8 @@ def _zone(zone_id: str = "west-trail", **overrides: Any) -> dict[str, Any]:
 
 def _direction(**overrides: Any) -> dict[str, Any]:
     value: dict[str, Any] = {
-        "schema_version": 1,
-        "kind": "mob-population-v1",
+        "schema_version": 2,
+        "kind": "mob-population-v2",
         "update_interval_ms": 100,
         "max_spawn_batch_per_update": 2,
         "maps": [
@@ -176,7 +175,6 @@ def test_population_timing_and_spawn_table_feasibility_fail_closed() -> None:
         _zone(left_column=8, right_column_exclusive=8),
         _zone(respawn_delay_ms=500, respawn_variance_ms=501),
         _zone(spawn_interval_ms=0),
-        _zone(wander_radius_px=257, pursuit_leash_px=256),
         _zone(spawn_table=[_entry(1), _entry(1)]),
         _zone(spawn_table=[_entry(1, min_alive=3), _entry(2, min_alive=2)]),
         _zone(spawn_table=[_entry(1, max_alive=1), _entry(2, max_alive=2)]),

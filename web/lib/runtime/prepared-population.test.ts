@@ -119,7 +119,7 @@ describe("prepared mob population projection", () => {
         height_at_column: (column) => column % 2,
         is_spawnable_column: (column) => column !== 4,
       },
-      { wander_radius_px: 40, pursuit_leash_px: 160 },
+      { wander_radius_px: 40 },
     )!;
 
     expect(projection.candidates[0]!.candidate_columns).toEqual([

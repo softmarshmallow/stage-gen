@@ -145,7 +145,7 @@ artifact is accepted. This is active code, not an unexercised later wave.
 `"bottom"` for actor concepts, actor strips, resident stills, obstacles, portals, and ladders.
 Most side-view actor strips use
 `GridContract(rows=1, columns=4, gutter=8, anchor="bottom")`; `character-climb` is the explicit
-`gutter=2` exception. Items and the tileset retain the default centered policy.
+`gutter=2` exception. Items retain the default centered policy.
 
 When a fit is required, `_normalize_isolated_fallback_alpha` separately calls
 `fit_isolated_view_alpha` with `anchor="center"`; per-cell fallback processing passes the anchor

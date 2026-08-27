@@ -142,12 +142,6 @@ export function expectedSlots(
       filenames: [`concept_${tag}.png`],
     },
     {
-      id: "tileset",
-      label: "ground tileset",
-      section: "world",
-      filenames: [`tileset_${tag}.png`],
-    },
-    {
       id: "items",
       label: "items",
       section: "world",

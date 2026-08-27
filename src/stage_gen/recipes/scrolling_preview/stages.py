@@ -129,7 +129,7 @@ STAGES: tuple[StageSpec, ...] = (
         name="wave-a",
         wave=2,
         description=(
-            "Wave A fan-out: layers, tileset, character, mobs, obstacles, items, inventory, portal"
+            "Wave A fan-out: layers, character, mobs, obstacles, items, inventory, portal"
         ),
         run=_wave_a,
         depends_on=("world-spec",),

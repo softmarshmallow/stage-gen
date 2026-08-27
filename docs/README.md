@@ -16,7 +16,7 @@ Start here for the headless, general-purpose system:
   ownership boundaries, cross-contract invariants, and subordinate authorities,
   with current executable identities kept explicitly separate.
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
-  implemented current `game-contract-v5` package-root fields, closed vocabulary,
+  implemented current `game-contract-v6` package-root fields, closed vocabulary,
   validation, binding, and manifest projection.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
   machine-checked current scrolling DAG, stage and operation contracts, internal
@@ -25,7 +25,7 @@ Start here for the headless, general-purpose system:
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
 - [Authored map-generation contract](spec/game/map-generation-contract.md) —
-  exact-current `game-map-v5`: explicit image-reference closure, side-view
+  exact-current `game-map-v6`: explicit image-reference closure, side-view
   continuity, per-map layers, binary terrain, ladder and portal composition,
   bundle review, cache, and gameplay-relationship exclusion.
 - [Authored game UI contract](spec/game/ui.md) — current root `ui.toml`, inventory-panel layout,
@@ -42,7 +42,7 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate,
   digest-bound game-global track catalog, scrolling generation pipeline, shuffle
   playback, prepared-runtime projection, and listening/publication boundary.
-- [Authored game maps](game-maps.md) — exact-current `game-map-v5` package
+- [Authored game maps](game-maps.md) — exact-current `game-map-v6` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
@@ -62,6 +62,9 @@ Start here for the headless, general-purpose system:
 - [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
   alpha-component repacking default, its accepted loss modes, evidence contract, and planned
   geometry and ownership improvements.
+- [Horizontal loop construction](loop-construction.md) — how a scrolling map layer is admitted or
+  constructed into a repeat unit, the mirror and generated-bridge methods, why a provider mask is
+  not sufficient on its own, and the period consequences every consumer must carry.
 - [Verified single-axis image repeat](image-repeat.md) — unchanged admission,
   explicit masked repair with deterministic alpha-topology reconstruction and
   endpoint anchoring, retained provider evidence, deterministic gates, and

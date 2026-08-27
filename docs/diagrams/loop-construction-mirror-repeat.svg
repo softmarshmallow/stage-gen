@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 300" width="980" height="300" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect width="980" height="300" fill="#f7f8fa" stroke="#d5d9e0"/>
+  <text x="20" y="30" font-size="15" font-weight="600" fill="#1d2430">mirror_repeat — the loop is a reflection</text>
+  <text x="20" y="50" font-size="12.5" fill="#5b6577">Append a horizontal mirror. Every join becomes a reflection, and a reflection is continuous by definition.</text>
+
+  <!-- source -->
+  <text x="20" y="86" font-size="12" font-weight="600" fill="#3b4557">source A (does not loop)</text>
+  <g>
+    <rect x="20" y="94" width="300" height="58" fill="#dceaf7" stroke="#7ea6c9"/>
+    <path d="M20 140 L80 116 L140 132 L200 106 L260 126 L320 112" fill="none" stroke="#3f7fb5" stroke-width="2.5"/>
+    <text x="170" y="86" font-size="11" fill="#5b6577" text-anchor="middle"></text>
+    <line x1="20" y1="94" x2="20" y2="152" stroke="#c0392b" stroke-width="3"/>
+    <line x1="320" y1="94" x2="320" y2="152" stroke="#c0392b" stroke-width="3"/>
+    <text x="20" y="167" font-size="11" fill="#c0392b" text-anchor="middle">A[0]</text>
+    <text x="320" y="167" font-size="11" fill="#c0392b" text-anchor="middle">A[W-1]</text>
+  </g>
+  <text x="340" y="128" font-size="12" fill="#5b6577">unrelated ends → wrap join is a hard cut</text>
+
+  <!-- result -->
+  <text x="20" y="212" font-size="12" font-weight="600" fill="#3b4557">period = [ A | mirror(A) ] — width 2W</text>
+  <g>
+    <rect x="20" y="220" width="300" height="52" fill="#dceaf7" stroke="#7ea6c9"/>
+    <path d="M20 262 L80 240 L140 254 L200 230 L260 248 L320 236" fill="none" stroke="#3f7fb5" stroke-width="2.5"/>
+    <rect x="320" y="220" width="300" height="52" fill="#e6f2e6" stroke="#79a879"/>
+    <path d="M620 262 L560 240 L500 254 L440 230 L380 248 L320 236" fill="none" stroke="#4e8b4e" stroke-width="2.5"/>
+    <text x="170" y="298" font-size="11" fill="#5b6577" text-anchor="middle">A</text>
+    <text x="470" y="298" font-size="11" fill="#5b6577" text-anchor="middle">mirror(A)</text>
+    <!-- axes -->
+    <line x1="320" y1="214" x2="320" y2="278" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+    <line x1="620" y1="214" x2="620" y2="278" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+    <line x1="20"  y1="214" x2="20"  y2="278" stroke="#2f8f4e" stroke-width="2.5" stroke-dasharray="5 3"/>
+  </g>
+  <g font-size="11" fill="#2f8f4e">
+    <text x="320" y="208" text-anchor="middle">reflection axis</text>
+    <text x="620" y="208" text-anchor="middle">wrap = reflection</text>
+  </g>
+  <g font-size="12" fill="#3b4557">
+    <text x="650" y="234">Both axes are continuous by construction:</text>
+    <text x="650" y="252">at the internal axis the two neighbours are</text>
+    <text x="650" y="270">the same column, and the same holds at the wrap.</text>
+  </g>
+  <text x="20" y="190" font-size="12" fill="#5b6577">Cost: no provider call, cannot fail. Price: the period doubles and the content reads back on itself.</text>
+</svg>

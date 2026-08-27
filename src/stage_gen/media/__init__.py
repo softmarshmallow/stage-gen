@@ -42,9 +42,24 @@ from .layer_rasters import (
     LAYER_RASTER_BOUNDS_VERSION,
     LAYER_VERTICAL_TRIM_VERSION,
     LayerRasterBoundsContract,
+    content_bottom_offset_fraction,
     measure_layer_raster_bounds,
     seal_offset_fraction,
     trim_layer_to_alpha_box,
+)
+from .loop_construction import (
+    BRIDGE_REGISTRATION_VERSION,
+    GENERATED_BRIDGE_VERSION,
+    MIRROR_REPEAT_VERSION,
+    BridgeConditioning,
+    BridgeRegistration,
+    BridgeRegistrationError,
+    LoopConstruction,
+    assemble_generated_bridge,
+    build_bridge_conditioning,
+    measure_bridge_registration,
+    mirror_repeat,
+    tile_to_width,
 )
 from .sprite_sheets import (
     ALPHA_COMPONENT_REPACK_VERSION,
@@ -60,6 +75,13 @@ from .validation import (
 )
 
 __all__ = [
+    "LoopConstruction",
+    "BRIDGE_REGISTRATION_VERSION",
+    "BridgeConditioning",
+    "BridgeRegistration",
+    "BridgeRegistrationError",
+    "MIRROR_REPEAT_VERSION",
+    "GENERATED_BRIDGE_VERSION",
     "LayerRasterBoundsContract",
     "LAYER_VERTICAL_TRIM_VERSION",
     "LAYER_RASTER_BOUNDS_VERSION",
@@ -83,9 +105,12 @@ __all__ = [
     "ALPHA_GROUND_CONTACT_VERSION",
     "MagentaEdgeDecontaminationFacts",
     "apply_chroma_transparency",
+    "assemble_generated_bridge",
     "assert_audio_signature",
     "assert_image_signature",
+    "build_bridge_conditioning",
     "compose_source_with_alpha",
+    "content_bottom_offset_fraction",
     "decontaminate_magenta_edges",
     "detect_guide_lattice",
     "decode_base64_strict",
@@ -94,6 +119,8 @@ __all__ = [
     "magenta_chroma_alpha",
     "measure_alpha_ground_contact",
     "measure_layer_raster_bounds",
+    "measure_bridge_registration",
+    "mirror_repeat",
     "normalize_audio_media_type",
     "normalize_media_type",
     "normalize_image_to_png",
@@ -105,5 +132,6 @@ __all__ = [
     "seal_offset_fraction",
     "repair_internal_cell_seams",
     "run_process",
+    "tile_to_width",
     "trim_layer_to_alpha_box",
 ]

@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "gameplay-contract-v1"
 game_id = "bellweather"
-revision = 3
+revision = 4
 entry_map_id = "sunpetal-crossing"
 entry_spawn_id = "village_west_gate"
 
@@ -269,6 +269,24 @@ interaction_id = "village_welcome"
 map_id = "sunpetal-crossing"
 actor_id = "mara_crumbwell"
 sequence_id = "sunpetal-welcome"
+
+[[interactions]]
+interaction_id = "skybell_memory"
+map_id = "sunpetal-crossing"
+actor_id = "elowen_thistledew"
+sequence_id = "elowen-skybell-memory"
+
+[[interactions]]
+interaction_id = "menders_oath"
+map_id = "sunpetal-crossing"
+actor_id = "brom_copperkeg"
+sequence_id = "brom-mended-things"
+
+[[interactions]]
+interaction_id = "lantern_road"
+map_id = "sunpetal-crossing"
+actor_id = "pip_pennant"
+sequence_id = "pip-lantern-road"
 
 [[quests]]
 quest_id = "first_chapter"

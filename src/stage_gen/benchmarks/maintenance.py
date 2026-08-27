@@ -1,69 +1,27 @@
-"""Targeted maintenance commands for existing scrolling-preview runs.
-
-Run ``python -m stage_gen.benchmarks.maintenance --help`` for the command-line
-interface.  The tileset command uses the same recipe executor stage as a full
-run; the chroma spotcheck is a deterministic, offline Pillow calculation.
-"""
+"""Deterministic maintenance checks for existing scrolling-preview runs."""
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import stat
 import sys
-import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TextIO
 
 from PIL import Image
 
-from stage_gen.config import (
-    CapabilityName,
-    StageGenConfig,
-    TransparencyMode,
-    assert_capabilities,
-    parse_transparency_mode,
-    transparency_capabilities,
-)
-from stage_gen.contracts import ArtifactProvenance, load_recipe_run_summary
 from stage_gen.media import inspect_image
-from stage_gen.recipes.base import RecipeRuntime, StageContext
-from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
-from stage_gen.reliability import CancellationToken, assert_safe_path_segment, redact_secrets
+from stage_gen.reliability import assert_safe_path_segment, redact_secrets
 
-_TILESET_WIDTH = 2400
-_TILESET_HEIGHT = 800
 _SPOTCHECK_PATTERNS = (
     "mob_concept_*.png",
     "mob_*_idle.png",
     "character_*_combined.png",
     "items_*.png",
 )
-
-
-@dataclass(frozen=True, slots=True)
-class TilesetRegenerationResult:
-    image_path: str
-    meta_path: str
-    attempts: int
-    bytes: int
-    width: int
-    height: int
-    elapsed_s: float
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "imagePath": self.image_path,
-            "metaPath": self.meta_path,
-            "attempts": self.attempts,
-            "bytes": self.bytes,
-            "width": self.width,
-            "height": self.height,
-            "elapsed_s": self.elapsed_s,
-        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,106 +44,6 @@ class ChromaSpotcheckResult:
             "reddish": self.reddish,
             "interiorNearMagenta": self.interior_near_magenta,
         }
-
-
-async def regenerate_tileset(
-    tag: str,
-    config: StageGenConfig,
-    *,
-    runtime: RecipeRuntime | None = None,
-    cancellation: CancellationToken | None = None,
-) -> TilesetRegenerationResult:
-    """Force only the production tileset stage for an existing safe run tag."""
-
-    safe_tag = assert_safe_path_segment(tag, "tileset tag")
-    output_root = await asyncio.to_thread(
-        _validated_existing_directory, config.out_dir, "tileset output root"
-    )
-    run_dir = await asyncio.to_thread(
-        _validated_existing_directory,
-        output_root / safe_tag,
-        "tileset run directory",
-    )
-    concept = run_dir / f"concept_{safe_tag}.png"
-    await asyncio.to_thread(
-        _validated_regular_file_within,
-        run_dir,
-        concept,
-        "tileset concept image",
-    )
-    context_input, mode = await asyncio.to_thread(_existing_run_input, run_dir, safe_tag, config)
-    run_config = config.model_copy(update={"out_dir": output_root, "transparency_mode": mode})
-    assert_capabilities(
-        run_config,
-        (CapabilityName.IMAGE_GENERATION, *transparency_capabilities(mode)),
-    )
-
-    owned_runtime = None
-    if runtime is None:
-        from stage_gen.orchestration.runtime import create_default_runtime
-
-        owned_runtime = create_default_runtime(run_config)
-        runtime = owned_runtime
-
-    started = time.perf_counter()
-    try:
-        if cancellation is not None:
-            cancellation.raise_if_cancelled()
-        async with asyncio.timeout(run_config.stage_timeout_s):
-            await runtime.run_recipe_stage(
-                "scrolling-preview",
-                "maintenance-regenerate-tileset",
-                StageContext(
-                    input=context_input,
-                    tag=safe_tag,
-                    run_dir=run_dir,
-                    config=run_config,
-                    runtime=runtime,
-                    cancellation=cancellation,
-                ),
-            )
-    finally:
-        if owned_runtime is not None:
-            await owned_runtime.aclose()
-
-    run_dir = await asyncio.to_thread(
-        _validated_existing_directory,
-        run_dir,
-        "tileset run directory",
-    )
-    image_path = run_dir / f"tileset_{safe_tag}.png"
-    meta_path = Path(f"{image_path}.meta.json")
-    await asyncio.to_thread(
-        _validated_regular_file_within,
-        run_dir,
-        image_path,
-        "regenerated tileset image",
-    )
-    await asyncio.to_thread(
-        _validated_regular_file_within,
-        run_dir,
-        meta_path,
-        "regenerated tileset provenance",
-    )
-    if not valid_artifact_pair(image_path, transparency_mode=mode):
-        raise RuntimeError("tileset regeneration did not produce a valid artifact pair")
-    image_data = await asyncio.to_thread(image_path.read_bytes)
-    meta_text = await asyncio.to_thread(meta_path.read_text, encoding="utf-8")
-    facts = inspect_image(image_data, expected_media_type="image/png")
-    if (facts.width, facts.height) != (_TILESET_WIDTH, _TILESET_HEIGHT) or not facts.has_alpha:
-        raise RuntimeError("tileset regeneration produced an invalid image contract")
-    provenance = ArtifactProvenance.model_validate_json(meta_text)
-    if provenance.artifact is None:
-        raise RuntimeError("tileset regeneration provenance is missing its artifact digest")
-    return TilesetRegenerationResult(
-        image_path=str(image_path),
-        meta_path=str(meta_path),
-        attempts=provenance.attempts,
-        bytes=provenance.artifact.bytes,
-        width=facts.width,
-        height=facts.height,
-        elapsed_s=round(time.perf_counter() - started, 3),
-    )
 
 
 def chroma_spotcheck(
@@ -236,10 +94,6 @@ def chroma_spotcheck(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m stage_gen.benchmarks.maintenance")
     commands = parser.add_subparsers(dest="command", required=True)
-    regenerate = commands.add_parser(
-        "regenerate-tileset", help="force the tileset stage for an existing run tag"
-    )
-    regenerate.add_argument("tag")
     spotcheck = commands.add_parser(
         "chroma-spotcheck", help="report deterministic chroma pixel counts"
     )
@@ -257,52 +111,15 @@ def main(
     output = stdout or sys.stdout
     errors = stderr or sys.stderr
     args = build_parser().parse_args(argv)
-    config: StageGenConfig | None = None
     try:
-        if args.command == "regenerate-tileset":
-            from stage_gen.config import load_config
-
-            config = load_config()
-            payload: object = asyncio.run(regenerate_tileset(args.tag, config)).to_dict()
-        else:
-            payload = [
-                item.to_dict() for item in chroma_spotcheck(args.run_dir, args.filenames or None)
-            ]
+        payload: object = [
+            item.to_dict() for item in chroma_spotcheck(args.run_dir, args.filenames or None)
+        ]
         output.write(f"{json.dumps(payload, indent=2, allow_nan=False)}\n")
         return 0
     except Exception as error:
-        secrets = (
-            tuple(
-                secret
-                for secret in (config.open_router_api_key, config.fal_key)
-                if secret is not None
-            )
-            if config is not None
-            else ()
-        )
-        errors.write(f"stage-gen maintenance: {redact_secrets(str(error), secrets)}\n")
+        errors.write(f"stage-gen maintenance: {redact_secrets(str(error), ())}\n")
         return 1
-
-
-def _existing_run_input(
-    run_dir: Path, tag: str, config: StageGenConfig
-) -> tuple[dict[str, Any], TransparencyMode]:
-    run_path = run_dir / "run.json"
-    _validated_regular_file_within(run_dir, run_path, "tileset run summary")
-    summary = load_recipe_run_summary(run_path, label="tileset run summary")
-    if summary.tag != tag:
-        raise ValueError("tileset run summary tag does not match the requested tag")
-    if summary.run_dir != run_dir.name:
-        raise ValueError("tileset run summary run_dir does not match the requested run directory")
-    if summary.recipe != "scrolling-preview":
-        raise ValueError("tileset run summary is not for scrolling-preview")
-    raw_input = summary.input
-    prompt = raw_input.get("prompt")
-    if not isinstance(prompt, str) or not prompt.strip():
-        raise ValueError("tileset run summary requires a non-empty prompt")
-    raw_mode = raw_input.get("transparency_mode", config.transparency_mode)
-    mode = parse_transparency_mode(raw_mode, "run input.transparency_mode")
-    return {**raw_input, "prompt": prompt.strip(), "transparency_mode": mode.value}, mode
 
 
 def _discover_spotcheck_assets(root: Path) -> list[str]:

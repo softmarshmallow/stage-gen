@@ -32,17 +32,11 @@ from stage_gen.components.background_removal import (
 from stage_gen.components.image_generation import (
     ImageGenerationBackend,
     ProviderImage,
-    StyleModeSelection,
-    canonical_style_anchor_digest,
 )
 from stage_gen.components.structured_generation import ProviderStructuredOutput
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.contracts import BinaryArtifact, ProvenanceInput
-from stage_gen.image_prompting import (
-    IMAGE_STYLE_SELECTION_SCHEMA,
-    load_image_style_resources,
-    materialize_style_anchor,
-)
+from stage_gen.image_prompting import IMAGE_STYLE_SELECTION_SCHEMA
 from stage_gen.media import CHROMA_MATTE_VERSION
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.executor import (
@@ -67,10 +61,6 @@ from stage_gen.recipes.scrolling_preview.raster_contracts import (
     side_view_symmetry_ceiling,
     validate_canonical_grid,
 )
-from stage_gen.recipes.scrolling_preview.tileset_materials import (
-    CAP_FILL_GLOBAL_GAMUT_VERSION,
-    CAP_FILL_LIGHTNESS_VERSION,
-)
 from stage_gen.recipes.scrolling_preview.village import (
     VILLAGE_NPC_COUNT,
     VILLAGE_SPEC_SCHEMA_NAME,
@@ -79,7 +69,6 @@ from stage_gen.recipes.scrolling_preview.village import (
 )
 from stage_gen.reliability import (
     RetryExhaustedError,
-    RetryFailureRecord,
     RetryPolicy,
     sha256_hex,
     write_artifact_with_provenance,
@@ -612,54 +601,6 @@ class _SequencedImageBackend:
         return None
 
 
-class _TilesetFallbackImageBackend:
-    provider = "fake-image"
-    model = "image-model"
-    secrets: tuple[str, ...] = ()
-
-    def __init__(
-        self,
-        *,
-        invalid_material_role: str | None = None,
-        cap_needs_lightness_recovery: bool = False,
-        cap_needs_global_gamut_recovery: bool = False,
-    ) -> None:
-        self.invalid_material_role = invalid_material_role
-        self.cap_needs_lightness_recovery = cap_needs_lightness_recovery
-        self.cap_needs_global_gamut_recovery = cap_needs_global_gamut_recovery
-        self.calls = 0
-        self.requests: list[ImageGenerationRequest] = []
-
-    async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
-        self.requests.append(request)
-        self.calls += 1
-        stage = str(request.metadata.get("stage"))
-        if stage == "tileset":
-            data = _tileset_cross_seam_source()
-        elif stage.startswith("tileset-material-"):
-            role = stage.removeprefix("tileset-material-")
-            if role == self.invalid_material_role:
-                data = _flat_material_source()
-            elif self.cap_needs_global_gamut_recovery:
-                data = _tileset_material_source(f"global-recoverable-{role}")
-            elif role == "cap" and self.cap_needs_lightness_recovery:
-                # This is an otherwise-valid linked material with sub-contract
-                # CAP/FILL luminance separation, matching the live retry shape.
-                data = _tileset_material_source("recoverable-cap")
-            else:
-                data = _tileset_material_source(role)
-        else:
-            raise AssertionError(f"unexpected image stage: {stage}")
-        return ProviderImage(
-            data=data,
-            media_type="image/png",
-            response_metadata=ProviderResponseMetadata(request_id=f"image-{self.calls}"),
-        )
-
-    async def aclose(self) -> None:
-        return None
-
-
 class _PerCellOversizeImageBackend:
     provider = "fake-image"
     model = "image-model"
@@ -795,94 +736,7 @@ def _grid_source(
     return output.getvalue()
 
 
-def _continuous_grid_source(*, width: int = 160, height: int = 80) -> bytes:
-    image = Image.new("RGB", (width, height), (128, 128, 128))
-    ImageDraw.Draw(image).rectangle(
-        (0, height // 4, width - 1, height * 3 // 4),
-        fill=(20, 90, 220),
-    )
-    output = BytesIO()
-    image.save(output, format="PNG")
-    return output.getvalue()
-
-
 @lru_cache(maxsize=1)
-def _tileset_cross_seam_source() -> bytes:
-    image = Image.new("RGB", (2400, 800), (128, 128, 128))
-    draw = ImageDraw.Draw(image)
-    for row in range(4):
-        for column in range(12):
-            left = column * 200
-            top = row * 200
-            draw.rectangle(
-                (left + 20, top + 20, left + 179, top + 179),
-                fill=(20 + column * 3, 60 + row * 5, 220),
-            )
-    draw.rectangle((179, 96, 220, 104), fill=(20, 60, 220))
-    return _image_bytes(image)
-
-
-@lru_cache(maxsize=3)
-def _tileset_material_source(role: str) -> bytes:
-    palettes = {
-        "fill": (
-            (142, 99, 54),
-            (126, 84, 46),
-            (156, 112, 66),
-            (112, 76, 50),
-        ),
-        "cap": (
-            (180, 190, 76),
-            (156, 170, 62),
-            (204, 205, 102),
-            (139, 153, 66),
-        ),
-        "recoverable-cap": (
-            (135, 130, 52),
-            (117, 116, 43),
-            (151, 141, 66),
-            (101, 105, 43),
-        ),
-        "global-recoverable-cap": (
-            (54, 111, 252),
-            (67, 101, 227),
-            (65, 137, 255),
-            (69, 88, 207),
-        ),
-        "global-recoverable-fill": (
-            (39, 113, 236),
-            (52, 100, 210),
-            (52, 146, 254),
-            (54, 85, 190),
-        ),
-        "global-recoverable-edge": (
-            (20, 75, 165),
-            (30, 65, 145),
-            (38, 100, 190),
-            (32, 50, 115),
-        ),
-        "edge": (
-            (20, 35, 30),
-            (30, 50, 40),
-            (70, 90, 65),
-            (45, 65, 50),
-        ),
-    }
-    palette = palettes[role]
-    image = Image.new("RGB", (1024, 1024))
-    pixels = image.load()
-    assert pixels is not None
-    for y in range(1024):
-        for x in range(1024):
-            pixels[x, y] = palette[((x // 64) + (y // 64) * 3 + (x // 256)) % len(palette)]
-    return _image_bytes(image)
-
-
-@lru_cache(maxsize=1)
-def _flat_material_source() -> bytes:
-    return _image_bytes(Image.new("RGB", (1024, 1024), (120, 90, 60)))
-
-
 def _turnaround_source(*, cross_seam: bool = False, missing_last: bool = False) -> bytes:
     image = Image.new("RGB", (240, 80), (128, 128, 128))
     draw = ImageDraw.Draw(image)
@@ -1048,20 +902,6 @@ def _typed_per_cell_failure_history() -> list[dict[str, object]]:
     return history
 
 
-def _typed_tileset_failure_history() -> list[dict[str, object]]:
-    return [
-        {
-            "attempt": attempt,
-            "code": GRID_ISOLATION_ERROR_CODE,
-            "message": (
-                f"{GRID_ISOLATION_ERROR_CODE}: grid source has a connected foreground "
-                f"component spanning declared cells: vertical seam {attempt}"
-            ),
-        }
-        for attempt in range(1, 7)
-    ]
-
-
 def _concept_fallback_spec(
     tmp_path: Path,
     reference: Path,
@@ -1092,23 +932,6 @@ def _concept_fallback_spec(
             )
         },
     )
-
-
-def _wrong_role_tileset_source() -> bytes:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    canonical, _facts = normalize_canonical_grid(
-        _image_bytes(Image.new("RGBA", (240, 80), (40, 120, 180, 255))),
-        contract,
-    )
-    with Image.open(BytesIO(canonical)) as opened:
-        template = opened.convert("RGBA")
-    source = Image.new("RGB", template.size, (128, 128, 128))
-    source.paste(template.convert("RGB"), mask=template.getchannel("A"))
-    draw = ImageDraw.Draw(source)
-    draw.rectangle((0, 40, 19, 59), fill=(128, 128, 128))
-    draw.rectangle((2, 42, 17, 57), fill=(40, 120, 180))
-    return _image_bytes(source)
 
 
 def _write_raw_pair(raw_path: Path) -> bytes:
@@ -1245,7 +1068,6 @@ def test_native_provider_validation_requires_nontrivial_alpha() -> None:
     [
         ("native-alpha", "native-alpha"),
         ("native-alpha+grid-cell-normalization", "native-alpha+grid-cell-normalization"),
-        ("native-alpha+tileset-topology-mask", "native-alpha+tileset-topology-mask"),
     ],
 )
 def test_manifest_preserves_native_alpha_derivation(processor: str, expected: str) -> None:
@@ -1463,7 +1285,6 @@ async def test_enabled_style_anchor_reaches_every_scrolling_image_asset_family_o
         "character-attack": "character_sprite",
         "free-illustration": "illustration",
         "ladder": "asset_sheet",
-        "tileset-material-probe": "tileable_texture",
         "inventory": "interface_art",
         "portal": "effect_sheet",
     }
@@ -1918,7 +1739,6 @@ async def test_final_theme_boundary_rejects_raw_controls_before_image_call(
     [
         ("concept", "concept"),
         ("layer-backdrop", "environment"),
-        ("tileset", "environment"),
         ("obstacles-0", "items"),
         ("ladder", "items"),
         ("character-concept", "characters"),
@@ -2101,148 +1921,6 @@ def test_per_cell_failure_history_rejects_forged_or_incomplete_records() -> None
         assert not executor_module._valid_per_cell_failure_history(history), label
 
 
-def test_tileset_material_failure_history_requires_six_typed_cross_seam_failures() -> None:
-    valid = _typed_tileset_failure_history()
-    assert executor_module._valid_tileset_material_failure_history(valid)
-
-    # A sibling grid-source code is a legitimate exhaustion reason and still hands off to
-    # material synthesis, provided each record keeps its own raise site's coordinate shape.
-    mixed = [dict(value) for value in valid]
-    mixed[2] = {
-        "attempt": 3,
-        "code": GRID_EMPTY_CELL_ERROR_CODE,
-        "message": f"{GRID_EMPTY_CELL_ERROR_CODE}: grid cell (0,2) is empty",
-        "row": 0,
-        "column": 2,
-    }
-    alternate_diagnostic = [dict(value) for value in valid]
-    alternate_diagnostic[0]["message"] = f"{GRID_ISOLATION_ERROR_CODE}: alternate typed diagnostic"
-    forged = [dict(value) for value in valid]
-    forged[0]["message"] = "arbitrary failure without typed prefix"
-    # Cross-cell isolation describes the whole sheet, so a record claiming it while naming a
-    # cell is fabricated evidence.
-    with_coordinates = [dict(value) for value in valid]
-    with_coordinates[0]["row"] = 0
-    # An empty-cell record always names its cell at the raise site, so one without coordinates
-    # is fabricated in the other direction.
-    empty_cell_without_coordinates = [dict(value) for value in valid]
-    empty_cell_without_coordinates[2] = {
-        "attempt": 3,
-        "code": GRID_EMPTY_CELL_ERROR_CODE,
-        "message": f"{GRID_EMPTY_CELL_ERROR_CODE}: grid cell (0,2) is empty",
-    }
-    unknown_code = [dict(value) for value in valid]
-    unknown_code[0] = {
-        "attempt": 1,
-        "code": "some-other-contract-v1",
-        "message": "some-other-contract-v1: unrelated failure",
-    }
-
-    assert not executor_module._valid_tileset_material_failure_history(valid[:-1])
-    assert executor_module._valid_tileset_material_failure_history(mixed)
-    assert executor_module._valid_tileset_material_failure_history(alternate_diagnostic)
-    assert not executor_module._valid_tileset_material_failure_history(forged)
-    assert not executor_module._valid_tileset_material_failure_history(with_coordinates)
-    assert not executor_module._valid_tileset_material_failure_history(
-        empty_cell_without_coordinates
-    )
-    assert not executor_module._valid_tileset_material_failure_history(unknown_code)
-
-
-def test_tileset_material_fallback_requires_exact_production_contract(tmp_path: Path) -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    error = RetryExhaustedError(
-        "fake image generation",
-        Exception(GRID_ISOLATION_ERROR_CODE),
-        6,
-    )
-    spec = _ImageSpec(
-        "tileset",
-        "production tileset",
-        tmp_path / "tileset_offline.png",
-        2400,
-        800,
-    )
-    failures = _typed_tileset_failure_history()
-
-    assert executor_module._eligible_tileset_material_fallback(spec, contract, error, failures)
-    assert executor_module._eligible_tileset_material_fallback(
-        spec,
-        contract,
-        RetryExhaustedError("fake", Exception("redacted terminal cause"), 6),
-        failures,
-    )
-    assert not executor_module._eligible_tileset_material_fallback(
-        _ImageSpec(
-            "tileset",
-            spec.prompt,
-            tmp_path / "opaque.png",
-            2400,
-            800,
-            transparent=False,
-        ),
-        contract,
-        error,
-        failures,
-    )
-    assert not executor_module._eligible_tileset_material_fallback(
-        _ImageSpec("tileset", spec.prompt, tmp_path / "small.png", 240, 80),
-        contract,
-        error,
-        failures,
-    )
-    assert not executor_module._eligible_tileset_material_fallback(
-        spec,
-        contract,
-        RetryExhaustedError("fake", Exception(GRID_ISOLATION_ERROR_CODE), 5),
-        failures,
-    )
-
-
-def test_tileset_material_fallback_recovers_six_typed_retry_owner_failures(
-    tmp_path: Path,
-) -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    spec = _ImageSpec(
-        "tileset",
-        "production tileset",
-        tmp_path / "tileset_live_shape.png",
-        2400,
-        800,
-    )
-    error_type = f"{GridSourceLayoutError.__module__}.{GridSourceLayoutError.__qualname__}"
-    history = tuple(
-        RetryFailureRecord(
-            attempt=attempt,
-            error_type=error_type,
-            code=GRID_ISOLATION_ERROR_CODE,
-            message=(
-                f"{GRID_ISOLATION_ERROR_CODE}: grid source has a connected foreground "
-                f"component spanning declared cells: vertical:{attempt}:1:0"
-            ),
-        )
-        for attempt in range(1, 7)
-    )
-    error = RetryExhaustedError(
-        "openrouter image generation",
-        Exception(history[-1].message),
-        6,
-        history,
-    )
-
-    resolved = executor_module._resolved_grid_failure_history(error)
-
-    assert [failure["attempt"] for failure in resolved] == list(range(1, 7))
-    assert executor_module._eligible_tileset_material_fallback(
-        spec,
-        contract,
-        error,
-        resolved,
-    )
-
-
 def test_grid_failure_history_requires_current_retry_owner_records() -> None:
     error = RetryExhaustedError(
         "image generation",
@@ -2251,56 +1929,6 @@ def test_grid_failure_history_requires_current_retry_owner_records() -> None:
     )
 
     assert executor_module._resolved_grid_failure_history(error) == []
-
-
-def test_tileset_material_fallback_rejects_mixed_retry_owner_history(tmp_path: Path) -> None:
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    spec = _ImageSpec(
-        "tileset",
-        "production tileset",
-        tmp_path / "tileset_mixed.png",
-        2400,
-        800,
-    )
-    grid_error_type = f"{GridSourceLayoutError.__module__}.{GridSourceLayoutError.__qualname__}"
-    history = tuple(
-        [
-            RetryFailureRecord(
-                attempt=attempt,
-                error_type="builtins.TimeoutError",
-                message="provider timeout",
-            )
-            for attempt in range(1, 6)
-        ]
-        + [
-            RetryFailureRecord(
-                attempt=6,
-                error_type=grid_error_type,
-                code=GRID_ISOLATION_ERROR_CODE,
-                message=(
-                    f"{GRID_ISOLATION_ERROR_CODE}: grid source has a connected foreground "
-                    "component spanning declared cells: vertical:0:1:0"
-                ),
-            )
-        ]
-    )
-    error = RetryExhaustedError(
-        "openrouter image generation",
-        Exception(history[-1].message),
-        6,
-        history,
-    )
-
-    resolved = executor_module._resolved_grid_failure_history(error)
-
-    assert resolved == []
-    assert not executor_module._eligible_tileset_material_fallback(
-        spec,
-        contract,
-        error,
-        resolved,
-    )
 
 
 def test_per_cell_stage_eligibility_requires_supported_transparent_parent_contract(
@@ -2426,8 +2054,6 @@ async def test_fixable_grid_gutter_contact_does_not_consume_provider_retry(
     [
         ("items", (160, 80), _grid_source(missing_last=True)),
         ("items", (160, 80), _grid_source(cross_seam=True)),
-        ("tileset", (240, 80), _continuous_grid_source(width=240, height=80)),
-        ("tileset", (240, 80), _wrong_role_tileset_source()),
     ],
 )
 async def test_unrecoverable_grid_source_exhausts_all_six_provider_attempts(
@@ -2459,392 +2085,6 @@ async def test_unrecoverable_grid_source_exhausts_all_six_provider_attempts(
         )
 
     assert backend.calls == 6
-    assert not await asyncio.to_thread(output.exists)
-
-
-async def test_tileset_cross_seam_exhaustion_uses_three_linked_material_swatches(
-    tmp_path: Path,
-) -> None:
-    backend = _TilesetFallbackImageBackend()
-    image_service = ImageGenerationService(
-        cast(ImageGenerationBackend, backend),
-        retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-    )
-    executor = ScrollingPreviewExecutor(
-        image_service=image_service,
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-
-    await executor._generate_image_asset(context, spec)
-
-    assert backend.calls == 9
-    stages = [str(request.metadata.get("stage")) for request in backend.requests]
-    assert stages[:6] == ["tileset"] * 6
-    assert stages[6] == "tileset-material-fill"
-    assert set(stages[7:]) == {"tileset-material-cap", "tileset-material-edge"}
-    fill_request = backend.requests[6]
-    assert len(fill_request.input_references) == 1
-    for request in backend.requests[7:]:
-        assert len(request.input_references) == 2
-        assert request.input_references[1].provenance_ref == (
-            f".{spec.output.stem}.material-fill.png"
-        )
-        assert all(
-            "wireframe" not in str(reference.provenance_ref)
-            for reference in request.input_references
-        )
-
-    contract = contract_for_stage("tileset")
-    assert contract is not None
-    validate_canonical_grid(await asyncio.to_thread(spec.output.read_bytes), contract)
-    sidecar = json.loads(
-        await asyncio.to_thread(Path(f"{spec.output}.meta.json").read_text, encoding="utf-8")
-    )
-    fallback = sidecar["params"]["transparency"]["tileset_material_synthesis"]
-    assert fallback["version"] == "tileset-material-synthesis-v1"
-    assert fallback["role_order"] == ["fill", "cap", "edge"]
-    assert fallback["failed_sheet_pixels_used"] is False
-    assert fallback["independent_role_cell_calls"] == 0
-    assert [failure["attempt"] for failure in fallback["sheet_failures"]] == list(range(1, 7))
-    assert all(
-        failure["code"] == GRID_ISOLATION_ERROR_CODE for failure in fallback["sheet_failures"]
-    )
-    for role in ("fill", "cap", "edge"):
-        canonical = tmp_path / f".{spec.output.stem}.material-{role}.png"
-        raw = canonical.with_name(f"{canonical.stem}.raw.png")
-        assert await asyncio.to_thread(canonical.is_file)
-        assert await asyncio.to_thread(raw.is_file)
-        assert await asyncio.to_thread(Path(f"{canonical}.meta.json").is_file)
-        assert await asyncio.to_thread(Path(f"{raw}.meta.json").is_file)
-
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-
-    cap = tmp_path / f".{spec.output.stem}.material-cap.png"
-    cap.write_bytes(b"tampered-cap")
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 10
-    assert backend.requests[-1].metadata["stage"] == "tileset-material-cap"
-
-    fill = tmp_path / f".{spec.output.stem}.material-fill.png"
-    fill.write_bytes(b"tampered-fill")
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 13
-    assert backend.requests[-3].metadata["stage"] == "tileset-material-fill"
-    assert {request.metadata["stage"] for request in backend.requests[-2:]} == {
-        "tileset-material-cap",
-        "tileset-material-edge",
-    }
-
-
-@pytest.mark.parametrize("global_gamut", [False, True], ids=["lightness", "global-gamut"])
-async def test_live_cap_separation_is_recovered_and_evidence_tamper_regenerates_only_cap(
-    tmp_path: Path,
-    global_gamut: bool,
-) -> None:
-    backend = _TilesetFallbackImageBackend(
-        cap_needs_lightness_recovery=not global_gamut,
-        cap_needs_global_gamut_recovery=global_gamut,
-    )
-    executor = ScrollingPreviewExecutor(
-        image_service=ImageGenerationService(
-            cast(ImageGenerationBackend, backend),
-            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-        ),
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-
-    await executor._generate_image_asset(context, spec)
-
-    assert backend.calls == 9
-    assert (
-        sum(request.metadata.get("stage") == "tileset-material-cap" for request in backend.requests)
-        == 1
-    )
-    cap = tmp_path / f".{spec.output.stem}.material-cap.png"
-    cap_raw = cap.with_name(f"{cap.stem}.raw.png")
-    cap_sidecar = Path(f"{cap}.meta.json")
-    cap_raw_sidecar = Path(f"{cap_raw}.meta.json")
-    record = json.loads(await asyncio.to_thread(cap_sidecar.read_text, encoding="utf-8"))
-    raw_record = json.loads(await asyncio.to_thread(cap_raw_sidecar.read_text, encoding="utf-8"))
-    canonicalization = record["params"]["tileset_material_canonicalization"]
-    assert canonicalization == record["validation"]["tileset_material_canonicalization"]
-    assert canonicalization == raw_record["validation"]["tileset_material_raw_canonicalization"]
-    recovery = canonicalization["cap_fill_lightness_recovery"]
-    assert recovery["version"] == CAP_FILL_LIGHTNESS_VERSION
-    if global_gamut:
-        assert recovery["global_gamut_version"] == CAP_FILL_GLOBAL_GAMUT_VERSION
-        assert recovery["global_chroma_factor"] == 0.65
-        assert recovery["gamut"]["maximum_hue_drift_degrees"] <= 2.0
-    else:
-        assert "global_gamut_version" not in recovery
-    assert recovery["input_sha256"] != recovery["output_sha256"]
-    fill = tmp_path / f".{spec.output.stem}.material-fill.png"
-    fill_bytes = await asyncio.to_thread(fill.read_bytes)
-    assert recovery["fill_anchor_sha256"] == sha256_hex(fill_bytes)
-    relationship = recovery["output_relationship"]
-    assert 0.12 <= abs(relationship["luminance_delta"]) <= 0.16
-    assert relationship["delta_e00"] >= 10.0
-
-    fill_sidecar = Path(f"{tmp_path / f'.{spec.output.stem}.material-fill.png'}.meta.json")
-    edge_sidecar = Path(f"{tmp_path / f'.{spec.output.stem}.material-edge.png'}.meta.json")
-    fill_before, edge_before = await asyncio.gather(
-        asyncio.to_thread(fill_sidecar.read_bytes),
-        asyncio.to_thread(edge_sidecar.read_bytes),
-    )
-    forged_recovery = dict(recovery)
-    forged_recovery["direction"] = "forged"
-    recovery_payload = {key: value for key, value in forged_recovery.items() if key != "sha256"}
-    forged_recovery["sha256"] = sha256_hex(
-        json.dumps(recovery_payload, sort_keys=True, separators=(",", ":")).encode()
-    )
-    for location in (
-        record["params"]["tileset_material_canonicalization"],
-        record["validation"]["tileset_material_canonicalization"],
-    ):
-        location["cap_fill_lightness_recovery"] = dict(forged_recovery)
-    await asyncio.to_thread(cap_sidecar.write_text, json.dumps(record), encoding="utf-8")
-
-    await executor._generate_image_asset(context, spec)
-
-    assert backend.calls == 10
-    assert backend.requests[-1].metadata["stage"] == "tileset-material-cap"
-    assert await asyncio.to_thread(fill_sidecar.read_bytes) == fill_before
-    assert await asyncio.to_thread(edge_sidecar.read_bytes) == edge_before
-    repaired = json.loads(await asyncio.to_thread(cap_sidecar.read_text, encoding="utf-8"))
-    repaired_recovery = repaired["params"]["tileset_material_canonicalization"][
-        "cap_fill_lightness_recovery"
-    ]
-    assert repaired_recovery["direction"] != "forged"
-    assert (
-        repaired_recovery
-        == repaired["validation"]["tileset_material_canonicalization"][
-            "cap_fill_lightness_recovery"
-        ]
-    )
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 10
-
-
-async def test_tileset_material_style_anchor_is_bound_once_and_cache_resumes(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    style = _tileset_style_context()
-
-    async def read_style(_context: StageContext) -> executor_module._StyleAnchorContext:
-        return style
-
-    monkeypatch.setattr(executor_module, "_read_style_anchor", read_style)
-    backend = _TilesetFallbackImageBackend()
-    executor = ScrollingPreviewExecutor(
-        image_service=ImageGenerationService(
-            cast(ImageGenerationBackend, backend),
-            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-        ),
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-    for request in backend.requests[6:]:
-        assert request.style_anchor == style.anchor
-        assert request.asset_kind == "tileable_texture"
-        assert request.prompt.count("Canonical style anchor — ") == 1
-
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-    parent = json.loads(
-        await asyncio.to_thread(
-            Path(f"{spec.output}.meta.json").read_text,
-            encoding="utf-8",
-        )
-    )
-    fallback = parent["params"]["transparency"]["tileset_material_synthesis"]
-    assert fallback["parent_contract"]["style_anchor"] == style.identity
-    assert all(
-        component["component_contract"]["style_anchor"] == style.identity
-        for component in fallback["components"]
-    )
-
-
-async def test_tileset_material_failure_never_publishes_parent_bundle(tmp_path: Path) -> None:
-    backend = _TilesetFallbackImageBackend(invalid_material_role="fill")
-    image_service = ImageGenerationService(
-        cast(ImageGenerationBackend, backend),
-        retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-    )
-    executor = ScrollingPreviewExecutor(
-        image_service=image_service,
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-
-    with pytest.raises(RuntimeError, match="tileset material fill failed"):
-        await executor._generate_image_asset(context, spec)
-
-    assert backend.calls == 12
-    assert not await asyncio.to_thread(spec.output.exists)
-    retained_raw = spec.output.with_name(f"{spec.output.stem}.raw.png")
-    assert not await asyncio.to_thread(retained_raw.exists)
-
-
-@pytest.mark.parametrize("invalid_role", ["cap", "edge"])
-async def test_tileset_dependent_material_owns_six_retries_and_parent_is_atomic(
-    tmp_path: Path,
-    invalid_role: str,
-) -> None:
-    backend = _TilesetFallbackImageBackend(invalid_material_role=invalid_role)
-    executor = ScrollingPreviewExecutor(
-        image_service=ImageGenerationService(
-            cast(ImageGenerationBackend, backend),
-            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-        ),
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-
-    with pytest.raises(RuntimeError, match="tileset material swatch failed"):
-        await executor._generate_image_asset(context, spec)
-
-    assert (
-        sum(
-            request.metadata.get("stage") == f"tileset-material-{invalid_role}"
-            for request in backend.requests
-        )
-        == 6
-    )
-    assert not await asyncio.to_thread(spec.output.exists)
-    retained_raw = spec.output.with_name(f"{spec.output.stem}.raw.png")
-    assert not await asyncio.to_thread(retained_raw.exists)
-
-
-async def test_tileset_material_cache_rejects_sidecar_conflicts_and_tamper(
-    tmp_path: Path,
-) -> None:
-    backend = _TilesetFallbackImageBackend()
-    executor = ScrollingPreviewExecutor(
-        image_service=ImageGenerationService(
-            cast(ImageGenerationBackend, backend),
-            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-        ),
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-
-    parent_sidecar = Path(f"{spec.output}.meta.json")
-    parent_record = json.loads(await asyncio.to_thread(parent_sidecar.read_text, encoding="utf-8"))
-    parent_record["params"]["metadata"]["tileset_material_synthesis"] = {
-        "version": "forged-conflicting-copy"
-    }
-    await asyncio.to_thread(
-        parent_sidecar.write_text,
-        json.dumps(parent_record),
-        encoding="utf-8",
-    )
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-    repaired = json.loads(await asyncio.to_thread(parent_sidecar.read_text, encoding="utf-8"))
-    assert (
-        repaired["params"]["metadata"]["tileset_material_synthesis"]
-        == repaired["params"]["transparency"]["tileset_material_synthesis"]
-    )
-
-    cap_raw = tmp_path / f".{spec.output.stem}.material-cap.raw.png"
-    cap_raw_sidecar = Path(f"{cap_raw}.meta.json")
-    cap_record = json.loads(await asyncio.to_thread(cap_raw_sidecar.read_text, encoding="utf-8"))
-    cap_record["provider"] = "forged-provider"
-    await asyncio.to_thread(
-        cap_raw_sidecar.write_text,
-        json.dumps(cap_record),
-        encoding="utf-8",
-    )
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 10
-    assert backend.requests[-1].metadata["stage"] == "tileset-material-cap"
-
-    edge = tmp_path / f".{spec.output.stem}.material-edge.png"
-    edge_sidecar = Path(f"{edge}.meta.json")
-    edge_record = json.loads(await asyncio.to_thread(edge_sidecar.read_text, encoding="utf-8"))
-    edge_record["inputs"][0]["sha256"] = "0" * 64
-    await asyncio.to_thread(
-        edge_sidecar.write_text,
-        json.dumps(edge_record),
-        encoding="utf-8",
-    )
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 11
-    assert str(backend.requests[-1].metadata["stage"]) == "tileset-material-edge"
-
-
-async def test_tileset_material_resume_uses_surviving_child_parent_contract(
-    tmp_path: Path,
-) -> None:
-    backend = _TilesetFallbackImageBackend()
-    executor = ScrollingPreviewExecutor(
-        image_service=ImageGenerationService(
-            cast(ImageGenerationBackend, backend),
-            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-        ),
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    context = _tileset_fallback_context(tmp_path)
-    spec = executor._tileset_spec(context)
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 9
-
-    parent_raw = spec.output.with_name(f"{spec.output.stem}.raw.png")
-    fill = tmp_path / f".{spec.output.stem}.material-fill.png"
-    fill_raw = fill.with_name(f"{fill.stem}.raw.png")
-    for path in (parent_raw, spec.output, fill_raw, fill):
-        await asyncio.to_thread(path.unlink)
-        await asyncio.to_thread(Path(f"{path}.meta.json").unlink)
-
-    await executor._generate_image_asset(context, spec)
-    assert backend.calls == 12
-    assert backend.requests[-3].metadata["stage"] == "tileset-material-fill"
-    assert {request.metadata["stage"] for request in backend.requests[-2:]} == {
-        "tileset-material-cap",
-        "tileset-material-edge",
-    }
-
-
-async def test_tileset_semantic_failure_never_enters_material_fallback(tmp_path: Path) -> None:
-    backend = _SequencedImageBackend((_wrong_role_tileset_source(),))
-    image_service = ImageGenerationService(
-        cast(ImageGenerationBackend, backend),
-        retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
-    )
-    executor = ScrollingPreviewExecutor(
-        image_service=image_service,
-        structured_service=cast(StructuredGenerationService[WorldSpec], object()),
-    )
-    output = tmp_path / "tileset_semantic_failure.png"
-
-    with pytest.raises(RetryExhaustedError):
-        await executor._generate_image_asset(
-            StageContext(
-                input={"prompt": "offline"},
-                tag="offline",
-                run_dir=tmp_path,
-                config=StageGenConfig(out_dir=tmp_path),
-            ),
-            _ImageSpec("tileset", "declared terrain roles", output, 2400, 800),
-        )
-
-    assert backend.calls == 6
-    assert all(request.metadata["stage"] == "tileset" for request in backend.requests)
     assert not await asyncio.to_thread(output.exists)
 
 
@@ -3679,7 +2919,7 @@ async def test_wave_fan_out_surfaces_named_artifact_failure(
         _context: StageContext, spec: _ImageSpec, *, force: bool = False
     ) -> tuple[str, str]:
         del force
-        if spec.stage == "tileset":
+        if spec.stage == "items-failure-probe":
             raise ValueError("continuous source")
         return str(spec.output), f"{spec.output}.meta.json"
 
@@ -3692,44 +2932,20 @@ async def test_wave_fan_out_surfaces_named_artifact_failure(
     )
     specs = (
         _ImageSpec("items", "items", tmp_path / "items_named.png", 160, 80),
-        _ImageSpec("tileset", "tiles", tmp_path / "tileset_named.png", 240, 80),
+        _ImageSpec(
+            "items-failure-probe",
+            "items",
+            tmp_path / "items_failure_probe.png",
+            240,
+            80,
+        ),
     )
 
     with pytest.raises(
         RuntimeError,
-        match=r"asset tileset \(tileset_named\.png\) failed: continuous source",
+        match=r"asset items-failure-probe \(items_failure_probe\.png\) failed: continuous source",
     ):
         await executor._fan_out(context, specs)
-
-
-async def test_tileset_maintenance_stage_reuses_production_spec_and_forces_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    executor = _executor()
-    observed: dict[str, object] = {}
-
-    async def capture(
-        context: StageContext, spec: _ImageSpec, *, force: bool = False
-    ) -> tuple[str, str]:
-        observed.update(context=context, spec=spec, force=force)
-        return str(spec.output), f"{spec.output}.meta.json"
-
-    monkeypatch.setattr(executor, "_generate_image_asset", capture)
-    context = StageContext(
-        input={"prompt": "existing", "transparency_mode": "chroma"},
-        tag="existing-chroma",
-        run_dir=tmp_path,
-        config=StageGenConfig(out_dir=tmp_path, transparency_mode=TransparencyMode.CHROMA),
-    )
-    result = await executor.run_scrolling_preview_stage("maintenance-regenerate-tileset", context)
-
-    spec = cast(_ImageSpec, observed["spec"])
-    assert observed["force"] is True
-    assert spec.stage == "tileset"
-    assert spec.output == tmp_path / "tileset_existing-chroma.png"
-    assert (spec.width, spec.height) == (2400, 800)
-    assert spec.references[1] == tmp_path / "concept_existing-chroma.png"
-    assert result == (str(spec.output), f"{spec.output}.meta.json")
 
 
 async def test_recipe_declares_ladder_climb_and_two_by_four_items(
@@ -4572,77 +3788,3 @@ def _minimal_world() -> dict[str, object]:
             },
         ],
     }
-
-
-def _tileset_fallback_context(tmp_path: Path) -> StageContext:
-    tag = "offline"
-    world_path = tmp_path / f"world_spec_{tag}.json"
-    world_data = json.dumps(_minimal_world()).encode()
-    write_artifact_with_provenance(
-        world_path,
-        BinaryArtifact(data=world_data, media_type="application/json"),
-        ProvenanceInput(
-            provider="local",
-            model="world-spec-fixture",
-            prompt="Canonical fixture world spec",
-            attempts=1,
-        ),
-    )
-    concept = Image.new("RGB", (64, 64), (120, 170, 210))
-    ImageDraw.Draw(concept).ellipse((8, 8, 55, 55), fill=(175, 135, 70))
-    concept_path = tmp_path / f"concept_{tag}.png"
-    write_artifact_with_provenance(
-        concept_path,
-        BinaryArtifact(data=_image_bytes(concept), media_type="image/png"),
-        ProvenanceInput(
-            provider="fake-image",
-            model="concept-fixture",
-            prompt="Canonical fixture world concept",
-            attempts=1,
-        ),
-    )
-    return StageContext(
-        input={"prompt": "Whimsical storybook fantasy"},
-        tag=tag,
-        run_dir=tmp_path,
-        config=StageGenConfig(
-            out_dir=tmp_path,
-            transparency_mode=TransparencyMode.CHROMA,
-        ),
-    )
-
-
-def _tileset_style_context() -> executor_module._StyleAnchorContext:
-    resources = load_image_style_resources()
-    anchor = materialize_style_anchor(
-        StyleModeSelection(
-            schema_version=1,
-            kind="image_style_selection_v1",
-            style_mode="gouache_illustration_2d",
-        ),
-        resources,
-    )
-    raw = json.dumps(
-        anchor.model_dump(mode="json"),
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
-    artifact_sha256 = sha256_hex(raw)
-    return executor_module._StyleAnchorContext(
-        anchor=anchor,
-        identity={
-            "schema_version": anchor.schema_version,
-            "kind": anchor.kind,
-            "anchor_sha256": canonical_style_anchor_digest(anchor),
-            "style_mode": anchor.style_mode,
-            "compiler_version": anchor.compiler_version,
-            "compiler_sha256": anchor.compiler_sha256,
-            "resource_sha256": anchor.resource_sha256,
-            "skill_sha256": anchor.skill_sha256,
-            "vocabulary_sha256": anchor.vocabulary_sha256,
-            "artifact_ref": f"sha256:{artifact_sha256}",
-            "artifact_sha256": artifact_sha256,
-            "artifact_bytes": len(raw),
-        },
-        artifact_bytes=len(raw),
-    )

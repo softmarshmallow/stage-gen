@@ -1515,8 +1515,8 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     }
   }
   if (
-    byFrame.get(899)?.presentation.portalScale ===
-    byFrame.get(900)?.presentation.portalScale
+    byFrame.get(899)?.presentation.portalAlpha ===
+    byFrame.get(900)?.presentation.portalAlpha
   ) {
     throw new Error("portal presentation is inactive at the final frame");
   }

@@ -30,7 +30,6 @@ export interface MobSpawnZoneManifest {
   readonly min_player_distance_px: number;
   readonly minimum_spawn_separation_px: number;
   readonly wander_radius_px: number;
-  readonly pursuit_leash_px: number;
   readonly replacement_policy: ReplacementPolicy;
   readonly spawn_table: readonly MobSpawnTableEntry[];
 }
@@ -42,8 +41,8 @@ export interface MobPopulationMapManifest {
 }
 
 export interface MobPopulationManifest {
-  readonly schema_version: 1;
-  readonly kind: "mob-population-v1";
+  readonly schema_version: 2;
+  readonly kind: "mob-population-v2";
   readonly update_interval_ms: number;
   readonly max_spawn_batch_per_update: number;
   readonly maps: readonly MobPopulationMapManifest[];
@@ -95,8 +94,6 @@ export interface SpawnReservation {
   y_px: number;
   issued_at_ms: number;
   ticket_reason: SpawnTicketReason;
-  wander_radius_px: number;
-  pursuit_leash_px: number;
 }
 
 export interface DeathTicketReceipt {
@@ -210,7 +207,6 @@ const ZONE_KEYS = [
   "min_player_distance_px",
   "minimum_spawn_separation_px",
   "wander_radius_px",
-  "pursuit_leash_px",
   "replacement_policy",
   "spawn_table",
 ] as const;
@@ -307,8 +303,8 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
   const root = expectObject(input, "mob_population");
   expectExactKeys(root, TOP_LEVEL_KEYS, "mob_population");
 
-  const schemaVersion = expectLiteral(root.schema_version, 1, "mob_population.schema_version");
-  const kind = expectLiteral(root.kind, "mob-population-v1", "mob_population.kind");
+  const schemaVersion = expectLiteral(root.schema_version, 2, "mob_population.schema_version");
+  const kind = expectLiteral(root.kind, "mob-population-v2", "mob_population.kind");
   const updateIntervalMs = expectInteger(
     root.update_interval_ms,
     "mob_population.update_interval_ms",
@@ -426,15 +422,6 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
         zone.wander_radius_px,
         `${zonePath}.wander_radius_px`,
       );
-      const pursuitLeashPx = expectInteger(
-        zone.pursuit_leash_px,
-        `${zonePath}.pursuit_leash_px`,
-      );
-      if (pursuitLeashPx < wanderRadiusPx) {
-        throw new ManifestValidationError(
-          `${zonePath}.pursuit_leash_px must be >= wander_radius_px`,
-        );
-      }
       const replacementPolicy = expectEnum(
         zone.replacement_policy,
         ["reroll_spawn_table", "same_archetype"] as const,
@@ -507,7 +494,6 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
         min_player_distance_px: minPlayerDistancePx,
         minimum_spawn_separation_px: minimumSpawnSeparationPx,
         wander_radius_px: wanderRadiusPx,
-        pursuit_leash_px: pursuitLeashPx,
         replacement_policy: replacementPolicy,
         spawn_table: spawnTable,
       } satisfies MobSpawnZoneManifest;
@@ -1072,8 +1058,6 @@ export class MobPopulationDirector {
       y_px: candidate.y_px,
       issued_at_ms: nowMs,
       ticket_reason: ticket.reason,
-      wander_radius_px: zone.definition.wander_radius_px,
-      pursuit_leash_px: zone.definition.pursuit_leash_px,
     });
     return { publicValue, ticket, candidate };
   }
