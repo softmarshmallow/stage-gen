@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v3``)."""
+"""Exact-current compound map-generation contract (``game-map-v4``)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 3
+PREPARED_GAME_MAP_SCHEMA_VERSION = 4
 
 
 class PreparedMapView(PersistedContractModel):
@@ -81,8 +81,9 @@ class PreparedMapLayer(PersistedContractModel):
 
 
 class PreparedMapGround(PersistedContractModel):
-    mode: Literal["tileset-12x4-v1"]
+    mode: Literal["terrain-atlas-3x3-minimal-v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
+    occupancy: list[str] = Field(min_length=2, max_length=64)
     prompt: str
 
     @field_validator("reference_ids")
@@ -91,15 +92,103 @@ class PreparedMapGround(PersistedContractModel):
         unique_values(value, "map ground reference_id")
         return value
 
+    @field_validator("occupancy")
+    @classmethod
+    def validate_occupancy(cls, value: list[str]) -> list[str]:
+        width = len(value[0])
+        if width < 8 or width > 512:
+            raise ValueError("map ground occupancy width must be between 8 and 512 cells")
+        if any(len(row) != width for row in value):
+            raise ValueError("map ground occupancy must be rectangular")
+        if any(not row or set(row) - {"0", "1"} for row in value):
+            raise ValueError("map ground occupancy rows may contain only zero and one")
+        if "1" not in value[-1]:
+            raise ValueError(
+                "map ground occupancy must contain terrain supported by the bottom row"
+            )
+        return value
+
     @field_validator("prompt")
     @classmethod
     def validate_prompt(cls, value: str) -> str:
         return normalized_text(value, "map ground prompt", multiline=True)
 
 
+class PreparedMapLadderPlacement(PersistedContractModel):
+    ladder_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    normalized_x: float = Field(gt=0.0, lt=1.0)
+    bottom_surface: Literal["terrain"]
+    rise_tiles: Literal[4]
+
+
+class PreparedMapLadder(PersistedContractModel):
+    mode: Literal["ladder-4-tile-v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+    placements: list[PreparedMapLadderPlacement] = Field(min_length=1, max_length=8)
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "map ladder reference_id")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "map ladder prompt", multiline=True)
+
+    @field_validator("placements")
+    @classmethod
+    def validate_placements(
+        cls, value: list[PreparedMapLadderPlacement]
+    ) -> list[PreparedMapLadderPlacement]:
+        unique_values((entry.ladder_id for entry in value), "map ladder_id")
+        positions = [entry.normalized_x for entry in value]
+        if len(set(positions)) != len(positions):
+            raise ValueError("map ladder normalized_x values must be unique")
+        return value
+
+
+class PreparedMapPortalEndpoint(PersistedContractModel):
+    anchor: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    normalized_x: float = Field(gt=0.0, lt=1.0)
+    role: Literal["entry", "exit"]
+
+
+class PreparedMapPortal(PersistedContractModel):
+    mode: Literal["portal-pair-1x2-v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+    endpoints: list[PreparedMapPortalEndpoint] = Field(min_length=1, max_length=2)
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "map portal reference_id")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "map portal prompt", multiline=True)
+
+    @field_validator("endpoints")
+    @classmethod
+    def validate_endpoints(
+        cls, value: list[PreparedMapPortalEndpoint]
+    ) -> list[PreparedMapPortalEndpoint]:
+        unique_values((entry.anchor for entry in value), "map portal anchor")
+        unique_values((entry.role for entry in value), "map portal role")
+        positions = [entry.normalized_x for entry in value]
+        if len(set(positions)) != len(positions):
+            raise ValueError("map portal normalized_x values must be unique")
+        return value
+
+
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["game-map-v3"]
+    schema_version: Literal[4]
+    kind: Literal["game-map-v4"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -109,6 +198,8 @@ class PreparedGameMap(PersistedContractModel):
     references: list[PreparedMapReference] = Field(min_length=1, max_length=32)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
     ground: PreparedMapGround
+    ladder: PreparedMapLadder | None = None
+    portal: PreparedMapPortal | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -138,6 +229,10 @@ class PreparedGameMap(PersistedContractModel):
         selected_ids = {
             reference_id for layer in self.layers for reference_id in layer.reference_ids
         } | set(self.ground.reference_ids)
+        if self.ladder is not None:
+            selected_ids.update(self.ladder.reference_ids)
+        if self.portal is not None:
+            selected_ids.update(self.portal.reference_ids)
         unknown = sorted(selected_ids - reference_ids)
         if unknown:
             raise ValueError("map generation references unknown IDs: " + ", ".join(unknown))
@@ -152,7 +247,56 @@ class PreparedGameMap(PersistedContractModel):
             raise ValueError("the opaque map base must be background order zero with parallax zero")
         if any(layer.alpha_mode != "transparent" for layer in self.layers if layer is not base):
             raise ValueError("every non-base map layer must use transparent alpha")
+        occupancy = self.ground.occupancy
+        width = len(occupancy[0])
+        if self.ladder is not None:
+            for placement in self.ladder.placements:
+                column = normalized_terrain_column(placement.normalized_x, width)
+                lower_surface = bottom_contiguous_surface_row(occupancy, column)
+                if lower_surface is None:
+                    raise ValueError(
+                        f"map ladder {placement.ladder_id} must stand on bottom-supported terrain"
+                    )
+                upper_surface = lower_surface - placement.rise_tiles
+                if (
+                    upper_surface < 0
+                    or occupancy[upper_surface][column] != "1"
+                    or (upper_surface > 0 and occupancy[upper_surface - 1][column] != "0")
+                ):
+                    raise ValueError(
+                        f"map ladder {placement.ladder_id} requires an exposed upper deck "
+                        f"exactly {placement.rise_tiles} tiles above its lower surface"
+                    )
+        if self.portal is not None:
+            for endpoint in self.portal.endpoints:
+                column = normalized_terrain_column(endpoint.normalized_x, width)
+                if bottom_contiguous_surface_row(occupancy, column) is None:
+                    raise ValueError(
+                        f"map portal endpoint {endpoint.anchor} must stand on "
+                        "bottom-supported terrain"
+                    )
         return self
+
+
+def normalized_terrain_column(normalized_x: float, width: int) -> int:
+    """Project a normalized map X coordinate onto its authored occupancy column."""
+
+    if not 0.0 < normalized_x < 1.0 or width <= 0:
+        raise ValueError("normalized terrain position and occupancy width are invalid")
+    return min(width - 1, int(normalized_x * width))
+
+
+def bottom_contiguous_surface_row(occupancy: list[str], column: int) -> int | None:
+    """Return the top row of a column's solid bottom-connected terrain stack."""
+
+    if not occupancy or column < 0 or column >= len(occupancy[0]):
+        raise ValueError("terrain occupancy column is outside the authored rectangle")
+    row = len(occupancy) - 1
+    if occupancy[row][column] != "1":
+        return None
+    while row > 0 and occupancy[row - 1][column] == "1":
+        row -= 1
+    return row
 
 
 def load_prepared_game_map_bytes(data: bytes) -> PreparedGameMap:
@@ -168,9 +312,15 @@ __all__ = [
     "PreparedGameMap",
     "PreparedMapContinuity",
     "PreparedMapGround",
+    "PreparedMapLadder",
+    "PreparedMapLadderPlacement",
     "PreparedMapLayer",
+    "PreparedMapPortal",
+    "PreparedMapPortalEndpoint",
     "PreparedMapReference",
     "PreparedMapView",
+    "bottom_contiguous_surface_row",
     "canonical_prepared_game_map_json",
     "load_prepared_game_map_bytes",
+    "normalized_terrain_column",
 ]

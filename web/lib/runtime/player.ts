@@ -14,6 +14,7 @@ import { SCENE_CONTENT_DEPTH } from "./layers";
 import {
   headMatchedScale,
   masterSheetScale,
+  playerSheetScaleForState,
   type ScaleReference,
 } from "./sprite-scale";
 import {
@@ -25,7 +26,16 @@ import {
   initialPlayerHealth,
   isPlayerInvulnerable,
 } from "./combat";
+import {
+  DEATH_STRIP_FRAME_RATE,
+  playerDamagePresentationState,
+} from "./death-presentation";
 import { terrainSurfaceY } from "./terrain";
+import {
+  applyMotionPlayback,
+  installMotionPlayback,
+  type RuntimeMotionPlayback,
+} from "./motion-playback";
 import {
   PLATFORMER_COYOTE_MS,
   PLATFORMER_GRAVITY,
@@ -38,11 +48,13 @@ import {
   ladderEntryAt,
   ladderJumpOffVelocity,
   platformDropThroughActive,
+  resolveCrouchHorizontalVelocity,
   resolveJumpRequest,
   resolveTerrainStep,
   resolveTerrainWalk,
   resolveVerticalLanding,
   type LadderZone,
+  type CrouchMovementMode,
   type PlayerSupport,
   type UpperPlatform,
 } from "./vertical";
@@ -55,6 +67,7 @@ export type PlayerState =
   | "crouch"
   | "attack"
   | "hurt"
+  | "death"
   | "climb";
 
 export type PlatformDropTraversalPhase =
@@ -139,12 +152,16 @@ export interface PlayerOpts {
     kind: PlayerTransitionKind,
     data: Record<string, string | number | boolean>,
   ) => void;
-  /** Frame rates per state (fps). */
-  frameRates?: Partial<Record<PlayerState, number>>;
+  /** Resolved presentation per state; omitted entries use standalone-runtime defaults. */
+  motionPlayback?: Partial<Record<PlayerState, RuntimeMotionPlayback>>;
   /**
    * Published anatomical scale reference per texture key.
    */
   scaleReferences: ReadonlyMap<string, ScaleReference>;
+  /** States whose authored pose height is meaningful and must retain atlas scale. */
+  preserveSourceScaleStates?: readonly PlayerState[];
+  /** Prepared crouch is stationary; mature standalone callers retain slow movement. */
+  crouchMovementMode?: CrouchMovementMode;
 }
 
 /** Every player state, in one place so animations and scale resolution cannot diverge. */
@@ -156,6 +173,7 @@ const PLAYER_STATES: readonly PlayerState[] = [
   "crouch",
   "attack",
   "hurt",
+  "death",
   "climb",
 ];
 
@@ -178,8 +196,29 @@ const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   crouch: 6,
   attack: 12,
   hurt: 7,
+  death: DEATH_STRIP_FRAME_RATE,
   climb: 9,
 };
+
+function defaultMotionPlayback(state: PlayerState): RuntimeMotionPlayback {
+  if (state === "climb") {
+    return Object.freeze({
+      mode: "gameplay_driven",
+      canonical_frame_indices: Object.freeze([0, 1, 2, 3]),
+    });
+  }
+  return Object.freeze({
+    mode:
+      state === "attack" ||
+      state === "jump" ||
+      state === "hurt" ||
+      state === "death"
+        ? "once"
+        : "loop",
+    canonical_frame_indices: Object.freeze([0, 1, 2, 3]),
+    frames_per_second: DEFAULT_FRAME_RATES[state],
+  });
+}
 
 const ATTACK_DURATION_MS = 333; // 4 frames at 12 fps
 const ATTACK_HIT_WINDOW_MS_FROM = 80; // hit window starts ~frame 1
@@ -203,7 +242,7 @@ export class Player {
   /** Column face currently stopping horizontal motion, for edge-triggered logs. */
   private blockedColumn: number | null = null;
   private opts: PlayerOpts;
-  private frameRates: Record<PlayerState, number>;
+  private readonly motionPlayback: Readonly<Record<PlayerState, RuntimeMotionPlayback>>;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasdKeys?: {
     up: Phaser.Input.Keyboard.Key;
@@ -257,7 +296,14 @@ export class Player {
     }
     this.opts = opts;
     this.health = initialPlayerHealth(opts.startingHealth);
-    this.frameRates = { ...DEFAULT_FRAME_RATES, ...(opts.frameRates ?? {}) };
+    this.motionPlayback = Object.freeze(
+      Object.fromEntries(
+        PLAYER_STATES.map((state) => [
+          state,
+          opts.motionPlayback?.[state] ?? defaultMotionPlayback(state),
+        ]),
+      ) as Record<PlayerState, RuntimeMotionPlayback>,
+    );
 
     const scene = opts.scene;
     // Build animations for each state once.
@@ -265,14 +311,7 @@ export class Player {
       const animKey = `player_${st}`;
       const texKey = stateTextureKey(st);
       if (!scene.anims.exists(animKey) && scene.textures.exists(texKey)) {
-        scene.anims.create({
-          key: animKey,
-          frames: [0, 1, 2, 3].map((f) => ({ key: texKey, frame: f })),
-          frameRate: this.frameRates[st],
-          // Reactions and one-shot actions hold their last frame; locomotion loops.
-          repeat:
-            st === "attack" || st === "jump" || st === "hurt" ? 0 : -1,
-        });
+        installMotionPlayback(scene, animKey, texKey, this.motionPlayback[st]);
       }
     }
 
@@ -282,7 +321,12 @@ export class Player {
     this.resolveSheetScales();
     this.applySheetScale(initialKey);
     this.sprite.setDepth(SCENE_CONTENT_DEPTH.player);
-    if (scene.anims.exists("player_idle")) this.sprite.play("player_idle");
+    applyMotionPlayback(
+      this.sprite,
+      "player_idle",
+      initialKey,
+      this.motionPlayback.idle,
+    );
 
     this.bindInput();
   }
@@ -292,8 +336,8 @@ export class Player {
    *
    * Each required sheet carries its own producer-published anatomical measurement. Matching each
    * extent to idle is what preserves apparent character size across unrelated source canvases and
-   * poses. The optional current hurt strip is the sole explicit exception because its producer
-   * role does not yet publish a measurement.
+   * poses. Optional reaction and terminal strips retain the anchored master-sheet scale because
+   * their producer roles do not yet publish measurements.
    */
   private resolveSheetScales(): void {
     const scene = this.opts.scene;
@@ -319,7 +363,16 @@ export class Player {
       if (!sheetReference) {
         throw new Error(`current player requires ${key} scale reference`);
       }
-      this.sheetScale.set(key, headMatchedScale(reference, sheetReference));
+      this.sheetScale.set(
+        key,
+        playerSheetScaleForState({
+          state,
+          masterSheetScale: this.masterSheetScale,
+          measuredSheetScale: headMatchedScale(reference, sheetReference),
+          preserveSourceScaleStates:
+            this.opts.preserveSourceScaleStates ?? Object.freeze([]),
+        }),
+      );
     }
   }
 
@@ -330,9 +383,12 @@ export class Player {
       this.sprite.setScale(measured);
       return;
     }
-    // `character-hurt` is an optional current producer role without a published measurement.
-    // Its explicit current behavior is to retain the anchored master-sheet scale.
-    if (textureKey === "character_hurt") {
+    // Reaction and terminal strips are optional producer roles without published measurements.
+    // Their explicit current behavior is to retain the anchored master-sheet scale.
+    if (
+      textureKey === "character_hurt" ||
+      textureKey === "character_death"
+    ) {
       this.sprite.setScale(this.masterSheetScale);
       return;
     }
@@ -399,11 +455,12 @@ export class Player {
       false;
 
     // Damage is resolved by the scene after this controller has already stepped for the frame,
-    // so `takeDamage` enters hurt synchronously and this branch owns every later hurt frame. Keep
-    // the ordinary physics path below alive - knockback must travel and land - while refusing
-    // control input. A fatal reaction remains locked after its four frames and holds the final
-    // pose; its horizontal shove stops with the reaction rather than sliding the body forever.
+    // so `takeDamage` enters its presentation synchronously and this branch owns every later
+    // reaction frame. Keep the ordinary physics path below alive - knockback must travel and land
+    // - while refusing control input. A fatal reaction remains locked after its four frames and
+    // holds the final pose; its horizontal shove stops rather than sliding forever.
     const hurtPresentationAvailable = this.hasHurtPresentation();
+    const deathPresentationAvailable = this.hasDeathPresentation();
     const hurtReaction = hurtPresentationAvailable && this.state === "hurt";
     const hurtMotionActive = hurtReaction && nowMs < this.hurtUntil;
     const controlsLocked = hurtMotionActive || this.health.defeated;
@@ -469,7 +526,12 @@ export class Player {
 
     // Crouch reduces speed and locks state on the ground.
     const crouching = !controlsLocked && down && this.support !== "air";
-    if (crouching) targetVx *= 0.4;
+    if (crouching) {
+      targetVx = resolveCrouchHorizontalVelocity({
+        velocity: targetVx,
+        mode: this.opts.crouchMovementMode ?? "slow",
+      });
+    }
 
     if (!controlsLocked) this.vx = targetVx;
 
@@ -667,13 +729,15 @@ export class Player {
 
     // Compute new state.
     let next: PlayerState;
-    if (hurtPresentationAvailable && (hurtMotionActive || this.health.defeated)) {
-      next = "hurt";
-    } else if (this.health.defeated) {
-      // The current character-hurt role is optional. When it is absent, defeat still locks
-      // control but must not claim to display `hurt` while holding an unrelated texture.
-      next = this.support === "air" ? "jump" : "idle";
-    } else if (attacking) next = "attack";
+    const damagePresentation = playerDamagePresentationState({
+      defeated: this.health.defeated,
+      deathAvailable: deathPresentationAvailable,
+      hurtAvailable: hurtPresentationAvailable,
+      hurtMotionActive,
+      airborne: this.support === "air",
+    });
+    if (damagePresentation !== null) next = damagePresentation;
+    else if (attacking) next = "attack";
     else if (this.support === "air") next = "jump";
     else if (crouching) next = "crouch";
     else if (this.vx !== 0 && shift) next = "run";
@@ -943,9 +1007,11 @@ export class Player {
       throw new Error("current climb animation is missing");
     }
     const ladder = this.activeLadder;
+    const climbFrameCount = this.motionPlayback.climb.canonical_frame_indices.length;
     const nextFrame =
       moving && ladder
-        ? Math.floor(Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12) % 4
+        ? Math.floor(Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12) %
+          climbFrameCount
         : (this.climbFrame ?? 0);
     if (
       this.sprite.anims.currentAnim?.key !== "player_climb" ||
@@ -975,14 +1041,7 @@ export class Player {
     this.climbFrame = null;
     const animKey = `player_${next}`;
     const texKey = stateTextureKey(next);
-    if (this.opts.scene.anims.exists(animKey)) {
-      this.sprite.play(animKey, true);
-    } else {
-      // Fallback to texture swap only.
-      if (this.opts.scene.textures.exists(texKey)) {
-        this.sprite.setTexture(texKey, 0);
-      }
-    }
+    applyMotionPlayback(this.sprite, animKey, texKey, this.motionPlayback[next]);
     this.applySheetScale(texKey);
   }
 
@@ -991,6 +1050,14 @@ export class Player {
     return (
       this.opts.scene.textures.exists("character_hurt") &&
       this.opts.scene.anims.exists("player_hurt")
+    );
+  }
+
+  /** A terminal state exists only when the matching four-frame sheet was actually loaded. */
+  private hasDeathPresentation(): boolean {
+    return (
+      this.opts.scene.textures.exists("character_death") &&
+      this.opts.scene.anims.exists("player_death")
     );
   }
 
@@ -1031,11 +1098,15 @@ export class Player {
     this.activeLadder = undefined;
     this.ladderId = null;
     this.clearAttack();
-    if (this.hasHurtPresentation()) {
+    if (result.health.defeated && this.hasDeathPresentation()) {
+      this.hurtUntil = 0;
+      this.setState("death");
+      this.sprite.setFlipX(this.facing === "left");
+    } else if (this.hasHurtPresentation()) {
       this.hurtUntil = nowMs + HURT_DURATION_MS;
       // The scene resolves strikes after `update`, so waiting for the next state-selection pass
-      // leaves the hit frame in the old pose. Enter now; a fatal hit uses the same sheet and the
-      // update loop holds its final frame instead of inventing a separate death asset.
+      // leaves the hit frame in the old pose. Enter now; the update loop holds the final frame
+      // when this is also the best available terminal fallback.
       this.setState("hurt");
       this.sprite.setFlipX(this.facing === "left");
     }
@@ -1130,10 +1201,12 @@ export class Player {
     this.sprite.setVisible(true);
     this.sprite.anims.stop();
     const initialKey = stateTextureKey("idle");
-    this.sprite.setTexture(initialKey, 0);
-    if (this.opts.scene.anims.exists("player_idle")) {
-      this.sprite.play("player_idle", true);
-    }
+    applyMotionPlayback(
+      this.sprite,
+      "player_idle",
+      initialKey,
+      this.motionPlayback.idle,
+    );
     this.applySheetScale(initialKey);
   }
 }
@@ -1157,7 +1230,8 @@ function sheetFrameHeight(
 function stateTextureKey(state: PlayerState): string {
   // Pre-loaded by the scene as character_<state> for master slices and sibling strips.
   if (state === "attack") return "character_attack";
-  if (state === "crouch") return "character_crawl"; // crawl strip used for crouch
+  // Historical mature-runtime key; prepared contracts call this state `crouch`.
+  if (state === "crouch") return "character_crawl";
   if (state === "climb") return "character_climb";
   return `character_${state}`;
 }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import shutil
+import stat
 import zipfile
 from pathlib import Path
 
@@ -89,10 +90,32 @@ def test_validate_repository_selector_resolves_bellweather() -> None:
     report = validate_game_package(REPOSITORY_ROOT)
 
     assert report["valid"] is True
-    assert report["kind"] == "game-package-validation-v2"
+    assert report["kind"] == "game-package-validation-v3"
     assert report["game_id"] == "bellweather"
     assert report["generated_status"] == "not_checked"
     assert report["file_count"] == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
+
+
+def test_rejects_stale_repository_selector_digest(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    package = workspace / "library" / "games" / "bellweather"
+    package.parent.mkdir(parents=True)
+    shutil.copytree(SOURCE_PACKAGE, package)
+    selector = workspace / "library" / "games" / "main.toml"
+    selector.write_text(
+        f'''schema_version = 3
+kind = "game-package-v3"
+game_id = "bellweather"
+package_ref = "library/games/bellweather/game.toml"
+package_sha256 = "{"0" * 64}"
+''',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        validate_game_package(workspace)
+
+    assert caught.value.code == "stale_package_digest"
 
 
 def test_rejects_stale_member_digest_before_returning_a_package(tmp_path: Path) -> None:
@@ -130,6 +153,27 @@ def test_rejects_unresolved_cross_contract_id_after_relocking(tmp_path: Path) ->
     assert "missing_mob" in str(caught.value)
 
 
+def test_crouch_gameplay_capability_requires_player_motion_coverage(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    player = package / "content/player.toml"
+    crouch = """
+[[players.motions]]
+state = "crouch"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+"""
+    player.write_text(player.read_text(encoding="utf-8").replace(crouch, ""), encoding="utf-8")
+    _replace_root_digest(package, "content/player.toml", _sha256(player))
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+
+    assert caught.value.code == "unresolved_cross_reference"
+    assert "required player motion state" in str(caught.value)
+    assert "crouch" in str(caught.value)
+
+
 def test_rejects_orphaned_package_files(tmp_path: Path) -> None:
     package = _copy_package(tmp_path)
     (package / "unused.toml").write_text("unused = true\n", encoding="utf-8")
@@ -151,10 +195,52 @@ def test_rejects_directory_symlinks(tmp_path: Path) -> None:
     assert caught.value.code == "symlink_escape"
 
 
+def test_rejects_a_symlinked_directory_root(tmp_path: Path) -> None:
+    actual_parent = tmp_path / "actual"
+    actual_parent.mkdir()
+    package = _copy_package(actual_parent)
+    linked = tmp_path / "linked-package"
+    linked.symlink_to(package, target_is_directory=True)
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(linked)
+
+    assert caught.value.code == "invalid_package_root"
+
+
+def test_rejects_a_symlinked_zip_input(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    archive = tmp_path / "bellweather.zip"
+    _write_zip(package, archive)
+    linked = tmp_path / "linked.zip"
+    linked.symlink_to(archive)
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(linked)
+
+    assert caught.value.code == "invalid_package_zip"
+
+
+def test_rejects_a_zip_symlink_entry(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    archive = tmp_path / "bellweather.zip"
+    _write_zip(package, archive)
+    symlink = zipfile.ZipInfo("bellweather/linked-reference.png")
+    symlink.create_system = 3
+    symlink.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(archive, "a") as output:
+        output.writestr(symlink, "references/cover.png")
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(archive)
+
+    assert caught.value.code == "symlink_escape"
+
+
 def test_rejects_zip_traversal(tmp_path: Path) -> None:
     archive = tmp_path / "bellweather.zip"
     with zipfile.ZipFile(archive, "w") as output:
-        output.writestr("bellweather/game.toml", "schema_version = 4\n")
+        output.writestr("bellweather/game.toml", "schema_version = 5\n")
         output.writestr("../outside.txt", "escape")
 
     with pytest.raises(GamePackageValidationError) as caught:

@@ -11,6 +11,7 @@ _REQUIRED_RELATIVE_PATHS = (
     "fixtures/image_gen_templates/character_template_combined.png",
     "fixtures/image_gen_templates/inventory_template.png",
     "fixtures/image_gen_templates/obstacle_template.png",
+    "fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "fixtures/image_gen_templates/wireframe.png",
     "fixtures/loading.gif",
     "fixtures/prompts.txt",
@@ -21,6 +22,7 @@ _REQUIRED_RELATIVE_PATHS = (
     "prompting/game_vocabulary_v1.json",
     "skills/anchor-image-style/SKILL.md",
     "skills/compile-theme-art-direction/SKILL.md",
+    "terrain/godot_3x3_minimal_lookup_v1.json",
 )
 
 
@@ -28,6 +30,24 @@ def image_template_dir() -> Path:
     """Return the installed directory containing reference layout templates."""
 
     return _RESOURCE_ROOT / "fixtures" / "image_gen_templates"
+
+
+def inventory_template_path() -> Path:
+    """Return the immutable V1 inventory layout reference."""
+
+    return image_template_dir() / "inventory_template.png"
+
+
+def terrain_atlas_template_path() -> Path:
+    """Return the locked local 12-by-4 terrain topology-silhouette template."""
+
+    return image_template_dir() / "terrain_atlas_12x4_template.png"
+
+
+def terrain_atlas_lookup_path() -> Path:
+    """Return the locked 47-mask 3x3-minimal lookup contract."""
+
+    return _RESOURCE_ROOT / "terrain" / "godot_3x3_minimal_lookup_v1.json"
 
 
 def bundled_music_path() -> Path:
@@ -81,7 +101,10 @@ __all__ = [
     "image_style_skill_path",
     "image_style_vocabulary_path",
     "image_template_dir",
+    "inventory_template_path",
     "required_resource_paths",
+    "terrain_atlas_lookup_path",
+    "terrain_atlas_template_path",
     "theme_compiler_skill_path",
     "game_vocabulary_path",
 ]

@@ -129,8 +129,8 @@ export async function isPreparedRuntimeRun(tag: string): Promise<boolean> {
       unknown
     >;
     return (
-      parsed["schema_version"] === 1 &&
-      parsed["kind"] === "prepared-game-runtime-v1"
+      parsed["schema_version"] === 4 &&
+      parsed["kind"] === "prepared-game-runtime-v4"
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;

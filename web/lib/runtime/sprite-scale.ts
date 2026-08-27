@@ -125,6 +125,23 @@ export function headMatchedScale(
   );
 }
 
+/**
+ * Resolve one player state's sheet scale while preserving an authored pose's
+ * canonical atlas scale when the consumer explicitly requests that policy.
+ */
+export function playerSheetScaleForState(input: Readonly<{
+  state: string;
+  masterSheetScale: number;
+  measuredSheetScale: number;
+  preserveSourceScaleStates: readonly string[];
+}>): number {
+  const master = positiveFinite(input.masterSheetScale, "master sheet scale");
+  const measured = positiveFinite(input.measuredSheetScale, "measured sheet scale");
+  return input.preserveSourceScaleStates.includes(input.state)
+    ? master
+    : measured;
+}
+
 /** Parse the one exact current scale-reference payload or reject the manifest boundary. */
 export function parseScaleReference(
   value: unknown,

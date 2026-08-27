@@ -1,9 +1,10 @@
 // Portal system (Phase 7).
 //
 // Splits the 2:1 portal sheet into entry (left half) and exit (right half),
-// alpha-bbox-crops each, and places them at world start / end. Both ends are
-// live: the exit carries the player forward through the stage plan and the
-// entry carries them back, so the pair is the run's actual travel mechanism
+// alpha-bbox-crops each, and places them at explicit map-owned anchors. The
+// standalone runtime keeps its historical world-start/world-end defaults;
+// prepared games always supply anchors and separate gameplay destinations.
+// Both ends can be live, so the pair is the run's actual travel mechanism
 // rather than one end-of-stage tripwire (TC-089).
 //
 // Standing in a portal is not using it. Travel needs a deliberate press, which
@@ -18,6 +19,8 @@ import type { PortalEnd } from "./stages";
 export type PortalKind = PortalEnd;
 
 export interface PortalSpec {
+  /** Stable map-local identity used by prepared-game transition wiring. */
+  portalId: string;
   kind: PortalKind;
   x: number; // world X (sprite centre)
   y: number; // world Y (feet on ground baseline)
@@ -44,9 +47,26 @@ export interface PortalSystemOpts {
   stageWidthPx: number;
   /** Destination stage index per end; null seals that end. */
   destinations: Readonly<Record<PortalKind, number | null>>;
+  /**
+   * Explicit map-owned endpoints. Omission retains the mature standalone
+   * runtime's historical west/east pair.
+   */
+  endpoints?: readonly PortalEndpointPlacement[];
 }
 
+export type PortalEndpointPlacement = Readonly<{
+  portalId: string;
+  kind: PortalKind;
+  /** World-space centre X resolved from the map's authored anchor. */
+  x: number;
+  /** Texture containing one isolated endpoint or the historical 1x2 pair. */
+  portalKey: string;
+  sourceFrame: "full" | PortalKind;
+  destinationIndex: number | null;
+}>;
+
 export type PortalActivation = Readonly<{
+  portalId: string;
   kind: PortalKind;
   destinationIndex: number;
 }>;
@@ -76,11 +96,11 @@ const PORTAL_PROMPT_TEXT = "UP to enter";
 export class PortalSystem {
   readonly portals: PortalSpec[] = [];
   private opts: PortalSystemOpts;
-  private firedKind: PortalKind | null = null;
+  private firedPortalId: string | null = null;
   private prompt?: Phaser.GameObjects.Text;
   private presentationLocked = false;
   private readonly baseDisplaySizes = new Map<
-    PortalKind,
+    string,
     Readonly<{ width: number; height: number }>
   >();
 
@@ -91,19 +111,21 @@ export class PortalSystem {
 
   private build() {
     const scene = this.opts.scene;
-    if (!scene.textures.exists(this.opts.portalKey)) return;
+    const endpoints = this.opts.endpoints ?? this.defaultEndpoints();
 
-    const tex = scene.textures.get(this.opts.portalKey);
-    const src = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-    const fullW = (src as { width: number }).width;
-    const fullH = (src as { height: number }).height;
-    const halfW = Math.floor(fullW / 2);
-
-    // Register each half as a frame so we can crop with bbox.
-    for (const kind of ["entry", "exit"] as PortalKind[]) {
-      const startX = kind === "entry" ? 0 : halfW;
-      const bbox = computeBbox(src, startX, 0, halfW, fullH);
-      const frameName = `portal_${kind}`;
+    for (const endpoint of endpoints) {
+      if (!scene.textures.exists(endpoint.portalKey)) continue;
+      const tex = scene.textures.get(endpoint.portalKey);
+      const src = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+      const fullW = (src as { width: number }).width;
+      const fullH = (src as { height: number }).height;
+      const halfW = Math.floor(fullW / 2);
+      const isolated = endpoint.sourceFrame === "full";
+      const startX =
+        isolated || endpoint.sourceFrame === "entry" ? 0 : halfW;
+      const sourceW = isolated ? fullW : halfW;
+      const bbox = computeBbox(src, startX, 0, sourceW, fullH);
+      const frameName = `portal_${endpoint.portalId}`;
       // Use bbox to define a tighter sub-frame.
       if (tex.has(frameName)) tex.remove(frameName);
       tex.add(frameName, 0, bbox.x, bbox.y, bbox.w, bbox.h);
@@ -111,53 +133,73 @@ export class PortalSystem {
       const targetH = PORTAL_HEIGHT_TILES * this.opts.tilePx;
       const aspect = bbox.w / Math.max(1, bbox.h);
 
-      // Place entry near world start, exit near world end.
-      const col =
-        kind === "entry"
-          ? 3
-          : Math.floor(this.opts.stageWidthPx / this.opts.tilePx) - 4;
-      const colH = this.opts.heightFn(col);
-      const surfaceY = terrainSurfaceY(
-        colH,
-        this.opts.tilePx,
-        this.opts.baselineY,
-      );
-      const x = col * this.opts.tilePx + this.opts.tilePx / 2;
-      const y = surfaceY;
+      const { x, y } = portalEndpointSurfacePosition({
+        x: endpoint.x,
+        tilePx: this.opts.tilePx,
+        baselineY: this.opts.baselineY,
+        stageWidthPx: this.opts.stageWidthPx,
+        heightFn: this.opts.heightFn,
+      });
 
-      const sprite = scene.add.image(x, y, this.opts.portalKey, frameName);
+      const sprite = scene.add.image(x, y, endpoint.portalKey, frameName);
       sprite.setOrigin(0.5, 1.0);
       sprite.setDisplaySize(targetH * aspect, targetH);
       sprite.setDepth(SCENE_CONTENT_DEPTH.portal);
 
-      const destinationIndex = this.opts.destinations[kind];
-
-      this.baseDisplaySizes.set(kind, {
+      this.baseDisplaySizes.set(endpoint.portalId, {
         width: targetH * aspect,
         height: targetH,
       });
 
       this.portals.push({
-        kind,
+        portalId: endpoint.portalId,
+        kind: endpoint.kind,
         x,
         y,
         sprite,
         bboxHalf: bbox,
-        destinationIndex,
+        destinationIndex: endpoint.destinationIndex,
         armed: false,
       });
     }
+  }
+
+  private defaultEndpoints(): readonly PortalEndpointPlacement[] {
+    const finalColumn =
+      Math.floor(this.opts.stageWidthPx / this.opts.tilePx) - 4;
+    return Object.freeze([
+      Object.freeze({
+        portalId: "entry",
+        kind: "entry" as const,
+        x: 3 * this.opts.tilePx + this.opts.tilePx / 2,
+        portalKey: this.opts.portalKey,
+        sourceFrame: "entry" as const,
+        destinationIndex: this.opts.destinations.entry,
+      }),
+      Object.freeze({
+        portalId: "exit",
+        kind: "exit" as const,
+        x: finalColumn * this.opts.tilePx + this.opts.tilePx / 2,
+        portalKey: this.opts.portalKey,
+        sourceFrame: "exit" as const,
+        destinationIndex: this.opts.destinations.exit,
+      }),
+    ]);
   }
 
   portalAt(kind: PortalKind): PortalSpec | undefined {
     return this.portals.find((portal) => portal.kind === kind);
   }
 
+  portalById(portalId: string): PortalSpec | undefined {
+    return this.portals.find((portal) => portal.portalId === portalId);
+  }
+
   /** Apply deterministic automation-only emphasis without changing source art. */
   applyAutomationPresentation(scale: number, alpha: number): void {
     this.presentationLocked = true;
     for (const portal of this.portals) {
-      const base = this.baseDisplaySizes.get(portal.kind);
+      const base = this.baseDisplaySizes.get(portal.portalId);
       if (!base) continue;
       portal.sprite.setDisplaySize(base.width * scale, base.height * scale);
       portal.sprite.setAlpha(alpha);
@@ -176,9 +218,10 @@ export class PortalSystem {
     const usable = this.advanceContact(tick.playerX, tick.playerFootY);
     this.showPrompt(usable);
     if (tick.shimmer) this.shimmer(tick.nowMs);
-    if (!usable || !tick.enterRequested || this.firedKind !== null) return null;
-    this.firedKind = usable.kind;
+    if (!usable || !tick.enterRequested || this.firedPortalId !== null) return null;
+    this.firedPortalId = usable.portalId;
     return Object.freeze({
+      portalId: usable.portalId,
       kind: usable.kind,
       destinationIndex: usable.destinationIndex,
     });
@@ -200,7 +243,7 @@ export class PortalSystem {
     const phase = (nowMs % PORTAL_PULSE_PERIOD_MS) / PORTAL_PULSE_PERIOD_MS;
     const wave = Math.sin(phase * Math.PI * 2);
     for (const portal of this.portals) {
-      const base = this.baseDisplaySizes.get(portal.kind);
+      const base = this.baseDisplaySizes.get(portal.portalId);
       if (!base || portal.destinationIndex === null) continue;
       const scale = 1 + wave * PORTAL_PULSE_SCALE;
       portal.sprite.setDisplaySize(base.width * scale, base.height * scale);
@@ -218,26 +261,37 @@ export class PortalSystem {
   private advanceContact(
     playerX: number,
     playerFootY: number,
-  ): Readonly<{ kind: PortalKind; destinationIndex: number }> | null {
-    let usable: Readonly<{ kind: PortalKind; destinationIndex: number }> | null =
-      null;
+  ): Readonly<{
+    portalId: string;
+    kind: PortalKind;
+    destinationIndex: number;
+  }> | null {
+    let usable: Readonly<{
+      portalId: string;
+      kind: PortalKind;
+      destinationIndex: number;
+    }> | null = null;
     for (const portal of this.portals) {
       if (!this.contains(portal, playerX, playerFootY)) {
         portal.armed = true;
         continue;
       }
       if (!portal.armed || portal.destinationIndex === null || usable) continue;
-      usable = { kind: portal.kind, destinationIndex: portal.destinationIndex };
+      usable = {
+        portalId: portal.portalId,
+        kind: portal.kind,
+        destinationIndex: portal.destinationIndex,
+      };
     }
     return usable;
   }
 
   /** Say which key opens the door, above the door it opens. */
   private showPrompt(
-    usable: Readonly<{ kind: PortalKind }> | null,
+    usable: Readonly<{ portalId: string }> | null,
   ): void {
-    const portal = usable ? this.portalAt(usable.kind) : undefined;
-    if (!portal || this.firedKind !== null) {
+    const portal = usable ? this.portalById(usable.portalId) : undefined;
+    if (!portal || this.firedPortalId !== null) {
       this.prompt?.setVisible(false);
       return;
     }
@@ -273,6 +327,7 @@ export class PortalSystem {
 
   snapshot() {
     return this.portals.map((p) => ({
+      portalId: p.portalId,
       kind: p.kind,
       x: p.x,
       y: p.y,
@@ -291,6 +346,46 @@ export class PortalSystem {
 }
 
 // --- helpers ---
+
+/** Resolve one explicit map anchor onto the same terrain surface as actors. */
+export function portalEndpointSurfacePosition(input: Readonly<{
+  x: number;
+  tilePx: number;
+  baselineY: number;
+  stageWidthPx: number;
+  heightFn: (column: number) => number;
+}>): Readonly<{ x: number; y: number }> {
+  for (const value of [
+    input.x,
+    input.tilePx,
+    input.baselineY,
+    input.stageWidthPx,
+  ]) {
+    if (!Number.isFinite(value)) {
+      throw new Error("portal endpoint placement values must be finite");
+    }
+  }
+  if (
+    input.tilePx <= 0 ||
+    input.stageWidthPx <= 0 ||
+    input.x < 0 ||
+    input.x > input.stageWidthPx
+  ) {
+    throw new Error("portal endpoint placement is outside its world");
+  }
+  const column = Math.min(
+    Math.floor(input.stageWidthPx / input.tilePx) - 1,
+    Math.floor(input.x / input.tilePx),
+  );
+  const columnHeight = input.heightFn(column);
+  if (!Number.isFinite(columnHeight)) {
+    throw new Error("portal endpoint terrain height must be finite");
+  }
+  return Object.freeze({
+    x: input.x,
+    y: terrainSurfaceY(columnHeight, input.tilePx, input.baselineY),
+  });
+}
 
 /**
  * Whether a player's feet are inside a portal's mouth.

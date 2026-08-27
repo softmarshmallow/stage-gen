@@ -32,6 +32,22 @@ from stage_gen.components.game_content import (
     PropContent,
 )
 from stage_gen.components.game_sequence import DialogueNode
+from stage_gen.components.game_ui import (
+    INVENTORY_CANVAS_HEIGHT,
+    INVENTORY_CANVAS_WIDTH,
+    INVENTORY_PANEL_HEIGHT,
+    INVENTORY_PANEL_LEFT,
+    INVENTORY_PANEL_TOP,
+    INVENTORY_PANEL_WIDTH,
+    INVENTORY_SLOT_COLUMNS,
+    INVENTORY_SLOT_GUTTER,
+    INVENTORY_SLOT_LEFT,
+    INVENTORY_SLOT_ROWS,
+    INVENTORY_SLOT_SIZE,
+    INVENTORY_SLOT_TOP,
+    UiReference,
+    inventory_panel_layout_contract,
+)
 from stage_gen.components.image_generation import ImageReference
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
@@ -57,6 +73,7 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_ROWS,
     MotionActorKind,
     dialogue_atlas_grid,
+    motion_semantic_direction,
     motion_source_facing,
     runtime_mirrors_source,
 )
@@ -66,9 +83,10 @@ from stage_gen.reliability import (
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
+from stage_gen.resources import inventory_template_path
 
-CONTENT_HANDLER_VERSION = "prepared-content-v3"
-CONTENT_CACHE_VERSION = "prepared-content-v2"
+CONTENT_HANDLER_VERSION = "prepared-content-v4"
+CONTENT_CACHE_VERSION = "prepared-content-v3"
 _PLAYER_NODE = re.compile(
     r"^player-(?P<entity_id>[a-z0-9_]+)-(?:(?:state-(?P<state>[a-z0-9_]+)-(?P<state_action>generate|validate))|(?P<action>concept-generate|dialogue-generate|dialogue-validate|contact-sheet|review))$"
 )
@@ -82,6 +100,7 @@ _CATALOG_NODE = re.compile(
     r"^(?P<kind>prop|item)-(?P<entity_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
 )
 _TRACK_NODE = re.compile(r"^track-(?P<track_id>[a-z0-9_]+)-(?P<action>generate|validate)$")
+_UI_INVENTORY_NODE = re.compile(r"^ui-inventory-panel-(?P<action>generate|validate|review)$")
 
 
 class PreparedContentNodeHandler:
@@ -118,10 +137,11 @@ class PreparedContentNodeHandler:
             raise
         except Exception as error:
             external = node.operation is not OperationKind.LOCAL
+            attempts = int(getattr(error, "attempts", 1))
             raise NodeExecutionError(
                 str(error),
-                attempts=int(getattr(error, "attempts", 1)),
-                provider_operations=1 if external else 0,
+                attempts=attempts,
+                provider_operations=attempts if external else 0,
             ) from error
         self._write_cache(node, context, result)
         return result
@@ -141,6 +161,9 @@ class PreparedContentNodeHandler:
             return await self._catalog_review(node, "prop")
         if node.node_id == "items-review":
             return await self._catalog_review(node, "item")
+        ui_match = _UI_INVENTORY_NODE.fullmatch(node.node_id)
+        if ui_match:
+            return await self._ui_inventory_node(node, ui_match["action"])
 
         match = _PLAYER_NODE.fullmatch(node.node_id)
         if match:
@@ -158,6 +181,135 @@ class PreparedContentNodeHandler:
         if match:
             return await self._track_node(node, match)
         raise ValueError(f"prepared content handler cannot execute node: {node.node_id}")
+
+    async def _ui_inventory_node(self, node: ExecutionNode, action: str) -> NodeExecutionResult:
+        if action == "generate":
+            return await self._generate_inventory_panel(node)
+        if action == "validate":
+            return await self._validate_inventory_panel(node)
+        return await self._review_inventory_panel(node)
+
+    async def _generate_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+        panel = self._package.ui.inventory_panel
+        output = self._run_dir / node.outputs[0]
+        template = inventory_template_path()
+        template_data = template.read_bytes()
+        prompt = self._visual_prompt(
+            "Create one inventory panel for the game's screen-fixed interface.\n"
+            f"Authored direction: {panel.prompt}\n"
+            "Use the supplied layout template as the exact geometry authority: one 1536 by 1024 "
+            "canvas, one outer panel, and eight empty slots in a strict four-column by two-row "
+            "layout. Preserve the template's panel and slot positions. The template is layout "
+            "guidance, not the requested visual style. Keep the canvas exterior outside the panel "
+            "transparent. The entire panel body and every empty slot well must be solid, filled, "
+            "and fully opaque alpha 255. Do not cut transparent or semi-transparent holes into "
+            "the panel middle or any slot interior. Slots may look recessed through opaque color "
+            "and shading only. Keep the canvas border and empty space beyond the decorated panel "
+            "silhouette clear alpha 0. No exterior glow, drop shadow, color wash, backdrop, or "
+            "scenery. Straps, leaves, corners, and ornaments may shape the panel silhouette. No "
+            "items, text, numbers, labels, icons, cursor, character, logo, signature, or watermark."
+        )
+        references = (
+            *self._image_references(self._package.ui.references, panel.reference_ids),
+            ImageReference(
+                url=_data_url(template_data, "image/png"),
+                provenance_ref=(
+                    "resource://fixtures/image_gen_templates/inventory_template.png"
+                    f"#sha256={_sha(template_data)}"
+                ),
+            ),
+        )
+        result = await self._images.generate(
+            ImageGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                input_references=references,
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size="1536x1024",
+                timeout_seconds=600,
+                metadata={
+                    "checkpoint": "ui",
+                    "role": "inventory_panel",
+                    "layout": panel.layout,
+                    "alpha_policy": panel.alpha_policy,
+                },
+                validate=lambda artifact: _validate_inventory_panel_image(artifact.data),
+            )
+        )
+        return self._result(
+            node,
+            (output, Path(result.provenance_path)),
+            attempts=result.attempts,
+            provider_operations=result.attempts,
+        )
+
+    async def _validate_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+        source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
+        data = source.read_bytes()
+        canonical_data, facts = _canonicalize_inventory_panel_image(data)
+        canonical, validation, evidence = (self._run_dir / value for value in node.outputs)
+        provenance = await _write_local_image(
+            canonical,
+            canonical_data,
+            prompt=(
+                "Normalize only the admitted alpha boundary: clear the already-transparent "
+                "exterior and clamp the already-opaque panel core and slot interiors to alpha 255."
+            ),
+            inputs=((source.relative_to(self._run_dir).as_posix(), data),),
+            validation=facts,
+            model="prepared-ui-inventory-validation-v2",
+        )
+        atomic_write_json(
+            validation,
+            {
+                "schema_version": 1,
+                "kind": "prepared-ui-inventory-validation-v2",
+                **inventory_panel_layout_contract(),
+                **facts,
+            },
+        )
+        evidence_data = _inventory_panel_evidence(canonical_data)
+        evidence_provenance = await _write_local_image(
+            evidence,
+            evidence_data,
+            prompt="Composite the inventory panel over a checkerboard for review evidence.",
+            inputs=((canonical.relative_to(self._run_dir).as_posix(), data),),
+            validation={"source_validation": facts, "checkerboard_only": True},
+            model="prepared-ui-inventory-evidence-v1",
+        )
+        return self._result(
+            node,
+            (canonical, provenance, validation, evidence, evidence_provenance),
+            provider_operations=0,
+        )
+
+    async def _review_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+        panel = self._package.ui.inventory_panel
+        evidence = self._run_dir / "ui/inventory_panel.evidence.png"
+        references = [self._run_structured_reference(evidence)]
+        references.extend(
+            self._package_structured_reference(reference)
+            for reference in self._package.ui.references
+            if reference.reference_id in set(panel.reference_ids)
+        )
+        return await self._run_review(
+            node,
+            prompt=(
+                "Review the generated inventory panel against its authored direction and the "
+                "exact four-column by two-row layout. Image 1 is the generated panel composited "
+                "over a checkerboard; remaining images are authored visual references. "
+                "Deterministic pixel validation has already proved a transparent canvas border, "
+                "a fully opaque panel core, and fully opaque interiors for all eight slots. "
+                "Do not mistake the checkerboard outside the panel for artwork. Judge style "
+                "coherence, eight-slot readability, consistent visual hierarchy, clean exterior "
+                "silhouette, and absence of items, text, pseudo-text, labels, logos, or scenery. "
+                f"Authored direction: {panel.prompt} Uncertainty must not be called accept."
+            ),
+            references=references,
+            metadata={"checkpoint": "ui", "role": "inventory_panel"},
+        )
 
     async def _player_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
         player = self._player(match["entity_id"])
@@ -357,14 +509,14 @@ class PreparedContentNodeHandler:
             else "Every figure is a strict side view facing RIGHT: eyes, face, chest, and toes "
             "point toward the right edge."
         )
+        motion_directive = motion_semantic_direction(kind, state)
         prompt = self._visual_prompt(
             f"Create the canonical side-view motion atlas for {kind} {entity_id}, state {state}. "
             "Use the supplied identity concept exactly. Output a strict single-row strip of four "
             f"sequential frames. {facing_directive} Preserve identity, apparent height, foot "
             "baseline, silhouette, "
-            "costume, equipment, and camera scale in every cell. Use clear game-animation key "
-            "poses "
-            f"that communicate {state}. Keep every figure wholly inside its cell on true alpha. "
+            "costume, equipment, and camera scale in every cell. The required motion is: "
+            f"{motion_directive}. Keep every figure wholly inside its cell on true alpha. "
             "Leave transparent separation between cells. No grid lines, boxes, captions, scenery, "
             "ground, cast shadows, text, or symbols."
         )
@@ -640,11 +792,15 @@ class PreparedContentNodeHandler:
         entries: list[tuple[str, Path]] = [("concept", root / "concept.png")]
         if kind == "player":
             player = self._player(entity_id)
-            entries.extend((state, root / f"states/{state}.png") for state in player.motion_states)
+            entries.extend(
+                (motion.state, root / f"states/{motion.state}.png") for motion in player.motions
+            )
             entries.append(("dialogue", root / "dialogue.png"))
         elif kind == "mob":
             mob = self._mob(entity_id)
-            entries.extend((state, root / f"states/{state}.png") for state in mob.motion_states)
+            entries.extend(
+                (motion.state, root / f"states/{motion.state}.png") for motion in mob.motions
+            )
         else:
             entries.extend((value, root / f"{value}.png") for value in ("world", "dialogue"))
         output = self._run_dir / node.outputs[0]
@@ -701,20 +857,33 @@ class PreparedContentNodeHandler:
         if kind == "player":
             player = self._player(entity_id)
             authored_prompt = player.prompt
-            states = player.motion_states
+            states = [motion.state for motion in player.motions]
             expressions = player.dialogue_art.expressions
         elif kind == "mob":
             mob = self._mob(entity_id)
             authored_prompt = mob.prompt
-            states = mob.motion_states
+            states = [motion.state for motion in mob.motions]
             expressions = []
         else:
             npc = self._npc(entity_id)
             authored_prompt = npc.prompt
-            states = npc.world_motion_states
+            states = [motion.state for motion in npc.world_motions]
             expressions = npc.dialogue_expressions
         structured_refs.extend(self._package_structured_reference(ref) for ref in references)
         source_facings = {state: motion_source_facing(kind, state) for state in states}
+        motion_semantics = {state: motion_semantic_direction(kind, state) for state in states}
+        runtime_scale_context = ""
+        if kind == "player":
+            runtime_scale_context = (
+                "The contact sheet shows canonical source-atlas pixels, not final runtime world "
+                "scale. The prepared consumer deterministically head-matches every non-crouch "
+                "state to the idle character scale and registers it from the bottom/feet, so "
+                "different raw atlas crop heights do not imply runtime size or baseline popping. "
+                "Crouch is the intentional exception: it preserves canonical atlas scale and a "
+                "bottom/feet anchor so the bent, stationary pose remains visibly lower than "
+                "standing. Judge cross-state runtime scale under that declared adapter; still "
+                "reject inconsistent scale or registration within one four-frame atlas. "
+            )
         return await self._run_review(
             node,
             prompt=(
@@ -722,13 +891,14 @@ class PreparedContentNodeHandler:
                 f"Authored identity direction: {authored_prompt} "
                 f"The complete declared state list is exactly {list(states)}. "
                 f"The complete declared dialogue-expression list is exactly {list(expressions)}. "
+                f"The exact required visual meaning for each motion is {motion_semantics}. "
                 "Every motion atlas is one row of four frames. The exact required source facing "
                 f"for each state is {source_facings}. Ordinary right-facing side-view sources are "
                 "mirrored deterministically by the runtime for left-facing play; a rear-facing "
                 "source is not mirrored. Image 1 is the locally labeled "
                 "contact sheet; remaining images are authored identity/style references. The "
                 "contact sheet was locally alpha-composited from decoded RGBA sources onto "
-                "checkerboards. "
+                f"checkerboards. {runtime_scale_context}"
                 "Deterministic decoding already proved true alpha (minimum alpha 0, visible alpha "
                 "greater than 0), zero-alpha canvas borders, and nonempty occupancy in every "
                 "required atlas cell. Hidden RGB stored behind fully transparent pixels is not "
@@ -879,6 +1049,24 @@ class PreparedContentNodeHandler:
             "track_ids": sorted(
                 {track_id for map_use in gameplay.map_uses for track_id in map_use.track_ids}
             ),
+            "map_topology": [
+                {
+                    "map_id": game_map.map_id,
+                    "occupancy_rows": len(game_map.ground.occupancy),
+                    "occupancy_columns": len(game_map.ground.occupancy[0]),
+                    "ladder_ids": (
+                        []
+                        if game_map.ladder is None
+                        else [entry.ladder_id for entry in game_map.ladder.placements]
+                    ),
+                    "portal_anchors": (
+                        []
+                        if game_map.portal is None
+                        else [entry.anchor for entry in game_map.portal.endpoints]
+                    ),
+                }
+                for game_map in self._package.maps
+            ],
             "all_references_resolved": True,
         }
         coverage = _coverage_matrix(self._package)
@@ -897,7 +1085,9 @@ class PreparedContentNodeHandler:
         )
 
     def _image_references(
-        self, catalog: Sequence[ContentReference], reference_ids: Sequence[str]
+        self,
+        catalog: Sequence[ContentReference | UiReference],
+        reference_ids: Sequence[str],
     ) -> tuple[ImageReference, ...]:
         by_id = {entry.reference_id: entry for entry in catalog}
         values = []
@@ -927,7 +1117,9 @@ class PreparedContentNodeHandler:
             provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
         )
 
-    def _package_structured_reference(self, reference: ContentReference) -> StructuredReference:
+    def _package_structured_reference(
+        self, reference: ContentReference | UiReference
+    ) -> StructuredReference:
         package_file = self._package.file(reference.source)
         return StructuredReference(
             url=_data_url(package_file.data, _media_type(reference.source)),
@@ -1088,6 +1280,9 @@ class PreparedContentNodeHandler:
             if _CATALOG_NODE.fullmatch(node.node_id):
                 _validate_transparent_image(data, width=1024, height=1024)
                 return True
+            if _UI_INVENTORY_NODE.fullmatch(node.node_id):
+                _validate_inventory_panel_image(data)
+                return True
         except (OSError, ValueError):
             return False
         return False
@@ -1125,6 +1320,7 @@ def content_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
         *npc_targets,
         "props-review",
         "items-review",
+        "ui-inventory-panel-review",
         *track_targets,
         "gameplay-bindings-validate",
     )
@@ -1139,9 +1335,10 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "players": [
             {
                 "player_id": entry.player_id,
-                "motion_states": entry.motion_states,
+                "motions": [motion.model_dump(mode="json") for motion in entry.motions],
                 "source_facings": {
-                    state: motion_source_facing("player", state) for state in entry.motion_states
+                    motion.state: motion_source_facing("player", motion.state)
+                    for motion in entry.motions
                 },
                 "dialogue_expressions": entry.dialogue_art.expressions,
             }
@@ -1150,9 +1347,10 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "mobs": [
             {
                 "mob_id": entry.mob_id,
-                "motion_states": entry.motion_states,
+                "motions": [motion.model_dump(mode="json") for motion in entry.motions],
                 "source_facings": {
-                    state: motion_source_facing("mob", state) for state in entry.motion_states
+                    motion.state: motion_source_facing("mob", motion.state)
+                    for motion in entry.motions
                 },
             }
             for entry in package.mobs.mobs
@@ -1160,9 +1358,10 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "npcs": [
             {
                 "npc_id": entry.npc_id,
-                "world_motion_states": entry.world_motion_states,
+                "world_motions": [motion.model_dump(mode="json") for motion in entry.world_motions],
                 "source_facings": {
-                    state: motion_source_facing("npc", state) for state in entry.world_motion_states
+                    motion.state: motion_source_facing("npc", motion.state)
+                    for motion in entry.world_motions
                 },
                 "dialogue_expressions": entry.dialogue_expressions,
             }
@@ -1173,14 +1372,15 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "track_ids": list(package.soundtrack.track_ids),
         "sequence_ids": [entry.sequence_id for entry in package.sequences],
         "required_image_operations": (
-            sum(2 + len(entry.motion_states) for entry in package.player.players)
-            + sum(1 + len(entry.motion_states) for entry in package.mobs.mobs)
+            sum(2 + len(entry.motions) for entry in package.player.players)
+            + sum(1 + len(entry.motions) for entry in package.mobs.mobs)
             + 3 * len(package.npcs.npcs)
             + len(package.props.props)
             + len(package.items.items)
+            + 1
         ),
         "required_structured_reviews": (
-            len(package.player.players) + len(package.mobs.mobs) + len(package.npcs.npcs) + 2
+            len(package.player.players) + len(package.mobs.mobs) + len(package.npcs.npcs) + 3
         ),
         "required_music_operations": len(package.soundtrack.tracks),
     }
@@ -1263,6 +1463,136 @@ def _validate_atlas(
     }
 
 
+def _validate_inventory_panel_image(data: bytes) -> dict[str, object]:
+    with Image.open(io.BytesIO(data)) as opened:
+        if "A" not in opened.getbands():
+            raise ValueError("inventory panel output must carry an alpha channel")
+        image = opened.convert("RGBA")
+    if image.size != (INVENTORY_CANVAS_WIDTH, INVENTORY_CANVAS_HEIGHT):
+        raise ValueError(
+            "inventory panel output must be exactly "
+            f"{INVENTORY_CANVAS_WIDTH}x{INVENTORY_CANVAS_HEIGHT}"
+        )
+    alpha = image.getchannel("A")
+    extrema = cast(tuple[int, int], alpha.getextrema())
+    opaque_admission_min = 250
+    transparent_admission_max = 16
+    if extrema[0] > transparent_admission_max or extrema[1] < opaque_admission_min:
+        raise ValueError("inventory panel must contain transparent exterior and opaque artwork")
+    border = [
+        *alpha.crop((0, 0, alpha.width, 1)).get_flattened_data(),
+        *alpha.crop((0, alpha.height - 1, alpha.width, alpha.height)).get_flattened_data(),
+        *alpha.crop((0, 0, 1, alpha.height)).get_flattened_data(),
+        *alpha.crop((alpha.width - 1, 0, alpha.width, alpha.height)).get_flattened_data(),
+    ]
+    if max(border) > transparent_admission_max:
+        raise ValueError("inventory panel exterior must remain transparent at the canvas border")
+
+    transparent_pixels = sum(alpha.histogram()[: transparent_admission_max + 1])
+    transparent_pixel_fraction = transparent_pixels / (alpha.width * alpha.height)
+    if transparent_pixel_fraction < 0.1:
+        raise ValueError("inventory panel must retain meaningful transparent exterior space")
+
+    core_inset = 32
+    core = alpha.crop(
+        (
+            INVENTORY_PANEL_LEFT + core_inset,
+            INVENTORY_PANEL_TOP + core_inset,
+            INVENTORY_PANEL_LEFT + INVENTORY_PANEL_WIDTH - core_inset,
+            INVENTORY_PANEL_TOP + INVENTORY_PANEL_HEIGHT - core_inset,
+        )
+    )
+    core_min = cast(tuple[int, int], core.getextrema())[0]
+    if core_min < opaque_admission_min:
+        raise ValueError(
+            "inventory panel middle must be fully opaque; transparent or translucent pixels found"
+        )
+
+    slot_alpha_minima: list[int] = []
+    slot_inset = 24
+    for row in range(INVENTORY_SLOT_ROWS):
+        for column in range(INVENTORY_SLOT_COLUMNS):
+            left = (
+                INVENTORY_SLOT_LEFT
+                + column * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GUTTER)
+                + slot_inset
+            )
+            top = (
+                INVENTORY_SLOT_TOP
+                + row * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GUTTER)
+                + slot_inset
+            )
+            interior = alpha.crop(
+                (
+                    left,
+                    top,
+                    left + INVENTORY_SLOT_SIZE - 2 * slot_inset,
+                    top + INVENTORY_SLOT_SIZE - 2 * slot_inset,
+                )
+            )
+            slot_alpha_minima.append(cast(tuple[int, int], interior.getextrema())[0])
+    if any(value < opaque_admission_min for value in slot_alpha_minima):
+        raise ValueError(
+            "every inventory slot interior must be visually opaque before normalization"
+        )
+
+    return {
+        "width": image.width,
+        "height": image.height,
+        "alpha_min": extrema[0],
+        "alpha_max": extrema[1],
+        "border_alpha_max": max(border),
+        "transparent_pixel_fraction": round(transparent_pixel_fraction, 6),
+        "panel_core_alpha_min": core_min,
+        "slot_interior_alpha_minima": slot_alpha_minima,
+        "opaque_admission_min": opaque_admission_min,
+        "transparent_admission_max": transparent_admission_max,
+        "all_slot_interiors_opaque": True,
+        "pixel_rewrite_performed": False,
+    }
+
+
+def _canonicalize_inventory_panel_image(data: bytes) -> tuple[bytes, dict[str, object]]:
+    source_facts = _validate_inventory_panel_image(data)
+    with Image.open(io.BytesIO(data)) as opened:
+        image = opened.convert("RGBA")
+    alpha = image.getchannel("A")
+
+    transparent_admission_max = cast(int, source_facts["transparent_admission_max"])
+    alpha = alpha.point(lambda value: 0 if value <= transparent_admission_max else value)
+    core_inset = 32
+    alpha.paste(
+        255,
+        (
+            INVENTORY_PANEL_LEFT + core_inset,
+            INVENTORY_PANEL_TOP + core_inset,
+            INVENTORY_PANEL_LEFT + INVENTORY_PANEL_WIDTH - core_inset,
+            INVENTORY_PANEL_TOP + INVENTORY_PANEL_HEIGHT - core_inset,
+        ),
+    )
+    image.putalpha(alpha)
+    output = io.BytesIO()
+    image.save(output, format="PNG", optimize=False)
+    canonical_data = output.getvalue()
+    canonical_facts = _validate_inventory_panel_image(canonical_data)
+    return canonical_data, {
+        "source": source_facts,
+        "canonical": canonical_facts,
+        "pixel_rewrite_performed": True,
+        "pixel_rewrite": "alpha_boundary_normalization_v1",
+    }
+
+
+def _inventory_panel_evidence(data: bytes) -> bytes:
+    with Image.open(io.BytesIO(data)) as opened:
+        panel = opened.convert("RGBA")
+    canvas = _checkerboard(panel.size)
+    canvas.alpha_composite(panel)
+    stream = io.BytesIO()
+    canvas.convert("RGB").save(stream, format="PNG", optimize=False)
+    return stream.getvalue()
+
+
 def _validate_audio_bytes(data: bytes) -> dict[str, object]:
     if len(data) < 64 * 1024:
         raise ValueError("generated soundtrack payload is too small")
@@ -1321,13 +1651,14 @@ async def _write_local_image(
     prompt: str,
     inputs: Sequence[tuple[str, bytes]],
     validation: Mapping[str, object],
+    model: str = "prepared-content-contact-sheet-v1",
 ) -> Path:
     return await write_artifact_with_provenance_async(
         path,
         BinaryArtifact(data=data, media_type="image/png"),
         ProvenanceInput(
             provider="local",
-            model="prepared-content-contact-sheet-v1",
+            model=model,
             prompt=prompt,
             refs=[ref for ref, _ in inputs],
             inputs=[

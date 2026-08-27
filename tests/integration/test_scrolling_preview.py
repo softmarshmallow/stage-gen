@@ -271,7 +271,7 @@ async def test_mocked_recipe_directs_the_whole_graph_from_one_authored_game(
                 "game": {
                     "schema_version": 1,
                     "kind": "game-contract-binding-v1",
-                    "ref": "library/games/whimsical-storybook-fantasy/game.toml",
+                    "ref": "library/games/test-game/game.toml",
                     "source_sha256": "b" * 64,
                 },
                 "village": {"schema_version": 1, "kind": "village_hub_v1"},

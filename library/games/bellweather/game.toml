@@ -1,7 +1,7 @@
-schema_version = 4
-kind = "game-contract-v4"
+schema_version = 5
+kind = "game-contract-v5"
 game_id = "bellweather"
-revision = 7
+revision = 10
 display_name = "Bellweather"
 
 [universe]
@@ -61,7 +61,11 @@ npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant
 
 [gameplay]
 source = "gameplay.toml"
-source_sha256 = "229d322cfdc6fb3fc58fc9df5006c1d61d52431909a7a6a3a529d260434764ee"
+source_sha256 = "1d594812cefc9966ed439747296042592d04a9a18dea83f10b7973c6a5369b84"
+
+[ui]
+source = "ui.toml"
+source_sha256 = "91a9b9c0b87f9a871b1b8da83e7fe56a5a4720c5019134660bfd229054279d4e"
 
 [soundtrack]
 source = "soundtrack.toml"
@@ -70,32 +74,32 @@ source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f573
 [[maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
-source_sha256 = "1afc24c797ce736411c052330b6d7a9b9548906848ca28d4a6460863c3b1e75a"
+source_sha256 = "70ffdcec699f4cfbf4462454566e8637265b2e2cd8882b4316662a5fa413ae65"
 
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "63af7fcb4b47b3714d7def2d719e0c3043eb9c7a59b79a4bd3de411f9e96ee6b"
+source_sha256 = "726d18d414424200e0341747e4f83d7c0257bd49e97e8d1d6f983c84dcbb5c4a"
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "16d03a2f475bdd9ee5f97eba86a60bcf08b3b3de3f0cde41488dde9e89b72b2f"
+source_sha256 = "c2b39ac6cd272b53eb82910ddec9c6a055845f5af7102dcd04433894ec15d816"
 
 [content.mobs]
 source = "content/mobs.toml"
-source_sha256 = "358ddc76abdd84fd8f715f5da8dce42bbdf5acdb7ff7e663c76c22869f0b63df"
+source_sha256 = "7da9f04a99467da8ed9f66d4e4aabc28cdf53eeb1045147867859e596f219032"
 
 [content.npcs]
 source = "content/npcs.toml"
-source_sha256 = "877625cb30dca191af9796b41269f20d8b57c774f03cbce5eaf41f4b7ab37b1d"
+source_sha256 = "865062059683d11b800e285b9a4f358d7052f4de675692df82d626f8941aca89"
 
 [content.props]
 source = "content/props.toml"
-source_sha256 = "78e100039cbccacecd2d537ce5df62d9bf91081f696fcbba4d504d582fabe758"
+source_sha256 = "5ac712583f92c693c3200d8f437cd28a531d1d43d017b61385750cc7baf7061a"
 
 [content.items]
 source = "content/items.toml"
-source_sha256 = "ed52a26e766e833391dcd246f209f242710cfd61a0429bf23ce7507bcca0fef1"
+source_sha256 = "64eccf0156a1441ddf0c963fa345780aaaafd0960571c8a3fe6f378069e2f971"
 
 [sequences]
 index_source = "sequences/index.toml"

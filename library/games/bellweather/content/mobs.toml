@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "mob-content-v1"
+schema_version = 2
+kind = "mob-content-v2"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [[references]]
 reference_id = "cover_style"
@@ -17,7 +17,35 @@ body_kind = "round_biped"
 rank = "common"
 reference_ids = ["cover_style"]
 prompt = "The cover's original cream-colored round story-beast with large green leaf ears, tiny paws, and a friendly expressive face; compact side-view silhouette, playful rather than mascot-like."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [[mobs]]
 mob_id = "jewelwing_beetle"
@@ -26,7 +54,35 @@ body_kind = "insect"
 rank = "common"
 reference_ids = ["cover_style"]
 prompt = "The cover's original navy-blue beetle story-beast with two curled antennae, a large turquoise eye, and faceted cyan-violet crystal wings; readable lateral flying silhouette."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [[mobs]]
 mob_id = "thimblejay"
@@ -35,7 +91,35 @@ body_kind = "avian"
 rank = "uncommon"
 reference_ids = ["cover_style"]
 prompt = "A tiny blue-violet bird thief with a rounded head, hooked beak, fan tail, and a brass thimble carried like a cap; bright cel-shaded side-view design with no text or insignia."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [[mobs]]
 mob_id = "bellbelly_toad"
@@ -44,7 +128,35 @@ body_kind = "amphibian"
 rank = "uncommon"
 reference_ids = ["cover_style"]
 prompt = "A squat moss-green toad with oversized springing legs, cream-and-gold spots, and a rounded brass-colored throat sac that rings when it leaps; friendly storybook menace, not grotesque."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [[mobs]]
 mob_id = "bramblehart"
@@ -53,7 +165,35 @@ body_kind = "quadruped"
 rank = "elite"
 reference_ids = ["cover_style"]
 prompt = "A compact moss-backed deer spirit with long leaf ears, split hooves, small branching twig antlers, coral flowers, and a plume tail; graceful side-view silhouette and restrained magical glow."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [[mobs]]
 mob_id = "crowncrag_page_eater"
@@ -62,4 +202,32 @@ body_kind = "draconic"
 rank = "boss"
 reference_ids = ["cover_style"]
 prompt = "A large but chibi-readable six-limbed castle guardian dragon with four sturdy legs, two compact wings, gilded page-like armor plates, a horned head, and an ink-dark tail; original and imposing without horror, text, or written symbols."
-motion_states = ["idle", "move", "attack", "hurt", "death"]
+[[mobs.motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[mobs.motions]]
+state = "move"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[mobs.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 11
+
+[[mobs.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[mobs.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6

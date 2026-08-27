@@ -31,7 +31,7 @@ describe("prepared runtime manifest reading", () => {
     );
 
     const manifest = await readPreparedRuntimeManifest(tag);
-    expect(manifest?.kind).toBe("prepared-game-runtime-v1");
+    expect(manifest?.kind).toBe("prepared-game-runtime-v4");
     expect(manifest?.display_name).toBe("Prepared Fixture");
     expect(manifest?.player.concept.path).toBe("content/player/concept.png");
   });

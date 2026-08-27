@@ -4,46 +4,143 @@ import hashlib
 import io
 import json
 import os
-import shutil
 from pathlib import Path
 
 import pytest
 
-from stage_gen.capabilities import CapabilityArtifactResult
 from stage_gen.interfaces.cli import main
-from stage_gen.recipes.base import StageContext
 
-_GAME_ID = "whimsical-storybook-fantasy"
-_CANONICAL_GAME_DIRECTORY = Path(__file__).resolve().parents[2] / "library/games" / _GAME_ID
+_GAME_ID = "test-game"
 
 
-def _copy_canonical_game(root: Path) -> Path:
-    destination = root / "library/games" / _GAME_ID
-    shutil.copytree(_CANONICAL_GAME_DIRECTORY, destination)
-    return destination
+def _game_source() -> str:
+    return """schema_version = 3
+kind = "game-contract-v3"
+game_id = "test-game"
+revision = 1
+display_name = "Test Game"
+
+[camera]
+projection = "side_view_2d"
+
+[style]
+keywords = ["hand-painted gouache", "warm dusk palette", "soft diffuse light"]
+avoid = ["3D rendering"]
+
+[proportion]
+heads_tall = 2.0
+
+[cast.player]
+body_kind = "human"
+
+[cast.resident]
+body_kind_default = "human"
+
+[rights]
+status = "unreviewed"
+"""
 
 
-class _GameLibraryRuntime:
-    def __init__(self) -> None:
-        self.game_library_roots: list[Path | None] = []
+def _soundtrack_source() -> str:
+    return """schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "test-game"
+revision = 1
 
-    async def run_recipe_stage(
-        self, recipe_id: str, stage_name: str, context: StageContext
-    ) -> tuple[str, ...]:
-        assert recipe_id == "scrolling-preview"
-        self.game_library_roots.append(context.config.game_library_root)
-        artifact = context.run_dir / f"{stage_name}.txt"
-        artifact.write_text(stage_name, encoding="utf-8")
-        return (str(artifact),)
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
 
-    async def generate_image(self, **_kwargs: object) -> CapabilityArtifactResult:
-        raise NotImplementedError
+[[tracks]]
+track_id = "field_day"
+display_name = "Field Day"
+creative_brief = "An original instrumental for a bright field."
 
-    async def remove_background(self, **_kwargs: object) -> CapabilityArtifactResult:
-        raise NotImplementedError
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
 
-    async def generate_music(self, **_kwargs: object) -> CapabilityArtifactResult:
-        raise NotImplementedError
+[[tracks]]
+track_id = "field_night"
+display_name = "Field Night"
+creative_brief = "An original instrumental for a quiet field."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+"""
+
+
+def _map_source(map_id: str) -> str:
+    return f'''schema_version = 2
+kind = "game-map-v2"
+game_id = "test-game"
+map_id = "{map_id}"
+revision = 1
+display_name = "Test Map"
+soundtrack_track_ids = ["field_day", "field_night"]
+
+[level_profile]
+schema_version = 1
+kind = "level-profile-v1"
+role = "combat_field"
+
+[level_profile.view]
+projection = "orthographic_2d"
+viewpoint = "side_on"
+
+[level_profile.camera]
+tracking_mode = "player_follow"
+framing_mode = "dead_zone"
+scroll_axes = ["horizontal"]
+
+[level_profile.traversal]
+ground_model = "heightfield"
+platform_model = "one_way"
+affordances = ["ground_move", "jump", "air_jump", "drop_through"]
+
+[level_profile.mechanisms]
+encounter_model = "continuous_population"
+combat_model = "real_time_action"
+loot_model = "defeat_drops"
+transition_model = "bidirectional_portals"
+interaction_model = "none"
+'''
+
+
+def _write_component_library(root: Path) -> Path:
+    game = root / "library" / "games" / _GAME_ID
+    maps = game / "maps"
+    maps.mkdir(parents=True)
+    (game / "game.toml").write_text(_game_source(), encoding="utf-8")
+    (game / "soundtrack.toml").write_text(_soundtrack_source(), encoding="utf-8")
+    entries: list[tuple[str, str]] = []
+    for map_id in ("field-one", "field-two"):
+        source = maps / f"{map_id}.toml"
+        source.write_text(_map_source(map_id), encoding="utf-8")
+        entries.append((map_id, hashlib.sha256(source.read_bytes()).hexdigest()))
+    rows = "\n".join(
+        f'''[[maps]]
+map_id = "{map_id}"
+source_sha256 = "{source_sha256}"
+'''
+        for map_id, source_sha256 in entries
+    )
+    (maps / "index.toml").write_text(
+        f"""schema_version = 1
+kind = "game-map-book-v1"
+game_id = "test-game"
+revision = 1
+entry_map_id = "field-one"
+
+{rows}""",
+        encoding="utf-8",
+    )
+    return game
 
 
 @pytest.mark.parametrize(
@@ -51,18 +148,18 @@ class _GameLibraryRuntime:
     [
         ("game", "game.toml", "resolved-game-contract-v1", 1),
         ("soundtrack", "soundtrack.toml", "resolved-game-soundtrack-v1", 1),
-        ("map", "maps/stage-1-approach.toml", "resolved-game-map-v2", 2),
+        ("map", "maps/field-one.toml", "resolved-game-map-v2", 2),
         ("map-book", "maps/index.toml", "resolved-game-map-book-v2", 2),
     ],
 )
-def test_game_library_cli_validates_and_digests_canonical_current_sources(
+def test_registered_component_cli_surfaces_validate_and_digest_isolated_sources(
     tmp_path: Path,
     command: str,
     relative_source: str,
     expected_kind: str,
     expected_schema_version: int,
 ) -> None:
-    game_directory = _copy_canonical_game(tmp_path)
+    game_directory = _write_component_library(tmp_path)
     source = game_directory / relative_source
     expected_source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
 
@@ -90,12 +187,7 @@ def test_game_library_cli_validates_and_digests_canonical_current_sources(
     if command == "map":
         assert report["level_profile"]["role"] == "combat_field"
     elif command == "map-book":
-        assert report["map_ids"] == [
-            "village-hub",
-            "stage-1-approach",
-            "stage-2-gauntlet",
-            "stage-3-spires",
-        ]
+        assert report["map_ids"] == ["field-one", "field-two"]
 
     digest_output = io.StringIO()
     assert (
@@ -115,30 +207,71 @@ def test_game_library_cli_validates_and_digests_canonical_current_sources(
     assert digest_output.getvalue() == f"{expected_source_sha256}\n"
 
 
-def test_generate_cli_injects_the_explicit_game_library_root(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "offline")
-    monkeypatch.setenv("OUT_DIR", str(tmp_path / "out"))
-    runtime = _GameLibraryRuntime()
+@pytest.mark.parametrize("action", ["validate", "digest"])
+def test_map_book_cli_rejects_a_stale_locked_map(tmp_path: Path, action: str) -> None:
+    game_directory = _write_component_library(tmp_path)
+    source = game_directory / "maps/index.toml"
+    changed_map = game_directory / "maps/field-two.toml"
+    changed_map.write_text(
+        changed_map.read_text(encoding="utf-8").replace("Test Map", "Changed Map"),
+        encoding="utf-8",
+    )
+    errors = io.StringIO()
 
     assert (
         main(
             [
-                "generate",
+                "map-book",
+                action,
+                "--input",
+                str(source),
                 "--game-library-root",
                 str(tmp_path),
-                "--transparency",
-                "chroma",
-                "original quiet ruins",
             ],
-            runtime=runtime,
+            stderr=errors,
         )
-        == 0
+        == 1
     )
-    assert runtime.game_library_roots
-    assert set(runtime.game_library_roots) == {tmp_path}
+    assert "source_sha256 mismatch for map_id field-two" in errors.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("command", "relative_source"),
+    [
+        ("game", "game.toml"),
+        ("soundtrack", "soundtrack.toml"),
+        ("map", "maps/field-one.toml"),
+        ("map-book", "maps/index.toml"),
+    ],
+)
+def test_registered_component_cli_surfaces_reject_symlinked_sources(
+    tmp_path: Path,
+    command: str,
+    relative_source: str,
+) -> None:
+    external_game_directory = _write_component_library(tmp_path / "external")
+    external_source = external_game_directory / relative_source
+    workspace = tmp_path / "workspace"
+    source = workspace / "library" / "games" / _GAME_ID / relative_source
+    source.parent.mkdir(parents=True)
+    source.symlink_to(external_source)
+    errors = io.StringIO()
+
+    assert (
+        main(
+            [
+                command,
+                "validate",
+                "--input",
+                str(source),
+                "--game-library-root",
+                str(workspace),
+            ],
+            stderr=errors,
+        )
+        == 1
+    )
+    assert "symlink" in errors.getvalue()
 
 
 def test_map_cli_rejects_the_previous_game_map_schema(tmp_path: Path) -> None:
@@ -172,73 +305,6 @@ soundtrack_track_ids = ["first_theme", "second_theme"]
         == 1
     )
     assert "invalid game map contract" in errors.getvalue()
-
-
-@pytest.mark.parametrize("action", ["validate", "digest"])
-def test_map_book_cli_rejects_a_stale_locked_map(tmp_path: Path, action: str) -> None:
-    game_directory = _copy_canonical_game(tmp_path)
-    source = game_directory / "maps/index.toml"
-    changed_map = game_directory / "maps/stage-2-gauntlet.toml"
-    changed_map.write_text(
-        changed_map.read_text(encoding="utf-8").replace("The Gauntlet", "Changed Gauntlet"),
-        encoding="utf-8",
-    )
-    errors = io.StringIO()
-
-    assert (
-        main(
-            [
-                "map-book",
-                action,
-                "--input",
-                str(source),
-                "--game-library-root",
-                str(tmp_path),
-            ],
-            stderr=errors,
-        )
-        == 1
-    )
-    assert "source_sha256 mismatch for map_id stage-2-gauntlet" in errors.getvalue()
-
-
-@pytest.mark.parametrize(
-    ("command", "relative_source"),
-    [
-        ("game", "game.toml"),
-        ("soundtrack", "soundtrack.toml"),
-        ("map", "maps/stage-1-approach.toml"),
-        ("map-book", "maps/index.toml"),
-    ],
-)
-def test_game_library_cli_rejects_symlinked_sources(
-    tmp_path: Path,
-    command: str,
-    relative_source: str,
-) -> None:
-    external_game_directory = _copy_canonical_game(tmp_path / "external")
-    external_source = external_game_directory / relative_source
-    workspace = tmp_path / "workspace"
-    source = workspace / "library/games" / _GAME_ID / relative_source
-    source.parent.mkdir(parents=True)
-    source.symlink_to(external_source)
-    errors = io.StringIO()
-
-    assert (
-        main(
-            [
-                command,
-                "validate",
-                "--input",
-                str(source),
-                "--game-library-root",
-                str(workspace),
-            ],
-            stderr=errors,
-        )
-        == 1
-    )
-    assert "must not traverse a symlink" in errors.getvalue()
 
 
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:

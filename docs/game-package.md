@@ -1,11 +1,13 @@
 # Canonical prepared game package
 
-> **Implementation status:** exact-current package validation is implemented.
+> **Implementation status:** exact-current package validation, prepared execution,
+> provider-free integration, and prepared runtime consumption are implemented.
 >
 > Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
-> cross-contract validation, and repository selection are executable. Provider
-> scheduling and generation from the resolved package remain the next pipeline
-> checkpoint; successful package validation is not a generation claim.
+> cross-contract validation, repository selection, the typed scrolling DAG, and
+> `prepared-game-runtime-v4` assembly are executable. Successful package validation
+> is still authored-input truth only; it does not prove that a live run completed,
+> passed semantic review, is playable, or is approved for publication.
 
 The canonical prepared package is selected by
 [`library/games/main.toml`](../library/games/main.toml). The selector points
@@ -17,6 +19,7 @@ library/games/main.toml
 └── library/games/bellweather/game.toml
     ├── universe.md
     ├── gameplay.toml
+    ├── ui.toml
     ├── soundtrack.toml
     ├── maps/<map_id>.toml
     ├── content/{player,mobs,npcs,props,items}.toml
@@ -36,18 +39,22 @@ Only these prepared-package identities are accepted by the resolver:
 
 | Boundary | Current identity |
 | --- | --- |
-| Repository selector | `game-package-v2` |
-| Package root | `game-contract-v4` |
+| Repository selector | `game-package-v3` |
+| Package root | `game-contract-v5` |
 | Gameplay | `gameplay-contract-v1` |
-| Map generation | `game-map-v3` |
+| Map generation | `game-map-v4` |
 | Soundtrack | `game-soundtrack-v1` |
-| Player catalog | `player-content-v1` |
-| Mob catalog | `mob-content-v1` |
-| NPC catalog | `npc-content-v1` |
-| Prop catalog | `prop-content-v1` |
-| Item catalog | `item-content-v1` |
+| UI | `game-ui-v1` |
+| Player catalog | `player-content-v2` |
+| Mob catalog | `mob-content-v2` |
+| NPC catalog | `npc-content-v2` |
+| Prop catalog | `prop-content-v2` |
+| Item catalog | `item-content-v2` |
 | Sequence catalog | `game-sequence-catalog-v1` |
 | Sequence | `game-sequence-v1` |
+
+Successful provider-free integration emits only `prepared-game-runtime-v4`.
+Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In
 particular, package ingest does not reconstruct a prompt request, `WorldSpec`,
@@ -89,8 +96,9 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 - the root game identity and every member schema identity;
 - every locked source digest;
 - shared `game_id` ownership;
-- map, actor, item, prop, soundtrack, quest, effect, and sequence references;
-- map layer ordering, alpha base, ground mode, and reference closure;
+- map, actor, item, prop, UI, soundtrack, quest, effect, and sequence references;
+- map layer ordering, alpha base, ground mode, binary occupancy, ladder geometry,
+  portal endpoint support, and complete reference closure;
 - content state, facing, expression, and reference closure;
 - sequence node reachability, targets, outcomes, speakers, expressions, and effects;
 - image decoding for every selected visual reference;
@@ -101,6 +109,26 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 
 The resolver imports no provider, recipe, or composed runtime module. A
 malformed package therefore cannot perform a paid operation.
+
+## Actor motion and playback ownership
+
+Player, mob, and NPC content owns the runtime presentation of every declared motion. A motion
+entry names its semantic `state`, `playback_mode`, ordered `canonical_frame_indices`, and—only for
+timeline playback—`frames_per_second`. Supported modes are `hold`, `loop`, `once`, and
+`gameplay_driven`. Player `climb` is the sole current gameplay-driven state.
+
+This authored playback contract does not control provider sampling. The scrolling recipe currently
+requests four candidate poses for every motion state, validates and repacks four canonical frames,
+then projects the authored selection into the runtime manifest. A player idle may therefore hold
+canonical frame zero while generation still benefits from a regular four-pose request. Playback
+changes must not invalidate concept, motion, contact-sheet, or semantic-review cache identity.
+
+For the current side-view package, gameplay movement `crouch` and player motion `crouch` are two
+linked but separately owned declarations. Gameplay owns posture permission and mechanics; player
+content owns the generated visual. V1 requests four samples of one stationary, feet-planted low
+crouch and plays them as a 6 fps loop. It does not accept `crawl` as an alias. A canonical prepared
+build publishes `content/players/<player_id>/states/crouch.png`; a consumer may diagnose and show a
+visible fallback for incomplete presentation without disabling crouch mechanics.
 
 ## Canonical repository validation
 
@@ -132,12 +160,16 @@ consumer.
 ## Ownership
 
 Python under `src/stage_gen/` owns package contracts and resolution. The
-scrolling recipe will own generation from the resolved closure, and `web/`
-will remain a consumer of the resulting public manifest. Neither recipe nor
+scrolling recipe owns generation from the resolved closure, and `web/`
+is a consumer of the resulting public manifest. Neither recipe nor
 consumer may reinterpret missing authored direction.
 
 The [canonical generation pipeline](spec/game/generation-pipeline.md) owns the
 execution graph. The [map-generation contract](spec/game/map-generation-contract.md)
-owns one map's visual inputs, layers, continuity, ground, and review unit.
-`gameplay.toml` alone owns map use, spawning, transitions, encounters, loot,
-placements, interactions, quests, and effects.
+owns one map's visual inputs, layers, continuity, binary terrain, ladder
+geometry and placement, portal presentation and anchors, and review unit.
+`gameplay.toml` alone owns map use, movement permissions, transition
+relationships, spawning, encounters, loot, placements, interactions, quests,
+and effects.
+Root `ui.toml` owns generated interface presentation only; its current inventory
+panel contract is specified in [Authored game UI](spec/game/ui.md).

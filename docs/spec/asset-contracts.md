@@ -1,16 +1,18 @@
 # Scrolling-preview image asset contracts
 
-This is the recipe-specific contract for the first 2D scrolling preview:
-output dimensions, reference/layout inputs, sheet grids, and orchestration.
+This is the recipe-specific contract for 2D scrolling-preview media: current
+prepared-package outputs plus explicitly labelled legacy prompt/tag outputs,
+their dimensions, reference/layout inputs, sheet grids, and orchestration.
 It is not the global definition of `stage-gen`. Reusable components remain
 genre-, camera-, gameplay-, and engine-agnostic; this recipe supplies the
 side-view vocabulary explicitly.
 
-> **Provider note.** The image adapter uses `openai/gpt-image-2` through
-> OpenRouter. The recipe's exact canvas sizes are normalized output contracts,
-> not a claim that the provider accepts arbitrary pixel dimensions. Current
-> endpoint capabilities, alpha limitations, and deterministic normalization
-> requirements are documented in
+> **Provider note.** Current prepared native-alpha image operations use
+> `gpt-image-2` through the direct OpenAI image route. The legacy compatibility
+> path may use `openai/gpt-image-2` through OpenRouter for opaque/chroma media.
+> Exact canvas sizes are normalized output contracts, not a claim that every
+> route accepts arbitrary pixel dimensions. Current endpoint capabilities,
+> alpha behavior, and deterministic normalization requirements are documented in
 > [model-gpt-image-2.md](model-gpt-image-2.md). Revalidate every recipe contract
 > when changing models.
 
@@ -22,26 +24,30 @@ The pipeline pursues consistency, quality, and layout fidelity by giving the
 image model **only what it needs to know, in the most intuitive way** for each
 step. Three patterns combine to do this.
 
-### 1. Fan out from a single style root
+### 1. Fan out from explicit visual roots
 
-Every visible-world asset is generated downstream of one **world concept**
-image. Every subsequent call carries that concept as a **style reference**, so
-palette, brushwork, lighting, and mood stay coherent across sky, parallax
-layers, ground, characters, creatures, props, items, and the inventory panel.
-The world concept itself is the only call that is text-only — everything
-downstream always carries reference imagery.
+Prepared packages carry digest-locked authored references selected independently
+by each map, actor, catalog, and UI contract. Map layers, ground, ladder, and
+portal branches receive only their declared map references; actor motion and
+dialogue receive the accepted generated actor concept; no generated world bible
+silently becomes a universal reference.
+
+The older prompt/tag path instead generates one **world concept** image and fans
+later calls from it as a shared style reference. Sections that use filenames such
+as `concept_<tag>.png`, `ladder_<tag>.png`, or `portal_<tag>.png` describe that
+legacy path only.
 
 ### 2. Intermediate "design reference" sheets for re-used / multi-variant subjects
 
-For subjects that get rendered many times in different states or with many
-variants — the player character, every creature variant — a one-call **design
-reference** is generated first. Throughout this spec it's called the
-**concept turnaround**: a multi-view sheet (front / side / back) of the
-subject with one isolated view per cell. _Equivalent terms in the wider art pipeline:
-**model sheet**, **anatomy sheet**, **subject concept**, **turnaround sheet**._
+For subjects that get rendered many times in different states, a one-call
+**design reference** is generated first. In the current prepared path this is
+an identity concept with one complete side view and one front-three-quarter
+view. The legacy prompt/tag path instead uses a three-view **concept turnaround**
+(front / side / back). _Equivalent terms in the wider art pipeline include
+**model sheet**, **anatomy sheet**, **subject concept**, and **turnaround sheet**._
 
-Specialized generations (motion strips, hurt strips, attack strips) then take
-that turnaround as their per-subject reference. The model never has to
+Specialized generations (motion, hurt, attack, dialogue, and related strips)
+then take that path's accepted design reference as their per-subject input. The model never has to
 re-invent the subject's anatomy across calls; it always has a fixed visual
 contract for what this character / creature looks like.
 
@@ -69,9 +75,9 @@ prior 1:1** without painting the marker colours themselves. A slicer reads
 cells from the same coordinates the prior encodes, so prior and recipe share a
 single source of truth for cell geometry. The generic detection, tight-crop,
 and anchor-aligned packing boundary is defined by the
-[planned provider-neutral sprite-sheet processing contract](sprite-sheet-processing.md).
-It is not implemented in the Python core; the current recipe implements only
-its fixed character-master row composition and split.
+[sprite-sheet slicing and instance-recovery contract](sprite-sheet-processing.md).
+The Python core now implements the prepared-game alpha-component repacking subset; generic grid
+detection and semantic ownership recovery remain planned.
 
 ### Why this works
 
@@ -144,9 +150,10 @@ records source and canonical digests, stable profile id and revision, rights
 status, and canonical artifact and provenance paths. It never authorizes
 publication.
 
-Six baseline canvas sizes are used as scrolling-recipe output contracts. A
-game-directed village adds one resident-still canvas, for seven current sizes
-in that configuration:
+The legacy prompt/tag path uses six baseline canvas sizes. A game-directed
+legacy village adds one resident-still canvas, for seven sizes in that
+configuration. Current prepared outputs declare their geometry in the
+asset-specific prepared sections below instead of inheriting this table:
 
 | Canvas | Aspect | Pixel area | Used by |
 |---|---|---|---|
@@ -231,17 +238,22 @@ Every transparency-producing asset declares one run-level strategy:
 - `chroma` (explicit degraded fallback): generate an exact `#FF00FF` exterior
   and deterministically key it to alpha without calling the remover.
 
-All paths publish canonical transparent PNGs. Layout-critical sheets then use
-deterministic per-cell isolation: slice declared cells, alpha-crop each subject,
-aspect-fit it into the safe inset, clear exact gutters, and reassemble the exact
-canvas before strict byte validation. Provenance and cache evidence bind every
-source/target transform, expected semantic role/layout contract, retained raw
-byte length and SHA-256, pre-normalization hash, and canonical hash. Fixable
-one-sided gutter contact is recorded and normalized; empty cells or any
-8-connected foreground component crossing a declared cell seam remain inside
-the six-attempt provider retry. The terrain sheet first validates all 48 source cells
-against the documented positive and negative silhouette zones, then applies its
-exact 12 x 4 role mask and restores the canonical fill inset to alpha 255.
+All paths publish canonical transparent PNGs. Prepared actor, ladder, and portal
+atlases use deterministic alpha-component repacking: identify principal native-alpha
+subjects, place the required count in semantic order into exact cells, clear the
+canonical gutters, and reassemble the unchanged canvas geometry. Provenance and cache
+evidence bind every source/target transform, expected semantic role/layout contract,
+retained raw byte length and SHA-256, pre-normalization hash, and canonical hash.
+Fewer principal subjects than the contract requires fails closed; extra detached
+components are recorded because this default does not recover semantic ownership.
+
+Prepared terrain is a different topology contract. The provider produces one opaque
+grass-cap and dirt-fill material board, never an atlas. Local code detects and extracts
+the 48 cells from the packaged 13-by-5 topology-template lattice, applies its exact
+silhouettes, validates the 47 reachable 3x3-minimal masks and one transparent
+placeholder, and admits only a direct-pass canonical atlas for dynamic runtime use.
+The older tag-based `tileset-12x4-v1` path retains its own fixed-role mask and recovery
+rules; those rules do not redefine prepared terrain.
 Consumers read the manifest and load
 alpha normally; they do not infer strategy from colour. The manifest records
 the actual processor chain, so native provider alpha, background removal, and
@@ -251,16 +263,21 @@ never silently changes the selected strategy.
 
 ### Runtime publication gate
 
-Manifest completion requires a digest-bound world spec and every browser
-runtime role declared by that spec: layers, terrain, ladder, climb and other
-character states, attack, mob strips, obstacle sheets, items, inventory, and
-portals. The exact manifest V7 envelope publishes `runtime_assets` entries with
-stable `runtime_slot`, path, `provenance_path`, `alpha_expectation`, layout,
-`geometry_validation`, optional binding, and the required measured
-`scale_reference` for actor roles. Missing roles, wrong dimensions, invalid
-alpha, empty cells, painted gutters, a missing required scale reference, or a
-non-opaque tileset fill fail the manifest stage; `run.json` cannot report a
-completed recipe through a partial manifest.
+Prepared manifest completion requires the complete package-derived runtime
+closure. `prepared-game-runtime-v4` publishes every map's layers, 47-mask ground
+atlas, authored occupancy, and only the ladder or portal bundles that map declares;
+it also publishes all authored actor motions, dialogue, props, items, inventory UI,
+soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoint
+anchors remain inside their owning map record, while climb permission and transition
+relationships remain in gameplay. There is no run-global prepared ladder or portal.
+Missing required bytes, unsafe paths, invalid digests, malformed layout bindings, or
+an incomplete authored relationship fails integration before the immutable run is
+renamed into place.
+
+The older tag-based prompt recipe has a separate manifest V7 gate and its own
+run-global browser roles. Its `runtime_assets` envelope, `runtime_slot`,
+`scale_reference`, and `run.json` completion rules are legacy compatibility facts,
+not prepared-package authority.
 Canvas captures such as `gameplay-verification.png` are review evidence, not
 canonical generated assets, and are excluded from manifest publication.
 
@@ -299,11 +316,16 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
-The [canonical game-generation pipeline](game/generation-pipeline.md) owns the current top-level
-graph, conditional composition, operation counts, and execution semantics. This section summarizes
-the baseline asset phases and remains the detailed authority for the assets each phase produces.
+The [canonical game-generation pipeline](game/generation-pipeline.md) owns the current prepared
+package graph, conditional composition, operation counts, and execution semantics. Prepared
+packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
+optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
+to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v4`.
 
-Generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. The
+The wave table below documents only the older prompt/tag recipe and remains the detailed authority
+for assets produced by that legacy path.
+
+Legacy prompt generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. The
 runner executes stages sequentially. The two image waves own their internal
 fan-out, while every other stage is one local or provider-neutral operation.
 An optional Visual Content Direction compile runs at wave 0.5; omitting the one
@@ -319,7 +341,7 @@ current v1 `theme` field preserves the exact six-stage graph.
 | 4 | Split the composed player master into five fixed state rows and measure the final published bytes. | One deterministic split followed by five currently sequential structured vision measurements. | local CPU + text/vision agent |
 | 5 | Validate and write the per-tag artifact manifest; bind fallback preview music only when no authored soundtrack is present. | Single deterministic assembly after every enabled terminal stage. | local CPU |
 
-Current opt-ins add explicit nodes without changing the baseline definition:
+Legacy opt-ins add explicit nodes without changing that baseline definition:
 `game-resolve` at 0.1, `soundtrack-resolve` at 0.2, `profile-resolve` at 0.25,
 `map-book-resolve` at 0.3, `theme-compile` at 0.5, and `style-select` at 0.75.
 Village generation runs only after the mandatory artwork at waves 4.1 through
@@ -359,7 +381,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 ## World-design agent (`world_spec_<tag>.json`)
 
 > **CURRENT only.** The ratified prepared-package target removes layer planning
-> from this generated bible. `game-map-v3` authors references and layer prompts
+> from this generated bible. `game-map-v4` authors references and layer prompts
 > before ingest; see the
 > [Authored map-generation contract](game/map-generation-contract.md). Mob,
 > prop, and item migration is a separate content-contract boundary.
@@ -544,22 +566,36 @@ much to soften based on closeness-to-camera.
 
 ---
 
-## Ground tileset
+## Ground terrain atlas
 
-> **CURRENT producer and ratified target mode.** The existing
-> `tileset-12x4-v1` generation, deterministic topology mask, validation, and
-> typed material-synthesis recovery remain the initial ground implementation.
-> The target moves selection, reference binding, and authored `prompt` under
-> `[ground]` in each `game-map-v3`; it does not make runtime heightfields or
-> collision part of the map-generation source.
+> **CURRENT prepared-game mode.** `terrain-atlas-3x3-minimal-v1` uses an opaque
+> image-model material board for appearance and deterministic local topology
+> assembly, alpha, 47-mask validation, lookup, and composition. Runtime
+> occupancy, tile selection, import metadata, collision, and baked-versus-dynamic
+> policy remain consumer-owned.
 
 | | |
 |---|---|
-| **Output** | `tileset_<tag>.png` |
-| **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | Layout prior (terrain wireframe), world concept |
-| **Slicing at runtime** | 12 cols × 4 rows = 48 cells, 2 px transparent gutter per normalized cell |
-| **Material** | Inferred from world concept (grass / snow / sand / moss / leaf litter / etc.) — the generator prompt is intentionally material-agnostic |
+| **Provider output** | `maps/<map_id>/ground.raw.png` |
+| **Runtime output** | `maps/<map_id>/ground.png` plus `ground.validation.json` |
+| **Review evidence** | `maps/<map_id>/ground.evidence.png`, composed from authored occupancy |
+| **Provider canvas** | 2048 × 1152 opaque material board with an upper cap region and lower fill region; no atlas, grid, guides, alpha, or connector shapes |
+| **Canonical atlas** | 1440 × 480 RGBA; 12 cols × 4 rows; 120 × 120 cells; one transparent placeholder |
+| **Provider inputs** | Authorized map concept references and the authored ground prompt only |
+| **Local-only inputs** | Packaged topology-silhouette template and authoritative 47-mask lookup; neither is sent to the provider |
+| **Material** | The model owns cap/fill appearance only; deterministic code owns topology, alpha, packing, placeholder, and connectors |
+
+The complete topology, material-source and direct-pass thresholds, composition
+rules, slope limitation, consumer boundary, and publication status are defined
+in [tileset.md](tileset.md). The packaged mask-to-coordinate lookup is
+authoritative. Generated exploratory material boards remain unreviewed unless
+an independent semantic verdict accepts their exact bytes.
+
+### Legacy tag-based scrolling tileset
+
+The following material-synthesis description applies only to the older
+`tileset-12x4-v1` tag-based demo recipe. Prepared `game-map-v4` packages cannot
+select it.
 
 ### Tile grid spec
 
@@ -620,20 +656,40 @@ for the complete trigger and material contract.
 
 ## Runtime ladder
 
+> **Prepared map-local contract.** In `game-map-v4`, optional `[ladder]`
+> direction and placements live in the owning map. The appearance is generated
+> once per map and reused only by that map's validated placements. The older
+> prompt-only recipe may still use a run-global `ladder_<tag>.png`; it is not
+> the prepared-package authority.
+
 | | |
 |---|---|
-| **Output** | `ladder_<tag>.png` |
-| **Canvas** | 256 × 1024 |
-| **Inputs** | World concept |
-| **Wave** | 2 |
+| **Provider output** | `maps/<map_id>/ladder.raw.png` |
+| **Runtime output** | `maps/<map_id>/ladder.png` plus `ladder.validation.json` |
+| **Provider and canonical canvas** | 1024 × 1536 RGBA |
+| **Inputs** | Map-selected references and authored ladder prompt |
+| **Graph** | Map-local image generation and deterministic validation |
 
 One complete front-facing ladder uses two registered rails and evenly spaced
-rungs across most of the canvas height. A 2 px transparent border isolates it
-from neighboring geometry. Deterministic fitting preserves the full ladder;
-publication rejects an empty, boundary-touching, too-short, or implausibly
-narrow result.
+rungs across most of the canvas height. The provider source must have a transparent
+outer border, and the request forbids floor, scenery, characters, shadows, labels,
+and duplicate ladders. Native-alpha analysis must find at least one principal connected
+subject; the canonicalizer selects the largest, records any rejected extra components,
+and bottom-aligns it inside one cell with a 16-pixel clear gutter and no rescaling. It
+rejects an empty or boundary-touching result and requires the retained height to be
+between two and eight times the retained width.
+
+`ladder-4-tile-v1` places this image only where the authored binary occupancy
+contains bottom-supported terrain and an exposed upper deck exactly four cells
+above it. Image generation never invents ladder count or placement, and climb
+permission remains in `gameplay.toml`.
 
 ## Character climb strip
+
+> The prepared-package player publishes its authored `climb` motion as the same
+> 1536-by-1024, 4-by-1 native-alpha source and canonical atlas contract used by
+> other prepared motions. The smaller file below belongs only to the legacy
+> tag-based prompt recipe.
 
 | | |
 |---|---|
@@ -692,7 +748,40 @@ component, sidecar, composite digest, and prompt/reference contract.
 
 ---
 
+## Prepared actor motion atlas
+
+| | |
+|---|---|
+| **Provider output** | `content/{players,mobs}/<actor_id>/states/<state>.source.png`; NPC world motion uses `content/npcs/<npc_id>/world.source.png` |
+| **Runtime output** | Matching `.png` path without `.source` |
+| **Provider and canonical canvas** | 1536 × 1024 RGBA |
+| **Grid** | 1 row × 4 canonical source frames |
+| **Inputs** | The accepted generated actor identity concept plus the authored state |
+
+Every ordinary side-view state asks for four strict right-facing figures at one
+identity, scale, and baseline; player `climb` instead asks for four rear-facing
+figures. Native-alpha connected components are repacked into four equal canonical
+cells with a 12-pixel gutter and bottom anchor. Runtime mirrors right-facing source
+for left-facing play and never mirrors the rear-facing climb atlas.
+
+Generation sampling and runtime playback are separate contracts. The provider and
+canonicalizer always produce four source frames, while authored playback selects an
+ordered subset with `hold`, `loop`, `once`, or `gameplay_driven` semantics and a
+cadence only where the selected mode requires one.
+
+Player `crouch` is an explicit prepared state, not `crawl`. Its four generated
+figures are stationary, feet-planted phases of one low crouch with subtle balance
+or breathing variation; the Bellweather authored playback consumes all four as a
+6 fps loop. Gameplay owns the posture permission and reduced movement behavior,
+while player content owns this visual atlas.
+
+---
+
 ## Character motion master sheet
+
+> **Legacy prompt-run sheet.** Prepared packages do not request this combined
+> five-row image and do not expose `crawl` as a motion alias. They generate one
+> independent canonical 4-by-1 atlas for every authored motion state.
 
 | | |
 |---|---|
@@ -979,20 +1068,26 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 
 ## Portal pair (entry / exit)
 
+> **Prepared map-local contract.** In `game-map-v4`, optional `[portal]`
+> direction and endpoint anchors live in the owning map. The older prompt-only
+> recipe may still generate one global pair; it is not the prepared-package
+> authority.
+
 | | |
 |---|---|
-| **Output** | `portal_<tag>.png` |
-| **Canvas** | 2048 × 1024 (aspect 2:1) |
-| **Inputs** | World concept |
-| **Layout prior** | n/a (the 2:1 canvas is split down the middle at runtime — no separate prior) |
-| **Wave** | 2 |
+| **Provider output** | `maps/<map_id>/portal.raw.png` |
+| **Runtime output** | `maps/<map_id>/portal.png` plus `portal.validation.json` |
+| **Provider and canonical canvas** | 1536 × 1024 RGBA (aspect 3:2) |
+| **Inputs** | Map-selected references and authored portal prompt |
+| **Layout prior** | None; native-alpha subject recovery repacks the pair into exact halves |
+| **Graph** | Map-local image generation and deterministic two-cell validation |
 
 ### Grid spec — 1 row × 2 cells, split down the middle
 
 | Cell | Half | Role |
 |---|---|---|
-| 0 | left half (0…1024) | **Entry portal** — start-of-stage marker; calmer, slightly cooler colour temperature |
-| 1 | right half (1024…2048) | **Exit portal** — end-of-stage marker; more luminous, slightly warmer; deliberate entry advances the stage |
+| 0 | left half (0…768) | **Entry portal** — calmer, slightly cooler presentation selected by an endpoint with `role = "entry"` |
+| 1 | right half (768…1536) | **Exit portal** — more luminous, slightly warmer presentation selected by an endpoint with `role = "exit"` |
 
 Both portals share the same architectural body (gateway / shrine / arch /
 torii / standing stones / runic doorway — chosen by the model to fit the
@@ -1005,27 +1100,25 @@ matched set.
 - Each portal is **building-sized** — roughly **2× the player character's
   height** at runtime scale (`PORTAL_HEIGHT_TILES ≈ 3.6` tiles, vs.
   character `1.8` tiles).
-- Each portal is centred horizontally inside its half and occupies
-  ~70–85% of the half's height.
-- Each portal's base sits flat on a thin **green grass band** at the
-  bottom of its half — same ground-contact convention as obstacle tiles,
-  with grass tufts wrapping the foot for seamless integration.
+- Each portal is centered, bottom-aligned, and wholly isolated inside its half
+  with a 16-pixel canonical gutter. The two retained subjects must have compatible
+  height within a 1.35 ratio. Native-alpha recovery selects the two largest principal
+  subjects and records any rejected extra components.
+- The request forbids a painted floor, grass band, shadow plate, scenery, label,
+  border, character, or third portal. Ground contact comes from the endpoint's
+  authored occupancy column, not from pixels generated into the sheet.
 - The portal's open inner area (aperture / archway / doorway) is filled
   with a soft glow / mist / shimmer / rune fill — kept inside the
-  architecture's frame, hard-edged against the surrounding strategy background.
+  architecture's frame, hard-edged against the transparent exterior.
 
 ### Runtime usage
 
-The runtime slices the 2:1 sheet into two halves, alpha-bbox-crops each
-half, scales both to the portal target height, and places the entry near
-world-start (a few columns in) and the exit near world-end. Overlapping a
-portal mouth shows its prompt; a fresh Up or W press enters it. The press is
-edge-triggered, so contact or a held key cannot cause an unintended transition.
-
-The same pair is reused across every map in the run. The map book and its Level
-Profiles own order and semantics, while the web adapter selects the known
-heightmap, platform graph, population, fixture, and obstacle behavior for that
-map identity.
+The runtime addresses the canonical 3:2 canvas as two equal horizontal cells and
+selects the entry or exit cell declared by each map endpoint. It places that
+cell at the endpoint's `normalized_x` on supported authored occupancy. Portal
+contact, prompts, edge-triggered input, and travel execution are consumer
+behavior. `gameplay.toml` transition relationships resolve the endpoint's
+stable `anchor`; visual role never implies a destination.
 
 ---
 

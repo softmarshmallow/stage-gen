@@ -95,6 +95,7 @@ Authored game material lives under one confined game identity:
 library/games/<game_id>/
 ├── game.toml
 ├── gameplay.toml
+├── ui.toml
 ├── soundtrack.toml
 ├── maps/
 │   └── <map_id>.toml
@@ -165,6 +166,13 @@ Sprite-sheet extraction, alignment, and packing remain generic media operations.
 The game or recipe supplies motion meaning, frame ordering, view requirements,
 and acceptance criteria.
 
+The prepared side-view vocabulary distinguishes capability from presentation.
+`gameplay.toml` movement `crouch` authorizes the low player posture and its
+movement/collision effects. Player-content motion `crouch` supplies that
+posture's artwork. In V1 it means a stationary, on-both-feet crouch loop with
+subtle balance or breathing phases; it does not mean crawl locomotion. `crawl`
+is not an accepted alias at either contract boundary.
+
 ### Sequences
 
 Sequences author control flow across presentation, cast, motion, gameplay, and
@@ -199,16 +207,28 @@ Gameplay may require presentation and motion capabilities through explicit
 references. It MUST NOT silently manufacture values absent from the current
 authored contract.
 
+### UI presentation
+
+Root `ui.toml` owns game-global interface appearance, authored visual references,
+generation prompts, layout identities, and alpha policies. It does not own
+inventory capacity, contents, item behavior, input, or visibility state; those
+remain gameplay semantics in `gameplay.toml`.
+
+The current inventory-panel shape is defined by the
+[Authored game UI contract](spec/game/ui.md). Future nine-slice or additional UI
+roles extend that presentation contract without moving gameplay rules into it.
+
 ### Content catalogs
 
 Maps and soundtracks are sibling contracts under the same game identity. A map
-is one compound visual-generation contract: it owns its image-reference
-closure, view and continuity envelope, ordered layer plan, ground-generation
-mode, and whole-map review unit. A soundtrack owns tracks. Neither owns
-gameplay flow merely because the same consumer uses it.
+is one compound map-generation contract: it owns its image-reference closure,
+view and continuity envelope, ordered layer plan, ground-generation mode,
+binary terrain occupancy, ladder geometry and placement, portal presentation
+and endpoint anchors, and whole-map review unit. A soundtrack owns tracks.
+Neither owns gameplay flow merely because the same consumer uses it.
 
 `game.toml` catalogs and digest-locks the maps belonging to the package.
-`gameplay.toml` references them by durable `map_id`. The canonical target map
+`gameplay.toml` references them by durable `map_id`. The canonical current map
 shape is the [Authored map-generation contract](spec/game/map-generation-contract.md).
 
 ### Consumer bindings
@@ -247,9 +267,11 @@ does not by itself define a core game contract.
 6. **Sequence control is explicit.** Dialogue, branches, camera shots, actor
    blocking, player-agency changes, skips, and outcomes are authored semantics,
    not array-order or consumer-side inference.
-7. **Map generation is not map usage.** A map owns referenced visual inputs,
-   layer composition, ground direction, and review. Gameplay owns entry,
-   transitions, spawning, interactions, and other use of that map.
+7. **Map composition is not map usage.** A map owns referenced visual inputs,
+   layer composition, binary terrain, ladder geometry and placement, portal
+   presentation and anchors, ground direction, and review. Gameplay owns entry,
+   movement permission, transition relationships, spawning, interactions, and
+   other use of that map.
 8. **Recipes fail before paid generation.** Unsupported profiles or incoherent
    cross-contract references are rejected during local resolution.
 9. **Consumers fail closed.** A consumer requires the exact current contract
@@ -270,9 +292,10 @@ does not by itself define a core game contract.
 - Authored sources and generated projections must match their exact current
   schema version and kind. Validators reject every other identity rather than
   upgrading or translating it.
-- The current closure is `game-contract-v3`, `game-soundtrack-v1`,
-  `game-map-book-v1` containing only `game-map-v2` sources, and scrolling
-  manifest V7 with soundtrack and map-book projection V2.
+- The current prepared closure uses repository selector `game-package-v3`, root
+  `game-contract-v5`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v4`,
+  `game-soundtrack-v1`, V2 actor/content catalogs, and V1 sequence contracts.
+  Provider-free integration emits only `prepared-game-runtime-v4`.
 - Subsystems such as population, motion, sequences, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
@@ -284,15 +307,15 @@ does not by itself define a core game contract.
 
 | Contract | Authority |
 | --- | --- |
-| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v3` fields, vocabulary, validation, binding, and manifest V7 projection |
+| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v5` package-root fields, vocabulary, validation, and binding |
 | [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
-| [Authored map-generation contract](spec/game/map-generation-contract.md) | Ratified TARGET `game-map-v3` reference closure, layer and ground ownership, validation, review, cache, and usage boundary |
+| [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v4` references, layers, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |
-| [Authored game maps](game-maps.md) | CURRENT executable `game-map-v2` and map-book behavior until the exact-current cutover |
+| [Authored game maps](game-maps.md) | Exact-current `game-map-v4` package placement, ownership summary, and runtime projection |
 | [Authored game soundtracks](game-soundtrack.md) | Game-global track catalog and generation binding |
-| [Sprite-sheet processing](spec/sprite-sheet-processing.md) | Planned provider-neutral grid detection, extraction, alignment, and packing |
+| [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) | Implemented alpha-component repacking default, known loss modes, and planned geometry and ownership recovery |
 | [Generated-media publication](generated-media-publication.md) | Rights review and repository publication gates |
 
 ## Non-goals

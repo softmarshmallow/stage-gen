@@ -1,4 +1,5 @@
 import type { RuntimeArtifact } from "@/lib/runtime/prepared-manifest";
+import { INVENTORY_GRID_4X2_V1 } from "@/lib/runtime/inventory-layout";
 
 const HASH = "a".repeat(64);
 
@@ -16,20 +17,26 @@ function artifact(path: string, mediaType = "image/png"): RuntimeArtifact {
 export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   const background = artifact("maps/village/background.png");
   const ground = artifact("maps/village/ground.png");
+  const portal = artifact("maps/village/portal.png");
   const playerConcept = artifact("content/player/concept.png");
   const playerIdle = artifact("content/player/states/idle.png");
+  const playerCrouch = artifact("content/player/states/crouch.png");
   const playerDialogue = artifact("content/player/dialogue.png");
+  const inventoryPanel = artifact("ui/inventory_panel.png");
   const artifacts = [
     background,
     ground,
+    portal,
     playerConcept,
     playerIdle,
+    playerCrouch,
     playerDialogue,
+    inventoryPanel,
   ];
 
   return {
-    schema_version: 1,
-    kind: "prepared-game-runtime-v1",
+    schema_version: 4,
+    kind: "prepared-game-runtime-v4",
     game_id: "prepared_fixture",
     revision: 1,
     display_name: "Prepared Fixture",
@@ -54,7 +61,19 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
             asset: background,
           },
         ],
-        ground: { mode: "tileset-12x4-v1", asset: ground },
+        ground: {
+          mode: "terrain-atlas-3x3-minimal-v1",
+          occupancy: ["0".repeat(20), "1".repeat(20)],
+          asset: ground,
+        },
+        portal: {
+          mode: "portal-pair-1x2-v1",
+          asset: portal,
+          endpoints: [
+            { anchor: "west_gate", normalized_x: 0.1, role: "entry" },
+            { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
+          ],
+        },
       },
     ],
     player: {
@@ -67,7 +86,25 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
           runtime_mirror: true,
           columns: 4,
           rows: 1,
+          source_frame_count: 4,
+          playback: {
+            mode: "hold",
+            canonical_frame_indices: [0],
+          },
           asset: playerIdle,
+        },
+        crouch: {
+          source_facing: "right",
+          runtime_mirror: true,
+          columns: 4,
+          rows: 1,
+          source_frame_count: 4,
+          playback: {
+            mode: "loop",
+            canonical_frame_indices: [0, 1, 2, 3],
+            frames_per_second: 6,
+          },
+          asset: playerCrouch,
         },
       },
       dialogue: {
@@ -82,6 +119,12 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
     npcs: [],
     props: [],
     items: [],
+    ui: {
+      inventory_panel: {
+        ...INVENTORY_GRID_4X2_V1,
+        asset: inventoryPanel,
+      },
+    },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },
       tracks: [],

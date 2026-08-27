@@ -14,7 +14,7 @@ function gameplayFixture(): Record<string, unknown> {
     entry_map_id: "village-map",
     entry_spawn_id: "village_start",
     navigation: {
-      allowed_movements: ["move_left", "move_right", "jump", "climb"],
+      allowed_movements: ["move_left", "move_right", "jump", "crouch", "climb"],
       logical_world_wrap: false,
       fall_recovery: "last_safe_ground",
     },
@@ -186,12 +186,24 @@ function manifestFixture(): Record<string, unknown> {
         role: "safe_village_hub",
         hostile_population_enabled: false,
         track_ids: ["village_theme"],
+        portal: {
+          endpoints: [
+            { anchor: "west_gate", normalized_x: 0.1, role: "entry" },
+            { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
+          ],
+        },
       },
       {
         map_id: "road-map",
         role: "scrolling_hunting_route",
         hostile_population_enabled: true,
         track_ids: ["road_theme", "boss_theme"],
+        portal: {
+          endpoints: [
+            { anchor: "west_gate", normalized_x: 0.1, role: "entry" },
+            { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
+          ],
+        },
       },
     ],
     player: { player_id: "hero" },
@@ -358,6 +370,29 @@ describe("gameplay-contract-v1 prepared runtime boundary", () => {
     records(trackOrder.maps)[1]!.track_ids = ["boss_theme", "road_theme"];
     expect(() => assertFixtureClosure(trackOrder)).toThrow(
       "gameplay.map_uses[1].track_ids does not match the prepared manifest",
+    );
+  });
+
+  test("requires gameplay spawn and transition anchors to close over map portals", () => {
+    const missingSpawnPortal = manifestFixture();
+    const village = records(missingSpawnPortal.maps)[0]!;
+    records(child(village, "portal").endpoints).shift();
+    expect(() => assertFixtureClosure(missingSpawnPortal)).toThrow(
+      "gameplay.spawns[0].anchor does not resolve to a map portal endpoint",
+    );
+
+    const divergentSpawn = manifestFixture();
+    const road = records(divergentSpawn.maps)[1]!;
+    records(child(road, "portal").endpoints)[0]!.normalized_x = 0.2;
+    expect(() => assertFixtureClosure(divergentSpawn)).toThrow(
+      "gameplay.spawns[1].normalized_x does not match its map portal endpoint",
+    );
+
+    const missingTransitionPortal = manifestFixture();
+    const sourceMap = records(missingTransitionPortal.maps)[0]!;
+    records(child(sourceMap, "portal").endpoints).pop();
+    expect(() => assertFixtureClosure(missingTransitionPortal)).toThrow(
+      "gameplay.transitions[0].from_anchor does not resolve to a map portal endpoint",
     );
   });
 

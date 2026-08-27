@@ -271,7 +271,7 @@ function assertFiniteInteger(value: number, label: string): void {
 }
 
 function assertStableId(value: string, label: string): void {
-  if (!/^[a-z][a-z0-9-]{0,63}$/.test(value)) {
+  if (!/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/.test(value) || value.length > 96) {
     throw new Error(`${label} must be a stable lowercase id`);
   }
 }
@@ -1134,6 +1134,19 @@ export function resolveTerrainWalk(input: Readonly<{
     });
   }
   return unblocked;
+}
+
+export type CrouchMovementMode = "slow" | "stationary";
+
+/** Resolve grounded horizontal intent under the selected crouch semantics. */
+export function resolveCrouchHorizontalVelocity(input: Readonly<{
+  velocity: number;
+  mode: CrouchMovementMode;
+}>): number {
+  if (!Number.isFinite(input.velocity)) {
+    throw new Error("crouch horizontal velocity must be finite");
+  }
+  return input.mode === "stationary" ? 0 : input.velocity * 0.4;
 }
 
 export type JumpKind = "ground" | "air" | "none";

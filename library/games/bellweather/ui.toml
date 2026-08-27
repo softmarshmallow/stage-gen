@@ -1,0 +1,19 @@
+schema_version = 1
+kind = "game-ui-v1"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+rights_status = "redistribution-approved"
+rights_basis = [
+  "AI-generated Bellweather cover with digest-bound provenance and visual review in the package.",
+]
+
+[inventory_panel]
+layout = "inventory_grid_4x2_v1"
+alpha_policy = "transparent_exterior_opaque_panel_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact cheerful adventurer's satchel panel in Bellweather's painted storybook style, using warm carved wood, moss-turquoise cloth, small brass corners, and restrained leaf curls. Keep all eight empty slot wells plainly readable and visually quiet so colorful item icons remain dominant."

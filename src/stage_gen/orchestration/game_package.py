@@ -57,6 +57,7 @@ from stage_gen.components.game_sequence import (
     load_game_sequence_catalog_bytes,
 )
 from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
+from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.components.gameplay_contract import (
     GameplayContract,
     GrantItemEffect,
@@ -66,8 +67,8 @@ from stage_gen.components.gameplay_contract import (
 from stage_gen.contracts.artifacts import PersistedContractModel
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
-GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 2
-GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 2
+GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 3
+GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 3
 
 _MAX_PACKAGE_FILES = 512
 _MAX_PACKAGE_FILE_BYTES = 64 * 1024 * 1024
@@ -84,8 +85,8 @@ class GamePackageValidationError(ValueError):
 
 
 class GamePackageSelector(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["game-package-v2"]
+    schema_version: Literal[3]
+    kind: Literal["game-package-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     package_ref: str
     package_sha256: str = Field(pattern=SHA256_PATTERN)
@@ -123,6 +124,7 @@ class ResolvedGamePackage:
     canonical_game_sha256: str
     game: PreparedGameContract
     gameplay: GameplayContract
+    ui: GameUi
     soundtrack: GameSoundtrack
     maps: tuple[PreparedGameMap, ...]
     player: PlayerContentCatalog
@@ -143,7 +145,7 @@ class ResolvedGamePackage:
     def identity(self) -> dict[str, object]:
         return {
             "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-            "kind": "resolved-game-package-v2",
+            "kind": "resolved-game-package-v3",
             "game_id": self.game.game_id,
             "revision": self.game.revision,
             "package_sha256": self.package_sha256,
@@ -232,7 +234,7 @@ def validate_game_package(
     return {
         **resolved.identity(),
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v2",
+        "kind": "game-package-validation-v3",
         "valid": True,
         "source_status": "current",
         "generated_status": "not_checked",
@@ -261,7 +263,7 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
     )
     return {
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v2",
+        "kind": "game-package-validation-v3",
         "valid": False,
         "source_status": "current" if source_is_current else "invalid",
         "generated_status": "not_checked",
@@ -449,6 +451,11 @@ def _resolve_captured_package(
         load_gameplay_contract_bytes,
         "invalid_gameplay_contract",
     )
+    ui = _load_locked(
+        locked(game.ui.source, game.ui.source_sha256, "game UI"),
+        load_game_ui_bytes,
+        "invalid_game_ui_contract",
+    )
     soundtrack = _load_locked(
         locked(game.soundtrack.source, game.soundtrack.source_sha256, "soundtrack"),
         lambda data: load_game_soundtrack_bytes(data, source_suffix=".toml"),
@@ -547,6 +554,13 @@ def _resolve_captured_package(
                 f"{label} reference {content_reference.reference_id}",
             )
             _validate_image(data, content_reference.source)
+    for ui_reference in ui.references:
+        data = locked(
+            ui_reference.source,
+            ui_reference.source_sha256,
+            f"UI reference {ui_reference.reference_id}",
+        )
+        _validate_image(data, ui_reference.source)
 
     _validate_cross_contracts(
         game=game,
@@ -558,6 +572,7 @@ def _resolve_captured_package(
         npcs=npcs,
         props=props,
         items=items,
+        ui=ui,
         sequence_catalog=sequence_catalog,
         sequences=sequences,
     )
@@ -586,6 +601,7 @@ def _resolve_captured_package(
         canonical_game_sha256=sha256_bytes(canonical_prepared_game_contract_json(game)),
         game=game,
         gameplay=gameplay,
+        ui=ui,
         soundtrack=soundtrack,
         maps=maps,
         player=player,
@@ -614,6 +630,7 @@ def _validate_cross_contracts(
     *,
     game: PreparedGameContract,
     gameplay: GameplayContract,
+    ui: GameUi,
     soundtrack: GameSoundtrack,
     maps: tuple[PreparedGameMap, ...],
     player: PlayerContentCatalog,
@@ -626,6 +643,7 @@ def _validate_cross_contracts(
 ) -> None:
     owned = [
         gameplay.game_id,
+        ui.game_id,
         soundtrack.game_id,
         *(entry.game_id for entry in maps),
         player.game_id,
@@ -662,6 +680,44 @@ def _validate_cross_contracts(
         *(entry.map_id for entry in gameplay.interactions),
     }
     _assert_subset(gameplay_map_refs, map_ids, "gameplay map_id")
+    maps_by_id = {entry.map_id: entry for entry in maps}
+    for spawn in gameplay.spawns:
+        game_map = maps_by_id[spawn.map_id]
+        endpoints = {
+            endpoint.anchor: endpoint
+            for endpoint in (() if game_map.portal is None else game_map.portal.endpoints)
+        }
+        endpoint = endpoints.get(spawn.anchor)
+        if endpoint is None:
+            raise GamePackageValidationError(
+                "spawn_portal_mismatch",
+                f"spawn {spawn.spawn_id} anchor does not resolve a portal endpoint on "
+                f"{spawn.map_id}",
+            )
+        if abs(endpoint.normalized_x - spawn.normalized_x) > 1e-9:
+            raise GamePackageValidationError(
+                "spawn_portal_position_mismatch",
+                f"spawn {spawn.spawn_id} normalized_x must equal its map-owned portal endpoint",
+            )
+    for transition in gameplay.transitions:
+        game_map = maps_by_id[transition.from_map_id]
+        endpoint_anchors = {
+            endpoint.anchor
+            for endpoint in (() if game_map.portal is None else game_map.portal.endpoints)
+        }
+        if transition.from_anchor not in endpoint_anchors:
+            raise GamePackageValidationError(
+                "transition_portal_mismatch",
+                f"transition {transition.transition_id} source does not resolve a map portal "
+                "endpoint",
+            )
+    if any(game_map.ladder is not None for game_map in maps) and (
+        "climb" not in gameplay.navigation.allowed_movements
+    ):
+        raise GamePackageValidationError(
+            "ladder_movement_mismatch",
+            "a map declares ladders but gameplay does not allow climb",
+        )
     hostile_map_ids = {
         entry.map_id for entry in gameplay.map_uses if entry.hostile_population_enabled
     }
@@ -719,7 +775,7 @@ def _validate_cross_contracts(
             )
 
     required_player_states = {"idle", "walk"}
-    movement_states = {"jump": "jump", "climb": "climb"}
+    movement_states = {"jump": "jump", "crouch": "crouch", "climb": "climb"}
     for movement, state in movement_states.items():
         if movement in gameplay.navigation.allowed_movements:
             required_player_states.add(state)
@@ -734,14 +790,14 @@ def _validate_cross_contracts(
         )
     _assert_subset(
         required_player_states,
-        set(player.players[0].motion_states),
+        {motion.state for motion in player.players[0].motions},
         "required player motion state",
     )
     required_mob_states = {"idle", "move", "attack", "hurt", "death"}
     for mob in mobs.mobs:
         _assert_subset(
             required_mob_states,
-            set(mob.motion_states),
+            {motion.state for motion in mob.motions},
             f"required motion state for mob {mob.mob_id}",
         )
 

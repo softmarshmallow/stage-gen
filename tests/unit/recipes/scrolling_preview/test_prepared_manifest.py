@@ -53,12 +53,51 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "sunpetal-crossing",
         "crowncrag-road",
     ]
+    assert maps[0]["ground"]["occupancy"] == package.maps[0].ground.occupancy
+    assert "ladder" not in maps[0]
+    assert maps[0]["portal"]["mode"] == "portal-pair-1x2-v1"
+    assert maps[1]["ladder"]["placements"] == [
+        {
+            "ladder_id": "bellroot_ladder",
+            "normalized_x": 0.52,
+            "bottom_surface": "terrain",
+            "rise_tiles": 4,
+        }
+    ]
+    assert maps[1]["portal"]["endpoints"][0]["anchor"] == "west_gate"
     player = result.manifest["player"]
     assert isinstance(player, dict)
+    assert player["states"]["idle"] == {
+        "source_facing": "right",
+        "runtime_mirror": True,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "playback": {"mode": "hold", "canonical_frame_indices": [0]},
+        "asset": player["states"]["idle"]["asset"],
+    }
+    assert player["states"]["crouch"] == {
+        "source_facing": "right",
+        "runtime_mirror": True,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "playback": {
+            "mode": "loop",
+            "canonical_frame_indices": [0, 1, 2, 3],
+            "frames_per_second": 6,
+        },
+        "asset": player["states"]["crouch"]["asset"],
+    }
     assert (player["dialogue"]["columns"], player["dialogue"]["rows"]) == (3, 2)
     npcs = result.manifest["npcs"]
     assert isinstance(npcs, list)
     assert all((npc["dialogue"]["columns"], npc["dialogue"]["rows"]) == (2, 2) for npc in npcs)
+    ui = result.manifest["ui"]
+    assert isinstance(ui, dict)
+    assert ui["inventory_panel"]["layout"] == "inventory_grid_4x2_v1"
+    assert ui["inventory_panel"]["alpha_policy"] == ("transparent_exterior_opaque_panel_v1")
+    assert len(ui["inventory_panel"]["slots"]) == 8
     corrected = output / corrected_path
     assert (
         hashlib.sha256(corrected.read_bytes()).hexdigest()

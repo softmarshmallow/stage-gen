@@ -537,7 +537,7 @@ implemented schema and reserves no final field layout:
 ```toml
 schema_version = 1
 kind = "game-sequence-v1"
-game_id = "whimsical-storybook-fantasy"
+game_id = "example-game"
 sequence_id = "village-gate-warning"
 revision = 1
 sequence_kind = "dialogue_sequence"
@@ -628,13 +628,13 @@ imports reviewed expression assets and ordered beats into a screen-fixed
 overlay. Its movement lock and beat cursor prove one consumer integration, not
 the general sequence contract proposed here.
 
-The current gameplay consumer accepts the dialogue-character projection only in
-manifest V7 and validates the declared block as one unit. When
-`dialogue_characters` is absent, the current text-only resident interaction may
-remain available. When the block is present but malformed, the interaction
-fails closed and does not substitute unrelated dialogue. A future declared
-sequence must either preflight its complete required projection or carry an
-explicit authored fallback node or outcome.
+The current prepared gameplay consumer accepts sequence and NPC-expression
+projections only inside `prepared-game-runtime-v4` and validates each declared
+block as one unit. An NPC exposes interaction only when gameplay binds it to a
+resolved sequence. A malformed declared sequence fails closed and does not
+substitute unrelated dialogue. A future sequence extension must either preflight
+its complete required projection or carry an explicit authored fallback node or
+outcome.
 
 The current dialogue asset recipe also receives and persists its own copy of
 caller-authored beats. A future sequence-aware recipe must instead consume a
@@ -650,10 +650,11 @@ choices, conditional branches, effects, voice synchronization, timed cues,
 shot program, checkpoint rewind, or cutscene realization. A compiler MUST refuse
 anything outside that subset instead of erasing the unsupported semantics.
 
-The current bundle and runtime shapes remain valid only as the exact manifest
-V7 projection. They MUST NOT silently acquire graph, choice, timeline, or
-cutscene semantics. A future adapter must either emit this exact current linear
-subset or fail; it cannot preserve an obsolete consumer schema.
+The current prepared sequence and runtime shapes remain valid only as the exact
+`prepared-game-runtime-v4` projection. They MUST NOT silently acquire unsupported
+shot, timeline, or cutscene semantics. A future adapter must either emit the
+exact supported subset or fail; it cannot erase authored semantics to fit a
+different consumer shape.
 
 ## Ownership boundaries
 

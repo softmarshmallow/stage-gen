@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "player-content-v1"
+schema_version = 2
+kind = "player-content-v2"
 game_id = "bellweather"
-revision = 2
+revision = 4
 
 [[references]]
 reference_id = "cover_wayfarer"
@@ -26,7 +26,64 @@ brown boots, travel satchel, and simple wooden training sword. Keep the
 presentation modest, practical, non-sexual, original, and unmistakably adult
 despite the deliberate super-deformed proportions.
 """
-motion_states = ["idle", "walk", "run", "jump", "climb", "basic_attack", "skill_cast", "hurt", "death"]
+
+[[players.motions]]
+state = "idle"
+playback_mode = "hold"
+canonical_frame_indices = [0]
+
+[[players.motions]]
+state = "walk"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[players.motions]]
+state = "run"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 14
+
+[[players.motions]]
+state = "jump"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[players.motions]]
+state = "crouch"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[players.motions]]
+state = "climb"
+playback_mode = "gameplay_driven"
+canonical_frame_indices = [0, 1, 2, 3]
+
+[[players.motions]]
+state = "basic_attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[players.motions]]
+state = "skill_cast"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 10
+
+[[players.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[players.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
 
 [players.dialogue_art]
 enabled = true

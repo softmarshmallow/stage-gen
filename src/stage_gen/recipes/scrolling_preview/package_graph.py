@@ -21,17 +21,30 @@ from stage_gen.orchestration.execution_graph import (
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import motion_source_facing
+from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    MATERIAL_SOURCE_CONTRACT_ID,
+)
+from stage_gen.resources import (
+    inventory_template_path,
+    terrain_atlas_lookup_path,
+    terrain_atlas_template_path,
+)
 
-PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v4"
+PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v8"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
 CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v2"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
 CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v1"
 CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
-CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v4"
+CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
+UI_INVENTORY_PANEL_CONTRACT_VERSION = "prepared-ui-inventory-panel-v2"
+UI_INVENTORY_PANEL_REVIEW_VERSION = "prepared-ui-inventory-panel-review-v1"
+MAP_LADDER_CONTRACT_VERSION = "prepared-map-ladder-4-tile-v1"
+MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +98,7 @@ def build_package_execution_graph(
     terminal_nodes.extend(_add_npc_nodes(builder, package_root))
     terminal_nodes.append(_add_prop_nodes(builder, package_root))
     terminal_nodes.append(_add_item_nodes(builder, package_root))
+    terminal_nodes.append(_add_ui_nodes(builder, package_root))
     terminal_nodes.extend(_add_soundtrack_nodes(builder, package_root))
 
     binding = builder.add(
@@ -93,12 +107,14 @@ def build_package_execution_graph(
         description="validate gameplay, sequence, placement, drop, and stable-ID bindings",
         operation=OperationKind.LOCAL,
         depends_on=(package_root,),
+        cache_depends_on=(),
         input_digests=(
             _object_sha256({"contract": CONTENT_BINDING_CONTRACT_VERSION}),
             *_file_digests(
                 package,
                 (
                     "gameplay.toml",
+                    *(entry.source for entry in package.game.maps),
                     "sequences/index.toml",
                     *(entry.source for entry in package.sequence_catalog.sequences),
                 ),
@@ -155,6 +171,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 description=f"generate map layer {game_map.map_id}/{layer.layer_id}",
                 operation=OperationKind.IMAGE_GENERATION,
                 depends_on=(package_root,),
+                cache_depends_on=(),
                 input_digests=input_digests,
                 outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",),
             )
@@ -177,16 +194,19 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             )
             layer_validations.append(validated.node_id)
 
+        ground_direction = game_map.ground.model_dump(mode="json", exclude={"occupancy"})
         ground = builder.add_external(
             f"map-{game_map.map_id}-ground-generate",
             domain=f"map-{game_map.map_id}",
             description=f"generate declared ground material for {game_map.map_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=(
                 map_direction,
-                _object_sha256(game_map.ground.model_dump(mode="json")),
+                _object_sha256(ground_direction),
                 *_reference_digests(references, game_map.ground.reference_ids),
+                _object_sha256({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
             ),
             outputs=(f"maps/{game_map.map_id}/ground.raw.png",),
         )
@@ -197,15 +217,85 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             operation=OperationKind.LOCAL,
             depends_on=(ground.node_id,),
             input_digests=(
-                _object_sha256(game_map.ground.model_dump(mode="json")),
-                _object_sha256({"canonicalizer": "prepared-ground-grid-v1"}),
+                _object_sha256(ground_direction),
+                _object_sha256({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
+                hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
+                hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
             ),
             outputs=(
                 f"maps/{game_map.map_id}/ground.png",
                 f"maps/{game_map.map_id}/ground.validation.json",
+                f"maps/{game_map.map_id}/ground.evidence.png",
             ),
             duration_seconds=1.5,
         )
+        presentation_validations: list[str] = []
+        if game_map.ladder is not None:
+            ladder = builder.add_external(
+                f"map-{game_map.map_id}-ladder-generate",
+                domain=f"map-{game_map.map_id}",
+                description=f"generate map-local ladder presentation for {game_map.map_id}",
+                operation=OperationKind.IMAGE_GENERATION,
+                depends_on=(package_root,),
+                cache_depends_on=(),
+                input_digests=(
+                    map_direction,
+                    _object_sha256({"contract": MAP_LADDER_CONTRACT_VERSION}),
+                    _object_sha256(game_map.ladder.model_dump(mode="json")),
+                    *_reference_digests(references, game_map.ladder.reference_ids),
+                ),
+                outputs=(f"maps/{game_map.map_id}/ladder.raw.png",),
+            )
+            ladder_validation = builder.add(
+                f"map-{game_map.map_id}-ladder-validate",
+                domain=f"map-{game_map.map_id}",
+                description=f"isolate and validate the ladder for {game_map.map_id}",
+                operation=OperationKind.LOCAL,
+                depends_on=(ladder.node_id,),
+                input_digests=(
+                    _object_sha256({"contract": MAP_LADDER_CONTRACT_VERSION}),
+                    _object_sha256(game_map.ladder.model_dump(mode="json")),
+                ),
+                outputs=(
+                    f"maps/{game_map.map_id}/ladder.png",
+                    f"maps/{game_map.map_id}/ladder.validation.json",
+                ),
+                duration_seconds=0.75,
+            )
+            presentation_validations.append(ladder_validation.node_id)
+        if game_map.portal is not None:
+            portal = builder.add_external(
+                f"map-{game_map.map_id}-portal-generate",
+                domain=f"map-{game_map.map_id}",
+                description=f"generate map-local portal pair for {game_map.map_id}",
+                operation=OperationKind.IMAGE_GENERATION,
+                depends_on=(package_root,),
+                cache_depends_on=(),
+                input_digests=(
+                    map_direction,
+                    _object_sha256({"contract": MAP_PORTAL_CONTRACT_VERSION}),
+                    _object_sha256(game_map.portal.model_dump(mode="json")),
+                    *_reference_digests(references, game_map.portal.reference_ids),
+                ),
+                outputs=(f"maps/{game_map.map_id}/portal.raw.png",),
+            )
+            portal_validation = builder.add(
+                f"map-{game_map.map_id}-portal-validate",
+                domain=f"map-{game_map.map_id}",
+                description=f"isolate and validate the portal pair for {game_map.map_id}",
+                operation=OperationKind.LOCAL,
+                depends_on=(portal.node_id,),
+                input_digests=(
+                    _object_sha256({"contract": MAP_PORTAL_CONTRACT_VERSION}),
+                    _object_sha256(game_map.portal.model_dump(mode="json")),
+                ),
+                outputs=(
+                    f"maps/{game_map.map_id}/portal.png",
+                    f"maps/{game_map.map_id}/portal.validation.json",
+                ),
+                duration_seconds=0.75,
+            )
+            presentation_validations.append(portal_validation.node_id)
         composite = builder.add(
             f"map-{game_map.map_id}-composite",
             domain=f"map-{game_map.map_id}",
@@ -225,10 +315,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             domain=f"map-{game_map.map_id}",
             description=f"review complete map composition {game_map.map_id}",
             operation=OperationKind.STRUCTURED_GENERATION,
-            depends_on=(composite.node_id,),
+            depends_on=(composite.node_id, *presentation_validations),
             input_digests=(
                 map_direction,
-                _object_sha256({"review_contract": "prepared-map-review-v3"}),
+                _object_sha256({"review_contract": "prepared-map-review-v4"}),
             ),
             outputs=(f"maps/{game_map.map_id}/review.json",),
         )
@@ -243,7 +333,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(player.model_dump(mode="json")),
+            _object_sha256(player.model_dump(mode="json", exclude={"motions"})),
             *_reference_digests(references, player.reference_ids),
         )
         concept = builder.add_external(
@@ -252,11 +342,13 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"generate identity concept for player {player.player_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=identity,
             outputs=(f"content/players/{player.player_id}/concept.png",),
         )
         validations: list[str] = []
-        for state in player.motion_states:
+        for motion in player.motions:
+            state = motion.state
             source_facing = motion_source_facing("player", state)
             generated = builder.add_external(
                 f"player-{player.player_id}-state-{state}-generate",
@@ -324,7 +416,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble complete player review board for {player.player_id}",
             operation=OperationKind.LOCAL,
             depends_on=(*validations, dialogue_validation.node_id),
-            input_digests=(_object_sha256(player.model_dump(mode="json")),),
+            input_digests=(_object_sha256(player.model_dump(mode="json", exclude={"motions"})),),
             outputs=(f"content/players/{player.player_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -355,7 +447,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(mob.model_dump(mode="json")),
+            _object_sha256(mob.model_dump(mode="json", exclude={"motions"})),
             *_reference_digests(references, mob.reference_ids),
         )
         concept = builder.add_external(
@@ -364,11 +456,13 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"generate identity concept for mob {mob.mob_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=identity,
             outputs=(f"content/mobs/{mob.mob_id}/concept.png",),
         )
         validations: list[str] = []
-        for state in mob.motion_states:
+        for motion in mob.motions:
+            state = motion.state
             source_facing = motion_source_facing("mob", state)
             generated = builder.add_external(
                 f"mob-{mob.mob_id}-state-{state}-generate",
@@ -409,7 +503,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble complete mob review board for {mob.mob_id}",
             operation=OperationKind.LOCAL,
             depends_on=tuple(validations),
-            input_digests=(_object_sha256(mob.model_dump(mode="json")),),
+            input_digests=(_object_sha256(mob.model_dump(mode="json", exclude={"motions"})),),
             outputs=(f"content/mobs/{mob.mob_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -436,7 +530,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(npc.model_dump(mode="json")),
+            _object_sha256(npc.model_dump(mode="json", exclude={"world_motions"})),
             *_reference_digests(references, npc.reference_ids),
         )
         concept = builder.add_external(
@@ -445,6 +539,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"generate identity concept for NPC {npc.npc_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=identity,
             outputs=(f"content/npcs/{npc.npc_id}/concept.png",),
         )
@@ -461,7 +556,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
                 _object_sha256(
                     {
-                        "states": npc.world_motion_states,
+                        "states": [motion.state for motion in npc.world_motions],
                         "source_facing": motion_source_facing("npc", "idle"),
                     }
                 ),
@@ -476,7 +571,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(world.node_id,),
             input_digests=(
                 _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256(npc.world_motion_states),
+                _object_sha256([motion.state for motion in npc.world_motions]),
             ),
             outputs=(
                 f"content/npcs/{npc.npc_id}/world.png",
@@ -518,7 +613,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble NPC {npc.npc_id} review board",
             operation=OperationKind.LOCAL,
             depends_on=(world_validation.node_id, dialogue_validation.node_id),
-            input_digests=(_object_sha256(npc.model_dump(mode="json")),),
+            input_digests=(_object_sha256(npc.model_dump(mode="json", exclude={"world_motions"})),),
             outputs=(f"content/npcs/{npc.npc_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -548,6 +643,7 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
             description=f"generate isolated prop {prop.prop_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=(
                 _visual_direction_digest(builder.package),
                 _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
@@ -602,6 +698,7 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
             description=f"generate isolated item {item.item_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=(
                 _visual_direction_digest(builder.package),
                 _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
@@ -655,6 +752,7 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
             description=f"generate soundtrack track {track.track_id}",
             operation=OperationKind.MUSIC_GENERATION,
             depends_on=(package_root,),
+            cache_depends_on=(),
             input_digests=(
                 _object_sha256({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
                 _object_sha256(track.model_dump(mode="json")),
@@ -676,6 +774,56 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
         )
         terminals.append(validation.node_id)
     return terminals
+
+
+def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> str:
+    panel = builder.package.ui.inventory_panel
+    references = {entry.reference_id: entry for entry in builder.package.ui.references}
+    generated = builder.add_external(
+        "ui-inventory-panel-generate",
+        domain="ui",
+        description="generate the authored inventory panel presentation",
+        operation=OperationKind.IMAGE_GENERATION,
+        depends_on=(package_root,),
+        cache_depends_on=(),
+        input_digests=(
+            _visual_direction_digest(builder.package),
+            _object_sha256({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
+            _object_sha256(panel.model_dump(mode="json")),
+            *(references[reference_id].source_sha256 for reference_id in panel.reference_ids),
+            hashlib.sha256(inventory_template_path().read_bytes()).hexdigest(),
+        ),
+        outputs=("ui/inventory_panel.raw.png",),
+    )
+    validated = builder.add(
+        "ui-inventory-panel-validate",
+        domain="ui",
+        description="validate opaque panel and slot interiors on a transparent exterior",
+        operation=OperationKind.LOCAL,
+        depends_on=(generated.node_id,),
+        input_digests=(
+            _object_sha256({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
+            _object_sha256(panel.model_dump(mode="json")),
+        ),
+        outputs=(
+            "ui/inventory_panel.png",
+            "ui/inventory_panel.validation.json",
+            "ui/inventory_panel.evidence.png",
+        ),
+        duration_seconds=0.75,
+    )
+    return builder.add_external(
+        "ui-inventory-panel-review",
+        domain="ui",
+        description="review inventory readability, style, and filled slot surfaces",
+        operation=OperationKind.STRUCTURED_GENERATION,
+        depends_on=(validated.node_id,),
+        input_digests=(
+            _object_sha256({"contract": UI_INVENTORY_PANEL_REVIEW_VERSION}),
+            _object_sha256(panel.model_dump(mode="json")),
+        ),
+        outputs=("ui/inventory_panel.review.json",),
+    ).node_id
 
 
 class _GraphBuilder:
@@ -716,6 +864,7 @@ class _GraphBuilder:
         description: str,
         operation: OperationKind,
         depends_on: Sequence[str],
+        cache_depends_on: Sequence[str] | None = None,
         input_digests: Sequence[str],
         outputs: Sequence[str],
     ) -> ExecutionNode:
@@ -745,6 +894,7 @@ class _GraphBuilder:
             description=description,
             operation=operation,
             depends_on=depends_on,
+            cache_depends_on=cache_depends_on,
             input_digests=input_digests,
             outputs=outputs,
             provider=provider,
@@ -765,6 +915,7 @@ class _GraphBuilder:
         description: str,
         operation: OperationKind,
         depends_on: Sequence[str] = (),
+        cache_depends_on: Sequence[str] | None = None,
         input_digests: Sequence[str] = (),
         outputs: Sequence[str] = (),
         provider: str | None = None,
@@ -779,7 +930,12 @@ class _GraphBuilder:
         if node_id in self._by_id:
             raise ValueError(f"duplicate package graph node: {node_id}")
         dependency_cache_keys: list[str] = []
-        for dependency in depends_on:
+        for dependency in depends_on if cache_depends_on is None else cache_depends_on:
+            if dependency not in depends_on:
+                raise ValueError(
+                    "cache dependency must also be a scheduling dependency: "
+                    f"{node_id}->{dependency}"
+                )
             try:
                 dependency_cache_keys.append(self._by_id[dependency].cache_key)
             except KeyError as error:

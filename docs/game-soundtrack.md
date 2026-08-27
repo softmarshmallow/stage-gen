@@ -1,33 +1,32 @@
 # Authored game soundtracks
 
-> **Target ownership note.** The layout and map-owned track pools below remain
-> CURRENT. Under the ratified
-> [map-generation contract](spec/game/map-generation-contract.md), maps contain
-> no soundtrack usage. `soundtrack.toml` continues to own track generation;
-> root `gameplay.toml` owns map-specific playback and flow bindings.
+> **Contract maturity: exact-current prepared-package contract.**
 
-An authored soundtrack is one game-global catalog of stable music identities. It is separate
-from the authored [`game.toml`](spec/game/authored-contract-schema.md) contract, but it lives under the same game directory:
+The root `soundtrack.toml` is the game-global catalog of music identities,
+creative briefs, generation intent, and playback policy. Its exact identity is
+`game-soundtrack-v1`. The package root digest-locks it; gameplay references its
+tracks by `track_id`; the prepared scrolling DAG generates and validates one
+audio artifact per track.
 
-```text
-library/games/<game_id>/game.toml
-library/games/<game_id>/soundtrack.toml
-library/games/<game_id>/maps/index.toml
-library/games/<game_id>/maps/<map_id>.toml
-```
+## Ownership
 
-This contract owns music intent, generation, run-manifest projection, and shuffle playback for a
-scrolling-preview run. It remains game-global: the separate [authored map](game-maps.md) contract
-may reference stable `track_id` values, but never owns or duplicates the tracks themselves.
+| Owner | Owns |
+| --- | --- |
+| `soundtrack.toml` | Track identity, display name, creative brief, duration/loop intent, and global selection policy |
+| `game.toml` | Exact soundtrack source path and digest |
+| `gameplay.toml` | Which maps, encounters, or bosses use which track IDs |
+| Recipe | Provider/model selection, generation, decoding, validation, provenance, and cache identity |
+| Consumer | Audio unlock, volume, playback lifecycle, map changes, and deterministic selection within authored policy |
 
-## Contract
+Maps do not embed soundtrack briefs or artifacts. A map is visual/static
+composition; gameplay owns its track usage.
 
-`soundtrack.toml` uses the provider-neutral `game-soundtrack-v1` contract:
+## Current source
 
 ```toml
 schema_version = 1
 kind = "game-soundtrack-v1"
-game_id = "whimsical-storybook-fantasy"
+game_id = "example-game"
 revision = 1
 
 [playback]
@@ -35,9 +34,9 @@ selection = "shuffle"
 no_immediate_repeat = true
 
 [[tracks]]
-track_id = "sunpetal_road"
-display_name = "Sunpetal Road"
-creative_brief = "An original warm exploration instrumental with plucked strings, gentle mallets, light hand percussion, and a hopeful melody suited to a long painted road at sunset."
+track_id = "village_morning"
+display_name = "Village Morning"
+creative_brief = "An original warm instrumental for a bright social village."
 
 [tracks.generation]
 intent = "generate"
@@ -46,159 +45,60 @@ seamless_loop = true
 target_duration_seconds = 90
 
 [[tracks]]
-track_id = "village_lanterns"
-display_name = "Village Lanterns"
-creative_brief = "An original restful village instrumental with acoustic strings, mellow woodwinds, soft bells, and restrained percussion that leaves room for conversation."
+track_id = "forest_road"
+display_name = "Forest Road"
+creative_brief = "An original light-adventure instrumental for open-air exploration."
 
 [tracks.generation]
 intent = "generate"
 instrumental = true
 seamless_loop = true
-target_duration_seconds = 75
+target_duration_seconds = 105
 ```
 
-The complete repository example is
-[`library/games/whimsical-storybook-fantasy/soundtrack.toml`](../library/games/whimsical-storybook-fantasy/soundtrack.toml).
+The catalog requires two to 64 unique `lower_snake_case` track IDs. Track
+order is not semantic because V1 selection is shuffle; canonicalization sorts
+by ID. Creative text is trimmed and provider-neutral. Each generation block is
+exactly original instrumental generation, seamless-loop intent, and a target
+duration from 15 through 600 seconds.
 
-The v1 rules are deliberately narrow:
+## Package and execution
 
-- `game_id` must match the containing game directory.
-- A catalog has 2 to 64 tracks with unique, stable lower-snake-case `track_id` values. The
-  canonical form sorts by `track_id`, so authored list order is not playback order.
-- `display_name` is presentation text. `track_id` is the durable identity used in filenames,
-  cache lineage, manifests, and runtime probes. Renaming it creates a different track.
-- `creative_brief` and `[tracks.generation]` describe original, brand-neutral generation intent.
-  They do not select a provider or model.
-- V1 supports only `intent = "generate"`, shuffle selection, and the no-immediate-repeat
-  policy. `target_duration_seconds` is intent, not proof of returned duration.
+The fixed package path is `soundtrack.toml`, selected by the digest-bound
+`[soundtrack]` entry in `game.toml`. Prepared-package resolution validates the
+catalog, every gameplay track reference, and the complete closure before paid
+work.
 
-## Offline validation, digest, and request binding
+For each track, the scrolling execution graph contains:
 
-Validation and digesting read only the local authored file. They do not call Lyria or any other
-provider and do not create audio:
+```text
+soundtrack/<track_id>:generate
+  -> soundtrack/<track_id>:validate
+  -> integration
+```
+
+Generation emits `soundtrack/<track_id>.mp3`; validation emits the adjacent
+validation record. Both participate in cache and manifest closure. Provider
+choice is execution configuration and never appears in authored TOML.
+
+Provider-free integration projects playback policy and each track’s stable ID,
+display name, duration, artifact path, digest, and byte count into
+`prepared-game-runtime-v4`. The prepared consumer validates that exact closure,
+then plays the first track assigned to the current map and restarts selection
+when the map changes. Browser autoplay restrictions remain consumer behavior.
+
+## Validation
+
+Validate the complete canonical package, including soundtrack cross-references:
 
 ```sh
-uv run stage-gen soundtrack validate \
-  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
-  --game-library-root .
-uv run stage-gen soundtrack digest \
-  --input library/games/whimsical-storybook-fantasy/soundtrack.toml \
-  --game-library-root .
-```
-
-The digest command prints the SHA-256 of the exact source bytes. Put that value in a separate
-soundtrack binding in the scrolling-preview input; do not add soundtrack fields to `game.toml`:
-
-```toml
-[game]
-schema_version = 1
-kind = "game-contract-binding-v1"
-ref = "library/games/whimsical-storybook-fantasy/game.toml"
-source_sha256 = "<game-source-sha256>"
-
-[soundtrack]
-schema_version = 1
-kind = "game-soundtrack-binding-v1"
-ref = "library/games/whimsical-storybook-fantasy/soundtrack.toml"
-source_sha256 = "<soundtrack-source-sha256>"
-```
-
-The two bindings must resolve under the same `library/games/<game_id>/` directory. A soundtrack
-binding without a game binding, a path outside the fixed library shape, a symlink escape, or a
-source-digest mismatch fails before generation. See the runnable
-[`game-directed-village.toml`](../examples/scrolling-preview/game-directed-village.toml) input.
-
-## Scrolling-preview pipeline and artifacts
-
-This section is the soundtrack projection of the
-[canonical game-generation pipeline](spec/game/generation-pipeline.md). The canonical document
-owns the complete graph and current scheduling semantics.
-
-The optional soundtrack binding adds two stages. When `soundtrack` is omitted,
-the current stage graph omits both stages and manifest V7 omits the `soundtrack`
-block:
-
-```text
-game-resolve ────────────────→ soundtrack-resolve
-post-split + soundtrack-resolve → soundtrack-generate → manifest
-```
-
-`soundtrack-resolve` is local and persists the canonical catalog plus content-bound provenance:
-
-```text
-soundtrack_<tag>.json
-soundtrack_<tag>.json.meta.json
-```
-
-`soundtrack-generate` compiles each track's provider-neutral intent into an original-music
-prompt and asks the configured headless music capability for normalized MP3 output:
-
-```text
-music_<tag>_<track_id>.mp3
-music_<tag>_<track_id>.mp3.meta.json
-```
-
-Cache reuse checks the exact soundtrack source and canonical digests, track identity and digest,
-compiled prompt, configured model, normalized `audio/mpeg` facts, and provenance. Every declared
-track must have a valid artifact-sidecar pair before manifest assembly. A missing or invalid
-declared track fails the run; the approved generic fallback is not substituted into a declared
-catalog.
-
-A complete catalog always produces `game-soundtrack-manifest-v2` inside
-scrolling manifest V7. Each track entry carries its stable ID, portable audio
-and provenance paths, byte and SHA-256 identity, media type, rights status,
-loop/duration intent, and measured duration. Consumers use
-`soundtrack.tracks`; no alternate soundtrack projection is accepted.
-
-## Playback scope
-
-The browser preview applies the authored `shuffle` and `no_immediate_repeat` policy as a
-deterministic shuffle bag. Every track is selected once before refill, the next bag cannot begin
-with the track that just ended, and the runtime exposes `current_track_id` and `next_track_id`.
-Playback begins only after a player pointer or keyboard gesture.
-
-The current `game-soundtrack-manifest-v2` projection supports both current
-absence states. When `map_book` is omitted, selection uses one game-global run
-pool. When a current map-book V2 projection is present, each authored map
-supplies an allowed pool of game-global IDs. Portal travel keeps the current
-track when the destination allows it and replans the remaining shuffle bag;
-otherwise it switches immediately while preserving the no-immediate-repeat
-sentinel. The map never copies generation intent, artifact paths, or
-provenance. `seamless_loop` directs music generation; it does not itself assign
-a track to a location.
-
-## Live generation is a separate opt-in
-
-The authored contract and offline commands above are provider-free. The prepared package graph
-contains one music node per declared track, but provider-backed package execution is intentionally
-not connected at the current execution-truth checkpoint. Its provider-free operation plan is:
-
-```sh
+uv run stage-gen package validate --input library/games/bellweather
 uv run stage-gen package plan --input library/games/bellweather
 ```
 
-Before a later checkpoint authorizes live generation, re-check the current configured music model,
-operation count, expected duration, and cost. The smaller provider-envelope smoke test remains
-explicitly live:
+Contract validity does not prove listening quality. Generated audio still needs
+separate listening review before any quality or publication claim.
 
-```sh
-STAGE_GEN_RUN_LIVE=1 uv run pytest tests/live/test_music_generation.py -q
-```
-
-`STAGE_GEN_RUN_LIVE=1` gates live tests only. It neither authorizes nor triggers the normal
-generation command. Provider endpoint and current Lyria limitations are maintained in
-[Provider operations](providers.md#music-through-openrouter).
-
-## Review, listening, and publication
-
-Successful generation proves container, signature, non-silence, measured duration, and
-provenance. It does not prove musical quality, a clean loop boundary, originality, rights, or
-publication readiness.
-
-Generated tracks normally remain `unreviewed`. They may be used for local pipeline and preview
-evaluation with their exact provenance, but local playback does not upgrade their status. Any
-quality acceptance needs a separately recorded listening verdict bound to the exact audio
-digest. Repository publication additionally requires artifact-specific redistribution approval,
-an adjacent valid sidecar, inventory entry, rights evidence, reviewer and timestamp, and the
-listening facts required by the [generated-media publication gate](generated-media-publication.md).
-The general evidence rules remain authoritative in [Verification](../VERIFICATION.md).
+See [Canonical prepared game package](game-package.md) for closure rules and
+[Canonical game-generation pipeline](spec/game/generation-pipeline.md) for the
+executable DAG.

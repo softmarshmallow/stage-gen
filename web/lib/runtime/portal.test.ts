@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { portalMouthContainsFoot } from "./portal";
+import {
+  portalEndpointSurfacePosition,
+  portalMouthContainsFoot,
+} from "./portal";
 
 // A 3.6-tile portal standing on a ground column at y=592.
 const PORTAL = {
@@ -82,5 +85,31 @@ describe("portal mouth", () => {
         playerFootY: PORTAL.portalFootY,
       }),
     ).toThrow("finite");
+  });
+});
+
+describe("portal endpoint placement", () => {
+  test("bottom-anchors an explicit map-owned world position", () => {
+    expect(
+      portalEndpointSurfacePosition({
+        x: 640,
+        tilePx: 64,
+        baselineY: 674,
+        stageWidthPx: 12_800,
+        heightFn: (column) => (column === 10 ? 2 : 1),
+      }),
+    ).toEqual({ x: 640, y: 546 });
+  });
+
+  test("rejects an endpoint outside the map instead of clamping it", () => {
+    expect(() =>
+      portalEndpointSurfacePosition({
+        x: 12_801,
+        tilePx: 64,
+        baselineY: 674,
+        stageWidthPx: 12_800,
+        heightFn: () => 1,
+      }),
+    ).toThrow("outside its world");
   });
 });

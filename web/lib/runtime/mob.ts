@@ -18,6 +18,11 @@ import {
   type FixedMobHitMotion,
 } from "./fixed-motion";
 import {
+  DEATH_STRIP_FRAME_COUNT,
+  DEATH_STRIP_FRAME_RATE,
+  mobDeathPresentationPlan,
+} from "./death-presentation";
+import {
   FloatingHealthBar,
   MOB_HEALTH_BAR_STYLE,
 } from "./health-bar";
@@ -89,6 +94,8 @@ export interface MobOpts {
   aggression?: MobAggression | null;
   /** Texture key of this mob's attack strip, when the run drew one. */
   attackTextureKey?: string;
+  /** Texture key of this mob's terminal strip, when the run drew one. */
+  deathTextureKey?: string;
   /** Use explicit simulation time instead of Phaser's wall-clock tween state. */
   fixedStepMotion?: boolean;
 }
@@ -122,6 +129,7 @@ export class Mob {
   private playerX: number | null = null;
   private playerDefeated = false;
   private readonly attackAnim: string | null;
+  private readonly deathAnim: string | null;
   private opts: MobOpts;
   private spawnX: number;
   private spawnY: number;
@@ -150,6 +158,9 @@ export class Mob {
     // Null when the run drew no attack strip. The swing still happens - the wind-up, the damage
     // and the cooldown are behaviour, not artwork - it simply plays without a dedicated pose.
     this.attackAnim = opts.attackTextureKey ? `${opts.attackTextureKey}_anim` : null;
+    this.deathAnim = opts.deathTextureKey
+      ? `${opts.deathTextureKey}_anim`
+      : null;
 
     const ext = opts.wanderExtentPx ?? DEFAULT_WANDER_PX;
     this.renderEnvelope = opts.renderEnvelope;
@@ -200,6 +211,22 @@ export class Mob {
           frame: f,
         })),
         frameRate: Math.ceil((fcount * 1000) / HURT_DURATION_MS),
+        repeat: 0,
+      });
+    }
+    if (
+      this.deathAnim &&
+      opts.deathTextureKey &&
+      !scene.anims.exists(this.deathAnim) &&
+      scene.textures.exists(opts.deathTextureKey)
+    ) {
+      scene.anims.create({
+        key: this.deathAnim,
+        frames: Array.from({ length: DEATH_STRIP_FRAME_COUNT }, (_, frame) => ({
+          key: opts.deathTextureKey!,
+          frame,
+        })),
+        frameRate: DEATH_STRIP_FRAME_RATE,
         repeat: 0,
       });
     }
@@ -468,15 +495,7 @@ export class Mob {
       // lingers over a mob the player has stopped caring about is the clutter that makes
       // per-mob bars a bad idea in the first place.
       this.healthBar.setVisible(false);
-      // Fade out then destroy.
-      if (!this.opts.fixedStepMotion) {
-        this.opts.scene.tweens.add({
-          targets: this.sprite,
-          alpha: 0,
-          duration: MOB_DEATH_FADE_MS,
-          onComplete: () => this.destroy(),
-        });
-      }
+      this.startDeathPresentation();
       return hitResult;
     }
     // Non-fatal: play hurt anim once.
@@ -489,6 +508,34 @@ export class Mob {
     // same event on screen, and the mob is frozen for the hurt window that follows.
     this.syncHealthBar();
     return hitResult;
+  }
+
+  /** Play an optional terminal strip before preserving the established fade and disposal. */
+  private startDeathPresentation(): void {
+    const plan = mobDeathPresentationPlan({
+      deathAnimationAvailable:
+        this.deathAnim !== null && this.opts.scene.anims.exists(this.deathAnim),
+      fixedStepMotion: this.opts.fixedStepMotion === true,
+    });
+    if (plan.playAnimation && this.deathAnim) {
+      this.sprite.play(this.deathAnim, true);
+    }
+    if (this.opts.fixedStepMotion) return;
+    if (plan.fadeDelayMs > 0) {
+      this.opts.scene.time.delayedCall(plan.fadeDelayMs, () => this.startDeathFade());
+      return;
+    }
+    this.startDeathFade();
+  }
+
+  private startDeathFade(): void {
+    if (!this.sprite.active) return;
+    this.opts.scene.tweens.add({
+      targets: this.sprite,
+      alpha: 0,
+      duration: MOB_DEATH_FADE_MS,
+      onComplete: () => this.destroy(),
+    });
   }
 
   isAlive(): boolean {

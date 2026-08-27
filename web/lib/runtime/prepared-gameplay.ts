@@ -1,5 +1,5 @@
 // Exact browser boundary for the gameplay-contract-v1 object embedded in a
-// prepared-game-runtime-v1 manifest. Keep this projection in lockstep with
+// prepared-game-runtime-v4 manifest. Keep this projection in lockstep with
 // src/stage_gen/components/gameplay_contract/models.py.
 
 import type { PreparedRuntimeManifest } from "./prepared-manifest";
@@ -8,6 +8,7 @@ export const PREPARED_GAMEPLAY_MOVEMENTS = [
   "move_left",
   "move_right",
   "jump",
+  "crouch",
   "climb",
 ] as const;
 
@@ -345,7 +346,7 @@ export function parsePreparedGameplayContract(
     `${path}.navigation`,
   );
   const allowedMovements = Object.freeze(
-    list(rawNavigation.allowed_movements, `${path}.navigation.allowed_movements`, 1, 4).map(
+    list(rawNavigation.allowed_movements, `${path}.navigation.allowed_movements`, 1, 5).map(
       (entry, index) =>
         member(
           entry,
@@ -963,6 +964,34 @@ export function assertPreparedGameplayManifestClosure(
       manifestMap.track_ids,
       `gameplay.map_uses[${index}].track_ids`,
     );
+  }
+
+  const portalEndpoint = (mapId: string, anchor: string) =>
+    manifestMapById
+      .get(mapId)
+      ?.portal?.endpoints.find((endpoint) => endpoint.anchor === anchor);
+  for (const [index, spawn] of gameplay.spawns.entries()) {
+    const endpoint = portalEndpoint(spawn.map_id, spawn.anchor);
+    if (!endpoint) {
+      fail(
+        `gameplay.spawns[${index}].anchor`,
+        "does not resolve to a map portal endpoint",
+      );
+    }
+    if (endpoint.normalized_x !== spawn.normalized_x) {
+      fail(
+        `gameplay.spawns[${index}].normalized_x`,
+        "does not match its map portal endpoint",
+      );
+    }
+  }
+  for (const [index, transition] of gameplay.transitions.entries()) {
+    if (!portalEndpoint(transition.from_map_id, transition.from_anchor)) {
+      fail(
+        `gameplay.transitions[${index}].from_anchor`,
+        "does not resolve to a map portal endpoint",
+      );
+    }
   }
 
   const mobReferences: PreparedReference[] = [];

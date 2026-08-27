@@ -1,5 +1,5 @@
-schema_version = 1
-kind = "npc-content-v1"
+schema_version = 2
+kind = "npc-content-v2"
 game_id = "bellweather"
 revision = 3
 
@@ -45,8 +45,13 @@ role = "baker"
 body_kind = "human"
 reference_ids = ["cover_style", "mara_crumbwell_identity"]
 prompt = "An attractive sturdy adult village baker with amber eyes, freckles, a chestnut braided crown, cream blouse, coral apron, and moss-green skirt, presenting a bellflower-scored loaf in an old blue-embroidered cloth; 2.25-head-tall chibi proportions, warm confidence, and the protective resolve of a family baker who became the village's calm center."
-world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "welcoming", "amused", "concerned"]
+
+[[npcs.world_motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 5
 
 [[npcs]]
 npc_id = "elowen_thistledew"
@@ -55,8 +60,13 @@ role = "herbalist"
 body_kind = "elf"
 reference_ids = ["cover_style", "elowen_thistledew_identity"]
 prompt = "An attractive willowy adult elf herbalist with thoughtful hazel eyes, short pointed ears, a lavender-brown side braid, tailored teal field coat, cream tunic dress, practical boots, and a botanical folio holding a fresh skybell sprig; compact chibi build and the gentle private sadness of a scholar mapping a healing flower lost from her childhood valley."
-world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "delighted", "thoughtful", "concerned"]
+
+[[npcs.world_motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 5
 
 [[npcs]]
 npc_id = "brom_copperkeg"
@@ -65,8 +75,13 @@ role = "blacksmith"
 body_kind = "dwarf"
 reference_ids = ["cover_style", "brom_copperkeg_identity"]
 prompt = "A handsome broad adult dwarf blacksmith with warm copper eyes, tousled auburn hair, a neat beard with one brass clasp, rolled cream sleeves, coral neckerchief, dark teal apron, compact boots, and a small well-used hammer; sturdy 2.1-head-tall chibi silhouette with a repaired toy-windmill charm that hints he quietly fixes village children's treasures after closing."
-world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "focused", "proud", "worried"]
+
+[[npcs.world_motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 5
 
 [[npcs]]
 npc_id = "pip_pennant"
@@ -75,5 +90,10 @@ role = "waykeeper"
 body_kind = "halfling"
 reference_ids = ["cover_style", "pip_pennant_identity"]
 prompt = "An attractive nimble adult halfling waykeeper with lively sea-green eyes, tousled honey-brown hair, a short turquoise travel coat, coral scarf, map tube, compact boots, and a brass lantern carrying a tiny blue guiding flame; 2-head-tall chibi proportions, bright adventurous resolve, and a quiet longing tied to a sibling lost on an old expedition, with no insignia or readable map."
-world_motion_states = ["idle"]
 dialogue_expressions = ["neutral", "cheerful", "alert", "puzzled"]
+
+[[npcs.world_motions]]
+state = "idle"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 5

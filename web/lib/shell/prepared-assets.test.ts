@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parsePreparedRuntimeManifest } from "@/lib/runtime/prepared-manifest";
+import { INVENTORY_GRID_4X2_V1 } from "@/lib/runtime/inventory-layout";
 import { projectPreparedRuntimeAssets } from "./prepared-assets";
 
 const DIGEST = "a".repeat(64);
@@ -29,8 +30,11 @@ function preparedManifestFixture() {
     sky: image("maps/meadow/layers/sky.png"),
     foreground: image("maps/meadow/layers/flowers.png"),
     ground: image("maps/meadow/ground.png"),
+    ladder: image("maps/meadow/ladder.png"),
+    portal: image("maps/meadow/portal.png"),
     playerConcept: image("content/players/hero/concept.png"),
     playerIdle: image("content/players/hero/states/idle.png"),
+    playerCrouch: image("content/players/hero/states/crouch.png"),
     playerDialogue: image("content/players/hero/dialogue.png"),
     mobConcept: image("content/mobs/slime/concept.png"),
     mobIdle: image("content/mobs/slime/states/idle.png"),
@@ -39,11 +43,12 @@ function preparedManifestFixture() {
     prop: image("content/props/signpost.png"),
     item: image("content/items/coin.png"),
     track: audio("soundtrack/meadow.mp3"),
+    inventoryPanel: image("ui/inventory_panel.png"),
   };
   const closure = Object.values(assets).reverse();
   return {
-    schema_version: 1,
-    kind: "prepared-game-runtime-v1",
+    schema_version: 4,
+    kind: "prepared-game-runtime-v4",
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",
@@ -76,7 +81,31 @@ function preparedManifestFixture() {
             asset: assets.sky,
           },
         ],
-        ground: { mode: "tileset-12x4-v1", asset: assets.ground },
+        ground: {
+          mode: "terrain-atlas-3x3-minimal-v1",
+          occupancy: ["0000000000", "1111111111"],
+          asset: assets.ground,
+        },
+        ladder: {
+          mode: "ladder-4-tile-v1",
+          asset: assets.ladder,
+          placements: [
+            {
+              ladder_id: "meadow_ladder",
+              normalized_x: 0.5,
+              bottom_surface: "terrain",
+              rise_tiles: 4,
+            },
+          ],
+        },
+        portal: {
+          mode: "portal-pair-1x2-v1",
+          asset: assets.portal,
+          endpoints: [
+            { anchor: "west_gate", normalized_x: 0.1, role: "entry" },
+            { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
+          ],
+        },
       },
     ],
     player: {
@@ -89,7 +118,25 @@ function preparedManifestFixture() {
           runtime_mirror: true,
           columns: 4,
           rows: 1,
+          source_frame_count: 4,
+          playback: {
+            mode: "hold",
+            canonical_frame_indices: [0],
+          },
           asset: assets.playerIdle,
+        },
+        crouch: {
+          source_facing: "right",
+          runtime_mirror: true,
+          columns: 4,
+          rows: 1,
+          source_frame_count: 4,
+          playback: {
+            mode: "loop",
+            canonical_frame_indices: [0, 1, 2, 3],
+            frames_per_second: 6,
+          },
+          asset: assets.playerCrouch,
         },
       },
       dialogue: {
@@ -112,6 +159,12 @@ function preparedManifestFixture() {
             runtime_mirror: true,
             columns: 4,
             rows: 1,
+            source_frame_count: 4,
+            playback: {
+              mode: "loop",
+              canonical_frame_indices: [0, 1, 2, 3],
+              frames_per_second: 6,
+            },
             asset: assets.mobIdle,
           },
         },
@@ -127,6 +180,12 @@ function preparedManifestFixture() {
           runtime_mirror: true,
           columns: 4,
           rows: 1,
+          source_frame_count: 4,
+          playback: {
+            mode: "loop",
+            canonical_frame_indices: [0, 1, 2, 3],
+            frames_per_second: 5,
+          },
           asset: assets.npcWorld,
         },
         dialogue: {
@@ -153,6 +212,12 @@ function preparedManifestFixture() {
         asset: assets.item,
       },
     ],
+    ui: {
+      inventory_panel: {
+        ...INVENTORY_GRID_4X2_V1,
+        asset: assets.inventoryPanel,
+      },
+    },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },
       tracks: [
@@ -185,6 +250,71 @@ describe("prepared runtime asset projection", () => {
     );
   });
 
+  test("validates playback independently from source-frame sampling", () => {
+    const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
+    expect(manifest.player.states.idle?.source_frame_count).toBe(4);
+    expect(manifest.player.states.idle?.playback).toEqual({
+      mode: "hold",
+      canonical_frame_indices: [0],
+    });
+
+    const unavailable = structuredClone(preparedManifestFixture());
+    unavailable.player.states.idle.playback.canonical_frame_indices = [4];
+    expect(() => parsePreparedRuntimeManifest(unavailable)).toThrow(
+      "playback canonical frame selection is invalid",
+    );
+
+    const timedHold = structuredClone(preparedManifestFixture());
+    (
+      timedHold.player.states.idle.playback as {
+        frames_per_second?: number;
+      }
+    ).frames_per_second = 4;
+    expect(() => parsePreparedRuntimeManifest(timedHold)).toThrow(
+      "playback shape is invalid for hold",
+    );
+  });
+
+  test("parses exact map-owned terrain, ladder, and portal contracts", () => {
+    const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
+    const map = manifest.maps[0]!;
+    expect(map.ground.occupancy).toEqual([
+      "0000000000",
+      "1111111111",
+    ]);
+    expect(map.ladder?.placements[0]).toEqual({
+      ladder_id: "meadow_ladder",
+      normalized_x: 0.5,
+      bottom_surface: "terrain",
+      rise_tiles: 4,
+    });
+    expect(map.portal?.endpoints).toEqual([
+      { anchor: "west_gate", normalized_x: 0.1, role: "entry" },
+      { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
+    ]);
+    expect(Object.isFrozen(map.ground.occupancy)).toBeTrue();
+    expect(Object.isFrozen(map.ladder?.placements)).toBeTrue();
+    expect(Object.isFrozen(map.portal?.endpoints)).toBeTrue();
+
+    const occupancy = structuredClone(preparedManifestFixture());
+    occupancy.maps[0]!.ground.occupancy = ["10", "1"];
+    expect(() => parsePreparedRuntimeManifest(occupancy)).toThrow(
+      "ground.occupancy must be a 2-64 row, 8-512 column zero-one rectangle",
+    );
+
+    const ladder = structuredClone(preparedManifestFixture());
+    ladder.maps[0]!.ladder.placements[0]!.rise_tiles = 3;
+    expect(() => parsePreparedRuntimeManifest(ladder)).toThrow(
+      "ladder placement geometry is invalid",
+    );
+
+    const portal = structuredClone(preparedManifestFixture());
+    portal.maps[0]!.portal.endpoints[1]!.role = "entry";
+    expect(() => parsePreparedRuntimeManifest(portal)).toThrow(
+      "portal endpoints must have unique anchors, positions, and roles",
+    );
+  });
+
   test("projects every semantic binding exactly once in stable group order", () => {
     const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
     const groups = projectPreparedRuntimeAssets(manifest);
@@ -196,15 +326,20 @@ describe("prepared runtime asset projection", () => {
       "npc-guide",
       "props",
       "items",
+      "ui",
       "soundtrack",
     ]);
     expect(groups[0]?.assets.map((asset) => asset.path)).toEqual([
       "maps/meadow/layers/sky.png",
       "maps/meadow/ground.png",
+      "maps/meadow/ladder.png",
+      "maps/meadow/portal.png",
       "maps/meadow/layers/flowers.png",
     ]);
     expect(groups[0]?.assets.map((asset) => asset.transparent)).toEqual([
       false,
+      true,
+      true,
       true,
       true,
     ]);

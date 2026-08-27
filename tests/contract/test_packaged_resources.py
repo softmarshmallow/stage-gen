@@ -15,6 +15,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/fixtures/image_gen_templates/character_template_combined.png",
     "stage_gen/resources/fixtures/image_gen_templates/inventory_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/obstacle_template.png",
+    "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/wireframe.png",
     "stage_gen/resources/fixtures/loading.gif",
     "stage_gen/resources/fixtures/prompts.txt",
@@ -25,6 +26,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/prompting/game_vocabulary_v1.json",
     "stage_gen/resources/skills/anchor-image-style/SKILL.md",
     "stage_gen/resources/skills/compile-theme-art-direction/SKILL.md",
+    "stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json",
 }
 SDIST_RESOURCES = {f"src/{name}" for name in WHEEL_RESOURCES}
 EXPECTED_SDIST_FILES = {
@@ -133,12 +135,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             entry.filename: entry.file_size for entry in wheel.infolist() if not entry.is_dir()
         }
         _assert_archive_hygiene(wheel_entries, resource_prefix="stage_gen/resources/")
-        # The prepared-package cutover adds nine deliberate headless modules: the generic DAG,
+        # The prepared-package cutover adds eleven deliberate headless modules: the generic DAG,
         # fake verifier, recipe graph builder, thin package executor, live prepared-world handler,
         # live prepared-content handler, runtime-manifest assembler, and shared motion-source
-        # contract, plus the provider-neutral sprite repacker. Keep the ceiling exact enough to
-        # catch accidental packaging growth without treating those boundaries as bloat.
-        assert len(wheel_entries) <= 169
+        # contract, plus the provider-neutral sprite repacker and the two-file game UI contract.
+        # Keep the ceiling exact enough to catch accidental packaging growth without treating
+        # those boundaries as bloat.
+        assert len(wheel_entries) <= 175
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -165,10 +168,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # A guard against accidental bloat - a stray directory swept into the sdist - and not
         # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
         # the hardened Concept Studio core and direct native-alpha provider bring the clean
-        # source distribution to 337 files. Prepared-package execution adds nine source
-        # modules and five focused test modules; retain the existing small explicit margin.
+        # source distribution to 337 files. Prepared-package execution, the UI contract, and
+        # the terrain-atlas integration add the focused source, tests, templates, and canonical
+        # documentation and traversal-contract tests tracked here.
         # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 359
+        assert len(sdist_entries) <= 375
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
@@ -210,15 +214,19 @@ from stage_gen.resources import (
     image_style_vocabulary_path,
     image_template_dir,
     required_resource_paths,
+    terrain_atlas_lookup_path,
+    terrain_atlas_template_path,
     theme_compiler_skill_path,
 )
 from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 14
+assert len(paths) == 16
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
+assert terrain_atlas_template_path().is_file()
+assert terrain_atlas_lookup_path().is_file()
 assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
     "---\\nname: compile-theme-art-direction\\n"
 )

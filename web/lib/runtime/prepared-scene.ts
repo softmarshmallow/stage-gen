@@ -5,13 +5,15 @@ import {
   fetchJson,
   loadFrameStrip,
   loadGridSheet,
-  loadTileset,
+  loadTerrainAtlas,
+  loadTrimmedSprite,
   loadTransparentSprite,
   loadVerifiedRepeatLayer,
 } from "./assets";
 import {
   parsePreparedRuntimeManifest,
   preparedAssetUrl,
+  type MotionBinding,
   type PreparedMap,
   type PreparedRuntimeManifest,
 } from "./prepared-manifest";
@@ -20,7 +22,9 @@ import { Player } from "./player";
 import { Mob } from "./mob";
 import { ItemSystem } from "./items";
 import { InventoryHud } from "./inventory";
-import { PortalSystem, type PortalKind } from "./portal";
+import {
+  PortalSystem,
+} from "./portal";
 import { CombatTextSystem } from "./combat-text";
 import {
   FloatingHealthBar,
@@ -34,7 +38,6 @@ import {
 } from "./spawn-director";
 import {
   ladderVisualBounds,
-  selectDemoVerticalWorld,
   type VerticalWorld,
 } from "./vertical";
 import type { ScaleReference } from "./sprite-scale";
@@ -49,14 +52,30 @@ import {
   type PreparedGameplayContract,
 } from "./prepared-gameplay";
 import { projectPreparedMobPopulation } from "./prepared-population";
+import {
+  applyMotionPlayback,
+  installMotionPlayback,
+} from "./motion-playback";
+import {
+  PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
+  PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+  preparedPlayerMotionPlayback,
+  preparedPlayerStateAdapter,
+} from "./prepared-player";
+import {
+  terrainAtlasPlan,
+} from "./terrain-atlas";
+import {
+  projectPreparedTerrainWorld,
+  type PreparedTerrainWorld,
+} from "./prepared-terrain";
+import { terrainSurfaceY } from "./terrain";
+import { preparedPortalEndpointPlacements } from "./prepared-portals";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
-const WORLD_W = 12800;
-const GROUND_Y = 610;
 const TILE_PX = 64;
-const GROUND_BASELINE_Y = GROUND_Y + TILE_PX;
-const WORLD_COLUMNS = WORLD_W / TILE_PX;
+const GROUND_BASELINE_Y = 674;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
@@ -95,6 +114,24 @@ function mobHealthForRank(rank: string): number {
   return 2;
 }
 
+function motionAnimationKey(textureKey: string, state: string): string {
+  return state === "idle" ? textureKey : `${textureKey}_anim`;
+}
+
+function installPreparedMotion(
+  scene: Phaser.Scene,
+  textureKey: string,
+  state: string,
+  binding: MotionBinding,
+): void {
+  installMotionPlayback(
+    scene,
+    motionAnimationKey(textureKey, state),
+    textureKey,
+    binding.playback,
+  );
+}
+
 export class PreparedStageScene extends Phaser.Scene {
   private readonly tag: string;
   private readonly transparencyPolicy: PreviewTransparencyPolicy;
@@ -106,7 +143,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private player?: Player;
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
   private layerSprites: Phaser.GameObjects.TileSprite[] = [];
-  private groundSprites: Phaser.GameObjects.TileSprite[] = [];
+  private groundSprites: Phaser.GameObjects.GameObject[] = [];
   private props: Phaser.GameObjects.Image[] = [];
   private worldLabels: Phaser.GameObjects.Text[] = [];
   private mobs: Mob[] = [];
@@ -126,8 +163,10 @@ export class PreparedStageScene extends Phaser.Scene {
     platforms: Object.freeze([]),
     ladders: Object.freeze([]),
   });
+  private terrainWorld?: PreparedTerrainWorld;
+  private worldWidth = VIEW_W;
   private verticalSprites: Phaser.GameObjects.GameObject[] = [];
-  private readonly heights = Array.from({ length: WORLD_COLUMNS }, () => 1);
+  private heights: readonly number[] = Object.freeze([1]);
   private readonly scaleReferences = new Map<string, ScaleReference>();
   private readonly diagnostics: string[] = [];
   private questStates = new Map<string, string>();
@@ -203,6 +242,7 @@ export class PreparedStageScene extends Phaser.Scene {
       this.loadMobAssets(manifest),
       this.loadNpcAssets(manifest),
       this.loadCatalogAssets(manifest),
+      this.loadUiAssets(manifest),
       this.loadMapTextures(manifest),
     ]);
     this.installAnimations(manifest);
@@ -214,6 +254,7 @@ export class PreparedStageScene extends Phaser.Scene {
       itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
       viewW: VIEW_W,
       viewH: VIEW_H,
+      layout: manifest.ui.inventory_panel,
     });
     this.healthBar = new FloatingHealthBar(
       this,
@@ -254,26 +295,18 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private async loadPlayerAssets(manifest: PreparedRuntimeManifest): Promise<void> {
-    const runtimeKeys: Readonly<Record<string, string>> = Object.freeze({
-      idle: "character_idle",
-      walk: "character_walk",
-      run: "character_run",
-      jump: "character_jump",
-      climb: "character_climb",
-      basic_attack: "character_attack",
-      hurt: "character_hurt",
-    });
     await Promise.all(
       Object.entries(manifest.player.states).flatMap(([state, binding]) => {
-        const runtimeKey = runtimeKeys[state];
-        if (!runtimeKey) return [];
+        const adapter = preparedPlayerStateAdapter(state);
+        if (!adapter) return [];
+        const runtimeKey = adapter.texture_key;
         const url = this.url(binding.asset.path);
         return [
           this.loadPresentationOrFallback(
             loadFrameStrip(
               url,
               runtimeKey,
-              4,
+              binding.source_frame_count,
               this.textures,
               this.transparencyPolicy,
             ),
@@ -300,7 +333,7 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private async loadMobAssets(manifest: PreparedRuntimeManifest): Promise<void> {
-    const consumedStates = new Set(["idle", "hurt", "attack"]);
+    const consumedStates = new Set(["idle", "hurt", "attack", "death"]);
     await Promise.all(
       manifest.mobs.flatMap((mob) =>
         Object.entries(mob.states).flatMap(([state, binding]) => {
@@ -311,7 +344,7 @@ export class PreparedStageScene extends Phaser.Scene {
               loadFrameStrip(
                 this.url(binding.asset.path),
                 key,
-                4,
+                binding.source_frame_count,
                 this.textures,
                 this.transparencyPolicy,
               ),
@@ -334,7 +367,7 @@ export class PreparedStageScene extends Phaser.Scene {
             loadFrameStrip(
               this.url(npc.world.asset.path),
               worldKey,
-              4,
+              npc.world.source_frame_count,
               this.textures,
               this.transparencyPolicy,
             ),
@@ -391,6 +424,19 @@ export class PreparedStageScene extends Phaser.Scene {
     ]);
   }
 
+  private async loadUiAssets(manifest: PreparedRuntimeManifest): Promise<void> {
+    await this.loadPresentationOrFallback(
+      loadTransparentSprite(
+        this.url(manifest.ui.inventory_panel.asset.path),
+        "inventory",
+        this.textures,
+        this.transparencyPolicy,
+      ),
+      "inventory",
+      "inventory_panel",
+    );
+  }
+
   private async loadMapTextures(manifest: PreparedRuntimeManifest): Promise<void> {
     await Promise.all(
       manifest.maps.flatMap((map) => [
@@ -409,6 +455,34 @@ export class PreparedStageScene extends Phaser.Scene {
           );
         }),
         this.loadGroundOrFallback(map),
+        ...(map.ladder
+          ? [
+              this.loadPresentationOrFallback(
+                loadTrimmedSprite(
+                  this.url(map.ladder.asset.path),
+                  `prepared_ladder_${map.map_id}`,
+                  this.textures,
+                  this.transparencyPolicy,
+                ),
+                `prepared_ladder_${map.map_id}`,
+                "sprite",
+              ),
+            ]
+          : []),
+        ...(map.portal
+          ? [
+              this.loadPresentationOrFallback(
+                loadTransparentSprite(
+                  this.url(map.portal.asset.path),
+                  `prepared_portal_${map.map_id}`,
+                  this.textures,
+                  this.transparencyPolicy,
+                ),
+                `prepared_portal_${map.map_id}`,
+                "portal_sheet",
+              ),
+            ]
+          : []),
       ]),
     );
   }
@@ -416,22 +490,22 @@ export class PreparedStageScene extends Phaser.Scene {
   private async loadGroundOrFallback(map: PreparedMap): Promise<void> {
     const key = `prepared_ground_${map.map_id}`;
     try {
-      await loadTileset(
+      await loadTerrainAtlas(
         this.url(map.ground.asset.path),
         key,
         this.textures,
         this.transparencyPolicy,
       );
-    } catch {
-      registerPresentationFallback(
-        this.textures,
-        `${key}_continuous_fill`,
-        "sprite",
-        (message) => this.recordDiagnostic(message),
+    } catch (error) {
+      if (this.textures.exists(key)) this.textures.remove(key);
+      this.recordDiagnostic(
+        `Ground presentation for ${map.map_id} failed to load: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       registerPresentationFallback(
         this.textures,
-        `${key}_continuous_surface`,
+        `${key}_fallback`,
         "sprite",
         (message) => this.recordDiagnostic(message),
       );
@@ -449,6 +523,7 @@ export class PreparedStageScene extends Phaser.Scene {
       "character_climb",
       "character_attack",
       "character_hurt",
+      "character_death",
     ]) {
       if (!this.textures.exists(key)) {
         registerPresentationFallback(this.textures, key, "four_frame_strip", report);
@@ -462,9 +537,6 @@ export class PreparedStageScene extends Phaser.Scene {
         report,
       );
     }
-    if (!this.textures.exists("portal")) {
-      registerPresentationFallback(this.textures, "portal", "portal_sheet", report);
-    }
     if (!this.textures.exists("inventory")) {
       registerPresentationFallback(
         this.textures,
@@ -472,9 +544,6 @@ export class PreparedStageScene extends Phaser.Scene {
         "inventory_panel",
         report,
       );
-    }
-    if (!this.textures.exists("ladder")) {
-      registerPresentationFallback(this.textures, "ladder", "sprite", report);
     }
     this.scaleReferences.clear();
     for (const key of [
@@ -559,27 +628,16 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private installAnimations(manifest: PreparedRuntimeManifest): void {
     for (const mob of manifest.mobs) {
-      for (const state of ["idle", "attack"] as const) {
-        if (!mob.states[state]) continue;
+      for (const state of ["idle", "attack", "hurt", "death"] as const) {
+        const binding = mob.states[state];
+        if (!binding) continue;
         const texture = `prepared_mob_${mob.mob_id}_${state}`;
-        const animationKey = state === "attack" ? `${texture}_anim` : texture;
-        if (this.anims.exists(animationKey)) continue;
-        this.anims.create({
-          key: animationKey,
-          frames: [0, 1, 2, 3].map((frame) => ({ key: texture, frame })),
-          frameRate: state === "attack" ? 11 : 6,
-          repeat: state === "attack" ? 0 : -1,
-        });
+        installPreparedMotion(this, texture, state, binding);
       }
     }
     for (const npc of manifest.npcs) {
       const key = `prepared_npc_${npc.npc_id}_world`;
-      this.anims.create({
-        key,
-        frames: [0, 1, 2, 3].map((frame) => ({ key, frame })),
-        frameRate: 5,
-        repeat: -1,
-      });
+      installPreparedMotion(this, key, "idle", npc.world);
     }
   }
 
@@ -608,18 +666,32 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!manifest || !gameplay) return;
     const map = manifest.maps.find((entry) => entry.map_id === mapId);
     if (!map) throw new Error(`runtime transition names unknown map ${mapId}`);
+    const terrainWorld = projectPreparedTerrainWorld(
+      map,
+      TILE_PX,
+      GROUND_BASELINE_Y,
+    );
     this.loading = true;
     this.currentMap = map;
     this.clearWorld();
+    this.terrainWorld = terrainWorld;
+    this.worldWidth = terrainWorld.worldWidth;
+    this.heights = terrainWorld.heights;
+    this.verticalWorld = terrainWorld.verticalWorld;
     this.renderMap(map);
     this.installVerticalWorld(map);
     this.renderPlacements(map);
+    const startX = Phaser.Math.Clamp(
+      normalizedX * this.worldWidth,
+      TILE_PX / 2,
+      this.worldWidth - TILE_PX / 2,
+    );
     this.player = new Player({
       scene: this,
-      startX: Phaser.Math.Clamp(normalizedX * WORLD_W, TILE_PX / 2, WORLD_W - TILE_PX / 2),
-      startY: GROUND_Y,
+      startX,
+      startY: this.surfaceYAtX(startX),
       tilePx: TILE_PX,
-      worldWidthPx: WORLD_W,
+      worldWidthPx: this.worldWidth,
       baselineY: GROUND_BASELINE_Y,
       heightFn: (column) => this.heightAt(column),
       targetSpriteHeight: PLAYER_HEIGHT,
@@ -628,7 +700,11 @@ export class PreparedStageScene extends Phaser.Scene {
       maximumAirJumps: 1,
       combatEnabled: gameplay.combat.enabled,
       startingHealth: gameplay.player.starting_health,
+      motionPlayback: preparedPlayerMotionPlayback(manifest.player.states),
       scaleReferences: this.scaleReferences,
+      preserveSourceScaleStates:
+        PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+      crouchMovementMode: PREPARED_PLAYER_CROUCH_MOVEMENT_MODE,
     });
     this.items = new ItemSystem({
       scene: this,
@@ -639,7 +715,7 @@ export class PreparedStageScene extends Phaser.Scene {
     });
     this.installPortals(map);
     if (map.hostile_population_enabled) this.initializeMobPopulation(map);
-    this.cameras.main.setBounds(0, 0, WORLD_W, VIEW_H);
+    this.cameras.main.setBounds(0, 0, this.worldWidth, VIEW_H);
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 50);
     this.cameras.main.setDeadzone(300, 180);
     this.cameras.main.scrollY = 0;
@@ -701,15 +777,39 @@ export class PreparedStageScene extends Phaser.Scene {
       this.layerSprites.push(sprite);
     });
     const groundKey = `prepared_ground_${map.map_id}`;
-    const fill = this.add
-      .tileSprite(0, GROUND_Y, WORLD_W, VIEW_H - GROUND_Y, `${groundKey}_continuous_fill`)
-      .setOrigin(0, 0)
-      .setDepth(10);
-    const surface = this.add
-      .tileSprite(0, GROUND_Y - 22, WORLD_W, 30, `${groundKey}_continuous_surface`)
-      .setOrigin(0, 0)
-      .setDepth(11);
-    this.groundSprites.push(fill, surface);
+    const terrainWorld = this.terrainWorld;
+    if (!terrainWorld) {
+      throw new Error("prepared map render requires projected terrain geometry");
+    }
+    if (this.textures.exists(groundKey)) {
+      for (const cell of terrainAtlasPlan(terrainWorld.occupancy)) {
+        const sprite = this.add
+          .image(
+            cell.mapColumn * TILE_PX,
+            terrainWorld.topY + cell.mapRow * TILE_PX,
+            groundKey,
+            cell.frame,
+          )
+          .setOrigin(0, 0)
+          .setDisplaySize(TILE_PX, TILE_PX)
+          .setDepth(10);
+        this.groundSprites.push(sprite);
+      }
+    } else {
+      for (const cell of terrainAtlasPlan(terrainWorld.occupancy)) {
+        this.groundSprites.push(
+          this.add
+            .image(
+              cell.mapColumn * TILE_PX,
+              terrainWorld.topY + cell.mapRow * TILE_PX,
+              `${groundKey}_fallback`,
+            )
+            .setOrigin(0, 0)
+            .setDisplaySize(TILE_PX, TILE_PX)
+            .setDepth(10),
+        );
+      }
+    }
   }
 
   private renderPlacements(map: PreparedMap): void {
@@ -719,8 +819,9 @@ export class PreparedStageScene extends Phaser.Scene {
     for (const placement of gameplay.prop_placements.filter((entry) => entry.map_id === map.map_id)) {
       const prop = manifest.props.find((entry) => entry.prop_id === placement.prop_id);
       if (!prop) continue;
+      const x = placement.normalized_x * this.worldWidth;
       const sprite = this.add
-        .image(placement.normalized_x * WORLD_W, GROUND_Y, `prepared_prop_${prop.prop_id}`)
+        .image(x, this.surfaceYAtX(x), `prepared_prop_${prop.prop_id}`)
         .setOrigin(0.5, 1)
         .setDepth(25);
       const height = prop.prop_id.includes("stall") ? 170 : 110;
@@ -730,15 +831,22 @@ export class PreparedStageScene extends Phaser.Scene {
     for (const placement of gameplay.npc_placements.filter((entry) => entry.map_id === map.map_id)) {
       const npc = manifest.npcs.find((entry) => entry.npc_id === placement.npc_id);
       if (!npc) continue;
+      const x = placement.normalized_x * this.worldWidth;
+      const surfaceY = this.surfaceYAtX(x);
       const sprite = this.add
-        .sprite(placement.normalized_x * WORLD_W, GROUND_Y, `prepared_npc_${npc.npc_id}_world`, 0)
+        .sprite(x, surfaceY, `prepared_npc_${npc.npc_id}_world`, 0)
         .setOrigin(0.5, 1)
         .setDisplaySize(NPC_HEIGHT * 0.75, NPC_HEIGHT)
         .setDepth(35);
-      sprite.play(`prepared_npc_${npc.npc_id}_world`);
+      applyMotionPlayback(
+        sprite,
+        `prepared_npc_${npc.npc_id}_world`,
+        `prepared_npc_${npc.npc_id}_world`,
+        npc.world.playback,
+      );
       this.npcs.push({ npcId: npc.npc_id, sprite });
       const label = this.add
-        .text(sprite.x, GROUND_Y - NPC_HEIGHT - 12, npc.display_name, {
+        .text(sprite.x, surfaceY - NPC_HEIGHT - 12, npc.display_name, {
           fontFamily: "system-ui, sans-serif",
           fontSize: "15px",
           color: "#fff7dc",
@@ -752,39 +860,11 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private installVerticalWorld(map: PreparedMap): void {
-    if (!map.hostile_population_enabled) return;
-    const selection = selectDemoVerticalWorld({
-      heights: this.heights,
-      tilePixels: TILE_PX,
-      baselineY: GROUND_BASELINE_Y,
-      worldWidth: WORLD_W,
-      afterColumn: 24,
-      maximumColumnExclusive: 115,
-      layout: "ascent",
-    });
-    if (!selection) {
-      this.recordDiagnostic(`Map ${map.map_id} could not place its optional vertical route.`);
-      return;
-    }
-    this.verticalWorld = selection.world;
-    for (const platform of selection.world.platforms) {
-      const body = this.add
-        .rectangle(
-          (platform.left + platform.right) / 2,
-          platform.deckY + platform.thickness / 2,
-          platform.right - platform.left,
-          platform.thickness,
-          0x7a5432,
-          1,
-        )
-        .setDepth(22);
-      body.setStrokeStyle(3, 0xd7aa5c, 1);
-      this.verticalSprites.push(body);
-    }
-    for (const ladder of selection.world.ladders) {
+    const ladderKey = `prepared_ladder_${map.map_id}`;
+    for (const ladder of this.verticalWorld.ladders) {
       const bounds = ladderVisualBounds(ladder);
       const sprite = this.add
-        .image(ladder.centerX, bounds.bottom, "ladder")
+        .image(ladder.centerX, bounds.bottom, ladderKey)
         .setOrigin(0.5, 1)
         .setDisplaySize(bounds.width, bounds.height)
         .setDepth(23);
@@ -797,47 +877,47 @@ export class PreparedStageScene extends Phaser.Scene {
     return this.heights[index] ?? 1;
   }
 
+  private surfaceYAtX(x: number): number {
+    return terrainSurfaceY(
+      this.heightAt(x / TILE_PX),
+      TILE_PX,
+      GROUND_BASELINE_Y,
+    );
+  }
+
   private installPortals(map: PreparedMap): void {
     const gameplay = this.gameplay;
     const manifest = this.manifest;
-    if (!gameplay || !manifest) return;
-    const destinations: Record<PortalKind, number | null> = {
-      entry: null,
-      exit: null,
-    };
-    for (const transition of gameplay.transitions.filter(
-      (entry) => entry.from_map_id === map.map_id,
-    )) {
-      const kind: PortalKind = transition.from_anchor.includes("west")
-        ? "entry"
-        : "exit";
-      const index = manifest.maps.findIndex(
-        (candidate) => candidate.map_id === transition.to_map_id,
-      );
-      if (index >= 0) destinations[kind] = index;
-    }
+    if (!gameplay || !manifest || !map.portal) return;
+    const portalKey = `prepared_portal_${map.map_id}`;
+    const endpoints = preparedPortalEndpointPlacements({
+      map,
+      maps: manifest.maps,
+      transitions: gameplay.transitions,
+      worldWidth: this.worldWidth,
+      portalKey,
+    });
     this.portal = new PortalSystem({
       scene: this,
-      portalKey: "portal",
+      portalKey,
       tilePx: TILE_PX,
       baselineY: GROUND_BASELINE_Y,
       heightFn: (column) => this.heightAt(column),
-      stageWidthPx: WORLD_W,
-      destinations,
+      stageWidthPx: this.worldWidth,
+      destinations: { entry: null, exit: null },
+      endpoints,
     });
   }
 
   private transitionForPortal(
     destinationMapId: string,
-    kind: PortalKind,
+    portalId: string,
   ): PreparedGameplayContract["transitions"][number] | undefined {
     return this.gameplay?.transitions.find(
       (transition) =>
         transition.from_map_id === this.currentMap?.map_id &&
         transition.to_map_id === destinationMapId &&
-        (kind === "entry"
-          ? transition.from_anchor.includes("west")
-          : !transition.from_anchor.includes("west")),
+        transition.from_anchor === portalId,
     );
   }
 
@@ -872,6 +952,7 @@ export class PreparedStageScene extends Phaser.Scene {
       targetFrameZeroHeight: MOB_HEIGHT,
     });
     const attackKey = `prepared_mob_${spec.mob_id}_attack`;
+    const deathKey = `prepared_mob_${spec.mob_id}_death`;
     const aggression =
       spec.rank === "boss" || spec.rank === "elite"
         ? "relentless"
@@ -884,7 +965,7 @@ export class PreparedStageScene extends Phaser.Scene {
       startingHealth: mobHealthForRank(spec.rank),
       spawnCol: spawnColumn,
       tilePx: TILE_PX,
-      worldWidthPx: WORLD_W,
+      worldWidthPx: this.worldWidth,
       baselineY: GROUND_BASELINE_Y,
       heightFn: (column) => this.heightAt(column),
       wanderExtentPx,
@@ -895,6 +976,7 @@ export class PreparedStageScene extends Phaser.Scene {
       renderEnvelope,
       aggression,
       attackTextureKey: this.textures.exists(attackKey) ? attackKey : undefined,
+      deathTextureKey: this.textures.exists(deathKey) ? deathKey : undefined,
     });
   }
 
@@ -903,8 +985,23 @@ export class PreparedStageScene extends Phaser.Scene {
     const manifest = this.manifest;
     if (!gameplay || !manifest) return;
     const reservedColumns = new Set<number>([0, 1, 2, 3, 4, 5]);
-    for (let column = WORLD_COLUMNS - 6; column < WORLD_COLUMNS; column += 1) {
+    for (
+      let column = Math.max(0, this.heights.length - 6);
+      column < this.heights.length;
+      column += 1
+    ) {
       reservedColumns.add(column);
+    }
+    for (const endpoint of map.portal?.endpoints ?? []) {
+      const anchorColumn = Math.floor(
+        endpoint.normalized_x * this.heights.length,
+      );
+      for (let offset = -2; offset <= 2; offset += 1) {
+        const column = anchorColumn + offset;
+        if (column >= 0 && column < this.heights.length) {
+          reservedColumns.add(column);
+        }
+      }
     }
     for (const platform of this.verticalWorld.platforms) {
       for (
@@ -919,11 +1016,12 @@ export class PreparedStageScene extends Phaser.Scene {
       gameplay.mob_population,
       map.map_id,
       {
-        world_columns: WORLD_COLUMNS,
+        world_columns: this.heights.length,
         tile_pixels: TILE_PX,
         baseline_y: GROUND_BASELINE_Y,
         height_at_column: (column) => this.heightAt(column),
-        is_spawnable_column: (column) => !reservedColumns.has(column),
+        is_spawnable_column: (column) =>
+          !reservedColumns.has(column) && this.heightAt(column) > 0,
       },
     );
     if (projection) {
@@ -943,7 +1041,12 @@ export class PreparedStageScene extends Phaser.Scene {
         (candidate) => candidate.mob_id === encounter.mob_id,
       );
       if (mobSlot < 0) continue;
-      const mob = this.createMobAtColumn(mobSlot, Math.floor(WORLD_COLUMNS * 0.91), 96, 420);
+      const mob = this.createMobAtColumn(
+        mobSlot,
+        Math.floor(this.heights.length * 0.91),
+        96,
+        420,
+      );
       if (mob) this.mobs.push(mob);
     }
   }
@@ -1102,7 +1205,7 @@ export class PreparedStageScene extends Phaser.Scene {
     if (activation) {
       const destination = this.manifest?.maps[activation.destinationIndex];
       const transition = destination
-        ? this.transitionForPortal(destination.map_id, activation.kind)
+        ? this.transitionForPortal(destination.map_id, activation.portalId)
         : undefined;
       const spawn = gameplay.spawns.find(
         (candidate) => candidate.spawn_id === transition?.to_spawn_id,

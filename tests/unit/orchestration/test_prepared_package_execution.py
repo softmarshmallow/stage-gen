@@ -28,8 +28,8 @@ async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolatio
     )
     assert first.summary.ok is True
     assert first.summary.provider_operation_counts == {
-        "image_generation": 82,
-        "structured_generation": 15,
+        "image_generation": 87,
+        "structured_generation": 16,
         "music_generation": 3,
     }
     by_id = {trace.node_id: trace for trace in first.summary.nodes}
@@ -135,9 +135,9 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 25
+    assert len(summary.nodes) == 31
     assert summary.provider_operation_counts == {
-        "image_generation": 10,
+        "image_generation": 13,
         "structured_generation": 2,
         "music_generation": 0,
     }
@@ -162,10 +162,10 @@ async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) ->
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 167
+    assert len(summary.nodes) == 172
     assert summary.provider_operation_counts == {
-        "image_generation": 72,
-        "structured_generation": 13,
+        "image_generation": 74,
+        "structured_generation": 14,
         "music_generation": 3,
     }
     node_ids = {trace.node_id for trace in summary.nodes}

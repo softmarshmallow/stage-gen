@@ -19,26 +19,24 @@
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./layers";
+import {
+  INVENTORY_GRID_4X2_V1,
+  type InventoryPanelLayout,
+} from "./inventory-layout";
 
-export const INVENTORY_PANEL_W = 1536;
-export const INVENTORY_PANEL_H = 1024;
+export const INVENTORY_PANEL_W = INVENTORY_GRID_4X2_V1.canvas.width;
+export const INVENTORY_PANEL_H = INVENTORY_GRID_4X2_V1.canvas.height;
 export const SLOT_CENTRES: {
   col: number;
   row: number;
   x: number;
   y: number;
-}[] = [
-  // Row 0
-  { col: 0, row: 0, x: 336, y: 368 },
-  { col: 1, row: 0, x: 624, y: 368 },
-  { col: 2, row: 0, x: 912, y: 368 },
-  { col: 3, row: 0, x: 1200, y: 368 },
-  // Row 1
-  { col: 0, row: 1, x: 336, y: 656 },
-  { col: 1, row: 1, x: 624, y: 656 },
-  { col: 2, row: 1, x: 912, y: 656 },
-  { col: 3, row: 1, x: 1200, y: 656 },
-];
+}[] = INVENTORY_GRID_4X2_V1.slots.map((slot, index) => ({
+  col: index % 4,
+  row: Math.floor(index / 4),
+  x: slot.x + slot.width / 2,
+  y: slot.y + slot.height / 2,
+}));
 
 export interface InventoryHudOpts {
   scene: Phaser.Scene;
@@ -52,6 +50,8 @@ export interface InventoryHudOpts {
   itemFrameKey?: (kindIndex: number) => string | number | undefined;
   viewW: number;
   viewH: number;
+  /** Resolved manifest geometry; mature callers use the exact V1 default. */
+  layout?: InventoryPanelLayout;
   /** Display scale of the panel inside the viewport. */
   scale?: number;
 }
@@ -70,6 +70,7 @@ export class InventoryHud {
   private countTexts: Map<number, Phaser.GameObjects.Text> = new Map();
   visible = true;
   private scaleFactor: number;
+  private readonly slotCentres: readonly { x: number; y: number }[];
   private panelBounds: Readonly<{
     left: number;
     right: number;
@@ -79,14 +80,19 @@ export class InventoryHud {
 
   constructor(opts: InventoryHudOpts) {
     this.opts = opts;
+    const layout = opts.layout ?? INVENTORY_GRID_4X2_V1;
+    this.slotCentres = layout.slots.map((slot) => ({
+      x: slot.x + slot.width / 2,
+      y: slot.y + slot.height / 2,
+    }));
 
     // Display the panel scaled down — scale factor chosen so it fits ~30% of viewport width.
     const desiredW = Math.floor(opts.viewW * 0.34);
-    this.scaleFactor = opts.scale ?? desiredW / INVENTORY_PANEL_W;
+    this.scaleFactor = opts.scale ?? desiredW / layout.canvas.width;
 
     // Place at top-right inside the capture-safe margin.
-    const panelDisplayW = INVENTORY_PANEL_W * this.scaleFactor;
-    const panelDisplayH = INVENTORY_PANEL_H * this.scaleFactor;
+    const panelDisplayW = layout.canvas.width * this.scaleFactor;
+    const panelDisplayH = layout.canvas.height * this.scaleFactor;
     const safeMargin = 24;
     const px = opts.viewW - panelDisplayW - safeMargin;
     const py = safeMargin;
@@ -118,8 +124,8 @@ export class InventoryHud {
       if (t) t.setText(`x${existing.count}`);
       return;
     }
-    const slotIdx = kindIndex % SLOT_CENTRES.length;
-    const slot = SLOT_CENTRES[slotIdx];
+    const slotIdx = kindIndex % this.slotCentres.length;
+    const slot = this.slotCentres[slotIdx];
     const sx = slot.x * this.scaleFactor;
     const sy = slot.y * this.scaleFactor;
     const iconSizeWorld = 192 * this.scaleFactor; // ~75% of 256-px slot
@@ -190,14 +196,14 @@ export class InventoryHud {
   snapshot() {
     return Array.from(this.slots.values()).map((s) => ({
       kindIndex: s.kindIndex,
-      slotIndex: s.kindIndex % SLOT_CENTRES.length,
+      slotIndex: s.kindIndex % this.slotCentres.length,
       count: s.count,
       // World-space coordinates (relative to the screen, since scrollFactor=0).
       x: s.icon.x + this.container.x,
       y: s.icon.y + this.container.y,
       // Expected (target) slot centre on the panel canvas.
-      expectedPanelX: SLOT_CENTRES[s.kindIndex % SLOT_CENTRES.length].x,
-      expectedPanelY: SLOT_CENTRES[s.kindIndex % SLOT_CENTRES.length].y,
+      expectedPanelX: this.slotCentres[s.kindIndex % this.slotCentres.length].x,
+      expectedPanelY: this.slotCentres[s.kindIndex % this.slotCentres.length].y,
     }));
   }
 

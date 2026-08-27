@@ -324,6 +324,7 @@ export type GameplayPlayerProbe = Readonly<{
     | "crouch"
     | "attack"
     | "hurt"
+    | "death"
     | "climb";
   facing: "left" | "right";
   x: number;

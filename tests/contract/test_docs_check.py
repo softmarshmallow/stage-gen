@@ -117,10 +117,8 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
     """The master and executable game contracts remain distinct and discoverable.
 
     Modelled on the character-profile discoverability test above, and extended with the checks
-    that keep the executable schema from drifting from the models it describes: the documented
-    vocabulary sections, the camera projections the recipe accepts, and the one exact current
-    manifest version a consumer must require are all read from the live definitions rather than
-    restated by hand.
+    that keep the prepared package-root schema from drifting from its live model and exact current
+    identities.
     """
 
     repository_root = Path(__file__).parents[2]
@@ -132,16 +130,18 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
     sequence_doc = (
         repository_root / "docs/spec/game/dialogue-and-cutscene-sequences.md"
     ).read_text(encoding="utf-8")
+    package_doc = (repository_root / "docs/game-package.md").read_text(encoding="utf-8")
     docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
-    discoverable_docs = (readme, master_doc, schema_doc, sequence_doc, docs_index)
+    discoverable_docs = (readme, master_doc, schema_doc, sequence_doc, package_doc, docs_index)
 
     for required in (
-        "stage-gen game validate",
-        "stage-gen game digest",
-        "examples/scrolling-preview/game-directed-village.toml",
+        "stage-gen package validate",
+        "stage-gen package digest",
+        "stage-gen package plan",
         "library/games/<game_id>/game.toml",
-        "STAGE_GEN_GAME_LIBRARY_ROOT",
-        "game-contract-binding-v1",
+        "game-package-v3",
+        "game-contract-v5",
+        "prepared-game-runtime-v4",
     ):
         assert any(required in document for document in discoverable_docs)
 
@@ -160,32 +160,21 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "orthogonal presentation program",
         "A **cutscene**",
         "control leases",
-        "The current bundle and runtime shapes remain valid",
+        "The current prepared sequence and runtime shapes remain valid",
     ):
         assert required in sequence_doc
 
     from stage_gen.components.game_contract import (
-        GameContract,
-        load_game_vocabulary,
+        PREPARED_GAME_CONTRACT_SCHEMA_VERSION,
+        PreparedGameContract,
     )
-    from stage_gen.recipes.scrolling_preview.game import ACCEPTED_PROJECTIONS
-    from stage_gen.recipes.scrolling_preview.village import VILLAGE_MANIFEST_SCHEMA_VERSION
 
-    # Every field of the contract appears in the page's worked example, and every field that
-    # carries direction rather than identity additionally has its own section. A field added to
-    # the model without a paragraph explaining it fails here rather than shipping undocumented.
-    identity_fields = {"schema_version", "kind", "game_id", "revision", "display_name"}
-    for field in GameContract.model_fields:
+    # Every current package-root field appears in the worked shape. A field added to the model
+    # without appearing in the executable-schema authority fails here.
+    for field in PreparedGameContract.model_fields:
         assert field in schema_doc
-        if field not in identity_fields:
-            assert f"### `[{field}]`" in schema_doc
-
-    vocabulary = load_game_vocabulary().vocabulary
-    for section in type(vocabulary).model_fields:
-        if section in {"schema_version", "kind"}:
-            continue
-        assert f"`{section}`" in schema_doc
-
-    for projection in ACCEPTED_PROJECTIONS:
-        assert projection in schema_doc
-    assert f'"schema_version": {VILLAGE_MANIFEST_SCHEMA_VERSION}' in schema_doc
+    assert f"schema_version = {PREPARED_GAME_CONTRACT_SCHEMA_VERSION}" in schema_doc
+    assert f'kind = "game-contract-v{PREPARED_GAME_CONTRACT_SCHEMA_VERSION}"' in schema_doc
+    assert "side_view_2d" in schema_doc
+    assert "ui.toml" in schema_doc
+    assert "maps/<map_id>.toml" in schema_doc

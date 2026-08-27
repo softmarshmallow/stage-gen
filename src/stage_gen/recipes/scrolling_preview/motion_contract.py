@@ -32,6 +32,19 @@ def motion_source_facing(kind: MotionActorKind, state: str) -> MotionSourceFacin
     return CANONICAL_SIDE_SOURCE_FACING
 
 
+def motion_semantic_direction(kind: MotionActorKind, state: str) -> str:
+    """Return recipe-owned visual meaning where a state name alone is ambiguous."""
+
+    if kind == "player" and state == "crouch":
+        return (
+            "four sequential phases of a low stationary crouch loop: the character stays on both "
+            "feet with bent knees and a lowered torso, using only subtle balance and breathing "
+            "variation; the character does not crawl, kneel, move forward, or touch hands to the "
+            "ground"
+        )
+    return f"four clear game-animation key poses that communicate {state}"
+
+
 def runtime_mirrors_source(facing: MotionSourceFacing) -> bool:
     """Whether runtime creates the opposite gameplay facing by horizontal reflection."""
 

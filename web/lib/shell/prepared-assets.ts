@@ -157,6 +157,12 @@ export function projectPreparedRuntimeAssets(
       group(`map-${map.map_id}`, `Map: ${map.display_name}`, [
         ...background,
         bound(map.ground.asset, "Ground atlas", true),
+        ...(map.ladder
+          ? [bound(map.ladder.asset, "Ladder", true)]
+          : []),
+        ...(map.portal
+          ? [bound(map.portal.asset, "Portal pair", true)]
+          : []),
         ...foreground,
       ]),
     );
@@ -215,6 +221,12 @@ export function projectPreparedRuntimeAssets(
       ),
     );
   }
+
+  groups.push(
+    group("ui", "UI", [
+      bound(manifest.ui.inventory_panel.asset, "Inventory panel", true),
+    ]),
+  );
 
   if (manifest.soundtrack.tracks.length > 0) {
     groups.push(

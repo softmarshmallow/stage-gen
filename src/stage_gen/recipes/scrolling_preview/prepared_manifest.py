@@ -9,16 +9,25 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from PIL import Image
 
+from stage_gen.components.game_content import MotionPresentation
+from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.scrolling_preview.motion_contract import dialogue_atlas_grid
+from stage_gen.recipes.scrolling_preview.motion_contract import (
+    MOTION_ATLAS_COLUMNS,
+    MOTION_ATLAS_REQUIRED_CELLS,
+    MOTION_ATLAS_ROWS,
+    dialogue_atlas_grid,
+    motion_source_facing,
+    runtime_mirrors_source,
+)
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 1
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v1"
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 4
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v4"
 
 
 class PreparedManifestError(ValueError):
@@ -98,33 +107,47 @@ def _assemble_prepared_runtime(
     maps: list[dict[str, object]] = []
     for game_map in package.maps:
         map_use = map_uses[game_map.map_id]
-        maps.append(
-            {
-                "map_id": game_map.map_id,
-                "revision": game_map.revision,
-                "display_name": game_map.display_name,
-                "view": game_map.view.model_dump(mode="json"),
-                "continuity": game_map.continuity.model_dump(mode="json"),
-                "role": map_use.role,
-                "hostile_population_enabled": map_use.hostile_population_enabled,
-                "track_ids": list(map_use.track_ids),
-                "layers": [
-                    {
-                        "layer_id": layer.layer_id,
-                        "plane": layer.plane,
-                        "order": layer.order,
-                        "parallax": layer.parallax,
-                        "alpha_mode": layer.alpha_mode,
-                        "asset": publish(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"),
-                    }
-                    for layer in game_map.layers
+        map_manifest: dict[str, object] = {
+            "map_id": game_map.map_id,
+            "revision": game_map.revision,
+            "display_name": game_map.display_name,
+            "view": game_map.view.model_dump(mode="json"),
+            "continuity": game_map.continuity.model_dump(mode="json"),
+            "role": map_use.role,
+            "hostile_population_enabled": map_use.hostile_population_enabled,
+            "track_ids": list(map_use.track_ids),
+            "layers": [
+                {
+                    "layer_id": layer.layer_id,
+                    "plane": layer.plane,
+                    "order": layer.order,
+                    "parallax": layer.parallax,
+                    "alpha_mode": layer.alpha_mode,
+                    "asset": publish(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"),
+                }
+                for layer in game_map.layers
+            ],
+            "ground": {
+                "mode": game_map.ground.mode,
+                "occupancy": list(game_map.ground.occupancy),
+                "asset": publish(f"maps/{game_map.map_id}/ground.png"),
+            },
+        }
+        if game_map.ladder is not None:
+            map_manifest["ladder"] = {
+                "mode": game_map.ladder.mode,
+                "placements": [
+                    entry.model_dump(mode="json") for entry in game_map.ladder.placements
                 ],
-                "ground": {
-                    "mode": game_map.ground.mode,
-                    "asset": publish(f"maps/{game_map.map_id}/ground.png"),
-                },
+                "asset": publish(f"maps/{game_map.map_id}/ladder.png"),
             }
-        )
+        if game_map.portal is not None:
+            map_manifest["portal"] = {
+                "mode": game_map.portal.mode,
+                "endpoints": [entry.model_dump(mode="json") for entry in game_map.portal.endpoints],
+                "asset": publish(f"maps/{game_map.map_id}/portal.png"),
+            }
+        maps.append(map_manifest)
 
     player = package.player.players[0]
     player_manifest = {
@@ -133,14 +156,12 @@ def _assemble_prepared_runtime(
         "body_kind": player.body_kind,
         "concept": publish(f"content/players/{player.player_id}/concept.png"),
         "states": {
-            state: {
-                "source_facing": "back" if state == "climb" else "right",
-                "runtime_mirror": state != "climb",
-                "columns": 4,
-                "rows": 1,
-                "asset": publish(f"content/players/{player.player_id}/states/{state}.png"),
-            }
-            for state in player.motion_states
+            motion.state: _motion_binding(
+                publish(f"content/players/{player.player_id}/states/{motion.state}.png"),
+                motion,
+                actor_kind="player",
+            )
+            for motion in player.motions
         },
         "dialogue": _dialogue_binding(
             publish(f"content/players/{player.player_id}/dialogue.png"),
@@ -156,14 +177,12 @@ def _assemble_prepared_runtime(
             "rank": mob.rank,
             "concept": publish(f"content/mobs/{mob.mob_id}/concept.png"),
             "states": {
-                state: {
-                    "source_facing": "right",
-                    "runtime_mirror": True,
-                    "columns": 4,
-                    "rows": 1,
-                    "asset": publish(f"content/mobs/{mob.mob_id}/states/{state}.png"),
-                }
-                for state in mob.motion_states
+                motion.state: _motion_binding(
+                    publish(f"content/mobs/{mob.mob_id}/states/{motion.state}.png"),
+                    motion,
+                    actor_kind="mob",
+                )
+                for motion in mob.motions
             },
         }
         for mob in package.mobs.mobs
@@ -175,13 +194,11 @@ def _assemble_prepared_runtime(
             "display_name": npc.display_name,
             "role": npc.role,
             "body_kind": npc.body_kind,
-            "world": {
-                "columns": 4,
-                "rows": 1,
-                "source_facing": "right",
-                "runtime_mirror": True,
-                "asset": publish(f"content/npcs/{npc.npc_id}/world.png"),
-            },
+            "world": _motion_binding(
+                publish(f"content/npcs/{npc.npc_id}/world.png"),
+                npc.world_motions[0],
+                actor_kind="npc",
+            ),
             "dialogue": _dialogue_binding(
                 publish(f"content/npcs/{npc.npc_id}/dialogue.png"),
                 npc.dialogue_expressions,
@@ -218,6 +235,12 @@ def _assemble_prepared_runtime(
         }
         for track in package.soundtrack.tracks
     ]
+    ui = {
+        "inventory_panel": {
+            **inventory_panel_layout_contract(),
+            "asset": publish("ui/inventory_panel.png"),
+        }
+    }
 
     artifact_records = [artifacts[path] for path in sorted(artifacts)]
     closure_sha256 = _canonical_sha256(artifact_records)
@@ -241,6 +264,7 @@ def _assemble_prepared_runtime(
         "npcs": npcs,
         "props": props,
         "items": items,
+        "ui": ui,
         "soundtrack": {
             "playback": package.soundtrack.playback.model_dump(mode="json"),
             "tracks": tracks,
@@ -259,6 +283,37 @@ def _assemble_prepared_runtime(
         output_dir=output_dir,
         artifact_count=len(artifact_records),
     )
+
+
+def _motion_binding(
+    artifact: dict[str, object],
+    motion: MotionPresentation,
+    *,
+    actor_kind: Literal["player", "mob", "npc"],
+) -> dict[str, object]:
+    invalid = [
+        index for index in motion.canonical_frame_indices if index >= MOTION_ATLAS_REQUIRED_CELLS
+    ]
+    if invalid:
+        raise PreparedManifestError(
+            f"{actor_kind} motion {motion.state} selects unavailable canonical frames: {invalid}"
+        )
+    source_facing = motion_source_facing(actor_kind, motion.state)
+    playback: dict[str, object] = {
+        "mode": motion.playback_mode,
+        "canonical_frame_indices": list(motion.canonical_frame_indices),
+    }
+    if motion.frames_per_second is not None:
+        playback["frames_per_second"] = motion.frames_per_second
+    return {
+        "source_facing": source_facing,
+        "runtime_mirror": runtime_mirrors_source(source_facing),
+        "columns": MOTION_ATLAS_COLUMNS,
+        "rows": MOTION_ATLAS_ROWS,
+        "source_frame_count": MOTION_ATLAS_REQUIRED_CELLS,
+        "playback": playback,
+        "asset": artifact,
+    }
 
 
 def _dialogue_binding(artifact: dict[str, object], expressions: Sequence[str]) -> dict[str, object]:
@@ -347,16 +402,22 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
             f"maps/{game_map.map_id}/layers/{layer.layer_id}.png" for layer in game_map.layers
         )
         paths.append(f"maps/{game_map.map_id}/ground.png")
+        if game_map.ladder is not None:
+            paths.append(f"maps/{game_map.map_id}/ladder.png")
+        if game_map.portal is not None:
+            paths.append(f"maps/{game_map.map_id}/portal.png")
     for player in package.player.players:
         paths.append(f"content/players/{player.player_id}/concept.png")
         paths.extend(
-            f"content/players/{player.player_id}/states/{state}.png"
-            for state in player.motion_states
+            f"content/players/{player.player_id}/states/{motion.state}.png"
+            for motion in player.motions
         )
         paths.append(f"content/players/{player.player_id}/dialogue.png")
     for mob in package.mobs.mobs:
         paths.append(f"content/mobs/{mob.mob_id}/concept.png")
-        paths.extend(f"content/mobs/{mob.mob_id}/states/{state}.png" for state in mob.motion_states)
+        paths.extend(
+            f"content/mobs/{mob.mob_id}/states/{motion.state}.png" for motion in mob.motions
+        )
     for npc in package.npcs.npcs:
         paths.extend(
             (
@@ -366,6 +427,7 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
         )
     paths.extend(f"content/props/{entry.prop_id}.png" for entry in package.props.props)
     paths.extend(f"content/items/{entry.item_id}.png" for entry in package.items.items)
+    paths.append("ui/inventory_panel.png")
     paths.extend(f"soundtrack/{track.track_id}.mp3" for track in package.soundtrack.tracks)
     return tuple(sorted(paths))
 

@@ -1,15 +1,112 @@
-# Provider-neutral sprite-sheet processing contract
+# Sprite-sheet slicing and instance-recovery contract
 
-> **Status: minimal alpha-component repacker implemented; broader geometry contract planned.**
+> **Status: alpha-component instance recovery is implemented and is the prepared-game default;
+> broader geometry and ownership recovery remain planned.**
 > `src/stage_gen/media/sprite_sheets.py` implements the intentionally simple
 > `alpha-component-repack-v1` subset used by prepared-game actor assets. Uniform-grid and
 > padding-derived geometry, normalized per-cell artifacts, and ambiguous-instance ownership below
 > remain the normative target rather than shipped behavior.
 
+This document is the canonical record of the sprite-sheet slicing problem, the current production
+decision, its known loss modes, and the boundary for future replacements. It distinguishes
+**rectangular slicing** (cutting a canvas at predetermined X/Y coordinates) from **instance
+recovery** (finding each rendered pose first) and **packing** (placing recovered poses into a
+canonical runtime grid).
+
 Sprite-sheet processing turns one validated, alpha-bearing image into explicit
 cell geometry and, when requested, normalized cell artifacts. The operation is
 provider-neutral and engine-neutral. A recipe supplies the sheet structure and
 semantic cell identifiers; the processor owns deterministic pixel geometry.
+
+## Decision summary
+
+| Question | Current decision |
+| --- | --- |
+| What is generated? | One native-alpha source sheet containing a requested number of poses. |
+| Is the requested count trusted? | No. It is an intent that local validation must test against observed pixels. |
+| How are poses found? | Meaningful 8-connected alpha components are treated as candidate instances. |
+| How are extras handled? | Keep the largest requested number and report discarded components and alpha loss. |
+| How are missing instances handled? | Fail closed when fewer principal components than requested are found. |
+| What does the runtime consume? | A deterministic equal-cell canonical sheet produced by the repacker. |
+| Is equal-X/Y slicing still the producer default? | No. It remains only the runtime decoding of an already canonical sheet. |
+| Are detached effects guaranteed to follow their actor? | No. This is the principal accepted caveat of v1. |
+
+## The problem
+
+Image models understand a request such as “four animation poses in one row” semantically, but they
+do not reliably obey exact arithmetic cell boundaries. A useful pose may cross an intended quarter
+boundary, neighboring poses may occupy unequal widths, or a sword, shadow, particle, or other
+detached element may sit outside the actor's main silhouette. Cutting that source at `width / n`
+therefore produces amputated and mixed frames even when the image itself contains four usable
+poses.
+
+The requested cell count `n` is not evidence that the output contains `n` recoverable instances.
+Two poses can touch and become one connected region, one requested cell can be visually empty, or
+one pose plus a detached effect can become two regions. A VLM may later provide semantic count
+evidence, but it does not supply trustworthy pixel ownership or crop geometry by itself. The local
+pixel processor must record the observed candidate count and must never silently present it as the
+requested count.
+
+The production boundary is consequently:
+
+```text
+provider source sheet
+    -> observe candidate instances
+    -> select exactly n principal instances or fail
+    -> pack selected instances into canonical equal cells
+    -> runtime performs ordinary equal-cell frame decoding
+```
+
+This preserves a simple runtime contract while removing arithmetic X/Y cuts from the uncontrolled
+model output.
+
+## Shipped alpha-component baseline
+
+`alpha-component-repack-v1` is intentionally the simplest useful recovery strategy:
+
+1. Decode a native-alpha PNG and classify pixels with `alpha > 16` as occupied.
+2. Find 8-connected occupied components.
+3. Reject components smaller than the greater of 32 pixels or 2% of total thresholded visible
+   area.
+4. If fewer than `n` candidates remain, fail without publishing a canonical sheet.
+5. If more than `n` remain, retain the `n` largest and report every rejected component.
+6. Recover source reading order using source-row bands and horizontal centroids.
+7. Translate each selected component without scaling into a canonical equal cell with a
+   transparent gutter. Motion poses are bottom-centered; dialogue expressions are centered.
+8. Validate that every required output cell is nonempty and does not touch its cell boundary.
+
+The source is retained as `*.source.png`; the repacked `*.png` is the runtime-facing artifact. The
+adjacent validation record binds the source and output digests, dimensions, thresholds, candidate
+and selected component counts, placements, alpha retention, warnings, and implementation version.
+
+## Known failure taxonomy
+
+| Failure | Observable condition | v1 behavior | Consequence |
+| --- | --- | --- | --- |
+| Detached effect | Actor and effect form separate alpha components | A small effect may be rejected; a large one may compete with a pose | Visual effect loss or, in the worst case, wrong instance selection |
+| Touching poses | Two intended poses share an alpha-connected bridge | Candidate count may fall below `n` | Hard failure; no canonical sheet is published |
+| Fragmented pose | One pose contains multiple substantial disconnected regions | Largest-`n` selection has no semantic ownership | A limb, weapon, mount, or effect may be separated from its actor |
+| Weak alpha | Important pixels remain at or below the threshold | Pixels are excluded from detection and retained-alpha accounting | Fine translucent detail may disappear from the selected bounds |
+| Ambiguous reading order | Unequal rows or displaced poses defeat row-band ordering | Deterministic centroid order is still applied | Semantic frame order can be wrong despite valid geometry |
+| Oversized pose | Recovered bounds cannot fit with the canonical gutter | Validation fails | Regeneration or a future explicit rescale policy is required |
+
+These are accepted limitations, not hidden successes. A warning-bearing result is usable only when
+the recipe permits lossy extras; the recorded alpha-retention fraction makes that loss reviewable.
+
+## Explored alternatives
+
+| Approach | Verdict | Reason |
+| --- | --- | --- |
+| Equal rectangular X/Y slicing | Retired as the source-sheet default | Deterministic but cuts useful poses whenever the model ignores exact cell rails. |
+| Empty-row/column projection and inferred bands | Not promoted | Works only when full transparent gutters separate every pose; crossing silhouettes collapse bands. |
+| Alpha components with growing distance tolerance until count equals `n` | Not promoted | Can join a detached effect to its actor, but can just as easily merge neighboring actors; reaching `n` does not prove correct ownership. |
+| Generic sprite packers and third-party atlas slicers | Not sufficient | They pack or trim already-separated rectangles; they do not solve semantic ownership in a generated composite. |
+| Semantic segmentation such as SAM | Deferred | More capable but materially more expensive and complex than the accepted baseline. |
+| VLM instance counting | Possible future validation signal | It can challenge the requested count but does not yield precise, deterministic alpha ownership or crop geometry. |
+
+The next replacement must beat the alpha-component baseline on a representative fixed corpus, not
+merely solve one sheet. It must report observed instances, preserve actor-attached content more
+reliably, retain deterministic lineage, and remain cheap enough for every generated sheet.
 
 ## Current Python capability boundary
 

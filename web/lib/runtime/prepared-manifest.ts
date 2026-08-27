@@ -1,3 +1,8 @@
+import {
+  parseInventoryPanelLayout,
+  type InventoryPanelLayout,
+} from "./inventory-layout";
+
 export type RuntimeArtifact = Readonly<{
   path: string;
   sha256: string;
@@ -24,7 +29,31 @@ export type PreparedMap = Readonly<{
   hostile_population_enabled: boolean;
   track_ids: readonly string[];
   layers: readonly PreparedLayer[];
-  ground: Readonly<{ mode: "tileset-12x4-v1"; asset: RuntimeArtifact }>;
+  ground: Readonly<{
+    mode: "terrain-atlas-3x3-minimal-v1";
+    /** Top-to-bottom rectangular binary terrain topology. */
+    occupancy: readonly string[];
+    asset: RuntimeArtifact;
+  }>;
+  ladder?: Readonly<{
+    mode: "ladder-4-tile-v1";
+    asset: RuntimeArtifact;
+    placements: readonly Readonly<{
+      ladder_id: string;
+      normalized_x: number;
+      bottom_surface: "terrain";
+      rise_tiles: 4;
+    }>[];
+  }>;
+  portal?: Readonly<{
+    mode: "portal-pair-1x2-v1";
+    asset: RuntimeArtifact;
+    endpoints: readonly Readonly<{
+      anchor: string;
+      normalized_x: number;
+      role: "entry" | "exit";
+    }>[];
+  }>;
 }>;
 
 export type MotionBinding = Readonly<{
@@ -32,7 +61,15 @@ export type MotionBinding = Readonly<{
   runtime_mirror: boolean;
   columns: 4;
   rows: 1;
+  source_frame_count: 4;
+  playback: MotionPlayback;
   asset: RuntimeArtifact;
+}>;
+
+export type MotionPlayback = Readonly<{
+  mode: "hold" | "loop" | "once" | "gameplay_driven";
+  canonical_frame_indices: readonly number[];
+  frames_per_second?: number;
 }>;
 
 export type DialogueBinding = Readonly<{
@@ -43,9 +80,12 @@ export type DialogueBinding = Readonly<{
   asset: RuntimeArtifact;
 }>;
 
+export type PreparedInventoryPanel = InventoryPanelLayout &
+  Readonly<{ asset: RuntimeArtifact }>;
+
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 1;
-  kind: "prepared-game-runtime-v1";
+  schema_version: 4;
+  kind: "prepared-game-runtime-v4";
   game_id: string;
   revision: number;
   display_name: string;
@@ -85,6 +125,7 @@ export type PreparedRuntimeManifest = Readonly<{
     item_kind: string;
     asset: RuntimeArtifact;
   }>[];
+  ui: Readonly<{ inventory_panel: PreparedInventoryPanel }>;
   soundtrack: Readonly<{
     playback: Readonly<{ selection: "shuffle"; no_immediate_repeat: true }>;
     tracks: readonly Readonly<{
@@ -103,6 +144,7 @@ export type PreparedRuntimeManifest = Readonly<{
 }>;
 
 const SAFE_ID = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/;
+const SNAKE_ID = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 
@@ -131,11 +173,50 @@ function id(value: unknown, label: string): string {
   return parsed;
 }
 
+function snakeId(value: unknown, label: string): string {
+  const parsed = text(value, label);
+  if (!SNAKE_ID.test(parsed) || parsed.length > 96) {
+    throw new Error(`${label} is invalid`);
+  }
+  return parsed;
+}
+
 function integer(value: unknown, label: string, minimum = 0): number {
   if (!Number.isSafeInteger(value) || (value as number) < minimum) {
     throw new Error(`${label} must be a safe integer >= ${minimum}`);
   }
   return value as number;
+}
+
+function normalizedX(value: unknown, label: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value <= 0 ||
+    value >= 1
+  ) {
+    throw new Error(`${label} must be a finite number between zero and one`);
+  }
+  return value;
+}
+
+function binaryOccupancy(value: unknown, label: string): readonly string[] {
+  const rows = array(value, label).map((entry, index) =>
+    text(entry, `${label}[${index}]`),
+  );
+  if (
+    rows.length < 2 ||
+    rows.length > 64 ||
+    rows[0]!.length < 8 ||
+    rows[0]!.length > 512 ||
+    rows.some((row) => row.length !== rows[0]!.length || /[^01]/.test(row)) ||
+    !rows.at(-1)!.includes("1")
+  ) {
+    throw new Error(
+      `${label} must be a 2-64 row, 8-512 column zero-one rectangle supported by its bottom row`,
+    );
+  }
+  return Object.freeze(rows);
 }
 
 function artifact(value: unknown, label: string): RuntimeArtifact {
@@ -169,17 +250,69 @@ function motion(value: unknown, label: string): MotionBinding {
   if (typeof record.runtime_mirror !== "boolean") {
     throw new Error(`${label}.runtime_mirror must be boolean`);
   }
-  if (record.columns !== 4 || record.rows !== 1) {
+  if (
+    record.columns !== 4 ||
+    record.rows !== 1 ||
+    record.source_frame_count !== 4
+  ) {
     throw new Error(`${label} must be one 4-by-1 strip`);
   }
   if ((sourceFacing === "back") === record.runtime_mirror) {
     throw new Error(`${label} facing and runtime mirroring disagree`);
   }
+  const playbackRecord = object(record.playback, `${label}.playback`);
+  const mode = playbackRecord.mode;
+  if (
+    mode !== "hold" &&
+    mode !== "loop" &&
+    mode !== "once" &&
+    mode !== "gameplay_driven"
+  ) {
+    throw new Error(`${label}.playback.mode is invalid`);
+  }
+  const canonicalFrameIndices = array(
+    playbackRecord.canonical_frame_indices,
+    `${label}.playback.canonical_frame_indices`,
+  ).map((entry, index) =>
+    integer(entry, `${label}.playback.canonical_frame_indices[${index}]`),
+  );
+  if (
+    canonicalFrameIndices.length === 0 ||
+    new Set(canonicalFrameIndices).size !== canonicalFrameIndices.length ||
+    canonicalFrameIndices.some((index) => index >= 4)
+  ) {
+    throw new Error(`${label}.playback canonical frame selection is invalid`);
+  }
+  const framesPerSecond =
+    playbackRecord.frames_per_second === undefined
+      ? undefined
+      : integer(
+          playbackRecord.frames_per_second,
+          `${label}.playback.frames_per_second`,
+          1,
+        );
+  if (
+    (mode === "hold" &&
+      (canonicalFrameIndices.length !== 1 || framesPerSecond !== undefined)) ||
+    ((mode === "loop" || mode === "once") && framesPerSecond === undefined) ||
+    (mode === "gameplay_driven" && framesPerSecond !== undefined)
+  ) {
+    throw new Error(`${label}.playback shape is invalid for ${mode}`);
+  }
+  const playback = Object.freeze({
+    mode,
+    canonical_frame_indices: Object.freeze(canonicalFrameIndices),
+    ...(framesPerSecond === undefined
+      ? {}
+      : { frames_per_second: framesPerSecond }),
+  });
   return Object.freeze({
     source_facing: sourceFacing,
     runtime_mirror: record.runtime_mirror,
     columns: 4,
     rows: 1,
+    source_frame_count: 4,
+    playback,
     asset: artifact(record.asset, `${label}.asset`),
   });
 }
@@ -219,7 +352,7 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 1 || root.kind !== "prepared-game-runtime-v1") {
+  if (root.schema_version !== 4 || root.kind !== "prepared-game-runtime-v4") {
     throw new Error("prepared runtime manifest identity is invalid");
   }
   const gameId = id(root.game_id, "game_id");
@@ -246,7 +379,107 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       });
     });
     const ground = object(map.ground, `maps[${mapIndex}].ground`);
-    if (ground.mode !== "tileset-12x4-v1") throw new Error("ground mode is invalid");
+    if (ground.mode !== "terrain-atlas-3x3-minimal-v1") {
+      throw new Error("ground mode is invalid");
+    }
+    const occupancy = binaryOccupancy(
+      ground.occupancy,
+      `maps[${mapIndex}].ground.occupancy`,
+    );
+    const ladder =
+      map.ladder === undefined
+        ? undefined
+        : (() => {
+            const rawLadder = object(map.ladder, `maps[${mapIndex}].ladder`);
+            if (rawLadder.mode !== "ladder-4-tile-v1") {
+              throw new Error("ladder mode is invalid");
+            }
+            const placements = array(
+              rawLadder.placements,
+              `maps[${mapIndex}].ladder.placements`,
+            ).map((rawPlacement, placementIndex) => {
+              const placement = object(
+                rawPlacement,
+                `maps[${mapIndex}].ladder.placements[${placementIndex}]`,
+              );
+              if (
+                placement.bottom_surface !== "terrain" ||
+                placement.rise_tiles !== 4
+              ) {
+                throw new Error("ladder placement geometry is invalid");
+              }
+              return Object.freeze({
+                ladder_id: snakeId(placement.ladder_id, "ladder_id"),
+                normalized_x: normalizedX(
+                  placement.normalized_x,
+                  "ladder normalized_x",
+                ),
+                bottom_surface: "terrain" as const,
+                rise_tiles: 4 as const,
+              });
+            });
+            if (
+              placements.length === 0 ||
+              placements.length > 8 ||
+              new Set(placements.map((entry) => entry.ladder_id)).size !==
+                placements.length ||
+              new Set(placements.map((entry) => entry.normalized_x)).size !==
+                placements.length
+            ) {
+              throw new Error("ladder placements must have unique identities and positions");
+            }
+            return Object.freeze({
+              mode: "ladder-4-tile-v1" as const,
+              asset: artifact(rawLadder.asset, "ladder asset"),
+              placements: Object.freeze(placements),
+            });
+          })();
+    const portal =
+      map.portal === undefined
+        ? undefined
+        : (() => {
+            const rawPortal = object(map.portal, `maps[${mapIndex}].portal`);
+            if (rawPortal.mode !== "portal-pair-1x2-v1") {
+              throw new Error("portal mode is invalid");
+            }
+            const endpoints = array(
+              rawPortal.endpoints,
+              `maps[${mapIndex}].portal.endpoints`,
+            ).map((rawEndpoint, endpointIndex) => {
+              const endpoint = object(
+                rawEndpoint,
+                `maps[${mapIndex}].portal.endpoints[${endpointIndex}]`,
+              );
+              if (endpoint.role !== "entry" && endpoint.role !== "exit") {
+                throw new Error("portal endpoint role is invalid");
+              }
+              return Object.freeze({
+                anchor: snakeId(endpoint.anchor, "portal anchor"),
+                normalized_x: normalizedX(
+                  endpoint.normalized_x,
+                  "portal normalized_x",
+                ),
+                role: endpoint.role,
+              });
+            });
+            if (
+              endpoints.length === 0 ||
+              endpoints.length > 2 ||
+              new Set(endpoints.map((entry) => entry.anchor)).size !==
+                endpoints.length ||
+              new Set(endpoints.map((entry) => entry.normalized_x)).size !==
+                endpoints.length ||
+              new Set(endpoints.map((entry) => entry.role)).size !==
+                endpoints.length
+            ) {
+              throw new Error("portal endpoints must have unique anchors, positions, and roles");
+            }
+            return Object.freeze({
+              mode: "portal-pair-1x2-v1" as const,
+              asset: artifact(rawPortal.asset, "portal asset"),
+              endpoints: Object.freeze(endpoints),
+            });
+          })();
     const role = map.role;
     if (role !== "safe_village_hub" && role !== "scrolling_hunting_route") {
       throw new Error("map role is invalid");
@@ -259,7 +492,13 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       hostile_population_enabled: map.hostile_population_enabled === true,
       track_ids: Object.freeze(array(map.track_ids, "map track_ids").map((track) => id(track, "track_id"))),
       layers: Object.freeze(layers),
-      ground: Object.freeze({ mode: "tileset-12x4-v1", asset: artifact(ground.asset, "ground asset") }),
+      ground: Object.freeze({
+        mode: "terrain-atlas-3x3-minimal-v1",
+        occupancy,
+        asset: artifact(ground.asset, "ground asset"),
+      }),
+      ...(ladder === undefined ? {} : { ladder }),
+      ...(portal === undefined ? {} : { portal }),
     });
   });
   const player = object(root.player, "player");
@@ -291,6 +530,13 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     const item = object(rawItem, `items[${index}]`);
     return Object.freeze({ item_id: id(item.item_id, "item_id"), display_name: text(item.display_name, "item display_name"), item_kind: text(item.item_kind, "item kind"), asset: artifact(item.asset, "item asset") });
   });
+  const ui = object(root.ui, "ui");
+  const rawInventoryPanel = object(ui.inventory_panel, "ui.inventory_panel");
+  const inventoryPanelLayout = parseInventoryPanelLayout(rawInventoryPanel);
+  const inventoryPanel = Object.freeze({
+    ...inventoryPanelLayout,
+    asset: artifact(rawInventoryPanel.asset, "ui.inventory_panel.asset"),
+  });
   const soundtrack = object(root.soundtrack, "soundtrack");
   const playback = object(soundtrack.playback, "soundtrack.playback");
   if (playback.selection !== "shuffle" || playback.no_immediate_repeat !== true) {
@@ -311,8 +557,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 1,
-    kind: "prepared-game-runtime-v1",
+    schema_version: 4,
+    kind: "prepared-game-runtime-v4",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),
@@ -325,6 +571,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     npcs: Object.freeze(npcs),
     props: Object.freeze(props),
     items: Object.freeze(items),
+    ui: Object.freeze({ inventory_panel: inventoryPanel }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),
     sequences: Object.freeze(array(root.sequences, "sequences").map((entry, index) => object(entry, `sequences[${index}]`))),

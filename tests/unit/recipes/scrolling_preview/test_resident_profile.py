@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -10,7 +9,7 @@ import pytest
 from stage_gen.components.game_contract import (
     GameContract,
     ResidentDirection,
-    load_game_contract,
+    load_game_contract_bytes,
     load_game_vocabulary,
 )
 from stage_gen.recipes.scrolling_preview import executor as executor_module
@@ -47,9 +46,7 @@ from stage_gen.recipes.scrolling_preview.review_criteria import (
 )
 from stage_gen.recipes.scrolling_preview.scale_reference import measures_scale_reference
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-SHIPPED_REF = "library/games/whimsical-storybook-fantasy/game.toml"
-SHIPPED_PATH = REPOSITORY_ROOT / SHIPPED_REF
+COMPONENT_FIXTURE_REF = "library/games/test-game/game.toml"
 VOCABULARY = load_game_vocabulary().vocabulary
 
 
@@ -87,7 +84,34 @@ def _roster(**overrides: Any) -> dict[str, Any]:
 
 
 def _game() -> GameContract:
-    return load_game_contract(SHIPPED_PATH)
+    return load_game_contract_bytes(
+        b"""schema_version = 3
+kind = "game-contract-v3"
+game_id = "test-game"
+revision = 1
+display_name = "Test Game"
+
+[camera]
+projection = "side_view_2d"
+
+[style]
+keywords = ["hand-painted gouache", "warm dusk palette", "soft diffuse light"]
+avoid = ["3D rendering"]
+
+[proportion]
+heads_tall = 2.0
+
+[cast.player]
+body_kind = "human"
+
+[cast.resident]
+body_kind_default = "human"
+
+[rights]
+status = "unreviewed"
+""",
+        source_suffix=".toml",
+    )
 
 
 class TestDirectedRoster:
@@ -290,7 +314,7 @@ class TestGameDirection:
         binding = {
             "schema_version": 1,
             "kind": "game-contract-binding-v1",
-            "ref": SHIPPED_REF,
+            "ref": COMPONENT_FIXTURE_REF,
             "source_sha256": "a" * 64,
         }
         first = game_contract_tag_suffix(binding, vocabulary_sha256="a" * 64)

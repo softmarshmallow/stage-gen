@@ -1,4 +1,4 @@
-"""Exact-current prepared-package root contract (``game-contract-v4``)."""
+"""Exact-current prepared-package root contract (``game-contract-v5``)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 4
+PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 5
 
 
 class PackageSource(PersistedContractModel):
@@ -166,8 +166,8 @@ class PreparedRights(PersistedContractModel):
 class PreparedGameContract(PersistedContractModel):
     """One prepared game's complete, digest-bound membership root."""
 
-    schema_version: Literal[4]
-    kind: Literal["game-contract-v4"]
+    schema_version: Literal[5]
+    kind: Literal["game-contract-v5"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     display_name: str
@@ -177,6 +177,7 @@ class PreparedGameContract(PersistedContractModel):
     proportion: PreparedProportion
     cast: PreparedCast
     gameplay: PackageSource
+    ui: PackageSource
     soundtrack: PackageSource
     maps: list[MapSource] = Field(min_length=1, max_length=64)
     content: PreparedContentSources
@@ -215,6 +216,7 @@ class PreparedGameContract(PersistedContractModel):
         exact_sources = {
             "universe": (self.universe.source, "universe.md"),
             "gameplay": (self.gameplay.source, "gameplay.toml"),
+            "ui": (self.ui.source, "ui.toml"),
             "soundtrack": (self.soundtrack.source, "soundtrack.toml"),
             "content.player": (self.content.player.source, "content/player.toml"),
             "content.mobs": (self.content.mobs.source, "content/mobs.toml"),
@@ -229,6 +231,7 @@ class PreparedGameContract(PersistedContractModel):
         member_sources = [
             self.universe.source,
             self.gameplay.source,
+            self.ui.source,
             self.soundtrack.source,
             *(entry.source for entry in self.maps),
             self.content.player.source,

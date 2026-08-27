@@ -12,6 +12,15 @@ from .audio import (
     probe_audio,
     run_process,
 )
+from .guide_lattice import (
+    CYAN_GUIDES,
+    GuideColorContract,
+    GuideLattice,
+    detect_guide_lattice,
+    extract_guided_cells,
+    magenta_chroma_alpha,
+    repair_internal_cell_seams,
+)
 from .images import (
     CHROMA_DISTANCE_THRESHOLD,
     CHROMA_MATTE_VERSION,
@@ -52,6 +61,9 @@ __all__ = [
     "ImageNormalizationRecord",
     "LoudnessMeasurement",
     "CHROMA_MATTE_VERSION",
+    "CYAN_GUIDES",
+    "GuideColorContract",
+    "GuideLattice",
     "MAGENTA_EDGE_DECONTAMINATION_VERSION",
     "NATIVE_ALPHA_OPAQUE_THRESHOLD",
     "ALPHA_COMPONENT_REPACK_VERSION",
@@ -61,8 +73,11 @@ __all__ = [
     "assert_image_signature",
     "compose_source_with_alpha",
     "decontaminate_magenta_edges",
+    "detect_guide_lattice",
     "decode_base64_strict",
     "inspect_image",
+    "extract_guided_cells",
+    "magenta_chroma_alpha",
     "normalize_audio_media_type",
     "normalize_media_type",
     "normalize_image_to_png",
@@ -71,5 +86,6 @@ __all__ = [
     "parse_loudnorm_json",
     "probe_audio",
     "repack_alpha_components",
+    "repair_internal_cell_seams",
     "run_process",
 ]

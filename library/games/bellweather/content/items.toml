@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "item-content-v1"
+schema_version = 2
+kind = "item-content-v2"
 game_id = "bellweather"
-revision = 3
+revision = 4
 
 [[references]]
 reference_id = "cover_style"

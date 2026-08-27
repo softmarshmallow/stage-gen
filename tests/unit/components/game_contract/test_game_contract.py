@@ -30,8 +30,42 @@ from stage_gen.recipes.scrolling_preview.proportion import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-SHIPPED_REF = "library/games/whimsical-storybook-fantasy/game.toml"
-SHIPPED_PATH = REPOSITORY_ROOT / SHIPPED_REF
+COMPONENT_FIXTURE_REF = "library/games/test-game/game.toml"
+
+
+def _component_fixture_bytes(*, game_id: str = "test-game") -> bytes:
+    return f'''schema_version = 3
+kind = "game-contract-v3"
+game_id = "{game_id}"
+revision = 1
+display_name = "Test Game"
+
+[camera]
+projection = "side_view_2d"
+
+[style]
+keywords = ["hand-painted gouache", "warm dusk palette", "soft diffuse light"]
+avoid = ["3D rendering"]
+
+[proportion]
+heads_tall = 2.0
+
+[cast.player]
+body_kind = "human"
+
+[cast.resident]
+body_kind_default = "human"
+
+[rights]
+status = "unreviewed"
+'''.encode()
+
+
+def _write_component_fixture(root: Path, *, game_id: str = "test-game") -> Path:
+    target = root / "library" / "games" / game_id / "game.toml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(_component_fixture_bytes(game_id=game_id))
+    return target
 
 
 def _contract_payload(**overrides: Any) -> dict[str, Any]:
@@ -103,13 +137,12 @@ class TestVocabulary:
 
 
 class TestContract:
-    def test_the_shipped_game_loads_and_is_digest_stable(self) -> None:
-        contract = load_game_contract(SHIPPED_PATH)
-        assert contract.game_id == "whimsical-storybook-fantasy"
+    def test_a_component_fixture_loads_and_is_digest_stable(self, tmp_path: Path) -> None:
+        source = _write_component_fixture(tmp_path)
+        contract = load_game_contract(source)
+        assert contract.game_id == "test-game"
         assert contract.camera.projection == "side_view_2d"
-        assert game_contract_sha256(contract) == game_contract_sha256(
-            load_game_contract(SHIPPED_PATH)
-        )
+        assert game_contract_sha256(contract) == game_contract_sha256(load_game_contract(source))
 
     def test_current_contract_materializes_one_canonical_default_combat_text_policy(self) -> None:
         contract = _load(_contract_payload(revision=3))
@@ -270,18 +303,21 @@ class TestContract:
 
 
 class TestLibraryResolution:
-    def _binding(self, **overrides: Any) -> dict[str, Any]:
+    def _binding(self, root: Path, **overrides: Any) -> dict[str, Any]:
+        source = _write_component_fixture(root)
         binding: dict[str, Any] = {
             "schema_version": 1,
             "kind": "game-contract-binding-v1",
-            "ref": SHIPPED_REF,
-            "source_sha256": hashlib.sha256(SHIPPED_PATH.read_bytes()).hexdigest(),
+            "ref": COMPONENT_FIXTURE_REF,
+            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         }
         binding.update(overrides)
         return binding
 
-    def test_the_shipped_game_resolves_and_publishes_both_digests(self) -> None:
-        resolved = resolve_game_contract_binding(self._binding(), game_library_root=REPOSITORY_ROOT)
+    def test_a_component_fixture_resolves_and_publishes_both_digests(self, tmp_path: Path) -> None:
+        resolved = resolve_game_contract_binding(
+            self._binding(tmp_path), game_library_root=tmp_path
+        )
         identity = resolved.identity()
         # Both digests belong in the identity: the contract names the keywords, and the
         # vocabulary decides what those keywords become in a prompt.
@@ -291,24 +327,26 @@ class TestLibraryResolution:
         assert identity["rights_status"] == "unreviewed"
         assert resolved.source_provenance.media_type == "application/toml"
 
-    def test_a_source_that_changed_since_the_request_is_a_mismatch(self) -> None:
+    def test_a_source_that_changed_since_the_request_is_a_mismatch(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="source_sha256 mismatch"):
             resolve_game_contract_binding(
-                self._binding(source_sha256="0" * 64),
-                game_library_root=REPOSITORY_ROOT,
+                self._binding(tmp_path, source_sha256="0" * 64),
+                game_library_root=tmp_path,
             )
 
     @pytest.mark.parametrize(
         "ref",
         [
-            "library/games/whimsical-storybook-fantasy/other.toml",
-            "library/characters/whimsical-storybook-fantasy/game.toml",
+            "library/games/test-game/other.toml",
+            "library/characters/test-game/game.toml",
             "library/games/game.toml",
         ],
     )
-    def test_only_one_path_shape_is_a_game(self, ref: str) -> None:
+    def test_only_one_path_shape_is_a_game(self, tmp_path: Path, ref: str) -> None:
         with pytest.raises(ValueError, match="game ref must equal"):
-            resolve_game_contract_binding(self._binding(ref=ref), game_library_root=REPOSITORY_ROOT)
+            resolve_game_contract_binding(
+                self._binding(tmp_path, ref=ref), game_library_root=tmp_path
+            )
 
     @pytest.mark.parametrize(
         "ref",
@@ -318,25 +356,38 @@ class TestLibraryResolution:
             "library/games/./x/game.toml",
         ],
     )
-    def test_a_ref_that_leaves_the_root_is_refused_before_any_read(self, ref: str) -> None:
+    def test_a_ref_that_leaves_the_root_is_refused_before_any_read(
+        self, tmp_path: Path, ref: str
+    ) -> None:
         with pytest.raises(ValueError):
-            resolve_game_contract_binding(self._binding(ref=ref), game_library_root=REPOSITORY_ROOT)
+            resolve_game_contract_binding(
+                self._binding(tmp_path, ref=ref), game_library_root=tmp_path
+            )
 
     def test_a_game_id_must_match_the_directory_it_is_filed_under(self, tmp_path: Path) -> None:
         # The cheapest available guard against a copied file that still claims to be the game
         # it was copied from.
         target = tmp_path / "library" / "games" / "renamed"
         target.mkdir(parents=True)
-        (target / "game.toml").write_bytes(SHIPPED_PATH.read_bytes())
+        (target / "game.toml").write_bytes(_component_fixture_bytes())
         with pytest.raises(ValueError, match="must match its library directory"):
             resolve_game_contract_binding(
-                self._binding(ref="library/games/renamed/game.toml"),
+                self._binding(tmp_path, ref="library/games/renamed/game.toml"),
                 game_library_root=tmp_path,
             )
 
     def test_a_symlinked_game_is_refused(self, tmp_path: Path) -> None:
-        target = tmp_path / "library" / "games" / "whimsical-storybook-fantasy"
+        external = tmp_path / "external" / "game.toml"
+        external.parent.mkdir()
+        external.write_bytes(_component_fixture_bytes())
+        target = tmp_path / "library" / "games" / "test-game"
         target.mkdir(parents=True)
-        (target / "game.toml").symlink_to(SHIPPED_PATH)
+        (target / "game.toml").symlink_to(external)
         with pytest.raises(ValueError, match="non-symlink"):
-            resolve_game_contract_binding(self._binding(), game_library_root=tmp_path)
+            binding = {
+                "schema_version": 1,
+                "kind": "game-contract-binding-v1",
+                "ref": COMPONENT_FIXTURE_REF,
+                "source_sha256": hashlib.sha256(external.read_bytes()).hexdigest(),
+            }
+            resolve_game_contract_binding(binding, game_library_root=tmp_path)

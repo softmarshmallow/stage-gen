@@ -1,8 +1,8 @@
-schema_version = 3
-kind = "game-map-v3"
+schema_version = 4
+kind = "game-map-v4"
 game_id = "bellweather"
 map_id = "sunpetal-crossing"
-revision = 3
+revision = 4
 display_name = "Sunpetal Crossing"
 
 [view]
@@ -86,8 +86,22 @@ creatures.
 """
 
 [ground]
-mode = "tileset-12x4-v1"
+mode = "terrain-atlas-3x3-minimal-v1"
 reference_ids = ["sunpetal_scene"]
+occupancy = [
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "1111111111111111111111111111111111111111111111111111111111111111",
+  "1111111111111111111111111111111111111111111111111111111111111111",
+  "1111111111111111111111111111111111111111111111111111111111111111",
+]
 prompt = """
 Create Sunpetal Crossing's stable terrain material from the selected scene:
 warm cream paving, moss-softened stone edges, restrained grass and tiny flowers
@@ -95,3 +109,25 @@ at the surface, and darker compacted soil or masonry beneath. Match the clean
 digital-gouache-like finish and preserve broad quiet areas around a crisp
 readable footing line.
 """
+
+[portal]
+mode = "portal-pair-1x2-v1"
+reference_ids = ["sunpetal_scene"]
+prompt = """
+Create a matched pair of welcoming Sunpetal gate portals built from rounded
+cream stone, honey-toned timber, small brass bells, turquoise cloth accents,
+and sparse coral flowers. The entry should feel calm and cool while the exit
+is slightly warmer and more luminous. Keep both architectural silhouettes
+clear, friendly, and native to the village without text, signs, characters,
+creatures, loose inventory items, or unrelated scenery.
+"""
+
+[[portal.endpoints]]
+anchor = "west_gate"
+normalized_x = 0.08
+role = "entry"
+
+[[portal.endpoints]]
+anchor = "east_gate"
+normalized_x = 0.92
+role = "exit"

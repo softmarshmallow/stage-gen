@@ -14,10 +14,17 @@ from stage_gen.components import (
     MusicGenerationRequest,
     StructuredGenerationRequest,
 )
+from stage_gen.components.game_ui import (
+    INVENTORY_PANEL_HEIGHT,
+    INVENTORY_PANEL_LEFT,
+    INVENTORY_PANEL_TOP,
+    INVENTORY_PANEL_WIDTH,
+)
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_graph import DependencyExecutor
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     dialogue_atlas_grid,
+    motion_semantic_direction,
     motion_source_facing,
     runtime_mirrors_source,
 )
@@ -71,6 +78,16 @@ def test_motion_source_facing_is_runtime_owned_and_climb_is_rear_facing() -> Non
     assert runtime_mirrors_source("back") is False
 
 
+def test_crouch_visual_semantics_are_stationary_and_distinct_from_crawl() -> None:
+    direction = motion_semantic_direction("player", "crouch")
+
+    assert "low stationary crouch loop" in direction
+    assert "does not crawl" in direction
+    assert motion_semantic_direction("player", "walk") == (
+        "four clear game-animation key poses that communicate walk"
+    )
+
+
 def test_transparent_image_rejects_opaque_and_dialogue_grid_is_stable() -> None:
     opaque = Image.new("RGBA", (1024, 1024), (1, 2, 3, 255))
     stream = io.BytesIO()
@@ -92,9 +109,11 @@ def test_transparent_image_rejects_opaque_and_dialogue_grid_is_stable() -> None:
 class _FakeImageService:
     def __init__(self) -> None:
         self.calls = 0
+        self.requests: list[ImageGenerationRequest] = []
 
     async def generate(self, request: ImageGenerationRequest) -> SimpleNamespace:
         self.calls += 1
+        self.requests.append(request)
         return _write_fake_image(request)
 
 
@@ -118,6 +137,16 @@ def _write_fake_image(request: ImageGenerationRequest) -> SimpleNamespace:
             right = round((column + 1) * cell_width - cell_width * 0.15)
             bottom = round((row + 1) * cell_height - cell_height * 0.15)
             draw.ellipse((left, top, right, bottom), fill=(100, 170, 230, 255))
+    elif request.metadata.get("role") == "inventory_panel":
+        draw.rectangle(
+            (
+                INVENTORY_PANEL_LEFT,
+                INVENTORY_PANEL_TOP,
+                INVENTORY_PANEL_LEFT + INVENTORY_PANEL_WIDTH - 1,
+                INVENTORY_PANEL_TOP + INVENTORY_PANEL_HEIGHT - 1,
+            ),
+            fill=(100, 170, 230, 251),
+        )
     else:
         draw.rectangle(
             (size[0] // 20, size[1] // 20, size[0] * 19 // 20, size[1] * 19 // 20),
@@ -134,9 +163,11 @@ def _write_fake_image(request: ImageGenerationRequest) -> SimpleNamespace:
 class _FakeStructuredService:
     def __init__(self) -> None:
         self.calls = 0
+        self.requests: list[StructuredGenerationRequest[object]] = []
 
     async def generate(self, request: StructuredGenerationRequest[object]) -> SimpleNamespace:
         self.calls += 1
+        self.requests.append(request)
         return _write_fake_structured(request)
 
 
@@ -209,22 +240,54 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 167
-    assert images.calls == 72
-    assert structured.calls == 13
+    assert len(summary.nodes) == 172
+    assert images.calls == 74
+    assert structured.calls == 14
     assert music.calls == 3
+    ui_request = next(
+        request for request in images.requests if request.metadata.get("role") == "inventory_panel"
+    )
+    assert ui_request.background == "transparent"
+    assert len(ui_request.input_references) == 2
+    assert "every empty slot well must be solid, filled, and fully opaque alpha 255" in (
+        ui_request.prompt
+    )
+    assert "Do not cut transparent or semi-transparent holes" in ui_request.prompt
+    crouch_request = next(
+        request
+        for request in images.requests
+        if request.metadata.get("kind") == "player" and request.metadata.get("state") == "crouch"
+    )
+    assert crouch_request.background == "transparent"
+    assert crouch_request.metadata["source_facing"] == "right"
+    assert "low stationary crouch loop" in crouch_request.prompt
+    assert "does not crawl, kneel, move forward" in crouch_request.prompt
+    player_review = next(
+        request for request in structured.requests if request.metadata.get("kind") == "player"
+    )
+    assert "exact required visual meaning for each motion" in player_review.prompt
+    assert "low stationary crouch loop" in player_review.prompt
     coverage = json.loads((run_dir / "content/coverage-matrix.json").read_text())
-    assert coverage["required_image_operations"] == 72
-    assert coverage["required_structured_reviews"] == 13
+    assert coverage["required_image_operations"] == 74
+    assert coverage["required_structured_reviews"] == 14
     assert coverage["required_music_operations"] == 3
     assert (run_dir / "content/players/wayfarer/contact-sheet.png").is_file()
     assert (run_dir / "content/players/wayfarer/states/idle.source.png").is_file()
     assert (run_dir / "content/players/wayfarer/states/idle.png").is_file()
+    assert (run_dir / "content/players/wayfarer/states/crouch.source.png").is_file()
+    assert (run_dir / "content/players/wayfarer/states/crouch.png").is_file()
+    assert (run_dir / "ui/inventory_panel.png").is_file()
     idle_validation = json.loads(
         (run_dir / "content/players/wayfarer/states/idle.validation.json").read_text()
     )
     assert idle_validation["kind"] == "prepared-motion-atlas-validation-v3"
     assert idle_validation["repack"]["processor_version"] == "alpha-component-repack-v1"
+    crouch_validation = json.loads(
+        (run_dir / "content/players/wayfarer/states/crouch.validation.json").read_text()
+    )
+    assert crouch_validation["state"] == "crouch"
+    assert crouch_validation["source_facing"] == "right"
+    assert crouch_validation["runtime_horizontal_mirroring"] is True
     assert (run_dir / "content/mobs/crowncrag_page_eater/review.json").is_file()
     assert (run_dir / "content/npcs/mara_crumbwell/dialogue.validation.json").is_file()
     assert (run_dir / "content/props/contact-sheet.png").is_file()

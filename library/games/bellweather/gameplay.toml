@@ -1,12 +1,12 @@
 schema_version = 1
 kind = "gameplay-contract-v1"
 game_id = "bellweather"
-revision = 2
+revision = 3
 entry_map_id = "sunpetal-crossing"
 entry_spawn_id = "village_west_gate"
 
 [navigation]
-allowed_movements = ["move_left", "move_right", "jump", "climb"]
+allowed_movements = ["move_left", "move_right", "jump", "crouch", "climb"]
 logical_world_wrap = false
 fall_recovery = "last_safe_ground"
 

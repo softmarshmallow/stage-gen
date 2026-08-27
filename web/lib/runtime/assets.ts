@@ -5,6 +5,8 @@
 // primitives. The current v7 scrolling manifest guarantees canonical-alpha
 // PNGs for both AI and chroma generation modes.
 
+import Phaser from "phaser";
+
 import {
   copyImageToCanvas,
   extractCellsBbox,
@@ -349,6 +351,71 @@ import {
   type TerrainIntegrationAxis,
   type TerrainSideEdge,
 } from "./tiles";
+import {
+  TERRAIN_ATLAS_CELL_PX,
+  TERRAIN_ATLAS_HEIGHT,
+  TERRAIN_ATLAS_WIDTH,
+  terrainAtlasFrameName,
+  terrainAtlasLookupEntries,
+} from "./terrain-atlas";
+
+/** Register the canonical 47-mask atlas as exact 120px frames for dynamic tilemaps. */
+export async function loadTerrainAtlas(
+  url: string,
+  key: string,
+  textures: Phaser.Textures.TextureManager,
+  policy: PreviewTransparencyPolicy,
+): Promise<HTMLCanvasElement> {
+  const image = await fetchImage(url);
+  const canvas = transparencyCanvas(image, policy);
+  if (canvas.width !== TERRAIN_ATLAS_WIDTH || canvas.height !== TERRAIN_ATLAS_HEIGHT) {
+    throw new Error(
+      `terrain atlas must be exactly ${TERRAIN_ATLAS_WIDTH}x${TERRAIN_ATLAS_HEIGHT}`,
+    );
+  }
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("terrain atlas import requires a 2d canvas");
+  const entries = terrainAtlasLookupEntries();
+  for (const { coordinate } of entries) {
+    const alpha = context.getImageData(
+      coordinate.column * TERRAIN_ATLAS_CELL_PX,
+      coordinate.row * TERRAIN_ATLAS_CELL_PX,
+      TERRAIN_ATLAS_CELL_PX,
+      TERRAIN_ATLAS_CELL_PX,
+    ).data;
+    if (!Array.from({ length: alpha.length / 4 }, (_, index) => alpha[index * 4 + 3]).some(Boolean)) {
+      throw new Error("terrain atlas contains an empty lookup cell");
+    }
+  }
+  const placeholderAlpha = context.getImageData(
+    10 * TERRAIN_ATLAS_CELL_PX,
+    TERRAIN_ATLAS_CELL_PX,
+    TERRAIN_ATLAS_CELL_PX,
+    TERRAIN_ATLAS_CELL_PX,
+  ).data;
+  if (
+    Array.from(
+      { length: placeholderAlpha.length / 4 },
+      (_, index) => placeholderAlpha[index * 4 + 3],
+    ).some(Boolean)
+  ) {
+    throw new Error("terrain atlas placeholder cell must be transparent");
+  }
+  registerCanvas(textures, key, canvas);
+  const texture = textures.get(key);
+  texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  for (const { coordinate } of entries) {
+    texture.add(
+      terrainAtlasFrameName(coordinate),
+      0,
+      coordinate.column * TERRAIN_ATLAS_CELL_PX,
+      coordinate.row * TERRAIN_ATLAS_CELL_PX,
+      TERRAIN_ATLAS_CELL_PX,
+      TERRAIN_ATLAS_CELL_PX,
+    );
+  }
+  return canvas;
+}
 
 /**
  * Build a runtime-only atlas whose isolation gutters repeat each cell's own

@@ -211,8 +211,8 @@ class PreparedPackageExecutor:
             cache_dir=cache_dir,
             image_service=image_service,
             structured_service=structured_service,
-            wireframe_path=Path(__file__).parents[2]
-            / "resources/fixtures/image_gen_templates/wireframe.png",
+            terrain_template_path=Path(__file__).parents[2]
+            / "resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
         )
         try:
             summary = await executor.run(

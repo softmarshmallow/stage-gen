@@ -19,12 +19,11 @@ from stage_gen.components._game_input import (
 from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAMEPLAY_CONTRACT_SCHEMA_VERSION = 1
+NavigationMovement = Literal["move_left", "move_right", "jump", "crouch", "climb"]
 
 
 class NavigationPolicy(PersistedContractModel):
-    allowed_movements: list[Literal["move_left", "move_right", "jump", "climb"]] = Field(
-        min_length=1
-    )
+    allowed_movements: list[NavigationMovement] = Field(min_length=1)
     logical_world_wrap: Literal[False]
     fall_recovery: Literal["last_safe_ground"]
 

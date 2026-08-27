@@ -16,8 +16,8 @@ Start here for the headless, general-purpose system:
   ownership boundaries, cross-contract invariants, and subordinate authorities,
   with current executable identities kept explicitly separate.
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
-  implemented current `game-contract-v3` fields, closed vocabulary, validation,
-  binding, and manifest projection.
+  implemented current `game-contract-v5` package-root fields, closed vocabulary,
+  validation, binding, and manifest projection.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
   machine-checked current scrolling DAG, stage and operation contracts, internal
   fan-out, execution semantics, and explicitly separated target evolution.
@@ -25,9 +25,11 @@ Start here for the headless, general-purpose system:
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
 - [Authored map-generation contract](spec/game/map-generation-contract.md) —
-  ratified TARGET `game-map-v3`: explicit image-reference closure, side-view
-  continuity, per-map layer prompts, stable ground mode, bundle review, cache,
-  and gameplay exclusion.
+  exact-current `game-map-v4`: explicit image-reference closure, side-view
+  continuity, per-map layers, binary terrain, ladder and portal composition,
+  bundle review, cache, and gameplay-relationship exclusion.
+- [Authored game UI contract](spec/game/ui.md) — current root `ui.toml`, inventory-panel layout,
+  opaque slot-interior alpha rule, generation/review branch, manifest binding, and runtime fallback.
 - [Game visual reference and vocabulary](game-visual-reference.md) — global
   research anchors, neutral style facets, prompt boundaries, and candidate
   vocabulary governance for 2D-game art.
@@ -39,13 +41,13 @@ Start here for the headless, general-purpose system:
   skip/resume, checkpoint, and cutscene-realization semantics.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate,
   digest-bound game-global track catalog, scrolling generation pipeline, shuffle
-  playback, absence semantics, and listening/publication boundary.
-- [Authored game maps](game-maps.md) — current executable `game-map-v2`, embedded
-  Level Profiles, ordered digest-locked map book, manifest projection, and the
-  pointer to its ratified map-generation replacement.
+  playback, prepared-runtime projection, and listening/publication boundary.
+- [Authored game maps](game-maps.md) — exact-current `game-map-v4` package
+  placement, visual/static-topology ownership, gameplay boundary, terrain
+  projection, and links to the field-level authority.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
-  core-first taxonomy, ownership boundaries, manifest composition, runtime lifecycle,
-  and floating-combat-text feedback contract.
+  exact-current gameplay ownership, terrain/ladder/portal composition boundary,
+  runtime lifecycle, actor state selection, population, combat, and feedback.
 - [Visual Content Direction](visual-content-direction.md) — the optional
   `scrolling-preview` content-intensity compiler, its ownership boundary, and
   supported caller workflow.
@@ -57,9 +59,9 @@ Start here for the headless, general-purpose system:
 - [Visual Content Direction A/B case study](visual-content-direction-case-study.md)
   — the shared-reference experiment, exact evidence scope, and strict
   visual-review result.
-- [Sprite-sheet processing](spec/sprite-sheet-processing.md) — planned
-  provider-neutral grid detection, cell extraction, and anchor-aligned packing;
-  not implemented.
+- [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
+  alpha-component repacking default, its accepted loss modes, evidence contract, and planned
+  geometry and ownership improvements.
 - [Verified single-axis image repeat](image-repeat.md) — unchanged admission,
   explicit masked repair with deterministic alpha-topology reconstruction and
   endpoint anchoring, retained provider evidence, deterministic gates, and

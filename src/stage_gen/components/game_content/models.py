@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import PurePosixPath
-from typing import Literal, Protocol
+from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
@@ -20,7 +20,67 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-GAME_CONTENT_SCHEMA_VERSION = 1
+GAME_CONTENT_SCHEMA_VERSION = 2
+
+MotionPlaybackMode = Literal["hold", "loop", "once", "gameplay_driven"]
+CanonicalFrameIndex = Annotated[int, Field(ge=0, le=63)]
+PLAYER_MOTION_STATES = frozenset(
+    {
+        "idle",
+        "walk",
+        "run",
+        "jump",
+        "crouch",
+        "climb",
+        "basic_attack",
+        "skill_cast",
+        "hurt",
+        "death",
+    }
+)
+
+
+class MotionPresentation(PersistedContractModel):
+    """Authored runtime playback for one independently generated motion state."""
+
+    state: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    playback_mode: MotionPlaybackMode
+    canonical_frame_indices: list[CanonicalFrameIndex] = Field(min_length=1, max_length=64)
+    frames_per_second: int | None = Field(default=None, ge=1, le=60)
+
+    @field_validator("canonical_frame_indices")
+    @classmethod
+    def validate_frame_indices(cls, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("canonical frame indices must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def validate_playback_shape(self) -> MotionPresentation:
+        if self.playback_mode == "hold":
+            if len(self.canonical_frame_indices) != 1:
+                raise ValueError("hold playback requires exactly one canonical frame index")
+            if self.frames_per_second is not None:
+                raise ValueError("hold playback must not declare frames_per_second")
+        elif self.playback_mode in {"loop", "once"}:
+            if self.frames_per_second is None:
+                raise ValueError(f"{self.playback_mode} playback requires frames_per_second")
+        elif self.frames_per_second is not None:
+            raise ValueError("gameplay_driven playback must not declare frames_per_second")
+        return self
+
+
+def _validate_motion_states(
+    motions: Sequence[MotionPresentation],
+    *,
+    allowed_states: set[str],
+    label: str,
+) -> None:
+    states = [entry.state for entry in motions]
+    unique_values(states, f"{label} motion state")
+    unknown = sorted(set(states) - allowed_states)
+    if unknown:
+        raise ValueError(f"{label} declares unsupported motion states: " + ", ".join(unknown))
 
 
 class ContentReference(PersistedContractModel):
@@ -87,19 +147,7 @@ class PlayerContent(PersistedContractModel):
     age: int = Field(ge=18, le=130)
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
-    motion_states: list[
-        Literal[
-            "idle",
-            "walk",
-            "run",
-            "jump",
-            "climb",
-            "basic_attack",
-            "skill_cast",
-            "hurt",
-            "death",
-        ]
-    ] = Field(min_length=1)
+    motions: list[MotionPresentation] = Field(min_length=1)
     dialogue_art: DialogueArtDirection
 
     @field_validator("display_name", "body_kind")
@@ -112,16 +160,30 @@ class PlayerContent(PersistedContractModel):
     def validate_prompt(cls, value: str) -> str:
         return normalized_text(value, "player prompt", multiline=True)
 
-    @field_validator("reference_ids", "motion_states")
+    @field_validator("reference_ids")
     @classmethod
     def validate_lists(cls, value: list[str], info: ValidationInfo) -> list[str]:
         unique_values(value, f"player {info.field_name}")
         return value
 
+    @model_validator(mode="after")
+    def validate_motions(self) -> PlayerContent:
+        _validate_motion_states(
+            self.motions,
+            allowed_states=set(PLAYER_MOTION_STATES),
+            label="player",
+        )
+        for motion in self.motions:
+            if (motion.state == "climb") != (motion.playback_mode == "gameplay_driven"):
+                raise ValueError(
+                    "player climb must use gameplay_driven playback and no other state may use it"
+                )
+        return self
+
 
 class PlayerContentCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["player-content-v1"]
+    schema_version: Literal[2]
+    kind: Literal["player-content-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)
@@ -140,7 +202,7 @@ class MobContent(PersistedContractModel):
     rank: Literal["common", "uncommon", "elite", "boss"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
-    motion_states: list[Literal["idle", "move", "attack", "hurt", "death"]] = Field(min_length=1)
+    motions: list[MotionPresentation] = Field(min_length=1)
 
     @field_validator("display_name", "body_kind")
     @classmethod
@@ -152,16 +214,27 @@ class MobContent(PersistedContractModel):
     def validate_prompt(cls, value: str) -> str:
         return normalized_text(value, "mob prompt", multiline=True)
 
-    @field_validator("reference_ids", "motion_states")
+    @field_validator("reference_ids")
     @classmethod
     def validate_lists(cls, value: list[str], info: ValidationInfo) -> list[str]:
         unique_values(value, f"mob {info.field_name}")
         return value
 
+    @model_validator(mode="after")
+    def validate_motions(self) -> MobContent:
+        _validate_motion_states(
+            self.motions,
+            allowed_states={"idle", "move", "attack", "hurt", "death"},
+            label=f"mob {self.mob_id}",
+        )
+        if any(motion.playback_mode == "gameplay_driven" for motion in self.motions):
+            raise ValueError("mob motions must not use gameplay_driven playback")
+        return self
+
 
 class MobContentCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["mob-content-v1"]
+    schema_version: Literal[2]
+    kind: Literal["mob-content-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)
@@ -181,7 +254,7 @@ class NpcContent(PersistedContractModel):
     body_kind: str
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
-    world_motion_states: list[Literal["idle"]] = Field(min_length=1, max_length=1)
+    world_motions: list[MotionPresentation] = Field(min_length=1, max_length=1)
     dialogue_expressions: list[str] = Field(min_length=1, max_length=16)
 
     @field_validator("display_name", "role", "body_kind")
@@ -194,16 +267,27 @@ class NpcContent(PersistedContractModel):
     def validate_prompt(cls, value: str) -> str:
         return normalized_text(value, "npc prompt", multiline=True)
 
-    @field_validator("reference_ids", "world_motion_states", "dialogue_expressions")
+    @field_validator("reference_ids", "dialogue_expressions")
     @classmethod
     def validate_lists(cls, value: list[str], info: ValidationInfo) -> list[str]:
         unique_values(value, f"npc {info.field_name}")
         return value
 
+    @model_validator(mode="after")
+    def validate_world_motions(self) -> NpcContent:
+        _validate_motion_states(
+            self.world_motions,
+            allowed_states={"idle"},
+            label=f"NPC {self.npc_id} world",
+        )
+        if self.world_motions[0].playback_mode == "gameplay_driven":
+            raise ValueError("NPC world motion must not use gameplay_driven playback")
+        return self
+
 
 class NpcContentCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["npc-content-v1"]
+    schema_version: Literal[2]
+    kind: Literal["npc-content-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)
@@ -240,8 +324,8 @@ class PropContent(PersistedContractModel):
 
 
 class PropContentCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["prop-content-v1"]
+    schema_version: Literal[2]
+    kind: Literal["prop-content-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)
@@ -281,8 +365,8 @@ class ItemContent(PersistedContractModel):
 
 
 class ItemContentCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["item-content-v1"]
+    schema_version: Literal[2]
+    kind: Literal["item-content-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)

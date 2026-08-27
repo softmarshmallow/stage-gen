@@ -34,10 +34,11 @@ It must not silently assume that row 2 is a jump animation. A depth-layer
 component may accept a requested projection and loop axis. It must not assume a
 horizontal follow camera because one preview happens to use one.
 
-The provider-neutral geometry, crop, and packing boundary is specified as a
-[planned sprite-sheet processing contract](spec/sprite-sheet-processing.md).
-That operation is not implemented; the contract does not reserve recipe or
-consumer behavior inside reusable components.
+The provider-neutral recovery, crop, and packing boundary is specified by the
+[sprite-sheet slicing and instance-recovery contract](spec/sprite-sheet-processing.md).
+The Python core implements its minimal alpha-component repacker; generic grid detection and
+semantic ownership recovery remain planned. The contract does not reserve recipe or consumer
+behavior inside reusable components.
 
 Components must not import `web/`. The optional web adapter consumes exported
 manifests and may translate them into browser-engine textures or scene state.

@@ -29,6 +29,7 @@ from stage_gen.components.image_repeat import (
 )
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
+from stage_gen.media import AlphaComponentRepackContract, repack_alpha_components
 from stage_gen.orchestration.execution_graph import (
     CacheDisposition,
     ExecutionGraph,
@@ -40,9 +41,12 @@ from stage_gen.orchestration.execution_graph import (
     OperationKind,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.scrolling_preview.raster_contracts import (
-    contract_for_stage,
-    normalize_canonical_grid,
+from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    assemble_terrain_atlas,
+    compose_canonical_terrain,
+    require_terrain_material_source,
+    terrain_atlas_generation_prompt,
 )
 from stage_gen.reliability import (
     atomic_write_bytes,
@@ -50,11 +54,14 @@ from stage_gen.reliability import (
     write_artifact_with_provenance_async,
 )
 
-WORLD_HANDLER_VERSION = "prepared-world-v1"
+WORLD_HANDLER_VERSION = "prepared-world-v3"
 _LAYER_NODE = re.compile(
     r"^map-(?P<map_id>.+)-layer-(?P<layer_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
 )
 _GROUND_NODE = re.compile(r"^map-(?P<map_id>.+)-ground-(?P<action>generate|validate)$")
+_PRESENTATION_NODE = re.compile(
+    r"^map-(?P<map_id>.+)-(?P<asset>ladder|portal)-(?P<action>generate|validate)$"
+)
 _MAP_NODE = re.compile(r"^map-(?P<map_id>.+)-(?P<action>composite|review)$")
 
 
@@ -70,7 +77,7 @@ class PreparedWorldNodeHandler:
         cache_dir: Path,
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[object],
-        wireframe_path: Path,
+        terrain_template_path: Path,
     ) -> None:
         self._graph = graph
         self._package = package
@@ -78,7 +85,7 @@ class PreparedWorldNodeHandler:
         self._cache_dir = cache_dir
         self._images = image_service
         self._structured = structured_service
-        self._wireframe_path = wireframe_path
+        self._terrain_template_path = terrain_template_path
 
     async def __call__(
         self, node: ExecutionNode, context: NodeExecutionContext
@@ -92,10 +99,11 @@ class PreparedWorldNodeHandler:
             raise
         except Exception as error:
             external = node.operation is not OperationKind.LOCAL
+            attempts = int(getattr(error, "attempts", 1))
             raise NodeExecutionError(
                 str(error),
-                attempts=int(getattr(error, "attempts", 1)),
-                provider_operations=1 if external else 0,
+                attempts=attempts,
+                provider_operations=attempts if external else 0,
             ) from error
         self._write_cache(node, context, result)
         return result
@@ -119,7 +127,14 @@ class PreparedWorldNodeHandler:
             game_map = self._map(ground_match["map_id"])
             if ground_match["action"] == "generate":
                 return await self._generate_ground(node, game_map)
-            return await self._validate_ground(node)
+            return await self._validate_ground(node, game_map)
+        presentation_match = _PRESENTATION_NODE.fullmatch(node.node_id)
+        if presentation_match:
+            game_map = self._map(presentation_match["map_id"])
+            asset = cast(Literal["ladder", "portal"], presentation_match["asset"])
+            if presentation_match["action"] == "generate":
+                return await self._generate_map_presentation(node, game_map, asset)
+            return await self._validate_map_presentation(node, asset)
         map_match = _MAP_NODE.fullmatch(node.node_id)
         if map_match:
             game_map = self._map(map_match["map_id"])
@@ -219,36 +234,126 @@ class PreparedWorldNodeHandler:
         self, node: ExecutionNode, game_map: PreparedGameMap
     ) -> NodeExecutionResult:
         output = self._run_dir / node.outputs[0]
-        prompt = self._map_prompt(game_map, game_map.ground.prompt) + (
-            "\nCreate a strict 12-column by 4-row terrain atlas matching the supplied wireframe. "
-            "Preserve all 48 equal cells as independent terrain roles. Keep a transparent gutter "
-            "inside every cell boundary; never connect scenery across cells. Output true alpha."
-        )
-        references = list(self._image_references(game_map, game_map.ground.reference_ids))
-        wireframe = self._wireframe_path.read_bytes()
-        references.append(
-            ImageReference(
-                url=_data_url(wireframe, "image/png"),
-                provenance_ref=f"fixture://scrolling-preview/wireframe.png#sha256={_sha(wireframe)}",
-            )
-        )
+        prompt = terrain_atlas_generation_prompt(self._map_prompt(game_map, game_map.ground.prompt))
+        references = self._image_references(game_map, game_map.ground.reference_ids)
         result = await self._images.generate(
             ImageGenerationRequest(
                 prompt=prompt,
                 artifact_path=output,
-                input_references=tuple(references),
+                input_references=references,
                 quality="high",
-                background="transparent",
+                background="opaque",
                 output_format="png",
-                size="2400x800",
+                size="2048x1152",
                 timeout_seconds=600,
                 metadata={
                     "checkpoint": "world",
                     "map_id": game_map.map_id,
                     "ground_mode": game_map.ground.mode,
                 },
-                validate=lambda artifact: _validate_provider_image(
-                    artifact.data, width=2400, height=800, transparent=True
+                validate=lambda artifact: require_terrain_material_source(artifact.data),
+            )
+        )
+        return self._result(
+            node,
+            (output, Path(result.provenance_path)),
+            attempts=result.attempts,
+            provider_operations=result.attempts,
+        )
+
+    async def _validate_ground(
+        self, node: ExecutionNode, game_map: PreparedGameMap
+    ) -> NodeExecutionResult:
+        generated = self._graph.node(node.depends_on[0])
+        raw_path = self._run_dir / generated.outputs[0]
+        raw = raw_path.read_bytes()
+        canonical, validation = assemble_terrain_atlas(
+            raw,
+            template=self._terrain_template_path.read_bytes(),
+        )
+        if validation["classification"] != "direct_pass":
+            raise ValueError("dynamic terrain atlas validation requires direct_pass media")
+        output, validation_path, evidence_path = (self._run_dir / ref for ref in node.outputs)
+        sidecar = await _write_local_image(
+            output,
+            canonical,
+            model=MATERIAL_ASSEMBLER_ID,
+            prompt=(
+                "Sample the generated grass-cap and dirt-fill appearance periodically, apply "
+                "the locked packaged alpha silhouettes and authoritative 47-mask lookup, and "
+                "assemble the canonical 12x4 atlas deterministically."
+            ),
+            source_ref=generated.outputs[0],
+            source_data=raw,
+            validation=validation,
+        )
+        atomic_write_json(validation_path, validation)
+        evidence, _ = compose_canonical_terrain(canonical, game_map.ground.occupancy)
+        evidence_sidecar = await _write_local_image(
+            evidence_path,
+            evidence,
+            model="terrain-atlas-authored-occupancy-preview-v1",
+            prompt="Compose the canonical terrain atlas through the map-authored binary occupancy.",
+            source_ref=output.relative_to(self._run_dir).as_posix(),
+            source_data=canonical,
+            validation={
+                "occupancy_rows": len(game_map.ground.occupancy),
+                "occupancy_columns": len(game_map.ground.occupancy[0]),
+                "map_id": game_map.map_id,
+            },
+        )
+        return self._result(
+            node,
+            (output, sidecar, validation_path, evidence_path, evidence_sidecar),
+            provider_operations=0,
+        )
+
+    async def _generate_map_presentation(
+        self,
+        node: ExecutionNode,
+        game_map: PreparedGameMap,
+        asset: Literal["ladder", "portal"],
+    ) -> NodeExecutionResult:
+        direction = game_map.ladder if asset == "ladder" else game_map.portal
+        if direction is None:
+            raise ValueError(f"map {game_map.map_id} does not declare {asset}")
+        output = self._run_dir / node.outputs[0]
+        if asset == "ladder":
+            prompt = self._map_prompt(game_map, direction.prompt) + (
+                "\nCreate exactly one complete front-facing ladder. Keep both rails and every "
+                "rung connected as one tall isolated subject. Show the entire ladder from its "
+                "top ends through its bottom ends. Use a fully transparent exterior with no "
+                "floor, scenery, shadow, labels, border, character, or duplicate ladder."
+            )
+            size = "1024x1536"
+        else:
+            prompt = self._map_prompt(game_map, direction.prompt) + (
+                "\nCreate exactly two complete isolated portal structures in one horizontal "
+                "row: entry on the left and exit on the right. Keep each portal wholly inside "
+                "its own half with a wide transparent separator. Both bases must be level and "
+                "the two structures must be the same world scale. Use a fully transparent "
+                "exterior with no floor, scenery, shadow, labels, border, character, or extra "
+                "portal."
+            )
+            size = "1536x1024"
+        result = await self._images.generate(
+            ImageGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                input_references=self._image_references(game_map, direction.reference_ids),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size=size,
+                timeout_seconds=600,
+                metadata={
+                    "checkpoint": "world",
+                    "map_id": game_map.map_id,
+                    "map_asset": asset,
+                    "mode": direction.mode,
+                },
+                validate=lambda artifact: _validate_map_presentation_source(
+                    artifact.data, asset=asset
                 ),
             )
         )
@@ -259,26 +364,29 @@ class PreparedWorldNodeHandler:
             provider_operations=result.attempts,
         )
 
-    async def _validate_ground(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _validate_map_presentation(
+        self, node: ExecutionNode, asset: Literal["ladder", "portal"]
+    ) -> NodeExecutionResult:
         generated = self._graph.node(node.depends_on[0])
         raw_path = self._run_dir / generated.outputs[0]
         raw = raw_path.read_bytes()
-        contract = contract_for_stage("tileset")
-        if contract is None:
-            raise RuntimeError("tileset contract is unavailable")
-        canonical, validation = normalize_canonical_grid(raw, contract)
+        canonical, validation = _canonicalize_map_presentation(raw, asset=asset)
         output, validation_path = (self._run_dir / ref for ref in node.outputs)
         sidecar = await _write_local_image(
             output,
             canonical,
-            model="prepared-ground-grid-v1",
-            prompt="Normalize the provider atlas into the canonical 12x4 ground grid.",
+            model=f"prepared-map-{asset}-alpha-component-repack-v1",
+            prompt=f"Isolate and repack the map-local {asset} presentation.",
             source_ref=generated.outputs[0],
             source_data=raw,
             validation=validation,
         )
         atomic_write_json(validation_path, validation)
-        return self._result(node, (output, sidecar, validation_path), provider_operations=0)
+        return self._result(
+            node,
+            (output, sidecar, validation_path),
+            provider_operations=0,
+        )
 
     async def _composite(
         self, node: ExecutionNode, game_map: PreparedGameMap
@@ -304,7 +412,7 @@ class PreparedWorldNodeHandler:
         if canvas is None:
             raise ValueError("map composite has no declared layers")
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
-        canvas.alpha_composite(_ground_preview(ground_path, canvas.size))
+        canvas.alpha_composite(_ground_preview(ground_path, canvas.size, game_map.ground.occupancy))
         for layer in foregrounds:
             path = self._run_dir / f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"
             with Image.open(path) as opened:
@@ -352,16 +460,36 @@ class PreparedWorldNodeHandler:
         output = self._run_dir / node.outputs[0]
         composite_path = self._run_dir / f"maps/{game_map.map_id}/composite.png"
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
+        ground_evidence_path = self._run_dir / f"maps/{game_map.map_id}/ground.evidence.png"
         references = [
             StructuredReference(
                 url=_data_url(composite_path.read_bytes(), "image/png"),
                 provenance_ref=f"run://{composite_path.relative_to(self._run_dir).as_posix()}",
             ),
             StructuredReference(
+                url=_data_url(ground_evidence_path.read_bytes(), "image/png"),
+                provenance_ref=(
+                    f"run://{ground_evidence_path.relative_to(self._run_dir).as_posix()}"
+                ),
+            ),
+            StructuredReference(
                 url=_data_url(ground_path.read_bytes(), "image/png"),
                 provenance_ref=f"run://{ground_path.relative_to(self._run_dir).as_posix()}",
             ),
         ]
+        declared_presentations: list[str] = []
+        for asset in ("portal", "ladder"):
+            direction = game_map.portal if asset == "portal" else game_map.ladder
+            if direction is None:
+                continue
+            path = self._run_dir / f"maps/{game_map.map_id}/{asset}.png"
+            references.append(
+                StructuredReference(
+                    url=_data_url(path.read_bytes(), "image/png"),
+                    provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
+                )
+            )
+            declared_presentations.append(asset)
         for ref in game_map.references:
             package_file = self._package.file(ref.source)
             references.append(
@@ -398,14 +526,19 @@ class PreparedWorldNodeHandler:
             StructuredGenerationRequest(
                 prompt=(
                     f"Review the generated map artifacts for {game_map.display_name}. "
-                    "Image 1 is the layer composite, image 2 is the ground atlas, and "
-                    "the next image is the authored reference. Remaining images alternate "
+                    "Image 1 is the layer composite, image 2 is the deterministic authored-"
+                    "occupancy terrain composition, and image 3 is the canonical 47-mask "
+                    f"ground atlas. The next images are the declared map-local presentation "
+                    f"assets in this exact order: {declared_presentations}. The next image is "
+                    "the authored reference. Remaining images alternate "
                     "between one isolated canonical layer and its checkerboard three-repeat "
                     "evidence, in declared painter order. Transparent empty edge space is an "
                     "intentional clean wrap boundary, not missing art. Judge reference fidelity, "
                     "layer separation, style coherence, side-view playfield readability, "
-                    "horizontal looping continuity from the repeat evidence, and ground "
-                    "compatibility. A looping strip has no privileged horizontal origin: a pure "
+                    "horizontal looping continuity from the repeat evidence, ground topology "
+                    "and material compatibility, and the functional readability, isolation, "
+                    "scale coherence, and map-style fidelity of every declared portal or ladder. "
+                    "A looping strip has no privileged horizontal origin: a pure "
                     "cyclic x-translation of landmarks is compositionally equivalent and must "
                     "not reduce reference fidelity. Report concrete evidence; uncertainty must "
                     "not be called accept."
@@ -440,7 +573,7 @@ class PreparedWorldNodeHandler:
             f"Bellweather universe context:\n{universe}\n\nVisual style: {style.label}. "
             f"Use: {', '.join(style.keywords)}. Avoid: {', '.join(style.avoid)}.\n\n"
             f"Map contract: fixed 2D side view, scrolling x-axis, seamless horizontal continuity.\n"
-            f"Layer task:\n{specific}"
+            f"Map asset task:\n{specific}"
         )
 
     def _image_references(
@@ -653,55 +786,107 @@ def _bounded_repeat_preview(data: bytes) -> bytes:
     return stream.getvalue()
 
 
-def _ground_preview(path: Path, size: tuple[int, int]) -> Image.Image:
-    with Image.open(path) as opened:
-        atlas = opened.convert("RGBA")
-    columns, rows = 12, 4
-    cell_width = atlas.width // columns
-    cell_height = atlas.height // rows
-    # The canonical two-pixel gutter is a runtime extraction boundary. The generated material
-    # can also carry a painted wireframe immediately inside it, so the composition preview uses
-    # a wider visual inset while leaving the canonical atlas untouched.
-    gutter = 12
-    top = atlas.crop(
-        (
-            cell_width + gutter,
-            gutter,
-            cell_width * 2 - gutter,
-            cell_height - gutter,
-        )
-    )
-    fill = atlas.crop(
-        (
-            gutter,
-            cell_height * 3 + gutter,
-            cell_width - gutter,
-            cell_height * 4 - gutter,
-        )
-    )
+def _ground_preview(
+    path: Path, size: tuple[int, int], occupancy: tuple[str, ...] | list[str]
+) -> Image.Image:
+    atlas = path.read_bytes()
+    composed, _ = compose_canonical_terrain(atlas, occupancy)
+    with Image.open(io.BytesIO(composed)) as opened:
+        ground = opened.convert("RGBA")
     preview = Image.new("RGBA", size, (0, 0, 0, 0))
-    surface_y = round(size[1] * 0.70)
-    fill_region = _mirror_repeat_x(fill, size[0]).resize(
-        (size[0], size[1] - surface_y), Image.Resampling.LANCZOS
-    )
-    preview.alpha_composite(fill_region, (0, surface_y))
-    top_strip = _mirror_repeat_x(top, size[0])
-    preview.alpha_composite(top_strip, (0, surface_y - top.height // 2))
+    target_height = max(1, round(ground.height * size[0] / ground.width))
+    if target_height > size[1] // 2:
+        target_height = size[1] // 2
+    projected = ground.resize((size[0], target_height), Image.Resampling.LANCZOS)
+    preview.alpha_composite(projected, (0, size[1] - target_height))
     return preview
 
 
-def _mirror_repeat_x(tile: Image.Image, width: int) -> Image.Image:
-    strip = Image.new("RGBA", (width, tile.height), (0, 0, 0, 0))
-    tile_count = 8
-    tile_width = width // tile_count
-    canonical = tile.resize((tile_width, tile.height), Image.Resampling.LANCZOS)
-    mirrored = ImageOps.mirror(canonical)
-    for index in range(tile_count):
-        strip.alpha_composite(
-            canonical if index % 2 == 0 else mirrored,
-            (index * tile_width, 0),
+def _map_presentation_contract(
+    asset: Literal["ladder", "portal"],
+) -> AlphaComponentRepackContract:
+    if asset == "ladder":
+        return AlphaComponentRepackContract(
+            rows=1,
+            columns=1,
+            required_cells=1,
+            gutter=16,
+            minimum_component_fraction=0.01,
+            anchor="bottom",
         )
-    return strip
+    return AlphaComponentRepackContract(
+        rows=1,
+        columns=2,
+        required_cells=2,
+        gutter=16,
+        minimum_component_fraction=0.01,
+        anchor="bottom",
+    )
+
+
+def _canonicalize_map_presentation(
+    data: bytes, *, asset: Literal["ladder", "portal"]
+) -> tuple[bytes, dict[str, object]]:
+    canonical, report = repack_alpha_components(data, _map_presentation_contract(asset))
+    placements = report.get("placements")
+    if not isinstance(placements, list) or len(placements) != (1 if asset == "ladder" else 2):
+        raise ValueError(f"map {asset} repack did not preserve the required subjects")
+    dimensions: list[dict[str, int]] = []
+    for placement in placements:
+        if not isinstance(placement, dict):
+            raise ValueError(f"map {asset} repack placement is invalid")
+        target = placement.get("target_bbox")
+        if (
+            not isinstance(target, list)
+            or len(target) != 4
+            or not all(isinstance(value, int) for value in target)
+        ):
+            raise ValueError(f"map {asset} repack target geometry is invalid")
+        width = target[2] - target[0]
+        height = target[3] - target[1]
+        if width <= 0 or height <= 0:
+            raise ValueError(f"map {asset} repack subject is empty")
+        dimensions.append({"width": width, "height": height})
+    if asset == "ladder" and not (
+        dimensions[0]["width"] * 2 <= dimensions[0]["height"] <= dimensions[0]["width"] * 8
+    ):
+        raise ValueError("map ladder must retain a complete tall functional silhouette")
+    if asset == "portal":
+        height_ratio = max(item["height"] for item in dimensions) / min(
+            item["height"] for item in dimensions
+        )
+        if height_ratio > 1.35:
+            raise ValueError("map portal pair must retain compatible world scale")
+    return canonical, {**report, "asset_kind": asset, "subject_dimensions": dimensions}
+
+
+def _validate_map_presentation_source(
+    data: bytes, *, asset: Literal["ladder", "portal"]
+) -> dict[str, object]:
+    expected = (1024, 1536) if asset == "ladder" else (1536, 1024)
+    facts = _validate_provider_image(
+        data,
+        width=expected[0],
+        height=expected[1],
+        transparent=True,
+    )
+    with Image.open(io.BytesIO(data)) as opened:
+        alpha = opened.convert("RGBA").getchannel("A")
+    border = [
+        *alpha.crop((0, 0, alpha.width, 1)).get_flattened_data(),
+        *alpha.crop((0, alpha.height - 1, alpha.width, alpha.height)).get_flattened_data(),
+        *alpha.crop((0, 0, 1, alpha.height)).get_flattened_data(),
+        *alpha.crop((alpha.width - 1, 0, alpha.width, alpha.height)).get_flattened_data(),
+    ]
+    if max(border) > 16 or sum(border) / len(border) > 0.5:
+        raise ValueError(f"map {asset} must retain a transparent isolated canvas border")
+    _, report = _canonicalize_map_presentation(data, asset=asset)
+    return {
+        **facts,
+        "principal_component_count": report["principal_candidate_count"],
+        "required_subject_count": 1 if asset == "ladder" else 2,
+        "subject_dimensions": report["subject_dimensions"],
+    }
 
 
 async def _write_local_image(
@@ -787,6 +972,7 @@ def _review_schema() -> dict[str, object]:
             "playfield_readability",
             "looping_continuity",
             "ground_compatibility",
+            "traversal_presentation_compatibility",
         )
     }
     return {

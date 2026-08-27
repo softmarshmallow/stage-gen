@@ -16,6 +16,7 @@ import {
   ladderVisualBounds,
   platformDropThroughActive,
   prepareVerticalTraversalAssets,
+  resolveCrouchHorizontalVelocity,
   resolveJumpRequest,
   resolveTerrainStep,
   resolveTerrainWalk,
@@ -584,6 +585,21 @@ describe("vertical world contracts", () => {
     // And the clearance window is wide enough to cross the face while over it:
     // at run speed the foot travels more than a tile inside that window.
     expect(oneTile.horizontalRange!).toBeGreaterThan(64);
+  });
+
+  test("supports stationary prepared crouch without changing mature slow crouch", () => {
+    expect(
+      resolveCrouchHorizontalVelocity({ velocity: 420, mode: "stationary" }),
+    ).toBe(0);
+    expect(
+      resolveCrouchHorizontalVelocity({ velocity: 420, mode: "slow" }),
+    ).toBe(168);
+    expect(() =>
+      resolveCrouchHorizontalVelocity({
+        velocity: Number.NaN,
+        mode: "stationary",
+      }),
+    ).toThrow("finite");
   });
 
   test("spends one air jump per airborne stretch and honours coyote time", () => {
