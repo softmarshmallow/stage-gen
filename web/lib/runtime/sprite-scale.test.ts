@@ -1,11 +1,42 @@
 import { describe, expect, test } from "bun:test";
 import {
+  frameScaleForHeight,
   headMatchedScale,
   masterSheetScale,
   parseScaleReference,
   runtimeRoleOwnsScaleReference,
   type ScaleReference,
 } from "./sprite-scale";
+
+describe("frameScaleForHeight", () => {
+  test("preserves non-square settlement and dialogue frame proportions", () => {
+    const settlement = frameScaleForHeight(150, 364, 838);
+    expect(settlement.displayHeight).toBe(150);
+    expect(settlement.displayWidth / settlement.displayHeight).toBeCloseTo(
+      364 / 838,
+      12,
+    );
+
+    const dialogue = frameScaleForHeight(190, 466, 523);
+    expect(dialogue.displayHeight).toBe(190);
+    expect(dialogue.displayWidth / dialogue.displayHeight).toBeCloseTo(
+      466 / 523,
+      12,
+    );
+  });
+
+  test("rejects invalid dimensions instead of inventing an aspect ratio", () => {
+    expect(() => frameScaleForHeight(0, 364, 838)).toThrow(
+      "target display height",
+    );
+    expect(() => frameScaleForHeight(150, 0, 838)).toThrow(
+      "source frame width",
+    );
+    expect(() => frameScaleForHeight(150, 364, Number.NaN)).toThrow(
+      "source frame height",
+    );
+  });
+});
 
 // Head extents measured by the recipe on a real run's character sheets, in each sheet's own
 // source pixels. Every sheet is a separate provider call, and the artwork really is drawn at

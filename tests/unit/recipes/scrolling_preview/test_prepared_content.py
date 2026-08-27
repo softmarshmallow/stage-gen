@@ -72,10 +72,13 @@ def test_motion_atlas_requires_native_alpha_and_all_cells() -> None:
 def test_motion_source_facing_is_runtime_owned_and_climb_is_rear_facing() -> None:
     assert motion_source_facing("player", "walk") == "right"
     assert motion_source_facing("mob", "move") == "right"
-    assert motion_source_facing("npc", "idle") == "right"
+    assert motion_source_facing("npc", "idle", npc_world_orientation="front") == "front"
+    with pytest.raises(ValueError, match="requires world_orientation"):
+        motion_source_facing("npc", "idle")
     assert motion_source_facing("player", "climb") == "back"
     assert runtime_mirrors_source("right") is True
     assert runtime_mirrors_source("back") is False
+    assert runtime_mirrors_source("front") is False
 
 
 def test_crouch_visual_semantics_are_stationary_and_distinct_from_crawl() -> None:
@@ -262,11 +265,23 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert crouch_request.metadata["source_facing"] == "right"
     assert "low stationary crouch loop" in crouch_request.prompt
     assert "does not crawl, kneel, move forward" in crouch_request.prompt
+    npc_request = next(
+        request
+        for request in images.requests
+        if request.metadata.get("kind") == "npc"
+        and request.metadata.get("entity_id") == "mara_crumbwell"
+        and request.metadata.get("state") == "idle"
+    )
+    assert npc_request.metadata["source_facing"] == "front"
+    assert "strict symmetrical front view" in npc_request.prompt
     player_review = next(
         request for request in structured.requests if request.metadata.get("kind") == "player"
     )
     assert "exact required visual meaning for each motion" in player_review.prompt
     assert "low stationary crouch loop" in player_review.prompt
+    assert "For hold playback, judge motion semantics only on the selected canonical frame" in (
+        player_review.prompt
+    )
     coverage = json.loads((run_dir / "content/coverage-matrix.json").read_text())
     assert coverage["required_image_operations"] == 74
     assert coverage["required_structured_reviews"] == 14
@@ -290,6 +305,11 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert crouch_validation["runtime_horizontal_mirroring"] is True
     assert (run_dir / "content/mobs/crowncrag_page_eater/review.json").is_file()
     assert (run_dir / "content/npcs/mara_crumbwell/dialogue.validation.json").is_file()
+    npc_validation = json.loads(
+        (run_dir / "content/npcs/mara_crumbwell/world.validation.json").read_text()
+    )
+    assert npc_validation["source_facing"] == "front"
+    assert npc_validation["runtime_horizontal_mirroring"] is False
     assert (run_dir / "content/props/contact-sheet.png").is_file()
     prop_validation = json.loads(
         (run_dir / "content/props/sunwheel_bread_stall.validation.json").read_text()

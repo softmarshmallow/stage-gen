@@ -23,7 +23,7 @@ def test_canonical_maps_own_portal_endpoints_and_optional_ladder_geometry() -> N
     village = load_prepared_game_map_bytes(_map_bytes("sunpetal-crossing"))
     road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
 
-    assert village.kind == road.kind == "game-map-v4"
+    assert village.kind == road.kind == "game-map-v5"
     assert village.ladder is None
     assert village.portal is not None
     assert [endpoint.anchor for endpoint in village.portal.endpoints] == [
@@ -54,10 +54,10 @@ def test_canonical_maps_own_portal_endpoints_and_optional_ladder_geometry() -> N
     assert occupancy[lower_surface - 3][ladder_column] == "0"
 
 
-def test_map_rejects_the_obsolete_v3_identity() -> None:
+def test_map_rejects_the_obsolete_v4_identity() -> None:
     source = _map_bytes("sunpetal-crossing").replace(
+        b'schema_version = 5\nkind = "game-map-v5"',
         b'schema_version = 4\nkind = "game-map-v4"',
-        b'schema_version = 3\nkind = "game-map-v3"',
         1,
     )
 
@@ -117,6 +117,8 @@ def test_map_ground_requires_a_visible_escape_floor_and_two_tile_maximum_rise() 
             mode="terrain-atlas-3x3-minimal-v1",
             reference_ids=["scene"],
             occupancy=["00000000", "11111111", "11111111", "11101111"],
+            vertical_fit="floor_to_screen_bottom",
+            walk_surface_row=1,
             prompt="Create readable terrain.",
         )
     with pytest.raises(ValueError, match="differ by at most two tiles"):
@@ -124,12 +126,16 @@ def test_map_ground_requires_a_visible_escape_floor_and_two_tile_maximum_rise() 
             mode="terrain-atlas-3x3-minimal-v1",
             reference_ids=["scene"],
             occupancy=["00000000", "11101111", "11101111", "11101111", "11111111"],
+            vertical_fit="floor_to_screen_bottom",
+            walk_surface_row=1,
             prompt="Create readable terrain.",
         )
     accepted = PreparedMapGround(
         mode="terrain-atlas-3x3-minimal-v1",
         reference_ids=["scene"],
         occupancy=["00000000", "11101111", "11101111", "11111111"],
+        vertical_fit="floor_to_screen_bottom",
+        walk_surface_row=1,
         prompt="Create readable terrain.",
     )
     assert accepted.occupancy[-1] == "11111111"
@@ -154,3 +160,52 @@ def test_map_portal_endpoint_may_move_to_another_valid_escape_floor() -> None:
     game_map = load_prepared_game_map_bytes(source)
     assert game_map.portal is not None
     assert game_map.portal.endpoints[0].normalized_x == 0.23
+
+
+def test_layer_vertical_anchor_and_alpha_mode_must_agree() -> None:
+    source = _map_bytes("sunpetal-crossing").replace(
+        b'alpha_mode = "opaque"\nvertical_anchor = "canvas_cover"',
+        b'alpha_mode = "opaque"\nvertical_anchor = "screen_bottom"',
+        1,
+    )
+    with pytest.raises(AuthoredContractLoadError, match="canvas_cover vertical anchor"):
+        load_prepared_game_map_bytes(source)
+
+    source = _map_bytes("sunpetal-crossing").replace(
+        b'alpha_mode = "transparent"\nvertical_anchor = "screen_bottom"',
+        b'alpha_mode = "transparent"\nvertical_anchor = "canvas_cover"',
+        1,
+    )
+    with pytest.raises(AuthoredContractLoadError, match="only the opaque base layer"):
+        load_prepared_game_map_bytes(source)
+
+
+def test_canvas_cover_layer_cannot_declare_a_vertical_offset() -> None:
+    source = _map_bytes("sunpetal-crossing").replace(
+        b'vertical_anchor = "canvas_cover"',
+        b'vertical_anchor = "canvas_cover"\nvertical_offset = 0.2',
+        1,
+    )
+    with pytest.raises(AuthoredContractLoadError, match="cannot declare a vertical offset"):
+        load_prepared_game_map_bytes(source)
+
+
+def test_walk_surface_row_must_expose_a_terrain_surface() -> None:
+    with pytest.raises(ValueError, match="expose a terrain surface"):
+        PreparedMapGround(
+            mode="terrain-atlas-3x3-minimal-v1",
+            reference_ids=["scene"],
+            occupancy=["11111111", "11111111", "11111111"],
+            vertical_fit="floor_to_screen_bottom",
+            walk_surface_row=2,
+            prompt="Create readable terrain.",
+        )
+    accepted = PreparedMapGround(
+        mode="terrain-atlas-3x3-minimal-v1",
+        reference_ids=["scene"],
+        occupancy=["11111111", "11111111", "11111111"],
+        vertical_fit="floor_to_screen_bottom",
+        walk_surface_row=0,
+        prompt="Create readable terrain.",
+    )
+    assert accepted.walk_surface_row == 0

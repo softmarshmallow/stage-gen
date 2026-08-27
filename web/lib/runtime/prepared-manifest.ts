@@ -12,12 +12,37 @@ export type RuntimeArtifact = Readonly<{
   height?: number;
 }>;
 
+export type LayerVerticalAnchor =
+  | "canvas_cover"
+  | "screen_top"
+  | "screen_bottom"
+  | "walk_surface";
+
+/**
+ * Resolved vertical placement for one map layer.
+ *
+ * Every value here is producer-measured. The runtime applies them and never inspects the raster,
+ * so placement stays identical between the local review composite and the browser.
+ */
+export type PreparedLayerPlacement = Readonly<{
+  vertical_anchor: LayerVerticalAnchor;
+  /** Fraction of `trimmed_height`, positive pushing the layer down past its anchor datum. */
+  vertical_offset: number;
+  vertical_offset_source: "measured" | "authored";
+  /** Height of the frame the layer was painted in; this stays the scale datum after trimming. */
+  source_height: number;
+  trimmed_height: number;
+  trimmed_top: number;
+}>;
+
 export type PreparedLayer = Readonly<{
   layer_id: string;
+  /** Painter order only. Vertical intent lives in `placement`. */
   plane: "background" | "foreground";
   order: number;
   parallax: number;
   alpha_mode: "opaque" | "transparent";
+  placement: PreparedLayerPlacement;
   asset: RuntimeArtifact;
 }>;
 
@@ -33,6 +58,10 @@ export type PreparedMap = Readonly<{
     mode: "terrain-atlas-3x3-minimal-v1";
     /** Top-to-bottom rectangular binary terrain topology. */
     occupancy: readonly string[];
+    /** The deepest authored row bottoms out at the viewport edge, so no gap can open below it. */
+    vertical_fit: "floor_to_screen_bottom";
+    /** Occupancy row whose top edge is the datum for `walk_surface` anchored layers. */
+    walk_surface_row: number;
     asset: RuntimeArtifact;
   }>;
   ladder?: Readonly<{
@@ -57,7 +86,7 @@ export type PreparedMap = Readonly<{
 }>;
 
 export type MotionBinding = Readonly<{
-  source_facing: "right" | "back";
+  source_facing: "right" | "back" | "front";
   runtime_mirror: boolean;
   columns: 4;
   rows: 1;
@@ -84,8 +113,8 @@ export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 5;
-  kind: "prepared-game-runtime-v5";
+  schema_version: 7;
+  kind: "prepared-game-runtime-v7";
   game_id: string;
   revision: number;
   display_name: string;
@@ -257,7 +286,11 @@ function artifact(value: unknown, label: string): RuntimeArtifact {
 function motion(value: unknown, label: string): MotionBinding {
   const record = object(value, label);
   const sourceFacing = record.source_facing;
-  if (sourceFacing !== "right" && sourceFacing !== "back") {
+  if (
+    sourceFacing !== "right" &&
+    sourceFacing !== "back" &&
+    sourceFacing !== "front"
+  ) {
     throw new Error(`${label}.source_facing is invalid`);
   }
   if (typeof record.runtime_mirror !== "boolean") {
@@ -270,7 +303,7 @@ function motion(value: unknown, label: string): MotionBinding {
   ) {
     throw new Error(`${label} must be one 4-by-1 strip`);
   }
-  if ((sourceFacing === "back") === record.runtime_mirror) {
+  if (record.runtime_mirror !== (sourceFacing === "right")) {
     throw new Error(`${label} facing and runtime mirroring disagree`);
   }
   const playbackRecord = object(record.playback, `${label}.playback`);
@@ -365,7 +398,7 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 5 || root.kind !== "prepared-game-runtime-v5") {
+  if (root.schema_version !== 7 || root.kind !== "prepared-game-runtime-v7") {
     throw new Error("prepared runtime manifest identity is invalid");
   }
   const gameId = id(root.game_id, "game_id");
@@ -382,12 +415,48 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       if (typeof layer.parallax !== "number" || !Number.isFinite(layer.parallax)) {
         throw new Error("map layer parallax is invalid");
       }
+      const placement = object(
+        layer.placement,
+        `maps[${mapIndex}].layers[${layerIndex}].placement`,
+      );
+      const anchor = placement.vertical_anchor;
+      if (
+        anchor !== "canvas_cover" &&
+        anchor !== "screen_top" &&
+        anchor !== "screen_bottom" &&
+        anchor !== "walk_surface"
+      ) {
+        throw new Error("map layer vertical_anchor is invalid");
+      }
+      const offsetSource = placement.vertical_offset_source;
+      if (offsetSource !== "measured" && offsetSource !== "authored") {
+        throw new Error("map layer vertical_offset_source is invalid");
+      }
+      if (
+        typeof placement.vertical_offset !== "number" ||
+        !Number.isFinite(placement.vertical_offset)
+      ) {
+        throw new Error("map layer vertical_offset is invalid");
+      }
+      const trimmedHeight = integer(placement.trimmed_height, "layer trimmed_height", 1);
+      const sourceHeight = integer(placement.source_height, "layer source_height", 1);
+      if (trimmedHeight > sourceHeight) {
+        throw new Error("map layer trimmed height cannot exceed its painted frame");
+      }
       return Object.freeze({
         layer_id: id(layer.layer_id, "layer_id"),
         plane: layer.plane,
         order: integer(layer.order, "layer order"),
         parallax: layer.parallax,
         alpha_mode: layer.alpha_mode,
+        placement: Object.freeze({
+          vertical_anchor: anchor,
+          vertical_offset: placement.vertical_offset,
+          vertical_offset_source: offsetSource,
+          source_height: sourceHeight,
+          trimmed_height: trimmedHeight,
+          trimmed_top: integer(placement.trimmed_top, "layer trimmed_top", 0),
+        }),
         asset: artifact(layer.asset, "layer asset"),
       });
     });
@@ -399,6 +468,18 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       ground.occupancy,
       `maps[${mapIndex}].ground.occupancy`,
     );
+    if (ground.vertical_fit !== "floor_to_screen_bottom") {
+      throw new Error("ground vertical_fit is invalid");
+    }
+    const verticalFit = ground.vertical_fit;
+    const walkSurfaceRow = integer(
+      ground.walk_surface_row,
+      "ground walk_surface_row",
+      0,
+    );
+    if (walkSurfaceRow >= occupancy.length) {
+      throw new Error("ground walk_surface_row must index an authored occupancy row");
+    }
     const ladder =
       map.ladder === undefined
         ? undefined
@@ -508,6 +589,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       ground: Object.freeze({
         mode: "terrain-atlas-3x3-minimal-v1",
         occupancy,
+        vertical_fit: verticalFit,
+        walk_surface_row: walkSurfaceRow,
         asset: artifact(ground.asset, "ground asset"),
       }),
       ...(ladder === undefined ? {} : { ladder }),
@@ -578,8 +661,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 5,
-    kind: "prepared-game-runtime-v5",
+    schema_version: 7,
+    kind: "prepared-game-runtime-v7",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),

@@ -31,7 +31,7 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one immutable run, and emits `prepared-game-runtime-v5`. The `--dry-run` path still
+publishes one immutable run, and emits `prepared-game-runtime-v7`. The `--dry-run` path still
 exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -42,7 +42,7 @@ flowchart TD
 
     PR --> ML["map layer raw generate[*]"]
     PR --> MG["map ground material-board generate[*]"]
-    ML --> MLV["canonical alpha + repeat validate[*]"]
+    ML --> MLV["canonical alpha + repeat validate, vertical trim + placement measure[*]"]
     MG --> MGV["validate board + deterministically assemble 47-mask atlas[*]"]
     PR --> LG["optional map ladder generate[*]"]
     PR --> PG["optional map portal-pair generate[*]"]
@@ -144,7 +144,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact digest-locked Bellweather snapshot, the content-sensitive execution-plan identity is
-`graph_sha256 = 6ff2d58fba51be005c65db96a4019f8cf0c9af967bfc142d12c96ced59a54948`.
+`graph_sha256 = 163ba4731b1d235e3a5be5c63c9564905565afe24f58403a103df9d627af4e79`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -164,7 +164,7 @@ reported by the owning node.
 | Maps | 2 maps × (4 layers + 1 ground), 2 map-local portal pairs, 1 map-local ladder, validation, composite, map review | 13 | 2 | 0 | 15 |
 | Player | concept, 10 canonical-source states, dialogue, validations, board, review | 12 | 1 | 0 | 12 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
-| NPCs | 4 NPCs × (concept + world + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
+| NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
 | Items | 5 isolated items, validations, one board, one review | 5 | 1 | 0 | 6 |
 | UI | one inventory panel, deterministic layout/alpha validation, one review | 1 | 1 | 0 | 1 |
@@ -183,6 +183,17 @@ canonical frame indices, and timeline cadence when applicable. The recipe still 
 source poses and the canonicalizer still publishes four frames. `manifest-assemble` projects both
 facts as `source_frame_count` and `playback`; runtime consumers must not infer selection, cadence,
 or repetition from actor role or state names.
+
+NPC `world_orientation` is catalog-wide because the current NPC catalog has one shared world
+camera treatment. Bellweather sets it to `front`. Each NPC still authors an ordinary `motions`
+entry: its `idle` generation requests four front-facing candidates, while `hold` playback selects
+canonical frame zero. The front-facing source is not mirrored. This reuses the player/mob playback
+vocabulary rather than introducing an NPC-only still-animation taxonomy.
+
+Structured actor review receives that exact playback projection. A `hold` motion is judged for
+motion semantics only at its selected canonical frame; unselected generated candidates remain
+subject to identity, facing, scale, registration, and alpha checks but are not runtime motion
+coverage.
 
 Player `crouch` is the current explicit vocabulary boundary: gameplay authorizes the posture while
 player content requests its visual motion. The provider receives four stationary, feet-planted low
@@ -351,7 +362,7 @@ counts one successful provider operation per provider node.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v5` authored projection, prop ground contacts, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v7` authored projection, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.

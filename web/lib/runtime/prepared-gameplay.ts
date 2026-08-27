@@ -1,5 +1,5 @@
 // Exact browser boundary for the gameplay-contract-v1 object embedded in a
-// prepared-game-runtime-v5 manifest. Keep this projection in lockstep with
+// prepared-game-runtime-v7 manifest. Keep this projection in lockstep with
 // src/stage_gen/components/gameplay_contract/models.py.
 
 import type { PreparedRuntimeManifest } from "./prepared-manifest";

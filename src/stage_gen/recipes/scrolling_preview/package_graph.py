@@ -20,6 +20,11 @@ from stage_gen.orchestration.execution_graph import (
     finalize_execution_graph,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.layer_contract import (
+    LAYER_PLACEMENT_CANONICALIZER,
+    PLACEMENT_ONLY_GROUND_FIELDS,
+    PLACEMENT_ONLY_LAYER_FIELDS,
+)
 from stage_gen.recipes.scrolling_preview.motion_contract import motion_source_facing
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
@@ -33,12 +38,13 @@ from stage_gen.resources import (
 
 PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v9"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
-CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v2"
+CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v3"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
 CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v1"
 CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
 CONTENT_PROP_CONTACT_VALIDATION_VERSION = "prepared-content-prop-contact-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
+CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION = "prepared-content-actor-playback-review-v1"
 CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
@@ -161,9 +167,14 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         layer_validations: list[str] = []
         for layer in game_map.layers:
+            # Vertical placement is consumed downstream of the image, so it must not enter the
+            # generation digest: changing an anchor re-runs one local node instead of re-billing
+            # a provider image that would come back byte-identical.
             input_digests = (
                 map_direction,
-                _object_sha256(layer.model_dump(mode="json")),
+                _object_sha256(
+                    layer.model_dump(mode="json", exclude=set(PLACEMENT_ONLY_LAYER_FIELDS))
+                ),
                 *_reference_digests(references, layer.reference_ids),
             )
             generated = builder.add_external(
@@ -184,7 +195,12 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 depends_on=(generated.node_id,),
                 input_digests=(
                     _object_sha256(layer.model_dump(mode="json")),
-                    _object_sha256({"canonicalizer": "prepared-map-minimum-alpha-wrap-v1"}),
+                    _object_sha256(
+                        {
+                            "canonicalizer": "prepared-map-minimum-alpha-wrap-v1",
+                            "placement": LAYER_PLACEMENT_CANONICALIZER,
+                        }
+                    ),
                 ),
                 outputs=(
                     f"maps/{game_map.map_id}/layers/{layer.layer_id}.png",
@@ -195,7 +211,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             )
             layer_validations.append(validated.node_id)
 
-        ground_direction = game_map.ground.model_dump(mode="json", exclude={"occupancy"})
+        # The atlas material is appearance only: authored geometry and vertical fit select cells
+        # and placement downstream without changing what the image model is asked to paint.
+        ground_direction = game_map.ground.model_dump(
+            mode="json", exclude=set(PLACEMENT_ONLY_GROUND_FIELDS)
+        )
         ground = builder.add_external(
             f"map-{game_map.map_id}-ground-generate",
             domain=f"map-{game_map.map_id}",
@@ -433,6 +453,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 *identity,
                 _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
                 _object_sha256({"contract": CONTENT_PLAYER_REVIEW_CONTRACT_VERSION}),
             ),
             outputs=(f"content/players/{player.player_id}/review.json",),
@@ -517,6 +538,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 *identity,
                 _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
             ),
             outputs=(f"content/mobs/{mob.mob_id}/review.json",),
         )
@@ -528,10 +550,15 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     terminals: list[str] = []
     references = {entry.reference_id: entry for entry in builder.package.npcs.references}
     for npc in builder.package.npcs.npcs:
+        source_facing = motion_source_facing(
+            "npc",
+            "idle",
+            npc_world_orientation=builder.package.npcs.world_orientation,
+        )
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(npc.model_dump(mode="json", exclude={"world_motions"})),
+            _object_sha256(npc.model_dump(mode="json", exclude={"motions"})),
             *_reference_digests(references, npc.reference_ids),
         )
         concept = builder.add_external(
@@ -549,7 +576,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             domain=f"npc-{npc.npc_id}",
             description=(
                 f"generate NPC {npc.npc_id} world sprite from one "
-                f"{motion_source_facing('npc', 'idle')}-facing source strip"
+                f"{source_facing}-facing source strip"
             ),
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(concept.node_id,),
@@ -557,8 +584,8 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
                 _object_sha256(
                     {
-                        "states": [motion.state for motion in npc.world_motions],
-                        "source_facing": motion_source_facing("npc", "idle"),
+                        "states": [motion.state for motion in npc.motions],
+                        "source_facing": source_facing,
                     }
                 ),
             ),
@@ -572,7 +599,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(world.node_id,),
             input_digests=(
                 _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256([motion.state for motion in npc.world_motions]),
+                _object_sha256([motion.state for motion in npc.motions]),
             ),
             outputs=(
                 f"content/npcs/{npc.npc_id}/world.png",
@@ -614,7 +641,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble NPC {npc.npc_id} review board",
             operation=OperationKind.LOCAL,
             depends_on=(world_validation.node_id, dialogue_validation.node_id),
-            input_digests=(_object_sha256(npc.model_dump(mode="json", exclude={"world_motions"})),),
+            input_digests=(_object_sha256(npc.model_dump(mode="json", exclude={"motions"})),),
             outputs=(f"content/npcs/{npc.npc_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -627,6 +654,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 *identity,
                 _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
             ),
             outputs=(f"content/npcs/{npc.npc_id}/review.json",),
         )

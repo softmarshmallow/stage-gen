@@ -10,8 +10,8 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 
 ```json
 {
-  "schema_version": 4,
-  "kind": "prepared-game-runtime-v5"
+  "schema_version": 6,
+  "kind": "prepared-game-runtime-v7"
 }
 ```
 
@@ -93,7 +93,7 @@ tests and evidence are retired safely. Prepared `/generate/<run-tag>` routes use
 asset explorer, and `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v5` is the only manifest
+`game.toml` is the package root, and `prepared-game-runtime-v7` is the only manifest
 accepted by the active preview.
 
 The retired prompt-launching adapter is not an active generation authority. The legacy `{ prompt, transparency_mode }` HTTP start body is rejected instead of being translated into a prepared package.

@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v4``)."""
+"""Exact-current compound map-generation contract (``game-map-v5``)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 4
+PREPARED_GAME_MAP_SCHEMA_VERSION = 5
 MAX_UNASSISTED_TERRAIN_RISE_TILES = 2
 
 
@@ -81,6 +81,14 @@ class PreparedMapLayer(PersistedContractModel):
     order: int = Field(ge=0, le=7)
     parallax: float = Field(ge=0.0, le=8.0)
     alpha_mode: Literal["opaque", "transparent"]
+    # Which edge of the layer's trimmed raster registers, and against which datum. `plane` stays
+    # painter order only; conflating the two is how a layer ends up with no vertical intent at all.
+    vertical_anchor: Literal["canvas_cover", "screen_top", "screen_bottom", "walk_surface"]
+    # Optional author override, as a fraction of the layer's own trimmed height, positive pushing
+    # the layer down. Omit it: the producer resolves the value from the raster it actually got,
+    # because an authored fraction is a prediction about pixels that do not exist yet. An override
+    # that is too small to seal a bottom-anchored layer is rejected with the measured minimum.
+    vertical_offset: float | None = Field(default=None, ge=-1.0, le=1.0)
     prompt: str
 
     @field_validator("reference_ids")
@@ -88,6 +96,19 @@ class PreparedMapLayer(PersistedContractModel):
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "map layer reference_id")
         return value
+
+    @model_validator(mode="after")
+    def validate_vertical_placement(self) -> PreparedMapLayer:
+        if self.vertical_anchor == "canvas_cover":
+            if self.alpha_mode != "opaque":
+                raise ValueError(
+                    "only the opaque base layer may claim the canvas_cover vertical anchor"
+                )
+            if self.vertical_offset not in (None, 0.0):
+                raise ValueError("a canvas_cover layer cannot declare a vertical offset")
+        elif self.alpha_mode == "opaque":
+            raise ValueError("the opaque base layer must use the canvas_cover vertical anchor")
+        return self
 
     @field_validator("prompt")
     @classmethod
@@ -99,6 +120,16 @@ class PreparedMapGround(PersistedContractModel):
     mode: Literal["terrain-atlas-3x3-minimal-v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     occupancy: list[str] = Field(min_length=2, max_length=64)
+    # Where the authored occupancy grid sits vertically. This is an enum rather than a coordinate:
+    # the deepest row bottoms out at the viewport edge, which makes a gap below the world
+    # impossible instead of merely unlikely. The consumer derives its own baseline; no map
+    # declares pixels.
+    vertical_fit: Literal["floor_to_screen_bottom"]
+    # The occupancy row whose top edge is the main ground plane, used as the datum for layers that
+    # must meet the visible terrain rather than the buried world floor. This is an index into
+    # authored geometry, not a prediction about generated art, so it stays stable across
+    # regeneration.
+    walk_surface_row: int = Field(ge=0, le=63)
     prompt: str
 
     @field_validator("reference_ids")
@@ -132,6 +163,22 @@ class PreparedMapGround(PersistedContractModel):
         ):
             raise ValueError("adjacent gameplay terrain surfaces may differ by at most two tiles")
         return value
+
+    @model_validator(mode="after")
+    def validate_walk_surface_row(self) -> PreparedMapGround:
+        if self.walk_surface_row >= len(self.occupancy):
+            raise ValueError("map ground walk_surface_row must index an authored occupancy row")
+        row = self.occupancy[self.walk_surface_row]
+        above = (
+            self.occupancy[self.walk_surface_row - 1]
+            if self.walk_surface_row > 0
+            else "0" * len(row)
+        )
+        if not any(cell == "1" and above[column] == "0" for column, cell in enumerate(row)):
+            raise ValueError(
+                "map ground walk_surface_row must expose a terrain surface in at least one column"
+            )
+        return self
 
     @field_validator("prompt")
     @classmethod
@@ -212,8 +259,8 @@ class PreparedMapPortal(PersistedContractModel):
 
 
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[4]
-    kind: Literal["game-map-v4"]
+    schema_version: Literal[5]
+    kind: Literal["game-map-v5"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)

@@ -34,6 +34,12 @@ export type ScaleReference = Readonly<{
   cellHeight: number;
 }>;
 
+export type AspectPreservingFrameScale = Readonly<{
+  scale: number;
+  displayWidth: number;
+  displayHeight: number;
+}>;
+
 /** Player sheets that the current producer measures and publishes on every run. */
 export const REQUIRED_PLAYER_SCALE_REFERENCE_ROLES = Object.freeze([
   "character-idle",
@@ -77,6 +83,23 @@ function positiveFinite(value: unknown, label: string): number {
     throw new Error(`${label} must be a positive finite number`);
   }
   return value;
+}
+
+/** Uniformly scale one decoded frame to a target height without changing its proportions. */
+export function frameScaleForHeight(
+  targetDisplayHeight: number,
+  sourceFrameWidth: number,
+  sourceFrameHeight: number,
+): AspectPreservingFrameScale {
+  const targetHeight = positiveFinite(targetDisplayHeight, "target display height");
+  const sourceWidth = positiveFinite(sourceFrameWidth, "source frame width");
+  const sourceHeight = positiveFinite(sourceFrameHeight, "source frame height");
+  const scale = targetHeight / sourceHeight;
+  return Object.freeze({
+    scale,
+    displayWidth: sourceWidth * scale,
+    displayHeight: targetHeight,
+  });
 }
 
 function unitFraction(value: unknown, label: string): number {

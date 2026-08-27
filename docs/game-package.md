@@ -5,7 +5,7 @@
 >
 > Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
 > cross-contract validation, repository selection, the typed scrolling DAG, and
-> `prepared-game-runtime-v5` assembly are executable. Successful package validation
+> `prepared-game-runtime-v7` assembly are executable. Successful package validation
 > is still authored-input truth only; it does not prove that a live run completed,
 > passed semantic review, is playable, or is approved for publication.
 
@@ -42,18 +42,18 @@ Only these prepared-package identities are accepted by the resolver:
 | Repository selector | `game-package-v3` |
 | Package root | `game-contract-v5` |
 | Gameplay | `gameplay-contract-v1` |
-| Map generation | `game-map-v4` |
+| Map generation | `game-map-v5` |
 | Soundtrack | `game-soundtrack-v1` |
 | UI | `game-ui-v1` |
 | Player catalog | `player-content-v2` |
 | Mob catalog | `mob-content-v2` |
-| NPC catalog | `npc-content-v2` |
+| NPC catalog | `npc-content-v3` |
 | Prop catalog | `prop-content-v2` |
 | Item catalog | `item-content-v2` |
 | Sequence catalog | `game-sequence-catalog-v1` |
 | Sequence | `game-sequence-v1` |
 
-Successful provider-free integration emits only `prepared-game-runtime-v5`.
+Successful provider-free integration emits only `prepared-game-runtime-v7`.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In
@@ -122,6 +122,13 @@ requests four candidate poses for every motion state, validates and repacks four
 then projects the authored selection into the runtime manifest. A player idle may therefore hold
 canonical frame zero while generation still benefits from a regular four-pose request. Playback
 changes must not invalidate concept, motion, contact-sheet, or semantic-review cache identity.
+
+The NPC catalog alone owns a catalog-wide `world_orientation`; its current exact value is
+`front`. Each NPC uses the same `motions` vocabulary as players and mobs. Bellweather keeps one
+authored `idle` motion with `playback_mode = "hold"` and `canonical_frame_indices = [0]`: the
+provider and canonicalizer still produce four front-facing candidates, while runtime presentation
+holds frame zero without installing a timeline animation. Front-facing NPC sources are never
+horizontally mirrored.
 
 For the current side-view package, gameplay movement `crouch` and player motion `crouch` are two
 linked but separately owned declarations. Gameplay owns posture permission and mechanics; player

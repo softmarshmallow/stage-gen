@@ -10,6 +10,8 @@ function mapGeometry(
     ground: {
       mode: "terrain-atlas-3x3-minimal-v1",
       occupancy,
+      vertical_fit: "floor_to_screen_bottom" as const,
+      walk_surface_row: 0,
       asset: {
         path: "maps/road/ground.png",
         sha256: "a".repeat(64),

@@ -3,10 +3,10 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v4` as one compound map-generation contract
+> input. It defines `game-map-v5` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
-> recipe executes its typed branches; `prepared-game-runtime-v5` projects the
+> recipe executes its typed branches; `prepared-game-runtime-v7` projects the
 > exact map closure; and the prepared web adapter consumes that projection.
 > This implementation status does not assert that any particular live output
 > has passed semantic review or publication gates.
@@ -56,7 +56,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source and
 locks its exact authored bytes. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v4` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v5` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -64,8 +64,8 @@ Reference image filenames are independent: there is no requirement for
 ## Complete example
 
 ```toml
-schema_version = 4
-kind = "game-map-v4"
+schema_version = 5
+kind = "game-map-v5"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -108,6 +108,7 @@ plane = "background"
 order = 0
 parallax = 0.0
 alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
 prompt = """
 Reconstruct the uninterrupted blue-sky plate behind the other elements.
 Remove the sun, cloud masses, terrain, buildings, and vegetation while
@@ -121,6 +122,7 @@ plane = "background"
 order = 1
 parallax = 0.15
 alpha_mode = "transparent"
+vertical_anchor = "screen_top"
 prompt = """
 Separate the sunlit cloud masses from the references. Preserve their placement,
 scale, palette, and pixel-art treatment. Exclude terrain, buildings, vegetation,
@@ -134,6 +136,7 @@ plane = "foreground"
 order = 0
 parallax = 1.4
 alpha_mode = "transparent"
+vertical_anchor = "screen_bottom"
 prompt = """
 Separate only the close grass and flowers that frame the lower edge. Preserve
 their relationship to the playfield and omit sky, clouds, town, and distant
@@ -155,6 +158,8 @@ occupancy = [
   "1111111111111111",
   "1111111111111111",
 ]
+vertical_fit = "floor_to_screen_bottom"
+walk_surface_row = 8
 prompt = """
 Create the walkable ground material visible in the references: warm rural soil,
 short golden grass along the surface, and darker compacted earth beneath it.
@@ -251,6 +256,8 @@ Each `[[layers]]` record owns one generated visual layer:
 | `order` | Contiguous zero-based order inside its plane |
 | `parallax` | Finite nonnegative camera-relative motion coefficient; motion never determines painter order |
 | `alpha_mode` | `opaque` or `transparent`; transparent layers request native alpha from a capable image route |
+| `vertical_anchor` | Required placement vocabulary: `canvas_cover`, `screen_top`, `screen_bottom`, or `walk_surface` |
+| `vertical_offset` | Optional author override as a fraction of the layer's own trimmed height, positive pushing down |
 | `prompt` | Non-empty authored instruction describing what to retain, separate, or reconstruct from the selected references |
 
 The initial scrolling producer accepts one to eight layers. This is a paid-work
@@ -260,6 +267,59 @@ layers and may use any supported number of background layers.
 Exactly one layer is the opaque full-coverage base. It is a background at
 `order = 0` and `parallax = 0.0`. Every other layer is transparent. Background
 and foreground roles are explicit and must not be inferred from parallax.
+
+## Vertical placement contract
+
+`plane` is painter order. It is not vertical intent, and conflating the two
+leaves a layer with no declared relationship to the ground at all. Vertical
+intent is `vertical_anchor`, which names both the edge of the layer that
+registers and the datum it registers against:
+
+| `vertical_anchor` | Registers | Against |
+| --- | --- | --- |
+| `canvas_cover` | Nothing; the layer fills the frame | Reserved for the opaque base |
+| `screen_top` | The trimmed raster's top edge | The viewport top |
+| `screen_bottom` | The layer's full-coverage line | The viewport bottom |
+| `walk_surface` | The layer's full-coverage line | The authored `walk_surface_row` |
+
+The two bottom-registered anchors deliberately register the **full-coverage
+line** rather than the alpha box's bottom edge. A ragged near-camera silhouette
+reaches lower in some columns than others; registering its deepest tip leaves
+the gaps between tips uncovered, which is what shows the sky plate through a
+foreground frame. The full-coverage line is the lowest row every column still
+spans, so registering it is what makes the seal a guarantee.
+
+### Measured, not authored
+
+The producer measures four vertical reference frames on every canonical layer
+raster and persists them as validation evidence:
+
+| Frame | Definition |
+| --- | --- |
+| source box | The full raster; this stays the scale datum after trimming |
+| alpha box | Bounds of `alpha >= alpha_threshold`; the conventional trim box |
+| coverage line | The extreme scanline every column spans at the alpha threshold |
+| opaque band | The same "every column" question at the opacity threshold |
+
+Both thresholds are declared parts of the contract. Generated PNGs do not
+reliably reach `alpha == 255`, so a literal opacity test finds nothing.
+
+`vertical_offset` therefore exists as an override, not as the normal authoring
+path. Omit it and the producer resolves the fraction from the raster it
+actually received, because a fraction written before generation is a prediction
+about pixels that do not exist yet and goes stale on the next regeneration. An
+override that is too small to seal a bottom-registered layer is rejected against
+the exact measured minimum rather than silently leaving a gap.
+
+Each canonical layer is trimmed to its alpha box vertically. Horizontal extent
+is never trimmed: a looping layer's width is its repeat period, already owned by
+`continuity.seamless_axis`. Trimming never changes apparent size because the
+painted frame remains the scale datum.
+
+Placement is applied by exactly one authority. The producer bakes extent — the
+vertical trim — and never position; the consumer applies all position from the
+resolved manifest values and never re-measures the raster. Measurement is a
+fact, not a transform, so there is no double-scaling path.
 
 `prompt` is portable creative direction, not the final provider prompt. The
 recipe adds versioned mechanical clauses for output dimensions, alpha,
@@ -275,6 +335,8 @@ Those clauses are not copied into every authored map.
 | `mode` | Exactly `terrain-atlas-3x3-minimal-v1` initially |
 | `reference_ids` | Non-empty ordered references resolved through the map catalog |
 | `occupancy` | Required top-to-bottom rectangular rows containing only `0` and `1`; row length is the map width in cells |
+| `vertical_fit` | Exactly `floor_to_screen_bottom` initially; where the occupancy grid sits vertically |
+| `walk_surface_row` | Occupancy row whose top edge is the main ground plane |
 | `prompt` | Non-empty authored description of the desired surface, edge, and fill appearance |
 
 `terrain-atlas-3x3-minimal-v1` names the current stable generation contract. It
@@ -295,6 +357,19 @@ maximum rise the authored double jump proves recoverable. Three-tile pits and
 bottomless gameplay columns fail package validation before generation. Atlas
 selection derives from this matrix, while consumer pixel size, physics bodies,
 filtering, and camera scale remain outside the authored map.
+
+`vertical_fit` is an enum rather than a coordinate because the walk surface is
+already fully determined by `occupancy`; the only open question is where that
+grid sits in the frame. `floor_to_screen_bottom` means the deepest authored row
+bottoms out at the viewport edge, which makes a gap below the world impossible
+by construction instead of merely unlikely. The consumer derives its own
+baseline from this declaration; no map declares pixels.
+
+`walk_surface_row` names the occupancy row whose top edge is the main ground
+plane, and is the datum for `walk_surface` anchored layers. It must expose a
+terrain surface in at least one column. It is an index into authored geometry
+rather than a prediction about generated art, so unlike a placement fraction it
+remains correct across regeneration.
 
 For a normalized X position, the canonical column is
 `floor(normalized_x * width)`. Because positions are strictly between zero and
@@ -392,6 +467,7 @@ identity remains granular:
 
 - changing shared map view or continuity invalidates every affected map output;
 - changing one layer record or one of its references invalidates that layer and the composite review, not unrelated layers;
+- changing only `vertical_anchor` or `vertical_offset` invalidates that layer's local validation, the composite, and the manifest, but never its image call: placement is consumed downstream of generation, so re-anchoring a layer must not re-bill an image that would return byte-identical. `vertical_fit` and `walk_surface_row` are excluded from the ground appearance request for the same reason;
 - changing ground appearance direction invalidates the atlas and composite review;
 - changing occupancy invalidates package closure, composed terrain evidence, the layer-and-ground composite, gameplay binding, manifest projection, and map review without changing the appearance-only atlas call;
 - changing any ladder or portal authored record, including placement, invalidates that presentation branch and the map review; the current graph deliberately binds the complete block to its image call;
@@ -404,7 +480,7 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v4` does not contain:
+`game-map-v5` does not contain:
 
 - stage order or entry-map status;
 - spawn zones, spawn tables, population targets, or respawn policy;
@@ -438,4 +514,4 @@ closures fail closed.
 Successful input validation proves only authored closure. A playable build still
 requires successful provider and local graph execution, the required independent
 semantic reviews, provider-free integration of every runtime artifact, and exact
-`prepared-game-runtime-v5` consumer admission.
+`prepared-game-runtime-v7` consumer admission.

@@ -3,7 +3,10 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from stage_gen.components.game_content import GAME_CONTENT_SCHEMA_VERSION
+from stage_gen.components.game_content import (
+    GAME_CONTENT_SCHEMA_VERSION,
+    NPC_CONTENT_SCHEMA_VERSION,
+)
 from stage_gen.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.game_map import PREPARED_GAME_MAP_SCHEMA_VERSION
 from stage_gen.components.game_sequence import GAME_SEQUENCE_SCHEMA_VERSION
@@ -38,7 +41,7 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
         f"game-ui-v{GAME_UI_SCHEMA_VERSION}",
         f"player-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"mob-content-v{GAME_CONTENT_SCHEMA_VERSION}",
-        f"npc-content-v{GAME_CONTENT_SCHEMA_VERSION}",
+        f"npc-content-v{NPC_CONTENT_SCHEMA_VERSION}",
         f"prop-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"item-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"game-sequence-catalog-v{GAME_SEQUENCE_SCHEMA_VERSION}",

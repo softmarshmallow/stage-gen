@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -19,19 +20,52 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 
+def _layer_validation(anchor: str, offset: float) -> dict[str, object]:
+    """A minimal stand-in for the producer's measured placement record."""
+
+    return {
+        "placement": {
+            "schema_version": 1,
+            "kind": "prepared-map-layer-placement-v1",
+            "vertical_anchor": anchor,
+            "vertical_offset": offset,
+            "vertical_offset_source": "measured",
+            "minimum_seal_offset": offset if offset else None,
+            "source_height": 12,
+            "trimmed_height": 12,
+            "trimmed_top": 0,
+            "trimmed_bottom": 11,
+        }
+    }
+
+
 def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
     target = root / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.suffix == ".mp3":
         target.write_bytes(b"ID3" + bytes([color]) * 32)
         return
+    if relative_path.endswith(".validation.json"):
+        anchor = _ANCHORS_BY_PATH.get(relative_path, "screen_bottom")
+        offset = 0.0 if anchor in {"canvas_cover", "screen_top"} else 0.25
+        target.write_text(json.dumps(_layer_validation(anchor, offset)), encoding="utf-8")
+        return
     Image.new("RGBA", (16, 12), (color, 90, 180, 255)).save(target)
+
+
+_ANCHORS_BY_PATH: dict[str, str] = {}
 
 
 def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> None:
     package = resolve_game_package(BELLWEATHER)
     complete = tmp_path / "complete"
     correction = tmp_path / "correction"
+    _ANCHORS_BY_PATH.clear()
+    for game_map in package.maps:
+        for layer in game_map.layers:
+            _ANCHORS_BY_PATH[f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json"] = (
+                layer.vertical_anchor
+            )
     for relative_path in runtime_artifact_paths(package):
         _write_artifact(complete, relative_path)
     padded_prop_path = "content/props/sunwheel_bread_stall.png"
@@ -96,6 +130,19 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     assert (player["dialogue"]["columns"], player["dialogue"]["rows"]) == (3, 2)
     npcs = result.manifest["npcs"]
     assert isinstance(npcs, list)
+    assert all(
+        npc["world"]
+        == {
+            "source_facing": "front",
+            "runtime_mirror": False,
+            "columns": 4,
+            "rows": 1,
+            "source_frame_count": 4,
+            "playback": {"mode": "hold", "canonical_frame_indices": [0]},
+            "asset": npc["world"]["asset"],
+        }
+        for npc in npcs
+    )
     assert all((npc["dialogue"]["columns"], npc["dialogue"]["rows"]) == (2, 2) for npc in npcs)
     props = result.manifest["props"]
     assert isinstance(props, list)

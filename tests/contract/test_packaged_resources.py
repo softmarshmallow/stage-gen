@@ -141,7 +141,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # contract, plus the provider-neutral sprite repacker and the two-file game UI contract.
         # Keep the ceiling exact enough to catch accidental packaging growth without treating
         # those boundaries as bloat.
-        assert len(wheel_entries) <= 175
+        assert len(wheel_entries) <= 177
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -171,8 +171,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # source distribution to 337 files. Prepared-package execution, the UI contract, and
         # the terrain-atlas integration add the focused source, tests, templates, and canonical
         # documentation and traversal-contract tests tracked here.
-        # The size assertions below are the ones that actually bound the archive.
-        assert len(sdist_entries) <= 375
+        # The size assertions below are the ones that actually bound the archive. The layer
+        # vertical-placement contract adds two source modules and their focused tests.
+        assert len(sdist_entries) <= 379
         assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)

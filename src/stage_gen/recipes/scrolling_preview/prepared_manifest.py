@@ -14,6 +14,7 @@ from typing import Any, Literal
 from PIL import Image
 
 from stage_gen.components.game_content import MotionPresentation, PropContent
+from stage_gen.components.game_map import PreparedMapLayer
 from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -27,8 +28,8 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
 )
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 5
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v5"
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 7
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v7"
 
 
 class PreparedManifestError(ValueError):
@@ -120,6 +121,46 @@ def _assemble_prepared_runtime(
             "asset": asset,
         }
 
+    def layer_manifest(map_id: str, layer: PreparedMapLayer) -> dict[str, object]:
+        layer_id = layer.layer_id
+        relative_path = f"maps/{map_id}/layers/{layer_id}.png"
+        asset = publish(relative_path)
+        validation_path = f"maps/{map_id}/layers/{layer_id}.validation.json"
+        publish(validation_path)
+        validation = json.loads(_safe_output_path(output_dir, validation_path).read_bytes())
+        placement = validation.get("placement")
+        if not isinstance(placement, dict):
+            raise PreparedManifestError(
+                f"map layer {map_id}/{layer_id} has no resolved vertical placement"
+            )
+        for field in ("vertical_anchor", "vertical_offset", "source_height", "trimmed_height"):
+            if field not in placement:
+                raise PreparedManifestError(
+                    f"map layer {map_id}/{layer_id} placement is missing {field}"
+                )
+        if placement["vertical_anchor"] != layer.vertical_anchor:
+            raise PreparedManifestError(
+                f"map layer {map_id}/{layer_id} placement does not match its authored anchor"
+            )
+        return {
+            "layer_id": layer_id,
+            "plane": layer.plane,
+            "order": layer.order,
+            "parallax": layer.parallax,
+            "alpha_mode": layer.alpha_mode,
+            # Resolved placement: the runtime applies it and never re-measures the raster.
+            "placement": {
+                "vertical_anchor": placement["vertical_anchor"],
+                "vertical_offset": float(placement["vertical_offset"]),
+                "vertical_offset_source": placement.get("vertical_offset_source", "measured"),
+                # The painted frame stays the scale datum after empty rows are trimmed away.
+                "source_height": int(placement["source_height"]),
+                "trimmed_height": int(placement["trimmed_height"]),
+                "trimmed_top": int(placement["trimmed_top"]),
+            },
+            "asset": asset,
+        }
+
     map_uses = {entry.map_id: entry for entry in package.gameplay.map_uses}
     maps: list[dict[str, object]] = []
     for game_map in package.maps:
@@ -133,20 +174,12 @@ def _assemble_prepared_runtime(
             "role": map_use.role,
             "hostile_population_enabled": map_use.hostile_population_enabled,
             "track_ids": list(map_use.track_ids),
-            "layers": [
-                {
-                    "layer_id": layer.layer_id,
-                    "plane": layer.plane,
-                    "order": layer.order,
-                    "parallax": layer.parallax,
-                    "alpha_mode": layer.alpha_mode,
-                    "asset": publish(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png"),
-                }
-                for layer in game_map.layers
-            ],
+            "layers": [layer_manifest(game_map.map_id, layer) for layer in game_map.layers],
             "ground": {
                 "mode": game_map.ground.mode,
                 "occupancy": list(game_map.ground.occupancy),
+                "vertical_fit": game_map.ground.vertical_fit,
+                "walk_surface_row": game_map.ground.walk_surface_row,
                 "asset": publish(f"maps/{game_map.map_id}/ground.png"),
             },
         }
@@ -213,8 +246,9 @@ def _assemble_prepared_runtime(
             "body_kind": npc.body_kind,
             "world": _motion_binding(
                 publish(f"content/npcs/{npc.npc_id}/world.png"),
-                npc.world_motions[0],
+                npc.motions[0],
                 actor_kind="npc",
+                npc_world_orientation=package.npcs.world_orientation,
             ),
             "dialogue": _dialogue_binding(
                 publish(f"content/npcs/{npc.npc_id}/dialogue.png"),
@@ -300,6 +334,7 @@ def _motion_binding(
     motion: MotionPresentation,
     *,
     actor_kind: Literal["player", "mob", "npc"],
+    npc_world_orientation: Literal["front"] | None = None,
 ) -> dict[str, object]:
     invalid = [
         index for index in motion.canonical_frame_indices if index >= MOTION_ATLAS_REQUIRED_CELLS
@@ -308,7 +343,11 @@ def _motion_binding(
         raise PreparedManifestError(
             f"{actor_kind} motion {motion.state} selects unavailable canonical frames: {invalid}"
         )
-    source_facing = motion_source_facing(actor_kind, motion.state)
+    source_facing = motion_source_facing(
+        actor_kind,
+        motion.state,
+        npc_world_orientation=npc_world_orientation,
+    )
     playback: dict[str, object] = {
         "mode": motion.playback_mode,
         "canonical_frame_indices": list(motion.canonical_frame_indices),
@@ -408,9 +447,11 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
 
     paths: list[str] = []
     for game_map in package.maps:
-        paths.extend(
-            f"maps/{game_map.map_id}/layers/{layer.layer_id}.png" for layer in game_map.layers
-        )
+        for layer in game_map.layers:
+            paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png")
+            # The measured placement travels with the raster so a published runtime stays usable
+            # as an artifact root for a later corrective run.
+            paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json")
         paths.append(f"maps/{game_map.map_id}/ground.png")
         if game_map.ladder is not None:
             paths.append(f"maps/{game_map.map_id}/ladder.png")

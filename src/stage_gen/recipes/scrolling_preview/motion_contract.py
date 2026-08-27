@@ -6,7 +6,8 @@ import math
 from typing import Literal
 
 MotionActorKind = Literal["player", "mob", "npc"]
-MotionSourceFacing = Literal["right", "back"]
+MotionSourceFacing = Literal["right", "back", "front"]
+NpcWorldOrientation = Literal["front"]
 
 MOTION_ATLAS_COLUMNS = 4
 MOTION_ATLAS_ROWS = 1
@@ -24,9 +25,20 @@ def dialogue_atlas_grid(expression_count: int) -> tuple[int, int]:
     return 3, math.ceil(expression_count / 3)
 
 
-def motion_source_facing(kind: MotionActorKind, state: str) -> MotionSourceFacing:
+def motion_source_facing(
+    kind: MotionActorKind,
+    state: str,
+    *,
+    npc_world_orientation: NpcWorldOrientation | None = None,
+) -> MotionSourceFacing:
     """Return the one authored facing that runtime projection consumes for a state."""
 
+    if kind == "npc":
+        if npc_world_orientation is None:
+            raise ValueError("NPC motion source facing requires world_orientation")
+        return npc_world_orientation
+    if npc_world_orientation is not None:
+        raise ValueError("npc_world_orientation is valid only for NPC motion")
     if kind == "player" and state == "climb":
         return "back"
     return CANONICAL_SIDE_SOURCE_FACING

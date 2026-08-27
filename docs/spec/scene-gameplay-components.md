@@ -5,7 +5,7 @@
 The prepared game separates visual/static map composition from semantic game
 use. `gameplay.toml` is the portable simulation contract; each
 `maps/<map_id>.toml` supplies visual layers and static topology; the web runtime
-adapts both from `prepared-game-runtime-v5` into Phaser objects.
+adapts both from `prepared-game-runtime-v7` into Phaser objects.
 
 ## Ownership
 
@@ -13,7 +13,7 @@ adapts both from `prepared-game-runtime-v5` into Phaser objects.
 | --- | --- | --- |
 | `game-contract-v5` | Shared identity, art direction, cast IDs, and package membership | Simulation or engine state |
 | `gameplay-contract-v1` | Navigation, player start, progression, inventory semantics, combat, map use, transitions, population, loot, placements, interactions, quests, and effects | Map image generation or Phaser objects |
-| `game-map-v4` | Map references/layers, binary terrain occupancy, ladder geometry/placement, and portal presentation/anchors | Movement permission, destinations, spawning, or interactions |
+| `game-map-v5` | Map references/layers, binary terrain occupancy, ladder geometry/placement, and portal presentation/anchors | Movement permission, destinations, spawning, or interactions |
 | Content/UI/sequence contracts | Actor/item/prop presentation, interface presentation, and authored control flow | Physics or mutable runtime state |
 | Recipe and manifest | Generated artifacts, portable contract projection, digests, and provenance | Browser lifecycle or hidden gameplay defaults |
 | Consumer | Rendering, input, collision, camera, audio, object lifecycle, and simulation | Missing authored semantics or generation |

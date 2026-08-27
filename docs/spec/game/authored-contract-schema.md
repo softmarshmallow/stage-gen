@@ -144,7 +144,7 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 | `gameplay.toml` | Movement, entry map, transition relationships, population, combat, loot, interactions, quests, and effects |
 | `ui.toml` | Generated interface presentation and layout |
 | `maps/<map_id>.toml` | Visual/static map composition, terrain occupancy, ladder placement, and portal presentation/anchors |
-| Content catalogs | Player, mob, NPC, prop, and item identities, visual references, and motion presentation |
+| Content catalogs | Player, mob, NPC, prop, and item identities, visual references, motion presentation, and NPC catalog-wide world orientation |
 | `soundtrack.toml` | Track identities, creative briefs, and playback policy |
 | Sequence catalog and sources | Dialogue/cutscene graph and outcomes |
 
@@ -159,7 +159,7 @@ Prepared-package resolution captures the selected directory or ZIP once,
 checks every digest and exact closure member, validates all cross-contract
 identities locally, and rejects malformed input before a provider operation.
 The scrolling DAG consumes this resolved package and integration emits only
-`prepared-game-runtime-v5`.
+`prepared-game-runtime-v7`.
 
 Validate the canonical package with:
 

@@ -24,6 +24,8 @@ function map(
     ground: {
       mode: "terrain-atlas-3x3-minimal-v1",
       occupancy: ["1111111111"],
+      vertical_fit: "floor_to_screen_bottom" as const,
+      walk_surface_row: 0,
       asset: {
         path: `maps/${mapId}/ground.png`,
         sha256: "a".repeat(64),

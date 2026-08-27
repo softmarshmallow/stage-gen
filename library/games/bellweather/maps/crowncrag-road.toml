@@ -1,8 +1,8 @@
-schema_version = 4
-kind = "game-map-v4"
+schema_version = 5
+kind = "game-map-v5"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 6
+revision = 7
 display_name = "Amberbell Forest"
 
 [view]
@@ -31,6 +31,7 @@ plane = "background"
 order = 0
 parallax = 0.0
 alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
 prompt = """
 Reconstruct only the uninterrupted saturated blue sky plate behind Amberbell
 Forest. Preserve its calm high-key color variation and warm autumn light.
@@ -45,6 +46,7 @@ plane = "background"
 order = 1
 parallax = 0.14
 alpha_mode = "transparent"
+vertical_anchor = "screen_top"
 prompt = """
 Separate the monumental cream clouds, lavender-blue mountains, soft autumn
 valley, distant turquoise water, and many-spired Crowncrag Castle as one far
@@ -61,6 +63,7 @@ plane = "background"
 order = 2
 parallax = 0.62
 alpha_mode = "transparent"
+vertical_anchor = "walk_surface"
 prompt = """
 Separate Amberbell Forest's readable midground landmarks: one monumental
 bell-hung tree, exposed roots, selective cream-stone shrines, layered autumn
@@ -77,6 +80,7 @@ plane = "foreground"
 order = 0
 parallax = 1.42
 alpha_mode = "transparent"
+vertical_anchor = "screen_bottom"
 prompt = """
 Separate only restrained near stream-edge leaves, small roots, and a few mossy
 stones along the bottom edge. Preserve sparse dark-teal, amber, and coral
@@ -101,6 +105,8 @@ occupancy = [
   "1111111111111100011111111111111111111111111111111110011111111111",
   "1111111111111111111111111111111111111111111111111111111111111111",
 ]
+vertical_fit = "floor_to_screen_bottom"
+walk_surface_row = 9
 prompt = """
 Create Amberbell Forest's stable terrain material from the selected scene:
 broad warm cream paving interwoven with old roots, moss-softened edges, sparse

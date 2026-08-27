@@ -9,7 +9,7 @@
 
 ## Current boundary
 
-Each `maps/<map_id>.toml` is one `game-map-v4` source. It describes the assets
+Each `maps/<map_id>.toml` is one `game-map-v5` source. It describes the assets
 and composition needed to generate one side-view map and the static topology
 needed to render its ground, ladders, and portal structures.
 
@@ -50,8 +50,10 @@ A current map source contains:
 - identity: `game_id`, `map_id`, revision, and display name;
 - a side-view camera and horizontal continuity envelope;
 - explicit, digest-locked reference images with rights statements;
-- any number of ordered background and foreground layer requests;
-- one binary terrain-occupancy grid and ground-material prompt;
+- any number of ordered background and foreground layer requests, each declaring
+  its vertical anchor from a closed placement vocabulary;
+- one binary terrain-occupancy grid, its vertical fit and walk-surface row, and a
+  ground-material prompt;
 - an optional `ladder-4-tile-v1` definition with terrain-relative placements;
 - an optional `portal-pair-1x2-v1` definition with entry/exit anchors; and
 - no gameplay flow, spawn rules, transition destinations, or engine objects.
@@ -60,6 +62,26 @@ Reference filenames are arbitrary. A reference may guide the whole map, one
 layer, the terrain material, a ladder, or a portal pair. Every paid image
 operation names its references explicitly; directory presence never implies
 use.
+
+## Vertical composition
+
+`plane` orders layers front to back; it says nothing about where a layer belongs
+vertically. That is `vertical_anchor`, chosen from `canvas_cover`, `screen_top`,
+`screen_bottom`, or `walk_surface`. The two bottom-registered anchors register a
+layer's full-coverage line — the lowest row every column still spans — rather
+than its deepest stray tip, so a ragged near-camera silhouette seals the frame
+edge instead of showing the sky plate through the gaps between its tips.
+
+Authors declare the anchor and normally nothing else. The producer trims each
+canonical layer to its alpha box vertically, measures its reference frames, and
+resolves the placement fraction from the raster it actually received; a fraction
+written before generation would be a prediction about pixels that do not exist
+yet. `vertical_offset` remains available as a reviewed override, and one that
+cannot seal is rejected against the measured minimum.
+
+`ground.vertical_fit = "floor_to_screen_bottom"` bottoms the deepest authored row
+out at the viewport edge, so no gap can open below the world, and
+`walk_surface_row` names the occupancy row that `walk_surface` layers meet.
 
 ## Terrain projection
 
@@ -78,7 +100,7 @@ has passed artistic review.
 
 Package resolution verifies every reference, digest, identity, cross-contract
 map reference, ladder/climb dependency, and portal transition before provider
-work. Integration emits only `prepared-game-runtime-v5`; the web runtime does
+work. Integration emits only `prepared-game-runtime-v7`; the web runtime does
 not infer missing terrain, ladder, portal, or gameplay semantics.
 
 The canonical Bellweather package is the repository example:

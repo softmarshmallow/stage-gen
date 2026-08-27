@@ -38,6 +38,14 @@ from .images import (
     normalize_png,
     normalize_png_cover,
 )
+from .layer_rasters import (
+    LAYER_RASTER_BOUNDS_VERSION,
+    LAYER_VERTICAL_TRIM_VERSION,
+    LayerRasterBoundsContract,
+    measure_layer_raster_bounds,
+    seal_offset_fraction,
+    trim_layer_to_alpha_box,
+)
 from .sprite_sheets import (
     ALPHA_COMPONENT_REPACK_VERSION,
     ALPHA_GROUND_CONTACT_VERSION,
@@ -52,6 +60,9 @@ from .validation import (
 )
 
 __all__ = [
+    "LayerRasterBoundsContract",
+    "LAYER_VERTICAL_TRIM_VERSION",
+    "LAYER_RASTER_BOUNDS_VERSION",
     "CHROMA_DISTANCE_THRESHOLD",
     "DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS",
     "AlphaFacts",
@@ -82,6 +93,7 @@ __all__ = [
     "extract_guided_cells",
     "magenta_chroma_alpha",
     "measure_alpha_ground_contact",
+    "measure_layer_raster_bounds",
     "normalize_audio_media_type",
     "normalize_media_type",
     "normalize_image_to_png",
@@ -90,6 +102,8 @@ __all__ = [
     "parse_loudnorm_json",
     "probe_audio",
     "repack_alpha_components",
+    "seal_offset_fraction",
     "repair_internal_cell_seams",
     "run_process",
+    "trim_layer_to_alpha_box",
 ]

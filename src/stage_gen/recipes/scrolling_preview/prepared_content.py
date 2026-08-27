@@ -27,6 +27,7 @@ from stage_gen.components.game_content import (
     ContentReference,
     ItemContent,
     MobContent,
+    MotionPresentation,
     NpcContent,
     PlayerContent,
     PropContent,
@@ -125,6 +126,15 @@ class PreparedContentNodeHandler:
         self._images = image_service
         self._structured = structured_service
         self._music = music_service
+
+    def _motion_source_facing(
+        self, kind: MotionActorKind, state: str
+    ) -> Literal["right", "back", "front"]:
+        return motion_source_facing(
+            kind,
+            state,
+            npc_world_orientation=(self._package.npcs.world_orientation if kind == "npc" else None),
+        )
 
     async def __call__(
         self, node: ExecutionNode, context: NodeExecutionContext
@@ -503,13 +513,19 @@ class PreparedContentNodeHandler:
                 provenance_ref=f"run://{concept.relative_to(self._run_dir).as_posix()}#sha256={_sha(concept_data)}",
             ),
         )
-        source_facing = motion_source_facing(kind, state)
-        facing_directive = (
-            "Every figure is shown from behind, facing away from the camera."
-            if source_facing == "back"
-            else "Every figure is a strict side view facing RIGHT: eyes, face, chest, and toes "
-            "point toward the right edge."
-        )
+        source_facing = self._motion_source_facing(kind, state)
+        if source_facing == "back":
+            facing_directive = "Every figure is shown from behind, facing away from the camera."
+        elif source_facing == "front":
+            facing_directive = (
+                "Every figure directly faces the camera in a strict symmetrical front view: "
+                "both eyes, shoulders, hands, and feet remain front-facing in every cell."
+            )
+        else:
+            facing_directive = (
+                "Every figure is a strict side view facing RIGHT: eyes, face, chest, and toes "
+                "point toward the right edge."
+            )
         motion_directive = motion_semantic_direction(kind, state)
         prompt = self._visual_prompt(
             f"Create the canonical side-view motion atlas for {kind} {entity_id}, state {state}. "
@@ -663,7 +679,7 @@ class PreparedContentNodeHandler:
         self, node: ExecutionNode, kind: MotionActorKind, entity_id: str, state: str
     ) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
-        source_facing = motion_source_facing(kind, state)
+        source_facing = self._motion_source_facing(kind, state)
         source_data = source.read_bytes()
         source_facts = _validate_atlas(
             source_data,
@@ -862,24 +878,29 @@ class PreparedContentNodeHandler:
         structured_refs = [self._run_structured_reference(contact)]
         states: Sequence[str]
         expressions: Sequence[str]
+        motions: Sequence[MotionPresentation]
         if kind == "player":
             player = self._player(entity_id)
             authored_prompt = player.prompt
-            states = [motion.state for motion in player.motions]
+            motions = player.motions
+            states = [motion.state for motion in motions]
             expressions = player.dialogue_art.expressions
         elif kind == "mob":
             mob = self._mob(entity_id)
             authored_prompt = mob.prompt
-            states = [motion.state for motion in mob.motions]
+            motions = mob.motions
+            states = [motion.state for motion in motions]
             expressions = []
         else:
             npc = self._npc(entity_id)
             authored_prompt = npc.prompt
-            states = [motion.state for motion in npc.world_motions]
+            motions = npc.motions
+            states = [motion.state for motion in motions]
             expressions = npc.dialogue_expressions
         structured_refs.extend(self._package_structured_reference(ref) for ref in references)
-        source_facings = {state: motion_source_facing(kind, state) for state in states}
+        source_facings = {state: self._motion_source_facing(kind, state) for state in states}
         motion_semantics = {state: motion_semantic_direction(kind, state) for state in states}
+        playback = {motion.state: motion.model_dump(mode="json") for motion in motions}
         runtime_scale_context = ""
         if kind == "player":
             runtime_scale_context = (
@@ -900,10 +921,17 @@ class PreparedContentNodeHandler:
                 f"The complete declared state list is exactly {list(states)}. "
                 f"The complete declared dialogue-expression list is exactly {list(expressions)}. "
                 f"The exact required visual meaning for each motion is {motion_semantics}. "
+                f"The exact authored runtime playback projection is {playback}. For hold playback, "
+                "judge motion semantics only on the selected canonical frame; unused generated "
+                "candidate cells still require stable identity, facing, scale, registration, and "
+                "alpha, but their gestures are not runtime motion coverage and must not cause a "
+                "rejection. "
                 "Every motion atlas is one row of four frames. The exact required source facing "
                 f"for each state is {source_facings}. Ordinary right-facing side-view sources are "
-                "mirrored deterministically by the runtime for left-facing play; a rear-facing "
-                "source is not mirrored. Image 1 is the locally labeled "
+                "mirrored deterministically by the runtime for left-facing play; rear-facing and "
+                "front-facing sources are not mirrored. For hold playback, generation still "
+                "provides the complete four-cell atlas while runtime presentation selects only "
+                "the declared canonical frame. Image 1 is the locally labeled "
                 "contact sheet; remaining images are authored identity/style references. The "
                 "contact sheet was locally alpha-composited from decoded RGBA sources onto "
                 f"checkerboards. {runtime_scale_context}"
@@ -1366,10 +1394,14 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "npcs": [
             {
                 "npc_id": entry.npc_id,
-                "world_motions": [motion.model_dump(mode="json") for motion in entry.world_motions],
+                "motions": [motion.model_dump(mode="json") for motion in entry.motions],
                 "source_facings": {
-                    motion.state: motion_source_facing("npc", motion.state)
-                    for motion in entry.world_motions
+                    motion.state: motion_source_facing(
+                        "npc",
+                        motion.state,
+                        npc_world_orientation=package.npcs.world_orientation,
+                    )
+                    for motion in entry.motions
                 },
                 "dialogue_expressions": entry.dialogue_expressions,
             }

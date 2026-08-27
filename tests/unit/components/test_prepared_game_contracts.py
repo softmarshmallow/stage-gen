@@ -7,6 +7,7 @@ import pytest
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_content import (
     load_mob_content_bytes,
+    load_npc_content_bytes,
     load_player_content_bytes,
 )
 from stage_gen.components.game_contract import load_prepared_game_contract_bytes
@@ -29,6 +30,7 @@ def test_each_prepared_contract_module_loads_the_canonical_source() -> None:
     game_map = load_prepared_game_map_bytes(_bytes("maps/sunpetal-crossing.toml"))
     player = load_player_content_bytes(_bytes("content/player.toml"))
     mobs = load_mob_content_bytes(_bytes("content/mobs.toml"))
+    npcs = load_npc_content_bytes(_bytes("content/npcs.toml"))
     sequence = load_game_sequence_bytes(_bytes("sequences/sunpetal-welcome.toml"))
 
     assert game.game_id == gameplay.game_id == game_map.game_id == "bellweather"
@@ -40,6 +42,10 @@ def test_each_prepared_contract_module_loads_the_canonical_source() -> None:
     assert crouch.canonical_frame_indices == [0, 1, 2, 3]
     assert crouch.frames_per_second == 6
     assert [entry.mob_id for entry in mobs.mobs] == game.cast.mob_ids
+    assert npcs.world_orientation == "front"
+    assert [entry.npc_id for entry in npcs.npcs] == game.cast.npc_ids
+    assert all(entry.motions[0].playback_mode == "hold" for entry in npcs.npcs)
+    assert all(entry.motions[0].canonical_frame_indices == [0] for entry in npcs.npcs)
     assert sequence.entry_node_id == "mara_greeting"
 
 
@@ -51,11 +57,26 @@ def test_prepared_root_rejects_unknown_fields() -> None:
 
 
 def test_map_contract_rejects_a_second_opaque_layer() -> None:
+    # A well-formed second base: opaque alpha paired with the canvas_cover anchor, so the
+    # per-layer placement rule passes and the map-level uniqueness rule is what rejects it.
     source = _bytes("maps/sunpetal-crossing.toml").replace(
-        b'alpha_mode = "transparent"', b'alpha_mode = "opaque"', 1
+        b'alpha_mode = "transparent"\nvertical_anchor = "screen_top"',
+        b'alpha_mode = "opaque"\nvertical_anchor = "canvas_cover"',
+        1,
     )
 
     with pytest.raises(AuthoredContractLoadError, match="exactly one opaque"):
+        load_prepared_game_map_bytes(source)
+
+
+def test_map_contract_rejects_an_opaque_layer_without_the_canvas_cover_anchor() -> None:
+    source = _bytes("maps/sunpetal-crossing.toml").replace(
+        b'alpha_mode = "transparent"\nvertical_anchor = "screen_top"',
+        b'alpha_mode = "opaque"\nvertical_anchor = "screen_top"',
+        1,
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="canvas_cover vertical anchor"):
         load_prepared_game_map_bytes(source)
 
 
@@ -80,6 +101,13 @@ def test_content_catalog_rejects_unknown_reference_ids() -> None:
 
     with pytest.raises(AuthoredContractLoadError, match="unknown IDs"):
         load_mob_content_bytes(source)
+
+
+def test_npc_contract_rejects_the_obsolete_world_motions_field() -> None:
+    source = _bytes("content/npcs.toml").replace(b"[[npcs.motions]]", b"[[npcs.world_motions]]")
+
+    with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
+        load_npc_content_bytes(source)
 
 
 def test_sequence_contract_rejects_an_unresolved_node() -> None:

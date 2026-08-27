@@ -2,6 +2,7 @@
 
 from .models import (
     GAME_CONTENT_SCHEMA_VERSION,
+    NPC_CONTENT_SCHEMA_VERSION,
     PLAYER_MOTION_STATES,
     ContentReference,
     DialogueArtDirection,
@@ -13,6 +14,7 @@ from .models import (
     MotionPresentation,
     NpcContent,
     NpcContentCatalog,
+    NpcWorldOrientation,
     PlayerContent,
     PlayerContentCatalog,
     PropContent,
@@ -27,6 +29,7 @@ from .models import (
 
 __all__ = [
     "GAME_CONTENT_SCHEMA_VERSION",
+    "NPC_CONTENT_SCHEMA_VERSION",
     "ContentReference",
     "DialogueArtDirection",
     "ItemContent",
@@ -37,6 +40,7 @@ __all__ = [
     "MotionPresentation",
     "NpcContent",
     "NpcContentCatalog",
+    "NpcWorldOrientation",
     "PLAYER_MOTION_STATES",
     "PlayerContent",
     "PlayerContentCatalog",

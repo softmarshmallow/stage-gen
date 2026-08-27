@@ -25,7 +25,7 @@ Start here for the headless, general-purpose system:
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
 - [Authored map-generation contract](spec/game/map-generation-contract.md) —
-  exact-current `game-map-v4`: explicit image-reference closure, side-view
+  exact-current `game-map-v5`: explicit image-reference closure, side-view
   continuity, per-map layers, binary terrain, ladder and portal composition,
   bundle review, cache, and gameplay-relationship exclusion.
 - [Authored game UI contract](spec/game/ui.md) — current root `ui.toml`, inventory-panel layout,
@@ -42,7 +42,7 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate,
   digest-bound game-global track catalog, scrolling generation pipeline, shuffle
   playback, prepared-runtime projection, and listening/publication boundary.
-- [Authored game maps](game-maps.md) — exact-current `game-map-v4` package
+- [Authored game maps](game-maps.md) — exact-current `game-map-v5` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —

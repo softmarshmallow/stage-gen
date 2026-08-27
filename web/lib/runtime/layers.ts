@@ -234,6 +234,8 @@ export const SCENE_CONTENT_DEPTH = Object.freeze({
    */
   actorHud: SCENE_LAYER_DEPTH.nearForeground + 100,
   hud: SCENE_LAYER_DEPTH.screenHud,
+  /** Modal conversation presentation always covers ordinary HUD and actor readouts. */
+  dialogue: SCENE_LAYER_DEPTH.screenHud + 100,
 });
 
 /** Browser-local near-plane screen velocity relative to the gameplay plane. */

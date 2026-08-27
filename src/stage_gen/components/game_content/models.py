@@ -21,8 +21,10 @@ from stage_gen.components._game_input import (
 from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAME_CONTENT_SCHEMA_VERSION = 2
+NPC_CONTENT_SCHEMA_VERSION = 3
 
 MotionPlaybackMode = Literal["hold", "loop", "once", "gameplay_driven"]
+NpcWorldOrientation = Literal["front"]
 CanonicalFrameIndex = Annotated[int, Field(ge=0, le=63)]
 PLAYER_MOTION_STATES = frozenset(
     {
@@ -254,7 +256,7 @@ class NpcContent(PersistedContractModel):
     body_kind: str
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
-    world_motions: list[MotionPresentation] = Field(min_length=1, max_length=1)
+    motions: list[MotionPresentation] = Field(min_length=1, max_length=1)
     dialogue_expressions: list[str] = Field(min_length=1, max_length=16)
 
     @field_validator("display_name", "role", "body_kind")
@@ -274,22 +276,23 @@ class NpcContent(PersistedContractModel):
         return value
 
     @model_validator(mode="after")
-    def validate_world_motions(self) -> NpcContent:
+    def validate_motions(self) -> NpcContent:
         _validate_motion_states(
-            self.world_motions,
+            self.motions,
             allowed_states={"idle"},
-            label=f"NPC {self.npc_id} world",
+            label=f"NPC {self.npc_id}",
         )
-        if self.world_motions[0].playback_mode == "gameplay_driven":
-            raise ValueError("NPC world motion must not use gameplay_driven playback")
+        if self.motions[0].playback_mode == "gameplay_driven":
+            raise ValueError("NPC motion must not use gameplay_driven playback")
         return self
 
 
 class NpcContentCatalog(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["npc-content-v2"]
+    schema_version: Literal[3]
+    kind: Literal["npc-content-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
+    world_orientation: NpcWorldOrientation
     references: list[ContentReference] = Field(min_length=1, max_length=32)
     npcs: list[NpcContent] = Field(min_length=1, max_length=64)
 
@@ -405,6 +408,7 @@ def canonical_game_content_json(contract: PersistedContractModel) -> bytes:
 
 __all__ = [
     "GAME_CONTENT_SCHEMA_VERSION",
+    "NPC_CONTENT_SCHEMA_VERSION",
     "ContentReference",
     "DialogueArtDirection",
     "ItemContent",
@@ -413,6 +417,7 @@ __all__ = [
     "MobContentCatalog",
     "NpcContent",
     "NpcContentCatalog",
+    "NpcWorldOrientation",
     "PlayerContent",
     "PlayerContentCatalog",
     "PropContent",

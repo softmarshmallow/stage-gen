@@ -35,8 +35,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   ];
 
   return {
-    schema_version: 5,
-    kind: "prepared-game-runtime-v5",
+    schema_version: 7,
+    kind: "prepared-game-runtime-v7",
     game_id: "prepared_fixture",
     revision: 1,
     display_name: "Prepared Fixture",
@@ -58,12 +58,22 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
             order: 0,
             parallax: 0.1,
             alpha_mode: "opaque",
+            placement: {
+              vertical_anchor: "canvas_cover",
+              vertical_offset: 0,
+              vertical_offset_source: "measured",
+              source_height: 1024,
+              trimmed_height: 1024,
+              trimmed_top: 0,
+            },
             asset: background,
           },
         ],
         ground: {
           mode: "terrain-atlas-3x3-minimal-v1",
           occupancy: ["0".repeat(20), "1".repeat(20)],
+          vertical_fit: "floor_to_screen_bottom",
+          walk_surface_row: 0,
           asset: ground,
         },
         portal: {

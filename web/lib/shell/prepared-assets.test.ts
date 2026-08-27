@@ -47,8 +47,8 @@ function preparedManifestFixture() {
   };
   const closure = Object.values(assets).reverse();
   return {
-    schema_version: 5,
-    kind: "prepared-game-runtime-v5",
+    schema_version: 7,
+    kind: "prepared-game-runtime-v7",
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",
@@ -70,6 +70,14 @@ function preparedManifestFixture() {
             order: 0,
             parallax: 1.2,
             alpha_mode: "transparent",
+            placement: {
+              vertical_anchor: "canvas_cover",
+              vertical_offset: 0,
+              vertical_offset_source: "measured",
+              source_height: 1024,
+              trimmed_height: 1024,
+              trimmed_top: 0,
+            },
             asset: assets.foreground,
           },
           {
@@ -78,12 +86,22 @@ function preparedManifestFixture() {
             order: 0,
             parallax: 0,
             alpha_mode: "opaque",
+            placement: {
+              vertical_anchor: "canvas_cover",
+              vertical_offset: 0,
+              vertical_offset_source: "measured",
+              source_height: 1024,
+              trimmed_height: 1024,
+              trimmed_top: 0,
+            },
             asset: assets.sky,
           },
         ],
         ground: {
           mode: "terrain-atlas-3x3-minimal-v1",
           occupancy: ["0000000000", "1111111111"],
+          vertical_fit: "floor_to_screen_bottom",
+          walk_surface_row: 0,
           asset: assets.ground,
         },
         ladder: {
@@ -176,15 +194,14 @@ function preparedManifestFixture() {
         display_name: "Village Guide",
         role: "guide",
         world: {
-          source_facing: "right",
-          runtime_mirror: true,
+          source_facing: "front",
+          runtime_mirror: false,
           columns: 4,
           rows: 1,
           source_frame_count: 4,
           playback: {
-            mode: "loop",
-            canonical_frame_indices: [0, 1, 2, 3],
-            frames_per_second: 5,
+            mode: "hold",
+            canonical_frame_indices: [0],
           },
           asset: assets.npcWorld,
         },

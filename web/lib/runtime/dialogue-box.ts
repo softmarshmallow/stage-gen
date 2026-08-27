@@ -3,7 +3,8 @@
 // The village's world-space half - the villager, their name label, the "▲ Talk" prompt - lives in
 // `npc.ts` and scrolls with the camera. This is the other half: once the player actually speaks
 // to somebody, the conversation belongs to the screen, not to a spot in the town, so the panel is
-// pinned with `setScrollFactor(0)` and sits at `SCENE_CONTENT_DEPTH.hud` above every world layer.
+// pinned with `setScrollFactor(0)` and sits at `SCENE_CONTENT_DEPTH.dialogue` above both the world
+// and ordinary HUD.
 // A panel that scrolled would slide off the moment the player nudged the camera mid-sentence.
 //
 // The line-advance rule is deliberately not a method body. A conversation is a small state
@@ -167,7 +168,7 @@ export class DialogueBox {
     // scrolling away from the panel it belongs to.
     this.container = scene.add.container(panelX, panelY);
     this.container.setScrollFactor(0);
-    this.container.setDepth(SCENE_CONTENT_DEPTH.hud);
+    this.container.setDepth(SCENE_CONTENT_DEPTH.dialogue);
     this.container.setVisible(false);
 
     const panel = scene.add.graphics();
@@ -324,7 +325,7 @@ export class DialogueBox {
         portrait.setScrollFactor(0);
         // The body remains above the world and below the opaque dialogue panel, so its feet can
         // disappear behind the panel without the figure covering the line being spoken.
-        portrait.setDepth(SCENE_CONTENT_DEPTH.hud - 1);
+        portrait.setDepth(SCENE_CONTENT_DEPTH.dialogue - 1);
         this.portrait = portrait;
       } else {
         this.portrait.setTexture(portraitTextureKey);

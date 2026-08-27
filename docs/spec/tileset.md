@@ -91,7 +91,7 @@ require `direct_pass`.
 
 ## Consumer behavior
 
-Required `ground.occupancy` in `game-map-v4` selects one atlas coordinate for every occupied cell
+Required `ground.occupancy` in `game-map-v5` selects one atlas coordinate for every occupied cell
 from all eight neighbors. This supports solid ground, genuinely one-cell-high
 floating terrain, stair-step shapes, concavities, and holes. Collision comes
 from occupancy, not alpha. Runtime import uses exact 120-pixel frames, nearest
@@ -133,7 +133,7 @@ image pixels. See [Terrain-atlas provenance](../terrain-atlas-provenance.md).
 The older tag-based scrolling demo still contains `tileset-12x4-v1`, its
 16-role/three-variant mask, material-synthesis recovery, and continuous-strip
 browser treatment. It is a separate legacy recipe path. Prepared
-`game-map-v4` packages do not select it, and it must not be interpreted as the
+`game-map-v5` packages do not select it, and it must not be interpreted as the
 47-mask contract above.
 
 That legacy browser consumer does not register or render per-role atlas frames.

@@ -141,7 +141,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "library/games/<game_id>/game.toml",
         "game-package-v3",
         "game-contract-v5",
-        "prepared-game-runtime-v5",
+        "prepared-game-runtime-v7",
     ):
         assert any(required in document for document in discoverable_docs)
 

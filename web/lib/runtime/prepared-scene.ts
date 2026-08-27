@@ -63,6 +63,13 @@ import {
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
 } from "./prepared-player";
+import { frameScaleForHeight } from "./sprite-scale";
+import { SCENE_CONTENT_DEPTH } from "./layers";
+import {
+  preparedGroundBaselineY,
+  preparedLayerLayout,
+  preparedWalkSurfaceY,
+} from "./prepared-layers";
 import {
   terrainAtlasBoundaryOverscanPlan,
   terrainAtlasWalkSurfaceOffset,
@@ -77,10 +84,14 @@ import { preparedPortalEndpointPlacements } from "./prepared-portals";
 const VIEW_W = 1280;
 const VIEW_H = 720;
 const TILE_PX = 64;
-const GROUND_BASELINE_Y = 666;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
+const DIALOGUE_PORTRAIT_HEIGHT = 190;
+const DIALOGUE_PANEL_CENTER_Y = VIEW_H - 128;
+const DIALOGUE_PANEL_HEIGHT = 210;
+const DIALOGUE_PANEL_BOTTOM_Y =
+  DIALOGUE_PANEL_CENTER_Y + DIALOGUE_PANEL_HEIGHT / 2;
 
 type SequenceNode = Readonly<Record<string, unknown>>;
 type Sequence = Readonly<{
@@ -134,6 +145,18 @@ function installPreparedMotion(
   );
 }
 
+function scaleSpriteFrameToHeight(
+  sprite: Phaser.GameObjects.Sprite,
+  targetHeight: number,
+): void {
+  const plan = frameScaleForHeight(
+    targetHeight,
+    sprite.frame.width,
+    sprite.frame.height,
+  );
+  sprite.setScale(plan.scale);
+}
+
 export class PreparedStageScene extends Phaser.Scene {
   private readonly tag: string;
   private readonly transparencyPolicy: PreviewTransparencyPolicy;
@@ -144,6 +167,8 @@ export class PreparedStageScene extends Phaser.Scene {
   private currentMap?: PreparedMap;
   private player?: Player;
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
+  // Derived from the entered map's ground vertical_fit rather than hard-coded.
+  private groundBaselineY = VIEW_H;
   private layerSprites: Phaser.GameObjects.TileSprite[] = [];
   private groundSprites: Phaser.GameObjects.GameObject[] = [];
   private props: Phaser.GameObjects.Image[] = [];
@@ -668,10 +693,11 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!manifest || !gameplay) return;
     const map = manifest.maps.find((entry) => entry.map_id === mapId);
     if (!map) throw new Error(`runtime transition names unknown map ${mapId}`);
+    this.groundBaselineY = preparedGroundBaselineY(map, VIEW_H);
     const terrainWorld = projectPreparedTerrainWorld(
       map,
       TILE_PX,
-      GROUND_BASELINE_Y,
+      this.groundBaselineY,
     );
     this.loading = true;
     this.currentMap = map;
@@ -694,7 +720,7 @@ export class PreparedStageScene extends Phaser.Scene {
       startY: this.surfaceYAtX(startX),
       tilePx: TILE_PX,
       worldWidthPx: this.worldWidth,
-      baselineY: GROUND_BASELINE_Y,
+      baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
       targetSpriteHeight: PLAYER_HEIGHT,
       platforms: this.verticalWorld.platforms,
@@ -711,7 +737,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.items = new ItemSystem({
       scene: this,
       tilePx: TILE_PX,
-      baselineY: GROUND_BASELINE_Y,
+      baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
       itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
     });
@@ -765,14 +791,23 @@ export class PreparedStageScene extends Phaser.Scene {
       const plane = left.plane === right.plane ? 0 : left.plane === "background" ? -1 : 1;
       return plane || left.order - right.order;
     });
+    const walkSurfaceY = preparedWalkSurfaceY(map, TILE_PX, VIEW_H);
     ordered.forEach((layer, index) => {
       const key = `prepared_map_${map.map_id}_${layer.layer_id}`;
-      const sourceHeight = layer.asset.height ?? 1024;
-      const scale = VIEW_H / sourceHeight;
-      const sprite = this.add.tileSprite(0, 0, VIEW_W / scale, VIEW_H / scale, key);
+      const layout = preparedLayerLayout(layer.placement, {
+        viewportHeight: VIEW_H,
+        walkSurfaceY,
+      });
+      const sprite = this.add.tileSprite(
+        0,
+        layout.topY,
+        VIEW_W / layout.scale,
+        layout.sourceHeight,
+        key,
+      );
       sprite
         .setOrigin(0, 0)
-        .setScale(scale)
+        .setScale(layout.scale)
         .setScrollFactor(0)
         .setDepth(layer.plane === "foreground" ? 80 + index : index - 20)
         .setData("parallax", layer.parallax);
@@ -843,7 +878,6 @@ export class PreparedStageScene extends Phaser.Scene {
       const sprite = this.add
         .sprite(x, surfaceY, `prepared_npc_${npc.npc_id}_world`, 0)
         .setOrigin(0.5, 1)
-        .setDisplaySize(NPC_HEIGHT * 0.75, NPC_HEIGHT)
         .setDepth(35);
       applyMotionPlayback(
         sprite,
@@ -851,6 +885,7 @@ export class PreparedStageScene extends Phaser.Scene {
         `prepared_npc_${npc.npc_id}_world`,
         npc.world.playback,
       );
+      scaleSpriteFrameToHeight(sprite, NPC_HEIGHT);
       anchorRepackedMotionFeet(sprite);
       this.npcs.push({ npcId: npc.npc_id, sprite });
       const label = this.add
@@ -889,7 +924,7 @@ export class PreparedStageScene extends Phaser.Scene {
     return terrainSurfaceY(
       this.heightAt(x / TILE_PX),
       TILE_PX,
-      GROUND_BASELINE_Y,
+      this.groundBaselineY,
     );
   }
 
@@ -909,7 +944,7 @@ export class PreparedStageScene extends Phaser.Scene {
       scene: this,
       portalKey,
       tilePx: TILE_PX,
-      baselineY: GROUND_BASELINE_Y,
+      baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
       stageWidthPx: this.worldWidth,
       destinations: { entry: null, exit: null },
@@ -974,7 +1009,7 @@ export class PreparedStageScene extends Phaser.Scene {
       spawnCol: spawnColumn,
       tilePx: TILE_PX,
       worldWidthPx: this.worldWidth,
-      baselineY: GROUND_BASELINE_Y,
+      baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
       wanderExtentPx,
       pursuitLeashPx,
@@ -1026,7 +1061,7 @@ export class PreparedStageScene extends Phaser.Scene {
       {
         world_columns: this.heights.length,
         tile_pixels: TILE_PX,
-        baseline_y: GROUND_BASELINE_Y,
+        baseline_y: this.groundBaselineY,
         height_at_column: (column) => this.heightAt(column),
         is_spawnable_column: (column) =>
           !reservedColumns.has(column) && this.heightAt(column) > 0,
@@ -1363,6 +1398,9 @@ export class PreparedStageScene extends Phaser.Scene {
     this.dialogueName?.setText(playerSpeaker ? manifest.player.display_name : npc?.display_name ?? speakerId);
     this.dialogueText?.setText(String(node.text));
     this.dialoguePortrait?.setTexture(texture, `expression_${Math.max(0, expressionIndex)}`);
+    if (this.dialoguePortrait) {
+      scaleSpriteFrameToHeight(this.dialoguePortrait, DIALOGUE_PORTRAIT_HEIGHT);
+    }
     this.dialoguePortrait?.setVisible(true);
   }
 
@@ -1392,11 +1430,12 @@ export class PreparedStageScene extends Phaser.Scene {
       this.dialogueName?.setVisible(true);
       return;
     }
-    this.dialoguePanel = this.add.rectangle(VIEW_W / 2, VIEW_H - 128, VIEW_W - 80, 210, 0x182a3a, 0.94).setScrollFactor(0).setDepth(900);
+    this.dialoguePanel = this.add.rectangle(VIEW_W / 2, DIALOGUE_PANEL_CENTER_Y, VIEW_W - 80, DIALOGUE_PANEL_HEIGHT, 0x182a3a, 0.94).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue);
     this.dialoguePanel.setStrokeStyle(4, 0xf1d69a, 1);
-    this.dialogueName = this.add.text(300, VIEW_H - 205, "", { fontFamily: "Georgia, serif", fontSize: "25px", color: "#ffe6a9", fontStyle: "bold" }).setScrollFactor(0).setDepth(902);
-    this.dialogueText = this.add.text(300, VIEW_H - 160, "", { fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#ffffff", wordWrap: { width: 870 }, lineSpacing: 7 }).setScrollFactor(0).setDepth(902);
-    this.dialoguePortrait = this.add.sprite(175, VIEW_H - 35, "prepared_player_dialogue", "expression_0").setOrigin(0.5, 1).setDisplaySize(190, 190).setScrollFactor(0).setDepth(902);
+    this.dialogueName = this.add.text(300, VIEW_H - 205, "", { fontFamily: "Georgia, serif", fontSize: "25px", color: "#ffe6a9", fontStyle: "bold" }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    this.dialogueText = this.add.text(300, VIEW_H - 160, "", { fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#ffffff", wordWrap: { width: 870 }, lineSpacing: 7 }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    this.dialoguePortrait = this.add.sprite(175, DIALOGUE_PANEL_BOTTOM_Y, "prepared_player_dialogue", "expression_0").setOrigin(0.5, 1).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    scaleSpriteFrameToHeight(this.dialoguePortrait, DIALOGUE_PORTRAIT_HEIGHT);
   }
 
   private closeDialogue(): void {

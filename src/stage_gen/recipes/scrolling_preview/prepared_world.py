@@ -29,7 +29,12 @@ from stage_gen.components.image_repeat import (
 )
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
-from stage_gen.media import AlphaComponentRepackContract, repack_alpha_components
+from stage_gen.media import (
+    AlphaComponentRepackContract,
+    repack_alpha_components,
+    seal_offset_fraction,
+    trim_layer_to_alpha_box,
+)
 from stage_gen.orchestration.execution_graph import (
     CacheDisposition,
     ExecutionGraph,
@@ -41,6 +46,10 @@ from stage_gen.orchestration.execution_graph import (
     OperationKind,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.layer_contract import (
+    BOTTOM_REGISTERED_ANCHORS,
+    LAYER_PLACEMENT_CANONICALIZER,
+)
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     assemble_terrain_atlas,
@@ -211,21 +220,35 @@ class PreparedWorldNodeHandler:
         )
         if report.verdict != "pass":
             raise ValueError("canonical map layer failed deterministic x-repeat validation")
+        trimmed, trim = trim_layer_to_alpha_box(canonical)
+        placement = _resolve_layer_placement(layer, trim)
         output, validation_path, preview_path = (self._run_dir / ref for ref in node.outputs)
         sidecar = await _write_local_image(
             output,
-            canonical,
-            model="prepared-map-minimum-alpha-wrap-v1",
-            prompt="Canonicalize the generated map layer into an exact x-axis repeat unit.",
+            trimmed,
+            model=LAYER_PLACEMENT_CANONICALIZER,
+            prompt=(
+                "Canonicalize the generated map layer into an exact x-axis repeat unit, then trim "
+                "it to its alpha box vertically while preserving the repeat period."
+            ),
             source_ref=generated.outputs[0],
             source_data=raw_data,
             validation={
                 "construction": construction,
                 "repeat": report.model_dump(mode="json"),
+                "trim": trim,
+                "placement": placement,
             },
         )
-        atomic_write_json(validation_path, report.model_dump(mode="json"))
-        atomic_write_bytes(preview_path, _bounded_repeat_preview(canonical))
+        atomic_write_json(
+            validation_path,
+            {
+                "repeat": report.model_dump(mode="json"),
+                "trim": trim,
+                "placement": placement,
+            },
+        )
+        atomic_write_bytes(preview_path, _bounded_repeat_preview(trimmed))
         return self._result(
             node, (output, sidecar, validation_path, preview_path), provider_operations=0
         )
@@ -687,6 +710,49 @@ class PreparedWorldNodeHandler:
 
 def world_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
     return tuple(f"map-{game_map.map_id}-review" for game_map in package.maps)
+
+
+def _resolve_layer_placement(layer: PreparedMapLayer, trim: dict[str, object]) -> dict[str, object]:
+    """Resolve one layer's vertical placement from its declared anchor and measured raster.
+
+    The author declares intent from a closed vocabulary; the fraction is measured here, because an
+    authored fraction would be a prediction about pixels that did not exist when it was written. An
+    explicit override is honoured, but a bottom-registered override that cannot reach the
+    full-coverage line is rejected against the exact measured minimum rather than silently leaving
+    a gap the runtime would fill with whatever sits behind the layer.
+    """
+
+    minimum: float | None = None
+    if layer.vertical_anchor in BOTTOM_REGISTERED_ANCHORS:
+        minimum = seal_offset_fraction(trim)
+        if minimum is None:
+            raise ValueError(
+                f"map layer {layer.layer_id} anchors to {layer.vertical_anchor} but no row is "
+                "spanned by every column, so it can never seal"
+            )
+    resolved = minimum if minimum is not None else 0.0
+    source = "measured"
+    if layer.vertical_offset is not None:
+        if minimum is not None and layer.vertical_offset < minimum:
+            raise ValueError(
+                f"map layer {layer.layer_id} declares vertical_offset "
+                f"{layer.vertical_offset} but sealing requires at least {minimum}"
+            )
+        resolved = layer.vertical_offset
+        source = "authored"
+    return {
+        "schema_version": 1,
+        "kind": LAYER_PLACEMENT_CANONICALIZER,
+        "vertical_anchor": layer.vertical_anchor,
+        "vertical_offset": resolved,
+        "vertical_offset_source": source,
+        "minimum_seal_offset": minimum,
+        "source_height": trim["source_height"],
+        "trimmed_height": trim["trimmed_height"],
+        "trimmed_top": trim["trimmed_top"],
+        "trimmed_bottom": trim["trimmed_bottom"],
+        "bounds": trim["bounds"],
+    }
 
 
 def _canonicalize_x_wrap(

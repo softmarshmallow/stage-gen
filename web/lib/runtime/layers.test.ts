@@ -232,7 +232,11 @@ describe("semantic scene layer contracts", () => {
       effect: 950,
       actorHud: 1300,
       hud: SCENE_LAYER_DEPTH.screenHud,
+      dialogue: 2100,
     });
+    expect(SCENE_CONTENT_DEPTH.dialogue).toBeGreaterThan(
+      SCENE_CONTENT_DEPTH.hud,
+    );
   });
 
   test("adapts manifest world layers into canonical semantic contracts", () => {
