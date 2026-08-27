@@ -213,6 +213,8 @@ class PreparedPackageExecutor:
             structured_service=structured_service,
             terrain_template_path=Path(__file__).parents[2]
             / "resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
+            terrain_topology_reference_path=Path(__file__).parents[2]
+            / ("resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png"),
         )
         try:
             summary = await executor.run(

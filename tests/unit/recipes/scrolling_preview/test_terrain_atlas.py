@@ -15,15 +15,13 @@ from stage_gen.recipes.scrolling_preview.prepared_world import (
 )
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     CANONICAL_CELL_PX,
-    CAP_DEPTH_PX,
-    MAXIMUM_CAP_SURFACE_START_PX,
     MAXIMUM_CONNECTOR_ALPHA_MISMATCH,
     assemble_terrain_atlas,
     cells_from_canonical_atlas,
     compose_canonical_terrain,
     load_terrain_atlas_lookup,
     peering_mask,
-    require_terrain_material_source,
+    require_terrain_atlas_source,
     terrain_atlas_generation_prompt,
 )
 from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
@@ -39,18 +37,24 @@ def _png(image: Image.Image) -> bytes:
     return stream.getvalue()
 
 
-def _material_source(
+def _paintover_source(
     *,
-    cap: tuple[int, int, int] = (78, 142, 62),
-    fill: tuple[int, int, int] = (132, 86, 50),
+    base: tuple[int, int, int] = (132, 86, 50),
+    coordinate_variation: bool = True,
 ) -> bytes:
-    image = Image.new("RGB", (1024, 768), fill)
-    draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 1024, 240), fill=cap)
-    for x in range(0, 1024, 32):
-        draw.rectangle((x, 0, x + 12, 240), fill=tuple(min(255, value + 18) for value in cap))
-    for y in range(330, 768, 40):
-        draw.rectangle((0, y, 1024, y + 15), fill=tuple(max(0, value - 14) for value in fill))
+    with Image.open(BytesIO(_template())) as opened:
+        image = opened.convert("RGB")
+    pixels = image.load()
+    assert pixels is not None
+    for y in range(image.height):
+        for x in range(image.width):
+            red, green, blue = cast(tuple[int, int, int], pixels[x, y])
+            is_magenta = red > 180 and blue > 180 and green < 80
+            is_cyan = red < 80 and green > 170 and blue > 170
+            if is_magenta or is_cyan:
+                continue
+            variation = ((x // 19 + y // 23) % 9) - 4 if coordinate_variation else 0
+            pixels[x, y] = tuple(max(0, min(255, channel + variation)) for channel in base)
     return _png(image)
 
 
@@ -118,7 +122,7 @@ def test_missing_or_duplicate_lookup_entries_fail_closed(mutation: str) -> None:
     ),
 )
 def test_composes_solid_floating_steps_concavities_and_holes(rows: tuple[str, ...]) -> None:
-    canonical, report = assemble_terrain_atlas(_material_source())
+    canonical, report = assemble_terrain_atlas(_paintover_source())
     assert report["classification"] == "direct_pass"
     composed, composition = compose_canonical_terrain(canonical, rows)
     with Image.open(BytesIO(composed)) as image:
@@ -131,15 +135,15 @@ def test_composes_solid_floating_steps_concavities_and_holes(rows: tuple[str, ..
     assert metrics["connector_alpha_mismatch_fraction"] <= MAXIMUM_CONNECTOR_ALPHA_MISMATCH
 
 
-def test_material_source_is_locally_assembled_into_locked_direct_pass_atlas() -> None:
-    source = _material_source()
-    source_report = require_terrain_material_source(source)
+def test_paintover_is_locally_canonicalized_into_locked_direct_pass_atlas() -> None:
+    source = _paintover_source()
+    source_report = require_terrain_atlas_source(source)
     canonical, report = assemble_terrain_atlas(source)
 
-    assert source_report["contract"] == "terrain-material-source-v1"
-    assert report["canonicalizer"] == "terrain-atlas-material-assembly-v2"
+    assert source_report["contract"] == "terrain-atlas-paintover-source-v3"
+    assert report["canonicalizer"] == "terrain-atlas-paintover-canonicalization-v3"
     assert report["classification"] == "direct_pass"
-    assert report["exact_template_alpha_mismatch_fraction"] == 0.0
+    assert cast(float, report["template_alpha_mismatch_fraction"]) <= 0.10
     assert report["maximum_direct_connector_alpha_mismatch"] == 0.0
     assert cast(float, report["maximum_direct_connector_rgb_mean"]) <= 3.0
     assert report["template_sha256"] == sha256(_template()).hexdigest()
@@ -147,31 +151,14 @@ def test_material_source_is_locally_assembled_into_locked_direct_pass_atlas() ->
     cells = cells_from_canonical_atlas(canonical)
     assert cells[(10, 1)].getchannel("A").getextrema() == (0, 0)
     lookup = load_terrain_atlas_lookup()
-    for mask, coordinate in lookup.by_mask.items():
+    for coordinate in lookup.by_mask.values():
         cell = cells[coordinate]
-        alpha = cell.getchannel("A")
-        rgb = cell.convert("RGB")
-        cap_pixels = [
-            (x, y)
-            for y in range(CANONICAL_CELL_PX)
-            for x in range(CANONICAL_CELL_PX)
-            if cast(int, alpha.getpixel((x, y))) > 128
-            and cast(tuple[int, int, int], rgb.getpixel((x, y)))[1]
-            > max(
-                cast(tuple[int, int, int], rgb.getpixel((x, y)))[0],
-                cast(tuple[int, int, int], rgb.getpixel((x, y)))[2],
-            )
-        ]
-        if mask[1] == 0:
-            assert cap_pixels
-            assert max(y for _, y in cap_pixels) <= (MAXIMUM_CAP_SURFACE_START_PX + CAP_DEPTH_PX)
-        else:
-            assert not cap_pixels
+        assert cell.getchannel("A").getextrema()[1] == 255
 
 
 def test_material_appearance_changes_canonical_rgb_without_changing_locked_alpha() -> None:
-    first, _ = assemble_terrain_atlas(_material_source())
-    second, _ = assemble_terrain_atlas(_material_source(cap=(70, 100, 180), fill=(76, 62, 118)))
+    first, _ = assemble_terrain_atlas(_paintover_source())
+    second, _ = assemble_terrain_atlas(_paintover_source(base=(76, 62, 118)))
     with Image.open(BytesIO(first)) as opened:
         first_image = opened.convert("RGBA")
     with Image.open(BytesIO(second)) as opened:
@@ -181,21 +168,28 @@ def test_material_appearance_changes_canonical_rgb_without_changing_locked_alpha
     assert first_image.convert("RGB").tobytes() != second_image.convert("RGB").tobytes()
 
 
-def test_material_source_rejects_transparency_uniformity_and_merged_regions() -> None:
-    transparent = Image.new("RGBA", (1024, 768), (100, 80, 60, 200))
-    with pytest.raises(ValueError, match="fully opaque"):
-        require_terrain_material_source(_png(transparent))
+def test_paintover_source_rejects_missing_lattice_topology_drift_and_uniformity() -> None:
+    missing_lattice = Image.new("RGB", (1600, 900), (100, 80, 60))
+    with pytest.raises(ValueError, match="guide lattice count mismatch"):
+        require_terrain_atlas_source(_png(missing_lattice))
 
-    uniform = Image.new("RGB", (1024, 768), (100, 80, 60))
-    with pytest.raises(ValueError, match="lacks usable material variation"):
-        require_terrain_material_source(_png(uniform))
+    with Image.open(BytesIO(_paintover_source())) as opened:
+        topology_drift = opened.convert("RGB")
+    drift_pixels = topology_drift.load()
+    assert drift_pixels is not None
+    for y in range(topology_drift.height):
+        for x in range(topology_drift.width):
+            red, green, blue = cast(tuple[int, int, int], drift_pixels[x, y])
+            if red < 80 and green > 170 and blue > 170:
+                continue
+            if not (red > 180 and blue > 180 and green < 80):
+                drift_pixels[x, y] = (255, 0, 255)
+    with pytest.raises(ValueError, match="changed too much locked topology"):
+        require_terrain_atlas_source(_png(topology_drift))
 
-    merged_image = Image.new("RGB", (1024, 768), (100, 120, 80))
-    merged_draw = ImageDraw.Draw(merged_image)
-    for x in range(0, 1024, 32):
-        merged_draw.rectangle((x, 0, x + 12, 768), fill=(118, 138, 98))
-    with pytest.raises(ValueError, match="not visually distinct"):
-        require_terrain_material_source(_png(merged_image))
+    uniform = _paintover_source(base=(100, 80, 60), coordinate_variation=False)
+    with pytest.raises(ValueError, match="lacks usable painted material variation"):
+        require_terrain_atlas_source(uniform)
 
 
 @pytest.mark.parametrize("asset,subjects", (("ladder", 1), ("portal", 2)))
@@ -222,14 +216,16 @@ def test_incomplete_single_rail_does_not_pass_as_a_ladder() -> None:
 
 
 def test_validation_report_is_portable_and_prompt_is_material_neutral() -> None:
-    _, report = assemble_terrain_atlas(_material_source())
+    _, report = assemble_terrain_atlas(_paintover_source())
     serialized = json.dumps(report, sort_keys=True)
     assert "/private/" not in serialized
     assert "/tmp/" not in serialized
     assert "authorization" not in serialized.lower()
     assert "signature=" not in serialized.lower()
     prompt = terrain_atlas_generation_prompt("thin mineral cap, layered crystalline fill")
-    assert "GRASS CAP" in prompt
-    assert "DIRT FILL" in prompt
-    assert "Do not attempt tile topology" in prompt
-    assert "template" not in prompt.lower()
+    assert "reference image 1 as a strict production terrain-atlas paintover" in prompt
+    assert "image 2 redundantly defines the exact 3x3-minimal" in prompt
+    assert "cap and fill" in prompt
+    assert "GRASS CAP" not in prompt
+    assert "DIRT FILL" not in prompt
+    assert "mirrored repetition" in prompt

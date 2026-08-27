@@ -41,9 +41,9 @@ flowchart TD
     PKG["directory or ZIP"] --> PR["package-resolve · local"]
 
     PR --> ML["map layer raw generate[*]"]
-    PR --> MG["map ground material-board generate[*]"]
+    PR --> MG["map ground 47-mask paintover generate[*]"]
     ML --> MLV["canonical alpha + repeat validate, vertical trim + placement measure[*]"]
-    MG --> MGV["validate board + deterministically assemble 47-mask atlas[*]"]
+    MG --> MGV["validate paintover + deterministically canonicalize 47-mask atlas[*]"]
     PR --> LG["optional map ladder generate[*]"]
     PR --> PG["optional map portal-pair generate[*]"]
     MLV --> MC["map composite[*]"]
@@ -144,7 +144,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact digest-locked Bellweather snapshot, the content-sensitive execution-plan identity is
-`graph_sha256 = 163ba4731b1d235e3a5be5c63c9564905565afe24f58403a103df9d627af4e79`.
+`graph_sha256 = e14a229cde57141f8df44816c4df9c9c9a46b11c81ac2bd6da64a606347a9ecc`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -215,19 +215,22 @@ structured reviews. It cannot schedule any cast, catalog, soundtrack, gameplay-b
 manifest node. Each layer, ground, ladder, and portal generation writes a retained `*.raw.png`;
 only its dependent validator may write the canonical runtime-facing PNG.
 
-Each ground image operation receives only its map-authorized visual references and requests one
-fully opaque material board: a shallow grass-cap region above a matching dirt-fill region, with no
-atlas, grid, guide, alpha silhouette, or connector geometry. The retry-owning image component
-validates source opacity, dimensions, variation, and cap/fill distinction. Its dependent local node
-alone reads the digest-bound packaged topology template and authoritative 47-mask lookup,
-mirror-periodically samples the two source regions, applies the exact local alpha silhouettes,
-clears the placeholder, validates direct connectors, and emits the canonical 1440-by-480 atlas plus
-`ground.evidence.png` composed from that map's authored occupancy. The topology template is never
-sent to the provider. The current local compositor is
-`terrain-atlas-material-assembly-v2`. Its identity and the template and lookup digests participate
-in the local assembly cache key;
-occupancy changes the local evidence, composite, review, bindings, and manifest projection without
-invalidating the appearance-only material-board call.
+Each ground image operation receives the attributed 12-by-4 topology template as its strict first
+edit target, the attributed Godot grid crop as redundant topology-only input, and its map-authorized
+visual references as appearance-only inputs. The request asks the
+model to paint contextual cap, fill, exposed sides, bevels, corners, and concavities inside all 47
+terrain cells while preserving the cyan lattice, magenta empty regions, and checker placeholder.
+Cap and fill are biome roles rather than hard-coded grass and dirt. The retry-owning image component
+validates the fitted guide lattice, topology drift, painted variation, and direct connector alpha.
+Its dependent local node extracts deterministic magenta chroma alpha to
+**deterministically assemble 47-mask atlas** cells, harmonizes legal connector
+edges, clears the placeholder, validates direct connectors, and emits the canonical
+1440-by-480 atlas plus `ground.evidence.png` composed from that map's authored occupancy. The current
+local compositor is `terrain-atlas-paintover-canonicalization-v3`. Its identity and the template,
+topology-reference, and lookup digests participate in generation and local assembly cache keys;
+occupancy changes the local
+evidence, composite, review, bindings, and manifest projection without invalidating the
+appearance-only paintover call.
 
 Optional map-local ladder and portal branches begin alongside layers and ground. `ladder-4-tile-v1`
 requests one complete tall native-alpha subject and deterministically repacks it into a canonical
@@ -343,7 +346,7 @@ counts one successful provider operation per provider node.
 | `maps/*/layers/*.raw.png` | Retained provider layer output and provider provenance |
 | `maps/*/layers/*.png` | Deterministically canonicalized horizontal repeat unit |
 | `maps/*/layers/*.repeat.png` | Three-repeat checkerboard evidence for visual review |
-| `maps/*/ground.raw.png` | Retained provider-generated opaque ground material board and provider provenance |
+| `maps/*/ground.raw.png` | Retained provider-generated 47-mask ground paintover and provider provenance |
 | `maps/*/ground.png` | Canonical 1440-by-480 47-mask terrain atlas with 120-by-120 RGBA cells |
 | `maps/*/ground.evidence.png` | Deterministic composition of the canonical atlas through the map-authored occupancy |
 | `maps/*/ladder.raw.png`, `ladder.png`, `ladder.validation.json` | Optional map-local ladder source, canonical isolated 1-by-1 presentation, and deterministic facts |

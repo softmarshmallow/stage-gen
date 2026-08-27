@@ -86,14 +86,16 @@ out at the viewport edge, so no gap can open below the world, and
 ## Terrain projection
 
 The authored occupancy grid is the collision and composition truth. The
-scrolling recipe generates one opaque grass-and-dirt material board, then a
-deterministic local assembler maps that material through the packaged 47-mask
-topology template. The emitted terrain atlas is a 12-by-4 sheet of 120-pixel
-RGBA cells. The prepared consumer selects cells from the canonical lookup and
-constructs collision directly from occupancy.
+scrolling recipe asks the image model to paint the attributed 47-mask topology
+template using authorized concept references. A deterministic local canonicalizer
+extracts magenta chroma alpha and enforces connector continuity while preserving the
+painted cell interiors and packaged 47-mask lookup. The emitted terrain atlas is a
+12-by-4 sheet of 120-pixel RGBA
+cells. The prepared consumer selects cells from the canonical lookup and constructs
+collision directly from occupancy.
 
 This split keeps topology exact while allowing the provider to concentrate on
-material quality. Structural admission does not imply that a generated board
+rendering quality. Structural admission does not imply that a generated paintover
 has passed artistic review.
 
 ## Resolution and runtime projection

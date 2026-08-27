@@ -138,10 +138,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The prepared-package cutover adds eleven deliberate headless modules: the generic DAG,
         # fake verifier, recipe graph builder, thin package executor, live prepared-world handler,
         # live prepared-content handler, runtime-manifest assembler, and shared motion-source
-        # contract, plus the provider-neutral sprite repacker and the two-file game UI contract.
+        # contract, plus the provider-neutral sprite repacker, the two-file game UI contract,
+        # and the attributed terrain topology reference.
         # Keep the ceiling exact enough to catch accidental packaging growth without treating
         # those boundaries as bloat.
-        assert len(wheel_entries) <= 177
+        assert len(wheel_entries) <= 178
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -217,16 +218,18 @@ from stage_gen.resources import (
     required_resource_paths,
     terrain_atlas_lookup_path,
     terrain_atlas_template_path,
+    terrain_atlas_topology_reference_path,
     theme_compiler_skill_path,
 )
 from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 16
+assert len(paths) == 17
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert terrain_atlas_template_path().is_file()
+assert terrain_atlas_topology_reference_path().is_file()
 assert terrain_atlas_lookup_path().is_file()
 assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
     "---\\nname: compile-theme-art-direction\\n"

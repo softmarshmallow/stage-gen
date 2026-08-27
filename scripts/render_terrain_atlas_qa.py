@@ -7,6 +7,7 @@ import argparse
 import json
 from io import BytesIO
 from pathlib import Path
+from typing import Protocol, cast
 
 from PIL import Image, ImageDraw
 
@@ -14,6 +15,7 @@ from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     assemble_terrain_atlas,
     compose_canonical_terrain,
 )
+from stage_gen.resources import terrain_atlas_template_path
 
 MAPS = {
     "solid-ground": ("1111111111", "1111111111", "1111111111", "1111111111"),
@@ -28,14 +30,25 @@ MAPS = {
 }
 
 
-def _opaque_material_fixture() -> bytes:
-    image = Image.new("RGB", (1536, 1024), (132, 86, 50))
-    draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, image.width, 307), fill=(76, 142, 61))
-    for x in range(0, image.width, 48):
-        draw.rectangle((x, 0, x + 18, 307), fill=(94, 160, 72))
-    for y in range(430, image.height, 52):
-        draw.rectangle((0, y, image.width, y + 18), fill=(115, 72, 42))
+class _PixelAccess(Protocol):
+    def __getitem__(self, xy: tuple[int, int]) -> tuple[int, int, int]: ...
+
+    def __setitem__(self, xy: tuple[int, int], color: tuple[int, int, int]) -> None: ...
+
+
+def _synthetic_paintover_fixture() -> bytes:
+    with Image.open(terrain_atlas_template_path()) as opened:
+        image = opened.convert("RGB")
+    pixels = cast(_PixelAccess, image.load())
+    for y in range(image.height):
+        for x in range(image.width):
+            red, green, blue = pixels[x, y]
+            if (red > 180 and blue > 180 and green < 80) or (
+                red < 80 and green > 170 and blue > 170
+            ):
+                continue
+            variation = ((x // 19 + y // 23) % 9) - 4
+            pixels[x, y] = (132 + variation, 86 + variation, 50 + variation)
     stream = BytesIO()
     image.save(stream, format="PNG", optimize=False)
     return stream.getvalue()
@@ -44,11 +57,16 @@ def _opaque_material_fixture() -> bytes:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source", type=Path)
     arguments = parser.parse_args()
     arguments.output.mkdir(parents=True, exist_ok=True)
-    material_source = _opaque_material_fixture()
-    canonical, validation = assemble_terrain_atlas(material_source)
-    (arguments.output / "material-source.png").write_bytes(material_source)
+    painted_source = (
+        arguments.source.read_bytes()
+        if arguments.source is not None
+        else _synthetic_paintover_fixture()
+    )
+    canonical, validation = assemble_terrain_atlas(painted_source)
+    (arguments.output / "paintover-source.png").write_bytes(painted_source)
     (arguments.output / "canonical-atlas.png").write_bytes(canonical)
     map_reports: dict[str, object] = {}
     rendered: list[tuple[str, Image.Image]] = []

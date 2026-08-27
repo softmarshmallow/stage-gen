@@ -12,6 +12,7 @@ _REQUIRED_RELATIVE_PATHS = (
     "fixtures/image_gen_templates/inventory_template.png",
     "fixtures/image_gen_templates/obstacle_template.png",
     "fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
+    "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
     "fixtures/image_gen_templates/wireframe.png",
     "fixtures/loading.gif",
     "fixtures/prompts.txt",
@@ -42,6 +43,12 @@ def terrain_atlas_template_path() -> Path:
     """Return the locked local 12-by-4 terrain topology-silhouette template."""
 
     return image_template_dir() / "terrain_atlas_12x4_template.png"
+
+
+def terrain_atlas_topology_reference_path() -> Path:
+    """Return the attributed Godot terrain-grid reference used as redundant topology input."""
+
+    return image_template_dir() / "terrain_atlas_godot_topology_reference.png"
 
 
 def terrain_atlas_lookup_path() -> Path:
@@ -105,6 +112,7 @@ __all__ = [
     "required_resource_paths",
     "terrain_atlas_lookup_path",
     "terrain_atlas_template_path",
+    "terrain_atlas_topology_reference_path",
     "theme_compiler_skill_path",
     "game_vocabulary_path",
 ]

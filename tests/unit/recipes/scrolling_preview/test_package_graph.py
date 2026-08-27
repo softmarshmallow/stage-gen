@@ -16,7 +16,10 @@ from stage_gen.recipes.scrolling_preview.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
-from stage_gen.resources import terrain_atlas_template_path
+from stage_gen.resources import (
+    terrain_atlas_template_path,
+    terrain_atlas_topology_reference_path,
+)
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
@@ -68,7 +71,14 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
         "maps/sunpetal-crossing/portal.validation.json",
     )
     template_digest = hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest()
-    assert template_digest not in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
+    topology_reference_digest = hashlib.sha256(
+        terrain_atlas_topology_reference_path().read_bytes()
+    ).hexdigest()
+    assert template_digest in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
+    assert (
+        topology_reference_digest
+        in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
+    )
     assert template_digest in graph.node("map-sunpetal-crossing-ground-validate").input_sha256
 
     outputs = [output for node in graph.nodes for output in node.outputs]

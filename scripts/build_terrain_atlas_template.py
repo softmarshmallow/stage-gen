@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Build the brand-neutral local terrain topology-silhouette template."""
+"""Verify and synchronize the attributed Godot-derived terrain paintover template."""
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -13,6 +15,16 @@ LOOKUP = ROOT / "src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.jso
 OUTPUTS = (
     ROOT / "fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     ROOT / "src/stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
+)
+TOPOLOGY_REFERENCE_OUTPUTS = (
+    ROOT / "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
+    ROOT
+    / "src/stage_gen/resources/fixtures/image_gen_templates"
+    / "terrain_atlas_godot_topology_reference.png",
+)
+ATTRIBUTED_TEMPLATE_SHA256 = "cccc9a429162eed8715060b6755c06cc460adce7f54c565633dd099ab0ce7781"
+ATTRIBUTED_TOPOLOGY_REFERENCE_SHA256 = (
+    "9c49a9b7e504e7eef4da348c3437d0a23c8ce29bca4251bbdc95e15fe06fd4d9"
 )
 CANVAS = (1600, 900)
 CELL = 124
@@ -101,11 +113,27 @@ def build() -> Image.Image:
 
 
 def main() -> None:
-    image = build()
-    for output in OUTPUTS:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        image.save(output, format="PNG", optimize=False)
-        print(output.relative_to(ROOT))
+    source, packaged = OUTPUTS
+    data = source.read_bytes()
+    if hashlib.sha256(data).hexdigest() != ATTRIBUTED_TEMPLATE_SHA256:
+        raise ValueError("terrain paintover template digest does not match its attributed source")
+    with Image.open(source) as image:
+        image.verify()
+    with Image.open(source) as image:
+        if image.size != CANVAS or image.mode != "RGB":
+            raise ValueError("terrain paintover template must be a 1600x900 RGB PNG")
+    packaged.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, packaged)
+    topology_source, topology_packaged = TOPOLOGY_REFERENCE_OUTPUTS
+    topology_data = topology_source.read_bytes()
+    if hashlib.sha256(topology_data).hexdigest() != ATTRIBUTED_TOPOLOGY_REFERENCE_SHA256:
+        raise ValueError("Godot terrain topology reference digest does not match its source")
+    with Image.open(topology_source) as image:
+        image.verify()
+    topology_packaged.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(topology_source, topology_packaged)
+    print(packaged.relative_to(ROOT))
+    print(topology_packaged.relative_to(ROOT))
 
 
 if __name__ == "__main__":

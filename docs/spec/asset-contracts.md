@@ -247,11 +247,12 @@ retained raw byte length and SHA-256, pre-normalization hash, and canonical hash
 Fewer principal subjects than the contract requires fails closed; extra detached
 components are recorded because this default does not recover semantic ownership.
 
-Prepared terrain is a different topology contract. The provider produces one opaque
-grass-cap and dirt-fill material board, never an atlas. Local code detects and extracts
-the 48 cells from the packaged 13-by-5 topology-template lattice, applies its exact
-silhouettes, validates the 47 reachable 3x3-minimal masks and one transparent
-placeholder, and admits only a direct-pass canonical atlas for dynamic runtime use.
+Prepared terrain is a different topology contract. The provider paints the attributed
+12-by-4 topology template with package-authorized appearance references. Local code detects and
+extracts the 48 cells from both 13-by-5 guide lattices, rejects excessive topology drift, derives
+alpha from magenta chroma, harmonizes legal connectors, validates the 47 reachable 3x3-minimal
+masks and one transparent placeholder, and admits only a direct-pass canonical atlas for dynamic
+runtime use.
 The older tag-based `tileset-12x4-v1` path retains its own fixed-role mask and recovery
 rules; those rules do not redefine prepared terrain.
 Consumers read the manifest and load
@@ -572,8 +573,9 @@ much to soften based on closeness-to-camera.
 ## Ground terrain atlas
 
 > **CURRENT prepared-game mode.** `terrain-atlas-3x3-minimal-v1` uses an opaque
-> image-model material board for appearance and deterministic local topology
-> assembly, alpha, 47-mask validation, lookup, and composition. Runtime
+> image-model paintover of the attributed topology template plus deterministic
+> local chroma-alpha extraction, connector harmonization, 47-mask validation, lookup,
+> and composition. Runtime
 > occupancy, tile selection, import metadata, collision, and baked-versus-dynamic
 > policy remain consumer-owned.
 
@@ -582,16 +584,16 @@ much to soften based on closeness-to-camera.
 | **Provider output** | `maps/<map_id>/ground.raw.png` |
 | **Runtime output** | `maps/<map_id>/ground.png` plus `ground.validation.json` |
 | **Review evidence** | `maps/<map_id>/ground.evidence.png`, composed from authored occupancy |
-| **Provider canvas** | 2048 × 1152 opaque material board with an upper cap region and lower fill region; no atlas, grid, guides, alpha, or connector shapes |
+| **Provider canvas** | Provider-selected opaque 16:9 12-by-4 atlas paintover preserving the cyan lattice, magenta empty regions, and checker placeholder |
 | **Canonical atlas** | 1440 × 480 RGBA; 12 cols × 4 rows; 120 × 120 cells; one transparent placeholder |
-| **Provider inputs** | Authorized map concept references and the authored ground prompt only |
-| **Local-only inputs** | Packaged topology-silhouette template and authoritative 47-mask lookup; neither is sent to the provider |
-| **Material** | The model owns cap/fill appearance only; deterministic code owns topology, alpha, packing, placeholder, and connectors |
+| **Provider inputs** | Attributed topology template first, attributed Godot grid crop second as topology-only input, then authorized map concept references and authored ground prompt |
+| **Local-only inputs** | Authoritative 47-mask lookup and deterministic canonicalization rules |
+| **Material** | The model owns contextual cell RGB; deterministic code owns final alpha, packing, placeholder, lookup, and connector admission |
 
-The complete topology, material-source and direct-pass thresholds, composition
+The complete topology, paintover-source and direct-pass thresholds, composition
 rules, slope limitation, consumer boundary, and publication status are defined
 in [tileset.md](tileset.md). The packaged mask-to-coordinate lookup is
-authoritative. Generated exploratory material boards remain unreviewed unless
+authoritative. Generated exploratory paintovers remain unreviewed unless
 an independent semantic verdict accepts their exact bytes.
 
 ### Legacy tag-based scrolling tileset

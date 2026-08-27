@@ -54,7 +54,7 @@ from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     assemble_terrain_atlas,
     compose_canonical_terrain,
-    require_terrain_material_source,
+    require_terrain_atlas_source,
     terrain_atlas_generation_prompt,
 )
 from stage_gen.reliability import (
@@ -87,6 +87,7 @@ class PreparedWorldNodeHandler:
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[object],
         terrain_template_path: Path,
+        terrain_topology_reference_path: Path,
     ) -> None:
         self._graph = graph
         self._package = package
@@ -95,6 +96,7 @@ class PreparedWorldNodeHandler:
         self._images = image_service
         self._structured = structured_service
         self._terrain_template_path = terrain_template_path
+        self._terrain_topology_reference_path = terrain_topology_reference_path
 
     async def __call__(
         self, node: ExecutionNode, context: NodeExecutionContext
@@ -257,8 +259,32 @@ class PreparedWorldNodeHandler:
         self, node: ExecutionNode, game_map: PreparedGameMap
     ) -> NodeExecutionResult:
         output = self._run_dir / node.outputs[0]
-        prompt = terrain_atlas_generation_prompt(self._map_prompt(game_map, game_map.ground.prompt))
-        references = self._image_references(game_map, game_map.ground.reference_ids)
+        style = self._package.game.style
+        material_direction = (
+            f"{game_map.ground.prompt.strip()} Target style: {style.label}; "
+            f"{', '.join(style.keywords)}."
+        )
+        prompt = terrain_atlas_generation_prompt(material_direction)
+        template = self._terrain_template_path.read_bytes()
+        topology_reference = self._terrain_topology_reference_path.read_bytes()
+        references = (
+            ImageReference(
+                url=_data_url(template, "image/png"),
+                provenance_ref=(
+                    "resource://image_gen_templates/terrain_atlas_12x4_template.png"
+                    f"#sha256={hashlib.sha256(template).hexdigest()}"
+                ),
+            ),
+            ImageReference(
+                url=_data_url(topology_reference, "image/png"),
+                provenance_ref=(
+                    "resource://image_gen_templates/"
+                    "terrain_atlas_godot_topology_reference.png"
+                    f"#sha256={hashlib.sha256(topology_reference).hexdigest()}"
+                ),
+            ),
+            *self._image_references(game_map, game_map.ground.reference_ids),
+        )
         result = await self._images.generate(
             ImageGenerationRequest(
                 prompt=prompt,
@@ -267,14 +293,17 @@ class PreparedWorldNodeHandler:
                 quality="high",
                 background="opaque",
                 output_format="png",
-                size="2048x1152",
+                size="auto",
                 timeout_seconds=600,
                 metadata={
                     "checkpoint": "world",
                     "map_id": game_map.map_id,
                     "ground_mode": game_map.ground.mode,
                 },
-                validate=lambda artifact: require_terrain_material_source(artifact.data),
+                validate=lambda artifact: require_terrain_atlas_source(
+                    artifact.data,
+                    template=template,
+                ),
             )
         )
         return self._result(
@@ -302,9 +331,9 @@ class PreparedWorldNodeHandler:
             canonical,
             model=MATERIAL_ASSEMBLER_ID,
             prompt=(
-                "Sample the generated grass-cap and dirt-fill appearance periodically, apply "
-                "the locked packaged alpha silhouettes and authoritative 47-mask lookup, and "
-                "assemble the canonical 12x4 atlas deterministically."
+                "Slice the model-painted 12x4 guide lattice, extract deterministic chroma alpha, "
+                "apply the authoritative 47-mask lookup, harmonize only legal connector edges, "
+                "and assemble the canonical atlas deterministically."
             ),
             source_ref=generated.outputs[0],
             source_data=raw,

@@ -34,6 +34,7 @@ from stage_gen.resources import (
     inventory_template_path,
     terrain_atlas_lookup_path,
     terrain_atlas_template_path,
+    terrain_atlas_topology_reference_path,
 )
 
 PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v9"
@@ -211,7 +212,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             )
             layer_validations.append(validated.node_id)
 
-        # The atlas material is appearance only: authored geometry and vertical fit select cells
+        # The atlas paintover is appearance only: authored geometry and vertical fit select cells
         # and placement downstream without changing what the image model is asked to paint.
         ground_direction = game_map.ground.model_dump(
             mode="json", exclude=set(PLACEMENT_ONLY_GROUND_FIELDS)
@@ -219,7 +220,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         ground = builder.add_external(
             f"map-{game_map.map_id}-ground-generate",
             domain=f"map-{game_map.map_id}",
-            description=f"generate declared ground material for {game_map.map_id}",
+            description=f"paint the declared 47-mask ground atlas for {game_map.map_id}",
             operation=OperationKind.IMAGE_GENERATION,
             depends_on=(package_root,),
             cache_depends_on=(),
@@ -227,6 +228,8 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 map_direction,
                 _object_sha256(ground_direction),
                 *_reference_digests(references, game_map.ground.reference_ids),
+                hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
+                hashlib.sha256(terrain_atlas_topology_reference_path().read_bytes()).hexdigest(),
                 _object_sha256({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
             ),
             outputs=(f"maps/{game_map.map_id}/ground.raw.png",),

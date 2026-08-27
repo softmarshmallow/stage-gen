@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping, Sequence
+import statistics
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 from typing import Final, cast
 
-from PIL import Image, ImageOps, ImageStat
+from PIL import Image
 
 from stage_gen.media.guide_lattice import (
     GuideLattice,
@@ -25,14 +26,12 @@ CANONICAL_CELL_PX: Final = 120
 PLACEHOLDER_CELL: Final = (10, 1)
 MASK_ORDER: Final = ("nw", "n", "ne", "w", "center", "e", "sw", "s", "se")
 TOPOLOGY_ID: Final = "terrain-atlas-3x3-minimal-v1"
-MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-material-source-v1"
-MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-material-assembly-v2"
-CAP_DEPTH_PX: Final = 28
-MAXIMUM_CAP_SURFACE_START_PX: Final = 32
-MINIMUM_MATERIAL_SOURCE_PX: Final = 512
-MINIMUM_REGION_STANDARD_DEVIATION: Final = 2.0
-MINIMUM_REGION_MEAN_DISTANCE: Final = 8.0
+MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-atlas-paintover-source-v3"
+MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-paintover-canonicalization-v3"
+MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION: Final = 2.0
 MAXIMUM_LATTICE_RESIDUAL_PX: Final = 1.5
+MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION: Final = 0.025
+MAXIMUM_SOURCE_ALPHA_MISMATCH: Final = 0.10
 MAXIMUM_CONNECTOR_ALPHA_MISMATCH: Final = 0.005
 MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR: Final = 3.0
 
@@ -159,95 +158,194 @@ def _reachable_masks() -> tuple[Mask, ...]:
 
 
 def terrain_atlas_generation_prompt(material_direction: str) -> str:
-    """Bind appearance-only direction to the simple material-source contract."""
+    """Bind biome direction to a strict model-painted 47-mask atlas contract."""
 
     material = " ".join(material_direction.split())
     if not material:
         raise ValueError("terrain material direction must not be empty")
     return (
-        "Create one simple opaque 2D side-view ground material board. The project concept "
-        "references define appearance quality only. Create original, brand-neutral terrain "
-        f"materials with this direction: {material}\n\n"
-        "MATERIAL BOARD CONTRACT:\n"
-        "- Fill the entire canvas edge to edge with opaque material; there is no transparent "
-        "background, sky, horizon, scenery, or freestanding platform silhouette.\n"
-        "- The upper 30 percent is one broad uninterrupted GRASS CAP material band viewed from "
-        "the side. Keep its profile shallow and its detail readable at small scale.\n"
-        "- The lower 70 percent is one broad uninterrupted matching DIRT FILL material region.\n"
-        "- Keep the GRASS CAP and DIRT FILL visually distinct, with a clear horizontal boundary "
-        "near 30 percent canvas height and one consistent world scale and light direction.\n"
-        "- Use restrained, medium-scale material variation. Avoid isolated large objects, deep "
-        "cast shadows, characters, props, text, labels, UI, borders, grids, cells, guide lines, "
-        "checkerboards, magenta key colors, or an atlas layout.\n"
-        "- Do not attempt tile topology or connector shapes. Deterministic local assembly owns "
-        "the locked 47-mask atlas, alpha silhouettes, packing, and seamless repetition."
+        "Use case: stylized-concept\n"
+        "Asset type: production 2D side-view terrain atlas\n\n"
+        "Edit reference image 1 as a strict production terrain-atlas paintover. Reference "
+        "image 2 redundantly defines the exact 3x3-minimal 12-column by 4-row topology. Every "
+        "remaining image is an appearance reference only: use its rendering quality, palette, "
+        "material language, world scale, and lighting restraint without copying its scene "
+        "composition. Create original, "
+        f"brand-neutral terrain with this authored direction: {material}\n\n"
+        "HARD CONTRACT:\n"
+        "- Output the same aspect ratio and atlas layout as reference image 1.\n"
+        "- Preserve all 13 vertical and 5 horizontal cyan guide lines exactly straight and "
+        "regularly spaced.\n"
+        "- Preserve pure magenta outside the atlas and in every empty part of every cell.\n"
+        "- Preserve all 48 cell positions and each cell's terrain-versus-empty silhouette, "
+        "including exposed tops, side walls, bottom edges, outer corners, concave corners, "
+        "notches, holes, and the checker placeholder at column 10 row 1.\n"
+        "- Paint only inside cell interiors. Paint cap and fill contextually inside each "
+        "existing silhouette. Cap and fill are "
+        "visual roles, not fixed substances: infer their biome materials from the authored "
+        "direction and appearance references. Keep the cap shallow enough for a genuinely "
+        "one-cell-high floating platform.\n"
+        "- At shared connectors, continue material color, value, lighting, and silhouette at "
+        "the same grid-relative coordinate. Each cell must remain independently sliceable.\n"
+        "- Use polished hand-painted 2D game art with purposeful edge bevels, restrained local "
+        "variation, broad quiet areas, and one consistent side-view light direction.\n"
+        "- Do not merge cells, move guides, paint across guide lines, add frames, or turn the "
+        "atlas into one complete platform illustration. Avoid flat texture stamping, mirrored "
+        "repetition, generic repeated boulder rows, pixel art, and large objects spanning "
+        "multiple cells.\n"
+        "- No characters, buildings, scenery, text, labels, UI, logos, signatures, or watermarks."
     )
 
 
-def _material_regions(image: Image.Image) -> tuple[Image.Image, Image.Image]:
-    rgb = image.convert("RGB")
-    left = round(rgb.width * 0.08)
-    right = round(rgb.width * 0.92)
-    cap = rgb.crop((left, round(rgb.height * 0.05), right, round(rgb.height * 0.27)))
-    fill = rgb.crop((left, round(rgb.height * 0.42), right, round(rgb.height * 0.94)))
-    return cap, fill
-
-
-def _region_facts(image: Image.Image) -> dict[str, object]:
-    stat = ImageStat.Stat(image.convert("RGB"))
-    mean = tuple(float(value) for value in stat.mean[:3])
-    standard_deviation = tuple(float(value) for value in stat.stddev[:3])
-    return {
-        "mean_rgb": [round(value, 6) for value in mean],
-        "standard_deviation_rgb": [round(value, 6) for value in standard_deviation],
-        "mean_standard_deviation": round(sum(standard_deviation) / 3.0, 6),
-    }
-
-
-def require_terrain_material_source(raw: bytes) -> dict[str, object]:
-    """Reject sources that cannot supply two opaque, visually distinct material regions."""
-
-    with Image.open(BytesIO(raw)) as opened:
-        source = opened.convert("RGBA")
-    if min(source.size) < MINIMUM_MATERIAL_SOURCE_PX:
-        raise ValueError(
-            f"terrain material source must be at least {MINIMUM_MATERIAL_SOURCE_PX}px on both axes"
+def _alpha_mismatch_facts(
+    generated: Mapping[Coordinate, Image.Image],
+    expected: Mapping[Coordinate, Image.Image],
+) -> tuple[float, float]:
+    mismatches = samples = 0
+    per_cell: list[float] = []
+    for coordinate in sorted(expected, key=lambda value: (value[1], value[0])):
+        if coordinate == PLACEHOLDER_CELL:
+            continue
+        generated_alpha = generated[coordinate].getchannel("A")
+        expected_alpha = expected[coordinate].getchannel("A")
+        cell_mismatches = sum(
+            (left > 128) != (right > 128)
+            for left, right in zip(
+                cast(Iterable[int], generated_alpha.get_flattened_data()),
+                cast(Iterable[int], expected_alpha.get_flattened_data()),
+                strict=True,
+            )
         )
-    alpha_extrema = source.getchannel("A").getextrema()
-    if alpha_extrema != (255, 255):
-        raise ValueError("terrain material source must be fully opaque")
-    cap, fill = _material_regions(source)
-    cap_facts = _region_facts(cap)
-    fill_facts = _region_facts(fill)
-    cap_mean = cast(list[float], cap_facts["mean_rgb"])
-    fill_mean = cast(list[float], fill_facts["mean_rgb"])
-    mean_distance = math.sqrt(
-        sum((left - right) ** 2 for left, right in zip(cap_mean, fill_mean, strict=True))
+        cell_samples = generated_alpha.width * generated_alpha.height
+        mismatches += cell_mismatches
+        samples += cell_samples
+        per_cell.append(cell_mismatches / cell_samples)
+    ordered = sorted(per_cell)
+    percentile_index = min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)
+    return mismatches / max(1, samples), ordered[percentile_index]
+
+
+def _painted_standard_deviation(
+    generated: Mapping[Coordinate, Image.Image],
+    expected: Mapping[Coordinate, Image.Image],
+) -> float:
+    totals = [0.0, 0.0, 0.0]
+    squared = [0.0, 0.0, 0.0]
+    samples = 0
+    for coordinate, expected_cell in expected.items():
+        if coordinate == PLACEHOLDER_CELL:
+            continue
+        generated_cell = generated[coordinate].convert("RGBA")
+        for pixel, generated_alpha, expected_alpha in zip(
+            cast(
+                Iterable[tuple[int, int, int]],
+                generated_cell.convert("RGB").get_flattened_data(),
+            ),
+            cast(Iterable[int], generated_cell.getchannel("A").get_flattened_data()),
+            cast(Iterable[int], expected_cell.getchannel("A").get_flattened_data()),
+            strict=True,
+        ):
+            if generated_alpha <= 128 or expected_alpha <= 128:
+                continue
+            for channel, value in enumerate(pixel):
+                totals[channel] += value
+                squared[channel] += value * value
+            samples += 1
+    if samples == 0:
+        return 0.0
+    deviations = [
+        math.sqrt(max(0.0, squared[channel] / samples - (totals[channel] / samples) ** 2))
+        for channel in range(3)
+    ]
+    return sum(deviations) / len(deviations)
+
+
+def require_terrain_atlas_source(
+    raw: bytes,
+    *,
+    template: bytes | None = None,
+) -> dict[str, object]:
+    """Reject a model paintover that cannot be safely sliced and canonicalized."""
+
+    template_bytes = terrain_atlas_template_path().read_bytes() if template is None else template
+    with Image.open(BytesIO(raw)) as opened:
+        source = opened.convert("RGB")
+    with Image.open(BytesIO(template_bytes)) as opened:
+        template_image = opened.convert("RGB")
+    generated_cells, lattice = extract_guided_cells(
+        source,
+        columns=GRID_COLUMNS,
+        rows=GRID_ROWS,
+        canonical_cell_px=CANONICAL_CELL_PX,
     )
-    if cast(float, cap_facts["mean_standard_deviation"]) < MINIMUM_REGION_STANDARD_DEVIATION:
-        raise ValueError("terrain grass-cap region lacks usable material variation")
-    if cast(float, fill_facts["mean_standard_deviation"]) < MINIMUM_REGION_STANDARD_DEVIATION:
-        raise ValueError("terrain dirt-fill region lacks usable material variation")
-    if mean_distance < MINIMUM_REGION_MEAN_DISTANCE:
-        raise ValueError("terrain grass-cap and dirt-fill regions are not visually distinct")
+    template_cells, _ = extract_guided_cells(
+        template_image,
+        columns=GRID_COLUMNS,
+        rows=GRID_ROWS,
+        canonical_cell_px=CANONICAL_CELL_PX,
+    )
+    maximum_lattice_residual = max(
+        lattice.x_maximum_residual_px,
+        lattice.y_maximum_residual_px,
+    )
+    maximum_lattice_residual_fraction = max(
+        lattice.x_maximum_residual_px / lattice.x_spacing_px,
+        lattice.y_maximum_residual_px / lattice.y_spacing_px,
+    )
+    lattice_classification = (
+        "direct_regular"
+        if maximum_lattice_residual <= MAXIMUM_LATTICE_RESIDUAL_PX
+        else "rectified_regular"
+    )
+    mismatch, p95_mismatch = _alpha_mismatch_facts(generated_cells, template_cells)
+    material_standard_deviation = _painted_standard_deviation(generated_cells, template_cells)
+    lookup = load_terrain_atlas_lookup()
+    maximum_direct_connector_alpha_mismatch = 0.0
+    for rows in _VALIDATION_MAPS.values():
+        occupied = parse_binary_rows(rows)
+        direct, _ = compose_terrain(occupied, generated_cells, lookup)
+        metrics = _connector_metrics(direct, occupied)
+        maximum_direct_connector_alpha_mismatch = max(
+            maximum_direct_connector_alpha_mismatch,
+            cast(float, metrics["connector_alpha_mismatch_fraction"]),
+        )
+    if (
+        maximum_lattice_residual > MAXIMUM_LATTICE_RESIDUAL_PX
+        and maximum_lattice_residual_fraction > MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
+    ):
+        raise ValueError("terrain atlas source guide lattice is irregular")
+    if mismatch > MAXIMUM_SOURCE_ALPHA_MISMATCH:
+        raise ValueError("terrain atlas source changed too much locked topology")
+    if maximum_direct_connector_alpha_mismatch > MAXIMUM_CONNECTOR_ALPHA_MISMATCH:
+        raise ValueError("terrain atlas source has incompatible direct connector alpha")
+    if material_standard_deviation < MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION:
+        raise ValueError("terrain atlas source lacks usable painted material variation")
     return {
         "schema_version": 1,
-        "kind": "terrain-material-source-validation-v1",
+        "kind": "terrain-atlas-paintover-source-validation-v1",
         "contract": MATERIAL_SOURCE_CONTRACT_ID,
         "source": {
             "sha256": sha256(raw).hexdigest(),
             "width": source.width,
             "height": source.height,
-            "mode": "RGBA",
-            "alpha_extrema": list(alpha_extrema),
+            "mode": "RGB",
         },
-        "grass_cap_region": cap_facts,
-        "dirt_fill_region": fill_facts,
-        "region_mean_rgb_distance": round(mean_distance, 6),
+        "lattice": _lattice_report(lattice),
+        "lattice_classification": lattice_classification,
+        "maximum_lattice_residual_fraction": maximum_lattice_residual_fraction,
+        "global_alpha_mismatch_fraction": mismatch,
+        "p95_cell_alpha_mismatch_fraction": p95_mismatch,
+        "maximum_direct_connector_alpha_mismatch": maximum_direct_connector_alpha_mismatch,
+        "painted_material_mean_standard_deviation": round(material_standard_deviation, 6),
         "thresholds": {
-            "minimum_source_px": MINIMUM_MATERIAL_SOURCE_PX,
-            "minimum_region_standard_deviation": MINIMUM_REGION_STANDARD_DEVIATION,
-            "minimum_region_mean_distance": MINIMUM_REGION_MEAN_DISTANCE,
+            "maximum_lattice_residual_px": MAXIMUM_LATTICE_RESIDUAL_PX,
+            "maximum_rectifiable_lattice_residual_fraction": (
+                MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
+            ),
+            "maximum_source_alpha_mismatch": MAXIMUM_SOURCE_ALPHA_MISMATCH,
+            "minimum_painted_material_standard_deviation": (
+                MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION
+            ),
         },
     }
 
@@ -367,70 +465,94 @@ def _lattice_report(lattice: GuideLattice) -> dict[str, object]:
     }
 
 
-def _mirror_periodic_tile(source: Image.Image, *, periodic_y: bool) -> Image.Image:
-    half_width = CANONICAL_CELL_PX // 2
-    half_height = CANONICAL_CELL_PX // 2 if periodic_y else CAP_DEPTH_PX
-    sample = ImageOps.fit(
-        source.convert("RGB"),
-        (half_width, half_height),
-        method=Image.Resampling.LANCZOS,
-        centering=(0.5, 0.5),
+def _median_color(values: Sequence[tuple[int, int, int]]) -> tuple[int, int, int]:
+    return cast(
+        tuple[int, int, int],
+        tuple(round(statistics.median(color[channel] for color in values)) for channel in range(3)),
     )
-    top = Image.new("RGB", (CANONICAL_CELL_PX, half_height))
-    top.paste(sample, (0, 0))
-    top.paste(ImageOps.mirror(sample), (half_width, 0))
-    if not periodic_y:
-        return top
-    tile = Image.new("RGB", (CANONICAL_CELL_PX, CANONICAL_CELL_PX))
-    tile.paste(top, (0, 0))
-    tile.paste(ImageOps.flip(top), (0, half_height))
-    return tile
 
 
-def _apply_grass_cap(
-    fill: Image.Image,
-    cap: Image.Image,
-    alpha: Image.Image,
-    *,
-    top_exposed: bool,
-) -> Image.Image:
-    result = fill.convert("RGB")
-    if not top_exposed:
-        result.putalpha(alpha)
-        return result
-    cap_rgb = cap.convert("RGB")
-    for x in range(CANONICAL_CELL_PX):
-        depth: int | None = None
-        for y in range(CANONICAL_CELL_PX):
-            solid = cast(int, alpha.getpixel((x, y))) > 0
-            above_solid = y > 0 and cast(int, alpha.getpixel((x, y - 1))) > 0
-            if solid and not above_solid and 0 < y <= MAXIMUM_CAP_SURFACE_START_PX:
-                depth = 0
-            elif not solid:
-                depth = None
-            if depth is None or not solid:
+def _harmonize_connector_edges(
+    cells: Mapping[Coordinate, Image.Image],
+    masks_by_coordinate: Mapping[Coordinate, Mask],
+) -> dict[Coordinate, Image.Image]:
+    """Make every legal connector byte-continuous without flattening cell interiors."""
+
+    result = {coordinate: cell.copy().convert("RGBA") for coordinate, cell in cells.items()}
+    vertical_profiles: dict[int, tuple[int, int, int]] = {}
+    horizontal_profiles: dict[int, tuple[int, int, int]] = {}
+    for y in range(CANONICAL_CELL_PX):
+        samples: list[tuple[int, int, int]] = []
+        for coordinate, cell in result.items():
+            if coordinate == PLACEHOLDER_CELL:
                 continue
-            if depth < CAP_DEPTH_PX:
-                cap_color = cast(tuple[int, int, int], cap_rgb.getpixel((x, depth)))
-                fill_color = cast(tuple[int, int, int], result.getpixel((x, y)))
-                blend_rows = 6
-                blend_start = CAP_DEPTH_PX - blend_rows
-                if depth >= blend_start:
-                    fill_weight = (depth - blend_start + 1) / (blend_rows + 1)
-                    result.putpixel(
-                        (x, y),
-                        tuple(
-                            round(
-                                cap_color[channel] * (1.0 - fill_weight)
-                                + fill_color[channel] * fill_weight
-                            )
-                            for channel in range(3)
-                        ),
+            mask = masks_by_coordinate[coordinate]
+            for connected, x in ((mask[3], 12), (mask[5], CANONICAL_CELL_PX - 13)):
+                pixel = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
+                if connected and pixel[3] > 128:
+                    samples.append(pixel[:3])
+        if samples:
+            vertical_profiles[y] = _median_color(samples)
+    for x in range(CANONICAL_CELL_PX):
+        samples = []
+        for coordinate, cell in result.items():
+            if coordinate == PLACEHOLDER_CELL:
+                continue
+            mask = masks_by_coordinate[coordinate]
+            for connected, y in ((mask[1], 12), (mask[7], CANONICAL_CELL_PX - 13)):
+                pixel = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
+                if connected and pixel[3] > 128:
+                    samples.append(pixel[:3])
+        if samples:
+            horizontal_profiles[x] = _median_color(samples)
+
+    blend_width = 3
+    for coordinate, cell in result.items():
+        if coordinate == PLACEHOLDER_CELL:
+            continue
+        mask = masks_by_coordinate[coordinate]
+        for connected, edge, direction in (
+            (mask[3], 0, 1),
+            (mask[5], CANONICAL_CELL_PX - 1, -1),
+        ):
+            if not connected:
+                continue
+            for y, target in vertical_profiles.items():
+                for depth in range(blend_width):
+                    x = edge + direction * depth
+                    original = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
+                    if original[3] <= 0:
+                        continue
+                    target_weight = (blend_width - depth) / blend_width
+                    mixed = tuple(
+                        round(
+                            target[channel] * target_weight
+                            + original[channel] * (1 - target_weight)
+                        )
+                        for channel in range(3)
                     )
-                else:
-                    result.putpixel((x, y), cap_color)
-            depth += 1
-    result.putalpha(alpha)
+                    cell.putpixel((x, y), (*mixed, original[3]))
+        for connected, edge, direction in (
+            (mask[1], 0, 1),
+            (mask[7], CANONICAL_CELL_PX - 1, -1),
+        ):
+            if not connected:
+                continue
+            for x, target in horizontal_profiles.items():
+                for depth in range(blend_width):
+                    y = edge + direction * depth
+                    original = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
+                    if original[3] <= 0:
+                        continue
+                    target_weight = (blend_width - depth) / blend_width
+                    mixed = tuple(
+                        round(
+                            target[channel] * target_weight
+                            + original[channel] * (1 - target_weight)
+                        )
+                        for channel in range(3)
+                    )
+                    cell.putpixel((x, y), (*mixed, original[3]))
     return result
 
 
@@ -452,44 +574,43 @@ def _exact_alpha_mismatch(
 
 
 def assemble_terrain_atlas(
-    material_source: bytes,
+    painted_source: bytes,
     *,
     template: bytes | None = None,
     lookup_data: bytes | None = None,
 ) -> tuple[bytes, dict[str, object]]:
-    """Project material appearance through locked topology and seamless periodic sampling."""
+    """Canonicalize a model-painted atlas while restoring locked topology and connectors."""
 
-    material_validation = require_terrain_material_source(material_source)
     template_bytes = terrain_atlas_template_path().read_bytes() if template is None else template
     lookup_bytes = terrain_atlas_lookup_path().read_bytes() if lookup_data is None else lookup_data
+    source_validation = require_terrain_atlas_source(painted_source, template=template_bytes)
     lookup = load_terrain_atlas_lookup(lookup_bytes)
-    with Image.open(BytesIO(material_source)) as opened:
+    with Image.open(BytesIO(painted_source)) as opened:
         source = opened.convert("RGB")
     with Image.open(BytesIO(template_bytes)) as opened:
         template_image = opened.convert("RGB")
-    template_cells, lattice = extract_guided_cells(
+    generated_cells, lattice = extract_guided_cells(
+        source,
+        columns=GRID_COLUMNS,
+        rows=GRID_ROWS,
+        canonical_cell_px=CANONICAL_CELL_PX,
+    )
+    template_cells, _ = extract_guided_cells(
         template_image,
         columns=GRID_COLUMNS,
         rows=GRID_ROWS,
         canonical_cell_px=CANONICAL_CELL_PX,
     )
-    cap_region, fill_region = _material_regions(source)
-    fill_tile = _mirror_periodic_tile(fill_region, periodic_y=True)
-    cap_strip = _mirror_periodic_tile(cap_region, periodic_y=False)
     masks_by_coordinate = {coordinate: mask for mask, coordinate in lookup.by_mask.items()}
     cells: dict[Coordinate, Image.Image] = {}
-    for coordinate, template_cell in template_cells.items():
+    for coordinate in template_cells:
         if coordinate == PLACEHOLDER_CELL:
             cells[coordinate] = Image.new(
                 "RGBA", (CANONICAL_CELL_PX, CANONICAL_CELL_PX), (0, 0, 0, 0)
             )
             continue
-        cells[coordinate] = _apply_grass_cap(
-            fill_tile,
-            cap_strip,
-            template_cell.getchannel("A"),
-            top_exposed=masks_by_coordinate[coordinate][1] == 0,
-        )
+        cells[coordinate] = generated_cells[coordinate].copy().convert("RGBA")
+    cells = _harmonize_connector_edges(cells, masks_by_coordinate)
 
     exact_alpha_mismatch = _exact_alpha_mismatch(cells, template_cells)
     direct_alpha_max = direct_rgb_max = 0.0
@@ -530,26 +651,23 @@ def assemble_terrain_atlas(
                 (column * CANONICAL_CELL_PX, row * CANONICAL_CELL_PX),
             )
     canonical = png_bytes(atlas)
-    maximum_lattice_residual = max(
-        lattice.x_maximum_residual_px,
-        lattice.y_maximum_residual_px,
-    )
     direct_pass = (
-        maximum_lattice_residual <= MAXIMUM_LATTICE_RESIDUAL_PX
-        and exact_alpha_mismatch == 0.0
+        cast(str, source_validation["lattice_classification"])
+        in {"direct_regular", "rectified_regular"}
+        and exact_alpha_mismatch <= MAXIMUM_SOURCE_ALPHA_MISMATCH
         and direct_alpha_max <= MAXIMUM_CONNECTOR_ALPHA_MISMATCH
         and direct_rgb_max <= MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR
     )
     report: dict[str, object] = {
         "schema_version": 1,
-        "kind": "terrain-atlas-material-assembly-validation-v1",
+        "kind": "terrain-atlas-paintover-canonicalization-validation-v1",
         "topology": TOPOLOGY_ID,
         "canonicalizer": MATERIAL_ASSEMBLER_ID,
         "material_source_contract": MATERIAL_SOURCE_CONTRACT_ID,
         "classification": "direct_pass" if direct_pass else "reject",
         "dynamic_tilemap_compatible": direct_pass,
-        "source": cast(dict[str, object], material_validation["source"]),
-        "material_validation": material_validation,
+        "source": cast(dict[str, object], source_validation["source"]),
+        "source_validation": source_validation,
         "template_sha256": sha256(template_bytes).hexdigest(),
         "lookup_sha256": sha256(lookup_bytes).hexdigest(),
         "lookup_masks": len(lookup.by_mask),
@@ -564,18 +682,22 @@ def assemble_terrain_atlas(
             ),
         },
         "construction": {
-            "appearance_owner": "image-model-material-source",
-            "topology_owner": "locked-packaged-template-and-lookup",
-            "periodic_sampling": "two-axis-mirror-fill-and-x-axis-mirror-cap-v1",
-            "grass_cap_depth_px": CAP_DEPTH_PX,
-            "maximum_grass_cap_surface_start_px": MAXIMUM_CAP_SURFACE_START_PX,
+            "appearance_owner": "image-model-cell-paintover",
+            "topology_owner": "locked-packaged-template-comparison-and-lookup",
+            "alpha_extraction": "deterministic-magenta-chroma-v1",
+            "connector_harmonization": "three-pixel-interior-median-profile-v2",
+            "lattice_normalization": "detected-cell-independent-120px-resampling-v1",
         },
         "lattice": _lattice_report(lattice),
-        "exact_template_alpha_mismatch_fraction": exact_alpha_mismatch,
+        "template_alpha_mismatch_fraction": exact_alpha_mismatch,
         "maximum_direct_connector_alpha_mismatch": direct_alpha_max,
         "maximum_direct_connector_rgb_mean": direct_rgb_max,
         "thresholds": {
             "maximum_lattice_residual_px": MAXIMUM_LATTICE_RESIDUAL_PX,
+            "maximum_rectifiable_lattice_residual_fraction": (
+                MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
+            ),
+            "maximum_source_alpha_mismatch": MAXIMUM_SOURCE_ALPHA_MISMATCH,
             "maximum_connector_alpha_mismatch": MAXIMUM_CONNECTOR_ALPHA_MISMATCH,
             "maximum_direct_connector_rgb_mean": MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR,
         },
@@ -583,7 +705,7 @@ def assemble_terrain_atlas(
         "smooth_slopes_supported": False,
     }
     if not direct_pass:
-        raise ValueError("deterministic terrain material assembly failed locked connector checks")
+        raise ValueError("deterministic terrain paintover canonicalization failed connector checks")
     return canonical, report
 
 
@@ -632,16 +754,15 @@ def compose_canonical_terrain(
 
 
 __all__ = [
-    "CAP_DEPTH_PX",
     "CANONICAL_CELL_PX",
     "GRID_COLUMNS",
     "GRID_ROWS",
     "MATERIAL_ASSEMBLER_ID",
     "MATERIAL_SOURCE_CONTRACT_ID",
-    "MAXIMUM_CAP_SURFACE_START_PX",
     "MAXIMUM_CONNECTOR_ALPHA_MISMATCH",
     "MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR",
     "MAXIMUM_LATTICE_RESIDUAL_PX",
+    "MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION",
     "PLACEHOLDER_CELL",
     "TOPOLOGY_ID",
     "TerrainAtlasLookup",
@@ -652,6 +773,6 @@ __all__ = [
     "load_terrain_atlas_lookup",
     "parse_binary_rows",
     "peering_mask",
-    "require_terrain_material_source",
+    "require_terrain_atlas_source",
     "terrain_atlas_generation_prompt",
 ]
