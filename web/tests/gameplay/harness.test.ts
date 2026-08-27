@@ -822,21 +822,20 @@ function validPlayerHurtRun(): GameplayRunEvidence {
     const hurt =
       frame >= PLAYER_HURT_EVENT_FRAME &&
       frame <= PLAYER_HURT_LAST_REACTION_FRAME;
+    const heldMovement = frame >= 14 && frame < 35;
     const movingAfterRecovery =
-      frame >= PLAYER_HURT_RECOVERY_FRAME && frame < 35;
+      frame >= PLAYER_HURT_RECOVERY_FRAME && heldMovement;
     const x =
-      frame <= PLAYER_HURT_LAST_REACTION_FRAME
+      frame <= 13
         ? 96 + Math.max(0, frame - PLAYER_HURT_EVENT_FRAME) * 8
-        : 96 +
-          (PLAYER_HURT_LAST_REACTION_FRAME - PLAYER_HURT_EVENT_FRAME) * 8 -
-          (frame - PLAYER_HURT_LAST_REACTION_FRAME) * 6;
+        : Math.max(32, 104 - (Math.min(frame, 34) - 13) * 6);
     const player: NonNullable<GameplayAutomationSnapshot["player"]> = {
       state: hurt ? "hurt" : movingAfterRecovery ? "walk" : "idle",
       facing: "left",
       x,
       y: 592,
       column: Math.floor(x / 64),
-      vx: hurt ? 260 : movingAfterRecovery ? -180 : 0,
+      vx: heldMovement ? -180 : hurt ? 260 : 0,
       vy: 0,
       airborne: false,
       airJumpsUsed: 0,
@@ -879,7 +878,7 @@ function validPlayerHurtRun(): GameplayRunEvidence {
 }
 
 describe("gameplay harness verdict", () => {
-  test("ratifies one deterministic player hurt reaction and its control lock", () => {
+  test("ratifies one deterministic player hurt reaction without a control lock", () => {
     const actions = PLAYER_HURT_TIMELINE.flatMap((frame) => frame.actions);
     expect(actions).toEqual([
       { type: "down", key: "ArrowLeft" },
@@ -889,12 +888,12 @@ describe("gameplay harness verdict", () => {
 
     const invalid = validPlayerHurtRun();
     const lines = invalid.transcript.trimEnd().split("\n");
-    const locked = JSON.parse(lines[19]!) as { player: { vx: number } };
-    locked.player.vx = -180;
-    lines[19] = JSON.stringify(locked);
+    const stunned = JSON.parse(lines[19]!) as { player: { vx: number } };
+    stunned.player.vx = 260;
+    lines[19] = JSON.stringify(stunned);
     expect(() =>
       validatePlayerHurtRun({ ...invalid, transcript: `${lines.join("\n")}\n` }),
-    ).toThrow("held movement escaped the hurt lock");
+    ).toThrow("held movement was blocked during player hurt");
   });
 
   test("binds the current capture entrypoint to the approved 20-asset set", async () => {

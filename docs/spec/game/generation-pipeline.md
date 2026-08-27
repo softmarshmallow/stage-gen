@@ -31,7 +31,7 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one immutable run, and emits `prepared-game-runtime-v4`. The `--dry-run` path still
+publishes one immutable run, and emits `prepared-game-runtime-v5`. The `--dry-run` path still
 exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -309,6 +309,12 @@ Cache admission additionally validates actual upstream artifact digests as linea
 existence alone is never a hit. A changed model, prompt, reference byte, dependency contract, or
 upstream artifact invalidates the relevant reuse boundary.
 
+Prop contact measurement is a local validation and publication boundary, not an image-generation
+operation. The prop PNG remains unchanged. The validator thresholds native alpha, rejects tiny
+detached fragments, retains meaningful components, and publishes the lowest meaningful contact as
+`ground_contact_y_normalized`. The runtime uses that explicit coordinate as its vertical origin;
+it does not align the transparent canvas edge or infer contact independently.
+
 `attempts` in a trace belongs to the component-owned provider operation. The scheduler does not
 wrap it in another retry loop. A semantic regeneration is a new provider operation and must
 increase `provider_operations`; it is not disguised as a transport retry. The base projection
@@ -339,12 +345,13 @@ counts one successful provider operation per provider node.
 | `content/{players,npcs}/*/dialogue.png`, `dialogue.validation.json` | Row-major alpha-component-repacked authored-expression atlas plus deterministic report |
 | `content/{players,mobs,npcs}/*/contact-sheet.png`, `review.json` | Deterministic actor board and independent structured verdict |
 | `content/{props,items}/*.png` | One native-alpha isolated asset per stable ID |
+| `content/props/*.validation.json` | Deterministic alpha-component ground contact for each prop; tiny detached and low-alpha contamination is excluded |
 | `content/{props,items}/contact-sheet.png`, `review.json` | Deterministic catalog board and independent structured verdict |
 | `ui/inventory_panel.png` | Canonical inventory panel with validated layout and alpha contract |
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v4` authored projection and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v5` authored projection, prop ground contacts, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.

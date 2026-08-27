@@ -32,6 +32,28 @@ export const MOB_AGGRESSIONS: readonly MobAggression[] = Object.freeze([
 /** The default when a run publishes no combat block — every mob predating the attack system. */
 export const DEFAULT_AGGRESSION: MobAggression = "territorial";
 
+/** Combat reaches the current terrain/platform level and one adjacent tile level. */
+export const COMBAT_VERTICAL_REACH_TILES = 1 as const;
+
+export function attackFootLevelsOverlap(
+  attackerFootY: number,
+  targetFootY: number,
+  tilePixels: number,
+): boolean {
+  if (
+    !Number.isFinite(attackerFootY) ||
+    !Number.isFinite(targetFootY) ||
+    !Number.isFinite(tilePixels) ||
+    tilePixels <= 0
+  ) {
+    throw new Error("attack level comparison requires finite feet and a positive tile size");
+  }
+  return (
+    Math.abs(attackerFootY - targetFootY) <=
+    tilePixels * COMBAT_VERTICAL_REACH_TILES
+  );
+}
+
 export type AggressionProfile = Readonly<{
   /**
    * How near the player must come, in pixels, before the mob reacts at all.
@@ -138,6 +160,11 @@ export const PLAYER_MAX_HP = 6;
  * cannot land twice without the player having had a full window to move.
  */
 export const PLAYER_INVULNERABLE_MS = 900;
+
+/** One bright/dim phase of the player sprite while a post-hit immunity window is active. */
+export const PLAYER_INVULNERABLE_BLINK_INTERVAL_MS = 75;
+/** Dim phase opacity: visible enough to track while making immunity unmistakable. */
+export const PLAYER_INVULNERABLE_BLINK_ALPHA = 0.35;
 
 /** Horizontal shove applied to the player on a hit, in pixels per second. */
 export const PLAYER_KNOCKBACK_VX = 260;
@@ -280,6 +307,23 @@ export function isPlayerInvulnerable(
   nowMs: number,
 ): boolean {
   return nowMs < health.invulnerableUntilMs;
+}
+
+/**
+ * Deterministic sprite opacity for post-hit invulnerability.
+ *
+ * The phase is derived from the remaining immunity time, so the connecting hit starts dim even
+ * though the scene resolves combat after the player's update for that frame. Defeat never
+ * blinks: its authored terminal presentation remains fully visible.
+ */
+export function playerInvulnerabilityBlinkAlpha(
+  health: PlayerHealthState,
+  nowMs: number,
+): number {
+  if (health.defeated || !isPlayerInvulnerable(health, nowMs)) return 1;
+  const remainingMs = health.invulnerableUntilMs - nowMs;
+  const phase = Math.floor(remainingMs / PLAYER_INVULNERABLE_BLINK_INTERVAL_MS);
+  return phase % 2 === 0 ? PLAYER_INVULNERABLE_BLINK_ALPHA : 1;
 }
 
 // --- Mob decision --------------------------------------------------------------------------

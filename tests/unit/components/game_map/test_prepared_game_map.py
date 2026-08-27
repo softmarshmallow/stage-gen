@@ -6,6 +6,7 @@ import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_map import (
+    PreparedMapGround,
     bottom_contiguous_surface_row,
     load_prepared_game_map_bytes,
     normalized_terrain_column,
@@ -110,9 +111,33 @@ def test_map_requires_rectangular_binary_occupancy_with_bottom_support() -> None
         load_prepared_game_map_bytes(source)
 
 
+def test_map_ground_requires_a_visible_escape_floor_and_two_tile_maximum_rise() -> None:
+    with pytest.raises(ValueError, match="bottom-supported escape floor"):
+        PreparedMapGround(
+            mode="terrain-atlas-3x3-minimal-v1",
+            reference_ids=["scene"],
+            occupancy=["00000000", "11111111", "11111111", "11101111"],
+            prompt="Create readable terrain.",
+        )
+    with pytest.raises(ValueError, match="differ by at most two tiles"):
+        PreparedMapGround(
+            mode="terrain-atlas-3x3-minimal-v1",
+            reference_ids=["scene"],
+            occupancy=["00000000", "11101111", "11101111", "11101111", "11111111"],
+            prompt="Create readable terrain.",
+        )
+    accepted = PreparedMapGround(
+        mode="terrain-atlas-3x3-minimal-v1",
+        reference_ids=["scene"],
+        occupancy=["00000000", "11101111", "11101111", "11111111"],
+        prompt="Create readable terrain.",
+    )
+    assert accepted.occupancy[-1] == "11111111"
+
+
 def test_map_ladder_must_resolve_between_real_occupancy_surfaces() -> None:
     source = _map_bytes("crowncrag-road").replace(b"normalized_x = 0.52", b"normalized_x = 0.23", 1)
-    with pytest.raises(AuthoredContractLoadError, match="bottom-supported terrain"):
+    with pytest.raises(AuthoredContractLoadError, match="exposed upper deck"):
         load_prepared_game_map_bytes(source)
 
     source = _map_bytes("crowncrag-road").replace(
@@ -124,8 +149,8 @@ def test_map_ladder_must_resolve_between_real_occupancy_surfaces() -> None:
         load_prepared_game_map_bytes(source)
 
 
-def test_map_portal_endpoint_must_resolve_to_supported_terrain() -> None:
+def test_map_portal_endpoint_may_move_to_another_valid_escape_floor() -> None:
     source = _map_bytes("crowncrag-road").replace(b"normalized_x = 0.05", b"normalized_x = 0.23", 1)
-
-    with pytest.raises(AuthoredContractLoadError, match="portal endpoint west_gate"):
-        load_prepared_game_map_bytes(source)
+    game_map = load_prepared_game_map_bytes(source)
+    assert game_map.portal is not None
+    assert game_map.portal.endpoints[0].normalized_x == 0.23

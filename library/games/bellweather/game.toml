@@ -1,7 +1,7 @@
 schema_version = 5
 kind = "game-contract-v5"
 game_id = "bellweather"
-revision = 10
+revision = 11
 display_name = "Bellweather"
 
 [universe]
@@ -79,7 +79,7 @@ source_sha256 = "70ffdcec699f4cfbf4462454566e8637265b2e2cd8882b4316662a5fa413ae6
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "726d18d414424200e0341747e4f83d7c0257bd49e97e8d1d6f983c84dcbb5c4a"
+source_sha256 = "2b818d3aaea726d5b602c325a8bcab0272c9a79e4500b386f3659bb2c47e7cf4"
 
 [content.player]
 source = "content/player.toml"

@@ -42,6 +42,11 @@ import {
   resolveDamage,
 } from "./combat";
 import { terrainSurfaceY } from "./terrain";
+import { anchorRepackedMotionFeet } from "./motion-playback";
+import {
+  constrainMobStrikeToAttackLevel,
+  mobLocomotionAnimationNeedsRestart,
+} from "./mob-behavior";
 import {
   resolveTerrainWalk,
   type TerrainWalkResolution,
@@ -127,6 +132,7 @@ export class Mob {
   private attackReadyAtMs = 0;
   private strikeLandsAtMs = 0;
   private playerX: number | null = null;
+  private playerY: number | null = null;
   private playerDefeated = false;
   private readonly attackAnim: string | null;
   private readonly deathAnim: string | null;
@@ -239,6 +245,7 @@ export class Mob {
     sprite.setDisplaySize(opts.spriteHeightPx * aspect, opts.spriteHeightPx);
     sprite.setDepth(SCENE_CONTENT_DEPTH.mob);
     if (scene.anims.exists(opts.idleAnimKey)) sprite.play(opts.idleAnimKey);
+    anchorRepackedMotionFeet(sprite);
     this.sprite = sprite;
 
     // Random initial direction based on ladder index for determinism.
@@ -289,9 +296,7 @@ export class Mob {
     if (this.state === "hurt") {
       if (nowMs >= this.hurtUntil) {
         this.state = "wander";
-        if (this.opts.scene.anims.exists(this.idleAnim)) {
-          this.sprite.play(this.idleAnim, true);
-        }
+        this.ensureLocomotionAnimation();
       } else {
         return; // frozen during hurt
       }
@@ -311,7 +316,7 @@ export class Mob {
       }
     }
 
-    const intent =
+    const requestedIntent =
       this.playerX === null
         ? "hold"
         : mobIntent({
@@ -321,6 +326,12 @@ export class Mob {
             attackReadyAtMs: this.attackReadyAtMs,
             playerDefeated: this.playerDefeated,
           });
+    const intent = constrainMobStrikeToAttackLevel({
+      requestedIntent,
+      mobFootY: this.sprite.y,
+      playerFootY: this.playerY,
+      tilePixels: this.opts.tilePx,
+    });
 
     if (intent === "strike" && this.playerX !== null) {
       this.dirSign = this.playerX >= this.sprite.x ? 1 : -1;
@@ -330,6 +341,7 @@ export class Mob {
       this.attackReadyAtMs = nowMs + this.profile.cooldownMs;
       if (this.attackAnim && this.opts.scene.anims.exists(this.attackAnim)) {
         this.sprite.play(this.attackAnim, true);
+        anchorRepackedMotionFeet(this.sprite);
       }
       this.snapFeet();
       return;
@@ -358,12 +370,14 @@ export class Mob {
       // away from a fight it simply cannot reach.
       this.sprite.setFlipX(this.dirSign === -1);
       if (this.state !== "chase") this.state = "chase";
+      this.ensureLocomotionAnimation();
       this.snapFeet();
       return;
     }
 
     // Nothing nearby: use the current deterministic patrol default.
     if (this.state !== "wander") this.state = "wander";
+    this.ensureLocomotionAnimation();
     const speed = this.opts.speedPx ?? DEFAULT_SPEED;
     // A face turns a patrol the same way the end of its lane does. Reversing rather than
     // standing still matters because a lane that runs into a rise would otherwise leave the
@@ -390,7 +404,7 @@ export class Mob {
    * The same `resolveTerrainWalk` the player is bound by, and for the same reason: the
    * heightfield steps in whole tiles, so a rise is a wall and the way up is a jump. A mob has no
    * jump, which is exactly the point - it patrols and hunts on the shelf it was spawned on, and
-   * falls off the edges of it.
+   * turns at the edges of it.
    *
    * Before this, horizontal motion wrote `sprite.x` directly and `snapFeet` lifted the creature
    * onto whatever column it had landed in. Downhill that reads as walking off a ledge; uphill it
@@ -400,13 +414,16 @@ export class Mob {
    * to show it.
    */
   private walkTo(nextX: number): boolean {
-    const walk = this.resolveWalk(nextX);
+    const walk = this.resolveWalk(nextX, false);
     this.sprite.x = walk.x;
     return walk.blocked;
   }
 
   /** The same resolution without applying it, for a move that is not the mob's own step. */
-  private resolveWalk(nextX: number): TerrainWalkResolution {
+  private resolveWalk(
+    nextX: number,
+    allowDescents = true,
+  ): TerrainWalkResolution {
     return resolveTerrainWalk({
       previousX: this.sprite.x,
       nextX,
@@ -418,7 +435,24 @@ export class Mob {
           this.opts.tilePx,
           this.opts.baselineY,
         ),
+      allowDescents,
     });
+  }
+
+  private ensureLocomotionAnimation(): void {
+    if (!this.opts.scene.anims.exists(this.idleAnim)) return;
+    if (
+      !mobLocomotionAnimationNeedsRestart({
+        state: this.state,
+        currentAnimationKey: this.sprite.anims.currentAnim?.key ?? null,
+        idleAnimationKey: this.idleAnim,
+        isPlaying: this.sprite.anims.isPlaying,
+      })
+    ) {
+      return;
+    }
+    this.sprite.play(this.idleAnim, true);
+    anchorRepackedMotionFeet(this.sprite);
   }
 
   /** Keep the mob standing on the terrain column it currently occupies. */
@@ -433,8 +467,16 @@ export class Mob {
   }
 
   /** Tell the mob where the player is. Null means "no player to react to". */
-  observePlayer(x: number | null, defeated: boolean): void {
+  observePlayer(
+    x: number | null,
+    footY: number | null,
+    defeated: boolean,
+  ): void {
+    if ((x === null) !== (footY === null)) {
+      throw new Error("mob player observation requires both coordinates or neither");
+    }
     this.playerX = x;
+    this.playerY = footY;
     this.playerDefeated = defeated;
   }
 
@@ -456,15 +498,16 @@ export class Mob {
     const resolution = resolveDamage(this.hp, 1);
     this.hp = resolution.hpAfter;
     const hitResult = mobHitResult(resolution);
-    // Knockback tween — clamped to wander bounds so the mob doesn't escape its lane, then
-    // resolved against the terrain so a blow cannot shove a creature up a face it is not allowed
-    // to walk up. A mob struck with its back to a cliff stops at the cliff.
+    // Knockback is the one movement allowed to cross a descending shelf edge. It remains clamped
+    // to the patrol lane and cannot push a creature up a raised face; when pushed into a pit the
+    // hurt interval carries the horizontal reaction before normal terrain snapping resumes.
     const targetX = this.resolveWalk(
       Phaser.Math.Clamp(
         this.sprite.x + knockbackDir * KNOCKBACK_PX,
         this.wanderMin,
         this.wanderMax,
       ),
+      true,
     ).x;
     // Turn to look at whoever swung. A mob that keeps facing its patrol
     // direction while being knocked backwards reads as scenery taking damage.
@@ -503,6 +546,7 @@ export class Mob {
     this.hurtUntil = nowMs + HURT_DURATION_MS;
     if (this.opts.scene.anims.exists(this.hurtAnim)) {
       this.sprite.play(this.hurtAnim, true);
+      anchorRepackedMotionFeet(this.sprite);
     }
     // Redrawn here, not left to the next step: the blow and the bar dropping have to be the
     // same event on screen, and the mob is frozen for the hurt window that follows.
@@ -519,6 +563,7 @@ export class Mob {
     });
     if (plan.playAnimation && this.deathAnim) {
       this.sprite.play(this.deathAnim, true);
+      anchorRepackedMotionFeet(this.sprite);
     }
     if (this.opts.fixedStepMotion) return;
     if (plan.fadeDelayMs > 0) {
@@ -570,6 +615,7 @@ export class Mob {
     this.strikeLandsAtMs = 0;
     this.pendingStrike = null;
     this.playerX = null;
+    this.playerY = null;
     this.playerDefeated = false;
     this.fixedHitMotion = undefined;
     this.sprite.setPosition(this.spawnX, this.spawnY);
@@ -587,6 +633,7 @@ export class Mob {
       this.opts.spriteHeightPx * aspect,
       this.opts.spriteHeightPx,
     );
+    anchorRepackedMotionFeet(this.sprite);
     this.healthBar.reset(this.hp, this.maxHp);
     this.syncHealthBar();
   }

@@ -97,6 +97,17 @@ floating terrain, stair-step shapes, concavities, and holes. Collision comes
 from occupancy, not alpha. Runtime import uses exact 120-pixel frames, nearest
 sampling, no invented padding, and no dynamic seam repair.
 
+The locked template's exposed top edge begins 10 source pixels below its 120-pixel cell boundary.
+Runtime consumers therefore lift rendered atlas cells by the equivalent scaled amount while
+leaving binary occupancy and its logical walk surface unchanged. This is deterministic template
+registration, not per-generated-image alpha estimation.
+
+At finite world boundaries, the prepared runtime repeats one visual-only occupancy column beyond
+each horizontal edge and one visual-only row below the map before resolving peering masks. This
+moves the atlas's transparent side and bottom contours outside the camera while leaving authored
+occupancy, collision, world dimensions, and camera bounds unchanged. The top contour remains
+authored terrain because it defines the visible walk surface.
+
 Stair-step terrain is a tile topology, not a smooth geometric slope. True
 smooth slopes require separately authored visual tiles plus an explicit
 collision contract; this atlas must not synthesize or imply them.

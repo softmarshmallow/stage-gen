@@ -2015,7 +2015,7 @@ const PLAYER_HURT_ACTIONS = new Map<
   readonly GameplayFrame["actions"][number][]
 >([
   // The mob's committed strike lands on frame 12. Hold left two frames later: knockback points
-  // right, so a negative velocity before recovery would prove player input leaked into hurt.
+  // right, so a negative velocity during hurt proves that hit feedback does not stun the player.
   [13, Object.freeze([{ type: "down", key: "ArrowLeft" } as const])],
   [34, Object.freeze([{ type: "up", key: "ArrowLeft" } as const])],
 ]);
@@ -2130,8 +2130,8 @@ export function validatePlayerHurtRun(run: GameplayRunEvidence): void {
     if (player?.state !== "hurt") {
       throw new Error(`player hurt ended early at frame ${frame}`);
     }
-    if (frame >= 14 && player.vx < 0) {
-      throw new Error(`held movement escaped the hurt lock at frame ${frame}`);
+    if (frame >= 14 && player.vx >= 0) {
+      throw new Error(`held movement was blocked during player hurt at frame ${frame}`);
     }
   }
   const beforeRecovery = byFrame.get(PLAYER_HURT_LAST_REACTION_FRAME)?.player;
@@ -2142,9 +2142,9 @@ export function validatePlayerHurtRun(run: GameplayRunEvidence): void {
     recovered.state === "hurt" ||
     recovered.hp !== 5 ||
     recovered.vx >= 0 ||
-    recovered.x >= beforeRecovery.x
+    recovered.x > beforeRecovery.x
   ) {
-    throw new Error("player did not recover into held movement on the exact frame");
+    throw new Error("player did not leave hurt while retaining held movement");
   }
   const released = byFrame.get(35)?.player;
   if (!released || released.state !== "idle" || released.vx !== 0) {

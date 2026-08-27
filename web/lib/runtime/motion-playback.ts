@@ -6,6 +6,36 @@ export type RuntimeMotionPlayback = Readonly<{
   frames_per_second?: number;
 }>;
 
+/** Canonical alpha-component repacking preserves this isolation gutter below every actor crop. */
+export const REPACKED_MOTION_BOTTOM_GUTTER_PX = 12;
+
+export function repackedMotionFootOriginY(
+  frameHeight: number,
+  bottomGutterPixels = REPACKED_MOTION_BOTTOM_GUTTER_PX,
+): number {
+  if (
+    !Number.isFinite(frameHeight) ||
+    frameHeight <= 0 ||
+    !Number.isFinite(bottomGutterPixels) ||
+    bottomGutterPixels < 0 ||
+    bottomGutterPixels >= frameHeight
+  ) {
+    throw new Error("repacked motion foot anchor requires a valid frame height and gutter");
+  }
+  return 1 - bottomGutterPixels / frameHeight;
+}
+
+/** Keep the visible feet on the logical actor Y while leaving the producer's isolation gutter intact. */
+export function anchorRepackedMotionFeet(
+  sprite: Phaser.GameObjects.Sprite,
+  bottomGutterPixels = REPACKED_MOTION_BOTTOM_GUTTER_PX,
+): void {
+  sprite.setOrigin(
+    0.5,
+    repackedMotionFootOriginY(sprite.frame.height, bottomGutterPixels),
+  );
+}
+
 /** Install a timeline animation when playback owns time; held and gameplay-driven poses need none. */
 export function installMotionPlayback(
   scene: Phaser.Scene,

@@ -6,6 +6,10 @@ import lookupContract from "./terrain-atlas-lookup.json";
 export const TERRAIN_ATLAS_COLUMNS = 12;
 export const TERRAIN_ATLAS_ROWS = 4;
 export const TERRAIN_ATLAS_CELL_PX = 120;
+// The deterministic atlas mask starts exposed top edges ten source pixels below the cell edge.
+// Collision continues to follow binary occupancy; consumers lift the rendered atlas by this
+// amount so the visible cap, rather than transparent template padding, meets the walk surface.
+export const TERRAIN_ATLAS_WALK_SURFACE_INSET_PX = 10;
 export const TERRAIN_ATLAS_WIDTH = 1440;
 export const TERRAIN_ATLAS_HEIGHT = 480;
 export const TERRAIN_ATLAS_PLACEHOLDER = Object.freeze({ column: 10, row: 1 });
@@ -21,7 +25,7 @@ export type TerrainAtlasCellPlan = Readonly<{
   mask: string;
   atlas: TerrainAtlasCoordinate;
   frame: string;
-  collision: "solid-cell";
+  collision: "solid-cell" | "visual-boundary-overscan";
 }>;
 
 export const TERRAIN_ATLAS_IMPORT = Object.freeze({
@@ -87,6 +91,16 @@ function assertOccupancy(occupied: readonly (readonly boolean[])[]): void {
 
 export function terrainAtlasFrameName(coordinate: TerrainAtlasCoordinate): string {
   return `terrain_${coordinate.column}_${coordinate.row}`;
+}
+
+export function terrainAtlasWalkSurfaceOffset(renderedCellPixels: number): number {
+  if (!Number.isFinite(renderedCellPixels) || renderedCellPixels <= 0) {
+    throw new Error("rendered terrain cell size must be positive and finite");
+  }
+  return (
+    (TERRAIN_ATLAS_WALK_SURFACE_INSET_PX / TERRAIN_ATLAS_CELL_PX) *
+    renderedCellPixels
+  );
 }
 
 export function terrainPeeringMask(
@@ -161,6 +175,43 @@ export function terrainAtlasPlan(
     }
   }
   return Object.freeze(result);
+}
+
+/**
+ * Extend only the terrain draw plan past the finite world boundary.
+ *
+ * Repeating the boundary occupancy before resolving the 47-mask lookup makes the first and last
+ * real columns interior neighbors, moving transparent side contours completely offscreen. One
+ * repeated row below does the same for the atlas's bottom contour. Returned negative/out-of-range
+ * cells are explicitly visual-only; authored occupancy remains the sole collision contract.
+ */
+export function terrainAtlasBoundaryOverscanPlan(
+  occupied: readonly (readonly boolean[])[],
+): readonly TerrainAtlasCellPlan[] {
+  assertOccupancy(occupied);
+  const rows = occupied.length;
+  const columns = occupied[0].length;
+  const horizontallyPadded = occupied.map((row) =>
+    Object.freeze([row[0]!, ...row, row[columns - 1]!]),
+  );
+  const padded = Object.freeze([
+    ...horizontallyPadded,
+    Object.freeze([...horizontallyPadded[rows - 1]!]),
+  ]);
+  return Object.freeze(
+    terrainAtlasPlan(padded).map((cell) => {
+      const mapColumn = cell.mapColumn - 1;
+      const visualOnly =
+        mapColumn < 0 || mapColumn >= columns || cell.mapRow >= rows;
+      return Object.freeze({
+        ...cell,
+        mapColumn,
+        collision: visualOnly
+          ? ("visual-boundary-overscan" as const)
+          : ("solid-cell" as const),
+      });
+    }),
+  );
 }
 
 export function bottomContiguousOccupancy(

@@ -295,7 +295,7 @@ does not by itself define a core game contract.
 - The current prepared closure uses repository selector `game-package-v3`, root
   `game-contract-v5`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v4`,
   `game-soundtrack-v1`, V2 actor/content catalogs, and V1 sequence contracts.
-  Provider-free integration emits only `prepared-game-runtime-v4`.
+  Provider-free integration emits only `prepared-game-runtime-v5`.
 - Subsystems such as population, motion, sequences, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an

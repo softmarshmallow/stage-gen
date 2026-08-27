@@ -12,6 +12,7 @@ from PIL import Image, ImageChops
 from .images import inspect_image
 
 ALPHA_COMPONENT_REPACK_VERSION = "alpha-component-repack-v1"
+ALPHA_GROUND_CONTACT_VERSION = "alpha-ground-contact-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,60 @@ class AlphaComponentRepackContract:
             raise ValueError("sprite repack component fraction must be in (0, 1]")
         if self.minimum_component_area <= 0:
             raise ValueError("sprite repack minimum component area must be positive")
+
+
+def measure_alpha_ground_contact(
+    data: bytes,
+    *,
+    alpha_threshold: int = 16,
+    minimum_component_fraction: float = 0.02,
+    minimum_component_area: int = 32,
+) -> dict[str, object]:
+    """Measure the bottom contact of meaningful native-alpha components.
+
+    Tiny detached or low-alpha contamination does not define where an isolated object meets the
+    ground. All principal components remain eligible so legitimate detached object parts can
+    extend the contact lower than the largest component alone.
+    """
+
+    if not 0 <= alpha_threshold < 255:
+        raise ValueError("ground contact alpha threshold must be between 0 and 254")
+    if not 0 < minimum_component_fraction <= 1:
+        raise ValueError("ground contact component fraction must be in (0, 1]")
+    if minimum_component_area <= 0:
+        raise ValueError("ground contact minimum component area must be positive")
+    facts = inspect_image(data, expected_media_type="image/png")
+    if not facts.has_alpha:
+        raise ValueError("ground contact measurement requires an alpha-bearing PNG")
+    with Image.open(io.BytesIO(data)) as opened:
+        source = opened.convert("RGBA")
+    components, _runs = _connected_components(
+        source.getchannel("A").tobytes(),
+        width=source.width,
+        height=source.height,
+        threshold=alpha_threshold,
+    )
+    visible_area = sum(component.area for component in components)
+    threshold_area = max(
+        minimum_component_area,
+        round(visible_area * minimum_component_fraction),
+    )
+    principal = [component for component in components if component.area >= threshold_area]
+    if not principal:
+        raise ValueError("ground contact measurement found no principal alpha component")
+    ground_contact_y_pixels = max(component.bbox[3] for component in principal)
+    return {
+        "schema_version": 1,
+        "kind": ALPHA_GROUND_CONTACT_VERSION,
+        "alpha_threshold": alpha_threshold,
+        "minimum_component_area": threshold_area,
+        "principal_component_count": len(principal),
+        "ground_contact_y_pixels": ground_contact_y_pixels,
+        "ground_contact_y_normalized": ground_contact_y_pixels / source.height,
+        "bottom_padding_pixels": source.height - ground_contact_y_pixels,
+        "source_width": source.width,
+        "source_height": source.height,
+    }
 
 
 @dataclass(frozen=True, slots=True)

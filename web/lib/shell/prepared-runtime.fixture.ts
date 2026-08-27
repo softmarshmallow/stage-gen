@@ -35,8 +35,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   ];
 
   return {
-    schema_version: 4,
-    kind: "prepared-game-runtime-v4",
+    schema_version: 5,
+    kind: "prepared-game-runtime-v5",
     game_id: "prepared_fixture",
     revision: 1,
     display_name: "Prepared Fixture",

@@ -291,4 +291,10 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert (run_dir / "content/mobs/crowncrag_page_eater/review.json").is_file()
     assert (run_dir / "content/npcs/mara_crumbwell/dialogue.validation.json").is_file()
     assert (run_dir / "content/props/contact-sheet.png").is_file()
+    prop_validation = json.loads(
+        (run_dir / "content/props/sunwheel_bread_stall.validation.json").read_text()
+    )
+    assert prop_validation["kind"] == "prepared-isolated-prop-validation-v2"
+    assert prop_validation["ground_contact"]["kind"] == "alpha-ground-contact-v1"
+    assert prop_validation["ground_contact"]["ground_contact_y_normalized"] == 0.9501953125
     assert (run_dir / "soundtrack/sunpetal_morning.validation.json").is_file()

@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   bottomContiguousOccupancy,
   parseTerrainOccupancy,
+  terrainAtlasBoundaryOverscanPlan,
   terrainAtlasLookupEntries,
   terrainAtlasPlan,
+  terrainAtlasWalkSurfaceOffset,
   terrainPeeringMask,
 } from "./terrain-atlas";
 
@@ -52,5 +54,33 @@ describe("47-mask terrain atlas consumer", () => {
     expect(() => parseTerrainOccupancy([])).toThrow("nonempty");
     expect(() => parseTerrainOccupancy(["10", "1"])).toThrow("rectangle");
     expect(() => parseTerrainOccupancy(["1x"])).toThrow("zero-one");
+  });
+
+  test("registers the visible cap with the logical walk surface", () => {
+    expect(terrainAtlasWalkSurfaceOffset(120)).toBe(10);
+    expect(terrainAtlasWalkSurfaceOffset(64)).toBeCloseTo(16 / 3);
+    expect(() => terrainAtlasWalkSurfaceOffset(0)).toThrow("positive and finite");
+  });
+
+  test("moves finite-world side and bottom contours outside the playable map", () => {
+    const plan = terrainAtlasBoundaryOverscanPlan([[true]]);
+    expect(plan.map((cell) => [cell.mapColumn, cell.mapRow])).toEqual([
+      [-1, 0],
+      [0, 0],
+      [1, 0],
+      [-1, 1],
+      [0, 1],
+      [1, 1],
+    ]);
+    const playable = plan.find(
+      (cell) => cell.mapColumn === 0 && cell.mapRow === 0,
+    );
+    expect(playable?.mask).toBe("000111111");
+    expect(playable?.collision).toBe("solid-cell");
+    expect(
+      plan
+        .filter((cell) => cell !== playable)
+        .every((cell) => cell.collision === "visual-boundary-overscan"),
+    ).toBeTrue();
   });
 });

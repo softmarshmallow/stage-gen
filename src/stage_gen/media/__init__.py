@@ -40,7 +40,9 @@ from .images import (
 )
 from .sprite_sheets import (
     ALPHA_COMPONENT_REPACK_VERSION,
+    ALPHA_GROUND_CONTACT_VERSION,
     AlphaComponentRepackContract,
+    measure_alpha_ground_contact,
     repack_alpha_components,
 )
 from .validation import (
@@ -67,6 +69,7 @@ __all__ = [
     "MAGENTA_EDGE_DECONTAMINATION_VERSION",
     "NATIVE_ALPHA_OPAQUE_THRESHOLD",
     "ALPHA_COMPONENT_REPACK_VERSION",
+    "ALPHA_GROUND_CONTACT_VERSION",
     "MagentaEdgeDecontaminationFacts",
     "apply_chroma_transparency",
     "assert_audio_signature",
@@ -78,6 +81,7 @@ __all__ = [
     "inspect_image",
     "extract_guided_cells",
     "magenta_chroma_alpha",
+    "measure_alpha_ground_contact",
     "normalize_audio_media_type",
     "normalize_media_type",
     "normalize_image_to_png",

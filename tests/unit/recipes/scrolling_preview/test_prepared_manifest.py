@@ -34,6 +34,10 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     correction = tmp_path / "correction"
     for relative_path in runtime_artifact_paths(package):
         _write_artifact(complete, relative_path)
+    padded_prop_path = "content/props/sunwheel_bread_stall.png"
+    padded_prop = Image.new("RGBA", (16, 12), (0, 0, 0, 0))
+    padded_prop.paste((40, 90, 180, 255), (0, 0, 16, 9))
+    padded_prop.save(complete / padded_prop_path)
     corrected_path = "content/players/wayfarer/states/idle.png"
     _write_artifact(correction, corrected_path, color=210)
 
@@ -93,6 +97,11 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     npcs = result.manifest["npcs"]
     assert isinstance(npcs, list)
     assert all((npc["dialogue"]["columns"], npc["dialogue"]["rows"]) == (2, 2) for npc in npcs)
+    props = result.manifest["props"]
+    assert isinstance(props, list)
+    assert props[0]["prop_id"] == "sunwheel_bread_stall"
+    assert props[0]["ground_contact_y_normalized"] == 0.75
+    assert all(0 < prop["ground_contact_y_normalized"] <= 1 for prop in props)
     ui = result.manifest["ui"]
     assert isinstance(ui, dict)
     assert ui["inventory_panel"]["layout"] == "inventory_grid_4x2_v1"

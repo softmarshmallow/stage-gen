@@ -75,6 +75,11 @@ model output.
    transparent gutter. Motion poses are bottom-centered; dialogue expressions are centered.
 8. Validate that every required output cell is nonempty and does not touch its cell boundary.
 
+The canonical motion repacker preserves a 12-pixel transparent isolation gutter below each
+bottom-anchored component. Runtime actor consumers register the visible component bottom, not the
+canonical cell bottom, with the actor's logical foot coordinate. The gutter remains part of the
+published artifact and must not silently raise a player, NPC, or mob above its collision surface.
+
 The source is retained as `*.source.png`; the repacked `*.png` is the runtime-facing artifact. The
 adjacent validation record binds the source and output digests, dimensions, thresholds, candidate
 and selected component counts, placements, alpha retention, warnings, and implementation version.

@@ -6,7 +6,7 @@
 > input. It defines `game-map-v4` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
-> recipe executes its typed branches; `prepared-game-runtime-v4` projects the
+> recipe executes its typed branches; `prepared-game-runtime-v5` projects the
 > exact map closure; and the prepared web adapter consumes that projection.
 > This implementation status does not assert that any particular live output
 > has passed semantic review or publication gates.
@@ -288,9 +288,13 @@ all eight neighbors select runtime cells, and dynamic tilemaps admit only
 `occupancy` is authored gameplay geometry, not an image-model instruction. The
 first string is the top row. `1` means occupied terrain and `0` means empty
 space. All rows have the same 8-to-512-cell width; height is 2 to 64 rows. At
-least one cell in the bottom row is occupied. Atlas selection derives from this
-matrix, while consumer pixel size, physics bodies, filtering, and camera scale
-remain outside the authored map.
+least one cell in the bottom row is occupied. In the current non-lethal-fall
+runtime, every gameplay column must have a bottom-supported escape floor and
+adjacent bottom-supported surfaces may differ by at most two tiles: that is the
+maximum rise the authored double jump proves recoverable. Three-tile pits and
+bottomless gameplay columns fail package validation before generation. Atlas
+selection derives from this matrix, while consumer pixel size, physics bodies,
+filtering, and camera scale remain outside the authored map.
 
 For a normalized X position, the canonical column is
 `floor(normalized_x * width)`. Because positions are strictly between zero and
@@ -434,4 +438,4 @@ closures fail closed.
 Successful input validation proves only authored closure. A playable build still
 requires successful provider and local graph execution, the required independent
 semantic reviews, provider-free integration of every runtime artifact, and exact
-`prepared-game-runtime-v4` consumer admission.
+`prepared-game-runtime-v5` consumer admission.

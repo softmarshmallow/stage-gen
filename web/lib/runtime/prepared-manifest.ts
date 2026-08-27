@@ -84,8 +84,8 @@ export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 4;
-  kind: "prepared-game-runtime-v4";
+  schema_version: 5;
+  kind: "prepared-game-runtime-v5";
   game_id: string;
   revision: number;
   display_name: string;
@@ -117,6 +117,7 @@ export type PreparedRuntimeManifest = Readonly<{
   props: readonly Readonly<{
     prop_id: string;
     display_name: string;
+    ground_contact_y_normalized: number;
     asset: RuntimeArtifact;
   }>[];
   items: readonly Readonly<{
@@ -196,6 +197,18 @@ function normalizedX(value: unknown, label: string): number {
     value >= 1
   ) {
     throw new Error(`${label} must be a finite number between zero and one`);
+  }
+  return value;
+}
+
+function normalizedGroundContactY(value: unknown, label: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value <= 0 ||
+    value > 1
+  ) {
+    throw new Error(`${label} must be a finite number greater than zero and at most one`);
   }
   return value;
 }
@@ -352,7 +365,7 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 4 || root.kind !== "prepared-game-runtime-v4") {
+  if (root.schema_version !== 5 || root.kind !== "prepared-game-runtime-v5") {
     throw new Error("prepared runtime manifest identity is invalid");
   }
   const gameId = id(root.game_id, "game_id");
@@ -524,7 +537,15 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   });
   const props = array(root.props, "props").map((rawProp, index) => {
     const prop = object(rawProp, `props[${index}]`);
-    return Object.freeze({ prop_id: id(prop.prop_id, "prop_id"), display_name: text(prop.display_name, "prop display_name"), asset: artifact(prop.asset, "prop asset") });
+    return Object.freeze({
+      prop_id: id(prop.prop_id, "prop_id"),
+      display_name: text(prop.display_name, "prop display_name"),
+      ground_contact_y_normalized: normalizedGroundContactY(
+        prop.ground_contact_y_normalized,
+        `props[${index}].ground_contact_y_normalized`,
+      ),
+      asset: artifact(prop.asset, "prop asset"),
+    });
   });
   const items = array(root.items, "items").map((rawItem, index) => {
     const item = object(rawItem, `items[${index}]`);
@@ -557,8 +578,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 4,
-    kind: "prepared-game-runtime-v4",
+    schema_version: 5,
+    kind: "prepared-game-runtime-v5",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),

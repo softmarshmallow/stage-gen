@@ -5,7 +5,7 @@
 >
 > Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
 > cross-contract validation, repository selection, the typed scrolling DAG, and
-> `prepared-game-runtime-v4` assembly are executable. Successful package validation
+> `prepared-game-runtime-v5` assembly are executable. Successful package validation
 > is still authored-input truth only; it does not prove that a live run completed,
 > passed semantic review, is playable, or is approved for publication.
 
@@ -53,7 +53,7 @@ Only these prepared-package identities are accepted by the resolver:
 | Sequence catalog | `game-sequence-catalog-v1` |
 | Sequence | `game-sequence-v1` |
 
-Successful provider-free integration emits only `prepared-game-runtime-v4`.
+Successful provider-free integration emits only `prepared-game-runtime-v5`.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In

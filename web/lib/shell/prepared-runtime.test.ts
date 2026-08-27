@@ -3,7 +3,7 @@ import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { preparedRuntimeManifestFixture } from "./prepared-runtime.fixture";
 import { readPreparedRuntimeManifest } from "./prepared-runtime";
-import { runDirFor } from "./runs";
+import { isPreparedRuntimeRun, runDirFor } from "./runs";
 
 const cleanup: string[] = [];
 
@@ -31,7 +31,8 @@ describe("prepared runtime manifest reading", () => {
     );
 
     const manifest = await readPreparedRuntimeManifest(tag);
-    expect(manifest?.kind).toBe("prepared-game-runtime-v4");
+    expect(await isPreparedRuntimeRun(tag)).toBeTrue();
+    expect(manifest?.kind).toBe("prepared-game-runtime-v5");
     expect(manifest?.display_name).toBe("Prepared Fixture");
     expect(manifest?.player.concept.path).toBe("content/player/concept.png");
   });

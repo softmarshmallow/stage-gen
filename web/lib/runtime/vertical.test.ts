@@ -559,6 +559,17 @@ describe("vertical world contracts", () => {
     });
     // Descents are never walls: walking off column 2 stays a fall.
     expect(walk(180, 200, 528).blocked).toBeFalse();
+    // A shelf-bound actor stops before the same descent instead of walking into a pit.
+    expect(
+      resolveTerrainWalk({
+        previousX: 180,
+        nextX: 200,
+        footY: 528,
+        tilePixels: 64,
+        surfaceAt,
+        allowDescents: false,
+      }),
+    ).toEqual({ x: 191, blocked: true, blockedColumn: 3 });
     // Movement inside one column is never resolved against a neighbour.
     expect(walk(130, 140, 592).blocked).toBeFalse();
     expect(() =>

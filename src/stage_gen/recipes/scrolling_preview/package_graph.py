@@ -31,12 +31,13 @@ from stage_gen.resources import (
     terrain_atlas_template_path,
 )
 
-PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v8"
+PACKAGE_GRAPH_CONTRACT_VERSION = "scrolling-preview-prepared-package-v9"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
 CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v2"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
 CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v1"
 CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
+CONTENT_PROP_CONTACT_VALIDATION_VERSION = "prepared-content-prop-contact-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
 CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
@@ -659,7 +660,10 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
                 description=f"validate isolated alpha and framing for prop {prop.prop_id}",
                 operation=OperationKind.LOCAL,
                 depends_on=(generated.node_id,),
-                input_digests=(_object_sha256(prop.model_dump(mode="json")),),
+                input_digests=(
+                    _object_sha256(prop.model_dump(mode="json")),
+                    _object_sha256({"contract": CONTENT_PROP_CONTACT_VALIDATION_VERSION}),
+                ),
                 outputs=(f"content/props/{prop.prop_id}.validation.json",),
                 duration_seconds=0.5,
             ).node_id

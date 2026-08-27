@@ -25,6 +25,7 @@ import {
   applyPlayerDamage,
   initialPlayerHealth,
   isPlayerInvulnerable,
+  playerInvulnerabilityBlinkAlpha,
 } from "./combat";
 import {
   DEATH_STRIP_FRAME_RATE,
@@ -32,6 +33,7 @@ import {
 } from "./death-presentation";
 import { terrainSurfaceY } from "./terrain";
 import {
+  anchorRepackedMotionFeet,
   applyMotionPlayback,
   installMotionPlayback,
   type RuntimeMotionPlayback,
@@ -259,7 +261,7 @@ export class Player {
   private attackUntil = 0;
   private attackStarted = 0;
   private attackHitConsumed = false;
-  /** The reaction keeps control locked through all four hurt frames. */
+  /** Deadline for the authored hurt presentation; it does not lock player control. */
   private hurtUntil = 0;
   private activeLadder?: LadderZone;
   private climbFrame: number | null = null;
@@ -327,6 +329,7 @@ export class Player {
       initialKey,
       this.motionPlayback.idle,
     );
+    anchorRepackedMotionFeet(this.sprite);
 
     this.bindInput();
   }
@@ -456,15 +459,15 @@ export class Player {
 
     // Damage is resolved by the scene after this controller has already stepped for the frame,
     // so `takeDamage` enters its presentation synchronously and this branch owns every later
-    // reaction frame. Keep the ordinary physics path below alive - knockback must travel and land
-    // - while refusing control input. A fatal reaction remains locked after its four frames and
-    // holds the final pose; its horizontal shove stops rather than sliding forever.
+    // reaction frame. Hurt is feedback, not a stun: ordinary movement and traversal remain live
+    // while invulnerability blinks the sprite. Only terminal defeat locks input.
     const hurtPresentationAvailable = this.hasHurtPresentation();
     const deathPresentationAvailable = this.hasDeathPresentation();
     const hurtReaction = hurtPresentationAvailable && this.state === "hurt";
     const hurtMotionActive = hurtReaction && nowMs < this.hurtUntil;
-    const controlsLocked = hurtMotionActive || this.health.defeated;
-    if (controlsLocked && !hurtMotionActive) this.vx = 0;
+    const controlsLocked = this.health.defeated;
+    if (controlsLocked) this.vx = 0;
+    this.sprite.setAlpha(playerInvulnerabilityBlinkAlpha(this.health, nowMs));
 
     // Active ladder traversal has priority over every movement/combat action.
     if (!controlsLocked && this.support === "ladder" && this.activeLadder) {
@@ -1028,6 +1031,7 @@ export class Player {
     else this.sprite.anims.pause();
     this.sprite.setFlipX(false);
     this.applySheetScale(textureKey);
+    anchorRepackedMotionFeet(this.sprite);
     this.climbFrame = nextFrame;
   }
 
@@ -1043,6 +1047,7 @@ export class Player {
     const texKey = stateTextureKey(next);
     applyMotionPlayback(this.sprite, animKey, texKey, this.motionPlayback[next]);
     this.applySheetScale(texKey);
+    anchorRepackedMotionFeet(this.sprite);
   }
 
   /** A public hurt state exists only when the matching four-frame sheet was actually loaded. */
@@ -1082,6 +1087,7 @@ export class Player {
     const result = applyPlayerDamage(this.health, amount, nowMs);
     this.health = result.health;
     if (!result.connected) return result;
+    this.sprite.setAlpha(playerInvulnerabilityBlinkAlpha(this.health, nowMs));
     this.vx = fromDirSign * PLAYER_KNOCKBACK_VX;
     this.vy = PLAYER_KNOCKBACK_VY;
     // Look back toward the striker while the body travels away from it. The source strip faces
@@ -1208,6 +1214,7 @@ export class Player {
       this.motionPlayback.idle,
     );
     this.applySheetScale(initialKey);
+    anchorRepackedMotionFeet(this.sprite);
   }
 }
 

@@ -111,7 +111,9 @@ killing blow rather than fading it out with the corpse.
 and applied damage, HP before and after, and defeat state. `player.ts` and `mob.ts` return that
 immutable outcome from the hit that commits health. `scene.ts` forwards the same resolution to
 `combat-text.ts`; FCT never reconstructs damage from later HP. Rejected, invulnerable, already-dead,
-and zero-applied attempts produce no glyph.
+and zero-applied attempts produce no glyph. A connected nonfatal player hit starts a fixed
+invulnerability window; `player.ts` blinks the sprite while leaving movement and traversal live.
+Only terminal defeat locks control.
 
 `manifest.ts` parses `combat-text-v1` as an exact block-local `{ schema_version, kind, enabled }`
 policy. GameContract v3 manifests carry it explicitly after default materialization. Any manifest

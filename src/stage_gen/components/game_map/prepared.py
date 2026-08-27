@@ -21,6 +21,21 @@ from stage_gen.components._game_input import (
 from stage_gen.contracts.artifacts import PersistedContractModel
 
 PREPARED_GAME_MAP_SCHEMA_VERSION = 4
+MAX_UNASSISTED_TERRAIN_RISE_TILES = 2
+
+
+def _bottom_contiguous_heights(occupancy: list[str]) -> list[int]:
+    """Return gameplay floor heights while ignoring disconnected upper platforms."""
+
+    heights: list[int] = []
+    for column in range(len(occupancy[0])):
+        height = 0
+        row = len(occupancy) - 1
+        while row >= 0 and occupancy[row][column] == "1":
+            height += 1
+            row -= 1
+        heights.append(height)
+    return heights
 
 
 class PreparedMapView(PersistedContractModel):
@@ -106,6 +121,16 @@ class PreparedMapGround(PersistedContractModel):
             raise ValueError(
                 "map ground occupancy must contain terrain supported by the bottom row"
             )
+        if "0" in value[-1]:
+            raise ValueError(
+                "every gameplay terrain column must have a bottom-supported escape floor"
+            )
+        heights = _bottom_contiguous_heights(value)
+        if any(
+            abs(heights[index + 1] - heights[index]) > MAX_UNASSISTED_TERRAIN_RISE_TILES
+            for index in range(len(heights) - 1)
+        ):
+            raise ValueError("adjacent gameplay terrain surfaces may differ by at most two tiles")
         return value
 
     @field_validator("prompt")

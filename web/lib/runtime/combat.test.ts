@@ -2,16 +2,30 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_AGGRESSION,
   MOB_AGGRESSIONS,
+  PLAYER_INVULNERABLE_BLINK_ALPHA,
+  PLAYER_INVULNERABLE_BLINK_INTERVAL_MS,
   PLAYER_INVULNERABLE_MS,
   PLAYER_MAX_HP,
   aggressionProfile,
+  attackFootLevelsOverlap,
   applyPlayerDamage,
   initialPlayerHealth,
   isPlayerInvulnerable,
   mobIntent,
   parseAggression,
+  playerInvulnerabilityBlinkAlpha,
   resolveDamage,
 } from "./combat";
+
+describe("attack level reach", () => {
+  test("accepts the same or one adjacent level and rejects a jump above it", () => {
+    expect(attackFootLevelsOverlap(600, 600, 64)).toBeTrue();
+    expect(attackFootLevelsOverlap(600, 536, 64)).toBeTrue();
+    expect(attackFootLevelsOverlap(536, 600, 64)).toBeTrue();
+    expect(attackFootLevelsOverlap(600, 535.99, 64)).toBeFalse();
+    expect(() => attackFootLevelsOverlap(0, 0, 0)).toThrow("positive tile size");
+  });
+});
 
 describe("aggression archetypes", () => {
   test("every archetype has a profile and none is accidentally identical", () => {
@@ -185,6 +199,28 @@ describe("player health", () => {
     const hit = applyPlayerDamage(initialPlayerHealth(), 1, 0).health;
     expect(isPlayerInvulnerable(hit, PLAYER_INVULNERABLE_MS - 1)).toBe(true);
     expect(isPlayerInvulnerable(hit, PLAYER_INVULNERABLE_MS)).toBe(false);
+  });
+
+  test("blinks the player throughout invulnerability and restores full opacity", () => {
+    const hit = applyPlayerDamage(initialPlayerHealth(), 1, 1000).health;
+    expect(playerInvulnerabilityBlinkAlpha(hit, 1000)).toBe(
+      PLAYER_INVULNERABLE_BLINK_ALPHA,
+    );
+    expect(
+      playerInvulnerabilityBlinkAlpha(
+        hit,
+        1000 + PLAYER_INVULNERABLE_BLINK_INTERVAL_MS,
+      ),
+    ).toBe(1);
+    expect(
+      playerInvulnerabilityBlinkAlpha(hit, 1000 + PLAYER_INVULNERABLE_MS),
+    ).toBe(1);
+  });
+
+  test("keeps a defeated player's terminal pose fully visible", () => {
+    const defeated = applyPlayerDamage(initialPlayerHealth(1), 1, 1000).health;
+    expect(defeated.defeated).toBe(true);
+    expect(playerInvulnerabilityBlinkAlpha(defeated, 1000)).toBe(1);
   });
 });
 

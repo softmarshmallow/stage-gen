@@ -78,7 +78,7 @@ has passed artistic review.
 
 Package resolution verifies every reference, digest, identity, cross-contract
 map reference, ladder/climb dependency, and portal transition before provider
-work. Integration emits only `prepared-game-runtime-v4`; the web runtime does
+work. Integration emits only `prepared-game-runtime-v5`; the web runtime does
 not infer missing terrain, ladder, portal, or gameplay semantics.
 
 The canonical Bellweather package is the repository example:

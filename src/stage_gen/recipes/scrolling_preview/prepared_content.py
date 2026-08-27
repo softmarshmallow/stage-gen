@@ -53,6 +53,7 @@ from stage_gen.components.structured_generation import StructuredOutputSchema, S
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
     AlphaComponentRepackContract,
+    measure_alpha_ground_contact,
     probe_audio,
     repack_alpha_components,
 )
@@ -771,16 +772,23 @@ class PreparedContentNodeHandler:
         self, node: ExecutionNode, kind: str, entity_id: str
     ) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
-        facts = _validate_transparent_image(source.read_bytes(), width=1024, height=1024)
+        source_data = source.read_bytes()
+        facts = _validate_transparent_image(source_data, width=1024, height=1024)
+        ground_contact = measure_alpha_ground_contact(source_data) if kind == "prop" else None
         output = self._run_dir / node.outputs[0]
         atomic_write_json(
             output,
             {
                 "schema_version": 1,
-                "kind": "prepared-isolated-asset-validation-v1",
+                "kind": (
+                    "prepared-isolated-prop-validation-v2"
+                    if kind == "prop"
+                    else "prepared-isolated-asset-validation-v1"
+                ),
                 "asset_kind": kind,
                 "asset_id": entity_id,
                 **facts,
+                **({"ground_contact": ground_contact} if ground_contact is not None else {}),
             },
         )
         return self._result(node, (output,), provider_operations=0)

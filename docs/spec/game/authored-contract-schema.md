@@ -159,7 +159,7 @@ Prepared-package resolution captures the selected directory or ZIP once,
 checks every digest and exact closure member, validates all cross-contract
 identities locally, and rejects malformed input before a provider operation.
 The scrolling DAG consumes this resolved package and integration emits only
-`prepared-game-runtime-v4`.
+`prepared-game-runtime-v5`.
 
 Validate the canonical package with:
 

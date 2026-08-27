@@ -13,8 +13,9 @@ from typing import Any, Literal
 
 from PIL import Image
 
-from stage_gen.components.game_content import MotionPresentation
+from stage_gen.components.game_content import MotionPresentation, PropContent
 from stage_gen.components.game_ui import inventory_panel_layout_contract
+from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_COLUMNS,
@@ -26,8 +27,8 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
 )
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 4
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v4"
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 5
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v5"
 
 
 class PreparedManifestError(ValueError):
@@ -102,6 +103,22 @@ def _assemble_prepared_runtime(
         record = _artifact_record(target, relative_path)
         artifacts[relative_path] = record
         return record
+
+    def prop_manifest(prop: PropContent) -> dict[str, object]:
+        relative_path = f"content/props/{prop.prop_id}.png"
+        asset = publish(relative_path)
+        contact = measure_alpha_ground_contact(
+            _safe_output_path(output_dir, relative_path).read_bytes()
+        )
+        normalized = contact["ground_contact_y_normalized"]
+        if not isinstance(normalized, (int, float)):
+            raise PreparedManifestError("prop ground contact measurement is invalid")
+        return {
+            "prop_id": prop.prop_id,
+            "display_name": prop.display_name,
+            "ground_contact_y_normalized": float(normalized),
+            "asset": asset,
+        }
 
     map_uses = {entry.map_id: entry for entry in package.gameplay.map_uses}
     maps: list[dict[str, object]] = []
@@ -207,14 +224,7 @@ def _assemble_prepared_runtime(
         for npc in package.npcs.npcs
     ]
 
-    props = [
-        {
-            "prop_id": prop.prop_id,
-            "display_name": prop.display_name,
-            "asset": publish(f"content/props/{prop.prop_id}.png"),
-        }
-        for prop in package.props.props
-    ]
+    props = [prop_manifest(prop) for prop in package.props.props]
     items = [
         {
             "item_id": item.item_id,

@@ -5,13 +5,46 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.media import AlphaComponentRepackContract, repack_alpha_components
+from stage_gen.media import (
+    AlphaComponentRepackContract,
+    measure_alpha_ground_contact,
+    repack_alpha_components,
+)
 
 
 def _png(image: Image.Image) -> bytes:
     stream = io.BytesIO()
     image.save(stream, format="PNG")
     return stream.getvalue()
+
+
+def test_alpha_ground_contact_ignores_tiny_and_low_alpha_bottom_contamination() -> None:
+    source = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    draw.rectangle((20, 15, 80, 74), fill=(120, 180, 240, 255))
+    draw.rectangle((5, 96, 7, 98), fill=(255, 80, 80, 255))
+    draw.rectangle((90, 99, 99, 99), fill=(255, 255, 255, 8))
+
+    contact = measure_alpha_ground_contact(_png(source))
+
+    assert contact["kind"] == "alpha-ground-contact-v1"
+    assert contact["principal_component_count"] == 1
+    assert contact["ground_contact_y_pixels"] == 75
+    assert contact["ground_contact_y_normalized"] == 0.75
+    assert contact["bottom_padding_pixels"] == 25
+
+
+def test_alpha_ground_contact_retains_meaningful_detached_parts() -> None:
+    source = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    draw.rectangle((10, 10, 70, 69), fill=(120, 180, 240, 255))
+    draw.rectangle((75, 75, 94, 94), fill=(120, 180, 240, 255))
+
+    contact = measure_alpha_ground_contact(_png(source))
+
+    assert contact["principal_component_count"] == 2
+    assert contact["ground_contact_y_pixels"] == 95
+    assert contact["ground_contact_y_normalized"] == 0.95
 
 
 def test_alpha_components_repack_crossing_poses_without_xy_slicing() -> None:

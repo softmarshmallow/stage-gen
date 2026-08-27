@@ -1096,6 +1096,8 @@ export type TerrainWalkResolution = Readonly<{
  * the column lookup still resolves to the side it is standing on.
  *
  * Descents are not walls: walking off a ledge stays a fall.
+ * Callers that cannot intentionally leave their current shelf may set
+ * `allowDescents` false; knockback and player movement retain the default.
  */
 export function resolveTerrainWalk(input: Readonly<{
   previousX: number;
@@ -1104,6 +1106,7 @@ export function resolveTerrainWalk(input: Readonly<{
   tilePixels: number;
   surfaceAt: (column: number) => number;
   tolerance?: number;
+  allowDescents?: boolean;
 }>): TerrainWalkResolution {
   const tolerance = input.tolerance ?? TERRAIN_STEP_UP_TOLERANCE;
   for (const value of [input.previousX, input.nextX, input.footY, input.tilePixels, tolerance]) {
@@ -1120,10 +1123,12 @@ export function resolveTerrainWalk(input: Readonly<{
   const to = Math.floor(input.nextX / input.tilePixels);
   if (from === to) return unblocked;
   const step = to > from ? 1 : -1;
+  const allowDescents = input.allowDescents ?? true;
   for (let column = from + step; step > 0 ? column <= to : column >= to; column += step) {
     const surfaceY = input.surfaceAt(column);
     if (!Number.isFinite(surfaceY)) throw new Error("terrain walk surface must be finite");
-    if (surfaceY >= input.footY - tolerance) continue;
+    const sameLevel = Math.abs(surfaceY - input.footY) <= tolerance;
+    if (sameLevel || (allowDescents && surfaceY > input.footY)) continue;
     return deepFreeze({
       x:
         step > 0

@@ -30,7 +30,7 @@ import {
   FloatingHealthBar,
   PLAYER_HEALTH_BAR_STYLE,
 } from "./health-bar";
-import { aggressionProfile } from "./combat";
+import { aggressionProfile, attackFootLevelsOverlap } from "./combat";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
   MobPopulationDirector,
@@ -53,6 +53,7 @@ import {
 } from "./prepared-gameplay";
 import { projectPreparedMobPopulation } from "./prepared-population";
 import {
+  anchorRepackedMotionFeet,
   applyMotionPlayback,
   installMotionPlayback,
 } from "./motion-playback";
@@ -63,7 +64,8 @@ import {
   preparedPlayerStateAdapter,
 } from "./prepared-player";
 import {
-  terrainAtlasPlan,
+  terrainAtlasBoundaryOverscanPlan,
+  terrainAtlasWalkSurfaceOffset,
 } from "./terrain-atlas";
 import {
   projectPreparedTerrainWorld,
@@ -75,7 +77,7 @@ import { preparedPortalEndpointPlacements } from "./prepared-portals";
 const VIEW_W = 1280;
 const VIEW_H = 720;
 const TILE_PX = 64;
-const GROUND_BASELINE_Y = 674;
+const GROUND_BASELINE_Y = 666;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
@@ -782,11 +784,14 @@ export class PreparedStageScene extends Phaser.Scene {
       throw new Error("prepared map render requires projected terrain geometry");
     }
     if (this.textures.exists(groundKey)) {
-      for (const cell of terrainAtlasPlan(terrainWorld.occupancy)) {
+      const visibleSurfaceOffset = terrainAtlasWalkSurfaceOffset(TILE_PX);
+      for (const cell of terrainAtlasBoundaryOverscanPlan(
+        terrainWorld.occupancy,
+      )) {
         const sprite = this.add
           .image(
             cell.mapColumn * TILE_PX,
-            terrainWorld.topY + cell.mapRow * TILE_PX,
+            terrainWorld.topY + cell.mapRow * TILE_PX - visibleSurfaceOffset,
             groundKey,
             cell.frame,
           )
@@ -796,7 +801,9 @@ export class PreparedStageScene extends Phaser.Scene {
         this.groundSprites.push(sprite);
       }
     } else {
-      for (const cell of terrainAtlasPlan(terrainWorld.occupancy)) {
+      for (const cell of terrainAtlasBoundaryOverscanPlan(
+        terrainWorld.occupancy,
+      )) {
         this.groundSprites.push(
           this.add
             .image(
@@ -822,7 +829,7 @@ export class PreparedStageScene extends Phaser.Scene {
       const x = placement.normalized_x * this.worldWidth;
       const sprite = this.add
         .image(x, this.surfaceYAtX(x), `prepared_prop_${prop.prop_id}`)
-        .setOrigin(0.5, 1)
+        .setOrigin(0.5, prop.ground_contact_y_normalized)
         .setDepth(25);
       const height = prop.prop_id.includes("stall") ? 170 : 110;
       sprite.setDisplaySize(Math.min(220, (sprite.width / sprite.height) * height), height);
@@ -844,6 +851,7 @@ export class PreparedStageScene extends Phaser.Scene {
         `prepared_npc_${npc.npc_id}_world`,
         npc.world.playback,
       );
+      anchorRepackedMotionFeet(sprite);
       this.npcs.push({ npcId: npc.npc_id, sprite });
       const label = this.add
         .text(sprite.x, surfaceY - NPC_HEIGHT - 12, npc.display_name, {
@@ -1142,11 +1150,14 @@ export class PreparedStageScene extends Phaser.Scene {
     if (gameplay.combat.enabled && gameplay.combat.contact_damage) {
       for (const mob of this.mobs) {
         if (!mob.isAlive()) continue;
-        mob.observePlayer(player.sprite.x, health.defeated);
+        mob.observePlayer(player.sprite.x, player.sprite.y, health.defeated);
         const strike = mob.consumeStrike();
         if (!strike || strike.damage <= 0) continue;
         const profile = aggressionProfile(mob.snapshot().aggression);
-        if (Math.abs(mob.sprite.x - player.sprite.x) > profile.strikeRangePx * 1.35) {
+        if (
+          Math.abs(mob.sprite.x - player.sprite.x) > profile.strikeRangePx * 1.35 ||
+          !attackFootLevelsOverlap(mob.sprite.y, player.sprite.y, TILE_PX)
+        ) {
           continue;
         }
         const resolution = player.takeDamage(strike.damage, now, strike.dirSign);
@@ -1161,7 +1172,7 @@ export class PreparedStageScene extends Phaser.Scene {
         }
       }
     } else {
-      for (const mob of this.mobs) mob.observePlayer(null, health.defeated);
+      for (const mob of this.mobs) mob.observePlayer(null, null, health.defeated);
     }
 
     if (gameplay.combat.enabled && player.consumeAttackHit()) {
@@ -1172,7 +1183,7 @@ export class PreparedStageScene extends Phaser.Scene {
         if (!mob.isAlive()) continue;
         if (
           Math.abs(mob.sprite.x - hitX) >= reach ||
-          Math.abs(mob.sprite.y - player.sprite.y) >= TILE_PX * 2.5
+          !attackFootLevelsOverlap(player.sprite.y, mob.sprite.y, TILE_PX)
         ) {
           continue;
         }

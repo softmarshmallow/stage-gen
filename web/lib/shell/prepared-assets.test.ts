@@ -47,8 +47,8 @@ function preparedManifestFixture() {
   };
   const closure = Object.values(assets).reverse();
   return {
-    schema_version: 4,
-    kind: "prepared-game-runtime-v4",
+    schema_version: 5,
+    kind: "prepared-game-runtime-v5",
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",
@@ -201,6 +201,7 @@ function preparedManifestFixture() {
       {
         prop_id: "signpost",
         display_name: "Signpost",
+        ground_contact_y_normalized: 0.75,
         asset: assets.prop,
       },
     ],
@@ -239,6 +240,24 @@ function preparedManifestFixture() {
 }
 
 describe("prepared runtime asset projection", () => {
+  test("requires an explicit normalized prop ground contact", () => {
+    const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
+    expect(manifest.props[0]?.ground_contact_y_normalized).toBe(0.75);
+
+    const missing = structuredClone(preparedManifestFixture());
+    delete (missing.props[0] as { ground_contact_y_normalized?: number })
+      .ground_contact_y_normalized;
+    expect(() => parsePreparedRuntimeManifest(missing)).toThrow(
+      "props[0].ground_contact_y_normalized must be a finite number",
+    );
+
+    const belowCanvas = structuredClone(preparedManifestFixture());
+    belowCanvas.props[0]!.ground_contact_y_normalized = 1.01;
+    expect(() => parsePreparedRuntimeManifest(belowCanvas)).toThrow(
+      "props[0].ground_contact_y_normalized must be a finite number",
+    );
+  });
+
   test("retains explicit player and mob concept bindings", () => {
     const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
 

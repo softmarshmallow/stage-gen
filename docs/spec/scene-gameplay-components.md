@@ -5,7 +5,7 @@
 The prepared game separates visual/static map composition from semantic game
 use. `gameplay.toml` is the portable simulation contract; each
 `maps/<map_id>.toml` supplies visual layers and static topology; the web runtime
-adapts both from `prepared-game-runtime-v4` into Phaser objects.
+adapts both from `prepared-game-runtime-v5` into Phaser objects.
 
 ## Ownership
 
@@ -99,6 +99,17 @@ terrain positions from occupancy, prefers appropriate offscreen placement, and
 maintains the authored population without exceeding caps.
 
 Combat resolves attempted/applied damage and defeat before presentation.
+Player and mob attacks connect only when their foot coordinates are on the same
+terrain/platform level or within one tile vertically; jumping above that band
+is a valid dodge, and a mob does not begin a new strike while outside the band.
+After a connected nonfatal hit, the player receives a fixed invulnerability
+window and blinks for its duration. The hurt strip is visual feedback rather
+than a stun: movement and traversal remain available while repeated hits are
+rejected. Defeat alone locks player control.
+Autonomous mob locomotion remains on its current terrain
+shelf and turns at both rises and drops. Player-applied knockback is the only mob
+movement allowed to carry it over a descending shelf edge. Returning from a
+finite attack or hurt presentation must restore the looping locomotion strip.
 Floating combat text consumes that resolution; whiffs, invulnerability, and
 zero applied damage do not emit a number. Loot rolls reference exact authored
 mob/item rules, update inventory, and can advance quest conditions. Presentation

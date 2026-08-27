@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type Phaser from "phaser";
 import {
+  anchorRepackedMotionFeet,
   applyMotionPlayback,
   installMotionPlayback,
+  repackedMotionFootOriginY,
 } from "./motion-playback";
 
 describe("resolved motion playback", () => {
@@ -69,5 +71,18 @@ describe("resolved motion playback", () => {
       },
     ]);
     expect(calls).toEqual([["play", "player_run", true]]);
+  });
+
+  test("anchors the visible crop bottom instead of the repacked cell bottom", () => {
+    expect(repackedMotionFootOriginY(205.5)).toBeCloseTo(1 - 12 / 205.5);
+    const calls: unknown[] = [];
+    const sprite = {
+      frame: { height: 205.5 },
+      setOrigin: (x: number, y: number) => calls.push([x, y]),
+    } as unknown as Phaser.GameObjects.Sprite;
+    anchorRepackedMotionFeet(sprite);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([0.5, repackedMotionFootOriginY(205.5)]);
+    expect(() => repackedMotionFootOriginY(12)).toThrow("valid frame height");
   });
 });

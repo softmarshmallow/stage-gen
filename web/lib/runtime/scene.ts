@@ -53,7 +53,12 @@ import {
   type SpawnReservation,
   type ZoneCandidateColumns,
 } from "./spawn-director";
-import { PLAYER_MAX_HP, aggressionProfile, parseAggression } from "./combat";
+import {
+  PLAYER_MAX_HP,
+  aggressionProfile,
+  attackFootLevelsOverlap,
+  parseAggression,
+} from "./combat";
 import {
   CombatTextSystem,
   type CombatTextSystemSnapshot,
@@ -1025,14 +1030,21 @@ export class StageScene extends Phaser.Scene {
         const px3 = this.player.sprite.x;
         for (const m of this.mobs) {
           if (!m.isAlive()) continue;
-          m.observePlayer(dialogueOpen ? null : px3, health.defeated);
+          m.observePlayer(
+            dialogueOpen ? null : px3,
+            dialogueOpen ? null : this.player.sprite.y,
+            health.defeated,
+          );
           const strike = m.consumeStrike();
           if (!strike || strike.damage <= 0) continue;
           // Re-checked at the moment the blow lands, not when it was committed: backing out of
-          // reach during the wind-up is how a player dodges, and it is the only thing that makes
-          // the wind-up a warning rather than decoration.
+          // horizontal reach or jumping beyond the one-level vertical band during the wind-up
+          // are valid dodges; this is what makes the wind-up a warning rather than decoration.
           const profile = aggressionProfile(m.snapshot().aggression);
-          if (Math.abs(m.sprite.x - this.player.sprite.x) > profile.strikeRangePx * 1.35) {
+          if (
+            Math.abs(m.sprite.x - this.player.sprite.x) > profile.strikeRangePx * 1.35 ||
+            !attackFootLevelsOverlap(m.sprite.y, this.player.sprite.y, TILE_PX)
+          ) {
             this.logEvent("mob-strike-missed", { ladderIndex: m.ladderIndex });
             continue;
           }
@@ -1075,8 +1087,10 @@ export class StageScene extends Phaser.Scene {
         for (const m of this.mobs) {
           if (!m.isAlive()) continue;
           const dx = m.sprite.x - hitX;
-          const dy = m.sprite.y - py2;
-          if (Math.abs(dx) < reach && Math.abs(dy) < TILE_PX * 2.5) {
+          if (
+            Math.abs(dx) < reach &&
+            attackFootLevelsOverlap(py2, m.sprite.y, TILE_PX)
+          ) {
             const r = m.takeHit(now, facing as 1 | -1);
             const mobBounds = m.sprite.getBounds();
             this.combatText?.showDamage({
