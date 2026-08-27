@@ -6,6 +6,11 @@ explain a contract. A canonical prepared game may also commit its explicitly
 digest-bound image inputs under `library/games/<game_id>/references/`; those
 are authored package members, not generated run output.
 
+README-only repository marketing assets live under `.github/assets/readme/`.
+That directory contains efficient WebP presentation copies rather than
+canonical game inputs, documentation evidence, or runtime assets. Lossless
+working files and raw captures remain ignored.
+
 ## Git LFS decision
 
 Git LFS is not enabled. A fresh OSS checkout should not depend on another
@@ -61,6 +66,8 @@ does not move older blobs automatically.
 - Do not commit `.DS_Store` or editor metadata.
 - Do not commit populated env files, run output, caches, or screenshots created
   solely by local verification.
+- Keep README-only marketing images under `.github/assets/readme/`, encode them
+  as WebP, and keep their use limited to repository presentation.
 - Every committed binary needs a reason, provenance, and rights status.
 - Prepared-package image inputs are allowed only beneath
   `library/games/<game_id>/references/`. Their owning TOML contracts must bind

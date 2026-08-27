@@ -1,28 +1,39 @@
 # stage-gen
 
-`stage-gen` is a general-purpose, headless Python pipeline and component library
-for producing coherent 2D game assets with validation, deterministic
-post-processing, and content-bound provenance. The repository includes one
-reference scrolling-game recipe and an optional web-based scrolling-game
-preview; gameplay remains a consumer of the generated artifacts, not part of
-the reusable core.
+`stage-gen` turns a prepared game package—art direction, maps, characters,
+gameplay, dialogue, music, and reference images—into a validated set of
+game-ready 2D assets and a playable runtime manifest. The reusable Python core
+stays general-purpose, headless, and provider-neutral. The optional web-based scrolling-game
+preview demonstrates what a consumer can build from those artifacts.
 
-![Current deterministic 20-asset model demo with multi-tier platforms and ladder traversal](docs/media/gameplay-model-demo.png)
+![Bellweather key art: a bright storybook adventure world with its player and creatures](.github/assets/readme/bellweather-cover.webp)
 
-_Current deterministic 20-asset model demo. The screenshot is a canvas-only
-capture from the multi-tier gameplay fixture. Its adjacent
-[provenance and review record](docs/media/gameplay-model-demo.png.meta.json)
-binds the published bytes to the verified source state._
+_Bellweather is the repository's canonical prepared game: one authored,
+digest-bound package that drives the generation graph, asset reviews, runtime
+composition, and gameplay preview._
 
-[`library/games/main.toml`](library/games/main.toml) selects the repository's one
-[canonical bundled demo package](docs/game-package.md). That digest-locked closure is the
-single source of truth for current game-schema tests, authored validation, and a future hosted
-demo; examples and generated runs do not replace it as schema authority.
+## From concept to playable world
 
-[Watch the historical deterministic 30-second capture (18-asset build)](docs/media/gameplay-showcase.mp4).
-Its [poster](docs/media/gameplay-showcase.poster.png), adjacent provenance
-sidecars, and digest-bound review remain tied to that older capture. They must
-not be presented as a recording of the current 20-asset fixture.
+The visual target is not the final deliverable. Stage Gen separates the world
+into runtime layers, characters, mobs, props, items, UI, portals, terrain, and
+soundtrack assets, validates their contracts, and binds the accepted results
+into a portable prepared-game manifest.
+
+![Bellweather Crowncrag gameplay showcase with generated map, player, mobs, and runtime HUD](.github/assets/readme/bellweather-gameplay.webp)
+
+## Game-ready systems, not loose images
+
+Generation produces assets with explicit runtime roles. Player actions remain
+transparent animation atlases. Ground material becomes a canonical 47-mask
+terrain vocabulary, then deterministic authored occupancy composes that
+vocabulary into playable platforms, steps, and pits.
+
+![Bellweather player animation and 47-mask terrain-system showcase](.github/assets/readme/bellweather-systems.webp)
+
+[`library/games/main.toml`](library/games/main.toml) selects the
+[canonical bundled demo package](docs/game-package.md). Its closed input
+contract is the source of truth for validation, planning, generation, and the
+runtime adapter; generated runs never silently become schema authority.
 
 ## Quickstart
 
@@ -117,56 +128,22 @@ individual recipes. `scrolling-preview` is the side-view reference integration;
 `dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe.
 Neither recipe may define the other's assumptions or artifact layout.
 
-## Showcase: adult dating-sim dialogue demo
+## Authored dialogue in the same game
 
-![Historical Signal at Blue Hour dialogue-scene showcase](docs/media/dialogue-scene-showcase.webp)
+![Bellweather Mara Crumbwell dialogue sequence in Sunpetal Crossing](.github/assets/readme/bellweather-dialogue.webp)
 
-**After the Seminar** is a deterministic adult dating-sim technology demo built
-from a study-lounge background, one adult character identity, four transparent
-expression variants, caller-authored dialogue, and presentation data. Mio
-Amamiya is a 23-year-old graduate astronomy researcher talking with another
-adult participant in a coastal university study lounge after an evening
-graduate seminar. Each dialogue beat selects a discrete `neutral`,
-`delighted`, `flustered`, or `concerned` variant; these are reusable sprite
-states, not animation frames and not a rig.
+Bellweather's authored sequence contracts bind speaker, expression, dialogue,
+node flow, and outcomes to stable NPC and player artwork. The runtime resolves
+Mara Crumbwell's interaction from
+[`gameplay.toml`](library/games/bellweather/gameplay.toml), loads
+[`sunpetal-welcome.toml`](library/games/bellweather/sequences/sunpetal-welcome.toml),
+and presents the conversation inside the same generated map and gameplay
+session shown above.
 
-The image above and `web/public/dialogue-scene/demo/anime/` remain a historical
-showcase with preserved provenance, not an authored current portable-bundle
-example. The current route binds its reviewed fixture through the current
-consumer contract without rewriting those historical bytes.
-
-Run the optional web app and open `/dialogue-scene/demo` to play the vertical
-slice. The same page keeps the numeric framing control and camera-term
-prompt mapping over `25..85`, while a deterministic viewport owns the final
-crop. Mio's committed sprites are authored upper-body at baseline `70`, so
-looser values make that source smaller but correctly do not claim to reveal
-unauthored full-body pixels.
-
-The provider-backed Python `dialogue-scene` producer is still in a deliberate
-transition: strict lower_snake_case wire V2/recipe V3 produces bundle V2,
-while profile-bound wire V3/recipe V4 produces bundle V3. The deterministic
-web installer is implemented and accepts only wire V3/recipe V4; it does not
-maintain V2 compatibility. The pending
-[atomic producer cutover](TODO.md#exact-current-contracts) will replace the two
-Python paths with one exact contract in which optional `character_profile`
-presence selects profile binding and its absence leaves appearance on the same
-request. Until then, start with the
-[operator workflow](docs/dialogue-theme-pipeline.md) and the
-[current installer-compatible request](examples/dialogue-theme/profile-enabled-date.toml).
-The recipe pairs one appearance concept with a finite expression-variant set;
-choices, rigging, lip sync, and motion stay outside the committed slice. The
-boundaries are also recorded in the
-[asset contract](docs/spec/dialogue-scene-assets.md),
-[preview contract](docs/dialogue-scene-preview.md),
-[framing control](docs/dialogue-scene-framing.md), and
-[deferred animation notes](docs/dialogue-scene-animation.md).
-
-The former generic recipe-generation command is no longer exposed by the game CLI. Existing
-dialogue bundles can still be installed from `web/` with:
-
-```sh
-bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
-```
+Dialogue remains authored game content rather than an image-generation side
+effect: NPC identities and expression vocabularies live in
+[`content/npcs.toml`](library/games/bellweather/content/npcs.toml), interaction
+wiring lives in `gameplay.toml`, and node order lives under `sequences/`.
 
 ## Reusable authored characters
 

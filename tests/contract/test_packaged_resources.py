@@ -84,6 +84,7 @@ CONCEPT_MEDIA_PREFIXES = {
 STYLE_DICTIONARY_ROOT = PurePosixPath(*CONCEPT_STYLE_DICTIONARY_PREFIX)
 STYLE_DICTIONARY_MANIFEST = STYLE_DICTIONARY_ROOT / "manifest.json"
 STYLE_DICTIONARY_REVIEW = STYLE_DICTIONARY_ROOT / "images/style-dictionary.visual-review.md"
+README_MARKETING_ROOT = PurePosixPath(".github/assets/readme")
 STYLE_DICTIONARY_REVIEWERS = {
     "mobile-live-service": ("mobile_exact_webp_reviewer_2026_08_26",),
     "indie-pc-console": (
@@ -305,10 +306,20 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                 assert not path.is_symlink()
                 if path.suffix.lower() in MEDIA_SUFFIXES:
                     relative_paths.add(PurePosixPath(path.relative_to(repository).as_posix()))
+    readme_marketing_root = repository / README_MARKETING_ROOT
+    assert not readme_marketing_root.is_symlink()
+    if readme_marketing_root.exists():
+        assert readme_marketing_root.is_dir()
+        relative_paths.update(
+            PurePosixPath(path.relative_to(repository).as_posix())
+            for path in readme_marketing_root.iterdir()
+            if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
+        )
 
     total = 0
     for relative in sorted(relative_paths):
         assert relative.parts[0] in {
+            ".github",
             "concept-studio",
             "docs",
             "fixtures",
@@ -323,6 +334,9 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert is_concept_media
             assert len(relative.parts) > len(concept_prefix)
             assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
+        if relative.parts[0] == ".github":
+            assert relative.parent == README_MARKETING_ROOT
+            assert relative.suffix.lower() == ".webp"
         if is_style_dictionary:
             assert relative.parent == STYLE_DICTIONARY_ROOT / "images"
             assert relative.suffix.lower() == ".webp"
