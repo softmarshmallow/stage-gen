@@ -79,7 +79,7 @@ source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f573
 [[maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
-source_sha256 = "7f211150f6b83a303d4ff8722407197325bb955c4cb2cb3912519261a90f1ddf"
+source_sha256 = "9b55ccb7d52bd2695c91a28aeb46a090e25ed3d3c955cbdd06d232594c2dd732"
 
 [[maps]]
 map_id = "crowncrag-road"

@@ -83,6 +83,7 @@ follow_axes = ["x"]
 [continuity]
 seamless_axis = "x"
 loop_construction = "mirror_repeat"
+loop_fallback = "mirror_repeat"
 
 [[references]]
 reference_id = "field_composition"
@@ -218,7 +219,9 @@ The initial producer supports one complete combination:
 | `view.profile` | `side_view_2d` | Current side-view asset-generation profile; it is a profile identifier, not a claim that camera pose, projection, and gameplay space are synonyms |
 | `view.gameplay_space` | `side_plane` | Composition reserves a readable longitudinal and world-up playfield; it does not grant movement abilities |
 | `continuity.seamless_axis` | `x` | Every layer output must be admitted or constructed as a verified horizontal repeat unit |
-| `continuity.loop_construction` | `mirror_repeat` or `generated_bridge` | How a layer that does not already loop is made to loop |
+| `continuity.loop_construction` | `mirror_repeat`, `generated_bridge`, `seam_repaint`, or `fold_repaint` | Map default for how a layer that does not already loop is made to loop |
+| `continuity.loop_fallback` | `mirror_repeat` (default) | Construction used when a generative one cannot be completed; validated to be deterministic |
+| `layer.loop_construction` | any of the above, or omitted | Optional per-layer override of the map default; omit it to inherit |
 
 ### Camera
 

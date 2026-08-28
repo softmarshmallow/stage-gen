@@ -37,11 +37,17 @@ from stage_gen.components.platformer_map_design import DesignBrief, design_chunk
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
+    LOOP_METHODS,
     AlphaComponentRepackContract,
-    BridgeConditioning,
-    BridgeRegistrationError,
+    LoopConstruction,
+    RegistrationError,
+    SeamConditioning,
+    assemble_fold_repaint,
     assemble_generated_bridge,
+    assemble_seam_repaint,
     build_bridge_conditioning,
+    build_fold_repaint_conditioning,
+    build_seam_repaint_conditioning,
     content_bottom_offset_fraction,
     mirror_repeat,
     repack_alpha_components,
@@ -68,9 +74,11 @@ from stage_gen.recipes.scrolling_preview.climbable_atlas import (
 )
 from stage_gen.recipes.scrolling_preview.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
-    LOOP_BRIDGE_ANCHOR_BAND_PX,
+    LOOP_ANCHOR_BAND_PX,
     LOOP_BRIDGE_CONTEXT_SPAN_PX,
     LOOP_BRIDGE_SPAN_PX,
+    LOOP_REPAINT_SPAN_PX,
+    LOOP_REPAINT_WINDOW_PX,
 )
 from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
@@ -286,10 +294,16 @@ class PreparedWorldNodeHandler:
     async def _construct_layer_loop(
         self, node: ExecutionNode, game_map: PreparedGameMap, layer: PreparedMapLayer
     ) -> NodeExecutionResult:
-        """Admit the generated layer as a loop, or construct one by the map's declared method."""
+        """Admit the generated layer as a loop, or construct one by the declared construction.
+
+        The layer's own selection wins over the map's. A map's layers do not share a difficulty:
+        one whose ends already agree loops under any construction, while one whose ends disagree
+        in the source art fails under all of them, and a single map-wide choice cannot say so.
+        """
 
         generated = self._graph.node(node.depends_on[0])
         raw_data = (self._run_dir / generated.outputs[0]).read_bytes()
+        construction = layer.loop_construction or game_map.continuity.loop_construction
         alpha_policy, coverage = _layer_repeat_policies(layer)
         output, record_path = (self._run_dir / ref for ref in node.outputs)
 
@@ -312,31 +326,28 @@ class PreparedWorldNodeHandler:
                 "schema_version": 1,
                 "kind": "direct-loop-admission-v1",
                 "construction": "none",
+                "skipped_construction": construction,
                 "provider_operations": 0,
             }
-        elif game_map.continuity.loop_construction == "mirror_repeat":
-            looped, record = mirror_repeat(raw_data)
-            record["construction"] = "mirror_repeat"
+        elif not LOOP_METHODS[construction].is_generative:
+            looped, record = _construct_deterministic(construction, raw_data)
+            record["construction"] = construction
         else:
-            conditioning = build_bridge_conditioning(
-                raw_data,
-                context_span=LOOP_BRIDGE_CONTEXT_SPAN_PX,
-                bridge_span=LOOP_BRIDGE_SPAN_PX,
-            )
-            bridge_path = self._run_dir / f"{node.outputs[0].removesuffix('.loop.png')}.bridge.png"
+            conditioning = _loop_conditioning(construction, raw_data)
+            edit_path = self._run_dir / f"{node.outputs[0].removesuffix('.loop.png')}.edit.png"
             transparent = layer.alpha_mode == "transparent"
             generation = await self._images.generate(
                 ImageGenerationRequest(
-                    prompt=self._bridge_prompt(layer, conditioning),
-                    artifact_path=bridge_path,
+                    prompt=self._loop_prompt(layer, conditioning, construction),
+                    artifact_path=edit_path,
                     input_references=(
                         ImageReference(
                             _data_url(conditioning.conditioning_png, "image/png"),
-                            "loop-bridge-conditioning",
+                            "loop-conditioning",
                         ),
                     ),
                     mask_reference=ImageReference(
-                        _data_url(conditioning.mask_png, "image/png"), "loop-bridge-mask"
+                        _data_url(conditioning.mask_png, "image/png"), "loop-mask"
                     ),
                     quality="high",
                     background="transparent" if transparent else "opaque",
@@ -347,28 +358,44 @@ class PreparedWorldNodeHandler:
                         "checkpoint": "world",
                         "map_id": game_map.map_id,
                         "layer_id": layer.layer_id,
-                        "operation": "loop_bridge",
+                        "operation": f"loop_{construction}",
                     },
                 )
             )
             provider_operations = generation.attempts
             try:
-                looped, record = assemble_generated_bridge(
-                    raw_data,
-                    bridge_path.read_bytes(),
-                    conditioning=conditioning,
-                    anchor_band=LOOP_BRIDGE_ANCHOR_BAND_PX,
+                looped, record = _assemble_loop(
+                    construction, raw_data, edit_path.read_bytes(), conditioning=conditioning
                 )
-                record["construction"] = "generated_bridge"
-            except BridgeRegistrationError as error:
+                record["construction"] = construction
+            except RegistrationError as error:
                 # The return is a different composition, not a displaced copy, so no translation
-                # lands it. Mirroring is the construction that cannot fail, so the map still gets
-                # a usable loop unit and the rejection is recorded rather than shipped as art.
-                looped, record = mirror_repeat(raw_data)
-                record["construction"] = "mirror_repeat"
-                record["bridge_rejected"] = str(error)
+                # lands it. The fallback is required to be deterministic, so the map still gets a
+                # usable loop unit and the rejection is recorded rather than shipped as art.
+                fallback = game_map.continuity.loop_fallback
+                looped, record = _construct_deterministic(fallback, raw_data)
+                record["construction"] = fallback
+                record["rejected_construction"] = construction
+                record["rejection"] = str(error)
             record["provider_operations"] = provider_operations
         report = admit(looped)
+        if (
+            report.verdict != "pass"  # type: ignore[attr-defined]
+            and LOOP_METHODS[construction].is_generative
+        ):
+            # A generative construction can return art that lands correctly and still fails
+            # admission, which is exactly the case `loop_fallback` exists for; falling back only on
+            # a registration disagreement would leave the commoner failure killing the whole run.
+            # The rejection is recorded rather than shipped, so a silent degrade stays visible.
+            fallback = game_map.continuity.loop_fallback
+            rejected_report = report.model_dump(mode="json")  # type: ignore[attr-defined]
+            looped, record = _construct_deterministic(fallback, raw_data)
+            record["construction"] = fallback
+            record["rejected_construction"] = construction
+            record["rejection"] = "constructed loop failed x-repeat admission"
+            record["rejected_repeat"] = rejected_report
+            record["provider_operations"] = provider_operations
+            report = admit(looped)
         if report.verdict != "pass":  # type: ignore[attr-defined]
             raise ValueError(
                 f"constructed loop for {game_map.map_id}/{layer.layer_id} failed x-repeat admission"
@@ -915,7 +942,93 @@ class PreparedWorldNodeHandler:
             f"Map asset task:\n{specific}"
         )
 
-    def _bridge_prompt(self, layer: PreparedMapLayer, conditioning: BridgeConditioning) -> str:
+    def _loop_prompt(
+        self,
+        layer: PreparedMapLayer,
+        conditioning: SeamConditioning,
+        construction: LoopConstruction,
+    ) -> str:
+        """Brief the provider for the construction actually selected.
+
+        The two families ask for materially different things and must not share a brief. A bridge
+        asks the provider to invent a span between two ends it cannot see across; a repaint asks
+        it to carry existing content through a region it can see both sides of. Sending one brief
+        for the other describes a canvas the provider is not looking at.
+        """
+
+        if construction == "generated_bridge":
+            return self._bridge_prompt(layer, conditioning)
+        return self._repaint_prompt(layer, conditioning, mirrored=construction == "fold_repaint")
+
+    def _layer_style_clauses(self, layer: PreparedMapLayer) -> tuple[str, str, str]:
+        """Style label, material reference, and alpha rule shared by every loop brief."""
+
+        style = self._package.game.style
+        material = " ".join(layer.prompt.split())
+        alpha = (
+            "This is a cut-out layer. Every region that is transparent in the supplied image must "
+            "stay fully transparent in yours: above the content, below it, and around it. Paint "
+            "only the same band of content the left and right sides occupy, at the same top and "
+            "bottom extent. Add no ground, no water, no horizon fill, no backdrop, no matte, and "
+            "no vignette. Use true alpha, not a colour approximating emptiness."
+            if layer.alpha_mode == "transparent"
+            else "Keep the plate completely opaque."
+        )
+        return (
+            f"Visual style: {style.label}. Avoid: {', '.join(style.avoid)}.",
+            "Material reference, describing what this layer is made of and not how to compose "
+            f"it: {material}\nIgnore anything in that reference about landmarks, rhythm, "
+            "centring, or composition.",
+            alpha,
+        )
+
+    def _repaint_prompt(
+        self, layer: PreparedMapLayer, conditioning: SeamConditioning, *, mirrored: bool
+    ) -> str:
+        """Brief the provider to carry existing content through a join it can already see.
+
+        Nothing is appended here; the marked region replaces pixels that already exist. The
+        provider is shown continuous artwork with the defect in the middle of its own canvas,
+        which is why this brief can ask for flow through a region rather than a match at an edge.
+        """
+
+        style_clause, material_clause, alpha = self._layer_style_clauses(layer)
+        if mirrored:
+            situation = (
+                "The supplied image is one horizontal strip of side-view game art. Its right half "
+                "is a mirror image of its left half, so the centre of the image is a reflection "
+                "axis: the artwork bounces back on itself there and reads as an obvious mirror."
+                f"\n\nRepaint only the marked middle {conditioning.editable_span} pixels so the "
+                "strip reads as one continuous scene travelling in a single direction through "
+                "that region, with no reflection and no axis of symmetry. Break up any left-right "
+                "mirrored pairing."
+            )
+        else:
+            situation = (
+                "The supplied image is one horizontal strip of side-view game art, formed by "
+                "placing the end of a scene directly against its own beginning. The centre of the "
+                "image is therefore a hard cut: the artwork does not line up there."
+                f"\n\nRepaint only the marked middle {conditioning.editable_span} pixels so the "
+                "artwork flows through the cut as one unbroken band, with no visible seam, step, "
+                "or discontinuity."
+            )
+        return (
+            f"Image repair task. {situation}\n\n"
+            "Everything outside that middle region is FINISHED ARTWORK: reproduce it exactly as "
+            "given, pixel for pixel, same position, same scale, same vertical alignment. Do not "
+            "move, shift, rescale, recompose, or restyle it.\n\n"
+            "Match the existing line weight, palette, lighting, ground line, and horizon exactly. "
+            "Do not introduce a landmark, a centrepiece, a frame, or text.\n\n"
+            "Paint the span at full strength edge to edge. Do not fade, feather, blur, ghost, or "
+            "ramp opacity toward either boundary, and do not use a gradient, haze, glow, or "
+            "vignette to blend into the neighbours. If the two sides differ, resolve it with "
+            "drawn content - foliage, masonry, terrain - not with transparency or a soft wash. "
+            "Empty space inside the span is allowed only where the neighbouring artwork is "
+            "genuinely empty; elsewhere keep the same density of drawn detail as the sides.\n\n"
+            f"{style_clause}\n{material_clause}\n\n{alpha}"
+        )
+
+    def _bridge_prompt(self, layer: PreparedMapLayer, conditioning: SeamConditioning) -> str:
         """Brief the provider for a join, not for a layer.
 
         The layer's own brief is a *generation* brief: it asks for landmarks, a windmill, a
@@ -943,8 +1056,9 @@ class PreparedWorldNodeHandler:
             "given: pixel for pixel, same position, same scale, same vertical alignment. Do not "
             "move, shift, rescale, recompose, restyle, or redraw them. Do not add, remove, or "
             "relocate any object in them.\n\n"
-            f"Only the middle {conditioning.bridge_span} pixels are empty. Paint that span so the "
-            "artwork at the left edge of the gap continues into the artwork at the right edge as "
+            f"Only the middle {conditioning.editable_span} pixels are empty. Paint that span "
+            "so the artwork at the left edge of the gap continues into the artwork at the "
+            "right edge as "
             "one unbroken band. Match the existing line weight, palette, lighting, ground line, "
             "and horizon exactly.\n\n"
             "Everything you paint must sit entirely inside the middle span. Do not place any "
@@ -1068,6 +1182,65 @@ class PreparedWorldNodeHandler:
 
 def world_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
     return tuple(f"map-{game_map.map_id}-review" for game_map in package.maps)
+
+
+def _loop_conditioning(construction: LoopConstruction, data: bytes) -> SeamConditioning:
+    """Lay out the provider canvas the selected construction needs.
+
+    Each construction shows the provider a different canvas, and the difference is the whole
+    point: the bridge shows two ends with a gap between them, while the repaints show a join
+    already sitting in the middle of continuous content.
+    """
+
+    if construction == "generated_bridge":
+        return build_bridge_conditioning(
+            data,
+            context_span=LOOP_BRIDGE_CONTEXT_SPAN_PX,
+            editable_span=LOOP_BRIDGE_SPAN_PX,
+        )
+    if construction == "seam_repaint":
+        return build_seam_repaint_conditioning(
+            data, window_span=LOOP_REPAINT_WINDOW_PX, repaint_span=LOOP_REPAINT_SPAN_PX
+        )
+    if construction == "fold_repaint":
+        return build_fold_repaint_conditioning(
+            data, window_span=LOOP_REPAINT_WINDOW_PX, repaint_span=LOOP_REPAINT_SPAN_PX
+        )
+    raise ValueError(f"{construction} is not a generative loop construction")
+
+
+def _assemble_loop(
+    construction: LoopConstruction,
+    data: bytes,
+    provider_png: bytes,
+    *,
+    conditioning: SeamConditioning,
+) -> tuple[bytes, dict[str, object]]:
+    """Land the provider's return by the rule its construction declares."""
+
+    if construction == "generated_bridge":
+        return assemble_generated_bridge(
+            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
+        )
+    if construction == "seam_repaint":
+        return assemble_seam_repaint(
+            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
+        )
+    if construction == "fold_repaint":
+        return assemble_fold_repaint(
+            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
+        )
+    raise ValueError(f"{construction} is not a generative loop construction")
+
+
+def _construct_deterministic(
+    construction: LoopConstruction, data: bytes
+) -> tuple[bytes, dict[str, object]]:
+    """Run a construction that needs no provider operation and therefore cannot fail."""
+
+    if construction == "mirror_repeat":
+        return mirror_repeat(data)
+    raise ValueError(f"{construction} is not a deterministic loop construction")
 
 
 def _layer_repeat_policies(

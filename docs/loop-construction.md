@@ -28,9 +28,10 @@ fact and tiles it; it never inspects pixels, repairs seams, or infers a period.
 
 ![Loop construction in the map branch](diagrams/loop-construction-pipeline.svg)
 
-The loop node sits between layer generation and layer validation. Its operation kind depends on the
-declared construction: `generated_bridge` maps expose an image operation because the bridge may need
-one, `mirror_repeat` maps expose a local operation because mirroring never calls a provider.
+The loop node sits between layer generation and layer validation. Its operation kind follows the
+selected construction's own `is_generative` declaration rather than a comparison against a
+construction name: a generative construction exposes an image operation because it may need one, a
+deterministic construction exposes a local operation because it never calls a provider.
 
 ## Admission comes first
 
@@ -45,6 +46,48 @@ add width and artefacts for no benefit, so admission is checked before anything 
 
 A construction is therefore only ever a response to a measured failure, and the provider cost of the
 whole feature is proportional to how often the model misses.
+
+## Two axes, and why the second one matters
+
+Constructions differ on two axes. The first decides what a layer costs; the second decides how much
+its loop can be trusted, and they are not the same question.
+
+**Agent** — whether the construction needs a provider operation. This is a structural property the
+execution graph reads directly, not a note about cost.
+
+**Guarantee** — where the loop's continuity actually comes from.
+
+| Tier | The wrap join is continuous because... | Constructions |
+| --- | --- | --- |
+| `reflection` | it is a mirror, so it is continuous by geometry and cannot fail. | `mirror_repeat`, `fold_repaint` |
+| `interior` | the wrap sits *inside* the canvas the provider sees, so the model paints through it as ordinary interior. | `seam_repaint` |
+| `anchored` | its boundary columns were *forced* equal after the fact. | `generated_bridge` |
+
+The tiers are ordered by how much they assume. `reflection` assumes nothing. `interior` assumes the
+provider can paint continuous content through a region it can see both sides of — which is the
+ordinary thing an image model is good at. `anchored` assumes the provider can meet two frozen ends
+at the edge of its own canvas, which is the thing it is worst at, and then papers over the
+difference.
+
+That last tier carries a consequence worth stating on its own: **anchoring assigns the very join
+that admission then measures**, so a bridged unit's join metric is 0.0 by construction and proves
+nothing. See [validation](#validation-and-evidence).
+
+### The constructions
+
+| Construction | Agent | Guarantee | Period | Mutates source |
+| --- | --- | --- | --- | --- |
+| direct admission | — | source already loops | `W` | no |
+| `mirror_repeat` | deterministic | `reflection` | `2W` | no |
+| `generated_bridge` | generative | `anchored` | `W + bridge_span` | no |
+| `seam_repaint` | generative | `interior` | `W` | **yes** |
+| `fold_repaint` | generative | `reflection` | `2W` | **yes** |
+
+### Source mutability is per-construction
+
+`mirror_repeat` and `generated_bridge` only ever append, so the generated layer stays recoverable
+from the result. The repaint constructions replace pixels around the join and it does not. Every
+loop record carries `mutates_source` so no consumer has to infer it from a construction name.
 
 ## `mirror_repeat` — the baseline
 
@@ -166,7 +209,17 @@ a demoted *material* reference — what the layer is made of, not how to arrange
 texture layer still needs to know it is drawing fence and flowers.
 
 The brief is versioned as `LOOP_BRIDGE_BRIEF_VERSION` and bound into the loop node's cache identity,
-so changing it re-runs the bridges without re-billing layer generation.
+so changing it re-runs the bridges without re-billing layer generation. The repaint constructions
+carry their own `LOOP_REPAINT_BRIEF_VERSION` for the same reason and a stronger one: a repaint asks
+the provider to carry existing content through a region it can see both sides of, which is a
+materially different request from inventing a span between two ends it cannot see across. Sending
+one brief for the other describes a canvas the provider is not looking at.
+
+Both families also carry a `framing` constant. `join` is what ships. `restoration`, which frames the
+request as restoring a mistakenly removed region, replicated better at n=7 — median residual 12.73
+to 8.17, join step 1.0 to 0.0, drift outliers eliminated — and is carried alongside so the choice is
+bound and reviewable rather than an untracked prompt edit. Selecting it is a separate decision from
+promoting the constructions.
 
 ### The provider owns the bridge's alpha
 
@@ -180,6 +233,37 @@ cloud edges — while passing every join metric, because the joins are not where
 of this kind are the majority of a map's background, so this is the common case rather than an edge
 case.
 
+## `seam_repaint` — repaint the wrap where the provider can see it
+
+Show the provider the wrap itself, centred: `[ A tail | A head ]`, a window of continuous artwork
+whose middle is the hard cut a player would see. Mask that middle and ask for it to be repainted.
+Nothing is appended; the returned span is written back over the source's tail and head, so the
+period stays exactly `W`.
+
+The returned span *straddles* the wrap, and that is the whole mechanism. Its left half belongs to
+the end of the strip and its right half to the beginning, but on the provider's canvas those halves
+were adjacent pixels. Whatever it painted across them is continuous because it was painting one
+region, not matching two ends. This is the `interior` guarantee, and it is why the construction
+does not inherit the bridge's hardest problem.
+
+Two properties follow that no other generative construction has:
+
+- **The period does not grow.** Authored content covers the same travel it always did.
+- **The join metric is real.** Nothing here assigns the wrap columns, so admission measuring them
+  is an actual measurement rather than a restatement of what anchoring just wrote.
+
+The price is that the source is no longer recoverable: pixels near the join are replaced.
+
+## `fold_repaint` — break the mirror without breaking the loop
+
+Build `[ A | mirror(A) ]` as `mirror_repeat` does, then repaint only the reflection axis so the
+content stops reading back on itself. The wrap fold is left untouched, so the join the loop
+actually depends on is still a reflection and still cannot fail.
+
+This is the narrow option: it costs a provider operation and keeps the doubled period, buying only
+the removal of the visible symmetry. It earns its place for a layer that must not read as mirrored
+and where `seam_repaint` has been rejected.
+
 ## Geometry and period consequences
 
 | Construction | Period | Provider ops | Mirrored content |
@@ -187,6 +271,8 @@ case.
 | direct admission | unchanged | 0 | none |
 | `mirror_repeat` | `2W` | 0 | half the period |
 | `generated_bridge` | `W + bridge_span` | 1 | none |
+| `seam_repaint` | `W` | 1 | none |
+| `fold_repaint` | `2W` | 1 | half the period, repainted |
 
 Layers within one map therefore end up on **different periods**, and every downstream consumer has
 to treat the period as a per-layer fact:
@@ -205,24 +291,45 @@ unit.
 ```toml
 [continuity]
 seamless_axis = "x"
-loop_construction = "mirror_repeat"   # or "generated_bridge"
+loop_construction = "mirror_repeat"   # map default, required
+loop_fallback = "mirror_repeat"       # optional; must be deterministic
+
+[[layer]]
+layer_id = "village"
+loop_construction = "seam_repaint"    # optional per-layer override
 ```
 
-The field is map-level, alongside the continuity requirement it satisfies. It is required: there is
-no safe default, because the two constructions trade correctness cost against composition cost in
-opposite directions and the right answer depends on what the map's layers depict.
+The map field is required: there is no safe default, because the constructions trade correctness
+cost against composition cost in opposite directions and the right answer depends on what the map's
+layers depict.
 
-Bridge geometry — context span, bridge span, anchor band — is recipe-owned and versioned. It is not
-authored, because it is a property of how the provider is conditioned rather than a creative choice.
+The per-layer field is optional and wins over the map's when present. Layers within one map do not
+share a difficulty. A layer whose own ends already agree loops under any construction; a layer whose
+ends disagree *in the source art* fails under all of them. A single map-wide choice cannot say so,
+which is why the override exists.
+
+`loop_fallback` is what runs when a generative construction cannot be completed. It is validated to
+be deterministic: a fallback that can itself fail is not a fallback.
+
+Everything else — context spans, repaint window and span, anchor band, brief version and framing —
+is recipe-owned and versioned. It is not authored, because it describes how the provider is
+conditioned rather than a creative choice.
 
 ## Cache identity
 
-`loop_construction` is excluded from layer-generation cache identity, and from the shared map
-direction digest. Switching a map between the two methods re-runs the loop node and everything
-downstream of it, and never re-bills a layer image that would return byte-identical.
+`loop_construction` is excluded from layer-generation cache identity — at both the map and the
+layer level — and from the shared map direction digest. Changing a construction re-runs the loop
+node and everything downstream of it, and never re-bills a layer image that would return
+byte-identical.
 
-The loop node's own identity binds the declared construction, both algorithm versions, the bridge
-geometry, and the layer's alpha mode.
+The loop node's own identity is **scoped to the construction that layer actually selected**: its
+version, its guarantee, its mutability, and only the recipe constants that construction consumes.
+Deterministic constructions bind no registration or anchor version at all, because they have no
+provider return to register.
+
+This scoping is the point rather than an optimisation. The identity previously bound *every*
+construction's version at once, so revising any one of them re-ran the loop node for every layer in
+every map regardless of what it had selected — a cost that would grow with each construction added.
 
 ## Validation and evidence
 
@@ -250,12 +357,13 @@ business, and its `looping_continuity` check is the gate that speaks to them.
 | Symptom | Cause | Where it surfaces |
 | --- | --- | --- |
 | Loop node fails | Constructed unit did not pass re-admission | Node error, run summary |
-| A bridged map silently produced a mirrored layer | Context bands disagreed, so the bridge was rejected | `bridge_rejected` in the loop record |
+| A generative construction silently produced the fallback | Context bands disagreed, so the return was rejected | `rejected_construction` and `rejection` in the loop record |
 | Content steps vertically at both joins | Registration not applied, or applied from a stale offset | Loop record `registration`; visible in the composite |
 | An object is cut in half at a join | Provider composed across the cut line; the brief invited a composition | Map review `looping_continuity` |
 | Bridge span reads as a tonal block | Provider painted the span in a different key from the strip | Map review `looping_continuity` |
 | Opaque fill where the source is transparent | Cut-out alpha clause not honoured on a transparent layer | Layer validation, review board |
 | Landmark appears twice per period, reflected | `mirror_repeat` on a high-salience layer | Map review `looping_continuity` |
+| A join reads correctly but the layer lost content | A repaint construction replaced pixels; the source is not recoverable | Loop record `mutates_source` |
 | Composite crops a layer | A consumer assumed one shared period | Composite geometry, review board |
 
 ## Related

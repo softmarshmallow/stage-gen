@@ -15,9 +15,7 @@ from stage_gen.components.game_content import (
 from stage_gen.components.game_map import PreparedGameMap, PreparedMapReference
 from stage_gen.config import StageGenConfig
 from stage_gen.media import (
-    BRIDGE_REGISTRATION_VERSION,
-    GENERATED_BRIDGE_VERSION,
-    MIRROR_REPEAT_VERSION,
+    LOOP_METHODS,
 )
 from stage_gen.orchestration.execution_graph import (
     ExecutionGraph,
@@ -31,13 +29,11 @@ from stage_gen.orchestration.execution_graph import (
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
-    LOOP_BRIDGE_BRIEF_VERSION,
-    LOOP_BRIDGE_CONTEXT_SPAN_PX,
-    LOOP_BRIDGE_SPAN_PX,
     NON_GENERATIVE_LAYER_FIELDS,
     PLACEMENT_ONLY_CLIMBABLE_FIELDS,
     PLACEMENT_ONLY_GROUND_FIELDS,
     RUNTIME_ONLY_LAYER_FIELDS,
+    loop_method_identity,
 )
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     DEFAULT_MOTION_ATLAS_GEOMETRY,
@@ -176,15 +172,15 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     terminals: list[str] = []
     for game_map in builder.package.maps:
         references = {entry.reference_id: entry for entry in game_map.references}
-        # Loop construction is consumed after generation, so it is excluded here for the same
-        # reason placement is: switching a map between mirror and bridge must re-run the loop node
-        # only, never re-bill every layer image.
+        # Both loop fields are consumed after generation, so they are excluded here for the same
+        # reason placement is: changing which construction a map selects, or which one it falls
+        # back to, must re-run the loop node only and never re-bill every layer image.
         map_direction = _object_sha256(
             {
                 "game": _visual_direction(builder.package),
                 "view": game_map.view.model_dump(mode="json"),
                 "continuity": game_map.continuity.model_dump(
-                    mode="json", exclude={"loop_construction"}
+                    mode="json", exclude={"loop_construction", "loop_fallback"}
                 ),
             }
         )
@@ -210,21 +206,23 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 input_digests=input_digests,
                 outputs=(f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",),
             )
-            # Loop construction sits between generation and validation because the bridge variant
-            # needs a provider call, while the mirror variant is purely local. Admission runs
-            # first inside the node, so a layer the model already returned as a clean repeat unit
-            # costs nothing on either route.
-            bridged = game_map.continuity.loop_construction == "generated_bridge"
+            # Loop construction sits between generation and validation because the generative
+            # constructions need a provider call while the deterministic ones are purely local.
+            # Which node kind this is follows from the construction's own declaration rather than
+            # from a name comparison here. Admission runs first inside the node either way, so a
+            # layer the model already returned as a clean repeat unit costs nothing on any route.
+            # The layer may override the map's construction, so resolve before anything reads it.
+            construction = layer.loop_construction or game_map.continuity.loop_construction
+            method = LOOP_METHODS[construction]
+            # Identity is scoped to the construction this layer actually selected. Binding every
+            # construction's version here, as this once did, meant revising any one of them
+            # re-ran the loop node for every layer in every map regardless of what it selected.
             loop_digests = (
                 _object_sha256(
                     {
-                        "construction": game_map.continuity.loop_construction,
-                        "mirror": MIRROR_REPEAT_VERSION,
-                        "bridge": GENERATED_BRIDGE_VERSION,
-                        "registration": BRIDGE_REGISTRATION_VERSION,
-                        "brief": LOOP_BRIDGE_BRIEF_VERSION,
-                        "context_span": LOOP_BRIDGE_CONTEXT_SPAN_PX,
-                        "bridge_span": LOOP_BRIDGE_SPAN_PX,
+                        **loop_method_identity(
+                            construction, fallback=game_map.continuity.loop_fallback
+                        ),
                         "alpha_mode": layer.alpha_mode,
                     }
                 ),
@@ -233,11 +231,13 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 f"maps/{game_map.map_id}/layers/{layer.layer_id}.loop.png",
                 f"maps/{game_map.map_id}/layers/{layer.layer_id}.loop.json",
             )
-            if bridged:
+            if method.is_generative:
                 looped = builder.add_external(
                     f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
                     domain=f"map-{game_map.map_id}",
-                    description=f"admit or bridge the x-axis loop for {layer.layer_id}",
+                    description=(
+                        f"admit the x-axis loop for {layer.layer_id}, else {construction}"
+                    ),
                     operation=OperationKind.IMAGE_GENERATION,
                     depends_on=(generated.node_id,),
                     cache_depends_on=(),
@@ -248,7 +248,9 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 looped = builder.add(
                     f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
                     domain=f"map-{game_map.map_id}",
-                    description=f"admit or mirror the x-axis loop for {layer.layer_id}",
+                    description=(
+                        f"admit the x-axis loop for {layer.layer_id}, else {construction}"
+                    ),
                     operation=OperationKind.LOCAL,
                     depends_on=(generated.node_id,),
                     input_digests=loop_digests,

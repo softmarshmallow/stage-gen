@@ -42,7 +42,7 @@ flowchart TD
 
     PR --> ML["map layer raw generate[*]"]
     PR --> MG["map ground 47-mask paintover generate[*]"]
-    ML --> MLC["admit loop, else mirror or bridge[*]"]
+    ML --> MLC["admit loop, else selected construction[*]"]
     MLC --> MLV["repeat validate, vertical trim + placement measure[*]"]
     MG --> MGV["validate paintover + deterministically canonicalize 47-mask atlas[*]"]
     PR --> LG["optional map climbable atlas generate[*]"]
@@ -162,7 +162,7 @@ reported by the owning node.
 
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Maps | 2 maps × (4 layers + 1 ground), 4 provider-assisted and 4 local loop passes, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
+| Maps | 2 maps × (4 layers + 1 ground), 8 loop passes split provider-assisted or local by each layer's own selected construction, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
 | Player | concept, 11 canonical-source states, dialogue, validations, board, review | 13 | 1 | 0 | 13 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |

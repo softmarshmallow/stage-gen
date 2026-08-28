@@ -5,14 +5,18 @@ from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
 
-from stage_gen.components.game_map import PreparedMapClimbable
+import pytest
+
+from stage_gen.components.game_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.config import StageGenConfig
+from stage_gen.media import LOOP_METHODS, LoopConstruction
 from stage_gen.orchestration.execution_graph import (
     ExecutionGraph,
     OperationKind,
     project_execution,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen.recipes.scrolling_preview import layer_contract
 from stage_gen.recipes.scrolling_preview.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
@@ -419,3 +423,159 @@ def test_remote_provider_resources_have_no_scheduler_concurrency_ceiling() -> No
     assert resources["openrouter-structured"].max_in_flight is None
     assert resources["openrouter-music"].max_in_flight is None
     assert resources["openai-image"].requests_per_minute == 150
+
+
+def _with_layer_construction(
+    package: ResolvedGamePackage,
+    map_id: str,
+    layer_id: str,
+    construction: LoopConstruction,
+) -> ResolvedGamePackage:
+    """Override one layer's loop construction, leaving every other authored value alone."""
+
+    maps: list[PreparedGameMap] = []
+    for game_map in package.maps:
+        if game_map.map_id != map_id:
+            maps.append(game_map)
+            continue
+        layers = [
+            layer.model_copy(update={"loop_construction": construction})
+            if layer.layer_id == layer_id
+            else layer
+            for layer in game_map.layers
+        ]
+        maps.append(game_map.model_copy(update={"layers": layers}))
+    return replace(
+        package, maps=tuple(maps), package_sha256="a" * 64, canonical_game_sha256="b" * 64
+    )
+
+
+def test_loop_node_kind_follows_the_construction_not_its_name() -> None:
+    """A deterministic construction must be a local node and a generative one an image node.
+
+    This is the property that used to be a string comparison against a single construction name,
+    which silently classified every construction added after it as local.
+    """
+
+    package = resolve_game_package(BELLWEATHER)
+    profile = package_graph_profile(StageGenConfig())
+    # Crowncrag authors `mirror_repeat`, so its loop nodes are local until a layer says otherwise.
+    crowncrag = next(item for item in package.maps if item.map_id == CROWNCRAG)
+    layer_id = crowncrag.layers[0].layer_id
+    node_id = f"map-{CROWNCRAG}-layer-{layer_id}-loop"
+
+    baseline = build_package_execution_graph(package, profile=profile)
+    assert baseline.node(node_id).operation is OperationKind.LOCAL
+
+    for construction in ("generated_bridge", "seam_repaint", "fold_repaint"):
+        overridden = build_package_execution_graph(
+            _with_layer_construction(package, CROWNCRAG, layer_id, construction),
+            profile=profile,
+        )
+        assert overridden.node(node_id).operation is OperationKind.IMAGE_GENERATION, construction
+
+
+def test_a_layer_construction_override_reruns_only_that_layer_loop() -> None:
+    """Selection is per-layer, so it must not disturb any sibling's identity."""
+
+    package = resolve_game_package(BELLWEATHER)
+    profile = package_graph_profile(StageGenConfig())
+    crowncrag = next(item for item in package.maps if item.map_id == CROWNCRAG)
+    changed_layer, *other_layers = crowncrag.layers
+
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(
+        _with_layer_construction(package, CROWNCRAG, changed_layer.layer_id, "seam_repaint"),
+        profile=profile,
+    )
+
+    changed_node = f"map-{CROWNCRAG}-layer-{changed_layer.layer_id}-loop"
+    assert original.node(changed_node).cache_key != changed.node(changed_node).cache_key
+    # The layer's own artwork is generated before the loop is constructed, so choosing a different
+    # construction must never re-bill the image.
+    generate = f"map-{CROWNCRAG}-layer-{changed_layer.layer_id}-generate"
+    assert original.node(generate).cache_key == changed.node(generate).cache_key
+    for sibling in other_layers:
+        sibling_node = f"map-{CROWNCRAG}-layer-{sibling.layer_id}-loop"
+        assert original.node(sibling_node).cache_key == changed.node(sibling_node).cache_key
+
+
+def test_revising_one_construction_leaves_the_others_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cache identity is scoped to the construction a layer selected.
+
+    The digest used to carry every construction's version at once, so revising any one of them
+    re-ran the loop node for every layer in every map whichever construction it actually used.
+    """
+
+    package = resolve_game_package(BELLWEATHER)
+    profile = package_graph_profile(StageGenConfig())
+    crowncrag = next(item for item in package.maps if item.map_id == CROWNCRAG)
+    # Crowncrag is authored `mirror_repeat`; point one layer at a generative construction so the
+    # map holds both kinds at once and the isolation claim is actually exercised.
+    mixed = _with_layer_construction(
+        package, CROWNCRAG, crowncrag.layers[0].layer_id, "seam_repaint"
+    )
+    original = build_package_execution_graph(mixed, profile=profile)
+
+    # The registry is immutable by design, so revise a copy and patch the name the recipe's
+    # identity function actually reads.
+    revised = dict(LOOP_METHODS)
+    revised["generated_bridge"] = replace(
+        LOOP_METHODS["generated_bridge"], version="generated-bridge-v99"
+    )
+    monkeypatch.setattr(layer_contract, "LOOP_METHODS", revised)
+    changed = build_package_execution_graph(mixed, profile=profile)
+
+    # Crowncrag selects `mirror_repeat` with one layer on `seam_repaint`; neither reads the
+    # bridge's version, so revising it must leave every one of its loop nodes alone.
+    for layer in crowncrag.layers:
+        node_id = f"map-{CROWNCRAG}-layer-{layer.layer_id}-loop"
+        assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
+
+    # Asserting the other half matters as much: an identity that isolated everything would also
+    # fail to invalidate. Derive the expectation from each layer's resolved construction rather
+    # than from the map's default, because a layer may override it.
+    sunpetal = next(item for item in mixed.maps if item.map_id != CROWNCRAG)
+    bridged = [
+        layer
+        for layer in sunpetal.layers
+        if (layer.loop_construction or sunpetal.continuity.loop_construction) == "generated_bridge"
+    ]
+    assert bridged, "the fixture must retain at least one bridged layer to prove invalidation"
+    for layer in bridged:
+        node_id = f"map-{sunpetal.map_id}-layer-{layer.layer_id}-loop"
+        assert original.node(node_id).cache_key != changed.node(node_id).cache_key, node_id
+    for layer in sunpetal.layers:
+        if layer in bridged:
+            continue
+        node_id = f"map-{sunpetal.map_id}-layer-{layer.layer_id}-loop"
+        assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
+
+
+def test_changing_the_fallback_does_not_re_bill_any_layer_image() -> None:
+    """The fallback is consumed after generation, so it must not reach a generation digest."""
+
+    package = resolve_game_package(BELLWEATHER)
+    profile = package_graph_profile(StageGenConfig())
+    maps = tuple(
+        game_map.model_copy(
+            update={
+                "continuity": game_map.continuity.model_copy(
+                    update={"loop_fallback": "mirror_repeat"}
+                )
+            }
+        )
+        for game_map in package.maps
+    )
+    changed_package = replace(
+        package, maps=maps, package_sha256="c" * 64, canonical_game_sha256="d" * 64
+    )
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(changed_package, profile=profile)
+
+    for game_map in package.maps:
+        for layer in game_map.layers:
+            node_id = f"map-{game_map.map_id}-layer-{layer.layer_id}-generate"
+            assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id

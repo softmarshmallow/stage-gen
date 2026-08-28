@@ -2,7 +2,7 @@ schema_version = 9
 kind = "game-map-v9"
 game_id = "bellweather"
 map_id = "sunpetal-crossing"
-revision = 11
+revision = 12
 display_name = "Sunpetal Crossing"
 
 [view]
@@ -29,6 +29,9 @@ meets the earth, and keep every villager easy to walk up to.
 [continuity]
 seamless_axis = "x"
 loop_construction = "generated_bridge"
+# Explicit here because this map's default is generative and can be rejected. Crowncrag omits the
+# field: its default is already deterministic, so the fallback can never fire.
+loop_fallback = "mirror_repeat"
 
 [[references]]
 reference_id = "sunpetal_scene"
@@ -76,6 +79,11 @@ Exclude the village, trees, route, characters, creatures, and near decoration.
 
 [[layers]]
 layer_id = "sunpetal_village"
+# This layer's own ends disagree in the source art - its ground line sits about 21px lower at the
+# tail than at the head, against 0 or -1px for every other layer here - so it is the one layer the
+# map default cannot serve. `seam_repaint` relocates the wrap into the middle of the canvas the
+# provider sees, so the join is painted through rather than met at a canvas edge.
+loop_construction = "seam_repaint"
 reference_ids = ["sunpetal_scene"]
 plane = "background"
 order = 2

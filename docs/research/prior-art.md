@@ -106,6 +106,14 @@ canvas for pixel art.
 
 ### 1.2 Repair-time methods — removing a seam that already exists
 
+> **Reserved name: `seam_cut`.** The two works below are one construction we have not built. If it
+> is implemented, it takes that name in
+> [`loop_construction.py`](../../src/stage_gen/media/loop_construction.py) — deterministic agent,
+> `interior` guarantee, period `W - overlap`. The name is reserved here rather than added to the
+> construction enum because nothing has been measured against our layers yet, and a name in an
+> enum reads as a promise that something works.
+
+
 **[Image Quilting for Texture Synthesis and Transfer](https://www.ipol.im/pub/art/2017/171/article_lr.pdf)**
 — Efros & Freeman, SIGGRAPH 2001; linked here as the IPOL reimplementation, which carries the
 algorithm in reproducible detail. Introduces the **minimum-error boundary cut**: given two patches

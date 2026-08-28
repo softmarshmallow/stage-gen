@@ -1,44 +1,140 @@
 """Deterministic constructions that make a raster loop on its horizontal axis.
 
-Two constructions are supported, and they differ in what guarantees the loop.
+Four constructions are supported. They differ on two axes, and both matter to callers.
 
-``mirror-repeat-v1``
-    Append a horizontal mirror of the source. Every join becomes a reflection, and a reflection is
-    continuous by definition, so the result loops exactly without any generative step. The period
-    doubles and the content reads back on itself, which is the price of the guarantee.
+**Agent** — whether the construction needs a provider operation at all. ``mirror_repeat`` is purely
+local; the other three each cost exactly one image edit. The execution graph reads this to decide
+whether the loop node is external, so it is a structural property rather than a documentation note.
 
-``generated-bridge-v1``
-    Append one generated span that carries the source's tail into its own head. This module owns
-    the deterministic half: it builds the conditioning the provider sees, and it anchors whatever
-    comes back so both joins are exact regardless of how far the provider drifted. The provider
-    owns the appearance *and* the alpha of the bridge, because an interpolated alpha profile cannot
-    invent a silhouette for a layer whose content is a cut-out shape.
+**Guarantee** — where the loop's continuity actually comes from. This predicts which constructions
+survive a hard input, and it is not the same thing as output quality:
 
-Both constructions leave the source pixels untouched and only ever append, so the original remains
-recoverable from the result.
+``reflection``
+    The wrap join is a mirror, continuous by geometry, and cannot fail.
+    ``mirror_repeat`` and ``fold_repaint``.
+
+``interior``
+    The wrap is relocated into the *interior* of the canvas the provider sees, so continuity across
+    it is something the model paints through rather than something we impose on it afterwards.
+    ``seam_repaint``.
+
+``anchored``
+    The wrap joins sit at the provider canvas *boundary* and are forced equal afterwards by
+    :func:`_anchor_columns`. ``generated_bridge``. This is the weakest tier and the reason is worth
+    stating plainly: anchoring assigns the very join that a downstream metric then measures, so a
+    bridged join always scores perfectly whether or not the art actually meets.
+
+Source mutability is per-construction, not global. ``mirror_repeat`` and ``generated_bridge`` only
+ever append, so the original stays recoverable from the result. ``seam_repaint`` and
+``fold_repaint`` replace pixels around the join, so it does not. Every record carries
+``mutates_source`` so no consumer has to infer it from a construction name.
 """
 
 from __future__ import annotations
 
 import io
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal
 
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
 MIRROR_REPEAT_VERSION = "mirror-repeat-v1"
 GENERATED_BRIDGE_VERSION = "generated-bridge-v1"
-BRIDGE_REGISTRATION_VERSION = "bridge-registration-v1"
+SEAM_REPAINT_VERSION = "seam-repaint-v1"
+FOLD_REPAINT_VERSION = "fold-repaint-v1"
+#: Registration is shared by every generative construction, not specific to the bridge, because the
+#: endpoint re-registers whatever canvas it is given regardless of what the canvas contains.
+SEAM_REGISTRATION_VERSION = "seam-registration-v1"
 
-LoopConstruction = Literal["mirror_repeat", "generated_bridge"]
+LoopConstruction = Literal["mirror_repeat", "generated_bridge", "seam_repaint", "fold_repaint"]
+LoopGuarantee = Literal["reflection", "interior", "anchored"]
 
 
-class BridgeRegistrationError(ValueError):
-    """The provider return cannot be placed in the source's frame.
+@dataclass(frozen=True, slots=True)
+class LoopMethod:
+    """What one construction costs, what guarantees its loop, and what it does to the source."""
+
+    name: LoopConstruction
+    version: str
+    is_generative: bool
+    guarantee: LoopGuarantee
+    mutates_source: bool
+    #: Whole copies of the source in the resulting period, before any appended span.
+    period_multiplier: int
+    #: Whether the construction appends a span whose width is decided by the caller.
+    appends_span: bool
+
+    def period_of(self, source_width: int, *, span: int = 0) -> int:
+        """Resulting period width. ``span`` is ignored by constructions that do not append."""
+
+        return source_width * self.period_multiplier + (span if self.appends_span else 0)
+
+    def identity(self) -> dict[str, object]:
+        """Media-side cache identity.
+
+        Deliberately partial: the spans and briefs a construction is driven with are recipe
+        decisions, so the recipe contributes those. Binding them here would put recipe vocabulary
+        into a provider-neutral component.
+        """
+
+        return {
+            "construction": self.name,
+            "version": self.version,
+            "guarantee": self.guarantee,
+            "mutates_source": self.mutates_source,
+        }
+
+
+LOOP_METHODS: Mapping[LoopConstruction, LoopMethod] = MappingProxyType(
+    {
+        "mirror_repeat": LoopMethod(
+            name="mirror_repeat",
+            version=MIRROR_REPEAT_VERSION,
+            is_generative=False,
+            guarantee="reflection",
+            mutates_source=False,
+            period_multiplier=2,
+            appends_span=False,
+        ),
+        "generated_bridge": LoopMethod(
+            name="generated_bridge",
+            version=GENERATED_BRIDGE_VERSION,
+            is_generative=True,
+            guarantee="anchored",
+            mutates_source=False,
+            period_multiplier=1,
+            appends_span=True,
+        ),
+        "seam_repaint": LoopMethod(
+            name="seam_repaint",
+            version=SEAM_REPAINT_VERSION,
+            is_generative=True,
+            guarantee="interior",
+            mutates_source=True,
+            period_multiplier=1,
+            appends_span=False,
+        ),
+        "fold_repaint": LoopMethod(
+            name="fold_repaint",
+            version=FOLD_REPAINT_VERSION,
+            is_generative=True,
+            guarantee="reflection",
+            mutates_source=True,
+            period_multiplier=2,
+            appends_span=False,
+        ),
+    }
+)
+
+
+class RegistrationError(ValueError):
+    """A provider return cannot be placed in the source's frame.
 
     Raised when the two context bands disagree about how far the return drifted, which means the
-    provider re-composed the strip rather than reproducing it. There is no single translation that
-    lands the bridge correctly, so the bridge is unusable and the caller must fall back.
+    provider re-composed the canvas rather than reproducing it. There is no single translation that
+    lands the edited span correctly, so the return is unusable and the caller must fall back.
     """
 
 
@@ -53,18 +149,28 @@ def _encode(image: Image.Image) -> bytes:
     return stream.getvalue()
 
 
+def _mirrored(source: Image.Image) -> Image.Image:
+    """``[ A | mirror(A) ]``, the base both reflection constructions are built on."""
+
+    result = Image.new("RGBA", (source.width * 2, source.height), (0, 0, 0, 0))
+    result.paste(source, (0, 0))
+    result.paste(ImageOps.mirror(source), (source.width, 0))
+    return result
+
+
 def mirror_repeat(data: bytes) -> tuple[bytes, dict[str, object]]:
     """Append a horizontal mirror so the raster loops without any provider call."""
 
     source = _decode(data)
     if source.width < 2:
         raise ValueError("mirror repeat requires at least two columns")
-    result = Image.new("RGBA", (source.width * 2, source.height), (0, 0, 0, 0))
-    result.paste(source, (0, 0))
-    result.paste(ImageOps.mirror(source), (source.width, 0))
+    method = LOOP_METHODS["mirror_repeat"]
+    result = _mirrored(source)
     return _encode(result), {
         "schema_version": 1,
         "kind": MIRROR_REPEAT_VERSION,
+        "guarantee": method.guarantee,
+        "mutates_source": method.mutates_source,
         "source_width": source.width,
         "period_width": result.width,
         "mirror_axis_x": source.width,
@@ -73,55 +179,118 @@ def mirror_repeat(data: bytes) -> tuple[bytes, dict[str, object]]:
 
 
 @dataclass(frozen=True, slots=True)
-class BridgeConditioning:
-    """The exact provider input for a generated bridge, plus the geometry to read it back."""
+class SeamConditioning:
+    """The exact provider input for one edited span, plus the geometry to read it back.
+
+    Every generative construction uses the same ``[ context | editable | context ]`` layout. That
+    is not a coincidence to be tidied away later: the two context bands are what make registration
+    measurable, so a construction that abandoned the layout would also lose the ability to tell a
+    displaced copy from a fresh composition.
+    """
 
     conditioning_png: bytes
     mask_png: bytes
     context_span: int
-    bridge_span: int
+    editable_span: int
     width: int
     height: int
 
 
-def build_bridge_conditioning(
-    data: bytes, *, context_span: int, bridge_span: int
-) -> BridgeConditioning:
-    """Lay out ``[ source tail | editable bridge | source head ]`` with an alpha-cut mask.
+def _mask_middle(view: Image.Image, editable_span: int) -> SeamConditioning:
+    """Mark the middle ``editable_span`` columns of ``view`` editable, contexts either side."""
 
-    The mask marks the bridge transparent because that is the convention the image edit endpoint
-    reads. The contexts are the real neighbours the bridge has to meet, so the provider is being
-    shown the actual problem rather than being asked to imagine one.
-    """
-
-    source = _decode(data)
-    if context_span < 1 or bridge_span < 1:
-        raise ValueError("bridge conditioning spans must be positive")
-    if context_span > source.width:
-        raise ValueError("bridge context span must not exceed the source width")
-    width = context_span * 2 + bridge_span
-    canvas = Image.new("RGBA", (width, source.height), (0, 0, 0, 0))
-    canvas.paste(source.crop((source.width - context_span, 0, source.width, source.height)), (0, 0))
-    canvas.paste(source.crop((0, 0, context_span, source.height)), (context_span + bridge_span, 0))
-    mask = Image.new("RGBA", canvas.size, (0, 0, 0, 255))
-    mask.paste(Image.new("RGBA", (bridge_span, source.height), (0, 0, 0, 0)), (context_span, 0))
-    return BridgeConditioning(
-        conditioning_png=_encode(canvas),
+    if editable_span < 1 or editable_span >= view.width:
+        raise ValueError("editable span must be positive and narrower than the view")
+    if (view.width - editable_span) % 2:
+        raise ValueError("view and editable spans must leave equal contexts on both sides")
+    context_span = (view.width - editable_span) // 2
+    mask = Image.new("RGBA", view.size, (0, 0, 0, 255))
+    mask.paste(Image.new("RGBA", (editable_span, view.height), (0, 0, 0, 0)), (context_span, 0))
+    return SeamConditioning(
+        conditioning_png=_encode(view),
         mask_png=_encode(mask),
         context_span=context_span,
-        bridge_span=bridge_span,
-        width=width,
-        height=source.height,
+        editable_span=editable_span,
+        width=view.width,
+        height=view.height,
     )
 
 
+def build_bridge_conditioning(
+    data: bytes, *, context_span: int, editable_span: int
+) -> SeamConditioning:
+    """Lay out ``[ source tail | editable bridge | source head ]`` with an alpha-cut mask.
+
+    The mask marks the bridge transparent because that is the convention the image edit endpoint
+    reads. The contexts are the real neighbours the bridge has to meet, so the provider is shown
+    the actual problem rather than asked to imagine one. Note what this layout costs: the wrap
+    joins land on the provider's canvas boundary, which is the ``anchored`` guarantee tier.
+    """
+
+    source = _decode(data)
+    if context_span < 1 or editable_span < 1:
+        raise ValueError("bridge conditioning spans must be positive")
+    if context_span > source.width:
+        raise ValueError("bridge context span must not exceed the source width")
+    width = context_span * 2 + editable_span
+    canvas = Image.new("RGBA", (width, source.height), (0, 0, 0, 0))
+    canvas.paste(source.crop((source.width - context_span, 0, source.width, source.height)), (0, 0))
+    head = source.crop((0, 0, context_span, source.height))
+    canvas.paste(head, (context_span + editable_span, 0))
+    return _mask_middle(canvas, editable_span)
+
+
+def build_seam_repaint_conditioning(
+    data: bytes, *, window_span: int, repaint_span: int
+) -> SeamConditioning:
+    """Show the wrap itself, centred: ``[ source tail | source head ]``, middle editable.
+
+    This is what the player actually sees across the loop, and the reason the construction earns
+    the ``interior`` guarantee: the wrap sits at the centre of the canvas, inside the editable
+    region, so the provider paints through it as ordinary interior instead of matching two frozen
+    ends at the edge of its own canvas.
+    """
+
+    source = _decode(data)
+    if window_span % 2:
+        raise ValueError("seam window span must be even")
+    half = window_span // 2
+    if half > source.width:
+        raise ValueError("seam window half must not exceed the source width")
+    view = Image.new("RGBA", (window_span, source.height), (0, 0, 0, 0))
+    view.paste(source.crop((source.width - half, 0, source.width, source.height)), (0, 0))
+    view.paste(source.crop((0, 0, half, source.height)), (half, 0))
+    return _mask_middle(view, repaint_span)
+
+
+def build_fold_repaint_conditioning(
+    data: bytes, *, window_span: int, repaint_span: int
+) -> SeamConditioning:
+    """Show the reflection axis of ``[ A | mirror(A) ]``, centred, middle editable.
+
+    Only the primary fold is repainted. The wrap fold is left alone, which is what keeps the
+    ``reflection`` guarantee intact: the construction removes the visible symmetry without ever
+    touching the join the loop depends on.
+    """
+
+    source = _decode(data)
+    if window_span % 2:
+        raise ValueError("fold window span must be even")
+    half = window_span // 2
+    if half > source.width:
+        raise ValueError("fold window half must not exceed the source width")
+    base = _mirrored(source)
+    view = base.crop((source.width - half, 0, source.width + half, source.height))
+    return _mask_middle(view, repaint_span)
+
+
 @dataclass(frozen=True, slots=True)
-class BridgeRegistration:
+class Registration:
     """How far the provider's return drifted from the conditioning it was given.
 
-    The two context bands are a measurement instrument: we sent known pixels and can see where
-    they came back. Each band yields an independent estimate of the same translation, so their
-    agreement is both the correction and the trust signal.
+    The two context bands are a measurement instrument: we sent known pixels and can see where they
+    came back. Each band yields an independent estimate of the same translation, so their agreement
+    is both the correction and the trust signal.
     """
 
     vertical_offset: int
@@ -171,13 +340,13 @@ def _best_offset(sent: Image.Image, returned: Image.Image, *, search: int) -> tu
     return best
 
 
-def measure_bridge_registration(
-    conditioning: BridgeConditioning,
+def measure_registration(
+    conditioning: SeamConditioning,
     provider_png: bytes,
     *,
     search_px: int = 64,
     tolerance_px: int = 6,
-) -> BridgeRegistration:
+) -> Registration:
     """Recover the translation the provider applied, from the context bands it repainted.
 
     The endpoint reproduces no pixel byte for byte, so this measures where the *content* landed
@@ -193,7 +362,7 @@ def measure_bridge_registration(
             (conditioning.width, conditioning.height), Image.Resampling.LANCZOS
         )
     span = conditioning.context_span
-    tail_x = conditioning.context_span + conditioning.bridge_span
+    tail_x = conditioning.context_span + conditioning.editable_span
     bands = (
         (0, span),
         (tail_x, tail_x + span),
@@ -209,12 +378,12 @@ def measure_bridge_registration(
         residuals.append(residual)
         uncorrected += _shift_residual(sent_band, returned_band, 0) / len(bands)
     if abs(offsets[0] - offsets[1]) > tolerance_px:
-        raise BridgeRegistrationError(
+        raise RegistrationError(
             "provider return is not a displaced copy of the conditioning: the context bands "
             f"disagree on the vertical offset ({offsets[0]} vs {offsets[1]}, tolerance "
             f"{tolerance_px})"
         )
-    return BridgeRegistration(
+    return Registration(
         vertical_offset=round((offsets[0] + offsets[1]) / 2),
         left_offset=offsets[0],
         right_offset=offsets[1],
@@ -224,14 +393,41 @@ def measure_bridge_registration(
     )
 
 
+def _landed_editable(
+    conditioning: SeamConditioning, provider_png: bytes
+) -> tuple[Image.Image, Registration]:
+    """Cut the edited span out of a return and undo the translation the provider applied.
+
+    Cropping at fixed pixel coordinates without undoing that translation places art that is
+    internally coherent into the wrong vertical position, which no join metric can see once the
+    edges are anchored. Every generative construction needs this, not just the bridge.
+    """
+
+    returned = _decode(provider_png)
+    if returned.size != (conditioning.width, conditioning.height):
+        returned = returned.resize(
+            (conditioning.width, conditioning.height), Image.Resampling.LANCZOS
+        )
+    registration = measure_registration(conditioning, provider_png)
+    start = conditioning.context_span
+    stop = start + conditioning.editable_span
+    band = returned.crop((start, 0, stop, conditioning.height)).copy()
+    if registration.vertical_offset:
+        landed = Image.new("RGBA", band.size, (0, 0, 0, 0))
+        landed.paste(band, (0, -registration.vertical_offset))
+        band = landed
+    return band, registration
+
+
 def _anchor_columns(
     bridge: Image.Image, *, left: Image.Image, right: Image.Image, band: int
 ) -> None:
-    """Ease the bridge onto its exact neighbours across a short band at each edge.
+    """Ease an edited span onto its exact neighbours across a short band at each edge.
 
-    The provider does not preserve the region a mask marks immutable, so the bridge arrives
-    misaligned at both ends. Forcing the outermost column and decaying the correction to zero over
-    ``band`` columns makes both joins exact without flattening the interior the provider painted.
+    The provider does not preserve the region a mask marks immutable, and registration correction
+    shifts the span vertically, so the span always arrives misaligned with whatever it is being
+    written next to. Forcing the outermost column and decaying the correction to zero over ``band``
+    columns makes both edges exact without flattening the interior the provider painted.
     """
 
     height = bridge.height
@@ -246,34 +442,30 @@ def _anchor_columns(
             bridge.paste(Image.blend(column, target, weight), (edge, 0))
 
 
+def _registration_record(registration: Registration) -> dict[str, object]:
+    return {
+        "kind": SEAM_REGISTRATION_VERSION,
+        "vertical_offset": registration.vertical_offset,
+        "left_offset": registration.left_offset,
+        "right_offset": registration.right_offset,
+        "left_residual": registration.left_residual,
+        "right_residual": registration.right_residual,
+        "uncorrected_residual": registration.uncorrected_residual,
+    }
+
+
 def assemble_generated_bridge(
     data: bytes,
     provider_png: bytes,
     *,
-    conditioning: BridgeConditioning,
+    conditioning: SeamConditioning,
     anchor_band: int = 24,
 ) -> tuple[bytes, dict[str, object]]:
-    """Cut the bridge out of a provider return, land it in the source's frame, and append it.
-
-    Only the bridge span is taken, but the context regions are read before they are discarded:
-    they carry the translation the provider applied to the whole canvas. Cropping at fixed pixel
-    coordinates without undoing that translation places art that is internally coherent into the
-    wrong vertical position, which no join metric can see once the edges are anchored.
-    """
+    """Land a returned bridge in the source's frame and append it, growing the period."""
 
     source = _decode(data)
-    returned = _decode(provider_png)
-    if returned.size != (conditioning.width, conditioning.height):
-        returned = returned.resize(
-            (conditioning.width, conditioning.height), Image.Resampling.LANCZOS
-        )
-    registration = measure_bridge_registration(conditioning, provider_png)
-    start = conditioning.context_span
-    bridge = returned.crop((start, 0, start + conditioning.bridge_span, conditioning.height)).copy()
-    if registration.vertical_offset:
-        landed = Image.new("RGBA", bridge.size, (0, 0, 0, 0))
-        landed.paste(bridge, (0, -registration.vertical_offset))
-        bridge = landed
+    method = LOOP_METHODS["generated_bridge"]
+    bridge, registration = _landed_editable(conditioning, provider_png)
     _anchor_columns(
         bridge,
         left=source.crop((source.width - 1, 0, source.width, source.height)),
@@ -281,29 +473,121 @@ def assemble_generated_bridge(
         band=anchor_band,
     )
     result = Image.new(
-        "RGBA", (source.width + conditioning.bridge_span, source.height), (0, 0, 0, 0)
+        "RGBA", (source.width + conditioning.editable_span, source.height), (0, 0, 0, 0)
     )
     result.paste(source, (0, 0))
     result.paste(bridge, (source.width, 0))
     return _encode(result), {
         "schema_version": 1,
         "kind": GENERATED_BRIDGE_VERSION,
+        "guarantee": method.guarantee,
+        "mutates_source": method.mutates_source,
         "source_width": source.width,
         "period_width": result.width,
-        "bridge_span": conditioning.bridge_span,
+        "bridge_span": conditioning.editable_span,
         "context_span": conditioning.context_span,
         "anchor_band": anchor_band,
         "provider_owns_alpha": True,
         "provider_operations": 1,
-        "registration": {
-            "kind": BRIDGE_REGISTRATION_VERSION,
-            "vertical_offset": registration.vertical_offset,
-            "left_offset": registration.left_offset,
-            "right_offset": registration.right_offset,
-            "left_residual": registration.left_residual,
-            "right_residual": registration.right_residual,
-            "uncorrected_residual": registration.uncorrected_residual,
-        },
+        "registration": _registration_record(registration),
+    }
+
+
+def assemble_seam_repaint(
+    data: bytes,
+    provider_png: bytes,
+    *,
+    conditioning: SeamConditioning,
+    anchor_band: int = 24,
+) -> tuple[bytes, dict[str, object]]:
+    """Write a repainted wrap window back over the source tail and head. The period is unchanged.
+
+    The returned span straddles the wrap, so its left half belongs to the end of the source and its
+    right half to the beginning. Splitting it there is what makes the loop close: the two halves
+    were adjacent pixels on the provider's canvas, so whatever it painted across them is continuous
+    by construction rather than by correction.
+    """
+
+    source = _decode(data)
+    method = LOOP_METHODS["seam_repaint"]
+    half_span = conditioning.editable_span // 2
+    if conditioning.editable_span % 2:
+        raise ValueError("seam repaint span must be even to split across the wrap")
+    if half_span * 2 > source.width:
+        # The two halves are written to opposite ends of the source, so they collide as soon as
+        # they are wider than it between them. Comparing one half against the whole width lets
+        # that overlap through and silently overwrites the tail with the head.
+        raise ValueError(
+            f"seam repaint span must not exceed the source width: {half_span * 2} > {source.width}"
+        )
+    band, registration = _landed_editable(conditioning, provider_png)
+    _anchor_columns(
+        band,
+        left=source.crop(
+            (source.width - half_span - 1, 0, source.width - half_span, source.height)
+        ),
+        right=source.crop((half_span, 0, half_span + 1, source.height)),
+        band=anchor_band,
+    )
+    result = source.copy()
+    result.paste(band.crop((0, 0, half_span, band.height)), (source.width - half_span, 0))
+    result.paste(band.crop((half_span, 0, conditioning.editable_span, band.height)), (0, 0))
+    return _encode(result), {
+        "schema_version": 1,
+        "kind": SEAM_REPAINT_VERSION,
+        "guarantee": method.guarantee,
+        "mutates_source": method.mutates_source,
+        "source_width": source.width,
+        "period_width": result.width,
+        "repaint_span": conditioning.editable_span,
+        "context_span": conditioning.context_span,
+        "anchor_band": anchor_band,
+        "provider_owns_alpha": True,
+        "provider_operations": 1,
+        "registration": _registration_record(registration),
+    }
+
+
+def assemble_fold_repaint(
+    data: bytes,
+    provider_png: bytes,
+    *,
+    conditioning: SeamConditioning,
+    anchor_band: int = 24,
+) -> tuple[bytes, dict[str, object]]:
+    """Write a repainted fold back into ``[ A | mirror(A) ]``, leaving the wrap fold untouched."""
+
+    source = _decode(data)
+    method = LOOP_METHODS["fold_repaint"]
+    half_span = conditioning.editable_span // 2
+    if conditioning.editable_span % 2:
+        raise ValueError("fold repaint span must be even to straddle the reflection axis")
+    if half_span > source.width:
+        raise ValueError("fold repaint span must not exceed twice the source width")
+    base = _mirrored(source)
+    band, registration = _landed_editable(conditioning, provider_png)
+    fold_x = source.width
+    _anchor_columns(
+        band,
+        left=base.crop((fold_x - half_span - 1, 0, fold_x - half_span, base.height)),
+        right=base.crop((fold_x + half_span, 0, fold_x + half_span + 1, base.height)),
+        band=anchor_band,
+    )
+    base.paste(band, (fold_x - half_span, 0))
+    return _encode(base), {
+        "schema_version": 1,
+        "kind": FOLD_REPAINT_VERSION,
+        "guarantee": method.guarantee,
+        "mutates_source": method.mutates_source,
+        "source_width": source.width,
+        "period_width": base.width,
+        "repaint_span": conditioning.editable_span,
+        "context_span": conditioning.context_span,
+        "mirror_axis_x": fold_x,
+        "anchor_band": anchor_band,
+        "provider_owns_alpha": True,
+        "provider_operations": 1,
+        "registration": _registration_record(registration),
     }
 
 

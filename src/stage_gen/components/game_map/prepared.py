@@ -27,6 +27,7 @@ from stage_gen.components._game_input import (
     unique_values,
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
+from stage_gen.media import LOOP_METHODS, LoopConstruction
 
 PREPARED_GAME_MAP_SCHEMA_VERSION = 9
 #: Generated terrain geometry is its own artifact contract, produced by a generator the map
@@ -97,7 +98,31 @@ class PreparedMapContinuity(PersistedContractModel):
     #
     # `generated_bridge` appends one generated span that carries the tail into the head. It costs
     # one image operation per layer that needs it and produces no mirrored content.
-    loop_construction: Literal["mirror_repeat", "generated_bridge"]
+    #
+    # `seam_repaint` repaints the wrap itself after relocating it to the middle of the canvas the
+    # provider sees. It costs one image operation, leaves the period unchanged, and is the only
+    # construction whose join the provider paints through rather than meets.
+    #
+    # `fold_repaint` repaints a mirror's reflection axis so the content stops reading back on
+    # itself, leaving the wrap fold untouched.
+    #
+    # The repaint constructions replace source pixels rather than appending, so the generated
+    # layer is not recoverable from a map that selects them.
+    loop_construction: LoopConstruction
+    # Construction used when the selected one cannot be completed - a provider return that is not
+    # a displaced copy of what we sent, so no single translation lands it. Must be deterministic:
+    # a fallback that can itself fail is not a fallback.
+    loop_fallback: LoopConstruction = "mirror_repeat"
+
+    @field_validator("loop_fallback")
+    @classmethod
+    def validate_loop_fallback(cls, value: LoopConstruction) -> LoopConstruction:
+        if LOOP_METHODS[value].is_generative:
+            raise ValueError(
+                "loop_fallback must be a deterministic construction; "
+                f"{value} needs a provider operation and can fail the same way"
+            )
+        return value
 
 
 class PreparedMapLayerPresentation(PersistedContractModel):
@@ -155,6 +180,11 @@ class PreparedMapLayer(PersistedContractModel):
     # because an authored fraction is a prediction about pixels that do not exist yet. An override
     # that is too small to seal a bottom-anchored layer is rejected with the measured minimum.
     vertical_offset: float | None = Field(default=None, ge=-1.0, le=1.0)
+    # Optional per-layer override of the map's loop construction. Omit it to take the map default.
+    # Layers within one map do not share a difficulty: a layer whose own ends already agree loops
+    # under any construction, while one whose ends disagree in the source art fails under all of
+    # them. Forcing a single construction across a map treats those as the same problem.
+    loop_construction: LoopConstruction | None = None
     presentation: PreparedMapLayerPresentation
     prompt: str
 
