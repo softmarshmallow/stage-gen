@@ -1104,12 +1104,15 @@ class PreparedContentNodeHandler:
             "map_topology": [
                 {
                     "map_id": game_map.map_id,
-                    "occupancy_rows": len(game_map.ground.occupancy),
-                    "occupancy_columns": len(game_map.ground.occupancy[0]),
+                    # The authored request, not generated geometry: content direction needs the
+                    # shape of the world, and taking it from the map keeps this stage
+                    # independent of terrain generation.
+                    "occupancy_rows": game_map.terrain.rows,
+                    "occupancy_columns": game_map.terrain.columns,
                     "climbable_ids": (
                         []
                         if game_map.climbable is None
-                        else [entry.climbable_id for entry in game_map.climbable.placements]
+                        else [entry.variant_id for entry in game_map.climbable.variants]
                     ),
                     "climbable_variants": (
                         []

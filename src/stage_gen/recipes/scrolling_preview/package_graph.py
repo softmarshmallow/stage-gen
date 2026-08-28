@@ -281,6 +281,29 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             )
             layer_validations.append(validated.node_id)
 
+        # Terrain shape is generated the way artwork is generated: the map states a generator and
+        # a brief, this node produces geometry, and the result is an artifact with provenance.
+        # It depends only on the request, so re-painting a material atlas never reshapes a level
+        # and reshaping a level never repaints an atlas.
+        terrain = builder.add_external(
+            f"map-{game_map.map_id}-terrain-generate",
+            domain=f"map-{game_map.map_id}",
+            description=f"compose {game_map.terrain.mode} terrain for {game_map.map_id}",
+            operation=OperationKind.STRUCTURED_GENERATION,
+            depends_on=(package_root,),
+            cache_depends_on=(),
+            input_digests=(
+                map_direction,
+                _object_sha256(game_map.terrain.model_dump(mode="json")),
+                _object_sha256(
+                    {}
+                    if game_map.climbable is None
+                    else {"variants": [entry.variant_id for entry in game_map.climbable.variants]}
+                ),
+            ),
+            outputs=(f"maps/{game_map.map_id}/terrain.json",),
+        )
+
         # The atlas paintover is appearance only: authored geometry and vertical fit select cells
         # and placement downstream without changing what the image model is asked to paint.
         ground_direction = game_map.ground.model_dump(
@@ -406,7 +429,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             domain=f"map-{game_map.map_id}",
             description=f"compose all declared layers and ground for {game_map.map_id}",
             operation=OperationKind.LOCAL,
-            depends_on=(*layer_validations, ground_validation.node_id),
+            depends_on=(*layer_validations, ground_validation.node_id, terrain.node_id),
             input_digests=(
                 _object_sha256(_map_without_runtime_presentation(game_map)),
                 _object_sha256({"compositor": "prepared-map-placed-compositor-v6"}),

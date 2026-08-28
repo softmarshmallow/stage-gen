@@ -1,8 +1,8 @@
-schema_version = 7
-kind = "game-map-v7"
+schema_version = 8
+kind = "game-map-v8"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 12
+revision = 13
 display_name = "Amberbell Forest"
 
 [view]
@@ -10,6 +10,19 @@ profile = "side_view_2d"
 gameplay_space = "side_plane"
 camera_behavior = "scrolling"
 scroll_axis = "x"
+
+[terrain]
+mode = "platformer-chunk-map-v1"
+columns = 96
+rows = 16
+walk_surface_row = 13
+brief = """
+A pilgrim road that climbs in three acts. It leaves the river on a
+ladder-fed shelf, rises gently into a root gallery where a rope ladder hangs over a hollow,
+drops back toward the water, crosses a ravine on a rising line of stepping platforms, and
+finishes on two more climbs onto the crown approach. Every height change the player cannot
+walk should be a climbable rather than a wall, and every deck should stay in frame.
+"""
 
 [continuity]
 seamless_axis = "x"
@@ -96,26 +109,7 @@ the route, shrines, ancient tree, distant scenery, characters, and creatures.
 [ground]
 mode = "terrain-atlas-3x3-minimal-v1"
 reference_ids = ["amberbell_scene"]
-occupancy = [
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000000000000000000001111110000000000000000000000000000000000000000000000000000000000001111110",
-  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-  "000000011111100000000000000000000000000000000000000000000000011110000000011111100000000000000000",
-  "000000000000000000000000000000000000000000000000000000111100000000000000000000000000000000000000",
-  "000000000000000000111111111111000000110000000001111000000000000000000000000000000000111111111111",
-  "000000000000000011111111111111000000111100000000000000000000000000000000000000000011111111111111",
-  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
-  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
-  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
-]
 vertical_fit = "floor_to_screen_bottom"
-walk_surface_row = 13
 prompt = """
 Create Amberbell Forest's stable terrain material from the selected scene:
 broad warm cream paving interwoven with old roots, moss-softened edges, sparse
@@ -156,34 +150,6 @@ the bottom. One continuous near-vertical strand.
 # Terrain and placements are compiled by scripts/author_terrain.py from a declarative
 # level plan, which checks the rise tolerance, deck exposure, ledge overlap, and the
 # runtime camera range before anything is written here.
-[[climbable.placements]]
-climbable_id = "c1"
-variant_id = "bellroot_ladder"
-normalized_x = 0.109375
-bottom_surface = "terrain"
-rise_tiles = 4
-
-[[climbable.placements]]
-climbable_id = "c2"
-variant_id = "shrine_rope_ladder"
-normalized_x = 0.276042
-bottom_surface = "terrain"
-rise_tiles = 4
-
-[[climbable.placements]]
-climbable_id = "c3"
-variant_id = "bellrope_climb"
-normalized_x = 0.796875
-bottom_surface = "terrain"
-rise_tiles = 4
-
-[[climbable.placements]]
-climbable_id = "c4"
-variant_id = "bellroot_ladder"
-normalized_x = 0.963542
-bottom_surface = "terrain"
-rise_tiles = 4
-
 [portal]
 mode = "portal-pair-1x2-v1"
 reference_ids = ["amberbell_scene"]

@@ -43,11 +43,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # operations; Crowncrag declares `mirror_repeat` so its four are local. The image count is a
     # worst case: each loop node admits the generated raster first and only constructs when that
     # fails, so a layer the model already returned as a clean repeat unit spends nothing.
-    assert len(graph.nodes) == 213
+    assert len(graph.nodes) == 215
     assert graph.operation_counts() == {
         "local": 102,
         "image_generation": 92,
-        "structured_generation": 16,
+        "structured_generation": 18,
         "music_generation": 3,
     }
     assert graph.terminal_node_id == "manifest-assemble"
@@ -162,6 +162,7 @@ def test_package_graph_encodes_leaf_dependencies_without_coarse_wave_barriers() 
         "map-sunpetal-crossing-layer-sunpetal_village-validate",
         "map-sunpetal-crossing-layer-near_garden_frame-validate",
         "map-sunpetal-crossing-ground-validate",
+        "map-sunpetal-crossing-terrain-generate",
     }
     assert "map-crowncrag-road-review" not in composite.depends_on
     assert set(graph.node("map-crowncrag-road-review").depends_on) == {
@@ -299,53 +300,60 @@ def _crowncrag_climbable_package(**update: object) -> ResolvedGamePackage:
     )
 
 
-def _first_placement_moved(package: ResolvedGamePackage, **update: object) -> list[object]:
-    """Edit the first declared instance only, by position rather than by authored ID."""
-
-    placements = _crowncrag_climbable(package).placements
-    return [placements[0].model_copy(update=update), *placements[1:]]
-
-
-def test_moving_a_climbable_does_not_re_bill_the_atlas_image() -> None:
-    """The atlas draws each variant once; where an instance stands is not part of the art."""
+def _crowncrag_terrain_package(**update: object) -> ResolvedGamePackage:
+    """Rebuild Bellweather with only the Crowncrag terrain REQUEST edited."""
 
     package = resolve_game_package(BELLWEATHER)
-    moved = _first_placement_moved(package, climbable_id="moved_instance", normalized_x=0.140625)
+    crowncrag = next(entry for entry in package.maps if entry.map_id == CROWNCRAG)
+    changed = crowncrag.terrain.model_copy(update=update)
+    maps = tuple(
+        entry.model_copy(update={"terrain": changed}) if entry.map_id == CROWNCRAG else entry
+        for entry in package.maps
+    )
+    return replace(package, package_sha256="f" * 64, canonical_game_sha256="e" * 64, maps=maps)
+
+
+def test_reshaping_terrain_does_not_re_bill_any_artwork() -> None:
+    """Artwork cannot depend on terrain shape, because the map no longer carries any.
+
+    This used to need an explicit exclusion list. Now the material atlas and the climbable atlas
+    simply have nothing geometric to read, so asking for a different level cannot redraw them.
+    """
+
     profile = package_graph_profile(StageGenConfig())
-    original = build_package_execution_graph(package, profile=profile)
+    original = build_package_execution_graph(resolve_game_package(BELLWEATHER), profile=profile)
     changed = build_package_execution_graph(
-        _crowncrag_climbable_package(placements=moved), profile=profile
+        _crowncrag_terrain_package(brief="A single flat street with nothing on it at all."),
+        profile=profile,
     )
 
-    generate = f"map-{CROWNCRAG}-climbable-generate"
-    assert original.node(generate).input_sha256 == changed.node(generate).input_sha256
-    assert original.node(generate).cache_key == changed.node(generate).cache_key
-
-    # The move must not re-bill any other paid operation either.
-    assert {
+    paid = {
         node.node_id: node.cache_key
         for node in original.nodes
         if node.operation is OperationKind.IMAGE_GENERATION
-    } == {
+    }
+    assert paid == {
         node.node_id: node.cache_key
         for node in changed.nodes
         if node.operation is OperationKind.IMAGE_GENERATION
     }
+    # The terrain node itself must react, or nothing would ever recompose the level.
+    generate = f"map-{CROWNCRAG}-terrain-generate"
+    assert original.node(generate).cache_key != changed.node(generate).cache_key
 
 
-def test_moved_climbable_still_reaches_every_node_that_consumes_placement_geometry() -> None:
-    """Placement is runtime geometry, so nothing that reads it may be served a stale artifact."""
+def test_a_changed_terrain_request_reaches_every_node_that_consumes_geometry() -> None:
+    """Geometry is generated, so nothing that reads it may be served a stale artifact."""
 
-    package = resolve_game_package(BELLWEATHER)
-    moved = _first_placement_moved(package, normalized_x=0.140625)
     profile = package_graph_profile(StageGenConfig())
-    original = build_package_execution_graph(package, profile=profile)
+    original = build_package_execution_graph(resolve_game_package(BELLWEATHER), profile=profile)
     changed = build_package_execution_graph(
-        _crowncrag_climbable_package(placements=moved), profile=profile
+        _crowncrag_terrain_package(brief="A single flat street with nothing on it at all."),
+        profile=profile,
     )
 
     for node_id in (
-        f"map-{CROWNCRAG}-climbable-validate",
+        f"map-{CROWNCRAG}-terrain-generate",
         f"map-{CROWNCRAG}-composite",
         f"map-{CROWNCRAG}-review",
         "package-resolve",
@@ -377,12 +385,8 @@ def test_declared_climbable_variants_and_prompts_remain_atlas_generation_identit
 
     # Dropping a variant changes how many cells the sheet is asked for, so the atlas cannot reuse
     # art drawn for the larger roster.
-    dropped = climbable.ropes[0].variant_id
     smaller = build_package_execution_graph(
-        _crowncrag_climbable_package(
-            ropes=[],
-            placements=[entry for entry in climbable.placements if entry.variant_id != dropped],
-        ),
+        _crowncrag_climbable_package(ropes=[]),
         profile=profile,
     )
     assert original.node(generate).cache_key != smaller.node(generate).cache_key
@@ -394,8 +398,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 297_650
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.06
-    assert projection.estimated_cost_high_usd == 22.08
+    assert projection.estimated_cost_low_usd == 4.07
+    assert projection.estimated_cost_high_usd == 22.24
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

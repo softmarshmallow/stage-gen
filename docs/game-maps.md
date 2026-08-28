@@ -9,7 +9,7 @@
 
 ## Current boundary
 
-Each `maps/<map_id>.toml` is one `game-map-v7` source. It describes the assets
+Each `maps/<map_id>.toml` is one `game-map-v8` source. It describes the assets
 and composition needed to generate one side-view map and the static topology
 needed to render its ground, climbables, and portal structures.
 
@@ -33,7 +33,7 @@ library/games/<game_id>/
 | Owner | Owns |
 | --- | --- |
 | `game.toml` | Game identity, package membership, and exact map-source digests |
-| `maps/<map_id>.toml` | Map references, side-view envelope, continuity, ordered layers, binary terrain occupancy, ground generation, climbable geometry and placement, portal presentation and endpoint anchors, and whole-map review |
+| `maps/<map_id>.toml` | Map references, side-view envelope, continuity, ordered layers, ground generation, the terrain request a generator answers, the climbable roster, portal presentation and endpoint anchors, and whole-map review |
 | `gameplay.toml` | Entry map, movement permission, transition relationships, spawning, encounters, NPC/item use, and soundtrack selection |
 | Scrolling recipe | Provider operations, deterministic terrain-atlas assembly, validation, review, and immutable artifacts |
 | Consumer | Coordinate projection, collision, camera, input, rendering, and simulation |

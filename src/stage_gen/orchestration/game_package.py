@@ -893,19 +893,13 @@ def _placed_climbable_roles(maps: Sequence[PreparedGameMap]) -> set[str]:
         climbable = game_map.climbable
         if climbable is None:
             continue
-        role_by_variant = {
-            variant.variant_id: role
-            for role, variants in (("ladder", climbable.ladders), ("rope", climbable.ropes))
-            for variant in variants
-        }
-        for placement in climbable.placements:
-            role = role_by_variant.get(placement.variant_id)
-            if role is None:
-                raise GamePackageValidationError(
-                    "climbable_variant_mismatch",
-                    f"climbable placement {placement.climbable_id} names an undeclared variant",
-                )
-            required.add(PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE[role])
+        # Which climb states the player needs follows from the roster a map can DRAW, not from
+        # where instances stand. Placement is generated terrain and does not exist yet at
+        # package resolution; a declared rope variant already means the player must be able to
+        # climb a rope, whatever the generator later does with it.
+        for role, variants in (("ladder", climbable.ladders), ("rope", climbable.ropes)):
+            if variants:
+                required.add(PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE[role])
     return required
 
 

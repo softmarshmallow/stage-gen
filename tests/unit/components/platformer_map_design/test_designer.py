@@ -23,7 +23,7 @@ from ._profiles import GROUND_FOOTED_PROFILE
 
 _SOUND_SENTENCE: dict[str, object] = {
     "design_notes": "a breather, a climb, a dip, and a jump chain",
-    "start_height": 3,
+    "start_height_tiles": 3,
     "chunks": [
         {"kind": "run", "len": 10},
         {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},
@@ -45,7 +45,7 @@ _SOUND_SENTENCE: dict[str, object] = {
 
 _OVERFLOWING_SENTENCE: dict[str, object] = {
     "design_notes": "wider than the map",
-    "start_height": 3,
+    "start_height_tiles": 3,
     "chunks": [
         {"kind": "run", "len": 100},
         {"kind": "hollow", "width": 40, "depth": 1},
@@ -57,7 +57,7 @@ _OVERFLOWING_SENTENCE: dict[str, object] = {
 #: climbables at all. Nine problems against a budget of six.
 _MANY_PROBLEM_SENTENCE: dict[str, object] = {
     "design_notes": "eight words this game does not have",
-    "start_height": 3,
+    "start_height_tiles": 3,
     "chunks": [
         *({"kind": f"spiral_{turn}", "turns": turn} for turn in range(1, 9)),
         {"kind": "run", "len": 40},
@@ -68,7 +68,7 @@ _MANY_PROBLEM_SENTENCE: dict[str, object] = {
 #: complaint names a column, which is what the chunk translator re-anchors.
 _TOO_DEEP_SENTENCE: dict[str, object] = {
     "design_notes": "a floor deeper than this game can carry",
-    "start_height": 10,
+    "start_height_tiles": 10,
     "chunks": [
         {"kind": "run", "len": 10},
         {"kind": "run", "len": 30},

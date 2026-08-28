@@ -128,7 +128,7 @@ def _chained_shaft(
 def _ground_footed_sentence() -> dict[str, object]:
     return {
         "design_notes": "a breather, a climb, a dip, and a jump chain",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 10},
             {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},

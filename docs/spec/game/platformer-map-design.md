@@ -9,18 +9,22 @@
 >
 > It is not an approved prompt input and not a rights grant, and it makes no claim that
 > any produced design or downstream artwork has passed semantic review or a publication
-> gate. It does not change the authored `game-map-v7` contract or the generation graph:
-> the module writes designs, and applying one to a shipped map remains a deliberate,
-> separately authorized edit. The measurements behind every choice here are recorded in
+> gate. The module composes terrain inside the generation graph; it never edits an
+> authored map document. The measurements behind every choice here are recorded in
 > [LLM map-design format study](../../research/llm-map-design-formats.md).
 
 ## Authority and purpose
 
-A map's terrain shape is authored geometry, not generated art. `game-map-v7` already owns
-where that geometry lives — a binary `occupancy` matrix and a set of climbable placements
-inside `maps/<map_id>.toml` — but it says nothing about where the matrix comes from. Writing
-one by hand is a counting exercise across several interacting contracts, and every format
-that asks a model to write cells directly fails at the counting rather than at the design.
+A map's terrain shape is generated, exactly the way its artwork is generated. `game-map-v8`
+states the request — a `[terrain]` table naming a generator and a brief — and a graph node
+answers with a `map-terrain-v1` artifact carrying the occupancy, the walk-surface row, and the
+climbable placements. No geometry is written back into `maps/<map_id>.toml`, for the same
+reason no PNG is: a document that carried its own compiled output would have two truths and no
+way to tell which one was stale.
+
+What remains hard is the composing. Writing a matrix by hand is a counting exercise across
+several interacting contracts, and every format that asks a model to write cells directly
+fails at the counting rather than at the design.
 
 This module is the designer that sits in front of that matrix. It is LLM-backed, and its
 authoring surface is a **chunk grammar**: a map is a left-to-right *sentence* of parameterized
@@ -250,7 +254,7 @@ Per-chunk tagging gets contiguity for free, and it puts switches on landmarks by
 "the hollow is the glow-moss pocket" is a single word in the sentence, where a grid format would
 need a separate biome-region list with its own counting.
 
-**A profile authored for Bellweather ships `biomes = ()` today.** `game-map-v7` binds exactly
+**A profile authored for Bellweather ships `biomes = ()` today.** `game-map-v8` binds exactly
 one terrain atlas per map and exposes no per-region style surface, so a design that expressed
 per-region appearance would have nowhere to send it. Enabling regions is not a profile edit: it
 needs a new ground mode under `[ground]` with its producer, validation, manifest, and consumer
@@ -307,7 +311,7 @@ mirrored, treat a placement change as paid work and sequence it accordingly.
 
 ## Related contracts
 
-- [Authored map-generation contract](map-generation-contract.md) — `game-map-v7`, which owns the
+- [Authored map-generation contract](map-generation-contract.md) — `game-map-v8`, which owns the
   `occupancy` matrix and the climbable placements a design is applied into.
 - [Canonical game-generation pipeline](generation-pipeline.md) — the generation graph and the
   cache identities a design edit does and does not disturb.

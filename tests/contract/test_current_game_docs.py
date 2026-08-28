@@ -27,6 +27,7 @@ RETIRED_PREPARED_IDENTITIES = (
     "game-map-v1",
     "game-map-v2",
     "game-map-v3",
+    "game-map-v7",
     "prepared-game-runtime-v1",
     "prepared-game-runtime-v2",
     "prepared-game-runtime-v3",
@@ -69,7 +70,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-contract-v6`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
-        "`game-map-v7`",
+        "`game-map-v8`",
         "`prepared-game-runtime-v9`",
     ):
         assert identity in game_contract
@@ -84,7 +85,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     maps = documents["docs/game-maps.md"]
     for identity in (
-        "`game-map-v7`",
+        "`game-map-v8`",
         "`climbable-atlas-v1`",
         "`portal-pair-1x2-v1`",
         "`prepared-game-runtime-v9`",
@@ -100,7 +101,9 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     map_contract = documents["docs/spec/game/map-generation-contract.md"]
     assert "exact-current authored, generation, manifest, and consumer contract" in map_contract
-    assert "binary terrain occupancy" in map_contract
+    # Geometry left the authored document; the request that produces it is what the map owns.
+    assert "the terrain request a generator answers" in map_contract
+    assert "`map-terrain-v1`" in map_contract
     assert "`climbable-atlas-v1`" in map_contract
     assert 'mode = "portal-pair-1x2-v1"' in map_contract
 

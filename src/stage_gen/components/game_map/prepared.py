@@ -1,17 +1,25 @@
-"""Exact-current compound map-generation contract (``game-map-v7``)."""
+"""Exact-current compound map-generation contract (``game-map-v8``).
+
+The authored document states what a map should be: its art direction, its layers and
+references, the climbable roster it can draw, and the terrain it wants generated. It carries
+no geometry. Terrain shape is produced by a named generator into a ``map-terrain-v1``
+artifact, exactly the way a layer's artwork is produced into a PNG, and the two are checked
+against each other by :func:`validate_generated_terrain`.
+"""
 
 from __future__ import annotations
 
 from pathlib import PurePosixPath
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     KEBAB_ID_PATTERN,
     SHA256_PATTERN,
     SNAKE_ID_PATTERN,
+    AuthoredContractLoadError,
     canonical_contract_json,
     normalized_text,
     parse_toml_contract,
@@ -20,7 +28,10 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 7
+PREPARED_GAME_MAP_SCHEMA_VERSION = 8
+#: Generated terrain geometry is its own artifact contract, produced by a generator the map
+#: names and never written back into the authored document.
+PREPARED_MAP_TERRAIN_SCHEMA_VERSION = 1
 MAX_UNASSISTED_TERRAIN_RISE_TILES = 2
 #: Per role. Both roles together always fit one provider image, so a map never
 #: schedules more than one climbable atlas.
@@ -148,17 +159,10 @@ class PreparedMapLayer(PersistedContractModel):
 class PreparedMapGround(PersistedContractModel):
     mode: Literal["terrain-atlas-3x3-minimal-v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
-    occupancy: list[str] = Field(min_length=2, max_length=64)
-    # Where the authored occupancy grid sits vertically. This is an enum rather than a coordinate:
-    # the deepest row bottoms out at the viewport edge, which makes a gap below the world
-    # impossible instead of merely unlikely. The consumer derives its own baseline; no map
-    # declares pixels.
+    # Where the generated grid sits vertically. This is an enum rather than a coordinate: the
+    # deepest row bottoms out at the viewport edge, which makes a gap below the world impossible
+    # instead of merely unlikely. The consumer derives its own baseline; no map declares pixels.
     vertical_fit: Literal["floor_to_screen_bottom"]
-    # The occupancy row whose top edge is the main ground plane, used as the datum for layers that
-    # must meet the visible terrain rather than the buried world floor. This is an index into
-    # authored geometry, not a prediction about generated art, so it stays stable across
-    # regeneration.
-    walk_surface_row: int = Field(ge=0, le=63)
     prompt: str
 
     @field_validator("reference_ids")
@@ -166,48 +170,6 @@ class PreparedMapGround(PersistedContractModel):
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "map ground reference_id")
         return value
-
-    @field_validator("occupancy")
-    @classmethod
-    def validate_occupancy(cls, value: list[str]) -> list[str]:
-        width = len(value[0])
-        if width < 8 or width > 512:
-            raise ValueError("map ground occupancy width must be between 8 and 512 cells")
-        if any(len(row) != width for row in value):
-            raise ValueError("map ground occupancy must be rectangular")
-        if any(not row or set(row) - {"0", "1"} for row in value):
-            raise ValueError("map ground occupancy rows may contain only zero and one")
-        if "1" not in value[-1]:
-            raise ValueError(
-                "map ground occupancy must contain terrain supported by the bottom row"
-            )
-        if "0" in value[-1]:
-            raise ValueError(
-                "every gameplay terrain column must have a bottom-supported escape floor"
-            )
-        heights = _bottom_contiguous_heights(value)
-        if any(
-            abs(heights[index + 1] - heights[index]) > MAX_UNASSISTED_TERRAIN_RISE_TILES
-            for index in range(len(heights) - 1)
-        ):
-            raise ValueError("adjacent gameplay terrain surfaces may differ by at most two tiles")
-        return value
-
-    @model_validator(mode="after")
-    def validate_walk_surface_row(self) -> PreparedMapGround:
-        if self.walk_surface_row >= len(self.occupancy):
-            raise ValueError("map ground walk_surface_row must index an authored occupancy row")
-        row = self.occupancy[self.walk_surface_row]
-        above = (
-            self.occupancy[self.walk_surface_row - 1]
-            if self.walk_surface_row > 0
-            else "0" * len(row)
-        )
-        if not any(cell == "1" and above[column] == "0" for column, cell in enumerate(row)):
-            raise ValueError(
-                "map ground walk_surface_row must expose a terrain surface in at least one column"
-            )
-        return self
 
     @field_validator("prompt")
     @classmethod
@@ -254,23 +216,11 @@ class PreparedMapClimbable(PersistedContractModel):
     ropes: list[PreparedMapClimbableVariant] = Field(
         default_factory=list, max_length=MAX_CLIMBABLE_VARIANTS_PER_ROLE
     )
-    placements: list[PreparedMapClimbablePlacement] = Field(min_length=1, max_length=8)
 
     @field_validator("reference_ids")
     @classmethod
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "map climbable reference_id")
-        return value
-
-    @field_validator("placements")
-    @classmethod
-    def validate_placements(
-        cls, value: list[PreparedMapClimbablePlacement]
-    ) -> list[PreparedMapClimbablePlacement]:
-        unique_values((entry.climbable_id for entry in value), "map climbable_id")
-        positions = [entry.normalized_x for entry in value]
-        if len(set(positions)) != len(positions):
-            raise ValueError("map climbable normalized_x values must be unique")
         return value
 
     @property
@@ -295,15 +245,6 @@ class PreparedMapClimbable(PersistedContractModel):
         if not variants:
             raise ValueError("map climbable must declare at least one ladder or rope variant")
         unique_values((entry.variant_id for entry in variants), "map climbable variant_id")
-        declared = {entry.variant_id for entry in variants}
-        unknown = sorted({entry.variant_id for entry in self.placements} - declared)
-        if unknown:
-            raise ValueError(
-                "map climbable placements reference undeclared variants: " + ", ".join(unknown)
-            )
-        unplaced = sorted(declared - {entry.variant_id for entry in self.placements})
-        if unplaced:
-            raise ValueError("map climbable declares unplaced variants: " + ", ".join(unplaced))
         return self
 
 
@@ -343,9 +284,43 @@ class PreparedMapPortal(PersistedContractModel):
         return value
 
 
+class PreparedMapTerrainRequest(PersistedContractModel):
+    """What the author asks for, not what was produced.
+
+    Terrain shape is generated the way artwork is generated: the map states the generator and
+    the intent, a graph node produces geometry, and the result is an artifact with its own
+    provenance. Nothing generated is ever written back here, so this table stays small enough
+    to read and stable enough to diff.
+    """
+
+    #: Which generator composes this map. A second dialect is a new mode, never a silent change.
+    mode: Literal["platformer-chunk-map-v1"]
+    #: The intent the map designer reads. This is the SHAPE brief and is deliberately separate
+    #: from ``PreparedMapGround.prompt``, which directs the material atlas. A map may ask for a
+    #: village layout painted in winter stone; the two prompts answer different questions.
+    brief: str
+    columns: int = Field(ge=8, le=512)
+    rows: int = Field(ge=2, le=64)
+    #: The row whose top edge is the main ground plane, and the datum for ``walk_surface``
+    #: anchored layers. It is authored rather than derived precisely because painted scenery is
+    #: pinned to it: a regenerated map must meet the existing art, not move it.
+    walk_surface_row: int = Field(ge=0, le=63)
+
+    @field_validator("brief")
+    @classmethod
+    def validate_brief(cls, value: str) -> str:
+        return normalized_text(value, "map terrain brief", multiline=True)
+
+    @model_validator(mode="after")
+    def validate_datum(self) -> PreparedMapTerrainRequest:
+        if self.walk_surface_row >= self.rows:
+            raise ValueError("map terrain walk_surface_row must index a row inside the grid")
+        return self
+
+
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[7]
-    kind: Literal["game-map-v7"]
+    schema_version: Literal[8]
+    kind: Literal["game-map-v8"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -355,6 +330,7 @@ class PreparedGameMap(PersistedContractModel):
     references: list[PreparedMapReference] = Field(min_length=1, max_length=32)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
     ground: PreparedMapGround
+    terrain: PreparedMapTerrainRequest
     climbable: PreparedMapClimbable | None = None
     portal: PreparedMapPortal | None = None
 
@@ -404,35 +380,6 @@ class PreparedGameMap(PersistedContractModel):
             raise ValueError("the opaque map base must be background order zero with parallax zero")
         if any(layer.alpha_mode != "transparent" for layer in self.layers if layer is not base):
             raise ValueError("every non-base map layer must use transparent alpha")
-        occupancy = self.ground.occupancy
-        width = len(occupancy[0])
-        if self.climbable is not None:
-            for placement in self.climbable.placements:
-                column = normalized_terrain_column(placement.normalized_x, width)
-                lower_surface = bottom_contiguous_surface_row(occupancy, column)
-                if lower_surface is None:
-                    raise ValueError(
-                        f"map climbable {placement.climbable_id} must stand on "
-                        "bottom-supported terrain"
-                    )
-                upper_surface = lower_surface - placement.rise_tiles
-                if (
-                    upper_surface < 0
-                    or occupancy[upper_surface][column] != "1"
-                    or (upper_surface > 0 and occupancy[upper_surface - 1][column] != "0")
-                ):
-                    raise ValueError(
-                        f"map climbable {placement.climbable_id} requires an exposed upper deck "
-                        f"exactly {placement.rise_tiles} tiles above its lower surface"
-                    )
-        if self.portal is not None:
-            for endpoint in self.portal.endpoints:
-                column = normalized_terrain_column(endpoint.normalized_x, width)
-                if bottom_contiguous_surface_row(occupancy, column) is None:
-                    raise ValueError(
-                        f"map portal endpoint {endpoint.anchor} must stand on "
-                        "bottom-supported terrain"
-                    )
         return self
 
 
@@ -457,6 +404,147 @@ def bottom_contiguous_surface_row(occupancy: list[str], column: int) -> int | No
     return row
 
 
+class PreparedMapTerrain(PersistedContractModel):
+    """Generated terrain geometry.
+
+    This is an artifact, not authored input: a terrain generator produces it the way an image
+    model produces a layer, and it is bound to its map by digest rather than by being pasted
+    back into the map document. Every geometry rule the runtime depends on is enforced here,
+    because here is where geometry now exists.
+    """
+
+    schema_version: Literal[1]
+    kind: Literal["map-terrain-v1"]
+    map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
+    occupancy: list[str] = Field(min_length=2, max_length=64)
+    walk_surface_row: int = Field(ge=0, le=63)
+    climbable_placements: list[PreparedMapClimbablePlacement] = Field(
+        default_factory=list, max_length=8
+    )
+
+    @field_validator("occupancy")
+    @classmethod
+    def validate_occupancy(cls, value: list[str]) -> list[str]:
+        width = len(value[0])
+        if width < 8 or width > 512:
+            raise ValueError("map terrain occupancy width must be between 8 and 512 cells")
+        if any(len(row) != width for row in value):
+            raise ValueError("map terrain occupancy must be rectangular")
+        if any(not row or set(row) - {"0", "1"} for row in value):
+            raise ValueError("map terrain occupancy rows may contain only zero and one")
+        if "1" not in value[-1]:
+            raise ValueError(
+                "map terrain occupancy must contain terrain supported by the bottom row"
+            )
+        if "0" in value[-1]:
+            raise ValueError(
+                "every gameplay terrain column must have a bottom-supported escape floor"
+            )
+        heights = _bottom_contiguous_heights(value)
+        if any(
+            abs(heights[index + 1] - heights[index]) > MAX_UNASSISTED_TERRAIN_RISE_TILES
+            for index in range(len(heights) - 1)
+        ):
+            raise ValueError("adjacent gameplay terrain surfaces may differ by at most two tiles")
+        return value
+
+    @field_validator("climbable_placements")
+    @classmethod
+    def validate_placements(
+        cls, value: list[PreparedMapClimbablePlacement]
+    ) -> list[PreparedMapClimbablePlacement]:
+        unique_values((entry.climbable_id for entry in value), "map climbable_id")
+        positions = [entry.normalized_x for entry in value]
+        if len(set(positions)) != len(positions):
+            raise ValueError("map climbable normalized_x values must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def validate_walk_surface_row(self) -> PreparedMapTerrain:
+        if self.walk_surface_row >= len(self.occupancy):
+            raise ValueError("map terrain walk_surface_row must index a generated occupancy row")
+        row = self.occupancy[self.walk_surface_row]
+        above = (
+            self.occupancy[self.walk_surface_row - 1]
+            if self.walk_surface_row > 0
+            else "0" * len(row)
+        )
+        if not any(cell == "1" and above[column] == "0" for column, cell in enumerate(row)):
+            raise ValueError(
+                "map terrain walk_surface_row must expose a terrain surface in at least one column"
+            )
+        return self
+
+
+def validate_generated_terrain(game_map: PreparedGameMap, terrain: PreparedMapTerrain) -> None:
+    """Check generated geometry against what its map asked for.
+
+    Geometry is generated, so the authored document cannot check it at load time the way it once
+    could. This is where the two meet: the artifact must be for this map, at the grid and datum
+    the author requested, placing exactly the climbable roster the map declared, on terrain that
+    can actually carry it.
+    """
+
+    if terrain.map_id != game_map.map_id:
+        raise ValueError(f"terrain artifact belongs to map {terrain.map_id}, not {game_map.map_id}")
+    request = game_map.terrain
+    height, width = len(terrain.occupancy), len(terrain.occupancy[0])
+    if (height, width) != (request.rows, request.columns):
+        raise ValueError(
+            f"map {game_map.map_id} asked for {request.rows}x{request.columns} terrain and the "
+            f"generator produced {height}x{width}"
+        )
+    if terrain.walk_surface_row != request.walk_surface_row:
+        raise ValueError(
+            f"map {game_map.map_id} pins its walk surface to row {request.walk_surface_row} and "
+            f"the generator returned {terrain.walk_surface_row}; painted scenery is anchored to "
+            "that datum"
+        )
+    placements = terrain.climbable_placements
+    if game_map.climbable is None:
+        if placements:
+            raise ValueError(
+                f"map {game_map.map_id} declares no climbable atlas but terrain places "
+                f"{len(placements)} climbable(s)"
+            )
+        return
+    if not placements:
+        raise ValueError(f"map {game_map.map_id} declares a climbable atlas that nothing places")
+    declared = {entry.variant_id for entry in game_map.climbable.variants}
+    unknown = sorted({entry.variant_id for entry in placements} - declared)
+    if unknown:
+        raise ValueError(
+            "map climbable placements reference undeclared variants: " + ", ".join(unknown)
+        )
+    unplaced = sorted(declared - {entry.variant_id for entry in placements})
+    if unplaced:
+        raise ValueError("map climbable declares unplaced variants: " + ", ".join(unplaced))
+    for placement in placements:
+        column = normalized_terrain_column(placement.normalized_x, width)
+        lower_surface = bottom_contiguous_surface_row(terrain.occupancy, column)
+        if lower_surface is None:
+            raise ValueError(
+                f"map climbable {placement.climbable_id} must stand on bottom-supported terrain"
+            )
+        upper_surface = lower_surface - placement.rise_tiles
+        if (
+            upper_surface < 0
+            or terrain.occupancy[upper_surface][column] != "1"
+            or (upper_surface > 0 and terrain.occupancy[upper_surface - 1][column] != "0")
+        ):
+            raise ValueError(
+                f"map climbable {placement.climbable_id} requires an exposed upper deck exactly "
+                f"{placement.rise_tiles} tiles above its lower surface"
+            )
+    if game_map.portal is not None:
+        for endpoint in game_map.portal.endpoints:
+            column = normalized_terrain_column(endpoint.normalized_x, width)
+            if bottom_contiguous_surface_row(terrain.occupancy, column) is None:
+                raise ValueError(
+                    f"map portal endpoint {endpoint.anchor} must stand on bottom-supported terrain"
+                )
+
+
 def load_prepared_game_map_bytes(data: bytes) -> PreparedGameMap:
     return parse_toml_contract(data, model=PreparedGameMap, label="prepared game map")
 
@@ -465,7 +553,24 @@ def canonical_prepared_game_map_json(game_map: PreparedGameMap) -> bytes:
     return canonical_contract_json(game_map)
 
 
+def load_prepared_map_terrain_bytes(data: bytes) -> PreparedMapTerrain:
+    try:
+        return PreparedMapTerrain.model_validate_json(data)
+    except ValidationError as error:
+        raise AuthoredContractLoadError(f"prepared map terrain is invalid: {error}") from error
+
+
+def canonical_prepared_map_terrain_json(terrain: PreparedMapTerrain) -> bytes:
+    return canonical_contract_json(terrain)
+
+
 __all__ = [
+    "validate_generated_terrain",
+    "load_prepared_map_terrain_bytes",
+    "canonical_prepared_map_terrain_json",
+    "PreparedMapTerrainRequest",
+    "PreparedMapTerrain",
+    "PREPARED_MAP_TERRAIN_SCHEMA_VERSION",
     "MAX_CLIMBABLE_VARIANTS_PER_ROLE",
     "PREPARED_GAME_MAP_SCHEMA_VERSION",
     "PreparedGameMap",

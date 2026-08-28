@@ -15,6 +15,10 @@ from PIL import Image
 
 from stage_gen.components.game_content import MotionPresentation, PropContent
 from stage_gen.components.game_map import PreparedMapLayer
+from stage_gen.components.game_map.prepared import (
+    load_prepared_map_terrain_bytes,
+    validate_generated_terrain,
+)
 from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -24,6 +28,7 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
     motion_source_facing,
     runtime_mirrors_source,
 )
+from stage_gen.recipes.scrolling_preview.terrain_design import terrain_artifact_path
 from stage_gen.reliability import atomic_write_json
 
 PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 9
@@ -164,6 +169,11 @@ def _assemble_prepared_runtime(
     maps: list[dict[str, object]] = []
     for game_map in package.maps:
         map_use = map_uses[game_map.map_id]
+        # Generated geometry, checked against what the map asked for before anything is written.
+        terrain = load_prepared_map_terrain_bytes(
+            _find_artifact(roots, terrain_artifact_path(game_map.map_id)).read_bytes()
+        )
+        validate_generated_terrain(game_map, terrain)
         map_manifest: dict[str, object] = {
             "map_id": game_map.map_id,
             "revision": game_map.revision,
@@ -176,10 +186,14 @@ def _assemble_prepared_runtime(
             "layers": [layer_manifest(game_map.map_id, layer) for layer in game_map.layers],
             "ground": {
                 "mode": game_map.ground.mode,
-                "occupancy": list(game_map.ground.occupancy),
+                # Geometry is a generated artifact like any other. It is published so the run
+                # records its digest and lineage, and inlined so the consumer can read the world
+                # without a second fetch -- the same treatment portal endpoints already get.
+                "occupancy": list(terrain.occupancy),
                 "vertical_fit": game_map.ground.vertical_fit,
-                "walk_surface_row": game_map.ground.walk_surface_row,
+                "walk_surface_row": terrain.walk_surface_row,
                 "asset": publish(f"maps/{game_map.map_id}/ground.png"),
+                "terrain_asset": publish(terrain_artifact_path(game_map.map_id)),
             },
         }
         if game_map.climbable is not None:
@@ -229,7 +243,9 @@ def _assemble_prepared_runtime(
                 "mode": climbable.mode,
                 "index_order": "left_to_right",
                 "variants": variants,
-                "placements": [entry.model_dump(mode="json") for entry in climbable.placements],
+                "placements": [
+                    entry.model_dump(mode="json") for entry in terrain.climbable_placements
+                ],
                 "asset": publish(f"maps/{game_map.map_id}/climbable.png"),
             }
         if game_map.portal is not None:
@@ -475,6 +491,8 @@ def _media_type(suffix: str) -> str:
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
         ".mp3": "audio/mpeg",
+        # Generated terrain geometry is published like any other artifact.
+        ".json": "application/json",
     }.get(suffix, "application/octet-stream")
 
 
@@ -496,6 +514,8 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
             # as an artifact root for a later corrective run.
             paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json")
         paths.append(f"maps/{game_map.map_id}/ground.png")
+        # Generated geometry travels with the run exactly as a generated image does.
+        paths.append(terrain_artifact_path(game_map.map_id))
         if game_map.climbable is not None:
             paths.append(f"maps/{game_map.map_id}/climbable.png")
             # The measured per-variant cell geometry travels with the sheet, exactly as a layer's

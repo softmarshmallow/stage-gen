@@ -198,16 +198,15 @@ anchor = "top"
     assert "climb_rope" in str(caught.value)
 
 
-def test_requires_only_the_climb_states_the_maps_actually_place(tmp_path: Path) -> None:
-    """Crowncrag places both roles, so the package owes both strips and no others."""
+def test_requires_only_the_climb_states_the_maps_declare(tmp_path: Path) -> None:
+    """Crowncrag declares both roles, so the package owes both strips and no others.
+
+    Which climb states a player needs follows from the roster a map can DRAW. Placement is
+    generated terrain and does not exist at package resolution, so a declared rope variant is
+    already reason enough for the player to be able to climb a rope.
+    """
 
     package = resolve_game_package(_copy_package(tmp_path))
-    placed = {
-        placement.variant_id
-        for game_map in package.maps
-        if game_map.climbable is not None
-        for placement in game_map.climbable.placements
-    }
     roles = {
         role
         for game_map in package.maps
@@ -216,8 +215,7 @@ def test_requires_only_the_climb_states_the_maps_actually_place(tmp_path: Path) 
             ("ladder", game_map.climbable.ladders),
             ("rope", game_map.climbable.ropes),
         )
-        for variant in variants
-        if variant.variant_id in placed
+        if variants
     }
     assert roles == {"ladder", "rope"}
     states = {motion.state for motion in package.player.players[0].motions}

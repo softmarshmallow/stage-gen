@@ -121,11 +121,11 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     plan_output = StringIO()
     assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0
     plan = json.loads(plan_output.getvalue())
-    assert len(plan["graph"]["nodes"]) == 213
+    assert len(plan["graph"]["nodes"]) == 215
     assert plan["projection"]["operation_counts"] == {
         "local": 102,
         "image_generation": 92,
-        "structured_generation": 16,
+        "structured_generation": 18,
         "music_generation": 3,
     }
 
@@ -159,10 +159,10 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     )
     report = json.loads(output.getvalue())
     assert report["ok"] is True
-    assert report["node_count"] == 213
+    assert report["node_count"] == 215
     assert report["provider_operation_counts"] == {
         "image_generation": 92,
-        "structured_generation": 16,
+        "structured_generation": 18,
         "music_generation": 3,
     }
     assert (tmp_path / "run/execution-plan.json").is_file()

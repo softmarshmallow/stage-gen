@@ -3,7 +3,7 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v7` as one compound map-generation contract
+> input. It defines `game-map-v8` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
 > recipe executes its typed branches; `prepared-game-runtime-v9` projects the
@@ -14,7 +14,7 @@
 ## Authority and purpose
 
 One map produces several visually dependent assets and one exact terrain
-composition. Its layers, ground atlas direction, occupancy, ladder, and portal
+composition. Its layers, ground atlas direction, terrain request, climbable roster, and portal
 presentation must be authored and reviewed together, so they remain inside one
 `maps/<map_id>.toml` source instead of becoming independent entries under
 `content/`.
@@ -27,7 +27,8 @@ that map.
 | --- | --- | --- |
 | `game.toml` | Game identity, shared art direction, and digest-locked package membership | Stage flow or provider execution |
 | `gameplay.toml` | Entry map, transition relationships, climb permission, encounters, population, combat, loot, interactions, and map-specific usage | Map image generation or map composition |
-| `maps/<map_id>.toml` | Map references, view envelope, visual continuity, ordered layers, binary terrain occupancy, ground generation, climbable geometry and placement, portal presentation and endpoint anchors, and map-bundle review | Transition destinations, movement permission, spawning, NPC placement, dialogue, soundtrack usage, physics values, or engine scene objects |
+| `maps/<map_id>.toml` | Map references, view envelope, visual continuity, ordered layers, ground atlas generation, the terrain request a generator answers, the climbable roster, portal presentation and endpoint anchors, and map-bundle review | Terrain geometry itself, climbable placement, transition destinations, movement permission, spawning, NPC placement, dialogue, soundtrack usage, physics values, or engine scene objects |
+| `maps/<map_id>/terrain.json` | Generated `map-terrain-v1` occupancy, walk-surface row, and climbable placements | Any authored intent; it is produced by a run, not written by hand |
 | Recipe | Supported modes, deterministic prompt scaffolding, provider calls, validation, repair, and artifact assembly | Authored creative choices absent from the map |
 | Consumer | Coordinate projection, collision bodies, camera controller, rendering, input, and simulation | Missing occupancy, ladder/portal placement, transition relationships, or inferred layer roles |
 
@@ -56,7 +57,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source and
 locks its exact authored bytes. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v7` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v8` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -64,8 +65,8 @@ Reference image filenames are independent: there is no requirement for
 ## Complete example
 
 ```toml
-schema_version = 6
-kind = "game-map-v7"
+schema_version = 8
+kind = "game-map-v8"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -388,20 +389,32 @@ Those clauses are not copied into every authored map.
 | --- | --- |
 | `mode` | Exactly `terrain-atlas-3x3-minimal-v1` initially |
 | `reference_ids` | Non-empty ordered references resolved through the map catalog |
-| `occupancy` | Required top-to-bottom rectangular rows containing only `0` and `1`; row length is the map width in cells |
-| `vertical_fit` | Exactly `floor_to_screen_bottom` initially; where the occupancy grid sits vertically |
-| `walk_surface_row` | Occupancy row whose top edge is the main ground plane |
+| `vertical_fit` | Exactly `floor_to_screen_bottom` initially; where the generated grid sits vertically |
+
+### `[terrain]`
+
+Terrain shape is generated the way artwork is generated. The map states which generator to
+use and what the level should be; a graph node answers with a `map-terrain-v1` artifact, and
+nothing generated is written back into this document.
+
+| Field | Rule |
+| --- | --- |
+| `mode` | Which generator composes the map. A second dialect is a new mode, never a silent change |
+| `brief` | The intent the map designer reads. This is the SHAPE brief, and is deliberately separate from `[ground].prompt`, which directs the material atlas; a map may ask for a village layout painted in winter stone |
+| `columns`, `rows` | The grid the generator must fill exactly |
+| `walk_surface_row` | The row whose top edge is the main ground plane, and the datum for `walk_surface` anchored layers. Authored rather than derived precisely because painted scenery is pinned to it: a regenerated map must meet the existing art, not move it |
+
 | `prompt` | Non-empty authored description of the desired surface, edge, and fill appearance |
 
 `terrain-atlas-3x3-minimal-v1` names the current stable generation contract. It
 generates one opaque cap-and-fill material source, then deterministically
 projects that appearance through the packaged 47-mask topology-silhouette
 template and authoritative lookup into 120-by-120 RGBA cells. The provider does
-not generate topology, alpha, cells, or connectors. Binary map occupancy and
+not generate topology, alpha, cells, or connectors. Generated map occupancy and
 all eight neighbors select runtime cells, and dynamic tilemaps admit only
 `direct_pass` connector continuity. See [the terrain-atlas contract](../terrain-atlas.md).
 
-`occupancy` is authored gameplay geometry, not an image-model instruction. The
+Generated occupancy is gameplay geometry, not an image-model instruction. The
 first string is the top row. `1` means occupied terrain and `0` means empty
 space. All rows have the same 8-to-512-cell width; height is 2 to 64 rows. At
 least one cell in the bottom row is occupied. In the current non-lethal-fall
@@ -572,8 +585,10 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v7` does not contain:
+`game-map-v8` does not contain:
 
+- terrain geometry or climbable placement, both of which are generated into a
+  `map-terrain-v1` artifact and bound to the map by digest;
 - stage order or entry-map status;
 - spawn zones, spawn tables, population targets, or respawn policy;
 - mob, NPC, item, or interactive-prop placement;

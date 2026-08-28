@@ -21,12 +21,19 @@ from stage_gen.components import (
 )
 from stage_gen.components._types import BinaryArtifact
 from stage_gen.components.game_map import PreparedGameMap, PreparedMapLayer
+from stage_gen.components.game_map.prepared import (
+    PreparedMapTerrain,
+    canonical_prepared_map_terrain_json,
+    load_prepared_map_terrain_bytes,
+    validate_generated_terrain,
+)
 from stage_gen.components.image_generation import ImageReference
 from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     build_three_repeat_preview,
     validate_image_repeat,
 )
+from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
@@ -72,6 +79,11 @@ from stage_gen.recipes.scrolling_preview.terrain_atlas import (
     require_terrain_atlas_source,
     terrain_atlas_generation_prompt,
 )
+from stage_gen.recipes.scrolling_preview.terrain_design import (
+    compile_terrain,
+    terrain_artifact_path,
+    terrain_profile,
+)
 from stage_gen.reliability import (
     atomic_write_bytes,
     atomic_write_json,
@@ -90,6 +102,7 @@ _LAYER_NODE = re.compile(
     r"^map-(?P<map_id>.+)-layer-(?P<layer_id>[a-z0-9_]+)-(?P<action>generate|loop|validate)$"
 )
 _GROUND_NODE = re.compile(r"^map-(?P<map_id>.+)-ground-(?P<action>generate|validate)$")
+_TERRAIN_NODE = re.compile(r"^map-(?P<map_id>.+)-terrain-generate$")
 _PRESENTATION_NODE = re.compile(
     r"^map-(?P<map_id>.+)-(?P<asset>climbable|portal)-(?P<action>generate|validate)$"
 )
@@ -141,6 +154,20 @@ class PreparedWorldNodeHandler:
         self._write_cache(node, context, result)
         return result
 
+    def _terrain(self, game_map: PreparedGameMap) -> PreparedMapTerrain:
+        """Read this map's generated geometry, checked against what the map asked for.
+
+        Geometry is an artifact, so it is read from the run the way a generated image is, and
+        cross-checked here rather than trusted: a terrain file for the wrong map, or one that
+        moved the walk-surface datum the painted scenery is anchored to, must not reach a
+        composite or a manifest.
+        """
+
+        path = self._run_dir / terrain_artifact_path(game_map.map_id)
+        terrain = load_prepared_map_terrain_bytes(path.read_bytes())
+        validate_generated_terrain(game_map, terrain)
+        return terrain
+
     async def _execute(self, node: ExecutionNode) -> NodeExecutionResult:
         if node.node_id == "package-resolve":
             path = self._run_dir / node.outputs[0]
@@ -157,6 +184,9 @@ class PreparedWorldNodeHandler:
             if layer_match["action"] == "loop":
                 return await self._construct_layer_loop(node, game_map, layer)
             return await self._validate_layer(node, layer)
+        terrain_match = _TERRAIN_NODE.fullmatch(node.node_id)
+        if terrain_match:
+            return await self._generate_terrain(node, self._map(terrain_match["map_id"]))
         ground_match = _GROUND_NODE.fullmatch(node.node_id)
         if ground_match:
             game_map = self._map(ground_match["map_id"])
@@ -177,6 +207,39 @@ class PreparedWorldNodeHandler:
                 return await self._composite(node, game_map)
             return await self._review(node, game_map)
         raise ValueError(f"prepared world handler cannot execute node: {node.node_id}")
+
+    async def _generate_terrain(
+        self, node: ExecutionNode, game_map: PreparedGameMap
+    ) -> NodeExecutionResult:
+        """Compose this map's terrain from its authored brief.
+
+        The map asks for a shape the way it asks for artwork, and the answer is an artifact. The
+        designer's own retry loop is semantic regeneration -- it hands the validator's complaints
+        back to the model in the model's own vocabulary -- and sits outside the provider retry
+        owner, which stays inside the structured-generation service.
+        """
+
+        output = self._run_dir / node.outputs[0]
+        output.parent.mkdir(parents=True, exist_ok=True)
+        profile = terrain_profile(game_map)
+        brief = DesignBrief(intent=self._map_prompt(game_map, game_map.terrain.brief))
+        attempts = await design_chunks(
+            self._structured,
+            profile,
+            brief,
+            artifact_dir=output.parent / "terrain-design",
+        )
+        final = attempts[-1]
+        if final.problems or final.designed is None:
+            listed = "; ".join(final.problems[:6])
+            raise ValueError(
+                f"terrain design for {game_map.map_id} never satisfied the map's own rules after "
+                f"{len(attempts)} attempt(s): {listed}"
+            )
+        terrain = compile_terrain(final.designed, game_map)
+        validate_generated_terrain(game_map, terrain)
+        atomic_write_json(output, json.loads(canonical_prepared_map_terrain_json(terrain)))
+        return self._result(node, (output,), provider_operations=len(attempts))
 
     async def _generate_layer(
         self, node: ExecutionNode, game_map: PreparedGameMap, layer: PreparedMapLayer
@@ -473,7 +536,8 @@ class PreparedWorldNodeHandler:
             validation=validation,
         )
         atomic_write_json(validation_path, validation)
-        evidence, _ = compose_canonical_terrain(canonical, game_map.ground.occupancy)
+        occupancy = self._terrain(game_map).occupancy
+        evidence, _ = compose_canonical_terrain(canonical, occupancy)
         evidence_sidecar = await _write_local_image(
             evidence_path,
             evidence,
@@ -482,8 +546,8 @@ class PreparedWorldNodeHandler:
             source_ref=output.relative_to(self._run_dir).as_posix(),
             source_data=canonical,
             validation={
-                "occupancy_rows": len(game_map.ground.occupancy),
-                "occupancy_columns": len(game_map.ground.occupancy[0]),
+                "occupancy_rows": len(occupancy),
+                "occupancy_columns": len(occupancy[0]),
                 "map_id": game_map.map_id,
             },
         )
@@ -661,10 +725,9 @@ class PreparedWorldNodeHandler:
             for layer in ordered
         }
         canvas_height = _COMPOSITE_VIEWPORT_HEIGHT_PX
-        rows = len(game_map.ground.occupancy)
-        walk_surface_y = canvas_height - (
-            (rows - game_map.ground.walk_surface_row) * _COMPOSITE_TILE_PX
-        )
+        terrain = self._terrain(game_map)
+        rows = len(terrain.occupancy)
+        walk_surface_y = canvas_height - ((rows - terrain.walk_surface_row) * _COMPOSITE_TILE_PX)
         composite_width = round(common * canvas_height / max(heights))
 
         def place(layer: PreparedMapLayer, image: Image.Image) -> None:
@@ -689,7 +752,7 @@ class PreparedWorldNodeHandler:
             with Image.open(layer_path(layer)) as opened:
                 place(layer, opened.convert("RGBA"))
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
-        canvas.alpha_composite(_ground_preview(ground_path, canvas.size, game_map.ground.occupancy))
+        canvas.alpha_composite(_ground_preview(ground_path, canvas.size, terrain.occupancy))
         for layer in foregrounds:
             with Image.open(layer_path(layer)) as opened:
                 place(layer, opened.convert("RGBA"))

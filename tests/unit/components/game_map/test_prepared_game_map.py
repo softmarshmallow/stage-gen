@@ -6,11 +6,64 @@ import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_map import (
-    PreparedMapGround,
     bottom_contiguous_surface_row,
     load_prepared_game_map_bytes,
     normalized_terrain_column,
 )
+from stage_gen.components.game_map.prepared import (
+    PreparedMapTerrain,
+    validate_generated_terrain,
+)
+
+
+def _terrain(
+    map_id: str, occupancy: list[str], walk_surface_row: int, **kwargs: object
+) -> PreparedMapTerrain:
+    """A generated geometry artifact. Geometry rules live here now, not in the map document."""
+
+    return PreparedMapTerrain(
+        schema_version=1,
+        kind="map-terrain-v1",
+        map_id=map_id,
+        occupancy=occupancy,
+        walk_surface_row=walk_surface_row,
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+#: Columns the road fixture stands its climbables in, one per declared variant.
+_ROAD_COLUMNS = (10, 30, 50)
+
+
+def _road_terrain(**overrides: object) -> PreparedMapTerrain:
+    """Geometry the shipped road would accept: flat ground with an exposed deck per climbable."""
+
+    rows, columns = 16, 96
+    grid = [["0"] * columns for _ in range(rows)]
+    for row in (13, 14, 15):
+        grid[row] = ["1"] * columns
+    for column in _ROAD_COLUMNS:
+        grid[9][column] = "1"  # four tiles above the surface row, with row 8 left empty
+    variants = ("bellroot_ladder", "shrine_rope_ladder", "bellrope_climb")
+    placements = [
+        {
+            "climbable_id": f"c{index + 1}",
+            "variant_id": variant,
+            "normalized_x": round((column + 0.5) / columns, 6),
+            "bottom_surface": "terrain",
+            "rise_tiles": 4,
+        }
+        for index, (column, variant) in enumerate(zip(_ROAD_COLUMNS, variants, strict=True))
+    ]
+    fields: dict[str, object] = {
+        "occupancy": ["".join(row) for row in grid],
+        "walk_surface_row": 13,
+        "climbable_placements": placements,
+    }
+    fields.update(overrides)
+    terrain = _terrain("crowncrag-road", **fields)  # type: ignore[arg-type]
+    return terrain
+
 
 PACKAGE = Path(__file__).resolve().parents[4] / "library" / "games" / "bellweather"
 
@@ -23,7 +76,7 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
     village = load_prepared_game_map_bytes(_map_bytes("sunpetal-crossing"))
     road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
 
-    assert village.kind == road.kind == "game-map-v7"
+    assert village.kind == road.kind == "game-map-v8"
     assert village.layers[2].presentation.detail_blur_screen_pixels == 0.65
     assert village.climbable is None
     assert village.portal is not None
@@ -43,36 +96,30 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
     ]
     assert road.climbable.role_of("bellroot_ladder") == "ladder"
     assert road.climbable.role_of("bellrope_climb") == "rope"
-    # Terrain and placements are compiled by scripts/author_terrain.py, so these assert the
-    # compiled result rather than a hand-drawn matrix.
-    assert road.climbable.placements[0].model_dump() == {
-        "climbable_id": "c1",
-        "variant_id": "bellroot_ladder",
-        "normalized_x": 0.109375,
-        "bottom_surface": "terrain",
-        "rise_tiles": 4,
-    }
-    assert len(road.climbable.placements) == 4
     assert road.portal is not None
     assert road.portal.mode == "portal-pair-1x2-v1"
-    occupancy = road.ground.occupancy
-    assert len(occupancy) == 16
-    assert {len(row) for row in occupancy} == {96}
-    # Every placement must resolve to the same exposed four-tile deck.
-    for placement in road.climbable.placements:
+
+    # The map asks for terrain; it does not carry any. Geometry arrives as a generated artifact.
+    assert road.terrain.mode == "platformer-chunk-map-v1"
+    assert (road.terrain.rows, road.terrain.columns) == (16, 96)
+    assert road.terrain.brief.strip()
+    assert not hasattr(road.ground, "occupancy")
+
+    terrain = _road_terrain()
+    validate_generated_terrain(road, terrain)
+    for placement in terrain.climbable_placements:
         column = normalized_terrain_column(placement.normalized_x, 96)
-        lower_surface = bottom_contiguous_surface_row(occupancy, column)
+        lower_surface = bottom_contiguous_surface_row(terrain.occupancy, column)
         assert lower_surface is not None
-        assert occupancy[lower_surface - 4][column] == "1"
-        assert occupancy[lower_surface - 5][column] == "0"
-        assert occupancy[lower_surface - 3][column] == "0"
-    assert normalized_terrain_column(0.109375, 96) == 10
+        assert terrain.occupancy[lower_surface - 4][column] == "1"
+        assert terrain.occupancy[lower_surface - 5][column] == "0"
+        assert terrain.occupancy[lower_surface - 3][column] == "0"
 
 
-def test_map_rejects_the_obsolete_v6_identity() -> None:
+def test_map_rejects_the_retired_v7_identity() -> None:
     source = _map_bytes("sunpetal-crossing").replace(
+        b'schema_version = 8\nkind = "game-map-v8"',
         b'schema_version = 7\nkind = "game-map-v7"',
-        b'schema_version = 6\nkind = "game-map-v6"',
         1,
     )
 
@@ -92,31 +139,22 @@ def test_map_rejects_unknown_climbable_reference() -> None:
 
 
 def test_map_rejects_a_placement_naming_an_undeclared_variant() -> None:
-    source = _map_bytes("crowncrag-road").replace(
-        b'climbable_id = "c1"\nvariant_id = "bellroot_ladder"',
-        b'climbable_id = "c1"\nvariant_id = "no_such_variant"',
-        1,
-    )
+    road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
+    placements = [dict(entry) for entry in _road_terrain().model_dump()["climbable_placements"]]
+    placements[0]["variant_id"] = "no_such_variant"
 
-    with pytest.raises(AuthoredContractLoadError, match="undeclared variants"):
-        load_prepared_game_map_bytes(source)
+    with pytest.raises(ValueError, match="undeclared variants"):
+        validate_generated_terrain(road, _road_terrain(climbable_placements=placements))
 
 
 def test_map_rejects_a_declared_variant_that_is_never_placed() -> None:
-    # Drop every placement that uses the rope variant, leaving it declared but unplaced.
-    source = _map_bytes("crowncrag-road")
-    for block in (
-        b'[[climbable.placements]]\nclimbable_id = "c3"\n'
-        b'variant_id = "bellrope_climb"\nnormalized_x = 0.796875\n'
-        b'bottom_surface = "terrain"\nrise_tiles = 4\n\n',
-    ):
-        assert block in source
-        source = source.replace(block, b"", 1)
-    # Only the `[[climbable.ropes]]` declaration still names the rope variant.
-    assert source.count(b'variant_id = "bellrope_climb"') == 1
+    # The map may only declare artwork it actually uses; an unplaced variant is paid generation
+    # nobody sees.
+    road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
+    placements = [dict(entry) for entry in _road_terrain().model_dump()["climbable_placements"]]
 
-    with pytest.raises(AuthoredContractLoadError, match="unplaced variants"):
-        load_prepared_game_map_bytes(source)
+    with pytest.raises(ValueError, match="unplaced variants"):
+        validate_generated_terrain(road, _road_terrain(climbable_placements=placements[:-1]))
 
 
 def test_map_rejects_more_than_three_variants_in_one_role() -> None:
@@ -143,79 +181,49 @@ def test_map_rejects_duplicate_portal_roles() -> None:
 
 
 def test_map_rejects_noncanonical_ladder_rise() -> None:
-    source = _map_bytes("crowncrag-road").replace(b"rise_tiles = 4", b"rise_tiles = 5", 1)
+    placements = [dict(entry) for entry in _road_terrain().model_dump()["climbable_placements"]]
+    placements[0]["rise_tiles"] = 5
 
-    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
-        load_prepared_game_map_bytes(source)
+    with pytest.raises(ValueError, match="rise_tiles"):
+        _road_terrain(climbable_placements=placements)
 
 
 def test_map_requires_rectangular_binary_occupancy_with_bottom_support() -> None:
-    source = _map_bytes("sunpetal-crossing").replace(b"occupancy = [", b"unknown_occupancy = [", 1)
-    with pytest.raises(AuthoredContractLoadError, match="occupancy"):
-        load_prepared_game_map_bytes(source)
-
-    source = _map_bytes("sunpetal-crossing").replace(
-        b'"0000000000000000000000000000000000000000000000000000000000000000"',
-        b'"000000000000000000000000000000000000000000000000000000000000000"',
-        1,
-    )
-    with pytest.raises(AuthoredContractLoadError, match="rectangular"):
-        load_prepared_game_map_bytes(source)
-
-    source = _map_bytes("sunpetal-crossing").replace(
-        b"1111111111111111111111111111111111111111111111111111111111111111",
-        b"0000000000000000000000000000000000000000000000000000000000000000",
-    )
-    with pytest.raises(AuthoredContractLoadError, match="supported by the bottom row"):
-        load_prepared_game_map_bytes(source)
+    with pytest.raises(ValueError, match="rectangular"):
+        _terrain("sunpetal-crossing", ["00000000", "1111111"], 1)
+    with pytest.raises(ValueError, match="only zero and one"):
+        _terrain("sunpetal-crossing", ["00000000", "1111111x"], 1)
+    with pytest.raises(ValueError, match="supported by the bottom row"):
+        _terrain("sunpetal-crossing", ["00000000", "00000000"], 1)
 
 
 def test_map_ground_requires_a_visible_escape_floor_and_two_tile_maximum_rise() -> None:
     with pytest.raises(ValueError, match="bottom-supported escape floor"):
-        PreparedMapGround(
-            mode="terrain-atlas-3x3-minimal-v1",
-            reference_ids=["scene"],
-            occupancy=["00000000", "11111111", "11111111", "11101111"],
-            vertical_fit="floor_to_screen_bottom",
-            walk_surface_row=1,
-            prompt="Create readable terrain.",
-        )
+        _terrain("sunpetal-crossing", ["00000000", "11111111", "11111111", "11101111"], 1)
     with pytest.raises(ValueError, match="differ by at most two tiles"):
-        PreparedMapGround(
-            mode="terrain-atlas-3x3-minimal-v1",
-            reference_ids=["scene"],
-            occupancy=["00000000", "11101111", "11101111", "11101111", "11111111"],
-            vertical_fit="floor_to_screen_bottom",
-            walk_surface_row=1,
-            prompt="Create readable terrain.",
+        _terrain(
+            "sunpetal-crossing",
+            ["00000000", "11101111", "11101111", "11101111", "11111111"],
+            1,
         )
-    accepted = PreparedMapGround(
-        mode="terrain-atlas-3x3-minimal-v1",
-        reference_ids=["scene"],
-        occupancy=["00000000", "11101111", "11101111", "11111111"],
-        vertical_fit="floor_to_screen_bottom",
-        walk_surface_row=1,
-        prompt="Create readable terrain.",
-    )
+    accepted = _terrain("sunpetal-crossing", ["00000000", "11101111", "11101111", "11111111"], 1)
     assert accepted.occupancy[-1] == "11111111"
 
 
 def test_map_ladder_must_resolve_between_real_occupancy_surfaces() -> None:
+    road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
     # Move a climbable off its deck: column 10 has one, column 40 does not.
-    source = _map_bytes("crowncrag-road").replace(
-        b"normalized_x = 0.109375", b"normalized_x = 0.421875", 1
-    )
-    with pytest.raises(AuthoredContractLoadError, match="exposed upper deck"):
-        load_prepared_game_map_bytes(source)
+    placements = [dict(entry) for entry in _road_terrain().model_dump()["climbable_placements"]]
+    placements[0]["normalized_x"] = round(40.5 / 96, 6)
+    with pytest.raises(ValueError, match="exposed upper deck"):
+        validate_generated_terrain(road, _road_terrain(climbable_placements=placements))
 
     # Remove the deck the first climbable rises to.
-    source = _map_bytes("crowncrag-road").replace(
-        b"000000011111100000000000000000000000000000000000000000000000011110000000011111100000000000000000",
-        b"0" * 96,
-        1,
-    )
-    with pytest.raises(AuthoredContractLoadError, match="exposed upper deck"):
-        load_prepared_game_map_bytes(source)
+    rows = _road_terrain().occupancy
+    stripped = list(rows)
+    stripped[9] = "0" * 96
+    with pytest.raises(ValueError, match="exposed upper deck"):
+        validate_generated_terrain(road, _road_terrain(occupancy=stripped))
 
 
 def test_map_portal_endpoint_may_move_to_another_valid_escape_floor() -> None:
@@ -255,20 +263,6 @@ def test_canvas_cover_layer_cannot_declare_a_vertical_offset() -> None:
 
 def test_walk_surface_row_must_expose_a_terrain_surface() -> None:
     with pytest.raises(ValueError, match="expose a terrain surface"):
-        PreparedMapGround(
-            mode="terrain-atlas-3x3-minimal-v1",
-            reference_ids=["scene"],
-            occupancy=["11111111", "11111111", "11111111"],
-            vertical_fit="floor_to_screen_bottom",
-            walk_surface_row=2,
-            prompt="Create readable terrain.",
-        )
-    accepted = PreparedMapGround(
-        mode="terrain-atlas-3x3-minimal-v1",
-        reference_ids=["scene"],
-        occupancy=["11111111", "11111111", "11111111"],
-        vertical_fit="floor_to_screen_bottom",
-        walk_surface_row=0,
-        prompt="Create readable terrain.",
-    )
+        _terrain("sunpetal-crossing", ["11111111", "11111111", "11111111"], 2)
+    accepted = _terrain("sunpetal-crossing", ["11111111", "11111111", "11111111"], 0)
     assert accepted.walk_surface_row == 0

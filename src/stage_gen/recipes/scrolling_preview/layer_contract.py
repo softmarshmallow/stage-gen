@@ -27,15 +27,15 @@ RUNTIME_ONLY_LAYER_FIELDS: frozenset[str] = frozenset({"presentation"})
 
 #: The ground equivalent: authored geometry and vertical fit select cells and placement
 #: downstream without changing the appearance request sent to the provider.
-PLACEMENT_ONLY_GROUND_FIELDS: frozenset[str] = frozenset(
-    {"occupancy", "vertical_fit", "walk_surface_row"}
-)
+#: Ground fields that place the atlas without changing what is painted. Geometry used to live
+#: here too; it is now a generated artifact the map does not carry, so the material atlas cannot
+#: depend on terrain shape even by accident.
+PLACEMENT_ONLY_GROUND_FIELDS: frozenset[str] = frozenset({"vertical_fit"})
 
-#: The climbable equivalent. Placement position is runtime geometry, not art: the atlas draws each
-#: declared variant exactly once, and where an instance stands cannot change how it is drawn. The
-#: declared ladders and ropes stay in generation identity because their count sets the atlas cell
-#: count and their prompts are the appearance request; only the instances come out.
-PLACEMENT_ONLY_CLIMBABLE_FIELDS: frozenset[str] = frozenset({"placements"})
+#: Climbable placement moved out of the authored document entirely, so the atlas image can no
+#: longer see it. Nothing needs excluding; the roster the map declares is all that reaches the
+#: image call.
+PLACEMENT_ONLY_CLIMBABLE_FIELDS: frozenset[str] = frozenset()
 
 #: Deterministic geometry for the generated-bridge loop construction. The context spans are what
 #: the provider sees on each side of the editable bridge; the bridge span is what it paints and

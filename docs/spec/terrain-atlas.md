@@ -96,7 +96,7 @@ require `direct_pass`.
 
 ## Consumer behavior
 
-Required `ground.occupancy` in `game-map-v7` selects one atlas coordinate for every occupied cell
+The generated `map-terrain-v1` occupancy selects one atlas coordinate for every occupied cell
 from all eight neighbors. This supports solid ground, genuinely one-cell-high
 floating terrain, stair-step shapes, concavities, and holes. Collision comes
 from occupancy, not alpha. Runtime import uses exact 120-pixel frames, nearest

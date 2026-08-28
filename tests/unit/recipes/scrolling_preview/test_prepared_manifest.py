@@ -39,6 +39,41 @@ def _layer_validation(anchor: str, offset: float) -> dict[str, object]:
     }
 
 
+def _terrain_artifact(map_id: str, package: object) -> bytes:
+    """Geometry is a generated artifact now, so the manifest fixture has to supply one."""
+
+    game_map = next(entry for entry in package.maps if entry.map_id == map_id)  # type: ignore[attr-defined]
+    rows, columns = game_map.terrain.rows, game_map.terrain.columns
+    surface = rows - game_map.terrain.walk_surface_row
+    grid = [["0"] * columns for _ in range(rows)]
+    for row in range(rows - surface, rows):
+        grid[row] = ["1"] * columns
+    placements = []
+    if game_map.climbable is not None:
+        for index, variant in enumerate(game_map.climbable.variants):
+            column = 10 + index * 20
+            grid[game_map.terrain.walk_surface_row - 4][column] = "1"
+            placements.append(
+                {
+                    "climbable_id": f"c{index + 1}",
+                    "variant_id": variant.variant_id,
+                    "normalized_x": round((column + 0.5) / columns, 6),
+                    "bottom_surface": "terrain",
+                    "rise_tiles": 4,
+                }
+            )
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "kind": "map-terrain-v1",
+            "map_id": map_id,
+            "occupancy": ["".join(row) for row in grid],
+            "walk_surface_row": game_map.terrain.walk_surface_row,
+            "climbable_placements": placements,
+        }
+    ).encode()
+
+
 def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
     target = root / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +126,13 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
                 layer.vertical_anchor
             )
     for relative_path in runtime_artifact_paths(package):
+        if relative_path.endswith("/terrain.json"):
+            map_id = relative_path.split("/")[1]
+            for root in (correction, complete):
+                target = root / relative_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(_terrain_artifact(map_id, package))
+            continue
         _write_artifact(complete, relative_path)
     padded_prop_path = "content/props/sunwheel_bread_stall.png"
     padded_prop = Image.new("RGBA", (16, 12), (0, 0, 0, 0))
@@ -115,7 +157,8 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "sunpetal-crossing",
         "crowncrag-road",
     ]
-    assert maps[0]["ground"]["occupancy"] == package.maps[0].ground.occupancy
+    assert len(maps[0]["ground"]["occupancy"]) == package.maps[0].terrain.rows
+    assert maps[0]["ground"]["terrain_asset"]["sha256"]
     assert maps[0]["layers"][2]["presentation"] == {
         "contrast": 0.84,
         "saturation": 0.9,
@@ -154,7 +197,7 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "bottom_surface": "terrain",
         "rise_tiles": 4,
     }
-    assert len(climbable["placements"]) == 4
+    assert len(climbable["placements"]) == 3
     assert maps[1]["portal"]["endpoints"][0]["anchor"] == "west_gate"
     player = result.manifest["player"]
     assert isinstance(player, dict)
@@ -234,6 +277,11 @@ def test_runtime_manifest_missing_artifact_leaves_no_partial_output(tmp_path: Pa
     incomplete = tmp_path / "incomplete"
     paths = runtime_artifact_paths(package)
     for relative_path in paths[:-1]:
+        if relative_path.endswith("/terrain.json"):
+            target = incomplete / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(_terrain_artifact(relative_path.split("/")[1], package))
+            continue
         _write_artifact(incomplete, relative_path)
     output = tmp_path / "runtime"
 

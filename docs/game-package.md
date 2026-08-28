@@ -42,7 +42,7 @@ Only these prepared-package identities are accepted by the resolver:
 | Repository selector | `game-package-v3` |
 | Package root | `game-contract-v6` |
 | Gameplay | `gameplay-contract-v1` |
-| Map generation | `game-map-v7` |
+| Map generation | `game-map-v8` |
 | Soundtrack | `game-soundtrack-v1` |
 | UI | `game-ui-v1` |
 | Player catalog | `player-content-v2` |

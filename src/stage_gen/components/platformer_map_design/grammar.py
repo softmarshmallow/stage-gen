@@ -285,13 +285,13 @@ def build_chunk_schema(profile: PlatformerProfile) -> StructuredOutputSchema:
     json_schema: dict[str, object] = {
         "type": "object",
         "additionalProperties": False,
-        "required": ["design_notes", "start_height", "chunks"],
+        "required": ["design_notes", "start_height_tiles", "chunks"],
         "properties": {
             "design_notes": {
                 "type": "string",
                 "description": "Plan the composition before writing the sentence.",
             },
-            "start_height": {"type": "integer", "minimum": low, "maximum": high},
+            "start_height_tiles": {"type": "integer", "minimum": low, "maximum": high},
             "chunks": {
                 "type": "array",
                 "minItems": 3,
@@ -338,7 +338,7 @@ THIS GAME'S MEASURED LIMITS:
   - the map is {columns} columns wide; chunk widths add left to right. Plan the budget in
     design_notes and make the widths sum to at most {columns}. If your chunks end early the
     map is finished with flat ground; going past {columns} is an error.
-  - floor height must stay within {low}..{high} tiles everywhere (start_height sets the left
+  - floor height must stay within {low}..{high} tiles everywhere (start_height_tiles sets the left
     edge; stairs and hollows move it).
   - jump reach: {reach}. Higher rises are impossible at any gap.
   - a climbable rises {rise_span} tile(s).
@@ -384,7 +384,7 @@ def expand_chunks(
     biome_cols: list[str] = []
     platforms: list[tuple[int, int, int]] = []  # (start, width, height)
     climbables: list[Climbable] = []
-    level = _as_int(value.get("start_height", 1))
+    level = _as_int(value.get("start_height_tiles", 1))
     climb_serial = 0
     current_biome = profile.biomes[0] if profile.biomes else ""
 

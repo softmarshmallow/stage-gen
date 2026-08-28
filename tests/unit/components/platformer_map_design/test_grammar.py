@@ -161,7 +161,7 @@ def test_the_chunk_schema_survives_strict_output_canonicalization() -> None:
 def test_run_stairs_and_hollow_expand_to_the_expected_heights() -> None:
     sentence: dict[str, object] = {
         "design_notes": "terrain only",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 5},
             {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},
@@ -186,7 +186,7 @@ def test_run_stairs_and_hollow_expand_to_the_expected_heights() -> None:
 def test_a_gentle_slope_rises_one_tile_per_two_columns_and_a_steep_slope_one_per_column() -> None:
     sentence: dict[str, object] = {
         "design_notes": "inclines",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 4},
             {"kind": "slope", "rise": 3, "grade": "gentle", "dir": "up"},
@@ -208,7 +208,7 @@ def test_a_gentle_slope_rises_one_tile_per_two_columns_and_a_steep_slope_one_per
 def test_a_slope_sentence_compiles_and_validates_without_touching_the_validator() -> None:
     sentence: dict[str, object] = {
         "design_notes": "a new word costs one shape, one expansion, one prompt line",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 10},
             {"kind": "slope", "rise": 3, "grade": "gentle", "dir": "up"},
@@ -238,7 +238,7 @@ def test_the_first_hop_chain_platform_clears_the_floor_instead_of_sitting_on_it(
 
     sentence: dict[str, object] = {
         "design_notes": "a rising jump chain",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 4},
             {
@@ -275,7 +275,7 @@ def test_the_first_hop_chain_platform_clears_the_floor_instead_of_sitting_on_it(
 def test_a_hop_chain_gap_beyond_this_games_reach_is_reported() -> None:
     sentence: dict[str, object] = {
         "design_notes": "too far",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {
                 "kind": "hop_chain",
@@ -300,7 +300,7 @@ def test_chunks_that_fall_short_are_finished_with_an_implicit_flat_run() -> None
 
     sentence: dict[str, object] = {
         "design_notes": "three chunks for a 128-column map",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 10},
             {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},
@@ -323,7 +323,7 @@ def test_the_overflow_error_names_every_chunk_and_the_width_it_took() -> None:
 
     sentence: dict[str, object] = {
         "design_notes": "budget blown",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 100},
             {"kind": "hollow", "width": 40, "depth": 1},
@@ -342,7 +342,7 @@ def test_the_overflow_error_names_every_chunk_and_the_width_it_took() -> None:
 def test_an_unknown_chunk_kind_is_reported_in_chunk_vocabulary() -> None:
     sentence: dict[str, object] = {
         "design_notes": "a word this game does not have",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [{"kind": "run", "len": 8}, {"kind": "spiral", "turns": 3}],
     }
 
@@ -362,7 +362,7 @@ def test_a_chunk_missing_a_required_parameter_is_reported_and_expansion_continue
 
     sentence: dict[str, object] = {
         "design_notes": "a run without a length",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run"},
             {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},
@@ -393,7 +393,7 @@ def test_a_chunk_parameter_that_is_not_a_number_is_reported_and_expansion_contin
 
     sentence: dict[str, object] = {
         "design_notes": "a hollow measured in adjectives",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 10},
             {"kind": "hollow", "width": "wide", "depth": 2},
@@ -432,7 +432,7 @@ def test_translate_re_anchors_a_grid_vocabulary_complaint_onto_the_owning_chunk(
 
     sentence: dict[str, object] = {
         "design_notes": "a breather, a climb, a dip, and a jump chain",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 10},
             {"kind": "stairs", "steps": 2, "step_h": 1, "tread": 4, "dir": "up"},
@@ -453,7 +453,7 @@ def test_translate_re_anchors_a_grid_vocabulary_complaint_onto_the_owning_chunk(
 def test_a_tower_sentence_produces_chained_climbables_with_ascending_foot_heights() -> None:
     sentence: dict[str, object] = {
         "design_notes": "a map that goes up",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 8},
             {
@@ -531,7 +531,7 @@ def test_a_stated_width_formula_is_the_width_the_expander_actually_emits() -> No
 
     sentence: dict[str, object] = {
         "design_notes": "one chunk of every word, with widths chosen to be distinguishable",
-        "start_height": 3,
+        "start_height_tiles": 3,
         "chunks": [
             {"kind": "run", "len": 7},
             {"kind": "stairs", "steps": 3, "step_h": 1, "tread": 2, "dir": "up"},
