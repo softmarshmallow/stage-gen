@@ -25,9 +25,13 @@ Start here for the headless, general-purpose system:
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
 - [Authored map-generation contract](spec/game/map-generation-contract.md) —
-  exact-current `game-map-v7`: explicit image-reference closure, side-view
+  exact-current `game-map-v8`: explicit image-reference closure, side-view
   continuity, per-map layers, binary terrain, ladder and portal composition,
   bundle review, cache, and gameplay-relationship exclusion.
+- [Platformer map design](spec/game/platformer-map-design.md) — the promoted chunk-grammar map
+  designer: capability profiles as data, the set-piece vocabulary and its expander, the
+  profile-driven validator, the `platformer-chunk-map-v1` design artifact, the vocabulary-growth
+  tiers, and the platformer-scoped boundary.
 - [Authored game UI contract](spec/game/ui.md) — current root `ui.toml`, inventory-panel layout,
   opaque slot-interior alpha rule, generation/review branch, manifest binding, and runtime fallback.
 - [Game visual reference and vocabulary](game-visual-reference.md) — global
@@ -42,7 +46,7 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate,
   digest-bound game-global track catalog, scrolling generation pipeline, shuffle
   playback, prepared-runtime projection, and listening/publication boundary.
-- [Authored game maps](game-maps.md) — exact-current `game-map-v7` package
+- [Authored game maps](game-maps.md) — exact-current `game-map-v8` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
@@ -62,6 +66,10 @@ Start here for the headless, general-purpose system:
 - [Asset unit](spec/asset-unit.md) — ratified TO-BE canonical magnitude vocabulary: one player
   height as the unit, per-class declaration and inheritance, the legibility floor, stance-cell and
   alpha-bbox measurement, anchor and registration, fail-closed admission, and consumer projection.
+- [Motion rebase](spec/motion-rebase.md) — ratified TO-BE cross-state coherence within one actor:
+  the baseline rule, the single judging atlas over every frame, per-state multipliers relative to a
+  named baseline, plate capacity and tiling, fail-closed admission, and composition with the asset
+  unit.
 - [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
   alpha-component repacking default, its accepted loss modes, evidence contract, and planned
   geometry and ownership improvements.
@@ -81,6 +89,10 @@ Start here for the headless, general-purpose system:
 - [Asset scale study](research/asset-scale-study.md) — measurements behind the asset unit: what a
   generated subject's pixels do and do not encode, the units that were rejected and why each one
   fails, estimation versus recognition, and what a scale marker can and cannot do.
+- [LLM map-design format study](research/llm-map-design-formats.md) — five map representations
+  measured against one unchanged validator, why the chunk grammar was promoted and the other four
+  set aside, when each set-aside format becomes useful again, and the boundary that named the
+  module platformer.
 - [Prior-art register](research/prior-art.md) — external studies, papers, and tool
   documentation relevant to our problems, each recorded with an explicit applicability
   verdict against our own inputs and the named limit that blocks it where one does.

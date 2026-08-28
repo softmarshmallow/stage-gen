@@ -151,6 +151,45 @@ publication still require explicit authorization even when their implementation 
       `fixtures/image_gen_templates/terrain_atlas_12x4_template.png` carries, must replace it and
       the artwork must be regenerated; do not promote bytes derived from the spike reference.
 
+## Platformer map design
+
+- [ ] Add the `canopy` word to the chunk vocabulary and measure it against the row-painting
+      baseline. Density is the one axis the grammar measurably does worst: chunk maps average a
+      platform width of about 4-5 columns where the run-length row format averaged about 9-11, so
+      chunk silhouettes have real shape and thin cover while RLE maps had broad cover and no
+      shape. The fix is a vocabulary word, not a second format - a scatter of jump-linked
+      platforms over a declared span, which is composition sugar over the primitives the contract
+      already carries and needs no validator, profile, or contract change. Measure the resulting
+      mean platform width against the recorded RLE figure, because adding the word without
+      re-measuring leaves the density claim exactly as unproven as it is now.
+- [ ] Split `PLACEMENT_ONLY_CLIMBABLE_FIELDS` out of the climbable atlas cache identity, mirroring
+      `PLACEMENT_ONLY_GROUND_FIELDS`. The ground node already excludes `occupancy`, `vertical_fit`,
+      and `walk_surface_row` from what the image model is asked to paint, which is why reshaping
+      terrain costs nothing; the climbable node still digests its whole authored block, so moving
+      one placement's `normalized_x` re-bills an atlas image that would return byte-identical.
+      Placement is consumed downstream of generation on both sides, so the asymmetry is an
+      oversight rather than a contract difference. Landing it makes iterating on climbable
+      positions free the way terrain already is, and it must update the graph contract and its
+      cache-identity assertions in the same change.
+- [ ] Do not let any profile declare `biomes` until a ground mode can consume them. The design
+      module can already express per-region appearance - the tag is physics-neutral, membership
+      and paintable span are validated, and per-chunk tagging lands switches on landmarks for free
+      - but `game-map-v7` binds exactly one terrain atlas per map and exposes no per-region style
+      surface, so the choice would have nowhere to go. This needs a new mode under `[ground]` with
+      its producer, validation, manifest, and consumer paths implemented first, exactly as the map
+      contract requires of every future ground mode. A profile that declares biomes before then
+      lets the designer make a claim no consumer can honour, and the failure would surface as
+      wrong art rather than as a rejected package.
+- [ ] Treat applying a design to a shipped map as its own authorized operation, never as a step
+      inside a design run. The shipped map TOMLs are pinned byte-for-byte, so a new occupancy
+      matrix co-updates the byte-level assertions in
+      `tests/unit/components/game_map/test_prepared_game_map.py` and re-locks two digests in
+      sequence: the map bytes into `game.toml` `source_sha256`, then the `game.toml` bytes into
+      `main.toml` `package_sha256`. It also re-bills the climbable atlas image for as long as the
+      cache split above is open. Sequence the split first if a run intends to move placements, and
+      keep the design, the apply, and the digest re-lock as one reviewed change rather than three
+      partial ones.
+
 ## Git reconciliation
 
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare
