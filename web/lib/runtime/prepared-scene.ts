@@ -868,7 +868,11 @@ export class PreparedStageScene extends Phaser.Scene {
       sprite
         .setOrigin(0, 0)
         .setScale(layout.scale)
-        .setScrollFactor(0)
+        // X is always screen-locked because horizontal parallax is applied as a texture offset
+        // below rather than as position. Y is not: a layer registered to the walk surface has a
+        // world datum and must travel with the camera, while viewport furniture must not. Both
+        // render identically while the camera rests at the bottom of the world.
+        .setScrollFactor(0, layout.space === "world" ? 1 : 0)
         .setDepth(layer.plane === "foreground" ? 80 + index : index - 20)
         .setData("parallax", layer.parallax);
       this.layerSprites.push(sprite);

@@ -6,11 +6,25 @@
 
 import type { PreparedLayerPlacement, PreparedMap } from "./prepared-manifest";
 
+/**
+ * Which space a layer's `topY` is measured in.
+ *
+ * `screen` layers are viewport furniture - a sky plate, a horizon band, a near frame - and hold
+ * still while the world moves past them. A `world` layer is registered to the terrain itself, so
+ * the camera has to carry it.
+ *
+ * The two coincide exactly while the camera rests at the bottom of the world, which is why one
+ * anchor vocabulary could stand for both until now.
+ */
+export type PreparedLayerSpace = "screen" | "world";
+
 export type PreparedLayerLayout = Readonly<{
   /** Uniform scale from painted-frame pixels to screen pixels. */
   scale: number;
-  /** Screen y of the trimmed raster's top edge. */
+  /** Y of the trimmed raster's top edge, measured in `space`. */
   topY: number;
+  /** Space `topY` belongs to. A world layer follows camera scroll; a screen layer does not. */
+  space: PreparedLayerSpace;
   /** Texture height in source pixels, so the tile sprite never repeats vertically. */
   sourceHeight: number;
   renderedHeight: number;
@@ -22,11 +36,15 @@ export type PreparedLayerContext = Readonly<{
 }>;
 
 /**
- * Screen y of the world floor.
+ * World y of the floor every map bottoms out on.
  *
  * `floor_to_screen_bottom` means the deepest authored occupancy row bottoms out at the viewport
  * edge. That is what makes a gap below the world impossible rather than merely unlikely, and it
  * replaces the hard-coded baseline the scene used to carry.
+ *
+ * The value equals the viewport height because the camera rests at the bottom of the world, not
+ * because the floor is a screen feature: `projectPreparedTerrainWorld` takes this same number as
+ * its world datum.
  */
 export function preparedGroundBaselineY(
   map: Pick<PreparedMap, "ground">,
@@ -42,7 +60,7 @@ export function preparedGroundBaselineY(
 }
 
 /**
- * Screen y of the main ground plane, the datum for `walk_surface` anchored layers.
+ * World y of the main ground plane, the datum for `walk_surface` anchored layers.
  *
  * This is the top edge of the authored `walk_surface_row`, so a midground layer's solid base meets
  * the terrain the player actually stands on rather than the buried floor beneath it.
@@ -70,6 +88,10 @@ export function preparedWalkSurfaceY(
  * changes a layer's apparent size. Bottom-registered anchors place the layer so its measured
  * full-coverage line — not its deepest stray tip — lands on the datum; the offset the producer
  * resolved is exactly the fraction that has to sit past it.
+ *
+ * The anchor also decides which space the result belongs to. Every `screen_*` datum and the cover
+ * plate are viewport features; `walk_surface` is the terrain the player stands on, so it alone
+ * resolves against a world coordinate and alone has to move when the camera does.
  */
 export function preparedLayerLayout(
   placement: PreparedLayerPlacement,
@@ -114,6 +136,7 @@ export function preparedLayerLayout(
   return Object.freeze({
     scale,
     topY,
+    space: anchor === "walk_surface" ? "world" : "screen",
     sourceHeight: placement.trimmed_height,
     renderedHeight,
   });

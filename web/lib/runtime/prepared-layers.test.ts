@@ -4,6 +4,7 @@ import {
   preparedLayerLayout,
   preparedWalkSurfaceY,
 } from "./prepared-layers";
+import { projectPreparedTerrainWorld } from "./prepared-terrain";
 import type { PreparedLayerPlacement, PreparedMap } from "./prepared-manifest";
 
 const VIEW_H = 720;
@@ -118,6 +119,27 @@ describe("layer layout", () => {
     const coverageLineY =
       layout.topY + layout.renderedHeight - offset * layout.renderedHeight;
     expect(coverageLineY).toBeCloseTo(context.walkSurfaceY, 8);
+  });
+
+  test.each([
+    ["canvas_cover", "screen"],
+    ["screen_top", "screen"],
+    ["screen_bottom", "screen"],
+    ["walk_surface", "world"],
+  ] as const)("a %s anchor resolves in %s space", (anchor, space) => {
+    expect(
+      preparedLayerLayout(placement({ vertical_anchor: anchor }), context).space,
+    ).toBe(space);
+  });
+
+  test("the walk surface datum is the same world coordinate the terrain is projected onto", () => {
+    // The one anchor that is not viewport furniture. If these two ever disagreed, the painted
+    // midground would sit off the terrain it is registered to - and because the camera rests at
+    // the bottom of the world today, nothing on screen would reveal it.
+    const map = ground(12, 9);
+    const world = projectPreparedTerrainWorld(map, TILE_PX, preparedGroundBaselineY(map, VIEW_H));
+    const walkSurfaceRowTopY = world.topY + map.ground.walk_surface_row * TILE_PX;
+    expect(preparedWalkSurfaceY(map, TILE_PX, VIEW_H)).toBe(walkSurfaceRowTopY);
   });
 
   test("invalid raster heights are rejected", () => {
