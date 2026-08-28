@@ -1,15 +1,17 @@
-schema_version = 8
-kind = "game-map-v8"
+schema_version = 9
+kind = "game-map-v9"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 13
+revision = 14
 display_name = "Amberbell Forest"
 
 [view]
 profile = "side_view_2d"
 gameplay_space = "side_plane"
-camera_behavior = "scrolling"
-scroll_axis = "x"
+
+[camera]
+mode = "player_follow"
+follow_axes = ["x", "y"]
 
 [terrain]
 mode = "platformer-chunk-map-v1"

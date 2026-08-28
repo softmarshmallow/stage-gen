@@ -61,7 +61,9 @@ review explorer needs its own explicit review-manifest boundary.
 
 [`prepared-scene.ts`](../web/lib/runtime/prepared-scene.ts) owns preview-specific implementation:
 
-- 1280-by-720 viewport and horizontal follow camera;
+- 1280-by-720 viewport and a dead-zone follow camera whose permitted axes are read from the
+  map's `[camera]` block rather than assumed; without a vertical axis the camera's world box
+  is exactly one viewport tall, which is what holds it to the floor;
 - map width derived from authored occupancy columns at the prepared adapter's tile scale;
 - map-local parallax layer stacks and dynamic 47-mask terrain selection from authored occupancy;
 - one-time, loop-safe layer depth treatment plus terrain-aware dynamic contact shadows;

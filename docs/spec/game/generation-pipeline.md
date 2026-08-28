@@ -242,6 +242,14 @@ persist per-asset validation reports. The map review waits for every declared pr
 validator as well as the layer-and-ground composite. Gameplay still owns climb permission and
 transition relationships; generation does not infer either from appearance.
 
+The terrain node is the one place a camera declaration reaches generation. `[camera]` is a
+runtime block and enters no image digest, but a walkable surface the runtime cannot bring into
+frame is unplayable, so `camera.follow_axes` bounds the designer's framing ceiling and is part of
+the terrain node's identity. Retuning the camera therefore re-composes geometry and leaves every
+appearance call untouched. This is why the camera was moved out of `[view]`: while it lived there
+it entered `map_direction`, and a field no prompt reads re-billed every layer, ground, climbable,
+and portal image for the map.
+
 Climbable cache identity is split the same way the ground's is. The atlas draws each declared
 variant exactly once, so its mode, selected references, and the declared ladders and ropes with
 their prompts are generation identity: the variant count is the atlas cell count and the prompts

@@ -295,6 +295,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 map_direction,
                 _object_sha256(game_map.terrain.model_dump(mode="json")),
+                # The camera bounds what the designer may build: a surface the runtime cannot
+                # frame is unplayable, so the framing ceiling in terrain_design reads the same
+                # declaration the scene does. That makes the camera a real geometry input.
+                _object_sha256(game_map.camera.model_dump(mode="json")),
                 _object_sha256(
                     {}
                     if game_map.climbable is None

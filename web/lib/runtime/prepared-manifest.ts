@@ -56,11 +56,20 @@ export type PreparedLayer = Readonly<{
   asset: RuntimeArtifact;
 }>;
 
+/** Axes the camera is permitted to follow the player along, in canonical order. */
+export type PreparedCameraAxis = "x" | "y";
+
+export type PreparedMapCamera = Readonly<{
+  mode: "player_follow";
+  follow_axes: readonly PreparedCameraAxis[];
+}>;
+
 export type PreparedMap = Readonly<{
   map_id: string;
   revision: number;
   display_name: string;
   role: "safe_village_hub" | "scrolling_hunting_route";
+  camera: PreparedMapCamera;
   hostile_population_enabled: boolean;
   track_ids: readonly string[];
   layers: readonly PreparedLayer[];
@@ -755,11 +764,29 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     if (role !== "safe_village_hub" && role !== "scrolling_hunting_route") {
       throw new Error("map role is invalid");
     }
+    // Rejected rather than defaulted. A camera this scene cannot drive is a map it cannot play
+    // correctly, and silently ignoring a declared axis would strand the player above the frame.
+    const rawCamera = object(map.camera, "map camera");
+    if (rawCamera.mode !== "player_follow") throw new Error("map camera mode is unsupported");
+    const followAxes = array(rawCamera.follow_axes, "map camera follow_axes").map((axis) => {
+      if (axis !== "x" && axis !== "y") throw new Error("map camera follow axis is invalid");
+      return axis;
+    });
+    if (new Set(followAxes).size !== followAxes.length) {
+      throw new Error("map camera follow_axes must be unique");
+    }
+    if (followAxes.join(",") !== (["x", "y"] as const).filter((a) => followAxes.includes(a)).join(",")) {
+      throw new Error("map camera follow_axes must use canonical x, y order");
+    }
     return Object.freeze({
       map_id: id(map.map_id, "map_id"),
       revision: integer(map.revision, "map revision", 1),
       display_name: text(map.display_name, "map display_name"),
       role,
+      camera: Object.freeze({
+        mode: "player_follow" as const,
+        follow_axes: Object.freeze(followAxes),
+      }),
       hostile_population_enabled: map.hostile_population_enabled === true,
       track_ids: Object.freeze(array(map.track_ids, "map track_ids").map((track) => id(track, "track_id"))),
       layers: Object.freeze(layers),

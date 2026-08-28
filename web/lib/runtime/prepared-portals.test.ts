@@ -18,6 +18,7 @@ function map(
     revision: 1,
     display_name: mapId,
     role: "scrolling_hunting_route",
+    camera: { mode: "player_follow", follow_axes: ["x"] },
     hostile_population_enabled: true,
     track_ids: [],
     layers: [],

@@ -37,8 +37,12 @@ TERRAIN_LEVEL_GAP_TILES = 8
 TERRAIN_CLIMBABLE_RISE_TILES: tuple[int, ...] = (4,)
 #: The runtime refuses a ladder whose foot has no flat neighbour to its right.
 TERRAIN_CLIMBABLE_NEEDS_FLAT_FOOTING = True
-#: Highest walkable surface that still holds the player inside the camera deadzone at zoom one.
-TERRAIN_MAX_FRAMED_SURFACE_TILES = 12
+#: The consumer's viewport and figure, restated from web/lib/runtime/prepared-scene.ts so the
+#: designer and the runtime cannot disagree about what "in frame" means. VIEW_H is 720, TILE_PX
+#: is 64, and a standing player is drawn 154px tall.
+TERRAIN_VIEWPORT_HEIGHT_PX = 720
+TERRAIN_TILE_PX = 64
+TERRAIN_PLAYER_STANDING_HEIGHT_PX = 154
 #: Bounds on how deep the floor may be. One tile is the least that renders as ground at all; the
 #: upper bound stops the floor eating the playable space.
 TERRAIN_GROUND_DEPTH_TILES = (1, 8)
@@ -50,6 +54,24 @@ def terrain_artifact_path(map_id: str) -> str:
     """Where a map's generated geometry lives inside a run, beside its generated images."""
 
     return f"maps/{map_id}/terrain.json"
+
+
+def framing_ceiling(rows: int, follows_vertical: bool) -> int:
+    """Highest walkable surface a standing player still fits above.
+
+    This is the one place the camera reaches into generation, so it reads the same declaration the
+    runtime does rather than restating a guess. When the camera follows the player vertically the
+    whole grid is reachable; when it does not, the world the player can occupy is only as tall as
+    the viewport, and a surface higher than that puts the figure off the top of the screen with no
+    way to bring it back.
+
+    Headroom is the figure itself, rounded up to whole tiles, because the constraint is the head
+    rather than the feet: a surface the feet can reach and the head cannot is still unplayable.
+    """
+
+    headroom = -(-TERRAIN_PLAYER_STANDING_HEIGHT_PX // TERRAIN_TILE_PX)
+    visible = rows if follows_vertical else TERRAIN_VIEWPORT_HEIGHT_PX // TERRAIN_TILE_PX
+    return max(1, min(rows, visible) - headroom)
 
 
 def terrain_profile(game_map: PreparedGameMap) -> PlatformerProfile:
@@ -68,7 +90,7 @@ def terrain_profile(game_map: PreparedGameMap) -> PlatformerProfile:
         if game_map.climbable is None
         else tuple(entry.variant_id for entry in game_map.climbable.variants)
     )
-    ceiling = min(TERRAIN_MAX_FRAMED_SURFACE_TILES, request.rows)
+    ceiling = framing_ceiling(request.rows, "y" in game_map.camera.follow_axes)
     return PlatformerProfile(
         profile_id=f"{game_map.game_id}-{game_map.map_id}",
         movement=MovementProfile(

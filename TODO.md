@@ -207,6 +207,30 @@ publication still require explicit authorization even when their implementation 
       keep the design, the apply, and the digest re-lock as one reviewed change rather than three
       partial ones.
 
+## Camera
+
+- [ ] Retire the deleted scene's two orphaned camera helpers. `verticalCameraScrollY` in
+      `web/lib/runtime/vertical.ts` and `horizontalCameraScrollX` in
+      `web/lib/runtime/camera-follow.ts` both drove `scene.ts`, which `6853a3d` replaced with
+      `prepared-scene.ts`. The prepared scene uses Phaser's own dead-zone follow on both axes, so
+      neither helper has a caller and only their own tests reference them. Leaving them in place
+      reads as if they were the intended path. Delete them with their tests, keep
+      `VERTICAL_CAMERA_MIN_SCROLL_Y` only if the platform bound in `createVerticalWorld` still
+      wants it, and re-pin `GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS` in
+      `web/tests/gameplay/harness.ts`, whose exact scroll values date from that same deleted scene.
+- [ ] Take `map_direction` out of the terrain node's identity. Terrain is geometry; the game's
+      visual direction and `continuity` are art direction, and neither shapes a chunk sentence.
+      Today an unrelated palette or loop-construction edit re-composes both maps. The camera and
+      the terrain request are the real inputs and are already recorded. This is the same split the
+      ground and climbable nodes already have, applied one node further along.
+- [ ] Decide whether partial vertical parallax is wanted before any layer needs it. The layer
+      contract now resolves in two spaces, world and screen, which needs no vertical slack because
+      a world layer moves with the world and a screen layer does not move at all. A coefficient
+      between the two would need slack that does not exist: map layers are painted 1536x1024 and
+      scaled by 720/1024, so they are exactly one viewport tall. Scaling to fill width instead
+      would yield 133px of slack with no regeneration, at the cost of an 18 percent change in
+      apparent scale and therefore a fresh semantic review of every map layer.
+
 ## Git reconciliation
 
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare

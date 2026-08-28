@@ -58,6 +58,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
         revision: 1,
         display_name: "Village",
         role: "safe_village_hub",
+        camera: { mode: "player_follow", follow_axes: ["x"] },
         hostile_population_enabled: false,
         track_ids: [],
         layers: [

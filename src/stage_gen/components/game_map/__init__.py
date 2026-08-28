@@ -39,6 +39,7 @@ from .models import (
 from .prepared import (
     PREPARED_GAME_MAP_SCHEMA_VERSION,
     PreparedGameMap,
+    PreparedMapCamera,
     PreparedMapClimbable,
     PreparedMapClimbablePlacement,
     PreparedMapClimbableVariant,
@@ -75,6 +76,7 @@ __all__ = [
     "LevelTraversalAffordance",
     "LevelView",
     "PreparedGameMap",
+    "PreparedMapCamera",
     "PreparedMapContinuity",
     "PreparedMapGround",
     "PreparedMapClimbable",

@@ -79,6 +79,48 @@ def test_the_profile_restates_the_consumers_own_traversal_constants() -> None:
     assert not movement.reachable(3, 0)
 
 
+def test_the_framing_ceiling_comes_from_the_declared_camera() -> None:
+    # The one place the camera reaches into generation. A map whose camera cannot follow the
+    # player upward may only build as high as the viewport can hold a standing figure; a map whose
+    # camera can gets the whole authored grid, less the same headroom at the top.
+    from stage_gen.recipes.scrolling_preview.terrain_design import framing_ceiling
+
+    village = _map("sunpetal-crossing")
+    road = _map("crowncrag-road")
+    assert village.camera.follow_axes == ["x"]
+    assert road.camera.follow_axes == ["x", "y"]
+
+    assert SCRIPT.terrain_profile(village).geometry.max_walkable_height_tiles == framing_ceiling(
+        village.terrain.rows, False
+    )
+    assert SCRIPT.terrain_profile(road).geometry.max_walkable_height_tiles == framing_ceiling(
+        road.terrain.rows, True
+    )
+    # Declaring the axis is what buys the height: the same grid is worth five more tiles.
+    assert framing_ceiling(road.terrain.rows, True) - framing_ceiling(road.terrain.rows, False) == 5
+
+
+def test_a_fixed_camera_ceiling_keeps_a_standing_player_inside_the_viewport() -> None:
+    # The bound this replaced was a hand-written 12, which put the top of the figure roughly a
+    # tile above the viewport with no camera able to bring it back. Assert the property rather
+    # than the number so a retune of either constant has to stay honest.
+    from stage_gen.recipes.scrolling_preview.terrain_design import (
+        TERRAIN_PLAYER_STANDING_HEIGHT_PX,
+        TERRAIN_TILE_PX,
+        TERRAIN_VIEWPORT_HEIGHT_PX,
+        framing_ceiling,
+    )
+
+    ceiling = framing_ceiling(64, False)
+    head_y = (
+        TERRAIN_VIEWPORT_HEIGHT_PX - ceiling * TERRAIN_TILE_PX - TERRAIN_PLAYER_STANDING_HEIGHT_PX
+    )
+    assert head_y >= 0
+    # And it is the highest such surface, not a conservative one.
+    next_head_y = head_y - TERRAIN_TILE_PX
+    assert next_head_y < 0
+
+
 def test_expand_refuses_a_design_that_would_resize_the_grid() -> None:
     game_map = _map("crowncrag-road")
     profile = SCRIPT.terrain_profile(game_map)
@@ -196,5 +238,5 @@ def test_the_shipped_maps_carry_a_terrain_request_and_no_geometry() -> None:
         assert "[[climbable.placements]]" not in text
         assert '[terrain]\nmode = "platformer-chunk-map-v1"' in text
         game_map = _map(map_id)
-        assert game_map.kind == "game-map-v8"
+        assert game_map.kind == "game-map-v9"
         assert json.loads(game_map.terrain.model_dump_json())["brief"].strip()

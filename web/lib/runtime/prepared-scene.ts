@@ -66,6 +66,7 @@ import {
 } from "./prepared-player";
 import { frameScaleForHeight } from "./sprite-scale";
 import { SCENE_CONTENT_DEPTH } from "./layers";
+import { cameraWorldBounds } from "./camera-follow";
 import {
   preparedGroundBaselineY,
   preparedLayerLayout,
@@ -799,10 +800,22 @@ export class PreparedStageScene extends Phaser.Scene {
     });
     this.installPortals(map);
     if (map.hostile_population_enabled) this.initializeMobPopulation(map);
-    this.cameras.main.setBounds(0, 0, this.worldWidth, VIEW_H);
+    // The map declares which axes the camera may follow and the scene obeys, rather than the
+    // scene assuming a shape every map has to fit. The follow itself is unconditional - Phaser
+    // has always been asked to track both axes with the same dead zone - so an axis is enabled or
+    // disabled purely by the world box the camera is allowed to move inside. Without a vertical
+    // axis that box is exactly one viewport tall, which is what pins the camera to the floor.
+    const bounds = cameraWorldBounds({
+      followAxes: map.camera.follow_axes,
+      worldWidth: this.worldWidth,
+      terrainTopY: terrainWorld.topY,
+      groundBaselineY: this.groundBaselineY,
+      viewportHeight: VIEW_H,
+    });
+    this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 50);
     this.cameras.main.setDeadzone(300, 180);
-    this.cameras.main.scrollY = 0;
+    if (!map.camera.follow_axes.includes("y")) this.cameras.main.scrollY = 0;
     this.mapLabel?.setText(map.display_name);
     this.selectSoundtrack(map);
     this.loading = false;

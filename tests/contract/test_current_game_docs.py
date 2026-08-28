@@ -28,6 +28,7 @@ RETIRED_PREPARED_IDENTITIES = (
     "game-map-v2",
     "game-map-v3",
     "game-map-v7",
+    "game-map-v8",
     "prepared-game-runtime-v1",
     "prepared-game-runtime-v2",
     "prepared-game-runtime-v3",
@@ -70,7 +71,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-contract-v6`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
-        "`game-map-v8`",
+        "`game-map-v9`",
         "`prepared-game-runtime-v9`",
     ):
         assert identity in game_contract
@@ -85,7 +86,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     maps = documents["docs/game-maps.md"]
     for identity in (
-        "`game-map-v8`",
+        "`game-map-v9`",
         "`climbable-atlas-v1`",
         "`portal-pair-1x2-v1`",
         "`prepared-game-runtime-v9`",

@@ -184,6 +184,7 @@ function manifestFixture(): Record<string, unknown> {
       {
         map_id: "village-map",
         role: "safe_village_hub",
+        camera: { mode: "player_follow", follow_axes: ["x"] },
         hostile_population_enabled: false,
         track_ids: ["village_theme"],
         portal: {
@@ -196,6 +197,7 @@ function manifestFixture(): Record<string, unknown> {
       {
         map_id: "road-map",
         role: "scrolling_hunting_route",
+        camera: { mode: "player_follow", follow_axes: ["x", "y"] },
         hostile_population_enabled: true,
         track_ids: ["road_theme", "boss_theme"],
         portal: {

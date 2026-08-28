@@ -3,7 +3,7 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v8` as one compound map-generation contract
+> input. It defines `game-map-v9` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
 > recipe executes its typed branches; `prepared-game-runtime-v9` projects the
@@ -57,7 +57,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source and
 locks its exact authored bytes. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v8` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v9` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -65,8 +65,8 @@ Reference image filenames are independent: there is no requirement for
 ## Complete example
 
 ```toml
-schema_version = 8
-kind = "game-map-v8"
+schema_version = 9
+kind = "game-map-v9"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -75,8 +75,10 @@ display_name = "Summer Field"
 [view]
 profile = "side_view_2d"
 gameplay_space = "side_plane"
-camera_behavior = "scrolling"
-scroll_axis = "x"
+
+[camera]
+mode = "player_follow"
+follow_axes = ["x"]
 
 [continuity]
 seamless_axis = "x"
@@ -203,7 +205,11 @@ normalized_x = 0.9
 role = "exit"
 ```
 
-## View and continuity
+## View, camera, and continuity
+
+`[view]` and `[continuity]` describe the artwork and enter the image cache key. `[camera]`
+describes what the runtime does with that artwork and enters no image digest at all, which is why
+retuning the camera never re-bills a provider image.
 
 The initial producer supports one complete combination:
 
@@ -211,10 +217,32 @@ The initial producer supports one complete combination:
 | --- | --- | --- |
 | `view.profile` | `side_view_2d` | Current side-view asset-generation profile; it is a profile identifier, not a claim that camera pose, projection, and gameplay space are synonyms |
 | `view.gameplay_space` | `side_plane` | Composition reserves a readable longitudinal and world-up playfield; it does not grant movement abilities |
-| `view.camera_behavior` | `scrolling` | The generated composition must remain valid while the camera advances |
-| `view.scroll_axis` | `x` | Camera progression is horizontal in the generated image plane |
 | `continuity.seamless_axis` | `x` | Every layer output must be admitted or constructed as a verified horizontal repeat unit |
 | `continuity.loop_construction` | `mirror_repeat` or `generated_bridge` | How a layer that does not already loop is made to loop |
+
+### Camera
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `camera.mode` | `player_follow` | The camera tracks the player within a dead zone |
+| `camera.follow_axes` | any of `x`, `y`, in that order | Which axes the camera is permitted to follow the player along |
+
+`follow_axes` is the only field a future gameplay shape has to change: a side-scroller declares
+`["x"]`, a map whose routes stack above one another `["x", "y"]`, a climbing tower `["y"]`, and a
+single-screen arena `[]`. A consumer that cannot honour a declared axis must reject the map rather
+than silently ignore the field.
+
+It is a generation input for exactly one reason. A walkable surface the runtime cannot bring into
+frame is unplayable, so the terrain designer's framing ceiling is derived from this declaration:
+with a vertical axis the whole authored grid is reachable, and without one the reachable world is
+only as tall as the viewport less the height of a standing figure. Nothing else about generation
+reads it, and it never reaches an image prompt.
+
+This replaces `view.camera_behavior` and `view.scroll_axis`. Those stated a runtime fact inside
+the block that directs image generation, so editing the camera re-billed every map image while no
+prompt changed; and their art-direction claim — that the composition stays valid as the camera
+advances — is carried concretely by `continuity.seamless_axis`, which names the obligation rather
+than the camera it follows from.
 
 ### Loop construction
 
@@ -585,7 +613,7 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v8` does not contain:
+`game-map-v9` does not contain:
 
 - terrain geometry or climbable placement, both of which are generated into a
   `map-terrain-v1` artifact and bound to the map by digest;

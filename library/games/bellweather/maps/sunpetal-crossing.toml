@@ -1,15 +1,17 @@
-schema_version = 8
-kind = "game-map-v8"
+schema_version = 9
+kind = "game-map-v9"
 game_id = "bellweather"
 map_id = "sunpetal-crossing"
-revision = 10
+revision = 11
 display_name = "Sunpetal Crossing"
 
 [view]
 profile = "side_view_2d"
 gameplay_space = "side_plane"
-camera_behavior = "scrolling"
-scroll_axis = "x"
+
+[camera]
+mode = "player_follow"
+follow_axes = ["x"]
 
 [terrain]
 mode = "platformer-chunk-map-v1"

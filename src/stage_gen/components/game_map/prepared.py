@@ -28,7 +28,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 8
+PREPARED_GAME_MAP_SCHEMA_VERSION = 9
 #: Generated terrain geometry is its own artifact contract, produced by a generator the map
 #: names and never written back into the authored document.
 PREPARED_MAP_TERRAIN_SCHEMA_VERSION = 1
@@ -53,10 +53,37 @@ def _bottom_contiguous_heights(occupancy: list[str]) -> list[int]:
 
 
 class PreparedMapView(PersistedContractModel):
+    """What the artwork is. Every field here directs generation and enters the image cache key."""
+
     profile: Literal["side_view_2d"]
     gameplay_space: Literal["side_plane"]
-    camera_behavior: Literal["scrolling"]
-    scroll_axis: Literal["x"]
+
+
+class PreparedMapCamera(PersistedContractModel):
+    """What the runtime does with the artwork. Nothing here reaches the image model.
+
+    This used to live in ``[view]`` as ``camera_behavior`` and ``scroll_axis``, which put a
+    runtime fact inside the generation digest: editing the camera re-billed every map image even
+    though no prompt changed. The art-direction half of that claim was always carried better by
+    ``continuity.seamless_axis``, which states the concrete obligation -- every layer must be a
+    verified horizontal repeat unit -- rather than restating the camera it follows from.
+
+    ``follow_axes`` is the whole extension point. A side-scroller declares ``["x"]``, a map with
+    routes stacked above one another ``["x", "y"]``, a climbing tower ``["y"]``, and a
+    single-screen arena an empty list. Consumers that cannot honour an axis must reject the map
+    rather than silently ignoring it.
+    """
+
+    mode: Literal["player_follow"]
+    follow_axes: list[Literal["x", "y"]] = Field(max_length=2)
+
+    @field_validator("follow_axes")
+    @classmethod
+    def validate_follow_axes(cls, value: list[str]) -> list[str]:
+        unique_values(value, "camera follow_axes")
+        if value != [axis for axis in ("x", "y") if axis in value]:
+            raise ValueError("camera follow_axes must use canonical x, y order")
+        return value
 
 
 class PreparedMapContinuity(PersistedContractModel):
@@ -319,13 +346,14 @@ class PreparedMapTerrainRequest(PersistedContractModel):
 
 
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[8]
-    kind: Literal["game-map-v8"]
+    schema_version: Literal[9]
+    kind: Literal["game-map-v9"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     display_name: str
     view: PreparedMapView
+    camera: PreparedMapCamera
     continuity: PreparedMapContinuity
     references: list[PreparedMapReference] = Field(min_length=1, max_length=32)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
@@ -577,6 +605,7 @@ __all__ = [
     "PreparedMapContinuity",
     "PreparedMapGround",
     "PreparedMapClimbable",
+    "PreparedMapCamera",
     "PreparedMapClimbablePlacement",
     "PreparedMapClimbableVariant",
     "PreparedMapLayer",

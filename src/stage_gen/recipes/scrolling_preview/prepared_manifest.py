@@ -179,6 +179,9 @@ def _assemble_prepared_runtime(
             "revision": game_map.revision,
             "display_name": game_map.display_name,
             "view": game_map.view.model_dump(mode="json"),
+            # Published so the consumer obeys the declaration instead of hardcoding it. A runtime
+            # that cannot honour a declared axis must reject the map rather than ignore the field.
+            "camera": game_map.camera.model_dump(mode="json"),
             "continuity": game_map.continuity.model_dump(mode="json"),
             "role": map_use.role,
             "hostile_population_enabled": map_use.hostile_population_enabled,

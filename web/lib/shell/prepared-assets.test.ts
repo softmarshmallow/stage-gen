@@ -70,6 +70,7 @@ function preparedManifestFixture() {
         revision: 1,
         display_name: "Sunny Meadow",
         role: "safe_village_hub",
+        camera: { mode: "player_follow", follow_axes: ["x"] },
         hostile_population_enabled: false,
         track_ids: ["meadow_theme"],
         layers: [
@@ -310,6 +311,39 @@ describe("prepared runtime asset projection", () => {
     expect(() => parsePreparedRuntimeManifest(belowCanvas)).toThrow(
       "props[0].ground_contact_y_normalized must be a finite number",
     );
+  });
+
+  test("the declared camera is parsed, and an axis this scene cannot drive is rejected", () => {
+    const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
+    expect(manifest.maps[0]!.camera).toEqual({
+      mode: "player_follow",
+      follow_axes: ["x"],
+    });
+
+    // Every rejection matters for the same reason: the scene sizes the camera's world box from
+    // this field, so a value it silently accepted would strand the player outside the frame
+    // rather than fail loudly at load.
+    for (const [camera, message] of [
+      [undefined, /map camera must be an object/],
+      [{ mode: "cinematic_rail", follow_axes: ["x"] }, /camera mode is unsupported/],
+      [{ mode: "player_follow", follow_axes: ["z"] }, /follow axis is invalid/],
+      [{ mode: "player_follow", follow_axes: ["x", "x"] }, /follow_axes must be unique/],
+      [{ mode: "player_follow", follow_axes: ["y", "x"] }, /canonical x, y order/],
+    ] as const) {
+      const broken = structuredClone(preparedManifestFixture());
+      if (camera === undefined) delete (broken.maps[0] as Record<string, unknown>).camera;
+      else (broken.maps[0] as Record<string, unknown>).camera = camera;
+      expect(() => parsePreparedRuntimeManifest(broken)).toThrow(message);
+    }
+  });
+
+  test("an empty axis list is a single-screen camera, not a malformed one", () => {
+    const fixed = structuredClone(preparedManifestFixture());
+    (fixed.maps[0] as Record<string, unknown>).camera = {
+      mode: "player_follow",
+      follow_axes: [],
+    };
+    expect(parsePreparedRuntimeManifest(fixed).maps[0]!.camera.follow_axes).toEqual([]);
   });
 
   test("retains explicit player and mob concept bindings", () => {

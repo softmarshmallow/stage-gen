@@ -382,7 +382,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 ## World-design agent (`world_spec_<tag>.json`)
 
 > **CURRENT only.** The ratified prepared-package target removes layer planning
-> from this generated bible. `game-map-v8` authors references and layer prompts
+> from this generated bible. `game-map-v9` authors references and layer prompts
 > before ingest; see the
 > [Authored map-generation contract](game/map-generation-contract.md). Mob,
 > prop, and item migration is a separate content-contract boundary.
@@ -597,7 +597,7 @@ an independent semantic verdict accepts their exact bytes.
 
 ## Runtime ladder
 
-> **Prepared map-local contract.** In `game-map-v8`, optional `[ladder]`
+> **Prepared map-local contract.** In `game-map-v9`, optional `[ladder]`
 > direction and placements live in the owning map. The appearance is generated
 > once per map and reused only by that map's validated placements. The older
 > prompt-only recipe may still use a run-global `ladder_<tag>.png`; it is not
@@ -1019,7 +1019,7 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 
 ## Portal pair (entry / exit)
 
-> **Prepared map-local contract.** In `game-map-v8`, optional `[portal]`
+> **Prepared map-local contract.** In `game-map-v9`, optional `[portal]`
 > direction and endpoint anchors live in the owning map. The older prompt-only
 > recipe may still generate one global pair; it is not the prepared-package
 > authority.

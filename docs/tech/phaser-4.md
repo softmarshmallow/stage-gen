@@ -23,7 +23,9 @@ the public run contract. Browser code never receives provider credentials.
 ## Current adapter assumptions
 
 - client-side canvas with a fixed design viewport;
-- horizontal follow camera and parallax driven by `scrollX`;
+- dead-zone follow camera on the axes the map declares, with parallax driven by `scrollX`
+  alone: layers registered to the walk surface travel with the camera in Y, and every other
+  layer is viewport furniture that does not;
 - one-dimensional heightmap terrain;
 - fixed scrolling-recipe sheet roles;
 - gravity, jump, combat, drops, inventory, and entry/exit portals.
