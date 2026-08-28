@@ -47,7 +47,7 @@ export function gameplayOverviewCamera(input: Readonly<{
     deckY: number;
     thickness: number;
   }>[];
-  ladders: readonly Readonly<{
+  climbables: readonly Readonly<{
     left: number;
     right: number;
     top: number;
@@ -57,7 +57,7 @@ export function gameplayOverviewCamera(input: Readonly<{
   marginPixels?: number;
   maximumZoom?: number;
 }>): GameplayOverviewCamera | null {
-  if (input.platforms.length < 3 || input.ladders.length === 0) return null;
+  if (input.platforms.length < 3 || input.climbables.length === 0) return null;
   const viewport = input.viewport ?? GAMEPLAY_AUTOMATION_VIEWPORT;
   const margin = input.marginPixels ?? 48;
   const maximumZoom = input.maximumZoom ?? 0.72;
@@ -81,7 +81,7 @@ export function gameplayOverviewCamera(input: Readonly<{
       top: platform.deckY,
       bottom: platform.deckY + platform.thickness,
     })),
-    ...input.ladders,
+    ...input.climbables,
   ];
   for (const bound of bounds) {
     if (
@@ -126,7 +126,7 @@ export function gameplayStillComposition(input: Readonly<{
     thickness: number;
     tier: number;
   }>[];
-  ladders: readonly Readonly<{
+  climbables: readonly Readonly<{
     left: number;
     right: number;
     top: number;
@@ -153,7 +153,7 @@ export function gameplayStillComposition(input: Readonly<{
   const staged = elevations.slice(0, 3);
   const camera = gameplayOverviewCamera({
     platforms: staged,
-    ladders: input.ladders,
+    climbables: input.climbables,
   });
   if (!camera) return null;
   // The fixed runtime route fits at >= 0.56 zoom. Reject future layouts that
@@ -340,7 +340,7 @@ export type GameplayPlayerProbe = Readonly<{
   maxHp: number;
   invulnerable: boolean;
   defeated: boolean;
-  support: "terrain" | "platform" | "ladder" | "air";
+  support: "terrain" | "platform" | "climbable" | "air";
   supportId: string | null;
   ladderId: string | null;
   platformId: string | null;
@@ -365,8 +365,9 @@ export type GameplayPlayerProbe = Readonly<{
     right: number;
     bottom: number;
   }>;
-  climbAnimationKey: "player_climb" | null;
-  climbTextureKey: "character_climb" | null;
+  /** Names the strip for the climbable being held, so it varies with the authored role. */
+  climbAnimationKey: string | null;
+  climbTextureKey: string | null;
   climbFrame: number | null;
   climbAnimationPaused: boolean | null;
   rearFacing: boolean;
@@ -386,7 +387,7 @@ export type GameplayPlatformRouteProbe = Readonly<{
   id: string;
   from: string;
   to: string;
-  mode: "jump" | "double-jump" | "drop" | "ladder";
+  mode: "jump" | "double-jump" | "drop" | "climbable";
   rise: number;
   gap: number;
   landingStep: number | null;
@@ -394,7 +395,7 @@ export type GameplayPlatformRouteProbe = Readonly<{
   ladderId: string | null;
 }>;
 
-export type GameplayLadderProbe = Readonly<{
+export type GameplayClimbableProbe = Readonly<{
   id: string;
   platformId: string;
   centerX: number;
@@ -489,7 +490,7 @@ export type GameplayAutomationSnapshot = Readonly<{
   layers: readonly SceneLayerProbe[];
   platforms: readonly GameplayPlatformProbe[];
   platformRoutes: readonly GameplayPlatformRouteProbe[];
-  ladders: readonly GameplayLadderProbe[];
+  climbables: readonly GameplayClimbableProbe[];
   mobs: readonly GameplayMobProbe[];
   inventory: Readonly<{
     visible: boolean;

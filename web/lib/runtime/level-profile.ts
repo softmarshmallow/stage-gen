@@ -17,7 +17,7 @@ export const LEVEL_AFFORDANCES = [
   "jump",
   "air_jump",
   "drop_through",
-  "ladder_climb",
+  "climb",
 ] as const;
 export type LevelAffordance = (typeof LEVEL_AFFORDANCES)[number];
 
@@ -222,11 +222,11 @@ export function parseLevelProfile(
   }
   if (
     platformModel === "none" &&
-    (affordances.includes("drop_through") || affordances.includes("ladder_climb"))
+    (affordances.includes("drop_through") || affordances.includes("climb"))
   ) {
     fail(
       `${path}.traversal.affordances`,
-      "drop_through and ladder_climb require platform_model one_way",
+      "drop_through and climb require platform_model one_way",
     );
   }
   const traversal = Object.freeze({

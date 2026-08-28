@@ -105,12 +105,12 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "bd1d68965ed558689f0173db5c0544558d6e0a2bf1a20c27840c22d2504bdbbf",
-  "node_count": 211,
+  "topology_sha256": "2a386cc1234919daf6ba39f4bd3db3a581515f585ccdf7c402550894034158bf",
+  "node_count": 213,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 101,
-    "image_generation": 91,
+    "local": 102,
+    "image_generation": 92,
     "structured_generation": 16,
     "music_generation": 3
   },
@@ -163,7 +163,7 @@ reported by the owning node.
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Maps | 2 maps × (4 layers + 1 ground), 4 provider-assisted and 4 local loop passes, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
-| Player | concept, 10 canonical-source states, dialogue, validations, board, review | 12 | 1 | 0 | 12 |
+| Player | concept, 11 canonical-source states, dialogue, validations, board, review | 13 | 1 | 0 | 13 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
@@ -242,9 +242,9 @@ persist per-asset validation reports. The map review waits for every declared pr
 validator as well as the layer-and-ground composite. Gameplay still owns climb permission and
 transition relationships; generation does not infer either from appearance.
 
-The live Content checkpoint is the exact 172-node closure rooted at every cast/catalog/UI review,
-every soundtrack validation, and `gameplay-bindings-validate`: 74 image operations, 14 structured
-reviews, three music operations, and 81 local nodes including package capture. It cannot schedule
+The live Content checkpoint is the exact 174-node closure rooted at every cast/catalog/UI review,
+every soundtrack validation, and `gameplay-bindings-validate`: 75 image operations, 14 structured
+reviews, three music operations, and 82 local nodes including package capture. It cannot schedule
 map or manifest nodes. Twenty-five identity/catalog/UI images are initially independent; each actor's
 state and dialogue descendants become ready immediately after that actor's concept succeeds.
 Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
@@ -276,8 +276,14 @@ The validation record binds source/output digests, placements, rejected-componen
 alpha, and this caveat. Smarter component attachment or segmentation is not silently invoked.
 
 Ordinary side-view states contain four right-facing frames; the runtime mirrors that canonical
-source for left-facing play. Player `climb` is the explicit exception: it is rear-facing and is not
-mirrored during ladder traversal. Facing is therefore a recipe/runtime projection contract, not
+source for left-facing play. The player climb states are the explicit exception: `climb_ladder` and
+`climb_rope` are rear-facing and are not mirrored during climbable traversal. They are also the only
+states that leave the shared four-cell 1536x1024 strip, because a climb has two distinct poses and a
+four-cell strip spends two of its cells on near-duplicates: each carries two cells on a 2464x3328
+canvas, which keeps the same cell aspect while giving the figure roughly eleven times the painted
+area. Which of the two a map requires is decided by the climbable roles it places, not by the
+`climb` movement alone, so a package that places a rope while declaring only `climb_ladder` is
+rejected rather than silently drawn as a ladder climb. Facing is therefore a recipe/runtime projection contract, not
 authored game-content input, and `content/player.toml` has no `required_facings` field. Generating
 both directions is intentionally forbidden by the canonical path because it adds cross-row
 consistency work without a runtime consumer. Separately authored directions may become an explicit

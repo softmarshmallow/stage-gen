@@ -440,7 +440,7 @@ function validRun(): GameplayRunEvidence {
   const platformRoutes: GameplayAutomationSnapshot["platformRoutes"] = [
     ...approved.routes,
   ];
-  const ladders: GameplayAutomationSnapshot["ladders"] = approved.ladders.map(
+  const climbables: GameplayAutomationSnapshot["climbables"] = approved.climbables.map(
     (ladder) => ({ ...ladder, visible: false }),
   );
   const finalPresentation = gameplayAutomationPresentation(900);
@@ -501,7 +501,7 @@ function validRun(): GameplayRunEvidence {
     ],
     platforms,
     platformRoutes,
-    ladders,
+    climbables,
     mobs: [],
     inventory: {
       visible: false,
@@ -583,7 +583,7 @@ function validRun(): GameplayRunEvidence {
       secondAirArc ||
       stepOffFall;
     const support = climbing
-      ? "ladder"
+      ? "climbable"
       : platformId
         ? "platform"
         : airborne
@@ -773,7 +773,7 @@ function validRun(): GameplayRunEvidence {
       layers: [validForegroundLayer(camera, presentation.foregroundVisible)],
       platforms,
       platformRoutes,
-      ladders,
+      climbables,
       mobs: [],
       worldItems:
         frame >= eventFrames["mob-drop"] && frame < eventFrames["item-pickup"]
@@ -1191,7 +1191,7 @@ describe("gameplay harness verdict", () => {
 
     const visualDrift: GameplayAutomationSnapshot = {
       ...source.finalSnapshot,
-      ladders: source.finalSnapshot.ladders.map((ladder, index) =>
+      climbables: source.finalSnapshot.climbables.map((ladder, index) =>
         index === 0
           ? { ...ladder, top: 312, visualTopOvershoot: 24 }
           : ladder,
@@ -1199,7 +1199,7 @@ describe("gameplay harness verdict", () => {
     };
     expect(() =>
       validateGameplayRun({ ...source, finalSnapshot: visualDrift }),
-    ).toThrow("ladder probe violates");
+    ).toThrow("climbable probe violates");
 
     const climbLines = source.transcript.trimEnd().split("\n");
     const climb = JSON.parse(climbLines[280]!) as {

@@ -26,7 +26,11 @@ class AlphaComponentRepackContract:
     alpha_threshold: int = 16
     minimum_component_fraction: float = 0.02
     minimum_component_area: int = 32
-    anchor: Literal["center", "bottom"] = "bottom"
+    #: Which edge of a cell every crop is registered against. `bottom` suits an actor standing on
+    #: a surface, where the feet are the stable point. `top` suits one hanging from its hands,
+    #: where the grip is stable and the feet move: bottom-anchoring such a pose pins the feet and
+    #: throws the head up and down instead, which reads as bouncing.
+    anchor: Literal["center", "bottom", "top"] = "bottom"
 
     def __post_init__(self) -> None:
         if self.rows <= 0 or self.columns <= 0:
@@ -216,6 +220,8 @@ def repack_alpha_components(
         x = cell_left + (cell_width - crop.width) // 2
         if contract.anchor == "bottom":
             y = cell_top + cell_height - contract.gutter - crop.height
+        elif contract.anchor == "top":
+            y = cell_top + contract.gutter
         else:
             y = cell_top + (cell_height - crop.height) // 2
         output.alpha_composite(crop, (x, y))

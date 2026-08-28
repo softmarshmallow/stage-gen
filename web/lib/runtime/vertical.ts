@@ -1,9 +1,9 @@
 import { terrainSurfaceY } from "./terrain";
 
 export const UPPER_PLATFORM_THICKNESS = 32 as const;
-export const LADDER_ACTIVATION_HALF_WIDTH = 30 as const;
-export const LADDER_ENDPOINT_TOLERANCE = 12 as const;
-export const LADDER_VISUAL_OVERSHOOT = 32 as const;
+export const CLIMBABLE_ACTIVATION_HALF_WIDTH = 30 as const;
+export const CLIMBABLE_ENDPOINT_TOLERANCE = 12 as const;
+export const CLIMBABLE_VISUAL_OVERSHOOT = 32 as const;
 /**
  * On-screen width of a ladder's rails, in world pixels.
  *
@@ -15,10 +15,10 @@ export const LADDER_VISUAL_OVERSHOOT = 32 as const;
  * straddles reads correctly at roughly their own width, and tile-aligning it keeps it coherent
  * with the terrain grid the platforms are cut from.
  */
-export const LADDER_VISUAL_WIDTH = 64 as const;
-export const LADDER_SPEED = 180 as const;
-export const LADDER_JUMP_VELOCITY = -350 as const;
-export const LADDER_JUMP_HORIZONTAL_SPEED = 200 as const;
+export const CLIMBABLE_VISUAL_WIDTH = 64 as const;
+export const CLIMBABLE_SPEED = 180 as const;
+export const CLIMBABLE_JUMP_VELOCITY = -350 as const;
+export const CLIMBABLE_JUMP_HORIZONTAL_SPEED = 200 as const;
 export const PLATFORMER_WALK_SPEED = 200 as const;
 export const PLATFORMER_RUN_SPEED = 540 as const;
 export const PLATFORMER_CROUCH_SPEED = 80 as const;
@@ -73,33 +73,41 @@ export type UpperPlatform = Readonly<{
   sourceColumns: Readonly<{ start: number; end: number }>;
 }>;
 
-export type LadderZone = Readonly<{
+/**
+ * What kind of climbable a zone is. The map declares this rather than the runtime inferring it,
+ * and it selects the player's climb artwork: a ladder is gripped at shoulder width with the feet
+ * on separate rungs, a rope on a single centerline with the feet pinched together.
+ */
+export type ClimbableRole = "ladder" | "rope";
+
+export type ClimbableZone = Readonly<{
   id: string;
   platformId: string;
   /** Which atlas variant paints this zone. Geometry is identical across variants. */
   variantId: string;
+  role: ClimbableRole;
   centerX: number;
   upperDeckY: number;
   lowerSurfaceY: number;
-  activationHalfWidth: typeof LADDER_ACTIVATION_HALF_WIDTH;
-  visualTopOvershoot: typeof LADDER_VISUAL_OVERSHOOT;
-  visualBottomOvershoot: typeof LADDER_VISUAL_OVERSHOOT;
+  activationHalfWidth: typeof CLIMBABLE_ACTIVATION_HALF_WIDTH;
+  visualTopOvershoot: typeof CLIMBABLE_VISUAL_OVERSHOOT;
+  visualBottomOvershoot: typeof CLIMBABLE_VISUAL_OVERSHOOT;
   /**
    * On-screen width of this zone's artwork. A rope is three to four times narrower than a
    * ladder, so this is per-variant rather than one shared constant: drawing a rope at the
-   * ladder's width is what the single `LADDER_VISUAL_WIDTH` produced.
+   * ladder's width is what the single `CLIMBABLE_VISUAL_WIDTH` produced.
    */
   visualWidth: number;
 }>;
 
-export type PlayerSupport = "terrain" | "platform" | "ladder" | "air";
+export type PlayerSupport = "terrain" | "platform" | "climbable" | "air";
 
 export type VerticalWorld = Readonly<{
   platforms: readonly UpperPlatform[];
-  ladders: readonly LadderZone[];
+  climbables: readonly ClimbableZone[];
 }>;
 
-export type PlatformRouteMode = "jump" | "double-jump" | "drop" | "ladder";
+export type PlatformRouteMode = "jump" | "double-jump" | "drop" | "climbable";
 
 export type PlatformRoute = Readonly<{
   id: string;
@@ -247,13 +255,14 @@ export function platformDropRecoverySteps(input: Readonly<{
 
 export type VerticalWorldInput = Readonly<{
   platforms: readonly Omit<UpperPlatform, "thickness">[];
-  ladders: readonly (Omit<
-    LadderZone,
+  climbables: readonly (Omit<
+    ClimbableZone,
     | "activationHalfWidth"
     | "visualTopOvershoot"
     | "visualBottomOvershoot"
     | "visualWidth"
-  > & { visualWidth?: number })[];
+    | "role"
+  > & { visualWidth?: number; role?: ClimbableRole })[];
   heights: readonly number[];
   tilePixels: number;
   baselineY: number;
@@ -364,7 +373,7 @@ export function createVerticalWorld(input: VerticalWorldInput): VerticalWorld {
   }
 
   const platformById = new Map(platforms.map((platform) => [platform.id, platform]));
-  const ladders = input.ladders.map((source) => {
+  const climbables = input.climbables.map((source) => {
     assertStableId(source.id, "ladder id");
     if (ids.has(source.id)) throw new Error("vertical ids must be unique");
     ids.add(source.id);
@@ -406,20 +415,22 @@ export function createVerticalWorld(input: VerticalWorldInput): VerticalWorld {
     ) {
       throw new Error("ladder requires a flat lower terrain endpoint");
     }
-    const visualWidth = source.visualWidth ?? LADDER_VISUAL_WIDTH;
+    const visualWidth = source.visualWidth ?? CLIMBABLE_VISUAL_WIDTH;
     if (!Number.isFinite(visualWidth) || visualWidth <= 0 || visualWidth > input.tilePixels * 4) {
       throw new Error("ladder visual width must be a positive width within four tiles");
     }
     return {
       ...source,
-      activationHalfWidth: LADDER_ACTIVATION_HALF_WIDTH,
-      visualTopOvershoot: LADDER_VISUAL_OVERSHOOT,
-      visualBottomOvershoot: LADDER_VISUAL_OVERSHOOT,
+      // Demo and fixture worlds predate authored roles and describe plain ladders.
+      role: source.role ?? "ladder",
+      activationHalfWidth: CLIMBABLE_ACTIVATION_HALF_WIDTH,
+      visualTopOvershoot: CLIMBABLE_VISUAL_OVERSHOOT,
+      visualBottomOvershoot: CLIMBABLE_VISUAL_OVERSHOOT,
       visualWidth,
-    } satisfies LadderZone;
+    } satisfies ClimbableZone;
   });
-  ladders.sort((left, right) => left.centerX - right.centerX || left.id.localeCompare(right.id));
-  return deepFreeze({ platforms, ladders });
+  climbables.sort((left, right) => left.centerX - right.centerX || left.id.localeCompare(right.id));
+  return deepFreeze({ platforms, climbables });
 }
 
 export type DemoVerticalSelection = Readonly<{
@@ -429,7 +440,7 @@ export type DemoVerticalSelection = Readonly<{
 }>;
 
 export const VERTICAL_TRAVERSAL_ASSET_KEYS = deepFreeze([
-  "ladder",
+  "climbable",
   "character_climb",
 ] as const);
 export const VERTICAL_ASSET_ERROR_MAX_LENGTH = 240;
@@ -464,7 +475,7 @@ export async function prepareVerticalTraversalAssets(input: Readonly<{
     await input.loadLadder();
     ladderAssetLoaded = true;
   } catch (error) {
-    input.recordError(boundedVerticalAssetError("ladder", error));
+    input.recordError(boundedVerticalAssetError("climbable", error));
   }
   try {
     await input.loadClimb();
@@ -487,7 +498,7 @@ export async function prepareVerticalTraversalAssets(input: Readonly<{
 
 const EMPTY_VERTICAL_WORLD: VerticalWorld = deepFreeze({
   platforms: [],
-  ladders: [],
+  climbables: [],
 });
 const EMPTY_PLATFORM_ROUTES: readonly PlatformRoute[] = deepFreeze([]);
 
@@ -513,7 +524,7 @@ export function activateVerticalFeatureTransaction(input: Readonly<{
   climbAssetLoaded: boolean;
   platformMaterialsReady: boolean;
   assemblePlatforms: (platforms: readonly UpperPlatform[]) => void;
-  assembleLadders: (ladders: readonly LadderZone[]) => void;
+  assembleClimbables: (climbables: readonly ClimbableZone[]) => void;
   rollbackRendering: () => void;
   commit: (selection: DemoVerticalSelection) => void;
 }>): boolean {
@@ -531,7 +542,7 @@ export function activateVerticalFeatureTransaction(input: Readonly<{
   const active = verticalFeatureAfterAssetLoad(input.selected, true);
   try {
     input.assemblePlatforms(active.world.platforms);
-    input.assembleLadders(active.world.ladders);
+    input.assembleClimbables(active.world.climbables);
     input.commit(active);
   } catch (error) {
     input.rollbackRendering();
@@ -561,7 +572,7 @@ type DemoPlatformSpec = Readonly<{
   tiers: number;
 }>;
 
-type DemoLadderSpec = Readonly<{
+type DemoClimbableSpec = Readonly<{
   id: string;
   platformId: string;
   /** Column carrying the ladder axis, relative to the layout's start column. */
@@ -580,7 +591,7 @@ type DemoLayout = Readonly<{
   /** Columns the layout occupies, counted from its start column. */
   width: number;
   platforms: readonly DemoPlatformSpec[];
-  ladders: readonly DemoLadderSpec[];
+  climbables: readonly DemoClimbableSpec[];
   traversals: readonly DemoTraversalSpec[];
 }>;
 
@@ -589,7 +600,7 @@ type DemoLayout = Readonly<{
  * four-tile rise, so a ladder's platform must sit exactly that far above its
  * flat terrain endpoint.
  */
-const DEMO_LADDER_TIERS = 4;
+const DEMO_CLIMBABLE_TIERS = 4;
 
 /**
  * The three stage shapes.
@@ -621,7 +632,7 @@ const DEMO_LAYOUTS: Readonly<Record<DemoVerticalLayoutKind, DemoLayout>> = deepF
       { id: "stone-second", start: 31, end: 33, tiers: 6 },
       { id: "sky-span", start: 34, end: 39, tiers: 6 },
     ],
-    ladders: [
+    climbables: [
       { id: "ladder-summit", platformId: "tier-4-summit", column: 26 },
     ],
     traversals: [
@@ -648,7 +659,7 @@ const DEMO_LAYOUTS: Readonly<Record<DemoVerticalLayoutKind, DemoLayout>> = deepF
       { id: "watch-roost", start: 27, end: 31, tiers: 6 },
       { id: "far-stone", start: 34, end: 38, tiers: 4 },
     ],
-    ladders: [{ id: "ladder-post", platformId: "high-post", column: 31 }],
+    climbables: [{ id: "ladder-post", platformId: "high-post", column: 31 }],
     traversals: [
       { id: "jump-1", from: "terrain", to: "gate-plinth", mode: "jump" },
       { id: "jump-2", from: "gate-plinth", to: "gate-step", mode: "jump" },
@@ -672,7 +683,7 @@ const DEMO_LAYOUTS: Readonly<Record<DemoVerticalLayoutKind, DemoLayout>> = deepF
       { id: "keep-crown", start: 26, end: 30, tiers: 7 },
       { id: "far-landing", start: 33, end: 36, tiers: 2 },
     ],
-    ladders: [{ id: "ladder-keep", platformId: "keep-deck", column: 29 }],
+    climbables: [{ id: "ladder-keep", platformId: "keep-deck", column: 29 }],
     traversals: [
       { id: "jump-1", from: "terrain", to: "base-court", mode: "jump" },
       { id: "jump-2", from: "base-court", to: "first-spire", mode: "double-jump" },
@@ -736,7 +747,7 @@ function createDemoPlatformRoutes(
   layout: DemoLayout,
   lowerSurfaceY: number,
   platforms: readonly UpperPlatform[],
-  ladders: readonly LadderZone[],
+  climbables: readonly ClimbableZone[],
   heights: readonly number[],
   tilePixels: number,
   baselineY: number,
@@ -807,13 +818,13 @@ function createDemoPlatformRoutes(
       ladderId: null,
     });
   }
-  for (const ladder of ladders) {
+  for (const ladder of climbables) {
     routes.push(
       {
         id: `${ladder.id}-up`,
         from: "terrain",
         to: ladder.platformId,
-        mode: "ladder",
+        mode: "climbable",
         rise: ladder.lowerSurfaceY - ladder.upperDeckY,
         gap: 0,
         landingStep: null,
@@ -824,7 +835,7 @@ function createDemoPlatformRoutes(
         id: `${ladder.id}-down`,
         from: ladder.platformId,
         to: "terrain",
-        mode: "ladder",
+        mode: "climbable",
         rise: ladder.upperDeckY - ladder.lowerSurfaceY,
         gap: 0,
         landingStep: null,
@@ -845,7 +856,7 @@ function createDemoPlatformRoutes(
 /** Columns whose terrain must match the layout's base surface for it to fit. */
 function layoutEndpointColumns(layout: DemoLayout): ReadonlySet<number> {
   const columns = new Set<number>([0, 1]);
-  for (const ladder of layout.ladders) {
+  for (const ladder of layout.climbables) {
     columns.add(ladder.column);
     columns.add(ladder.column + 1);
   }
@@ -915,12 +926,12 @@ export function selectDemoVerticalWorld(input: Readonly<{
             end: start + platform.end,
           },
         })),
-        ladders: layout.ladders.map((ladder) => {
+        climbables: layout.climbables.map((ladder) => {
           const platform = layout.platforms.find(
             (candidatePlatform) => candidatePlatform.id === ladder.platformId,
           );
           if (!platform) throw new Error("ladder must name a layout platform");
-          if (platform.tiers !== DEMO_LADDER_TIERS) {
+          if (platform.tiers !== DEMO_CLIMBABLE_TIERS) {
             throw new Error("ladder platform must sit four tiles above terrain");
           }
           return {
@@ -942,7 +953,7 @@ export function selectDemoVerticalWorld(input: Readonly<{
         layout,
         lowerSurfaceY,
         world.platforms,
-        world.ladders,
+        world.climbables,
         input.heights,
         input.tilePixels,
         input.baselineY,
@@ -974,10 +985,10 @@ export type LadderVisualBounds = Readonly<{
   height: number;
 }>;
 
-export function ladderVisualBounds(ladder: LadderZone): LadderVisualBounds {
+export function ladderVisualBounds(ladder: ClimbableZone): LadderVisualBounds {
   if (
-    ladder.visualTopOvershoot !== LADDER_VISUAL_OVERSHOOT ||
-    ladder.visualBottomOvershoot !== LADDER_VISUAL_OVERSHOOT ||
+    ladder.visualTopOvershoot !== CLIMBABLE_VISUAL_OVERSHOOT ||
+    ladder.visualBottomOvershoot !== CLIMBABLE_VISUAL_OVERSHOOT ||
     !Number.isFinite(ladder.visualWidth) ||
     ladder.visualWidth <= 0
   ) {
@@ -1006,7 +1017,7 @@ export function platformAtX(
 export type LandingResolution = Readonly<{
   footY: number;
   vy: number;
-  support: Exclude<PlayerSupport, "ladder">;
+  support: Exclude<PlayerSupport, "climbable">;
   supportId: string | null;
 }>;
 
@@ -1207,7 +1218,7 @@ export function resolveJumpRequest(input: Readonly<{
     vy: 0,
     airJumpsUsed: input.airJumpsUsed,
   });
-  if (input.support === "ladder") return refused;
+  if (input.support === "climbable") return refused;
   if (input.support !== "air") {
     if (input.crouching) return refused;
     return deepFreeze({ kind: "ground", vy: -jumpVelocity, airJumpsUsed: 0 });
@@ -1226,21 +1237,21 @@ export function resolveJumpRequest(input: Readonly<{
 }
 
 export function ladderEntryAt(input: Readonly<{
-  ladders: readonly LadderZone[];
+  climbables: readonly ClimbableZone[];
   support: PlayerSupport;
   supportId: string | null;
   x: number;
   footY: number;
   up: boolean;
   down: boolean;
-}>): Readonly<{ ladder: LadderZone; direction: "up" | "down" }> | null {
-  for (const ladder of input.ladders) {
+}>): Readonly<{ ladder: ClimbableZone; direction: "up" | "down" }> | null {
+  for (const ladder of input.climbables) {
     if (Math.abs(input.x - ladder.centerX) > ladder.activationHalfWidth) continue;
     if (
       input.support === "terrain" &&
       input.up &&
       !input.down &&
-      Math.abs(input.footY - ladder.lowerSurfaceY) <= LADDER_ENDPOINT_TOLERANCE
+      Math.abs(input.footY - ladder.lowerSurfaceY) <= CLIMBABLE_ENDPOINT_TOLERANCE
     ) {
       return deepFreeze({ ladder, direction: "up" });
     }
@@ -1274,7 +1285,7 @@ export type LadderMotion = Readonly<{
 
 /** Advance an attached player with deterministic axis-locked endpoint clamps. */
 export function advanceLadderMotion(input: Readonly<{
-  ladder: LadderZone;
+  ladder: ClimbableZone;
   footY: number;
   deltaSeconds: number;
   up: boolean;
@@ -1285,7 +1296,7 @@ export function advanceLadderMotion(input: Readonly<{
   }
   if (input.deltaSeconds < 0) throw new Error("ladder delta must be nonnegative");
   const direction = input.up === input.down ? 0 : input.up ? -1 : 1;
-  const vy = direction * LADDER_SPEED;
+  const vy = direction * CLIMBABLE_SPEED;
   const next = input.footY + vy * input.deltaSeconds;
   if (next <= input.ladder.upperDeckY) {
     return deepFreeze({ footY: input.ladder.upperDeckY, vy: 0, exit: "platform" });
@@ -1310,8 +1321,8 @@ export function ladderJumpOffVelocity(input: Readonly<{
         ? -1
         : 1;
   return deepFreeze({
-    vx: direction * LADDER_JUMP_HORIZONTAL_SPEED,
-    vy: LADDER_JUMP_VELOCITY,
+    vx: direction * CLIMBABLE_JUMP_HORIZONTAL_SPEED,
+    vy: CLIMBABLE_JUMP_VELOCITY,
   });
 }
 

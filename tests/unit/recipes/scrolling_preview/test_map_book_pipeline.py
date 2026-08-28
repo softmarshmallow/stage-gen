@@ -164,7 +164,7 @@ def _write_map(
     affordances = (
         '"ground_move", "jump"'
         if is_social_hub
-        else '"ground_move", "jump", "air_jump", "drop_through", "ladder_climb"'
+        else '"ground_move", "jump", "air_jump", "drop_through", "climb"'
     )
     profile = f'''
 [level_profile]

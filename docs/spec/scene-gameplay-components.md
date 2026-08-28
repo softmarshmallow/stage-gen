@@ -46,7 +46,7 @@ Movement permission and presentation coverage are separate requirements:
 | `move_left`, `move_right` | Player move state and walkable occupancy |
 | `jump` | Player jump state and terrain collision |
 | `crouch` | Player crouch motion; grounded Left/Right movement uses the slower crouch speed |
-| `climb` | Player climb motion plus at least one map-local ladder placement |
+| `climb` | A player climb motion per placed climbable role plus at least one map-local climbable placement |
 
 The current prepared runtime constructs terrain collision from the map’s binary
 occupancy and 47-mask atlas. It projects map-local ladders relative to terrain

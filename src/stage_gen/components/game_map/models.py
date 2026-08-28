@@ -26,12 +26,14 @@ _TRACK_ID = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
 LevelRole = Literal["social_hub", "combat_field"]
 LevelScrollAxis = Literal["horizontal", "vertical"]
+#: `climb` is role-neutral on purpose. A level that admits climbing admits it for every climbable
+#: role the map places; which pose the player draws is decided by the climbable, not the level.
 LevelTraversalAffordance = Literal[
     "ground_move",
     "jump",
     "air_jump",
     "drop_through",
-    "ladder_climb",
+    "climb",
 ]
 
 _SCROLL_AXIS_ORDER = {"horizontal": 0, "vertical": 1}
@@ -40,7 +42,7 @@ _AFFORDANCE_ORDER = {
     "jump": 1,
     "air_jump": 2,
     "drop_through": 3,
-    "ladder_climb": 4,
+    "climb": 4,
 }
 
 
@@ -98,9 +100,9 @@ class LevelTraversal(PersistedContractModel):
         affordances = set(self.affordances)
         if "air_jump" in affordances and "jump" not in affordances:
             raise ValueError("air_jump requires jump")
-        platform_affordances = {"drop_through", "ladder_climb"}
+        platform_affordances = {"drop_through", "climb"}
         if affordances & platform_affordances and self.platform_model != "one_way":
-            raise ValueError("drop_through and ladder_climb require platform_model='one_way'")
+            raise ValueError("drop_through and climb require platform_model='one_way'")
         return self
 
 

@@ -79,7 +79,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     package = documents["docs/game-package.md"]
     assert "`game.toml` is the membership and digest-closure root" in package
-    assert "Player `climb` is the sole current gameplay-driven state" in package
+    assert "The player climb states `climb_ladder` and `climb_rope` are the only" in package
     assert "gameplay movement `crouch` and player motion `crouch`" in package
 
     maps = documents["docs/game-maps.md"]

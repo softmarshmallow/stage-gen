@@ -57,9 +57,14 @@ canonical_frame_indices = [0, 1, 2, 3]
 frames_per_second = 6
 
 [[players.motions]]
-state = "climb"
+state = "climb_ladder"
 playback_mode = "gameplay_driven"
-canonical_frame_indices = [0, 1, 2, 3]
+canonical_frame_indices = [0, 1]
+
+[[players.motions]]
+state = "climb_rope"
+playback_mode = "gameplay_driven"
+canonical_frame_indices = [0, 1]
 
 [[players.motions]]
 state = "basic_attack"

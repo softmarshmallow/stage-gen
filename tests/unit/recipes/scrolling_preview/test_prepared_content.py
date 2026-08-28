@@ -75,7 +75,8 @@ def test_motion_source_facing_is_runtime_owned_and_climb_is_rear_facing() -> Non
     assert motion_source_facing("npc", "idle", npc_world_orientation="front") == "front"
     with pytest.raises(ValueError, match="requires world_orientation"):
         motion_source_facing("npc", "idle")
-    assert motion_source_facing("player", "climb") == "back"
+    assert motion_source_facing("player", "climb_ladder") == "back"
+    assert motion_source_facing("player", "climb_rope") == "back"
     assert runtime_mirrors_source("right") is True
     assert runtime_mirrors_source("back") is False
     assert runtime_mirrors_source("front") is False
@@ -243,8 +244,8 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 172
-    assert images.calls == 74
+    assert len(summary.nodes) == 174
+    assert images.calls == 75
     assert structured.calls == 14
     assert music.calls == 3
     ui_request = next(
@@ -283,7 +284,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
         player_review.prompt
     )
     coverage = json.loads((run_dir / "content/coverage-matrix.json").read_text())
-    assert coverage["required_image_operations"] == 74
+    assert coverage["required_image_operations"] == 75
     assert coverage["required_structured_reviews"] == 14
     assert coverage["required_music_operations"] == 3
     assert (run_dir / "content/players/wayfarer/contact-sheet.png").is_file()

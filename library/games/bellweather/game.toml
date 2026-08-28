@@ -88,7 +88,7 @@ source_sha256 = "82499a25446e7a7c6b85089275d41a89d17f0cd868bef898d16c36fc896cd8f
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "c2b39ac6cd272b53eb82910ddec9c6a055845f5af7102dcd04433894ec15d816"
+source_sha256 = "711638449919a777526a585b51fb9069eb5242ea313c2aace1759a4651ec3f6b"
 
 [content.mobs]
 source = "content/mobs.toml"

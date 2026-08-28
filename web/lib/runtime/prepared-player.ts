@@ -1,4 +1,5 @@
-import type { PlayerState } from "./player";
+import type { ClimbArtwork, PlayerState } from "./player";
+import type { ClimbableRole } from "./vertical";
 import type { MotionBinding } from "./prepared-manifest";
 import type { RuntimeMotionPlayback } from "./motion-playback";
 
@@ -13,6 +14,12 @@ type PreparedPlayerStateAdapter = Readonly<{
  * `crouch` is the public gameplay and presentation vocabulary. The mature
  * controller's historical `character_crawl` texture key remains private to
  * this adapter and does not leak back into authored contracts or manifests.
+ *
+ * `climb_ladder` and `climb_rope` both adapt to the single controller state `climb`: the physics
+ * of the two are identical and only the artwork differs, so the role selects a strip rather than
+ * the state machine carrying two climbing states. They are the one place this table is not
+ * one-to-one, which is why climb playback is resolved by `preparedPlayerClimbArtwork` rather than
+ * by `preparedPlayerMotionPlayback`.
  */
 export const PREPARED_PLAYER_STATE_ADAPTERS: Readonly<
   Record<string, PreparedPlayerStateAdapter>
@@ -25,7 +32,14 @@ export const PREPARED_PLAYER_STATE_ADAPTERS: Readonly<
     runtime_state: "crouch",
     texture_key: "character_crawl",
   }),
-  climb: Object.freeze({ runtime_state: "climb", texture_key: "character_climb" }),
+  climb_ladder: Object.freeze({
+    runtime_state: "climb",
+    texture_key: "character_climb_ladder",
+  }),
+  climb_rope: Object.freeze({
+    runtime_state: "climb",
+    texture_key: "character_climb_rope",
+  }),
   basic_attack: Object.freeze({
     runtime_state: "attack",
     texture_key: "character_attack",
@@ -49,11 +63,43 @@ export function preparedPlayerStateAdapter(
   return PREPARED_PLAYER_STATE_ADAPTERS[state];
 }
 
+/** Authored climb state per climbable role. The map's role picks which strip the player draws. */
+export const PREPARED_PLAYER_CLIMB_STATE_BY_ROLE: Readonly<
+  Record<ClimbableRole, string>
+> = Object.freeze({ ladder: "climb_ladder", rope: "climb_rope" });
+
+/**
+ * Resolve the climb strip for each role the manifest publishes.
+ *
+ * Kept apart from `preparedPlayerMotionPlayback` because both climb states adapt to the same
+ * controller state, so a single state-keyed record cannot hold them both.
+ */
+export function preparedPlayerClimbArtwork(
+  states: Readonly<Record<string, MotionBinding>>,
+): Partial<Record<ClimbableRole, ClimbArtwork>> {
+  const resolved: Partial<Record<ClimbableRole, ClimbArtwork>> = {};
+  for (const [role, state] of Object.entries(
+    PREPARED_PLAYER_CLIMB_STATE_BY_ROLE,
+  ) as readonly (readonly [ClimbableRole, string])[]) {
+    const binding = states[state];
+    const adapter = preparedPlayerStateAdapter(state);
+    if (!binding || !adapter) continue;
+    resolved[role] = Object.freeze({
+      textureKey: adapter.texture_key,
+      animKey: `player_${state}`,
+      playback: binding.playback,
+    });
+  }
+  return resolved;
+}
+
 export function preparedPlayerMotionPlayback(
   states: Readonly<Record<string, MotionBinding>>,
 ): Partial<Record<PlayerState, RuntimeMotionPlayback>> {
+  const climbStates = new Set(Object.values(PREPARED_PLAYER_CLIMB_STATE_BY_ROLE));
   return Object.fromEntries(
     Object.entries(states).flatMap(([state, binding]) => {
+      if (climbStates.has(state)) return [];
       const adapter = preparedPlayerStateAdapter(state);
       return adapter ? [[adapter.runtime_state, binding.playback]] : [];
     }),

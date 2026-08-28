@@ -59,6 +59,9 @@ Start here for the headless, general-purpose system:
 - [Visual Content Direction A/B case study](visual-content-direction-case-study.md)
   — the shared-reference experiment, exact evidence scope, and strict
   visual-review result.
+- [Asset unit](spec/asset-unit.md) — ratified TO-BE canonical magnitude vocabulary: one player
+  height as the unit, per-class declaration and inheritance, the legibility floor, stance-cell and
+  alpha-bbox measurement, anchor and registration, fail-closed admission, and consumer projection.
 - [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
   alpha-component repacking default, its accepted loss modes, evidence contract, and planned
   geometry and ownership improvements.
@@ -75,6 +78,9 @@ Start here for the headless, general-purpose system:
 - [Provider operations](providers.md) — credentials, verified endpoints, and
   experimental boundaries.
 - [Benchmarking and research](benchmarking.md) — evidence and evaluation.
+- [Asset scale study](research/asset-scale-study.md) — measurements behind the asset unit: what a
+  generated subject's pixels do and do not encode, the units that were rejected and why each one
+  fails, estimation versus recognition, and what a scale marker can and cannot do.
 - [Prior-art register](research/prior-art.md) — external studies, papers, and tool
   documentation relevant to our problems, each recorded with an explicit applicability
   verdict against our own inputs and the named limit that blocks it where one does.

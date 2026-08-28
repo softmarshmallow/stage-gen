@@ -19,10 +19,8 @@ from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import (
-    MOTION_ATLAS_COLUMNS,
-    MOTION_ATLAS_REQUIRED_CELLS,
-    MOTION_ATLAS_ROWS,
     dialogue_atlas_grid,
+    motion_atlas_geometry,
     motion_source_facing,
     runtime_mirrors_source,
 )
@@ -379,8 +377,9 @@ def _motion_binding(
     actor_kind: Literal["player", "mob", "npc"],
     npc_world_orientation: Literal["front"] | None = None,
 ) -> dict[str, object]:
+    geometry = motion_atlas_geometry(actor_kind, motion.state)
     invalid = [
-        index for index in motion.canonical_frame_indices if index >= MOTION_ATLAS_REQUIRED_CELLS
+        index for index in motion.canonical_frame_indices if index >= geometry.required_cells
     ]
     if invalid:
         raise PreparedManifestError(
@@ -400,9 +399,9 @@ def _motion_binding(
     return {
         "source_facing": source_facing,
         "runtime_mirror": runtime_mirrors_source(source_facing),
-        "columns": MOTION_ATLAS_COLUMNS,
-        "rows": MOTION_ATLAS_ROWS,
-        "source_frame_count": MOTION_ATLAS_REQUIRED_CELLS,
+        "columns": geometry.columns,
+        "rows": geometry.rows,
+        "source_frame_count": geometry.required_cells,
         "playback": playback,
         "asset": artifact,
     }

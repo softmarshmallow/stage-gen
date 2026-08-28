@@ -75,7 +75,7 @@ describe("prepared terrain world projection", () => {
       deckY: 354,
       sourceColumns: { start: 3, end: 6 },
     });
-    expect(world.verticalWorld.ladders[0]).toMatchObject({
+    expect(world.verticalWorld.climbables[0]).toMatchObject({
       id: "bellroot_ladder",
       platformId: "terrain-platform-r1-c3",
       centerX: 288,
@@ -100,7 +100,7 @@ describe("prepared terrain world projection", () => {
     );
   });
 
-  test("rejects authored ladders whose lower terrain endpoint is not flat", () => {
+  test("rejects authored climbables whose lower terrain endpoint is not flat", () => {
     const source = mapGeometry([
       "0001110000",
       "0000000000",

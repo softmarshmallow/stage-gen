@@ -55,7 +55,7 @@ function combatFieldProfile() {
         "jump",
         "air_jump",
         "drop_through",
-        "ladder_climb",
+        "climb",
       ],
     },
     mechanisms: {

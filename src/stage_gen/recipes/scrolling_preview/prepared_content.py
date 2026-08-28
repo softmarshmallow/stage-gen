@@ -71,10 +71,13 @@ from stage_gen.orchestration.execution_graph import (
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_COLUMNS,
+    MOTION_ATLAS_HEIGHT,
     MOTION_ATLAS_REQUIRED_CELLS,
     MOTION_ATLAS_ROWS,
+    MOTION_ATLAS_WIDTH,
     MotionActorKind,
     dialogue_atlas_grid,
+    motion_atlas_geometry,
     motion_semantic_direction,
     motion_source_facing,
     runtime_mirrors_source,
@@ -527,9 +530,11 @@ class PreparedContentNodeHandler:
                 "point toward the right edge."
             )
         motion_directive = motion_semantic_direction(kind, state)
+        geometry = motion_atlas_geometry(kind, state)
         prompt = self._visual_prompt(
             f"Create the canonical side-view motion atlas for {kind} {entity_id}, state {state}. "
-            "Use the supplied identity concept exactly. Output a strict single-row strip of four "
+            "Use the supplied identity concept exactly. Output a strict single-row strip of "
+            f"{geometry.frame_word} "
             f"sequential frames. {facing_directive} Preserve identity, apparent height, foot "
             "baseline, silhouette, "
             "costume, equipment, and camera scale in every cell. The required motion is: "
@@ -545,22 +550,24 @@ class PreparedContentNodeHandler:
                 quality="high",
                 background="transparent",
                 output_format="png",
-                size="1536x1024",
+                size=geometry.provider_size,
                 timeout_seconds=600,
                 metadata={
                     "checkpoint": "content",
                     "kind": kind,
                     "entity_id": entity_id,
                     "state": state,
-                    "atlas_columns": MOTION_ATLAS_COLUMNS,
-                    "atlas_rows": MOTION_ATLAS_ROWS,
+                    "atlas_columns": geometry.columns,
+                    "atlas_rows": geometry.rows,
                     "source_facing": source_facing,
                 },
                 validate=lambda artifact: _validate_atlas(
                     artifact.data,
-                    columns=MOTION_ATLAS_COLUMNS,
-                    rows=MOTION_ATLAS_ROWS,
-                    required_cells=MOTION_ATLAS_REQUIRED_CELLS,
+                    columns=geometry.columns,
+                    rows=geometry.rows,
+                    required_cells=geometry.required_cells,
+                    width=geometry.width,
+                    height=geometry.height,
                 ),
             )
         )
@@ -681,19 +688,22 @@ class PreparedContentNodeHandler:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
         source_facing = self._motion_source_facing(kind, state)
         source_data = source.read_bytes()
+        geometry = motion_atlas_geometry(kind, state)
         source_facts = _validate_atlas(
             source_data,
-            columns=MOTION_ATLAS_COLUMNS,
-            rows=MOTION_ATLAS_ROWS,
-            required_cells=MOTION_ATLAS_REQUIRED_CELLS,
+            columns=geometry.columns,
+            rows=geometry.rows,
+            required_cells=geometry.required_cells,
+            width=geometry.width,
+            height=geometry.height,
         )
         canonical_data, repack = repack_alpha_components(
             source_data,
             AlphaComponentRepackContract(
-                rows=MOTION_ATLAS_ROWS,
-                columns=MOTION_ATLAS_COLUMNS,
-                required_cells=MOTION_ATLAS_REQUIRED_CELLS,
-                anchor="bottom",
+                rows=geometry.rows,
+                columns=geometry.columns,
+                required_cells=geometry.required_cells,
+                anchor=geometry.anchor,
             ),
         )
         canonical = self._run_dir / node.outputs[0]
@@ -719,10 +729,10 @@ class PreparedContentNodeHandler:
                 "entity_kind": kind,
                 "entity_id": entity_id,
                 "state": state,
-                "columns": MOTION_ATLAS_COLUMNS,
-                "rows": MOTION_ATLAS_ROWS,
+                "columns": geometry.columns,
+                "rows": geometry.rows,
                 "source_facing": source_facing,
-                "frames": MOTION_ATLAS_REQUIRED_CELLS,
+                "frames": geometry.required_cells,
                 "runtime_horizontal_mirroring": runtime_mirrors_source(source_facing),
                 "source_validation": source_facts,
                 "repack": repack,
@@ -1481,9 +1491,15 @@ def _validate_transparent_image(data: bytes, *, width: int, height: int) -> dict
 
 
 def _validate_atlas(
-    data: bytes, *, columns: int, rows: int, required_cells: int
+    data: bytes,
+    *,
+    columns: int,
+    rows: int,
+    required_cells: int,
+    width: int = MOTION_ATLAS_WIDTH,
+    height: int = MOTION_ATLAS_HEIGHT,
 ) -> dict[str, object]:
-    facts = _validate_transparent_image(data, width=1536, height=1024)
+    facts = _validate_transparent_image(data, width=width, height=height)
     with Image.open(io.BytesIO(data)) as opened:
         alpha = opened.convert("RGBA").getchannel("A")
     cell_width = alpha.width / columns

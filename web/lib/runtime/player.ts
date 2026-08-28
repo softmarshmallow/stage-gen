@@ -55,7 +55,8 @@ import {
   resolveTerrainStep,
   resolveTerrainWalk,
   resolveVerticalLanding,
-  type LadderZone,
+  type ClimbableRole,
+  type ClimbableZone,
   type PlayerSupport,
   type UpperPlatform,
 } from "./vertical";
@@ -127,8 +128,8 @@ export type PlayerStateSnapshot = {
     right: number;
     bottom: number;
   }>;
-  climbAnimationKey: "player_climb" | null;
-  climbTextureKey: "character_climb" | null;
+  climbAnimationKey: string | null;
+  climbTextureKey: string | null;
   climbFrame: number | null;
   climbAnimationPaused: boolean | null;
   rearFacing: boolean;
@@ -144,7 +145,7 @@ export interface PlayerOpts {
   heightFn: (col: number) => number; // returns column height in tiles
   targetSpriteHeight: number; // px
   platforms?: readonly UpperPlatform[];
-  ladders?: readonly LadderZone[];
+  climbables?: readonly ClimbableZone[];
   maximumAirJumps: number;
   combatEnabled: boolean;
   /** Authored starting/max health for this run. */
@@ -155,6 +156,12 @@ export interface PlayerOpts {
   ) => void;
   /** Resolved presentation per state; omitted entries use standalone-runtime defaults. */
   motionPlayback?: Partial<Record<PlayerState, RuntimeMotionPlayback>>;
+  /**
+   * Climb artwork per climbable role. Climbing is one state to the controller - the physics of a
+   * rope and a ladder are identical - but not one pose, so the role a zone declares selects the
+   * strip rather than the state machine carrying two climbing states.
+   */
+  climbArtwork?: Partial<Record<ClimbableRole, ClimbArtwork>>;
   /**
    * Published anatomical scale reference per texture key.
    */
@@ -184,8 +191,39 @@ const MEASURED_PLAYER_STATES: readonly PlayerState[] = [
   "jump",
   "crouch",
   "attack",
-  "climb",
 ];
+
+/** One climbable role's strip, animation, and playback. */
+export type ClimbArtwork = Readonly<{
+  textureKey: string;
+  animKey: string;
+  playback: RuntimeMotionPlayback;
+}>;
+
+const CLIMBABLE_ROLES: readonly ClimbableRole[] = ["ladder", "rope"];
+
+/**
+ * Resolve one role's climb strip.
+ *
+ * A prepared package publishes `character_climb_ladder` and `character_climb_rope`. The
+ * standalone and legacy tag runtimes publish a single `character_climb`, so a role whose own
+ * strip was never registered falls back to that shared one rather than failing to animate.
+ */
+function defaultClimbArtwork(
+  scene: Phaser.Scene,
+  role: ClimbableRole,
+): ClimbArtwork {
+  const roleTextureKey = `character_climb_${role}`;
+  const roleSpecific = scene.textures.exists(roleTextureKey);
+  return Object.freeze({
+    textureKey: roleSpecific ? roleTextureKey : "character_climb",
+    animKey: roleSpecific ? `player_climb_${role}` : "player_climb",
+    playback: Object.freeze({
+      mode: "gameplay_driven",
+      canonical_frame_indices: Object.freeze(roleSpecific ? [0, 1] : [0, 1, 2, 3]),
+    }) as RuntimeMotionPlayback,
+  });
+}
 
 const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   idle: 4,
@@ -242,6 +280,7 @@ export class Player {
   private blockedColumn: number | null = null;
   private opts: PlayerOpts;
   private readonly motionPlayback: Readonly<Record<PlayerState, RuntimeMotionPlayback>>;
+  private readonly climbArtwork: Readonly<Record<ClimbableRole, ClimbArtwork>>;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasdKeys?: {
     up: Phaser.Input.Keyboard.Key;
@@ -260,7 +299,7 @@ export class Player {
   private attackHitConsumed = false;
   /** Deadline for the authored hurt presentation; it does not lock player control. */
   private hurtUntil = 0;
-  private activeLadder?: LadderZone;
+  private activeClimbable?: ClimbableZone;
   private climbFrame: number | null = null;
   /** Sprite scale for textures sliced from the character's master sheet. */
   private masterSheetScale = 1;
@@ -305,12 +344,37 @@ export class Player {
     );
 
     const scene = opts.scene;
-    // Build animations for each state once.
+    this.climbArtwork = Object.freeze(
+      Object.fromEntries(
+        CLIMBABLE_ROLES.map((role) => [
+          role,
+          opts.climbArtwork?.[role] ?? defaultClimbArtwork(scene, role),
+        ]),
+      ) as Record<ClimbableRole, ClimbArtwork>,
+    );
+
+    // Build animations for each state once. `climb` is skipped here and installed per climbable
+    // role below, because one controller state maps to one strip per role.
     for (const st of PLAYER_STATES) {
+      if (st === "climb") continue;
       const animKey = `player_${st}`;
       const texKey = stateTextureKey(st);
       if (!scene.anims.exists(animKey) && scene.textures.exists(texKey)) {
         installMotionPlayback(scene, animKey, texKey, this.motionPlayback[st]);
+      }
+    }
+    for (const role of CLIMBABLE_ROLES) {
+      const artwork = this.climbArtwork[role];
+      if (
+        !scene.anims.exists(artwork.animKey) &&
+        scene.textures.exists(artwork.textureKey)
+      ) {
+        installMotionPlayback(
+          scene,
+          artwork.animKey,
+          artwork.textureKey,
+          artwork.playback,
+        );
       }
     }
 
@@ -367,6 +431,24 @@ export class Player {
         key,
         playerSheetScaleForState({
           state,
+          masterSheetScale: this.masterSheetScale,
+          measuredSheetScale: headMatchedScale(reference, sheetReference),
+          preserveSourceScaleStates:
+            this.opts.preserveSourceScaleStates ?? Object.freeze([]),
+        }),
+      );
+    }
+    // Climb is measured per climbable role rather than per state: one controller state resolves to
+    // one strip per role, and a package legitimately ships only the roles its maps place, so a
+    // role without a published measurement is skipped instead of rejected.
+    for (const role of CLIMBABLE_ROLES) {
+      const key = this.climbArtwork[role].textureKey;
+      const sheetReference = references.get(key);
+      if (!sheetReference || this.sheetScale.has(key)) continue;
+      this.sheetScale.set(
+        key,
+        playerSheetScaleForState({
+          state: "climb",
           masterSheetScale: this.masterSheetScale,
           measuredSheetScale: headMatchedScale(reference, sheetReference),
           preserveSourceScaleStates:
@@ -467,10 +549,10 @@ export class Player {
     this.sprite.setAlpha(playerInvulnerabilityBlinkAlpha(this.health, nowMs));
 
     // Active ladder traversal has priority over every movement/combat action.
-    if (!controlsLocked && this.support === "ladder" && this.activeLadder) {
+    if (!controlsLocked && this.support === "climbable" && this.activeClimbable) {
       this.continueLadder({ dt, up, down, left, right, wantsJump });
       this.sprite.setFlipX(
-        this.support === "ladder" ? false : this.facing === "left",
+        this.support === "climbable" ? false : this.facing === "left",
       );
       return;
     }
@@ -479,7 +561,7 @@ export class Player {
     const entry = controlsLocked
       ? null
       : ladderEntryAt({
-          ladders: this.opts.ladders ?? [],
+          climbables: this.opts.climbables ?? [],
           support: this.support,
           supportId: this.supportId,
           x: this.sprite.x,
@@ -489,9 +571,9 @@ export class Player {
         });
     if (entry) {
       const entrySupport = this.support;
-      this.activeLadder = entry.ladder;
+      this.activeClimbable = entry.ladder;
       this.ladderId = entry.ladder.id;
-      this.setSupport("ladder", entry.ladder.id);
+      this.setSupport("climbable", entry.ladder.id);
       this.vx = 0;
       this.vy = 0;
       this.sprite.x = entry.ladder.centerX;
@@ -503,7 +585,7 @@ export class Player {
       });
       this.continueLadder({ dt, up, down, left, right, wantsJump: false });
       this.sprite.setFlipX(
-        this.support === "ladder" ? false : this.facing === "left",
+        this.support === "climbable" ? false : this.facing === "left",
       );
       return;
     }
@@ -638,7 +720,7 @@ export class Player {
       !controlsLocked &&
       !this.attackActive &&
       nowMs >= this.attackUntil &&
-      this.support !== "ladder"
+      this.support !== "climbable"
     ) {
       this.attackUntil = nowMs + ATTACK_DURATION_MS;
       this.attackStarted = nowMs;
@@ -756,7 +838,7 @@ export class Player {
     right: boolean;
     wantsJump: boolean;
   }>): void {
-    const ladder = this.activeLadder;
+    const ladder = this.activeClimbable;
     if (!ladder) throw new Error("ladder support requires an active ladder");
     this.sprite.x = ladder.centerX;
     this.vx = 0;
@@ -771,7 +853,7 @@ export class Player {
       this.sprite.x += this.vx * input.dt;
       this.sprite.y += this.vy * input.dt;
       const ladderId = ladder.id;
-      this.activeLadder = undefined;
+      this.activeClimbable = undefined;
       this.ladderId = null;
       this.setSupport("air", null);
       this.opts.onTransition?.("ladder-exit", {
@@ -792,7 +874,7 @@ export class Player {
     this.vy = motion.vy;
     if (motion.exit === "platform") {
       const ladderId = ladder.id;
-      this.activeLadder = undefined;
+      this.activeClimbable = undefined;
       this.ladderId = null;
       this.setSupport("platform", ladder.platformId);
       this.opts.onTransition?.("ladder-exit", {
@@ -804,7 +886,7 @@ export class Player {
     }
     if (motion.exit === "terrain") {
       const ladderId = ladder.id;
-      this.activeLadder = undefined;
+      this.activeClimbable = undefined;
       this.ladderId = null;
       this.setSupport("terrain", null);
       this.opts.onTransition?.("ladder-exit", {
@@ -888,7 +970,7 @@ export class Player {
   private beginDropRecoveryIfReady(): void {
     const traversal = this.dropTraversal;
     if (!traversal || traversal.phase !== "lower-support-settled") return;
-    if (this.support === "air" || this.support === "ladder") return;
+    if (this.support === "air" || this.support === "climbable") return;
     traversal.phase = "recovery-airborne";
     this.opts.onTransition?.("platform-recovery-launch", {
       platformId: traversal.platformId,
@@ -994,26 +1076,32 @@ export class Player {
     };
   }
 
+  /** The strip for the climbable currently held, or the ladder strip when none is. */
+  private currentClimbArtwork(): ClimbArtwork {
+    return this.climbArtwork[this.activeClimbable?.role ?? "ladder"];
+  }
+
   private setClimbFrame(moving: boolean): void {
-    const textureKey = "character_climb";
+    const artwork = this.currentClimbArtwork();
+    const textureKey = artwork.textureKey;
     if (!this.opts.scene.textures.exists(textureKey)) {
-      throw new Error("current climb texture is missing");
+      throw new Error(`current climb texture ${textureKey} is missing`);
     }
-    if (!this.opts.scene.anims.exists("player_climb")) {
-      throw new Error("current climb animation is missing");
+    if (!this.opts.scene.anims.exists(artwork.animKey)) {
+      throw new Error(`current climb animation ${artwork.animKey} is missing`);
     }
-    const ladder = this.activeLadder;
-    const climbFrameCount = this.motionPlayback.climb.canonical_frame_indices.length;
+    const climbable = this.activeClimbable;
+    const climbFrameCount = artwork.playback.canonical_frame_indices.length;
     const nextFrame =
-      moving && ladder
-        ? Math.floor(Math.abs(ladder.lowerSurfaceY - this.sprite.y) / 12) %
+      moving && climbable
+        ? Math.floor(Math.abs(climbable.lowerSurfaceY - this.sprite.y) / 12) %
           climbFrameCount
         : (this.climbFrame ?? 0);
     if (
-      this.sprite.anims.currentAnim?.key !== "player_climb" ||
+      this.sprite.anims.currentAnim?.key !== artwork.animKey ||
       !this.sprite.anims.isPlaying
     ) {
-      this.sprite.play("player_climb", true);
+      this.sprite.play(artwork.animKey, true);
     }
     const animationFrame = this.sprite.anims.currentAnim?.frames[nextFrame];
     if (!animationFrame) {
@@ -1094,7 +1182,7 @@ export class Player {
     // air. A mob striking a standing player is the ordinary way into that state, so it is the
     // frame-12 invariant failure in the deterministic transcript.
     this.setSupport("air", null);
-    this.activeLadder = undefined;
+    this.activeClimbable = undefined;
     this.ladderId = null;
     this.clearAttack();
     if (result.health.defeated && this.hasDeathPresentation()) {
@@ -1154,19 +1242,19 @@ export class Player {
       dropTraversalStableFrames: this.dropTraversal?.stableFrames ?? 0,
       renderBounds,
       climbAnimationKey:
-        this.support === "ladder" && this.climbFrame !== null
-          ? "player_climb"
+        this.support === "climbable" && this.climbFrame !== null
+          ? this.currentClimbArtwork().animKey
           : null,
       climbTextureKey:
-        this.support === "ladder" && this.climbFrame !== null
-          ? "character_climb"
+        this.support === "climbable" && this.climbFrame !== null
+          ? this.currentClimbArtwork().textureKey
           : null,
-      climbFrame: this.support === "ladder" ? this.climbFrame : null,
+      climbFrame: this.support === "climbable" ? this.climbFrame : null,
       climbAnimationPaused:
-        this.support === "ladder" && this.climbFrame !== null
+        this.support === "climbable" && this.climbFrame !== null
           ? this.sprite.anims.isPaused
           : null,
-      rearFacing: this.support === "ladder" && !this.sprite.flipX,
+      rearFacing: this.support === "climbable" && !this.sprite.flipX,
     };
   }
 
@@ -1185,7 +1273,7 @@ export class Player {
     this.coyoteExpiresAtMs = null;
     this.blockedColumn = null;
     this.setSupport("terrain", null);
-    this.activeLadder = undefined;
+    this.activeClimbable = undefined;
     this.ladderId = null;
     this.climbFrame = null;
     this.clearDropThrough();

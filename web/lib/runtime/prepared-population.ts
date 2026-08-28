@@ -18,7 +18,7 @@ export type PreparedPopulationGeometry = Readonly<{
   baseline_y: number;
   /** Authored terrain height, in tiles, for one column. */
   height_at_column: (column: number) => number;
-  /** Optional runtime exclusion gate for ladders, portals, or other reservations. */
+  /** Optional runtime exclusion gate for climbables, portals, or other reservations. */
   is_spawnable_column?: (column: number) => boolean;
 }>;
 

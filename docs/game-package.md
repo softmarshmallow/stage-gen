@@ -115,11 +115,13 @@ malformed package therefore cannot perform a paid operation.
 Player, mob, and NPC content owns the runtime presentation of every declared motion. A motion
 entry names its semantic `state`, `playback_mode`, ordered `canonical_frame_indices`, and—only for
 timeline playback—`frames_per_second`. Supported modes are `hold`, `loop`, `once`, and
-`gameplay_driven`. Player `climb` is the sole current gameplay-driven state.
+`gameplay_driven`. The player climb states `climb_ladder` and `climb_rope` are the only
+current gameplay-driven states.
 
 This authored playback contract does not control provider sampling. The scrolling recipe currently
-requests four candidate poses for every motion state, validates and repacks four canonical frames,
-then projects the authored selection into the runtime manifest. A player idle may therefore hold
+requests four candidate poses for every motion state except the player climbs, which request two,
+validates and repacks that many canonical frames, then projects the authored selection into the
+runtime manifest. A player idle may therefore hold
 canonical frame zero while generation still benefits from a regular four-pose request. Playback
 changes must not invalidate concept, motion, contact-sheet, or semantic-review cache identity.
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildHeightmapFromSeed } from "./heightmap";
 import {
   DEMO_VERTICAL_LAYOUT_KINDS,
-  LADDER_ENDPOINT_TOLERANCE,
+  CLIMBABLE_ENDPOINT_TOLERANCE,
   PLATFORMER_AIR_JUMP_VELOCITY,
   PLATFORMER_COYOTE_MS,
   PLATFORMER_JUMP_VELOCITY,
@@ -31,7 +31,7 @@ import {
   verticalSpawnAllowed,
   verticalViewportWorldBounds,
   type UpperPlatform,
-  LADDER_VISUAL_WIDTH,
+  CLIMBABLE_VISUAL_WIDTH,
 } from "./vertical";
 
 const HEIGHTS = buildHeightmapFromSeed(1235206006, {
@@ -69,8 +69,8 @@ describe("vertical world contracts", () => {
       {"id":"stone-second","left":3264,"right":3392,"deckY":208,"tier":6,"sourceColumns":{"start":51,"end":53},"thickness":32},
       {"id":"sky-span","left":3456,"right":3776,"deckY":208,"tier":6,"sourceColumns":{"start":54,"end":59},"thickness":32},
     ]);
-    expect(selected.world.ladders).toEqual([
-      {"id":"ladder-summit","platformId":"tier-4-summit","variantId":"ladder-summit","centerX":2976,"upperDeckY":336,"lowerSurfaceY":592,"activationHalfWidth":30,"visualTopOvershoot":32,"visualBottomOvershoot":32,"visualWidth":64},
+    expect(selected.world.climbables).toEqual([
+      {"id":"ladder-summit","platformId":"tier-4-summit","variantId":"ladder-summit","role":"ladder","centerX":2976,"upperDeckY":336,"lowerSurfaceY":592,"activationHalfWidth":30,"visualTopOvershoot":32,"visualBottomOvershoot":32,"visualWidth":64},
     ]);
     expect(selected.reservedColumns).toEqual(
       Array.from({ length: 40 }, (_, index) => index + 19),
@@ -94,8 +94,8 @@ describe("vertical world contracts", () => {
       {"id":"drop-stone-first","from":"stone-first","to":"terrain","mode":"drop","rise":-256,"gap":0,"landingStep":18,"horizontalRange":null,"ladderId":null},
       {"id":"drop-stone-second","from":"stone-second","to":"terrain","mode":"drop","rise":-448,"gap":0,"landingStep":23,"horizontalRange":null,"ladderId":null},
       {"id":"drop-sky-span","from":"sky-span","to":"terrain","mode":"drop","rise":-448,"gap":0,"landingStep":23,"horizontalRange":null,"ladderId":null},
-      {"id":"ladder-summit-up","from":"terrain","to":"tier-4-summit","mode":"ladder","rise":256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
-      {"id":"ladder-summit-down","from":"tier-4-summit","to":"terrain","mode":"ladder","rise":-256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
+      {"id":"ladder-summit-up","from":"terrain","to":"tier-4-summit","mode":"climbable","rise":256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
+      {"id":"ladder-summit-down","from":"tier-4-summit","to":"terrain","mode":"climbable","rise":-256,"gap":0,"landingStep":null,"horizontalRange":null,"ladderId":"ladder-summit"},
     ]);
     expect(
       selected.reservedColumns.filter((column) => ENCOUNTER_RESERVED.has(column)),
@@ -108,20 +108,21 @@ describe("vertical world contracts", () => {
     expect(verticalSpawnAllowed(reservation, 59)).toBeTrue();
     expect(Object.isFrozen(selected)).toBeTrue();
     expect(Object.isFrozen(selected.world.platforms[0]!.sourceColumns)).toBeTrue();
-    for (const ladder of selected.world.ladders) {
-      expect(Object.keys(ladder).sort()).toEqual([
+    for (const climbable of selected.world.climbables) {
+      expect(Object.keys(climbable).sort()).toEqual([
         "activationHalfWidth",
         "centerX",
         "id",
         "lowerSurfaceY",
         "platformId",
+        "role",
         "upperDeckY",
         "variantId",
         "visualBottomOvershoot",
         "visualTopOvershoot",
         "visualWidth",
       ]);
-      expect(ladder.activationHalfWidth).toBe(30);
+      expect(climbable.activationHalfWidth).toBe(30);
     }
   });
 
@@ -158,12 +159,12 @@ describe("vertical world contracts", () => {
     const selected = approvedWorld();
     const disabled = verticalFeatureAfterAssetLoad(selected, false);
     expect(disabled.world.platforms).toEqual([]);
-    expect(disabled.world.ladders).toEqual([]);
+    expect(disabled.world.climbables).toEqual([]);
     expect(disabled.routes).toEqual([]);
     expect(disabled.reservedColumns).toEqual([]);
     expect(
       ladderEntryAt({
-        ladders: disabled.world.ladders,
+        climbables: disabled.world.climbables,
         support: "terrain",
         supportId: null,
         x: 1312,
@@ -186,7 +187,7 @@ describe("vertical world contracts", () => {
   });
 
   test("rolls back rendering and gameplay for either assembly failure", () => {
-    for (const failure of ["platform", "ladder", "commit"] as const) {
+    for (const failure of ["platform", "climbable", "commit"] as const) {
       const selected = approvedWorld();
       let committed = selected;
       const live: string[] = [];
@@ -202,9 +203,9 @@ describe("vertical world contracts", () => {
             live.push("platform");
             if (failure === "platform") throw new Error("platform assembly");
           },
-          assembleLadders: () => {
-            live.push("ladder");
-            if (failure === "ladder") throw new Error("ladder assembly");
+          assembleClimbables: () => {
+            live.push("climbable");
+            if (failure === "climbable") throw new Error("climbable assembly");
           },
           rollbackRendering: () => {
             destroyed.push(...live);
@@ -217,14 +218,14 @@ describe("vertical world contracts", () => {
             committed = selection;
           },
         });
-        if (activated) loadedKeys.push("ladder");
+        if (activated) loadedKeys.push("climbable");
       }).toThrow(`${failure} assembly`);
       expect(live).toEqual([]);
       expect(destroyed).toEqual(
-        failure === "platform" ? ["platform"] : ["platform", "ladder"],
+        failure === "platform" ? ["platform"] : ["platform", "climbable"],
       );
       expect(committed.world.platforms).toEqual([]);
-      expect(committed.world.ladders).toEqual([]);
+      expect(committed.world.climbables).toEqual([]);
       expect(committed.routes).toEqual([]);
       expect(committed.reservedColumns).toEqual([]);
       expect(loadedKeys).toEqual([]);
@@ -242,7 +243,7 @@ describe("vertical world contracts", () => {
     const readiness = await prepareVerticalTraversalAssets({
       selected,
       loadLadder: async () => {
-        registeredKeys.add("ladder");
+        registeredKeys.add("climbable");
       },
       loadClimb: async () => {
         registeredKeys.add("character_climb");
@@ -259,7 +260,7 @@ describe("vertical world contracts", () => {
       ...readiness,
       platformMaterialsReady: true,
       assemblePlatforms: () => assembled.push("platform"),
-      assembleLadders: () => assembled.push("ladder"),
+      assembleClimbables: () => assembled.push("climbable"),
       rollbackRendering: () => {
         rollbackCount += 1;
         assembled.length = 0;
@@ -277,7 +278,7 @@ describe("vertical world contracts", () => {
     expect(rollbackCount).toBe(1);
     expect(assembled).toEqual([]);
     expect(committed.world.platforms).toEqual([]);
-    expect(committed.world.ladders).toEqual([]);
+    expect(committed.world.climbables).toEqual([]);
     expect(committed.routes).toEqual([]);
     expect(committed.reservedColumns).toEqual([]);
     expect([...registeredKeys]).toEqual([]);
@@ -318,7 +319,7 @@ describe("vertical world contracts", () => {
       start: 2,
       end: 8,
     });
-    expect(selected?.world.ladders.map((ladder) => ladder.centerX)).toEqual([
+    expect(selected?.world.climbables.map((ladder) => ladder.centerX)).toEqual([
       1824,
     ]);
   });
@@ -483,7 +484,7 @@ describe("vertical world contracts", () => {
     expect(signatures.size).toBe(DEMO_VERTICAL_LAYOUT_KINDS.length);
     for (const { selected } of shapes) {
       expect(selected.world.platforms.length).toBeGreaterThanOrEqual(7);
-      expect(selected.world.ladders).toHaveLength(1);
+      expect(selected.world.climbables).toHaveLength(1);
       expect(
         selected.routes.some((route) => route.mode === "double-jump"),
       ).toBeTrue();
@@ -686,7 +687,7 @@ describe("vertical world contracts", () => {
     ).toBe("none");
     expect(
       resolveJumpRequest({
-        support: "ladder",
+        support: "climbable",
         airJumpsUsed: 0,
         nowMs: 0,
         coyoteExpiresAtMs: null,
@@ -706,18 +707,18 @@ describe("vertical world contracts", () => {
 
   test("rejects malformed, overlapping, non-flat, and out-of-world geometry", () => {
     const base = approvedWorld().world;
-    const ladder = base.ladders[0]!;
+    const ladder = base.climbables[0]!;
     const platform = base.platforms.find(
       (candidate) => candidate.id === ladder.platformId,
     )!;
     const make = (
       platforms: Parameters<typeof createVerticalWorld>[0]["platforms"],
-      ladders: Parameters<typeof createVerticalWorld>[0]["ladders"],
+      climbables: Parameters<typeof createVerticalWorld>[0]["climbables"],
       heights: readonly number[] = HEIGHTS,
     ) =>
       createVerticalWorld({
         platforms,
-        ladders,
+        climbables,
         heights,
         tilePixels: 64,
         baselineY: 720,
@@ -902,16 +903,16 @@ describe("one-way platform geometry", () => {
 
 describe("ladder endpoints, camera, culling, and rendering", () => {
   const world = approvedWorld().world;
-  const up = world.ladders[0]!;
+  const up = world.climbables[0]!;
 
   test("accepts exact endpoint tolerances and rejects just-outside values", () => {
     for (const dx of [-30, 30]) {
       const entry = ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "terrain",
         supportId: null,
         x: up.centerX + dx,
-        footY: up.lowerSurfaceY + LADDER_ENDPOINT_TOLERANCE,
+        footY: up.lowerSurfaceY + CLIMBABLE_ENDPOINT_TOLERANCE,
         up: true,
         down: false,
       });
@@ -919,7 +920,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     }
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "terrain",
         supportId: null,
         x: up.centerX + 31,
@@ -930,7 +931,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     ).toBeNull();
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "platform",
         supportId: "tier-4-summit",
         x: up.centerX,
@@ -941,7 +942,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     ).toBe("down");
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "terrain",
         supportId: null,
         x: up.centerX,
@@ -955,7 +956,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
   test("captures an overlapping airborne player on Up and naturally permits jump-regrab", () => {
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "air",
         supportId: null,
         x: up.centerX + up.activationHalfWidth,
@@ -966,7 +967,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     ).toBe("ladder-summit");
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "air",
         supportId: null,
         x: up.centerX,
@@ -977,7 +978,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     ).toBeNull();
     expect(
       ladderEntryAt({
-        ladders: world.ladders,
+        climbables: world.climbables,
         support: "air",
         supportId: null,
         x: up.centerX,
@@ -994,7 +995,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     });
     const deltaSeconds = 1 / 30;
     const regrab = ladderEntryAt({
-      ladders: world.ladders,
+      climbables: world.climbables,
       support: "air",
       supportId: null,
       x: up.centerX + jump.vx * deltaSeconds,
@@ -1172,7 +1173,7 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     expect(zoomed.bottom).toBeCloseTo(576, 8);
   });
 
-  test("scene culling keeps platform/ladders at real zoom boundaries across DPR", () => {
+  test("scene culling keeps platform/climbables at real zoom boundaries across DPR", () => {
     const camera = {
       scrollX: 672,
       scrollY: -84,
@@ -1251,13 +1252,13 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
     // Overshoot is what this pins, so the vertical numbers stay literal. The horizontal ones
     // derive from the width constant: it sizes the trimmed rails and is a presentation choice,
     // and re-pinning it here would only mean editing two files to change one number.
-    const halfWidth = LADDER_VISUAL_WIDTH / 2;
+    const halfWidth = CLIMBABLE_VISUAL_WIDTH / 2;
     expect(ladderVisualBounds(up)).toEqual({
       left: 2976 - halfWidth,
       right: 2976 + halfWidth,
       top: 304,
       bottom: 624,
-      width: LADDER_VISUAL_WIDTH,
+      width: CLIMBABLE_VISUAL_WIDTH,
       height: 320,
     });
     const mutated = {

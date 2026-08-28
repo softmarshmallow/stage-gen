@@ -174,6 +174,56 @@ frames_per_second = 6
     assert "crouch" in str(caught.value)
 
 
+def test_rejects_a_placed_rope_without_its_own_player_climb_state(tmp_path: Path) -> None:
+    """A rope drawn as a ladder climb is a silent defect, so the package must not resolve."""
+
+    package = _copy_package(tmp_path)
+    player = package / "content/player.toml"
+    rope = """
+[[players.motions]]
+state = "climb_rope"
+playback_mode = "gameplay_driven"
+canonical_frame_indices = [0, 1]
+"""
+    assert rope in player.read_text(encoding="utf-8")
+    player.write_text(player.read_text(encoding="utf-8").replace(rope, ""), encoding="utf-8")
+    _replace_root_digest(package, "content/player.toml", _sha256(player))
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+
+    assert caught.value.code == "unresolved_cross_reference"
+    assert "required player motion state" in str(caught.value)
+    assert "climb_rope" in str(caught.value)
+
+
+def test_requires_only_the_climb_states_the_maps_actually_place(tmp_path: Path) -> None:
+    """Crowncrag places both roles, so the package owes both strips and no others."""
+
+    package = resolve_game_package(_copy_package(tmp_path))
+    placed = {
+        placement.variant_id
+        for game_map in package.maps
+        if game_map.climbable is not None
+        for placement in game_map.climbable.placements
+    }
+    roles = {
+        role
+        for game_map in package.maps
+        if game_map.climbable is not None
+        for role, variants in (
+            ("ladder", game_map.climbable.ladders),
+            ("rope", game_map.climbable.ropes),
+        )
+        for variant in variants
+        if variant.variant_id in placed
+    }
+    assert roles == {"ladder", "rope"}
+    states = {motion.state for motion in package.player.players[0].motions}
+    assert {"climb_ladder", "climb_rope"} <= states
+    assert "climb" not in states
+
+
 def test_rejects_orphaned_package_files(tmp_path: Path) -> None:
     package = _copy_package(tmp_path)
     (package / "unused.toml").write_text("unused = true\n", encoding="utf-8")

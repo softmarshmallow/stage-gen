@@ -26,7 +26,7 @@ export const combatFieldProfile = () => ({
       "jump",
       "air_jump",
       "drop_through",
-      "ladder_climb",
+      "climb",
     ],
   },
   mechanisms: {
@@ -119,9 +119,9 @@ describe("level-profile-v1", () => {
     expect(() => parseLevelProfile(airWithoutJump)).toThrow("air_jump requires jump");
 
     const platformlessLadder = socialHubProfile();
-    platformlessLadder.traversal.affordances = ["ground_move", "jump", "ladder_climb"];
+    platformlessLadder.traversal.affordances = ["ground_move", "jump", "climb"];
     expect(() => parseLevelProfile(platformlessLadder)).toThrow(
-      "ladder_climb require platform_model one_way",
+      "climb require platform_model one_way",
     );
 
     const lootWithoutCombat = socialHubProfile();

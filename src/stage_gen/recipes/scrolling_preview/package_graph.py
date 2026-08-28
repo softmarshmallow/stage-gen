@@ -35,7 +35,9 @@ from stage_gen.recipes.scrolling_preview.layer_contract import (
     RUNTIME_ONLY_LAYER_FIELDS,
 )
 from stage_gen.recipes.scrolling_preview.motion_contract import (
+    DEFAULT_MOTION_ATLAS_GEOMETRY,
     MotionActorKind,
+    motion_atlas_geometry,
     motion_source_facing,
     recipe_owned_motion_direction,
 )
@@ -458,7 +460,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     depends_on=(generated.node_id,),
                     input_digests=(
                         _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                        _object_sha256({"state": state}),
+                        _object_sha256(_motion_repack_identity("player", state)),
                     ),
                     outputs=(
                         f"content/players/{player.player_id}/states/{state}.png",
@@ -1113,6 +1115,22 @@ def _object_sha256(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _motion_repack_identity(kind: MotionActorKind, state: str) -> dict[str, object]:
+    """Everything that decides how a validated strip is registered.
+
+    The anchor is a pure function of `state`, which is already here, so it is carried only when it
+    leaves the default. That keeps every grounded state on the digest it already had while making
+    sure a strip repacked under a superseded registration is not served from cache: the climb
+    states moved from feet to grip, and their old artwork answers the wrong question.
+    """
+
+    identity: dict[str, object] = {"state": state}
+    anchor = motion_atlas_geometry(kind, state).anchor
+    if anchor != DEFAULT_MOTION_ATLAS_GEOMETRY.anchor:
+        identity["repack_anchor"] = anchor
+    return identity
+
+
 def _motion_identity(kind: MotionActorKind, state: str, source_facing: str) -> dict[str, object]:
     """Everything that decides what a motion atlas is asked to depict.
 
@@ -1121,12 +1139,24 @@ def _motion_identity(kind: MotionActorKind, state: str, source_facing: str) -> d
     directive changed, and without this the cached artwork answered the old question forever.
     Only a recipe-owned override is carried. The default directive is a pure function of `state`,
     which is already here, so adding it would change every existing digest to say nothing new.
+    The geometry is carried for the same reason as the override: it decides how many cells the
+    provider is asked for and on what canvas, so a strip drawn to a superseded shape is not a
+    valid answer to the current question. Only a non-default geometry is hashed, so the states
+    that never move off the default keep the digests they already have.
     """
 
     identity: dict[str, object] = {"state": state, "source_facing": source_facing}
     override = recipe_owned_motion_direction(kind, state)
     if override is not None:
         identity["motion_direction"] = override
+    geometry = motion_atlas_geometry(kind, state)
+    if geometry != DEFAULT_MOTION_ATLAS_GEOMETRY:
+        identity["atlas_geometry"] = {
+            "columns": geometry.columns,
+            "rows": geometry.rows,
+            "required_cells": geometry.required_cells,
+            "size": geometry.provider_size,
+        }
     return identity
 
 

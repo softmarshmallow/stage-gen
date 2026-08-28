@@ -3,6 +3,7 @@ import type { MotionBinding } from "./prepared-manifest";
 import { playerSheetScaleForState } from "./sprite-scale";
 import {
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+  preparedPlayerClimbArtwork,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
 } from "./prepared-player";
@@ -30,6 +31,21 @@ function crouchBinding(): MotionBinding {
   });
 }
 
+function climbBinding(state: string): MotionBinding {
+  return Object.freeze({
+    source_facing: "back",
+    runtime_mirror: false,
+    columns: 2,
+    rows: 1,
+    source_frame_count: 2,
+    playback: Object.freeze({
+      mode: "gameplay_driven",
+      canonical_frame_indices: Object.freeze([0, 1]),
+    }),
+    asset: Object.freeze({ ...ASSET, path: `content/players/wayfarer/states/${state}.png` }),
+  });
+}
+
 describe("prepared player adapter", () => {
   test("keeps crouch as public vocabulary while targeting the mature texture role", () => {
     expect(preparedPlayerStateAdapter("crouch")).toEqual({
@@ -52,6 +68,49 @@ describe("prepared player adapter", () => {
     expect(
       preparedPlayerMotionPlayback({ celebration: crouchBinding() }),
     ).toEqual({});
+  });
+
+  test("selects a distinct climb strip per climbable role", () => {
+    const states = {
+      climb_ladder: climbBinding("climb_ladder"),
+      climb_rope: climbBinding("climb_rope"),
+    };
+    expect(preparedPlayerClimbArtwork(states)).toEqual({
+      ladder: {
+        textureKey: "character_climb_ladder",
+        animKey: "player_climb_ladder",
+        playback: { mode: "gameplay_driven", canonical_frame_indices: [0, 1] },
+      },
+      rope: {
+        textureKey: "character_climb_rope",
+        animKey: "player_climb_rope",
+        playback: { mode: "gameplay_driven", canonical_frame_indices: [0, 1] },
+      },
+    });
+  });
+
+  test("resolves only the climbable roles a package actually publishes", () => {
+    expect(
+      Object.keys(preparedPlayerClimbArtwork({ climb_ladder: climbBinding("climb_ladder") })),
+    ).toEqual(["ladder"]);
+  });
+
+  test("keeps both climb states out of the state-keyed playback record", () => {
+    // Both adapt to the single controller state `climb`, so a state-keyed record cannot carry
+    // them both without one silently overwriting the other.
+    expect(
+      preparedPlayerMotionPlayback({
+        climb_ladder: climbBinding("climb_ladder"),
+        climb_rope: climbBinding("climb_rope"),
+        crouch: crouchBinding(),
+      }),
+    ).toEqual({
+      crouch: {
+        mode: "loop",
+        canonical_frame_indices: [0, 1, 2, 3],
+        frames_per_second: 6,
+      },
+    });
   });
 
   test("preserves crouch atlas scale instead of enlarging its compressed pose", () => {

@@ -108,9 +108,9 @@ export type PreparedMap = Readonly<{
 export type MotionBinding = Readonly<{
   source_facing: "right" | "back" | "front";
   runtime_mirror: boolean;
-  columns: 4;
+  columns: number;
   rows: 1;
-  source_frame_count: 4;
+  source_frame_count: number;
   playback: MotionPlayback;
   asset: RuntimeArtifact;
 }>;
@@ -343,12 +343,17 @@ function motion(value: unknown, label: string): MotionBinding {
   if (typeof record.runtime_mirror !== "boolean") {
     throw new Error(`${label}.runtime_mirror must be boolean`);
   }
-  if (
-    record.columns !== 4 ||
-    record.rows !== 1 ||
-    record.source_frame_count !== 4
-  ) {
-    throw new Error(`${label} must be one 4-by-1 strip`);
+  // The cell count is per state rather than fixed: an ordinary state carries four poses, and a
+  // climb carries two because its cycle has exactly two. Rows stay at one - every motion strip is
+  // a single row, and stacking cells into rows was measured to cost figure size, not buy it.
+  const columns = integer(record.columns, `${label}.columns`, 1);
+  const sourceFrameCount = integer(
+    record.source_frame_count,
+    `${label}.source_frame_count`,
+    1,
+  );
+  if (record.rows !== 1 || columns !== sourceFrameCount) {
+    throw new Error(`${label} must be one single-row strip of equal cells`);
   }
   if (record.runtime_mirror !== (sourceFacing === "right")) {
     throw new Error(`${label} facing and runtime mirroring disagree`);
@@ -372,7 +377,7 @@ function motion(value: unknown, label: string): MotionBinding {
   if (
     canonicalFrameIndices.length === 0 ||
     new Set(canonicalFrameIndices).size !== canonicalFrameIndices.length ||
-    canonicalFrameIndices.some((index) => index >= 4)
+    canonicalFrameIndices.some((index) => index >= sourceFrameCount)
   ) {
     throw new Error(`${label}.playback canonical frame selection is invalid`);
   }
@@ -402,9 +407,9 @@ function motion(value: unknown, label: string): MotionBinding {
   return Object.freeze({
     source_facing: sourceFacing,
     runtime_mirror: record.runtime_mirror,
-    columns: 4,
+    columns,
     rows: 1,
-    source_frame_count: 4,
+    source_frame_count: sourceFrameCount,
     playback,
     asset: artifact(record.asset, `${label}.asset`),
   });

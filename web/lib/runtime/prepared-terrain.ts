@@ -4,7 +4,7 @@ import { parseTerrainOccupancy } from "./terrain-atlas";
 import { terrainSurfaceY } from "./terrain";
 import {
   createVerticalWorld,
-  LADDER_VISUAL_OVERSHOOT,
+  CLIMBABLE_VISUAL_OVERSHOOT,
   type UpperPlatform,
   type VerticalWorld,
 } from "./vertical";
@@ -114,7 +114,7 @@ export function projectPreparedTerrainWorld(
   const variantsById = new Map(
     (map.climbable?.variants ?? []).map((entry) => [entry.variant_id, entry]),
   );
-  const ladders = (map.climbable?.placements ?? []).map((placement) => {
+  const climbables = (map.climbable?.placements ?? []).map((placement) => {
     const centerX = Math.round(placement.normalized_x * worldWidth);
     const column = Math.floor(centerX / tilePixels);
     const lowerSurfaceY = terrainSurfaceY(
@@ -142,12 +142,13 @@ export function projectPreparedTerrainWorld(
       );
     }
     const visualHeight =
-      lowerSurfaceY - upperDeckY + LADDER_VISUAL_OVERSHOOT * 2;
+      lowerSurfaceY - upperDeckY + CLIMBABLE_VISUAL_OVERSHOOT * 2;
     const visualWidth = climbableVisualWidth(variant.cell, visualHeight);
     return Object.freeze({
       id: placement.climbable_id,
       platformId: platform.id,
       variantId: placement.variant_id,
+      role: variant.role,
       centerX,
       upperDeckY,
       lowerSurfaceY,
@@ -156,7 +157,7 @@ export function projectPreparedTerrainWorld(
   });
   const verticalWorld = createVerticalWorld({
     platforms,
-    ladders,
+    climbables,
     heights,
     tilePixels,
     baselineY,

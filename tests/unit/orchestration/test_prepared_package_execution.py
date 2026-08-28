@@ -28,7 +28,7 @@ async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolatio
     )
     assert first.summary.ok is True
     assert first.summary.provider_operation_counts == {
-        "image_generation": 91,
+        "image_generation": 92,
         "structured_generation": 16,
         "music_generation": 3,
     }
@@ -166,9 +166,9 @@ async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) ->
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 172
+    assert len(summary.nodes) == 174
     assert summary.provider_operation_counts == {
-        "image_generation": 74,
+        "image_generation": 75,
         "structured_generation": 14,
         "music_generation": 3,
     }

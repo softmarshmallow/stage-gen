@@ -40,10 +40,10 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # operations; Crowncrag declares `mirror_repeat` so its four are local. The image count is a
     # worst case: each loop node admits the generated raster first and only constructs when that
     # fails, so a layer the model already returned as a clean repeat unit spends nothing.
-    assert len(graph.nodes) == 211
+    assert len(graph.nodes) == 213
     assert graph.operation_counts() == {
-        "local": 101,
-        "image_generation": 91,
+        "local": 102,
+        "image_generation": 92,
         "structured_generation": 16,
         "music_generation": 3,
     }
@@ -65,6 +65,15 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
         "content/players/wayfarer/states/crouch.png",
         "content/players/wayfarer/states/crouch.validation.json",
     )
+    # Climb is one movement with one strip per climbable role. The map declares whether a
+    # climbable is a ladder or a rope, so each role owes its own rear-facing strip and neither is
+    # derived from the other.
+    for role_state in ("climb_ladder", "climb_rope"):
+        climb_generated = graph.node(f"player-wayfarer-state-{role_state}-generate")
+        assert climb_generated.depends_on == ("player-wayfarer-concept-generate",)
+        assert climb_generated.outputs == (
+            f"content/players/wayfarer/states/{role_state}.source.png",
+        )
     assert graph.node("ui-inventory-panel-generate").depends_on == ("package-resolve",)
     assert graph.node("ui-inventory-panel-review").depends_on == ("ui-inventory-panel-validate",)
     assert graph.node("map-crowncrag-road-climbable-validate").depends_on == (
@@ -217,10 +226,10 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
     graph = _graph()
     projection = project_execution(graph)
 
-    assert projection.duration_ms == 297_250
+    assert projection.duration_ms == 297_650
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.02
-    assert projection.estimated_cost_high_usd == 21.88
+    assert projection.estimated_cost_low_usd == 4.06
+    assert projection.estimated_cost_high_usd == 22.08
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

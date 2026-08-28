@@ -60,6 +60,7 @@ import {
 } from "./motion-playback";
 import {
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+  preparedPlayerClimbArtwork,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
 } from "./prepared-player";
@@ -205,7 +206,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private healthBar?: FloatingHealthBar;
   private verticalWorld: VerticalWorld = Object.freeze({
     platforms: Object.freeze([]),
-    ladders: Object.freeze([]),
+    climbables: Object.freeze([]),
   });
   private terrainWorld?: PreparedTerrainWorld;
   private worldWidth = VIEW_W;
@@ -579,7 +580,8 @@ export class PreparedStageScene extends Phaser.Scene {
       "character_walk",
       "character_run",
       "character_jump",
-      "character_climb",
+      "character_climb_ladder",
+      "character_climb_rope",
       "character_attack",
       "character_hurt",
       "character_death",
@@ -611,7 +613,8 @@ export class PreparedStageScene extends Phaser.Scene {
       "character_run",
       "character_jump",
       "character_crawl",
-      "character_climb",
+      "character_climb_ladder",
+      "character_climb_rope",
       "character_attack",
     ]) {
       const frame = this.textures.get(key).get(0);
@@ -776,11 +779,12 @@ export class PreparedStageScene extends Phaser.Scene {
       heightFn: (column) => this.heightAt(column),
       targetSpriteHeight: PLAYER_HEIGHT,
       platforms: this.verticalWorld.platforms,
-      ladders: this.verticalWorld.ladders,
+      climbables: this.verticalWorld.climbables,
       maximumAirJumps: 1,
       combatEnabled: gameplay.combat.enabled,
       startingHealth: gameplay.player.starting_health,
       motionPlayback: preparedPlayerMotionPlayback(manifest.player.states),
+      climbArtwork: preparedPlayerClimbArtwork(manifest.player.states),
       scaleReferences: this.scaleReferences,
       preserveSourceScaleStates:
         PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
@@ -839,7 +843,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.mobs = [];
     this.npcs = [];
     this.verticalSprites = [];
-    this.verticalWorld = Object.freeze({ platforms: Object.freeze([]), ladders: Object.freeze([]) });
+    this.verticalWorld = Object.freeze({ platforms: Object.freeze([]), climbables: Object.freeze([]) });
   }
 
   private renderMap(map: PreparedMap): void {
@@ -985,7 +989,7 @@ export class PreparedStageScene extends Phaser.Scene {
         texture.add(frame.frameKey, 0, frame.x, frame.y, frame.width, frame.height);
       }
     }
-    for (const ladder of this.verticalWorld.ladders) {
+    for (const ladder of this.verticalWorld.climbables) {
       const bounds = ladderVisualBounds(ladder);
       const variant = byVariant.get(ladder.variantId);
       if (!variant) {

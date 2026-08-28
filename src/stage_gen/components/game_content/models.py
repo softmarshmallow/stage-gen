@@ -26,6 +26,19 @@ NPC_CONTENT_SCHEMA_VERSION = 3
 MotionPlaybackMode = Literal["hold", "loop", "once", "gameplay_driven"]
 NpcWorldOrientation = Literal["front"]
 CanonicalFrameIndex = Annotated[int, Field(ge=0, le=63)]
+#: One climbable role to the one player motion state that depicts climbing it. Climbing a ladder
+#: and climbing a rope are one intent and one movement, but not one pose: a ladder is gripped at
+#: shoulder width with the feet on separate rungs, a rope on a single centerline with the feet
+#: pinched together. The map declares the role, so nothing has to infer which pose to play.
+PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE = {
+    "ladder": "climb_ladder",
+    "rope": "climb_rope",
+}
+
+#: Climb states advance frame by frame from the player's position on the climbable rather than on
+#: a clock, so they are the only states whose playback the runtime drives.
+PLAYER_GAMEPLAY_DRIVEN_STATES = frozenset(PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE.values())
+
 PLAYER_MOTION_STATES = frozenset(
     {
         "idle",
@@ -33,12 +46,12 @@ PLAYER_MOTION_STATES = frozenset(
         "run",
         "jump",
         "crouch",
-        "climb",
         "basic_attack",
         "skill_cast",
         "hurt",
         "death",
     }
+    | PLAYER_GAMEPLAY_DRIVEN_STATES
 )
 
 
@@ -176,9 +189,12 @@ class PlayerContent(PersistedContractModel):
             label="player",
         )
         for motion in self.motions:
-            if (motion.state == "climb") != (motion.playback_mode == "gameplay_driven"):
+            if (motion.state in PLAYER_GAMEPLAY_DRIVEN_STATES) != (
+                motion.playback_mode == "gameplay_driven"
+            ):
                 raise ValueError(
-                    "player climb must use gameplay_driven playback and no other state may use it"
+                    "player climb states must use gameplay_driven playback "
+                    "and no other state may use it"
                 )
         return self
 

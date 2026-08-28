@@ -52,10 +52,10 @@ describe("gameplay still composition", () => {
         { left: 2176, right: 2560, deckY: 400, thickness: 32 },
         { left: 2624, right: 3008, deckY: 336, thickness: 32 },
       ];
-    const ladders = [{ left: 2936, right: 3016, top: 304, bottom: 624 }];
+    const climbables = [{ left: 2936, right: 3016, top: 304, bottom: 624 }];
     const camera = gameplayOverviewCamera({
       platforms,
-      ladders,
+      climbables,
     });
     expect(camera).not.toBeNull();
     expect(camera?.zoom).toBeCloseTo(0.6820276498, 9);
@@ -67,7 +67,7 @@ describe("gameplay still composition", () => {
           { left: 0, right: 100, deckY: 500, thickness: 32 },
           { left: 120, right: 220, deckY: 400, thickness: 32 },
         ],
-        ladders: [{ left: 180, right: 220, top: 300, bottom: 600 }],
+        climbables: [{ left: 180, right: 220, top: 300, bottom: 600 }],
       }),
     ).toBeNull();
 
@@ -76,7 +76,7 @@ describe("gameplay still composition", () => {
         ...platform,
         tier: index + 1,
       })),
-      ladders,
+      climbables,
     });
     expect(composition).toMatchObject({
       camera,
@@ -226,7 +226,7 @@ describe("public gameplay probe", () => {
       ],
       platforms: [],
       platformRoutes: [],
-      ladders: [],
+      climbables: [],
       mobs: [],
       inventory: { visible: true, bounds: null, slots: [] },
       worldItems: [],

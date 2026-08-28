@@ -84,7 +84,7 @@ _SUPPORTED_SCROLLING_LEVEL_PROFILES: dict[str, dict[str, object]] = {
                 "jump",
                 "air_jump",
                 "drop_through",
-                "ladder_climb",
+                "climb",
             ],
         },
         "mechanisms": {

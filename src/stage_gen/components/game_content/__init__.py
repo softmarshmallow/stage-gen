@@ -3,6 +3,8 @@
 from .models import (
     GAME_CONTENT_SCHEMA_VERSION,
     NPC_CONTENT_SCHEMA_VERSION,
+    PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
+    PLAYER_GAMEPLAY_DRIVEN_STATES,
     PLAYER_MOTION_STATES,
     ContentReference,
     DialogueArtDirection,
@@ -41,6 +43,8 @@ __all__ = [
     "NpcContent",
     "NpcContentCatalog",
     "NpcWorldOrientation",
+    "PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE",
+    "PLAYER_GAMEPLAY_DRIVEN_STATES",
     "PLAYER_MOTION_STATES",
     "PlayerContent",
     "PlayerContentCatalog",

@@ -26,7 +26,7 @@ import {
  * What a stage is for.
  *
  * "village" is the hub the player returns to and talks in; "hunting" is a
- * world with mobs, ladders, and loot. The distinction is not cosmetic: the
+ * world with mobs, climbables, and loot. The distinction is not cosmetic: the
  * scene skips mob spawning and the vertical feature transaction outright on a
  * village, so a stage that lies about its kind gets a town full of monsters.
  */
@@ -76,7 +76,7 @@ export type StagePlan = Readonly<{
   kind: StageKind;
   /** Village terrain is flat so the town reads as a town. */
   terrain: "rolling" | "flat";
-  /** Village has no ladders or upper platforms. */
+  /** Village has no climbables or upper platforms. */
   vertical: boolean;
   /** Authored game-global track identities allowed on this map. */
   soundtrackTrackIds?: readonly string[];

@@ -8,7 +8,7 @@ import os
 import stat
 import subprocess
 import zipfile
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -31,6 +31,7 @@ from stage_gen.components._secure_fs import (
     read_relative_regular_file,
 )
 from stage_gen.components.game_content import (
+    PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
     ItemContentCatalog,
     MobContentCatalog,
     NpcContentCatalog,
@@ -775,10 +776,16 @@ def _validate_cross_contracts(
             )
 
     required_player_states = {"idle", "walk"}
-    movement_states = {"jump": "jump", "crouch": "crouch", "climb": "climb"}
+    movement_states = {"jump": "jump", "crouch": "crouch"}
     for movement, state in movement_states.items():
         if movement in gameplay.navigation.allowed_movements:
             required_player_states.add(state)
+    if "climb" in gameplay.navigation.allowed_movements:
+        # Climb is one movement with one pose per climbable role, so the states a package owes
+        # are decided by what its maps actually place rather than by the movement alone. Without
+        # this a package could place ropes and ship only the ladder strip, and the runtime would
+        # draw a rope climb as a ladder climb with nothing rejecting it.
+        required_player_states.update(_placed_climbable_roles(maps))
     if gameplay.combat.enabled:
         required_player_states.update(
             {
@@ -872,6 +879,34 @@ def _validate_cross_contracts(
                 _assert_subset({node.expression}, expressions, "sequence expression")
             elif isinstance(node, OutcomeNode):
                 _assert_subset(node.effect_ids, effect_ids, "sequence effect_id")
+
+
+def _placed_climbable_roles(maps: Sequence[PreparedGameMap]) -> set[str]:
+    """Return the player climb states the maps' placed climbables require.
+
+    Keyed on placements rather than on the declared variant lists: a map may declare a rope
+    appearance it never places, and an unplaced appearance owes the player no artwork.
+    """
+
+    required: set[str] = set()
+    for game_map in maps:
+        climbable = game_map.climbable
+        if climbable is None:
+            continue
+        role_by_variant = {
+            variant.variant_id: role
+            for role, variants in (("ladder", climbable.ladders), ("rope", climbable.ropes))
+            for variant in variants
+        }
+        for placement in climbable.placements:
+            role = role_by_variant.get(placement.variant_id)
+            if role is None:
+                raise GamePackageValidationError(
+                    "climbable_variant_mismatch",
+                    f"climbable placement {placement.climbable_id} names an undeclared variant",
+                )
+            required.add(PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE[role])
+    return required
 
 
 def _assert_subset(values: Iterable[str], allowed: set[str], label: str) -> None:

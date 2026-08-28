@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import Literal
 
 MotionActorKind = Literal["player", "mob", "npc"]
@@ -12,7 +13,99 @@ NpcWorldOrientation = Literal["front"]
 MOTION_ATLAS_COLUMNS = 4
 MOTION_ATLAS_ROWS = 1
 MOTION_ATLAS_REQUIRED_CELLS = 4
+MOTION_ATLAS_WIDTH = 1536
+MOTION_ATLAS_HEIGHT = 1024
 CANONICAL_SIDE_SOURCE_FACING: Literal["right"] = "right"
+
+#: Traversal states the player performs facing into the screen, hands on a climbable the runtime
+#: draws in front of them. Rear facing is not mirrored for left-facing play.
+PLAYER_REAR_FACING_STATES = frozenset({"climb_ladder", "climb_rope"})
+
+#: Climb states advance frame by frame from the player's position on the climbable rather than on
+#: a clock, so they are the only states whose playback the runtime drives.
+PLAYER_GAMEPLAY_DRIVEN_STATES = PLAYER_REAR_FACING_STATES
+
+CLIMB_ATLAS_COLUMNS = 2
+CLIMB_ATLAS_REQUIRED_CELLS = 2
+CLIMB_ATLAS_WIDTH = 2464
+CLIMB_ATLAS_HEIGHT = 3328
+
+
+@dataclass(frozen=True)
+class MotionAtlasGeometry:
+    """The one shape a motion strip is asked for, validated against, and repacked into.
+
+    Grid and canvas travel together because they are not independently valid: a cell is
+    ``width / columns`` by ``height / rows``, and a cell whose aspect is far from the figure's
+    wastes most of the pixels it is given. Measured on the climb states, four cells on the
+    1536x1024 canvas gave a 283x737 figure while two cells on 2464x3328 gave 925x2957 - the same
+    1:2.7 cell aspect, but no cell spent on a pose that duplicates its neighbour.
+    """
+
+    columns: int
+    rows: int
+    required_cells: int
+    width: int
+    height: int
+    #: Which edge every cell registers against. A grounded actor registers on its feet; a climbing
+    #: one hangs from its hands, so its stable point is the top.
+    anchor: Literal["center", "bottom", "top"] = "bottom"
+
+    @property
+    def provider_size(self) -> str:
+        """The ``WIDTHxHEIGHT`` string the image request carries."""
+
+        return f"{self.width}x{self.height}"
+
+    @property
+    def frame_word(self) -> str:
+        """The cell count as a word, for the prompt sentence that asks for the strip."""
+
+        try:
+            return _FRAME_COUNT_WORDS[self.required_cells]
+        except KeyError as error:
+            raise ValueError(
+                f"no prompt word for a {self.required_cells}-cell motion atlas"
+            ) from error
+
+
+#: Spelled out because the provider follows a written count more reliably than a digit, and only
+#: the counts a motion atlas may actually carry are spelled.
+_FRAME_COUNT_WORDS = {2: "two", 3: "three", 4: "four"}
+
+
+DEFAULT_MOTION_ATLAS_GEOMETRY = MotionAtlasGeometry(
+    columns=MOTION_ATLAS_COLUMNS,
+    rows=MOTION_ATLAS_ROWS,
+    required_cells=MOTION_ATLAS_REQUIRED_CELLS,
+    width=MOTION_ATLAS_WIDTH,
+    height=MOTION_ATLAS_HEIGHT,
+)
+
+#: A climb has two distinct poses - reach and pull - and a four-cell strip spends two of its cells
+#: on near-duplicates of the other two. Two cells on the larger canvas buy roughly eleven times the
+#: painted character area at the same cell aspect.
+CLIMB_MOTION_ATLAS_GEOMETRY = MotionAtlasGeometry(
+    columns=CLIMB_ATLAS_COLUMNS,
+    rows=MOTION_ATLAS_ROWS,
+    required_cells=CLIMB_ATLAS_REQUIRED_CELLS,
+    width=CLIMB_ATLAS_WIDTH,
+    height=CLIMB_ATLAS_HEIGHT,
+    # A climber hangs from its hands: the grip is what stays put while the feet rise to meet it.
+    # Registering these cells on the feet instead moved the head by a quarter of the figure between
+    # the two poses, which is the bounce it produced in play. Cell height is the tallest crop plus
+    # two gutters, so a top-anchored strip still puts the fully extended pose's feet exactly on the
+    # runtime's existing foot origin - the shorter pose simply lifts its feet off it, as it should.
+    anchor="top",
+)
+
+
+def motion_atlas_geometry(kind: MotionActorKind, state: str) -> MotionAtlasGeometry:
+    """Return the strip shape for one state. Every state but the player climbs is the default."""
+
+    if kind == "player" and state in PLAYER_REAR_FACING_STATES:
+        return CLIMB_MOTION_ATLAS_GEOMETRY
+    return DEFAULT_MOTION_ATLAS_GEOMETRY
 
 
 def dialogue_atlas_grid(expression_count: int) -> tuple[int, int]:
@@ -39,7 +132,7 @@ def motion_source_facing(
         return npc_world_orientation
     if npc_world_orientation is not None:
         raise ValueError("npc_world_orientation is valid only for NPC motion")
-    if kind == "player" and state == "climb":
+    if kind == "player" and state in PLAYER_REAR_FACING_STATES:
         return "back"
     return CANONICAL_SIDE_SOURCE_FACING
 
@@ -60,7 +153,7 @@ def recipe_owned_motion_direction(kind: MotionActorKind, state: str) -> str | No
             "variation; the character does not crawl, kneel, move forward, or touch hands to the "
             "ground"
         )
-    if kind == "player" and state == "climb":
+    if kind == "player" and state == "climb_ladder":
         # "four sequential frames ... key poses" asks for a beginning-middle-end arc, and a ladder
         # ascent has no ending. Measured on this state the provider resolved that by substituting
         # an action that can be an arc - reach high, pull, arms drop, torso rotates upright, which
@@ -68,13 +161,52 @@ def recipe_owned_motion_direction(kind: MotionActorKind, state: str) -> str | No
         # a mantle cannot loop. Held here rather than in the authored package because `motions`
         # carries no per-state prompt, and because this is generation-specific visual meaning.
         return (
-            "four sequential phases of one seamless in-place ladder ascent cycle seen from "
+            "two sequential phases of one seamless in-place ladder ascent cycle seen from "
             "directly behind: the torso stays vertical, upright, and centered while only the arms "
             "and legs move, the hands grip unseen rungs at head height or above, the feet rest on "
-            "unseen rungs at different heights, and the limbs alternate hand-over-hand and "
-            "foot-over-foot so that phase four leads back into phase one; the character does not "
-            "climb over a wall, fence, ledge, or cliff, does not mantle or pull itself up over an "
-            "edge, does not lean or turn sideways, and does not travel horizontally"
+            "unseen rungs at different heights, and the cycle alternates between two phases: "
+            "phase one reaches with the left hand high and the right foot high, phase two reaches "
+            "with the right hand high and the left foot high, so that phase two leads back into "
+            "phase one; the character does not climb over a wall, fence, ledge, or cliff, does "
+            "not mantle or pull itself up over an edge, does not lean or turn sideways, and does "
+            "not travel horizontally; the ladder itself is never drawn and no ladder, rung, rope, "
+            "cord, or climbing prop of any kind appears anywhere in the image - only the "
+            "character is painted, gripping empty space"
+        )
+    if kind == "player" and state == "climb_rope":
+        # Same cycle framing as the ladder, but measured on this state the failure mode moved: the
+        # state name already reads as the right action, and what went wrong instead was the
+        # provider painting the rope itself edge to edge through every cell. The repack then fuses
+        # that band into the character component and bottom-anchors the sprite on the rope's tail
+        # rather than on the feet, and the strip double-draws against the rope the map already
+        # owns. Calling the rope "unseen" did not prevent that in 7 of 8 measured strips and
+        # removing the noun altogether did not either; only naming the prohibition outright did.
+        # The rope stays named as a grip target because the propless phrasing lost the sword more
+        # often than it kept it. The pose amplitude is bounded on purpose: asking for a fully
+        # extended pose against a fully compressed one produced cells whose painted heights
+        # differed by a quarter of the figure, which over a two-cell cycle reads as a lurch rather
+        # than a climb. Pinning the head, shoulders, and fists to one height states the intent the
+        # top anchor then registers, so prompt and geometry agree instead of fighting.
+        return (
+            "two sequential phases of one seamless in-place rope ascent cycle seen from directly "
+            "behind: a single unseen rope hangs straight down the vertical centerline of the "
+            "body, both closed fists grip that one line directly above the head and stacked one "
+            "above the other rather than apart at shoulder width, the ankles and insides of both "
+            "feet pinch the same line together with the knees close together, and the cycle "
+            "alternates between two closely matched poses that differ only in the limbs: in phase "
+            "one the legs hang nearly straight below with the feet low, and in phase two the "
+            "knees rise only as far as hip height with the feet clamped a short distance higher, "
+            "so that phase two leads back into phase one; the head, shoulders, and both gripping "
+            "fists are drawn at exactly the same height in both cells, and the two cells differ "
+            "only below the waist and in the bend of the forearms; the torso stays vertical, "
+            "upright, and centered and the figure stays in the same place; the character does not "
+            "swing, sway, "
+            "or hang sideways, does not slide down, descend, or rappel, does not pull a rope "
+            "toward itself horizontally, does not climb over a wall, fence, ledge, or cliff, does "
+            "not mantle or pull itself up over an edge, and does not travel horizontally; the "
+            "rope itself is never drawn and no rope, cord, line, ladder, or climbing prop of any "
+            "kind appears anywhere in the image - only the character is painted, gripping empty "
+            "space"
         )
     return None
 

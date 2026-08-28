@@ -627,10 +627,12 @@ permission remains in `gameplay.toml`.
 
 ## Character climb strip
 
-> The prepared-package player publishes its authored `climb` motion as the same
-> 1536-by-1024, 4-by-1 native-alpha source and canonical atlas contract used by
-> other prepared motions. The smaller file below belongs only to the legacy
-> tag-based prompt recipe.
+> The prepared-package player publishes `climb_ladder` and `climb_rope` as
+> 2464-by-3328, 2-by-1 native-alpha sources rather than the 1536-by-1024, 4-by-1
+> contract other prepared motions use: a climb has two distinct poses, so two of
+> four cells would be near-duplicates. Which roles a package owes follows from the
+> climbable roles its maps place. The smaller file below belongs only to the
+> legacy tag-based prompt recipe.
 
 | | |
 |---|---|
@@ -700,7 +702,7 @@ component, sidecar, composite digest, and prompt/reference contract.
 | **Inputs** | The accepted generated actor identity concept plus the authored state |
 
 Every ordinary player or mob side-view state asks for four strict right-facing figures at one
-identity, scale, and baseline; player `climb` instead asks for four rear-facing figures. The NPC
+identity, scale, and baseline; the player climb states instead ask for two rear-facing figures. The NPC
 catalog's current `world_orientation = "front"` asks for four strict front-facing world figures.
 Native-alpha connected components are repacked into four equal canonical cells with a 12-pixel
 gutter and bottom anchor. Runtime mirrors right-facing sources for left-facing play and never

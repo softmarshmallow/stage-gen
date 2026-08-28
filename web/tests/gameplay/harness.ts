@@ -117,7 +117,7 @@ export const APPROVED_VERTICAL = STAGE_PLANS.map((plan) => {
       thickness: platform.thickness,
     })),
     routes: selected.routes.map((route) => ({ ...route })),
-    ladders: selected.world.ladders.map((ladder) => ({
+    climbables: selected.world.climbables.map((ladder) => ({
       id: ladder.id,
       platformId: ladder.platformId,
       centerX: ladder.centerX,
@@ -430,7 +430,7 @@ function transcriptLine(snapshot: GameplayAutomationSnapshot): string {
     layers: snapshot.layers.filter((layer) => layer.kind === "near-foreground"),
     platforms: snapshot.platforms,
     platformRoutes: snapshot.platformRoutes,
-    ladders: snapshot.ladders,
+    climbables: snapshot.climbables,
     mobs: snapshot.mobs,
     inventory: snapshot.inventory,
     worldItems: snapshot.worldItems,
@@ -580,9 +580,9 @@ function assertSnapshotContract(snapshot: GameplayAutomationSnapshot): void {
     approved.routes,
   );
   assertMatchesApprovedGeometry(
-    "ladder",
-    snapshot.ladders.map(({ visible: _visible, ...ladder }) => ladder),
-    approved.ladders,
+    "climbable",
+    snapshot.climbables.map(({ visible: _visible, ...ladder }) => ladder),
+    approved.climbables,
   );
   if (snapshot.player) assertPlayerSupportInvariant(snapshot.frame, snapshot.player);
   assertGameplayForegroundProbe(
@@ -648,9 +648,9 @@ function assertPlayerSupportInvariant(
     throw new Error(`player airborne/support invariant failed at frame ${frame}`);
   }
   if (
-    (player.support === "ladder") !== (player.ladderId !== null) ||
+    (player.support === "climbable") !== (player.ladderId !== null) ||
     (player.support === "platform") !== (player.platformId !== null) ||
-    (player.support === "ladder" && player.supportId !== player.ladderId) ||
+    (player.support === "climbable" && player.supportId !== player.ladderId) ||
     (player.support === "platform" && player.supportId !== player.platformId) ||
     ((player.support === "terrain" || player.support === "air") &&
       player.supportId !== null)
@@ -689,11 +689,15 @@ function assertPlayerSupportInvariant(
   ) {
     throw new Error(`player drop traversal probe is inconsistent at frame ${frame}`);
   }
-  const climbing = player.support === "ladder";
+  const climbing = player.support === "climbable";
   if (
     climbing !== (player.state === "climb") ||
-    climbing !== (player.climbAnimationKey === "player_climb") ||
-    climbing !== (player.climbTextureKey === "character_climb") ||
+    climbing !==
+      (player.climbAnimationKey !== null &&
+        player.climbAnimationKey.startsWith("player_climb")) ||
+    climbing !==
+      (player.climbTextureKey !== null &&
+        player.climbTextureKey.startsWith("character_climb")) ||
     climbing !== player.rearFacing ||
     (climbing &&
       (!Number.isSafeInteger(player.climbFrame) ||
@@ -1072,7 +1076,7 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
           layers: GameplayAutomationSnapshot["layers"];
           platforms: GameplayAutomationSnapshot["platforms"];
           platformRoutes: GameplayAutomationSnapshot["platformRoutes"];
-          ladders: GameplayAutomationSnapshot["ladders"];
+          climbables: GameplayAutomationSnapshot["climbables"];
           mobs: GameplayAutomationSnapshot["mobs"];
           worldItems: GameplayAutomationSnapshot["worldItems"];
           encounter: GameplayAutomationSnapshot["encounter"];
@@ -1097,7 +1101,7 @@ export function validateGameplayRun(run: GameplayRunEvidence): void {
     if (
       snapshot.platforms.length !== stage.platforms.length ||
       snapshot.platformRoutes.length !== stage.routes.length ||
-      snapshot.ladders.length !== stage.ladders.length
+      snapshot.climbables.length !== stage.climbables.length
     ) {
       throw new Error(`vertical probes are incomplete at frame ${snapshot.frame}`);
     }
@@ -1674,7 +1678,7 @@ async function runOnce(
     );
     if (
       visiblePlatformElevations.size < 3 ||
-      !initial.ladders.some((ladder) => ladder.visible)
+      !initial.climbables.some((ladder) => ladder.visible)
     ) {
       throw new Error(
         "initial gameplay composition must show at least three tiers and one ladder",
