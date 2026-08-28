@@ -98,7 +98,7 @@ order = 0
 parallax = 1.32
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
-presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.4 }
 prompt = """
 Separate only the restrained near fence, flower heads, grass tips, and low
 garden foliage along the bottom edge. Preserve their sparse coral, cream,

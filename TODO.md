@@ -15,6 +15,23 @@ publication still require explicit authorization even when their implementation 
       and `docs/media/`, plus `docs/generated-media-inventory.json`. Replace or retire each contract
       atomically with its consumers, digest bindings, and rejection tests; do not add aliases.
 
+## Authored package digests
+
+- [ ] Move the authored-package digest chain out of the git-tracked input tree, tracked in
+      [#2](https://github.com/softmarshmallow/stage-gen/issues/2). The package is an input
+      instruction, so a digest of one authored file recorded inside another is derived data kept in
+      the authored tree: editing one map rewrites two `source_sha256` lines in `game.toml` and then
+      `package_sha256` in `main.toml`, and nothing in `scripts/` performs that re-lock. Ingest
+      already computes what it needs, because `ResolvedGamePackage.package_sha256` and every node
+      cache key hash captured bytes rather than reading the authored fields, and closure membership
+      is defined by the `source` paths rather than by the digests, so removing them keeps missing
+      and orphan rejection intact. Scope is the derived chain only: the selector `package_sha256`,
+      `index_sha256`, and every `source_sha256` whose target is another authored TOML or
+      `universe.md`. The evidence and reference digests stay, because they bind a human acceptance
+      verdict and a rights claim to the exact reviewed bytes and ingest can regenerate neither. Not
+      scheduled; the issue carries the migration checklist and the open question about
+      `[character_profile].source_sha256`.
+
 ## Runtime acceptance
 
 - [ ] Add the producer-owned `character-hurt` four-frame strip and optional runtime-manifest entry.

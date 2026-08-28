@@ -98,7 +98,7 @@ order = 0
 parallax = 1.42
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
-presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.6 }
 prompt = """
 Separate only restrained near stream-edge leaves, small roots, and a few mossy
 stones along the bottom edge. Preserve sparse dark-teal, amber, and coral
