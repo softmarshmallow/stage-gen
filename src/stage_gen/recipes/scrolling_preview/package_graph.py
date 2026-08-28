@@ -7,7 +7,11 @@ import json
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from stage_gen.components.game_content import ContentReference
+from stage_gen.components.game_content import (
+    DEFAULT_MOTION_ANCHOR,
+    ContentReference,
+    MotionPresentation,
+)
 from stage_gen.components.game_map import PreparedGameMap, PreparedMapReference
 from stage_gen.config import StageGenConfig
 from stage_gen.media import (
@@ -460,7 +464,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     depends_on=(generated.node_id,),
                     input_digests=(
                         _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                        _object_sha256(_motion_repack_identity("player", state)),
+                        _object_sha256(_motion_repack_identity(motion)),
                     ),
                     outputs=(
                         f"content/players/{player.player_id}/states/{state}.png",
@@ -576,7 +580,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     depends_on=(generated.node_id,),
                     input_digests=(
                         _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                        _object_sha256({"state": state}),
+                        _object_sha256(_motion_repack_identity(motion)),
                     ),
                     outputs=(
                         f"content/mobs/{mob.mob_id}/states/{state}.png",
@@ -665,7 +669,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(world.node_id,),
             input_digests=(
                 _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256([motion.state for motion in npc.motions]),
+                _object_sha256([_motion_repack_identity(motion) for motion in npc.motions]),
             ),
             outputs=(
                 f"content/npcs/{npc.npc_id}/world.png",
@@ -1115,19 +1119,17 @@ def _object_sha256(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _motion_repack_identity(kind: MotionActorKind, state: str) -> dict[str, object]:
+def _motion_repack_identity(motion: MotionPresentation) -> dict[str, object]:
     """Everything that decides how a validated strip is registered.
 
-    The anchor is a pure function of `state`, which is already here, so it is carried only when it
-    leaves the default. That keeps every grounded state on the digest it already had while making
-    sure a strip repacked under a superseded registration is not served from cache: the climb
-    states moved from feet to grip, and their old artwork answers the wrong question.
+    The anchor is carried only when it leaves the default, so every grounded motion keeps the digest
+    it already had while a motion whose registration changed is not served its superseded artwork
+    from cache. Authored, so unlike the state name it is not derivable from anything else here.
     """
 
-    identity: dict[str, object] = {"state": state}
-    anchor = motion_atlas_geometry(kind, state).anchor
-    if anchor != DEFAULT_MOTION_ATLAS_GEOMETRY.anchor:
-        identity["repack_anchor"] = anchor
+    identity: dict[str, object] = {"state": motion.state}
+    if motion.anchor != DEFAULT_MOTION_ANCHOR:
+        identity["anchor"] = motion.anchor
     return identity
 
 

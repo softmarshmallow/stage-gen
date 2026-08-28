@@ -283,7 +283,10 @@ four-cell strip spends two of its cells on near-duplicates: each carries two cel
 canvas, which keeps the same cell aspect while giving the figure roughly eleven times the painted
 area. Which of the two a map requires is decided by the climbable roles it places, not by the
 `climb` movement alone, so a package that places a rope while declaring only `climb_ladder` is
-rejected rather than silently drawn as a ladder climb. Facing is therefore a recipe/runtime projection contract, not
+rejected rather than silently drawn as a ladder climb. They are also the only states that register
+against the top of their cell rather than the bottom: a climber hangs from its hands, so the grip is
+what stays put while the feet rise to meet it. That is authored as `anchor` on the motion rather
+than decided by the recipe, because unlike facing it depends on what the model actually drew. Facing is therefore a recipe/runtime projection contract, not
 authored game-content input, and `content/player.toml` has no `required_facings` field. Generating
 both directions is intentionally forbidden by the canonical path because it adds cross-row
 consistency work without a runtime consumer. Separately authored directions may become an explicit

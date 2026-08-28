@@ -1,6 +1,7 @@
 """Provider-neutral prepared game-content catalog API."""
 
 from .models import (
+    DEFAULT_MOTION_ANCHOR,
     GAME_CONTENT_SCHEMA_VERSION,
     NPC_CONTENT_SCHEMA_VERSION,
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
@@ -12,6 +13,7 @@ from .models import (
     ItemContentCatalog,
     MobContent,
     MobContentCatalog,
+    MotionAnchor,
     MotionPlaybackMode,
     MotionPresentation,
     NpcContent,
@@ -30,6 +32,7 @@ from .models import (
 )
 
 __all__ = [
+    "DEFAULT_MOTION_ANCHOR",
     "GAME_CONTENT_SCHEMA_VERSION",
     "NPC_CONTENT_SCHEMA_VERSION",
     "ContentReference",
@@ -38,6 +41,7 @@ __all__ = [
     "ItemContentCatalog",
     "MobContent",
     "MobContentCatalog",
+    "MotionAnchor",
     "MotionPlaybackMode",
     "MotionPresentation",
     "NpcContent",

@@ -113,6 +113,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
           columns: 4,
           rows: 1,
           source_frame_count: 4,
+          anchor: "bottom",
           playback: {
             mode: "hold",
             canonical_frame_indices: [0],
@@ -125,6 +126,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
           columns: 4,
           rows: 1,
           source_frame_count: 4,
+          anchor: "bottom",
           playback: {
             mode: "loop",
             canonical_frame_indices: [0, 1, 2, 3],

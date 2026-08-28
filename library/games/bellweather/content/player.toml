@@ -60,11 +60,13 @@ frames_per_second = 6
 state = "climb_ladder"
 playback_mode = "gameplay_driven"
 canonical_frame_indices = [0, 1]
+anchor = "top"
 
 [[players.motions]]
 state = "climb_rope"
 playback_mode = "gameplay_driven"
 canonical_frame_indices = [0, 1]
+anchor = "top"
 
 [[players.motions]]
 state = "basic_attack"

@@ -184,6 +184,7 @@ def test_rejects_a_placed_rope_without_its_own_player_climb_state(tmp_path: Path
 state = "climb_rope"
 playback_mode = "gameplay_driven"
 canonical_frame_indices = [0, 1]
+anchor = "top"
 """
     assert rope in player.read_text(encoding="utf-8")
     player.write_text(player.read_text(encoding="utf-8").replace(rope, ""), encoding="utf-8")
@@ -222,6 +223,24 @@ def test_requires_only_the_climb_states_the_maps_actually_place(tmp_path: Path) 
     states = {motion.state for motion in package.player.players[0].motions}
     assert {"climb_ladder", "climb_rope"} <= states
     assert "climb" not in states
+
+
+def test_climb_motions_declare_a_grip_anchor_rather_than_a_foot_anchor(tmp_path: Path) -> None:
+    """Registration moved out of the recipe, so the authored package is what keeps it correct.
+
+    A climb registered on its feet pins them and swings the head instead, which reads in play as
+    bouncing rather than climbing. Nothing in code defaults these to `top` any more.
+    """
+
+    package = resolve_game_package(_copy_package(tmp_path))
+    anchors = {motion.state: motion.anchor for motion in package.player.players[0].motions}
+
+    assert anchors["climb_ladder"] == "top"
+    assert anchors["climb_rope"] == "top"
+    assert {state for state, anchor in anchors.items() if anchor != "bottom"} == {
+        "climb_ladder",
+        "climb_rope",
+    }
 
 
 def test_rejects_orphaned_package_files(tmp_path: Path) -> None:

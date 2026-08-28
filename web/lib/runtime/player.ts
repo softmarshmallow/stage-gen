@@ -34,6 +34,7 @@ import {
 import { terrainSurfaceY } from "./terrain";
 import {
   anchorRepackedMotionFeet,
+  anchorRepackedMotionHead,
   applyMotionPlayback,
   installMotionPlayback,
   type RuntimeMotionPlayback,
@@ -198,7 +199,12 @@ export type ClimbArtwork = Readonly<{
   textureKey: string;
   animKey: string;
   playback: RuntimeMotionPlayback;
+  /** Which edge this motion's frames register against, as published by the manifest. */
+  anchor: MotionAnchor;
 }>;
+
+/** Which edge a motion's frames register against. Mirrors the authored contract. */
+export type MotionAnchor = "bottom" | "top";
 
 const CLIMBABLE_ROLES: readonly ClimbableRole[] = ["ladder", "rope"];
 
@@ -222,6 +228,8 @@ function defaultClimbArtwork(
       mode: "gameplay_driven",
       canonical_frame_indices: Object.freeze(roleSpecific ? [0, 1] : [0, 1, 2, 3]),
     }) as RuntimeMotionPlayback,
+    // The shared legacy strip was drawn and packed for feet; only role strips are grip-registered.
+    anchor: roleSpecific ? "top" : "bottom",
   });
 }
 
@@ -281,6 +289,7 @@ export class Player {
   private opts: PlayerOpts;
   private readonly motionPlayback: Readonly<Record<PlayerState, RuntimeMotionPlayback>>;
   private readonly climbArtwork: Readonly<Record<ClimbableRole, ClimbArtwork>>;
+  private readonly tallestFrameHeights = new Map<string, number>();
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasdKeys?: {
     up: Phaser.Input.Keyboard.Key;
@@ -1112,8 +1121,38 @@ export class Player {
     else this.sprite.anims.pause();
     this.sprite.setFlipX(false);
     this.applySheetScale(textureKey);
-    anchorRepackedMotionFeet(this.sprite);
+    this.anchorMotionFrame(textureKey, artwork.anchor);
     this.climbFrame = nextFrame;
+  }
+
+  /**
+   * Register the current frame against the edge its motion declares.
+   *
+   * Frames arrive as tight alpha crops, so the producer's packing offsets are already gone by the
+   * time a sprite draws one: whatever edge the strip was packed against, every frame is flush. The
+   * registration therefore has to be re-applied here from the authored anchor, against the tallest
+   * frame of the same texture, or a hanging pose silently reverts to standing on its own feet.
+   */
+  private anchorMotionFrame(textureKey: string, anchor: MotionAnchor): void {
+    if (anchor !== "top") {
+      anchorRepackedMotionFeet(this.sprite);
+      return;
+    }
+    anchorRepackedMotionHead(this.sprite, this.tallestFrameHeight(textureKey));
+  }
+
+  /** Tallest frame of a loaded strip, which is the pose whose feet define the logical actor Y. */
+  private tallestFrameHeight(textureKey: string): number {
+    const cached = this.tallestFrameHeights.get(textureKey);
+    if (cached !== undefined) return cached;
+    const texture = this.opts.scene.textures.get(textureKey);
+    const heights = texture
+      .getFrameNames(false)
+      .map((name) => texture.get(name).height)
+      .filter((height) => height > 0);
+    const tallest = heights.length > 0 ? Math.max(...heights) : this.sprite.frame.height;
+    this.tallestFrameHeights.set(textureKey, tallest);
+    return tallest;
   }
 
   /** Force the animation matching `next`. */

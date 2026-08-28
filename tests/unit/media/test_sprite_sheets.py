@@ -150,3 +150,72 @@ def test_alpha_components_preserve_row_major_dialogue_order() -> None:
     assert [entry["source_bbox"] for entry in placements] == [
         [left, top, right + 1, bottom + 1] for left, top, right, bottom in bounds
     ]
+
+
+def _uneven_pair() -> bytes:
+    """Two components of different heights sharing one baseline, as a climb cycle produces."""
+
+    source = Image.new("RGBA", (240, 200), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    draw.rectangle((10, 20, 100, 180), fill=(220, 30, 30, 255))
+    draw.rectangle((140, 90, 230, 180), fill=(30, 220, 30, 255))
+    return _png(source)
+
+
+def test_top_anchor_registers_uneven_poses_on_their_grip_instead_of_their_feet() -> None:
+    _, bottom_report = repack_alpha_components(
+        _uneven_pair(),
+        AlphaComponentRepackContract(rows=1, columns=2, required_cells=2, gutter=6),
+    )
+    _, top_report = repack_alpha_components(
+        _uneven_pair(),
+        AlphaComponentRepackContract(rows=1, columns=2, required_cells=2, gutter=6, anchor="top"),
+    )
+
+    def edges(report: object) -> tuple[list[int], list[int]]:
+        placements = report["placements"]  # type: ignore[index]
+        assert isinstance(placements, list)
+        return (
+            [entry["target_bbox"][1] for entry in placements],
+            [entry["target_bbox"][3] for entry in placements],
+        )
+
+    bottom_tops, bottom_bottoms = edges(bottom_report)
+    top_tops, top_bottoms = edges(top_report)
+
+    # Bottom anchoring agrees on the feet and disagrees on the head; top anchoring is the reverse.
+    # That difference is the whole reason a hanging pose needs its own registration.
+    assert len(set(bottom_bottoms)) == 1
+    assert len(set(bottom_tops)) == 2
+    assert len(set(top_tops)) == 1
+    assert len(set(top_bottoms)) == 2
+
+
+def test_top_anchor_keeps_the_tallest_pose_on_the_runtime_foot_origin() -> None:
+    """Why the runtime origin does not branch on the anchor.
+
+    The web runtime places every motion sprite at `repackedMotionFootOriginY`, which is
+    ``1 - gutter / frameHeight``. Cell height is the tallest crop plus two gutters, so a
+    top-anchored strip lands the tallest pose's painted bottom exactly on that line and only shorter
+    poses lift off it. If this ever fails the runtime has to start branching, and admitting the
+    repacker's `center` anchor to an authored contract would break it immediately.
+    """
+
+    gutter = 6
+    for anchor in ("bottom", "top"):
+        output_data, _ = repack_alpha_components(
+            _uneven_pair(),
+            AlphaComponentRepackContract(
+                rows=1, columns=2, required_cells=2, gutter=gutter, anchor=anchor
+            ),
+        )
+        with Image.open(io.BytesIO(output_data)) as opened:
+            output = opened.convert("RGBA")
+        cell_width = output.width // 2
+        bottoms: list[int] = []
+        for index in range(2):
+            cell = output.crop((index * cell_width, 0, (index + 1) * cell_width, output.height))
+            box = cell.getchannel("A").getbbox()
+            assert box is not None
+            bottoms.append(box[3])
+        assert max(bottoms) == output.height - gutter, anchor

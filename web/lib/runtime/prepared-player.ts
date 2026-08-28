@@ -88,6 +88,7 @@ export function preparedPlayerClimbArtwork(
       textureKey: adapter.texture_key,
       animKey: `player_${state}`,
       playback: binding.playback,
+      anchor: binding.anchor,
     });
   }
   return resolved;

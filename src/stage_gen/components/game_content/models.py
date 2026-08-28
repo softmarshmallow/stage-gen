@@ -26,6 +26,14 @@ NPC_CONTENT_SCHEMA_VERSION = 3
 MotionPlaybackMode = Literal["hold", "loop", "once", "gameplay_driven"]
 NpcWorldOrientation = Literal["front"]
 CanonicalFrameIndex = Annotated[int, Field(ge=0, le=63)]
+
+#: Which edge of its cell a motion's frames register against. Vertical only: horizontal placement is
+#: unconditionally centered by both the repacker and the runtime origin.
+#:
+#: `center` is deliberately not admitted. The repacker supports it, but the runtime origin is
+#: correct only for these two, so admitting it would publish a value that does not work.
+MotionAnchor = Literal["bottom", "top"]
+DEFAULT_MOTION_ANCHOR: MotionAnchor = "bottom"
 #: One climbable role to the one player motion state that depicts climbing it. Climbing a ladder
 #: and climbing a rope are one intent and one movement, but not one pose: a ladder is gripped at
 #: shoulder width with the feet on separate rungs, a rope on a single centerline with the feet
@@ -62,6 +70,23 @@ class MotionPresentation(PersistedContractModel):
     playback_mode: MotionPlaybackMode
     canonical_frame_indices: list[CanonicalFrameIndex] = Field(min_length=1, max_length=64)
     frames_per_second: int | None = Field(default=None, ge=1, le=60)
+    #: Which edge every frame of this motion registers against.
+    #:
+    #: Authored rather than recipe-owned because, unlike facing, it is not knowable before
+    #: generation. Facing follows from the camera and is decided up front; the anchor depends on
+    #: what the model actually drew - whether a climb tucked to hip height or to the chest, whether
+    #: the feet left the bounding box's extreme. That is a per-artifact property, so it needs a knob
+    #: at the point where a human has seen the output.
+    #:
+    #: A grounded actor registers on its feet, which is why the default is `bottom` and why nothing
+    #: needed this until now. An actor hanging from its hands does not: bottom-anchoring pins its
+    #: feet and throws its head up and down instead, which reads as bouncing.
+    #:
+    #: This is a deliberate stopgap. It pins a bounding-box extreme, so it cannot express a
+    #: registration point inside the figure, and it is one value for the whole motion rather than
+    #: one per frame. `TODO.md` `## Sprite anchoring` owns the replacement; when that lands this
+    #: field is renamed or retired rather than extended.
+    anchor: MotionAnchor = DEFAULT_MOTION_ANCHOR
 
     @field_validator("canonical_frame_indices")
     @classmethod

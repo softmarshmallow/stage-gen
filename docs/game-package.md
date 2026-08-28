@@ -116,7 +116,15 @@ Player, mob, and NPC content owns the runtime presentation of every declared mot
 entry names its semantic `state`, `playback_mode`, ordered `canonical_frame_indices`, and—only for
 timeline playback—`frames_per_second`. Supported modes are `hold`, `loop`, `once`, and
 `gameplay_driven`. The player climb states `climb_ladder` and `climb_rope` are the only
-current gameplay-driven states.
+current gameplay-driven states. A motion may also declare `anchor`, which is `bottom` or `top` and
+defaults to `bottom`: it selects which edge of its cell the motion's frames register against.
+
+Registration is authored where facing is not, and the difference is that facing is knowable before
+generation while registration is not. Facing follows from the camera and is decided up front; the
+anchor depends on what the model actually drew - whether a climb tucked to hip height or to the
+chest, whether the feet left the bounding box's extreme - so it needs a knob at the point where a
+human has seen the output. A grounded actor registers on its feet; one hanging from its hands does
+not, and registering it on its feet pins them and swings its head instead.
 
 This authored playback contract does not control provider sampling. The scrolling recipe currently
 requests four candidate poses for every motion state except the player climbs, which request two,

@@ -35,6 +35,10 @@ CLIMB_ATLAS_HEIGHT = 3328
 class MotionAtlasGeometry:
     """The one shape a motion strip is asked for, validated against, and repacked into.
 
+    Registration is deliberately not here. How a strip is packed into cells is a property of what
+    the model drew, so it is authored per motion as `MotionPresentation.anchor`; only the shape the
+    provider is asked for is recipe-owned.
+
     Grid and canvas travel together because they are not independently valid: a cell is
     ``width / columns`` by ``height / rows``, and a cell whose aspect is far from the figure's
     wastes most of the pixels it is given. Measured on the climb states, four cells on the
@@ -47,9 +51,6 @@ class MotionAtlasGeometry:
     required_cells: int
     width: int
     height: int
-    #: Which edge every cell registers against. A grounded actor registers on its feet; a climbing
-    #: one hangs from its hands, so its stable point is the top.
-    anchor: Literal["center", "bottom", "top"] = "bottom"
 
     @property
     def provider_size(self) -> str:
@@ -91,12 +92,6 @@ CLIMB_MOTION_ATLAS_GEOMETRY = MotionAtlasGeometry(
     required_cells=CLIMB_ATLAS_REQUIRED_CELLS,
     width=CLIMB_ATLAS_WIDTH,
     height=CLIMB_ATLAS_HEIGHT,
-    # A climber hangs from its hands: the grip is what stays put while the feet rise to meet it.
-    # Registering these cells on the feet instead moved the head by a quarter of the figure between
-    # the two poses, which is the bounce it produced in play. Cell height is the tallest crop plus
-    # two gutters, so a top-anchored strip still puts the fully extended pose's feet exactly on the
-    # runtime's existing foot origin - the shorter pose simply lifts its feet off it, as it should.
-    anchor="top",
 )
 
 

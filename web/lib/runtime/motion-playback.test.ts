@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type Phaser from "phaser";
 import {
   anchorRepackedMotionFeet,
+  anchorRepackedMotionHead,
   applyMotionPlayback,
   installMotionPlayback,
   repackedMotionFootOriginY,
+  repackedMotionHeadOriginY,
 } from "./motion-playback";
 
 describe("resolved motion playback", () => {
@@ -84,5 +86,36 @@ describe("resolved motion playback", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toEqual([0.5, repackedMotionFootOriginY(205.5)]);
     expect(() => repackedMotionFootOriginY(12)).toThrow("valid frame height");
+  });
+
+  test("hangs a motion from one top edge once frames arrive as tight crops", () => {
+    // Frames reach the runtime already trimmed to their painted pixels, so a producer's packing
+    // offsets are gone and every frame is flush. Registration has to be re-applied here or a
+    // grip-anchored motion silently reverts to standing on its own feet - which is exactly what
+    // shipped once, and read in play as the character bouncing.
+    const tallest = 3080;
+    const shorter = 2484;
+
+    // The tallest pose is placed exactly where the foot anchor would place it, so a fully extended
+    // climb still puts its feet on the logical actor Y and the ground contract is unchanged.
+    expect(repackedMotionHeadOriginY(tallest, tallest)).toBeCloseTo(
+      repackedMotionFootOriginY(tallest),
+    );
+    // A shorter pose is pushed down by the difference, which lifts its feet and fixes its top edge.
+    const shorterOrigin = repackedMotionHeadOriginY(shorter, tallest);
+    expect(shorterOrigin).toBeGreaterThan(1);
+    expect(shorterOrigin * shorter).toBeCloseTo(
+      repackedMotionFootOriginY(tallest) * tallest,
+    );
+
+    const calls: unknown[] = [];
+    const sprite = {
+      frame: { height: shorter },
+      setOrigin: (x: number, y: number) => calls.push([x, y]),
+    } as unknown as Phaser.GameObjects.Sprite;
+    anchorRepackedMotionHead(sprite, tallest);
+    expect(calls).toEqual([[0.5, shorterOrigin]]);
+
+    expect(() => repackedMotionHeadOriginY(tallest, shorter)).toThrow("valid frame heights");
   });
 });

@@ -26,6 +26,95 @@ publication still require explicit authorization even when their implementation 
       Component and runtime unit coverage exists; this missing end-to-end scenario must use reviewed
       art before it becomes visual acceptance evidence.
 
+## Sprite anchoring
+
+- [ ] Give every motion frame a real anchor point. The pipeline has never had one. Registration is
+      inferred from an alpha-bounding-box edge instead: `repack_alpha_components` aligns each crop
+      against a cell edge, and the runtime places the sprite with
+      `repackedMotionFootOriginY`, which is `1 - gutter / frameHeight` - the bottom of the cell. A
+      bbox edge is not an anchor. It is a property of whatever pixels happen to be painted, so it
+      moves whenever a limb extends past its previous extreme, and it cannot express a registration
+      point that sits inside the figure. The point a 2D animator would actually pin - the pelvis for
+      most locomotion, the contact foot for a walk cycle, the grip for anything hanging - is
+      interior, differs per frame, and coincides with a bbox edge only by accident.
+- [ ] The gap stayed invisible because every state until now kept its feet on the ground. When the
+      feet are the contact point and the pose is upright, the bbox bottom is within a few pixels of
+      the true anchor, so bottom-anchoring was right by luck rather than by contract. Player
+      `climb_rope` is the first state whose stable point is not its feet, and it failed loudly: with
+      bottom anchoring the two cells agreed on the feet to the pixel and disagreed on the head by
+      751px, a quarter of the figure, which read in play as the character bouncing rather than
+      climbing. `climb_ladder` sat at 58px and looked fine, which is exactly why nothing caught it
+      earlier - the defect scales with how far a state's true anchor sits from its bbox edge.
+- [ ] Note that the repo has already learned half of this lesson somewhere else. Scale is matched on
+      the head, not the feet: `scale_reference.py` records that a figure's painted height is a
+      property of its pose rather than its build, and `headMatchedScale` in the runtime sizes every
+      sheet against the idle head for that reason. Sizing therefore uses a stable interior feature
+      while registration still uses an unstable outer edge. Anchoring should end up on the same
+      footing as scale, and the head-matching machinery is the closest working precedent to copy.
+- [ ] Scope the experiment before building anything, because the acquisition method is the open
+      question and each option has a different failure mode. Candidates: author anchors per state in
+      the game package; ask the image model to place a visible registration marker and detect it;
+      label anchors after generation with a VLM pass; estimate them geometrically from the silhouette
+      (torso centroid, hip line); or assume a skeleton and fit it. Prompted markers and VLM labels
+      both need an accuracy budget measured in pixels against hand-labelled truth before either can
+      be trusted, and both add a per-frame failure mode the current edge rule does not have. Whatever
+      wins has to be persisted in the artifact contract and the runtime manifest, and consumed in
+      place of `repackedMotionFootOriginY`, so it is a contract change on both sides rather than a
+      recipe tweak.
+- [ ] Whatever replaces this must be re-applied at draw time, not only baked into the packing.
+      `loadFrameStrip` re-measures every cell with `extractCellsBbox` and registers each Phaser frame
+      as a tight alpha crop, so the producer's packing offsets are gone before a sprite ever draws:
+      however the strip was packed, every frame arrives flush against its own painted bounds. A
+      first attempt at the climb fix packed the artifact correctly and changed nothing on screen for
+      exactly this reason - the artifact measured top-registered while the runtime kept standing
+      each frame on its own lowest pixel. Any anchor that survives only in the packed bytes is
+      erased by that step.
+- [ ] Until the real system lands, the climb states carry a deliberate stopgap: `anchor` on
+      `MotionPresentation`, authored per motion, `bottom` or `top`, consumed by
+      `anchorMotionFrame` in the runtime. It is still an edge rule and inherits every limitation
+      above - it can only pin an extreme, so a state whose stable point is interior, or which needs
+      a different anchor per frame, remains unrepresentable. Do not mistake it for the anchor system;
+      it buys correct registration for two states whose stable point happens to be an extreme.
+
+## Player identity reference
+
+- [ ] Give the prepared concept sheet a rear view, or stop declaring states rear-facing. Today
+      `_generate_concept` asks for exactly two views, "one complete side-view game-scale figure and
+      one front-three-quarter identity view", and that string has been unchanged since the first
+      prepared commit `025d6b5`, so the prepared path has never rendered the back of any actor.
+      That same sheet is the only reference every later atlas receives: `_generate_motion` and
+      `_generate_dialogue` each pass a single `ImageReference` to `concept.png` and nothing else,
+      while the concept prompt calls itself "the strict identity source for all later motion and
+      dialogue atlases". The player climb states are declared rear-facing by `motion_source_facing`,
+      so the states whose artwork is entirely back-facing are extrapolated from a sheet that has no
+      rear information at all - the back of the costume, the hang of the satchel, and whether the
+      sword reads from behind have never been authored, generated, or reviewed anywhere. The legacy
+      tag path did render front, side, and back (`_turnaround_prompt`, executor.py) and appended
+      `character_proportion_prompt(heads_tall)`; the prepared path dropped both, and relies instead
+      on a "2.25-head-tall" phrase duplicated by hand into `style.keywords` with nothing keeping it
+      in sync with the structured `[proportion]` field. Note what this is not: a measured fix for
+      equipment drift. Supplying a faked rear view as a second reference did not improve it in a
+      four-strip spike - the sword survived one of two strips generated from the concept alone and
+      neither of two generated with the rear view added - so close this as the contract gap it is
+      and gate equipment separately. Landing it re-digests the concept node and invalidates the
+      whole player fan-out, roughly twelve provider images, so sequence it before any other player
+      regeneration rather than paying that cost twice.
+
+- [ ] Pick one canonical name for the multi-view character sheet and make it a first-class input or
+      a first-class node. The artifact that should be the single source of truth for an actor's
+      identity is currently called at least seven things across the tree - `identity concept` (6
+      occurrences), `character-master` (4), `concept turnaround` and `turnaround sheet` (2 each),
+      plus `character turnaround`, `concept sheet`, and `identity source` - and the file is
+      `concept.png` in the prepared path against `character_concept_<tag>.png` in the legacy one.
+      Settle on a single term, rename the stage, the artifact, the prompt wording, and the docs
+      together, then decide where the sheet comes from: either the authored game-input package
+      supplies a reviewed multi-view sheet directly, the way `references/` already supplies rights-
+      bound source images, or the graph gains an explicit node that generates one before any motion
+      or dialogue node depends on it. Today neither is true - `library/games/bellweather` authors
+      only `references/cover.png`, a scene illustration with one three-quarter pose, and the sheet
+      is a side effect of the concept node. Doing this together with the rear-view gap above avoids
+      re-digesting the concept node and re-running the player fan-out twice.
+
 ## Media and publication
 
 - [ ] Resolve the 12 stale lineage bindings across the four published gameplay/dialogue captures:

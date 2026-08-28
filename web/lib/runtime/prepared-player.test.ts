@@ -22,6 +22,7 @@ function crouchBinding(): MotionBinding {
     columns: 4,
     rows: 1,
     source_frame_count: 4,
+    anchor: "bottom",
     playback: Object.freeze({
       mode: "loop",
       canonical_frame_indices: Object.freeze([0, 1, 2, 3]),
@@ -38,6 +39,7 @@ function climbBinding(state: string): MotionBinding {
     columns: 2,
     rows: 1,
     source_frame_count: 2,
+    anchor: "top",
     playback: Object.freeze({
       mode: "gameplay_driven",
       canonical_frame_indices: Object.freeze([0, 1]),
@@ -80,11 +82,13 @@ describe("prepared player adapter", () => {
         textureKey: "character_climb_ladder",
         animKey: "player_climb_ladder",
         playback: { mode: "gameplay_driven", canonical_frame_indices: [0, 1] },
+        anchor: "top",
       },
       rope: {
         textureKey: "character_climb_rope",
         animKey: "player_climb_rope",
         playback: { mode: "gameplay_driven", canonical_frame_indices: [0, 1] },
+        anchor: "top",
       },
     });
   });

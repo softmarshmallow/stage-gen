@@ -402,6 +402,7 @@ def _motion_binding(
         "columns": geometry.columns,
         "rows": geometry.rows,
         "source_frame_count": geometry.required_cells,
+        "anchor": motion.anchor,
         "playback": playback,
         "asset": artifact,
     }

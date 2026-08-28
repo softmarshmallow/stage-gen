@@ -111,6 +111,13 @@ export type MotionBinding = Readonly<{
   columns: number;
   rows: 1;
   source_frame_count: number;
+  /**
+   * Which cell edge this motion's frames register against. Vertical only - horizontal placement is
+   * unconditionally centered. Published for provenance and for the anchor work tracked in TODO.md;
+   * the sprite origin does not branch on it, because a top-packed strip still puts the tallest
+   * pose's feet on the same origin a bottom-packed one does.
+   */
+  anchor: "bottom" | "top";
   playback: MotionPlayback;
   asset: RuntimeArtifact;
 }>;
@@ -355,6 +362,10 @@ function motion(value: unknown, label: string): MotionBinding {
   if (record.rows !== 1 || columns !== sourceFrameCount) {
     throw new Error(`${label} must be one single-row strip of equal cells`);
   }
+  const anchor = record.anchor;
+  if (anchor !== "bottom" && anchor !== "top") {
+    throw new Error(`${label}.anchor is invalid`);
+  }
   if (record.runtime_mirror !== (sourceFacing === "right")) {
     throw new Error(`${label} facing and runtime mirroring disagree`);
   }
@@ -410,6 +421,7 @@ function motion(value: unknown, label: string): MotionBinding {
     columns,
     rows: 1,
     source_frame_count: sourceFrameCount,
+    anchor,
     playback,
     asset: artifact(record.asset, `${label}.asset`),
   });

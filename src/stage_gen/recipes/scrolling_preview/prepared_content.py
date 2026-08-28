@@ -330,7 +330,7 @@ class PreparedContentNodeHandler:
         if match["state"] is not None:
             if match["state_action"] == "generate":
                 return await self._generate_motion(node, "player", player, match["state"])
-            return await self._validate_motion(node, "player", player.player_id, match["state"])
+            return await self._validate_motion(node, "player", player, match["state"])
         action = match["action"]
         if action == "concept-generate":
             return await self._generate_concept(
@@ -361,7 +361,7 @@ class PreparedContentNodeHandler:
         if match["state"] is not None:
             if match["state_action"] == "generate":
                 return await self._generate_motion(node, "mob", mob, match["state"])
-            return await self._validate_motion(node, "mob", mob.mob_id, match["state"])
+            return await self._validate_motion(node, "mob", mob, match["state"])
         action = match["action"]
         if action == "concept-generate":
             return await self._generate_concept(node, "mob", mob, self._package.mobs.references)
@@ -383,7 +383,7 @@ class PreparedContentNodeHandler:
         if action == "world-generate":
             return await self._generate_motion(node, "npc", npc, "idle")
         if action == "world-validate":
-            return await self._validate_motion(node, "npc", npc.npc_id, "idle")
+            return await self._validate_motion(node, "npc", npc, "idle")
         if action == "dialogue-generate":
             return await self._generate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
         if action == "dialogue-validate":
@@ -683,12 +683,18 @@ class PreparedContentNodeHandler:
         )
 
     async def _validate_motion(
-        self, node: ExecutionNode, kind: MotionActorKind, entity_id: str, state: str
+        self,
+        node: ExecutionNode,
+        kind: MotionActorKind,
+        entry: PlayerContent | MobContent | NpcContent,
+        state: str,
     ) -> NodeExecutionResult:
+        entity_id = _entity_id(entry)
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
         source_facing = self._motion_source_facing(kind, state)
         source_data = source.read_bytes()
         geometry = motion_atlas_geometry(kind, state)
+        anchor = _motion_presentation(entry, state).anchor
         source_facts = _validate_atlas(
             source_data,
             columns=geometry.columns,
@@ -703,7 +709,7 @@ class PreparedContentNodeHandler:
                 rows=geometry.rows,
                 columns=geometry.columns,
                 required_cells=geometry.required_cells,
-                anchor=geometry.anchor,
+                anchor=anchor,
             ),
         )
         canonical = self._run_dir / node.outputs[0]
@@ -1447,6 +1453,17 @@ def _entity_id(entry: PlayerContent | MobContent | NpcContent) -> str:
     if isinstance(entry, MobContent):
         return entry.mob_id
     return entry.npc_id
+
+
+def _motion_presentation(
+    entry: PlayerContent | MobContent | NpcContent, state: str
+) -> MotionPresentation:
+    """Return the authored presentation for one of an entry's motion states."""
+
+    for motion in entry.motions:
+        if motion.state == state:
+            return motion
+    raise ValueError(f"{_entity_id(entry)} declares no motion state {state}")
 
 
 def _kind_directory(kind: str) -> str:

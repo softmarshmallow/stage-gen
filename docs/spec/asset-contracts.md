@@ -702,7 +702,9 @@ component, sidecar, composite digest, and prompt/reference contract.
 | **Inputs** | The accepted generated actor identity concept plus the authored state |
 
 Every ordinary player or mob side-view state asks for four strict right-facing figures at one
-identity, scale, and baseline; the player climb states instead ask for two rear-facing figures. The NPC
+identity, scale, and baseline; the player climb states instead ask for two rear-facing figures.
+Frames register against the bottom of their cell unless the authored motion declares
+`anchor = "top"`, which the climb states do because a hanging pose's stable point is its grip. The NPC
 catalog's current `world_orientation = "front"` asks for four strict front-facing world figures.
 Native-alpha connected components are repacked into four equal canonical cells with a 12-pixel
 gutter and bottom anchor. Runtime mirrors right-facing sources for left-facing play and never

@@ -164,6 +164,7 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "columns": 4,
         "rows": 1,
         "source_frame_count": 4,
+        "anchor": "bottom",
         "playback": {"mode": "hold", "canonical_frame_indices": [0]},
         "asset": player["states"]["idle"]["asset"],
     }
@@ -173,6 +174,7 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "columns": 4,
         "rows": 1,
         "source_frame_count": 4,
+        "anchor": "bottom",
         "playback": {
             "mode": "loop",
             "canonical_frame_indices": [0, 1, 2, 3],
@@ -191,6 +193,7 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
             "columns": 4,
             "rows": 1,
             "source_frame_count": 4,
+            "anchor": "bottom",
             "playback": {"mode": "hold", "canonical_frame_indices": [0]},
             "asset": npc["world"]["asset"],
         }

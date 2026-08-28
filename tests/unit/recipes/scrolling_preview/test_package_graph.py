@@ -100,6 +100,51 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     assert all(node.input_sha256 for node in graph.nodes)
 
 
+def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> None:
+    """Changing where one motion registers must not re-repack every other strip."""
+
+    package = resolve_game_package(BELLWEATHER)
+    player = package.player.players[0]
+    flipped = [
+        motion.model_copy(update={"anchor": "bottom"}) if motion.state == "climb_rope" else motion
+        for motion in player.motions
+    ]
+    changed_package = replace(
+        package,
+        package_sha256="f" * 64,
+        canonical_game_sha256="e" * 64,
+        player=package.player.model_copy(
+            update={"players": [player.model_copy(update={"motions": flipped})]}
+        ),
+    )
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(changed_package, profile=profile)
+
+    def validate_keys(graph: ExecutionGraph) -> dict[str, str]:
+        return {
+            node.node_id: node.cache_key
+            for node in graph.nodes
+            if node.node_id.endswith("-validate") and "-state-" in node.node_id
+        }
+
+    before, after = validate_keys(original), validate_keys(changed)
+    differing = {key for key in before if before[key] != after[key]}
+    assert differing == {"player-wayfarer-state-climb_rope-validate"}
+
+    # Registration is consumed after generation, so flipping it must not re-bill a provider image.
+    generation = {
+        node.node_id: node.cache_key
+        for node in original.nodes
+        if node.operation is OperationKind.IMAGE_GENERATION
+    }
+    assert generation == {
+        node.node_id: node.cache_key
+        for node in changed.nodes
+        if node.operation is OperationKind.IMAGE_GENERATION
+    }
+
+
 def test_package_graph_encodes_leaf_dependencies_without_coarse_wave_barriers() -> None:
     graph = _graph()
 
