@@ -62,6 +62,7 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
     for placement in road.climbable.placements:
         column = normalized_terrain_column(placement.normalized_x, 96)
         lower_surface = bottom_contiguous_surface_row(occupancy, column)
+        assert lower_surface is not None
         assert occupancy[lower_surface - 4][column] == "1"
         assert occupancy[lower_surface - 5][column] == "0"
         assert occupancy[lower_surface - 3][column] == "0"
