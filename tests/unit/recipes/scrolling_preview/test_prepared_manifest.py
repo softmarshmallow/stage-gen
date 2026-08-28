@@ -148,13 +148,13 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         for entry in climbable["variants"]
     )
     assert climbable["placements"][0] == {
-        "climbable_id": "river_ladder",
+        "climbable_id": "c1",
         "variant_id": "bellroot_ladder",
-        "normalized_x": 0.067708,
+        "normalized_x": 0.109375,
         "bottom_surface": "terrain",
         "rise_tiles": 4,
     }
-    assert len(climbable["placements"]) == 5
+    assert len(climbable["placements"]) == 4
     assert maps[1]["portal"]["endpoints"][0]["anchor"] == "west_gate"
     player = result.manifest["player"]
     assert isinstance(player, dict)

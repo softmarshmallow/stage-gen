@@ -84,7 +84,7 @@ source_sha256 = "09adc0920c0b0e9561a0cbd59b16a98a83e73cf3a4388ee2c80e88ad79a4cbb
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "82499a25446e7a7c6b85089275d41a89d17f0cd868bef898d16c36fc896cd8f1"
+source_sha256 = "bed10556194f81244b29b2f7b523e8029e6f7b134f14299b88adb06b9099bb47"
 
 [content.player]
 source = "content/player.toml"

@@ -2,4 +2,4 @@ schema_version = 3
 kind = "game-package-v3"
 game_id = "bellweather"
 package_ref = "library/games/bellweather/game.toml"
-package_sha256 = "e55743cbb41e3746ec041bcba6ce27830ff4d65d99bad4195fcf381f92b34ec5"
+package_sha256 = "9beaaf96ac29dff29a4a58cbd0f2151e1d2066e8208e7186d454a925dbc968d6"

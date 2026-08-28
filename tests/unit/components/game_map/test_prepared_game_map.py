@@ -46,13 +46,13 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
     # Terrain and placements are compiled by scripts/author_terrain.py, so these assert the
     # compiled result rather than a hand-drawn matrix.
     assert road.climbable.placements[0].model_dump() == {
-        "climbable_id": "river_ladder",
+        "climbable_id": "c1",
         "variant_id": "bellroot_ladder",
-        "normalized_x": 0.067708,
+        "normalized_x": 0.109375,
         "bottom_surface": "terrain",
         "rise_tiles": 4,
     }
-    assert len(road.climbable.placements) == 5
+    assert len(road.climbable.placements) == 4
     assert road.portal is not None
     assert road.portal.mode == "portal-pair-1x2-v1"
     occupancy = road.ground.occupancy
@@ -66,7 +66,7 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
         assert occupancy[lower_surface - 4][column] == "1"
         assert occupancy[lower_surface - 5][column] == "0"
         assert occupancy[lower_surface - 3][column] == "0"
-    assert normalized_terrain_column(0.067708, 96) == 6
+    assert normalized_terrain_column(0.109375, 96) == 10
 
 
 def test_map_rejects_the_obsolete_v6_identity() -> None:
@@ -93,8 +93,8 @@ def test_map_rejects_unknown_climbable_reference() -> None:
 
 def test_map_rejects_a_placement_naming_an_undeclared_variant() -> None:
     source = _map_bytes("crowncrag-road").replace(
-        b'climbable_id = "river_ladder"\nvariant_id = "bellroot_ladder"',
-        b'climbable_id = "river_ladder"\nvariant_id = "no_such_variant"',
+        b'climbable_id = "c1"\nvariant_id = "bellroot_ladder"',
+        b'climbable_id = "c1"\nvariant_id = "no_such_variant"',
         1,
     )
 
@@ -103,18 +103,17 @@ def test_map_rejects_a_placement_naming_an_undeclared_variant() -> None:
 
 
 def test_map_rejects_a_declared_variant_that_is_never_placed() -> None:
-    # Drop both placements that use the rope variant, leaving it declared but unplaced.
+    # Drop every placement that uses the rope variant, leaving it declared but unplaced.
     source = _map_bytes("crowncrag-road")
     for block in (
-        b'[[climbable.placements]]\nclimbable_id = "bell_rope"\n'
-        b'variant_id = "bellrope_climb"\nnormalized_x = 0.567708\n'
-        b'bottom_surface = "terrain"\nrise_tiles = 4\n\n',
-        b'[[climbable.placements]]\nclimbable_id = "crown_rope"\n'
-        b'variant_id = "bellrope_climb"\nnormalized_x = 0.880208\n'
+        b'[[climbable.placements]]\nclimbable_id = "c3"\n'
+        b'variant_id = "bellrope_climb"\nnormalized_x = 0.796875\n'
         b'bottom_surface = "terrain"\nrise_tiles = 4\n\n',
     ):
         assert block in source
         source = source.replace(block, b"", 1)
+    # Only the `[[climbable.ropes]]` declaration still names the rope variant.
+    assert source.count(b'variant_id = "bellrope_climb"') == 1
 
     with pytest.raises(AuthoredContractLoadError, match="unplaced variants"):
         load_prepared_game_map_bytes(source)
@@ -202,16 +201,16 @@ def test_map_ground_requires_a_visible_escape_floor_and_two_tile_maximum_rise() 
 
 
 def test_map_ladder_must_resolve_between_real_occupancy_surfaces() -> None:
-    # Move a climbable off its deck: column 6 has one, column 40 does not.
+    # Move a climbable off its deck: column 10 has one, column 40 does not.
     source = _map_bytes("crowncrag-road").replace(
-        b"normalized_x = 0.067708", b"normalized_x = 0.421875", 1
+        b"normalized_x = 0.109375", b"normalized_x = 0.421875", 1
     )
     with pytest.raises(AuthoredContractLoadError, match="exposed upper deck"):
         load_prepared_game_map_bytes(source)
 
     # Remove the deck the first climbable rises to.
     source = _map_bytes("crowncrag-road").replace(
-        b"000011111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        b"000000011111100000000000000000000000000000000000000000000000011110000000011111100000000000000000",
         b"0" * 96,
         1,
     )

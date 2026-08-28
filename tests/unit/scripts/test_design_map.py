@@ -512,7 +512,7 @@ def test_apply_rewrites_the_map_with_the_compiled_terrain_and_placements(
     # The rewrite is real: neither the terrain nor the placements are what shipped.
     assert document["ground"]["occupancy"] != shipped["ground"]["occupancy"]
     assert len(document["climbable"]["placements"]) == 3
-    assert len(shipped["climbable"]["placements"]) == 5
+    assert len(shipped["climbable"]["placements"]) == 4
 
     assert document["ground"]["occupancy"] == plan.occupancy()
     assert document["ground"]["walk_surface_row"] == plan.walk_surface_row
