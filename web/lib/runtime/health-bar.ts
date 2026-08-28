@@ -124,6 +124,25 @@ export function healthBarFillWidth(
   return Math.min(input.style.width, Math.max(input.style.height, exact));
 }
 
+/**
+ * Whether a bar has anything to say yet.
+ *
+ * An undamaged actor's bar is a full capsule reporting that nothing has happened, and a stage
+ * carrying a dozen of them is a dozen readouts competing with the bodies they belong to for the
+ * player's attention. The first blow is what makes the readout worth having, so the bar arrives
+ * with the damage and stays for as long as the damage does.
+ *
+ * Strictly "is it damaged": defeat is a separate question and its own gate, so a caller that
+ * hides a corpse's bar keeps doing that rather than having this predicate decide it twice.
+ */
+export function healthBarRevealedByDamage(
+  input: Readonly<{ hp: number; maxHp: number }>,
+): boolean {
+  if (!Number.isFinite(input.hp) || !Number.isFinite(input.maxHp)) return false;
+  if (input.maxHp <= 0) return false;
+  return input.hp < input.maxHp;
+}
+
 /** One texture pair per distinct bar size, shared by every bar drawn at that size. */
 function textureKeys(style: HealthBarStyle): Readonly<{
   track: string;

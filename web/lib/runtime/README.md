@@ -105,6 +105,13 @@ moves bodies, so the player's bar is written after the combat exchange each fram
 after a stage rebuild replaces the player object; a mob owns its own bar and retires it at the
 killing blow rather than fading it out with the corpse.
 
+A mob's bar is also revealed by damage rather than by existing: `healthBarRevealedByDamage`
+holds it hidden while `hp` is full and shows it from the first blow onward, so a route lined
+with creatures is not also lined with full capsules reporting that nothing has happened. The
+player's own bar is unconditional - it is the one readout they are entitled to without having
+to be hit for it. Defeat stays a separate gate, so the mob still hides its bar at the killing
+blow for being dead rather than for being empty.
+
 ## Floating combat text
 
 `combat.ts` defines the authoritative `DamageResolution`: whether an attempt connected, attempted

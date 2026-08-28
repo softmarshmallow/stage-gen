@@ -25,6 +25,7 @@ import {
 import {
   FloatingHealthBar,
   MOB_HEALTH_BAR_STYLE,
+  healthBarRevealedByDamage,
 } from "./health-bar";
 import { SCENE_CONTENT_DEPTH } from "./layers";
 import {
@@ -302,7 +303,24 @@ export class Mob {
       actorX: this.sprite.x,
       actorFootY: this.sprite.y,
     });
-    this.healthBar.setVisible(this.sprite.visible && this.state !== "dead");
+    this.healthBar.setVisible(this.healthBarShouldShow(this.sprite.visible));
+  }
+
+  /**
+   * Whether this mob's bar is drawn at all.
+   *
+   * Three conditions, in the order they stop mattering: a hidden body has no readout, a dead one
+   * has nothing left to report, and an untouched one has nothing to report yet. The last is why
+   * a bar appears at the first hit rather than at spawn - the player learns a creature's health
+   * by attacking it, and a route lined with full capsules reads as HUD scattered through the
+   * level instead of as feedback from the fight they are actually in.
+   */
+  private healthBarShouldShow(spriteVisible: boolean): boolean {
+    return (
+      spriteVisible &&
+      this.isAlive() &&
+      healthBarRevealedByDamage({ hp: this.hp, maxHp: this.maxHp })
+    );
   }
 
   update(dtMs: number, nowMs: number) {
@@ -681,7 +699,7 @@ export class Mob {
   /** Show or hide the whole actor - body and readout - as one thing. */
   setVisible(visible: boolean): void {
     this.sprite.setVisible(visible);
-    this.healthBar.setVisible(visible && this.isAlive());
+    this.healthBar.setVisible(this.healthBarShouldShow(visible));
   }
 
   /**

@@ -4,6 +4,7 @@ import {
   PLAYER_HEALTH_BAR_STYLE,
   healthBarFillWidth,
   healthBarPlacement,
+  healthBarRevealedByDamage,
 } from "./health-bar";
 
 /** An actor standing on a ground column at y=592. */
@@ -79,5 +80,39 @@ describe("floating health bar fill", () => {
     // Mob health is ladderIndex + 1, so the weakest mob in a stage has a capacity of one.
     expect(fill(1, 1, MOB_HEALTH_BAR_STYLE)).toBe(MOB_HEALTH_BAR_STYLE.width);
     expect(fill(0, 1, MOB_HEALTH_BAR_STYLE)).toBe(0);
+  });
+});
+
+describe("floating health bar reveal", () => {
+  test("stays hidden while an actor is untouched", () => {
+    expect(healthBarRevealedByDamage({ hp: 2, maxHp: 2 })).toBe(false);
+    expect(healthBarRevealedByDamage({ hp: 12, maxHp: 12 })).toBe(false);
+  });
+
+  test("appears on the first point of damage and stays for the rest", () => {
+    // A common mob has two points, so one blow is the whole difference between no bar and one.
+    expect(healthBarRevealedByDamage({ hp: 1, maxHp: 2 })).toBe(true);
+    // A boss has twelve, and every state between the first hit and the last shows the bar.
+    for (let hp = 11; hp >= 1; hp -= 1) {
+      expect(healthBarRevealedByDamage({ hp, maxHp: 12 })).toBe(true);
+    }
+  });
+
+  test("leaves defeat to the caller's own gate", () => {
+    // Zero is damaged like any other reduced value. The mob hides its bar at the killing blow
+    // because it is dead, not because the bar happens to be empty - two separate reasons that
+    // would otherwise both live here and drift apart.
+    expect(healthBarRevealedByDamage({ hp: 0, maxHp: 6 })).toBe(true);
+  });
+
+  test("shows nothing for an actor with no capacity to lose", () => {
+    expect(healthBarRevealedByDamage({ hp: 0, maxHp: 0 })).toBe(false);
+    expect(healthBarRevealedByDamage({ hp: -1, maxHp: -1 })).toBe(false);
+    expect(healthBarRevealedByDamage({ hp: Number.NaN, maxHp: 6 })).toBe(false);
+    expect(healthBarRevealedByDamage({ hp: 3, maxHp: Number.NaN })).toBe(false);
+  });
+
+  test("treats health above capacity as undamaged", () => {
+    expect(healthBarRevealedByDamage({ hp: 9, maxHp: 6 })).toBe(false);
   });
 });
