@@ -144,7 +144,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # and the attributed terrain topology reference.
         # Keep the ceiling exact enough to catch accidental packaging growth without treating
         # those boundaries as bloat.
-        assert len(wheel_entries) <= 180
+        # The platformer map-design component adds five more: the capability profiles, the design
+        # model and its validator, the chunk grammar, the design loop, and the package init.
+        assert len(wheel_entries) <= 185
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -177,8 +179,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The size assertions below are the ones that actually bound the archive. The layer
         # vertical-placement contract adds two source modules and their focused tests. The
         # climbable atlas adds its sizing/envelope module, the terrain authoring compiler, and the
-        # pipeline graph-contract writer.
-        assert len(sdist_entries) <= 386
+        # pipeline graph-contract writer. The platformer map-design component adds fourteen: its
+        # five source modules, the design script, its six focused test modules, and the contract
+        # documentation.
+        assert len(sdist_entries) <= 400
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.
