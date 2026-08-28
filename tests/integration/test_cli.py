@@ -101,7 +101,7 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
         )
         == 0
     )
-    assert digest_output.getvalue() == f"{report['package_sha256']}\n"
+    assert digest_output.getvalue() == f"{report['closure_sha256']}\n"
 
     archive = tmp_path / "bellweather.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
@@ -116,7 +116,7 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
         )
         == 0
     )
-    assert json.loads(zip_output.getvalue())["package_sha256"] == report["package_sha256"]
+    assert json.loads(zip_output.getvalue())["closure_sha256"] == report["closure_sha256"]
 
     plan_output = StringIO()
     assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0

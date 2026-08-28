@@ -18,7 +18,6 @@ from pydantic import Field, field_validator, model_validator
 
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
-    SHA256_PATTERN,
     AuthoredContractLoadError,
     parse_toml_contract,
     portable_relative_path,
@@ -68,8 +67,8 @@ from stage_gen.components.gameplay_contract import (
 from stage_gen.contracts.artifacts import PersistedContractModel
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
-GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 3
-GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 3
+GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 4
+GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 4
 
 _MAX_PACKAGE_FILES = 512
 _MAX_PACKAGE_FILE_BYTES = 64 * 1024 * 1024
@@ -86,11 +85,10 @@ class GamePackageValidationError(ValueError):
 
 
 class GamePackageSelector(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["game-package-v3"]
+    schema_version: Literal[4]
+    kind: Literal["game-package-v4"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     package_ref: str
-    package_sha256: str = Field(pattern=SHA256_PATTERN)
 
     @field_validator("package_ref")
     @classmethod
@@ -123,6 +121,7 @@ class ResolvedGamePackage:
     package_name: str
     package_sha256: str
     canonical_game_sha256: str
+    closure_sha256: str
     game: PreparedGameContract
     gameplay: GameplayContract
     ui: GameUi
@@ -146,11 +145,12 @@ class ResolvedGamePackage:
     def identity(self) -> dict[str, object]:
         return {
             "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-            "kind": "resolved-game-package-v3",
+            "kind": "resolved-game-package-v4",
             "game_id": self.game.game_id,
             "revision": self.game.revision,
             "package_sha256": self.package_sha256,
             "canonical_game_sha256": self.canonical_game_sha256,
+            "closure_sha256": self.closure_sha256,
             "source_kind": self.source_kind,
             "file_count": len(self.files),
             "map_ids": [entry.map_id for entry in self.maps],
@@ -216,11 +216,6 @@ def validate_game_package(
         raise GamePackageValidationError(
             "cross_game_identity", "selector game_id does not match prepared package"
         )
-    if resolved.package_sha256 != selector.package_sha256:
-        raise GamePackageValidationError(
-            "stale_package_digest",
-            "selector package_sha256 does not match selected game.toml bytes",
-        )
 
     closure_refs = [
         selector_ref,
@@ -235,7 +230,7 @@ def validate_game_package(
     return {
         **resolved.identity(),
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v3",
+        "kind": "game-package-validation-v4",
         "valid": True,
         "source_status": "current",
         "generated_status": "not_checked",
@@ -264,7 +259,7 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
     )
     return {
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v3",
+        "kind": "game-package-validation-v4",
         "valid": False,
         "source_status": "current" if source_is_current else "invalid",
         "generated_status": "not_checked",
@@ -429,6 +424,13 @@ def _resolve_captured_package(
         raise GamePackageValidationError("invalid_game_contract", str(error)) from error
     expected: dict[str, str] = {"game.toml": sha256_bytes(game_bytes)}
 
+    def member(source: str) -> bytes:
+        """Register one authored member and capture its digest at ingest."""
+
+        data = _required_file(files, source)
+        expected.setdefault(source, sha256_bytes(data))
+        return data
+
     def locked(source: str, digest: str, label: str) -> bytes:
         previous = expected.setdefault(source, digest)
         if previous != digest:
@@ -444,69 +446,65 @@ def _resolve_captured_package(
             )
         return data
 
-    universe_bytes = locked(game.universe.source, game.universe.source_sha256, "universe")
+    universe_bytes = member(game.universe.source)
     _validate_utf8_text(universe_bytes, "universe source")
 
     gameplay = _load_locked(
-        locked(game.gameplay.source, game.gameplay.source_sha256, "gameplay"),
+        member(game.gameplay.source),
         load_gameplay_contract_bytes,
         "invalid_gameplay_contract",
     )
     ui = _load_locked(
-        locked(game.ui.source, game.ui.source_sha256, "game UI"),
+        member(game.ui.source),
         load_game_ui_bytes,
         "invalid_game_ui_contract",
     )
     soundtrack = _load_locked(
-        locked(game.soundtrack.source, game.soundtrack.source_sha256, "soundtrack"),
+        member(game.soundtrack.source),
         lambda data: load_game_soundtrack_bytes(data, source_suffix=".toml"),
         "invalid_soundtrack_contract",
     )
     maps = tuple(
         _load_locked(
-            locked(binding.source, binding.source_sha256, f"map {binding.map_id}"),
+            member(binding.source),
             load_prepared_game_map_bytes,
             "invalid_map_contract",
         )
         for binding in game.maps
     )
     player = _load_locked(
-        locked(game.content.player.source, game.content.player.source_sha256, "player content"),
+        member(game.content.player.source),
         load_player_content_bytes,
         "invalid_player_content",
     )
     mobs = _load_locked(
-        locked(game.content.mobs.source, game.content.mobs.source_sha256, "mob content"),
+        member(game.content.mobs.source),
         load_mob_content_bytes,
         "invalid_mob_content",
     )
     npcs = _load_locked(
-        locked(game.content.npcs.source, game.content.npcs.source_sha256, "NPC content"),
+        member(game.content.npcs.source),
         load_npc_content_bytes,
         "invalid_npc_content",
     )
     props = _load_locked(
-        locked(game.content.props.source, game.content.props.source_sha256, "prop content"),
+        member(game.content.props.source),
         load_prop_content_bytes,
         "invalid_prop_content",
     )
     items = _load_locked(
-        locked(game.content.items.source, game.content.items.source_sha256, "item content"),
+        member(game.content.items.source),
         load_item_content_bytes,
         "invalid_item_content",
     )
     sequence_catalog = _load_locked(
-        locked(
-            game.sequences.index_source,
-            game.sequences.index_sha256,
-            "sequence catalog",
-        ),
+        member(game.sequences.index_source),
         load_game_sequence_catalog_bytes,
         "invalid_sequence_catalog",
     )
     sequences = tuple(
         _load_locked(
-            locked(binding.source, binding.source_sha256, f"sequence {binding.sequence_id}"),
+            member(binding.source),
             load_game_sequence_bytes,
             "invalid_sequence_contract",
         )
@@ -600,6 +598,7 @@ def _resolve_captured_package(
         package_name=package_name,
         package_sha256=sha256_bytes(game_bytes),
         canonical_game_sha256=sha256_bytes(canonical_prepared_game_contract_json(game)),
+        closure_sha256=_closure_sha256(resolved_files),
         game=game,
         gameplay=gameplay,
         ui=ui,
@@ -909,6 +908,15 @@ def _assert_subset(values: Iterable[str], allowed: set[str], label: str) -> None
         raise GamePackageValidationError(
             "unresolved_cross_reference", f"{label} values do not resolve: {', '.join(unknown)}"
         )
+
+
+def _closure_sha256(files: Sequence[ResolvedPackageFile]) -> str:
+    """Digest the exact captured closure: every member path, digest, and size."""
+
+    payload = json.dumps(
+        [entry.identity() for entry in files], sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return sha256_bytes(payload)
 
 
 def _required_file(files: dict[str, bytes], path: str) -> bytes:

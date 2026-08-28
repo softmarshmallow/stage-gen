@@ -1,4 +1,4 @@
-"""Exact-current prepared-package root contract (``game-contract-v6``)."""
+"""Exact-current prepared-package root contract (``game-contract-v7``)."""
 
 from __future__ import annotations
 
@@ -21,12 +21,11 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 6
+PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 7
 
 
 class PackageSource(PersistedContractModel):
     source: str
-    source_sha256: str = Field(pattern=SHA256_PATTERN)
 
     @field_validator("source")
     @classmethod
@@ -50,7 +49,6 @@ class MapSource(PackageSource):
 
 class SequenceCatalogSource(PersistedContractModel):
     index_source: str
-    index_sha256: str = Field(pattern=SHA256_PATTERN)
 
     @field_validator("index_source")
     @classmethod
@@ -173,10 +171,10 @@ class PreparedRights(PersistedContractModel):
 
 
 class PreparedGameContract(PersistedContractModel):
-    """One prepared game's complete, digest-bound membership root."""
+    """One prepared game's complete membership root, named by exact source path."""
 
-    schema_version: Literal[6]
-    kind: Literal["game-contract-v6"]
+    schema_version: Literal[7]
+    kind: Literal["game-contract-v7"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     display_name: str

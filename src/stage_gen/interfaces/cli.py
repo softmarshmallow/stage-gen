@@ -475,7 +475,7 @@ def _dispatch(
     if command == "package":
         resolved_package = resolve_game_package(Path(args.input_path))
         if args.package_command == "digest":
-            stdout.write(f"{resolved_package.package_sha256}\n")
+            stdout.write(f"{resolved_package.closure_sha256}\n")
         elif args.package_command == "plan":
             plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))
             plan_report = {

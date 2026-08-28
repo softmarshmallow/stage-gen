@@ -21,9 +21,12 @@ CURRENT_GAME_DOC_PATHS = (
 
 RETIRED_PREPARED_IDENTITIES = (
     "game-contract-v1",
+    "game-package-v3",
+    "game-sequence-catalog-v1",
     "game-contract-v2",
     "game-contract-v3",
     "game-contract-v4",
+    "game-contract-v6",
     "game-map-v1",
     "game-map-v2",
     "game-map-v3",
@@ -67,8 +70,8 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     game_contract = documents["docs/game-contract.md"]
     for identity in (
-        "`game-package-v3`",
-        "`game-contract-v6`",
+        "`game-package-v4`",
+        "`game-contract-v7`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
         "`game-map-v9`",
@@ -80,7 +83,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "endpoint anchors" in game_contract
 
     package = documents["docs/game-package.md"]
-    assert "`game.toml` is the membership and digest-closure root" in package
+    assert "`game.toml` is the membership root" in package
     assert "The player climb states `climb_ladder` and `climb_rope` are the only" in package
     assert "gameplay movement `crouch` and player motion `crouch`" in package
 
@@ -96,7 +99,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "is no map index" in maps
 
     schema = documents["docs/spec/game/authored-contract-schema.md"]
-    assert 'Only `schema_version = 6` and `kind = "game-contract-v6"` are accepted' in schema
+    assert 'Only `schema_version = 7` and `kind = "game-contract-v7"` are accepted' in schema
     assert 'source = "ui.toml"' in schema
     assert "gameplay.toml` owns climb permission and portal destinations" in schema
 

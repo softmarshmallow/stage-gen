@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v8``).
+"""Exact-current compound map-generation contract (``game-map-v9``).
 
 The authored document states what a map should be: its art direction, its layers and
 references, the climbable roster it can draw, and the terrain it wants generated. It carries

@@ -2,17 +2,18 @@
 
 > **Contract maturity: exact-current prepared-package root.**
 >
-> This document specifies `game-contract-v6`, the root `game.toml` accepted by
+> This document specifies `game-contract-v7`, the root `game.toml` accepted by
 > prepared-package ingest. The complete package closure and transport rules live
 > in [Canonical prepared game package](../../game-package.md); execution order
 > and provider fan-out live in the [Canonical generation pipeline](generation-pipeline.md).
 
 ## Purpose
 
-`game.toml` is the membership and digest-closure root for one prepared game. It
-owns shared identity and art direction, catalogs the cast and maps, and locks
-every direct contract and evidence source. It does not contain generated paths,
-provider configuration, execution order, map-use rules, or runtime objects.
+`game.toml` is the membership root for one prepared game, naming every member
+by exact source path. It owns shared identity and art direction, catalogs the
+cast and maps, and names every direct contract and evidence source. It does not
+contain generated paths, provider configuration, execution order, map-use
+rules, or runtime objects.
 
 The canonical path is:
 
@@ -20,7 +21,7 @@ The canonical path is:
 library/games/<game_id>/game.toml
 ```
 
-Only `schema_version = 6` and `kind = "game-contract-v6"` are accepted. The
+Only `schema_version = 7` and `kind = "game-contract-v7"` are accepted. The
 resolver does not translate another document shape.
 
 ## Root shape
@@ -28,15 +29,14 @@ resolver does not translate another document shape.
 The exact fields are:
 
 ```toml
-schema_version = 6
-kind = "game-contract-v6"
+schema_version = 7
+kind = "game-contract-v7"
 game_id = "example-game"
 revision = 1
 display_name = "Example Game"
 
 [universe]
 source = "universe.md"
-source_sha256 = "<sha256>"
 
 [presentation]
 view_profile = "side_view_2d"
@@ -65,44 +65,34 @@ npc_ids = ["npc_one"]
 
 [gameplay]
 source = "gameplay.toml"
-source_sha256 = "<sha256>"
 
 [ui]
 source = "ui.toml"
-source_sha256 = "<sha256>"
 
 [soundtrack]
 source = "soundtrack.toml"
-source_sha256 = "<sha256>"
 
 [[maps]]
 map_id = "first-map"
 source = "maps/first-map.toml"
-source_sha256 = "<sha256>"
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "<sha256>"
 
 [content.mobs]
 source = "content/mobs.toml"
-source_sha256 = "<sha256>"
 
 [content.npcs]
 source = "content/npcs.toml"
-source_sha256 = "<sha256>"
 
 [content.props]
 source = "content/props.toml"
-source_sha256 = "<sha256>"
 
 [content.items]
 source = "content/items.toml"
-source_sha256 = "<sha256>"
 
 [sequences]
 index_source = "sequences/index.toml"
-index_sha256 = "<sha256>"
 
 [evidence.cover]
 artifact_source = "references/cover.png"
@@ -135,8 +125,9 @@ basis = ["Original authored package direction."]
   unique.
 - Evidence keys are `lower_snake_case`. Each evidence triple lives under
   `references/`, uses the required provenance/review suffixes, and is unique.
-- Every direct source and evidence file is bound by the SHA-256 of its exact
-  bytes. Unknown fields are rejected.
+- Evidence digests are authored: each artifact, provenance, and review file is
+  bound by the SHA-256 of its exact reviewed bytes. Member digests are computed
+  at ingest and are never authored here. Unknown fields are rejected.
 - Rights status is `unreviewed`, `restricted`, or
   `redistribution-approved`; the nonempty basis records authored-input rights,
   not generated-media publication approval.
@@ -162,8 +153,13 @@ and playback contract.
 ## Resolution and projection
 
 Prepared-package resolution captures the selected directory or ZIP once,
-checks every digest and exact closure member, validates all cross-contract
+computes every member digest at capture, validates all cross-contract
 identities locally, and rejects malformed input before a provider operation.
+Membership stays exact: a member named here but absent is rejected as
+`missing_package_file`, and a captured file no contract names is rejected as
+`orphan_package_file`. Resolution then digests the exact captured closure of
+every member path, digest, and byte size as `closure_sha256`, which appears in
+the resolved package identity and in the `game-package-validation-v4` report.
 The scrolling DAG consumes this resolved package and integration emits only
 `prepared-game-runtime-v9`.
 

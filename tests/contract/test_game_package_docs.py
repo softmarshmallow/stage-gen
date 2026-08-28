@@ -9,7 +9,10 @@ from stage_gen.components.game_content import (
 )
 from stage_gen.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.game_map import PREPARED_GAME_MAP_SCHEMA_VERSION
-from stage_gen.components.game_sequence import GAME_SEQUENCE_SCHEMA_VERSION
+from stage_gen.components.game_sequence import (
+    GAME_SEQUENCE_CATALOG_SCHEMA_VERSION,
+    GAME_SEQUENCE_SCHEMA_VERSION,
+)
 from stage_gen.components.game_soundtrack import GAME_SOUNDTRACK_SCHEMA_VERSION
 from stage_gen.components.game_ui import GAME_UI_SCHEMA_VERSION
 from stage_gen.components.gameplay_contract import GAMEPLAY_CONTRACT_SCHEMA_VERSION
@@ -21,12 +24,12 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
     document = (repository / "docs/game-package.md").read_text(encoding="utf-8")
     selector = tomllib.loads((repository / "library/games/main.toml").read_text(encoding="utf-8"))
 
+    # The selector names the package. It does not pin it: member digests are computed at ingest.
     assert selector == {
         "schema_version": GAME_PACKAGE_SELECTOR_SCHEMA_VERSION,
-        "kind": "game-package-v3",
+        "kind": f"game-package-v{GAME_PACKAGE_SELECTOR_SCHEMA_VERSION}",
         "game_id": "bellweather",
         "package_ref": "library/games/bellweather/game.toml",
-        "package_sha256": selector["package_sha256"],
     }
     assert selector["package_ref"] in document
     assert "library/games/main.toml" in document
@@ -44,7 +47,7 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
         f"npc-content-v{NPC_CONTENT_SCHEMA_VERSION}",
         f"prop-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"item-content-v{GAME_CONTENT_SCHEMA_VERSION}",
-        f"game-sequence-catalog-v{GAME_SEQUENCE_SCHEMA_VERSION}",
+        f"game-sequence-catalog-v{GAME_SEQUENCE_CATALOG_SCHEMA_VERSION}",
         f"game-sequence-v{GAME_SEQUENCE_SCHEMA_VERSION}",
     ):
         assert f"`{current_contract}`" in document

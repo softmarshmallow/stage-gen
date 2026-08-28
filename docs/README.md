@@ -16,7 +16,7 @@ Start here for the headless, general-purpose system:
   ownership boundaries, cross-contract invariants, and subordinate authorities,
   with current executable identities kept explicitly separate.
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
-  implemented current `game-contract-v6` package-root fields, closed vocabulary,
+  implemented current `game-contract-v7` package-root fields, closed vocabulary,
   validation, binding, and manifest projection.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
   machine-checked current scrolling DAG, stage and operation contracts, internal
@@ -43,9 +43,9 @@ Start here for the headless, general-purpose system:
 - [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md)
   — proposed TO-BE dialogue graph, choice, shot, cue-track, control-lease,
   skip/resume, checkpoint, and cutscene-realization semantics.
-- [Authored game soundtracks](game-soundtrack.md) — the current separate,
-  digest-bound game-global track catalog, scrolling generation pipeline, shuffle
-  playback, prepared-runtime projection, and listening/publication boundary.
+- [Authored game soundtracks](game-soundtrack.md) — the current separate
+  game-global track catalog, scrolling generation pipeline, shuffle playback,
+  prepared-runtime projection, and listening/publication boundary.
 - [Authored game maps](game-maps.md) — exact-current `game-map-v9` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.

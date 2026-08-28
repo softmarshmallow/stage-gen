@@ -185,7 +185,7 @@ sequence catalog
     └── rights and provenance
 ```
 
-The catalog owns stable sequence identity and exact source digests. Individual
+The catalog owns stable sequence identity and order. Individual
 sequence files own graph and presentation semantics. `game.toml` or another
 game-level composition contract references the catalog; it does not embed every
 line, shot, and cue in one growing table.
@@ -199,9 +199,10 @@ library/games/<game_id>/sequences/index.toml
 library/games/<game_id>/sequences/<sequence_id>.toml
 ```
 
-`index.toml` is an ordered, digest-locked catalog. Each entry binds one stable
-sequence ID to exact source bytes. A sequence declares the same `game_id` and
-`sequence_id` implied by its confined path.
+`index.toml` is an ordered catalog. Each entry binds one stable sequence ID to
+one confined source path, and the resolver computes that member's digest at
+capture. A sequence declares the same `game_id` and `sequence_id` implied by its
+confined path.
 
 Sequences may reference portable game-owned identities such as cast roles, maps,
 presentation profiles, motions, soundtrack tracks, and generated asset roles.

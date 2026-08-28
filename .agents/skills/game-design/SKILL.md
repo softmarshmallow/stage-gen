@@ -26,7 +26,8 @@ shapes.
 
 ## Keep ownership clear
 
-- `game.toml`: identity, visual direction, package membership, and digests.
+- `game.toml`: identity, visual direction, and package membership by exact
+  source path.
 - `gameplay.toml`: map use, transitions, spawns, population, combat, loot,
   interactions, and map audio.
 - `maps/<map_id>.toml`: visual generation of one environment only: camera,
@@ -72,9 +73,10 @@ Run the canonical closure validator from the repository root:
 uv run python scripts/validate_game_package.py --root .
 ```
 
-It verifies TOML parsing, confined paths, exact digests, resolvable references,
-and orphaned entries. Before serving a committed canonical demo, also run it
-with `--require-committed`. If the ratified schema is newer than the implemented
+It verifies TOML parsing, confined paths, exact path membership, the authored
+evidence and reference image digests, resolvable references, and orphaned
+entries. Before serving a committed canonical demo, also run it with
+`--require-committed`. If the ratified schema is newer than the implemented
 validator, report that gap; never downgrade the authored package to a legacy
 shape just to pass. Stop at a complete authored input package: do not implement
 the pipeline or claim that the game has been generated.

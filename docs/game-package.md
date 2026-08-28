@@ -28,10 +28,11 @@ library/games/main.toml
     └── references/*
 ```
 
-`game.toml` is the membership and digest-closure root. It locks every direct
-contract and evidence member. Map and content contracts in turn lock the image
-references they actually use; the sequence catalog locks every sequence.
-Unreferenced files are rejected rather than becoming implicit input.
+`game.toml` is the membership root. It names every direct contract and
+evidence member by exact source path. Map and content contracts in turn name
+the image references they actually use; the sequence catalog names every
+sequence. A named member that is absent is rejected; an unreferenced file is
+rejected too, rather than becoming implicit input.
 
 ## Exact-current identities
 
@@ -39,8 +40,8 @@ Only these prepared-package identities are accepted by the resolver:
 
 | Boundary | Current identity |
 | --- | --- |
-| Repository selector | `game-package-v3` |
-| Package root | `game-contract-v6` |
+| Repository selector | `game-package-v4` |
+| Package root | `game-contract-v7` |
 | Gameplay | `gameplay-contract-v1` |
 | Map generation | `game-map-v9` |
 | Soundtrack | `game-soundtrack-v1` |
@@ -50,7 +51,7 @@ Only these prepared-package identities are accepted by the resolver:
 | NPC catalog | `npc-content-v3` |
 | Prop catalog | `prop-content-v2` |
 | Item catalog | `item-content-v2` |
-| Sequence catalog | `game-sequence-catalog-v1` |
+| Sequence catalog | `game-sequence-catalog-v2` |
 | Sequence | `game-sequence-v1` |
 
 Successful provider-free integration emits only `prepared-game-runtime-v9`.
@@ -78,15 +79,18 @@ uv run stage-gen package digest --input /path/to/bellweather.zip
 ```
 
 Both forms capture every closure byte once and produce the same
-`package_sha256`, canonical game digest, stable IDs, and file identities.
+`closure_sha256`, canonical game digest, stable IDs, and file identities.
 Later stages consume that captured closure rather than reopening mutable input
 or retaining a temporary extraction path.
 
 The directory, ZIP filename, and optional ZIP wrapper are transport names and
 do not determine game identity. `game_id` comes only from the validated root
 contract. `package_sha256` is the SHA-256 of the exact root `game.toml` bytes.
-That root locks the rest of the closure, so changing any member requires
-relocking its owner and then relocking the root selector as applicable.
+Membership is by exact source path, and the resolver hashes every captured
+member itself at ingest, so editing a member needs no digest bookkeeping
+elsewhere in the package. `closure_sha256` digests the exact captured closure:
+every member path, its digest, and its byte size. `stage-gen package digest`
+prints it.
 
 ## Pre-provider validation
 
@@ -94,7 +98,7 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 
 - strict TOML parsing and exact unknown-field rejection;
 - the root game identity and every member schema identity;
-- every locked source digest;
+- every authored evidence and image-reference digest against captured bytes;
 - shared `game_id` ownership;
 - map, actor, item, prop, UI, soundtrack, quest, effect, and sequence references;
 - map layer ordering, alpha base, ground mode, binary occupancy, ladder geometry,
@@ -103,7 +107,8 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 - sequence node reachability, targets, outcomes, speakers, expressions, and effects;
 - image decoding for every selected visual reference;
 - JSON syntax for selected evidence provenance and nonempty UTF-8 review text;
-- exact closure membership with no orphan file; and
+- exact closure membership, rejecting both a missing member and an
+  unreferenced file; and
 - portable paths with no traversal, symlink, ambiguous archive root, duplicate
   ZIP entry, encryption, or unsafe size/compression behavior.
 
@@ -162,13 +167,15 @@ to be tracked and equal to Git `HEAD`:
 uv run python scripts/validate_game_package.py --root . --require-committed
 ```
 
-The report keeps authored, repository, and generated truth separate:
+The `game-package-validation-v4` report keeps authored, repository, and
+generated truth separate:
 
 - `source_status = "current"` means the complete prepared closure validates;
 - `repository.status` reports whether those exact bytes are tracked or committed;
 - `generated_status = "not_checked"` means generation and playability have not
   been claimed; and
-- `package_sha256` and `closure` identify the validated bytes.
+- `package_sha256`, `closure_sha256`, and `closure` identify the validated
+  bytes.
 
 An internally valid package may still have absent, stale, unreviewed, or
 unpublished generated output. Validation never promotes media or activates a

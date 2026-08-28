@@ -144,8 +144,8 @@ topology and therefore this checked snapshot.
 ```
 <!-- pipeline-graph-contract:end -->
 
-For this exact digest-locked Bellweather snapshot, the content-sensitive execution-plan identity is
-`graph_sha256 = 68a8c2b6b1d12b566e4bdd3abe218fc2da8001aa4721d1a2d31ccf7ab412dae7`.
+For this exact captured Bellweather closure, the content-sensitive execution-plan identity is
+`graph_sha256 = 6e05d46a6a637ac740bcf9a0fba5b856ee1fc647fcf60c615a60d382c49787a1`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -346,7 +346,8 @@ returned usage remain operational evidence and must be refreshed at the live-pro
 ## Cache identity and retry ownership
 
 Every node cache key includes its stable ID and operation contract version, selected provider and
-model, digests of validated authored inputs and references, and ordered prerequisite cache keys.
+model, ingest-computed digests of validated authored inputs, the authored digests of their
+references, and ordered prerequisite cache keys.
 Consumer-only presentation is an explicit exception at the paid boundary: root contact-shadow
 settings and per-layer contrast, saturation, atmospheric wash, and detail blur are excluded from
 generation, local layer admission, map composite, and semantic-review cache identities. They enter
@@ -371,7 +372,7 @@ counts one successful provider operation per provider node.
 
 | File | Contract |
 | --- | --- |
-| `package.json` | Captured package identity, stable IDs, and root digests |
+| `package.json` | Captured package identity, stable IDs, and the closure digest |
 | `execution-plan.json` | Nodes, dependencies, resources, outputs, cache keys, models, and estimates |
 | `execution-projection.json` | Resource spans, critical path, call counts, time, and budget range |
 | `execution-trace.jsonl` | Immutable run/node events with queue, duration, cache, attempts, calls, and errors |

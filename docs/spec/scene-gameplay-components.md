@@ -11,7 +11,7 @@ adapts both from `prepared-game-runtime-v9` into Phaser objects.
 
 | Layer | Owns | Must not own |
 | --- | --- | --- |
-| `game-contract-v6` | Shared identity, art direction, global runtime presentation, cast IDs, and package membership | Simulation or engine state |
+| `game-contract-v7` | Shared identity, art direction, global runtime presentation, cast IDs, and package membership | Simulation or engine state |
 | `gameplay-contract-v1` | Navigation, player start, progression, inventory semantics, combat, map use, transitions, population, loot, placements, interactions, quests, and effects | Map image generation or Phaser objects |
 | `game-map-v9` | Map references/layers, per-layer runtime presentation, the terrain request a generator answers, the climbable roster, and portal presentation/anchors | Movement permission, destinations, spawning, interactions, or the generated geometry itself |
 | `map-terrain-v1` | Generated occupancy, walk-surface row, and climbable placements for one map | Any authored intent; it is an artifact, not a source |

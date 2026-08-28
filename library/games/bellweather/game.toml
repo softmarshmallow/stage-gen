@@ -1,12 +1,11 @@
-schema_version = 6
-kind = "game-contract-v6"
+schema_version = 7
+kind = "game-contract-v7"
 game_id = "bellweather"
-revision = 18
+revision = 19
 display_name = "Bellweather"
 
 [universe]
 source = "universe.md"
-source_sha256 = "4fff78555bd0961f9542b9a0f5903758c9a66f81082ba5b59f251c202b4b917d"
 
 [presentation]
 view_profile = "side_view_2d"
@@ -66,49 +65,38 @@ npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant
 
 [gameplay]
 source = "gameplay.toml"
-source_sha256 = "a5a1c93c1b151b8b03ac7b01e032fcd3aac2f57cc370d76bd9f0167c59e08988"
 
 [ui]
 source = "ui.toml"
-source_sha256 = "91a9b9c0b87f9a871b1b8da83e7fe56a5a4720c5019134660bfd229054279d4e"
 
 [soundtrack]
 source = "soundtrack.toml"
-source_sha256 = "1e2735d64438c31bc5bbc76d95214d3ee1a37daf19fd9466c3913b150a8f5730"
 
 [[maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
-source_sha256 = "9b55ccb7d52bd2695c91a28aeb46a090e25ed3d3c955cbdd06d232594c2dd732"
 
 [[maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
-source_sha256 = "75d243337837c381ca71585e4f2b2b0fb6bbb767477c58cda3b747b10cfd1480"
 
 [content.player]
 source = "content/player.toml"
-source_sha256 = "84b963a00fa964b5b110d6930180becd7050130e2f5019662c6a4aa8fcc93d4e"
 
 [content.mobs]
 source = "content/mobs.toml"
-source_sha256 = "7da9f04a99467da8ed9f66d4e4aabc28cdf53eeb1045147867859e596f219032"
 
 [content.npcs]
 source = "content/npcs.toml"
-source_sha256 = "bddf57385bf17ab4c920e31f4c0a3c8cbee5c5c0c425026e8e31112e8148b673"
 
 [content.props]
 source = "content/props.toml"
-source_sha256 = "5ac712583f92c693c3200d8f437cd28a531d1d43d017b61385750cc7baf7061a"
 
 [content.items]
 source = "content/items.toml"
-source_sha256 = "64eccf0156a1441ddf0c963fa345780aaaafd0960571c8a3fe6f378069e2f971"
 
 [sequences]
 index_source = "sequences/index.toml"
-index_sha256 = "23eb3c61830e55c4e7fdb93ce14f4bc2b14ee25b6c3989087b90c393862a536e"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

@@ -15,23 +15,6 @@ publication still require explicit authorization even when their implementation 
       and `docs/media/`, plus `docs/generated-media-inventory.json`. Replace or retire each contract
       atomically with its consumers, digest bindings, and rejection tests; do not add aliases.
 
-## Authored package digests
-
-- [ ] Move the authored-package digest chain out of the git-tracked input tree, tracked in
-      [#2](https://github.com/softmarshmallow/stage-gen/issues/2). The package is an input
-      instruction, so a digest of one authored file recorded inside another is derived data kept in
-      the authored tree: editing one map rewrites two `source_sha256` lines in `game.toml` and then
-      `package_sha256` in `main.toml`, and nothing in `scripts/` performs that re-lock. Ingest
-      already computes what it needs, because `ResolvedGamePackage.package_sha256` and every node
-      cache key hash captured bytes rather than reading the authored fields, and closure membership
-      is defined by the `source` paths rather than by the digests, so removing them keeps missing
-      and orphan rejection intact. Scope is the derived chain only: the selector `package_sha256`,
-      `index_sha256`, and every `source_sha256` whose target is another authored TOML or
-      `universe.md`. The evidence and reference digests stay, because they bind a human acceptance
-      verdict and a rights claim to the exact reviewed bytes and ingest can regenerate neither. Not
-      scheduled; the issue carries the migration checklist and the open question about
-      `[character_profile].source_sha256`.
-
 ## Runtime acceptance
 
 - [ ] Add the producer-owned `character-hurt` four-frame strip and optional runtime-manifest entry.
@@ -191,7 +174,7 @@ publication still require explicit authorization even when their implementation 
 - [ ] Do not let any profile declare `biomes` until a ground mode can consume them. The design
       module can already express per-region appearance - the tag is physics-neutral, membership
       and paintable span are validated, and per-chunk tagging lands switches on landmarks for free
-      - but `game-map-v7` binds exactly one terrain atlas per map and exposes no per-region style
+      - but `game-map-v9` binds exactly one terrain atlas per map and exposes no per-region style
       surface, so the choice would have nowhere to go. This needs a new mode under `[ground]` with
       its producer, validation, manifest, and consumer paths implemented first, exactly as the map
       contract requires of every future ground mode. A profile that declares biomes before then
@@ -200,12 +183,11 @@ publication still require explicit authorization even when their implementation 
 - [ ] Treat applying a design to a shipped map as its own authorized operation, never as a step
       inside a design run. The shipped map TOMLs are pinned byte-for-byte, so a new occupancy
       matrix co-updates the byte-level assertions in
-      `tests/unit/components/game_map/test_prepared_game_map.py` and re-locks two digests in
-      sequence: the map bytes into `game.toml` `source_sha256`, then the `game.toml` bytes into
-      `main.toml` `package_sha256`. It also re-bills the climbable atlas image for as long as the
-      cache split above is open. Sequence the split first if a run intends to move placements, and
-      keep the design, the apply, and the digest re-lock as one reviewed change rather than three
-      partial ones.
+      `tests/unit/components/game_map/test_prepared_game_map.py`. The edit stays inside the map
+      TOML, because the resolver computes every member digest at capture time rather than reading
+      an authored one. It also re-bills the climbable atlas image for as long as the cache split
+      above is open. Sequence the split first if a run intends to move placements, and keep the
+      design and the apply as one reviewed change rather than two partial ones.
 
 ## Camera
 

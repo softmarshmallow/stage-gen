@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
@@ -120,6 +121,7 @@ def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> 
         package,
         package_sha256="f" * 64,
         canonical_game_sha256="e" * 64,
+        closure_sha256="d" * 64,
         player=package.player.model_copy(
             update={"players": [player.model_copy(update={"motions": flipped})]}
         ),
@@ -193,6 +195,7 @@ def test_playback_only_change_does_not_invalidate_provider_cache_identity() -> N
         package,
         package_sha256="f" * 64,
         canonical_game_sha256="e" * 64,
+        closure_sha256="d" * 64,
         player=changed_catalog,
     )
     profile = package_graph_profile(StageGenConfig())
@@ -244,6 +247,7 @@ def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> N
         package,
         package_sha256="f" * 64,
         canonical_game_sha256="e" * 64,
+        closure_sha256="d" * 64,
         game=changed_game,
         maps=(changed_map, *package.maps[1:]),
     )
@@ -300,6 +304,7 @@ def _crowncrag_climbable_package(**update: object) -> ResolvedGamePackage:
         package,
         package_sha256="f" * 64,
         canonical_game_sha256="e" * 64,
+        closure_sha256="d" * 64,
         maps=maps,
     )
 
@@ -314,7 +319,13 @@ def _crowncrag_terrain_package(**update: object) -> ResolvedGamePackage:
         entry.model_copy(update={"terrain": changed}) if entry.map_id == CROWNCRAG else entry
         for entry in package.maps
     )
-    return replace(package, package_sha256="f" * 64, canonical_game_sha256="e" * 64, maps=maps)
+    return replace(
+        package,
+        package_sha256="f" * 64,
+        canonical_game_sha256="e" * 64,
+        closure_sha256="d" * 64,
+        maps=maps,
+    )
 
 
 def test_reshaping_terrain_does_not_re_bill_any_artwork() -> None:
@@ -446,7 +457,11 @@ def _with_layer_construction(
         ]
         maps.append(game_map.model_copy(update={"layers": layers}))
     return replace(
-        package, maps=tuple(maps), package_sha256="a" * 64, canonical_game_sha256="b" * 64
+        package,
+        maps=tuple(maps),
+        package_sha256="a" * 64,
+        canonical_game_sha256="b" * 64,
+        closure_sha256="c" * 64,
     )
 
 
@@ -570,7 +585,11 @@ def test_changing_the_fallback_does_not_re_bill_any_layer_image() -> None:
         for game_map in package.maps
     )
     changed_package = replace(
-        package, maps=maps, package_sha256="c" * 64, canonical_game_sha256="d" * 64
+        package,
+        maps=maps,
+        package_sha256="c" * 64,
+        canonical_game_sha256="d" * 64,
+        closure_sha256="e" * 64,
     )
     original = build_package_execution_graph(package, profile=profile)
     changed = build_package_execution_graph(changed_package, profile=profile)
@@ -579,3 +598,52 @@ def test_changing_the_fallback_does_not_re_bill_any_layer_image() -> None:
         for layer in game_map.layers:
             node_id = f"map-{game_map.map_id}-layer-{layer.layer_id}-generate"
             assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
+
+
+def _package_copy(tmp_path: Path) -> Path:
+    target = tmp_path / "bellweather"
+    shutil.copytree(BELLWEATHER, target)
+    return target
+
+
+@pytest.mark.parametrize(
+    ("member", "before", "after"),
+    [
+        ("content/player.toml", "frames_per_second = 6", "frames_per_second = 8"),
+        ("content/player.toml", 'playback_mode = "loop"', 'playback_mode = "once"'),
+        ("soundtrack.toml", "revision = 2", "revision = 3"),
+    ],
+)
+def test_editing_an_authored_member_reaches_the_nodes_that_capture_and_assemble_it(
+    tmp_path: Path, member: str, before: str, after: str
+) -> None:
+    """Package identity must be derived from member bytes, not from a digest authored beside them.
+
+    The root contract used to carry a digest of every member, so the canonical projection covered
+    the whole closure by transitivity. Nothing authored covers it now, so both nodes that read the
+    captured package have to key on the closure itself. Each edit below lands verbatim in
+    `manifest.json`, which is what makes a stale `manifest-assemble` key a wrong artifact rather
+    than a wasted rebuild.
+    """
+
+    package_root = _package_copy(tmp_path)
+    source = package_root / member
+    text = source.read_text(encoding="utf-8")
+    assert before in text
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(resolve_game_package(package_root), profile=profile)
+
+    source.write_text(text.replace(before, after, 1), encoding="utf-8")
+    changed = build_package_execution_graph(resolve_game_package(package_root), profile=profile)
+
+    for node_id in ("package-resolve", "manifest-assemble"):
+        assert original.node(node_id).cache_key != changed.node(node_id).cache_key, node_id
+    assert {
+        node.node_id: node.cache_key
+        for node in original.nodes
+        if node.operation is not OperationKind.LOCAL
+    } == {
+        node.node_id: node.cache_key
+        for node in changed.nodes
+        if node.operation is not OperationKind.LOCAL
+    }

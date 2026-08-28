@@ -1,24 +1,20 @@
-schema_version = 1
-kind = "game-sequence-catalog-v1"
+schema_version = 2
+kind = "game-sequence-catalog-v2"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [[sequences]]
 sequence_id = "sunpetal-welcome"
 source = "sequences/sunpetal-welcome.toml"
-source_sha256 = "ff3b360c554b701781f716302b9c8a35f3605dd316d4760aba30c955bbead5b7"
 
 [[sequences]]
 sequence_id = "elowen-skybell-memory"
 source = "sequences/elowen-skybell-memory.toml"
-source_sha256 = "5a2b5175822fe3e1bc17331bed0b746fae87358e7152c2ff12c2b6de1ef184a4"
 
 [[sequences]]
 sequence_id = "brom-mended-things"
 source = "sequences/brom-mended-things.toml"
-source_sha256 = "e5d23bcd08db67a847bd8ed0e94cbfff3ab22fbdfaa07ff4a3214c7ef31ac4ed"
 
 [[sequences]]
 sequence_id = "pip-lantern-road"
 source = "sequences/pip-lantern-road.toml"
-source_sha256 = "bcd1e459bf7b3bd24ce9954e3a0caa36486b0f9cff1e61f08095456731b1a9f2"

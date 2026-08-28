@@ -30,18 +30,6 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _replace_root_digest(package: Path, source: str, digest: str) -> None:
-    root = package / "game.toml"
-    text = root.read_text(encoding="utf-8")
-    pattern = (
-        rf'(source = "{re.escape(source)}"\nsource_sha256 = ")'
-        r"[a-f0-9]{64}(\")"
-    )
-    updated, replacements = re.subn(pattern, rf"\g<1>{digest}\g<2>", text, count=1)
-    assert replacements == 1
-    root.write_text(updated, encoding="utf-8")
-
-
 def _write_zip(package: Path, output: Path, *, wrapped: bool = True) -> None:
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for source in sorted(package.rglob("*")):
@@ -65,6 +53,7 @@ def test_resolve_bellweather_directory_captures_complete_exact_current_package()
     assert [entry.mob_id for entry in package.mobs.mobs] == package.game.cast.mob_ids
     assert [entry.npc_id for entry in package.npcs.npcs] == package.game.cast.npc_ids
     assert package.sequence_catalog.sequences[0].sequence_id == "sunpetal-welcome"
+    assert re.fullmatch(r"[a-f0-9]{64}", package.closure_sha256)
 
 
 @pytest.mark.parametrize("wrapped", [True, False])
@@ -81,6 +70,7 @@ def test_directory_and_zip_resolve_to_the_same_canonical_identity(
     assert zipped.source_kind == "zip"
     assert zipped.package_sha256 == directory.package_sha256
     assert zipped.canonical_game_sha256 == directory.canonical_game_sha256
+    assert zipped.closure_sha256 == directory.closure_sha256
     assert [entry.identity() for entry in zipped.files] == [
         entry.identity() for entry in directory.files
     ]
@@ -90,13 +80,15 @@ def test_validate_repository_selector_resolves_bellweather() -> None:
     report = validate_game_package(REPOSITORY_ROOT)
 
     assert report["valid"] is True
-    assert report["kind"] == "game-package-validation-v3"
+    assert report["kind"] == "game-package-validation-v4"
     assert report["game_id"] == "bellweather"
     assert report["generated_status"] == "not_checked"
     assert report["file_count"] == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
 
 
-def test_rejects_stale_repository_selector_digest(tmp_path: Path) -> None:
+def test_rejects_the_retired_digest_pinning_selector(tmp_path: Path) -> None:
+    """The v3 selector pinned game.toml by digest. Its shape is retired, not tolerated."""
+
     workspace = tmp_path / "workspace"
     package = workspace / "library" / "games" / "bellweather"
     package.parent.mkdir(parents=True)
@@ -107,7 +99,7 @@ def test_rejects_stale_repository_selector_digest(tmp_path: Path) -> None:
 kind = "game-package-v3"
 game_id = "bellweather"
 package_ref = "library/games/bellweather/game.toml"
-package_sha256 = "{"0" * 64}"
+package_sha256 = "{_sha256(package / "game.toml")}"
 ''',
         encoding="utf-8",
     )
@@ -115,12 +107,47 @@ package_sha256 = "{"0" * 64}"
     with pytest.raises(GamePackageValidationError) as caught:
         validate_game_package(workspace)
 
-    assert caught.value.code == "stale_package_digest"
+    assert caught.value.code == "invalid_selector"
 
 
-def test_rejects_stale_member_digest_before_returning_a_package(tmp_path: Path) -> None:
-    package = _copy_package(tmp_path)
+def test_rejects_a_selector_that_reintroduces_the_package_digest(tmp_path: Path) -> None:
+    """A current selector carrying the removed field is refused rather than ignored."""
+
+    workspace = tmp_path / "workspace"
+    package = workspace / "library" / "games" / "bellweather"
+    package.parent.mkdir(parents=True)
+    shutil.copytree(SOURCE_PACKAGE, package)
+    selector = workspace / "library" / "games" / "main.toml"
+    selector.write_text(
+        f'''schema_version = 4
+kind = "game-package-v4"
+game_id = "bellweather"
+package_ref = "library/games/bellweather/game.toml"
+package_sha256 = "{_sha256(package / "game.toml")}"
+''',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        validate_game_package(workspace)
+
+    assert caught.value.code == "invalid_selector"
+    assert "extra_forbidden" in str(caught.value)
+
+
+def test_editing_a_member_needs_no_bookkeeping_anywhere_else(tmp_path: Path) -> None:
+    """The point of the change: a member edit resolves without touching game.toml or main.toml."""
+
+    workspace = tmp_path / "workspace"
+    package = workspace / "library" / "games" / "bellweather"
+    package.parent.mkdir(parents=True)
+    shutil.copytree(SOURCE_PACKAGE, package)
+    shutil.copy2(
+        REPOSITORY_ROOT / "library" / "games" / "main.toml",
+        workspace / "library" / "games" / "main.toml",
+    )
     gameplay = package / "gameplay.toml"
+    original = resolve_game_package(package).closure_sha256
     gameplay.write_text(
         gameplay.read_text(encoding="utf-8").replace(
             "starting_health = 10", "starting_health = 11"
@@ -128,14 +155,27 @@ def test_rejects_stale_member_digest_before_returning_a_package(tmp_path: Path) 
         encoding="utf-8",
     )
 
+    report = validate_game_package(workspace)
+
+    assert report["valid"] is True
+    assert report["closure_sha256"] != original
+
+
+def test_rejects_accepted_media_that_no_longer_matches_its_review(tmp_path: Path) -> None:
+    """Evidence digests stay authored: they bind a human verdict to the exact reviewed bytes."""
+
+    package = _copy_package(tmp_path)
+    cover = package / "references/cover.png"
+    cover.write_bytes(cover.read_bytes() + b"\x00")
+
     with pytest.raises(GamePackageValidationError) as caught:
         resolve_game_package(package)
 
     assert caught.value.code == "stale_source_digest"
-    assert "gameplay.toml" in str(caught.value)
+    assert "references/cover.png" in str(caught.value)
 
 
-def test_rejects_unresolved_cross_contract_id_after_relocking(tmp_path: Path) -> None:
+def test_rejects_unresolved_cross_contract_id(tmp_path: Path) -> None:
     package = _copy_package(tmp_path)
     gameplay = package / "gameplay.toml"
     gameplay.write_text(
@@ -144,7 +184,6 @@ def test_rejects_unresolved_cross_contract_id_after_relocking(tmp_path: Path) ->
         ),
         encoding="utf-8",
     )
-    _replace_root_digest(package, "gameplay.toml", _sha256(gameplay))
 
     with pytest.raises(GamePackageValidationError) as caught:
         resolve_game_package(package)
@@ -164,7 +203,6 @@ canonical_frame_indices = [0, 1, 2, 3]
 frames_per_second = 6
 """
     player.write_text(player.read_text(encoding="utf-8").replace(crouch, ""), encoding="utf-8")
-    _replace_root_digest(package, "content/player.toml", _sha256(player))
 
     with pytest.raises(GamePackageValidationError) as caught:
         resolve_game_package(package)
@@ -188,7 +226,6 @@ anchor = "top"
 """
     assert rope in player.read_text(encoding="utf-8")
     player.write_text(player.read_text(encoding="utf-8").replace(rope, ""), encoding="utf-8")
-    _replace_root_digest(package, "content/player.toml", _sha256(player))
 
     with pytest.raises(GamePackageValidationError) as caught:
         resolve_game_package(package)

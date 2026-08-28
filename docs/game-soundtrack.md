@@ -4,16 +4,16 @@
 
 The root `soundtrack.toml` is the game-global catalog of music identities,
 creative briefs, generation intent, and playback policy. Its exact identity is
-`game-soundtrack-v1`. The package root digest-locks it; gameplay references its
-tracks by `track_id`; the prepared scrolling DAG generates and validates one
-audio artifact per track.
+`game-soundtrack-v1`. The package root names it by exact source path; gameplay
+references its tracks by `track_id`; the prepared scrolling DAG generates and
+validates one audio artifact per track.
 
 ## Ownership
 
 | Owner | Owns |
 | --- | --- |
 | `soundtrack.toml` | Track identity, display name, creative brief, duration/loop intent, and global selection policy |
-| `game.toml` | Exact soundtrack source path and digest |
+| `game.toml` | Exact soundtrack source path |
 | `gameplay.toml` | Which maps, encounters, or bosses use which track IDs |
 | Recipe | Provider/model selection, generation, decoding, validation, provenance, and cache identity |
 | Consumer | Audio unlock, volume, playback lifecycle, map changes, and deterministic selection within authored policy |
@@ -64,10 +64,9 @@ duration from 15 through 600 seconds.
 
 ## Package and execution
 
-The fixed package path is `soundtrack.toml`, selected by the digest-bound
-`[soundtrack]` entry in `game.toml`. Prepared-package resolution validates the
-catalog, every gameplay track reference, and the complete closure before paid
-work.
+The fixed package path is `soundtrack.toml`, selected by the `[soundtrack]`
+entry in `game.toml`. Prepared-package resolution validates the catalog, every
+gameplay track reference, and the complete closure before paid work.
 
 For each track, the scrolling execution graph contains:
 

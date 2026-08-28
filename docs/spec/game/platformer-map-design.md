@@ -290,9 +290,11 @@ PlatformerChunkMapDesign  (the sentence, persisted)
     └── author_terrain LevelPlan   -> occupancy rows + climbable placements
         └── text surgery into maps/<map_id>.toml
             occupancy, walk_surface_row, the placement run, and revision = N + 1
-            └── digest re-lock: map bytes  -> game.toml  source_sha256
-                                 game.toml -> main.toml  package_sha256
 ```
+
+The edit is confined to that one file. Package membership is by exact source path and every member
+digest is computed by the resolver at ingest, so applying a design changes neither `game.toml` nor
+`main.toml`.
 
 The two contracts are checked independently and must agree: `author_terrain` re-validates the
 same shape against the map contract's own rules — bottom-supported terrain under every

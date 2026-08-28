@@ -25,7 +25,7 @@ that map.
 
 | Contract | Owns | Does not own |
 | --- | --- | --- |
-| `game.toml` | Game identity, shared art direction, and digest-locked package membership | Stage flow or provider execution |
+| `game.toml` | Game identity, shared art direction, and package membership | Stage flow or provider execution |
 | `gameplay.toml` | Entry map, transition relationships, climb permission, encounters, population, combat, loot, interactions, and map-specific usage | Map image generation or map composition |
 | `maps/<map_id>.toml` | Map references, view envelope, visual continuity, ordered layers, ground atlas generation, the terrain request a generator answers, the climbable roster, portal presentation and endpoint anchors, and map-bundle review | Terrain geometry itself, climbable placement, transition destinations, movement permission, spawning, NPC placement, dialogue, soundtrack usage, physics values, or engine scene objects |
 | `maps/<map_id>/terrain.json` | Generated `map-terrain-v1` occupancy, walk-surface row, and climbable placements | Any authored intent; it is produced by a run, not written by hand |
@@ -53,8 +53,8 @@ library/games/<game_id>/
 └── references/
 ```
 
-There is no `maps/index.toml`. `game.toml` catalogs each map source and
-locks its exact authored bytes. `gameplay.toml` references those maps only by
+There is no `maps/index.toml`. `game.toml` catalogs each map source by its
+exact package-relative path. `gameplay.toml` references those maps only by
 stable `map_id`.
 
 Each `game-map-v9` source carries `game_id`, `map_id`, `revision`, and

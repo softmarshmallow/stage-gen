@@ -109,7 +109,7 @@ def build_package_execution_graph(
         domain="package",
         description="validate and capture the complete prepared package",
         operation=OperationKind.LOCAL,
-        input_digests=(package.package_sha256,),
+        input_digests=(package.closure_sha256,),
         outputs=("package.identity.json",),
         duration_seconds=0.1,
     )
@@ -155,7 +155,9 @@ def build_package_execution_graph(
         description="assemble the terminal game manifest from validated artifact bindings",
         operation=OperationKind.LOCAL,
         depends_on=tuple(terminal_nodes),
-        input_digests=(package.canonical_game_sha256,),
+        # The canonical projection alone does not reach the members the manifest reads, such as
+        # authored playback, so the assembled manifest keys on the whole captured closure.
+        input_digests=(package.canonical_game_sha256, package.closure_sha256),
         outputs=("manifest.json",),
         duration_seconds=1.0,
     )

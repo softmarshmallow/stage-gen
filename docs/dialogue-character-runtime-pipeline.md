@@ -12,9 +12,9 @@ invents missing dialogue.
 
 | Owner | Responsibility |
 | --- | --- |
-| `game.toml` | Catalog NPC identities and digest-lock content plus the sequence catalog |
+| `game.toml` | Catalog NPC identities and name the content sources plus the sequence catalog |
 | `content/npcs.toml` | NPC concept reference, runtime motion/expression requests, playback selection, and visual rights |
-| `sequences/index.toml` | Catalog and digest-lock sequence sources |
+| `sequences/index.toml` | Catalog sequence sources by exact path |
 | `sequences/<sequence_id>.toml` | Speakers, nodes, authored text, expressions, control flow, effects, and outcomes |
 | Prepared-package resolver | Validate IDs, expressions, targets, reachability, effects, and complete source/reference closure |
 | Scrolling recipe | Generate NPC concepts and state sheets, recover canonical frames, review the NPC catalog, and integrate artifacts |
@@ -57,7 +57,7 @@ Before a provider operation, the package resolver rejects:
 - an unknown speaker or requested expression;
 - an unreachable node or missing branch target;
 - an effect, item, quest, map, or outcome reference outside the package;
-- a sequence source or visual reference whose digest changed; and
+- a visual reference whose digest changed; and
 - an orphaned or implicit package file.
 
 The recipe does not generate replacement dialogue or silently substitute an

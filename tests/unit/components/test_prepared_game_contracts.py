@@ -12,7 +12,10 @@ from stage_gen.components.game_content import (
 )
 from stage_gen.components.game_contract import load_prepared_game_contract_bytes
 from stage_gen.components.game_map import load_prepared_game_map_bytes
-from stage_gen.components.game_sequence import load_game_sequence_bytes
+from stage_gen.components.game_sequence import (
+    load_game_sequence_bytes,
+    load_game_sequence_catalog_bytes,
+)
 from stage_gen.components.game_ui import load_game_ui_bytes
 from stage_gen.components.gameplay_contract import load_gameplay_contract_bytes
 
@@ -54,6 +57,52 @@ def test_prepared_root_rejects_unknown_fields() -> None:
 
     with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
         load_prepared_game_contract_bytes(source)
+
+
+def test_prepared_root_rejects_the_retired_digest_pinning_identity() -> None:
+    source = _bytes("game.toml").replace(
+        b'schema_version = 7\nkind = "game-contract-v7"',
+        b'schema_version = 6\nkind = "game-contract-v6"',
+        1,
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+        load_prepared_game_contract_bytes(source)
+
+
+def test_prepared_root_rejects_a_reintroduced_member_digest() -> None:
+    """Member digests are computed at ingest. An authored one is refused, not ignored."""
+
+    source = _bytes("game.toml").replace(
+        b'[universe]\nsource = "universe.md"\n',
+        b'[universe]\nsource = "universe.md"\nsource_sha256 = "' + b"0" * 64 + b'"\n',
+        1,
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
+        load_prepared_game_contract_bytes(source)
+
+
+def test_sequence_catalog_rejects_the_retired_digest_pinning_identity() -> None:
+    source = _bytes("sequences/index.toml").replace(
+        b'schema_version = 2\nkind = "game-sequence-catalog-v2"',
+        b'schema_version = 1\nkind = "game-sequence-catalog-v1"',
+        1,
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+        load_game_sequence_catalog_bytes(source)
+
+
+def test_sequence_catalog_rejects_a_reintroduced_source_digest() -> None:
+    source = _bytes("sequences/index.toml").replace(
+        b'source = "sequences/sunpetal-welcome.toml"\n',
+        b'source = "sequences/sunpetal-welcome.toml"\nsource_sha256 = "' + b"0" * 64 + b'"\n',
+        1,
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
+        load_game_sequence_catalog_bytes(source)
 
 
 def test_map_contract_rejects_a_second_opaque_layer() -> None:

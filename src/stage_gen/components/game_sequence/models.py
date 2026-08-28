@@ -9,7 +9,6 @@ from pydantic import Field, field_validator, model_validator
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     KEBAB_ID_PATTERN,
-    SHA256_PATTERN,
     SNAKE_ID_PATTERN,
     canonical_contract_json,
     normalized_text,
@@ -19,13 +18,13 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
+GAME_SEQUENCE_CATALOG_SCHEMA_VERSION = 2
 GAME_SEQUENCE_SCHEMA_VERSION = 1
 
 
 class SequenceSource(PersistedContractModel):
     sequence_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     source: str
-    source_sha256: str = Field(pattern=SHA256_PATTERN)
 
     @field_validator("source")
     @classmethod
@@ -40,8 +39,8 @@ class SequenceSource(PersistedContractModel):
 
 
 class GameSequenceCatalog(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["game-sequence-catalog-v1"]
+    schema_version: Literal[2]
+    kind: Literal["game-sequence-catalog-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     sequences: list[SequenceSource] = Field(min_length=1, max_length=256)
@@ -191,6 +190,7 @@ def canonical_game_sequence_json(contract: PersistedContractModel) -> bytes:
 
 
 __all__ = [
+    "GAME_SEQUENCE_CATALOG_SCHEMA_VERSION",
     "GAME_SEQUENCE_SCHEMA_VERSION",
     "DialogueNode",
     "GameSequence",

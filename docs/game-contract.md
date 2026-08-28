@@ -108,8 +108,9 @@ library/games/<game_id>/
 
 `game_id` is durable and machine-readable. Display names are presentation text
 and do not determine identity. Every authored source is independently
-canonicalized and digest-bound so editing a soundtrack or map does not silently
-change the identity of unrelated game direction.
+canonicalized, and the resolver computes its digest at capture, so editing a
+soundtrack or map does not silently change the identity of unrelated game
+direction.
 
 Resolvers MUST confine reads to an explicitly selected library root, reject
 path traversal and symlink escape, and persist only portable references. A
@@ -227,7 +228,7 @@ the generated terrain request, the climbable roster, portal presentation
 and endpoint anchors, and whole-map review unit. A soundtrack owns tracks.
 Neither owns gameplay flow merely because the same consumer uses it.
 
-`game.toml` catalogs and digest-locks the maps belonging to the package.
+`game.toml` catalogs the maps belonging to the package by exact source path.
 `gameplay.toml` references them by durable `map_id`. The canonical current map
 shape is the [Authored map-generation contract](spec/game/map-generation-contract.md).
 
@@ -292,10 +293,11 @@ does not by itself define a core game contract.
 - Authored sources and generated projections must match their exact current
   schema version and kind. Validators reject every other identity rather than
   upgrading or translating it.
-- The current prepared closure uses repository selector `game-package-v3`, root
-  `game-contract-v6`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
-  `game-soundtrack-v1`, V2 player/mob/prop/item catalogs, `npc-content-v3`, and V1 sequence
-  contracts. Provider-free integration emits only `prepared-game-runtime-v9`.
+- The current prepared closure uses repository selector `game-package-v4`, root
+  `game-contract-v7`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
+  `game-soundtrack-v1`, V2 player/mob/prop/item catalogs, `npc-content-v3`,
+  `game-sequence-catalog-v2`, and `game-sequence-v1` contracts. Provider-free
+  integration emits only `prepared-game-runtime-v9`.
 - Subsystems such as population, motion, sequences, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
@@ -307,7 +309,7 @@ does not by itself define a core game contract.
 
 | Contract | Authority |
 | --- | --- |
-| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v6` package-root fields, vocabulary, validation, and binding |
+| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v7` package-root fields, vocabulary, validation, and binding |
 | [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
 | [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v9` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |

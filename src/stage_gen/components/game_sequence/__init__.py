@@ -1,6 +1,7 @@
 """Provider-neutral prepared game-sequence API."""
 
 from .models import (
+    GAME_SEQUENCE_CATALOG_SCHEMA_VERSION,
     GAME_SEQUENCE_SCHEMA_VERSION,
     DialogueNode,
     GameSequence,
@@ -18,6 +19,7 @@ from .models import (
 )
 
 __all__ = [
+    "GAME_SEQUENCE_CATALOG_SCHEMA_VERSION",
     "GAME_SEQUENCE_SCHEMA_VERSION",
     "DialogueNode",
     "GameSequence",
