@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from stage_gen.orchestration.game_package import resolve_game_package
+from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.recipes.scrolling_preview.prepared_manifest import (
     PREPARED_RUNTIME_MANIFEST_KIND,
     PreparedManifestError,
@@ -108,6 +108,32 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
 
 _ANCHORS_BY_PATH: dict[str, str] = {}
 _CLIMBABLE_CELLS_BY_PATH: dict[str, int] = {}
+
+
+def _prepare_complete_root(root: Path, package: ResolvedGamePackage, *, color: int = 40) -> None:
+    """Prime the placement stand-ins and write one complete accepted artifact set."""
+
+    _ANCHORS_BY_PATH.clear()
+    _CLIMBABLE_CELLS_BY_PATH.clear()
+    for game_map in package.maps:
+        if game_map.climbable is not None:
+            _CLIMBABLE_CELLS_BY_PATH[f"maps/{game_map.map_id}/climbable.validation.json"] = len(
+                game_map.climbable.variants
+            )
+        for layer in game_map.layers:
+            _ANCHORS_BY_PATH[f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json"] = (
+                layer.vertical_anchor
+            )
+    for relative_path in runtime_artifact_paths(package):
+        if relative_path.endswith("/terrain.json"):
+            target = root / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(_terrain_artifact(relative_path.split("/")[1], package))
+            continue
+        _write_artifact(root, relative_path, color=color)
+    padded_prop = Image.new("RGBA", (16, 12), (0, 0, 0, 0))
+    padded_prop.paste((color, 90, 180, 255), (0, 0, 16, 9))
+    padded_prop.save(root / "content/props/sunwheel_bread_stall.png")
 
 
 def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> None:
@@ -294,3 +320,54 @@ def test_runtime_manifest_missing_artifact_leaves_no_partial_output(tmp_path: Pa
 
     assert not output.exists()
     assert list(tmp_path.glob(".runtime.assembling-*")) == []
+
+
+def test_publishing_a_run_tag_is_immutable_until_replacement_is_explicit(tmp_path: Path) -> None:
+    package = resolve_game_package(BELLWEATHER)
+    complete = tmp_path / "complete"
+    _prepare_complete_root(complete, package)
+    output = tmp_path / "runtime"
+
+    created = assemble_prepared_runtime(
+        package,
+        artifact_roots=(complete,),
+        output_dir=output,
+    )
+    assert created.disposition == "created"
+    assert created.replaced_manifest_sha256 is None
+    published = (output / "manifest.json").read_bytes()
+
+    # Integration is deterministic, so republishing the same closure is a no-op, not a conflict.
+    unchanged = assemble_prepared_runtime(
+        package,
+        artifact_roots=(complete,),
+        output_dir=output,
+    )
+    assert unchanged.disposition == "unchanged"
+    assert unchanged.replaced_manifest_sha256 is None
+    assert (output / "manifest.json").read_bytes() == published
+
+    # Different bytes under one tag change what every citation of that tag means, so the default
+    # refuses and leaves the published run exactly as it was.
+    recolored = tmp_path / "recolored"
+    _prepare_complete_root(recolored, package, color=90)
+    with pytest.raises(PreparedManifestError, match="already exists with different content"):
+        assemble_prepared_runtime(
+            package,
+            artifact_roots=(recolored,),
+            output_dir=output,
+        )
+    assert (output / "manifest.json").read_bytes() == published
+
+    replaced = assemble_prepared_runtime(
+        package,
+        artifact_roots=(recolored,),
+        output_dir=output,
+        replace_output=True,
+    )
+    assert replaced.disposition == "replaced"
+    assert replaced.replaced_manifest_sha256 == hashlib.sha256(published).hexdigest()
+    assert (output / "manifest.json").read_bytes() != published
+    verify_prepared_runtime(output)
+    assert list(tmp_path.glob(".runtime.assembling-*")) == []
+    assert list(tmp_path.glob(".runtime.retired-*")) == []

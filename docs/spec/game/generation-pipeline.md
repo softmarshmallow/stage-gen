@@ -31,8 +31,8 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one immutable run, and emits `prepared-game-runtime-v9`. The `--dry-run` path still
-exercises the complete graph with deterministic fake operations.
+publishes one run whose tag is immutable by default, and emits `prepared-game-runtime-v9`. The
+`--dry-run` path still exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
 
@@ -437,6 +437,15 @@ capabilities. `--checkpoint content` additionally requires OpenRouter music gene
 never inferred from a valid audio container. `--checkpoint integration` performs no provider
 operations and requires no provider credential; it fails before publication when any expected
 runtime artifact is absent or unsafe.
+
+A published run tag names exactly one byte set, because prose, reviews, and research cite runs by
+digest. Integration is deterministic, so republishing an identical closure over an existing output
+directory is a no-op reported as `disposition: unchanged` rather than a conflict. Publishing
+*different* bytes under a tag that already exists changes what every citation of it means, so it
+requires `--replace-output`; the report then carries `disposition: replaced` and the
+`replaced_manifest_sha256` that was destroyed. Replacement retires the previous run to a sibling
+temporary directory only after the new run is fully assembled, and restores it if the install
+fails, so a tag never resolves to a partial run.
 
 ## Change protocol
 

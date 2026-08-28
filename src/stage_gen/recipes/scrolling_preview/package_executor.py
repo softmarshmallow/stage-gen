@@ -102,6 +102,7 @@ class PreparedPackageExecutor:
         *,
         run_dir: Path,
         artifact_roots: tuple[Path, ...],
+        replace_output: bool = False,
     ) -> PreparedPackageIntegrationRun:
         """Assemble the provider-free terminal runtime closure from accepted artifacts."""
 
@@ -110,6 +111,7 @@ class PreparedPackageExecutor:
             plan.package,
             artifact_roots=artifact_roots,
             output_dir=run_dir,
+            replace_output=replace_output,
         )
         return PreparedPackageIntegrationRun(plan=plan, result=result, run_dir=run_dir)
 

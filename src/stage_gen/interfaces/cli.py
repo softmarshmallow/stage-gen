@@ -129,6 +129,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="execute one explicitly bounded live checkpoint",
     )
     generate_parser.add_argument(
+        "--replace-output",
+        action="store_true",
+        help=(
+            "permit integration to destroy an existing output directory whose content differs; "
+            "republishing identical content never needs this"
+        ),
+    )
+    generate_parser.add_argument(
         "--artifact-root",
         action="append",
         default=[],
@@ -650,6 +658,7 @@ async def _dispatch_async(
                     Path(args.input_path),
                     run_dir=output_path,
                     artifact_roots=tuple(Path(path) for path in args.artifact_roots),
+                    replace_output=bool(args.replace_output),
                 )
                 integration_report: dict[str, object] = {
                     "ok": True,
@@ -661,6 +670,10 @@ async def _dispatch_async(
                     "package_sha256": integration_result.plan.package.package_sha256,
                     "provider_operation_counts": {},
                     "run_dir": str(output_path),
+                    "disposition": integration_result.result.disposition,
+                    "replaced_manifest_sha256": (
+                        integration_result.result.replaced_manifest_sha256
+                    ),
                 }
                 stdout.write(
                     f"{json.dumps(integration_report, sort_keys=True, separators=(',', ':'))}\n"
@@ -668,6 +681,8 @@ async def _dispatch_async(
                 return 0
             if args.artifact_roots:
                 raise ValueError("--artifact-root is available only with --checkpoint integration")
+            if args.replace_output:
+                raise ValueError("--replace-output is available only with --checkpoint integration")
             if checkpoint == "world":
                 live_result = await prepared_executor.run_world(
                     Path(args.input_path),
@@ -699,6 +714,8 @@ async def _dispatch_async(
             }
             stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
             return 0 if live_summary.ok else 1
+        if args.replace_output:
+            raise ValueError("--replace-output is available only with --checkpoint integration")
         invocation_id = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
         dry_run_result = await PreparedPackageExecutor(config).dry_run(
             Path(args.input_path),

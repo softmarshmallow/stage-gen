@@ -39,11 +39,20 @@ class PreparedManifestError(ValueError):
     """Reject an incomplete, ambiguous, or unsafe integration input."""
 
 
+PreparedManifestDisposition = Literal["created", "unchanged", "replaced"]
+
+
 @dataclass(frozen=True, slots=True)
 class PreparedManifestResult:
     manifest: dict[str, object]
     output_dir: Path
     artifact_count: int
+    #: What publishing did to ``output_dir``. ``unchanged`` means an existing run already held
+    #: exactly these bytes, so nothing was written.
+    disposition: PreparedManifestDisposition = "created"
+    #: Digest of the manifest a replacement destroyed. Recorded because a run tag is cited by
+    #: digest elsewhere, so a citation invalidated by a replacement stays traceable.
+    replaced_manifest_sha256: str | None = None
 
 
 def assemble_prepared_runtime(
@@ -51,18 +60,22 @@ def assemble_prepared_runtime(
     *,
     artifact_roots: Sequence[Path],
     output_dir: Path,
+    replace_output: bool = False,
 ) -> PreparedManifestResult:
     """Publish the exact runtime closure without invoking a provider.
 
     Roots are searched in caller order. This lets a narrow corrective run override an older
     complete run while every selected byte remains digest-bound in the emitted manifest.
+
+    A published run tag names exactly one byte set, so publishing stays immutable by default.
+    Because integration is deterministic, republishing the identical closure over an existing tag
+    is a no-op rather than an error. Replacing a tag with *different* bytes changes what that tag
+    means to everything that cites it, so it requires ``replace_output``.
     """
 
     if not artifact_roots:
         raise PreparedManifestError("integration requires at least one artifact root")
     roots = tuple(_validated_root(path) for path in artifact_roots)
-    if output_dir.exists():
-        raise PreparedManifestError(f"integration output already exists: {output_dir}")
     for relative_path in runtime_artifact_paths(package):
         _find_artifact(roots, relative_path)
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -75,7 +88,9 @@ def assemble_prepared_runtime(
             artifact_roots=roots,
             output_dir=staging,
         )
-        staging.rename(output_dir)
+        disposition, replaced_sha256 = _install_prepared_runtime(
+            staging, output_dir, replace_output=replace_output
+        )
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise
@@ -83,7 +98,78 @@ def assemble_prepared_runtime(
         manifest=staged.manifest,
         output_dir=output_dir,
         artifact_count=staged.artifact_count,
+        disposition=disposition,
+        replaced_manifest_sha256=replaced_sha256,
     )
+
+
+def _install_prepared_runtime(
+    staging: Path,
+    output_dir: Path,
+    *,
+    replace_output: bool,
+) -> tuple[PreparedManifestDisposition, str | None]:
+    """Move one fully assembled run into place, or prove the published run already matches it.
+
+    The staging directory is consumed either way: renamed into place, or removed once an existing
+    run is shown to hold the same bytes. A replacement retires the previous run to a sibling
+    temporary directory first, so a failed install can put it back.
+    """
+
+    if not output_dir.exists():
+        staging.rename(output_dir)
+        return "created", None
+    if output_dir.is_symlink() or not output_dir.is_dir():
+        raise PreparedManifestError(f"integration output is not a directory: {output_dir}")
+    if _published_runs_match(staging, output_dir):
+        shutil.rmtree(staging, ignore_errors=True)
+        return "unchanged", None
+    if not replace_output:
+        raise PreparedManifestError(
+            f"integration output already exists with different content: {output_dir}"
+        )
+    replaced_sha256 = _file_sha256(output_dir / "manifest.json")
+    retired = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}.retired-", dir=output_dir.parent))
+    retired_output = retired / output_dir.name
+    output_dir.rename(retired_output)
+    try:
+        staging.rename(output_dir)
+    except BaseException:
+        retired_output.rename(output_dir)
+        raise
+    finally:
+        shutil.rmtree(retired, ignore_errors=True)
+    return "replaced", replaced_sha256
+
+
+def _published_runs_match(left: Path, right: Path) -> bool:
+    """Compare two published runs by relative path and content digest."""
+
+    left_digests = _published_run_digests(left)
+    return left_digests is not None and left_digests == _published_run_digests(right)
+
+
+def _published_run_digests(root: Path) -> dict[str, str] | None:
+    """Digest every regular file under ``root``, or return ``None`` if anything else is present.
+
+    A tree carrying a symlink or a device node is never treated as equal to a freshly assembled
+    run, so an unexpected published directory is replaced explicitly rather than silently kept.
+    """
+
+    digests: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            return None
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            return None
+        digests[path.relative_to(root).as_posix()] = _file_sha256(path)
+    return digests
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _assemble_prepared_runtime(

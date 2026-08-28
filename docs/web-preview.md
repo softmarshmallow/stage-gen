@@ -38,6 +38,10 @@ stage-gen generate \
   --output out/bellweather-prepared-v1
 ```
 
+Publishing a run tag is immutable by default. Republishing an identical closure over an existing
+output directory is a no-op (`disposition: unchanged`); publishing different bytes under that tag
+requires `--replace-output` and reports the `replaced_manifest_sha256` it destroyed.
+
 The first root containing an expected relative artifact wins. This is how a narrowly regenerated
 motion run can replace stale motion without copying unrelated older content into it or rerunning
 providers. Every selected byte is recorded once in `closure.artifacts` with path, SHA-256, byte
