@@ -35,6 +35,7 @@ from stage_gen.recipes.scrolling_preview.layer_contract import (
     LOOP_BRIDGE_CONTEXT_SPAN_PX,
     LOOP_BRIDGE_SPAN_PX,
     NON_GENERATIVE_LAYER_FIELDS,
+    PLACEMENT_ONLY_CLIMBABLE_FIELDS,
     PLACEMENT_ONLY_GROUND_FIELDS,
     RUNTIME_ONLY_LAYER_FIELDS,
 )
@@ -323,6 +324,14 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         presentation_validations: list[str] = []
         if game_map.climbable is not None:
+            # The atlas is appearance only, exactly like the ground paintover: it draws every
+            # declared variant once, so where an instance stands cannot change how it is drawn.
+            # Moving a ladder must re-run local geometry, never re-bill the atlas image. The
+            # ladders and ropes stay in the key because their count is the atlas cell count and
+            # their prompts are the request.
+            climbable_direction = game_map.climbable.model_dump(
+                mode="json", exclude=set(PLACEMENT_ONLY_CLIMBABLE_FIELDS)
+            )
             climbable = builder.add_external(
                 f"map-{game_map.map_id}-climbable-generate",
                 domain=f"map-{game_map.map_id}",
@@ -333,11 +342,15 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 input_digests=(
                     map_direction,
                     _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
-                    _object_sha256(game_map.climbable.model_dump(mode="json")),
+                    _object_sha256(climbable_direction),
                     *_reference_digests(references, game_map.climbable.reference_ids),
                 ),
                 outputs=(f"maps/{game_map.map_id}/climbable.raw.png",),
             )
+            # The validator keeps the whole block, placements included. It is local and free, and
+            # it is the last map-local node a moved climbable reaches before the review that
+            # judges the placed result, so it stays conservative rather than mirroring the
+            # generation exclusion it does not need.
             climbable_validation = builder.add(
                 f"map-{game_map.map_id}-climbable-validate",
                 domain=f"map-{game_map.map_id}",

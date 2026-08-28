@@ -5,13 +5,14 @@ from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
 
+from stage_gen.components.game_map import PreparedMapClimbable
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_graph import (
     ExecutionGraph,
     OperationKind,
     project_execution,
 )
-from stage_gen.orchestration.game_package import resolve_game_package
+from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.recipes.scrolling_preview.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
@@ -23,6 +24,8 @@ from stage_gen.resources import (
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+#: The only Bellweather map that declares a climbable atlas.
+CROWNCRAG = "crowncrag-road"
 
 
 def _graph() -> ExecutionGraph:
@@ -265,6 +268,124 @@ def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> N
     assert (
         original.node("manifest-assemble").cache_key != changed.node("manifest-assemble").cache_key
     )
+
+
+def _crowncrag_climbable(package: ResolvedGamePackage) -> PreparedMapClimbable:
+    crowncrag = next(entry for entry in package.maps if entry.map_id == CROWNCRAG)
+    assert crowncrag.climbable is not None
+    return crowncrag.climbable
+
+
+def _crowncrag_climbable_package(**update: object) -> ResolvedGamePackage:
+    """Rebuild Bellweather with only the Crowncrag climbable block edited.
+
+    The package sha values move with it because any authored edit changes them; leaving them
+    fixed would let a node look unchanged for the wrong reason.
+    """
+
+    package = resolve_game_package(BELLWEATHER)
+    changed_climbable = _crowncrag_climbable(package).model_copy(update=update)
+    maps = tuple(
+        entry.model_copy(update={"climbable": changed_climbable})
+        if entry.map_id == CROWNCRAG
+        else entry
+        for entry in package.maps
+    )
+    return replace(
+        package,
+        package_sha256="f" * 64,
+        canonical_game_sha256="e" * 64,
+        maps=maps,
+    )
+
+
+def _first_placement_moved(package: ResolvedGamePackage, **update: object) -> list[object]:
+    """Edit the first declared instance only, by position rather than by authored ID."""
+
+    placements = _crowncrag_climbable(package).placements
+    return [placements[0].model_copy(update=update), *placements[1:]]
+
+
+def test_moving_a_climbable_does_not_re_bill_the_atlas_image() -> None:
+    """The atlas draws each variant once; where an instance stands is not part of the art."""
+
+    package = resolve_game_package(BELLWEATHER)
+    moved = _first_placement_moved(package, climbable_id="moved_instance", normalized_x=0.140625)
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(
+        _crowncrag_climbable_package(placements=moved), profile=profile
+    )
+
+    generate = f"map-{CROWNCRAG}-climbable-generate"
+    assert original.node(generate).input_sha256 == changed.node(generate).input_sha256
+    assert original.node(generate).cache_key == changed.node(generate).cache_key
+
+    # The move must not re-bill any other paid operation either.
+    assert {
+        node.node_id: node.cache_key
+        for node in original.nodes
+        if node.operation is OperationKind.IMAGE_GENERATION
+    } == {
+        node.node_id: node.cache_key
+        for node in changed.nodes
+        if node.operation is OperationKind.IMAGE_GENERATION
+    }
+
+
+def test_moved_climbable_still_reaches_every_node_that_consumes_placement_geometry() -> None:
+    """Placement is runtime geometry, so nothing that reads it may be served a stale artifact."""
+
+    package = resolve_game_package(BELLWEATHER)
+    moved = _first_placement_moved(package, normalized_x=0.140625)
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(package, profile=profile)
+    changed = build_package_execution_graph(
+        _crowncrag_climbable_package(placements=moved), profile=profile
+    )
+
+    for node_id in (
+        f"map-{CROWNCRAG}-climbable-validate",
+        f"map-{CROWNCRAG}-composite",
+        f"map-{CROWNCRAG}-review",
+        "package-resolve",
+        "manifest-assemble",
+    ):
+        assert original.node(node_id).cache_key != changed.node(node_id).cache_key, node_id
+
+
+def test_declared_climbable_variants_and_prompts_remain_atlas_generation_identity() -> None:
+    """The declared roster sets the cell count and the request, so it must stay in the key."""
+
+    package = resolve_game_package(BELLWEATHER)
+    climbable = _crowncrag_climbable(package)
+    assert climbable.ladders and climbable.ropes
+    profile = package_graph_profile(StageGenConfig())
+    original = build_package_execution_graph(package, profile=profile)
+    generate = f"map-{CROWNCRAG}-climbable-generate"
+
+    reworded_ladders = [
+        climbable.ladders[0].model_copy(
+            update={"prompt": "A plain untreated pine climbing ladder with flat rungs."}
+        ),
+        *climbable.ladders[1:],
+    ]
+    reworded = build_package_execution_graph(
+        _crowncrag_climbable_package(ladders=reworded_ladders), profile=profile
+    )
+    assert original.node(generate).cache_key != reworded.node(generate).cache_key
+
+    # Dropping a variant changes how many cells the sheet is asked for, so the atlas cannot reuse
+    # art drawn for the larger roster.
+    dropped = climbable.ropes[0].variant_id
+    smaller = build_package_execution_graph(
+        _crowncrag_climbable_package(
+            ropes=[],
+            placements=[entry for entry in climbable.placements if entry.variant_id != dropped],
+        ),
+        profile=profile,
+    )
+    assert original.node(generate).cache_key != smaller.node(generate).cache_key
 
 
 def test_projection_applies_the_adapter_owned_image_start_rate() -> None:

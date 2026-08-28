@@ -31,6 +31,12 @@ PLACEMENT_ONLY_GROUND_FIELDS: frozenset[str] = frozenset(
     {"occupancy", "vertical_fit", "walk_surface_row"}
 )
 
+#: The climbable equivalent. Placement position is runtime geometry, not art: the atlas draws each
+#: declared variant exactly once, and where an instance stands cannot change how it is drawn. The
+#: declared ladders and ropes stay in generation identity because their count sets the atlas cell
+#: count and their prompts are the appearance request; only the instances come out.
+PLACEMENT_ONLY_CLIMBABLE_FIELDS: frozenset[str] = frozenset({"placements"})
+
 #: Deterministic geometry for the generated-bridge loop construction. The context spans are what
 #: the provider sees on each side of the editable bridge; the bridge span is what it paints and
 #: what the period grows by.

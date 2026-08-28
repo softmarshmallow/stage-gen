@@ -242,6 +242,16 @@ persist per-asset validation reports. The map review waits for every declared pr
 validator as well as the layer-and-ground composite. Gameplay still owns climb permission and
 transition relationships; generation does not infer either from appearance.
 
+Climbable cache identity is split the same way the ground's is. The atlas draws each declared
+variant exactly once, so its mode, selected references, and the declared ladders and ropes with
+their prompts are generation identity: the variant count is the atlas cell count and the prompts
+are the request. `climbable.placements` is placement-only. Where an instance stands cannot change
+how the variant is drawn, so moving a climbable changes the local isolation validator, composite,
+map review, bindings, and manifest projection without invalidating the appearance-only atlas call.
+Placement geometry is still checked on every edit: bottom-supported terrain attachment and the
+exposed upper deck exactly `rise_tiles` above it are enforced against the map's authored occupancy
+when the package resolves, ahead of any node.
+
 The live Content checkpoint is the exact 174-node closure rooted at every cast/catalog/UI review,
 every soundtrack validation, and `gameplay-bindings-validate`: 75 image operations, 14 structured
 reviews, three music operations, and 82 local nodes including package capture. It cannot schedule
