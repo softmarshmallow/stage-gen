@@ -28,8 +28,8 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
 )
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 8
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v8"
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 9
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v9"
 
 
 class PreparedManifestError(ValueError):
@@ -184,13 +184,55 @@ def _assemble_prepared_runtime(
                 "asset": publish(f"maps/{game_map.map_id}/ground.png"),
             },
         }
-        if game_map.ladder is not None:
-            map_manifest["ladder"] = {
-                "mode": game_map.ladder.mode,
-                "placements": [
-                    entry.model_dump(mode="json") for entry in game_map.ladder.placements
-                ],
-                "asset": publish(f"maps/{game_map.map_id}/ladder.png"),
+        if game_map.climbable is not None:
+            climbable = game_map.climbable
+            # Atlas cell index is roster index: ladders left to right, then ropes. The binding is
+            # positional, which is what lets the runtime address a variant without measuring it.
+            #
+            # Each variant's trimmed rectangle inside the repacked sheet travels with it, so the
+            # consumer crops and sizes exactly rather than re-deriving geometry from alpha. A rope
+            # is several times narrower than a ladder; without this the runtime has no way to draw
+            # each at its own width.
+            climbable_validation_path = f"maps/{game_map.map_id}/climbable.validation.json"
+            publish(climbable_validation_path)
+            climbable_validation = json.loads(
+                _safe_output_path(output_dir, climbable_validation_path).read_bytes()
+            )
+            cells = climbable_validation.get("placements")
+            if not isinstance(cells, list) or len(cells) != len(climbable.variants):
+                raise PreparedManifestError(
+                    "climbable validation does not describe one cell per declared variant"
+                )
+            variants = []
+            for index, entry in enumerate(climbable.variants):
+                cell = cells[index]
+                if not isinstance(cell, dict):
+                    raise PreparedManifestError("climbable validation cell is invalid")
+                box = cell.get("target_bbox")
+                if not isinstance(box, list) or len(box) != 4:
+                    raise PreparedManifestError("climbable validation cell geometry is invalid")
+                left, top, right, bottom = (int(value) for value in box)
+                if right <= left or bottom <= top:
+                    raise PreparedManifestError("climbable validation cell is empty")
+                variants.append(
+                    {
+                        "variant_id": entry.variant_id,
+                        "role": climbable.role_of(entry.variant_id),
+                        "cell_index": index,
+                        "cell": {
+                            "x": left,
+                            "y": top,
+                            "width": right - left,
+                            "height": bottom - top,
+                        },
+                    }
+                )
+            map_manifest["climbable"] = {
+                "mode": climbable.mode,
+                "index_order": "left_to_right",
+                "variants": variants,
+                "placements": [entry.model_dump(mode="json") for entry in climbable.placements],
+                "asset": publish(f"maps/{game_map.map_id}/climbable.png"),
             }
         if game_map.portal is not None:
             map_manifest["portal"] = {
@@ -454,8 +496,11 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
             # as an artifact root for a later corrective run.
             paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json")
         paths.append(f"maps/{game_map.map_id}/ground.png")
-        if game_map.ladder is not None:
-            paths.append(f"maps/{game_map.map_id}/ladder.png")
+        if game_map.climbable is not None:
+            paths.append(f"maps/{game_map.map_id}/climbable.png")
+            # The measured per-variant cell geometry travels with the sheet, exactly as a layer's
+            # measured placement travels with its raster.
+            paths.append(f"maps/{game_map.map_id}/climbable.validation.json")
         if game_map.portal is not None:
             paths.append(f"maps/{game_map.map_id}/portal.png")
     for player in package.player.players:

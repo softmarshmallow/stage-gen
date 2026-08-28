@@ -103,6 +103,8 @@ def test_terrain_atlas_documentation_matches_runtime_contract() -> None:
         "Collision comes from occupancy, not alpha",
     ):
         assert required in normalized
+
+
 def test_game_contract_authorities_are_discoverable_and_match_the_live_models() -> None:
     """The master and executable game contracts remain distinct and discoverable.
 
@@ -131,7 +133,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "library/games/<game_id>/game.toml",
         "game-package-v3",
         "game-contract-v6",
-        "prepared-game-runtime-v8",
+        "prepared-game-runtime-v9",
     ):
         assert any(required in document for document in discoverable_docs)
 

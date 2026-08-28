@@ -70,7 +70,7 @@ describe("vertical world contracts", () => {
       {"id":"sky-span","left":3456,"right":3776,"deckY":208,"tier":6,"sourceColumns":{"start":54,"end":59},"thickness":32},
     ]);
     expect(selected.world.ladders).toEqual([
-      {"id":"ladder-summit","platformId":"tier-4-summit","centerX":2976,"upperDeckY":336,"lowerSurfaceY":592,"activationHalfWidth":30,"visualTopOvershoot":32,"visualBottomOvershoot":32,"visualWidth":64},
+      {"id":"ladder-summit","platformId":"tier-4-summit","variantId":"ladder-summit","centerX":2976,"upperDeckY":336,"lowerSurfaceY":592,"activationHalfWidth":30,"visualTopOvershoot":32,"visualBottomOvershoot":32,"visualWidth":64},
     ]);
     expect(selected.reservedColumns).toEqual(
       Array.from({ length: 40 }, (_, index) => index + 19),
@@ -116,6 +116,7 @@ describe("vertical world contracts", () => {
         "lowerSurfaceY",
         "platformId",
         "upperDeckY",
+        "variantId",
         "visualBottomOvershoot",
         "visualTopOvershoot",
         "visualWidth",
@@ -733,6 +734,7 @@ describe("vertical world contracts", () => {
     const plainLadder = {
       id: ladder.id,
       platformId: ladder.platformId,
+      variantId: ladder.variantId,
       centerX: ladder.centerX,
       upperDeckY: ladder.upperDeckY,
       lowerSurfaceY: ladder.lowerSurfaceY,
@@ -772,6 +774,7 @@ describe("vertical world contracts", () => {
           {
             id: "edge-ladder",
             platformId: edgePlatform.id,
+            variantId: "edge-ladder",
             centerX: 199 * 64 + 32,
             upperDeckY: edgePlatform.deckY,
             lowerSurfaceY: edgeSurface,

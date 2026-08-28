@@ -7,7 +7,7 @@ import hashlib
 import io
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -52,6 +52,13 @@ from stage_gen.orchestration.execution_graph import (
     OperationKind,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.climbable_atlas import (
+    MAX_HEIGHT_PARITY,
+    ROLE_ASPECT_ENVELOPE,
+    ClimbableRole,
+    plan_climbable_atlas,
+    role_aspect_admits,
+)
 from stage_gen.recipes.scrolling_preview.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     LOOP_BRIDGE_ANCHOR_BAND_PX,
@@ -84,7 +91,7 @@ _LAYER_NODE = re.compile(
 )
 _GROUND_NODE = re.compile(r"^map-(?P<map_id>.+)-ground-(?P<action>generate|validate)$")
 _PRESENTATION_NODE = re.compile(
-    r"^map-(?P<map_id>.+)-(?P<asset>ladder|portal)-(?P<action>generate|validate)$"
+    r"^map-(?P<map_id>.+)-(?P<asset>climbable|portal)-(?P<action>generate|validate)$"
 )
 _MAP_NODE = re.compile(r"^map-(?P<map_id>.+)-(?P<action>composite|review)$")
 
@@ -159,10 +166,10 @@ class PreparedWorldNodeHandler:
         presentation_match = _PRESENTATION_NODE.fullmatch(node.node_id)
         if presentation_match:
             game_map = self._map(presentation_match["map_id"])
-            asset = cast(Literal["ladder", "portal"], presentation_match["asset"])
+            asset = cast(Literal["climbable", "portal"], presentation_match["asset"])
             if presentation_match["action"] == "generate":
                 return await self._generate_map_presentation(node, game_map, asset)
-            return await self._validate_map_presentation(node, asset)
+            return await self._validate_map_presentation(node, game_map, asset)
         map_match = _MAP_NODE.fullmatch(node.node_id)
         if map_match:
             game_map = self._map(map_match["map_id"])
@@ -490,22 +497,55 @@ class PreparedWorldNodeHandler:
         self,
         node: ExecutionNode,
         game_map: PreparedGameMap,
-        asset: Literal["ladder", "portal"],
+        asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
-        direction = game_map.ladder if asset == "ladder" else game_map.portal
-        if direction is None:
-            raise ValueError(f"map {game_map.map_id} does not declare {asset}")
         output = self._run_dir / node.outputs[0]
-        if asset == "ladder":
-            prompt = self._map_prompt(game_map, direction.prompt) + (
-                "\nCreate exactly one complete front-facing ladder. Keep both rails and every "
-                "rung connected as one tall isolated subject. Show the entire ladder from its "
-                "top ends through its bottom ends. Use a fully transparent exterior with no "
-                "floor, scenery, shadow, labels, border, character, or duplicate ladder."
+        roles: Sequence[ClimbableRole] | None = None
+        mode: str
+        if asset == "climbable":
+            climbable = game_map.climbable
+            if climbable is None:
+                raise ValueError(f"map {game_map.map_id} does not declare climbable")
+            variants = climbable.variants
+            roles = [climbable.role_of(entry.variant_id) for entry in variants]
+            plan = plan_climbable_atlas(len(variants))
+            expected_size = (plan.width_px, plan.height_px)
+            size = plan.size
+            mode = climbable.mode
+            reference_ids = climbable.reference_ids
+            roster = "\n".join(
+                f"  {index + 1}. {role} — {entry.prompt.strip()}"
+                for index, (entry, role) in enumerate(zip(variants, roles, strict=True))
             )
-            size = "1024x1536"
+            prompt = self._map_prompt(
+                game_map,
+                "Create one atlas sheet of this map's climbing routes. Every route is maintained "
+                "by the same hands, so they share one palette, one line weight, and one world "
+                f"scale.\n\nDraw exactly {len(variants)} climbable objects, left to right in a "
+                f"single row, in this order:\n{roster}",
+            ) + (
+                f"\nLayout contract, follow exactly:\nExactly {len(variants)} objects. Not one "
+                "more, not one fewer. No duplicates, no coils, no spares, no extra strands, no "
+                "stacked copies.\nSpace them evenly across the canvas in one row, each wholly "
+                "inside its own vertical column, with a wide fully transparent vertical gap "
+                "between neighbours that no object crosses or touches.\nEvery object spans the "
+                "same vertical height at the same world scale: all tops level with each other, "
+                "all bottoms level with each other, each one tall and narrow.\nEach object is "
+                "one continuous connected piece from its top end to its bottom end, with no "
+                "break, no gap, and no loose end drifting sideways. Keep each near-vertical.\n"
+                "Leave a clear transparent margin at the left, right, top, and bottom.\nUse a "
+                "fully transparent exterior with no floor, scenery, shadow, labels, caption, "
+                "number, border, frame, panel divider, character, or creature."
+            )
         else:
-            prompt = self._map_prompt(game_map, direction.prompt) + (
+            portal = game_map.portal
+            if portal is None:
+                raise ValueError(f"map {game_map.map_id} does not declare portal")
+            expected_size = (1536, 1024)
+            size = "1536x1024"
+            mode = portal.mode
+            reference_ids = portal.reference_ids
+            prompt = self._map_prompt(game_map, portal.prompt) + (
                 "\nCreate exactly two complete isolated portal structures in one horizontal "
                 "row: entry on the left and exit on the right. Keep each portal wholly inside "
                 "its own half with a wide transparent separator. Both bases must be level and "
@@ -513,25 +553,24 @@ class PreparedWorldNodeHandler:
                 "exterior with no floor, scenery, shadow, labels, border, character, or extra "
                 "portal."
             )
-            size = "1536x1024"
         result = await self._images.generate(
             ImageGenerationRequest(
                 prompt=prompt,
                 artifact_path=output,
-                input_references=self._image_references(game_map, direction.reference_ids),
+                input_references=self._image_references(game_map, reference_ids),
                 quality="high",
                 background="transparent",
                 output_format="png",
                 size=size,
-                timeout_seconds=600,
+                timeout_seconds=900,
                 metadata={
                     "checkpoint": "world",
                     "map_id": game_map.map_id,
                     "map_asset": asset,
-                    "mode": direction.mode,
+                    "mode": mode,
                 },
                 validate=lambda artifact: _validate_map_presentation_source(
-                    artifact.data, asset=asset
+                    artifact.data, asset=asset, expected_size=expected_size, roles=roles
                 ),
             )
         )
@@ -543,12 +582,21 @@ class PreparedWorldNodeHandler:
         )
 
     async def _validate_map_presentation(
-        self, node: ExecutionNode, asset: Literal["ladder", "portal"]
+        self,
+        node: ExecutionNode,
+        game_map: PreparedGameMap,
+        asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
         generated = self._graph.node(node.depends_on[0])
         raw_path = self._run_dir / generated.outputs[0]
         raw = raw_path.read_bytes()
-        canonical, validation = _canonicalize_map_presentation(raw, asset=asset)
+        roles: Sequence[ClimbableRole] | None = None
+        if asset == "climbable":
+            climbable = game_map.climbable
+            if climbable is None:
+                raise ValueError(f"map {game_map.map_id} does not declare climbable")
+            roles = [climbable.role_of(entry.variant_id) for entry in climbable.variants]
+        canonical, validation = _canonicalize_map_presentation(raw, asset=asset, roles=roles)
         output, validation_path = (self._run_dir / ref for ref in node.outputs)
         sidecar = await _write_local_image(
             output,
@@ -705,8 +753,8 @@ class PreparedWorldNodeHandler:
             ),
         ]
         declared_presentations: list[str] = []
-        for asset in ("portal", "ladder"):
-            direction = game_map.portal if asset == "portal" else game_map.ladder
+        for asset in ("portal", "climbable"):
+            direction = game_map.portal if asset == "portal" else game_map.climbable
             if direction is None:
                 continue
             path = self._run_dir / f"maps/{game_map.map_id}/{asset}.png"
@@ -764,7 +812,8 @@ class PreparedWorldNodeHandler:
                     "layer separation, style coherence, side-view playfield readability, "
                     "horizontal looping continuity from the repeat evidence, ground topology "
                     "and material compatibility, and the functional readability, isolation, "
-                    "scale coherence, and map-style fidelity of every declared portal or ladder. "
+                    "scale coherence, and map-style fidelity of every declared portal or "
+                    "climbable. "
                     "A looping strip has no privileged horizontal origin: a pure "
                     "cyclic x-translation of landmarks is compositionally equivalent and must "
                     "not reduce reference fidelity. Report concrete evidence; uncertainty must "
@@ -1152,34 +1201,54 @@ def _ground_preview(
 
 
 def _map_presentation_contract(
-    asset: Literal["ladder", "portal"],
+    asset: Literal["climbable", "portal"],
+    *,
+    subjects: int,
 ) -> AlphaComponentRepackContract:
-    if asset == "ladder":
-        return AlphaComponentRepackContract(
-            rows=1,
-            columns=1,
-            required_cells=1,
-            gutter=16,
-            minimum_component_fraction=0.01,
-            anchor="bottom",
-        )
+    # The selector keeps the N largest components. A rope carries a small fraction of a ladder's
+    # area, so the candidacy floor is set from the roster rather than a constant: too high and a
+    # legitimate thin strand is never a candidate.
     return AlphaComponentRepackContract(
         rows=1,
-        columns=2,
-        required_cells=2,
+        columns=subjects,
+        required_cells=subjects,
         gutter=16,
-        minimum_component_fraction=0.01,
+        minimum_component_fraction=min(0.01, 0.15 / subjects),
         anchor="bottom",
     )
 
 
 def _canonicalize_map_presentation(
-    data: bytes, *, asset: Literal["ladder", "portal"]
+    data: bytes,
+    *,
+    asset: Literal["climbable", "portal"],
+    roles: Sequence[ClimbableRole] | None = None,
 ) -> tuple[bytes, dict[str, object]]:
-    canonical, report = repack_alpha_components(data, _map_presentation_contract(asset))
+    """Repack the sheet into one canonical cell per declared subject.
+
+    ``roles`` is the authored atlas order for a climbable sheet. Cell index is roster index: that
+    binding is positional and unverified within a role, exactly as the dialogue expression atlas
+    binds its expressions. What is verified is that each declared subject survives with a
+    silhouette its own role admits, and that the sheet shares one world scale.
+    """
+
+    subjects = 2 if asset == "portal" else len(roles or ())
+    if asset == "climbable" and subjects < 1:
+        raise ValueError("map climbable repack requires the declared atlas order")
+    canonical, report = repack_alpha_components(
+        data, _map_presentation_contract(asset, subjects=subjects)
+    )
     placements = report.get("placements")
-    if not isinstance(placements, list) or len(placements) != (1 if asset == "ladder" else 2):
+    if not isinstance(placements, list) or len(placements) != subjects:
         raise ValueError(f"map {asset} repack did not preserve the required subjects")
+    # A dropped component means a declared subject may have been replaced by contamination that
+    # merely had more area. That is a rejection, not a warning.
+    warnings = report.get("warnings")
+    if isinstance(warnings, list) and "unselected_alpha_components_were_dropped" in warnings:
+        raise ValueError(
+            f"map {asset} repack dropped an alpha component; the sheet carries more subjects "
+            "than the map declares"
+        )
     dimensions: list[dict[str, int]] = []
     for placement in placements:
         if not isinstance(placement, dict):
@@ -1196,27 +1265,50 @@ def _canonicalize_map_presentation(
         if width <= 0 or height <= 0:
             raise ValueError(f"map {asset} repack subject is empty")
         dimensions.append({"width": width, "height": height})
-    if asset == "ladder" and not (
-        dimensions[0]["width"] * 2 <= dimensions[0]["height"] <= dimensions[0]["width"] * 8
-    ):
-        raise ValueError("map ladder must retain a complete tall functional silhouette")
+    if asset == "climbable":
+        assert roles is not None
+        for index, (role, size) in enumerate(zip(roles, dimensions, strict=True)):
+            if not role_aspect_admits(role, size["width"], size["height"]):
+                low, high = ROLE_ASPECT_ENVELOPE[role]
+                raise ValueError(
+                    f"map climbable column {index} does not hold a {role} silhouette: "
+                    f"height/width {size['height'] / size['width']:.1f} outside [{low}, {high}]"
+                )
+        parity = max(item["height"] for item in dimensions) / min(
+            item["height"] for item in dimensions
+        )
+        if parity > MAX_HEIGHT_PARITY:
+            raise ValueError(
+                f"map climbable variants must share one world scale: height parity {parity:.2f} "
+                f"exceeds {MAX_HEIGHT_PARITY}"
+            )
     if asset == "portal":
         height_ratio = max(item["height"] for item in dimensions) / min(
             item["height"] for item in dimensions
         )
         if height_ratio > 1.35:
             raise ValueError("map portal pair must retain compatible world scale")
-    return canonical, {**report, "asset_kind": asset, "subject_dimensions": dimensions}
+    identity: dict[str, object] = {
+        "asset_kind": asset,
+        "subject_dimensions": dimensions,
+        "index_order": "left_to_right",
+    }
+    if asset == "climbable":
+        identity["atlas_roles"] = list(roles or ())
+    return canonical, {**report, **identity}
 
 
 def _validate_map_presentation_source(
-    data: bytes, *, asset: Literal["ladder", "portal"]
+    data: bytes,
+    *,
+    asset: Literal["climbable", "portal"],
+    expected_size: tuple[int, int],
+    roles: Sequence[ClimbableRole] | None = None,
 ) -> dict[str, object]:
-    expected = (1024, 1536) if asset == "ladder" else (1536, 1024)
     facts = _validate_provider_image(
         data,
-        width=expected[0],
-        height=expected[1],
+        width=expected_size[0],
+        height=expected_size[1],
         transparent=True,
     )
     with Image.open(io.BytesIO(data)) as opened:
@@ -1229,12 +1321,13 @@ def _validate_map_presentation_source(
     ]
     if max(border) > 16 or sum(border) / len(border) > 0.5:
         raise ValueError(f"map {asset} must retain a transparent isolated canvas border")
-    _, report = _canonicalize_map_presentation(data, asset=asset)
+    _, report = _canonicalize_map_presentation(data, asset=asset, roles=roles)
     return {
         **facts,
         "principal_component_count": report["principal_candidate_count"],
-        "required_subject_count": 1 if asset == "ladder" else 2,
+        "required_subject_count": 2 if asset == "portal" else len(roles or ()),
         "subject_dimensions": report["subject_dimensions"],
+        "index_order": report["index_order"],
     }
 
 

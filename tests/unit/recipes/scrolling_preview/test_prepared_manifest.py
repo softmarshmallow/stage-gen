@@ -45,6 +45,24 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
     if target.suffix == ".mp3":
         target.write_bytes(b"ID3" + bytes([color]) * 32)
         return
+    if relative_path.endswith("climbable.validation.json"):
+        cells = _CLIMBABLE_CELLS_BY_PATH.get(relative_path, 1)
+        target.write_text(
+            json.dumps(
+                {
+                    "index_order": "left_to_right",
+                    "placements": [
+                        {
+                            "index": index,
+                            "target_bbox": [index * 40, 0, index * 40 + 32, 96],
+                        }
+                        for index in range(cells)
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return
     if relative_path.endswith(".validation.json"):
         anchor = _ANCHORS_BY_PATH.get(relative_path, "screen_bottom")
         offset = 0.0 if anchor in {"canvas_cover", "screen_top"} else 0.25
@@ -54,6 +72,7 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
 
 
 _ANCHORS_BY_PATH: dict[str, str] = {}
+_CLIMBABLE_CELLS_BY_PATH: dict[str, int] = {}
 
 
 def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> None:
@@ -61,7 +80,12 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     complete = tmp_path / "complete"
     correction = tmp_path / "correction"
     _ANCHORS_BY_PATH.clear()
+    _CLIMBABLE_CELLS_BY_PATH.clear()
     for game_map in package.maps:
+        if game_map.climbable is not None:
+            _CLIMBABLE_CELLS_BY_PATH[f"maps/{game_map.map_id}/climbable.validation.json"] = len(
+                game_map.climbable.variants
+            )
         for layer in game_map.layers:
             _ANCHORS_BY_PATH[f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json"] = (
                 layer.vertical_anchor
@@ -106,16 +130,31 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "opacity": 0.18,
         "softness_screen_pixels": 6.0,
     }
-    assert "ladder" not in maps[0]
+    assert "climbable" not in maps[0]
     assert maps[0]["portal"]["mode"] == "portal-pair-1x2-v1"
-    assert maps[1]["ladder"]["placements"] == [
-        {
-            "ladder_id": "bellroot_ladder",
-            "normalized_x": 0.52,
-            "bottom_surface": "terrain",
-            "rise_tiles": 4,
-        }
+    climbable = maps[1]["climbable"]
+    assert climbable["mode"] == "climbable-atlas-v1"
+    assert climbable["index_order"] == "left_to_right"
+    # Roster order is atlas order: ladders left to right, then ropes.
+    assert [entry["variant_id"] for entry in climbable["variants"]] == [
+        "bellroot_ladder",
+        "shrine_rope_ladder",
+        "bellrope_climb",
     ]
+    assert [entry["role"] for entry in climbable["variants"]] == ["ladder", "ladder", "rope"]
+    assert [entry["cell_index"] for entry in climbable["variants"]] == [0, 1, 2]
+    assert all(
+        entry["cell"]["width"] > 0 and entry["cell"]["height"] > 0
+        for entry in climbable["variants"]
+    )
+    assert climbable["placements"][0] == {
+        "climbable_id": "river_ladder",
+        "variant_id": "bellroot_ladder",
+        "normalized_x": 0.067708,
+        "bottom_surface": "terrain",
+        "rise_tiles": 4,
+    }
+    assert len(climbable["placements"]) == 5
     assert maps[1]["portal"]["endpoints"][0]["anchor"] == "west_gate"
     player = result.manifest["player"]
     assert isinstance(player, dict)

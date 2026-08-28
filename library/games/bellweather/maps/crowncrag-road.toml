@@ -1,8 +1,8 @@
-schema_version = 6
-kind = "game-map-v6"
+schema_version = 7
+kind = "game-map-v7"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 9
+revision = 11
 display_name = "Amberbell Forest"
 
 [view]
@@ -97,21 +97,25 @@ the route, shrines, ancient tree, distant scenery, characters, and creatures.
 mode = "terrain-atlas-3x3-minimal-v1"
 reference_ids = ["amberbell_scene"]
 occupancy = [
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000011111111110000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000011110000000000000000",
-  "0000000000000000000000111110000000000000000011110000000000000000",
-  "1111111111111100011111111111111111111111111111111110011111111111",
-  "1111111111111100011111111111111111111111111111111110011111111111",
-  "1111111111111111111111111111111111111111111111111111111111111111",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000001111111111000000000000000000000011111111110000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000111111111100000000",
+  "000011111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "000000000000000000001111110000000000000000000000000011111111000000000000000000000000000000000000",
+  "000000000000111111111111111111111100000000001111111111111111111111110000000000111111111100000000",
+  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+  "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
 ]
 vertical_fit = "floor_to_screen_bottom"
-walk_surface_row = 9
+walk_surface_row = 13
 prompt = """
 Create Amberbell Forest's stable terrain material from the selected scene:
 broad warm cream paving interwoven with old roots, moss-softened edges, sparse
@@ -120,20 +124,70 @@ Keep the footing line crisp and preserve broad quiet material areas rather
 than dense repeated decoration.
 """
 
-[ladder]
-mode = "ladder-4-tile-v1"
+[climbable]
+mode = "climbable-atlas-v1"
 reference_ids = ["amberbell_scene"]
+
+[[climbable.ladders]]
+variant_id = "bellroot_ladder"
 prompt = """
-Create one sturdy front-facing Amberbell climbing ladder assembled from warm
-weathered wood, dark teal binding cord, small brass fittings, and restrained
-moss. It should feel maintained by local travelers and belong beside the old
-bell-hung tree and cream-stone shrines, with a clean readable silhouette and
-no characters, creatures, text, signs, loose items, or surrounding scenery.
+A sturdy front-facing Amberbell climbing ladder assembled from warm weathered
+wood, dark teal binding cord, small brass fittings, and restrained moss. Evenly
+spaced flat rungs between two straight rails. It should feel maintained by local
+travelers and belong beside the old bell-hung tree and cream-stone shrines.
 """
 
-[[ladder.placements]]
-ladder_id = "bellroot_ladder"
-normalized_x = 0.52
+[[climbable.ladders]]
+variant_id = "shrine_rope_ladder"
+prompt = """
+A hanging Amberbell rope ladder: two braided hemp side ropes with short flat
+weathered-wood rungs lashed between them in dark teal cord, hanging straight.
+Lighter and more makeshift than the timber ladder, the same maintained make.
+"""
+
+[[climbable.ropes]]
+variant_id = "bellrope_climb"
+prompt = """
+A braided hemp Amberbell climbing rope with dark teal whipping at even
+intervals, a small brass ferrule at the top, and a simple knotted foot loop at
+the bottom. One continuous near-vertical strand.
+"""
+
+# Terrain and placements are compiled by scripts/author_terrain.py from a declarative
+# level plan, which checks the rise tolerance, deck exposure, ledge overlap, and the
+# runtime camera range before anything is written here.
+[[climbable.placements]]
+climbable_id = "river_ladder"
+variant_id = "bellroot_ladder"
+normalized_x = 0.067708
+bottom_surface = "terrain"
+rise_tiles = 4
+
+[[climbable.placements]]
+climbable_id = "root_rope_ladder"
+variant_id = "shrine_rope_ladder"
+normalized_x = 0.234375
+bottom_surface = "terrain"
+rise_tiles = 4
+
+[[climbable.placements]]
+climbable_id = "bell_rope"
+variant_id = "bellrope_climb"
+normalized_x = 0.567708
+bottom_surface = "terrain"
+rise_tiles = 4
+
+[[climbable.placements]]
+climbable_id = "crown_ladder"
+variant_id = "bellroot_ladder"
+normalized_x = 0.838542
+bottom_surface = "terrain"
+rise_tiles = 4
+
+[[climbable.placements]]
+climbable_id = "crown_rope"
+variant_id = "bellrope_climb"
+normalized_x = 0.880208
 bottom_surface = "terrain"
 rise_tiles = 4
 

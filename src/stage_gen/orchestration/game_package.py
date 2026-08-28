@@ -711,12 +711,12 @@ def _validate_cross_contracts(
                 f"transition {transition.transition_id} source does not resolve a map portal "
                 "endpoint",
             )
-    if any(game_map.ladder is not None for game_map in maps) and (
+    if any(game_map.climbable is not None for game_map in maps) and (
         "climb" not in gameplay.navigation.allowed_movements
     ):
         raise GamePackageValidationError(
-            "ladder_movement_mismatch",
-            "a map declares ladders but gameplay does not allow climb",
+            "climbable_movement_mismatch",
+            "a map declares climbables but gameplay does not allow climb",
         )
     hostile_map_ids = {
         entry.map_id for entry in gameplay.map_uses if entry.hostile_population_enabled

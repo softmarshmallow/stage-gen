@@ -1090,10 +1090,15 @@ class PreparedContentNodeHandler:
                     "map_id": game_map.map_id,
                     "occupancy_rows": len(game_map.ground.occupancy),
                     "occupancy_columns": len(game_map.ground.occupancy[0]),
-                    "ladder_ids": (
+                    "climbable_ids": (
                         []
-                        if game_map.ladder is None
-                        else [entry.ladder_id for entry in game_map.ladder.placements]
+                        if game_map.climbable is None
+                        else [entry.climbable_id for entry in game_map.climbable.placements]
+                    ),
+                    "climbable_variants": (
+                        []
+                        if game_map.climbable is None
+                        else [entry.variant_id for entry in game_map.climbable.variants]
                     ),
                     "portal_anchors": (
                         []

@@ -74,11 +74,21 @@ export type PreparedMap = Readonly<{
     walk_surface_row: number;
     asset: RuntimeArtifact;
   }>;
-  ladder?: Readonly<{
-    mode: "ladder-4-tile-v1";
+  climbable?: Readonly<{
+    mode: "climbable-atlas-v1";
     asset: RuntimeArtifact;
+    /** Atlas cell index is roster index: ladders left to right, then ropes. */
+    index_order: "left_to_right";
+    variants: readonly Readonly<{
+      variant_id: string;
+      role: "ladder" | "rope";
+      cell_index: number;
+      /** Trimmed rectangle of this variant inside the repacked sheet. */
+      cell: Readonly<{ x: number; y: number; width: number; height: number }>;
+    }>[];
     placements: readonly Readonly<{
-      ladder_id: string;
+      climbable_id: string;
+      variant_id: string;
       normalized_x: number;
       bottom_surface: "terrain";
       rise_tiles: 4;
@@ -123,8 +133,8 @@ export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 8;
-  kind: "prepared-game-runtime-v8";
+  schema_version: 9;
+  kind: "prepared-game-runtime-v9";
   game_id: string;
   revision: number;
   display_name: string;
@@ -435,7 +445,7 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 8 || root.kind !== "prepared-game-runtime-v8") {
+  if (root.schema_version !== 9 || root.kind !== "prepared-game-runtime-v9") {
     throw new Error("prepared runtime manifest identity is invalid");
   }
   const rawPresentation = object(root.presentation, "presentation");
@@ -579,33 +589,82 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     if (walkSurfaceRow >= occupancy.length) {
       throw new Error("ground walk_surface_row must index an authored occupancy row");
     }
-    const ladder =
-      map.ladder === undefined
+    const climbable =
+      map.climbable === undefined
         ? undefined
         : (() => {
-            const rawLadder = object(map.ladder, `maps[${mapIndex}].ladder`);
-            if (rawLadder.mode !== "ladder-4-tile-v1") {
-              throw new Error("ladder mode is invalid");
+            const raw = object(map.climbable, `maps[${mapIndex}].climbable`);
+            if (raw.mode !== "climbable-atlas-v1") {
+              throw new Error("climbable mode is invalid");
             }
+            if (raw.index_order !== "left_to_right") {
+              throw new Error("climbable index_order is invalid");
+            }
+            const variants = array(
+              raw.variants,
+              `maps[${mapIndex}].climbable.variants`,
+            ).map((rawVariant, variantIndex) => {
+              const variant = object(
+                rawVariant,
+                `maps[${mapIndex}].climbable.variants[${variantIndex}]`,
+              );
+              if (variant.role !== "ladder" && variant.role !== "rope") {
+                throw new Error("climbable variant role is invalid");
+              }
+              // Cell index is roster index. Reject any manifest that disagrees rather than
+              // trusting an index the producer and the sheet may not share.
+              if (variant.cell_index !== variantIndex) {
+                throw new Error("climbable variant cell_index must equal its roster index");
+              }
+              const cell = object(
+                variant.cell,
+                `maps[${mapIndex}].climbable.variants[${variantIndex}].cell`,
+              );
+              const box = Object.freeze({
+                x: integer(cell.x, "climbable cell x", 0),
+                y: integer(cell.y, "climbable cell y", 0),
+                width: integer(cell.width, "climbable cell width", 1),
+                height: integer(cell.height, "climbable cell height", 1),
+              });
+              return Object.freeze({
+                variant_id: snakeId(variant.variant_id, "variant_id"),
+                role: variant.role,
+                cell_index: variantIndex,
+                cell: box,
+              });
+            });
+            if (
+              variants.length === 0 ||
+              variants.length > 6 ||
+              new Set(variants.map((entry) => entry.variant_id)).size !== variants.length
+            ) {
+              throw new Error("climbable variants must be a bounded unique roster");
+            }
+            const declared = new Set(variants.map((entry) => entry.variant_id));
             const placements = array(
-              rawLadder.placements,
-              `maps[${mapIndex}].ladder.placements`,
+              raw.placements,
+              `maps[${mapIndex}].climbable.placements`,
             ).map((rawPlacement, placementIndex) => {
               const placement = object(
                 rawPlacement,
-                `maps[${mapIndex}].ladder.placements[${placementIndex}]`,
+                `maps[${mapIndex}].climbable.placements[${placementIndex}]`,
               );
               if (
                 placement.bottom_surface !== "terrain" ||
                 placement.rise_tiles !== 4
               ) {
-                throw new Error("ladder placement geometry is invalid");
+                throw new Error("climbable placement geometry is invalid");
+              }
+              const variantId = snakeId(placement.variant_id, "variant_id");
+              if (!declared.has(variantId)) {
+                throw new Error("climbable placement names an undeclared variant");
               }
               return Object.freeze({
-                ladder_id: snakeId(placement.ladder_id, "ladder_id"),
+                climbable_id: snakeId(placement.climbable_id, "climbable_id"),
+                variant_id: variantId,
                 normalized_x: normalizedX(
                   placement.normalized_x,
-                  "ladder normalized_x",
+                  "climbable normalized_x",
                 ),
                 bottom_surface: "terrain" as const,
                 rise_tiles: 4 as const,
@@ -614,16 +673,18 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
             if (
               placements.length === 0 ||
               placements.length > 8 ||
-              new Set(placements.map((entry) => entry.ladder_id)).size !==
+              new Set(placements.map((entry) => entry.climbable_id)).size !==
                 placements.length ||
               new Set(placements.map((entry) => entry.normalized_x)).size !==
                 placements.length
             ) {
-              throw new Error("ladder placements must have unique identities and positions");
+              throw new Error("climbable placements must have unique identities and positions");
             }
             return Object.freeze({
-              mode: "ladder-4-tile-v1" as const,
-              asset: artifact(rawLadder.asset, "ladder asset"),
+              mode: "climbable-atlas-v1" as const,
+              asset: artifact(raw.asset, "climbable asset"),
+              index_order: "left_to_right" as const,
+              variants: Object.freeze(variants),
               placements: Object.freeze(placements),
             });
           })();
@@ -692,7 +753,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
         walk_surface_row: walkSurfaceRow,
         asset: artifact(ground.asset, "ground asset"),
       }),
-      ...(ladder === undefined ? {} : { ladder }),
+      ...(climbable === undefined ? {} : { climbable }),
       ...(portal === undefined ? {} : { portal }),
     });
   });
@@ -760,8 +821,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 8,
-    kind: "prepared-game-runtime-v8",
+    schema_version: 9,
+    kind: "prepared-game-runtime-v9",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),

@@ -9,9 +9,9 @@
 
 ## Current boundary
 
-Each `maps/<map_id>.toml` is one `game-map-v6` source. It describes the assets
+Each `maps/<map_id>.toml` is one `game-map-v7` source. It describes the assets
 and composition needed to generate one side-view map and the static topology
-needed to render its ground, ladders, and portal structures.
+needed to render its ground, climbables, and portal structures.
 
 The root `game.toml` catalogs every map and digest-locks its source bytes. There
 is no map index. The root `gameplay.toml` references maps by `map_id` and owns
@@ -33,14 +33,14 @@ library/games/<game_id>/
 | Owner | Owns |
 | --- | --- |
 | `game.toml` | Game identity, package membership, and exact map-source digests |
-| `maps/<map_id>.toml` | Map references, side-view envelope, continuity, ordered layers, binary terrain occupancy, ground generation, ladder geometry and placement, portal presentation and endpoint anchors, and whole-map review |
+| `maps/<map_id>.toml` | Map references, side-view envelope, continuity, ordered layers, binary terrain occupancy, ground generation, climbable geometry and placement, portal presentation and endpoint anchors, and whole-map review |
 | `gameplay.toml` | Entry map, movement permission, transition relationships, spawning, encounters, NPC/item use, and soundtrack selection |
 | Scrolling recipe | Provider operations, deterministic terrain-atlas assembly, validation, review, and immutable artifacts |
 | Consumer | Coordinate projection, collision, camera, input, rendering, and simulation |
 
 A map does not choose where a portal leads. It supplies the visible portal pair
 and stable endpoint anchors; gameplay connects those anchors to another map.
-Likewise, a map supplies a ladder and its terrain-relative placement, while
+Likewise, a map supplies its climbable atlas and terrain-relative placements, while
 gameplay decides whether climb movement is enabled.
 
 ## Per-map composition
@@ -55,12 +55,12 @@ A current map source contains:
   depth treatment;
 - one binary terrain-occupancy grid, its vertical fit and walk-surface row, and a
   ground-material prompt;
-- an optional `ladder-4-tile-v1` definition with terrain-relative placements;
+- an optional `climbable-atlas-v1` definition with terrain-relative placements;
 - an optional `portal-pair-1x2-v1` definition with entry/exit anchors; and
 - no gameplay flow, spawn rules, transition destinations, or engine objects.
 
 Reference filenames are arbitrary. A reference may guide the whole map, one
-layer, the terrain material, a ladder, or a portal pair. Every paid image
+layer, the terrain material, one climbable atlas, or a portal pair. Every paid image
 operation names its references explicitly; directory presence never implies
 use.
 
@@ -112,9 +112,9 @@ and `0` respectively.
 ## Resolution and runtime projection
 
 Package resolution verifies every reference, digest, identity, cross-contract
-map reference, ladder/climb dependency, and portal transition before provider
-work. Integration emits only `prepared-game-runtime-v8`; the web runtime does
-not infer missing terrain, ladder, portal, or gameplay semantics.
+map reference, climbable/climb dependency, and portal transition before provider
+work. Integration emits only `prepared-game-runtime-v9`; the web runtime does
+not infer missing terrain, climbable, portal, or gameplay semantics.
 
 The canonical Bellweather package is the repository example:
 

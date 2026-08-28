@@ -262,7 +262,7 @@ never silently changes the selected strategy.
 ### Runtime publication gate
 
 Prepared manifest completion requires the complete package-derived runtime
-closure. `prepared-game-runtime-v8` publishes every map's layers, 47-mask ground
+closure. `prepared-game-runtime-v9` publishes every map's layers, 47-mask ground
 atlas, authored occupancy, and only the ladder or portal bundles that map declares;
 it also publishes all authored actor motions, dialogue, props, items, inventory UI,
 soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoint
@@ -321,7 +321,7 @@ The [canonical game-generation pipeline](game/generation-pipeline.md) owns the c
 package graph, conditional composition, operation counts, and execution semantics. Prepared
 packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
-to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v8`.
+to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v9`.
 
 The wave table below documents only the older prompt/tag recipe and remains the detailed authority
 for assets produced by that legacy path.
@@ -382,7 +382,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 ## World-design agent (`world_spec_<tag>.json`)
 
 > **CURRENT only.** The ratified prepared-package target removes layer planning
-> from this generated bible. `game-map-v6` authors references and layer prompts
+> from this generated bible. `game-map-v7` authors references and layer prompts
 > before ingest; see the
 > [Authored map-generation contract](game/map-generation-contract.md). Mob,
 > prop, and item migration is a separate content-contract boundary.
@@ -597,7 +597,7 @@ an independent semantic verdict accepts their exact bytes.
 
 ## Runtime ladder
 
-> **Prepared map-local contract.** In `game-map-v6`, optional `[ladder]`
+> **Prepared map-local contract.** In `game-map-v7`, optional `[ladder]`
 > direction and placements live in the owning map. The appearance is generated
 > once per map and reused only by that map's validated placements. The older
 > prompt-only recipe may still use a run-global `ladder_<tag>.png`; it is not
@@ -620,7 +620,7 @@ and bottom-aligns it inside one cell with a 16-pixel clear gutter and no rescali
 rejects an empty or boundary-touching result and requires the retained height to be
 between two and eight times the retained width.
 
-`ladder-4-tile-v1` places this image only where the authored binary occupancy
+`climbable-atlas-v1` places this image only where the authored binary occupancy
 contains bottom-supported terrain and an exposed upper deck exactly four cells
 above it. Image generation never invents ladder count or placement, and climb
 permission remains in `gameplay.toml`.
@@ -1015,7 +1015,7 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 
 ## Portal pair (entry / exit)
 
-> **Prepared map-local contract.** In `game-map-v6`, optional `[portal]`
+> **Prepared map-local contract.** In `game-map-v7`, optional `[portal]`
 > direction and endpoint anchors live in the owning map. The older prompt-only
 > recipe may still generate one global pair; it is not the prepared-package
 > authority.

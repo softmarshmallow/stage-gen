@@ -64,7 +64,7 @@ CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
 UI_INVENTORY_PANEL_CONTRACT_VERSION = "prepared-ui-inventory-panel-v2"
 UI_INVENTORY_PANEL_REVIEW_VERSION = "prepared-ui-inventory-panel-review-v1"
-MAP_LADDER_CONTRACT_VERSION = "prepared-map-ladder-4-tile-v1"
+MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
 MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
 
@@ -316,39 +316,39 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             duration_seconds=1.5,
         )
         presentation_validations: list[str] = []
-        if game_map.ladder is not None:
-            ladder = builder.add_external(
-                f"map-{game_map.map_id}-ladder-generate",
+        if game_map.climbable is not None:
+            climbable = builder.add_external(
+                f"map-{game_map.map_id}-climbable-generate",
                 domain=f"map-{game_map.map_id}",
-                description=f"generate map-local ladder presentation for {game_map.map_id}",
+                description=f"generate map-local climbable atlas for {game_map.map_id}",
                 operation=OperationKind.IMAGE_GENERATION,
                 depends_on=(package_root,),
                 cache_depends_on=(),
                 input_digests=(
                     map_direction,
-                    _object_sha256({"contract": MAP_LADDER_CONTRACT_VERSION}),
-                    _object_sha256(game_map.ladder.model_dump(mode="json")),
-                    *_reference_digests(references, game_map.ladder.reference_ids),
+                    _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
+                    _object_sha256(game_map.climbable.model_dump(mode="json")),
+                    *_reference_digests(references, game_map.climbable.reference_ids),
                 ),
-                outputs=(f"maps/{game_map.map_id}/ladder.raw.png",),
+                outputs=(f"maps/{game_map.map_id}/climbable.raw.png",),
             )
-            ladder_validation = builder.add(
-                f"map-{game_map.map_id}-ladder-validate",
+            climbable_validation = builder.add(
+                f"map-{game_map.map_id}-climbable-validate",
                 domain=f"map-{game_map.map_id}",
-                description=f"isolate and validate the ladder for {game_map.map_id}",
+                description=f"isolate and validate the climbable atlas for {game_map.map_id}",
                 operation=OperationKind.LOCAL,
-                depends_on=(ladder.node_id,),
+                depends_on=(climbable.node_id,),
                 input_digests=(
-                    _object_sha256({"contract": MAP_LADDER_CONTRACT_VERSION}),
-                    _object_sha256(game_map.ladder.model_dump(mode="json")),
+                    _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
+                    _object_sha256(game_map.climbable.model_dump(mode="json")),
                 ),
                 outputs=(
-                    f"maps/{game_map.map_id}/ladder.png",
-                    f"maps/{game_map.map_id}/ladder.validation.json",
+                    f"maps/{game_map.map_id}/climbable.png",
+                    f"maps/{game_map.map_id}/climbable.validation.json",
                 ),
                 duration_seconds=0.75,
             )
-            presentation_validations.append(ladder_validation.node_id)
+            presentation_validations.append(climbable_validation.node_id)
         if game_map.portal is not None:
             portal = builder.add_external(
                 f"map-{game_map.map_id}-portal-generate",

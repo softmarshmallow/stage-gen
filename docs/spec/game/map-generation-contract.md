@@ -3,10 +3,10 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v6` as one compound map-generation contract
+> input. It defines `game-map-v7` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
-> recipe executes its typed branches; `prepared-game-runtime-v8` projects the
+> recipe executes its typed branches; `prepared-game-runtime-v9` projects the
 > exact map closure; and the prepared web adapter consumes that projection.
 > This implementation status does not assert that any particular live output
 > has passed semantic review or publication gates.
@@ -27,7 +27,7 @@ that map.
 | --- | --- | --- |
 | `game.toml` | Game identity, shared art direction, and digest-locked package membership | Stage flow or provider execution |
 | `gameplay.toml` | Entry map, transition relationships, climb permission, encounters, population, combat, loot, interactions, and map-specific usage | Map image generation or map composition |
-| `maps/<map_id>.toml` | Map references, view envelope, visual continuity, ordered layers, binary terrain occupancy, ground generation, ladder geometry and placement, portal presentation and endpoint anchors, and map-bundle review | Transition destinations, movement permission, spawning, NPC placement, dialogue, soundtrack usage, physics values, or engine scene objects |
+| `maps/<map_id>.toml` | Map references, view envelope, visual continuity, ordered layers, binary terrain occupancy, ground generation, climbable geometry and placement, portal presentation and endpoint anchors, and map-bundle review | Transition destinations, movement permission, spawning, NPC placement, dialogue, soundtrack usage, physics values, or engine scene objects |
 | Recipe | Supported modes, deterministic prompt scaffolding, provider calls, validation, repair, and artifact assembly | Authored creative choices absent from the map |
 | Consumer | Coordinate projection, collision bodies, camera controller, rendering, input, and simulation | Missing occupancy, ladder/portal placement, transition relationships, or inferred layer roles |
 
@@ -56,7 +56,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source and
 locks its exact authored bytes. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v6` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v7` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -65,7 +65,7 @@ Reference image filenames are independent: there is no requirement for
 
 ```toml
 schema_version = 6
-kind = "game-map-v6"
+kind = "game-map-v7"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -170,7 +170,7 @@ short golden grass along the surface, and darker compacted earth beneath it.
 """
 
 [ladder]
-mode = "ladder-4-tile-v1"
+mode = "climbable-atlas-v1"
 reference_ids = ["field_composition"]
 prompt = """
 Create one sturdy, front-facing field ladder from sun-warmed wood and simple
@@ -436,27 +436,64 @@ Future ground modes belong under the same `[ground]` table. A new field or mode
 must not be accepted until its producer, validation, manifest, and consumer
 path are implemented; unknown values fail before paid work.
 
-## Ladder contract
+## Climbable contract
 
-`[ladder]` is optional. Its presence means this map generates one reusable
-ladder appearance and places one or more climbable instances:
+`[climbable]` is optional. Its presence means this map generates one atlas of
+climbable appearances and places instances of them:
 
 | Field | Contract |
 | --- | --- |
-| `mode` | Exactly `ladder-4-tile-v1` |
+| `mode` | Exactly `climbable-atlas-v1` |
 | `reference_ids` | Non-empty ordered map references used for visual direction |
-| `prompt` | Non-empty authored appearance direction; recipe clauses own canvas, isolation, alpha, and fitting |
-| `placements` | One to eight stable ladder instances |
+| `ladders` | Zero to three ladder variants, each with a stable `variant_id` and its own prompt |
+| `ropes` | Zero to three rope variants, same shape |
+| `placements` | One to eight instances, each naming a declared `variant_id` |
 
-Each `[[ladder.placements]]` record has a unique lower-snake-case `ladder_id`,
-a unique `normalized_x`, `bottom_surface = "terrain"`, and `rise_tiles = 4`.
-The lower endpoint must resolve to bottom-supported terrain. At that same
-column, occupancy must contain an exposed occupied cell exactly four rows above
-the lower surface; that cell is the upper deck. The cell immediately above the
-deck must be empty. This binds the visible ladder to real authored terrain
+At least one variant must be declared across the two roles. A variant that is
+declared and never placed is rejected: it would be paid generation nobody uses.
+
+The roles are explicit rather than free-form because their geometry differs. A
+ladder carries crosswise rungs and a rope is a continuous strand, and their
+silhouettes differ by roughly a factor of four. Validation admits each column
+against its own aspect envelope, which it can only do because the role is
+authored rather than inferred from pixels.
+
+**Atlas order is every ladder left to right, then every rope**, and the cell
+index of a variant is its index in that order. That binding is positional: the
+producer asks for the roster in order and trusts the order it gets back. What is
+verified is that each column holds a silhouette its declared role admits, that
+every declared subject survives, and that all variants share one world scale.
+Two ladders on the same sheet are not distinguishable to any gate, so a swap
+between same-role variants would not be caught. This matches how the dialogue
+expression atlas binds its expressions.
+
+Each `[[climbable.placements]]` record has a unique lower-snake-case
+`climbable_id`, a `variant_id` naming a declared variant, a unique
+`normalized_x`, `bottom_surface = "terrain"`, and `rise_tiles = 4`. The lower
+endpoint must resolve to bottom-supported terrain. At that same column,
+occupancy must contain an exposed occupied cell exactly four rows above the
+lower surface; that cell is the upper deck, and the cell immediately above it
+must be empty. This binds every visible climbable to real authored terrain
 instead of asking the consumer to invent a platform graph.
 
-The map declares that the ladder exists and where it connects. Whether the
+### Sizing, and a known limitation
+
+Every variant shares one provider image, sized from the world unit: one tile of
+width per column, `rise + 1` tiles of height, converted once at a fixed 4x
+supersample of the 64-pixel runtime tile. Six variants therefore always fit a
+single sheet, so no map schedules more than one climbable atlas.
+
+Variant count and per-variant resolution compete for the same budget, because
+the provider caps one image at 3840 pixels per edge and 8,294,400 pixels in
+total. The fixed supersample keeps cost and quality predictable — a map with one
+variant and a map with six both get a 256-by-1280 source cell — but the ceiling
+it leaves differs: a smaller count could support up to 10x supersample where six
+variants top out near 5x. An author who wants maximum fidelity on one signature
+ladder should declare fewer variants. The runtime draws a climbable 64 pixels
+wide, so the fixed 4x is already four times the final width and the headroom
+above it has diminishing value.
+
+The map declares that the climbable exists and where it connects. Whether the
 player may climb remains `gameplay.toml` navigation policy. The player content
 contract owns climb-motion coverage. The consumer owns activation tolerances,
 collision bodies, input, velocity, and pixel projection.
@@ -535,7 +572,7 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v6` does not contain:
+`game-map-v7` does not contain:
 
 - stage order or entry-map status;
 - spawn zones, spawn tables, population targets, or respawn policy;
@@ -569,4 +606,4 @@ closures fail closed.
 Successful input validation proves only authored closure. A playable build still
 requires successful provider and local graph execution, the required independent
 semantic reviews, provider-free integration of every runtime artifact, and exact
-`prepared-game-runtime-v8` consumer admission.
+`prepared-game-runtime-v9` consumer admission.

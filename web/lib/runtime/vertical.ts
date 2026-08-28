@@ -76,13 +76,20 @@ export type UpperPlatform = Readonly<{
 export type LadderZone = Readonly<{
   id: string;
   platformId: string;
+  /** Which atlas variant paints this zone. Geometry is identical across variants. */
+  variantId: string;
   centerX: number;
   upperDeckY: number;
   lowerSurfaceY: number;
   activationHalfWidth: typeof LADDER_ACTIVATION_HALF_WIDTH;
   visualTopOvershoot: typeof LADDER_VISUAL_OVERSHOOT;
   visualBottomOvershoot: typeof LADDER_VISUAL_OVERSHOOT;
-  visualWidth: typeof LADDER_VISUAL_WIDTH;
+  /**
+   * On-screen width of this zone's artwork. A rope is three to four times narrower than a
+   * ladder, so this is per-variant rather than one shared constant: drawing a rope at the
+   * ladder's width is what the single `LADDER_VISUAL_WIDTH` produced.
+   */
+  visualWidth: number;
 }>;
 
 export type PlayerSupport = "terrain" | "platform" | "ladder" | "air";
@@ -240,13 +247,13 @@ export function platformDropRecoverySteps(input: Readonly<{
 
 export type VerticalWorldInput = Readonly<{
   platforms: readonly Omit<UpperPlatform, "thickness">[];
-  ladders: readonly Omit<
+  ladders: readonly (Omit<
     LadderZone,
     | "activationHalfWidth"
     | "visualTopOvershoot"
     | "visualBottomOvershoot"
     | "visualWidth"
-  >[];
+  > & { visualWidth?: number })[];
   heights: readonly number[];
   tilePixels: number;
   baselineY: number;
@@ -399,12 +406,16 @@ export function createVerticalWorld(input: VerticalWorldInput): VerticalWorld {
     ) {
       throw new Error("ladder requires a flat lower terrain endpoint");
     }
+    const visualWidth = source.visualWidth ?? LADDER_VISUAL_WIDTH;
+    if (!Number.isFinite(visualWidth) || visualWidth <= 0 || visualWidth > input.tilePixels * 4) {
+      throw new Error("ladder visual width must be a positive width within four tiles");
+    }
     return {
       ...source,
       activationHalfWidth: LADDER_ACTIVATION_HALF_WIDTH,
       visualTopOvershoot: LADDER_VISUAL_OVERSHOOT,
       visualBottomOvershoot: LADDER_VISUAL_OVERSHOOT,
-      visualWidth: LADDER_VISUAL_WIDTH,
+      visualWidth,
     } satisfies LadderZone;
   });
   ladders.sort((left, right) => left.centerX - right.centerX || left.id.localeCompare(right.id));
@@ -915,6 +926,7 @@ export function selectDemoVerticalWorld(input: Readonly<{
           return {
             id: ladder.id,
             platformId: ladder.platformId,
+            variantId: ladder.id,
             centerX:
               (start + ladder.column) * input.tilePixels + input.tilePixels / 2,
             upperDeckY: lowerSurfaceY - input.tilePixels * platform.tiers,
@@ -966,7 +978,8 @@ export function ladderVisualBounds(ladder: LadderZone): LadderVisualBounds {
   if (
     ladder.visualTopOvershoot !== LADDER_VISUAL_OVERSHOOT ||
     ladder.visualBottomOvershoot !== LADDER_VISUAL_OVERSHOOT ||
-    ladder.visualWidth !== LADDER_VISUAL_WIDTH
+    !Number.isFinite(ladder.visualWidth) ||
+    ladder.visualWidth <= 0
   ) {
     throw new Error("ladder visual contract drifted from its approved raster");
   }

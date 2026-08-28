@@ -90,6 +90,25 @@ The dry-run directory contains `package.json`, `execution-plan.json`,
 [canonical generation pipeline](docs/spec/game/generation-pipeline.md) for the executable graph,
 resource limits, cache lineage, retry ownership, and operation counts.
 
+## Generation cost
+
+Budget approximately **USD 20** for a complete first generation of a Bellweather-sized game. The
+provider-free planner exposes the current estimate before any live request is made:
+
+| Bellweather reference package | Planned amount |
+| --- | ---: |
+| Image generation | 91 operations |
+| Structured generation and review | 16 operations |
+| Music generation | 3 operations |
+| Estimated provider spend | **USD 4.02–21.88** |
+| Practical first-run budget | **About USD 20–22** |
+
+This is a conservative planning allowance, not a provider quote. Active model pricing, retries,
+and deliberate semantic regenerations can change the final charge. Valid cache hits do not repeat
+provider work, so focused revisions and resumed runs are normally cheaper than the first complete
+generation. The generated `execution-projection.json` is the authority for the selected package;
+the [canonical generation pipeline](docs/spec/game/generation-pipeline.md) explains its assumptions.
+
 ## What it provides
 
 - Typed, provider-neutral components for image and structured generation,

@@ -69,11 +69,11 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-contract-v6`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
-        "`game-map-v6`",
-        "`prepared-game-runtime-v8`",
+        "`game-map-v7`",
+        "`prepared-game-runtime-v9`",
     ):
         assert identity in game_contract
-    assert "ladder geometry and placement" in game_contract
+    assert "climbable geometry and placement" in game_contract
     assert "portal presentation" in game_contract
     assert "endpoint anchors" in game_contract
 
@@ -84,10 +84,10 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     maps = documents["docs/game-maps.md"]
     for identity in (
-        "`game-map-v6`",
-        "`ladder-4-tile-v1`",
+        "`game-map-v7`",
+        "`climbable-atlas-v1`",
         "`portal-pair-1x2-v1`",
-        "`prepared-game-runtime-v8`",
+        "`prepared-game-runtime-v9`",
     ):
         assert identity in maps
     assert "packaged 47-mask" in maps
@@ -101,13 +101,13 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     map_contract = documents["docs/spec/game/map-generation-contract.md"]
     assert "exact-current authored, generation, manifest, and consumer contract" in map_contract
     assert "binary terrain occupancy" in map_contract
-    assert "`ladder-4-tile-v1`" in map_contract
+    assert "`climbable-atlas-v1`" in map_contract
     assert 'mode = "portal-pair-1x2-v1"' in map_contract
 
     pipeline = documents["docs/spec/game/generation-pipeline.md"]
     assert "deterministically assemble 47-mask atlas" in pipeline
     assert "Player `crouch` is the current explicit vocabulary boundary" in pipeline
-    assert "Optional map-local ladder and portal branches" in pipeline
+    assert "Optional map-local climbable and portal branches" in pipeline
 
     ui = documents["docs/spec/game/ui.md"]
     assert "exact current identity is `game-ui-v1`" in ui
@@ -116,12 +116,12 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     soundtrack = documents["docs/game-soundtrack.md"]
     assert "exact identity is\n`game-soundtrack-v1`" in soundtrack
     assert "Provider-free integration" in soundtrack
-    assert "`prepared-game-runtime-v8`" in soundtrack
+    assert "`prepared-game-runtime-v9`" in soundtrack
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue
     assert "dialogue\ncontrol flow in `sequences/*.toml`" in dialogue
-    assert "`prepared-game-runtime-v8`" in dialogue
+    assert "`prepared-game-runtime-v9`" in dialogue
 
     gameplay = documents["docs/spec/scene-gameplay-components.md"]
     assert "`gameplay-contract-v1`" in gameplay
@@ -130,4 +130,4 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     sequences = documents["docs/spec/game/dialogue-and-cutscene-sequences.md"]
     assert "current prepared gameplay consumer" in sequences
-    assert "`prepared-game-runtime-v8`" in sequences
+    assert "`prepared-game-runtime-v9`" in sequences

@@ -629,7 +629,7 @@ overlay. Its movement lock and beat cursor prove one consumer integration, not
 the general sequence contract proposed here.
 
 The current prepared gameplay consumer accepts sequence and NPC-expression
-projections only inside `prepared-game-runtime-v8` and validates each declared
+projections only inside `prepared-game-runtime-v9` and validates each declared
 block as one unit. An NPC exposes interaction only when gameplay binds it to a
 resolved sequence. A malformed declared sequence fails closed and does not
 substitute unrelated dialogue. A future sequence extension must either preflight
@@ -651,7 +651,7 @@ shot program, checkpoint rewind, or cutscene realization. A compiler MUST refuse
 anything outside that subset instead of erasing the unsupported semantics.
 
 The current prepared sequence and runtime shapes remain valid only as the exact
-`prepared-game-runtime-v8` projection. They MUST NOT silently acquire unsupported
+`prepared-game-runtime-v9` projection. They MUST NOT silently acquire unsupported
 shot, timeline, or cutscene semantics. A future adapter must either emit the
 exact supported subset or fail; it cannot erase authored semantics to fit a
 different consumer shape.

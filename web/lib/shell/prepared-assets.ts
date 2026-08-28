@@ -157,8 +157,8 @@ export function projectPreparedRuntimeAssets(
       group(`map-${map.map_id}`, `Map: ${map.display_name}`, [
         ...background,
         bound(map.ground.asset, "Ground atlas", true),
-        ...(map.ladder
-          ? [bound(map.ladder.asset, "Ladder", true)]
+        ...(map.climbable
+          ? [bound(map.climbable.asset, "Climbable atlas", true)]
           : []),
         ...(map.portal
           ? [bound(map.portal.asset, "Portal pair", true)]

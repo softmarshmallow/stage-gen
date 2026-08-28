@@ -31,7 +31,7 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one immutable run, and emits `prepared-game-runtime-v8`. The `--dry-run` path still
+publishes one immutable run, and emits `prepared-game-runtime-v9`. The `--dry-run` path still
 exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -45,11 +45,11 @@ flowchart TD
     ML --> MLC["admit loop, else mirror or bridge[*]"]
     MLC --> MLV["repeat validate, vertical trim + placement measure[*]"]
     MG --> MGV["validate paintover + deterministically canonicalize 47-mask atlas[*]"]
-    PR --> LG["optional map ladder generate[*]"]
+    PR --> LG["optional map climbable atlas generate[*]"]
     PR --> PG["optional map portal-pair generate[*]"]
     MLV --> MC["map composite[*]"]
     MGV --> MC
-    LG --> LGV["alpha-component repack + ladder validate[*]"]
+    LG --> LGV["alpha-component repack + climbable validate[*]"]
     PG --> PGV["alpha-component repack + portal-pair validate[*]"]
     MC --> MR["whole-map review[*]"]
     LGV --> MR
@@ -105,7 +105,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "7c412daedef310746437251ddbd2a7844e7f0aed8d579d45e27b97ba28e3f032",
+  "topology_sha256": "bd1d68965ed558689f0173db5c0544558d6e0a2bf1a20c27840c22d2504bdbbf",
   "node_count": 211,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -156,13 +156,13 @@ the value is not a universal model constant.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 106 provider operations. Provider transport retries and
+The normal first-pass graph contains 110 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Maps | 2 maps × (4 layers + 1 ground), 2 map-local portal pairs, 1 map-local ladder, validation, composite, map review | 13 | 2 | 0 | 15 |
+| Maps | 2 maps × (4 layers + 1 ground), 4 provider-assisted and 4 local loop passes, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
 | Player | concept, 10 canonical-source states, dialogue, validations, board, review | 12 | 1 | 0 | 12 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
@@ -171,7 +171,7 @@ reported by the owning node.
 | UI | one inventory panel, deterministic layout/alpha validation, one review | 1 | 1 | 0 | 1 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **203 nodes** | **87** | **16** | **3** | **97** |
+| **Total** | **211 nodes** | **91** | **16** | **3** | **101** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -213,7 +213,7 @@ The live World checkpoint is the exact 31-node closure rooted at both map-review
 package capture, 13 image generations or edits, 15 map-local canonicalization/composition
 operations, and two
 structured reviews. It cannot schedule any cast, catalog, soundtrack, gameplay-binding, or
-manifest node. Each layer, ground, ladder, and portal generation writes a retained `*.raw.png`;
+manifest node. Each layer, ground, climbable, and portal generation writes a retained `*.raw.png`;
 only its dependent validator may write the canonical runtime-facing PNG.
 
 Each ground image operation receives the attributed 12-by-4 topology template as its strict first
@@ -233,7 +233,7 @@ occupancy changes the local
 evidence, composite, review, bindings, and manifest projection without invalidating the
 appearance-only paintover call.
 
-Optional map-local ladder and portal branches begin alongside layers and ground. `ladder-4-tile-v1`
+Optional map-local climbable and portal branches begin alongside layers and ground. `climbable-atlas-v1`
 requests one complete tall native-alpha subject and deterministically repacks it into a canonical
 1-by-1 canvas. `portal-pair-1x2-v1` requests exactly two isolated native-alpha structures, entry on
 the left and exit on the right, and repacks them into a canonical 1-by-2 canvas. The validators
@@ -311,7 +311,7 @@ The resource-aware Bellweather projection uses planning assumptions of 120 secon
 adapter-owned 150 image starts per minute, the projected terminal offset is **297.25 seconds
 (4m 57.25s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 3.86–21.08 budgetary allowance**: USD 0.04–0.20 per image,
+The graph carries a broad **USD 4.02–21.88 budgetary allowance**: USD 0.04–0.20 per image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.
@@ -355,7 +355,7 @@ counts one successful provider operation per provider node.
 | `maps/*/ground.raw.png` | Retained provider-generated 47-mask ground paintover and provider provenance |
 | `maps/*/ground.png` | Canonical 1440-by-480 47-mask terrain atlas with 120-by-120 RGBA cells |
 | `maps/*/ground.evidence.png` | Deterministic composition of the canonical atlas through the map-authored occupancy |
-| `maps/*/ladder.raw.png`, `ladder.png`, `ladder.validation.json` | Optional map-local ladder source, canonical isolated 1-by-1 presentation, and deterministic facts |
+| `maps/*/climbable.raw.png`, `climbable.png`, `climbable.validation.json` | Optional map-local climbable atlas source, canonical isolated 1-by-N presentation, and deterministic per-variant cell facts |
 | `maps/*/portal.raw.png`, `portal.png`, `portal.validation.json` | Optional map-local portal source, canonical isolated 1-by-2 pair, and deterministic facts |
 | `maps/*/composite.png`, `review.json` | Whole-map composition and structured semantic verdict |
 | `content/{players,mobs,npcs}/*/concept.png` | Canonical generated actor identity and provider provenance |
@@ -371,7 +371,7 @@ counts one successful provider operation per provider node.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v8` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v9` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.

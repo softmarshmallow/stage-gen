@@ -1,8 +1,10 @@
 import type { PreparedMap } from "./prepared-manifest";
+import { climbableVisualWidth } from "./prepared-climbable";
 import { parseTerrainOccupancy } from "./terrain-atlas";
 import { terrainSurfaceY } from "./terrain";
 import {
   createVerticalWorld,
+  LADDER_VISUAL_OVERSHOOT,
   type UpperPlatform,
   type VerticalWorld,
 } from "./vertical";
@@ -87,7 +89,7 @@ function floatingPlatforms(
  * heightfield, one-way floating-platform, and ladder geometry contracts.
  */
 export function projectPreparedTerrainWorld(
-  map: Pick<PreparedMap, "ground" | "ladder">,
+  map: Pick<PreparedMap, "ground" | "climbable">,
   tilePixels: number,
   baselineY: number,
 ): PreparedTerrainWorld {
@@ -109,7 +111,10 @@ export function projectPreparedTerrainWorld(
     tilePixels,
     baselineY,
   );
-  const ladders = (map.ladder?.placements ?? []).map((placement) => {
+  const variantsById = new Map(
+    (map.climbable?.variants ?? []).map((entry) => [entry.variant_id, entry]),
+  );
+  const ladders = (map.climbable?.placements ?? []).map((placement) => {
     const centerX = Math.round(placement.normalized_x * worldWidth);
     const column = Math.floor(centerX / tilePixels);
     const lowerSurfaceY = terrainSurfaceY(
@@ -127,15 +132,26 @@ export function projectPreparedTerrainWorld(
     );
     if (!platform) {
       throw new Error(
-        `prepared ladder ${placement.ladder_id} does not attach to an exposed four-tile platform`,
+        `prepared climbable ${placement.climbable_id} does not attach to an exposed four-tile platform`,
       );
     }
+    const variant = variantsById.get(placement.variant_id);
+    if (!variant) {
+      throw new Error(
+        `prepared climbable ${placement.climbable_id} names an undeclared variant`,
+      );
+    }
+    const visualHeight =
+      lowerSurfaceY - upperDeckY + LADDER_VISUAL_OVERSHOOT * 2;
+    const visualWidth = climbableVisualWidth(variant.cell, visualHeight);
     return Object.freeze({
-      id: placement.ladder_id,
+      id: placement.climbable_id,
       platformId: platform.id,
+      variantId: placement.variant_id,
       centerX,
       upperDeckY,
       lowerSurfaceY,
+      visualWidth,
     });
   });
   const verticalWorld = createVerticalWorld({

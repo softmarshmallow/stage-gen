@@ -81,6 +81,7 @@ import {
 import { terrainSurfaceY } from "./terrain";
 import { preparedPortalEndpointPlacements } from "./prepared-portals";
 import { presentPreparedLayerCanvas } from "./prepared-layer-presentation";
+import { climbableAtlasFrames, climbableFrameKey } from "./prepared-climbable";
 import {
   NPC_TALK_PROMPT_GAP_PX,
   NPC_TALK_PROMPT_STYLE,
@@ -512,16 +513,16 @@ export class PreparedStageScene extends Phaser.Scene {
             );
           }),
           this.loadGroundOrFallback(map),
-          ...(map.ladder
+          ...(map.climbable
             ? [
                 this.loadPresentationOrFallback(
                   loadTrimmedSprite(
-                    this.url(map.ladder.asset.path),
-                    `prepared_ladder_${map.map_id}`,
+                    this.url(map.climbable.asset.path),
+                    `prepared_climbable_${map.map_id}`,
                     this.textures,
                     this.transparencyPolicy,
                   ),
-                  `prepared_ladder_${map.map_id}`,
+                  `prepared_climbable_${map.map_id}`,
                   "sprite",
                 ),
               ]
@@ -971,14 +972,33 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private installVerticalWorld(map: PreparedMap): void {
-    const ladderKey = `prepared_ladder_${map.map_id}`;
+    const atlasKey = `prepared_climbable_${map.map_id}`;
+    const byVariant = new Map(
+      (map.climbable?.variants ?? []).map((entry) => [entry.variant_id, entry]),
+    );
+    if (this.textures.exists(atlasKey)) {
+      const texture = this.textures.get(atlasKey);
+      for (const frame of climbableAtlasFrames(map)) {
+        // Replace rather than skip, as the portal does, so a re-entered map can never draw a
+        // frame whose geometry belongs to an earlier texture.
+        if (texture.has(frame.frameKey)) texture.remove(frame.frameKey);
+        texture.add(frame.frameKey, 0, frame.x, frame.y, frame.width, frame.height);
+      }
+    }
     for (const ladder of this.verticalWorld.ladders) {
       const bounds = ladderVisualBounds(ladder);
+      const variant = byVariant.get(ladder.variantId);
+      if (!variant) {
+        throw new Error(`prepared climbable zone ${ladder.id} names an undeclared variant`);
+      }
+      // Draw the variant's own frame. Masking the shared atlas instead would leave origin and
+      // display size bound to the full texture, so the artwork would land at the wrong size and
+      // off-centre from the zone the player actually climbs.
       const sprite = this.add
-        .image(ladder.centerX, bounds.bottom, ladderKey)
+        .image(ladder.centerX, bounds.bottom, atlasKey, climbableFrameKey(ladder.variantId))
         .setOrigin(0.5, 1)
-        .setDisplaySize(bounds.width, bounds.height)
         .setDepth(23);
+      sprite.setDisplaySize(bounds.width, bounds.height);
       this.verticalSprites.push(sprite);
     }
   }

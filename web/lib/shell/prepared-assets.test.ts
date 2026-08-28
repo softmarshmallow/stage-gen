@@ -30,7 +30,7 @@ function preparedManifestFixture() {
     sky: image("maps/meadow/layers/sky.png"),
     foreground: image("maps/meadow/layers/flowers.png"),
     ground: image("maps/meadow/ground.png"),
-    ladder: image("maps/meadow/ladder.png"),
+    climbable: image("maps/meadow/climbable.png"),
     portal: image("maps/meadow/portal.png"),
     playerConcept: image("content/players/hero/concept.png"),
     playerIdle: image("content/players/hero/states/idle.png"),
@@ -47,8 +47,8 @@ function preparedManifestFixture() {
   };
   const closure = Object.values(assets).reverse();
   return {
-    schema_version: 8,
-    kind: "prepared-game-runtime-v8",
+    schema_version: 9,
+    kind: "prepared-game-runtime-v9",
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",
@@ -127,12 +127,22 @@ function preparedManifestFixture() {
           walk_surface_row: 0,
           asset: assets.ground,
         },
-        ladder: {
-          mode: "ladder-4-tile-v1",
-          asset: assets.ladder,
+        climbable: {
+          mode: "climbable-atlas-v1",
+          asset: assets.climbable,
+          index_order: "left_to_right",
+          variants: [
+            {
+              variant_id: "meadow_ladder",
+              role: "ladder",
+              cell_index: 0,
+              cell: { x: 0, y: 0, width: 256, height: 1280 },
+            },
+          ],
           placements: [
             {
-              ladder_id: "meadow_ladder",
+              climbable_id: "meadow_ladder",
+              variant_id: "meadow_ladder",
               normalized_x: 0.5,
               bottom_surface: "terrain",
               rise_tiles: 4,
@@ -334,15 +344,16 @@ describe("prepared runtime asset projection", () => {
     );
   });
 
-  test("parses exact map-owned terrain, ladder, and portal contracts", () => {
+  test("parses exact map-owned terrain, climbable, and portal contracts", () => {
     const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
     const map = manifest.maps[0]!;
     expect(map.ground.occupancy).toEqual([
       "0000000000",
       "1111111111",
     ]);
-    expect(map.ladder?.placements[0]).toEqual({
-      ladder_id: "meadow_ladder",
+    expect(map.climbable?.placements[0]).toEqual({
+      climbable_id: "meadow_ladder",
+      variant_id: "meadow_ladder",
       normalized_x: 0.5,
       bottom_surface: "terrain",
       rise_tiles: 4,
@@ -352,7 +363,7 @@ describe("prepared runtime asset projection", () => {
       { anchor: "east_gate", normalized_x: 0.9, role: "exit" },
     ]);
     expect(Object.isFrozen(map.ground.occupancy)).toBeTrue();
-    expect(Object.isFrozen(map.ladder?.placements)).toBeTrue();
+    expect(Object.isFrozen(map.climbable?.placements)).toBeTrue();
     expect(Object.isFrozen(map.portal?.endpoints)).toBeTrue();
 
     const occupancy = structuredClone(preparedManifestFixture());
@@ -361,10 +372,23 @@ describe("prepared runtime asset projection", () => {
       "ground.occupancy must be a 2-64 row, 8-512 column zero-one rectangle",
     );
 
-    const ladder = structuredClone(preparedManifestFixture());
-    ladder.maps[0]!.ladder.placements[0]!.rise_tiles = 3;
-    expect(() => parsePreparedRuntimeManifest(ladder)).toThrow(
-      "ladder placement geometry is invalid",
+    const climbable = structuredClone(preparedManifestFixture());
+    climbable.maps[0]!.climbable.placements[0]!.rise_tiles = 3;
+    expect(() => parsePreparedRuntimeManifest(climbable)).toThrow(
+      "climbable placement geometry is invalid",
+    );
+
+    const undeclared = structuredClone(preparedManifestFixture());
+    undeclared.maps[0]!.climbable.placements[0]!.variant_id = "not_declared";
+    expect(() => parsePreparedRuntimeManifest(undeclared)).toThrow(
+      "climbable placement names an undeclared variant",
+    );
+
+    // Cell index is roster index; a manifest that disagrees is rejected rather than trusted.
+    const misindexed = structuredClone(preparedManifestFixture());
+    misindexed.maps[0]!.climbable.variants[0]!.cell_index = 3;
+    expect(() => parsePreparedRuntimeManifest(misindexed)).toThrow(
+      "climbable variant cell_index must equal its roster index",
     );
 
     const portal = structuredClone(preparedManifestFixture());
@@ -391,7 +415,7 @@ describe("prepared runtime asset projection", () => {
     expect(groups[0]?.assets.map((asset) => asset.path)).toEqual([
       "maps/meadow/layers/sky.png",
       "maps/meadow/ground.png",
-      "maps/meadow/ladder.png",
+      "maps/meadow/climbable.png",
       "maps/meadow/portal.png",
       "maps/meadow/layers/flowers.png",
     ]);

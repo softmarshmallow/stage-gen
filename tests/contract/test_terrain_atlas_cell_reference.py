@@ -5,13 +5,9 @@ import re
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
-LOOKUP_PATH = (
-    REPOSITORY_ROOT
-    / "src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json"
-)
+LOOKUP_PATH = REPOSITORY_ROOT / "src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json"
 REFERENCE_PATH = (
-    REPOSITORY_ROOT
-    / "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.md"
+    REPOSITORY_ROOT / "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.md"
 )
 ROW = re.compile(
     r"^\| `\((\d+), (\d+)\)` \| (?:`([01]{9})`|—) \|",
@@ -26,13 +22,8 @@ TERRAIN_ROW = re.compile(
 def test_terrain_atlas_cell_reference_matches_authoritative_lookup() -> None:
     contract = json.loads(LOOKUP_PATH.read_text(encoding="utf-8"))
     reference = REFERENCE_PATH.read_text(encoding="utf-8")
-    observed = {
-        (int(column), int(row)): mask
-        for column, row, mask in ROW.findall(reference)
-    }
-    expected = {
-        tuple(coordinate): mask for mask, coordinate in contract["lookup"].items()
-    }
+    observed = {(int(column), int(row)): mask for column, row, mask in ROW.findall(reference)}
+    expected = {tuple(coordinate): mask for mask, coordinate in contract["lookup"].items()}
     placeholder = tuple(contract["placeholder_cell"])
 
     assert len(observed) == 48

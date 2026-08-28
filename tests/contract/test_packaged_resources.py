@@ -174,8 +174,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # the terrain-atlas integration add the focused source, tests, templates, and canonical
         # documentation and traversal-contract tests tracked here.
         # The size assertions below are the ones that actually bound the archive. The layer
-        # vertical-placement contract adds two source modules and their focused tests.
-        assert len(sdist_entries) <= 383
+        # vertical-placement contract adds two source modules and their focused tests. The
+        # climbable atlas adds its sizing/envelope module, the terrain authoring compiler, and the
+        # pipeline graph-contract writer.
+        assert len(sdist_entries) <= 386
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.

@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
-from typing import Literal, cast
+from typing import cast
 
 import pytest
 from PIL import Image, ImageDraw
 
+from stage_gen.recipes.scrolling_preview.climbable_atlas import (
+    ClimbableRole,
+    nominal_cell_box,
+    plan_climbable_atlas,
+)
 from stage_gen.recipes.scrolling_preview.prepared_world import (
     _canonicalize_map_presentation,
     _validate_map_presentation_source,
@@ -58,16 +64,38 @@ def _paintover_source(
     return _png(image)
 
 
-def _presentation_source(asset: str) -> bytes:
-    size = (1024, 1536) if asset == "ladder" else (1536, 1024)
-    image = Image.new("RGBA", size, (0, 0, 0, 0))
+def _climbable_source(roles: Sequence[str]) -> tuple[bytes, tuple[int, int]]:
+    """One synthetic atlas column per declared role, at the plan's own request size."""
+
+    plan = plan_climbable_atlas(len(roles))
+    image = Image.new("RGBA", (plan.width_px, plan.height_px), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    if asset == "ladder":
-        draw.rectangle((380, 220, 420, 1320), fill=(116, 74, 37, 255))
-        draw.rectangle((604, 220, 644, 1320), fill=(116, 74, 37, 255))
-        for y in range(300, 1260, 120):
-            draw.rectangle((400, y, 624, y + 28), fill=(172, 122, 61, 255))
-    else:
+    for index, role in enumerate(roles):
+        left, top, right, bottom = nominal_cell_box(plan, index)
+        centre = (left + right) // 2
+        if role == "ladder":
+            # Two rails plus rungs: wide enough to land inside the ladder aspect envelope.
+            draw.rectangle(
+                (centre - 90, top + 40, centre - 50, bottom - 40), fill=(116, 74, 37, 255)
+            )
+            draw.rectangle(
+                (centre + 50, top + 40, centre + 90, bottom - 40), fill=(116, 74, 37, 255)
+            )
+            for y in range(top + 120, bottom - 80, 120):
+                draw.rectangle((centre - 50, y, centre + 50, y + 28), fill=(172, 122, 61, 255))
+        else:
+            # A single narrow strand, which only the rope envelope admits.
+            draw.rectangle(
+                (centre - 16, top + 40, centre + 16, bottom - 40), fill=(202, 174, 117, 255)
+            )
+    return _png(image), (plan.width_px, plan.height_px)
+
+
+def _presentation_source(asset: str) -> bytes:
+    assert asset == "portal"
+    image = Image.new("RGBA", (1536, 1024), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if True:
         for left in (150, 900):
             draw.rectangle((left, 180, left + 55, 850), fill=(202, 174, 117, 255))
             draw.rectangle((left + 330, 180, left + 385, 850), fill=(202, 174, 117, 255))
@@ -192,27 +220,68 @@ def test_paintover_source_rejects_missing_lattice_topology_drift_and_uniformity(
         require_terrain_atlas_source(uniform)
 
 
-@pytest.mark.parametrize("asset,subjects", (("ladder", 1), ("portal", 2)))
-def test_map_traversal_presentations_are_repacked_from_native_alpha(
-    asset: Literal["ladder", "portal"], subjects: int
-) -> None:
-    source = _presentation_source(asset)
-    facts = _validate_map_presentation_source(source, asset=asset)
-    canonical, report = _canonicalize_map_presentation(source, asset=asset)
+def test_portal_presentation_is_repacked_from_native_alpha() -> None:
+    source = _presentation_source("portal")
+    facts = _validate_map_presentation_source(source, asset="portal", expected_size=(1536, 1024))
+    canonical, report = _canonicalize_map_presentation(source, asset="portal")
 
-    assert facts["required_subject_count"] == subjects
-    assert report["selected_component_count"] == subjects
+    assert facts["required_subject_count"] == 2
+    assert report["selected_component_count"] == 2
     with Image.open(BytesIO(canonical)) as image:
         assert image.mode == "RGBA"
         assert image.getchannel("A").getextrema()[0] == 0
 
 
-def test_incomplete_single_rail_does_not_pass_as_a_ladder() -> None:
-    image = Image.new("RGBA", (1024, 1536), (0, 0, 0, 0))
-    ImageDraw.Draw(image).rectangle((490, 200, 530, 1330), fill=(120, 80, 40, 255))
+@pytest.mark.parametrize(
+    "roles",
+    (
+        ("ladder",),
+        ("ladder", "rope"),
+        ("ladder", "ladder", "ladder", "rope", "rope", "rope"),
+    ),
+)
+def test_climbable_atlas_is_repacked_one_cell_per_declared_variant(
+    roles: tuple[ClimbableRole, ...],
+) -> None:
+    source, size = _climbable_source(roles)
+    facts = _validate_map_presentation_source(
+        source, asset="climbable", expected_size=size, roles=roles
+    )
+    canonical, report = _canonicalize_map_presentation(source, asset="climbable", roles=roles)
 
-    with pytest.raises(ValueError, match="complete tall functional silhouette"):
-        _validate_map_presentation_source(_png(image), asset="ladder")
+    assert facts["required_subject_count"] == len(roles)
+    assert facts["index_order"] == "left_to_right"
+    assert report["selected_component_count"] == len(roles)
+    assert report["atlas_roles"] == list(roles)
+    with Image.open(BytesIO(canonical)) as image:
+        assert image.mode == "RGBA"
+        assert image.getchannel("A").getextrema()[0] == 0
+
+
+def test_climbable_rejects_a_column_whose_silhouette_is_not_its_declared_role() -> None:
+    # A sheet of two ladders, declared as one ladder and one rope. The rope column is far too
+    # wide for a strand, which is exactly what the per-role envelope exists to catch.
+    source, size = _climbable_source(("ladder", "ladder"))
+
+    with pytest.raises(ValueError, match="does not hold a rope silhouette"):
+        _validate_map_presentation_source(
+            source, asset="climbable", expected_size=size, roles=("ladder", "rope")
+        )
+
+
+def test_climbable_rejects_a_sheet_carrying_more_subjects_than_declared() -> None:
+    # Three drawn columns, two declared. The extra component must fail admission rather than be
+    # silently dropped in favour of whichever two happened to have the most area.
+    source, _ = _climbable_source(("ladder", "ladder", "ladder"))
+    two = plan_climbable_atlas(2)
+
+    with pytest.raises(ValueError):
+        _validate_map_presentation_source(
+            source,
+            asset="climbable",
+            expected_size=(two.width_px, two.height_px),
+            roles=("ladder", "ladder"),
+        )
 
 
 def test_validation_report_is_portable_and_prompt_is_material_neutral() -> None:

@@ -5,7 +5,7 @@ import { projectPreparedTerrainWorld } from "./prepared-terrain";
 function mapGeometry(
   occupancy: readonly string[],
   normalizedX = 0.45,
-): Pick<PreparedMap, "ground" | "ladder"> {
+): Pick<PreparedMap, "ground" | "climbable"> {
   return {
     ground: {
       mode: "terrain-atlas-3x3-minimal-v1",
@@ -19,17 +19,27 @@ function mapGeometry(
         media_type: "image/png",
       },
     },
-    ladder: {
-      mode: "ladder-4-tile-v1",
+    climbable: {
+      mode: "climbable-atlas-v1",
       asset: {
-        path: "maps/road/ladder.png",
+        path: "maps/road/climbable.png",
         sha256: "b".repeat(64),
         bytes: 1,
         media_type: "image/png",
       },
+      index_order: "left_to_right",
+      variants: [
+        {
+          variant_id: "bellroot_ladder",
+          role: "ladder",
+          cell_index: 0,
+          cell: { x: 0, y: 0, width: 256, height: 1280 },
+        },
+      ],
       placements: [
         {
-          ladder_id: "bellroot_ladder",
+          climbable_id: "bellroot_ladder",
+          variant_id: "bellroot_ladder",
           normalized_x: normalizedX,
           bottom_surface: "terrain",
           rise_tiles: 4,

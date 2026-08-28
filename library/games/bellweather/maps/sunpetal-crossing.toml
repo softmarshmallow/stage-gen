@@ -1,8 +1,8 @@
-schema_version = 6
-kind = "game-map-v6"
+schema_version = 7
+kind = "game-map-v7"
 game_id = "bellweather"
 map_id = "sunpetal-crossing"
-revision = 7
+revision = 8
 display_name = "Sunpetal Crossing"
 
 [view]

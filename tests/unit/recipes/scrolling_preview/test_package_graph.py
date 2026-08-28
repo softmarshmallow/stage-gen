@@ -67,8 +67,8 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     )
     assert graph.node("ui-inventory-panel-generate").depends_on == ("package-resolve",)
     assert graph.node("ui-inventory-panel-review").depends_on == ("ui-inventory-panel-validate",)
-    assert graph.node("map-crowncrag-road-ladder-validate").depends_on == (
-        "map-crowncrag-road-ladder-generate",
+    assert graph.node("map-crowncrag-road-climbable-validate").depends_on == (
+        "map-crowncrag-road-climbable-generate",
     )
     assert graph.node("map-sunpetal-crossing-portal-validate").outputs == (
         "maps/sunpetal-crossing/portal.png",
@@ -109,7 +109,7 @@ def test_package_graph_encodes_leaf_dependencies_without_coarse_wave_barriers() 
     assert "map-crowncrag-road-review" not in composite.depends_on
     assert set(graph.node("map-crowncrag-road-review").depends_on) == {
         "map-crowncrag-road-composite",
-        "map-crowncrag-road-ladder-validate",
+        "map-crowncrag-road-climbable-validate",
         "map-crowncrag-road-portal-validate",
     }
 

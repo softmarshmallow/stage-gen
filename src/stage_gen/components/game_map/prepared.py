@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v6``)."""
+"""Exact-current compound map-generation contract (``game-map-v7``)."""
 
 from __future__ import annotations
 
@@ -20,8 +20,11 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.contracts.artifacts import PersistedContractModel
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 6
+PREPARED_GAME_MAP_SCHEMA_VERSION = 7
 MAX_UNASSISTED_TERRAIN_RISE_TILES = 2
+#: Per role. Both roles together always fit one provider image, so a map never
+#: schedules more than one climbable atlas.
+MAX_CLIMBABLE_VARIANTS_PER_ROLE = 3
 
 
 def _bottom_contiguous_heights(occupancy: list[str]) -> list[int]:
@@ -212,40 +215,96 @@ class PreparedMapGround(PersistedContractModel):
         return normalized_text(value, "map ground prompt", multiline=True)
 
 
-class PreparedMapLadderPlacement(PersistedContractModel):
-    ladder_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+class PreparedMapClimbableVariant(PersistedContractModel):
+    """One climbable appearance the map generates. Role is declared, never detected."""
+
+    variant_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    prompt: str
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "map climbable variant prompt", multiline=True)
+
+
+class PreparedMapClimbablePlacement(PersistedContractModel):
+    climbable_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    variant_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     normalized_x: float = Field(gt=0.0, lt=1.0)
     bottom_surface: Literal["terrain"]
     rise_tiles: Literal[4]
 
 
-class PreparedMapLadder(PersistedContractModel):
-    mode: Literal["ladder-4-tile-v1"]
+class PreparedMapClimbable(PersistedContractModel):
+    """One atlas of climbable appearances plus the instances that place them.
+
+    A ladder carries crosswise rungs; a rope is a continuous strand. The two roles differ in
+    silhouette by roughly a factor of four, so validation admits each against its own envelope
+    rather than one shared band. Because the role is authored, nothing has to infer it.
+
+    Both roles together are bounded at ``MAX_CLIMBABLE_VARIANTS_PER_ROLE * 2``, which always fits
+    a single provider image, so no map ever schedules more than one climbable atlas.
+    """
+
+    mode: Literal["climbable-atlas-v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
-    prompt: str
-    placements: list[PreparedMapLadderPlacement] = Field(min_length=1, max_length=8)
+    ladders: list[PreparedMapClimbableVariant] = Field(
+        default_factory=list, max_length=MAX_CLIMBABLE_VARIANTS_PER_ROLE
+    )
+    ropes: list[PreparedMapClimbableVariant] = Field(
+        default_factory=list, max_length=MAX_CLIMBABLE_VARIANTS_PER_ROLE
+    )
+    placements: list[PreparedMapClimbablePlacement] = Field(min_length=1, max_length=8)
 
     @field_validator("reference_ids")
     @classmethod
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
-        unique_values(value, "map ladder reference_id")
+        unique_values(value, "map climbable reference_id")
         return value
-
-    @field_validator("prompt")
-    @classmethod
-    def validate_prompt(cls, value: str) -> str:
-        return normalized_text(value, "map ladder prompt", multiline=True)
 
     @field_validator("placements")
     @classmethod
     def validate_placements(
-        cls, value: list[PreparedMapLadderPlacement]
-    ) -> list[PreparedMapLadderPlacement]:
-        unique_values((entry.ladder_id for entry in value), "map ladder_id")
+        cls, value: list[PreparedMapClimbablePlacement]
+    ) -> list[PreparedMapClimbablePlacement]:
+        unique_values((entry.climbable_id for entry in value), "map climbable_id")
         positions = [entry.normalized_x for entry in value]
         if len(set(positions)) != len(positions):
-            raise ValueError("map ladder normalized_x values must be unique")
+            raise ValueError("map climbable normalized_x values must be unique")
         return value
+
+    @property
+    def variants(self) -> list[PreparedMapClimbableVariant]:
+        """Atlas order: every ladder left to right, then every rope.
+
+        Column index is roster index; that binding is positional and unverified.
+        """
+
+        return [*self.ladders, *self.ropes]
+
+    def role_of(self, variant_id: str) -> Literal["ladder", "rope"]:
+        if any(entry.variant_id == variant_id for entry in self.ladders):
+            return "ladder"
+        if any(entry.variant_id == variant_id for entry in self.ropes):
+            return "rope"
+        raise KeyError(f"map climbable variant {variant_id} is not declared")
+
+    @model_validator(mode="after")
+    def validate_variants(self) -> PreparedMapClimbable:
+        variants = self.variants
+        if not variants:
+            raise ValueError("map climbable must declare at least one ladder or rope variant")
+        unique_values((entry.variant_id for entry in variants), "map climbable variant_id")
+        declared = {entry.variant_id for entry in variants}
+        unknown = sorted({entry.variant_id for entry in self.placements} - declared)
+        if unknown:
+            raise ValueError(
+                "map climbable placements reference undeclared variants: " + ", ".join(unknown)
+            )
+        unplaced = sorted(declared - {entry.variant_id for entry in self.placements})
+        if unplaced:
+            raise ValueError("map climbable declares unplaced variants: " + ", ".join(unplaced))
+        return self
 
 
 class PreparedMapPortalEndpoint(PersistedContractModel):
@@ -285,8 +344,8 @@ class PreparedMapPortal(PersistedContractModel):
 
 
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[6]
-    kind: Literal["game-map-v6"]
+    schema_version: Literal[7]
+    kind: Literal["game-map-v7"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -296,7 +355,7 @@ class PreparedGameMap(PersistedContractModel):
     references: list[PreparedMapReference] = Field(min_length=1, max_length=32)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
     ground: PreparedMapGround
-    ladder: PreparedMapLadder | None = None
+    climbable: PreparedMapClimbable | None = None
     portal: PreparedMapPortal | None = None
 
     @field_validator("display_name")
@@ -327,8 +386,8 @@ class PreparedGameMap(PersistedContractModel):
         selected_ids = {
             reference_id for layer in self.layers for reference_id in layer.reference_ids
         } | set(self.ground.reference_ids)
-        if self.ladder is not None:
-            selected_ids.update(self.ladder.reference_ids)
+        if self.climbable is not None:
+            selected_ids.update(self.climbable.reference_ids)
         if self.portal is not None:
             selected_ids.update(self.portal.reference_ids)
         unknown = sorted(selected_ids - reference_ids)
@@ -347,13 +406,14 @@ class PreparedGameMap(PersistedContractModel):
             raise ValueError("every non-base map layer must use transparent alpha")
         occupancy = self.ground.occupancy
         width = len(occupancy[0])
-        if self.ladder is not None:
-            for placement in self.ladder.placements:
+        if self.climbable is not None:
+            for placement in self.climbable.placements:
                 column = normalized_terrain_column(placement.normalized_x, width)
                 lower_surface = bottom_contiguous_surface_row(occupancy, column)
                 if lower_surface is None:
                     raise ValueError(
-                        f"map ladder {placement.ladder_id} must stand on bottom-supported terrain"
+                        f"map climbable {placement.climbable_id} must stand on "
+                        "bottom-supported terrain"
                     )
                 upper_surface = lower_surface - placement.rise_tiles
                 if (
@@ -362,7 +422,7 @@ class PreparedGameMap(PersistedContractModel):
                     or (upper_surface > 0 and occupancy[upper_surface - 1][column] != "0")
                 ):
                     raise ValueError(
-                        f"map ladder {placement.ladder_id} requires an exposed upper deck "
+                        f"map climbable {placement.climbable_id} requires an exposed upper deck "
                         f"exactly {placement.rise_tiles} tiles above its lower surface"
                     )
         if self.portal is not None:
@@ -406,12 +466,14 @@ def canonical_prepared_game_map_json(game_map: PreparedGameMap) -> bytes:
 
 
 __all__ = [
+    "MAX_CLIMBABLE_VARIANTS_PER_ROLE",
     "PREPARED_GAME_MAP_SCHEMA_VERSION",
     "PreparedGameMap",
     "PreparedMapContinuity",
     "PreparedMapGround",
-    "PreparedMapLadder",
-    "PreparedMapLadderPlacement",
+    "PreparedMapClimbable",
+    "PreparedMapClimbablePlacement",
+    "PreparedMapClimbableVariant",
     "PreparedMapLayer",
     "PreparedMapLayerPresentation",
     "PreparedMapPortal",
