@@ -11,6 +11,12 @@ That directory contains efficient WebP presentation copies rather than
 canonical game inputs, documentation evidence, or runtime assets. Lossless
 working files and raw captures remain ignored.
 
+Documentation media lives under `docs/media/` for raster figures and captures
+and `docs/diagrams/` for authored vector diagrams. Both hold work the repository
+authors to explain a contract, so neither is a generated-media publication root
+and neither uses `.meta.json` sidecars. Encode rasters as WebP, and bind a
+figure to the build it was composited from in the prose that carries it.
+
 ## Git LFS decision
 
 Git LFS is not enabled. A fresh OSS checkout should not depend on another
@@ -75,7 +81,9 @@ does not move older blobs automatically.
   evidence and reviews. They do not use generated-output `.meta.json` sidecars.
 - Generated media in declared publication roots must be enumerated in
   [`generated-media-inventory.json`](generated-media-inventory.json) and pass
-  the [generated-media publication gate](generated-media-publication.md).
+  the [generated-media publication gate](generated-media-publication.md). The
+  roots are provider output published as art; adding one is a deliberate
+  decision, not the default for any directory that happens to hold images.
 - Purging a rights-sensitive blob requires rewriting every reachable ref and
   coordinating the remote history update; deleting it only at HEAD is not
   sufficient.

@@ -1540,32 +1540,19 @@ def test_media_git_size_limits_are_enforced_without_large_fixtures() -> None:
 
 
 def test_current_theme_art_direction_derivative_is_exactly_bound() -> None:
+    # `docs/media` is not a publication root, so this sidecar is a documentation record
+    # rather than a gate-enforced one. It is the only place the source prompts and the
+    # redistribution basis for that published image are written down, so its digests
+    # still have to match the bytes they describe.
     repository = Path(__file__).parents[2]
-    inventory = cast(
+    artifact = repository / "docs/media/theme-art-direction-example.webp"
+    sidecar = cast(
         dict[str, Any],
-        json.loads(
-            (repository / "docs/generated-media-inventory.json").read_text(encoding="utf-8")
-        ),
+        json.loads(Path(f"{artifact}.meta.json").read_text(encoding="utf-8")),
     )
-    entry = next(
-        item
-        for item in cast(list[dict[str, Any]], inventory["media"])
-        if item.get("provenance_kind") == "generated_image_derivative"
-    )
-    artifact = repository / cast(str, entry["path"])
-    sidecar_path = Path(f"{artifact}.meta.json")
-    sidecar_bytes = sidecar_path.read_bytes()
-    sidecar = cast(dict[str, Any], json.loads(sidecar_bytes.decode("utf-8")))
-    observed = {
-        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
-        "bytes": artifact.stat().st_size,
-    }
 
-    assert entry["sidecar_sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
-    assert (
-        validate_published_media_record({"entry": entry, "observed": observed, "sidecar": sidecar})
-        == []
-    )
+    assert sidecar["artifact"]["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
+    assert sidecar["artifact"]["bytes"] == artifact.stat().st_size
     report = repository / cast(str, sidecar["visual_review"]["evidence"]["path"])
     assert (
         sidecar["visual_review"]["evidence"]["sha256"]
@@ -1615,20 +1602,20 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
     inventory_path = repository / "docs/generated-media-inventory.json"
     result = check_generated_media_publication(repository, inventory_path)
     assert result.failures == ()
-    assert result.media_count == 7
+    assert result.media_count == 2
 
     inventory = cast(dict[str, Any], json.loads(inventory_path.read_text(encoding="utf-8")))
-    entries = {entry["path"]: entry for entry in cast(list[dict[str, Any]], inventory["media"])}
-    expected = {
-        "docs/media/gameplay-showcase.mp4": (
-            "5ed3ba2648dc96d904bc38c9d98457aee2e66ebe08ff2d7921204d38fb9161b8",
-            7_087_068,
-        ),
-        "docs/media/gameplay-showcase.poster.png": (
-            "61c2e77b41df4e0fa28df060e831593312232ad84c05d81005e136867fc4554f",
-            891_557,
-        ),
-    }
+    # Documentation media is not a publication root. The gate covers provider output
+    # published as art, not figures and captures the repository authors to explain itself.
+    assert "docs/media" not in cast(list[str], inventory["roots"])
+    assert not any(
+        cast(str, entry["path"]).startswith("docs/media/")
+        for entry in cast(list[dict[str, Any]], inventory["media"])
+    )
+
+
+def test_gameplay_demo_approval_manifest_remains_fully_reviewed() -> None:
+    repository = Path(__file__).parents[2]
     approval_manifest = cast(
         dict[str, Any],
         json.loads(
@@ -1667,54 +1654,3 @@ def test_current_repository_generated_media_inventory_remains_strictly_valid() -
     assert all(asset["visualReview"]["result"] == "pass" for asset in approved_assets)
     assert all(asset["visualReview"]["independent"] is True for asset in approved_assets)
     assert all(asset["rights"]["status"] == "redistribution-approved" for asset in approved_assets)
-    publication_text = inventory_path.read_text(encoding="utf-8")
-    for path, (digest, byte_count) in expected.items():
-        review = cast(dict[str, Any], entries[path]["visualReview"])
-        assert review["artifactSha256"] == digest
-        assert review["artifactBytes"] == byte_count
-        assert review["verificationReportSha256"] == (
-            "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
-        )
-        sidecar_path = repository / f"{path}.meta.json"
-        assert (
-            entries[path]["sidecarSha256"] == hashlib.sha256(sidecar_path.read_bytes()).hexdigest()
-        )
-        sidecar = cast(dict[str, Any], json.loads(sidecar_path.read_text(encoding="utf-8")))
-        assert sidecar["state"] == "redistribution-approved"
-        assert sidecar["visualReview"]["artifactSha256"] == digest
-        assert sidecar["visualReview"]["artifactBytes"] == byte_count
-        assert sidecar["visualReview"]["evidence"]["sha256"] == (
-            "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
-        )
-        capture = cast(dict[str, Any], sidecar["capture"])
-        assert capture["producerManifest"] == {
-            "path": "fixtures/gameplay-demo/asset-manifest.json",
-            "sha256": "edf1b2913afeae906275588e745023ead6797ca7ed7839a72c0789243fd7b8ca",
-            "bytes": 78_630,
-        }
-        assert capture["approvalManifest"] == {
-            "path": "fixtures/gameplay-demo/approval-manifest.json",
-            "sha256": "7818a18ea177ed47203e1d47d22b1d669055f13b4eb113801326c7cd86629048",
-            "bytes": 16_869,
-        }
-        asset_set = cast(dict[str, Any], capture["assetSet"])
-        assert asset_set["count"] == 18
-        assert asset_set["aggregate"]["sha256"] == (
-            "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a"
-        )
-        historical_asset_records = {
-            (asset["id"], asset["path"], asset["sha256"], asset["bytes"])
-            for asset in cast(list[dict[str, Any]], asset_set["assets"])
-        }
-        assert historical_asset_records.isdisjoint(assets_promoted_after_capture)
-        assert historical_asset_records == expected_asset_records - assets_promoted_after_capture
-        publication_text += sidecar_path.read_text(encoding="utf-8")
-
-    assert "6bb9d428aead88df25e91dfe7761382e23673a77c5a1d2a1622019554184d30a" in publication_text
-    for retired in (
-        "original synthetic fixture assets",
-        "ec3c200b40ccd12521b5535ed46a3b7256ec1dc4fee1acfde2ec95c1540e694c",
-        "6da7281ac29f91f20cb65099088af357420906946bdfde0df7974ec8e844bdec",
-        "independent-visual-attestation-gameplay-showcase-2026-08-16",
-    ):
-        assert retired not in publication_text

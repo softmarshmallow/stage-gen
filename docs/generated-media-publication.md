@@ -13,10 +13,18 @@ blanket project policy. CC0 is acceptable only when the recorded basis is an
 artifact-specific rights-holder dedication.
 
 This gate governs generated outputs committed to repository publication roots.
-It does not impose generated-output sidecars on manually prepared game inputs.
-Those inputs keep their exact digest, origin and rights basis in the authored
-contract and bind semantic review separately; they do not need adjacent
-`.meta.json`, `.source.meta.json`, or `.LICENSE.md` files.
+Two kinds of media sit outside it, and neither needs an adjacent `.meta.json`,
+`.source.meta.json`, or `.LICENSE.md` file.
+
+Manually prepared game inputs keep their exact digest, origin and rights basis
+in the authored contract, and bind semantic review separately.
+
+Documentation media under `docs/` — figures, diagrams, and captures the
+repository composites from its own output to explain itself — is not a
+publication root. It is authored to illustrate a contract rather than published
+as art, and a sidecar beside it would have no reader: the checker is the only
+thing that would ever open one. Bind such a figure to the build it came from in
+the prose that carries it, where a person will actually see it.
 
 ## Publication records
 
@@ -122,15 +130,12 @@ independent verification. For the current Lyria-generated loop, SynthID is
 expected from provider documentation but has not been independently verified.
 A watermark expectation neither proves ownership nor grants a license.
 
-Browser-capture video and poster entries explicitly record `kind`, set
-`synthIdExpected` to false, and require an independent visual-review pass tied
-to a stable attestation. Their inventory entries also record `sidecarSha256`,
-which must match the exact adjacent provenance-sidecar bytes. Related video and
-poster artifacts each carry the artifact-specific redistribution decision in
-their generated-output provenance. Approval applies only to the unchanged,
-digest-matched files and is not a blanket grant for standalone reuse.
+The checker retains a browser-capture branch for video and poster entries. No
+capture is currently enumerated: the gameplay showcase and its poster are
+documentation media, and they record their own determinism through the capture
+harness rather than through this gate.
 
-Generated-image documentation derivatives use a separate, backward-compatible
+Generated-image derivatives use a separate, backward-compatible
 inventory branch selected by
 `provenance_kind: "generated_image_derivative"`. New records use
 `lower_snake_case` throughout: `sidecar_sha256`, `review_status`,
@@ -139,11 +144,13 @@ selector and records `inputs`, `transformation`, `visual_review`, and `rights`;
 it must not masquerade as a browser `capture`.
 
 `provenance_kind` selects the generic derivative safeguards. A required
-`lineage_kind` selects the lineage-specific validator. The published
+`lineage_kind` selects the lineage-specific validator. The
 [Visual Content Direction example](visual-content-direction-case-study.md) uses
 the machine identifier `theme_art_direction_comparison_v1`, which fixes the
 supported top-level fields and validates its exact two-input, shared-seed, and
-six-control compiler lineage.
+six-control compiler lineage. That image is documentation media, so its record
+is no longer gate-enforced; it is kept because it is the only place the source
+prompts and the redistribution basis for that published image are written down.
 Any future derivative subtype needs its own explicit validator before it can
 pass publication; unknown or missing lineage kinds fail closed.
 

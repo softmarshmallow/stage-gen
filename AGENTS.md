@@ -33,8 +33,10 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 - Use the existing allowlisted provider-key loader. Treat `.env` as optional and local; never assume it is populated,
   overwrite, print, or commit it, or copy provider secrets into `web/`. `.env.example` owns non-secret defaults.
 - Offline operation is the default. Live/provider calls require explicit task intent and documented opt-in. Re-check current provider contracts before changing adapters or model identifiers.
-- Generated artifacts require canonical portable provenance. Never persist credentials, authorization headers, signed
-  URLs, embedded references, private absolute or temporary paths. Confine writes and reject traversal or symlink escapes.
+- Pipeline run artifacts require canonical portable provenance, because the manifest, cache, and consumers read it.
+  A figure or capture authored for the docs is not a pipeline artifact and gets none. Never persist credentials,
+  authorization headers, signed URLs, embedded references, private absolute or temporary paths. Confine writes and
+  reject traversal or symlink escapes.
 
 ## Media and rights
 
@@ -45,8 +47,9 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 - Accepted generated visuals require semantic review by someone other than their producer. Reference inspection and
   exploration do not; label exploration unreviewed. Audio quality claims need a separate listening verdict.
   Semantic regeneration runs are not provider retries.
-- Generated media is unapproved by default. Follow publication and storage gates before commit or publication; public
-  binding, activation, or publication requires explicit authorization.
+- Generated media published as art is unapproved by default. Follow publication and storage gates before commit or
+  publication; public binding, activation, or publication requires explicit authorization. The gate covers the declared
+  publication roots only; `docs/media` and `docs/diagrams` are documentation and carry no sidecar or inventory entry.
 
 ## Verification
 

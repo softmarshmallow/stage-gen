@@ -85,6 +85,7 @@ STYLE_DICTIONARY_ROOT = PurePosixPath(*CONCEPT_STYLE_DICTIONARY_PREFIX)
 STYLE_DICTIONARY_MANIFEST = STYLE_DICTIONARY_ROOT / "manifest.json"
 STYLE_DICTIONARY_REVIEW = STYLE_DICTIONARY_ROOT / "images/style-dictionary.visual-review.md"
 README_MARKETING_ROOT = PurePosixPath(".github/assets/readme")
+DOCUMENTED_MEDIA_RECORD = PurePosixPath("docs/media/theme-art-direction-example.webp")
 STYLE_DICTIONARY_REVIEWERS = {
     "mobile-live-service": ("mobile_exact_webp_reviewer_2026_08_26",),
     "indie-pc-console": (
@@ -366,17 +367,22 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                 check=False,
             )
             assert ignored.returncode == 1
-        if relative.parts[0] == "docs" or concept_prefix == CONCEPT_GALLERY_PREFIX:
+        if relative.parts[0] == "docs":
+            # Documentation media is not a publication root, so it carries no provenance
+            # sidecar. The one allowance is a record kept for its content rather than for
+            # the gate: the source prompts and redistribution basis behind a published
+            # AI-generated image, cited from docs/visual-content-direction-case-study.md.
+            assert (Path(f"{path}.meta.json").exists()) == (relative == DOCUMENTED_MEDIA_RECORD)
+        if concept_prefix == CONCEPT_GALLERY_PREFIX:
             sidecar = Path(f"{path}.meta.json")
             assert sidecar.is_file() and not sidecar.is_symlink()
-            if concept_prefix == CONCEPT_GALLERY_PREFIX:
-                sidecar_relative = sidecar.relative_to(repository).as_posix()
-                sidecar_ignored = subprocess.run(
-                    ["git", "check-ignore", "--quiet", "--", sidecar_relative],
-                    cwd=repository,
-                    check=False,
-                )
-                assert sidecar_ignored.returncode == 1
+            sidecar_relative = sidecar.relative_to(repository).as_posix()
+            sidecar_ignored = subprocess.run(
+                ["git", "check-ignore", "--quiet", "--", sidecar_relative],
+                cwd=repository,
+                check=False,
+            )
+            assert sidecar_ignored.returncode == 1
         if is_style_dictionary:
             assert not Path(f"{path}.meta.json").exists()
     assert total <= GIT_MEDIA_TOTAL_LIMIT

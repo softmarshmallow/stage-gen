@@ -2,7 +2,6 @@
   "schemaVersion": 1,
   "roots": [
     "src/stage_gen/resources/music",
-    "docs/media",
     "concept-studio/gallery"
   ],
   "media": [
@@ -22,112 +21,6 @@
         "reviewedAt": "2026-08-14T12:38:08.000Z",
         "attestationId": "conversation-attestation-2026-08-14T123808Z",
         "attestedAt": "2026-08-14T12:38:08.000Z"
-      }
-    },
-    {
-      "path": "docs/media/gameplay-showcase.mp4",
-      "sidecarSha256": "c7a1a9a730a222a85b5edb9a6730f641eed81d7a2902b6fde42045517d1d3e86",
-      "kind": "video",
-      "reviewStatus": "repository-approved",
-      "synthIdExpected": false,
-      "visualReview": {
-        "status": "approved",
-        "result": "pass",
-        "independent": true,
-        "reviewedBy": "independent verification subagent",
-        "authorityBasis": "reviewer independent from the capture producer; exact final-source recapture digest-bound visual and technical verification",
-        "reviewedAt": "2026-08-16T12:00:05.000Z",
-        "attestationId": "independent-final-source-recapture-c312124fadd636ff",
-        "attestedAt": "2026-08-16T12:00:05.000Z",
-        "artifactSha256": "5ed3ba2648dc96d904bc38c9d98457aee2e66ebe08ff2d7921204d38fb9161b8",
-        "artifactBytes": 7087068,
-        "verificationReportSha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
-      }
-    },
-    {
-      "path": "docs/media/gameplay-showcase.poster.png",
-      "sidecarSha256": "7172d35cb30f103020301fd23d30eec31f74137f541d305a4751a2d8e289d924",
-      "kind": "image",
-      "reviewStatus": "repository-approved",
-      "synthIdExpected": false,
-      "visualReview": {
-        "status": "approved",
-        "result": "pass",
-        "independent": true,
-        "reviewedBy": "independent verification subagent",
-        "authorityBasis": "reviewer independent from the capture producer; exact final-source recapture digest-bound visual and technical verification",
-        "reviewedAt": "2026-08-16T12:00:05.000Z",
-        "attestationId": "independent-final-source-recapture-c312124fadd636ff",
-        "attestedAt": "2026-08-16T12:00:05.000Z",
-        "artifactSha256": "61c2e77b41df4e0fa28df060e831593312232ad84c05d81005e136867fc4554f",
-        "artifactBytes": 891557,
-        "verificationReportSha256": "c312124fadd636ff510bd290db231b20523089f78d77b06a8e490c374377c2f8"
-      }
-    },
-    {
-      "path": "docs/media/gameplay-model-demo.png",
-      "sidecarSha256": "a28ba532df1dc2b5d72ff8fb815c60d2e770a3d7efde3b819cdab1eceea4111e",
-      "kind": "image",
-      "reviewStatus": "repository-approved",
-      "synthIdExpected": false,
-      "visualReview": {
-        "status": "approved",
-        "result": "pass",
-        "independent": true,
-        "reviewedBy": "independent visual verification subagent",
-        "authorityBasis": "reviewer independent from the capture producer; exact digest-bound acceptance-spec visual verification",
-        "reviewedAt": "2026-08-19T09:08:18.000Z",
-        "attestationId": "independent-readme-screenshot-visual-9194172d56b405d8",
-        "attestedAt": "2026-08-19T09:08:18.000Z",
-        "artifactSha256": "2fcc8564c0f9a2e9f5003c968536bbe8158b3234e853c678749a068834d16145",
-        "artifactBytes": 1794459,
-        "verificationReportPath": "docs/media/gameplay-model-demo.visual-review.md",
-        "verificationReportSha256": "9194172d56b405d89e4781ea194ffe435cb1e59f904d5b7f344ad1c83ea733b2"
-      }
-    },
-    {
-      "path": "docs/media/dialogue-scene-showcase.webp",
-      "sidecarSha256": "08551963421bf1bb18637fdd4f147d8f3d1c7e164c1094062651f52cb0b5d170",
-      "kind": "image",
-      "reviewStatus": "repository-approved",
-      "synthIdExpected": false,
-      "visualReview": {
-        "status": "approved",
-        "result": "pass",
-        "independent": true,
-        "reviewedBy": "independent visual-verification subagent",
-        "authorityBasis": "reviewer independent from the browser-capture producer; exact digest-bound README WebP verification",
-        "reviewedAt": "2026-08-19T19:47:39.000Z",
-        "attestationId": "independent-dialogue-showcase-webp-94efbbfba6485fad",
-        "attestedAt": "2026-08-19T19:47:39.000Z",
-        "artifactSha256": "234c68fbc458f9281e06e9e3004fb8f9ee6df3a9e93db2578f7e13a148634cbe",
-        "artifactBytes": 82910,
-        "verificationReportPath": "docs/media/dialogue-scene-showcase.visual-review.md",
-        "verificationReportSha256": "ce97c69966106bb29fb3ae02fca669c0bd36193374d3b85080547ca18e2a40ba"
-      }
-    },
-    {
-      "path": "docs/media/theme-art-direction-example.webp",
-      "provenance_kind": "generated_image_derivative",
-      "lineage_kind": "theme_art_direction_comparison_v1",
-      "kind": "image",
-      "sidecar_sha256": "82582d6558fdaa6e2843e2d480cc012ee9638e1db7fa1a47cc931a72d4e19db4",
-      "review_status": "repository-approved",
-      "synth_id_expected": false,
-      "visual_review": {
-        "status": "approved",
-        "result": "pass",
-        "independent": true,
-        "reviewed_by": "independent visual-review subagent",
-        "authority_basis": "reviewer independent from the deterministic derivative producer; exact digest-bound documentation-derivative semantic verification",
-        "reviewed_at": "2026-08-20T13:45:15Z",
-        "attestation_id": "independent-theme-art-direction-webp-7ad7b8d619664aff",
-        "attested_at": "2026-08-20T13:45:15Z",
-        "artifact_sha256": "7ad7b8d619664aff315f34cb0188e7ddc0d35b1ed7fdc057bf0962a81dbee512",
-        "artifact_bytes": 127304,
-        "verification_report_path": "docs/media/theme-art-direction-example.visual-review.md",
-        "verification_report_sha256": "cd9ae66bd208ddaac80d1bf17d8f9b4f9446f004a304ce30025a85ba6fcdf7d5",
-        "verification_report_bytes": 2005
       }
     },
     {

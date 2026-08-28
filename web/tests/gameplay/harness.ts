@@ -20,8 +20,6 @@ import {
   generateGameplayFixture,
 } from "./fixture";
 import {
-  GAMEPLAY_DEMO_APPROVAL_MANIFEST,
-  GAMEPLAY_DEMO_ASSET_MANIFEST,
   GAMEPLAY_MODEL_ASSET_CONTRACTS,
   GAMEPLAY_MODEL_REQUIRED_ASSET_KEYS,
   GAMEPLAY_MODEL_TERRAIN_SEED,
@@ -2616,16 +2614,6 @@ export function resolveGameplayCapturePath(requested: string): string {
   return path.join(REPO_ROOT, ...CAPTURE_VIDEO_PATH.split("/"));
 }
 
-async function sourceReference(
-  repositoryPath: string,
-): Promise<{ path: string; sha256: string }> {
-  const sourcePath = path.join(REPO_ROOT, ...repositoryPath.split("/"));
-  return {
-    path: repositoryPath,
-    sha256: sha256(await fs.readFile(sourcePath)),
-  };
-}
-
 async function contentReference(
   repositoryPath: string,
 ): Promise<{ path: string; sha256: string; bytes: number }> {
@@ -2785,13 +2773,6 @@ export function validateFastStartMp4(bytes: Buffer): void {
     throw new Error(
       "capture MP4 does not have a complete moov box before mdat",
     );
-  }
-}
-
-function assertPortableMetadata(value: unknown): void {
-  const rendered = JSON.stringify(value);
-  if (/\/(?:private\/tmp|tmp|Users|var\/folders)\//.test(rendered)) {
-    throw new Error("capture metadata contains an unstable absolute path");
   }
 }
 
@@ -3071,14 +3052,10 @@ export async function captureDeterministicGameplay(
   const realRoot = await fs.realpath(captureRoot);
   if (realRoot !== captureRoot)
     throw new Error("gameplay capture root must not be a symlink");
-  const targetMetadata = `${target}.meta.json`;
-  const posterMetadata = `${posterTarget}.meta.json`;
-  await assertReplaceable([
-    target,
-    posterTarget,
-    targetMetadata,
-    posterMetadata,
-  ]);
+  // The capture writes no provenance sidecar. `docs/media` is documentation, not a
+  // publication root, and determinism is re-established by re-running `--verify`
+  // rather than by a record beside the file that nothing reads.
+  await assertReplaceable([target, posterTarget]);
 
   return await withVerifiedGameplay(async (evidence, workspace) => {
     const frames = path.join(workspace, "frames");
@@ -3166,148 +3143,9 @@ export async function captureDeterministicGameplay(
       .split("\n")[0]
       ?.trim();
     if (!ffprobeVersion) throw new Error("ffprobe version missing");
-    const captureVersion =
-      `Playwright ${packageJson.version}; Chromium ${evidence.chromiumVersion}; ` +
-      `${ffmpegVersion}; ${ffprobeVersion}`;
-    const sharedParams = {
-      automation_mode: GAMEPLAY_AUTOMATION_VERSION,
-      browser: "chromium",
-      playwright_version: packageJson.version,
-      chromium_version: evidence.chromiumVersion,
-      ffmpeg_version: ffmpegVersion,
-      ffprobe_version: ffprobeVersion,
-      viewport: { width: 1280, height: 720 },
-      device_scale_factor: 1,
-      frame_count: GAMEPLAY_FRAME_COUNT,
-      frame_rate: 30,
-      clock: { mode: "manual-fixed-step", step_ms: GAMEPLAY_STEP_MS },
-      fixture_sha256: evidence.fixtureDigest,
-      transcript_sha256: evidence.first.transcriptDigest,
-      checkpoint_sha256: evidence.first.selectedFrameHashes,
-      event_frames: verificationFrom(evidence).eventFrames,
-    };
-    const source = await sourceReference("web/scripts/gameplay/showcase.ts");
-    const verifier = await sourceReference("web/tests/gameplay/harness.ts");
-    const generator = Object.freeze({
-      pathAtCapture: verifier.path,
-      ref: `sha256:${verifier.sha256}`,
-      sha256: verifier.sha256,
-    });
-    const fixture = await sourceReference("web/tests/gameplay/model-assets.ts");
-    const fixtureGenerator = Object.freeze({
-      pathAtCapture: fixture.path,
-      ref: `sha256:${fixture.sha256}`,
-      sha256: fixture.sha256,
-    });
-    const timeline = await sourceReference("web/tests/gameplay/timeline.ts");
-    const producerManifest = await contentReference(
-      `fixtures/gameplay-demo/${GAMEPLAY_DEMO_ASSET_MANIFEST}`,
-    );
-    const approvalManifest = await contentReference(
-      `fixtures/gameplay-demo/${GAMEPLAY_DEMO_APPROVAL_MANIFEST}`,
-    );
-    const assetSet = await modelAssetBundleReference();
-    const videoSidecar = {
-      schema_version: 1,
-      state: "unreviewed",
-      visualReview: { status: "pending", independent: false },
-      artifact: {
-        path: CAPTURE_VIDEO_PATH,
-        media_type: "video/mp4",
-        sha256: videoDigest,
-        bytes: videoBytes.byteLength,
-      },
-      capture: {
-        tool: "Playwright canvas frames and ffmpeg libx264",
-        version: captureVersion,
-        params: {
-          ...sharedParams,
-          ffmpeg_args: [
-            "-framerate",
-            "30",
-            "-start_number",
-            "1",
-            "-i",
-            "frame-%04d.png",
-            "-frames:v",
-            "900",
-            "-an",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "slow",
-            "-crf",
-            "26",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            "gameplay-showcase.mp4",
-          ],
-          ffprobe_args: [
-            "-v",
-            "error",
-            "-show_entries",
-            "format=format_name,duration,size:stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate",
-            "-of",
-            "json",
-            "gameplay-showcase.mp4",
-          ],
-        },
-        source,
-        generator,
-        verifier,
-        fixture,
-        fixtureGenerator,
-        timeline,
-        producerManifest,
-        approvalManifest,
-        assetSet,
-        mp4,
-      },
-    };
-    const posterSidecar = {
-      schema_version: 1,
-      state: "unreviewed",
-      visualReview: { status: "pending", independent: false },
-      artifact: {
-        path: CAPTURE_POSTER_PATH,
-        media_type: "image/png",
-        sha256: posterDigest,
-        bytes: posterBytes.byteLength,
-      },
-      capture: {
-        tool: "Playwright deterministic canvas checkpoint",
-        version: captureVersion,
-        params: {
-          ...sharedParams,
-          representative_frame: GAMEPLAY_POSTER_FRAME,
-          representative_frame_sha256: posterDigest,
-        },
-        source,
-        generator,
-        verifier,
-        fixture,
-        fixtureGenerator,
-        timeline,
-        producerManifest,
-        approvalManifest,
-        assetSet,
-      },
-    };
-    assertPortableMetadata(videoSidecar);
-    assertPortableMetadata(posterSidecar);
     await installCaptureFiles([
       { target, bytes: videoBytes },
       { target: posterTarget, bytes: posterBytes },
-      {
-        target: targetMetadata,
-        bytes: Buffer.from(`${JSON.stringify(videoSidecar, null, 2)}\n`),
-      },
-      {
-        target: posterMetadata,
-        bytes: Buffer.from(`${JSON.stringify(posterSidecar, null, 2)}\n`),
-      },
     ]);
     return Object.freeze({
       version: GAMEPLAY_AUTOMATION_VERSION,
