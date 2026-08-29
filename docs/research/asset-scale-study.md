@@ -239,3 +239,18 @@ call, no retouching, and no pixel the pipeline did not already produce. Both wer
 `out/bellweather-prepared-v11-bound`, whose manifest digest is
 `e75a5a3657241cbac4d087b56268cb13f808bc7ce5f9cb2402088043da51c4b2`, so the heights drawn in the
 figures and the numbers quoted above come from one build.
+
+`scripts/render_asset_scale_figures.py` composites both figures and prints the manifest digest it
+rendered from, so a reader can confirm a figure against the build quoted here. That proves the
+sizing arithmetic and the composition; it does not approve generated appearance, and it authors
+no contract. The judged heights and per-state multipliers live in the script as the figure inputs
+they are — the study is where they are argued, the specs are where the vocabulary is ratified, and
+neither reads them back from the renderer.
+
+```sh
+uv run python scripts/render_asset_scale_figures.py \
+    --package out/bellweather-prepared-v11-bound --output docs/media
+```
+
+Glyph rasterization depends on the fonts installed on the rendering machine, so the committed
+bytes are one author's render rather than a cross-machine reproducible artifact.
