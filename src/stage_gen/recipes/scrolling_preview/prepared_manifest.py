@@ -6,7 +6,7 @@ import hashlib
 import json
 import shutil
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -14,6 +14,7 @@ from typing import Any, Literal
 from PIL import Image
 
 from stage_gen.components.game_content import MotionPresentation, PropContent
+from stage_gen.components.game_contract.package import PreparedScale
 from stage_gen.components.game_map import PreparedMapLayer
 from stage_gen.components.game_map.prepared import (
     load_prepared_map_terrain_bytes,
@@ -21,7 +22,17 @@ from stage_gen.components.game_map.prepared import (
 )
 from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.media import measure_alpha_ground_contact
+from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.scrolling_preview.asset_unit import (
+    ResolvedMagnitude,
+    admit_rank_ladder,
+    calibrate_subject,
+    measure_subject_extent,
+    resolve_declared_magnitude,
+    resolve_player_magnitude,
+    resolve_rank_magnitude,
+)
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     dialogue_atlas_grid,
     motion_atlas_geometry,
@@ -32,6 +43,13 @@ from stage_gen.recipes.scrolling_preview.terrain_design import terrain_artifact_
 from stage_gen.reliability import atomic_write_json
 
 PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 9
+#: The render projection the scrolling-preview consumer draws at. This is the only place
+#: the asset unit meets pixels, and a consumer multiplies through it exactly once.
+RUNTIME_TILE_PX = 64
+
+#: The state the asset unit measures. Every other state reaches its scale through a rebase
+#: multiplier, so measuring a second one would create a second authority for one quantity.
+_BASELINE_STATE = "idle"
 PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v9"
 
 
@@ -181,6 +199,9 @@ def _assemble_prepared_runtime(
     roots = tuple(artifact_roots)
 
     artifacts: dict[str, dict[str, object]] = {}
+    scale = package.game.scale
+    # Silhouette height carries threat, so the ladder is admitted before anything reads it.
+    admit_rank_ladder(scale, {mob.mob_id: mob.rank for mob in package.mobs.mobs})
 
     def publish(relative_path: str) -> dict[str, object]:
         existing = artifacts.get(relative_path)
@@ -207,6 +228,13 @@ def _assemble_prepared_runtime(
             "prop_id": prop.prop_id,
             "display_name": prop.display_name,
             "ground_contact_y_normalized": float(normalized),
+            "calibration": _subject_calibration(
+                output_dir,
+                relative_path,
+                resolve_declared_magnitude(scale, prop.height_units, subject=prop.prop_id),
+                scale,
+                subject=prop.prop_id,
+            ),
             "asset": asset,
         }
 
@@ -363,6 +391,25 @@ def _assemble_prepared_runtime(
             publish(f"content/players/{player.player_id}/dialogue.png"),
             player.dialogue_art.expressions,
         ),
+        "calibration": {
+            # The magnitude the unit is defined by, measured on the baseline frame alone, and the
+            # per-state ratios that bring every other atlas onto it. The pair is deliberate: the
+            # first is authored input and its measurement, the second is derived output.
+            **_subject_calibration(
+                output_dir,
+                f"content/players/{player.player_id}/states/{_BASELINE_STATE}.png",
+                resolve_player_magnitude(None),
+                scale,
+                subject=player.player_id,
+                columns=motion_atlas_geometry("player", _BASELINE_STATE).columns,
+            ),
+            **_motion_rebase_binding(
+                output_dir,
+                publish,
+                player.player_id,
+                [motion.state for motion in player.motions],
+            ),
+        },
     }
 
     mobs = [
@@ -380,6 +427,14 @@ def _assemble_prepared_runtime(
                 )
                 for motion in mob.motions
             },
+            "calibration": _subject_calibration(
+                output_dir,
+                f"content/mobs/{mob.mob_id}/states/{mob.motions[0].state}.png",
+                resolve_rank_magnitude(scale, mob.rank),
+                scale,
+                subject=mob.mob_id,
+                columns=motion_atlas_geometry("mob", mob.motions[0].state).columns,
+            ),
         }
         for mob in package.mobs.mobs
     ]
@@ -400,6 +455,14 @@ def _assemble_prepared_runtime(
                 publish(f"content/npcs/{npc.npc_id}/dialogue.png"),
                 npc.dialogue_expressions,
             ),
+            "calibration": _subject_calibration(
+                output_dir,
+                f"content/npcs/{npc.npc_id}/world.png",
+                resolve_declared_magnitude(scale, npc.height_units, subject=npc.npc_id),
+                scale,
+                subject=npc.npc_id,
+                columns=motion_atlas_geometry("npc", npc.motions[0].state).columns,
+            ),
         }
         for npc in package.npcs.npcs
     ]
@@ -410,7 +473,16 @@ def _assemble_prepared_runtime(
             "item_id": item.item_id,
             "display_name": item.display_name,
             "item_kind": item.item_kind,
+            # Published before it is measured: the calibration describes the bytes a consumer
+            # will load, not the bytes the run happened to produce.
             "asset": publish(f"content/items/{item.item_id}.png"),
+            "calibration": _subject_calibration(
+                output_dir,
+                f"content/items/{item.item_id}.png",
+                resolve_declared_magnitude(scale, item.height_units, subject=item.item_id),
+                scale,
+                subject=item.item_id,
+            ),
         }
         for item in package.items.items
     ]
@@ -446,6 +518,7 @@ def _assemble_prepared_runtime(
         "presentation": package.game.presentation.model_dump(mode="json"),
         "style": package.game.style.model_dump(mode="json"),
         "proportion": package.game.proportion.model_dump(mode="json"),
+        "scale": package.game.scale.model_dump(mode="json"),
         "entry_map_id": package.gameplay.entry_map_id,
         "entry_spawn_id": package.gameplay.entry_spawn_id,
         "maps": maps,
@@ -510,6 +583,96 @@ def _motion_binding(
         "anchor": motion.anchor,
         "playback": playback,
         "asset": artifact,
+    }
+
+
+def _subject_calibration(
+    output_dir: Path,
+    relative_path: str,
+    magnitude: ResolvedMagnitude,
+    scale: PreparedScale,
+    *,
+    subject: str,
+    columns: int = 1,
+) -> dict[str, object]:
+    """Measure one published subject and republish what its artwork spent on a unit.
+
+    The manifest re-derives this from the published bytes rather than reading a declaration and
+    trusting it: a record a consumer cannot reproduce from the artifact is a record that can go
+    stale without any signal.
+    """
+
+    data = _safe_output_path(output_dir, relative_path).read_bytes()
+    if columns > 1:
+        data = split_atlas_columns(data, columns)[0]
+    extent = measure_subject_extent(data, subject=subject)
+    calibration = calibrate_subject(
+        magnitude=magnitude,
+        subject_extent_px=extent,
+        measured_sha256=hashlib.sha256(data).hexdigest(),
+        scale=scale,
+        tile_px=RUNTIME_TILE_PX,
+        subject=subject,
+    )
+    return calibration.as_record()
+
+
+def _motion_rebase_binding(
+    output_dir: Path,
+    publish: Callable[[str], dict[str, object]],
+    player_id: str,
+    states: Sequence[str],
+) -> dict[str, object]:
+    """Republish the judged rebase, re-derived from the run artifact rather than trusted.
+
+    A per-state multiplier is a property of the artwork and changes whenever the artwork does,
+    so it is never authored by hand and never copied forward: the manifest reads the record the
+    judging stage wrote, checks it still covers exactly the states this actor publishes, and
+    fails rather than shipping a stale reading.
+    """
+
+    relative_path = f"content/players/{player_id}/motion-rebase.json"
+    publish(relative_path)
+    publish(f"content/players/{player_id}/motion-rebase-first-pass.json")
+    publish(f"content/players/{player_id}/motion-rebase-plate.png")
+    publish(f"content/players/{player_id}/motion-rebase-verification-plate.png")
+    record = json.loads(_safe_output_path(output_dir, relative_path).read_bytes())
+    if not isinstance(record, dict):
+        raise PreparedManifestError(f"player {player_id} motion rebase record is not an object")
+    baseline_state = record.get("baseline_state")
+    multipliers = record.get("states")
+    plate_sha256 = record.get("plate_sha256")
+    verification_plate_sha256 = record.get("verification_plate_sha256")
+    if not isinstance(baseline_state, str) or not isinstance(multipliers, dict):
+        raise PreparedManifestError(f"player {player_id} motion rebase record is incomplete")
+    if not isinstance(plate_sha256, str) or len(plate_sha256) != 64:
+        raise PreparedManifestError(f"player {player_id} motion rebase record has no plate digest")
+    if not isinstance(verification_plate_sha256, str) or len(verification_plate_sha256) != 64:
+        raise PreparedManifestError(
+            f"player {player_id} motion rebase record has no verification plate digest; a record "
+            "without one predates the closed-loop judgement and is stale"
+        )
+    if set(multipliers) != set(states):
+        raise PreparedManifestError(
+            f"player {player_id} motion rebase covers {sorted(multipliers)}, "
+            f"but the actor publishes {sorted(states)}"
+        )
+    resolved: dict[str, float] = {}
+    for state, multiplier in multipliers.items():
+        if not isinstance(multiplier, (int, float)) or isinstance(multiplier, bool):
+            raise PreparedManifestError(
+                f"player {player_id} motion rebase multiplier for {state} is not a number"
+            )
+        resolved[state] = float(multiplier)
+    if resolved.get(baseline_state) != 1.0:
+        raise PreparedManifestError(
+            f"player {player_id} baseline {baseline_state} must rebase to 1.0"
+        )
+    return {
+        "baseline_state": baseline_state,
+        "state_rebase": {state: resolved[state] for state in sorted(resolved)},
+        "plate_sha256": plate_sha256,
+        "verification_plate_sha256": verification_plate_sha256,
     }
 
 
@@ -619,6 +782,14 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
             for motion in player.motions
         )
         paths.append(f"content/players/{player.player_id}/dialogue.png")
+        # The judged rebase and the plates it was read from travel with the run: the multipliers
+        # are a property of this artwork, so a consumer must be able to re-derive them rather
+        # than trust a value copied forward. Both passes ship - the first-pass record and its
+        # plate, then the verification plate the residual was read from.
+        paths.append(f"content/players/{player.player_id}/motion-rebase.json")
+        paths.append(f"content/players/{player.player_id}/motion-rebase-first-pass.json")
+        paths.append(f"content/players/{player.player_id}/motion-rebase-plate.png")
+        paths.append(f"content/players/{player.player_id}/motion-rebase-verification-plate.png")
     for mob in package.mobs.mobs:
         paths.append(f"content/mobs/{mob.mob_id}/concept.png")
         paths.extend(

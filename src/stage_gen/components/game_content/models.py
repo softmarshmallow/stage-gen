@@ -180,6 +180,25 @@ class DialogueArtDirection(PersistedContractModel):
         return value
 
 
+#: Authored magnitude bounds. The floor a package actually enforces is its own `[scale] minimum`;
+#: these are the outer limits any declaration must sit inside before that check runs.
+MINIMUM_HEIGHT_UNITS = 0.05
+MAXIMUM_HEIGHT_UNITS = 32.0
+
+
+def _validated_height_units(value: float | None, label: str) -> float | None:
+    """Bound and round one authored magnitude, in multiples of the canonical player height."""
+
+    if value is None:
+        return None
+    if value < MINIMUM_HEIGHT_UNITS or value > MAXIMUM_HEIGHT_UNITS:
+        raise ValueError(
+            f"{label} must be between {MINIMUM_HEIGHT_UNITS} and {MAXIMUM_HEIGHT_UNITS} "
+            "player heights"
+        )
+    return round(value, 2)
+
+
 class PlayerContent(PersistedContractModel):
     player_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
@@ -243,6 +262,9 @@ class MobContent(PersistedContractModel):
     display_name: str
     body_kind: str
     rank: Literal["common", "uncommon", "elite", "boss"]
+    #: Silhouette shape within this mob's rank tier. `rank` remains the magnitude authority,
+    #: so a declaration here adjusts the drawn shape and never reorders the threat ladder.
+    height_units: float | None = None
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
     motions: list[MotionPresentation] = Field(min_length=1)
@@ -274,6 +296,11 @@ class MobContent(PersistedContractModel):
             raise ValueError("mob motions must not use gameplay_driven playback")
         return self
 
+    @field_validator("height_units")
+    @classmethod
+    def validate_height_units(cls, value: float | None) -> float | None:
+        return _validated_height_units(value, "mob height_units")
+
 
 class MobContentCatalog(PersistedContractModel):
     schema_version: Literal[2]
@@ -292,6 +319,8 @@ class MobContentCatalog(PersistedContractModel):
 
 class NpcContent(PersistedContractModel):
     npc_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    #: How tall this resident is, as a multiple of the player.
+    height_units: float | None = None
     display_name: str
     role: str
     body_kind: str
@@ -327,6 +356,11 @@ class NpcContent(PersistedContractModel):
             raise ValueError("NPC motion must not use gameplay_driven playback")
         return self
 
+    @field_validator("height_units")
+    @classmethod
+    def validate_height_units(cls, value: float | None) -> float | None:
+        return _validated_height_units(value, "NPC height_units")
+
 
 class NpcContentCatalog(PersistedContractModel):
     schema_version: Literal[3]
@@ -349,6 +383,8 @@ class PropContent(PersistedContractModel):
     display_name: str
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
+    #: How tall this subject is, as a multiple of the player.
+    height_units: float | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -365,6 +401,11 @@ class PropContent(PersistedContractModel):
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "prop reference_id")
         return value
+
+    @field_validator("height_units")
+    @classmethod
+    def validate_height_units(cls, value: float | None) -> float | None:
+        return _validated_height_units(value, "prop height_units")
 
 
 class PropContentCatalog(PersistedContractModel):
@@ -389,6 +430,8 @@ class ItemContent(PersistedContractModel):
         "currency", "healing_consumable", "traversal_tool", "key_item", "quest_collectible"
     ]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
+    #: How tall this subject is, as a multiple of the player.
+    height_units: float | None = None
     prompt: str
 
     @field_validator("display_name")
@@ -406,6 +449,11 @@ class ItemContent(PersistedContractModel):
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "item reference_id")
         return value
+
+    @field_validator("height_units")
+    @classmethod
+    def validate_height_units(cls, value: float | None) -> float | None:
+        return _validated_height_units(value, "item height_units")
 
 
 class ItemContentCatalog(PersistedContractModel):

@@ -455,3 +455,37 @@ def _png_bytes(image: Image.Image) -> bytes:
     stream = io.BytesIO()
     image.save(stream, format="PNG", optimize=False)
     return stream.getvalue()
+
+
+def split_atlas_columns(data: bytes, columns: int, rows: int = 1) -> tuple[bytes, ...]:
+    """Split one animation atlas into its cells, left to right and top to bottom.
+
+    Cells are returned as encoded PNGs rather than decoded images so a caller can bind each one
+    by digest to whatever it composites them into.
+    """
+
+    if columns <= 0 or rows <= 0:
+        raise ValueError("an atlas grid needs a positive column and row count")
+    source = _decode_atlas(data)
+    if source.width % columns or source.height % rows:
+        raise ValueError(
+            f"atlas {source.width}x{source.height} does not divide into {columns}x{rows} cells"
+        )
+    cell_width = source.width // columns
+    cell_height = source.height // rows
+    cells: list[bytes] = []
+    for row in range(rows):
+        for column in range(columns):
+            box = (
+                column * cell_width,
+                row * cell_height,
+                (column + 1) * cell_width,
+                (row + 1) * cell_height,
+            )
+            cells.append(_png_bytes(source.crop(box)))
+    return tuple(cells)
+
+
+def _decode_atlas(data: bytes) -> Image.Image:
+    with Image.open(io.BytesIO(data)) as opened:
+        return opened.convert("RGBA")

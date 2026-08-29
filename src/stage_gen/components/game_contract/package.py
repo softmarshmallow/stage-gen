@@ -108,6 +108,84 @@ class PreparedProportion(PersistedContractModel):
         return self.by_body_kind.get(body_kind, self.heads_tall)
 
 
+#: Nothing a player can interact with resolves below a quarter of the player by default. The
+#: floor is a legibility rule rather than a realism one: a subject drawn smaller than this is not
+#: a readable target at any viewport this profile supports.
+MINIMUM_HEIGHT_UNITS = 0.05
+MAXIMUM_HEIGHT_UNITS = 32.0
+
+
+def _rounded_units(value: float, label: str) -> float:
+    if value < MINIMUM_HEIGHT_UNITS or value > MAXIMUM_HEIGHT_UNITS:
+        raise ValueError(
+            f"{label} must be between {MINIMUM_HEIGHT_UNITS} and {MAXIMUM_HEIGHT_UNITS} "
+            "player heights"
+        )
+    # Two decimals. A finer distinction does not survive a sprite a few hundred pixels tall, and
+    # rounding keeps the run tag stable across equivalent authored values.
+    return round(value, 2)
+
+
+class PreparedScale(PersistedContractModel):
+    """The game's size vocabulary: one canonical player height, and everything as a multiple.
+
+    The unit is deliberately anatomy-free. A head or a shoulder width is a property of the *art
+    style* rather than of the world - at `heads_tall = 2.25` a head is 0.44 of the figure and at
+    realistic proportions 0.125 - so a vocabulary built on one is unusable in the other. The
+    player is invariant across every build a game may author, so no style parameter enters here.
+    `proportion` and this table answer different questions and are never reconciled: a figure at
+    the right magnitude with the wrong build is a distinct defect.
+
+    It is also not a pixel. `player_height_tiles` is the single place in a package where the unit
+    meets a render projection, and a consumer multiplies through it exactly once.
+    """
+
+    unit: Literal["player_height"] = "player_height"
+    player_height_tiles: float = Field(gt=0.0, le=64.0)
+    minimum: float = Field(default=0.25, ge=MINIMUM_HEIGHT_UNITS, le=MAXIMUM_HEIGHT_UNITS)
+    steps: list[float] = Field(default_factory=list, max_length=32)
+    ranks: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("steps")
+    @classmethod
+    def validate_steps(cls, value: list[float]) -> list[float]:
+        if not value:
+            return value
+        rounded = [_rounded_units(float(item), "steps") for item in value]
+        if rounded != sorted(rounded):
+            raise ValueError("steps must ascend, so a recovered index selects a larger subject")
+        if len(set(rounded)) != len(rounded):
+            raise ValueError("steps must be unique")
+        return rounded
+
+    @field_validator("ranks")
+    @classmethod
+    def validate_ranks(cls, value: dict[str, float]) -> dict[str, float]:
+        resolved: dict[str, float] = {}
+        for rank, units in value.items():
+            if not rank or rank != rank.strip():
+                raise ValueError("scale rank names must be non-empty trimmed strings")
+            resolved[rank] = _rounded_units(float(units), f"ranks[{rank}]")
+        return resolved
+
+    @model_validator(mode="after")
+    def validate_floor(self) -> PreparedScale:
+        object.__setattr__(self, "minimum", _rounded_units(self.minimum, "minimum"))
+        object.__setattr__(self, "player_height_tiles", round(self.player_height_tiles, 2))
+        for index, step in enumerate(self.steps):
+            if step < self.minimum:
+                raise ValueError(f"steps[{index}] resolves below the declared minimum")
+        for rank, units in self.ranks.items():
+            if units < self.minimum:
+                raise ValueError(f"ranks[{rank}] resolves below the declared minimum")
+        return self
+
+    def rank_units(self, rank: str) -> float | None:
+        """The magnitude a mob of this rank resolves to, if the game declares one."""
+
+        return self.ranks.get(rank)
+
+
 class PreparedCast(PersistedContractModel):
     player_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     mob_ids: list[str] = Field(min_length=1, max_length=64)
@@ -182,6 +260,7 @@ class PreparedGameContract(PersistedContractModel):
     presentation: PreparedPresentation
     style: PreparedStyle
     proportion: PreparedProportion
+    scale: PreparedScale
     cast: PreparedCast
     gameplay: PackageSource
     ui: PackageSource

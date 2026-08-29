@@ -165,6 +165,29 @@ export function playerSheetScaleForState(input: Readonly<{
     : measured;
 }
 
+/**
+ * Compose a published per-state rebase with the baseline's anchor into one scale per sheet.
+ *
+ * The two contracts multiply: the baseline's magnitude sets how large the actor reads, and the
+ * rebase makes every other state of that actor agree with it. This is the whole runtime side of
+ * motion rebase - the ratio is a fact about the artwork that the pixels cannot yield, so it is
+ * judged once by the producer and applied here rather than re-measured per frame.
+ */
+export function rebasedSheetScales(
+  baselineSheetScale: number,
+  stateRebase: ReadonlyMap<string, number>,
+): ReadonlyMap<string, number> {
+  const master = positiveFinite(baselineSheetScale, "baseline sheet scale");
+  if (stateRebase.size === 0) {
+    throw new Error("a published rebase must cover at least the baseline state");
+  }
+  const resolved = new Map<string, number>();
+  for (const [textureKey, multiplier] of stateRebase) {
+    resolved.set(textureKey, master * positiveFinite(multiplier, `rebase for ${textureKey}`));
+  }
+  return resolved;
+}
+
 /** Parse the one exact current scale-reference payload or reject the manifest boundary. */
 export function parseScaleReference(
   value: unknown,

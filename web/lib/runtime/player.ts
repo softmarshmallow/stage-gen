@@ -15,6 +15,7 @@ import {
   headMatchedScale,
   masterSheetScale,
   playerSheetScaleForState,
+  rebasedSheetScales,
   type ScaleReference,
 } from "./sprite-scale";
 import {
@@ -173,6 +174,13 @@ export interface PlayerOpts {
   scaleReferences: ReadonlyMap<string, ScaleReference>;
   /** States whose authored pose height is meaningful and must retain atlas scale. */
   preserveSourceScaleStates?: readonly PlayerState[];
+  /**
+   * Published per-state draw-scale multipliers, keyed by texture key and relative to the
+   * baseline. When present it is the sole authority for sheet scale: every state composes its
+   * multiplier with the baseline's anchor, and a state without one is refused rather than
+   * silently inheriting the baseline's scale.
+   */
+  stateRebase?: ReadonlyMap<string, number>;
 }
 
 /** Every player state, in one place so animations and scale resolution cannot diverge. */
@@ -422,6 +430,17 @@ export class Player {
       sheetFrameHeight(scene, idleKey, 0),
     );
 
+    const rebase = this.opts.stateRebase;
+    if (rebase !== undefined) {
+      // The producer judged every atlas against the baseline on one plate, so the runtime
+      // multiplies rather than re-measuring. This is the whole contract: a ratio the pixels
+      // cannot yield, composed with the magnitude the baseline anchors.
+      for (const [key, scale] of rebasedSheetScales(this.masterSheetScale, rebase)) {
+        this.sheetScale.set(key, scale);
+      }
+      return;
+    }
+
     // Idle sets the size the character reads at; every other measured sheet is matched to it.
     const references = this.opts.scaleReferences;
     const idleReference = references.get(idleKey);
@@ -469,12 +488,23 @@ export class Player {
     }
   }
 
+  /** Resolved per-texture draw scales, read-only, so QA probes can see what will be applied. */
+  resolvedSheetScales(): ReadonlyMap<string, number> {
+    return new Map(this.sheetScale);
+  }
+
   /** Apply the scale belonging to `textureKey`'s source sheet. */
   private applySheetScale(textureKey: string): void {
     const measured = this.sheetScale.get(textureKey);
     if (measured !== undefined) {
       this.sprite.setScale(measured);
       return;
+    }
+    if (this.opts.stateRebase !== undefined) {
+      // A published rebase covers every state the actor ships. Falling back here would restore
+      // the defect the contract removes: hurt and death inheriting the baseline's scale and
+      // collapsing on screen.
+      throw new Error(`current player texture ${textureKey} has no published rebase multiplier`);
     }
     // Reaction and terminal strips are optional producer roles without published measurements.
     // Their explicit current behavior is to retain the anchored master-sheet scale.

@@ -1,3 +1,4 @@
+import type { ScaleVocabulary, SubjectCalibration } from "./asset-unit";
 import {
   parseInventoryPanelLayout,
   type InventoryPanelLayout,
@@ -148,6 +149,19 @@ export type DialogueBinding = Readonly<{
 export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
+/**
+ * How every one of an actor's states is brought onto its baseline's scale.
+ *
+ * Separately generated atlases do not share a draw scale, and an alpha box cannot tell a short
+ * pose from a small drawing. The producer judges each state against the baseline on one plate
+ * and publishes the ratio; the runtime multiplies rather than re-measuring.
+ */
+export type MotionCalibration = Readonly<{
+  baselineState: string;
+  stateRebase: Readonly<Record<string, number>>;
+  plateSha256: string;
+}>;
+
 export type PreparedRuntimeManifest = Readonly<{
   schema_version: 9;
   kind: "prepared-game-runtime-v9";
@@ -166,6 +180,7 @@ export type PreparedRuntimeManifest = Readonly<{
   }>;
   entry_map_id: string;
   entry_spawn_id: string;
+  scale: ScaleVocabulary;
   maps: readonly PreparedMap[];
   player: Readonly<{
     player_id: string;
@@ -173,6 +188,7 @@ export type PreparedRuntimeManifest = Readonly<{
     concept: RuntimeArtifact;
     states: Readonly<Record<string, MotionBinding>>;
     dialogue: DialogueBinding;
+    calibration: MotionCalibration & SubjectCalibration;
   }>;
   mobs: readonly Readonly<{
     mob_id: string;
@@ -180,6 +196,7 @@ export type PreparedRuntimeManifest = Readonly<{
     rank: string;
     concept: RuntimeArtifact;
     states: Readonly<Record<string, MotionBinding>>;
+    calibration: SubjectCalibration;
   }>[];
   npcs: readonly Readonly<{
     npc_id: string;
@@ -187,11 +204,13 @@ export type PreparedRuntimeManifest = Readonly<{
     role: string;
     world: MotionBinding;
     dialogue: DialogueBinding;
+    calibration: SubjectCalibration;
   }>[];
   props: readonly Readonly<{
     prop_id: string;
     display_name: string;
     ground_contact_y_normalized: number;
+    calibration: SubjectCalibration;
     asset: RuntimeArtifact;
   }>[];
   items: readonly Readonly<{
@@ -199,6 +218,7 @@ export type PreparedRuntimeManifest = Readonly<{
     display_name: string;
     item_kind: string;
     asset: RuntimeArtifact;
+    calibration: SubjectCalibration;
   }>[];
   ui: Readonly<{ inventory_panel: PreparedInventoryPanel }>;
   soundtrack: Readonly<{
@@ -433,6 +453,116 @@ function motion(value: unknown, label: string): MotionBinding {
     anchor,
     playback,
     asset: artifact(record.asset, `${label}.asset`),
+  });
+}
+
+function scaleVocabulary(value: unknown, label: string): ScaleVocabulary {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  if (record["unit"] !== "player_height") {
+    throw new Error(`${label}.unit must be player_height`);
+  }
+  const playerHeightTiles = positive(record["player_height_tiles"], `${label}.player_height_tiles`);
+  const minimum = positive(record["minimum"], `${label}.minimum`);
+  const stepsValue = record["steps"];
+  if (!Array.isArray(stepsValue)) {
+    throw new Error(`${label}.steps must be an array`);
+  }
+  const steps = stepsValue.map((step, index) => positive(step, `${label}.steps[${index}]`));
+  const ranksValue = record["ranks"];
+  if (typeof ranksValue !== "object" || ranksValue === null || Array.isArray(ranksValue)) {
+    throw new Error(`${label}.ranks must be an object`);
+  }
+  const ranks: Record<string, number> = {};
+  for (const [rank, units] of Object.entries(ranksValue as Record<string, unknown>)) {
+    ranks[rank] = positive(units, `${label}.ranks.${rank}`);
+  }
+  return Object.freeze({
+    unit: "player_height" as const,
+    playerHeightTiles,
+    minimum,
+    steps: Object.freeze(steps),
+    ranks: Object.freeze(ranks),
+  });
+}
+
+function subjectCalibration(value: unknown, label: string): SubjectCalibration {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  const measuredSha256 = text(record["measured_sha256"], `${label}.measured_sha256`);
+  if (!/^[0-9a-f]{64}$/.test(measuredSha256)) {
+    throw new Error(`${label}.measured_sha256 must be a sha256 digest`);
+  }
+  const subjectExtentPx = positive(record["subject_extent_px"], `${label}.subject_extent_px`);
+  if (!Number.isSafeInteger(subjectExtentPx)) {
+    throw new Error(`${label}.subject_extent_px must be a whole number of pixels`);
+  }
+  return Object.freeze({
+    heightUnits: positive(record["height_units"], `${label}.height_units`),
+    heightUnitsSource: text(record["height_units_source"], `${label}.height_units_source`),
+    sourcePxPerUnit: positive(record["source_px_per_unit"], `${label}.source_px_per_unit`),
+    measuredSha256,
+    subjectExtentPx,
+  });
+}
+
+function positive(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${label} must be a positive finite number`);
+  }
+  return value;
+}
+
+function motionCalibration(
+  value: unknown,
+  label: string,
+  states: Readonly<Record<string, MotionBinding>>,
+): MotionCalibration {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  const baselineState = text(record["baseline_state"], `${label}.baseline_state`);
+  const plateSha256 = text(record["plate_sha256"], `${label}.plate_sha256`);
+  if (!/^[0-9a-f]{64}$/.test(plateSha256)) {
+    throw new Error(`${label}.plate_sha256 must be a sha256 digest`);
+  }
+  const rebaseValue = record["state_rebase"];
+  if (typeof rebaseValue !== "object" || rebaseValue === null || Array.isArray(rebaseValue)) {
+    throw new Error(`${label}.state_rebase must be an object`);
+  }
+  const rebase: Record<string, number> = {};
+  for (const [state, multiplier] of Object.entries(rebaseValue as Record<string, unknown>)) {
+    if (
+      typeof multiplier !== "number" ||
+      !Number.isFinite(multiplier) ||
+      multiplier < 0.2 ||
+      multiplier > 5
+    ) {
+      throw new Error(`${label}.state_rebase.${state} must be a multiplier within [0.2, 5]`);
+    }
+    rebase[state] = multiplier;
+  }
+  // Coverage is checked here rather than trusted, because a state drawn with no multiplier is
+  // exactly the defect this contract removes: it would silently inherit the baseline's scale.
+  const published = Object.keys(states).sort();
+  const covered = Object.keys(rebase).sort();
+  if (published.length !== covered.length || published.some((s, i) => s !== covered[i])) {
+    throw new Error(
+      `${label}.state_rebase must cover exactly the published states ${published.join(", ")}`,
+    );
+  }
+  if (rebase[baselineState] !== 1) {
+    throw new Error(`${label}.state_rebase.${baselineState} must be exactly 1 for the baseline`);
+  }
+  return Object.freeze({
+    baselineState,
+    stateRebase: Object.freeze(rebase),
+    plateSha256,
   });
 }
 
@@ -810,6 +940,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       rank: text(mob.rank, "mob rank"),
       concept: artifact(mob.concept, `mobs[${index}].concept`),
       states: motionStates(mob.states, `mobs[${index}].states`),
+      calibration: subjectCalibration(mob.calibration, `mobs[${index}].calibration`),
     });
   });
   const npcs = array(root.npcs, "npcs").map((rawNpc, index) => {
@@ -820,6 +951,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       role: text(npc.role, "npc role"),
       world: motion(npc.world, `npcs[${index}].world`),
       dialogue: dialogue(npc.dialogue, `npcs[${index}].dialogue`),
+      calibration: subjectCalibration(npc.calibration, `npcs[${index}].calibration`),
     });
   });
   const props = array(root.props, "props").map((rawProp, index) => {
@@ -831,12 +963,13 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
         prop.ground_contact_y_normalized,
         `props[${index}].ground_contact_y_normalized`,
       ),
+      calibration: subjectCalibration(prop.calibration, `props[${index}].calibration`),
       asset: artifact(prop.asset, "prop asset"),
     });
   });
   const items = array(root.items, "items").map((rawItem, index) => {
     const item = object(rawItem, `items[${index}]`);
-    return Object.freeze({ item_id: id(item.item_id, "item_id"), display_name: text(item.display_name, "item display_name"), item_kind: text(item.item_kind, "item kind"), asset: artifact(item.asset, "item asset") });
+    return Object.freeze({ item_id: id(item.item_id, "item_id"), display_name: text(item.display_name, "item display_name"), item_kind: text(item.item_kind, "item kind"), calibration: subjectCalibration(item.calibration, `items[${index}].calibration`), asset: artifact(item.asset, "item asset") });
   });
   const ui = object(root.ui, "ui");
   const rawInventoryPanel = object(ui.inventory_panel, "ui.inventory_panel");
@@ -874,8 +1007,9 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     presentation,
     entry_map_id: entryMapId,
     entry_spawn_id: id(root.entry_spawn_id, "entry_spawn_id"),
+    scale: scaleVocabulary(root.scale, "scale"),
     maps: Object.freeze(maps),
-    player: Object.freeze({ player_id: id(player.player_id, "player_id"), display_name: text(player.display_name, "player display_name"), concept: artifact(player.concept, "player.concept"), states: motionStates(player.states, "player.states"), dialogue: dialogue(player.dialogue, "player.dialogue") }),
+    player: Object.freeze({ player_id: id(player.player_id, "player_id"), display_name: text(player.display_name, "player display_name"), concept: artifact(player.concept, "player.concept"), states: motionStates(player.states, "player.states"), dialogue: dialogue(player.dialogue, "player.dialogue"), calibration: Object.freeze({ ...subjectCalibration(player.calibration, "player.calibration"), ...motionCalibration(player.calibration, "player.calibration", motionStates(player.states, "player.states")) }) }),
     mobs: Object.freeze(mobs),
     npcs: Object.freeze(npcs),
     props: Object.freeze(props),

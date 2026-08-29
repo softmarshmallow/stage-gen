@@ -58,6 +58,16 @@ heads_tall = 2.25
 [proportion.by_body_kind]
 dwarf = 2.1
 
+[scale]
+unit = "player_height"
+player_height_tiles = 2.40
+minimum = 0.25
+steps = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+
+[scale.ranks]
+common = 0.5
+boss = 1.5
+
 [cast]
 player_id = "player_one"
 mob_ids = ["mob_one"]
@@ -117,6 +127,14 @@ basis = ["Original authored package direction."]
 - Style keywords and avoidances are ordered, unique, trimmed lists. Their order
   is prompt-significant.
 - Default and body-specific proportions are between 1.5 and 12 heads tall.
+- `scale` states the game's size vocabulary. `unit` is exactly `player_height`: the player
+  is `1.0` by definition and every other subject declares `height_units` as a multiple of
+  it. `player_height_tiles` is the one place the unit meets a render projection.
+  `minimum` is the legibility floor nothing interactive resolves below, `steps` is an
+  ascending unique ladder at or above that floor, and `[scale.ranks]` maps a mob rank to a
+  magnitude so silhouette height carries threat. `scale` and `proportion` answer different
+  questions and are never reconciled: magnitude is a property of the world, build is a
+  property of the art style.
 - Player, mob, and NPC IDs are unique `lower_snake_case` identifiers. Cast IDs
   must resolve to their respective content catalogs.
 - The universe, gameplay, UI, soundtrack, content, and sequence-catalog paths

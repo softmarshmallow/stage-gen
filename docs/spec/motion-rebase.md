@@ -29,6 +29,13 @@ it is authored, and it belongs to [Asset unit](asset-unit.md).
 
 ![All forty frames of one actor at one uniform source scale: on the left the shipped per-state scale, on the right the same frames rebased onto the idle baseline, with each panel's baseline crown drawn across every state](../media/motion-rebase-ab.webp)
 
+*Composited by `scripts/render_asset_scale_figures.py` from the
+`bellweather-prepared-v11-bound` package; the manifest digest it was rendered
+from is recorded in
+[Reproducing the measurements](../research/asset-scale-study.md#reproducing-the-measurements).
+The multipliers it draws are one reading of that build's artwork, not an
+authored declaration.*
+
 ## Ownership
 
 - `stage_gen.media.comparison_plate` owns deterministic plate composition and
@@ -96,8 +103,44 @@ and no per-frame value.
 }
 ```
 
-Multipliers are bounded to `[0.4, 2.5]` and rounded to two decimal places. A
+Multipliers are bounded to `[0.2, 5.0]` and rounded to two decimal places. A
 reading outside the band is rejected rather than clamped.
+
+The band is wide on purpose. Measured on the canonical actor, the climb strips
+are generated on a 1115x2850 canvas against the master states' 457x799 and are
+drawn roughly 3.7 times larger, needing a multiplier near `0.27`. Separately
+generated atlases genuinely disagree by more than a factor of two — that is the
+whole reason this contract exists — so a band tight enough to reject the
+reference game would be a bug rather than a safety rail.
+
+### The verification pass
+
+The judging is closed-loop: two readings, not one.
+
+The first reading is taken across atlases that genuinely disagree — the whole
+reason this contract exists — so the judge is comparing a head drawn at three
+hundred pixels against one drawn at ninety. That is the hard form of the task,
+and its error shows up as over- and under-correction on exactly the states
+whose canvases differ most.
+
+The second reading removes that condition instead of repeating it. A
+**verification plate** is composed with the first pass already applied: each
+state's frames are pre-scaled by their judged multiplier, so if the first pass
+were perfect, the character would read at an identical size in every group.
+The judge is asked only for the residual — a correction near `1.0` — and the
+published multiplier is the product of the two readings.
+
+Corrections are bounded to `[0.5, 2.0]`, and the band is deliberately narrow
+where the first pass's band is deliberately wide. A residual outside it does
+not mean the artwork disagrees more than expected; it means the first pass
+failed, and compounding a failed reading with a large "correction" would
+launder it. The stage fails closed instead.
+
+The verification plate keeps every plate invariant: every frame of every
+state, bands where sizes still demand them, the baseline repeated in each. It
+adds none of its own — pre-scaling by a judged multiplier is not normalising,
+because what is being erased is the disagreement already measured, not the
+signal.
 
 ### Per state, not per frame
 
@@ -138,11 +181,11 @@ rebased actor is harder to notice than a stage that fails.
 | Gate | Rule |
 | --- | --- |
 | Baseline declared | The actor names a baseline state, and that state has a published atlas. |
-| Baseline identity | The baseline multiplier is exactly `1.00`. |
-| Coverage | Every published motion atlas for the actor resolves a multiplier. |
-| Band | Every multiplier lies within `[0.4, 2.5]`. |
-| Plate lineage | The plate's digest covers every frame it composited, and every one is a published artifact of this actor at its current revision. |
-| Freshness | A rebase record is stale when any of the atlases it covers changes, and a stale record is refused rather than reused. |
+| Baseline identity | The baseline multiplier is exactly `1.00`, in both readings. |
+| Coverage | Every published motion atlas for the actor resolves a multiplier, in both readings. |
+| Band | Every first-pass multiplier lies within `[0.2, 5.0]`; every verification correction lies within `[0.5, 2.0]`; every composed multiplier lies within `[0.2, 5.0]`. |
+| Plate lineage | Each plate's digest covers every frame it composited, and every one is a published artifact of this actor at its current revision. |
+| Freshness | A rebase record is stale when any of the atlases it covers changes, and a stale record is refused rather than reused. The verification stage re-admits the first-pass record against a plate rebuilt from current bytes, so a first pass that outlived its artwork is refused rather than corrected. |
 
 ## Published record
 
@@ -155,13 +198,16 @@ the published bytes rather than read and trusted.
   "source_px_per_unit": 326.3,
   "baseline_state": "idle",
   "state_rebase": { "idle": 1.00, "run": 1.25, "death": 1.22 },
-  "plate_sha256": "…"
+  "plate_sha256": "…",
+  "verification_plate_sha256": "…"
 }
 ```
 
 `height_units` and `source_px_per_unit` are the asset unit's, measured on the
-baseline frame alone. `baseline_state`, `state_rebase` and `plate_sha256` are
-this contract's. The split is deliberate: the first pair is authored input and
+baseline frame alone. `baseline_state`, `state_rebase` and the plate digests
+are this contract's. `state_rebase` is the composed value — first pass times
+verification correction — and the run record keeps both factors beside it,
+so a reader can see what each pass contributed. The split is deliberate: the first pair is authored input and
 its measurement, the second is derived output, and neither is ever authored by
 hand. A per-state multiplier is a property of the artwork and changes whenever
 the artwork does, so writing one into a package would create an authority that

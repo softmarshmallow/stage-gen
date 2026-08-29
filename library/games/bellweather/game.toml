@@ -51,6 +51,18 @@ dwarf = 2.1
 elf = 2.35
 halfling = 2.0
 
+[scale]
+unit = "player_height"
+player_height_tiles = 2.40
+minimum = 0.25
+steps = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+
+[scale.ranks]
+common = 0.5
+uncommon = 0.65
+elite = 0.85
+boss = 1.5
+
 [cast]
 player_id = "wayfarer"
 mob_ids = [

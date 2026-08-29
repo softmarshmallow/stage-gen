@@ -90,6 +90,7 @@ import {
   preparedPlayerClimbArtwork,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
+  preparedPlayerStateRebase,
 } from "./prepared-player";
 import { frameScaleForHeight } from "./sprite-scale";
 import { SCENE_CONTENT_DEPTH } from "./layers";
@@ -416,6 +417,11 @@ export class PreparedStageScene extends Phaser.Scene {
         packageSha256: manifest.package_sha256,
         artifactCount: manifest.closure.artifact_count,
         mapIds: manifest.maps.map((map) => map.map_id),
+        // The scale each player texture will draw at, exactly as resolved: the fastest way to
+        // check on a live page that a published rebase actually reached the sprite.
+        playerSheetScales: Object.freeze(
+          Object.fromEntries(this.player ? this.player.resolvedSheetScales() : []),
+        ),
         diagnostics: Object.freeze([...this.diagnostics]),
       });
       (window as unknown as { __sceneProbes?: unknown }).__sceneProbes = {
@@ -691,37 +697,9 @@ export class PreparedStageScene extends Phaser.Scene {
         report,
       );
     }
-    this.scaleReferences.clear();
-    for (const key of [
-      "character_idle",
-      "character_walk",
-      "character_run",
-      "character_jump",
-      "character_crawl",
-      "character_climb_ladder",
-      "character_climb_rope",
-      "character_attack",
-    ]) {
-      const frame = this.textures.get(key).get(0);
-      const width = Math.max(1, frame?.width ?? 64);
-      const height = Math.max(1, frame?.height ?? 64);
-      this.scaleReferences.set(
-        key,
-        Object.freeze({
-          part: "body",
-          topFraction: 0,
-          bottomFraction: 1,
-          leftFraction: 0,
-          rightFraction: 1,
-          extentPixels: height,
-          confident: false,
-          evidence: "Runtime frame bounds fallback for prepared package.",
-          frameIndex: 0,
-          cellWidth: width,
-          cellHeight: height,
-        }),
-      );
-    }
+    // Sheet scale is no longer reconstructed from frame bounds here. A whole-frame extent
+    // is exactly what cannot separate a short pose from a small drawing, so the producer
+    // judges every atlas against the baseline and publishes the ratio instead.
     if (manifest.player.states.crouch === undefined) {
       this.recordDiagnostic(
         "Player crouch mechanics use a runtime placeholder because no crouch strip was generated.",
@@ -889,6 +867,7 @@ export class PreparedStageScene extends Phaser.Scene {
       scaleReferences: this.scaleReferences,
       preserveSourceScaleStates:
         PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+      stateRebase: preparedPlayerStateRebase(manifest.player.calibration),
     });
     this.addContactShadow(this.player.sprite);
     this.items = new ItemSystem({

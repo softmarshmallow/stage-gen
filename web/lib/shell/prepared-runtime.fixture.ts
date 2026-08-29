@@ -52,6 +52,13 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
     },
     entry_map_id: "village",
     entry_spawn_id: "arrival",
+    scale: {
+      unit: "player_height",
+      player_height_tiles: 2.4,
+      minimum: 0.25,
+      steps: [0.25, 0.5, 0.75, 1, 1.5, 2, 3],
+      ranks: { common: 0.5, uncommon: 0.65, elite: 0.85, boss: 1.5 },
+    },
     maps: [
       {
         map_id: "village",
@@ -135,6 +142,16 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
           },
           asset: playerCrouch,
         },
+      },
+      calibration: {
+        height_units: 1,
+        height_units_source: "definition",
+        source_px_per_unit: 600,
+        measured_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        subject_extent_px: 600,
+        baseline_state: "idle",
+        state_rebase: { idle: 1, crouch: 1.09 },
+        plate_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       },
       dialogue: {
         columns: 1,

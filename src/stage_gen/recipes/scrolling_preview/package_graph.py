@@ -63,6 +63,9 @@ CONTENT_PROP_CONTACT_VALIDATION_VERSION = "prepared-content-prop-contact-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
 CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION = "prepared-content-actor-playback-review-v1"
 CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
+#: Bumped whenever the plate layout, the judge prompt, or admission changes, so a cached
+#: reading cannot outlive the composition it was taken from.
+CONTENT_MOTION_REBASE_CONTRACT_VERSION = "prepared-content-motion-rebase-v3"
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
 UI_INVENTORY_PANEL_CONTRACT_VERSION = "prepared-ui-inventory-panel-v2"
@@ -545,6 +548,49 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ),
             duration_seconds=0.75,
         )
+        rebase = builder.add_external(
+            f"player-{player.player_id}-motion-rebase",
+            domain=f"player-{player.player_id}",
+            description=(
+                "judge every motion atlas against the idle baseline on one comparison plate "
+                f"for {player.player_id}"
+            ),
+            operation=OperationKind.STRUCTURED_GENERATION,
+            # Every published atlas, because the plate carries every frame of every state: a
+            # reading taken against a partial plate would rebase onto a baseline the judge
+            # could not see beside the states it was rating.
+            depends_on=validations,
+            input_digests=(
+                *identity,
+                _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+            ),
+            outputs=(
+                f"content/players/{player.player_id}/motion-rebase-first-pass.json",
+                f"content/players/{player.player_id}/motion-rebase-plate.png",
+            ),
+        )
+        rebase_verify = builder.add_external(
+            f"player-{player.player_id}-motion-rebase-verify",
+            domain=f"player-{player.player_id}",
+            description=(
+                "close the loop on the rebase: judge the residual on a plate composed with "
+                f"the first-pass multipliers applied for {player.player_id}"
+            ),
+            operation=OperationKind.STRUCTURED_GENERATION,
+            # The first reading is taken across atlases that disagree by up to a factor of
+            # three, which is the hard form of the task. This node applies that reading, so the
+            # judge only reads the small residual - the easy form - and the two multiply into
+            # the published record.
+            depends_on=(rebase.node_id,),
+            input_digests=(
+                *identity,
+                _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+            ),
+            outputs=(
+                f"content/players/{player.player_id}/motion-rebase.json",
+                f"content/players/{player.player_id}/motion-rebase-verification-plate.png",
+            ),
+        )
         contact = builder.add(
             f"player-{player.player_id}-contact-sheet",
             domain=f"player-{player.player_id}",
@@ -572,8 +618,32 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ),
             outputs=(f"content/players/{player.player_id}/review.json",),
         )
-        terminals.append(review.node_id)
+        terminals.extend((rebase_verify.node_id, review.node_id))
     return terminals
+
+
+#: Fields that describe a subject's world size rather than its appearance. The image model owns
+#: appearance only, so a magnitude never reaches a prompt and must not invalidate generated
+#: artwork: authoring one would otherwise force a full re-render of pixels that cannot change.
+#: Magnitude still reaches the manifest, which binds the whole package closure.
+_MAGNITUDE_FIELDS: set[str] = {"height_units"}
+
+
+def _without_magnitude(catalog: dict[str, object], key: str) -> dict[str, object]:
+    """One catalog dump with every entry's magnitude removed, for a generation cache key."""
+
+    entries = catalog.get(key)
+    if not isinstance(entries, list):
+        return catalog
+    return {
+        **catalog,
+        key: [
+            {name: value for name, value in entry.items() if name not in _MAGNITUDE_FIELDS}
+            if isinstance(entry, dict)
+            else entry
+            for entry in entries
+        ],
+    }
 
 
 def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
@@ -583,7 +653,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(mob.model_dump(mode="json", exclude={"motions"})),
+            _object_sha256(mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             *_reference_digests(references, mob.reference_ids),
         )
         concept = builder.add_external(
@@ -639,7 +709,11 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble complete mob review board for {mob.mob_id}",
             operation=OperationKind.LOCAL,
             depends_on=tuple(validations),
-            input_digests=(_object_sha256(mob.model_dump(mode="json", exclude={"motions"})),),
+            input_digests=(
+                _object_sha256(
+                    mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})
+                ),
+            ),
             outputs=(f"content/mobs/{mob.mob_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -672,7 +746,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         identity = (
             _visual_direction_digest(builder.package),
             _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(npc.model_dump(mode="json", exclude={"motions"})),
+            _object_sha256(npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             *_reference_digests(references, npc.reference_ids),
         )
         concept = builder.add_external(
@@ -755,7 +829,11 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble NPC {npc.npc_id} review board",
             operation=OperationKind.LOCAL,
             depends_on=(world_validation.node_id, dialogue_validation.node_id),
-            input_digests=(_object_sha256(npc.model_dump(mode="json", exclude={"motions"})),),
+            input_digests=(
+                _object_sha256(
+                    npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})
+                ),
+            ),
             outputs=(f"content/npcs/{npc.npc_id}/contact-sheet.png",),
             duration_seconds=1.0,
         )
@@ -790,7 +868,7 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
             input_digests=(
                 _visual_direction_digest(builder.package),
                 _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
-                _object_sha256(prop.model_dump(mode="json")),
+                _object_sha256(prop.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
                 *_reference_digests(references, prop.reference_ids),
             ),
             outputs=(f"content/props/{prop.prop_id}.png",),
@@ -803,7 +881,7 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
                 operation=OperationKind.LOCAL,
                 depends_on=(generated.node_id,),
                 input_digests=(
-                    _object_sha256(prop.model_dump(mode="json")),
+                    _object_sha256(prop.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
                     _object_sha256({"contract": CONTENT_PROP_CONTACT_VALIDATION_VERSION}),
                 ),
                 outputs=(f"content/props/{prop.prop_id}.validation.json",),
@@ -817,7 +895,9 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
         operation=OperationKind.LOCAL,
         depends_on=tuple(validations),
         input_digests=(
-            _object_sha256(builder.package.props.model_dump(mode="json")),
+            _object_sha256(
+                _without_magnitude(builder.package.props.model_dump(mode="json"), "props")
+            ),
             _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
         ),
         outputs=("content/props/contact-sheet.png",),
@@ -829,7 +909,11 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
         description="review complete prop identity and isolation coverage",
         operation=OperationKind.STRUCTURED_GENERATION,
         depends_on=(contact.node_id,),
-        input_digests=(_object_sha256(builder.package.props.model_dump(mode="json")),),
+        input_digests=(
+            _object_sha256(
+                _without_magnitude(builder.package.props.model_dump(mode="json"), "props")
+            ),
+        ),
         outputs=("content/props/review.json",),
     ).node_id
 
@@ -848,7 +932,7 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
             input_digests=(
                 _visual_direction_digest(builder.package),
                 _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
-                _object_sha256(item.model_dump(mode="json")),
+                _object_sha256(item.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
                 *_reference_digests(references, item.reference_ids),
             ),
             outputs=(f"content/items/{item.item_id}.png",),
@@ -860,7 +944,9 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
                 description=f"validate isolated alpha and framing for item {item.item_id}",
                 operation=OperationKind.LOCAL,
                 depends_on=(generated.node_id,),
-                input_digests=(_object_sha256(item.model_dump(mode="json")),),
+                input_digests=(
+                    _object_sha256(item.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
+                ),
                 outputs=(f"content/items/{item.item_id}.validation.json",),
                 duration_seconds=0.5,
             ).node_id
@@ -872,7 +958,9 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
         operation=OperationKind.LOCAL,
         depends_on=tuple(validations),
         input_digests=(
-            _object_sha256(builder.package.items.model_dump(mode="json")),
+            _object_sha256(
+                _without_magnitude(builder.package.items.model_dump(mode="json"), "items")
+            ),
             _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
         ),
         outputs=("content/items/contact-sheet.png",),
@@ -884,7 +972,11 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
         description="review complete item identity and isolation coverage",
         operation=OperationKind.STRUCTURED_GENERATION,
         depends_on=(contact.node_id,),
-        input_digests=(_object_sha256(builder.package.items.model_dump(mode="json")),),
+        input_digests=(
+            _object_sha256(
+                _without_magnitude(builder.package.items.model_dump(mode="json"), "items")
+            ),
+        ),
         outputs=("content/items/review.json",),
     ).node_id
 

@@ -64,6 +64,13 @@ function preparedManifestFixture() {
     },
     entry_map_id: "meadow",
     entry_spawn_id: "west_gate",
+    scale: {
+      unit: "player_height",
+      player_height_tiles: 2.4,
+      minimum: 0.25,
+      steps: [0.25, 0.5, 0.75, 1, 1.5, 2, 3],
+      ranks: { common: 0.5, uncommon: 0.65, elite: 0.85, boss: 1.5 },
+    },
     maps: [
       {
         map_id: "meadow",
@@ -193,6 +200,16 @@ function preparedManifestFixture() {
           asset: assets.playerCrouch,
         },
       },
+      calibration: {
+        height_units: 1,
+        height_units_source: "definition",
+        source_px_per_unit: 600,
+        measured_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        subject_extent_px: 600,
+        baseline_state: "idle",
+        state_rebase: { idle: 1, crouch: 1.09 },
+        plate_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
       dialogue: {
         columns: 1,
         rows: 1,
@@ -203,6 +220,13 @@ function preparedManifestFixture() {
     },
     mobs: [
       {
+        calibration: {
+          height_units: 0.5,
+          height_units_source: "rank",
+          source_px_per_unit: 400,
+          measured_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          subject_extent_px: 200,
+        },
         mob_id: "slime",
         display_name: "Sun Slime",
         rank: "common",
@@ -227,6 +251,13 @@ function preparedManifestFixture() {
     ],
     npcs: [
       {
+        calibration: {
+          height_units: 1.0,
+          height_units_source: "authored",
+          source_px_per_unit: 500,
+          measured_sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          subject_extent_px: 500,
+        },
         npc_id: "guide",
         display_name: "Village Guide",
         role: "guide",
@@ -254,6 +285,13 @@ function preparedManifestFixture() {
     ],
     props: [
       {
+        calibration: {
+          height_units: 3.0,
+          height_units_source: "authored",
+          source_px_per_unit: 300,
+          measured_sha256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          subject_extent_px: 900,
+        },
         prop_id: "signpost",
         display_name: "Signpost",
         ground_contact_y_normalized: 0.75,
@@ -262,6 +300,13 @@ function preparedManifestFixture() {
     ],
     items: [
       {
+        calibration: {
+          height_units: 0.25,
+          height_units_source: "authored",
+          source_px_per_unit: 800,
+          measured_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          subject_extent_px: 200,
+        },
         item_id: "coin",
         display_name: "Coin",
         item_kind: "currency",

@@ -48,11 +48,15 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # operations; Crowncrag declares `mirror_repeat` so its four are local. The image count is a
     # worst case: each loop node admits the generated raster first and only constructs when that
     # fails, so a layer the model already returned as a clean repeat unit spends nothing.
-    assert len(graph.nodes) == 215
+    # Two motion-rebase nodes per actor with published motion: the player. The first judges
+    # every atlas against the baseline on a locally composited plate; the second applies that
+    # reading and judges the residual on a plate composed with it. Two structured operations,
+    # no image generation - both plates are assembled locally from shipped bytes.
+    assert len(graph.nodes) == 217
     assert graph.operation_counts() == {
         "local": 102,
         "image_generation": 92,
-        "structured_generation": 18,
+        "structured_generation": 20,
         "music_generation": 3,
     }
     assert graph.terminal_node_id == "manifest-assemble"
@@ -411,10 +415,10 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
     graph = _graph()
     projection = project_execution(graph)
 
-    assert projection.duration_ms == 297_650
+    assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.07
-    assert projection.estimated_cost_high_usd == 22.24
+    assert projection.estimated_cost_low_usd == 4.08
+    assert projection.estimated_cost_high_usd == 22.4
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

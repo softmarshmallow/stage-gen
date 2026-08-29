@@ -1,6 +1,6 @@
 import type { ClimbArtwork, PlayerState } from "./player";
 import type { ClimbableRole } from "./vertical";
-import type { MotionBinding } from "./prepared-manifest";
+import type { MotionBinding, MotionCalibration } from "./prepared-manifest";
 import type { RuntimeMotionPlayback } from "./motion-playback";
 
 type PreparedPlayerStateAdapter = Readonly<{
@@ -105,4 +105,27 @@ export function preparedPlayerMotionPlayback(
       return adapter ? [[adapter.runtime_state, binding.playback]] : [];
     }),
   );
+}
+
+/**
+ * Re-key a published rebase from authored state names onto runtime texture keys.
+ *
+ * The adapter table is the one place those two vocabularies meet, and climb is the one entry
+ * that is not one-to-one: two authored climb states resolve to one controller state but keep
+ * separate strips, so each keeps its own multiplier.
+ */
+export function preparedPlayerStateRebase(
+  calibration: MotionCalibration,
+): ReadonlyMap<string, number> {
+  const resolved = new Map<string, number>();
+  for (const [state, multiplier] of Object.entries(calibration.stateRebase)) {
+    const adapter = PREPARED_PLAYER_STATE_ADAPTERS[state];
+    // A package may author more motion than this controller draws - `skill_cast` is authored and
+    // published but has no runtime state here. A state the runtime never binds needs no scale,
+    // so it is skipped rather than rejected; the adapter table is the runtime's own view of the
+    // contract, not a claim that the contract may not exceed it.
+    if (adapter === undefined) continue;
+    resolved.set(adapter.texture_key, multiplier);
+  }
+  return resolved;
 }

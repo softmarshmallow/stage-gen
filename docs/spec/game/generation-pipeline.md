@@ -61,6 +61,8 @@ flowchart TD
     PS --> PV["alpha-component repack + validate[*]"]
     PD --> PV
     PV --> PCR["player contact sheet + review"]
+    PV --> PMR["motion-rebase plate + judge"]
+    PMR --> PMV["motion-rebase verify: residual judge on the applied pass"]
 
     PR --> XC["mob / NPC concepts[*]"]
     XC --> XS["mob states / NPC world + dialogue[*]"]
@@ -105,13 +107,13 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "f04f84d2dc99ed5b124034c14e0c395756f13d2b7362b255156989be91119c7b",
-  "node_count": 215,
+  "topology_sha256": "5abbf94f3acdf7e0aa3a368bdadb3fac1a9bd04c3b75b562ef4eaed8df162009",
+  "node_count": 217,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
     "local": 102,
     "image_generation": 92,
-    "structured_generation": 18,
+    "structured_generation": 20,
     "music_generation": 3
   },
   "resources": [
@@ -156,14 +158,14 @@ the value is not a universal model constant.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 110 provider operations. Provider transport retries and
+The normal first-pass graph contains 111 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Maps | 2 maps × (4 layers + 1 ground), 8 loop passes split provider-assisted or local by each layer's own selected construction, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
-| Player | concept, 11 canonical-source states, dialogue, validations, board, review | 13 | 1 | 0 | 13 |
+| Player | concept, 11 canonical-source states, dialogue, validations, board, review, two motion-rebase judgements - a first pass over a locally composited plate, then a residual verification over a plate composed with that pass applied | 13 | 3 | 0 | 13 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
@@ -171,7 +173,7 @@ reported by the owning node.
 | UI | one inventory panel, deterministic layout/alpha validation, one review | 1 | 1 | 0 | 1 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **211 nodes** | **91** | **16** | **3** | **101** |
+| **Total** | **213 nodes** | **91** | **18** | **3** | **101** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -184,6 +186,20 @@ canonical frame indices, and timeline cadence when applicable. The recipe still 
 source poses and the canonicalizer still publishes four frames. `manifest-assemble` projects both
 facts as `source_frame_count` and `playback`; runtime consumers must not infer selection, cadence,
 or repetition from actor role or state names.
+
+Every player motion atlas is a separate provider call, so nothing in the pixels ties their draw
+scale together, and an alpha bounding box cannot separate a short pose from a small drawing. The
+`motion-rebase` node per player therefore composites every frame of every state onto one banded
+plate - uniform scale within a band, the baseline repeated in each - and a vision judge returns
+one multiplier per state against the `idle` baseline. Its `motion-rebase-verify` successor closes
+the loop: it composes a second plate with those multipliers already applied, so the judge reads
+only the small residual that remains, and the two readings multiply into the published record.
+Neither plate costs generation - both are assembled locally from bytes that have already shipped,
+so a provider cannot redraw them - and the judging is two structured operations for the whole
+actor rather than one per state. `manifest-assemble` republishes the admitted record as
+`player.calibration`, re-derived from the run artifact rather than trusted, and the consumer
+multiplies it with the baseline's anchor instead of re-measuring. See
+[Motion rebase](../motion-rebase.md).
 
 NPC `world_orientation` is catalog-wide because the current NPC catalog has one shared world
 camera treatment. Bellweather sets it to `front`. Each NPC still authors an ordinary `motions`

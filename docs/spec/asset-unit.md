@@ -13,6 +13,11 @@
 
 ![The same map, camera and artwork rendered twice: above, a per-class pixel constant applied to each untrimmed canvas; below, each subject's declared height_units projected through the asset unit, with a ruler marking one, two and three player heights](../media/asset-unit-calibration.webp)
 
+*Composited by `scripts/render_asset_scale_figures.py` from the
+`bellweather-prepared-v11-bound` package; the manifest digest it was rendered
+from is recorded in
+[Reproducing the measurements](../research/asset-scale-study.md#reproducing-the-measurements).*
+
 ## The unit
 
 **One asset unit is one canonical player height.** The player is `1.0` by

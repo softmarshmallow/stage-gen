@@ -80,6 +80,21 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
     if target.suffix == ".mp3":
         target.write_bytes(b"ID3" + bytes([color]) * 32)
         return
+    if relative_path.endswith(("motion-rebase.json", "motion-rebase-first-pass.json")):
+        target.write_text(
+            json.dumps(
+                {
+                    "baseline_state": "idle",
+                    "states": {
+                        state: 1.0 for state in _MOTION_REBASE_STATES_BY_PATH[relative_path]
+                    },
+                    "plate_sha256": "0" * 64,
+                    "verification_plate_sha256": "1" * 64,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return
     if relative_path.endswith("climbable.validation.json"):
         cells = _CLIMBABLE_CELLS_BY_PATH.get(relative_path, 1)
         target.write_text(
@@ -108,6 +123,7 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
 
 _ANCHORS_BY_PATH: dict[str, str] = {}
 _CLIMBABLE_CELLS_BY_PATH: dict[str, int] = {}
+_MOTION_REBASE_STATES_BY_PATH: dict[str, list[str]] = {}
 
 
 def _prepare_complete_root(root: Path, package: ResolvedGamePackage, *, color: int = 40) -> None:
@@ -115,6 +131,15 @@ def _prepare_complete_root(root: Path, package: ResolvedGamePackage, *, color: i
 
     _ANCHORS_BY_PATH.clear()
     _CLIMBABLE_CELLS_BY_PATH.clear()
+    _MOTION_REBASE_STATES_BY_PATH.clear()
+    for player_content in package.player.players:
+        _rebase_states = [motion.state for motion in player_content.motions]
+        _MOTION_REBASE_STATES_BY_PATH[
+            f"content/players/{player_content.player_id}/motion-rebase.json"
+        ] = _rebase_states
+        _MOTION_REBASE_STATES_BY_PATH[
+            f"content/players/{player_content.player_id}/motion-rebase-first-pass.json"
+        ] = _rebase_states
     for game_map in package.maps:
         if game_map.climbable is not None:
             _CLIMBABLE_CELLS_BY_PATH[f"maps/{game_map.map_id}/climbable.validation.json"] = len(
@@ -142,6 +167,15 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     correction = tmp_path / "correction"
     _ANCHORS_BY_PATH.clear()
     _CLIMBABLE_CELLS_BY_PATH.clear()
+    _MOTION_REBASE_STATES_BY_PATH.clear()
+    for player_content in package.player.players:
+        _rebase_states = [motion.state for motion in player_content.motions]
+        _MOTION_REBASE_STATES_BY_PATH[
+            f"content/players/{player_content.player_id}/motion-rebase.json"
+        ] = _rebase_states
+        _MOTION_REBASE_STATES_BY_PATH[
+            f"content/players/{player_content.player_id}/motion-rebase-first-pass.json"
+        ] = _rebase_states
     for game_map in package.maps:
         if game_map.climbable is not None:
             _CLIMBABLE_CELLS_BY_PATH[f"maps/{game_map.map_id}/climbable.validation.json"] = len(

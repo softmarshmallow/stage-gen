@@ -178,6 +178,25 @@ class _FakeStructuredService:
 def _write_fake_structured(request: StructuredGenerationRequest[object]) -> SimpleNamespace:
     output = Path(request.artifact_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    if request.metadata.get("kind") in {"player-motion-rebase", "player-motion-rebase-verify"}:
+        # The rebase artifacts are read back by the verify stage and the manifest, so the fake
+        # must route a well-formed reading through the request's own parse and admission instead
+        # of writing a review-shaped verdict.
+        states = request.metadata["states"]
+        assert isinstance(states, list)
+        decoded = {
+            "baseline_state": "idle",
+            "states": [
+                {"state": state, "multiplier": 1.0, "evidence": "deterministic fake"}
+                for state in states
+            ],
+        }
+        assert request.artifact_value is not None
+        record = request.artifact_value(request.parse(decoded))
+        output.write_text(json.dumps(record), encoding="utf-8")
+        sidecar = Path(f"{output}.meta.json")
+        sidecar.write_text("{}", encoding="utf-8")
+        return SimpleNamespace(attempts=1, provenance_path=str(sidecar))
     value = {
         "verdict": "accept",
         "confidence": 1.0,
@@ -244,9 +263,9 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 174
+    assert len(summary.nodes) == 176
     assert images.calls == 75
-    assert structured.calls == 14
+    assert structured.calls == 16
     assert music.calls == 3
     ui_request = next(
         request for request in images.requests if request.metadata.get("role") == "inventory_panel"
