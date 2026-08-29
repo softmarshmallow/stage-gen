@@ -79,7 +79,8 @@ review explorer needs its own explicit review-manifest boundary.
 - manifest-bound inventory-panel geometry and artwork, with a nonfatal magenta fallback;
 - keyboard movement, jumping, attacks, contact damage, drops, pickup, inventory, portals, and
   proximity dialogue;
-- healing consumables and defeat recovery, resolved from `item_kind` and the safe-hub map role;
+- healing consumables and a defeat screen whose way back is resolved from `item_kind` and the
+  safe-hub map role;
 - experience, levels, and critical hits, from the named curve and profile the contract publishes;
 - an auto-play bot whose navigation graph is derived from the same authored occupancy the terrain is.
 
@@ -101,9 +102,15 @@ overlay is hidden by default and toggles with Command+Backtick; it is not gamepl
 Q spends the first healing consumable the player carries, in manifest order, and restores a share
 of the authored pool. A drink at full health is refused rather than clamped, so the item is not
 lost. Which items qualify comes from the catalog's `item_kind`; a package that ships none records a
-diagnostic at load. Defeat is no longer terminal: after the authored death strip finishes, the run
-re-enters the village at the game's own entry spawn, or at the first map whose role is
-`safe_village_hub` when the game opens on a hostile route. The world rebuilds and the player
+diagnostic at load. Defeat is no longer terminal, and it is no longer silent either. After the authored death strip
+finishes, a death screen names what happened and offers the way back — `Return to <map>`, because
+where the run resumes is the fact worth reporting when home is derived rather than authored. The
+button, or any of the keys that advance a conversation, sends the player to the game's own entry
+spawn, or to the first map whose role is `safe_village_hub` when the game opens on a hostile route.
+Nothing happens until it is answered: the press is recorded and drained on the next frame rather
+than acted on inside the pointer callback, since a respawn tears down the objects that callback is
+standing in. A run with the bot driving answers the prompt itself after a beat, because an
+unattended run would otherwise stop forever at its first death. The world rebuilds and the player
 returns at full health; what they were carrying survives, so defeat costs route progress rather
 than the run.
 

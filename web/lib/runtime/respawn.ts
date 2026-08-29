@@ -1,9 +1,14 @@
-// Where defeat sends the player, and how long it takes to get there.
+// Where defeat sends the player, when they are asked about it, and who may answer.
 //
 // Defeat used to be terminal: control locked, the death strip played, and the run stopped there
 // with nothing to restart it. That is survivable for a person with a reload button and fatal for
 // anything meant to keep playing on its own, so recovery belongs to the runtime alongside the rest
 // of the gameplay rules.
+//
+// Recovery is a decision rather than a timer. The player is told what happened and offered the way
+// back, and the run resumes when they take it — which is what a death screen is for, and what a
+// silent reload three seconds later cannot do. The timer that remains exists only for a run with
+// nobody at the keyboard, which has to answer its own prompt or stop forever at its first death.
 //
 // Home is derived from the package rather than authored into it. The gameplay contract already
 // says which maps are safe hubs and where the game starts, and those two facts are enough to name
@@ -75,30 +80,83 @@ function frozenSpawn(
 }
 
 /**
- * How long a defeated player lies there before the world reloads around them.
+ * How long a defeated player lies there before they are asked what to do next.
  *
  * Long enough for the authored terminal strip to finish and register as an ending rather than a
- * stutter, and short enough that an unattended run is not mostly a corpse. It is expressed against
- * the strip duration so a change to the death artwork's frame rate carries the beat with it.
+ * stutter. It is expressed against the strip duration so a change to the death artwork's frame
+ * rate carries the beat with it, and a prompt raised over a still-playing death animation would
+ * be talking over the one moment the artwork exists for.
  */
-export const DEFEAT_RECOVERY_DELAY_MS = DEATH_STRIP_DURATION_MS + 1300;
+export const DEFEAT_PROMPT_DELAY_MS = DEATH_STRIP_DURATION_MS + 400;
 
-/** Whether a defeat that began at `defeatedAtMs` has finished its recovery delay. */
-export function defeatRecoveryDue(
+/** How long the prompt takes to arrive, so it reads as an arrival rather than a cut. */
+export const DEFEAT_PROMPT_FADE_MS = 260;
+
+/**
+ * How long an unattended run leaves the prompt standing before accepting it itself.
+ *
+ * A prompt is the right answer for a person, who wants to know what happened and to decide when to
+ * carry on. It is the wrong answer for a run with nobody at the keyboard, which would otherwise
+ * stop at its first death and stay stopped. The pause is deliberate rather than incidental: the
+ * screen is worth seeing even when the thing reading it is going to press the button anyway.
+ */
+export const DEFEAT_AUTOMATED_CONFIRM_DELAY_MS = DEFEAT_PROMPT_DELAY_MS + 1400;
+
+export type DefeatPromptState = Readonly<{
+  visible: boolean;
+  alpha: number;
+}>;
+
+/**
+ * Whether the prompt is up yet, and how far in it has faded.
+ *
+ * Sampled from caller-supplied simulation time exactly like the stat log and floating combat text,
+ * so normal play and fixed-frame automation follow the same path with no tween to drift between
+ * them.
+ */
+export function defeatPromptState(
+  input: Readonly<{
+    defeatedAtMs: number;
+    nowMs: number;
+    delayMs?: number;
+    fadeMs?: number;
+  }>,
+): DefeatPromptState {
+  const delayMs = input.delayMs ?? DEFEAT_PROMPT_DELAY_MS;
+  const fadeMs = input.fadeMs ?? DEFEAT_PROMPT_FADE_MS;
+  assertFiniteTiming(input.defeatedAtMs, input.nowMs, delayMs);
+  if (!Number.isFinite(fadeMs) || fadeMs < 0) {
+    throw new Error("defeat prompt timing requires finite milliseconds");
+  }
+  const elapsed = input.nowMs - input.defeatedAtMs - delayMs;
+  if (elapsed < 0) return Object.freeze({ visible: false, alpha: 0 });
+  if (fadeMs === 0) return Object.freeze({ visible: true, alpha: 1 });
+  return Object.freeze({
+    visible: true,
+    alpha: Math.max(0, Math.min(1, elapsed / fadeMs)),
+  });
+}
+
+/** Whether a run with nobody at the keyboard has waited long enough to accept the prompt. */
+export function automatedDefeatConfirmDue(
   input: Readonly<{
     defeatedAtMs: number;
     nowMs: number;
     delayMs?: number;
   }>,
 ): boolean {
-  const delayMs = input.delayMs ?? DEFEAT_RECOVERY_DELAY_MS;
+  const delayMs = input.delayMs ?? DEFEAT_AUTOMATED_CONFIRM_DELAY_MS;
+  assertFiniteTiming(input.defeatedAtMs, input.nowMs, delayMs);
+  return input.nowMs - input.defeatedAtMs >= delayMs;
+}
+
+function assertFiniteTiming(defeatedAtMs: number, nowMs: number, delayMs: number): void {
   if (
-    !Number.isFinite(input.defeatedAtMs) ||
-    !Number.isFinite(input.nowMs) ||
+    !Number.isFinite(defeatedAtMs) ||
+    !Number.isFinite(nowMs) ||
     !Number.isFinite(delayMs) ||
     delayMs < 0
   ) {
-    throw new Error("defeat recovery timing requires finite milliseconds");
+    throw new Error("defeat prompt timing requires finite milliseconds");
   }
-  return input.nowMs - input.defeatedAtMs >= delayMs;
 }

@@ -57,7 +57,8 @@ import {
   formatLevelUpLine,
 } from "./stat-log";
 import { hasHealingConsumable, selectHealingItemId } from "./consumables";
-import { defeatRecoveryDue, resolveHomeSpawn } from "./respawn";
+import { automatedDefeatConfirmDue, resolveHomeSpawn } from "./respawn";
+import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
   MobPopulationDirector,
@@ -232,6 +233,7 @@ export class PreparedStageScene extends Phaser.Scene {
   private readonly inventory = new Map<string, number>();
   /** When the current defeat began, or null while the player is alive. Drives respawn timing. */
   private defeatedAtMs: number | null = null;
+  private defeatPanel?: DefeatPanel;
   private bot?: Bot;
   private navGraph: NavGraph = EMPTY_NAV_GRAPH;
   private autoPlayEnabled: boolean;
@@ -1439,14 +1441,12 @@ export class PreparedStageScene extends Phaser.Scene {
     const health = player.healthState;
     if (health.defeated) {
       this.defeatedAtMs ??= now;
-      if (defeatRecoveryDue({ defeatedAtMs: this.defeatedAtMs, nowMs: now })) {
-        // Rebuilding the world also rebuilds the player, so the recovered character is a fresh
-        // controller at full health. Nothing below this line may touch the old one.
-        this.respawnAtHome();
-        return;
-      }
+      // Rebuilding the world also rebuilds the player, so the recovered character is a fresh
+      // controller at full health. Nothing below this line may touch the old one.
+      if (this.updateDefeatPrompt(now)) return;
     } else {
       this.defeatedAtMs = null;
+      this.defeatPanel?.hide();
     }
     if (gameplay.combat.enabled && gameplay.combat.contact_damage) {
       for (const mob of this.mobs) {
@@ -1738,6 +1738,7 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private createInterface(): void {
     this.debugOverlay = new DebugOverlay(this);
+    this.defeatPanel = new DefeatPanel({ scene: this });
     this.mapLabel = this.add.text(VIEW_W / 2, 20, this.currentMap?.display_name ?? "", { fontFamily: "Georgia, serif", fontSize: "22px", color: "#fff3cc", stroke: "#1a3342", strokeThickness: 5 }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(850);
     this.updateDebugOverlay();
   }
@@ -1973,6 +1974,48 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   /**
+   * Raise the death screen and act on it. Returns true when the world has just been replaced.
+   *
+   * The panel is offered to everyone and answered by whoever is playing. A person answers it with
+   * the button or a confirm key, and nothing happens until they do — which is the point of showing
+   * it at all. A run the bot is driving answers it on its own after a beat, because the alternative
+   * is an unattended run that stops forever at its first death; that is a property of who is at the
+   * keyboard, not a decision any behaviour makes, so it is settled here rather than in the roster.
+   */
+  private updateDefeatPrompt(nowMs: number): boolean {
+    const defeatedAtMs = this.defeatedAtMs;
+    const gameplay = this.gameplay;
+    const panel = this.defeatPanel;
+    if (defeatedAtMs === null || !gameplay) return false;
+    const home = resolveHomeSpawn(gameplay);
+    panel?.update({
+      defeatedAtMs,
+      nowMs,
+      destinationName:
+        this.manifest?.maps.find((map) => map.map_id === home.map_id)?.display_name ?? "",
+    });
+    if (panel?.visible && this.confirmKeyPressed()) panel.requestConfirm();
+    const confirmed = panel?.consumeConfirm() ?? false;
+    const unattended =
+      this.controlSource === "bot" &&
+      automatedDefeatConfirmDue({ defeatedAtMs, nowMs });
+    if (!confirmed && !unattended) return false;
+    this.respawnAtHome();
+    return true;
+  }
+
+  /** The same keys that advance a conversation also accept the death screen. */
+  private confirmKeyPressed(): boolean {
+    const keys = this.keys;
+    if (!keys) return false;
+    return (
+      Phaser.Input.Keyboard.JustDown(keys.interact) ||
+      Phaser.Input.Keyboard.JustDown(keys.enter) ||
+      Phaser.Input.Keyboard.JustDown(keys.jump)
+    );
+  }
+
+  /**
    * Send a defeated player back to the village.
    *
    * Recovery is a map entry like any other, which is what makes it cheap and safe: the same
@@ -1984,6 +2027,7 @@ export class PreparedStageScene extends Phaser.Scene {
     const gameplay = this.gameplay;
     if (!gameplay) return;
     this.defeatedAtMs = null;
+    this.defeatPanel?.hide();
     const home = resolveHomeSpawn(gameplay);
     void this.enterMap(home.map_id, home.normalized_x);
   }

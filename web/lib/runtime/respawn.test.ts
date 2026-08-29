@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { DEATH_STRIP_DURATION_MS } from "./death-presentation";
 import {
-  DEFEAT_RECOVERY_DELAY_MS,
-  defeatRecoveryDue,
+  DEFEAT_AUTOMATED_CONFIRM_DELAY_MS,
+  DEFEAT_PROMPT_DELAY_MS,
+  DEFEAT_PROMPT_FADE_MS,
+  automatedDefeatConfirmDue,
+  defeatPromptState,
   resolveHomeSpawn,
 } from "./respawn";
 
@@ -83,35 +86,80 @@ describe("home spawn resolution", () => {
   });
 });
 
-describe("defeat recovery timing", () => {
-  test("outlasts the authored terminal strip so defeat reads as an ending", () => {
-    expect(DEFEAT_RECOVERY_DELAY_MS).toBeGreaterThan(DEATH_STRIP_DURATION_MS);
+describe("defeat prompt timing", () => {
+  test("waits out the authored terminal strip, so it never talks over the death", () => {
+    expect(DEFEAT_PROMPT_DELAY_MS).toBeGreaterThan(DEATH_STRIP_DURATION_MS);
   });
 
-  test("holds the corpse until the delay elapses, then releases it", () => {
+  test("stays hidden until its delay, then fades in and settles", () => {
     const defeatedAtMs = 5_000;
-    expect(defeatRecoveryDue({ defeatedAtMs, nowMs: defeatedAtMs })).toBe(false);
+    expect(defeatPromptState({ defeatedAtMs, nowMs: defeatedAtMs })).toMatchObject({
+      visible: false,
+      alpha: 0,
+    });
     expect(
-      defeatRecoveryDue({
+      defeatPromptState({
         defeatedAtMs,
-        nowMs: defeatedAtMs + DEFEAT_RECOVERY_DELAY_MS - 1,
+        nowMs: defeatedAtMs + DEFEAT_PROMPT_DELAY_MS - 1,
+      }).visible,
+    ).toBe(false);
+    const arriving = defeatPromptState({
+      defeatedAtMs,
+      nowMs: defeatedAtMs + DEFEAT_PROMPT_DELAY_MS + DEFEAT_PROMPT_FADE_MS / 2,
+    });
+    expect(arriving.visible).toBe(true);
+    expect(arriving.alpha).toBeGreaterThan(0);
+    expect(arriving.alpha).toBeLessThan(1);
+    expect(
+      defeatPromptState({
+        defeatedAtMs,
+        nowMs: defeatedAtMs + DEFEAT_PROMPT_DELAY_MS + DEFEAT_PROMPT_FADE_MS,
+      }).alpha,
+    ).toBe(1);
+  });
+
+  test("a clock left running does not drive the fade past full", () => {
+    expect(defeatPromptState({ defeatedAtMs: 0, nowMs: 900_000 }).alpha).toBe(1);
+  });
+
+  test("nonsense timing is refused rather than rendered", () => {
+    expect(() => defeatPromptState({ defeatedAtMs: Number.NaN, nowMs: 10 })).toThrow(
+      /finite/,
+    );
+    expect(() => defeatPromptState({ defeatedAtMs: 0, nowMs: 10, delayMs: -1 })).toThrow(
+      /finite/,
+    );
+  });
+});
+
+describe("answering the prompt without a player", () => {
+  test("an unattended run waits for the prompt to stand before accepting it", () => {
+    expect(DEFEAT_AUTOMATED_CONFIRM_DELAY_MS).toBeGreaterThan(DEFEAT_PROMPT_DELAY_MS);
+  });
+
+  test("it holds until the delay elapses, then answers", () => {
+    const defeatedAtMs = 5_000;
+    expect(automatedDefeatConfirmDue({ defeatedAtMs, nowMs: defeatedAtMs })).toBe(false);
+    expect(
+      automatedDefeatConfirmDue({
+        defeatedAtMs,
+        nowMs: defeatedAtMs + DEFEAT_AUTOMATED_CONFIRM_DELAY_MS - 1,
       }),
     ).toBe(false);
     expect(
-      defeatRecoveryDue({
+      automatedDefeatConfirmDue({
         defeatedAtMs,
-        nowMs: defeatedAtMs + DEFEAT_RECOVERY_DELAY_MS,
+        nowMs: defeatedAtMs + DEFEAT_AUTOMATED_CONFIRM_DELAY_MS,
       }),
     ).toBe(true);
   });
 
   test("accepts an explicit delay and rejects nonsense timing", () => {
-    expect(defeatRecoveryDue({ defeatedAtMs: 0, nowMs: 10, delayMs: 10 })).toBe(true);
+    expect(automatedDefeatConfirmDue({ defeatedAtMs: 0, nowMs: 10, delayMs: 10 })).toBe(
+      true,
+    );
     expect(() =>
-      defeatRecoveryDue({ defeatedAtMs: Number.NaN, nowMs: 10 }),
-    ).toThrow(/finite/);
-    expect(() =>
-      defeatRecoveryDue({ defeatedAtMs: 0, nowMs: 10, delayMs: -1 }),
+      automatedDefeatConfirmDue({ defeatedAtMs: Number.NaN, nowMs: 10 }),
     ).toThrow(/finite/);
   });
 });
