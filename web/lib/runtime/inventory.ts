@@ -183,6 +183,27 @@ export class InventoryHud {
     this.slots.set(kindIndex, { kindIndex, count: 1, icon });
   }
 
+  /**
+   * Spend one of a stack, emptying the slot when the last one goes.
+   *
+   * The panel is a picture of what the player carries, so a consumed item has to leave it. An
+   * emptied slot is torn down rather than left showing "x0", which also frees the slot for the
+   * next kind that lands on the same index.
+   */
+  removeItem(kindIndex: number): void {
+    const existing = this.slots.get(kindIndex);
+    if (!existing) return;
+    existing.count -= 1;
+    if (existing.count > 0) {
+      this.countTexts.get(kindIndex)?.setText(`x${existing.count}`);
+      return;
+    }
+    existing.icon.destroy();
+    this.countTexts.get(kindIndex)?.destroy();
+    this.countTexts.delete(kindIndex);
+    this.slots.delete(kindIndex);
+  }
+
   toggle() {
     this.visible = !this.visible;
     this.container.setVisible(this.visible);

@@ -599,15 +599,23 @@ export class Mob {
     return strike;
   }
 
-  /** Apply one point of damage and report the complete before/after resolution. */
+  /**
+   * Apply one blow and report the complete before/after resolution.
+   *
+   * The amount is the caller's, because whether a swing rolled critical is decided by the combat
+   * policy the scene holds, not by the creature absorbing it. It defaults to the single point every
+   * player swing was worth before criticals existed.
+   */
   takeHit(
     nowMs: number,
     knockbackDir: 1 | -1 = 1,
+    amount = 1,
+    critical = false,
   ): MobHitResult {
     if (this.state === "dead") {
-      return mobHitResult(resolveDamage(this.hp, 1, true));
+      return mobHitResult(resolveDamage(this.hp, amount, true, critical));
     }
-    const resolution = resolveDamage(this.hp, 1);
+    const resolution = resolveDamage(this.hp, amount, false, critical);
     this.hp = resolution.hpAfter;
     const hitResult = mobHitResult(resolution);
     // Knockback is the one movement allowed to cross a descending shelf edge. It remains clamped

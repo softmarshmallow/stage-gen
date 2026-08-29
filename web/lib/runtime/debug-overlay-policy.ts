@@ -3,10 +3,30 @@ export type DebugOverlayItem = Readonly<{
   quantity: number;
 }>;
 
+export type DebugOverlayProgression = Readonly<{
+  level: number;
+  experienceIntoLevel: number;
+  /** Null once the authored maximum level is reached and there is nothing left to earn. */
+  experienceForNext: number | null;
+}>;
+
+/** What the bot is doing, for the one surface where that question is worth a line of screen. */
+export type DebugOverlayAutoPlay = Readonly<{
+  enabled: boolean;
+  /** False while a human has the controls, which is a different thing from being switched off. */
+  driving: boolean;
+  goal: string | null;
+  reason: string | null;
+}>;
+
 export type DebugOverlayState = Readonly<{
   health: number;
   maximumHealth: number;
   inventory: readonly DebugOverlayItem[];
+  /** Absent for a package that ships progression disabled; the line is then omitted entirely. */
+  progression?: DebugOverlayProgression | null;
+  /** Absent when the preview runs without a bot at all, as a fixed-frame capture does. */
+  autoPlay?: DebugOverlayAutoPlay | null;
 }>;
 
 /** The debug layer toggles only on a fresh Command+Backtick chord. */
@@ -22,5 +42,25 @@ export function debugOverlayText(state: DebugOverlayState): string {
     .filter((item) => item.quantity > 0)
     .map((item) => `${item.label} ×${item.quantity}`)
     .join("  ·  ");
-  return `DEBUG\nHP ${state.health}/${state.maximumHealth}\n${inventory || "Inventory empty"}`;
+  const progression = state.progression
+    ? `\nLV ${state.progression.level}  XP ${state.progression.experienceIntoLevel}${
+        state.progression.experienceForNext === null
+          ? " (max)"
+          : `/${state.progression.experienceForNext}`
+      }`
+    : "";
+  const autoPlay = state.autoPlay
+    ? `\nAUTO ${
+        !state.autoPlay.enabled
+          ? "off"
+          : state.autoPlay.driving
+            ? `${state.autoPlay.goal ?? "thinking"}${
+                state.autoPlay.reason ? ` — ${state.autoPlay.reason}` : ""
+              }`
+            : "yielded"
+      }`
+    : "";
+  return `DEBUG\nHP ${state.health}/${state.maximumHealth}${progression}${autoPlay}\n${
+    inventory || "Inventory empty"
+  }`;
 }

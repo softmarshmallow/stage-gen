@@ -15,6 +15,17 @@ export const PREPARED_GAMEPLAY_MOVEMENTS = [
 export type PreparedGameplayMovement =
   (typeof PREPARED_GAMEPLAY_MOVEMENTS)[number];
 
+export type PreparedGameplayExperienceCurve =
+  | "gentle_rpg_v1"
+  | "steady_rpg_v1"
+  | "brisk_rpg_v1";
+
+export type PreparedGameplayCriticalProfile =
+  | "none"
+  | "rare_v1"
+  | "standard_v1"
+  | "frequent_v1";
+
 export type PreparedGameplayMapRole =
   | "safe_village_hub"
   | "scrolling_hunting_route";
@@ -52,8 +63,9 @@ export type PreparedGameplayContract = Readonly<{
     starting_item_ids: readonly string[];
   }>;
   progression: Readonly<{
+    enabled: boolean;
     maximum_level: number;
-    experience_curve: "gentle_rpg_v1";
+    experience_curve: PreparedGameplayExperienceCurve;
     stat_growth: "balanced_novice_v1";
   }>;
   inventory: Readonly<{
@@ -65,6 +77,7 @@ export type PreparedGameplayContract = Readonly<{
     basic_action: "basic_attack";
     secondary_action: "skill_cast";
     contact_damage: boolean;
+    critical_profile: PreparedGameplayCriticalProfile;
     lethal_presentation: false;
     defeat_presentation: "story_beast_disperses_into_page_light";
   }>;
@@ -397,19 +410,20 @@ export function parsePreparedGameplayContract(
   const rawProgression = record(root.progression, `${path}.progression`);
   exactKeys(
     rawProgression,
-    ["maximum_level", "experience_curve", "stat_growth"],
+    ["enabled", "maximum_level", "experience_curve", "stat_growth"],
     `${path}.progression`,
   );
   const progression = Object.freeze({
+    enabled: boolean(rawProgression.enabled, `${path}.progression.enabled`),
     maximum_level: integer(
       rawProgression.maximum_level,
       `${path}.progression.maximum_level`,
       1,
       999,
     ),
-    experience_curve: literal(
+    experience_curve: member(
       rawProgression.experience_curve,
-      "gentle_rpg_v1",
+      ["gentle_rpg_v1", "steady_rpg_v1", "brisk_rpg_v1"] as const,
       `${path}.progression.experience_curve`,
     ),
     stat_growth: literal(
@@ -442,6 +456,7 @@ export function parsePreparedGameplayContract(
       "basic_action",
       "secondary_action",
       "contact_damage",
+      "critical_profile",
       "lethal_presentation",
       "defeat_presentation",
     ],
@@ -456,6 +471,11 @@ export function parsePreparedGameplayContract(
       `${path}.combat.secondary_action`,
     ),
     contact_damage: boolean(rawCombat.contact_damage, `${path}.combat.contact_damage`),
+    critical_profile: member(
+      rawCombat.critical_profile,
+      ["none", "rare_v1", "standard_v1", "frequent_v1"] as const,
+      `${path}.combat.critical_profile`,
+    ),
     lethal_presentation: literal(
       rawCombat.lethal_presentation,
       false,

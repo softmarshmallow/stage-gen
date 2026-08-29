@@ -48,8 +48,14 @@ class PlayerPolicy(PersistedContractModel):
 
 
 class ProgressionPolicy(PersistedContractModel):
+    #: Whether kills award experience and levels at all. A package that leaves this off ships a
+    #: game with fixed player capability; nothing else in the contract changes meaning.
+    enabled: bool = False
     maximum_level: int = Field(ge=1, le=999)
-    experience_curve: Literal["gentle_rpg_v1"]
+    #: A named pacing curve, not a table of numbers. The consumer owns what each name costs per
+    #: level, so pacing is tunable without regenerating a package, and every game that names the
+    #: same curve levels at the same rate.
+    experience_curve: Literal["gentle_rpg_v1", "steady_rpg_v1", "brisk_rpg_v1"]
     stat_growth: Literal["balanced_novice_v1"]
 
 
@@ -63,6 +69,10 @@ class CombatPolicy(PersistedContractModel):
     basic_action: Literal["basic_attack"]
     secondary_action: Literal["skill_cast"]
     contact_damage: bool
+    #: How often a blow lands as a critical, named rather than numbered for the same reason the
+    #: experience curve is: the rate belongs to how the game feels, which the consumer owns. It
+    #: governs player and mob blows alike, so a package cannot arm one side only.
+    critical_profile: Literal["none", "rare_v1", "standard_v1", "frequent_v1"] = "none"
     lethal_presentation: Literal[False]
     defeat_presentation: Literal["story_beast_disperses_into_page_light"]
 

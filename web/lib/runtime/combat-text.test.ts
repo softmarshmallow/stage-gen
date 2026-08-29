@@ -29,6 +29,7 @@ const MOTION: CombatTextMotion = Object.freeze({
   anchorX: 320,
   anchorY: 180,
   reducedMotion: false,
+  critical: false,
 });
 
 describe("floating combat text presentation contract", () => {

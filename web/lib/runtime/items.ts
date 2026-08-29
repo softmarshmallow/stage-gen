@@ -11,6 +11,14 @@ import { terrainSurfaceY } from "./terrain";
 export type ItemKindIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | number;
 
 export interface DroppedItem {
+  /**
+   * Identity for one drop, unique within its system and stable for its whole life.
+   *
+   * Position cannot serve as identity — two drops from the same kill land a few units apart and
+   * then bob — and the array index is reused the moment anything is picked up. Anything that
+   * follows a particular drop across frames needs this.
+   */
+  id: string;
   /** Index 0..7 into the world's items palette (and items_<tag>.png cell). */
   kindIndex: number;
   /** Phaser image displayed in the world. */
@@ -37,6 +45,7 @@ const GRAVITY_PX = 1500;
 export class ItemSystem {
   readonly items: DroppedItem[] = [];
   private opts: ItemSystemOpts;
+  private nextDropId = 1;
 
   constructor(opts: ItemSystemOpts) {
     this.opts = opts;
@@ -62,7 +71,14 @@ export class ItemSystem {
       (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
     sprite.setDisplaySize(targetH * aspect, targetH);
     sprite.setDepth(SCENE_CONTENT_DEPTH.item);
-    const item: DroppedItem = { kindIndex, sprite, settled: false, vy: 0 };
+    const item: DroppedItem = {
+      id: `drop_${this.nextDropId}`,
+      kindIndex,
+      sprite,
+      settled: false,
+      vy: 0,
+    };
+    this.nextDropId += 1;
     this.items.push(item);
     return item;
   }

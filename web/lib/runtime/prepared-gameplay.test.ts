@@ -25,6 +25,7 @@ function gameplayFixture(): Record<string, unknown> {
       starting_item_ids: ["welcome_tart"],
     },
     progression: {
+      enabled: true,
       maximum_level: 20,
       experience_curve: "gentle_rpg_v1",
       stat_growth: "balanced_novice_v1",
@@ -35,6 +36,7 @@ function gameplayFixture(): Record<string, unknown> {
       basic_action: "basic_attack",
       secondary_action: "skill_cast",
       contact_damage: true,
+      critical_profile: "standard_v1",
       lethal_presentation: false,
       defeat_presentation: "story_beast_disperses_into_page_light",
     },

@@ -19,6 +19,12 @@ export const COMBAT_TEXT_FONT_STACK =
 export const COMBAT_TEXT_OUTGOING_COLOR = "#FFF0A6";
 export const COMBAT_TEXT_INCOMING_COLOR = "#FF6B6B";
 export const COMBAT_TEXT_OUTLINE_COLOR = "#24110D";
+/** Criticals read as heat: the same hue family pushed to white-hot, not a different palette. */
+export const COMBAT_TEXT_CRITICAL_OUTGOING_COLOR = "#FFFFFF";
+export const COMBAT_TEXT_CRITICAL_INCOMING_COLOR = "#FFD2D2";
+export const COMBAT_TEXT_CRITICAL_OUTLINE_COLOR = "#7A1B10";
+/** Size and punch multipliers that make a critical unmistakable at a glance. */
+export const COMBAT_TEXT_CRITICAL_SCALE = 1.4;
 export const COMBAT_TEXT_DEPTH = SCENE_CONTENT_DEPTH.actorHud + 10;
 
 export const COMBAT_TEXT_LIFETIME_MS = 640;
@@ -45,6 +51,25 @@ export type CombatTextVisualStyle = Readonly<{
   fontSizePx: number;
 }>;
 
+const COMBAT_TEXT_CRITICAL_STYLES: Readonly<
+  Record<CombatTextDirection, CombatTextVisualStyle>
+> = Object.freeze({
+  outgoing: Object.freeze({
+    color: COMBAT_TEXT_CRITICAL_OUTGOING_COLOR,
+    outlineColor: COMBAT_TEXT_CRITICAL_OUTLINE_COLOR,
+    outlineThicknessPx: 7,
+    fontFamily: COMBAT_TEXT_FONT_STACK,
+    fontSizePx: Math.round(32 * COMBAT_TEXT_CRITICAL_SCALE),
+  }),
+  incoming: Object.freeze({
+    color: COMBAT_TEXT_CRITICAL_INCOMING_COLOR,
+    outlineColor: COMBAT_TEXT_CRITICAL_OUTLINE_COLOR,
+    outlineThicknessPx: 7,
+    fontFamily: COMBAT_TEXT_FONT_STACK,
+    fontSizePx: Math.round(36 * COMBAT_TEXT_CRITICAL_SCALE),
+  }),
+});
+
 const COMBAT_TEXT_STYLES: Readonly<
   Record<CombatTextDirection, CombatTextVisualStyle>
 > = Object.freeze({
@@ -66,8 +91,11 @@ const COMBAT_TEXT_STYLES: Readonly<
 
 export function combatTextVisualStyle(
   direction: CombatTextDirection,
+  critical = false,
 ): CombatTextVisualStyle {
-  return COMBAT_TEXT_STYLES[direction];
+  return critical
+    ? COMBAT_TEXT_CRITICAL_STYLES[direction]
+    : COMBAT_TEXT_STYLES[direction];
 }
 
 export type CombatTextMotion = Readonly<{
@@ -76,6 +104,8 @@ export type CombatTextMotion = Readonly<{
   anchorX: number;
   anchorY: number;
   reducedMotion: boolean;
+  /** A critical punches harder and rises further; reduced motion still flattens both. */
+  critical: boolean;
 }>;
 
 export type CombatTextSample = Readonly<{
@@ -160,9 +190,10 @@ export function sampleCombatText(
   const riseProgress = easeOutCubic(
     unitProgress(elapsedMs / COMBAT_TEXT_RISE_MS),
   );
+  const emphasis = motion.critical ? COMBAT_TEXT_CRITICAL_SCALE : 1;
   return Object.freeze({
-    x: motion.anchorX + glyphShakeX(motion.eventId, elapsedMs),
-    y: motion.anchorY - COMBAT_TEXT_RISE_PX * riseProgress,
+    x: motion.anchorX + glyphShakeX(motion.eventId, elapsedMs) * emphasis,
+    y: motion.anchorY - COMBAT_TEXT_RISE_PX * riseProgress * emphasis,
     alpha,
     scale: punchScale(elapsedMs),
     complete,
@@ -186,6 +217,7 @@ export type ShowCombatTextInput = Readonly<{
 export type CombatTextEntrySnapshot = Readonly<{
   eventId: number;
   direction: CombatTextDirection;
+  critical: boolean;
   amount: number;
   text: string;
   startedAtMs: number;
@@ -216,6 +248,7 @@ export type CombatTextSystemOptions = Readonly<{
 type ActiveCombatText = {
   eventId: number;
   direction: CombatTextDirection;
+  critical: boolean;
   amount: number;
   text: string;
   motion: CombatTextMotion;
@@ -301,19 +334,26 @@ export class CombatTextSystem {
     this.nextEventId =
       this.nextEventId >= Number.MAX_SAFE_INTEGER ? 1 : this.nextEventId + 1;
     const amount = input.resolution.appliedAmount;
-    const text = formatCombatTextAmount(amount);
+    const critical = input.resolution.critical === true;
+    // The bang is the half of the critical read that survives a colour-blind viewer and a
+    // screenshot scaled down to a thumbnail; the palette and the size carry the rest.
+    const text = critical
+      ? `${formatCombatTextAmount(amount)}!`
+      : formatCombatTextAmount(amount);
     const motion: CombatTextMotion = Object.freeze({
       eventId,
       startedAtMs: input.nowMs,
       anchorX: input.x,
       anchorY: input.y,
       reducedMotion: this.reducedMotion,
+      critical,
     });
     const sample = sampleCombatText(motion, input.nowMs);
-    const glyph = this.acquireGlyph(input.direction, text);
+    const glyph = this.acquireGlyph(input.direction, text, critical);
     const entry: ActiveCombatText = {
       eventId,
       direction: input.direction,
+      critical,
       amount,
       text,
       motion,
@@ -356,6 +396,7 @@ export class CombatTextSystem {
         Object.freeze({
           eventId: entry.eventId,
           direction: entry.direction,
+          critical: entry.critical,
           amount: entry.amount,
           text: entry.text,
           startedAtMs: entry.motion.startedAtMs,
@@ -391,8 +432,9 @@ export class CombatTextSystem {
   private acquireGlyph(
     direction: CombatTextDirection,
     text: string,
+    critical = false,
   ): Phaser.GameObjects.Text {
-    const style = combatTextVisualStyle(direction);
+    const style = combatTextVisualStyle(direction, critical);
     const glyph =
       this.pool.pop() ?? this.scene.add.text(0, 0, text, phaserTextStyle(style));
     glyph.setText(text);

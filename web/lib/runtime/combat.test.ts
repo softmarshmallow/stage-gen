@@ -9,6 +9,12 @@ import {
   aggressionProfile,
   attackFootLevelsOverlap,
   applyPlayerDamage,
+  applyPlayerHealing,
+  CRITICAL_PROFILE_NAMES,
+  criticalRule,
+  grownPlayerHealth,
+  healingRestoreAmount,
+  resolveCriticalDamage,
   initialPlayerHealth,
   isPlayerInvulnerable,
   mobIntent,
@@ -156,6 +162,7 @@ describe("player health", () => {
       hpBefore: 2,
       hpAfter: 0,
       defeated: true,
+      critical: false,
     });
     expect(Object.isFrozen(lethal)).toBe(true);
   });
@@ -168,6 +175,7 @@ describe("player health", () => {
       hpBefore: 6,
       hpAfter: 6,
       defeated: false,
+      critical: false,
     });
     expect(resolveDamage(0, 1, true)).toEqual({
       connected: false,
@@ -176,6 +184,7 @@ describe("player health", () => {
       hpBefore: 0,
       hpAfter: 0,
       defeated: true,
+      critical: false,
     });
     expect(resolveDamage(0, 1).defeated).toBe(true);
     expect(resolveDamage(6, Number.NaN)).toEqual({
@@ -185,6 +194,7 @@ describe("player health", () => {
       hpBefore: 6,
       hpAfter: 6,
       defeated: false,
+      critical: false,
     });
   });
 
@@ -259,5 +269,143 @@ describe("mob intent", () => {
     for (const a of MOB_AGGRESSIONS) {
       expect(mobIntent({ ...base, profile: aggressionProfile(a), distancePx: 0, playerDefeated: true })).toBe("hold");
     }
+  });
+});
+
+describe("player healing", () => {
+  test("restores a share of the authored pool, never less than one point", () => {
+    // Scale-free: the same drink is meaningful in a six-point game and a sixty-point one.
+    expect(healingRestoreAmount(10)).toBe(4);
+    expect(healingRestoreAmount(60)).toBe(24);
+    expect(healingRestoreAmount(1)).toBe(1);
+    expect(() => healingRestoreAmount(0)).toThrow(RangeError);
+  });
+
+  test("a drink restores hit points without touching immunity", () => {
+    const hurt = applyPlayerDamage(initialPlayerHealth(10), 6, 1000).health;
+    const healed = applyPlayerHealing(hurt, 4);
+    expect(healed).toMatchObject({
+      connected: true,
+      attemptedAmount: 4,
+      appliedAmount: 4,
+      hpBefore: 4,
+      hpAfter: 8,
+    });
+    // Drinking is not being hit; granting immunity here would make chugging the best defence.
+    expect(healed.health.invulnerableUntilMs).toBe(hurt.invulnerableUntilMs);
+  });
+
+  test("clamps to the pool instead of overfilling it", () => {
+    const hurt = applyPlayerDamage(initialPlayerHealth(10), 1, 1000).health;
+    const healed = applyPlayerHealing(hurt, 999);
+    expect(healed.connected).toBe(true);
+    expect(healed.appliedAmount).toBe(1);
+    expect(healed.health.hp).toBe(10);
+  });
+
+  test("refuses to spend on a full pool, an invalid amount, or a defeated player", () => {
+    // `connected: false` is what stops a held key from emptying the bag into an unhurt character.
+    const full = initialPlayerHealth(10);
+    expect(applyPlayerHealing(full, 4).connected).toBe(false);
+    expect(applyPlayerHealing(full, 4).health).toBe(full);
+
+    const hurt = applyPlayerDamage(full, 5, 1000).health;
+    for (const amount of [0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const rejected = applyPlayerHealing(hurt, amount);
+      expect(rejected.connected).toBe(false);
+      expect(rejected.health).toBe(hurt);
+    }
+
+    const defeated = applyPlayerDamage(initialPlayerHealth(1), 1, 1000).health;
+    expect(defeated.defeated).toBe(true);
+    const attempt = applyPlayerHealing(defeated, 4);
+    expect(attempt.connected).toBe(false);
+    expect(attempt.health.defeated).toBe(true);
+  });
+});
+
+describe("critical hits", () => {
+  test("every named profile has a rate, and none is accidentally identical", () => {
+    const seen = new Set<string>();
+    for (const profile of CRITICAL_PROFILE_NAMES) {
+      const rule = criticalRule(profile);
+      expect(rule.chance).toBeGreaterThanOrEqual(0);
+      expect(rule.chance).toBeLessThanOrEqual(1);
+      expect(rule.multiplier).toBeGreaterThanOrEqual(1);
+      seen.add(JSON.stringify(rule));
+    }
+    expect(seen.size).toBe(CRITICAL_PROFILE_NAMES.length);
+    expect(() => criticalRule("savage_v1" as "rare_v1")).toThrow(/unknown critical profile/);
+  });
+
+  test("`none` never rolls a critical, whatever the seed", () => {
+    for (let seed = 0; seed < 200; seed += 1) {
+      expect(resolveCriticalDamage(3, "none", seed).critical).toBe(false);
+    }
+  });
+
+  test("the same seed always rolls the same result", () => {
+    // Determinism is not a nicety here: `Math.random` would make every replay of a run diverge at
+    // the first swing, and the deterministic transcript is what makes the runtime verifiable.
+    for (const seed of [1, 7, 4242, 999_983]) {
+      const first = resolveCriticalDamage(2, "standard_v1", seed);
+      const second = resolveCriticalDamage(2, "standard_v1", seed);
+      expect(first).toEqual(second);
+    }
+  });
+
+  test("observed rate tracks the profile across a wide seed sweep", () => {
+    const sample = 20_000;
+    for (const profile of ["rare_v1", "standard_v1", "frequent_v1"] as const) {
+      let hits = 0;
+      for (let seed = 1; seed <= sample; seed += 1) {
+        if (resolveCriticalDamage(1, profile, seed).critical) hits += 1;
+      }
+      const observed = hits / sample;
+      expect(Math.abs(observed - criticalRule(profile).chance)).toBeLessThan(0.02);
+    }
+  });
+
+  test("a critical multiplies the blow and never rounds it away", () => {
+    const crit = Array.from({ length: 400 }, (_, seed) =>
+      resolveCriticalDamage(2, "standard_v1", seed),
+    ).find((outcome) => outcome.critical);
+    expect(crit).toBeDefined();
+    expect(crit?.amount).toBe(4);
+    // A multiplier below one point of damage still lands for one, never zero.
+    const tiny = Array.from({ length: 400 }, (_, seed) =>
+      resolveCriticalDamage(0.5, "frequent_v1", seed),
+    ).find((outcome) => outcome.critical);
+    expect(tiny?.amount).toBeGreaterThanOrEqual(1);
+  });
+
+  test("the flag rides the resolution both sides of a fight read", () => {
+    const outgoing = resolveDamage(9, 4, false, true);
+    expect(outgoing.critical).toBe(true);
+    const incoming = applyPlayerDamage(initialPlayerHealth(10), 4, 1000, true);
+    expect(incoming.critical).toBe(true);
+    // A blow that never landed is not a critical, whatever the roll said.
+    expect(resolveDamage(0, 4, true, true).critical).toBe(false);
+    expect(applyPlayerDamage(initialPlayerHealth(10), 0, 1000, true).critical).toBe(false);
+  });
+});
+
+describe("level growth", () => {
+  test("raises the ceiling and fills it", () => {
+    // A level that only widened the bar arrives as an empty promise mid-fight.
+    const hurt = applyPlayerDamage(initialPlayerHealth(10), 7, 1000).health;
+    expect(hurt.hp).toBe(3);
+    const grown = grownPlayerHealth(hurt, 12);
+    expect(grown.hp).toBe(12);
+    expect(grown.maxHp).toBe(12);
+    expect(grown.invulnerableUntilMs).toBe(hurt.invulnerableUntilMs);
+  });
+
+  test("never lowers a ceiling and rejects nonsense maxima", () => {
+    const health = initialPlayerHealth(10);
+    expect(grownPlayerHealth(health, 10)).toBe(health);
+    expect(grownPlayerHealth(health, 4)).toBe(health);
+    expect(() => grownPlayerHealth(health, 0)).toThrow(RangeError);
+    expect(() => grownPlayerHealth(health, 2.5)).toThrow(RangeError);
   });
 });

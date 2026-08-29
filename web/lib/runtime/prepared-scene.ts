@@ -1,5 +1,11 @@
 import Phaser from "phaser";
 import type { GameplayAutomationMode } from "./automation";
+import { Bot, resolveBotControl, type BotControlSource } from "./bot";
+import { HUNTER_BOT_PROFILE } from "./bot-hunter";
+import { preparedBotWorldView, preparedNavGraph } from "./bot-adapter";
+import { EMPTY_NAV_GRAPH, type NavGraph } from "./bot-navigation";
+import type { BotWorldView } from "./bot-view";
+import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 import { GAMEPLAY_AUTOMATION_VIEWPORT } from "./automation";
 import {
   fetchJson,
@@ -31,7 +37,27 @@ import {
   FloatingHealthBar,
   PLAYER_HEALTH_BAR_STYLE,
 } from "./health-bar";
-import { aggressionProfile, attackFootLevelsOverlap } from "./combat";
+import {
+  aggressionProfile,
+  attackFootLevelsOverlap,
+  healingRestoreAmount,
+  resolveCriticalDamage,
+} from "./combat";
+import {
+  experienceForRank,
+  grantExperience,
+  initialProgression,
+  maximumHealthForLevel,
+  type ProgressionPolicy,
+  type ProgressionState,
+} from "./progression";
+import {
+  StatLogHud,
+  formatExperienceLine,
+  formatLevelUpLine,
+} from "./stat-log";
+import { hasHealingConsumable, selectHealingItemId } from "./consumables";
+import { defeatRecoveryDue, resolveHomeSpawn } from "./respawn";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
   MobPopulationDirector,
@@ -97,6 +123,8 @@ const TILE_PX = 64;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
+/** One point per connected swing, the value every mob health pool was tuned against. */
+const PLAYER_ATTACK_DAMAGE = 1;
 const DIALOGUE_PORTRAIT_HEIGHT = 190;
 const DIALOGUE_PANEL_CENTER_Y = VIEW_H - 128;
 const DIALOGUE_PANEL_HEIGHT = 210;
@@ -202,6 +230,26 @@ export class PreparedStageScene extends Phaser.Scene {
   private items?: ItemSystem;
   private inventoryHud?: InventoryHud;
   private readonly inventory = new Map<string, number>();
+  /** When the current defeat began, or null while the player is alive. Drives respawn timing. */
+  private defeatedAtMs: number | null = null;
+  private bot?: Bot;
+  private navGraph: NavGraph = EMPTY_NAV_GRAPH;
+  private autoPlayEnabled: boolean;
+  private lastHumanInputAtMs: number | null = null;
+  private controlSource: BotControlSource = "human";
+  private readonly mobBotIds = new Map<Mob, string>();
+  private nextMobBotId = 1;
+  private statLog?: StatLogHud;
+  private progressionPolicy?: ProgressionPolicy;
+  private progression?: ProgressionState;
+  /**
+   * Blows struck this session, and the only varying term in a critical seed.
+   *
+   * Criticals are rolled from a hash rather than `Math.random` so a replayed run rolls the same
+   * criticals; a counter over the blow sequence is the part of that seed that changes when two
+   * otherwise identical swings land in the same place.
+   */
+  private blowSequence = 0;
   private portal?: PortalSystem;
   private combatText?: CombatTextSystem;
   private healthBar?: FloatingHealthBar;
@@ -229,10 +277,16 @@ export class PreparedStageScene extends Phaser.Scene {
   constructor(
     tag: string,
     transparencyPolicy: PreviewTransparencyPolicy,
+    automationMode: GameplayAutomationMode | null = null,
   ) {
     super({ key: "PreparedStageScene" });
     this.tag = tag;
     this.transparencyPolicy = transparencyPolicy;
+    // Auto-play is on for an ordinary preview and off under automation. A fixed-frame capture is
+    // a recording of scripted input, and a second actor pressing keys inside it would make the
+    // transcript a recording of the bot instead - which is not what that gate is asserting.
+    this.autoPlayEnabled = automationMode === null;
+    if (automationMode === null) this.bot = new Bot(HUNTER_BOT_PROFILE);
   }
 
   create(): void {
@@ -256,12 +310,17 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!this.ready || this.loading || !this.player || !this.keys) return;
     const now = performance.now();
     this.debugOverlay?.toggleForKey(this.keys.debugOverlay);
+    this.updateAutoPlayToggle(now);
     this.updateDebugOverlay();
     if (this.activeSequence) {
-      this.player.inventoryToggleRequested = false;
+      // Drain this frame's intent and drop it. Edge-triggered requests latch until something
+      // reads them, so skipping the read would queue a jump or an inventory toggle behind the
+      // conversation and fire it the moment the panel closes.
+      this.player.readKeyboardIntent();
       this.updateDialogueInput();
       return;
     }
+    this.statLog?.update(now);
     this.updatePlayer(delta, now);
     this.updateMobs(delta, now);
     this.collectDrops(delta, now);
@@ -312,7 +371,30 @@ export class PreparedStageScene extends Phaser.Scene {
       scene: this,
       enabled: this.gameplay.combat_text.enabled,
     });
+    this.progressionPolicy = Object.freeze({
+      enabled: this.gameplay.progression.enabled,
+      maximumLevel: this.gameplay.progression.maximum_level,
+      curve: this.gameplay.progression.experience_curve,
+      growth: this.gameplay.progression.stat_growth,
+      baseHealth: this.gameplay.player.starting_health,
+    });
+    this.progression = initialProgression(this.progressionPolicy);
+    this.statLog = new StatLogHud({
+      scene: this,
+      // Low on the left, clear of the top-right inventory panel and the top-left debug overlay.
+      x: 28,
+      y: VIEW_H - 28,
+      enabled: this.gameplay.progression.enabled,
+    });
     for (const itemId of this.gameplay.player.starting_item_ids) this.addInventory(itemId, 1);
+    if (!hasHealingConsumable(manifest.items)) {
+      // Playable, but only downhill: nothing in the package can put hit points back, so every run
+      // ends at the respawn. Worth naming here rather than leaving it to be inferred from a
+      // health bar that never rises.
+      this.recordDiagnostic(
+        "package ships no healing consumable; health can only be restored by respawning",
+      );
+    }
     const openingSpawn = this.gameplay.spawns.find(
       (spawn) => spawn.spawn_id === this.gameplay?.entry_spawn_id,
     );
@@ -716,6 +798,7 @@ export class PreparedStageScene extends Phaser.Scene {
         debugOverlay: keyboard.addKey(
           Phaser.Input.Keyboard.KeyCodes.BACKTICK,
         ),
+        autoPlay: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P),
       };
     }
     let unlockPending = false;
@@ -765,6 +848,18 @@ export class PreparedStageScene extends Phaser.Scene {
     this.renderMap(map);
     this.installVerticalWorld(map);
     this.renderPlacements(map);
+    // Built here rather than per frame: the graph describes terrain and declared geometry, and
+    // neither moves while a map is being played. Built after the vertical world is installed,
+    // because the decks and climbable zones it links are part of what it describes.
+    this.navGraph = preparedNavGraph({
+      heights: this.heights,
+      tileUnits: TILE_PX,
+      baselineY: this.groundBaselineY,
+      platforms: this.verticalWorld.platforms,
+      climbables: this.verticalWorld.climbables,
+      capabilities: HUNTER_BOT_PROFILE.capabilities,
+    });
+    this.bot?.reset();
     const startX = Phaser.Math.Clamp(
       normalizedX * this.worldWidth,
       TILE_PX / 2,
@@ -783,7 +878,10 @@ export class PreparedStageScene extends Phaser.Scene {
       climbables: this.verticalWorld.climbables,
       maximumAirJumps: 1,
       combatEnabled: gameplay.combat.enabled,
-      startingHealth: gameplay.player.starting_health,
+      // The level's pool, not the authored one. A map change and a respawn both rebuild the
+      // controller, and a player who levelled twice must not walk through a door back to six HP.
+      startingHealth:
+        this.progression?.maximumHealth ?? gameplay.player.starting_health,
       motionPlayback: preparedPlayerMotionPlayback(manifest.player.states),
       climbArtwork: preparedPlayerClimbArtwork(manifest.player.states),
       scaleReferences: this.scaleReferences,
@@ -828,6 +926,8 @@ export class PreparedStageScene extends Phaser.Scene {
     this.mobPopulationMapId = undefined;
     this.mobIdByPopulationSlot = [];
     this.mobInstanceIds.clear();
+    this.mobBotIds.clear();
+    this.navGraph = EMPTY_NAV_GRAPH;
     this.player?.destroy();
     this.player = undefined;
     for (const binding of this.contactShadows) {
@@ -846,6 +946,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.items?.clearAll();
     this.items = undefined;
     this.combatText?.clear();
+    this.statLog?.clear();
     this.portal?.destroy();
     this.portal = undefined;
     for (const sprite of this.verticalSprites) sprite.destroy();
@@ -1129,6 +1230,10 @@ export class PreparedStageScene extends Phaser.Scene {
       behaviorSeed,
     });
     this.addContactShadow(mob.sprite);
+    // Identity for anything that has to follow one mob across frames. The director's own instance
+    // ids cover only the mobs it manages, and array position is reused the moment one dies.
+    this.mobBotIds.set(mob, `mob_${this.nextMobBotId}`);
+    this.nextMobBotId += 1;
     return mob;
   }
 
@@ -1326,13 +1431,23 @@ export class PreparedStageScene extends Phaser.Scene {
     const keys = this.keys;
     const gameplay = this.gameplay;
     if (!player || !keys || !gameplay || !this.currentMap) return;
-    player.update(delta, now);
-    if (player.inventoryToggleRequested) {
-      this.inventoryHud?.toggle();
-      player.inventoryToggleRequested = false;
-    }
+    const intent = this.resolveIntent(delta, now);
+    player.update(delta, now, intent);
+    if (intent.toggleInventory) this.inventoryHud?.toggle();
+    if (intent.useHealing) this.useHealingItem();
 
     const health = player.healthState;
+    if (health.defeated) {
+      this.defeatedAtMs ??= now;
+      if (defeatRecoveryDue({ defeatedAtMs: this.defeatedAtMs, nowMs: now })) {
+        // Rebuilding the world also rebuilds the player, so the recovered character is a fresh
+        // controller at full health. Nothing below this line may touch the old one.
+        this.respawnAtHome();
+        return;
+      }
+    } else {
+      this.defeatedAtMs = null;
+    }
     if (gameplay.combat.enabled && gameplay.combat.contact_damage) {
       for (const mob of this.mobs) {
         if (!mob.isAlive()) continue;
@@ -1346,7 +1461,17 @@ export class PreparedStageScene extends Phaser.Scene {
         ) {
           continue;
         }
-        const resolution = player.takeDamage(strike.damage, now, strike.dirSign);
+        const blow = resolveCriticalDamage(
+          strike.damage,
+          gameplay.combat.critical_profile,
+          this.nextBlowSeed(mob.sprite.x, mob.ladderIndex),
+        );
+        const resolution = player.takeDamage(
+          blow.amount,
+          now,
+          strike.dirSign,
+          blow.critical,
+        );
         if (resolution.connected) {
           this.combatText?.showDamage({
             resolution,
@@ -1373,7 +1498,17 @@ export class PreparedStageScene extends Phaser.Scene {
         ) {
           continue;
         }
-        const result = mob.takeHit(now, facing as 1 | -1);
+        const blow = resolveCriticalDamage(
+          PLAYER_ATTACK_DAMAGE,
+          gameplay.combat.critical_profile,
+          this.nextBlowSeed(player.sprite.x, mob.ladderIndex),
+        );
+        const result = mob.takeHit(
+          now,
+          facing as 1 | -1,
+          blow.amount,
+          blow.critical,
+        );
         this.combatText?.showDamage({
           resolution: result,
           direction: "outgoing",
@@ -1384,6 +1519,7 @@ export class PreparedStageScene extends Phaser.Scene {
         if (result.died) {
           this.recordManagedMobDeath(mob, now);
           this.dropLoot(mob);
+          this.awardExperience(mob, now);
         }
         break;
       }
@@ -1614,6 +1750,22 @@ export class PreparedStageScene extends Phaser.Scene {
       health: health?.hp ?? 0,
       maximumHealth:
         health?.maxHp ?? this.gameplay?.player.starting_health ?? 0,
+      progression:
+        this.progressionPolicy?.enabled && this.progression
+          ? {
+              level: this.progression.level,
+              experienceIntoLevel: this.progression.experienceIntoLevel,
+              experienceForNext: this.progression.experienceForNext,
+            }
+          : null,
+      autoPlay: this.bot
+        ? {
+            enabled: this.autoPlayEnabled,
+            driving: this.controlSource === "bot",
+            goal: this.bot.lastDecision?.goal ?? null,
+            reason: this.bot.lastDecision?.reason ?? null,
+          }
+        : null,
       inventory: [...this.inventory.entries()].map(([itemId, quantity]) => ({
         label:
           manifest.items.find((item) => item.item_id === itemId)?.display_name ??
@@ -1647,6 +1799,193 @@ export class PreparedStageScene extends Phaser.Scene {
         this.questStates.set(String(effect.quest_id), String(effect.state));
       }
     }
+  }
+
+  /** Remove a spent stack entry from both the counted bag and the panel that pictures it. */
+  private consumeInventory(itemId: string, quantity: number): void {
+    if (!Number.isFinite(quantity) || quantity <= 0) return;
+    const carried = this.inventory.get(itemId) ?? 0;
+    const spent = Math.min(carried, Math.floor(quantity));
+    if (spent <= 0) return;
+    const remaining = carried - spent;
+    if (remaining > 0) this.inventory.set(itemId, remaining);
+    else this.inventory.delete(itemId);
+    const itemIndex =
+      this.manifest?.items.findIndex((item) => item.item_id === itemId) ?? -1;
+    if (itemIndex < 0) return;
+    for (let index = 0; index < spent; index += 1) {
+      this.inventoryHud?.removeItem(itemIndex);
+    }
+  }
+
+  /**
+   * The next seed in the deterministic critical sequence.
+   *
+   * Mixes the blow's ordinal with the two facts that distinguish one swing from another at the
+   * same moment — where it happened and who it was aimed at — so two mobs struck on the same frame
+   * do not share a roll. Every term replays identically, which is the whole requirement.
+   */
+  private nextBlowSeed(x: number, targetIndex: number): number {
+    this.blowSequence = (this.blowSequence + 1) >>> 0;
+    return (
+      (Math.imul(this.blowSequence, 2654435761) +
+        Math.imul(Math.trunc(x), 2246822519) +
+        Math.imul(targetIndex + 1, 3266489917)) >>>
+      0
+    );
+  }
+
+  /**
+   * Bank a kill's experience and settle whatever it buys.
+   *
+   * Silent when the package ships progression disabled, because `grantExperience` awards nothing
+   * and there is then no line worth writing. A level raises the pool immediately and fills it: the
+   * fight that earned the level is usually still going.
+   */
+  private awardExperience(mob: Mob, nowMs: number): void {
+    const policy = this.progressionPolicy;
+    const state = this.progression;
+    const spec = this.manifest?.mobs[mob.ladderIndex];
+    if (!policy || !state || !spec) return;
+    const award = grantExperience(state, experienceForRank(spec.rank), policy);
+    if (award.awarded <= 0) return;
+    this.progression = award.state;
+    this.statLog?.push({
+      kind: "experience",
+      text: formatExperienceLine(award.awarded),
+      nowMs,
+    });
+    if (award.levelsGained <= 0) return;
+    this.statLog?.push({
+      kind: "level_up",
+      text: formatLevelUpLine(award.state.level),
+      nowMs,
+    });
+    // The bar itself is redrawn at the end of this same frame's player update, from the player's
+    // own position. Redrawing it here would only anchor it to the corpse for one frame.
+    this.player?.growMaximumHealth(
+      maximumHealthForLevel(policy.baseHealth, award.state.level, policy.growth),
+    );
+  }
+
+  /**
+   * Spend one carried healing consumable on the player.
+   *
+   * The health pool answers first and the bag is only opened if it says the restore connected, so
+   * a request at full health, or while defeated, costs nothing. Doing it the other way round —
+   * spend, then heal — is how a player loses a potion to a mistimed key press.
+   */
+  private useHealingItem(): void {
+    const player = this.player;
+    const manifest = this.manifest;
+    if (!player || !manifest) return;
+    const itemId = selectHealingItemId(manifest.items, this.inventory);
+    if (!itemId) return;
+    const resolution = player.heal(
+      healingRestoreAmount(player.healthState.maxHp),
+    );
+    if (!resolution.connected) return;
+    this.consumeInventory(itemId, 1);
+  }
+
+  /**
+   * Flip auto-play, and say so.
+   *
+   * The toggle key is not part of the intent the controller reads, so pressing it is not a
+   * takeover: it changes who is allowed to drive rather than driving. The bot is suspended on the
+   * way through in either direction, because the target and the stuck counter it was holding
+   * describe a frame that is no longer the one about to run.
+   */
+  private updateAutoPlayToggle(nowMs: number): void {
+    const key = this.keys?.autoPlay;
+    if (!this.bot || !key || !Phaser.Input.Keyboard.JustDown(key)) return;
+    this.autoPlayEnabled = !this.autoPlayEnabled;
+    this.bot.suspend();
+    this.statLog?.push({
+      kind: "notice",
+      text: this.autoPlayEnabled ? "AUTO-PLAY ON" : "AUTO-PLAY OFF",
+      nowMs,
+    });
+  }
+
+  /**
+   * This frame's intent, from whichever of the two sources owns it.
+   *
+   * The keyboard is read on every frame without exception, whoever is driving. Edge-triggered
+   * requests latch until something reads them, so a frame the bot owns still has to drain the
+   * human's - otherwise a jump pressed during auto-play would be queued and fired later, at the
+   * moment control happened to come back.
+   */
+  private resolveIntent(delta: number, now: number): PlayerIntent {
+    const player = this.player;
+    if (!player) return NEUTRAL_PLAYER_INTENT;
+    const humanIntent = player.readKeyboardIntent();
+    const control = resolveBotControl({
+      humanIntent,
+      enabled: this.autoPlayEnabled && this.bot !== undefined,
+      nowMs: now,
+      lastHumanInputAtMs: this.lastHumanInputAtMs,
+    });
+    this.lastHumanInputAtMs = control.humanInputAtMs;
+    if (control.source !== this.controlSource && control.source === "human") {
+      this.bot?.suspend();
+    }
+    this.controlSource = control.source;
+    if (control.source === "human" || !this.bot) return humanIntent;
+    const view = this.botWorldView(delta, now);
+    return view ? this.bot.decide(view).intent : NEUTRAL_PLAYER_INTENT;
+  }
+
+  /**
+   * Fill in what the bot is allowed to know about this frame.
+   *
+   * Only live mobs and existing drops appear, which is what makes "no target" an ordinary answer
+   * rather than something every behaviour has to guard against. Nothing here reaches back into the
+   * bot; the scene supplies, the bot decides.
+   */
+  private botWorldView(delta: number, now: number): BotWorldView | null {
+    const player = this.player;
+    const manifest = this.manifest;
+    const gameplay = this.gameplay;
+    if (!player || !manifest || !gameplay) return null;
+    const threats: { id: string; x: number; y: number; hp: number }[] = [];
+    for (const mob of this.mobs) {
+      const id = this.mobBotIds.get(mob);
+      if (!id || !mob.isAlive()) continue;
+      threats.push({ id, x: mob.sprite.x, y: mob.sprite.y, hp: mob.snapshot().hp });
+    }
+    return preparedBotWorldView({
+      nowMs: now,
+      deltaMs: delta,
+      player: player.snapshot(now),
+      threats,
+      pickups: (this.items?.items ?? []).map((item) => ({
+        id: item.id,
+        x: item.sprite.x,
+        y: item.sprite.y,
+        settled: item.settled,
+      })),
+      healingCarried: selectHealingItemId(manifest.items, this.inventory) !== null,
+      combatEnabled: gameplay.combat.enabled,
+      navigation: this.navGraph,
+      worldWidth: this.worldWidth,
+    });
+  }
+
+  /**
+   * Send a defeated player back to the village.
+   *
+   * Recovery is a map entry like any other, which is what makes it cheap and safe: the same
+   * transition that carries a portal rebuilds the world, retires the defeated controller, and
+   * constructs a fresh one at full health. What the player carried survives, because the bag is
+   * scene state rather than world state; defeat costs progress through the route, not the run.
+   */
+  private respawnAtHome(): void {
+    const gameplay = this.gameplay;
+    if (!gameplay) return;
+    this.defeatedAtMs = null;
+    const home = resolveHomeSpawn(gameplay);
+    void this.enterMap(home.map_id, home.normalized_x);
   }
 
   private selectSoundtrack(map: PreparedMap): void {
@@ -1687,7 +2026,7 @@ export function bootPreparedGame(
     height: GAMEPLAY_AUTOMATION_VIEWPORT.height,
     parent,
     backgroundColor: "#000000",
-    scene: [new PreparedStageScene(tag, transparencyPolicy)],
+    scene: [new PreparedStageScene(tag, transparencyPolicy, automationMode)],
     scale: {
       mode: automationMode ? Phaser.Scale.NONE : Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

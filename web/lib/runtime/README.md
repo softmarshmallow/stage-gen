@@ -181,6 +181,38 @@ current v7 manifest selects native provider alpha, AI removal, or explicit
 degraded chroma through `transparency_mode`; no missing-strategy manifest is
 interpreted. Opaque concept and backdrop assets bypass transparency handling.
 
+## Auto-play
+
+`bot-*.ts` is a bot system rather than an auto-hunt script, and it is layered so the pieces that
+would change under a different runtime are separable from the pieces that would not.
+
+`bot-navigation.ts` is the bottom layer and the one everything else defers to. `MovementCapabilities`
+states what a character can physically do — speeds, jump impulses, whether a second jump exists,
+whether it may climb or drop through — and `buildNavGraph` derives a graph of level standing
+surfaces joined by moves the supplied capabilities can actually perform. Terrain lanes come from
+authored occupancy, decks and climbable zones from the map's own geometry, and every jump link is
+admitted only after `simulatePlatformJump` proves the arc with the same fixed-step integration the
+player controller runs. A character with no air jump does not get `double_jump` links, so a rise
+that needs one is not somewhere it repeatedly fails to reach — it is somewhere that does not exist.
+`navReach` answers cost and opening move for every node in one search, which is why no path is
+stored between frames.
+
+`bot-view.ts` is the perception boundary: a plain snapshot with no engine objects in it, so a
+behaviour is a function of its inputs. `bot-behavior.ts` is the kernel — goals, proposals, explicit
+serialisable memory, and a priority auction that picks one winner per frame with roster order as the
+tiebreak. `bot-hunter.ts` is the first profile: stand down, heal, engage, collect, pursue, patrol.
+`bot.ts` holds the two frames of state the pure functions need handed back and resolves who is
+driving. `bot-adapter.ts` is the only file that reads scene vocabulary.
+
+Growth is by addition. A new behaviour is a value in a roster; a new traversal move is a link rule
+and a steering branch that no behaviour mentions; a different character is a different
+`MovementCapabilities`; a different personality is a `BotProfile`; switching a behaviour off is
+`botProfileWithout`, because a roster is a list and no behaviour carries an enabled flag.
+
+Nothing in the system reads a clock it was not handed or a random number, so a replayed view
+sequence replays the same intents. Auto-play is on for an ordinary preview and off under fixed-frame
+automation, where a second actor would make the transcript a recording of the bot.
+
 ## Canvas-only still capture
 
 Build once, then capture the frame-zero route overview from the production

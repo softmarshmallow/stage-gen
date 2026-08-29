@@ -1933,8 +1933,12 @@ export async function withGameplaySession<T>(
     throw new Error("selected gameplay frames must be unique timeline frames");
   }
   throwIfAborted(options.signal, "gameplay session");
-  const workspace = await fs.mkdtemp(
-    path.join(tmpdir(), "stage-gen-gameplay-"),
+  // Resolved, because the server this workspace feeds refuses an output root that traverses a
+  // symlink and macOS hands out `/var/folders/...`, where `/var` is one. Without the realpath the
+  // run reads as "Next server did not become ready", since every request the readiness poll makes
+  // is answered with a confinement error the poll never sees.
+  const workspace = await fs.realpath(
+    await fs.mkdtemp(path.join(tmpdir(), "stage-gen-gameplay-")),
   );
   let server: StartedServer | undefined;
   let browser: Browser | undefined;

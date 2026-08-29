@@ -19,14 +19,18 @@ import {
 } from "./sprite-scale";
 import {
   type PlayerDamageResolution,
+  type PlayerHealResolution,
   type PlayerHealthState,
   PLAYER_KNOCKBACK_VX,
   PLAYER_KNOCKBACK_VY,
   applyPlayerDamage,
+  applyPlayerHealing,
+  grownPlayerHealth,
   initialPlayerHealth,
   isPlayerInvulnerable,
   playerInvulnerabilityBlinkAlpha,
 } from "./combat";
+import { type PlayerIntent, playerIntent } from "./player-intent";
 import {
   DEATH_STRIP_FRAME_RATE,
   playerDamagePresentationState,
@@ -302,6 +306,7 @@ export class Player {
     attack3: Phaser.Input.Keyboard.Key;
     shift: Phaser.Input.Keyboard.Key;
     inventory: Phaser.Input.Keyboard.Key;
+    useHealing: Phaser.Input.Keyboard.Key;
   };
   private attackUntil = 0;
   private attackStarted = 0;
@@ -333,9 +338,6 @@ export class Player {
 
   /** Set while the attack swing is in its hit window. */
   attackActive = false;
-  /** Toggled by I key to open inventory; consumed externally. */
-  inventoryToggleRequested = false;
-  private inventoryKeyHandler?: () => void;
 
   constructor(opts: PlayerOpts) {
     if (!Number.isSafeInteger(opts.maximumAirJumps) || opts.maximumAirJumps < 0) {
@@ -501,49 +503,66 @@ export class Player {
       attack3: kb.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
       shift: kb.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
       inventory: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I),
+      useHealing: kb.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
     };
-    // Inventory toggle on JustDown.
-    this.inventoryKeyHandler = () => {
-      this.inventoryToggleRequested = true;
-    };
-    kb.on("keydown-I", this.inventoryKeyHandler);
   }
 
   /**
-   * Release this controller's scene bindings.
+   * Read the bound keyboard into this frame's intent.
    *
-   * A stage rebuild constructs a fresh Player, so the retired one has to hand
-   * back its keyboard listener; otherwise every stage travelled adds another
-   * inventory toggle to the same key press.
+   * The only impure part of input handling, and deliberately the thinnest: it converts Phaser key
+   * state into plain booleans and stops there. Edge-triggered actions go through `JustDown`, which
+   * consumes the latch, so this must be called exactly once per frame — including on frames the
+   * caller intends to throw the result away, since a request that is never read stays armed and
+   * fires later out of context.
    */
+  readKeyboardIntent(): PlayerIntent {
+    const k = this.wasdKeys;
+    const c = this.cursors;
+    return playerIntent({
+      left: !!(k?.left.isDown || c?.left?.isDown),
+      right: !!(k?.right.isDown || c?.right?.isDown),
+      up: !!(k?.up.isDown || c?.up?.isDown),
+      down: !!(k?.down.isDown || c?.down?.isDown),
+      run: !!k?.shift.isDown,
+      jump: !!(k?.jump && Phaser.Input.Keyboard.JustDown(k.jump)),
+      attack: !!(
+        k &&
+        (Phaser.Input.Keyboard.JustDown(k.attack1) ||
+          Phaser.Input.Keyboard.JustDown(k.attack2) ||
+          Phaser.Input.Keyboard.JustDown(k.attack3))
+      ),
+      useHealing: !!(
+        k?.useHealing && Phaser.Input.Keyboard.JustDown(k.useHealing)
+      ),
+      toggleInventory: !!(
+        k?.inventory && Phaser.Input.Keyboard.JustDown(k.inventory)
+      ),
+    });
+  }
+
+  /** Release this controller's scene bindings. */
   destroy(): void {
-    if (this.inventoryKeyHandler) {
-      this.opts.scene.input.keyboard?.off("keydown-I", this.inventoryKeyHandler);
-      this.inventoryKeyHandler = undefined;
-    }
     this.sprite.destroy();
   }
 
-  /** Called every frame from the scene. */
-  update(dtMs: number, nowMs: number) {
+  /**
+   * Called every frame from the scene with this frame's intent.
+   *
+   * The intent's source is not this controller's business: a keyboard, an automated policy and a
+   * replay all reach the physics through the same nine booleans. Combat is the one action gated
+   * here rather than at the source, because whether a package has combat at all is a property of
+   * the package the controller was built for, not of whoever is asking to swing.
+   */
+  update(dtMs: number, nowMs: number, intent: PlayerIntent) {
     const dt = dtMs / 1000;
-    const k = this.wasdKeys;
-    const c = this.cursors;
-    const left = !!(k?.left.isDown || c?.left?.isDown);
-    const right = !!(k?.right.isDown || c?.right?.isDown);
-    const down = !!(k?.down.isDown || c?.down?.isDown);
-    const up = !!(k?.up.isDown || c?.up?.isDown);
-    const shift = !!k?.shift.isDown;
-    const wantsJump = !!(
-      k?.jump && Phaser.Input.Keyboard.JustDown(k.jump)
-    );
-    const wantsAttack =
-      this.opts.combatEnabled &&
-      (k &&
-        (Phaser.Input.Keyboard.JustDown(k.attack1) ||
-          Phaser.Input.Keyboard.JustDown(k.attack2) ||
-          Phaser.Input.Keyboard.JustDown(k.attack3))) ||
-      false;
+    const left = intent.left;
+    const right = intent.right;
+    const down = intent.down;
+    const up = intent.up;
+    const shift = intent.run;
+    const wantsJump = intent.jump;
+    const wantsAttack = intent.attack && this.opts.combatEnabled;
 
     // Damage is resolved by the scene after this controller has already stepped for the frame,
     // so `takeDamage` enters its presentation synchronously and this branch owns every later
@@ -1203,8 +1222,9 @@ export class Player {
     amount: number,
     nowMs: number,
     fromDirSign: 1 | -1,
+    critical = false,
   ): PlayerDamageResolution {
-    const result = applyPlayerDamage(this.health, amount, nowMs);
+    const result = applyPlayerDamage(this.health, amount, nowMs, critical);
     this.health = result.health;
     if (!result.connected) return result;
     this.sprite.setAlpha(playerInvulnerabilityBlinkAlpha(this.health, nowMs));
@@ -1237,6 +1257,30 @@ export class Player {
       this.sprite.setFlipX(this.facing === "left");
     }
     return result;
+  }
+
+  /**
+   * Restore hit points and report whether the restore actually happened.
+   *
+   * The caller decides what was spent to get here and only learns from `connected` whether it was
+   * worth spending, so a drink at full health costs the player nothing. No presentation of its
+   * own: the floating health bar is already the reading for a pool that changed.
+   */
+  heal(amount: number): PlayerHealResolution {
+    const result = applyPlayerHealing(this.health, amount);
+    this.health = result.health;
+    return result;
+  }
+
+  /**
+   * Widen the health pool and fill it, which is what arriving at a new level does.
+   *
+   * Separate from `heal` because it is not a restore: the ceiling itself moves, and a caller that
+   * only healed would leave the new capacity permanently unreachable.
+   */
+  growMaximumHealth(maxHp: number): PlayerHealthState {
+    this.health = grownPlayerHealth(this.health, maxHp);
+    return this.health;
   }
 
   /** Whether the attack hit window is open AND has not consumed a hit. */
@@ -1320,7 +1364,6 @@ export class Player {
     this.clearAttack();
     this.hurtUntil = 0;
     this.health = initialPlayerHealth(this.opts.startingHealth);
-    this.inventoryToggleRequested = false;
     this.sprite.setPosition(this.opts.startX, this.opts.startY);
     this.sprite.setFlipX(false);
     this.sprite.setAlpha(1);

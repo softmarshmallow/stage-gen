@@ -259,6 +259,7 @@ function combatTextProbe(
           Object.freeze({
             eventId: 1,
             direction,
+            critical: false,
             amount: 1,
             text: "1",
             startedAtMs,

@@ -223,6 +223,8 @@ export type DamageResolution = Readonly<{
   hpBefore: number;
   hpAfter: number;
   defeated: boolean;
+  /** Whether the blow that produced this resolution rolled critical. Presentation reads it here. */
+  critical: boolean;
 }>;
 
 /** Player damage also carries the immutable state that must replace the caller's current state. */
@@ -242,6 +244,8 @@ function rejectedDamage(
     hpBefore: safeHp,
     hpAfter: safeHp,
     defeated: defeated || safeHp <= 0,
+    // A blow that never landed is not a critical, whatever the roll said.
+    critical: false,
   });
 }
 
@@ -257,6 +261,7 @@ export function resolveDamage(
   hp: number,
   attemptedAmount: number,
   alreadyDefeated = false,
+  critical = false,
 ): DamageResolution {
   if (
     alreadyDefeated ||
@@ -276,6 +281,94 @@ export function resolveDamage(
     hpBefore: hp,
     hpAfter,
     defeated: hpAfter <= 0,
+    critical,
+  });
+}
+
+// --- Critical hits -------------------------------------------------------------------------
+
+export type CriticalProfile = "none" | "rare_v1" | "standard_v1" | "frequent_v1";
+
+export type CriticalRule = Readonly<{
+  /** Probability in [0, 1] that one blow lands critical. */
+  chance: number;
+  /** Damage multiplier applied to a critical blow. */
+  multiplier: number;
+}>;
+
+/**
+ * What each named profile costs in probability and damage.
+ *
+ * The package names the profile and the runtime owns these numbers, the same split the aggression
+ * table uses. `frequent_v1` deliberately hits more often for less: a profile that both fires
+ * constantly and doubles would turn every fight into a coin flip on the first swing.
+ */
+const CRITICAL_PROFILES: Readonly<Record<CriticalProfile, CriticalRule>> =
+  Object.freeze({
+    none: Object.freeze({ chance: 0, multiplier: 1 }),
+    rare_v1: Object.freeze({ chance: 0.08, multiplier: 2 }),
+    standard_v1: Object.freeze({ chance: 0.18, multiplier: 2 }),
+    frequent_v1: Object.freeze({ chance: 0.32, multiplier: 1.75 }),
+  });
+
+export const CRITICAL_PROFILE_NAMES: readonly CriticalProfile[] = Object.freeze([
+  "none",
+  "rare_v1",
+  "standard_v1",
+  "frequent_v1",
+]);
+
+export function criticalRule(profile: CriticalProfile): CriticalRule {
+  const rule = CRITICAL_PROFILES[profile];
+  if (!rule) throw new Error(`unknown critical profile ${profile}`);
+  return rule;
+}
+
+/**
+ * A stable value in [0, 1) for an integer seed.
+ *
+ * Deterministic on purpose. `Math.random` would make every replay of the same run diverge at the
+ * first swing, and the deterministic transcript is the only reason the runtime can be verified
+ * frame by frame at all. Callers supply a seed built from facts that already replay identically —
+ * positions, indices, and the scene's own blow counter.
+ */
+export function criticalUnitRoll(seed: number): number {
+  let mixed = Math.trunc(seed) >>> 0;
+  mixed ^= mixed >>> 16;
+  mixed = Math.imul(mixed, 0x7feb352d) >>> 0;
+  mixed ^= mixed >>> 15;
+  mixed = Math.imul(mixed, 0x846ca68b) >>> 0;
+  mixed ^= mixed >>> 16;
+  return (mixed >>> 0) / 0x1_0000_0000;
+}
+
+export type CriticalOutcome = Readonly<{
+  amount: number;
+  critical: boolean;
+}>;
+
+/**
+ * Roll one blow's damage against a profile.
+ *
+ * Both sides of a fight go through this: a package arms criticals for the world, not for the
+ * player, so a mob that lands one hurts exactly as much more as the player's would. The result
+ * is rounded and floored at one, so a multiplier can never round a landed blow away to nothing.
+ */
+export function resolveCriticalDamage(
+  baseAmount: number,
+  profile: CriticalProfile,
+  seed: number,
+): CriticalOutcome {
+  const rule = criticalRule(profile);
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+    return Object.freeze({ amount: baseAmount, critical: false });
+  }
+  if (rule.chance <= 0 || criticalUnitRoll(seed) >= rule.chance) {
+    return Object.freeze({ amount: baseAmount, critical: false });
+  }
+  return Object.freeze({
+    amount: Math.max(1, Math.round(baseAmount * rule.multiplier)),
+    critical: true,
   });
 }
 
@@ -303,6 +396,7 @@ export function applyPlayerDamage(
   health: PlayerHealthState,
   amount: number,
   nowMs: number,
+  critical = false,
 ): PlayerDamageResolution {
   if (
     health.defeated ||
@@ -316,7 +410,7 @@ export function applyPlayerDamage(
     });
   }
 
-  const resolution = resolveDamage(health.hp, amount, health.defeated);
+  const resolution = resolveDamage(health.hp, amount, health.defeated, critical);
   if (!resolution.connected) {
     return Object.freeze({ ...resolution, health });
   }
@@ -329,6 +423,109 @@ export function applyPlayerDamage(
   return Object.freeze({
     ...resolution,
     health: nextHealth,
+  });
+}
+
+/**
+ * What one healing consumable restores, as a fraction of the pool it is poured into.
+ *
+ * A fraction rather than a flat number because the pool is authored per package: `starting_health`
+ * is 6 in one game and 60 in the next, and a flat "+4" is a lifesaver in the first and litter in
+ * the second. Two fifths means a full bar is three drinks away at worst, so carrying a stack is
+ * worth doing and carrying one is not a full reset.
+ */
+export const PLAYER_HEALING_RESTORE_FRACTION = 0.4;
+
+/** Hit points one consumable restores against `maxHp`, always at least one. */
+export function healingRestoreAmount(maxHp: number): number {
+  if (!Number.isFinite(maxHp) || maxHp <= 0) {
+    throw new RangeError("healing restore requires a positive maximum HP");
+  }
+  return Math.max(1, Math.ceil(maxHp * PLAYER_HEALING_RESTORE_FRACTION));
+}
+
+/** The authoritative outcome of one healing attempt, shaped like its damage counterpart. */
+export type PlayerHealResolution = Readonly<{
+  connected: boolean;
+  attemptedAmount: number;
+  appliedAmount: number;
+  hpBefore: number;
+  hpAfter: number;
+  health: PlayerHealthState;
+}>;
+
+/**
+ * Restore hit points, honouring the pool ceiling.
+ *
+ * Pure and total, like `applyPlayerDamage`, and rejecting rather than clamping in the three cases
+ * where a drink would be wasted: a defeated player (recovery is respawn's job, not a potion's), an
+ * invalid or non-positive amount, and a pool already at full. That last rejection is the one that
+ * matters in play — it is what stops a held key, or an automated policy, from emptying a bag into
+ * a character who was never hurt. `connected` tells the caller whether the item was actually
+ * spent, so the inventory and the health pool cannot disagree.
+ *
+ * Invulnerability is deliberately untouched: drinking is not being hit, and granting immunity here
+ * would make chugging the strongest defensive move in the game.
+ */
+export function applyPlayerHealing(
+  health: PlayerHealthState,
+  amount: number,
+): PlayerHealResolution {
+  const rejected = Object.freeze({
+    connected: false,
+    attemptedAmount: Number.isFinite(amount) ? amount : 0,
+    appliedAmount: 0,
+    hpBefore: health.hp,
+    hpAfter: health.hp,
+    health,
+  });
+  if (
+    health.defeated ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    health.hp >= health.maxHp
+  ) {
+    return rejected;
+  }
+  const hpAfter = Math.min(health.maxHp, health.hp + amount);
+  if (hpAfter <= health.hp) return rejected;
+  return Object.freeze({
+    connected: true,
+    attemptedAmount: amount,
+    appliedAmount: hpAfter - health.hp,
+    hpBefore: health.hp,
+    hpAfter,
+    health: Object.freeze({
+      hp: hpAfter,
+      maxHp: health.maxHp,
+      invulnerableUntilMs: health.invulnerableUntilMs,
+      defeated: false,
+    }),
+  });
+}
+
+/**
+ * Raise the pool ceiling and fill it, which is what a level-up is.
+ *
+ * The full heal is the point, not a side effect: a level that only widened the bar would arrive
+ * as an empty promise in the middle of the fight that earned it. A ceiling that did not grow is
+ * returned untouched, so calling this on a level that buys no health is harmless. It never lowers
+ * a ceiling — shrinking a pool is not something levelling does, and silently doing it here would
+ * hide the caller's mistake.
+ */
+export function grownPlayerHealth(
+  health: PlayerHealthState,
+  maxHp: number,
+): PlayerHealthState {
+  if (!Number.isSafeInteger(maxHp) || maxHp <= 0) {
+    throw new RangeError("grown player health requires a positive integer maximum");
+  }
+  if (maxHp <= health.maxHp) return health;
+  return Object.freeze({
+    hp: maxHp,
+    maxHp,
+    invulnerableUntilMs: health.invulnerableUntilMs,
+    defeated: health.defeated,
   });
 }
 

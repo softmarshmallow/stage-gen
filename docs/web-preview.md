@@ -78,7 +78,10 @@ review explorer needs its own explicit review-manifest boundary.
   expression, and effect bindings;
 - manifest-bound inventory-panel geometry and artwork, with a nonfatal magenta fallback;
 - keyboard movement, jumping, attacks, contact damage, drops, pickup, inventory, portals, and
-  proximity dialogue.
+  proximity dialogue;
+- healing consumables and defeat recovery, resolved from `item_kind` and the safe-hub map role;
+- experience, levels, and critical hits, from the named curve and profile the contract publishes;
+- an auto-play bot whose navigation graph is derived from the same authored occupancy the terrain is.
 
 Those are browser-demo choices. They must not leak into authored TOML, provider-neutral
 components, image prompts, or the generic dependency executor. Conversely, the scene may not
@@ -86,13 +89,54 @@ invent entity relationships or infer artifacts from positional filenames. Array 
 local iteration order only; authored relationships resolve through IDs in the manifest.
 
 The current controls are Left/Right or A/D to move, Shift to run, Down or S to crouch-walk, Space to
-jump, J/X/Z to attack, I to toggle inventory, E or Enter to interact/advance dialogue, and Up or W
+jump, J/X/Z to attack, Q to drink a healing consumable, I to toggle inventory, E or Enter to
+interact/advance dialogue, P to toggle auto-play, and Up or W
 to enter an active portal or climb from the lower end of a ladder. An airborne player overlapping
 the ladder span may also press Up or W to grab it; jumping away and grabbing it again uses the same
 rule rather than a separate combo. Down enters a ladder from its upper deck; Down+Space drops
 through a one-way floating platform when no ladder entry takes priority. Generated audio starts
 only after a keyboard gesture because browsers block autoplay. The diagnostic HP/inventory
 overlay is hidden by default and toggles with Command+Backtick; it is not gameplay HUD.
+
+Q spends the first healing consumable the player carries, in manifest order, and restores a share
+of the authored pool. A drink at full health is refused rather than clamped, so the item is not
+lost. Which items qualify comes from the catalog's `item_kind`; a package that ships none records a
+diagnostic at load. Defeat is no longer terminal: after the authored death strip finishes, the run
+re-enters the village at the game's own entry spawn, or at the first map whose role is
+`safe_village_hub` when the game opens on a hostile route. The world rebuilds and the player
+returns at full health; what they were carrying survives, so defeat costs route progress rather
+than the run.
+
+`[progression] enabled` turns experience and levels on. A kill awards experience from the mob's
+published rank; `experience_curve` names a pacing curve whose per-level cost is geometric, which
+makes level logarithmic in total experience. A level widens the health pool by a fifth of the
+authored one and fills it, and the wider pool survives map transitions and respawns. Levelling
+lines appear in the transient stat log at the lower left — no panel, no background, fading on the
+same simulation clock as floating combat text — and the diagnostic overlay gains an `LV`/`XP` line.
+A package that leaves progression off shows neither.
+
+`[combat] critical_profile` names how often a blow lands critical. It governs player and mob blows
+alike, so a package cannot arm one side only, and the roll is a hash of the blow's ordinal and
+position rather than `Math.random`, so a replayed run rolls the same criticals. A critical damage
+number is drawn larger, hotter, with a heavier outline and a trailing `!`, and it punches and rises
+further than an ordinary one. Reduced motion still flattens the movement for both.
+
+The preview plays itself. Auto-play is on by default and hands the controls back the moment a key
+is touched, holding them for the human for a second and a half after the last input, so inspecting
+the run by hand needs no mode change; P switches the bot off entirely and says so in the stat log.
+A fixed-frame automation run gets no bot at all, because that capture records scripted input and a
+second actor inside it would be recording the bot instead.
+
+What the bot presses is decided by [`bot-hunter.ts`](../web/lib/runtime/bot-hunter.ts) — stand down,
+heal, engage, collect, pursue, patrol, arbitrated by priority once per frame — and where it can go
+is decided by [`bot-navigation.ts`](../web/lib/runtime/bot-navigation.ts), which derives level
+standing surfaces from the map's authored occupancy and joins them with the moves the character can
+actually perform. A jump link exists only once the same fixed-step integration the controller runs
+proves the arc, so the graph cannot promise a ledge the character falls short of, and a character
+configured without a mid-air jump has no double-jump links rather than a repeated failure. Targets
+are chosen by travel cost through that graph, so an unreachable mob is not pursued and the behaviour
+declines instead. Nothing consults a clock it was not handed or a random number, so a replayed view
+sequence produces the same intents.
 
 ## Legacy boundary
 
