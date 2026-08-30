@@ -150,12 +150,8 @@ class ProvenanceInput(PersistedContractModel):
     inputs: list[InputProvenance] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
     validation: dict[str, Any] = Field(default_factory=dict)
-    component: SoftwareIdentity = Field(
-        default_factory=lambda: SoftwareIdentity(name="@stage-gen/core", version="0.0.0")
-    )
-    tool: SoftwareIdentity = Field(
-        default_factory=lambda: SoftwareIdentity(name="stage-gen", version="0.0.0")
-    )
+    component: SoftwareIdentity
+    tool: SoftwareIdentity
     timestamp: str | None = None
     attempts: int = Field(ge=1, le=6)
     response: dict[str, Any] | None = None

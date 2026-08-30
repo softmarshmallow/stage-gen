@@ -3,7 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from gnode import ArtifactProvenance, ArtifactResult, ArtifactRights, ProvenanceInput
+from gnode import (
+    ArtifactProvenance,
+    ArtifactResult,
+    ArtifactRights,
+    ProvenanceInput,
+    SoftwareIdentity,
+)
 
 
 def unreviewed_rights() -> ArtifactRights:
@@ -137,7 +143,12 @@ def test_provenance_requires_explicit_current_schema_version() -> None:
 
     assert (
         ProvenanceInput(
-            provider="provider", model="model", prompt="prompt", attempts=1
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
+            provider="provider",
+            model="model",
+            prompt="prompt",
+            attempts=1,
         ).schema_version
         == 2
     )
@@ -200,6 +211,8 @@ def test_persisted_contracts_do_not_coerce_numeric_strings() -> None:
 def test_provenance_timestamps_must_be_valid_utc_instants(timestamp: str) -> None:
     with pytest.raises(ValidationError, match="timestamp"):
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             provider="provider",
             model="model",
             prompt="prompt",

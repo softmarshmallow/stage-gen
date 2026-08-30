@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
+from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -99,6 +99,8 @@ def _write_inputs(root: Path) -> str:
             path,
             BinaryArtifact(data=data, media_type="image/png"),
             ProvenanceInput(
+                component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
                 schema_version=2,
                 provider="local",
                 model="fixture",
@@ -114,6 +116,8 @@ def _write_json_pair(path: Path, data: bytes) -> None:
         path,
         BinaryArtifact(data=data, media_type="application/json"),
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             schema_version=2,
             provider="local",
             model="fixture",

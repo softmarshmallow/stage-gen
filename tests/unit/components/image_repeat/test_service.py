@@ -18,6 +18,7 @@ from gnode import (
     ProvenanceInput,
     ProviderResponseMetadata,
     RetryPolicy,
+    SoftwareIdentity,
     write_artifact_with_provenance,
 )
 from stage_gen.components.image_repeat import (
@@ -102,6 +103,8 @@ class FakeIntendedLoopReviewer:
                 artifact,
                 BinaryArtifact(data=payload, media_type="application/json"),
                 ProvenanceInput(
+                    component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+                    tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
                     provider=self.provider,
                     model=self.model,
                     prompt="judge exact three-repeat preview",
@@ -867,6 +870,8 @@ def _source_with_provenance(
         source,
         BinaryArtifact(data=_png(image), media_type="image/png"),
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             provider="local",
             model="test-fixture",
             prompt="construct a deterministic image-repeat source",

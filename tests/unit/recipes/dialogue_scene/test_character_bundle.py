@@ -14,6 +14,7 @@ from gnode import (
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
+    SoftwareIdentity,
     write_artifact_with_provenance,
 )
 from stage_gen.recipes.dialogue_scene.character_bundle import (
@@ -56,6 +57,8 @@ def _png(state_index: int) -> bytes:
 
 def _provenance_input(prompt: str) -> ProvenanceInput:
     return ProvenanceInput(
+        component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+        tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
         schema_version=2,
         provider="local",
         model="dialogue-character-test-fixture",

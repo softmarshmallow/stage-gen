@@ -16,6 +16,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.components import CharacterProfile, character_profile_sha256
+from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -207,6 +208,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             },
             validation={"strict_schema": True, "portable_paths": True},
             component=_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             attempts=1,
             rights=ArtifactRights(
                 status="unreviewed",
@@ -369,6 +371,7 @@ async def _write_dialogue_bundle_v3(
                 "profile_canonical_digest_verified": True,
             },
             component=_COMPONENT_V4,
+            tool=STAGE_GEN_TOOL,
             attempts=1,
             rights=ArtifactRights(
                 status="unreviewed",

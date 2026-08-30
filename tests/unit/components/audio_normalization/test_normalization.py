@@ -267,7 +267,14 @@ async def test_normalizer_validates_source_signature_before_tools(tmp_path: Path
     source_provenance_path = await write_artifact_with_provenance_async(
         source_path,
         BinaryArtifact(data=b"not-an-mp3", media_type="audio/mpeg"),
-        ProvenanceInput(provider="provider", model="model", prompt="prompt", attempts=1),
+        ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
+            provider="provider",
+            model="model",
+            prompt="prompt",
+            attempts=1,
+        ),
     )
     calls = 0
 

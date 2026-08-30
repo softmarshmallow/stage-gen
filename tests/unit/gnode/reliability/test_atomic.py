@@ -33,6 +33,8 @@ def provenance(**changes: object) -> ProvenanceInput:
         "refs": ["input.bin"],
         "params": {"quality": "high"},
         "validation": {"signature": "matched"},
+        "component": {"name": "@stage-gen/core", "version": "0.0.0"},
+        "tool": {"name": "stage-gen", "version": "0.0.0"},
         "attempts": 4,
     }
     values.update(changes)

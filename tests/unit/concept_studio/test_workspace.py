@@ -7,7 +7,7 @@ from typing import cast
 
 import pytest
 
-from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
+from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.concept_studio import workspace as workspace_module
 from stage_gen.concept_studio.workspace import (
     check_workspace,
@@ -90,6 +90,8 @@ def test_select_candidate_copies_validated_pair_and_enables_full_check(
         candidate,
         BinaryArtifact(data=_PNG, media_type="image/png"),
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             provider="fake",
             model="openai/gpt-image-2",
             prompt="Original concept cover",
@@ -138,6 +140,8 @@ def test_select_candidate_publishes_the_validated_snapshot_without_rereading_pat
         candidate,
         BinaryArtifact(data=_PNG, media_type="image/png"),
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             provider="fake",
             model="openai/gpt-image-2",
             prompt="Original snapshot",
@@ -192,6 +196,8 @@ def test_select_candidate_never_overwrites_a_racing_cover_without_replace(
         candidate,
         BinaryArtifact(data=_PNG, media_type="image/png"),
         ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             provider="fake",
             model="openai/gpt-image-2",
             prompt="Candidate",

@@ -17,6 +17,7 @@ from gnode import (
     ProvenanceInput,
     ProviderResponseMetadata,
     RetryExhaustedError,
+    SoftwareIdentity,
     StructuredGenerationRequest,
     StructuredGenerationResult,
     write_artifact_with_provenance,
@@ -76,6 +77,8 @@ class FakeImages:
             path,
             BinaryArtifact(data=data, media_type="image/png"),
             ProvenanceInput(
+                component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
                 schema_version=2,
                 provider="fake",
                 model="fake-image",
@@ -139,6 +142,8 @@ class FakeStructured:
             path,
             BinaryArtifact(data=data, media_type="application/json"),
             ProvenanceInput(
+                component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
                 schema_version=2,
                 provider="fake",
                 model="fake-structured",

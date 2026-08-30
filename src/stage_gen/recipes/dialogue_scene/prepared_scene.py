@@ -42,6 +42,7 @@ from gnode import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
+from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.image_style import (
     CanonicalStyleAnchor,
@@ -716,6 +717,7 @@ class DialogueSceneNodeHandler:
                     if isinstance(scene.request, DialogueThemeRequestV3)
                     else _COMPONENT_V3
                 ),
+                tool=STAGE_GEN_TOOL,
                 attempts=attempts,
                 rights=rights
                 or ArtifactRights(status="unreviewed", attribution=[], basis=[], reviewed_at=None),
