@@ -68,6 +68,33 @@ def test_a_hidden_hotspot_nothing_reveals_is_refused() -> None:
         PointClickRoom.model_validate(document)
 
 
+def test_the_proof_searches_the_runtime_machine_not_a_more_permissive_one() -> None:
+    """A permanently shadowed interaction must not count as a solution.
+
+    The runtime dispatches a click to the FIRST available interaction with a
+    matching trigger. A repeating narration line ahead of an effectful
+    interaction on the same trigger shadows it forever, so a proof that
+    branched on both would admit a room no player can finish.
+    """
+
+    document = _attic_document()
+    document["hotspots"] = [document["hotspots"][0]]
+    document["items"] = []
+    document["interactions"] = [
+        {
+            "on": {"verb": "use", "hotspot": "workbench"},
+            "narration": "You rummage, but your mind wanders.",
+        },
+        {
+            "on": {"verb": "use", "hotspot": "workbench"},
+            "effects": [{"set_flag": "found_it"}],
+        },
+    ]
+    document["win"] = {"requires": ["found_it"]}
+    with pytest.raises(ValueError, match=r"cannot be finished|never fire"):
+        resolve_pointclick_room(document)
+
+
 def test_win_flags_must_be_settable() -> None:
     document = _attic_document()
     document["win"] = {"requires": ["flag_nothing_sets"]}

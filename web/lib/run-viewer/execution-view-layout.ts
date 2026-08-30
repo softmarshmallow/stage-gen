@@ -79,11 +79,20 @@ function contract(
   nodes: readonly LayoutNodeInput[],
   collapsedDomains: ReadonlySet<string>,
 ): readonly ContractedNode[] {
+  // A one-node domain gains nothing from contraction and loses its identity:
+  // its "super-chip" would carry a synthetic id no inspector can resolve.
+  const members = new Map<string, number>();
+  for (const node of nodes) {
+    members.set(node.domain, (members.get(node.domain) ?? 0) + 1);
+  }
+  const contractible = new Set(
+    [...collapsedDomains].filter((domain) => (members.get(domain) ?? 0) > 1),
+  );
   const idFor = new Map<string, string>();
   for (const node of nodes) {
     idFor.set(
       node.nodeId,
-      collapsedDomains.has(node.domain) ? collapsedId(node.domain) : node.nodeId,
+      contractible.has(node.domain) ? collapsedId(node.domain) : node.nodeId,
     );
   }
   const contracted = new Map<
@@ -121,14 +130,24 @@ function contract(
   }));
 }
 
-function longestPathDepths(nodes: readonly ContractedNode[]): Map<string, number> {
+function longestPathDepths(
+  nodes: readonly ContractedNode[],
+  { tolerateCycles }: { tolerateCycles: boolean },
+): Map<string, number> {
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const depths = new Map<string, number>();
   const visiting = new Set<string>();
   const depthOf = (id: string): number => {
     const known = depths.get(id);
     if (known !== undefined) return known;
-    if (visiting.has(id)) throw new Error("execution view graph contains a cycle");
+    if (visiting.has(id)) {
+      // Contracting a domain can legally fold an acyclic graph into a cyclic
+      // one (room -> hotspots -> room). The document itself is validated
+      // acyclic, so inside a contraction a back-edge is a layout artifact:
+      // break it here instead of crashing the viewer.
+      if (tolerateCycles) return 0;
+      throw new Error("execution view graph contains a cycle");
+    }
     visiting.add(id);
     const node = byId.get(id);
     const depth =
@@ -148,7 +167,9 @@ export function layoutExecutionGraph(
   collapsedDomains: ReadonlySet<string> = new Set(),
 ): GraphLayout {
   const contracted = contract(nodes, collapsedDomains);
-  const depths = longestPathDepths(contracted);
+  const depths = longestPathDepths(contracted, {
+    tolerateCycles: collapsedDomains.size > 0,
+  });
   const columnCount = contracted.length === 0 ? 0 : 1 + Math.max(...depths.values());
 
   const laneOrder: string[] = [];

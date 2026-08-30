@@ -54,12 +54,13 @@ persisted into the run as `puzzle.validation.json`
 
 `stage-gen pointclick-room generate --input library/rooms/<id>/room.toml
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 16 nodes: `room.resolve` → `style_anchor.select` → the
+the shipped room is 14 nodes: `room.resolve` → `style_anchor.select` → the
 backdrop, one generate+validate pair per sprite hotspot
 (`hotspot-pipeline@v1` template instances) and per item icon
 (`item-icon-pipeline@v1`), one `narration.compile` structured call covering
-every authored narration gap under a closed-id strict schema, the local
-`puzzle.validate` proof, and the terminal `room.bundle`.
+every authored narration gap under a closed-id strict schema (omitted
+entirely when the author wrote every line), the local `puzzle.validate`
+proof, and the terminal `room.bundle`.
 
 Every generation node's **complete static prompt rides its card in the plan**
 — the handler sends the card text verbatim with the style anchor appended

@@ -103,4 +103,33 @@ describe("layoutExecutionGraph", () => {
     expect(layout.edges).toHaveLength(0);
     expect(layout.lanes).toHaveLength(0);
   });
+
+  test("collapsing a domain that a dependency chain re-enters does not crash", () => {
+    // The real room shape: room -> hotspots -> room. Contracting "room" folds
+    // this legal acyclic document into a cyclic layout graph; the back-edge is
+    // a layout artifact and must be broken, not thrown.
+    const REENTRANT = [
+      { nodeId: "resolve", domain: "room", dependsOn: [] },
+      { nodeId: "style", domain: "room", dependsOn: ["resolve"] },
+      { nodeId: "sprite", domain: "hotspots", dependsOn: ["style"] },
+      { nodeId: "bundle", domain: "room", dependsOn: ["sprite", "style"] },
+    ];
+    const layout = layoutExecutionGraph(REENTRANT, new Set(["room"]));
+    expect(layout.nodes.map((node) => node.id).sort()).toEqual(["domain:room", "sprite"]);
+    const layoutAll = layoutExecutionGraph(REENTRANT, new Set(["room", "hotspots"]));
+    expect(layoutAll.nodes).toHaveLength(2);
+  });
+
+  test("a single-node domain never contracts into a synthetic super-chip", () => {
+    const layout = layoutExecutionGraph(DIAMOND, new Set(["package", "manifest"]));
+    // package and manifest each hold one node: they keep their real ids, so
+    // selection and the inspector keep working.
+    expect(layout.nodes.map((node) => node.id).sort()).toEqual([
+      "join",
+      "left",
+      "right",
+      "root",
+    ]);
+    expect(layout.nodes.every((node) => node.memberIds.length === 1)).toBe(true);
+  });
 });

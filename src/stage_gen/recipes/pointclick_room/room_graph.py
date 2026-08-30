@@ -29,6 +29,7 @@ from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
     hotspot_sprite_prompt,
     item_icon_prompt,
+    narration_ids,
     narration_prompt,
 )
 from stage_gen.recipes.pointclick_room.room_types import (
@@ -188,6 +189,10 @@ def build_pointclick_room_graph(
         domain="room",
         description="Select and materialize the canonical image style anchor",
         depends_on=("room-resolve",),
+        # room-resolve is a barrier: this node's real inputs are its digested
+        # brief and the packaged style resources, so an unrelated authored
+        # edit never chains into every image's cache key through here.
+        cache_depends_on=(),
         input_digests=(
             _text_digest(resolved.style_selection_brief),
             resolved.style_resource_sha256,
@@ -301,19 +306,25 @@ def build_pointclick_room_graph(
             )
             item_validations.append(validated.node_id)
 
-    builder.add(
-        NARRATION_COMPILE,
-        "room-narration",
-        domain="room",
-        description="Write every narration line the author left to generation",
-        depends_on=("room-resolve",),
-        input_digests=(_text_digest(narration_prompt(room)),),
-        ports=(
-            _artifact("document", "narration.json", NARRATION_KIND),
-            _attempts("room-narration"),
-        ),
-        card=NodeCard(prompt=narration_prompt(room), schema_name="pointclick_narration_v1"),
-    )
+    # A fully authored room owes generation nothing: the narration node exists
+    # only when the document leaves at least one line to write.
+    narration_nodes: tuple[str, ...] = ()
+    if narration_ids(room):
+        builder.add(
+            NARRATION_COMPILE,
+            "room-narration",
+            domain="room",
+            description="Write every narration line the author left to generation",
+            depends_on=("room-resolve",),
+            cache_depends_on=(),
+            input_digests=(_text_digest(narration_prompt(room)),),
+            ports=(
+                _artifact("document", "narration.json", NARRATION_KIND),
+                _attempts("room-narration"),
+            ),
+            card=NodeCard(prompt=narration_prompt(room), schema_name="pointclick_narration_v1"),
+        )
+        narration_nodes = ("room-narration",)
 
     builder.add(
         PUZZLE_VALIDATE,
@@ -337,7 +348,7 @@ def build_pointclick_room_graph(
             "room-backdrop",
             *sprite_validations,
             *item_validations,
-            "room-narration",
+            *narration_nodes,
             "room-puzzle-validate",
         ),
         input_digests=(resolved.room_sha256,),

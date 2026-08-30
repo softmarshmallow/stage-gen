@@ -343,8 +343,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                         f"admit the x-axis loop for {layer.layer_id}, else {construction}"
                     ),
                     params=layer_params,
+                    # The generated raster is this node's content input, so the
+                    # edge is cache lineage: a repainted layer must never be
+                    # served a loop derived from the discarded image.
                     depends_on=(generated.node_id,),
-                    cache_depends_on=(),
                     input_digests=loop_digests,
                     ports=loop_ports,
                     card=loop_card,
@@ -385,7 +387,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 ports=(
                     _artifact("image", f"{layer_root}.png", "map-layer-v1"),
                     _record("validation", f"{layer_root}.validation.json", "layer-validation-v1"),
-                    _artifact("repeat_preview", f"{layer_root}.repeat.png", "repeat-preview-v1"),
+                    _record("repeat_preview", f"{layer_root}.repeat.png", "repeat-preview-v1"),
                 ),
                 card=NodeCard(
                     reference_inputs=(PortRef(node_id=looped.node_id, port_id="loop_image"),)
@@ -419,7 +421,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     else {"variants": [entry.variant_id for entry in game_map.climbable.variants]}
                 ),
             ),
-            ports=(_artifact("terrain", f"maps/{game_map.map_id}/terrain.json", "map-terrain-v1"),),
+            ports=(_record("terrain", f"maps/{game_map.map_id}/terrain.json", "map-terrain-v1"),),
         )
 
         # The atlas paintover is appearance only: authored geometry and vertical fit select cells

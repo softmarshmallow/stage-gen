@@ -125,7 +125,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "0c85fcc8d415a20670601f819112150a1dd78aec163aa1756b9169679d450164",
+  "topology_sha256": "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d",
   "node_count": 221,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

@@ -466,7 +466,15 @@ export function RunFacts({
   return (
     <div className="p-3 text-xs">
       <dl className="m-0 border border-border">
-        <Fact term={view.subject.kind === "dialogue-scene-execution-view-v1" ? "scene" : "game"}>
+        <Fact
+          term={
+            view.subject.kind === "dialogue-scene-execution-view-v1"
+              ? "scene"
+              : view.subject.kind === "pointclick-room-execution-view-v1"
+                ? "room"
+                : "game"
+          }
+        >
           {subjectLabel(view.subject)}
         </Fact>
         <Fact term="recipe">{view.subject.recipe}</Fact>

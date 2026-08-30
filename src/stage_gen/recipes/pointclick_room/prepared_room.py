@@ -336,7 +336,9 @@ class PointClickRoomNodeHandler:
                 records.extend(entry for entry in entries if isinstance(entry, dict))
         atomic_write_json(self._run_dir / "attempts.json", _ledger(records))
 
-        narration = json.loads(self._read("narration.json"))["narrations"]
+        narration: dict[str, object] = (
+            json.loads(self._read("narration.json"))["narrations"] if narration_ids(room) else {}
+        )
 
         def resolved_line(authored: str | None, key: str) -> str:
             if authored is not None:

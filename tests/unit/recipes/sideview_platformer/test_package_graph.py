@@ -137,6 +137,14 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     assert all(node.cache_key for node in graph.nodes)
     assert all(node.input_sha256 for node in graph.nodes)
     assert all(node.ports for node in graph.nodes)
+    # A barrier edge orders execution without binding cache identity, so it is
+    # legal ONLY toward package-resolve, whose children re-digest their own
+    # authored inputs. A barrier on a content-producing dependency would let a
+    # node reuse work derived from a discarded upstream artifact - the exact
+    # stale-loop regression the review caught.
+    assert {b for node in graph.nodes for b in node.barrier_only} == {"package-resolve"}
+    loop = graph.node("map-sunpetal-crossing-layer-clear_sky-loop")
+    assert loop.barrier_only == ()
 
 
 def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> None:

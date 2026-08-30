@@ -525,6 +525,10 @@ export default function RunViewer({
           <div className="min-h-0 flex-1 overflow-auto overscroll-none">
             {selected ? (
               <NodeInspector
+                // Keyed by node so per-node panel state (loaded verdicts,
+                // expanded prompts) can never survive a selection change and
+                // describe the wrong node.
+                key={selected.nodeId}
                 tag={tag}
                 node={selected}
                 nodesById={nodesById}

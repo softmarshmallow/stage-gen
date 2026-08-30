@@ -224,6 +224,27 @@ def _interaction_available(room: PointClickRoom, index: int, state: RoomState) -
     return not (interaction.on.item is not None and interaction.on.item not in state.inventory)
 
 
+def _fireable(room: PointClickRoom, state: RoomState) -> list[int]:
+    """The interactions a PLAYER can actually fire from this state.
+
+    The runtime dispatches a click to the FIRST available interaction whose
+    trigger matches, so two interactions sharing one trigger signature are
+    never both reachable at once - the earlier one shadows the later until it
+    has fired. The proof searches exactly that machine, not a more permissive
+    one, or it would admit rooms no player can finish.
+    """
+
+    chosen: dict[tuple[str, str, str | None], int] = {}
+    for index in range(len(room.interactions)):
+        if not _interaction_available(room, index, state):
+            continue
+        trigger = room.interactions[index].on
+        signature = (trigger.verb, trigger.hotspot, trigger.item)
+        if signature not in chosen:
+            chosen[signature] = index
+    return sorted(chosen.values())
+
+
 def _apply(room: PointClickRoom, index: int, state: RoomState) -> RoomState:
     interaction = room.interactions[index]
     flags = set(state.flags)
@@ -279,9 +300,7 @@ def prove_room_solvable(room: PointClickRoom) -> RoomSolvabilityReport:
         state, path = frontier.popleft()
         if solution is None and all(flag in state.flags for flag in room.win.requires):
             solution = path
-        for index in range(len(room.interactions)):
-            if not _interaction_available(room, index, state):
-                continue
+        for index in _fireable(room, state):
             ever_fired.add(index)
             successor = _apply(room, index, state)
             if successor in seen:
