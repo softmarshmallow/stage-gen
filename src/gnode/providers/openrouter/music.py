@@ -6,19 +6,18 @@ from typing import Any, ClassVar, Literal
 
 import httpx
 
-from gnode import (
-    JsonObject,
-    MusicGenerationRequest,
-    ProviderMusic,
+from gnode.modalities._types import JsonObject
+from gnode.modalities.music import MusicGenerationRequest, ProviderMusic
+from gnode.modalities.signatures import (
     assert_audio_signature,
-    decode_base64_strict,
     normalize_audio_media_type,
 )
-from stage_gen.providers._http import (
+from gnode.providers._http import (
     assert_success,
     normalized_base_url,
     response_metadata,
 )
+from gnode.reliability import decode_base64_strict
 
 OPENROUTER_MUSIC_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MUSIC_MODEL = "google/lyria-3-pro-preview"

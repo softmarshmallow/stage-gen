@@ -24,10 +24,12 @@ src/gnode/                    ringed asset-graph SDK — ring 0: engine core
                               (topology, scheduling, trace, run view, model
                               bindings, reliability, provenance; media-free);
                               ring 1 gnode/modalities/: per-modality model
-                              specs and retry-owning services
+                              specs and retry-owning services; ring 2
+                              gnode/providers/: OpenAI, OpenRouter, and fal
+                              adapters behind declared per-provider surfaces
 src/stage_gen/components/     application components and capability processing
-src/stage_gen/providers/      OpenRouter, OpenAI, and fal adapters implementing
-                              the ring-1 model specs (moving to gnode ring 2)
+src/stage_gen/providers/      adapters for application-owned component
+                              protocols (the masked image-repeat edit)
 src/stage_gen/media/          shared recipe-neutral inspection and transforms
 src/stage_gen/recipes/        recipe-specific composition, processing, and manifests
 src/stage_gen/orchestration/  run preparation, concrete composition, and summaries

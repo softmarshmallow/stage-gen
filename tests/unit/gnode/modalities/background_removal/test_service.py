@@ -12,10 +12,10 @@ from gnode import (
     BackgroundRemovalService,
     RetryPolicy,
 )
+from gnode.providers.fal import FalBackgroundRemovalBackend
 from stage_gen.identity import BACKGROUND_REMOVAL_COMPONENT, STAGE_GEN_TOOL
-from stage_gen.providers.fal import FalBackgroundRemovalBackend
 
-from .._helpers import png_bytes
+from ..._helpers import png_bytes
 
 
 @pytest.mark.asyncio

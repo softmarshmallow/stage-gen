@@ -15,10 +15,10 @@ from gnode import (
     RetryExhaustedError,
     RetryPolicy,
 )
+from gnode.providers.openrouter import OpenRouterImageBackend
 from stage_gen.identity import IMAGE_GENERATION_COMPONENT, STAGE_GEN_TOOL
-from stage_gen.providers.openrouter import OpenRouterImageBackend
 
-from .._helpers import png_bytes
+from ..._helpers import png_bytes
 
 
 @pytest.mark.asyncio

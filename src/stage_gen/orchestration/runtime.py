@@ -24,6 +24,13 @@ from gnode import (
     StructuredGenerationService,
     inspect_image,
 )
+from gnode.providers.fal import FalBackgroundRemovalBackend
+from gnode.providers.openai import OpenAIImageBackend
+from gnode.providers.openrouter import (
+    OpenRouterImageBackend,
+    OpenRouterMusicBackend,
+    OpenRouterStructuredBackend,
+)
 from stage_gen.components.audio_normalization import (
     AudioNormalizationRequest,
     FfmpegAudioNormalizer,
@@ -35,13 +42,6 @@ from stage_gen.identity import (
     MUSIC_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
-)
-from stage_gen.providers import (
-    FalBackgroundRemovalBackend,
-    OpenAIImageBackend,
-    OpenRouterImageBackend,
-    OpenRouterMusicBackend,
-    OpenRouterStructuredBackend,
 )
 
 if TYPE_CHECKING:

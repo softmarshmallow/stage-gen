@@ -33,7 +33,7 @@ PAD_TILES = Fraction(1, 2)
 #: further headroom has diminishing value.
 CLIMBABLE_SUPERSAMPLE = 4
 
-#: src/stage_gen/providers/openai/image.py::_validate_gpt_image_2_size
+#: src/gnode/providers/openai/image.py::_validate_gpt_image_2_size
 EDGE_MULTIPLE = 16
 EDGE_MAX = 3840
 ASPECT_MAX = Fraction(3)

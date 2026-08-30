@@ -15,8 +15,8 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
 )
+from gnode.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
-from stage_gen.providers.openrouter import OpenRouterStructuredBackend
 
 
 @pytest.mark.asyncio

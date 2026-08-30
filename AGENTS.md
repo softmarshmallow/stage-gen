@@ -14,8 +14,8 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   provenance — media-free), ring 1 per-modality model specs and retry-owning services, ring 2 first-party
   provider adapters. A ring imports only rings below it; nothing game-, recipe-, or genre-specific belongs
   in any ring, and the engine ships no brand — provenance identities come from the application. Consumers
-  import only declared surfaces (`from gnode import X`; provider adapters via `gnode.providers.<name>` once
-  ring 2 lands); gnode imports no application package; a contract test enforces all of it. Providers
+  import only declared surfaces (`from gnode import X`; provider adapters via `gnode.providers.<name>`);
+  gnode imports no application package; a contract test enforces all of it. Providers
   implement the ring-1 protocols, and orchestration is the composition root. Shared recipe-neutral media
   inspection and transforms belong in `media`; capability-specific processing stays with its component, and
   recipe-specific canonicalization with its recipe.

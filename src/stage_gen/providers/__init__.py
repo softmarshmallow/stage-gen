@@ -1,20 +1,10 @@
-"""Concrete one-attempt provider adapters.
+"""Application-side provider adapters.
 
-Retry, caller validation, and persistence deliberately live in components.
+The first-party adapters live in the engine (`gnode.providers.*`, ring 2).
+What remains here implements application-owned component protocols — today
+the masked image-repeat edit backend.
 """
 
-from .fal import FalBackgroundRemovalBackend
-from .openai import OpenAIImageBackend
-from .openrouter import (
-    OpenRouterImageBackend,
-    OpenRouterMusicBackend,
-    OpenRouterStructuredBackend,
-)
+from .openrouter import OpenRouterMaskedImageEditBackend
 
-__all__ = [
-    "FalBackgroundRemovalBackend",
-    "OpenAIImageBackend",
-    "OpenRouterImageBackend",
-    "OpenRouterMusicBackend",
-    "OpenRouterStructuredBackend",
-]
+__all__ = ["OpenRouterMaskedImageEditBackend"]

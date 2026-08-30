@@ -199,7 +199,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # modules: the model-binding table and the pinned plan identity.
         # Recording cancellation adds one: the scheduler test that interrupts a run mid-flight
         # and proves the trace says so rather than leaving it to be inferred.
-        assert len(sdist_entries) <= 360
+        # The ring cut nets a few package files: modality and provider package
+        # __init__ modules, the signature/inspection modules, and the
+        # application's identity and image_style modules (measured 362).
+        assert len(sdist_entries) <= 372
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.

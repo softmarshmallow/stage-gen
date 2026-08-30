@@ -4,19 +4,18 @@ from typing import ClassVar, Literal
 
 import httpx
 
-from gnode import (
-    ImageGenerationRequest,
-    ProviderImage,
+from gnode.modalities.image import ImageGenerationRequest, ProviderImage
+from gnode.modalities.signatures import (
     assert_image_signature,
-    decode_base64_strict,
     normalize_media_type,
 )
-from stage_gen.providers._http import (
+from gnode.providers._http import (
     assert_success,
     json_object,
     normalized_base_url,
     response_metadata,
 )
+from gnode.reliability import decode_base64_strict
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2"

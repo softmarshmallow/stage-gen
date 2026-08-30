@@ -16,6 +16,7 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
+from gnode.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
 from stage_gen.image_prompting import (
     build_image_style_compiler_request,
@@ -25,7 +26,6 @@ from stage_gen.image_prompting import (
 from stage_gen.image_style import (
     CanonicalStyleAnchor,
 )
-from stage_gen.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.resources import image_style_resource_digests
 
 

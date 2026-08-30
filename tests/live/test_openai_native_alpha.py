@@ -9,8 +9,8 @@ import pytest
 from PIL import Image
 
 from gnode import ImageGenerationRequest, ImageReference
+from gnode.providers.openai import OpenAIImageBackend
 from stage_gen.media import NATIVE_ALPHA_OPAQUE_THRESHOLD, inspect_image
-from stage_gen.providers.openai import OpenAIImageBackend
 
 from .conftest import OpenAILiveSettings
 

@@ -9,13 +9,16 @@ import httpx
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from gnode import ImageGenerationRequest, ImageReference, inspect_image
+from gnode.providers.openrouter import (
+    OPENROUTER_BASE_URL,
+    OPENROUTER_IMAGE_MODEL,
+    OpenRouterImageBackend,
+)
 from stage_gen.components.image_repeat.models import (
     MASKED_IMAGE_EDIT_CAPABILITY,
     MaskedImageEditRequest,
     ProviderImageRepeatEdit,
 )
-
-from .image import OPENROUTER_BASE_URL, OPENROUTER_IMAGE_MODEL, OpenRouterImageBackend
 
 
 class OpenRouterMaskedImageEditBackend:

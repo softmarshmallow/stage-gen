@@ -7,9 +7,9 @@ This note has two deliberately separate status classes:
 - **Future proposal**: a reusable semantic-review capability and broader semantic criteria.
 
 The current code uses `src/stage_gen/components/structured_generation/` and
-`src/stage_gen/providers/openrouter/structured.py`. There is no
+`src/gnode/providers/openrouter/structured.py`. There is no
 `src/stage_gen/components/semantic_review/` package and no
-`src/stage_gen/providers/openrouter/review.py`. Those names appear only in the future section.
+`src/gnode/providers/openrouter/review.py`. Those names appear only in the future section.
 
 This document does not define a migration path or parallel contract versions. Current
 identifiers below describe the one implementation accepted now. A future contract must replace
@@ -72,7 +72,7 @@ src/stage_gen/media/images.py
 src/stage_gen/components/structured_generation/
   StructuredGenerationService          provider-neutral strict structured output
 
-src/stage_gen/providers/openrouter/structured.py
+src/gnode/providers/openrouter/structured.py
   OpenRouterStructuredBackend          current structured-output transport
 
 src/stage_gen/recipes/scrolling_preview/
@@ -98,7 +98,7 @@ proposed ownership is:
 
 ```
 src/stage_gen/components/semantic_review/       proposed; absent
-src/stage_gen/providers/openrouter/review.py     proposed; absent
+src/gnode/providers/openrouter/review.py     proposed; absent
 ```
 
 Two rules constrain that proposal:

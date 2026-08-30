@@ -8,7 +8,8 @@ from typing import Any
 
 import httpx
 
-from gnode import JsonObject, ProviderResponseMetadata, redact_secrets
+from gnode.modalities._types import JsonObject, ProviderResponseMetadata
+from gnode.reliability import redact_secrets
 
 _SAFE_ERROR_MESSAGE_SUMMARIES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\binvalid (?:json )?schema\b", re.IGNORECASE), "invalid schema"),

@@ -12,10 +12,10 @@ from gnode import (
     MusicGenerationService,
     RetryPolicy,
 )
+from gnode.providers.openrouter import OpenRouterMusicBackend
 from stage_gen.identity import MUSIC_GENERATION_COMPONENT, STAGE_GEN_TOOL
-from stage_gen.providers.openrouter import OpenRouterMusicBackend
 
-from .._helpers import wav_bytes
+from ..._helpers import wav_bytes
 
 
 @pytest.mark.asyncio

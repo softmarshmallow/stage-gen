@@ -5,21 +5,23 @@ from typing import ClassVar, Literal
 
 import httpx
 
-from gnode import (
+from gnode.modalities.background_removal import (
     BackgroundMaskArtifact,
     BackgroundMaskMetadata,
     BackgroundRemovalRequest,
     ProviderBackgroundRemoval,
+)
+from gnode.modalities.signatures import (
     assert_image_signature,
-    decode_base64_strict,
     normalize_media_type,
 )
-from stage_gen.providers._http import (
+from gnode.providers._http import (
     assert_success,
     json_object,
     normalized_base_url,
     response_metadata,
 )
+from gnode.reliability import decode_base64_strict
 
 FAL_BACKGROUND_REMOVAL_MODEL = "fal-ai/birefnet/v2"
 FAL_BASE_URL = "https://fal.run"

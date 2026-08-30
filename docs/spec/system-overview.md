@@ -15,10 +15,11 @@ flowchart LR
     A --> E["Future engine adapters"]
 ```
 
-- `gnode` ring 1 owns the provider-neutral modality service contracts;
+- `gnode` ring 1 owns the provider-neutral modality service contracts and
+  ring 2 the first-party vendor adapters (`gnode.providers.*`);
   `src/stage_gen/components/` owns application components, and
-  `src/stage_gen/providers/` implements vendor adapters against the ring-1
-  specs.
+  `src/stage_gen/providers/` keeps only adapters for application-owned
+  component protocols.
 - `src/stage_gen/media/` owns deterministic inspection and normalization.
 - `src/stage_gen/recipes/` owns recipe graphs and manifests;
   `src/stage_gen/orchestration/` owns concrete provider composition, run state,

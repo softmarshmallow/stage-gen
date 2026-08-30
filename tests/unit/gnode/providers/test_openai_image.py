@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from gnode import ImageGenerationRequest, ImageReference
-from stage_gen.providers.openai import OpenAIImageBackend
+from gnode.providers.openai import OpenAIImageBackend
 
 from .._helpers import png_bytes
 

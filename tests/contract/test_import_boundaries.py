@@ -216,8 +216,21 @@ def test_ring_one_stays_provider_free() -> None:
     assert not violations, "ring 1 must stay provider-free:\n" + "\n".join(violations)
 
 
-def test_application_imports_only_the_engine_top_level() -> None:
-    """One import surface keeps the engine free to move its modules."""
+DECLARED_ENGINE_SURFACES = (
+    "gnode",
+    "gnode.providers.fal",
+    "gnode.providers.openai",
+    "gnode.providers.openrouter",
+)
+
+
+def test_application_imports_only_declared_engine_surfaces() -> None:
+    """Declared surfaces keep the engine free to move its modules.
+
+    The flat ``gnode`` surface carries rings 0-1; each first-party provider
+    package is its own surface so adapters (and their HTTP client) load only
+    when asked for. Everything else inside the engine is private layout.
+    """
 
     violations: list[str] = []
     for root in CONSUMER_ROOTS:
@@ -225,15 +238,18 @@ def test_application_imports_only_the_engine_top_level() -> None:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom):
-                    deep = node.module is not None and node.module.startswith("gnode.")
+                    modules = [node.module] if node.module and not node.level else []
                 elif isinstance(node, ast.Import):
-                    deep = any(alias.name.startswith("gnode.") for alias in node.names)
+                    modules = [alias.name for alias in node.names]
                 else:
                     continue
-                if deep:
+                for module in modules:
+                    if module != "gnode" and not module.startswith("gnode."):
+                        continue
+                    if module in DECLARED_ENGINE_SURFACES:
+                        continue
                     relative = path.relative_to(SOURCE_ROOT.parent)
-                    violations.append(f"{relative}:{node.lineno}")
-    assert not violations, (
-        "the engine exposes one import surface; import from gnode directly:\n"
-        + "\n".join(violations)
+                    violations.append(f"{relative}:{node.lineno} imports {module}")
+    assert not violations, "consumers import only the declared engine surfaces:\n" + "\n".join(
+        violations
     )

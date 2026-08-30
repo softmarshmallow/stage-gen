@@ -8,13 +8,18 @@ from typing import ClassVar, Literal
 
 import httpx
 
-from gnode import ImageGenerationRequest, ProviderImage, decode_base64_strict, inspect_image
-from stage_gen.providers._http import (
+from gnode.modalities.image import (
+    ImageGenerationRequest,
+    ProviderImage,
+    inspect_image,
+)
+from gnode.providers._http import (
     assert_success,
     json_object,
     normalized_base_url,
     response_metadata,
 )
+from gnode.reliability import decode_base64_strict
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPENAI_IMAGE_MODEL = "gpt-image-2"

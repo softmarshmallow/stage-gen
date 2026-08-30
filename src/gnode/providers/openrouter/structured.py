@@ -5,8 +5,11 @@ from typing import ClassVar, Literal
 
 import httpx
 
-from gnode import ProviderStructuredOutput, StructuredGenerationRequest
-from stage_gen.providers._http import (
+from gnode.modalities.structured import (
+    ProviderStructuredOutput,
+    StructuredGenerationRequest,
+)
+from gnode.providers._http import (
     assert_success,
     json_object,
     normalized_base_url,
