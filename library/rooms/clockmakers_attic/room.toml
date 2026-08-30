@@ -18,11 +18,13 @@ keywords = [
 ]
 avoid = ["photorealism", "horror", "neon", "text"]
 
+# The brief names only mood and scenery; sprite-hotspot objects (the dust
+# sheet, the music box) are deliberately absent — a separate sprite is
+# composited into each declared clearance zone.
 [scene]
 brief = """A cozy attic workshop of an absent clockmaker at dusk: sloped timber \
-rafters, one round window with fading light, shelves of jars and cogs, a long \
-workbench strewn with tools on the left, a large ornate wall clock mounted \
-center-right, and a lumpy dust-sheeted shape in the right corner."""
+rafters, fading light, shelves of jars and cogs, and worn floorboards with a \
+faded round rug."""
 width = 1280
 height = 720
 
@@ -60,14 +62,14 @@ hotspot_id = "round_window"
 label = "Round window"
 art = "scenery"
 brief = "a round leaded window holding the last violet light of dusk"
-region = { x = 0.08, y = 0.10, w = 0.14, h = 0.22 }
+region = { x = 0.10, y = 0.10, w = 0.15, h = 0.26 }
 
 [[hotspots]]
 hotspot_id = "tin_lantern"
 label = "Tin lantern"
-art = "sprite"
+art = "scenery"
 brief = "a punched-tin lantern with a stub of candle, hanging from a rafter hook"
-region = { x = 0.33, y = 0.08, w = 0.10, h = 0.18 }
+region = { x = 0.30, y = 0.05, w = 0.11, h = 0.24 }
 
 [[items]]
 item_id = "winding_key"

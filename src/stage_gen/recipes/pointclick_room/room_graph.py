@@ -7,6 +7,7 @@ static prompt rides its card — the plan states what each node will be told.
 
 from __future__ import annotations
 
+import hashlib
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, Literal
 
@@ -151,6 +152,17 @@ def _attempts(node_id: str) -> Port:
     )
 
 
+def _text_digest(text: str) -> str:
+    """One generation node's identity is its own instruction, not the whole room.
+
+    Keying a node on exactly the prompt it will send is what makes an authored
+    edit cheap: nudging a hotspot region or rewording one brief re-bills only
+    the nodes whose instructions actually changed.
+    """
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def build_pointclick_room_graph(
     resolved: ResolvedPointClickRoom,
     *,
@@ -177,7 +189,7 @@ def build_pointclick_room_graph(
         description="Select and materialize the canonical image style anchor",
         depends_on=("room-resolve",),
         input_digests=(
-            resolved.room_sha256,
+            _text_digest(resolved.style_selection_brief),
             resolved.style_resource_sha256,
             resolved.style_compiler_sha256,
         ),
@@ -194,7 +206,10 @@ def build_pointclick_room_graph(
         domain="room",
         description="Paint the full-frame room backdrop",
         depends_on=("room-style-select",),
-        input_digests=(resolved.room_sha256,),
+        input_digests=(
+            _text_digest(backdrop_prompt(room)),
+            _text_digest(f"{room.scene.width}x{room.scene.height}"),
+        ),
         ports=(
             _artifact("image", "assets/backdrop.png", BACKDROP_KIND),
             _attempts("room-backdrop"),
@@ -215,7 +230,7 @@ def build_pointclick_room_graph(
                 description=f"generate the {hotspot.label} hotspot object",
                 params={"hotspot_id": hotspot.hotspot_id},
                 depends_on=("room-style-select",),
-                input_digests=(resolved.room_sha256,),
+                input_digests=(_text_digest(hotspot_sprite_prompt(room, hotspot)),),
                 ports=(
                     _artifact(
                         "image", f"assets/hotspots/{hotspot.hotspot_id}.png", HOTSPOT_SPRITE_KIND
@@ -258,7 +273,7 @@ def build_pointclick_room_graph(
                 description=f"generate the {item.label} inventory icon",
                 params={"item_id": item.item_id},
                 depends_on=("room-style-select",),
-                input_digests=(resolved.room_sha256,),
+                input_digests=(_text_digest(item_icon_prompt(room, item)),),
                 ports=(
                     _artifact("image", f"assets/items/{item.item_id}.png", ITEM_ICON_KIND),
                     _attempts(generate_id),
@@ -292,7 +307,7 @@ def build_pointclick_room_graph(
         domain="room",
         description="Write every narration line the author left to generation",
         depends_on=("room-resolve",),
-        input_digests=(resolved.room_sha256,),
+        input_digests=(_text_digest(narration_prompt(room)),),
         ports=(
             _artifact("document", "narration.json", NARRATION_KIND),
             _attempts("room-narration"),

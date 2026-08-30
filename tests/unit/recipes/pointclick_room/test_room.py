@@ -87,9 +87,12 @@ def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None
             assert node.card is not None and node.card.prompt, node.node_id
     backdrop = graph.node("room-backdrop")
     assert backdrop.card is not None and backdrop.card.prompt is not None
-    # Scenery hotspots are painted into the backdrop; sprite hotspots are kept out of it.
+    # Scenery hotspots are painted into the backdrop at stated regions; sprite
+    # hotspots never appear in it by name — their clearance zones are anonymous.
     assert "Great brass clock" in backdrop.card.prompt
-    assert backdrop.card.prompt.count("Dust sheet") == 1  # named only as a clearance zone
+    assert "Tin lantern" in backdrop.card.prompt
+    assert "Dust sheet" not in backdrop.card.prompt
+    assert "music box" not in backdrop.card.prompt.lower()
     sprite = graph.node("hotspot-dust_sheet-generate")
     assert sprite.params == {"hotspot_id": "dust_sheet"}
     assert sprite.template_id == "hotspot-pipeline@v1"

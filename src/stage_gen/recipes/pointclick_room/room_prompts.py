@@ -13,6 +13,11 @@ from __future__ import annotations
 from stage_gen.recipes.pointclick_room.models import Hotspot, Item, PointClickRoom
 
 
+def _region_span(hotspot: Hotspot) -> str:
+    region = hotspot.region
+    return f"x {region.x:.2f}-{region.x + region.w:.2f}, y {region.y:.2f}-{region.y + region.h:.2f}"
+
+
 def _style_clause(room: PointClickRoom) -> str:
     keywords = ", ".join(room.style.keywords)
     avoid = ", ".join(room.style.avoid)
@@ -28,21 +33,26 @@ def backdrop_prompt(room: PointClickRoom) -> str:
     scenery = [hotspot for hotspot in room.hotspots if hotspot.art == "scenery"]
     scenery_clause = ""
     if scenery:
-        described = "; ".join(f"{hotspot.label}: {hotspot.brief}" for hotspot in scenery)
+        described = "; ".join(
+            f"{hotspot.label} ({hotspot.brief}) placed inside {_region_span(hotspot)}"
+            for hotspot in scenery
+        )
         scenery_clause = (
             " The following interactive scenery must be painted into the scene, clearly "
-            f"legible at its position: {described}."
+            "legible, each inside its stated normalized region (x and y run 0-1 from the "
+            f"top-left corner): {described}."
         )
     sprite_spots = [hotspot for hotspot in room.hotspots if hotspot.art == "sprite"]
     clearance_clause = ""
     if sprite_spots:
-        placed = "; ".join(
-            f"{hotspot.label} near x={hotspot.region.x:.2f} y={hotspot.region.y:.2f}"
-            for hotspot in sprite_spots
-        )
+        # Deliberately anonymous: naming the object here is an invitation to
+        # paint it, and these zones exist precisely because a separate sprite
+        # will be composited on top.
+        zones = "; ".join(_region_span(hotspot) for hotspot in sprite_spots)
         clearance_clause = (
-            " Leave visually quiet, uncluttered surfaces where separate object sprites will be "
-            f"composited later: {placed}. Do not paint those objects into the backdrop."
+            " Leave visually quiet, uncluttered surfaces - plain wall, floor, furniture top, "
+            f"or soft shadow - inside these normalized regions: {zones}. Paint no distinct "
+            "object inside them; separate sprites will be composited there later."
         )
     return (
         "Paint one complete point-and-click adventure room interior as a single full-frame "
