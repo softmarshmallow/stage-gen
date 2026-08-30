@@ -1,10 +1,13 @@
 # stage-gen
 
-`stage-gen` turns a prepared game package—art direction, maps, characters,
-gameplay, dialogue, music, and reference images—into a validated set of
-game-ready 2D assets and a playable runtime manifest. The reusable Python core
-stays general-purpose, headless, and provider-neutral. The optional web-based scrolling-game
-preview demonstrates what a consumer can build from those artifacts.
+`stage-gen` is an AI game asset generator with instant play: it turns a
+prepared game package—art direction, maps, characters, gameplay, dialogue,
+music, and reference images—into a validated set of game-ready 2D assets and a
+playable runtime manifest. The reusable Python core stays general-purpose,
+headless, and provider-neutral. The optional web-based scrolling-game preview
+demonstrates what a consumer can build from those artifacts; the preview is a
+proof, never the product. Today's asset space is 2D; 3D is a deferred axis the
+[asset taxonomy](docs/spec/asset-taxonomy.md) already reserves a name for.
 
 ![Bellweather key art: a bright storybook adventure world with its player and creatures](.github/assets/readme/bellweather-cover.webp)
 

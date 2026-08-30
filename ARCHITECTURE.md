@@ -1,9 +1,11 @@
 # Architecture
 
-`stage-gen` is a headless, general-purpose system for producing coherent 2D
-game assets. The reusable core stops at validated artifacts, manifests, and
-provenance. A preview or game runtime is a downstream consumer, never the
-definition of the generator.
+`stage-gen` is a headless, general-purpose system for producing coherent game
+assets — 2D today, with 3D as a deferred axis the
+[asset taxonomy](docs/spec/asset-taxonomy.md) reserves a name for. The
+reusable core stops at validated artifacts, manifests, and provenance. A
+preview or game runtime is a downstream consumer, never the definition of the
+generator.
 
 It is built on `gnode`, an **asset graph** engine: a build system for generative
 assets whose contracts must be met. Nodes produce persistent, content-addressed

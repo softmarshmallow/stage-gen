@@ -11,7 +11,6 @@ flowchart LR
     I["Typed input manifest"] --> C["Reusable components"]
     C --> P["Headless pipeline"]
     P --> A["Artifacts + provenance"]
-    P --> B["Benchmarks and research evidence"]
     A --> W["Optional web preview adapter"]
     A --> E["Future engine adapters"]
 ```

@@ -444,6 +444,12 @@ the complete profile ID, for example
 `game_view_lateral_orthographic_side_plane_v1`. It MUST NOT shorten that to
 `side`, `top_down`, `three_quarter`, or `isometric`.
 
+The [asset taxonomy](../asset-taxonomy.md) refines this rule for module and
+namespace paths: a short segment such as `sideview` is permitted there as a
+**declared alias bound to one canonical presentation-profile family**. The
+prohibition above continues to govern unbound informal labels — a segment
+without a binding carries no authority and MUST NOT be introduced.
+
 A module that is genuinely view-neutral MUST NOT acquire a view prefix merely
 because its first consumer uses one camera. Generic media inspection and
 deterministic sprite-sheet transforms remain view-neutral; recipes or consumer

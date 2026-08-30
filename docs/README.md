@@ -3,6 +3,12 @@
 Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
+- [gnode rings](spec/gnode-rings.md) — the engine's ringed SDK structure:
+  core, modality disciplines, first-party providers, and the standard-node
+  promotion bar.
+- [Asset taxonomy](spec/asset-taxonomy.md) — the module namespace
+  (`<space>/<camera>/<genre>/<module>`), its profile-bound camera aliases,
+  the module census, and the system-vs-author ownership rule.
 - [Component contract](component-contract.md) — reusable-module requirements.
 - [Image style anchor](image-style-anchor.md) — tracked rendering-medium
   vocabulary, single-token model selection, and digest-bound prompt clause.

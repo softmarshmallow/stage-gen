@@ -2,7 +2,10 @@
 
 > **Contract maturity: current executable overview.**
 >
-> This is the canonical human overview of prepared-game generation. The typed package graph is
+> This is the canonical human overview of prepared-game generation — the
+> side-view platformer recipe's pipeline (`2d/sideview/platformer` in the
+> [asset taxonomy](../asset-taxonomy.md)). The dialogue-scene recipe declares
+> its own graph document kind and is not covered here. The typed package graph is
 > the machine authority, and the compact graph contract embedded below is checked against the
 > Bellweather fixture. Text-only prompt planning, `WorldSpec`, `VillageSpec`, map books, and the
 > former Wave A/Wave B stage barriers are not inputs to this pipeline.
