@@ -27,6 +27,20 @@ export type DebugOverlayState = Readonly<{
   progression?: DebugOverlayProgression | null;
   /** Absent when the preview runs without a bot at all, as a fixed-frame capture does. */
   autoPlay?: DebugOverlayAutoPlay | null;
+  /**
+   * The kit being played, and whether it is the package's own.
+   *
+   * On the overlay because an override is invisible otherwise: a developer who switched, took a
+   * screenshot, and came back an hour later has no other way to tell whether they are looking at
+   * the package or at their own experiment. Absent for a run with nothing to switch to.
+   */
+  kit?: DebugOverlayKit | null;
+}>;
+
+export type DebugOverlayKit = Readonly<{
+  label: string;
+  /** False while a developer override is in force, which the line marks rather than hides. */
+  published: boolean;
 }>;
 
 /** The debug layer toggles only on a fresh Command+Backtick chord. */
@@ -60,7 +74,10 @@ export function debugOverlayText(state: DebugOverlayState): string {
             : "yielded"
       }`
     : "";
-  return `DEBUG\nHP ${state.health}/${state.maximumHealth}${progression}${autoPlay}\n${
+  const kit = state.kit
+    ? `\nKIT ${state.kit.label}${state.kit.published ? "" : " (override)"}`
+    : "";
+  return `DEBUG\nHP ${state.health}/${state.maximumHealth}${progression}${autoPlay}${kit}\n${
     inventory || "Inventory empty"
   }`;
 }

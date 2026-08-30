@@ -61,11 +61,26 @@ describe("player motion rebase reaches the drawn sprite", () => {
     expect(climbDrawn / idleDrawn).toBeLessThan(1.5);
   });
 
+  test("both attack poses carry their own multiplier", () => {
+    // `skill_cast` was measured and published from the first run that drew it, and went unused
+    // for as long as nothing played it. A throwing class plays it, and it must be corrected on
+    // screen exactly as the swing is rather than inheriting the master sheet scale.
+    const scales = rebasedSheetScales(0.2, preparedPlayerStateRebase(JUDGED));
+    expect(scales.get("character_attack")).toBeCloseTo(0.2 * 1.25, 10);
+    expect(scales.get("character_skill_cast")).toBeCloseTo(0.2 * 1.25, 10);
+  });
+
   test("a state the controller does not draw is skipped, not rejected", () => {
-    // `skill_cast` is authored and published but has no runtime state in this controller.
-    const keyed = preparedPlayerStateRebase(JUDGED);
+    // Every state the current contract can emit is bound, so this is asserted against a name no
+    // package produces. The property is still worth holding: the adapter table is the runtime's
+    // view of the contract, not a claim that the contract may not grow past it, and a package
+    // from a later contract must load rather than fail on a pose this build cannot play.
+    const keyed = preparedPlayerStateRebase({
+      ...JUDGED,
+      stateRebase: { ...JUDGED.stateRebase, celebration: 1.1 },
+    });
     expect(keyed.has("character_attack")).toBe(true);
-    expect([...keyed.keys()].some((k) => k.includes("skill_cast"))).toBe(false);
+    expect([...keyed.keys()].some((key) => key.includes("celebration"))).toBe(false);
   });
 
   test("a non-positive anchor or multiplier is refused rather than drawn", () => {

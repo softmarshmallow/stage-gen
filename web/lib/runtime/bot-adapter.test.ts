@@ -1,8 +1,31 @@
 import { describe, expect, test } from "bun:test";
-import { preparedBotSelfView, preparedBotWorldView, preparedNavGraph } from "./bot-adapter";
+import {
+  preparedBotSelfView,
+  preparedBotWeaponBand,
+  preparedBotWorldView,
+  preparedNavGraph,
+} from "./bot-adapter";
 import { DEFAULT_MOVEMENT_CAPABILITIES, EMPTY_NAV_GRAPH } from "./bot-navigation";
 import { facingToward, healthFraction, horizontalDistance, sameFootLevel } from "./bot-view";
 import type { PlayerStateSnapshot } from "./player";
+
+import { weaponClassProfile } from "./weapon-class";
+
+/**
+ * The melee band, projected the same way the scene projects it.
+ *
+ * Written as a projection rather than as literals so these fixtures cannot drift from the table
+ * the runtime actually fights with: at a 64px tile it is 0 / 42 / 84 units with a 64-unit vertical
+ * tolerance, which is exactly what the hunter used to carry as its own constants.
+ */
+const MELEE_BAND = preparedBotWeaponBand(weaponClassProfile("melee_dps_v1"), 64);
+
+/** Level ground everywhere, so nothing in these fixtures is ever behind a wall. */
+const FLAT_TERRAIN = Object.freeze({
+  columnSurfaceY: Object.freeze(new Array(64).fill(720 - 64)),
+  tileUnits: 64,
+});
+
 
 const TILE = 64;
 const BASELINE = 720;
@@ -78,10 +101,15 @@ describe("nav graph from a prepared map", () => {
 });
 
 describe("the self view", () => {
-  test("an attack animation counts as attacking, wider than the hit window", () => {
+  test("every attack animation counts as attacking, wider than the hit window", () => {
+    // Both poses, not just the swing. The comparison this replaced stayed type-valid when a second
+    // attack state appeared, so a casting character would have reported itself idle all run.
     expect(preparedBotSelfView(SNAPSHOT).attacking).toBe(false);
     expect(
       preparedBotSelfView({ ...SNAPSHOT, state: "attack" } as PlayerStateSnapshot).attacking,
+    ).toBe(true);
+    expect(
+      preparedBotSelfView({ ...SNAPSHOT, state: "ranged_attack" } as PlayerStateSnapshot).attacking,
     ).toBe(true);
   });
 
@@ -100,6 +128,9 @@ describe("the world view", () => {
       threats: [],
       pickups: [],
       healingCarried: false,
+      ammoCarried: true,
+      weaponBand: MELEE_BAND,
+      terrain: FLAT_TERRAIN,
       combatEnabled: true,
       navigation: EMPTY_NAV_GRAPH,
       worldWidth: 1_920,

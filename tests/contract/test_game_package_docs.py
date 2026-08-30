@@ -6,6 +6,7 @@ from pathlib import Path
 from stage_gen.components.game_content import (
     GAME_CONTENT_SCHEMA_VERSION,
     NPC_CONTENT_SCHEMA_VERSION,
+    PLAYER_CONTENT_SCHEMA_VERSION,
 )
 from stage_gen.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.game_map import PREPARED_GAME_MAP_SCHEMA_VERSION
@@ -42,7 +43,7 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
         f"game-map-v{PREPARED_GAME_MAP_SCHEMA_VERSION}",
         f"game-soundtrack-v{GAME_SOUNDTRACK_SCHEMA_VERSION}",
         f"game-ui-v{GAME_UI_SCHEMA_VERSION}",
-        f"player-content-v{GAME_CONTENT_SCHEMA_VERSION}",
+        f"player-content-v{PLAYER_CONTENT_SCHEMA_VERSION}",
         f"mob-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"npc-content-v{NPC_CONTENT_SCHEMA_VERSION}",
         f"prop-content-v{GAME_CONTENT_SCHEMA_VERSION}",

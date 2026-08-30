@@ -90,10 +90,6 @@ export type BotContext = Readonly<{
 export type BotTuning = Readonly<{
   /** Drink at or below this share of the health pool. */
   healAtHealthFraction: number;
-  /** Horizontal reach a swing actually covers. */
-  engageRangeUnits: number;
-  /** How far apart two feet may stand and still trade blows. */
-  footLevelToleranceUnits: number;
   /** How far the bot will travel to reach a mob. */
   pursuitRangeUnits: number;
   /** How far it will detour for a drop on the ground. */

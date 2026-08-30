@@ -3,6 +3,7 @@
 // src/stage_gen/components/gameplay_contract/models.py.
 
 import type { PreparedRuntimeManifest } from "./prepared-manifest";
+import { DEFAULT_WEAPON_CLASS, WEAPON_CLASSES, type WeaponClass } from "./weapon-class";
 
 export const PREPARED_GAMEPLAY_MOVEMENTS = [
   "move_left",
@@ -78,6 +79,9 @@ export type PreparedGameplayContract = Readonly<{
     secondary_action: "skill_cast";
     contact_damage: boolean;
     critical_profile: PreparedGameplayCriticalProfile;
+    weapon_class: WeaponClass;
+    /** The projectile a throw puts in the air, or null for a class that throws nothing. */
+    projectile_id: string | null;
     lethal_presentation: false;
     defeat_presentation: "story_beast_disperses_into_page_light";
   }>;
@@ -207,16 +211,32 @@ function record(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/**
+ * Reject unknown keys, and require every key that is not declared optional.
+ *
+ * The two arms are not symmetric and must not be. An *unknown* key means the manifest describes
+ * something this reader does not implement, and reading past it would silently drop a rule the
+ * package believes it published. A *missing* key that the reader has a defined default for means
+ * only that the manifest predates the field — which is the ordinary consequence of adding a
+ * defaulted field to the contract, and used to make every run published before that field
+ * unreadable rather than merely older.
+ *
+ * `optional` is therefore the reader's own list of fields it can supply an answer for. It is not a
+ * relaxation of the contract: the value, when present, is validated exactly as strictly.
+ */
 function exactKeys(
   value: Record<string, unknown>,
   keys: readonly string[],
   path: string,
+  optional: readonly string[] = [],
 ): void {
   const expected = new Set(keys);
+  const defaulted = new Set(optional);
   for (const key of Object.keys(value)) {
     if (!expected.has(key)) fail(`${path}.${key}`, "is not a supported key");
   }
   for (const key of keys) {
+    if (defaulted.has(key)) continue;
     if (!Object.prototype.hasOwnProperty.call(value, key)) {
       fail(`${path}.${key}`, "is required");
     }
@@ -457,10 +477,16 @@ export function parsePreparedGameplayContract(
       "secondary_action",
       "contact_damage",
       "critical_profile",
+      "weapon_class",
+      "projectile_id",
       "lethal_presentation",
       "defeat_presentation",
     ],
     `${path}.combat`,
+    // Every one of these is a field the contract added with a default after packages had already
+    // been published. A run from before the field is older, not invalid, and the reader knows what
+    // the package meant because the default is the behaviour that shipped.
+    ["critical_profile", "weapon_class", "projectile_id"],
   );
   const combat = Object.freeze({
     enabled: boolean(rawCombat.enabled, `${path}.combat.enabled`),
@@ -471,11 +497,24 @@ export function parsePreparedGameplayContract(
       `${path}.combat.secondary_action`,
     ),
     contact_damage: boolean(rawCombat.contact_damage, `${path}.combat.contact_damage`),
-    critical_profile: member(
-      rawCombat.critical_profile,
-      ["none", "rare_v1", "standard_v1", "frequent_v1"] as const,
-      `${path}.combat.critical_profile`,
-    ),
+    critical_profile:
+      rawCombat.critical_profile === undefined
+        ? ("none" as const)
+        : member(
+            rawCombat.critical_profile,
+            ["none", "rare_v1", "standard_v1", "frequent_v1"] as const,
+            `${path}.combat.critical_profile`,
+          ),
+    weapon_class:
+      rawCombat.weapon_class === undefined
+        ? DEFAULT_WEAPON_CLASS
+        : member(rawCombat.weapon_class, WEAPON_CLASSES, `${path}.combat.weapon_class`),
+    // Null and absent mean the same thing — a class that throws nothing — so both parse to null
+    // rather than one of them being an error the package cannot have intended.
+    projectile_id:
+      rawCombat.projectile_id === undefined || rawCombat.projectile_id === null
+        ? null
+        : snakeId(rawCombat.projectile_id, `${path}.combat.projectile_id`),
     lethal_presentation: literal(
       rawCombat.lethal_presentation,
       false,
@@ -487,6 +526,16 @@ export function parsePreparedGameplayContract(
       `${path}.combat.defeat_presentation`,
     ),
   });
+  // The pairing `CombatPolicy.validate_projectile` enforces, mirrored here for the same reason the
+  // map role's contradiction check is: a class that throws must name what it throws, and one that
+  // does not must name nothing. Unmirrored, a hand-edited manifest carrying a throwing class with
+  // no round parses clean, installs no pool, and then declines every attack for the rest of the run.
+  if ((combat.weapon_class === "ranged_dps_v1") !== (combat.projectile_id !== null)) {
+    fail(
+      `${path}.combat.projectile_id`,
+      "must be named by a throwing weapon_class and by no other",
+    );
+  }
 
   const rawCombatText = record(root.combat_text, `${path}.combat_text`);
   exactKeys(rawCombatText, ["enabled"], `${path}.combat_text`);
@@ -1089,6 +1138,22 @@ export function assertPreparedGameplayManifestClosure(
     }
   });
   assertManifestReferences(itemReferences, itemIds, "items");
+
+  // The projectile a throwing class names must be in the projectile catalog, for the same reason
+  // the currency must be in the item catalog: a package that names something it did not draw has
+  // published a broken world, and finding that out at the first throw is worse than at load.
+  const projectileIds = manifestIds(
+    manifest.projectiles,
+    (entry) => entry.projectile_id,
+    "manifest.projectiles.projectile_id",
+  );
+  assertManifestReferences(
+    gameplay.combat.projectile_id === null
+      ? []
+      : [["gameplay.combat.projectile_id", gameplay.combat.projectile_id]],
+    projectileIds,
+    "projectiles",
+  );
 
   assertManifestReferences(
     [

@@ -21,7 +21,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from io import BytesIO
 from itertools import pairwise
-from typing import Final
+from typing import Final, Literal
 
 from PIL import Image
 
@@ -55,6 +55,10 @@ class AssetUnitError(ValueError):
         self.code = ASSET_UNIT_ERROR_CODE
 
 
+#: Which painted dimension a declared magnitude describes.
+SubjectExtentAxis = Literal["height", "width"]
+
+
 @dataclass(frozen=True)
 class ResolvedMagnitude:
     """One subject's declared magnitude and where the declaration came from."""
@@ -73,6 +77,10 @@ class SubjectCalibration:
     measured_sha256: str
     subject_extent_px: int
     downscale_ratio: float | None = None
+    #: Which axis `subject_extent_px` was measured along, and therefore which axis the declared
+    #: magnitude describes. Published only when it is not the default, so every record written
+    #: before a family needed a second axis is byte-identical to what it was.
+    extent_axis: SubjectExtentAxis = "height"
 
     def as_record(self) -> dict[str, object]:
         record: dict[str, object] = {
@@ -84,6 +92,8 @@ class SubjectCalibration:
         }
         if self.downscale_ratio is not None:
             record["downscale_ratio"] = round(self.downscale_ratio, 3)
+        if self.extent_axis != "height":
+            record["extent_axis"] = self.extent_axis
         return record
 
 
@@ -136,11 +146,19 @@ def _nearest_step_at_or_above(scale: PreparedScale, floor: float) -> float:
     return floor
 
 
-def measure_subject_extent(artifact: bytes, *, subject: str) -> int:
-    """The subject's painted height in its own source pixels.
+def measure_subject_extent(
+    artifact: bytes, *, subject: str, axis: SubjectExtentAxis = "height"
+) -> int:
+    """The subject's painted extent along one axis, in its own source pixels.
 
     Measurement runs on the trimmed subject. A subject measured against its untrimmed canvas
     measures the canvas, because generated artwork is normalized to fill its frame.
+
+    Height for every family that stands still, because that is the dimension a declared magnitude
+    means for a character, a creature, a prop, or a dropped item. Width for a projectile, and only
+    for a projectile: it is drawn lying along its own travel axis, so its height is how *thick* it
+    is, and a dart declared 0.5 units tall would be several player-heights long. The axis is
+    published alongside the measurement so a consumer never has to infer it.
     """
 
     try:
@@ -152,7 +170,7 @@ def measure_subject_extent(artifact: bytes, *, subject: str) -> int:
     box = mask.getbbox()
     if box is None:
         raise AssetUnitError(f"{subject} has no painted pixels above the alpha threshold")
-    return box[3] - box[1]
+    return box[2] - box[0] if axis == "width" else box[3] - box[1]
 
 
 def calibrate_subject(
@@ -163,6 +181,7 @@ def calibrate_subject(
     scale: PreparedScale,
     tile_px: int,
     subject: str,
+    extent_axis: SubjectExtentAxis = "height",
 ) -> SubjectCalibration:
     """Turn one declaration plus one measurement into a published calibration record."""
 
@@ -180,6 +199,7 @@ def calibrate_subject(
         measured_sha256=measured_sha256,
         subject_extent_px=subject_extent_px,
         downscale_ratio=downscale_ratio,
+        extent_axis=extent_axis,
     )
 
 

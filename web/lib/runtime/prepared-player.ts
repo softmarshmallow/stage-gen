@@ -1,4 +1,5 @@
-import type { ClimbArtwork, PlayerState } from "./player";
+import type { ClimbArtwork } from "./player";
+import type { PlayerState } from "./player-state";
 import type { ClimbableRole } from "./vertical";
 import type { MotionBinding, MotionCalibration } from "./prepared-manifest";
 import type { RuntimeMotionPlayback } from "./motion-playback";
@@ -43,6 +44,12 @@ export const PREPARED_PLAYER_STATE_ADAPTERS: Readonly<
   basic_attack: Object.freeze({
     runtime_state: "attack",
     texture_key: "character_attack",
+  }),
+  // The pose a throwing class attacks with. Authored as a cast because that is what the artwork
+  // shows; bound to a runtime state named for what the controller does with it.
+  skill_cast: Object.freeze({
+    runtime_state: "ranged_attack",
+    texture_key: "character_skill_cast",
   }),
   hurt: Object.freeze({ runtime_state: "hurt", texture_key: "character_hurt" }),
   death: Object.freeze({ runtime_state: "death", texture_key: "character_death" }),
@@ -120,10 +127,10 @@ export function preparedPlayerStateRebase(
   const resolved = new Map<string, number>();
   for (const [state, multiplier] of Object.entries(calibration.stateRebase)) {
     const adapter = PREPARED_PLAYER_STATE_ADAPTERS[state];
-    // A package may author more motion than this controller draws - `skill_cast` is authored and
-    // published but has no runtime state here. A state the runtime never binds needs no scale,
-    // so it is skipped rather than rejected; the adapter table is the runtime's own view of the
-    // contract, not a claim that the contract may not exceed it.
+    // A package may author more motion than this controller draws. Every state the current
+    // contract can emit is bound today, but a state the runtime never binds needs no scale, so
+    // an unrecognised one is skipped rather than rejected: the adapter table is the runtime's own
+    // view of the contract, not a claim that the contract may not exceed it.
     if (adapter === undefined) continue;
     resolved.set(adapter.texture_key, multiplier);
   }

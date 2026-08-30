@@ -96,13 +96,29 @@ does not use a shared screen-center interaction label.
 The top-left HP/inventory text is a consumer debugging layer, not gameplay UI.
 It is hidden by default and toggles only through Command+Backtick. The player
 health bar and inventory panel remain the authoritative gameplay presentation.
+When a run publishes more than one playable kit the overlay also names the one
+in force and marks it as an override when it is not the published one.
+
+The kit itself is selectable in the consumer, and only there. A developer may
+play one published run as any kit that run can actually support, through the
+console below the canvas or by cycling with K; both reach one scene entry point,
+so there is no second version of the switch that could drift from the first. The
+switch acts on the running scene rather than reloading it. The override never
+reaches the parsed gameplay contract: it applies where the runtime decides which
+class it is holding, so the manifest, its digests and every artifact stay exactly
+the bytes the pipeline wrote. It is refused outright under fixed-frame automation, because
+a capture is a recording of one published run and its transcript carries no
+record of an override. What is offered comes from what the run published - a run
+that drew no projectile has one kit and no console - and the runtime never
+invents a projectile binding the contract did not name.
 
 ## Player state selection
 
 The consumer chooses one semantic state from authoritative simulation:
 
 - movement and grounded state select idle, move, jump, crouch, or climb;
-- attacks and skill casts temporarily override locomotion;
+- attacks and skill casts temporarily override locomotion, and the published
+  weapon class decides which of the two poses an attack plays;
 - applied damage selects hurt;
 - zero health selects the once-only death presentation before recovery; and
 - authored playback mode determines whether selected frames hold, loop, play
@@ -122,9 +138,20 @@ placement and population lifecycle only; they do not own an actor's pursuit
 navigation.
 
 Combat resolves attempted/applied damage and defeat before presentation.
-Player and mob attacks connect only when their foot coordinates are on the same
-terrain/platform level or within one tile vertically; jumping above that band
-is a valid dodge, and a mob does not begin a new strike while outside the band.
+Gameplay publishes a weapon class, not a reach: the consumer owns what each
+named class costs in damage, cadence, distance, and how a blow is delivered.
+
+A class that strikes instantly connects only when the attacker's and target's
+foot coordinates are on the same terrain/platform level or within one tile
+vertically; jumping above that band is a valid dodge. A class that throws
+resolves against the thrown object's own position instead, because foot level
+describes a reach the attacker has already let go of. Mob attacks are always
+instant and always foot-banded, and a mob does not begin a new strike while
+outside the band.
+
+A throwing class must name the catalog item it puts in the air, and the
+consumer refuses a package whose named item is absent from the published
+catalog.
 After a connected nonfatal hit, the player receives a fixed invulnerability
 window and blinks for its duration. The hurt strip is visual feedback rather
 than a stun: movement and traversal remain available while repeated hits are

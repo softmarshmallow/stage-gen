@@ -209,6 +209,13 @@ class PreparedContentSources(PersistedContractModel):
     npcs: PackageSource
     props: PackageSource
     items: PackageSource
+    #: Optional, and the only content family that is.
+    #:
+    #: Every other catalog describes something a playable package must have: a character, a roster,
+    #: residents, scenery, things to carry. A projectile is owed only by a game whose weapons throw
+    #: one, so requiring the file would make every melee package author an empty catalog. Absent
+    #: means the game fires nothing, which is what every package written before this field said.
+    projectiles: PackageSource | None = None
 
 
 class PreparedEvidence(PersistedContractModel):
@@ -309,6 +316,16 @@ class PreparedGameContract(PersistedContractModel):
             "content.npcs": (self.content.npcs.source, "content/npcs.toml"),
             "content.props": (self.content.props.source, "content/props.toml"),
             "content.items": (self.content.items.source, "content/items.toml"),
+            **(
+                {}
+                if self.content.projectiles is None
+                else {
+                    "content.projectiles": (
+                        self.content.projectiles.source,
+                        "content/projectiles.toml",
+                    )
+                }
+            ),
             "sequences": (self.sequences.index_source, "sequences/index.toml"),
         }
         for label, (actual, expected) in exact_sources.items():
@@ -325,6 +342,7 @@ class PreparedGameContract(PersistedContractModel):
             self.content.npcs.source,
             self.content.props.source,
             self.content.items.source,
+            *([] if self.content.projectiles is None else [self.content.projectiles.source]),
             self.sequences.index_source,
         ]
         unique_values(member_sources, "package member source")

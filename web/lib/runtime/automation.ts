@@ -1,5 +1,6 @@
 import type { SceneLayerProbe } from "./layers";
 import type { MobAggression } from "./combat";
+import type { PlayerState } from "./player-state";
 import type { CombatTextSystemSnapshot } from "./combat-text";
 import { PLATFORMER_FIXED_STEP_SECONDS } from "./vertical";
 
@@ -316,16 +317,10 @@ export type GameplayTranscriptEvent = Readonly<{
 }>;
 
 export type GameplayPlayerProbe = Readonly<{
-  state:
-    | "idle"
-    | "walk"
-    | "run"
-    | "jump"
-    | "crouch"
-    | "attack"
-    | "hurt"
-    | "death"
-    | "climb";
+  // Deliberately the controller's own union rather than a copy of it. A transcribed list stays
+  // type-valid when the controller gains a state, so the probe would go on publishing a contract
+  // the runtime had stopped honouring, with nothing failing to compile.
+  state: PlayerState;
   facing: "left" | "right";
   x: number;
   y: number;

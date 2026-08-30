@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { BOT_PRIORITY, INITIAL_BOT_MEMORY, type BotContext, type BotMemory } from "./bot-behavior";
+import {
+  BOT_PRIORITY,
+  INITIAL_BOT_MEMORY,
+  decideBot,
+  type BotContext,
+  type BotMemory,
+} from "./bot-behavior";
 import {
   HUNTER_BOT_PROFILE,
   HUNTER_BOT_TUNING,
@@ -22,6 +28,26 @@ import {
 } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT } from "./player-intent";
+
+import { preparedBotWeaponBand } from "./bot-adapter";
+import { projectileProfile } from "./projectile-class";
+import { weaponClassProfile } from "./weapon-class";
+
+/**
+ * The melee band, projected the same way the scene projects it.
+ *
+ * Written as a projection rather than as literals so these fixtures cannot drift from the table
+ * the runtime actually fights with: at a 64px tile it is 0 / 42 / 84 units with a 64-unit vertical
+ * tolerance, which is exactly what the hunter used to carry as its own constants.
+ */
+const MELEE_BAND = preparedBotWeaponBand(weaponClassProfile("melee_dps_v1"), 64);
+
+/** Level ground everywhere, so nothing in these fixtures is ever behind a wall. */
+const FLAT_TERRAIN = Object.freeze({
+  columnSurfaceY: Object.freeze(new Array(64).fill(720 - 64)),
+  tileUnits: 64,
+});
+
 
 const TILE = 64;
 const BASELINE = 720;
@@ -60,6 +86,9 @@ function worldView(overrides: Partial<BotWorldView> = {}): BotWorldView {
     threats: [],
     pickups: [],
     healingCarried: false,
+    ammoCarried: true,
+    weaponBand: MELEE_BAND,
+    terrain: FLAT_TERRAIN,
     combatEnabled: true,
     navigation: FLAT,
     bounds: { left: 0, right: 640 },
@@ -164,6 +193,217 @@ describe("engaging", () => {
         ),
       ),
     ).toBeNull();
+  });
+
+  test("the melee decisions are exactly the ones the hard-coded constants produced", () => {
+    // The regression pin for the whole refactor. Before the weapon band the behaviour filtered on
+    // a literal 84 units and closed above 42, and those two numbers now arrive as data. If the
+    // projection ever disagrees with them, every shipped package's auto-play changes.
+    expect(MELEE_BAND).toEqual({
+      minimumUnits: 0,
+      approachUnits: 42,
+      maximumUnits: 84,
+      verticalToleranceUnits: 64,
+      requiresAmmo: false,
+      // A swing has no flight path, so there is no height for terrain to block.
+      releaseHeightUnits: null,
+    });
+    const inReach = (dx: number) =>
+      engageBehavior.consider(
+        contextFor(worldView({ threats: [{ id: "mob_1", x: 300 + dx, y: GROUND, hp: 2 }] })),
+      );
+    expect(inReach(84)?.goal).toBe("engage");
+    expect(inReach(85)).toBeNull();
+    // Closing above half the reach, standing still inside it — and never backing away, because a
+    // swing has no distance too close.
+    expect(inReach(43)?.intent.right).toBe(true);
+    expect(inReach(41)?.intent.right).toBe(false);
+    expect(inReach(41)?.intent.left).toBe(false);
+  });
+});
+
+describe("engaging at a distance", () => {
+  // Built the way the scene builds it: the release height comes from the object that flies, so a
+  // band with no projectile has no flight path and no terrain question to ask.
+  const RANGED_BAND = preparedBotWeaponBand(
+    weaponClassProfile("ranged_dps_v1"),
+    64,
+    projectileProfile({
+      projectile_id: "paperwing_dart",
+      silhouette: "axial_v1",
+      flight: "flat_bolt_v1",
+      impact: "single_target_v1",
+    }),
+    154,
+  );
+
+  function ranged(dx: number, overrides: Partial<BotWorldView> = {}) {
+    return engageBehavior.consider(
+      contextFor(
+        worldView({
+          weaponBand: RANGED_BAND,
+          threats: [{ id: "mob_1", x: 300 + dx, y: GROUND, hp: 2 }],
+          ...overrides,
+        }),
+      ),
+    );
+  }
+
+  test("a target five tiles away is attacked from where the character stands", () => {
+    const proposal = ranged(TILE * 5);
+    expect(proposal?.intent.attack).toBe(true);
+    // Standing still is the point: a throw does not improve by walking into contact.
+    expect(proposal?.intent.right).toBe(false);
+    expect(proposal?.intent.left).toBe(false);
+  });
+
+  test("a target beyond the band is left to pursuit", () => {
+    expect(ranged(TILE * 6)).toBeNull();
+  });
+
+  test("a target that has closed inside the floor is backed away from, still facing it", () => {
+    const proposal = ranged(TILE);
+    expect(proposal?.intent.attack).toBe(true);
+    // The target is to the right, so the character walks left. The facing override is what keeps
+    // it pointed right while it does so: facing otherwise follows the movement key, and the scene
+    // reads facing at the frame the blow leaves, so without this the whole retreat would be spent
+    // throwing in the wrong direction.
+    expect(proposal?.intent.left).toBe(true);
+    expect(proposal?.intent.right).toBe(false);
+    expect(proposal?.intent.face).toBe("right");
+    expect(proposal?.reason).toBe("holding distance");
+  });
+
+  test("a target on the other side is backed away from the other way, and still faced", () => {
+    const proposal = engageBehavior.consider(
+      contextFor(
+        worldView({
+          weaponBand: RANGED_BAND,
+          threats: [{ id: "mob_1", x: 300 - TILE, y: GROUND, hp: 2 }],
+          self: { facing: "left" } as never,
+        }),
+      ),
+    );
+    expect(proposal?.intent.right).toBe(true);
+    expect(proposal?.intent.face).toBe("left");
+  });
+
+  test("the step and the facing agree whenever the character is not backing off", () => {
+    for (const dx of [TILE * 3, TILE * 5]) {
+      const proposal = ranged(dx);
+      expect(proposal?.intent.face).toBe("right");
+      expect(proposal?.intent.left).toBe(false);
+    }
+  });
+
+  test("a creature behind a ledge is declined, however close it stands", () => {
+    // The softlock, at the level the bug actually appeared: distance and foot level both accept a
+    // creature standing on a ledge one tile up, and every throw dies in the ledge face. Engage
+    // outranks pursuit, so proposing the shot anyway means proposing it forever.
+    const ledgeTerrain = Object.freeze({
+      columnSurfaceY: Object.freeze(
+        // Low ground up to column 5, then two tiles up from column 6 on.
+        Array.from({ length: 12 }, (_, column) => BASELINE - (column < 6 ? 1 : 3) * TILE),
+      ),
+      tileUnits: TILE,
+    });
+    const behindLedge = worldView({
+      weaponBand: RANGED_BAND,
+      terrain: ledgeTerrain,
+      self: { x: 5.5 * TILE, y: GROUND } as never,
+      threats: [{ id: "mob_1", x: 8 * TILE, y: GROUND - TILE, hp: 2 }],
+    });
+
+    expect(engageBehavior.consider(contextFor(behindLedge))).toBeNull();
+
+    // And the same creature on level ground is engaged, so the decline is the terrain's doing.
+    expect(
+      engageBehavior.consider(
+        contextFor(worldView({
+          weaponBand: RANGED_BAND,
+          self: { x: 5.5 * TILE, y: GROUND } as never,
+          threats: [{ id: "mob_1", x: 8 * TILE, y: GROUND, hp: 2 }],
+        })),
+      )?.goal,
+    ).toBe("engage");
+  });
+
+  test("declining hands the frame to something that moves, instead of firing forever", () => {
+    // The whole point of the decline. Engage outranks collect, pursue and patrol, so a proposal it
+    // cannot act on is a run that stands still holding the attack key. Whatever wins instead, it
+    // must not be engage.
+    const ledgeTerrain = Object.freeze({
+      columnSurfaceY: Object.freeze(
+        Array.from({ length: 12 }, (_, column) => BASELINE - (column < 6 ? 1 : 3) * TILE),
+      ),
+      tileUnits: TILE,
+    });
+    const view = worldView({
+      weaponBand: RANGED_BAND,
+      terrain: ledgeTerrain,
+      self: { x: 5.5 * TILE, y: GROUND } as never,
+      threats: [{ id: "mob_1", x: 8 * TILE, y: GROUND - TILE, hp: 2 }],
+    });
+
+    const standing = locateNavNode(view.navigation, view.self.x, view.self.y);
+    const decision = decideBot({
+      view,
+      memory: INITIAL_BOT_MEMORY,
+      previousIntent: NEUTRAL_PLAYER_INTENT,
+      profile: HUNTER_BOT_PROFILE,
+      reach: standing ? navReach(view.navigation, standing.id) : [],
+      standingOn: standing?.id ?? null,
+    });
+
+    expect(decision.goal).not.toBe("engage");
+    expect(decision.intent.attack).toBe(false);
+  });
+
+  test("a swing is never declined for terrain, because it has no flight path", () => {
+    const wall = Object.freeze({
+      columnSurfaceY: Object.freeze(
+        Array.from({ length: 12 }, (_, column) => BASELINE - (column < 5 ? 1 : 6) * TILE),
+      ),
+      tileUnits: TILE,
+    });
+    expect(
+      engageBehavior.consider(
+        contextFor(worldView({
+          terrain: wall,
+          self: { x: 4.5 * TILE, y: GROUND } as never,
+          threats: [{ id: "mob_1", x: 4.5 * TILE + 40, y: GROUND, hp: 2 }],
+        })),
+      )?.goal,
+    ).toBe("engage");
+  });
+
+  test("a class that spends a round it does not carry declines outright", () => {
+    // The deadlock this prevents: engage outranks collect, pursue and patrol, so a behaviour that
+    // proposed `attack: true` with an empty bag would win the auction forever and the run would
+    // stand still with nothing logged and no gate red.
+    const spending = { ...RANGED_BAND, requiresAmmo: true };
+    expect(
+      engageBehavior.consider(
+        contextFor(
+          worldView({
+            weaponBand: spending,
+            ammoCarried: false,
+            threats: [{ id: "mob_1", x: 300 + TILE * 4, y: GROUND, hp: 2 }],
+          }),
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      engageBehavior.consider(
+        contextFor(
+          worldView({
+            weaponBand: spending,
+            ammoCarried: true,
+            threats: [{ id: "mob_1", x: 300 + TILE * 4, y: GROUND, hp: 2 }],
+          }),
+        ),
+      )?.goal,
+    ).toBe("engage");
   });
 });
 

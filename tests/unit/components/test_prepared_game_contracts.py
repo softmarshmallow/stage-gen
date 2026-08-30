@@ -9,6 +9,7 @@ from stage_gen.components.game_content import (
     load_mob_content_bytes,
     load_npc_content_bytes,
     load_player_content_bytes,
+    load_projectile_content_bytes,
 )
 from stage_gen.components.game_contract import load_prepared_game_contract_bytes
 from stage_gen.components.game_map import load_prepared_game_map_bytes
@@ -166,3 +167,124 @@ def test_sequence_contract_rejects_an_unresolved_node() -> None:
 
     with pytest.raises(AuthoredContractLoadError, match="unknown node_id"):
         load_game_sequence_bytes(source)
+
+
+def _as_ranged(source: bytes) -> bytes:
+    """The shipped package as it would read if the wayfarer threw.
+
+    Bellweather ships melee, because it ships a character drawn carrying a sword. These tests are
+    about the taxonomy rather than about that choice, so they compose the pairing they need instead
+    of assuming the library package happens to be authored with it - which is what pinned them to
+    one game's art direction and broke them when it changed.
+    """
+
+    return source.replace(
+        b'critical_profile = "standard_v1"\n',
+        b'critical_profile = "standard_v1"\n'
+        b'weapon_class = "ranged_dps_v1"\n'
+        b'projectile_id = "paperwing_dart"\n',
+        1,
+    )
+
+
+def test_combat_names_a_weapon_class_and_the_object_it_throws() -> None:
+    gameplay = load_gameplay_contract_bytes(_as_ranged(_bytes("gameplay.toml")))
+
+    assert gameplay.combat.weapon_class == "ranged_dps_v1"
+    assert gameplay.combat.projectile_id == "paperwing_dart"
+    # The class names a pose that the character content already draws, which is the whole reason
+    # a throwing package costs no extra generation.
+    player = load_player_content_bytes(_bytes("content/player.toml"))
+    assert gameplay.combat.secondary_action in {
+        motion.state for motion in player.players[0].motions
+    }
+
+
+def test_a_package_that_never_names_the_weapon_class_parses_as_melee() -> None:
+    # The field arrived after packages had already shipped, and the shipped package is one that
+    # omits it. A contract that never names it means the class every one of those was played with,
+    # not an invalid contract.
+    gameplay = load_gameplay_contract_bytes(_bytes("gameplay.toml"))
+
+    assert gameplay.combat.weapon_class == "melee_dps_v1"
+    assert gameplay.combat.projectile_id is None
+
+
+def test_combat_rejects_a_weapon_class_outside_the_taxonomy() -> None:
+    source = _as_ranged(_bytes("gameplay.toml")).replace(
+        b'weapon_class = "ranged_dps_v1"', b'weapon_class = "hitscan_dps_v1"'
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+        load_gameplay_contract_bytes(source)
+
+
+def test_a_throwing_class_must_name_what_it_throws() -> None:
+    source = _as_ranged(_bytes("gameplay.toml")).replace(b'projectile_id = "paperwing_dart"\n', b"")
+
+    with pytest.raises(AuthoredContractLoadError, match="ranged_dps_v1 requires projectile_id"):
+        load_gameplay_contract_bytes(source)
+
+
+def test_a_swinging_class_must_not_name_a_projectile() -> None:
+    # A melee package naming one describes artwork nothing will ever put in the air, which is a
+    # contradiction worth catching at authoring time rather than a harmless unused field.
+    source = _as_ranged(_bytes("gameplay.toml")).replace(
+        b'weapon_class = "ranged_dps_v1"', b'weapon_class = "melee_dps_v1"'
+    )
+
+    with pytest.raises(
+        AuthoredContractLoadError, match="projectile_id requires a throwing weapon_class"
+    ):
+        load_gameplay_contract_bytes(source)
+
+
+def test_the_projectile_catalog_declares_what_is_drawn_and_how_it_behaves() -> None:
+    catalog = load_projectile_content_bytes(_bytes("content/projectiles.toml"))
+
+    entry = catalog.projectiles[0]
+    assert entry.projectile_id == "paperwing_dart"
+    assert entry.silhouette == "axial_v1"
+    assert entry.flight == "flat_bolt_v1"
+    assert entry.impact == "single_target_v1"
+    # Length, not height: the subject is drawn lying along its own travel axis.
+    assert entry.length_units == 0.50
+
+
+def test_a_projectile_outside_a_facet_vocabulary_is_refused() -> None:
+    for field, bad in (
+        (b'silhouette = "axial_v1"', b'silhouette = "spiral_v1"'),
+        (b'flight = "flat_bolt_v1"', b'flight = "homing_v1"'),
+        (b'impact = "single_target_v1"', b'impact = "chain_v1"'),
+    ):
+        source = _bytes("content/projectiles.toml").replace(field, bad)
+        with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+            load_projectile_content_bytes(source)
+
+
+def test_the_projectile_catalog_rejects_a_height_it_cannot_mean() -> None:
+    # `height_units` is what every standing family declares; a projectile declares a length, and
+    # accepting both names for one measurement is the defect the unit contract exists to prevent.
+    source = _bytes("content/projectiles.toml").replace(
+        b"length_units = 0.50", b"height_units = 0.50"
+    )
+
+    with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
+        load_projectile_content_bytes(source)
+
+
+def test_the_package_root_declares_the_projectile_catalog_it_ships() -> None:
+    game = load_prepared_game_contract_bytes(_bytes("game.toml"))
+
+    assert game.content.projectiles is not None
+    assert game.content.projectiles.source == "content/projectiles.toml"
+
+
+def test_a_package_that_fires_nothing_declares_no_projectile_catalog() -> None:
+    # The one optional content family. Every other catalog describes something a playable package
+    # must have; a projectile is owed only by a game whose weapons throw one.
+    source = _bytes("game.toml").replace(
+        b'[content.projectiles]\nsource = "content/projectiles.toml"\n\n', b""
+    )
+
+    assert load_prepared_game_contract_bytes(source).content.projectiles is None

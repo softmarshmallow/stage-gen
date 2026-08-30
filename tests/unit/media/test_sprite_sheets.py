@@ -10,6 +10,7 @@ from stage_gen.media import (
     measure_alpha_ground_contact,
     repack_alpha_components,
 )
+from stage_gen.media.sprite_sheets import measure_alpha_subjects
 
 
 def _png(image: Image.Image) -> bytes:
@@ -219,3 +220,69 @@ def test_top_anchor_keeps_the_tallest_pose_on_the_runtime_foot_origin() -> None:
             assert box is not None
             bottoms.append(box[3])
         assert max(bottoms) == output.height - gutter, anchor
+
+
+def _blob_png(blobs: list[tuple[int, int, int, int]], size: tuple[int, int] = (256, 256)) -> bytes:
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    for left, top, right, bottom in blobs:
+        for x in range(left, right):
+            for y in range(top, bottom):
+                image.putpixel((x, y), (200, 120, 60, 255))
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+def test_one_object_measures_as_one_subject_and_reports_its_box() -> None:
+    report = measure_alpha_subjects(_blob_png([(40, 100, 200, 130)]))
+
+    assert report["subject_count"] == 1
+    assert report["largest_bbox"] == [40, 100, 200, 130]
+    assert report["largest_width"] == 160
+    assert report["largest_height"] == 30
+    assert report["largest_share"] == 1.0
+
+
+def test_a_detached_streak_is_a_second_subject() -> None:
+    """The defect no other isolation check catches.
+
+    A painted trail or spark beside the object passes every alpha, border, and size gate the
+    pipeline already runs, and then moves the measured bounding box - so the object draws at the
+    wrong size and rotates around a point outside itself.
+    """
+
+    report = measure_alpha_subjects(_blob_png([(40, 100, 200, 130), (210, 110, 250, 120)]))
+
+    assert report["subject_count"] == 2
+
+
+def test_a_speck_is_not_a_second_subject() -> None:
+    # Both filters have to agree: an antialiasing crumb is neither large in absolute terms nor a
+    # real share of the paint, and calling it a subject would reject good artwork.
+    report = measure_alpha_subjects(_blob_png([(40, 100, 200, 130), (240, 240, 243, 243)]))
+
+    assert report["subject_count"] == 1
+
+
+def test_an_empty_canvas_is_refused_rather_than_measured_as_zero() -> None:
+    with pytest.raises(ValueError, match="no painted pixels"):
+        measure_alpha_subjects(_blob_png([]))
+
+
+def test_the_thresholds_are_validated() -> None:
+    data = _blob_png([(40, 100, 200, 130)])
+    with pytest.raises(ValueError, match="alpha threshold"):
+        measure_alpha_subjects(data, alpha_threshold=255)
+    with pytest.raises(ValueError, match="component fraction"):
+        measure_alpha_subjects(data, minimum_component_fraction=0)
+    with pytest.raises(ValueError, match="minimum component area"):
+        measure_alpha_subjects(data, minimum_component_area=0)
+
+
+def test_an_image_of_only_specks_names_what_was_wrong() -> None:
+    # Every other guard in this function reports its own failure; without this one the caller gets
+    # a bare "max() arg is an empty sequence" and no way to act on it.
+    speckled = _blob_png([(x, x, x + 2, x + 2) for x in range(0, 40, 6)])
+
+    with pytest.raises(ValueError, match="no component large enough to be a subject"):
+        measure_alpha_subjects(speckled)

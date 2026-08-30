@@ -31,7 +31,17 @@ import {
   isPlayerInvulnerable,
   playerInvulnerabilityBlinkAlpha,
 } from "./combat";
+import { stepAttackWindow } from "./attack-window";
 import { type PlayerIntent, playerIntent } from "./player-intent";
+import {
+  PLAYER_ATTACK_STATES,
+  PLAYER_ATTACK_STATE_BY_MOTION,
+  type PlayerState,
+} from "./player-state";
+import {
+  weaponClassProfile,
+  type WeaponClassProfile,
+} from "./weapon-class";
 import {
   DEATH_STRIP_FRAME_RATE,
   playerDamagePresentationState,
@@ -67,16 +77,14 @@ import {
   type UpperPlatform,
 } from "./vertical";
 
-export type PlayerState =
-  | "idle"
-  | "walk"
-  | "run"
-  | "jump"
-  | "crouch"
-  | "attack"
-  | "hurt"
-  | "death"
-  | "climb";
+// The state vocabulary itself lives in `player-state.ts`, which imports nothing, so a module that
+// needs to reason about a player state does not have to load Phaser to do it. Re-exported here
+// because this is the file every consumer already reaches for.
+export {
+  PLAYER_ATTACK_STATES,
+  PLAYER_ATTACK_STATE_BY_MOTION,
+  type PlayerState,
+} from "./player-state";
 
 export type PlatformDropTraversalPhase =
   | "drop-commanded"
@@ -154,6 +162,15 @@ export interface PlayerOpts {
   climbables?: readonly ClimbableZone[];
   maximumAirJumps: number;
   combatEnabled: boolean;
+  /**
+   * How the package's weapon class attacks.
+   *
+   * Passed in rather than imported, because the controller must not decide which class a package
+   * fights with - the scene reads that from the manifest, and a controller that reached for the
+   * table itself would be a second place the answer is chosen. Omitted for the standalone and
+   * legacy tag runtimes, which have no manifest and swing at the melee defaults.
+   */
+  weaponClass?: WeaponClassProfile;
   /** Authored starting/max health for this run. */
   startingHealth?: number;
   onTransition?: (
@@ -191,6 +208,7 @@ const PLAYER_STATES: readonly PlayerState[] = [
   "jump",
   "crouch",
   "attack",
+  "ranged_attack",
   "hurt",
   "death",
   "climb",
@@ -252,6 +270,9 @@ const DEFAULT_FRAME_RATES: Record<PlayerState, number> = {
   jump: 8,
   crouch: 6,
   attack: 12,
+  // The cast strip is authored at 10 fps where the swing is authored at 12; a throw commits for
+  // longer than a swing, and that is the cost the extra reach is bought with.
+  ranged_attack: 10,
   hurt: 7,
   death: DEATH_STRIP_FRAME_RATE,
   climb: 9,
@@ -266,7 +287,7 @@ function defaultMotionPlayback(state: PlayerState): RuntimeMotionPlayback {
   }
   return Object.freeze({
     mode:
-      state === "attack" ||
+      PLAYER_ATTACK_STATES.has(state) ||
       state === "jump" ||
       state === "hurt" ||
       state === "death"
@@ -277,9 +298,6 @@ function defaultMotionPlayback(state: PlayerState): RuntimeMotionPlayback {
   });
 }
 
-const ATTACK_DURATION_MS = 333; // 4 frames at 12 fps
-const ATTACK_HIT_WINDOW_MS_FROM = 80; // hit window starts ~frame 1
-const ATTACK_HIT_WINDOW_MS_TO = 250; // …ends after frame 3
 const HURT_DURATION_MS = 600;
 
 export class Player {
@@ -661,6 +679,10 @@ export class Player {
         targetVx = shift ? PLATFORMER_RUN_SPEED : PLATFORMER_WALK_SPEED;
         this.facing = "right";
       }
+      // An aim override outranks the step. Without it a policy that backs away from what it is
+      // fighting turns its back on it, and the scene reads facing at the frame the blow leaves —
+      // so the whole retreat would be spent attacking in the wrong direction.
+      if (intent.face) this.facing = intent.face;
     }
 
     // Crouch selects the grounded low posture and caps horizontal speed.
@@ -772,24 +794,24 @@ export class Player {
       this.blockedColumn = null;
     }
 
-    // Attack overrides locomotion anim state (still moves but plays attack).
-    if (
-      wantsAttack &&
-      !controlsLocked &&
-      !this.attackActive &&
-      nowMs >= this.attackUntil &&
-      this.support !== "climbable"
-    ) {
-      this.attackUntil = nowMs + ATTACK_DURATION_MS;
-      this.attackStarted = nowMs;
-      this.attackHitConsumed = false;
-    }
-    const attacking = nowMs < this.attackUntil;
-    const attackElapsed = nowMs - this.attackStarted;
-    this.attackActive =
-      attacking &&
-      attackElapsed >= ATTACK_HIT_WINDOW_MS_FROM &&
-      attackElapsed <= ATTACK_HIT_WINDOW_MS_TO;
+    // Attack overrides locomotion anim state (still moves but plays the attack pose).
+    const weapon = this.weaponProfile();
+    const window = stepAttackWindow({
+      profile: weapon,
+      state: {
+        attackUntil: this.attackUntil,
+        attackStarted: this.attackStarted,
+        attackActive: this.attackActive,
+      },
+      nowMs,
+      requested: wantsAttack,
+      blocked: controlsLocked || this.support === "climbable",
+    });
+    this.attackUntil = window.attackUntil;
+    this.attackStarted = window.attackStarted;
+    this.attackActive = window.attackActive;
+    if (window.committed) this.attackHitConsumed = false;
+    const attacking = window.attacking;
 
     // Vertical motion + one-way platform/terrain resolution.
     const col = Math.floor(this.sprite.x / this.opts.tilePx);
@@ -873,7 +895,9 @@ export class Player {
       airborne: this.support === "air",
     });
     if (damagePresentation !== null) next = damagePresentation;
-    else if (attacking) next = "attack";
+    // Which attack pose is the weapon class's answer, not the controller's: the two states differ
+    // only in which drawn strip they play and how long they commit for.
+    else if (attacking) next = PLAYER_ATTACK_STATE_BY_MOTION[weapon.motionState];
     else if (this.support === "air") next = "jump";
     else if (crouching) next = "crouch";
     else if (this.vx !== 0 && shift) next = "run";
@@ -1313,6 +1337,21 @@ export class Player {
     return this.health;
   }
 
+  /**
+   * How this run attacks.
+   *
+   * Resolved through the table on every read rather than cached, so a run that publishes no class
+   * and one that publishes the melee class are the same object rather than two code paths.
+   */
+  private weaponProfile(): WeaponClassProfile {
+    return this.opts.weaponClass ?? weaponClassProfile(null);
+  }
+
+  /** The profile this controller is attacking with, for callers that must agree with it. */
+  get weapon(): WeaponClassProfile {
+    return this.weaponProfile();
+  }
+
   /** Whether the attack hit window is open AND has not consumed a hit. */
   consumeAttackHit(): boolean {
     if (this.attackActive && !this.attackHitConsumed) {
@@ -1430,6 +1469,9 @@ function sheetFrameHeight(
 function stateTextureKey(state: PlayerState): string {
   // Pre-loaded by the scene as character_<state> for master slices and sibling strips.
   if (state === "attack") return "character_attack";
+  // The throw plays the strip the contract calls `skill_cast`, which every combat-enabled package
+  // already ships. The runtime state is named for what it does; the key is named for what was drawn.
+  if (state === "ranged_attack") return "character_skill_cast";
   // Historical mature-runtime key; prepared contracts call this state `crouch`.
   if (state === "crouch") return "character_crawl";
   if (state === "climb") return "character_climb";

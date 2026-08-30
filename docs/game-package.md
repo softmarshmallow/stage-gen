@@ -46,11 +46,12 @@ Only these prepared-package identities are accepted by the resolver:
 | Map generation | `game-map-v9` |
 | Soundtrack | `game-soundtrack-v1` |
 | UI | `game-ui-v1` |
-| Player catalog | `player-content-v2` |
+| Player catalog | `player-content-v3` |
 | Mob catalog | `mob-content-v2` |
 | NPC catalog | `npc-content-v3` |
 | Prop catalog | `prop-content-v2` |
 | Item catalog | `item-content-v2` |
+| Projectile catalog | `projectile-content-v2` (optional) |
 | Sequence catalog | `game-sequence-catalog-v2` |
 | Sequence | `game-sequence-v1` |
 

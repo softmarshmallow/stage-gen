@@ -28,14 +28,21 @@ import {
   steerNav,
   type NavAgentState,
 } from "./bot-navigation";
-import { facingToward, horizontalDistance, healthFraction, sameFootLevel } from "./bot-view";
+import {
+  facingToward,
+  healthFraction,
+  horizontalDistance,
+  lineOfFireClear,
+  sameFootLevel,
+} from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, playerIntent, type PlayerIntent } from "./player-intent";
 
 export const HUNTER_BOT_TUNING: BotTuning = Object.freeze({
   healAtHealthFraction: 0.45,
-  // The scene resolves a swing over 1.4 tiles; reaching for more would be swinging at nothing.
-  engageRangeUnits: 84,
-  footLevelToleranceUnits: 64,
+  // How far a swing reaches, how far off the level it still connects, and how close the bot walks
+  // in used to live here as `engageRangeUnits` and `footLevelToleranceUnits`, restated from the
+  // scene's own constants with a comment saying they had to agree. They are the weapon class's
+  // numbers, so they arrive on the view as `weaponBand` and no personality forks them.
   pursuitRangeUnits: 1400,
   pickupRangeUnits: 520,
   stuckSpeedUnits: 12,
@@ -196,22 +203,43 @@ export const healBehavior: BotBehavior = Object.freeze({
 });
 
 /**
- * Swing at what is already in reach.
+ * Attack what is already in range, and hold the distance the weapon wants.
  *
- * `attack` is edge-triggered and the controller refuses a fresh swing while one is running, so
+ * `attack` is edge-triggered and the controller refuses a fresh action while one is running, so
  * asking every frame is not mashing: it produces exactly the animation's own rate, the same cap a
  * human hits. Facing is corrected by pressing a direction for a frame, because facing follows
  * movement in this controller and there is no other way to turn on the spot.
+ *
+ * The three distances come from the weapon class on the view, not from this behaviour. A swinging
+ * class has no minimum, so its back-off branch can never fire and it walks all the way in exactly
+ * as it always has; a throwing class stops at arm's length of the creature it is killing. Nothing
+ * here knows which class it is holding, which is what makes a third one free.
  */
 export const engageBehavior: BotBehavior = Object.freeze({
   id: "engage",
   consider(context: BotContext): BotProposal | null {
     const self = context.view.self;
     if (!context.view.combatEnabled) return null;
+    const band = context.view.weaponBand;
+    // A class that spends a round and is carrying none does not stand there pressing the key. It
+    // declines outright, so collect, pursue and patrol can win the auction instead — otherwise an
+    // unattended run stops forever the moment the bag empties, with nothing logged and no gate red.
+    if (band.requiresAmmo && !context.view.ammoCarried) return null;
     const reachable = context.view.threats.filter(
       (threat) =>
-        horizontalDistance(self, threat) <= context.tuning.engageRangeUnits &&
-        sameFootLevel(self, threat, context.tuning.footLevelToleranceUnits),
+        horizontalDistance(self, threat) <= band.maximumUnits &&
+        sameFootLevel(self, threat, band.verticalToleranceUnits) &&
+        // Distance and foot level say a creature is worth attacking; they say nothing about what
+        // is between the two. A creature on a ledge satisfies both while the ledge face stands in
+        // the way, and every throw dies in it — so a class that throws asks the terrain too.
+        // Melee declares no release height and skips the test: a swing has no flight path.
+        (band.releaseHeightUnits === null ||
+          lineOfFireClear(
+            context.view.terrain,
+            self.x,
+            threat.x,
+            self.y - band.releaseHeightUnits,
+          )),
     );
     const target =
       reachable.find((threat) => threat.id === context.memory.targetId) ??
@@ -221,20 +249,28 @@ export const engageBehavior: BotBehavior = Object.freeze({
           left.id.localeCompare(right.id),
       )[0];
     if (!target) return null;
+    const distance = horizontalDistance(self, target);
     const wantFacing = facingToward(self, target.x);
     const turning = wantFacing !== self.facing;
-    const closing = horizontalDistance(self, target) > context.tuning.engageRangeUnits * 0.5;
-    const stepping = turning || closing;
+    const closing = distance > band.approachUnits;
+    const backing = distance < band.minimumUnits;
+    // The step and the facing are separate requests, and they disagree while backing away. Facing
+    // otherwise follows the movement key, so pressing away from the target would turn the character
+    // around — and the scene reads facing at the frame the blow leaves, so the whole retreat would
+    // be spent attacking in the wrong direction. `face` is what keeps the target in front.
+    const stepFacing = backing ? (wantFacing === "left" ? "right" : "left") : wantFacing;
+    const stepping = turning || closing || backing;
     return {
       goal: "engage",
       priority: BOT_PRIORITY.engage,
       intent: playerIntent({
-        left: stepping && wantFacing === "left",
-        right: stepping && wantFacing === "right",
+        left: stepping && stepFacing === "left",
+        right: stepping && stepFacing === "right",
+        face: wantFacing,
         attack: true,
       }),
       targetId: target.id,
-      reason: turning ? "turning onto target" : "in reach",
+      reason: turning ? "turning onto target" : backing ? "holding distance" : "in reach",
     };
   },
 });

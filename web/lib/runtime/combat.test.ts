@@ -31,6 +31,17 @@ describe("attack level reach", () => {
     expect(attackFootLevelsOverlap(600, 535.99, 64)).toBeFalse();
     expect(() => attackFootLevelsOverlap(0, 0, 0)).toThrow("positive tile size");
   });
+
+  test("a caller may widen or narrow the band, and a nonsense band is refused", () => {
+    // The default is the one every package has been played at; the parameter exists so a weapon
+    // class can declare its own rather than a second module owning the number.
+    expect(attackFootLevelsOverlap(600, 472, 64, 2)).toBeTrue();
+    expect(attackFootLevelsOverlap(600, 471.99, 64, 2)).toBeFalse();
+    expect(attackFootLevelsOverlap(600, 600, 64, 0)).toBeTrue();
+    expect(attackFootLevelsOverlap(600, 599, 64, 0)).toBeFalse();
+    expect(() => attackFootLevelsOverlap(600, 600, 64, -1)).toThrow("positive tile size");
+    expect(() => attackFootLevelsOverlap(600, 600, 64, Number.NaN)).toThrow("positive tile size");
+  });
 });
 
 describe("aggression archetypes", () => {

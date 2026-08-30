@@ -378,3 +378,116 @@ def test_repository_gate_failure_keeps_source_truth_separate() -> None:
 
     assert report["source_status"] == "current"
     assert report["disposition"] == "commit_before_publish"
+
+
+def _rearm_as_ranged(package: Path, *, projectile_id: str, equipment: str) -> None:
+    gameplay = package / "gameplay.toml"
+    gameplay.write_text(
+        gameplay.read_text(encoding="utf-8").replace(
+            'critical_profile = "standard_v1"\n',
+            'critical_profile = "standard_v1"\n'
+            'weapon_class = "ranged_dps_v1"\n'
+            f'projectile_id = "{projectile_id}"\n',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    player = package / "content/player.toml"
+    player.write_text(
+        player.read_text(encoding="utf-8").replace(
+            'equipment = "hand_weapon_v1"', f'equipment = "{equipment}"', 1
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_rejects_a_projectile_the_catalog_does_not_ship(tmp_path: Path) -> None:
+    """A class that throws must throw something the package actually drew.
+
+    The same closure question `currency_item_id` and `starting_item_ids` are already asked. Left to
+    the runtime it would be a package that validates clean, ships, and then declines to fire.
+    """
+
+    package = _copy_package(tmp_path)
+    # The shipped package swings, so the throwing pairing is composed here rather than assumed.
+    # It also has to move the player's declared equipment: a hand weapon cannot fight ranged, and
+    # that check would otherwise fire first and mask the one under test.
+    _rearm_as_ranged(package, projectile_id="missing_throwable", equipment="thrown_kit_v1")
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+
+    assert caught.value.code == "unresolved_cross_reference"
+    assert "projectile_id" in str(caught.value)
+
+
+def test_rejects_a_character_drawn_with_a_weapon_their_kit_cannot_use(tmp_path: Path) -> None:
+    """The drawn character and the kit they fight with are one fact authored in two files.
+
+    Until this check existed a package could ship a figure carrying a sword and a combat policy
+    that throws darts, and nothing objected: the equipment lived in free prose that no validator
+    reads. Both halves are closed names now, so the contradiction is refusable without reading a
+    word of the authored description.
+    """
+
+    package = _copy_package(tmp_path)
+    # A throwing kit, but the character is still drawn carrying the sword.
+    _rearm_as_ranged(package, projectile_id="paperwing_dart", equipment="hand_weapon_v1")
+
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+
+    assert caught.value.code == "player_equipment_mismatch"
+    assert "hand_weapon_v1" in str(caught.value)
+    assert "ranged_dps_v1" in str(caught.value)
+
+
+def test_a_package_that_disables_combat_may_draw_whatever_it_likes(tmp_path: Path) -> None:
+    """The scope of the check, asserted so it is not later read as an oversight.
+
+    `weapon_class` defaults to `melee_dps_v1`, so an unconditional pairing check would force every
+    story package with no fighting in it to draw a hand weapon or nothing at all. The equipment
+    pairing is scoped to combat for the same reason the required attack poses are.
+    """
+
+    package = _copy_package(tmp_path)
+    gameplay = package / "gameplay.toml"
+    gameplay.write_text(
+        gameplay.read_text(encoding="utf-8").replace(
+            "[combat]\nenabled = true", "[combat]\nenabled = false", 1
+        ),
+        encoding="utf-8",
+    )
+    player = package / "content/player.toml"
+    player.write_text(
+        player.read_text(encoding="utf-8").replace(
+            'equipment = "hand_weapon_v1"', 'equipment = "focus_implement_v1"', 1
+        ),
+        encoding="utf-8",
+    )
+
+    resolved = resolve_game_package(package)
+
+    assert resolved.gameplay.combat.enabled is False
+    assert resolved.player.players[0].equipment == "focus_implement_v1"
+
+
+def test_accepts_a_character_whose_drawn_kit_matches_how_they_fight(tmp_path: Path) -> None:
+    # The other direction, so the check above is not passing for want of any valid ranged package.
+    package = _copy_package(tmp_path)
+    _rearm_as_ranged(package, projectile_id="paperwing_dart", equipment="thrown_kit_v1")
+
+    resolved = resolve_game_package(package)
+
+    assert resolved.gameplay.combat.weapon_class == "ranged_dps_v1"
+    assert resolved.player.players[0].equipment == "thrown_kit_v1"
+
+
+def test_a_swinging_package_names_no_projectile_and_still_resolves() -> None:
+    # The shipped package is exactly this case, so it is asserted in place rather than composed:
+    # a melee character who names no round, with a projectile catalog still in the package.
+    resolved = resolve_game_package(SOURCE_PACKAGE)
+
+    assert resolved.gameplay.combat.weapon_class == "melee_dps_v1"
+    assert resolved.gameplay.combat.projectile_id is None
+    assert resolved.player.players[0].equipment == "hand_weapon_v1"

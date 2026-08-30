@@ -1,7 +1,7 @@
-schema_version = 2
-kind = "player-content-v2"
+schema_version = 3
+kind = "player-content-v3"
 game_id = "bellweather"
-revision = 4
+revision = 5
 
 [[references]]
 reference_id = "cover_wayfarer"
@@ -26,6 +26,9 @@ brown boots, travel satchel, and simple wooden training sword. Keep the
 presentation modest, practical, non-sexual, original, and unmistakably adult
 despite the deliberate super-deformed proportions.
 """
+# The prose above names *which* object; this names the class of thing it is, which is the half a
+# validator can hold against gameplay's weapon_class. A hand weapon fights melee and nothing else.
+equipment = "hand_weapon_v1"
 
 [[players.motions]]
 state = "idle"

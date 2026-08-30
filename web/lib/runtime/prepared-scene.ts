@@ -2,7 +2,11 @@ import Phaser from "phaser";
 import type { GameplayAutomationMode } from "./automation";
 import { Bot, resolveBotControl, type BotControlSource } from "./bot";
 import { HUNTER_BOT_PROFILE } from "./bot-hunter";
-import { preparedBotWorldView, preparedNavGraph } from "./bot-adapter";
+import {
+  preparedBotWeaponBand,
+  preparedBotWorldView,
+  preparedNavGraph,
+} from "./bot-adapter";
 import { EMPTY_NAV_GRAPH, type NavGraph } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
@@ -56,7 +60,28 @@ import {
   formatExperienceLine,
   formatLevelUpLine,
 } from "./stat-log";
-import { hasHealingConsumable, selectHealingItemId } from "./consumables";
+import {
+  hasHealingConsumable,
+  selectAmmoItemId,
+  selectHealingItemId,
+} from "./consumables";
+import { ProjectileSystem } from "./projectiles";
+import { resolveInstantStrike } from "./strike";
+import {
+  resolveWeaponClassProfile,
+  weaponClassProfile,
+  type WeaponClass,
+  type WeaponClassProfile,
+} from "./weapon-class";
+import {
+  developerKitLabel,
+  nextDeveloperKit,
+  sameDeveloperKit,
+  selectableDeveloperKits,
+  type DeveloperKit,
+} from "./developer-kit";
+import { drawnExtentPx } from "./asset-unit";
+import { projectileProfile } from "./projectile-class";
 import { automatedDefeatConfirmDue, resolveHomeSpawn } from "./respawn";
 import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
@@ -125,8 +150,6 @@ const TILE_PX = 64;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
-/** One point per connected swing, the value every mob health pool was tuned against. */
-const PLAYER_ATTACK_DAMAGE = 1;
 const DIALOGUE_PORTRAIT_HEIGHT = 190;
 const DIALOGUE_PANEL_CENTER_Y = VIEW_H - 128;
 const DIALOGUE_PANEL_HEIGHT = 210;
@@ -155,6 +178,10 @@ type ContactShadowBinding = Readonly<{
 
 function asSequences(values: readonly Record<string, unknown>[]): readonly Sequence[] {
   return values as unknown as readonly Sequence[];
+}
+
+function preparedProjectileTextureKey(projectileId: string): string {
+  return `prepared_projectile_${projectileId}`;
 }
 
 function preparedItemTextureKey(
@@ -230,6 +257,17 @@ export class PreparedStageScene extends Phaser.Scene {
   private mobIdByPopulationSlot: readonly string[] = [];
   private npcs: NpcActor[] = [];
   private items?: ItemSystem;
+  private projectiles?: ProjectileSystem;
+  /**
+   * How this package fights.
+   *
+   * Resolved once per world build from the manifest and then read by the controller, the strike
+   * resolver, the projectile pool and the bot view alike, so the reach the bot aims for and the
+   * reach the scene resolves cannot drift apart.
+   */
+  private weapon: WeaponClassProfile = weaponClassProfile(null);
+  /** Which catalog item a throw is spending, or null for a class that spends nothing. */
+  private ammoItemId: string | null = null;
   private inventoryHud?: InventoryHud;
   private readonly inventory = new Map<string, number>();
   /** When the current defeat began, or null while the player is alive. Drives respawn timing. */
@@ -276,15 +314,23 @@ export class PreparedStageScene extends Phaser.Scene {
   private activeSequence?: { sequence: Sequence; nodeId: string };
   private soundtrack?: HTMLAudioElement;
   private audioUnlocked = false;
+  private developerKit: DeveloperKit | null = null;
+  private selectableKits: readonly DeveloperKit[] = [];
 
   constructor(
     tag: string,
     transparencyPolicy: PreviewTransparencyPolicy,
     automationMode: GameplayAutomationMode | null = null,
+    developerKit: DeveloperKit | null = null,
   ) {
     super({ key: "PreparedStageScene" });
     this.tag = tag;
     this.transparencyPolicy = transparencyPolicy;
+    // A developer's choice of kit, never the package's. It reaches the two places the runtime
+    // decides how this character fights and nowhere else: `this.gameplay` stays exactly the object
+    // the closure check validated, so nothing downstream can mistake an override for a published
+    // fact. Under automation it is always null - see `bootPreparedGame`.
+    this.developerKit = developerKit;
     // Auto-play is on for an ordinary preview and off under automation. A fixed-frame capture is
     // a recording of scripted input, and a second actor pressing keys inside it would make the
     // transcript a recording of the bot instead - which is not what that gate is asserting.
@@ -310,10 +356,12 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+
     if (!this.ready || this.loading || !this.player || !this.keys) return;
     const now = performance.now();
     this.debugOverlay?.toggleForKey(this.keys.debugOverlay);
     this.updateAutoPlayToggle(now);
+    this.updateKitSwitch(now);
     this.updateDebugOverlay();
     if (this.activeSequence) {
       // Drain this frame's intent and drop it. Edge-triggered requests latch until something
@@ -326,6 +374,10 @@ export class PreparedStageScene extends Phaser.Scene {
     this.statLog?.update(now);
     this.updatePlayer(delta, now);
     this.updateMobs(delta, now);
+    // Between the two on purpose: the mobs have already moved this frame, so a shot collides
+    // against where they actually are, and a kill still lands in this frame's drop collection
+    // rather than the next one's.
+    this.updateProjectiles(delta, now);
     this.collectDrops(delta, now);
     this.updateInteractionPrompt();
     this.updateContactShadows();
@@ -356,6 +408,7 @@ export class PreparedStageScene extends Phaser.Scene {
     ]);
     this.installAnimations(manifest);
     this.prepareGameplayPresentation(manifest);
+    this.resolveWeaponClass(manifest, gameplay);
     this.installInput();
     this.inventoryHud = new InventoryHud({
       scene: this,
@@ -411,24 +464,44 @@ export class PreparedStageScene extends Phaser.Scene {
     this.ready = true;
     if (typeof window !== "undefined") {
       window.__sceneReady = true;
-      (window as unknown as { __preparedGame?: unknown }).__preparedGame = Object.freeze({
-        manifestKind: manifest.kind,
-        gameId: manifest.game_id,
-        packageSha256: manifest.package_sha256,
-        artifactCount: manifest.closure.artifact_count,
-        mapIds: manifest.maps.map((map) => map.map_id),
-        // The scale each player texture will draw at, exactly as resolved: the fastest way to
-        // check on a live page that a published rebase actually reached the sprite.
-        playerSheetScales: Object.freeze(
-          Object.fromEntries(this.player ? this.player.resolvedSheetScales() : []),
-        ),
-        diagnostics: Object.freeze([...this.diagnostics]),
-      });
-      (window as unknown as { __sceneProbes?: unknown }).__sceneProbes = {
-        diagnostics: this.diagnostics,
-        consoleErrors: [],
-      };
+      this.publishProbe(manifest);
     }
+  }
+
+  /**
+   * Republish the live probe.
+   *
+   * Called at load and again after a kit switch, so the probe answers what the run is being played
+   * as *now* rather than what it was booted as. A frozen snapshot that silently went stale would
+   * be worse than no probe: every check written against it would keep passing.
+   */
+  private publishProbe(manifest: PreparedRuntimeManifest): void {
+    if (typeof window === "undefined") return;
+    (window as unknown as { __preparedGame?: unknown }).__preparedGame = Object.freeze({
+      manifestKind: manifest.kind,
+      gameId: manifest.game_id,
+      packageSha256: manifest.package_sha256,
+      artifactCount: manifest.closure.artifact_count,
+      mapIds: manifest.maps.map((map) => map.map_id),
+      // The scale each player texture will draw at, exactly as resolved: the fastest way to
+      // check on a live page that a published rebase actually reached the sprite.
+      playerSheetScales: Object.freeze(
+        Object.fromEntries(this.player ? this.player.resolvedSheetScales() : []),
+      ),
+      // The kit actually in force, after any developer override and after the weapon resolver
+      // had its say. Reported for the same reason the sheet scales are: it is the fastest way to
+      // check on a live page what the run is really being played as, and an override is
+      // invisible from the outside otherwise. `kitOverridden` distinguishes a package that
+      // throws from a package being *played* as one.
+      weaponClass: this.weapon.weaponClass,
+      projectileId: this.projectiles?.profile.projectileId ?? null,
+      kitOverridden: this.developerKit !== null,
+      diagnostics: Object.freeze([...this.diagnostics]),
+      });
+    (window as unknown as { __sceneProbes?: unknown }).__sceneProbes = {
+      diagnostics: this.diagnostics,
+      consoleErrors: [],
+    };
   }
 
   private async loadPlayerAssets(manifest: PreparedRuntimeManifest): Promise<void> {
@@ -558,6 +631,23 @@ export class PreparedStageScene extends Phaser.Scene {
           "sprite",
         );
       }),
+      // Trimmed, unlike every other catalog sprite, and it is the one family that needs it. A
+      // whole-canvas texture makes a display size a statement about the canvas: the subject then
+      // draws smaller than its calibration says, and the origin used for rotation is the middle of
+      // the empty frame rather than the middle of the object.
+      ...manifest.projectiles.map((projectile) => {
+        const key = preparedProjectileTextureKey(projectile.projectile_id);
+        return this.loadPresentationOrFallback(
+          loadTrimmedSprite(
+            this.url(projectile.asset.path),
+            key,
+            this.textures,
+            this.transparencyPolicy,
+          ),
+          key,
+          "sprite",
+        );
+      }),
     ]);
   }
 
@@ -674,6 +764,7 @@ export class PreparedStageScene extends Phaser.Scene {
       "character_climb_ladder",
       "character_climb_rope",
       "character_attack",
+      "character_skill_cast",
       "character_hurt",
       "character_death",
     ]) {
@@ -751,6 +842,89 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The class this run is being played with: the developer's if one is set, otherwise the package's.
+   *
+   * Deliberately not `??`. A kit is a pair, and an override of `melee_dps_v1` carries a null round
+   * that must win over the package's named one - a coalescing read would leave a swinging character
+   * still holding a throwing package's projectile.
+   */
+  private activeWeaponClass(gameplay: PreparedGameplayContract): WeaponClass | null {
+    return this.developerKit ? this.developerKit.weaponClass : gameplay.combat.weapon_class;
+  }
+
+  private activeProjectileId(gameplay: PreparedGameplayContract): string | null {
+    return this.developerKit ? this.developerKit.projectileId : gameplay.combat.projectile_id;
+  }
+
+  /**
+   * Settle which class this run fights with, before anything reads it.
+   *
+   * The decision itself is `resolveWeaponClassProfile`, next to the table it chooses from; this
+   * method only supplies what the manifest published, what the developer selected, and where
+   * diagnostics go. Resolved before the controller, the strike resolver, the projectile pool and
+   * the bot band are built, so all four agree by construction - and re-run on a kit switch, which
+   * is why the switch re-enters the map rather than patching those four in place.
+   */
+  private resolveWeaponClass(
+    manifest: PreparedRuntimeManifest,
+    gameplay: PreparedGameplayContract,
+  ): void {
+    this.selectableKits = selectableDeveloperKits({
+      publishedWeaponClass: gameplay.combat.weapon_class ?? "melee_dps_v1",
+      publishedProjectileId: gameplay.combat.projectile_id,
+      projectileCatalog: manifest.projectiles,
+      publishedMotionStates: manifest.player.states,
+    });
+    this.weapon = resolveWeaponClassProfile({
+      weaponClass: this.activeWeaponClass(gameplay),
+      combatEnabled: gameplay.combat.enabled,
+      publishedMotionStates: manifest.player.states,
+      projectileNamed: this.activeProjectileId(gameplay) !== null,
+      recordDiagnostic: (message) => this.recordDiagnostic(message),
+    });
+    // Resolution order: the class names its round, otherwise the first catalog entry carrying the
+    // role. Null means the class spends nothing, which is what ships today.
+    this.ammoItemId =
+      this.weapon.ammoKind === null
+        ? null
+        : selectAmmoItemId(manifest.items);
+  }
+
+  /**
+   * Give a throwing class somewhere to put its shots.
+   *
+   * Nothing is constructed for a class that does not throw, so a melee package allocates no pool,
+   * loads no extra texture and runs no extra pass. The sprite comes from the catalog item the
+   * contract names and is drawn through that item's own calibration, so a thrown object is the
+   * size the package says it is rather than a constant this file picked.
+   */
+  private installProjectiles(manifest: PreparedRuntimeManifest): void {
+    const gameplay = this.gameplay;
+    if (this.weapon.delivery.kind !== "projectile" || !gameplay) return;
+    const published = manifest.projectiles.find(
+      (entry) => entry.projectile_id === this.activeProjectileId(gameplay),
+    );
+    // Unreachable for a package the closure check passed, which proves a named projectile is in
+    // the catalog. Kept because `find` can answer undefined and a silent pool of nothing is the
+    // failure mode this whole family exists to make impossible.
+    if (!published) return;
+    this.projectiles = new ProjectileSystem({
+      scene: this,
+      tilePx: TILE_PX,
+      textureKey: preparedProjectileTextureKey(published.projectile_id),
+      // The subject's own length, from its own calibration, against a trimmed texture — so the
+      // number is the artwork's size rather than the canvas it was generated on.
+      drawnLengthPx: drawnExtentPx(published.calibration, manifest.scale, TILE_PX),
+      projectile: projectileProfile(published),
+      world: {
+        minX: 0,
+        maxX: this.worldWidth,
+        surfaceYAt: (x) => this.surfaceYAtX(x),
+      },
+    });
+  }
+
   private installAnimations(manifest: PreparedRuntimeManifest): void {
     for (const mob of manifest.mobs) {
       for (const state of ["idle", "attack", "hurt", "death"] as const) {
@@ -779,6 +953,7 @@ export class PreparedStageScene extends Phaser.Scene {
           Phaser.Input.Keyboard.KeyCodes.BACKTICK,
         ),
         autoPlay: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P),
+        switchKit: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K),
       };
     }
     let unlockPending = false;
@@ -858,6 +1033,7 @@ export class PreparedStageScene extends Phaser.Scene {
       climbables: this.verticalWorld.climbables,
       maximumAirJumps: 1,
       combatEnabled: gameplay.combat.enabled,
+      weaponClass: this.weapon,
       // The level's pool, not the authored one. A map change and a respawn both rebuild the
       // controller, and a player who levelled twice must not walk through a door back to six HP.
       startingHealth:
@@ -877,6 +1053,7 @@ export class PreparedStageScene extends Phaser.Scene {
       heightFn: (column) => this.heightAt(column),
       itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
     });
+    this.installProjectiles(manifest);
     this.installPortals(map);
     if (map.hostile_population_enabled) this.initializeMobPopulation(map);
     // The map declares which axes the camera may follow and the scene obeys, rather than the
@@ -926,6 +1103,8 @@ export class PreparedStageScene extends Phaser.Scene {
     for (const npc of this.npcs) npc.sprite.destroy();
     this.items?.clearAll();
     this.items = undefined;
+    this.projectiles?.clearAll();
+    this.projectiles = undefined;
     this.combatText?.clear();
     this.statLog?.clear();
     this.portal?.destroy();
@@ -1466,41 +1645,23 @@ export class PreparedStageScene extends Phaser.Scene {
     }
 
     if (gameplay.combat.enabled && player.consumeAttackHit()) {
-      const facing = player.facing === "left" ? -1 : 1;
-      const reach = TILE_PX * 1.4;
-      const hitX = player.sprite.x + facing * reach * 0.5;
-      for (const mob of this.mobs) {
-        if (!mob.isAlive()) continue;
-        if (
-          Math.abs(mob.sprite.x - hitX) >= reach ||
-          !attackFootLevelsOverlap(player.sprite.y, mob.sprite.y, TILE_PX)
-        ) {
-          continue;
+      const facing: 1 | -1 = player.facing === "left" ? -1 : 1;
+      if (this.weapon.delivery.kind === "instant") {
+        const living = this.mobs.filter((mob) => mob.isAlive());
+        for (const index of resolveInstantStrike({
+          profile: this.weapon,
+          attackerX: player.sprite.x,
+          attackerFootY: player.sprite.y,
+          dirSign: facing,
+          tilePixels: TILE_PX,
+          targets: living.map((mob) => ({ x: mob.sprite.x, footY: mob.sprite.y })),
+        })) {
+          this.applyPlayerBlow(living[index], player.sprite.x, facing, now);
         }
-        const blow = resolveCriticalDamage(
-          PLAYER_ATTACK_DAMAGE,
-          gameplay.combat.critical_profile,
-          this.nextBlowSeed(player.sprite.x, mob.ladderIndex),
-        );
-        const result = mob.takeHit(
-          now,
-          facing as 1 | -1,
-          blow.amount,
-          blow.critical,
-        );
-        this.combatText?.showDamage({
-          resolution: result,
-          direction: "outgoing",
-          x: mob.sprite.x,
-          y: mob.sprite.getBounds().top - 18,
-          nowMs: now,
-        });
-        if (result.died) {
-          this.recordManagedMobDeath(mob, now);
-          this.dropLoot(mob);
-          this.awardExperience(mob, now);
-        }
-        break;
+      } else if (this.throwOne(player.sprite.x, player.sprite.y, facing)) {
+        // The shot is the effect, so the round is spent only once one is actually in the air —
+        // the inverse of drinking, where the bag opens only if the heal connected.
+        if (this.ammoItemId) this.consumeInventory(this.ammoItemId, 1);
       }
     }
 
@@ -1544,6 +1705,91 @@ export class PreparedStageScene extends Phaser.Scene {
       if (mob.isAlive()) mob.update(delta, now);
     }
     this.mobs = this.mobs.filter((mob) => mob.isAlive() || mob.sprite.active);
+  }
+
+  /**
+   * Turn one connected blow into damage, presentation and consequences.
+   *
+   * Shared by both delivery kinds on purpose: a thrown hit and a swung hit differ in how they
+   * arrived and in nothing else. `seedX` is where the blow *originated* — the character for a
+   * swing, the release point for a throw — because the critical roll is seeded from it, and a
+   * throw seeded at the impact point would roll differently depending on how far the target had
+   * walked while the object was in the air.
+   */
+  private applyPlayerBlow(
+    mob: Mob,
+    seedX: number,
+    dirSign: 1 | -1,
+    nowMs: number,
+  ): void {
+    const gameplay = this.gameplay;
+    if (!gameplay) return;
+    const blow = resolveCriticalDamage(
+      this.weapon.damage,
+      gameplay.combat.critical_profile,
+      this.nextBlowSeed(seedX, mob.ladderIndex),
+    );
+    const result = mob.takeHit(nowMs, dirSign, blow.amount, blow.critical);
+    this.combatText?.showDamage({
+      resolution: result,
+      direction: "outgoing",
+      x: mob.sprite.x,
+      y: mob.sprite.getBounds().top - 18,
+      nowMs,
+    });
+    if (result.died) {
+      this.recordManagedMobDeath(mob, nowMs);
+      this.dropLoot(mob);
+      this.awardExperience(mob, nowMs);
+    }
+  }
+
+  /**
+   * Put one shot in the air, reporting whether anything was actually thrown.
+   *
+   * False for a full pool, a missing texture, or a class holding no round — all ordinary states,
+   * none of them an error, and all of them meaning the caller must not spend anything.
+   */
+  private throwOne(originX: number, footY: number, dirSign: 1 | -1): boolean {
+    const projectiles = this.projectiles;
+    if (!projectiles) return false;
+    if (this.weapon.ammoKind !== null) {
+      const carried = this.ammoItemId
+        ? (this.inventory.get(this.ammoItemId) ?? 0)
+        : 0;
+      if (carried < 1) return false;
+    }
+    return (
+      projectiles.fire({
+        originX,
+        footY,
+        bodyHeightPx: PLAYER_HEIGHT,
+        dirSign,
+      }) !== null
+    );
+  }
+
+  /**
+   * Step every shot and pay out what it hit.
+   *
+   * Runs after the mobs have moved this frame and before drops are collected, so a kill lands in
+   * the same frame's loot pass rather than a frame later. The pool never holds a `Mob`: it is
+   * handed this frame's boxes and returns indices into them, which is what keeps combat resolving
+   * in exactly one place.
+   */
+  private updateProjectiles(delta: number, now: number): void {
+    const projectiles = this.projectiles;
+    if (!projectiles) return;
+    const living = this.mobs.filter((mob) => mob.isAlive());
+    const hits = projectiles.update(
+      delta,
+      living.map((mob) => ({ bounds: mob.snapshot().renderBounds })),
+    );
+    for (const hit of hits) {
+      const mob = living[hit.targetIndex];
+      if (!mob || !mob.isAlive()) continue;
+      this.applyPlayerBlow(mob, hit.spawnX, hit.dirSign, now);
+    }
   }
 
   private recordManagedMobDeath(mob: Mob, now: number): void {
@@ -1746,6 +1992,13 @@ export class PreparedStageScene extends Phaser.Scene {
             reason: this.bot.lastDecision?.reason ?? null,
           }
         : null,
+      kit:
+        this.selectableKits.length > 1
+          ? {
+              label: developerKitLabel(this.developerKit ?? this.selectableKits[0]),
+              published: this.developerKit === null,
+            }
+          : null,
       inventory: [...this.inventory.entries()].map(([itemId, quantity]) => ({
         label:
           manifest.items.find((item) => item.item_id === itemId)?.display_name ??
@@ -1889,6 +2142,87 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   /**
+   * Cycle to the next kit this run can be played with, in place.
+   *
+   * The developer affordance the package cannot cheaply give: a kit is one decision with the
+   * drawn equipment, so trying the other arm by authoring means re-rendering the character. Here
+   * it costs a keypress.
+   *
+   * The switch itself is `switchDeveloperKit`, which both this key and the console's buttons call,
+   * so there is one implementation rather than two that could drift.
+   */
+  private updateKitSwitch(nowMs: number): void {
+    const key = this.keys?.switchKit;
+    if (!key || !Phaser.Input.Keyboard.JustDown(key)) return;
+    if (this.selectableKits.length < 2) {
+      this.statLog?.push({ kind: "notice", text: "ONLY ONE KIT IN THIS RUN", nowMs });
+      return;
+    }
+    // `nextDeveloperKit` answers null only for an empty list, which the guard above already
+    // excludes, and `switchDeveloperKit` is what decides that wrapping onto the published kit
+    // means no override - so the key hands its answer straight over.
+    this.switchDeveloperKit(nextDeveloperKit(this.developerKit, this.selectableKits));
+  }
+
+  /**
+   * Play this run as a different kit, now, without reloading it.
+   *
+   * The one entry point: the `K` key and the console's buttons both arrive here, so there is no
+   * second version of the switch that could drift from the first. Null restores the kit the
+   * package published.
+   *
+   * Returns false when the scene is not in a state that can be switched - still loading, or between
+   * maps - so a caller can leave its own control alone rather than showing a change that did not
+   * happen.
+   */
+  switchDeveloperKit(kit: DeveloperKit | null): boolean {
+    const map = this.currentMap;
+    const player = this.player;
+    const manifest = this.manifest;
+    const gameplay = this.gameplay;
+    if (!map || !player || !manifest || !gameplay || !this.ready) return false;
+    // Normalised, not stored verbatim. Cycling wraps back onto the published kit as an object, and
+    // storing that would make the run report itself as overridden while being played exactly as it
+    // shipped - which is the one thing `kitOverridden` and the overlay's "(override)" mark exist to
+    // say. Being played as the published kit *is* not being overridden, however you arrived there.
+    const published = this.selectableKits[0];
+    this.developerKit = kit && published && sameDeveloperKit(kit, published) ? null : kit;
+    this.resolveWeaponClass(manifest, gameplay);
+    // Re-entered rather than patched, because `this.weapon` is read by the controller, the strike
+    // resolver, the projectile pool and the bot band, and re-entry is the one path that rebuilds
+    // all four together - the same path a respawn already takes. Re-entered where they are
+    // standing, so a switch reads as a change of kit rather than as being sent back to the gate.
+    void this.enterMap(map.map_id, player.sprite.x / this.worldWidth, false);
+    // After the re-entry, never before it: `enterMap` runs synchronously to `clearWorld`, which
+    // clears the stat log, so a notice pushed first is destroyed in the same call that was meant
+    // to announce it.
+    this.statLog?.push({
+      kind: "notice",
+      text: `KIT ${developerKitLabel(this.developerKit ?? published).toUpperCase()}`,
+      nowMs: this.time.now,
+    });
+    this.publishProbe(manifest);
+    return true;
+  }
+
+  /** Every kit this run can be played as, for a console that has to render the choice. */
+  developerKitOptions(): readonly DeveloperKit[] {
+    return this.selectableKits;
+  }
+
+  /**
+   * The kit in force, or null while the run is being played as published.
+   *
+   * A reader rather than a notification, because the scene is the source of truth and the console
+   * is a mirror of it: `K` changes the kit without React ever hearing about it, so a console that
+   * tracked only its own clicks would sit on a stale answer the moment anyone used the keyboard.
+   */
+  activeDeveloperKit(): DeveloperKit | null {
+    return this.developerKit;
+  }
+
+
+  /**
    * This frame's intent, from whichever of the two sources owns it.
    *
    * The keyboard is read on every frame without exception, whoever is driving. Edge-triggered
@@ -1946,8 +2280,27 @@ export class PreparedStageScene extends Phaser.Scene {
         settled: item.settled,
       })),
       healingCarried: selectHealingItemId(manifest.items, this.inventory) !== null,
+      // True for a class that spends nothing, so a free-throwing or swinging policy never has to
+      // ask whether the question applied to it.
+      ammoCarried:
+        this.weapon.ammoKind === null ||
+        (this.ammoItemId !== null && (this.inventory.get(this.ammoItemId) ?? 0) >= 1),
+      weaponBand: preparedBotWeaponBand(
+        this.weapon,
+        TILE_PX,
+        this.projectiles?.profile ?? null,
+        PLAYER_HEIGHT,
+      ),
       combatEnabled: gameplay.combat.enabled,
       navigation: this.navGraph,
+      // The same profile the projectile's own terrain test reads, handed over as plain numbers so
+      // targeting can ask what a shot would run into before one is in the air.
+      terrain: Object.freeze({
+        columnSurfaceY: this.heights.map((height) =>
+          terrainSurfaceY(height, TILE_PX, this.groundBaselineY),
+        ),
+        tileUnits: TILE_PX,
+      }),
       worldWidth: this.worldWidth,
     });
   }
@@ -2035,24 +2388,62 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 }
 
-export type PreparedPreviewGameHandle = { destroy: (removeCanvas: boolean) => void };
+export type PreparedPreviewGameHandle = {
+  destroy: (removeCanvas: boolean) => void;
+  /**
+   * Play the running scene as a different kit, without reloading it.
+   *
+   * Returns false when the scene cannot take the switch yet - still loading, or between maps - so
+   * a console can leave its own control where it was rather than showing a change that did not
+   * happen. Always false under automation, where an override is refused outright.
+   */
+  setDeveloperKit: (kit: DeveloperKit | null) => boolean;
+  /** Every kit this run can be played as, or empty until the manifest has loaded. */
+  developerKitOptions: () => readonly DeveloperKit[];
+  /**
+   * The kit in force, or null while the run is being played as published.
+   *
+   * Read rather than pushed, because the scene also changes it on its own - the `K` key switches
+   * without React hearing anything - so a console that tracked only its own clicks would show a
+   * stale answer the moment anyone used the keyboard.
+   */
+  activeDeveloperKit: () => DeveloperKit | null;
+};
 
 export function bootPreparedGame(
   parent: HTMLElement,
   tag: string,
   transparencyPolicy: PreviewTransparencyPolicy,
   automationMode: GameplayAutomationMode | null = null,
+  developerKit: DeveloperKit | null = null,
 ): PreparedPreviewGameHandle {
-  return new Phaser.Game({
+  // A capture is a recording of one published run, so a developer override is refused here rather
+  // than merely defaulted: the transcript digests carry no record of an override, so a frame hash
+  // taken under one would be attributed to the package it is not showing.
+  const scene = new PreparedStageScene(
+    tag,
+    transparencyPolicy,
+    automationMode,
+    automationMode === null ? developerKit : null,
+  );
+  const game = new Phaser.Game({
     type: automationMode ? Phaser.CANVAS : Phaser.AUTO,
     width: GAMEPLAY_AUTOMATION_VIEWPORT.width,
     height: GAMEPLAY_AUTOMATION_VIEWPORT.height,
     parent,
     backgroundColor: "#000000",
-    scene: [new PreparedStageScene(tag, transparencyPolicy, automationMode)],
+    scene: [scene],
     scale: {
       mode: automationMode ? Phaser.Scale.NONE : Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
   });
+  return {
+    destroy: (removeCanvas: boolean) => game.destroy(removeCanvas),
+    // Refused for a capture at the handle as well as at the scene, so neither is the single place
+    // an override could leak into a recording.
+    setDeveloperKit: (kit) => (automationMode === null ? scene.switchDeveloperKit(kit) : false),
+    developerKitOptions: () => scene.developerKitOptions(),
+    activeDeveloperKit: () => (automationMode === null ? scene.activeDeveloperKit() : null),
+  };
 }

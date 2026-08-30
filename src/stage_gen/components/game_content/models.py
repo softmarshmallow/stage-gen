@@ -1,4 +1,4 @@
-"""Exact-current prepared player, mob, NPC, prop, and item catalogs."""
+"""Exact-current prepared player, mob, NPC, prop, item, and projectile catalogs."""
 
 from __future__ import annotations
 
@@ -22,6 +22,10 @@ from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAME_CONTENT_SCHEMA_VERSION = 2
 NPC_CONTENT_SCHEMA_VERSION = 3
+#: The player catalog versions on its own, as the NPC catalog already does. It gained a required
+#: `equipment` declaration that the other content families have no counterpart for, and bumping the
+#: shared constant would have re-versioned mob, prop, and item catalogs that did not change.
+PLAYER_CONTENT_SCHEMA_VERSION = 3
 
 MotionPlaybackMode = Literal["hold", "loop", "once", "gameplay_driven"]
 NpcWorldOrientation = Literal["front"]
@@ -46,6 +50,36 @@ PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE = {
 #: Climb states advance frame by frame from the player's position on the climbable rather than on
 #: a clock, so they are the only states whose playback the runtime drives.
 PLAYER_GAMEPLAY_DRIVEN_STATES = frozenset(PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE.values())
+
+#: What the character is drawn carrying. A closed name, not free text, for one reason: the way the
+#: character fights is also a closed name, and two closed names can be checked against each other.
+#:
+#: The authored prompt still says *which* object - a wooden training sword, a folded paper dart -
+#: exactly as a projectile's prompt describes the dart whose `silhouette` is `axial_v1`. This names
+#: only the class of thing, which is the part a validator can hold against `weapon_class`.
+PlayerEquipment = Literal[
+    "hand_weapon_v1",
+    "unarmed_v1",
+    "thrown_kit_v1",
+    "focus_implement_v1",
+]
+
+#: The one place that knows which kit each drawn equipment can actually fight with.
+#:
+#: The single declaration site, in the shape `PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE` established
+#: above. Its keys are gated against `PlayerEquipment` and its values against the gameplay
+#: contract's `weapon_class` vocabulary by test, because a member added to either side and not
+#: here would otherwise widen or silently forbid a pairing with nothing reporting it.
+#:
+#: A character who visibly carries a blade does not throw darts, and one who carries a bandolier of
+#: darts does not swing. That disagreement was previously unrepresentable: the equipment lived in
+#: free prose in this catalog and the kit in `gameplay.toml`, two files describing one fact.
+WEAPON_CLASSES_BY_PLAYER_EQUIPMENT: dict[PlayerEquipment, frozenset[str]] = {
+    "hand_weapon_v1": frozenset({"melee_dps_v1"}),
+    "unarmed_v1": frozenset({"melee_dps_v1"}),
+    "thrown_kit_v1": frozenset({"ranged_dps_v1"}),
+    "focus_implement_v1": frozenset({"ranged_dps_v1"}),
+}
 
 PLAYER_MOTION_STATES = frozenset(
     {
@@ -206,6 +240,9 @@ class PlayerContent(PersistedContractModel):
     age: int = Field(ge=18, le=130)
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
+    #: Required rather than defaulted. Any default here would be a claim about artwork nobody
+    #: authored, and the whole value of the field is that it cannot silently disagree with the kit.
+    equipment: PlayerEquipment
     motions: list[MotionPresentation] = Field(min_length=1)
     dialogue_art: DialogueArtDirection
 
@@ -244,8 +281,8 @@ class PlayerContent(PersistedContractModel):
 
 
 class PlayerContentCatalog(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["player-content-v2"]
+    schema_version: Literal[3]
+    kind: Literal["player-content-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=32)
@@ -427,7 +464,12 @@ class ItemContent(PersistedContractModel):
     item_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
     item_kind: Literal[
-        "currency", "healing_consumable", "traversal_tool", "key_item", "quest_collectible"
+        "currency",
+        "healing_consumable",
+        "traversal_tool",
+        "key_item",
+        "quest_collectible",
+        "throwable_ammo",
     ]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     #: How tall this subject is, as a multiple of the player.
@@ -471,6 +513,91 @@ class ItemContentCatalog(PersistedContractModel):
         return self
 
 
+#: What the artwork looks like, and therefore what the pipeline must draw and the runtime may do
+#: with it. The one facet that crosses the Python/consumer boundary, and it crosses for a reason
+#: the others do not: it is a statement about the published pixels, which is the single artifact
+#: both sides share. `radial` has no leading end and may be spun; `axial` has one and is drawn
+#: pointing along its travel; `irregular` has neither a clean axis nor symmetry and tumbles.
+ProjectileSilhouette = Literal["radial_v1", "axial_v1", "irregular_v1"]
+
+#: How the object travels. Named rather than numbered, exactly as the aggression archetype and the
+#: critical rate are: speed, gravity, range and collision box are how the game feels, which the
+#: consumer owns. Nothing in this package branches on the value.
+ProjectileFlight = Literal["flat_bolt_v1", "lobbed_arc_v1", "drifting_orb_v1"]
+
+#: What arrival resolves against, and how it reads. Same split and same reason: this names a kind,
+#: never a count, a radius, or a duration.
+ProjectileImpact = Literal["single_target_v1", "burst_v1", "piercing_v1"]
+
+
+class ProjectileContent(PersistedContractModel):
+    """One thrown, fired, or cast object a weapon can put in the air.
+
+    Three named facets rather than one conflated class, for a reason the graph makes concrete:
+    `_MAGNITUDE_FIELDS` excludes a field from the generate node's cache digest when it changes
+    nothing the image model can draw. `flight` and `impact` are exactly that, and half of a single
+    conflated string cannot be excluded - so conflating them would price every gameplay retune as a
+    full re-render of artwork that cannot change.
+
+    They also grow at different costs. A new silhouette is a leading prompt directive, a validation
+    rule and a review clause; a new flight or impact is one row in a consumer table and no
+    regeneration at all.
+    """
+
+    projectile_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    display_name: str
+    silhouette: ProjectileSilhouette
+    flight: ProjectileFlight
+    impact: ProjectileImpact
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    #: How long the object is along its own travel axis, as a multiple of the player's height.
+    #:
+    #: Length rather than height, and the one family measured across rather than up. Every
+    #: projectile is drawn pointing right, so its travel axis is its width; declaring a height for
+    #: a dart drawn lengthwise would describe how thick it is, which is not the dimension anyone
+    #: means. The published calibration names the axis it measured so the consumer cannot guess.
+    length_units: float | None = None
+    prompt: str
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        return normalized_text(value, "projectile display_name")
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "projectile prompt", multiline=True)
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "projectile reference_id")
+        return value
+
+    @field_validator("length_units")
+    @classmethod
+    def validate_length_units(cls, value: float | None) -> float | None:
+        return _validated_height_units(value, "projectile length_units")
+
+
+class ProjectileContentCatalog(PersistedContractModel):
+    schema_version: Literal[2]
+    kind: Literal["projectile-content-v2"]
+    game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
+    revision: int = Field(ge=1)
+    references: list[ContentReference] = Field(min_length=1, max_length=32)
+    #: At least one. The FILE is what a game may omit; a declared catalog holding nothing would be
+    #: a member whose references are all unused, which the closure check rejects anyway.
+    projectiles: list[ProjectileContent] = Field(min_length=1, max_length=64)
+
+    @model_validator(mode="after")
+    def validate_catalog(self) -> ProjectileContentCatalog:
+        unique_values((entry.projectile_id for entry in self.projectiles), "projectile_id")
+        _validate_reference_closure(self.references, self.projectiles)
+        return self
+
+
 def load_player_content_bytes(data: bytes) -> PlayerContentCatalog:
     return parse_toml_contract(data, model=PlayerContentCatalog, label="player content")
 
@@ -491,6 +618,10 @@ def load_item_content_bytes(data: bytes) -> ItemContentCatalog:
     return parse_toml_contract(data, model=ItemContentCatalog, label="item content")
 
 
+def load_projectile_content_bytes(data: bytes) -> ProjectileContentCatalog:
+    return parse_toml_contract(data, model=ProjectileContentCatalog, label="projectile content")
+
+
 def canonical_game_content_json(contract: PersistedContractModel) -> bytes:
     return canonical_contract_json(contract)
 
@@ -498,6 +629,8 @@ def canonical_game_content_json(contract: PersistedContractModel) -> bytes:
 __all__ = [
     "GAME_CONTENT_SCHEMA_VERSION",
     "NPC_CONTENT_SCHEMA_VERSION",
+    "PLAYER_CONTENT_SCHEMA_VERSION",
+    "WEAPON_CLASSES_BY_PLAYER_EQUIPMENT",
     "ContentReference",
     "DialogueArtDirection",
     "ItemContent",
@@ -509,10 +642,17 @@ __all__ = [
     "NpcWorldOrientation",
     "PlayerContent",
     "PlayerContentCatalog",
+    "PlayerEquipment",
+    "ProjectileContent",
+    "ProjectileContentCatalog",
+    "ProjectileFlight",
+    "ProjectileImpact",
+    "ProjectileSilhouette",
     "PropContent",
     "PropContentCatalog",
     "canonical_game_content_json",
     "load_item_content_bytes",
+    "load_projectile_content_bytes",
     "load_mob_content_bytes",
     "load_npc_content_bytes",
     "load_player_content_bytes",

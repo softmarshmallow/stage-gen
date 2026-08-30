@@ -42,3 +42,36 @@ export function hasHealingConsumable(
 ): boolean {
   return catalog.some((entry) => entry.item_kind === HEALING_ITEM_KIND);
 }
+
+// --- Ammunition ------------------------------------------------------------------------------
+
+/** The catalog role the runtime treats as throwable. Mirrors `ItemContent.item_kind` in Python. */
+export const AMMO_ITEM_KIND = "throwable_ammo";
+
+/**
+ * Which carried item a throwing class spends per shot.
+ *
+ * Deliberately not the projectile. What flies is a drawn object from the projectile catalog and is
+ * not something anyone picks up; what is *spent* is an inventory item, and a game is free to make
+ * those unrelated — a quiver of arrows and the arrow that appears in the air are the same idea but
+ * not the same record, and one of them has to fit in a bag.
+ *
+ * Catalog-ordered for the same determinism reason the healing selection is, and it ignores the bag
+ * for the same reason the projectile's texture is resolved at world build: this answers *what*
+ * would be spent, not whether the player can spend it right now.
+ */
+export function selectAmmoItemId(
+  catalog: readonly ConsumableCatalogEntry[],
+): string | null {
+  for (const entry of catalog) {
+    if (entry.item_kind === AMMO_ITEM_KIND) return entry.item_id;
+  }
+  return null;
+}
+
+/** Whether a package ships anything throwable at all, independent of what is carried. */
+export function hasThrowableAmmo(
+  catalog: readonly ConsumableCatalogEntry[],
+): boolean {
+  return catalog.some((entry) => entry.item_kind === AMMO_ITEM_KIND);
+}

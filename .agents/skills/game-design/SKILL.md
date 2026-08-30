@@ -19,6 +19,8 @@ Use these as the source of truth:
 4. [Asset contracts](../../../docs/spec/asset-contracts.md)
 5. [Dialogue and cutscene sequences](../../../docs/spec/game/dialogue-and-cutscene-sequences.md)
 6. [Soundtrack contract](../../../docs/game-soundtrack.md)
+7. [Web preview](../../../docs/web-preview.md), for what a named gameplay
+   choice actually looks like once the consumer runs it
 
 Resolve [`library/games/main.toml`](../../../library/games/main.toml) and inspect
 its selected package as the live example. Do not revive obsolete compatibility
@@ -32,12 +34,35 @@ shapes.
   interactions, and map audio.
 - `maps/<map_id>.toml`: visual generation of one environment only: camera,
   movement, ground, layers, references, and their prompts.
-- `content/*.toml`: pure asset identities and generation direction, without
-  gameplay relationships.
+- `content/*.toml`: asset identities and generation direction. These carry no
+  gameplay *numbers* and no placement, but they are not free of gameplay: a few
+  fields are closed names the package validator holds against `gameplay.toml`,
+  and `player.equipment` is the one to watch. See below.
 - `sequences/*.toml`: authored dialogue and control sequences.
 - `soundtrack.toml`: music identities and generation direction.
 
 Use stable `lower_snake_case` IDs. Keep every cross-reference explicit.
+
+## The character and the kit are one decision
+
+`gameplay.toml`'s `[combat] weapon_class` says how the character fights;
+`content/player.toml`'s `equipment` says what they are drawn carrying. They are
+one fact authored in two files, so for a combat-enabled package the validator
+refuses the pairings that cannot both be true - a `hand_weapon_v1` figure cannot
+fight as `ranged_dps_v1`, and a `thrown_kit_v1` figure cannot swing.
+
+Decide these together, and decide them before the cover, because the cover is
+the identity source every later strip is generated from. A cover showing a sword
+commits the package to melee; changing your mind afterwards means re-selecting
+the cover and re-rendering the whole player domain, not editing one line.
+
+The equipment name is only the *class* of thing. The player `prompt` still names
+the specific object, and the recipe supplies the structural direction - that it
+appears in every frame, or that it is never drawn at all. Do not repeat the
+structural direction in the prose; do name the object.
+
+`weapon_class = "ranged_dps_v1"` additionally requires a `projectile_id`
+resolving into `content/projectiles.toml`, and a melee class must not name one.
 
 ## Prepare map references first
 
@@ -65,6 +90,9 @@ composition; generated layers still require their own seamlessness validation.
 Review the authored package as a game design, not only as valid TOML: check that
 the content supports the intended gameplay, every relationship has one clear
 owner, and each visual reference is suitable for its exact generation role.
+Read the player prompt against the declared `equipment` and against the pinned
+cover: the validator compares two closed names and cannot read prose, so prose
+that contradicts the declaration passes closure and fails in the pixels.
 Record the required independent semantic review for accepted generated media.
 
 Run the canonical closure validator from the repository root:

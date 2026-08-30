@@ -41,6 +41,21 @@ def _graph() -> ExecutionGraph:
     )
 
 
+def _graph_with_projectile_edit(root: Path, old: str, new: str) -> ExecutionGraph:
+    """The Bellweather graph with one projectile field rewritten, resolved from a scratch copy."""
+
+    package = root / old.split(" ")[0]
+    shutil.copytree(BELLWEATHER, package)
+    catalog = package / "content/projectiles.toml"
+    source = catalog.read_text(encoding="utf-8")
+    assert old in source
+    catalog.write_text(source.replace(old, new, 1), encoding="utf-8")
+    return build_package_execution_graph(
+        resolve_game_package(package),
+        profile=package_graph_profile(StageGenConfig()),
+    )
+
+
 def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None:
     graph = _graph()
 
@@ -52,11 +67,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # every atlas against the baseline on a locally composited plate; the second applies that
     # reading and judges the residual on a plate composed with it. Two structured operations,
     # no image generation - both plates are assembled locally from shipped bytes.
-    assert len(graph.nodes) == 217
+    assert len(graph.nodes) == 221
     assert graph.operation_counts() == {
-        "local": 102,
-        "image_generation": 92,
-        "structured_generation": 20,
+        "local": 104,
+        "image_generation": 93,
+        "structured_generation": 21,
         "music_generation": 3,
     }
     assert graph.terminal_node_id == "manifest-assemble"
@@ -417,8 +432,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.08
-    assert projection.estimated_cost_high_usd == 22.4
+    assert projection.estimated_cost_low_usd == 4.125
+    assert projection.estimated_cost_high_usd == 22.68
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 
@@ -651,3 +666,46 @@ def test_editing_an_authored_member_reaches_the_nodes_that_capture_and_assemble_
         for node in changed.nodes
         if node.operation is not OperationKind.LOCAL
     }
+
+
+def test_a_projectile_fans_out_one_generated_sprite_and_a_family_review() -> None:
+    graph = _graph()
+
+    assert graph.node("projectile-paperwing_dart-generate").operation is (
+        OperationKind.IMAGE_GENERATION
+    )
+    assert graph.node("projectile-paperwing_dart-generate").outputs == (
+        "content/projectiles/paperwing_dart.png",
+    )
+    assert graph.node("projectile-paperwing_dart-validate").depends_on == (
+        "projectile-paperwing_dart-generate",
+    )
+    assert graph.node("projectiles-contact-sheet").depends_on == (
+        "projectile-paperwing_dart-validate",
+    )
+    assert graph.node("projectiles-review").operation is OperationKind.STRUCTURED_GENERATION
+
+
+def test_a_projectiles_cache_key_ignores_how_the_object_moves(tmp_path: Path) -> None:
+    """The concrete reason the facets are separate fields rather than one class name.
+
+    `flight` and `impact` change nothing an image model can draw, so they are excluded from the
+    generate node's digest exactly as a magnitude is. Half of a conflated string could not be, and
+    every gameplay retune would bill a full high-quality re-render of unchanged pixels.
+    """
+
+    baseline = _graph().node("projectile-paperwing_dart-generate").cache_key
+
+    for field, replacement in (
+        ('flight = "flat_bolt_v1"', 'flight = "lobbed_arc_v1"'),
+        ('impact = "single_target_v1"', 'impact = "burst_v1"'),
+        ("length_units = 0.50", "length_units = 0.75"),
+    ):
+        retuned = _graph_with_projectile_edit(tmp_path, field, replacement)
+        assert retuned.node("projectile-paperwing_dart-generate").cache_key == baseline
+
+    # The silhouette is the one facet that does change the artwork, so it must move the digest.
+    redrawn = _graph_with_projectile_edit(
+        tmp_path, 'silhouette = "axial_v1"', 'silhouette = "radial_v1"'
+    )
+    assert redrawn.node("projectile-paperwing_dart-generate").cache_key != baseline

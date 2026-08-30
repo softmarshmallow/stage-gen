@@ -48,6 +48,46 @@ export type BotPickupView = Readonly<{
   settled: boolean;
 }>;
 
+/**
+ * The distance band a weapon class wants a target in, in world units.
+ *
+ * Projected by the scene from the runtime's weapon-class table rather than restated here, because
+ * the reach the bot aims for and the reach the scene resolves are the same number and used to be
+ * two. `minimum` is zero for a class that has no distance too close, which is what keeps a melee
+ * policy walking all the way in.
+ */
+export type BotWeaponBand = Readonly<{
+  minimumUnits: number;
+  /** The distance the policy walks in to. Equal to `maximumUnits` for a class that gains nothing by closing. */
+  approachUnits: number;
+  maximumUnits: number;
+  verticalToleranceUnits: number;
+  /** Whether the class spends something to attack, and therefore can run out. */
+  requiresAmmo: boolean;
+  /**
+   * How high above the character's feet a thrown object leaves, or null for a class that throws
+   * nothing.
+   *
+   * The number a swing has no use for and a throw cannot do without: it is the height the flight
+   * path sits at, and therefore the height at which the terrain either clears or does not.
+   */
+  releaseHeightUnits: number | null;
+}>;
+
+/**
+ * The ground the character and its targets stand on, one surface height per column.
+ *
+ * Plain numbers rather than a query function, so the whole view stays a serialisable snapshot and a
+ * behaviour remains a function of its inputs. The navigation graph is built from the same profile
+ * but cannot answer this question: its nodes are walkable spans, and a projectile does not care
+ * where a character could stand — it cares what is in the way at the height it is flying.
+ */
+export type BotTerrainProfile = Readonly<{
+  /** Surface y per column, in world units. Index is the column, not the pixel. */
+  columnSurfaceY: readonly number[];
+  tileUnits: number;
+}>;
+
 export type BotWorldView = Readonly<{
   nowMs: number;
   deltaMs: number;
@@ -57,9 +97,15 @@ export type BotWorldView = Readonly<{
   pickups: readonly BotPickupView[];
   /** Whether the bag holds anything drinkable right now, not whether the package ships one. */
   healingCarried: boolean;
+  /** Whether the bag holds a round right now. Always true for a class that spends nothing. */
+  ammoCarried: boolean;
+  /** How far this class fights from, and how far off the level it will still engage. */
+  weaponBand: BotWeaponBand;
   /** False for a package with combat disabled, which makes every fighting behaviour decline. */
   combatEnabled: boolean;
   navigation: NavGraph;
+  /** What the ground does between here and there. Empty when the scene has no terrain to report. */
+  terrain: BotTerrainProfile;
   /** Walkable extent of the current map, which is what keeps a patrol on the map. */
   bounds: Readonly<{ left: number; right: number }>;
 }>;
@@ -89,6 +135,45 @@ export function sameFootLevel(
   toleranceUnits: number,
 ): boolean {
   return Math.abs(a.y - b.y) <= toleranceUnits;
+}
+
+/**
+ * Whether a flat shot from one point to another would reach, or hit the ground on the way.
+ *
+ * The rule the projectile itself obeys, asked one frame early: a shot dies where its own height
+ * meets the terrain surface, so a straight line at the release height either clears every column
+ * between the two or it does not. Sampled per column, because the terrain is per column and a
+ * midpoint test would fly straight through a one-column pillar.
+ *
+ * This exists because of a real softlock. Targeting used to ask only how far away a creature was
+ * and how close its feet were to the character's; a creature standing on a ledge satisfied both
+ * while the ledge face stood between them, so every throw died in the wall and the engage
+ * behaviour — which outranks pursuit — proposed the same throw forever. Declining is what lets
+ * pursuit take the frame and walk the character somewhere it can actually shoot from.
+ *
+ * The character's own column is skipped: it is standing on that ground, not shooting through it.
+ */
+export function lineOfFireClear(
+  terrain: BotTerrainProfile,
+  fromX: number,
+  toX: number,
+  flightY: number,
+): boolean {
+  const { columnSurfaceY, tileUnits } = terrain;
+  // A scene that reports no terrain blocks nothing. Refusing every shot would be worse than the
+  // defect this prevents.
+  if (columnSurfaceY.length === 0 || !(tileUnits > 0)) return true;
+  const first = Math.floor(Math.min(fromX, toX) / tileUnits);
+  const last = Math.floor(Math.max(fromX, toX) / tileUnits);
+  const standing = Math.floor(fromX / tileUnits);
+  for (let column = first; column <= last; column += 1) {
+    if (column === standing) continue;
+    const index = Math.min(Math.max(column, 0), columnSurfaceY.length - 1);
+    const surfaceY = columnSurfaceY[index];
+    // y grows downward, so the shot is in the air only while it is above the surface.
+    if (flightY >= surfaceY) return false;
+  }
+  return true;
 }
 
 /** Facing sign toward a point, with the current facing kept when already on top of it. */

@@ -107,13 +107,13 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "5abbf94f3acdf7e0aa3a368bdadb3fac1a9bd04c3b75b562ef4eaed8df162009",
-  "node_count": 217,
+  "topology_sha256": "bbca9d958ba295b5b5e662cd0caeb320bdf9719f2b8f0944f08908ad4f55d169",
+  "node_count": 221,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 102,
-    "image_generation": 92,
-    "structured_generation": 20,
+    "local": 104,
+    "image_generation": 93,
+    "structured_generation": 21,
     "music_generation": 3
   },
   "resources": [
@@ -147,7 +147,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact captured Bellweather closure, the content-sensitive execution-plan identity is
-`graph_sha256 = 6e05d46a6a637ac740bcf9a0fba5b856ee1fc647fcf60c615a60d382c49787a1`.
+`graph_sha256 = efcaabd6eba189418c4c48bc25ac0e263a0b33f880591d2563aaf94cccca95fd`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -158,22 +158,23 @@ the value is not a universal model constant.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 111 provider operations. Provider transport retries and
+The normal first-pass graph contains 117 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Maps | 2 maps × (4 layers + 1 ground), 8 loop passes split provider-assisted or local by each layer's own selected construction, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 2 | 0 | 19 |
+| Maps | 2 maps × (terrain topology design, 4 layers + 1 ground), 8 loop passes split provider-assisted or local by each layer's own selected construction, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 4 | 0 | 19 |
 | Player | concept, 11 canonical-source states, dialogue, validations, board, review, two motion-rebase judgements - a first pass over a locally composited plate, then a residual verification over a plate composed with that pass applied | 13 | 3 | 0 | 13 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
 | Items | 5 isolated items, validations, one board, one review | 5 | 1 | 0 | 6 |
+| Projectiles | 1 isolated projectile, single-subject validation, one board, one review; the whole domain is absent for a package that declares no projectile catalog, and present whenever it declares one, whether or not a weapon currently fires it | 1 | 1 | 0 | 2 |
 | UI | one inventory panel, deterministic layout/alpha validation, one review | 1 | 1 | 0 | 1 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **213 nodes** | **91** | **18** | **3** | **101** |
+| **Total** | **221 nodes** | **93** | **21** | **3** | **104** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -225,10 +226,10 @@ playback-only package edit changes package and manifest identity without invalid
 structured-review, or music nodes. Content-producing dependencies such as actor concept to motion
 generation remain cache-lineage dependencies.
 
-The live World checkpoint is the exact 31-node closure rooted at both map-review nodes: one
-package capture, 13 image generations or edits, 15 map-local canonicalization/composition
-operations, and two
-structured reviews. It cannot schedule any cast, catalog, soundtrack, gameplay-binding, or
+The live World checkpoint is the exact 41-node closure rooted at both map-review nodes: one
+package capture, 17 image generations or edits, 19 map-local canonicalization/composition
+operations, and four structured operations - one terrain topology design and one semantic review
+per map. It cannot schedule any cast, catalog, soundtrack, gameplay-binding, or
 manifest node. Each layer, ground, climbable, and portal generation writes a retained `*.raw.png`;
 only its dependent validator may write the canonical runtime-facing PNG.
 
@@ -276,10 +277,10 @@ Placement geometry is still checked on every edit: bottom-supported terrain atta
 exposed upper deck exactly `rise_tiles` above it are enforced against the map's authored occupancy
 when the package resolves, ahead of any node.
 
-The live Content checkpoint is the exact 174-node closure rooted at every cast/catalog/UI review,
-every soundtrack validation, and `gameplay-bindings-validate`: 75 image operations, 14 structured
-reviews, three music operations, and 82 local nodes including package capture. It cannot schedule
-map or manifest nodes. Twenty-five identity/catalog/UI images are initially independent; each actor's
+The live Content checkpoint is the exact 180-node closure rooted at every cast/catalog/UI review,
+every soundtrack validation, and `gameplay-bindings-validate`: 76 image operations, 17 structured
+operations, three music operations, and 84 local nodes including package capture. It cannot schedule
+map or manifest nodes. Twenty-six identity/catalog/UI images are initially independent; each actor's
 state and dialogue descendants become ready immediately after that actor's concept succeeds.
 Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
 
@@ -351,10 +352,10 @@ The generic executor repeatedly starts every node whose declared prerequisites s
 
 The resource-aware Bellweather projection uses planning assumptions of 120 seconds per image,
 30 seconds per structured review, and 180 seconds per music operation. With the Tier 4
-adapter-owned 150 image starts per minute, the projected terminal offset is **297.25 seconds
-(4m 57.25s)**. This is a scheduling estimate, not a live latency claim.
+adapter-owned 150 image starts per minute, the projected terminal offset is **311.05 seconds
+(5m 11.05s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 4.02–21.88 budgetary allowance**: USD 0.04–0.20 per image,
+The graph carries a broad **USD 4.125–22.68 budgetary allowance**: USD 0.04–0.20 per image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.

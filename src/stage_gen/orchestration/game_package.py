@@ -31,15 +31,18 @@ from stage_gen.components._secure_fs import (
 )
 from stage_gen.components.game_content import (
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
+    WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
     ItemContentCatalog,
     MobContentCatalog,
     NpcContentCatalog,
     PlayerContentCatalog,
+    ProjectileContentCatalog,
     PropContentCatalog,
     load_item_content_bytes,
     load_mob_content_bytes,
     load_npc_content_bytes,
     load_player_content_bytes,
+    load_projectile_content_bytes,
     load_prop_content_bytes,
 )
 from stage_gen.components.game_contract import (
@@ -132,6 +135,8 @@ class ResolvedGamePackage:
     npcs: NpcContentCatalog
     props: PropContentCatalog
     items: ItemContentCatalog
+    #: None for a package whose weapons throw nothing, which is most of them.
+    projectiles: ProjectileContentCatalog | None
     sequence_catalog: GameSequenceCatalog
     sequences: tuple[GameSequence, ...]
     files: tuple[ResolvedPackageFile, ...]
@@ -159,6 +164,11 @@ class ResolvedGamePackage:
             "npc_ids": [entry.npc_id for entry in self.npcs.npcs],
             "prop_ids": [entry.prop_id for entry in self.props.props],
             "item_ids": [entry.item_id for entry in self.items.items],
+            "projectile_ids": (
+                []
+                if self.projectiles is None
+                else [entry.projectile_id for entry in self.projectiles.projectiles]
+            ),
             "sequence_ids": [entry.sequence_id for entry in self.sequences],
             "track_ids": list(self.soundtrack.track_ids),
         }
@@ -497,6 +507,15 @@ def _resolve_captured_package(
         load_item_content_bytes,
         "invalid_item_content",
     )
+    projectiles = (
+        None
+        if game.content.projectiles is None
+        else _load_locked(
+            member(game.content.projectiles.source),
+            load_projectile_content_bytes,
+            "invalid_projectile_content",
+        )
+    )
     sequence_catalog = _load_locked(
         member(game.sequences.index_source),
         load_game_sequence_catalog_bytes,
@@ -545,6 +564,7 @@ def _resolve_captured_package(
         ("NPC", npcs),
         ("prop", props),
         ("item", items),
+        *(() if projectiles is None else (("projectile", projectiles),)),
     ):
         for content_reference in catalog.references:
             data = locked(
@@ -571,6 +591,7 @@ def _resolve_captured_package(
         npcs=npcs,
         props=props,
         items=items,
+        projectiles=projectiles,
         ui=ui,
         sequence_catalog=sequence_catalog,
         sequences=sequences,
@@ -609,6 +630,7 @@ def _resolve_captured_package(
         npcs=npcs,
         props=props,
         items=items,
+        projectiles=projectiles,
         sequence_catalog=sequence_catalog,
         sequences=sequences,
         files=resolved_files,
@@ -638,6 +660,7 @@ def _validate_cross_contracts(
     npcs: NpcContentCatalog,
     props: PropContentCatalog,
     items: ItemContentCatalog,
+    projectiles: ProjectileContentCatalog | None,
     sequence_catalog: GameSequenceCatalog,
     sequences: tuple[GameSequence, ...],
 ) -> None:
@@ -651,6 +674,7 @@ def _validate_cross_contracts(
         npcs.game_id,
         props.game_id,
         items.game_id,
+        *(() if projectiles is None else (projectiles.game_id,)),
         sequence_catalog.game_id,
         *(entry.game_id for entry in sequences),
     ]
@@ -794,6 +818,22 @@ def _validate_cross_contracts(
                 "death",
             }
         )
+        # Artwork obligation, in the same shape as the states above: the drawn character and the
+        # kit they fight with are one fact authored in two files, and until this check existed a
+        # package could ship a sword-carrying figure that throws darts with nothing objecting.
+        #
+        # Both sides are closed names, so this reads no prose and makes no judgement about whether
+        # the weapon suits the character - that stays the author's business. It only refuses two
+        # declarations that cannot both be true. What the picture actually shows is judged by the
+        # actor review, which can see it, exactly as mob facing is.
+        for entry in player.players:
+            allowed = WEAPON_CLASSES_BY_PLAYER_EQUIPMENT[entry.equipment]
+            if gameplay.combat.weapon_class not in allowed:
+                raise GamePackageValidationError(
+                    "player_equipment_mismatch",
+                    f"player {entry.player_id} is drawn as {entry.equipment}, which cannot fight "
+                    f"as {gameplay.combat.weapon_class}",
+                )
     _assert_subset(
         required_player_states,
         {motion.state for motion in player.players[0].motions},
@@ -809,6 +849,23 @@ def _validate_cross_contracts(
 
     _assert_subset(gameplay.player.starting_item_ids, item_ids, "starting item_id")
     _assert_subset({gameplay.inventory.currency_item_id}, item_ids, "currency item_id")
+    # Guarded rather than folded into the calls above: the field is optional, and `_assert_subset`
+    # takes an iterable of names, so an unset projectile would be reported as the id `None`.
+    #
+    # A package that names a round it did not draw has published a world that does not hold
+    # together, so the reference is resolved here. The converse is deliberately not an error: a
+    # catalog holding something no weapon currently fires is unspent art, not a broken package,
+    # and a game with a second weapon class would make that reading wrong.
+    projectile_ids = (
+        set() if projectiles is None else {entry.projectile_id for entry in projectiles.projectiles}
+    )
+    if gameplay.combat.projectile_id is not None:
+        if projectiles is None:
+            raise GamePackageValidationError(
+                "unresolved_cross_reference",
+                "gameplay names a projectile but the package declares no projectile catalog",
+            )
+        _assert_subset({gameplay.combat.projectile_id}, projectile_ids, "projectile_id")
     _assert_subset(
         {
             entry.mob_id

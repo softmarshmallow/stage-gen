@@ -220,6 +220,16 @@ export type PreparedRuntimeManifest = Readonly<{
     asset: RuntimeArtifact;
     calibration: SubjectCalibration;
   }>[];
+  /** Empty for a package whose weapons throw nothing, which is most of them. */
+  projectiles: readonly Readonly<{
+    projectile_id: string;
+    display_name: string;
+    silhouette: string;
+    flight: string;
+    impact: string;
+    asset: RuntimeArtifact;
+    calibration: SubjectCalibration;
+  }>[];
   ui: Readonly<{ inventory_panel: PreparedInventoryPanel }>;
   soundtrack: Readonly<{
     playback: Readonly<{ selection: "shuffle"; no_immediate_repeat: true }>;
@@ -501,12 +511,19 @@ function subjectCalibration(value: unknown, label: string): SubjectCalibration {
   if (!Number.isSafeInteger(subjectExtentPx)) {
     throw new Error(`${label}.subject_extent_px must be a whole number of pixels`);
   }
+  const rawAxis = record["extent_axis"];
+  // Absent means height, which is what every family that stands still declares and what every
+  // record published before a projectile needed a second axis carries.
+  if (rawAxis !== undefined && rawAxis !== "height" && rawAxis !== "width") {
+    throw new Error(`${label}.extent_axis must be height or width`);
+  }
   return Object.freeze({
     heightUnits: positive(record["height_units"], `${label}.height_units`),
     heightUnitsSource: text(record["height_units_source"], `${label}.height_units_source`),
     sourcePxPerUnit: positive(record["source_px_per_unit"], `${label}.source_px_per_unit`),
     measuredSha256,
     subjectExtentPx,
+    extentAxis: rawAxis === undefined ? ("height" as const) : rawAxis,
   });
 }
 
@@ -971,6 +988,26 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     const item = object(rawItem, `items[${index}]`);
     return Object.freeze({ item_id: id(item.item_id, "item_id"), display_name: text(item.display_name, "item display_name"), item_kind: text(item.item_kind, "item kind"), calibration: subjectCalibration(item.calibration, `items[${index}].calibration`), asset: artifact(item.asset, "item asset") });
   });
+  // Absent for every package published before the family existed, and for every game whose
+  // weapons throw nothing. Both mean the same thing: nothing to put in the air.
+  const projectiles = (root.projectiles === undefined
+    ? []
+    : array(root.projectiles, "projectiles")
+  ).map((rawProjectile, index) => {
+    const entry = object(rawProjectile, `projectiles[${index}]`);
+    return Object.freeze({
+      projectile_id: id(entry.projectile_id, "projectile_id"),
+      display_name: text(entry.display_name, "projectile display_name"),
+      silhouette: text(entry.silhouette, "projectile silhouette"),
+      flight: text(entry.flight, "projectile flight"),
+      impact: text(entry.impact, "projectile impact"),
+      calibration: subjectCalibration(
+        entry.calibration,
+        `projectiles[${index}].calibration`,
+      ),
+      asset: artifact(entry.asset, "projectile asset"),
+    });
+  });
   const ui = object(root.ui, "ui");
   const rawInventoryPanel = object(ui.inventory_panel, "ui.inventory_panel");
   const inventoryPanelLayout = parseInventoryPanelLayout(rawInventoryPanel);
@@ -1014,6 +1051,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     npcs: Object.freeze(npcs),
     props: Object.freeze(props),
     items: Object.freeze(items),
+    projectiles: Object.freeze(projectiles),
     ui: Object.freeze({ inventory_panel: inventoryPanel }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),

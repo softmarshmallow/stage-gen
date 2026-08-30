@@ -42,6 +42,8 @@ export default async function PreviewPage({
   const transparencyMode = input?.transparencyMode ?? (prepared ? "native" : null);
   const policy = previewPolicyForRunMode(transparencyMode);
   if (automationMode) {
+    // A capture records one published run. The override is dropped here as well as inside
+    // `bootPreparedGame`, so neither the shell nor the scene can be the one place it leaks.
     return (
       <main
         data-testid="gameplay-canvas-only-shell"

@@ -8,9 +8,11 @@ import {
 describe("player intent", () => {
   test("the neutral intent asks for nothing at all", () => {
     // A source with nothing to say must not move, swing, or spend anything on the player's behalf.
-    expect(Object.values(NEUTRAL_PLAYER_INTENT).every((value) => value === false)).toBe(
-      true,
-    );
+    // Every action is a boolean and every one of them is off; `face` is the one field that is not
+    // an action but an override, and "no override" is null rather than a direction.
+    const { face, ...actions } = NEUTRAL_PLAYER_INTENT;
+    expect(Object.values(actions).every((value) => value === false)).toBe(true);
+    expect(face).toBeNull();
     expect(playerIntent()).toEqual(NEUTRAL_PLAYER_INTENT);
   });
 
@@ -27,7 +29,7 @@ describe("player intent", () => {
     const intent = playerIntent({ jump: true });
     expect(Object.isFrozen(intent)).toBe(true);
     expect(() => {
-      (intent as { -readonly [K in keyof PlayerIntent]: boolean }).jump = false;
+      (intent as { -readonly [K in keyof PlayerIntent]: PlayerIntent[K] }).jump = false;
     }).toThrow();
     expect(intent.jump).toBe(true);
   });
@@ -38,6 +40,7 @@ describe("player intent", () => {
     expect(Object.keys(NEUTRAL_PLAYER_INTENT).sort()).toEqual([
       "attack",
       "down",
+      "face",
       "jump",
       "left",
       "right",

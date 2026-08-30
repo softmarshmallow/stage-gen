@@ -148,7 +148,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # model and its validator, the chunk grammar, the design loop, and the package init.
         # The motion-rebase contract adds its recipe module and the provider-neutral plate
         # compositor it shares with the asset unit.
-        assert len(wheel_entries) <= 188
+        # The player-equipment contract adds one: the recipe-owned art directives keyed on the
+        # authored equipment, which the prompt builder and the actor review both read.
+        assert len(wheel_entries) <= 189
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -187,8 +189,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The asset-scale documentation figures add two: the deterministic renderer that
         # composites them and its focused test. The motion-rebase contract adds four: two
         # source modules and their focused tests. The asset unit adds its own recipe module
-        # and focused tests.
-        assert len(sdist_entries) <= 408
+        # and focused tests. The projectile asset family adds four: the silhouette art
+        # declaration, the authored Bellweather catalog, and two focused test modules.
+        assert len(sdist_entries) <= 414
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.

@@ -222,6 +222,7 @@ function manifestFixture(): Record<string, unknown> {
         { track_id: "boss_theme" },
       ],
     },
+    projectiles: [{ projectile_id: "paperwing_dart" }],
     sequences: [{ sequence_id: "meet-baker" }],
   };
 }
@@ -474,5 +475,156 @@ describe("gameplay-contract-v1 prepared runtime boundary", () => {
       mutate(manifest);
       expect(() => assertFixtureClosure(manifest)).toThrow(message);
     }
+  });
+});
+
+describe("a manifest published before a defaulted field existed", () => {
+  test("the exact combat block a shipped run carries still parses", () => {
+    // Copied from `out/bellweather-loop-v5/manifest.json`. Thirty-two of the thirty-four runs on
+    // disk carry this block, and every one of them was unreadable while a missing key failed as
+    // hard as an unknown one — a defect introduced by adding `critical_profile`, not by this
+    // change, and repaired here because the same shape is about to be added twice more.
+    const root = gameplayFixture();
+    root.combat = {
+      enabled: true,
+      basic_action: "basic_attack",
+      secondary_action: "skill_cast",
+      contact_damage: true,
+      lethal_presentation: false,
+      defeat_presentation: "story_beast_disperses_into_page_light",
+    };
+
+    const gameplay = parsePreparedGameplayContract(root);
+
+    expect(gameplay.combat.critical_profile).toBe("none");
+    expect(gameplay.combat.weapon_class).toBe("melee_dps_v1");
+    expect(gameplay.combat.projectile_id).toBeNull();
+  });
+
+  test("a key that is present is still validated exactly as strictly", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), critical_profile: "constant_v1" };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow("critical_profile");
+  });
+
+  test("a required key with no default is still required", () => {
+    const root = gameplayFixture();
+    const combat = { ...(root.combat as Record<string, unknown>) };
+    delete combat.contact_damage;
+    root.combat = combat;
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow("is required");
+  });
+
+  test("an unknown key is still refused, because it describes a rule this reader drops", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), stamina_profile: "brisk_v1" };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow("is not a supported key");
+  });
+});
+
+describe("the weapon class a package fights with", () => {
+  test("both members of the taxonomy parse", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), weapon_class: "melee_dps_v1" };
+    expect(parsePreparedGameplayContract(root).combat.weapon_class).toBe("melee_dps_v1");
+
+    root.combat = {
+      ...(root.combat as object),
+      weapon_class: "ranged_dps_v1",
+      projectile_id: "paperwing_dart",
+    };
+    const ranged = parsePreparedGameplayContract(root).combat;
+    expect(ranged.weapon_class).toBe("ranged_dps_v1");
+    expect(ranged.projectile_id).toBe("paperwing_dart");
+  });
+
+  test("a class outside the taxonomy is refused rather than defaulted", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), weapon_class: "hitscan_dps_v1" };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow("weapon_class");
+  });
+
+  test("an explicit null projectile means the same as an absent one", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), projectile_id: null };
+
+    expect(parsePreparedGameplayContract(root).combat.projectile_id).toBeNull();
+  });
+
+  test("a projectile id that is not a snake identifier is refused", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), projectile_id: "Throwing-Stone" };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow("projectile_id");
+  });
+});
+
+describe("the projectile must be in the catalog the manifest published", () => {
+  test("a class naming a projectile the package did not draw is refused at load", () => {
+    // The same closure question the currency already answers. Finding this out at the first throw
+    // instead of at load would mean a package that looks fine until someone plays it.
+    const root = gameplayFixture();
+    root.combat = {
+      ...(root.combat as object),
+      weapon_class: "ranged_dps_v1",
+      projectile_id: "missing_throwable",
+    };
+
+    expect(() => assertFixtureClosure(manifestFixture(), root)).toThrow(
+      "gameplay.combat.projectile_id does not resolve to manifest projectiles",
+    );
+  });
+
+  test("a class naming a projectile the package did draw resolves", () => {
+    const root = gameplayFixture();
+    root.combat = {
+      ...(root.combat as object),
+      weapon_class: "ranged_dps_v1",
+      projectile_id: "paperwing_dart",
+    };
+
+    expect(() => assertFixtureClosure(manifestFixture(), root)).not.toThrow();
+  });
+});
+
+describe("the reader mirrors the pairing Python enforces", () => {
+  test("a throwing class with nothing to throw is refused at load", () => {
+    // Unmirrored, such a manifest parses clean, installs no projectile pool, and then declines
+    // every attack for the rest of the run with nothing logged.
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), weapon_class: "ranged_dps_v1" };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow(
+      "must be named by a throwing weapon_class and by no other",
+    );
+  });
+
+  test("a swinging class naming a projectile is refused too", () => {
+    const root = gameplayFixture();
+    root.combat = {
+      ...(root.combat as object),
+      weapon_class: "melee_dps_v1",
+      projectile_id: "throwing_stone",
+    };
+
+    expect(() => parsePreparedGameplayContract(root)).toThrow(
+      "must be named by a throwing weapon_class and by no other",
+    );
+  });
+
+  test("a manifest predating both fields still parses as an unarmed-projectile melee package", () => {
+    const root = gameplayFixture();
+    const combat = { ...(root.combat as Record<string, unknown>) };
+    delete combat.weapon_class;
+    delete combat.projectile_id;
+    root.combat = combat;
+
+    const gameplay = parsePreparedGameplayContract(root);
+    expect(gameplay.combat.weapon_class).toBe("melee_dps_v1");
+    expect(gameplay.combat.projectile_id).toBeNull();
   });
 });

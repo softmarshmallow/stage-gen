@@ -99,6 +99,25 @@ through a one-way floating platform when no ladder entry takes priority. Generat
 only after a keyboard gesture because browsers block autoplay. The diagnostic HP/inventory
 overlay is hidden by default and toggles with Command+Backtick; it is not gameplay HUD.
 
+The console below the canvas switches the developer kit, and K cycles the same choice from the
+keyboard. This exists because a weapon class and the character's drawn equipment are one authored
+decision, so trying the other arm by editing TOML means re-rendering the whole player domain -
+sixteen provider operations - while the question a developer is usually asking is just "how does
+the other arm play on this map".
+
+The controls are buttons acting on the running scene, not links, and the page does not navigate or
+reload. That is the point: a kit comparison is a question about the map already on screen, and
+answering it by reloading would throw away the map, the level, and the position that made the
+question worth asking. Selecting the kit marked `·authored` clears the override rather than setting
+another one, so returning to what shipped is the same control.
+
+It is an override and never an authored fact. The parsed gameplay contract is untouched; only the
+scene's own decision about which class it is holding changes, so nothing published moves. What is
+offered comes from what the run reports it can play, so a run that drew no projectile has exactly
+one kit and shows no console at all - as every run generated before the projectile catalog existed
+does. The override is refused under fixed-frame automation, in both the scene and the boot call, so
+a capture is always a recording of the run as published.
+
 Q spends the first healing consumable the player carries, in manifest order, and restores a share
 of the authored pool. A drink at full health is refused rather than clamped, so the item is not
 lost. Which items qualify comes from the catalog's `item_kind`; a package that ships none records a
@@ -128,11 +147,50 @@ position rather than `Math.random`, so a replayed run rolls the same criticals. 
 number is drawn larger, hotter, with a heavier outline and a trailing `!`, and it punches and rises
 further than an ordinary one. Reduced motion still flattens the movement for both.
 
+`[combat] weapon_class` names how the character fights. `melee_dps_v1` swings the `basic_action`
+strip over a band a little under a tile and a half wide; `ranged_dps_v1` throws on the
+`secondary_action` strip. Both deal the same damage — distance is what the throwing class buys, and
+a character that kills from five tiles never walks into contact and never pays the contact-damage
+tax. Neither costs an extra generated image: both attack poses are already drawn for every
+combat-enabled package. A package that names no class swings, which is what every run published
+before the field did.
+
+The class is not free to pick, though, because the character has to be drawn able to use it. The
+player catalog declares `equipment` — `hand_weapon_v1`, `unarmed_v1`, `thrown_kit_v1`, or
+`focus_implement_v1` — and package resolution refuses a combination the two closed vocabularies do
+not admit, so a figure carrying a sword cannot be given a throwing class. Bellweather is the
+`hand_weapon_v1` case and therefore swings: the wayfarer is drawn with a wooden training sword, on
+a cover that the whole player domain is generated from. The equipment does not reach the runtime
+manifest at all — it decides what gets drawn, and the runtime learns how the character fights from
+`weapon_class` alone.
+
+What flies is a **projectile**, authored in `content/projectiles.toml` and drawn as its own
+generated sprite. Each entry names three facets the director varies independently. `silhouette`
+says what is drawn and along which axis — `radial_v1` has no leading end and is spun in flight,
+`axial_v1` is drawn pointing right and is mirrored and aimed along its arc, `irregular_v1` tumbles.
+`flight` says how it moves — `flat_bolt_v1` crosses six tiles level and fast, `lobbed_arc_v1` falls
+so it can clear a lip, `drifting_orb_v1` is slow enough to walk around. `impact` says what arrival
+resolves against — `single_target_v1`, `burst_v1` for everything the box touches on the frame it
+lands, or `piercing_v1`, which keeps flying. Only the silhouette reaches the image model; changing
+how an object moves or lands regenerates nothing.
+
+The two weapon classes disagree about height, and deliberately. A swing compares feet and reaches
+one terrain level either way. A thrown object is simply where it is, so it connects with whatever
+body its flight path crosses — roughly one deck up and one deck down for a common creature, and
+further below for a tall one. A shot expires at its range, at the edge of the map, or against a
+rising hillside, using the same terrain query a dropped item settles on.
+
 The preview plays itself. Auto-play is on by default and hands the controls back the moment a key
 is touched, holding them for the human for a second and a half after the last input, so inspecting
 the run by hand needs no mode change; P switches the bot off entirely and says so in the stat log.
 A fixed-frame automation run gets no bot at all, because that capture records scripted input and a
-second actor inside it would be recording the bot instead.
+second actor inside it would be recording the bot instead. The bot fights at whatever distance the
+weapon class wants: a swinging class walks all the way into contact, and a throwing class holds
+station between two and a half and five and a half tiles — outside the reach of every aggression
+archetype in the roster — stepping back if a creature closes inside that floor, and keeping the
+target in front of it while it does. A throwing class also checks the ground: a creature standing
+behind a rise is declined rather than fired at, because the shot would die in the rise and the
+attack behaviour outranks the one that would have walked somewhere better.
 
 What the bot presses is decided by [`bot-hunter.ts`](../web/lib/runtime/bot-hunter.ts) — stand down,
 heal, engage, collect, pursue, patrol, arbitrated by priority once per frame — and where it can go

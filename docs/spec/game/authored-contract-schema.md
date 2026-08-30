@@ -101,6 +101,11 @@ source = "content/props.toml"
 [content.items]
 source = "content/items.toml"
 
+# Optional, and the only optional content family. A game whose weapons throw
+# nothing omits the section and ships no projectile artwork.
+[content.projectiles]
+source = "content/projectiles.toml"
+
 [sequences]
 index_source = "sequences/index.toml"
 
@@ -136,7 +141,8 @@ basis = ["Original authored package direction."]
   questions and are never reconciled: magnitude is a property of the world, build is a
   property of the art style.
 - Player, mob, and NPC IDs are unique `lower_snake_case` identifiers. Cast IDs
-  must resolve to their respective content catalogs.
+  must resolve to their respective content catalogs. `content.projectiles` is
+  optional; when declared it must resolve to `content/projectiles.toml`.
 - The universe, gameplay, UI, soundtrack, content, and sequence-catalog paths
   have fixed package-relative locations.
 - Every map source is exactly `maps/<map_id>.toml`; map IDs and sources are
@@ -159,14 +165,18 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 | `gameplay.toml` | Movement, entry map, transition relationships, population, combat, loot, interactions, quests, and effects |
 | `ui.toml` | Generated interface presentation and layout |
 | `maps/<map_id>.toml` | Visual/static map composition, terrain occupancy, ladder placement, and portal presentation/anchors |
-| Content catalogs | Player, mob, NPC, prop, and item identities, visual references, motion presentation, and NPC catalog-wide world orientation |
+| Content catalogs | Player, mob, NPC, prop, item, and projectile identities, visual references, motion presentation, the player's drawn equipment, and NPC catalog-wide world orientation |
 | `soundtrack.toml` | Track identities, creative briefs, and playback policy |
 | Sequence catalog and sources | Dialogue/cutscene graph and outcomes |
 
 In particular, a map owns ladder and portal composition per map, while
 `gameplay.toml` owns climb permission and portal destinations. Gameplay
 `crouch` authorizes the posture; the player catalog supplies its motion frames
-and playback contract.
+and playback contract. Gameplay `[combat] weapon_class` says how the character
+fights; the player catalog's `equipment` says what they are drawn carrying.
+Both are closed names, so unlike the pairings above this one is enforced rather
+than merely owned: for a combat-enabled package, resolution rejects a
+combination the vocabularies do not admit as `player_equipment_mismatch`.
 
 ## Resolution and projection
 

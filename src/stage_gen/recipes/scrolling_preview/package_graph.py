@@ -125,6 +125,9 @@ def build_package_execution_graph(
     terminal_nodes.extend(_add_npc_nodes(builder, package_root))
     terminal_nodes.append(_add_prop_nodes(builder, package_root))
     terminal_nodes.append(_add_item_nodes(builder, package_root))
+    projectiles = _add_projectile_nodes(builder, package_root)
+    if projectiles is not None:
+        terminal_nodes.append(projectiles)
     terminal_nodes.append(_add_ui_nodes(builder, package_root))
     terminal_nodes.extend(_add_soundtrack_nodes(builder, package_root))
 
@@ -626,7 +629,14 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
 #: appearance only, so a magnitude never reaches a prompt and must not invalidate generated
 #: artwork: authoring one would otherwise force a full re-render of pixels that cannot change.
 #: Magnitude still reaches the manifest, which binds the whole package closure.
-_MAGNITUDE_FIELDS: set[str] = {"height_units"}
+#:
+#: The same argument covers a projectile's `length_units`, and extends to `flight` and `impact`:
+#: those name how an object moves and what its arrival resolves against, neither of which an image
+#: model can draw. Excluding them is what makes a gameplay retune free — a director who decides a
+#: dart should arc instead of fly flat would otherwise pay a full high-quality re-render for pixels
+#: that cannot change. This is also the concrete reason those facets are separate fields rather than
+#: one conflated class name: half of a single string cannot be excluded from a digest.
+_MAGNITUDE_FIELDS: set[str] = {"height_units", "length_units", "flight", "impact"}
 
 
 def _without_magnitude(catalog: dict[str, object], key: str) -> dict[str, object]:
@@ -978,6 +988,83 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
             ),
         ),
         outputs=("content/items/review.json",),
+    ).node_id
+
+
+def _add_projectile_nodes(builder: _GraphBuilder, package_root: str) -> str | None:
+    """Fan out one generated sprite per authored projectile, or nothing for a package with none.
+
+    Deliberately the same four-node shape the item catalog uses - generate, validate, contact
+    sheet, review - because a projectile is the same kind of artifact: one isolated object on
+    transparent ground, reviewed as a family rather than one at a time. What differs is the
+    validation, which additionally demands a single connected subject, and the prompt, which leads
+    with the axis directive the silhouette declares.
+
+    Returning None rather than an empty group keeps the graph of a package that fires nothing
+    byte-identical to what it was before this family existed.
+    """
+
+    catalog = builder.package.projectiles
+    if catalog is None:
+        return None
+    references = {entry.reference_id: entry for entry in catalog.references}
+    validations: list[str] = []
+    for projectile in catalog.projectiles:
+        generated = builder.add_external(
+            f"projectile-{projectile.projectile_id}-generate",
+            domain="projectiles",
+            description=f"generate isolated projectile {projectile.projectile_id}",
+            operation=OperationKind.IMAGE_GENERATION,
+            depends_on=(package_root,),
+            cache_depends_on=(),
+            input_digests=(
+                _visual_direction_digest(builder.package),
+                _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
+                _object_sha256(projectile.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
+                *_reference_digests(references, projectile.reference_ids),
+            ),
+            outputs=(f"content/projectiles/{projectile.projectile_id}.png",),
+        )
+        validations.append(
+            builder.add(
+                f"projectile-{projectile.projectile_id}-validate",
+                domain="projectiles",
+                description=(
+                    "validate isolated alpha, single-subject framing, and axis for projectile "
+                    f"{projectile.projectile_id}"
+                ),
+                operation=OperationKind.LOCAL,
+                depends_on=(generated.node_id,),
+                input_digests=(
+                    _object_sha256(projectile.model_dump(mode="json", exclude=_MAGNITUDE_FIELDS)),
+                ),
+                outputs=(f"content/projectiles/{projectile.projectile_id}.validation.json",),
+                duration_seconds=0.5,
+            ).node_id
+        )
+    contact = builder.add(
+        "projectiles-contact-sheet",
+        domain="projectiles",
+        description="assemble the complete projectile catalog review board",
+        operation=OperationKind.LOCAL,
+        depends_on=tuple(validations),
+        input_digests=(
+            _object_sha256(_without_magnitude(catalog.model_dump(mode="json"), "projectiles")),
+            _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+        ),
+        outputs=("content/projectiles/contact-sheet.png",),
+        duration_seconds=1.0,
+    )
+    return builder.add_external(
+        "projectiles-review",
+        domain="projectiles",
+        description="review complete projectile identity, isolation, and axis coverage",
+        operation=OperationKind.STRUCTURED_GENERATION,
+        depends_on=(contact.node_id,),
+        input_digests=(
+            _object_sha256(_without_magnitude(catalog.model_dump(mode="json"), "projectiles")),
+        ),
+        outputs=("content/projectiles/review.json",),
     ).node_id
 
 

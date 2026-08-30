@@ -28,8 +28,8 @@ async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolatio
     )
     assert first.summary.ok is True
     assert first.summary.provider_operation_counts == {
-        "image_generation": 92,
-        "structured_generation": 20,
+        "image_generation": 93,
+        "structured_generation": 21,
         "music_generation": 3,
     }
     by_id = {trace.node_id: trace for trace in first.summary.nodes}
@@ -166,13 +166,18 @@ async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) ->
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 176
+    assert len(summary.nodes) == 180
     assert summary.provider_operation_counts == {
-        "image_generation": 75,
-        "structured_generation": 16,
+        "image_generation": 76,
+        "structured_generation": 17,
         "music_generation": 3,
     }
     node_ids = {trace.node_id for trace in summary.nodes}
     assert "gameplay-bindings-validate" in node_ids
+    # The projectile is a content family like props and items, and its sprite is a required
+    # runtime artifact. Absent from this closure, the content checkpoint produced everything
+    # except that sprite and integration then failed on it.
+    assert "projectiles-review" in node_ids
+    assert "projectile-paperwing_dart-generate" in node_ids
     assert "manifest-assemble" not in node_ids
     assert not any(node_id.startswith("map-") for node_id in node_ids)

@@ -30,6 +30,7 @@ from stage_gen.components.game_content import (
     MotionPresentation,
     NpcContent,
     PlayerContent,
+    ProjectileContent,
     PropContent,
 )
 from stage_gen.components.game_sequence import DialogueNode
@@ -58,7 +59,7 @@ from stage_gen.media import (
     probe_audio,
     repack_alpha_components,
 )
-from stage_gen.media.sprite_sheets import split_atlas_columns
+from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
 from stage_gen.orchestration.execution_graph import (
     CacheDisposition,
     ExecutionGraph,
@@ -99,7 +100,11 @@ from stage_gen.recipes.scrolling_preview.motion_rebase import (
     motion_rebase_verification_prompt,
     parse_motion_rebase,
 )
+from stage_gen.recipes.scrolling_preview.projectile_silhouettes import (
+    projectile_silhouette_art,
+)
 from stage_gen.recipes.scrolling_preview.soundtrack import soundtrack_track_prompt
+from stage_gen.recipes.scrolling_preview.weapon_silhouettes import player_equipment_art
 from stage_gen.reliability import (
     atomic_write_bytes,
     atomic_write_json,
@@ -120,6 +125,9 @@ _NPC_NODE = re.compile(
 )
 _CATALOG_NODE = re.compile(
     r"^(?P<kind>prop|item)-(?P<entity_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
+)
+_PROJECTILE_NODE = re.compile(
+    r"^projectile-(?P<entity_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
 )
 _TRACK_NODE = re.compile(r"^track-(?P<track_id>[a-z0-9_]+)-(?P<action>generate|validate)$")
 _UI_INVENTORY_NODE = re.compile(r"^ui-inventory-panel-(?P<action>generate|validate|review)$")
@@ -192,6 +200,10 @@ class PreparedContentNodeHandler:
             return await self._catalog_review(node, "prop")
         if node.node_id == "items-review":
             return await self._catalog_review(node, "item")
+        if node.node_id == "projectiles-contact-sheet":
+            return await self._projectile_contact_sheet(node)
+        if node.node_id == "projectiles-review":
+            return await self._projectile_review(node)
         ui_match = _UI_INVENTORY_NODE.fullmatch(node.node_id)
         if ui_match:
             return await self._ui_inventory_node(node, ui_match["action"])
@@ -208,6 +220,9 @@ class PreparedContentNodeHandler:
         match = _CATALOG_NODE.fullmatch(node.node_id)
         if match:
             return await self._catalog_node(node, match)
+        match = _PROJECTILE_NODE.fullmatch(node.node_id)
+        if match:
+            return await self._projectile_node(node, match)
         match = _TRACK_NODE.fullmatch(node.node_id)
         if match:
             return await self._track_node(node, match)
@@ -426,6 +441,14 @@ class PreparedContentNodeHandler:
             return await self._generate_catalog_asset(node, kind, entry)
         return self._validate_catalog_asset(node, kind, match["entity_id"])
 
+    async def _projectile_node(
+        self, node: ExecutionNode, match: re.Match[str]
+    ) -> NodeExecutionResult:
+        projectile = self._projectile(match["entity_id"])
+        if match["action"] == "generate":
+            return await self._generate_projectile(node, projectile)
+        return self._validate_projectile(node, projectile)
+
     async def _track_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
         track = self._package.soundtrack.track(match["track_id"])
         if match["action"] == "generate":
@@ -489,6 +512,7 @@ class PreparedContentNodeHandler:
         output = self._run_dir / node.outputs[0]
         references = self._image_references(catalog_references, entry.reference_ids)
         prompt = self._visual_prompt(
+            f"{_equipment_directive(entry)}"
             f"Create the canonical identity concept for the {kind} {entity_id}.\n"
             f"Authored direction: {entry.prompt}\n"
             "Show one complete side-view game-scale figure and one front-three-quarter identity "
@@ -553,6 +577,7 @@ class PreparedContentNodeHandler:
         motion_directive = motion_semantic_direction(kind, state)
         geometry = motion_atlas_geometry(kind, state)
         prompt = self._visual_prompt(
+            f"{_equipment_directive(entry)}"
             f"Create the canonical side-view motion atlas for {kind} {entity_id}, state {state}. "
             "Use the supplied identity concept exactly. Output a strict single-row strip of "
             f"{geometry.frame_word} "
@@ -1121,12 +1146,20 @@ class PreparedContentNodeHandler:
         states: Sequence[str]
         expressions: Sequence[str]
         motions: Sequence[MotionPresentation]
+        # Only a player declares equipment. Empty for the other actor kinds rather than absent, so
+        # the prompt below reads the same shape for all three.
+        equipment_clause = ""
         if kind == "player":
             player = self._player(entity_id)
             authored_prompt = player.prompt
             motions = player.motions
             states = [motion.state for motion in motions]
             expressions = player.dialogue_art.expressions
+            equipment_clause = (
+                "The character's declared equipment is "
+                f"{player.equipment}. Confirm that "
+                f"{player_equipment_art(player.equipment).review_clause}. "
+            )
         elif kind == "mob":
             mob = self._mob(entity_id)
             authored_prompt = mob.prompt
@@ -1187,7 +1220,8 @@ class PreparedContentNodeHandler:
                 "style continuity, complete state coverage, "
                 "the declared source-facing consistency for motion, stable scale and registration, "
                 "native-alpha "
-                "isolation, and declared dialogue-expression coverage where applicable. A labeled "
+                f"isolation, and declared dialogue-expression coverage where applicable. "
+                f"{equipment_clause}A labeled "
                 "state tile may itself contain a multi-cell atlas. Report concrete visible "
                 "defects. "
                 "Uncertainty must not be called accept."
@@ -1430,6 +1464,133 @@ class PreparedContentNodeHandler:
     def _item(self, entity_id: str) -> ItemContent:
         return next(entry for entry in self._package.items.items if entry.item_id == entity_id)
 
+    def _projectile(self, entity_id: str) -> ProjectileContent:
+        catalog = self._package.projectiles
+        if catalog is None:
+            raise ValueError("this package declares no projectile catalog")
+        return next(entry for entry in catalog.projectiles if entry.projectile_id == entity_id)
+
+    async def _generate_projectile(
+        self, node: ExecutionNode, projectile: ProjectileContent
+    ) -> NodeExecutionResult:
+        catalog = self._package.projectiles
+        assert catalog is not None
+        art = projectile_silhouette_art(projectile.silhouette)
+        output = self._run_dir / node.outputs[0]
+        prompt = self._visual_prompt(
+            f"{art.axis_directive}\n"
+            f"Generate exactly one canonical projectile asset, stable ID "
+            f"{projectile.projectile_id}: {art.shape_clause}.\n"
+            f"Authored direction: {projectile.prompt}\n"
+            "Draw exactly ONE connected object and nothing else. No motion trail, speed line, "
+            "spark, glow streak, impact burst, smoke, or detached fragment: the runtime supplies "
+            "motion, and anything painted beside the object is measured as part of it. Center the "
+            "complete object with comfortable transparent padding on every side. Output true alpha "
+            "with no floor, scenery, shadow plate, frame, text, label, symbol, or second object."
+        )
+        result = await self._images.generate(
+            ImageGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                input_references=self._image_references(
+                    catalog.references, projectile.reference_ids
+                ),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size="1024x1024",
+                timeout_seconds=600,
+                metadata={
+                    "checkpoint": "content",
+                    "kind": "projectile",
+                    "entity_id": projectile.projectile_id,
+                },
+                validate=lambda artifact: _validate_projectile_image(artifact.data),
+            )
+        )
+        return self._result(
+            node,
+            (output, Path(result.provenance_path)),
+            attempts=result.attempts,
+            provider_operations=result.attempts,
+        )
+
+    def _validate_projectile(
+        self, node: ExecutionNode, projectile: ProjectileContent
+    ) -> NodeExecutionResult:
+        artifact = self._run_dir / f"content/projectiles/{projectile.projectile_id}.png"
+        output = self._run_dir / node.outputs[0]
+        report = _validate_projectile_image(artifact.read_bytes())
+        atomic_write_json(
+            output,
+            {
+                "projectile_id": projectile.projectile_id,
+                "silhouette": projectile.silhouette,
+                **report,
+            },
+        )
+        return self._result(node, (output,), provider_operations=0)
+
+    async def _projectile_contact_sheet(self, node: ExecutionNode) -> NodeExecutionResult:
+        catalog = self._package.projectiles
+        assert catalog is not None
+        entries = [
+            (
+                entry.projectile_id,
+                self._run_dir / f"content/projectiles/{entry.projectile_id}.png",
+            )
+            for entry in catalog.projectiles
+        ]
+        output = self._run_dir / node.outputs[0]
+        data = _contact_sheet(entries, title="projectile catalog")
+        sidecar = await _write_local_image(
+            output,
+            data,
+            prompt="Assemble the complete stable-ID projectile catalog contact sheet.",
+            inputs=[
+                (path.relative_to(self._run_dir).as_posix(), path.read_bytes())
+                for _, path in entries
+            ],
+            validation={"entry_count": len(entries), "asset_kind": "projectile"},
+        )
+        return self._result(node, (output, sidecar), provider_operations=0)
+
+    async def _projectile_review(self, node: ExecutionNode) -> NodeExecutionResult:
+        catalog = self._package.projectiles
+        assert catalog is not None
+        contact = self._run_dir / "content/projectiles/contact-sheet.png"
+        references = [self._run_structured_reference(contact)]
+        references.extend(self._package_structured_reference(ref) for ref in catalog.references)
+        expected_ids = [entry.projectile_id for entry in catalog.projectiles]
+        authored_directions = [
+            {
+                "asset_id": entry.projectile_id,
+                "prompt": entry.prompt,
+                "must_read_as": projectile_silhouette_art(entry.silhouette).review_clause,
+            }
+            for entry in catalog.projectiles
+        ]
+        return await self._run_review(
+            node,
+            prompt=(
+                "Review the complete generated projectile catalog. The exact complete stable-ID "
+                f"list is {expected_ids}. Authored directions are {authored_directions}, each "
+                "carrying the drawn axis its silhouette requires. Image 1 is a locally labeled "
+                "stable-ID contact sheet; remaining images are authored style references. The "
+                "contact sheet was locally alpha-composited from decoded RGBA sources onto "
+                "checkerboards. Deterministic decoding proved true alpha, zero-alpha canvas "
+                "borders, visible subject pixels, and exactly one connected subject per source. "
+                "Judge alpha isolation from the checkerboard composition and these deterministic "
+                "facts, and do not claim the expected manifest is missing. Judge, for every "
+                "entry: authored identity fidelity, style coherence, and above all whether the "
+                "drawn subject matches its stated axis, because the consumer scales, mirrors and "
+                "rotates these along that axis and a reversed or tilted subject flies backwards. "
+                "Report concrete visible defects. Uncertainty must not be called accept."
+            ),
+            references=references,
+            metadata={"checkpoint": "content", "kind": "projectile"},
+        )
+
     def _result(
         self,
         node: ExecutionNode,
@@ -1566,6 +1727,9 @@ class PreparedContentNodeHandler:
             if _CATALOG_NODE.fullmatch(node.node_id):
                 _validate_transparent_image(data, width=1024, height=1024)
                 return True
+            if _PROJECTILE_NODE.fullmatch(node.node_id):
+                _validate_projectile_image(data)
+                return True
             if _UI_INVENTORY_NODE.fullmatch(node.node_id):
                 _validate_inventory_panel_image(data)
                 return True
@@ -1617,6 +1781,11 @@ def content_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
         *npc_targets,
         "props-review",
         "items-review",
+        # Only when the package declares the catalog, because the nodes only exist then. Missing
+        # here, the content checkpoint produced no projectile sprite while `runtime_artifact_paths`
+        # went on requiring one unconditionally, so integration failed on a missing artifact - the
+        # same trap the motion-rebase terminal above is spelled out to avoid.
+        *(() if package.projectiles is None else ("projectiles-review",)),
         "ui-inventory-panel-review",
         *track_targets,
         "gameplay-bindings-validate",
@@ -1624,6 +1793,11 @@ def content_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
 
 
 def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
+    projectile_ids = (
+        []
+        if package.projectiles is None
+        else [entry.projectile_id for entry in package.projectiles.projectiles]
+    )
     return {
         "schema_version": 1,
         "kind": "prepared-content-coverage-matrix-v1",
@@ -1670,21 +1844,45 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         ],
         "prop_ids": [entry.prop_id for entry in package.props.props],
         "item_ids": [entry.item_id for entry in package.items.items],
+        "projectile_ids": projectile_ids,
         "track_ids": list(package.soundtrack.track_ids),
         "sequence_ids": [entry.sequence_id for entry in package.sequences],
+        # Content families only: map layers and their loop passes are the map recipe's fan-out and
+        # are counted by the execution graph, not here. Every family the *content* recipe draws
+        # contributes, and a family that contributes nothing to these two totals is a family whose
+        # coverage nothing is checking - which is exactly how the projectile catalog was missed.
         "required_image_operations": (
             sum(2 + len(entry.motions) for entry in package.player.players)
             + sum(1 + len(entry.motions) for entry in package.mobs.mobs)
             + 3 * len(package.npcs.npcs)
             + len(package.props.props)
             + len(package.items.items)
+            + len(projectile_ids)
             + 1
         ),
+        # One board-and-review pass per catalog family (props, items, UI), plus one per actor, plus
+        # one for the projectile catalog when the package declares it.
         "required_structured_reviews": (
-            len(package.player.players) + len(package.mobs.mobs) + len(package.npcs.npcs) + 3
+            len(package.player.players)
+            + len(package.mobs.mobs)
+            + len(package.npcs.npcs)
+            + 3
+            + (1 if package.projectiles is not None else 0)
         ),
         "required_music_operations": len(package.soundtrack.tracks),
     }
+
+
+def _equipment_directive(entry: PlayerContent | MobContent | NpcContent) -> str:
+    """The leading equipment clause for a player, and nothing for any other actor.
+
+    Only the player declares equipment: a mob or an NPC is drawn entirely from its authored prose,
+    and neither has a `weapon_class` for a declaration to be checked against.
+    """
+
+    if not isinstance(entry, PlayerContent):
+        return ""
+    return f"{player_equipment_art(entry.equipment).carry_directive}\n"
 
 
 def _entity_id(entry: PlayerContent | MobContent | NpcContent) -> str:
@@ -1744,6 +1942,44 @@ def _validate_transparent_image(data: bytes, *, width: int, height: int) -> dict
         "visible_bbox": list(bbox),
         "border_alpha_max": border_alpha_max,
         "border_alpha_mean": round(border_alpha_mean, 6),
+    }
+
+
+#: How much of its own canvas a projectile's subject may fill.
+#:
+#: Tighter than the generic content floor for a reason the runtime supplies: the object is drawn on
+#: a 1024px canvas and then redrawn a few dozen pixels wide, so a subject that spent most of its
+#: canvas on padding arrives with almost no pixels left. Not an upper bound, because a subject that
+#: fills its canvas is exactly what the trimmed loader wants.
+_PROJECTILE_MINIMUM_VISIBLE_FRACTION = 0.02
+
+
+def _validate_projectile_image(data: bytes) -> dict[str, object]:
+    """Every isolation check an item gets, plus the one a moving object needs.
+
+    A projectile is the only generated subject the consumer scales along a measured axis and may
+    rotate. Both of those read the painted bounding box, so a detached spark, speed line or trail
+    is not a cosmetic flaw here: it moves the box, and the object then draws at the wrong size
+    around a pivot that is not inside it. Nothing else in the pipeline asks this question, and the
+    generic isolation check passes an image holding an object and a streak.
+    """
+
+    report = _validate_transparent_image(data, width=1024, height=1024)
+    subjects = measure_alpha_subjects(data)
+    count = int(cast(int, subjects["subject_count"]))
+    if count != 1:
+        raise ValueError(f"projectile output must be exactly one connected subject, found {count}")
+    visible_fraction = float(cast(float, report["visible_fraction"]))
+    if visible_fraction < _PROJECTILE_MINIMUM_VISIBLE_FRACTION:
+        raise ValueError(
+            "projectile subject fills too little of its canvas to survive being drawn small"
+        )
+    return {
+        **report,
+        "subject_count": count,
+        "subject_bbox": subjects["largest_bbox"],
+        "subject_width": subjects["largest_width"],
+        "subject_height": subjects["largest_height"],
     }
 
 

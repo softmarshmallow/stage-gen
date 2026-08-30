@@ -204,6 +204,39 @@ what must happen without embedding a particular engine's object graph or update
 loop. Entry-map selection, stage flow, transitions, spawning, and map-specific
 soundtrack usage belong here rather than in a map-generation source.
 
+Combat names a weapon class rather than describing one. `weapon_class` selects
+a member of a closed taxonomy, and `projectile_id` names the entry in the
+projectile catalog a throwing class puts in the air; a throwing class MUST name
+one and a non-throwing class MUST NOT. Both fields are identity and artwork
+obligation only. Reach, damage, cadence, flight speed, and the distance an
+automated policy holds are consumer-owned, exactly as the critical rate and the
+experience curve are, so a game retunes without regenerating a package.
+
+The artwork obligation is exact: the character the package draws must be able to
+fight the way the package says they do. The player catalog declares `equipment`
+from its own closed vocabulary, and a combat-enabled package whose pairing the
+two vocabularies do not admit is refused - a `hand_weapon_v1` figure cannot
+fight as `ranged_dps_v1`, and a `thrown_kit_v1` figure cannot swing. The check
+is scoped to combat exactly as the required attack poses are: a package that
+disables combat has no weapon class to contradict, and is free to draw whatever
+its story wants. Two closed names,
+compared; no authored prose is read, and the contract makes no judgement about
+whether a weapon suits the character. The prose still names *which* object, and
+the recipe supplies the structural direction the prose cannot carry - that the
+object appears in every drawn frame, or that it is never drawn at all. Whether
+the picture actually honours that is judged by the actor's semantic review,
+which can see it, exactly as mob facing is.
+
+A projectile is authored in its own catalog rather than borrowed from the item
+catalog, because it is not something a character carries. Each entry names
+three independent facets: a `silhouette` describing what is drawn and along
+which axis, a `flight` describing how it travels, and an `impact` describing
+what its arrival resolves against. Only the silhouette is an art-direction
+input; the other two are consumer-owned names, and the generator excludes them
+from the artwork's cache identity so retuning how an object moves regenerates
+nothing. A projectile declares `length_units` rather than a height, because it
+is drawn lying along its own travel axis.
+
 Gameplay may require presentation and motion capabilities through explicit
 references. It MUST NOT silently manufacture values absent from the current
 authored contract.
@@ -295,7 +328,8 @@ does not by itself define a core game contract.
   upgrading or translating it.
 - The current prepared closure uses repository selector `game-package-v4`, root
   `game-contract-v7`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
-  `game-soundtrack-v1`, V2 player/mob/prop/item catalogs, `npc-content-v3`,
+  `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
+  optional `projectile-content-v2` catalog, `npc-content-v3`,
   `game-sequence-catalog-v2`, and `game-sequence-v1` contracts. Provider-free
   integration emits only `prepared-game-runtime-v9`.
 - Subsystems such as population, motion, sequences, maps, and soundtrack
@@ -304,6 +338,11 @@ does not by itself define a core game contract.
   existing profile by implication.
 - When a persisted shape changes, authored packages and generated projections
   must be updated or regenerated; adapters do not preserve obsolete schemas.
+- Identity is exact-current; field presence is not. A field the current contract
+  defines with a default may be absent from a projection carrying the current
+  identity, and the consumer reads it at that declared default rather than
+  guessing. A value that is present is validated in full, and an unrecognised
+  field is still rejected.
 
 ## Subordinate authorities
 

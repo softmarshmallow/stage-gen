@@ -19,6 +19,16 @@ export type PlayerIntent = Readonly<{
   down: boolean;
   /** Held modifier. Horizontal movement falls back to the walk speed without it. */
   run: boolean;
+  /**
+   * Held. Which way to face, regardless of which direction is pressed.
+   *
+   * Facing normally follows the movement key, which is the right rule for a keyboard and the wrong
+   * one for a policy that backs out of contact: a character retreating from something it is
+   * shooting must keep the target in front of it, and pressing away from the target would
+   * otherwise turn it around mid-throw. Null means "follow the movement", which is what every
+   * human input and every older source asks for.
+   */
+  face: "left" | "right" | null;
   /** Edge-triggered. Combined with `down` on a one-way platform this is the drop-through request. */
   jump: boolean;
   /** Edge-triggered. The controller suppresses it for packages that disable combat. */
@@ -41,6 +51,7 @@ export const NEUTRAL_PLAYER_INTENT: PlayerIntent = Object.freeze({
   up: false,
   down: false,
   run: false,
+  face: null,
   jump: false,
   attack: false,
   useHealing: false,

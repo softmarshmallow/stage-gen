@@ -489,3 +489,69 @@ def split_atlas_columns(data: bytes, columns: int, rows: int = 1) -> tuple[bytes
 def _decode_atlas(data: bytes) -> Image.Image:
     with Image.open(io.BytesIO(data)) as opened:
         return opened.convert("RGBA")
+
+
+def measure_alpha_subjects(
+    data: bytes,
+    *,
+    alpha_threshold: int = 16,
+    minimum_component_fraction: float = 0.02,
+    minimum_component_area: int = 32,
+) -> dict[str, object]:
+    """Count the meaningful native-alpha subjects in one image, and describe the largest.
+
+    "Meaningful" is the same two-part filter the ground-contact measurement uses: a component
+    counts when it is both large in absolute terms and a real share of the painted pixels, so a
+    stray antialiased speck or a faint halo is not a second subject.
+
+    The question this answers is one nothing else in the pipeline asks. Every isolation check so
+    far has been about the *canvas* - is there alpha, is the border clean, is the subject large
+    enough - and all of them pass an image holding one object plus a detached spark, speed line, or
+    painted trail. For most families that is a cosmetic flaw. For an object the runtime rotates and
+    scales as a unit it is not: a second blob moves the measured bounding box, so the object draws
+    at the wrong size and pivots around a point that is not inside it.
+    """
+
+    if not 0 <= alpha_threshold < 255:
+        raise ValueError("subject alpha threshold must be between 0 and 254")
+    if not 0 < minimum_component_fraction <= 1:
+        raise ValueError("subject component fraction must be in (0, 1]")
+    if minimum_component_area <= 0:
+        raise ValueError("subject minimum component area must be positive")
+
+    image = _decode_atlas(data)
+    width, height = image.size
+    alpha = image.getchannel("A").tobytes()
+    components, _ = _connected_components(
+        alpha, width=width, height=height, threshold=alpha_threshold
+    )
+    painted = sum(component.area for component in components)
+    if painted <= 0:
+        raise ValueError("image has no painted pixels above the alpha threshold")
+    principal = [
+        component
+        for component in components
+        if component.area >= minimum_component_area
+        and component.area / painted >= minimum_component_fraction
+    ]
+    if not principal:
+        # Reachable: an image whose paint is spread across many specks, none of which clears both
+        # thresholds. The sibling guards above all name what was wrong, and a bare
+        # "max() arg is an empty sequence" from here would be the one failure a reader could not
+        # act on.
+        raise ValueError(
+            "image has no component large enough to be a subject at the declared thresholds"
+        )
+    largest = max(principal, key=lambda component: component.area)
+    left, top, right, bottom = largest.bbox
+    return {
+        "width": width,
+        "height": height,
+        "subject_count": len(principal),
+        "painted_pixels": painted,
+        "largest_area": largest.area,
+        "largest_bbox": [left, top, right, bottom],
+        "largest_width": right - left,
+        "largest_height": bottom - top,
+        "largest_share": round(largest.area / painted, 6),
+    }

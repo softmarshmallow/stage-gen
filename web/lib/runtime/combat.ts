@@ -39,19 +39,19 @@ export function attackFootLevelsOverlap(
   attackerFootY: number,
   targetFootY: number,
   tilePixels: number,
+  reachTiles: number = COMBAT_VERTICAL_REACH_TILES,
 ): boolean {
   if (
     !Number.isFinite(attackerFootY) ||
     !Number.isFinite(targetFootY) ||
     !Number.isFinite(tilePixels) ||
-    tilePixels <= 0
+    tilePixels <= 0 ||
+    !Number.isFinite(reachTiles) ||
+    reachTiles < 0
   ) {
     throw new Error("attack level comparison requires finite feet and a positive tile size");
   }
-  return (
-    Math.abs(attackerFootY - targetFootY) <=
-    tilePixels * COMBAT_VERTICAL_REACH_TILES
-  );
+  return Math.abs(attackerFootY - targetFootY) <= tilePixels * reachTiles;
 }
 
 export type AggressionProfile = Readonly<{

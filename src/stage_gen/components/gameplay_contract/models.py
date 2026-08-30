@@ -20,6 +20,9 @@ from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAMEPLAY_CONTRACT_SCHEMA_VERSION = 1
 NavigationMovement = Literal["move_left", "move_right", "jump", "crouch", "climb"]
+#: How a character fights. Named here so the player catalog's equipment vocabulary can be
+#: gated against exactly this tuple rather than against a copy of it.
+WeaponClass = Literal["melee_dps_v1", "ranged_dps_v1"]
 
 
 class NavigationPolicy(PersistedContractModel):
@@ -73,8 +76,43 @@ class CombatPolicy(PersistedContractModel):
     #: experience curve is: the rate belongs to how the game feels, which the consumer owns. It
     #: governs player and mob blows alike, so a package cannot arm one side only.
     critical_profile: Literal["none", "rare_v1", "standard_v1", "frequent_v1"] = "none"
+    #: Which of the drawn attack poses the character fights with, and therefore how a blow is
+    #: delivered. Named rather than described for the same reason the critical rate is: reach,
+    #: damage, cadence, flight speed and stand-off distance are how the game feels, which the
+    #: consumer owns. The generator reads this only to know which artwork the package owes and
+    #: which catalog object must resolve; it branches on the name nowhere else.
+    #:
+    #: Both members are drawn today with no extra generation: `melee_dps_v1` swings the
+    #: `basic_action` strip and `ranged_dps_v1` throws on the `secondary_action` strip, and a
+    #: combat-enabled package already owes both.
+    weapon_class: WeaponClass = "melee_dps_v1"
+    #: The projectile a throw puts in the air, or None for a class that throws nothing.
+    #:
+    #: Identity only, in the shape `inventory.currency_item_id` already uses: one catalog entry
+    #: named for one system, with cross-file resolution checked at package validation. What the
+    #: object looks like is the projectile catalog's business; what it is worth in flight is the
+    #: consumer's.
+    projectile_id: str | None = Field(default=None, pattern=SNAKE_ID_PATTERN, max_length=96)
     lethal_presentation: Literal[False]
     defeat_presentation: Literal["story_beast_disperses_into_page_light"]
+
+    @model_validator(mode="after")
+    def validate_projectile(self) -> CombatPolicy:
+        """A class that throws must name what it throws.
+
+        Closure, not balance: the package has to ship the object it puts in the air, the same
+        question `_assert_subset` asks of `currency_item_id` and `starting_item_ids`. Leaving it
+        to the runtime would let a package validate clean, ship, and then silently decline to
+        fire. The reverse pairing is rejected too, because a melee package naming a projectile
+        describes artwork nothing will ever draw.
+        """
+
+        throws = self.weapon_class == "ranged_dps_v1"
+        if throws and self.projectile_id is None:
+            raise ValueError("ranged_dps_v1 requires projectile_id")
+        if not throws and self.projectile_id is not None:
+            raise ValueError("projectile_id requires a throwing weapon_class")
+        return self
 
 
 class CombatTextPolicy(PersistedContractModel):
@@ -346,6 +384,7 @@ __all__ = [
     "SpawnPoint",
     "SpawnTableEntry",
     "SpawnZone",
+    "WeaponClass",
     "canonical_gameplay_contract_json",
     "load_gameplay_contract_bytes",
 ]

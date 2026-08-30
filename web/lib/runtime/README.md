@@ -112,6 +112,74 @@ player's own bar is unconditional - it is the one readout they are entitled to w
 to be hit for it. Defeat stays a separate gate, so the mob still hides its bar at the killing
 blow for being dead rather than for being empty.
 
+## Weapon class
+
+`weapon-class.ts` holds one frozen record per published class name, in the same shape the
+aggression and critical tables use: the generator names `melee_dps_v1` or `ranged_dps_v1` and the
+artwork drawn for it, and every number is here. Before this table those numbers lived in three
+files - the swing's damage and reach inline in the scene, its cadence on the controller, and the
+bot's engage range restated a fourth time with a comment saying it had to agree. The melee record
+reproduces all of them exactly and is pinned by test, so the table is a refactor for every package
+already published and a feature only for the ones that name the new class.
+
+Delivery is a discriminated union rather than a nullable projectile block, because a swing has a
+reach and no travel and a throw has travel and no reach. `strike.ts` resolves the instant arm as a
+pure function over positions; `projectile-flight.ts` resolves the thrown arm the same way, and
+`projectiles.ts` holds only the sprite. Vertical reach is a two-arm union for the same reason: a
+swing compares feet, and a thrown object is where it is. Mobs stay instant and foot-banded, so
+relaxing the rule for the player's shot changes nothing about what can hit the player.
+
+Neither class costs an extra *pose*. `basic_attack` and `skill_cast` are both already required
+artwork for any combat-enabled package, so switching class re-renders no character strip. A throwing
+class does owe one drawn object: the projectile is its own catalog subject with its own generated
+sprite, one image and one review.
+
+Changing class is still not free at the authoring level, though, and deliberately so. The player
+catalog declares a closed `equipment` name, and package validation refuses a kit the drawn character
+cannot use - a figure carrying a sword cannot be handed a throwing class. Bellweather is that case
+and therefore swings.
+
+`developer-kit.ts` is the switcher's vocabulary, and it only ever *selects*. Every class it offers
+is a name Python published, every round is an entry the run's own manifest carries, and every
+number still comes from the two tables above. It deliberately cannot express a binding the contract
+could not have: a throwing kit is offered only when the run actually drew something to throw,
+because a runtime that picked a round for you would be authoring `projectile_id`. The override
+reaches `resolveWeaponClass` and `installProjectiles` and nothing else, so the parsed gameplay
+contract stays the object the closure check validated. `switchDeveloperKit` is the single entry
+point the `K` key and the console's buttons both call, and it re-enters the current map rather than
+patching the scene - the weapon is read by the controller, the strike resolver, the projectile pool
+and the bot band, and re-entry is the one path that rebuilds all four together.
+
+Ammunition is built and not armed. `ammoKind` is null on both shipped records, and the selector,
+the spend, the intent gate and the bot's decline are all in place and tested behind it. Arming it
+needs a package whose loot rules actually sustain a throw - a class that needs two rounds per kill
+against a drop economy yielding a fraction of one per kill is a game that throws twice and then
+patrols forever - and loot rules cost nothing to retune.
+
+## Projectile class
+
+`projectile-class.ts` is the weapon table's counterpart, and the split between them is the point of
+having both. The **weapon** is the character's business - which pose plays, how long the action
+commits, what a blow is worth, how far a policy stands off. The **projectile** is the object's - how
+fast it travels, whether it falls, how far it reaches, how big its box is, what its arrival resolves
+against, and whether the sprite is aimed, mirrored, or spun. That is why one game can throw a slow
+drifting orb and another a flat dart without either inventing a second weapon class.
+
+The generator publishes three names per drawn object and no numbers: a `silhouette`, a `flight`, and
+an `impact`. Three fields rather than one conflated class because the graph excludes a field from an
+artwork's cache identity when the image model cannot draw it - and half of one string cannot be
+excluded, so conflating them would price every gameplay retune as a full re-render.
+
+Orientation is derived from the silhouette rather than authored, because the silhouette is already a
+statement about the pixels: only a subject drawn with a leading end can be pointed anywhere, and only
+one drawn without a direction can be spun without looking wrong. Nothing is both aimed and spun.
+
+Projectile textures are the one catalog family loaded through `loadTrimmedSprite`. A whole-canvas
+texture makes a display size a statement about the canvas, so the subject draws smaller than its
+calibration says and rotation pivots on the middle of an empty frame rather than the middle of the
+object. Trimming makes the frame the subject, which is what lets the published length mean the drawn
+length and the origin mean the object's own centre.
+
 ## Floating combat text
 
 `combat.ts` defines the authoritative `DamageResolution`: whether an attempt connected, attempted
@@ -203,6 +271,25 @@ serialisable memory, and a priority auction that picks one winner per frame with
 tiebreak. `bot-hunter.ts` is the first profile: stand down, heal, engage, collect, pursue, patrol.
 `bot.ts` holds the two frames of state the pure functions need handed back and resolves who is
 driving. `bot-adapter.ts` is the only file that reads scene vocabulary.
+
+Where the bot stands is the weapon class's answer, not the hunter's. `BotWorldView` carries a
+`weaponBand` - engage distance, approach distance, back-off floor, vertical tolerance, and whether
+the class spends a round - projected by the adapter from the same record the scene resolves damage
+from. `engageBehavior` reads it and knows nothing about which class it is holding: a swinging class
+has a floor of zero so its back-off branch can never fire and it walks all the way in exactly as it
+always has, and a throwing class stands off and steps away from anything that closes inside its
+floor. A class that spends a round it is not carrying declines outright rather than proposing an
+attack it cannot make, because engage outranks every other behaviour and a proposal that always
+wins and never acts is a run that stands still with nothing logged.
+
+Targeting also asks the ground. Distance and foot level say a creature is worth attacking and say
+nothing about what stands between the two, so a creature on a ledge satisfied both while the ledge
+face swallowed every throw - and because engage outranks pursuit, the run stood there firing into
+the wall forever. `lineOfFireClear` samples the terrain profile per column at the flight height and
+declines when it is blocked, which is what lets pursuit take the frame and walk the character
+somewhere it can shoot from. A swing declares no release height and skips the test, because a swing
+has no flight path. Measured over a minute of unattended play on the same route: 25 kills with the
+test against 6 without it, and a worst stall of seven seconds against forty-nine.
 
 Growth is by addition. A new behaviour is a value in a roster; a new traversal move is a link rule
 and a steering branch that no behaviour mentions; a different character is a different

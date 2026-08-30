@@ -26,6 +26,7 @@ from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.asset_unit import (
     ResolvedMagnitude,
+    SubjectExtentAxis,
     admit_rank_ladder,
     calibrate_subject,
     measure_subject_extent,
@@ -486,6 +487,27 @@ def _assemble_prepared_runtime(
         }
         for item in package.items.items
     ]
+    projectiles = [
+        {
+            "projectile_id": entry.projectile_id,
+            "display_name": entry.display_name,
+            "silhouette": entry.silhouette,
+            "flight": entry.flight,
+            "impact": entry.impact,
+            "asset": publish(f"content/projectiles/{entry.projectile_id}.png"),
+            # Measured across, not up: the subject is drawn lying along its own travel axis, so
+            # its width is the dimension `length_units` declares. The record names the axis.
+            "calibration": _subject_calibration(
+                output_dir,
+                f"content/projectiles/{entry.projectile_id}.png",
+                resolve_declared_magnitude(scale, entry.length_units, subject=entry.projectile_id),
+                scale,
+                subject=entry.projectile_id,
+                extent_axis="width",
+            ),
+        }
+        for entry in ([] if package.projectiles is None else package.projectiles.projectiles)
+    ]
     tracks = [
         {
             "track_id": track.track_id,
@@ -527,6 +549,7 @@ def _assemble_prepared_runtime(
         "npcs": npcs,
         "props": props,
         "items": items,
+        "projectiles": projectiles,
         "ui": ui,
         "soundtrack": {
             "playback": package.soundtrack.playback.model_dump(mode="json"),
@@ -594,6 +617,7 @@ def _subject_calibration(
     *,
     subject: str,
     columns: int = 1,
+    extent_axis: SubjectExtentAxis = "height",
 ) -> dict[str, object]:
     """Measure one published subject and republish what its artwork spent on a unit.
 
@@ -605,7 +629,7 @@ def _subject_calibration(
     data = _safe_output_path(output_dir, relative_path).read_bytes()
     if columns > 1:
         data = split_atlas_columns(data, columns)[0]
-    extent = measure_subject_extent(data, subject=subject)
+    extent = measure_subject_extent(data, subject=subject, axis=extent_axis)
     calibration = calibrate_subject(
         magnitude=magnitude,
         subject_extent_px=extent,
@@ -613,6 +637,7 @@ def _subject_calibration(
         scale=scale,
         tile_px=RUNTIME_TILE_PX,
         subject=subject,
+        extent_axis=extent_axis,
     )
     return calibration.as_record()
 
@@ -804,6 +829,11 @@ def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
         )
     paths.extend(f"content/props/{entry.prop_id}.png" for entry in package.props.props)
     paths.extend(f"content/items/{entry.item_id}.png" for entry in package.items.items)
+    if package.projectiles is not None:
+        paths.extend(
+            f"content/projectiles/{entry.projectile_id}.png"
+            for entry in package.projectiles.projectiles
+        )
     paths.append("ui/inventory_panel.png")
     paths.extend(f"soundtrack/{track.track_id}.mp3" for track in package.soundtrack.tracks)
     return tuple(sorted(paths))

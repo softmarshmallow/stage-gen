@@ -263,9 +263,9 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 176
-    assert images.calls == 75
-    assert structured.calls == 16
+    assert len(summary.nodes) == 180
+    assert images.calls == 76
+    assert structured.calls == 17
     assert music.calls == 3
     ui_request = next(
         request for request in images.requests if request.metadata.get("role") == "inventory_panel"
@@ -299,12 +299,63 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
     assert "exact required visual meaning for each motion" in player_review.prompt
     assert "low stationary crouch loop" in player_review.prompt
+    # Equipment was absent from every review criterion until this landed, which is exactly why the
+    # measured sword drift was never reported by a review that saw every strip.
+    assert "declared equipment is hand_weapon_v1" in player_review.prompt
+    assert "never missing from a frame" in player_review.prompt
+    # Only the player declares equipment, so no other actor's review may acquire the clause.
+    for other in structured.requests:
+        if other.metadata.get("kind") in {"mob", "npc"}:
+            assert "declared equipment" not in other.prompt
+
+    # The directive leads, and it reaches both the identity concept and every state strip - a
+    # weapon present in the concept and absent from the walk cycle is the failure being prevented.
+    player_images = [
+        request for request in images.requests if request.metadata.get("kind") == "player"
+    ]
+    assert player_images
+    # The concept and every motion strip carry it. A weapon drawn into the identity concept and
+    # missing from the walk cycle is the measured drift this exists to prevent, so state coverage
+    # is asserted rather than assumed.
+    drawn_figures = [request for request in player_images if "expressions" not in request.metadata]
+    for request in drawn_figures:
+        # Leading the content task, in the same position the projectile axis directive takes: the
+        # shared universe and style preamble comes first for every image in the package.
+        assert "Content task:\nEQUIPMENT, before anything else:" in request.prompt
+    assert {"idle", "walk", "basic_attack", "skill_cast"} <= {
+        request.metadata.get("state") for request in drawn_figures
+    }
+
+    # The dialogue atlas deliberately does not carry it. Those cells are busts, and a directive
+    # demanding a held weapon in every frame of a set of facial expressions would be asking for
+    # something the framing cannot show. It inherits the concept as its identity reference, which
+    # is where the equipment was already decided.
+    dialogue = [request for request in player_images if "expressions" in request.metadata]
+    assert len(dialogue) == 1
+    assert "EQUIPMENT, before anything else:" not in dialogue[0].prompt
     assert "For hold playback, judge motion semantics only on the selected canonical frame" in (
         player_review.prompt
     )
     coverage = json.loads((run_dir / "content/coverage-matrix.json").read_text())
-    assert coverage["required_image_operations"] == 75
-    assert coverage["required_structured_reviews"] == 14
+    # The projectile catalog is a content family like props and items: one drawn subject and one
+    # board-and-review pass. It was absent from both totals when the family was introduced, so a
+    # package that fires a round under-reported exactly the family it fires.
+    assert coverage["projectile_ids"] == ["paperwing_dart"]
+    assert coverage["required_image_operations"] == 76
+    assert coverage["required_structured_reviews"] == 15
+    # The matrix demanded 76 while the closure it describes performed 75, because the content
+    # checkpoint named no projectile terminal. The two agreeing is the point of both fixes.
+    assert coverage["required_image_operations"] == images.calls
+    # And the projectile generator, its single-subject validator, its board and its review are now
+    # actually executed here. Before this they had never run outside a live provider run.
+    projectile_request = next(
+        request for request in images.requests if request.metadata.get("kind") == "projectile"
+    )
+    assert projectile_request.metadata["entity_id"] == "paperwing_dart"
+    assert "AXIS, before anything else:" in projectile_request.prompt
+    assert (run_dir / "content/projectiles/paperwing_dart.png").is_file()
+    assert (run_dir / "content/projectiles/contact-sheet.png").is_file()
+    assert (run_dir / "content/projectiles/review.json").is_file()
     assert coverage["required_music_operations"] == 3
     assert (run_dir / "content/players/wayfarer/contact-sheet.png").is_file()
     assert (run_dir / "content/players/wayfarer/states/idle.source.png").is_file()

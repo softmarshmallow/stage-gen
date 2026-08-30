@@ -14,9 +14,24 @@ import {
   type MovementCapabilities,
   type NavGraph,
 } from "./bot-navigation";
-import type { BotPickupView, BotSelfView, BotThreatView, BotWorldView } from "./bot-view";
+import type {
+  BotPickupView,
+  BotSelfView,
+  BotTerrainProfile,
+  BotThreatView,
+  BotWeaponBand,
+  BotWorldView,
+} from "./bot-view";
 import type { PlayerStateSnapshot } from "./player";
+// Imported from the vocabulary module rather than the controller: `player.ts` loads Phaser, and
+// nothing beneath this adapter may need a browser to be tested.
+import { PLAYER_ATTACK_STATES } from "./player-state";
 import { terrainSurfaceY } from "./terrain";
+import type { ProjectileProfile } from "./projectile-class";
+import {
+  targetingToleranceUnits,
+  type WeaponClassProfile,
+} from "./weapon-class";
 import type { ClimbableZone, UpperPlatform } from "./vertical";
 
 /**
@@ -76,7 +91,38 @@ export function preparedBotSelfView(snapshot: PlayerStateSnapshot): BotSelfView 
     hp: snapshot.hp,
     maxHp: snapshot.maxHp,
     defeated: snapshot.defeated,
-    attacking: snapshot.state === "attack",
+    // Every attack state, not just the swing: a casting character is as committed as a swinging
+    // one, and the behaviours read this to decide whether the animation owns the character.
+    attacking: PLAYER_ATTACK_STATES.has(snapshot.state),
+  });
+}
+
+/**
+ * Project a weapon class onto the distances the bot reasons in.
+ *
+ * Here rather than on the profile itself because the tile is the scene's constant, not the table's,
+ * and this file is the one place the two vocabularies are allowed to meet. Every number the bot
+ * uses to decide where to stand now originates in the same record the scene resolves damage from.
+ */
+export function preparedBotWeaponBand(
+  profile: WeaponClassProfile,
+  tilePixels: number,
+  projectile: ProjectileProfile | null = null,
+  playerHeightUnits = 0,
+): BotWeaponBand {
+  return Object.freeze({
+    minimumUnits: profile.standOffTiles.minimum * tilePixels,
+    approachUnits: profile.standOffTiles.approach * tilePixels,
+    maximumUnits: profile.standOffTiles.maximum * tilePixels,
+    verticalToleranceUnits: targetingToleranceUnits(profile, tilePixels),
+    requiresAmmo: profile.ammoKind !== null,
+    // Only a class that actually throws declares one, and only then does the flight path exist to
+    // be blocked. The height comes from the object rather than the weapon for the same reason
+    // everything else about the flight does.
+    releaseHeightUnits:
+      profile.delivery.kind === "projectile" && projectile !== null
+        ? projectile.flight.releaseHeightFraction * playerHeightUnits
+        : null,
   });
 }
 
@@ -87,8 +133,11 @@ export function preparedBotWorldView(input: Readonly<{
   threats: readonly BotThreatView[];
   pickups: readonly BotPickupView[];
   healingCarried: boolean;
+  ammoCarried: boolean;
+  weaponBand: BotWeaponBand;
   combatEnabled: boolean;
   navigation: NavGraph;
+  terrain: BotTerrainProfile;
   worldWidth: number;
 }>): BotWorldView {
   return Object.freeze({
@@ -98,8 +147,11 @@ export function preparedBotWorldView(input: Readonly<{
     threats: Object.freeze([...input.threats]),
     pickups: Object.freeze([...input.pickups]),
     healingCarried: input.healingCarried,
+    ammoCarried: input.ammoCarried,
+    weaponBand: input.weaponBand,
     combatEnabled: input.combatEnabled,
     navigation: input.navigation,
+    terrain: input.terrain,
     bounds: Object.freeze({ left: 0, right: input.worldWidth }),
   });
 }

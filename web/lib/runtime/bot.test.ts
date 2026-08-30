@@ -5,6 +5,25 @@ import { buildNavGraph, DEFAULT_MOVEMENT_CAPABILITIES } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, playerIntent } from "./player-intent";
 
+import { preparedBotWeaponBand } from "./bot-adapter";
+import { weaponClassProfile } from "./weapon-class";
+
+/**
+ * The melee band, projected the same way the scene projects it.
+ *
+ * Written as a projection rather than as literals so these fixtures cannot drift from the table
+ * the runtime actually fights with: at a 64px tile it is 0 / 42 / 84 units with a 64-unit vertical
+ * tolerance, which is exactly what the hunter used to carry as its own constants.
+ */
+const MELEE_BAND = preparedBotWeaponBand(weaponClassProfile("melee_dps_v1"), 64);
+
+/** Level ground everywhere, so nothing in these fixtures is ever behind a wall. */
+const FLAT_TERRAIN = Object.freeze({
+  columnSurfaceY: Object.freeze(new Array(64).fill(720 - 64)),
+  tileUnits: 64,
+});
+
+
 const TILE = 64;
 const BASELINE = 720;
 const GROUND = BASELINE - TILE;
@@ -38,6 +57,9 @@ function worldView(overrides: Partial<BotWorldView> = {}): BotWorldView {
     threats: [],
     pickups: [],
     healingCarried: false,
+    ammoCarried: true,
+    weaponBand: MELEE_BAND,
+    terrain: FLAT_TERRAIN,
     combatEnabled: true,
     navigation: FLAT,
     bounds: { left: 0, right: 640 },
