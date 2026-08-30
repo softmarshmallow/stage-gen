@@ -88,7 +88,9 @@ uv run stage-gen remove-background \
 The dry-run directory contains `package.json`, `execution-plan.json`,
 `execution-projection.json`, `execution-trace.jsonl`, and `execution-summary.json`. See the
 [canonical generation pipeline](docs/spec/game/generation-pipeline.md) for the executable graph,
-resource limits, cache lineage, retry ownership, and operation counts.
+resource limits, cache lineage, retry ownership, and operation counts. `stage-gen export-view
+--run RUN_DIR` additionally derives `execution-view.json`, a read-only join of the plan and
+trace for run inspection.
 
 ## Generation cost
 

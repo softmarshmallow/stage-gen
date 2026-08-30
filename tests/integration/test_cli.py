@@ -168,6 +168,23 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     assert (tmp_path / "run/execution-plan.json").is_file()
     assert (tmp_path / "run/execution-trace.jsonl").is_file()
 
+    view_output = StringIO()
+    assert main(["export-view", "--run", str(tmp_path / "run")], stdout=view_output) == 0
+    view_report = json.loads(view_output.getvalue())
+    assert view_report["ok"] is True
+    assert view_report["nodes"] == 221
+    assert view_report["states"]["succeeded"] == 221
+    view_path = tmp_path / "run/execution-view.json"
+    assert view_path.is_file()
+    view_document = json.loads(view_path.read_text(encoding="utf-8"))
+    assert view_document["kind"] == "prepared-game-execution-view-v1"
+    assert view_document["schema_version"] == 1
+    assert str(tmp_path) not in view_path.read_text(encoding="utf-8")
+
+    error = StringIO()
+    assert main(["export-view", "--run", str(tmp_path / "no-such-run")], stderr=error) == 1
+    assert "no execution-plan.json" in error.getvalue()
+
     error = StringIO()
     assert main(["generate", "--input", str(package)], stderr=error) == 1
     assert "generate requires --output" in error.getvalue()

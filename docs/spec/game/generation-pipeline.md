@@ -394,6 +394,7 @@ counts one successful provider operation per provider node.
 | `execution-projection.json` | Resource spans, critical path, call counts, time, and budget range |
 | `execution-trace.jsonl` | Immutable run/node events with queue, duration, cache, attempts, calls, and errors |
 | `execution-summary.json` | Terminal status and per-node result projection |
+| `execution-view.json` | Derived read-only join of plan and trace for rendering, written on demand by `stage-gen export-view`; hard-drop versioned — consumers refuse an unknown version and re-export instead of migrating |
 | `maps/*/layers/*.raw.png` | Retained provider layer output and provider provenance |
 | `maps/*/layers/*.png` | Deterministically canonicalized horizontal repeat unit |
 | `maps/*/layers/*.repeat.png` | Three-repeat checkerboard evidence for visual review |

@@ -47,6 +47,7 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.env_import import import_provider_env
+from stage_gen.orchestration.execution_view import build_execution_view, write_execution_view
 from stage_gen.orchestration.game_package import resolve_game_package
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     package_dialogue_character_spike,
@@ -58,9 +59,13 @@ from stage_gen.recipes.scrolling_preview.dialogue_character import (
     bind_dialogue_character_to_scrolling_manifest,
 )
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.scrolling_preview.view_annotations import (
+    annotate_scrolling_preview_artifact,
+)
 
 COMMANDS = {
     "generate",
+    "export-view",
     "serve",
     "recipes",
     "benchmark",
@@ -147,6 +152,26 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument(
         "--failure-node",
         help="inject one deterministic node failure during a dry run",
+    )
+
+    export_view_parser = commands.add_parser(
+        "export-view",
+        description=(
+            "Join one run directory's execution plan and trace into a derived "
+            "execution-view.json for read-only rendering"
+        ),
+    )
+    export_view_parser.add_argument(
+        "--run",
+        required=True,
+        dest="run_dir",
+        metavar="RUN_DIR",
+        help="existing execution output directory holding execution-plan.json",
+    )
+    export_view_parser.add_argument(
+        "--output",
+        dest="output_path",
+        help="view document destination (default: RUN_DIR/execution-view.json)",
     )
 
     package_parser = commands.add_parser(
@@ -471,6 +496,23 @@ def _dispatch(
         else:
             report = {"valid": True, **resolved.identity()}
             stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
+    if command == "export-view":
+        run_dir = Path(args.run_dir)
+        view = build_execution_view(
+            run_dir,
+            annotators={"scrolling-preview": annotate_scrolling_preview_artifact},
+        )
+        view_path = Path(args.output_path) if args.output_path else run_dir / "execution-view.json"
+        write_execution_view(view_path, view)
+        view_report = {
+            "gaps": len(view.gaps),
+            "nodes": len(view.nodes),
+            "ok": view.ok,
+            "output": str(view_path),
+            "states": view.state_counts,
+        }
+        stdout.write(f"{json.dumps(view_report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "package":
         resolved_package = resolve_game_package(Path(args.input_path))

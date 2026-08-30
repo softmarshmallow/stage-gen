@@ -150,7 +150,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # compositor it shares with the asset unit.
         # The player-equipment contract adds one: the recipe-owned art directives keyed on the
         # authored equipment, which the prompt builder and the actor review both read.
-        assert len(wheel_entries) <= 189
+        # The derived execution view adds two: the generic plan-and-trace join exporter, and the
+        # recipe-owned artifact display annotations the CLI wires into it.
+        assert len(wheel_entries) <= 191
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -191,7 +193,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # source modules and their focused tests. The asset unit adds its own recipe module
         # and focused tests. The projectile asset family adds four: the silhouette art
         # declaration, the authored Bellweather catalog, and two focused test modules.
-        assert len(sdist_entries) <= 414
+        # The derived execution view adds its exporter and recipe-annotation source modules
+        # and their two focused test modules.
+        assert len(sdist_entries) <= 416
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.
