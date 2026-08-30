@@ -19,6 +19,7 @@ from gnode import (
     NodeExecutionResult,
     atomic_write_bytes,
     atomic_write_json,
+    resolve_writable_path_within_root,
 )
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 
     from gnode import Graph, Node, NodeExecutionContext
 
-NODE_CACHE_SCHEMA_VERSION = 1
+NODE_CACHE_SCHEMA_VERSION = 2
 
 
 class NodeArtifactCache:
@@ -81,7 +82,15 @@ class NodeArtifactCache:
         if self._admit is not None and not self._admit(node, tuple(payloads)):
             return None
         for artifact, data in zip(restored, payloads, strict=True):
-            atomic_write_bytes(self._run_dir / artifact.artifact_ref, data)
+            # A cache record is data, not authority: its refs must stay inside
+            # the run directory even if the record was corrupted or crafted.
+            try:
+                target = resolve_writable_path_within_root(
+                    self._run_dir, artifact.artifact_ref, "cached artifact path"
+                )
+            except ValueError:
+                return None
+            atomic_write_bytes(target, data)
         return NodeExecutionResult(
             cache=CacheDisposition.HIT,
             attempts=1,
@@ -110,6 +119,15 @@ class NodeArtifactCache:
         )
 
     def lineage(self, node: Node, context: NodeExecutionContext) -> list[dict[str, object]]:
+        """Lineage covers exactly the dependencies the cache key covers.
+
+        A barrier edge orders execution without contributing identity; binding
+        its artifact digests here would re-bill every provider node whenever
+        anything upstream of the barrier changed, which is precisely what the
+        barrier declaration promises not to do.
+        """
+
+        barriers = set(node.barrier_only)
         return [
             {
                 "node_id": dependency,
@@ -119,6 +137,7 @@ class NodeArtifactCache:
                 ],
             }
             for dependency in node.depends_on
+            if dependency not in barriers
         ]
 
     def _paths(self, node: Node) -> tuple[Path, Path]:

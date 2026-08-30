@@ -1,0 +1,168 @@
+/**
+ * The room's whole gameplay as one pure reducer.
+ *
+ * This is deliberately the same state machine the Python solvability proof
+ * searched — {flags, inventory, revealed, fired} with the same availability
+ * rules — so a room the proof admits is a room this runtime can finish. No
+ * timers, no physics, no hidden state: every transition is a click.
+ */
+
+import type { RoomManifest, Verb } from "./contract";
+
+export interface RoomPlayState {
+  readonly flags: readonly string[];
+  readonly inventory: readonly string[];
+  readonly revealed: readonly string[];
+  readonly fired: readonly number[];
+  readonly selectedItem: string | null;
+  readonly narration: string;
+  readonly solved: boolean;
+}
+
+export const MISS_LINE = "Nothing happens.";
+export const MISS_WITH_ITEM_LINE = "That doesn't work here.";
+
+export function initialState(manifest: RoomManifest): RoomPlayState {
+  return {
+    flags: [],
+    inventory: [],
+    revealed: [],
+    fired: [],
+    selectedItem: null,
+    narration: manifest.displayName,
+    solved: false,
+  };
+}
+
+export function hotspotVisible(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  hotspotId: string,
+): boolean {
+  const hotspot = manifest.hotspots.find((spot) => spot.id === hotspotId);
+  if (hotspot === undefined) {
+    return false;
+  }
+  return !hotspot.hidden || state.revealed.includes(hotspotId);
+}
+
+function interactionAvailable(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  index: number,
+  verb: Verb,
+  hotspotId: string,
+  item: string | null,
+): boolean {
+  const interaction = manifest.interactions[index];
+  if (interaction.on.verb !== verb || interaction.on.hotspot !== hotspotId) {
+    return false;
+  }
+  if ((interaction.on.item ?? null) !== item) {
+    return false;
+  }
+  if (interaction.effects.length > 0 && state.fired.includes(index)) {
+    return false;
+  }
+  if (interaction.requires.some((flag) => !state.flags.includes(flag))) {
+    return false;
+  }
+  if (item !== null && !state.inventory.includes(item)) {
+    return false;
+  }
+  return hotspotVisible(manifest, state, hotspotId);
+}
+
+function applyInteraction(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  index: number,
+): RoomPlayState {
+  const interaction = manifest.interactions[index];
+  const flags = new Set(state.flags);
+  const inventory = new Set(state.inventory);
+  const revealed = new Set(state.revealed);
+  for (const effect of interaction.effects) {
+    if (effect.set_flag !== undefined) {
+      flags.add(effect.set_flag);
+    }
+    if (effect.grant_item !== undefined) {
+      inventory.add(effect.grant_item);
+    }
+    if (effect.remove_item !== undefined) {
+      inventory.delete(effect.remove_item);
+    }
+    if (effect.reveal_hotspot !== undefined) {
+      revealed.add(effect.reveal_hotspot);
+    }
+  }
+  const fired =
+    interaction.effects.length > 0 ? [...state.fired, index].sort((a, b) => a - b) : state.fired;
+  const solved = manifest.win.requires.every((flag) => flags.has(flag));
+  const narration =
+    solved && !state.solved
+      ? `${interaction.narration} ${manifest.win.narration}`
+      : interaction.narration;
+  return {
+    flags: [...flags].sort(),
+    inventory: [...inventory].sort(),
+    revealed: [...revealed].sort(),
+    fired,
+    selectedItem: null,
+    narration,
+    solved,
+  };
+}
+
+/** Perform one explicit verb on a hotspot; misses narrate rather than throw. */
+export function interact(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  verb: Verb,
+  hotspotId: string,
+  item: string | null = null,
+): RoomPlayState {
+  for (let index = 0; index < manifest.interactions.length; index += 1) {
+    if (interactionAvailable(manifest, state, index, verb, hotspotId, item)) {
+      return applyInteraction(manifest, state, index);
+    }
+  }
+  return {
+    ...state,
+    selectedItem: null,
+    narration: item === null ? MISS_LINE : MISS_WITH_ITEM_LINE,
+  };
+}
+
+/**
+ * Resolve one primary click the way a player expects: a held item tries
+ * use-with-item; otherwise an available bare `use` wins, else `inspect`.
+ */
+export function clickHotspot(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  hotspotId: string,
+): RoomPlayState {
+  if (state.selectedItem !== null) {
+    return interact(manifest, state, "use", hotspotId, state.selectedItem);
+  }
+  const bareUse = manifest.interactions.some((interaction, index) =>
+    interactionAvailable(manifest, state, index, "use", hotspotId, null),
+  );
+  return interact(manifest, state, bareUse ? "use" : "inspect", hotspotId);
+}
+
+export function inspectHotspot(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  hotspotId: string,
+): RoomPlayState {
+  return interact(manifest, state, "inspect", hotspotId);
+}
+
+export function selectItem(state: RoomPlayState, itemId: string | null): RoomPlayState {
+  if (itemId !== null && !state.inventory.includes(itemId)) {
+    return state;
+  }
+  return { ...state, selectedItem: state.selectedItem === itemId ? null : itemId };
+}

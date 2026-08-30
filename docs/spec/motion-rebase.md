@@ -43,7 +43,7 @@ authored declaration.*
 - `stage_gen.media.comparison_plate` owns deterministic plate composition and
   the structured judging call. It is provider-neutral and knows nothing about
   actors, states, or games.
-- `stage_gen.recipes.scrolling_preview.motion_rebase` owns the baseline rule,
+- `stage_gen.recipes.sideview_platformer.motion_rebase` owns the baseline rule,
   the judging atlas layout, admission, and the published rebase record.
 - `web/lib/sideview-platformer` owns composition of the rebase with the actor's magnitude.
 

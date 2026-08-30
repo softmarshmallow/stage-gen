@@ -1,0 +1,128 @@
+# One authored point-and-click puzzle room: the text IR the recipe compiles.
+# Puzzle logic is entirely declared here and proven finishable offline;
+# generation supplies the art and the narration lines left as gaps.
+
+schema_version = 1
+kind = "pointclick-room-v1"
+room_id = "clockmakers_attic"
+display_name = "The Clockmaker's Attic"
+revision = 1
+
+[style]
+label = "warm storybook mechanical whimsy"
+keywords = [
+    "painterly gouache texture",
+    "amber lamplight",
+    "soft dust motes",
+    "intricate brass detail",
+]
+avoid = ["photorealism", "horror", "neon", "text"]
+
+[scene]
+brief = """A cozy attic workshop of an absent clockmaker at dusk: sloped timber \
+rafters, one round window with fading light, shelves of jars and cogs, a long \
+workbench strewn with tools on the left, a large ornate wall clock mounted \
+center-right, and a lumpy dust-sheeted shape in the right corner."""
+width = 1280
+height = 720
+
+[[hotspots]]
+hotspot_id = "workbench"
+label = "Cluttered workbench"
+art = "scenery"
+brief = "a long timber workbench crowded with clockmaker's tools, tiny drawers, and shavings"
+region = { x = 0.02, y = 0.52, w = 0.30, h = 0.34 }
+
+[[hotspots]]
+hotspot_id = "brass_clock"
+label = "Great brass clock"
+art = "scenery"
+brief = "an ornate brass wall clock with an exposed keyhole, stopped at seven minutes past three"
+region = { x = 0.46, y = 0.16, w = 0.20, h = 0.38 }
+
+[[hotspots]]
+hotspot_id = "dust_sheet"
+label = "Dust sheet"
+art = "sprite"
+brief = "a heavy cream dust sheet draped over a small, boxy shape, hem pooling on the floor"
+region = { x = 0.72, y = 0.50, w = 0.22, h = 0.36 }
+
+[[hotspots]]
+hotspot_id = "music_box"
+label = "Silent music box"
+art = "sprite"
+brief = "a small walnut music box with mother-of-pearl inlay, its winding drum missing one gear"
+region = { x = 0.74, y = 0.58, w = 0.16, h = 0.22 }
+hidden = true
+
+[[hotspots]]
+hotspot_id = "round_window"
+label = "Round window"
+art = "scenery"
+brief = "a round leaded window holding the last violet light of dusk"
+region = { x = 0.08, y = 0.10, w = 0.14, h = 0.22 }
+
+[[hotspots]]
+hotspot_id = "tin_lantern"
+label = "Tin lantern"
+art = "sprite"
+brief = "a punched-tin lantern with a stub of candle, hanging from a rafter hook"
+region = { x = 0.33, y = 0.08, w = 0.10, h = 0.18 }
+
+[[items]]
+item_id = "winding_key"
+label = "Winding key"
+brief = "a small brass winding key with a clover-shaped bow"
+
+[[items]]
+item_id = "small_gear"
+label = "Small gear"
+brief = "a bright steel gear no wider than a thumbnail, teeth still sharp"
+
+# --- interactions: the puzzle graph -----------------------------------------
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "workbench" }
+
+[[interactions]]
+on = { verb = "use", hotspot = "workbench" }
+effects = [{ grant_item = "winding_key" }, { set_flag = "bench_searched" }]
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "brass_clock" }
+narration = """The great clock stands silent, hands folded at seven past three. \
+Below the dial, a clover-shaped keyhole waits for a key you do not have — yet."""
+
+[[interactions]]
+on = { verb = "use", hotspot = "brass_clock", item = "winding_key" }
+effects = [{ set_flag = "clock_wound" }, { grant_item = "small_gear" }]
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "dust_sheet" }
+
+[[interactions]]
+on = { verb = "use", hotspot = "dust_sheet" }
+effects = [{ reveal_hotspot = "music_box" }, { set_flag = "sheet_pulled" }]
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "music_box" }
+
+[[interactions]]
+on = { verb = "use", hotspot = "music_box", item = "small_gear" }
+requires = ["sheet_pulled"]
+effects = [{ set_flag = "music_playing" }]
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "round_window" }
+narration = """Dusk leans through the leaded glass. Somewhere below, the town is \
+lighting its lamps without you."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "tin_lantern" }
+
+[[interactions]]
+on = { verb = "use", hotspot = "tin_lantern" }
+effects = [{ set_flag = "lantern_lit" }]
+
+[win]
+requires = ["music_playing"]

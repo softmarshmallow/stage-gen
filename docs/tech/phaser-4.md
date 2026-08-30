@@ -1,7 +1,7 @@
-# Browser scrolling-preview implementation
+# Browser side-view platformer implementation
 
 The optional `web/` adapter currently uses the `phaser` package to assemble one
-scrolling-world recipe in a browser. This is an operational note for that
+side-view platformer recipe in a browser. This is an operational note for that
 workspace, not the project's game-engine decision.
 
 ## Boundary

@@ -32,15 +32,15 @@ class ExecutionGraph(Graph):
     """One prepared-game plan of record, bound to the package that produced it."""
 
     TRACE_SCHEMA_VERSION: ClassVar[int] = EXECUTION_TRACE_SCHEMA_VERSION
-    TRACE_EVENT_KIND: ClassVar[str] = "prepared-game-execution-event-v1"
-    RUN_SUMMARY_KIND: ClassVar[str] = "prepared-game-execution-summary-v1"
-    PROJECTION_KIND: ClassVar[str] = "prepared-game-execution-projection-v1"
-    VIEW_KIND: ClassVar[str] = "prepared-game-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 2
+    TRACE_EVENT_KIND: ClassVar[str] = "sideview-platformer-execution-event-v1"
+    RUN_SUMMARY_KIND: ClassVar[str] = "sideview-platformer-execution-summary-v1"
+    PROJECTION_KIND: ClassVar[str] = "sideview-platformer-execution-projection-v1"
+    VIEW_KIND: ClassVar[str] = "sideview-platformer-execution-view-v1"
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
     schema_version: Literal[1]
-    kind: Literal["prepared-game-execution-graph-v1"]
-    recipe: Literal["scrolling-preview"]
+    kind: Literal["sideview-platformer-execution-graph-v1"]
+    recipe: Literal["sideview-platformer"]
     game_id: str
     package_sha256: str = Field(pattern=SHA256_PATTERN)
 
@@ -73,8 +73,8 @@ def finalize_execution_graph(
         nodes=nodes,
         terminal_node_id=terminal_node_id,
         schema_version=EXECUTION_GRAPH_SCHEMA_VERSION,
-        kind="prepared-game-execution-graph-v1",
-        recipe="scrolling-preview",
+        kind="sideview-platformer-execution-graph-v1",
+        recipe="sideview-platformer",
         game_id=game_id,
         package_sha256=package_sha256,
     )

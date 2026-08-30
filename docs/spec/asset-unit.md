@@ -60,7 +60,7 @@ defect, caught by proportion review rather than by scale admission.
 - `stage_gen.media.comparison_plate` owns deterministic plate composition and
   the structured judging call. It is provider-neutral and is shared with
   [Motion rebase](motion-rebase.md).
-- `stage_gen.recipes.scrolling_preview.asset_unit` owns resolution, subject
+- `stage_gen.recipes.sideview_platformer.asset_unit` owns resolution, subject
   measurement, the plate's step ladder, admission, and the published
   calibration record.
 - `web/lib/sideview-platformer` owns the projection from calibration to screen pixels and
@@ -298,7 +298,7 @@ separate concern from the asset unit.
   the units that were rejected.
 - [Sprite-sheet slicing and instance recovery](sprite-sheet-processing.md) —
   component extraction and ground-contact measurement.
-- [Scrolling-preview terrain atlas](terrain-atlas.md) — the grid the unit
+- [Side-view platformer terrain atlas](terrain-atlas.md) — the grid the unit
   projects onto.
 - [Authored game contract schema](game/authored-contract-schema.md) — currently
   executable authored fields.

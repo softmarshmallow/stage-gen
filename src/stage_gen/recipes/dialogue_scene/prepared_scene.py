@@ -32,6 +32,7 @@ from gnode import (
     NodeArtifact,
     NodeExecutionError,
     NodeExecutionResult,
+    NodeTypeRegistry,
     ProvenanceInput,
     RetryExhaustedError,
     SoftwareIdentity,
@@ -39,6 +40,7 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
     atomic_write_json,
+    dependency_port,
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
@@ -84,13 +86,12 @@ from stage_gen.recipes.dialogue_scene.models import (
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
 from stage_gen.recipes.dialogue_scene.prompts import (
     background_prompt,
-    concept_prompt,
     expression_prompt,
     neutral_prompt,
-    plan_prompt,
 )
 from stage_gen.recipes.dialogue_scene.scene_graph import (
-    DIALOGUE_GRAPH_CONTRACT_VERSION,
+    DIALOGUE_CACHE_NAMESPACE,
+    DIALOGUE_CACHE_RECORD_KIND,
     DialogueOperationKind,
     DialogueSceneGraph,
 )
@@ -98,11 +99,27 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
     profile_lock_values,
 )
+from stage_gen.recipes.dialogue_scene.scene_types import (
+    BACKDROP_GENERATE,
+    BACKDROP_INGEST,
+    BUNDLE_PACKAGE,
+    CONCEPT_GENERATE,
+    CONCEPT_INGEST,
+    EXPRESSION_DERIVE,
+    EXPRESSION_GENERATE,
+    EXPRESSION_SOURCE_KIND,
+    PLAN_COMPILE,
+    PROFILE_RESOLVE,
+    REQUEST_RESOLVE,
+    SPRITE_CANONICALIZE,
+    SPRITE_MATTE,
+    STYLE_SELECT,
+)
 from stage_gen.recipes.dialogue_scene.schema import dialogue_plan_json_schema
 from stage_gen.recipes.node_cache import NodeArtifactCache
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Awaitable, Callable, Sequence
 
     from gnode import (
         BackgroundMaskArtifact,
@@ -110,6 +127,7 @@ if TYPE_CHECKING:
         ImageGenerationService,
         Node,
         NodeExecutionContext,
+        NodeHandler,
         StructuredGenerationService,
     )
     from stage_gen.recipes.dialogue_scene.models import DialoguePlan
@@ -157,16 +175,17 @@ class DialogueSceneNodeHandler:
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
-            namespace=DIALOGUE_GRAPH_CONTRACT_VERSION,
-            record_kind="dialogue-scene-node-cache-v1",
+            namespace=DIALOGUE_CACHE_NAMESPACE,
+            record_kind=DIALOGUE_CACHE_RECORD_KIND,
         )
+        self._registry = self._build_registry()
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._cache.read(node, context)
         if cached is not None:
             return cached
         try:
-            result = await self._execute(node)
+            result = await self._registry(node, context)
         except NodeExecutionError:
             raise
         except Exception as error:
@@ -182,27 +201,39 @@ class DialogueSceneNodeHandler:
 
     # ---------------------------------------------------------------- dispatch
 
-    async def _execute(self, node: Node) -> NodeExecutionResult:
-        node_id = node.node_id
-        if node_id == "scene-request":
-            return await self._write_request(node)
-        if node_id == "scene-profile-resolve":
-            return await self._write_profile(node)
-        if node_id == "scene-style-select":
-            return await self._select_style(node)
-        if node_id == "scene-concept":
-            return await self._concept(node)
-        if node_id == "scene-plan":
-            return await self._plan(node)
-        if node_id == "scene-background":
-            return await self._background_asset(node)
-        if node_id.startswith("scene-expression-"):
-            return await self._expression(node, _state(node_id, "scene-expression-"))
-        if node_id.startswith("scene-canonicalize-"):
-            return await self._canonicalize(node, _state(node_id, "scene-canonicalize-"))
-        if node_id == "scene-bundle":
-            return await self._bundle(node)
-        raise ValueError(f"unknown dialogue-scene node: {node_id}")
+    def _build_registry(self) -> NodeTypeRegistry:
+        """Registered types replace the id-string chain this handler once walked."""
+
+        registry = NodeTypeRegistry()
+        registry.register(REQUEST_RESOLVE, self._bind(self._write_request))
+        registry.register(PROFILE_RESOLVE, self._bind(self._write_profile))
+        registry.register(STYLE_SELECT, self._bind(self._select_style))
+        registry.register(CONCEPT_GENERATE, self._bind(self._concept_generate))
+        registry.register(CONCEPT_INGEST, self._bind(self._concept_ingest))
+        registry.register(PLAN_COMPILE, self._bind(self._plan))
+        registry.register(BACKDROP_GENERATE, self._bind(self._backdrop_generate))
+        registry.register(BACKDROP_INGEST, self._bind(self._backdrop_ingest))
+        registry.register(EXPRESSION_GENERATE, self._bind(self._expression))
+        registry.register(EXPRESSION_DERIVE, self._bind(self._expression))
+        registry.register(SPRITE_MATTE, self._bind(self._canonicalize_matte))
+        registry.register(SPRITE_CANONICALIZE, self._bind(self._canonicalize_local))
+        registry.register(BUNDLE_PACKAGE, self._bind(self._bundle))
+        return registry
+
+    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
+        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+            return await method(node)
+
+        return handler
+
+    def _node_state(self, node: Node) -> ExpressionState:
+        """The declared expression this node instance is bound to."""
+
+        candidate = node.params.get("state")
+        for state in EXPRESSION_STATES:
+            if state == candidate:
+                return state
+        raise ValueError(f"node {node.node_id} declares no known expression state")
 
     # ------------------------------------------------------------------ nodes
 
@@ -246,7 +277,7 @@ class DialogueSceneNodeHandler:
 
     async def _select_style(self, node: Node) -> NodeExecutionResult:
         request = build_image_style_compiler_request(
-            prompt=self._scene.style_selection_brief,
+            prompt=self._card_prompt(node),
             artifact_path=self._run_dir / "style-anchor.json",
             asset_kinds=("concept_art", "character_sprite", "environment_background"),
             timeout_seconds=self._timeout,
@@ -261,26 +292,30 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _concept(self, node: Node) -> NodeExecutionResult:
+    async def _concept_ingest(self, node: Node) -> NodeExecutionResult:
         reuse = self._scene.concept_reuse
-        if reuse is not None:
-            await self._write_local(
-                "assets/concept.png",
-                reuse.data,
-                "image/png",
-                "Ingest the caller-owned appearance concept.",
-                refs=[f"sha256:{reuse.sha256}"],
-                params={"role": "concept", "reuse_ref": reuse.ref},
-            )
-            return self._result(node, provider_operations=0)
-        prompt = concept_prompt(self._scene.request, self._profile_model())
+        if reuse is None:
+            raise ValueError("concept ingestion requires a caller-supplied concept")
+        await self._write_local(
+            "assets/concept.png",
+            reuse.data,
+            "image/png",
+            "Ingest the caller-owned appearance concept.",
+            refs=[f"sha256:{reuse.sha256}"],
+            params={"role": "concept", "reuse_ref": reuse.ref},
+        )
+        return self._result(node, provider_operations=0)
+
+    async def _concept_generate(self, node: Node) -> NodeExecutionResult:
+        prompt = self._card_prompt(node)
         result = await self._image(node, "concept", prompt, "assets/concept.png", (), alpha=False)
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _plan(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
-        concept = self._read("assets/concept.png")
-        prompt = plan_prompt(scene.request, scene.request_sha256, self._profile_model())
+        concept_path = self._dependency_artifact(node, kind="portrait-concept-v1")
+        concept = self._read(concept_path)
+        prompt = self._card_prompt(node)
         request = StructuredGenerationRequest(
             prompt=prompt,
             system=(
@@ -288,7 +323,7 @@ class DialogueSceneNodeHandler:
                 "dialogue, provider instructions, paths, or policy exceptions."
             ),
             artifact_path=self._run_dir / "plan.json",
-            references=(_structured_reference(concept, "assets/concept.png"),),
+            references=(_structured_reference(concept, concept_path),),
             schema=StructuredOutputSchema(
                 name=(
                     "dialogue_scene_plan_v3"
@@ -316,19 +351,22 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _background_asset(self, node: Node) -> NodeExecutionResult:
+    async def _backdrop_ingest(self, node: Node) -> NodeExecutionResult:
+        reuse = self._scene.background_reuse
+        if reuse is None:
+            raise ValueError("backdrop ingestion requires a caller-supplied background")
+        await self._write_local(
+            "assets/background.png",
+            reuse.data,
+            "image/png",
+            "Ingest the caller-owned scene background.",
+            refs=[f"sha256:{reuse.sha256}"],
+            params={"role": "background", "reuse_ref": reuse.ref},
+        )
+        return self._result(node, provider_operations=0)
+
+    async def _backdrop_generate(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
-        reuse = scene.background_reuse
-        if reuse is not None:
-            await self._write_local(
-                "assets/background.png",
-                reuse.data,
-                "image/png",
-                "Ingest the caller-owned scene background.",
-                refs=[f"sha256:{reuse.sha256}"],
-                params={"role": "background", "reuse_ref": reuse.ref},
-            )
-            return self._result(node, provider_operations=0)
         native = scene.request.transparency_mode == "native"
         provider_output = "raw/background-provider.png" if native else "assets/background.png"
         prompt = background_prompt(scene.request, self._plan_document())
@@ -361,32 +399,32 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _expression(self, node: Node, state: ExpressionState) -> NodeExecutionResult:
+    async def _expression(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
+        state = self._node_state(node)
         plan = self._plan_document()
         alpha = scene.request.transparency_mode == "native"
         if state == "neutral":
-            source = self._read("assets/concept.png")
+            source_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
             prompt = neutral_prompt(scene.request, plan)
-            references = ((source, "assets/concept.png"),)
         else:
-            source = self._read("raw/expression-neutral.png")
+            source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
             prompt = expression_prompt(
                 state, plan, transparency_mode=scene.request.transparency_mode
             )
-            references = ((source, "raw/expression-neutral.png"),)
+        source = self._read(source_relative)
+        references = ((source, source_relative),)
         result = await self._image(
-            node, state, prompt, f"raw/expression-{state}.png", references, alpha=alpha
+            node, state, prompt, node.port("source").artifact_ref, references, alpha=alpha
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _canonicalize(self, node: Node, state: ExpressionState) -> NodeExecutionResult:
+    async def _canonicalize_local(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
+        state = self._node_state(node)
         mode = scene.request.transparency_mode
-        source_relative = f"raw/expression-{state}.png"
+        source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
         source = self._read(source_relative)
-        attempts = 1
-        provider_operations = 0
         if mode == "chroma":
             data, facts = apply_chroma_transparency(source)
             derivation: dict[str, object] = {"mode": "chroma", **asdict(facts)}
@@ -403,18 +441,51 @@ class DialogueSceneNodeHandler:
                 "alpha_canonicalization": asdict(normalization),
             }
         else:
-            data, derivation, attempts = await self._remove_background(node, state, source)
-            provider_operations = attempts
+            raise ValueError("ai transparency canonicalization is a matte node")
         if mode != "native":
             data, edge_facts = decontaminate_magenta_edges(data)
             derivation["edge_decontamination"] = {
                 "version": MAGENTA_EDGE_DECONTAMINATION_VERSION,
                 **edge_facts.as_dict(),
             }
-            if mode == "chroma":
-                derivation["chroma_matte_version"] = CHROMA_MATTE_VERSION
+            derivation["chroma_matte_version"] = CHROMA_MATTE_VERSION
+        return await self._finish_sprite(
+            node, state, source_relative, data, derivation, attempts=1, provider_operations=0
+        )
+
+    async def _canonicalize_matte(self, node: Node) -> NodeExecutionResult:
+        state = self._node_state(node)
+        source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
+        source = self._read(source_relative)
+        data, derivation, attempts = await self._remove_background(node, state, source)
+        data, edge_facts = decontaminate_magenta_edges(data)
+        derivation["edge_decontamination"] = {
+            "version": MAGENTA_EDGE_DECONTAMINATION_VERSION,
+            **edge_facts.as_dict(),
+        }
+        return await self._finish_sprite(
+            node,
+            state,
+            source_relative,
+            data,
+            derivation,
+            attempts=attempts,
+            provider_operations=attempts,
+        )
+
+    async def _finish_sprite(
+        self,
+        node: Node,
+        state: ExpressionState,
+        source_relative: str,
+        data: bytes,
+        derivation: dict[str, object],
+        *,
+        attempts: int,
+        provider_operations: int,
+    ) -> NodeExecutionResult:
         await self._write_local(
-            f"assets/expression-{state}.png",
+            node.port("sprite").artifact_ref,
             data,
             "image/png",
             "Canonicalize dialogue sprite transparency.",
@@ -429,8 +500,8 @@ class DialogueSceneNodeHandler:
     ) -> tuple[bytes, dict[str, object], int]:
         if self._background is None:
             raise ValueError("ai transparency requires an injected background-removal service")
-        removed_relative = f"raw/expression-{state}.removed.png"
-        prompt = "Remove the background while preserving the adult character."
+        removed_relative = node.port("matte").artifact_ref
+        prompt = self._card_prompt(node)
         request = BackgroundRemovalRequest(
             image_url=_data_url(source),
             artifact_path=self._run_dir / removed_relative,
@@ -728,14 +799,19 @@ class DialogueSceneNodeHandler:
     def _result(
         self, node: Node, *, attempts: int = 1, provider_operations: int
     ) -> NodeExecutionResult:
+        refs: list[str] = []
+        for port in node.ports:
+            refs.append(port.artifact_ref)
+            if port.sidecar_ref is not None:
+                refs.append(port.sidecar_ref)
         artifacts = tuple(
             NodeArtifact(
-                artifact_ref=output,
-                sha256=content_sha256(self._read(output)),
-                bytes=len(self._read(output)),
+                artifact_ref=ref,
+                sha256=content_sha256(self._read(ref)),
+                bytes=len(self._read(ref)),
             )
-            for output in node.outputs
-            if (self._run_dir / output).is_file()
+            for ref in refs
+            if (self._run_dir / ref).is_file()
         )
         return NodeExecutionResult(
             cache=CacheDisposition.MISS,
@@ -743,6 +819,19 @@ class DialogueSceneNodeHandler:
             provider_operations=provider_operations,
             artifacts=artifacts,
         )
+
+    def _card_prompt(self, node: Node) -> str:
+        """The plan is the single source of a node's static instruction text."""
+
+        if node.card is None or node.card.prompt is None:
+            raise ValueError(f"node {node.node_id} declares no card prompt")
+        return node.card.prompt
+
+    def _dependency_artifact(self, node: Node, *, kind: str) -> str:
+        """Resolve one typed input to the artifact ref its producer declared."""
+
+        _producer, port = dependency_port(self._graph, node, kind=kind)
+        return port.artifact_ref
 
     def _read(self, relative: str) -> bytes:
         return resolve_relative_path_within_root(
@@ -795,16 +884,6 @@ class DialogueSceneNodeHandler:
             "style_skill_sha256": anchor.skill_sha256,
             "style_vocabulary_sha256": anchor.vocabulary_sha256,
         }
-
-
-def _state(node_id: str, prefix: str) -> ExpressionState:
-    """Recover the declared expression from a node id the graph builder wrote."""
-
-    candidate = node_id.removeprefix(prefix)
-    for state in EXPRESSION_STATES:
-        if state == candidate:
-            return state
-    raise ValueError(f"unknown dialogue expression node: {node_id}")
 
 
 def _rejected_records(

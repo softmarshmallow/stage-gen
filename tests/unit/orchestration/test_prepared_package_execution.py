@@ -120,7 +120,7 @@ async def test_cache_replay_rejects_modified_content_and_lineage(tmp_path: Path)
 
 async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
-    targets = world_target_node_ids(prepared.package)
+    targets = world_target_node_ids(prepared.graph)
     summary = await Scheduler(prepared.graph.resources).run(
         prepared.graph,
         DryRunNodeHandler(
@@ -151,7 +151,7 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
 
 async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) -> None:
     prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
-    targets = content_target_node_ids(prepared.package)
+    targets = content_target_node_ids(prepared.graph)
     summary = await Scheduler(prepared.graph.resources).run(
         prepared.graph,
         DryRunNodeHandler(

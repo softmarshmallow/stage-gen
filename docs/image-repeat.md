@@ -113,7 +113,7 @@ construction (`admitted` or `repaired`), complete lineage, and rights status.
 When the VLM adapter persists its verdict, that review JSON and sidecar are also
 digest-bound by the manifest.
 
-The scrolling-preview producer reopens every discovered `*.repeat.json`,
+The side-view platformer producer reopens every discovered `*.repeat.json`,
 revalidates source/output/review provenance, decodes every bound PNG, reconstructs
 the repair split and retained provider candidate where applicable, recomputes the
 endpoint anchor and deterministic report, rebuilds the exact three-repeat

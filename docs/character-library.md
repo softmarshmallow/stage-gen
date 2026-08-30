@@ -106,7 +106,7 @@ bun run stage-gen -- dialogue-scene generate \
 ```
 
 A prepared game binds its cast in `game.toml` rather than in a request document,
-so the `scrolling-preview` recipe reads authored profiles through the package it
+so the `sideview-platformer` recipe reads authored profiles through the package it
 is given. The dialogue run persists `character-profile.json` with provenance and
 publishes wire-V3 `bundle.json` using recipe V4. These artifacts carry identity
 and lineage; they do not authorize publication.

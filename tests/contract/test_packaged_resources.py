@@ -202,7 +202,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The ring cut nets a few package files: modality and provider package
         # __init__ modules, the signature/inspection modules, and the
         # application's identity and image_style modules (measured 362).
-        assert len(sdist_entries) <= 372
+        # The node-ABI pass adds the engine's node_types and build modules, the
+        # two recipes' type-census modules, and the whole point-and-click room
+        # recipe with its authored library room (measured 379).
+        assert len(sdist_entries) <= 389
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.

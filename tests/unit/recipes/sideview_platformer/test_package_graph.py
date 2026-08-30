@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from gnode import project_schedule
+from gnode import Node, project_schedule
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction
@@ -36,6 +36,12 @@ def _graph() -> ExecutionGraph:
         package,
         profile=package_graph_profile(StageGenConfig()),
     )
+
+
+def _artifact_refs(node: Node) -> tuple[str, ...]:
+    """A node's primary artifact refs in port order, sidecars excluded."""
+
+    return tuple(port.artifact_ref for port in node.ports)
 
 
 def _graph_with_projectile_edit(root: Path, old: str, new: str) -> ExecutionGraph:
@@ -77,15 +83,23 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
 
     generated = graph.node("player-wayfarer-state-run-generate")
     validated = graph.node("player-wayfarer-state-run-validate")
-    assert generated.outputs == ("content/players/wayfarer/states/run.source.png",)
-    assert validated.outputs == (
+    assert generated.type_id == "2d/sideview/platformer/motion_atlas.generate"
+    assert generated.params == {"actor_kind": "player", "actor_id": "wayfarer", "state": "run"}
+    assert _artifact_refs(generated) == ("content/players/wayfarer/states/run.source.png",)
+    assert generated.port("image").sidecar_ref == (
+        "content/players/wayfarer/states/run.source.png.meta.json"
+    )
+    assert _artifact_refs(validated) == (
         "content/players/wayfarer/states/run.png",
         "content/players/wayfarer/states/run.validation.json",
     )
+    assert validated.port("validation").sidecar_ref is None
     crouch_generated = graph.node("player-wayfarer-state-crouch-generate")
     assert crouch_generated.depends_on == ("player-wayfarer-concept-generate",)
-    assert crouch_generated.outputs == ("content/players/wayfarer/states/crouch.source.png",)
-    assert graph.node("player-wayfarer-state-crouch-validate").outputs == (
+    assert _artifact_refs(crouch_generated) == (
+        "content/players/wayfarer/states/crouch.source.png",
+    )
+    assert _artifact_refs(graph.node("player-wayfarer-state-crouch-validate")) == (
         "content/players/wayfarer/states/crouch.png",
         "content/players/wayfarer/states/crouch.validation.json",
     )
@@ -95,7 +109,7 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     for role_state in ("climb_ladder", "climb_rope"):
         climb_generated = graph.node(f"player-wayfarer-state-{role_state}-generate")
         assert climb_generated.depends_on == ("player-wayfarer-concept-generate",)
-        assert climb_generated.outputs == (
+        assert _artifact_refs(climb_generated) == (
             f"content/players/wayfarer/states/{role_state}.source.png",
         )
     assert graph.node("ui-inventory-panel-generate").depends_on == ("package-resolve",)
@@ -103,7 +117,7 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     assert graph.node("map-crowncrag-road-climbable-validate").depends_on == (
         "map-crowncrag-road-climbable-generate",
     )
-    assert graph.node("map-sunpetal-crossing-portal-validate").outputs == (
+    assert _artifact_refs(graph.node("map-sunpetal-crossing-portal-validate")) == (
         "maps/sunpetal-crossing/portal.png",
         "maps/sunpetal-crossing/portal.validation.json",
     )
@@ -118,10 +132,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     )
     assert template_digest in graph.node("map-sunpetal-crossing-ground-validate").input_sha256
 
-    outputs = [output for node in graph.nodes for output in node.outputs]
-    assert len(outputs) == len(set(outputs))
+    refs = [ref for node in graph.nodes for ref in sorted(node.declared_artifact_refs())]
+    assert len(refs) == len(set(refs))
     assert all(node.cache_key for node in graph.nodes)
     assert all(node.input_sha256 for node in graph.nodes)
+    assert all(node.ports for node in graph.nodes)
 
 
 def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> None:
@@ -659,7 +674,7 @@ def test_a_projectile_fans_out_one_generated_sprite_and_a_family_review() -> Non
     assert (
         graph.node("projectile-paperwing_dart-generate").operation == OperationKind.IMAGE_GENERATION
     )
-    assert graph.node("projectile-paperwing_dart-generate").outputs == (
+    assert _artifact_refs(graph.node("projectile-paperwing_dart-generate")) == (
         "content/projectiles/paperwing_dart.png",
     )
     assert graph.node("projectile-paperwing_dart-validate").depends_on == (
@@ -669,6 +684,15 @@ def test_a_projectile_fans_out_one_generated_sprite_and_a_family_review() -> Non
         "projectile-paperwing_dart-validate",
     )
     assert graph.node("projectiles-review").operation == OperationKind.STRUCTURED_GENERATION
+    # The three catalog families are instances of one packaged pipeline now, and
+    # each node says which instance stamped it.
+    assert graph.node("projectiles-review").template_id == "catalog-pipeline@v1:projectiles"
+    assert graph.node("props-review").template_id == "catalog-pipeline@v1:props"
+    assert graph.node("items-review").template_id == "catalog-pipeline@v1:items"
+    assert graph.node("projectile-paperwing_dart-generate").params == {
+        "family": "projectile",
+        "entity_id": "paperwing_dart",
+    }
 
 
 def test_a_projectiles_cache_key_ignores_how_the_object_moves(tmp_path: Path) -> None:

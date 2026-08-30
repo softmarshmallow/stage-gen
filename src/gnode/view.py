@@ -23,7 +23,8 @@ from typing import Literal, Protocol, cast
 from pydantic import Field
 
 from gnode.contracts.artifacts import SHA256_PATTERN, PersistedContractModel
-from gnode.graph import CacheDisposition, Graph, Node, Resource, RetryOwner
+from gnode.graph import CacheDisposition, Graph, Node, NodeCard, Port, Resource, RetryOwner
+from gnode.node_types import NodeType, ViewArchetype
 from gnode.reliability import atomic_write_json
 
 NodeState = Literal["pending", "running", "succeeded", "failed", "skipped"]
@@ -48,9 +49,10 @@ _MEDIA_TYPES = {
     ".txt": "text/plain",
 }
 
-#: The plan's ``depends_on`` list carries lineage and cache-barrier edges as one
-#: undifferentiated set; the view cannot render them distinctly until the plan does.
-EDGE_KIND_GAP_ID = "edge-kinds-not-distinguished"
+#: A plan node declared a ``type_id`` the exporter's registry does not carry, so
+#: its title and archetype could not be joined and a renderer falls back to the
+#: generic view.
+UNREGISTERED_TYPE_GAP_ID = "node-type-not-registered"
 
 
 class RunViewMotion(PersistedContractModel):
@@ -79,9 +81,16 @@ class RunViewArtifact(PersistedContractModel):
 
 class RunViewNode(PersistedContractModel):
     node_id: str
+    type_id: str
+    #: Joined from the exporter's type registry; absent when the type is
+    #: unregistered (recorded as a gap) so a renderer falls back generically.
+    title: str | None = None
+    archetype: ViewArchetype | None = None
     domain: str
     description: str
+    params: dict[str, str] = Field(default_factory=dict)
     depends_on: tuple[str, ...] = ()
+    barrier_only: tuple[str, ...] = ()
     operation: str
     resource_id: str
     provider: str | None = None
@@ -90,7 +99,9 @@ class RunViewNode(PersistedContractModel):
     max_attempts: int = Field(ge=1, le=6)
     input_sha256: tuple[str, ...] = ()
     cache_key: str = Field(pattern=SHA256_PATTERN)
-    outputs: tuple[str, ...] = ()
+    ports: tuple[Port, ...] = ()
+    card: NodeCard | None = None
+    template_id: str | None = None
     estimated_duration_seconds: float = Field(ge=0.0)
     estimated_cost_low_usd: float = Field(ge=0.0)
     estimated_cost_high_usd: float = Field(ge=0.0)
@@ -168,11 +179,13 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
     graph_type: type[GraphT],
     view_type: type[ViewT],
     annotators: Mapping[str, ArtifactAnnotator] | None = None,
+    types: Mapping[str, NodeType] | None = None,
 ) -> ViewT:
     """Join a run directory's plan and trace into one renderable view document.
 
-    The consumer supplies both document types and the annotators its graphs
-    recognise; the engine owns the join, the state vocabulary, and the gap list.
+    The consumer supplies both document types, the annotators its graphs
+    recognise, and its node-type index (for the display join); the engine owns
+    the join, the state vocabulary, and the gap list.
     """
 
     plan_path = run_dir / "execution-plan.json"
@@ -189,11 +202,6 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
     trace_path = run_dir / "execution-trace.jsonl"
     events = _read_trace_events(trace_path)
     gaps: dict[str, RunViewGap] = {}
-    _record_gap(
-        gaps,
-        EDGE_KIND_GAP_ID,
-        "plan depends_on does not distinguish lineage edges from cache barriers",
-    )
 
     known_node_ids = {node.node_id for node in graph.nodes}
     started: dict[str, int] = {}
@@ -244,6 +252,7 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
     nodes = tuple(
         _view_node(
             node,
+            node_type=(types or {}).get(node.type_id),
             started_offset_ms=started.get(node.node_id),
             terminal=terminal.get(node.node_id),
             run_dir=run_dir,
@@ -330,12 +339,19 @@ def _read_trace_events(path: Path) -> list[dict[str, object]]:
 def _view_node(
     node: Node,
     *,
+    node_type: NodeType | None,
     started_offset_ms: int | None,
     terminal: Mapping[str, object] | None,
     run_dir: Path,
     annotate: ArtifactAnnotator,
     gaps: dict[str, RunViewGap],
 ) -> RunViewNode:
+    if node_type is None:
+        _record_gap(
+            gaps,
+            UNREGISTERED_TYPE_GAP_ID,
+            "plan nodes declare type ids the exporter's registry does not carry",
+        )
     state: NodeState = "pending"
     if started_offset_ms is not None:
         state = "running"
@@ -378,9 +394,14 @@ def _view_node(
         artifacts = _view_artifacts(terminal, node, run_dir, annotate, gaps)
     return RunViewNode(
         node_id=node.node_id,
+        type_id=node.type_id,
+        title=node_type.title if node_type is not None else None,
+        archetype=node_type.archetype if node_type is not None else None,
         domain=node.domain,
         description=node.description,
+        params=dict(node.params),
         depends_on=node.depends_on,
+        barrier_only=node.barrier_only,
         operation=node.operation,
         resource_id=node.resource_id,
         provider=node.provider,
@@ -389,7 +410,9 @@ def _view_node(
         max_attempts=node.max_attempts,
         input_sha256=node.input_sha256,
         cache_key=node.cache_key,
-        outputs=node.outputs,
+        ports=node.ports,
+        card=node.card,
+        template_id=node.template_id,
         estimated_duration_seconds=node.estimated_duration_seconds,
         estimated_cost_low_usd=node.estimated_cost_low_usd,
         estimated_cost_high_usd=node.estimated_cost_high_usd,
@@ -473,7 +496,7 @@ def _record_gap(gaps: dict[str, RunViewGap], gap_id: str, detail: str) -> None:
 
 
 __all__ = [
-    "EDGE_KIND_GAP_ID",
+    "UNREGISTERED_TYPE_GAP_ID",
     "ArtifactAnnotation",
     "ArtifactAnnotator",
     "RunView",

@@ -25,8 +25,11 @@ Start here for the headless, general-purpose system:
   implemented current `game-contract-v7` package-root fields, closed vocabulary,
   validation, binding, and manifest projection.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
-  machine-checked current scrolling DAG, stage and operation contracts, internal
-  fan-out, execution semantics, and explicitly separated target evolution.
+  machine-checked current side-view platformer DAG, typed nodes, stage and operation
+  contracts, internal fan-out, execution semantics, and explicitly separated target evolution.
+- [Point-and-click puzzle room](spec/game/pointclick-room.md) — the third recipe
+  (`2d/roomview/pointclick`): the authored `pointclick-room-v1` room document, its
+  solvability proof, the 16-node graph, and the `pointclick-room-runtime-v1` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
@@ -123,8 +126,8 @@ Start here for the headless, general-purpose system:
   digest-bound observation contracts; research-only and not implemented.
 
 The documents under [`spec/`](spec/) that describe parallax, terrain,
-characters, mobs, inventory, and portals are the first scrolling-preview
-recipe. They are useful component/recipe evidence, not the definition of
+characters, mobs, inventory, and portals are the first recipe, the side-view
+platformer. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
 
 The Visual Novel Scene Kit Python producer currently has two strict

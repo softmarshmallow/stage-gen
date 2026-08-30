@@ -19,8 +19,11 @@ import {
   type ExecutionView,
   nodeStateLabel,
   RUN_LIVENESS_LABELS,
+  subjectLabel,
+  type ViewArchetype,
 } from "@/lib/run-viewer/execution-view";
 import { layoutExecutionGraph } from "@/lib/run-viewer/execution-view-layout";
+import { nodeChipLabel, nodeHeading } from "@/lib/run-viewer/execution-view-node";
 import {
   centerOn,
   fitViewport,
@@ -41,6 +44,24 @@ const STATE_CHIP: Record<ExecutionNodeState, string> = {
   succeeded: "border-accent/60 text-fg",
   failed: "border-error text-error",
   skipped: "border-dashed border-dim text-dim",
+};
+
+/**
+ * A weight on the chip's leading edge, not a colour: the palette is three
+ * colours and state already owns them. Work a provider does reads heaviest,
+ * work a model reasons about reads lighter, local work carries no mark.
+ */
+const ARCHETYPE_ACCENT: Record<ViewArchetype, string> = {
+  image: "border-l-2 border-l-fg",
+  music: "border-l-2 border-l-fg",
+  matte: "border-l-2 border-l-fg",
+  structured: "border-l-2 border-l-dim",
+  judge: "border-l-2 border-l-dim",
+  review: "border-l-2 border-l-dim",
+  source: "",
+  transform: "",
+  validate: "",
+  package: "",
 };
 
 /** Panel width, and the slice of frame it covers when centring on a node. */
@@ -347,6 +368,10 @@ export default function RunViewer({
                   fill="none"
                   stroke={active ? "var(--color-accent)" : "var(--color-border)"}
                   strokeWidth={active ? 1.5 : 1}
+                  // A barrier edge orders execution without carrying lineage.
+                  // The plan finally says which is which, so the picture does too.
+                  strokeDasharray={edge.barrier ? "4 4" : undefined}
+                  strokeOpacity={edge.barrier ? 0.55 : undefined}
                 />
               );
             })}
@@ -379,7 +404,12 @@ export default function RunViewer({
               (placed.id === selectedId || placed.memberIds.includes(selectedId));
             const label = isCollapsedChip
               ? `${placed.domain} ×${placed.memberIds.length}`
-              : placed.id;
+              : member
+                ? nodeChipLabel(member)
+                : placed.id;
+            // The human label is what a reader scans; the id is what they
+            // quote. Keeping the id in the hover title loses neither.
+            const hoverTitle = isCollapsedChip ? label : placed.id;
             return (
               <button
                 key={placed.id}
@@ -387,6 +417,9 @@ export default function RunViewer({
                 className={cx(
                   "absolute cursor-pointer truncate border bg-bg px-1.5 text-left text-[11px] leading-[30px] hover:border-fg",
                   STATE_CHIP[chipState],
+                  !isCollapsedChip && member?.archetype
+                    ? ARCHETYPE_ACCENT[member.archetype]
+                    : "",
                   isSelected && "shadow-[inset_0_0_0_1px_var(--color-accent)]",
                 )}
                 style={{
@@ -395,7 +428,7 @@ export default function RunViewer({
                   width: layout.chipWidth,
                   height: layout.chipHeight,
                 }}
-                title={label}
+                title={hoverTitle}
                 aria-pressed={isSelected}
                 onClick={() => {
                   if (draggedRef.current) return;
@@ -417,7 +450,7 @@ export default function RunViewer({
           </Link>
           <span className="text-sm font-semibold text-fg">{tag}</span>
           <span>
-            {view.gameId} · {view.recipe} ·{" "}
+            {subjectLabel(view.subject)} · {view.subject.recipe} ·{" "}
             {RUN_LIVENESS_LABELS[liveness]} · {view.nodes.length} nodes
           </span>
         </p>
@@ -478,7 +511,7 @@ export default function RunViewer({
         >
           <div className="flex items-baseline gap-2 border-b border-border px-3 py-2">
             <h2 className="m-0 min-w-0 flex-1 truncate text-sm font-semibold" title={selected?.nodeId ?? "Run"}>
-              {selected ? selected.nodeId : "Run"}
+              {selected ? nodeHeading(selected) : "Run"}
             </h2>
             <button
               type="button"
@@ -491,7 +524,13 @@ export default function RunViewer({
           </div>
           <div className="min-h-0 flex-1 overflow-auto overscroll-none">
             {selected ? (
-              <NodeInspector tag={tag} node={selected} liveness={liveness} onSelect={focusNode} />
+              <NodeInspector
+                tag={tag}
+                node={selected}
+                nodesById={nodesById}
+                liveness={liveness}
+                onSelect={focusNode}
+              />
             ) : (
               <RunFacts view={view} liveness={liveness} />
             )}

@@ -7,8 +7,7 @@ import hashlib
 import io
 import json
 import math
-import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -28,6 +27,8 @@ from gnode import (
     NodeExecutionContext,
     NodeExecutionError,
     NodeExecutionResult,
+    NodeHandler,
+    NodeTypeRegistry,
     ProvenanceInput,
     SoftwareIdentity,
     StructuredGenerationRequest,
@@ -35,6 +36,7 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
     atomic_write_json,
+    dependency_port,
     write_artifact_with_provenance_async,
 )
 from stage_gen.components.dialogue_sequence import DialogueNode
@@ -75,12 +77,10 @@ from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKin
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.sideview_platformer.motion_contract import (
-    MOTION_ATLAS_COLUMNS,
     MOTION_ATLAS_HEIGHT,
-    MOTION_ATLAS_REQUIRED_CELLS,
-    MOTION_ATLAS_ROWS,
     MOTION_ATLAS_WIDTH,
     MotionActorKind,
+    MotionAtlasGeometry,
     dialogue_atlas_grid,
     motion_atlas_geometry,
     motion_semantic_direction,
@@ -103,6 +103,34 @@ from stage_gen.recipes.sideview_platformer.motion_rebase import (
     motion_rebase_verification_prompt,
     parse_motion_rebase,
 )
+from stage_gen.recipes.sideview_platformer.package_graph import (
+    CACHE_RECORD_KIND,
+    CONTENT_CACHE_NAMESPACE,
+)
+from stage_gen.recipes.sideview_platformer.package_types import (
+    ACTOR_CONCEPT_GENERATE,
+    ACTOR_CONTACT_SHEET,
+    ACTOR_REVIEW,
+    CATALOG_ASSET_GENERATE,
+    CATALOG_ASSET_VALIDATE,
+    CATALOG_CONTACT_SHEET,
+    CATALOG_REVIEW,
+    DIALOGUE_ATLAS_GENERATE,
+    DIALOGUE_ATLAS_VALIDATE,
+    GAMEPLAY_BINDINGS_VALIDATE,
+    MOTION_ATLAS_GENERATE,
+    MOTION_ATLAS_VALIDATE,
+    MOTION_REBASE_JUDGE,
+    MOTION_REBASE_VERIFY,
+    PACKAGE_RESOLVE,
+    SOUNDTRACK_GENERATE,
+    SOUNDTRACK_VALIDATE,
+    UI_INVENTORY_GENERATE,
+    UI_INVENTORY_REVIEW,
+    UI_INVENTORY_VALIDATE,
+    WORLD_SPRITE_GENERATE,
+    WORLD_SPRITE_VALIDATE,
+)
 from stage_gen.recipes.sideview_platformer.projectile_silhouettes import (
     projectile_silhouette_art,
 )
@@ -111,24 +139,13 @@ from stage_gen.recipes.sideview_platformer.weapon_silhouettes import player_equi
 from stage_gen.resources import inventory_template_path
 
 CONTENT_HANDLER_VERSION = "prepared-content-v4"
-CONTENT_CACHE_VERSION = "prepared-content-v3"
-_PLAYER_NODE = re.compile(
-    r"^player-(?P<entity_id>[a-z0-9_]+)-(?:(?:state-(?P<state>[a-z0-9_]+)-(?P<state_action>generate|validate))|(?P<action>concept-generate|dialogue-generate|dialogue-validate|contact-sheet|motion-rebase-verify|motion-rebase|review))$"
-)
-_MOB_NODE = re.compile(
-    r"^mob-(?P<entity_id>[a-z0-9_]+)-(?:(?:state-(?P<state>[a-z0-9_]+)-(?P<state_action>generate|validate))|(?P<action>concept-generate|contact-sheet|review))$"
-)
-_NPC_NODE = re.compile(
-    r"^npc-(?P<entity_id>[a-z0-9_]+)-(?P<action>concept-generate|world-generate|world-validate|dialogue-generate|dialogue-validate|contact-sheet|review)$"
-)
-_CATALOG_NODE = re.compile(
-    r"^(?P<kind>prop|item)-(?P<entity_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
-)
-_PROJECTILE_NODE = re.compile(
-    r"^projectile-(?P<entity_id>[a-z0-9_]+)-(?P<action>generate|validate)$"
-)
-_TRACK_NODE = re.compile(r"^track-(?P<track_id>[a-z0-9_]+)-(?P<action>generate|validate)$")
-_UI_INVENTORY_NODE = re.compile(r"^ui-inventory-panel-(?P<action>generate|validate|review)$")
+
+#: The three catalog families the packaged catalog pipeline draws. A family is a node parameter,
+#: not a node identity: props, items, and projectiles run the same generate-validate-board-review
+#: shape, and the projectile residue below is a branch inside it rather than a copy of it.
+CatalogFamily = Literal["prop", "item", "projectile"]
+CatalogEntry = PropContent | ItemContent | ProjectileContent
+ActorContent = PlayerContent | MobContent | NpcContent
 
 
 class PreparedContentNodeHandler:
@@ -156,12 +173,13 @@ class PreparedContentNodeHandler:
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
-            namespace=CONTENT_CACHE_VERSION,
-            record_kind="prepared-content-node-cache-v1",
+            namespace=CONTENT_CACHE_NAMESPACE,
+            record_kind=CACHE_RECORD_KIND,
             admit=lambda node, payloads: (
                 bool(payloads) and self._cached_primary_artifact_valid(node, payloads[0])
             ),
         )
+        self._registry = self._build_registry()
 
     def _motion_source_facing(
         self, kind: MotionActorKind, state: str
@@ -177,7 +195,7 @@ class PreparedContentNodeHandler:
         if cached is not None:
             return cached
         try:
-            result = await self._execute(node)
+            result = await self._registry(node, context)
         except NodeExecutionError:
             raise
         except Exception as error:
@@ -191,59 +209,169 @@ class PreparedContentNodeHandler:
         self._cache.write(node, context, result)
         return result
 
-    async def _execute(self, node: Node) -> NodeExecutionResult:
-        if node.node_id == "package-resolve":
-            path = self._run_dir / node.outputs[0]
-            atomic_write_json(path, self._package.identity())
-            return self._result(node, (path,), provider_operations=0)
-        if node.node_id == "gameplay-bindings-validate":
-            return await self._write_bindings(node)
-        if node.node_id == "props-contact-sheet":
-            return await self._catalog_contact_sheet(node, "prop")
-        if node.node_id == "items-contact-sheet":
-            return await self._catalog_contact_sheet(node, "item")
-        if node.node_id == "props-review":
-            return await self._catalog_review(node, "prop")
-        if node.node_id == "items-review":
-            return await self._catalog_review(node, "item")
-        if node.node_id == "projectiles-contact-sheet":
-            return await self._projectile_contact_sheet(node)
-        if node.node_id == "projectiles-review":
-            return await self._projectile_review(node)
-        ui_match = _UI_INVENTORY_NODE.fullmatch(node.node_id)
-        if ui_match:
-            return await self._ui_inventory_node(node, ui_match["action"])
+    # ---------------------------------------------------------------- dispatch
 
-        match = _PLAYER_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._player_node(node, match)
-        match = _MOB_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._mob_node(node, match)
-        match = _NPC_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._npc_node(node, match)
-        match = _CATALOG_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._catalog_node(node, match)
-        match = _PROJECTILE_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._projectile_node(node, match)
-        match = _TRACK_NODE.fullmatch(node.node_id)
-        if match:
-            return await self._track_node(node, match)
-        raise ValueError(f"prepared content handler cannot execute node: {node.node_id}")
+    def _build_registry(self) -> NodeTypeRegistry:
+        """Registered types replace the seven id regexes this handler once walked."""
 
-    async def _ui_inventory_node(self, node: Node, action: str) -> NodeExecutionResult:
-        if action == "generate":
-            return await self._generate_inventory_panel(node)
-        if action == "validate":
-            return await self._validate_inventory_panel(node)
-        return await self._review_inventory_panel(node)
+        registry = NodeTypeRegistry()
+        registry.register(PACKAGE_RESOLVE, self._bind(self._resolve_package))
+        registry.register(GAMEPLAY_BINDINGS_VALIDATE, self._bind(self._write_bindings))
+        registry.register(ACTOR_CONCEPT_GENERATE, self._bind(self._generate_concept))
+        registry.register(MOTION_ATLAS_GENERATE, self._bind(self._generate_motion))
+        registry.register(MOTION_ATLAS_VALIDATE, self._bind(self._validate_motion))
+        registry.register(DIALOGUE_ATLAS_GENERATE, self._bind(self._generate_dialogue))
+        registry.register(DIALOGUE_ATLAS_VALIDATE, self._bind(self._validate_dialogue))
+        registry.register(WORLD_SPRITE_GENERATE, self._bind(self._generate_world_sprite))
+        registry.register(WORLD_SPRITE_VALIDATE, self._bind(self._validate_world_sprite))
+        registry.register(MOTION_REBASE_JUDGE, self._bind(self._actor_motion_rebase))
+        registry.register(MOTION_REBASE_VERIFY, self._bind(self._actor_motion_rebase_verify))
+        registry.register(ACTOR_CONTACT_SHEET, self._bind(self._actor_contact_sheet))
+        registry.register(ACTOR_REVIEW, self._bind(self._actor_review))
+        registry.register(CATALOG_ASSET_GENERATE, self._bind(self._generate_catalog_asset))
+        registry.register(CATALOG_ASSET_VALIDATE, self._bind(self._validate_catalog_asset))
+        registry.register(CATALOG_CONTACT_SHEET, self._bind(self._catalog_contact_sheet))
+        registry.register(CATALOG_REVIEW, self._bind(self._catalog_review))
+        registry.register(SOUNDTRACK_GENERATE, self._bind(self._generate_track))
+        registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
+        registry.register(UI_INVENTORY_GENERATE, self._bind(self._generate_inventory_panel))
+        registry.register(UI_INVENTORY_VALIDATE, self._bind(self._validate_inventory_panel))
+        registry.register(UI_INVENTORY_REVIEW, self._bind(self._review_inventory_panel))
+        return registry
+
+    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
+        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+            return await method(node)
+
+        return handler
+
+    # ------------------------------------------------------------- node params
+
+    def _actor_kind(self, node: Node) -> MotionActorKind:
+        """The actor family this node instance is bound to."""
+
+        kind = node.params.get("actor_kind")
+        if kind not in {"player", "mob", "npc"}:
+            raise ValueError(f"node {node.node_id} declares no known actor kind")
+        return cast(MotionActorKind, kind)
+
+    def _actor(self, node: Node) -> ActorContent:
+        """The authored actor this node instance is bound to."""
+
+        kind = self._actor_kind(node)
+        entity_id = node.params["actor_id"]
+        if kind == "player":
+            return self._player(entity_id)
+        if kind == "mob":
+            return self._mob(entity_id)
+        return self._npc(entity_id)
+
+    def _actor_references(self, kind: MotionActorKind) -> Sequence[ContentReference]:
+        if kind == "player":
+            return self._package.player.references
+        if kind == "mob":
+            return self._package.mobs.references
+        return self._package.npcs.references
+
+    def _dialogue_expressions(self, node: Node) -> Sequence[str]:
+        """The declared expression list for whichever actor kind carries one."""
+
+        entry = self._actor(node)
+        if isinstance(entry, PlayerContent):
+            return entry.dialogue_art.expressions
+        if isinstance(entry, NpcContent):
+            return entry.dialogue_expressions
+        raise ValueError(f"node {node.node_id} declares an actor with no dialogue expressions")
+
+    def _family(self, node: Node) -> CatalogFamily:
+        """The catalog family this node instance is bound to."""
+
+        family = node.params.get("family")
+        if family not in {"prop", "item", "projectile"}:
+            raise ValueError(f"node {node.node_id} declares no known catalog family")
+        return cast(CatalogFamily, family)
+
+    def _catalog_entries(self, family: CatalogFamily) -> tuple[tuple[str, CatalogEntry], ...]:
+        """Every stable ID in one family, in authored order."""
+
+        if family == "prop":
+            return tuple((entry.prop_id, entry) for entry in self._package.props.props)
+        if family == "item":
+            return tuple((entry.item_id, entry) for entry in self._package.items.items)
+        catalog = self._package.projectiles
+        if catalog is None:
+            raise ValueError("this package declares no projectile catalog")
+        return tuple((entry.projectile_id, entry) for entry in catalog.projectiles)
+
+    def _catalog_entry(self, family: CatalogFamily, entity_id: str) -> CatalogEntry:
+        return next(
+            entry for declared, entry in self._catalog_entries(family) if declared == entity_id
+        )
+
+    def _catalog_references(self, family: CatalogFamily) -> Sequence[ContentReference]:
+        if family == "prop":
+            return self._package.props.references
+        if family == "item":
+            return self._package.items.references
+        catalog = self._package.projectiles
+        if catalog is None:
+            raise ValueError("this package declares no projectile catalog")
+        return catalog.references
+
+    # --------------------------------------------------------------- lineage
+
+    def _dependency_artifact(self, node: Node, *, kind: str, port_id: str | None = None) -> str:
+        """Resolve one typed input to the artifact ref its producer declared."""
+
+        _producer, port = dependency_port(self._graph, node, kind=kind, port_id=port_id)
+        return port.artifact_ref
+
+    def _published_port(self, type_id: str, params: Mapping[str, str], port_id: str) -> str:
+        """One artifact a sibling node publishes, located by type rather than by path.
+
+        Some inputs are not the node's own dependencies - the contact sheet shows a
+        concept it does not depend on, and the rebase verification reads atlases only
+        its first pass depended on. Those are still declared ports on declared types,
+        so they are looked up as such instead of by rebuilding a path convention.
+        """
+
+        for candidate in self._graph.nodes:
+            if candidate.type_id != type_id:
+                continue
+            if all(candidate.params.get(key) == value for key, value in params.items()):
+                return candidate.port(port_id).artifact_ref
+        raise ValueError(f"no {type_id} node declares {dict(params)}")
+
+    def _published_state_atlases(self, node: Node, states: Sequence[str]) -> dict[str, str]:
+        """The validated atlas ref for each of this actor's declared states."""
+
+        actor = {"actor_kind": node.params["actor_kind"], "actor_id": node.params["actor_id"]}
+        return {
+            state: self._published_port(
+                MOTION_ATLAS_VALIDATE.type_id, {**actor, "state": state}, "image"
+            )
+            for state in states
+        }
+
+    def _rebase_player(self, node: Node) -> PlayerContent:
+        """Only a player is rebased; the graph says so and this refuses anything else."""
+
+        entry = self._actor(node)
+        if not isinstance(entry, PlayerContent):
+            raise ValueError(f"node {node.node_id} rebases an actor that is not a player")
+        return entry
+
+    # ------------------------------------------------------------------ nodes
+
+    async def _resolve_package(self, node: Node) -> NodeExecutionResult:
+        atomic_write_json(
+            self._run_dir / node.port("identity").artifact_ref, self._package.identity()
+        )
+        return self._result(node, provider_operations=0)
 
     async def _generate_inventory_panel(self, node: Node) -> NodeExecutionResult:
         panel = self._package.ui.inventory_panel
-        output = self._run_dir / node.outputs[0]
+        output = self._run_dir / node.port("image").artifact_ref
         template = inventory_template_path()
         template_data = template.read_bytes()
         prompt = self._visual_prompt(
@@ -290,19 +418,16 @@ class PreparedContentNodeHandler:
                 validate=lambda artifact: _validate_inventory_panel_image(artifact.data),
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _validate_inventory_panel(self, node: Node) -> NodeExecutionResult:
-        source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
+        source = self._run_dir / self._dependency_artifact(node, kind="ui-panel-raw-v1")
         data = source.read_bytes()
         canonical_data, facts = _canonicalize_inventory_panel_image(data)
-        canonical, validation, evidence = (self._run_dir / value for value in node.outputs)
-        provenance = await _write_local_image(
+        canonical = self._run_dir / node.port("image").artifact_ref
+        validation = self._run_dir / node.port("validation").artifact_ref
+        evidence = self._run_dir / node.port("evidence").artifact_ref
+        await _write_local_image(
             canonical,
             canonical_data,
             prompt=(
@@ -323,7 +448,7 @@ class PreparedContentNodeHandler:
             },
         )
         evidence_data = _inventory_panel_evidence(canonical_data)
-        evidence_provenance = await _write_local_image(
+        await _write_local_image(
             evidence,
             evidence_data,
             prompt="Composite the inventory panel over a checkerboard for review evidence.",
@@ -331,15 +456,11 @@ class PreparedContentNodeHandler:
             validation={"source_validation": facts, "checkerboard_only": True},
             model="prepared-ui-inventory-evidence-v1",
         )
-        return self._result(
-            node,
-            (canonical, provenance, validation, evidence, evidence_provenance),
-            provider_operations=0,
-        )
+        return self._result(node, provider_operations=0)
 
     async def _review_inventory_panel(self, node: Node) -> NodeExecutionResult:
         panel = self._package.ui.inventory_panel
-        evidence = self._run_dir / "ui/inventory_panel.evidence.png"
+        evidence = self._run_dir / self._dependency_artifact(node, kind="ui-evidence-v1")
         references = [self._run_structured_reference(evidence)]
         references.extend(
             self._package_structured_reference(reference)
@@ -363,127 +484,33 @@ class PreparedContentNodeHandler:
             metadata={"checkpoint": "ui", "role": "inventory_panel"},
         )
 
-    async def _player_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        player = self._player(match["entity_id"])
-        if match["state"] is not None:
-            if match["state_action"] == "generate":
-                return await self._generate_motion(node, "player", player, match["state"])
-            return await self._validate_motion(node, "player", player, match["state"])
-        action = match["action"]
-        if action == "concept-generate":
-            return await self._generate_concept(
-                node, "player", player, self._package.player.references
+    async def _generate_track(self, node: Node) -> NodeExecutionResult:
+        track = self._package.soundtrack.track(node.params["track_id"])
+        output = self._run_dir / node.port("audio").artifact_ref
+        result = await self._music.generate(
+            MusicGenerationRequest(
+                prompt=soundtrack_track_prompt(self._package.game.game_id, track),
+                artifact_path=output,
+                output_format="mp3",
+                timeout_seconds=900,
+                metadata={
+                    "checkpoint": "content",
+                    "track_id": track.track_id,
+                    "target_duration_seconds": track.generation.target_duration_seconds,
+                    "seamless_loop": track.generation.seamless_loop,
+                },
+                validate=lambda artifact: _validate_audio_bytes(artifact.data),
             )
-        if action == "dialogue-generate":
-            return await self._generate_dialogue(
-                node, "player", player.player_id, player.dialogue_art.expressions
-            )
-        if action == "dialogue-validate":
-            return await self._validate_dialogue(
-                node, "player", player.player_id, player.dialogue_art.expressions
-            )
-        if action == "contact-sheet":
-            return await self._actor_contact_sheet(node, "player", player.player_id)
-        if action == "motion-rebase":
-            return await self._actor_motion_rebase(node, player)
-        if action == "motion-rebase-verify":
-            return await self._actor_motion_rebase_verify(node, player)
-        return await self._actor_review(
-            node,
-            kind="player",
-            entity_id=player.player_id,
-            display_name=player.display_name,
-            references=self._content_references(
-                self._package.player.references, player.reference_ids
-            ),
         )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _mob_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        mob = self._mob(match["entity_id"])
-        if match["state"] is not None:
-            if match["state_action"] == "generate":
-                return await self._generate_motion(node, "mob", mob, match["state"])
-            return await self._validate_motion(node, "mob", mob, match["state"])
-        action = match["action"]
-        if action == "concept-generate":
-            return await self._generate_concept(node, "mob", mob, self._package.mobs.references)
-        if action == "contact-sheet":
-            return await self._actor_contact_sheet(node, "mob", mob.mob_id)
-        return await self._actor_review(
-            node,
-            kind="mob",
-            entity_id=mob.mob_id,
-            display_name=mob.display_name,
-            references=self._content_references(self._package.mobs.references, mob.reference_ids),
-        )
-
-    async def _npc_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        npc = self._npc(match["entity_id"])
-        action = match["action"]
-        if action == "concept-generate":
-            return await self._generate_concept(node, "npc", npc, self._package.npcs.references)
-        if action == "world-generate":
-            return await self._generate_motion(node, "npc", npc, "idle")
-        if action == "world-validate":
-            return await self._validate_motion(node, "npc", npc, "idle")
-        if action == "dialogue-generate":
-            return await self._generate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
-        if action == "dialogue-validate":
-            return await self._validate_dialogue(node, "npc", npc.npc_id, npc.dialogue_expressions)
-        if action == "contact-sheet":
-            return await self._actor_contact_sheet(node, "npc", npc.npc_id)
-        return await self._actor_review(
-            node,
-            kind="npc",
-            entity_id=npc.npc_id,
-            display_name=npc.display_name,
-            references=self._content_references(self._package.npcs.references, npc.reference_ids),
-        )
-
-    async def _catalog_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        kind = cast(Literal["prop", "item"], match["kind"])
-        entry = self._prop(match["entity_id"]) if kind == "prop" else self._item(match["entity_id"])
-        if match["action"] == "generate":
-            return await self._generate_catalog_asset(node, kind, entry)
-        return self._validate_catalog_asset(node, kind, match["entity_id"])
-
-    async def _projectile_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        projectile = self._projectile(match["entity_id"])
-        if match["action"] == "generate":
-            return await self._generate_projectile(node, projectile)
-        return self._validate_projectile(node, projectile)
-
-    async def _track_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
-        track = self._package.soundtrack.track(match["track_id"])
-        if match["action"] == "generate":
-            output = self._run_dir / node.outputs[0]
-            result = await self._music.generate(
-                MusicGenerationRequest(
-                    prompt=soundtrack_track_prompt(self._package.game.game_id, track),
-                    artifact_path=output,
-                    output_format="mp3",
-                    timeout_seconds=900,
-                    metadata={
-                        "checkpoint": "content",
-                        "track_id": track.track_id,
-                        "target_duration_seconds": track.generation.target_duration_seconds,
-                        "seamless_loop": track.generation.seamless_loop,
-                    },
-                    validate=lambda artifact: _validate_audio_bytes(artifact.data),
-                )
-            )
-            return self._result(
-                node,
-                (output, Path(result.provenance_path)),
-                attempts=result.attempts,
-                provider_operations=result.attempts,
-            )
-        generated = self._graph.node(node.depends_on[0])
-        source = self._run_dir / generated.outputs[0]
+    async def _validate_track(self, node: Node) -> NodeExecutionResult:
+        track = self._package.soundtrack.track(node.params["track_id"])
+        source = self._run_dir / self._dependency_artifact(node, kind="soundtrack-track-v1")
         probe = await probe_audio(source, timeout_seconds=120)
         if probe.duration_seconds < 15:
             raise ValueError("generated soundtrack track is shorter than 15 seconds")
-        output = self._run_dir / node.outputs[0]
+        output = self._run_dir / node.port("validation").artifact_ref
         atomic_write_json(
             output,
             {
@@ -503,18 +530,14 @@ class PreparedContentNodeHandler:
                 "listening_verdict": "not_performed",
             },
         )
-        return self._result(node, (output,), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    async def _generate_concept(
-        self,
-        node: Node,
-        kind: MotionActorKind,
-        entry: PlayerContent | MobContent | NpcContent,
-        catalog_references: Sequence[ContentReference],
-    ) -> NodeExecutionResult:
+    async def _generate_concept(self, node: Node) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entry = self._actor(node)
         entity_id = _entity_id(entry)
-        output = self._run_dir / node.outputs[0]
-        references = self._image_references(catalog_references, entry.reference_ids)
+        output = self._run_dir / node.port("image").artifact_ref
+        references = self._image_references(self._actor_references(kind), entry.reference_ids)
         prompt = self._visual_prompt(
             f"{_equipment_directive(entry)}"
             f"Create the canonical identity concept for the {kind} {entity_id}.\n"
@@ -541,28 +564,27 @@ class PreparedContentNodeHandler:
                 ),
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _generate_motion(
-        self,
-        node: Node,
-        kind: Literal["player", "mob", "npc"],
-        entry: PlayerContent | MobContent | NpcContent,
-        state: str,
-    ) -> NodeExecutionResult:
+    async def _generate_motion(self, node: Node) -> NodeExecutionResult:
+        return await self._generate_motion_atlas(node, node.params["state"])
+
+    async def _generate_world_sprite(self, node: Node) -> NodeExecutionResult:
+        """An NPC's single world strip is its idle motion under another name."""
+
+        return await self._generate_motion_atlas(node, "idle")
+
+    async def _generate_motion_atlas(self, node: Node, state: str) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entry = self._actor(node)
         entity_id = _entity_id(entry)
-        output = self._run_dir / node.outputs[0]
-        concept = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}/concept.png"
-        concept_data = concept.read_bytes()
+        output = self._run_dir / node.port("image").artifact_ref
+        concept_ref = self._dependency_artifact(node, kind="actor-concept-v1")
+        concept_data = (self._run_dir / concept_ref).read_bytes()
         references = (
             ImageReference(
                 url=_data_url(concept_data, "image/png"),
-                provenance_ref=f"run://{concept.relative_to(self._run_dir).as_posix()}#sha256={_sha(concept_data)}",
+                provenance_ref=f"run://{concept_ref}#sha256={_sha(concept_data)}",
             ),
         )
         source_facing = self._motion_source_facing(kind, state)
@@ -621,23 +643,15 @@ class PreparedContentNodeHandler:
                 ),
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _generate_dialogue(
-        self,
-        node: Node,
-        kind: Literal["player", "npc"],
-        entity_id: str,
-        expressions: Sequence[str],
-    ) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
-        concept = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}/concept.png"
-        concept_data = concept.read_bytes()
+    async def _generate_dialogue(self, node: Node) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entity_id = node.params["actor_id"]
+        expressions = self._dialogue_expressions(node)
+        output = self._run_dir / node.port("image").artifact_ref
+        concept_ref = self._dependency_artifact(node, kind="actor-concept-v1")
+        concept_data = (self._run_dir / concept_ref).read_bytes()
         columns, rows = dialogue_atlas_grid(len(expressions))
         expression_text = ", ".join(
             f"cell {index + 1}: {expression}" for index, expression in enumerate(expressions)
@@ -660,7 +674,7 @@ class PreparedContentNodeHandler:
                 input_references=(
                     ImageReference(
                         url=_data_url(concept_data, "image/png"),
-                        provenance_ref=f"run://{concept.relative_to(self._run_dir).as_posix()}#sha256={_sha(concept_data)}",
+                        provenance_ref=f"run://{concept_ref}#sha256={_sha(concept_data)}",
                     ),
                 ),
                 quality="high",
@@ -684,63 +698,85 @@ class PreparedContentNodeHandler:
                 ),
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _generate_catalog_asset(
-        self,
-        node: Node,
-        kind: Literal["prop", "item"],
-        entry: PropContent | ItemContent,
-    ) -> NodeExecutionResult:
-        entity_id = entry.prop_id if isinstance(entry, PropContent) else entry.item_id
-        catalog = self._package.props if kind == "prop" else self._package.items
-        output = self._run_dir / node.outputs[0]
-        prompt = self._visual_prompt(
-            f"Generate exactly one canonical {kind} asset, stable ID {entity_id}.\n"
-            f"Authored direction: {entry.prompt}\n"
-            "Use a fixed side-view game-asset camera. Center the complete object with comfortable "
-            "transparent padding. Preserve a clear gameplay silhouette and the authored scale "
-            "cues. Output true alpha with no floor, scenery, shadow plate, frame, text, label, "
-            "symbol, or "
-            "second object."
-        )
+    async def _generate_catalog_asset(self, node: Node) -> NodeExecutionResult:
+        """One catalog subject, drawn by the family's own directive.
+
+        A projectile is the residue this branch exists for: it leads with the axis its
+        silhouette must read as, names that shape in the sentence that asks for it, and
+        forbids the trail or spark a moving object attracts, because the consumer measures
+        the painted bounding box. Props and items ask the plain isolated-asset question.
+        """
+
+        family = self._family(node)
+        entity_id = node.params["entity_id"]
+        entry = self._catalog_entry(family, entity_id)
+        output = self._run_dir / node.port("image").artifact_ref
+        projectile = isinstance(entry, ProjectileContent)
+        if isinstance(entry, ProjectileContent):
+            art = projectile_silhouette_art(entry.silhouette)
+            prompt = self._visual_prompt(
+                f"{art.axis_directive}\n"
+                f"Generate exactly one canonical projectile asset, stable ID "
+                f"{entity_id}: {art.shape_clause}.\n"
+                f"Authored direction: {entry.prompt}\n"
+                "Draw exactly ONE connected object and nothing else. No motion trail, speed line, "
+                "spark, glow streak, impact burst, smoke, or detached fragment: the runtime "
+                "supplies motion, and anything painted beside the object is measured as part of "
+                "it. Center the complete object with comfortable transparent padding on every "
+                "side. Output true alpha with no floor, scenery, shadow plate, frame, text, "
+                "label, symbol, or second object."
+            )
+        else:
+            prompt = self._visual_prompt(
+                f"Generate exactly one canonical {family} asset, stable ID {entity_id}.\n"
+                f"Authored direction: {entry.prompt}\n"
+                "Use a fixed side-view game-asset camera. Center the complete object with "
+                "comfortable transparent padding. Preserve a clear gameplay silhouette and the "
+                "authored scale cues. Output true alpha with no floor, scenery, shadow plate, "
+                "frame, text, label, symbol, or second object."
+            )
         result = await self._images.generate(
             ImageGenerationRequest(
                 prompt=prompt,
                 artifact_path=output,
-                input_references=self._image_references(catalog.references, entry.reference_ids),
+                input_references=self._image_references(
+                    self._catalog_references(family), entry.reference_ids
+                ),
                 quality="high",
                 background="transparent",
                 output_format="png",
                 size="1024x1024",
                 timeout_seconds=600,
-                metadata={"checkpoint": "content", "kind": kind, "entity_id": entity_id},
-                validate=lambda artifact: _validate_transparent_image(
-                    artifact.data, width=1024, height=1024
+                metadata={"checkpoint": "content", "kind": family, "entity_id": entity_id},
+                validate=(
+                    (lambda artifact: _validate_projectile_image(artifact.data))
+                    if projectile
+                    else (
+                        lambda artifact: _validate_transparent_image(
+                            artifact.data, width=1024, height=1024
+                        )
+                    )
                 ),
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _validate_motion(
-        self,
-        node: Node,
-        kind: MotionActorKind,
-        entry: PlayerContent | MobContent | NpcContent,
-        state: str,
-    ) -> NodeExecutionResult:
+    async def _validate_motion(self, node: Node) -> NodeExecutionResult:
+        return await self._validate_motion_atlas(node, node.params["state"])
+
+    async def _validate_world_sprite(self, node: Node) -> NodeExecutionResult:
+        """The NPC world strip is admitted as the idle motion it is."""
+
+        return await self._validate_motion_atlas(node, "idle")
+
+    async def _validate_motion_atlas(self, node: Node, state: str) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entry = self._actor(node)
         entity_id = _entity_id(entry)
-        source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
+        source_ref_path = self._dependency_artifact(node, kind="motion-source-v1")
+        source = self._run_dir / source_ref_path
         source_facing = self._motion_source_facing(kind, state)
         source_data = source.read_bytes()
         geometry = motion_atlas_geometry(kind, state)
@@ -762,11 +798,9 @@ class PreparedContentNodeHandler:
                 anchor=anchor,
             ),
         )
-        canonical = self._run_dir / node.outputs[0]
-        source_ref = (
-            f"run://{source.relative_to(self._run_dir).as_posix()}#sha256={_sha(source_data)}"
-        )
-        provenance = await _write_local_image(
+        canonical = self._run_dir / node.port("image").artifact_ref
+        source_ref = f"run://{source_ref_path}#sha256={_sha(source_data)}"
+        await _write_local_image(
             canonical,
             canonical_data,
             prompt=(
@@ -776,7 +810,7 @@ class PreparedContentNodeHandler:
             inputs=((source_ref, source_data),),
             validation=repack,
         )
-        validation = self._run_dir / node.outputs[1]
+        validation = self._run_dir / node.port("validation").artifact_ref
         atomic_write_json(
             validation,
             {
@@ -794,16 +828,14 @@ class PreparedContentNodeHandler:
                 "repack": repack,
             },
         )
-        return self._result(node, (canonical, provenance, validation), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    async def _validate_dialogue(
-        self,
-        node: Node,
-        kind: str,
-        entity_id: str,
-        expressions: Sequence[str],
-    ) -> NodeExecutionResult:
-        source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
+    async def _validate_dialogue(self, node: Node) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entity_id = node.params["actor_id"]
+        expressions = self._dialogue_expressions(node)
+        source_ref_path = self._dependency_artifact(node, kind="dialogue-source-v1")
+        source = self._run_dir / source_ref_path
         columns, rows = dialogue_atlas_grid(len(expressions))
         source_data = source.read_bytes()
         source_facts = _validate_atlas(
@@ -818,11 +850,9 @@ class PreparedContentNodeHandler:
                 anchor="center",
             ),
         )
-        canonical = self._run_dir / node.outputs[0]
-        source_ref = (
-            f"run://{source.relative_to(self._run_dir).as_posix()}#sha256={_sha(source_data)}"
-        )
-        provenance = await _write_local_image(
+        canonical = self._run_dir / node.port("image").artifact_ref
+        source_ref = f"run://{source_ref_path}#sha256={_sha(source_data)}"
+        await _write_local_image(
             canonical,
             canonical_data,
             prompt=(
@@ -832,7 +862,7 @@ class PreparedContentNodeHandler:
             inputs=((source_ref, source_data),),
             validation=repack,
         )
-        validation = self._run_dir / node.outputs[1]
+        validation = self._run_dir / node.port("validation").artifact_ref
         atomic_write_json(
             validation,
             {
@@ -848,52 +878,90 @@ class PreparedContentNodeHandler:
                 "repack": repack,
             },
         )
-        return self._result(node, (canonical, provenance, validation), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    def _validate_catalog_asset(self, node: Node, kind: str, entity_id: str) -> NodeExecutionResult:
-        source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
-        source_data = source.read_bytes()
-        facts = _validate_transparent_image(source_data, width=1024, height=1024)
-        ground_contact = measure_alpha_ground_contact(source_data) if kind == "prop" else None
-        output = self._run_dir / node.outputs[0]
-        atomic_write_json(
-            output,
-            {
+    async def _validate_catalog_asset(self, node: Node) -> NodeExecutionResult:
+        """Admit one catalog subject, and a projectile against its stricter contract.
+
+        The projectile record is not the isolated-asset record with a field added: it
+        additionally proves a single connected subject and a canvas the subject actually
+        fills, because the consumer scales and rotates the painted bounding box.
+        """
+
+        family = self._family(node)
+        entity_id = node.params["entity_id"]
+        entry = self._catalog_entry(family, entity_id)
+        source_data = (
+            self._run_dir / self._dependency_artifact(node, kind="catalog-sprite-v1")
+        ).read_bytes()
+        output = self._run_dir / node.port("validation").artifact_ref
+        record: dict[str, object]
+        if isinstance(entry, ProjectileContent):
+            record = {
+                "projectile_id": entity_id,
+                "silhouette": entry.silhouette,
+                **_validate_projectile_image(source_data),
+            }
+        else:
+            facts = _validate_transparent_image(source_data, width=1024, height=1024)
+            ground_contact = measure_alpha_ground_contact(source_data) if family == "prop" else None
+            record = {
                 "schema_version": 1,
                 "kind": (
                     "prepared-isolated-prop-validation-v2"
-                    if kind == "prop"
+                    if family == "prop"
                     else "prepared-isolated-asset-validation-v1"
                 ),
-                "asset_kind": kind,
+                "asset_kind": family,
                 "asset_id": entity_id,
                 **facts,
                 **({"ground_contact": ground_contact} if ground_contact is not None else {}),
-            },
-        )
-        return self._result(node, (output,), provider_operations=0)
+            }
+        atomic_write_json(output, record)
+        return self._result(node, provider_operations=0)
 
-    async def _actor_contact_sheet(
-        self, node: Node, kind: Literal["player", "mob", "npc"], entity_id: str
-    ) -> NodeExecutionResult:
-        root = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}"
-        entries: list[tuple[str, Path]] = [("concept", root / "concept.png")]
-        if kind == "player":
-            player = self._player(entity_id)
-            entries.extend(
-                (motion.state, root / f"states/{motion.state}.png") for motion in player.motions
+    async def _actor_contact_sheet(self, node: Node) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entry = self._actor(node)
+        entity_id = _entity_id(entry)
+        actor = {"actor_kind": kind, "actor_id": entity_id}
+        entries: list[tuple[str, Path]] = [
+            (
+                "concept",
+                self._run_dir
+                / self._published_port(ACTOR_CONCEPT_GENERATE.type_id, actor, "image"),
             )
-            entries.append(("dialogue", root / "dialogue.png"))
-        elif kind == "mob":
-            mob = self._mob(entity_id)
+        ]
+        if kind in {"player", "mob"}:
             entries.extend(
-                (motion.state, root / f"states/{motion.state}.png") for motion in mob.motions
+                (
+                    motion.state,
+                    self._run_dir
+                    / self._published_port(
+                        MOTION_ATLAS_VALIDATE.type_id, {**actor, "state": motion.state}, "image"
+                    ),
+                )
+                for motion in entry.motions
             )
         else:
-            entries.extend((value, root / f"{value}.png") for value in ("world", "dialogue"))
-        output = self._run_dir / node.outputs[0]
+            entries.append(
+                (
+                    "world",
+                    self._run_dir
+                    / self._published_port(WORLD_SPRITE_VALIDATE.type_id, actor, "image"),
+                )
+            )
+        if kind in {"player", "npc"}:
+            entries.append(
+                (
+                    "dialogue",
+                    self._run_dir
+                    / self._published_port(DIALOGUE_ATLAS_VALIDATE.type_id, actor, "image"),
+                )
+            )
+        output = self._run_dir / node.port("sheet").artifact_ref
         data = _contact_sheet(entries, title=f"{kind}: {entity_id}")
-        sidecar = await _write_local_image(
+        await _write_local_image(
             output,
             data,
             prompt=f"Assemble the complete labeled {kind} contact sheet for {entity_id}.",
@@ -903,32 +971,37 @@ class PreparedContentNodeHandler:
             ],
             validation={"entry_count": len(entries), "entity_kind": kind, "entity_id": entity_id},
         )
-        return self._result(node, (output, sidecar), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    async def _catalog_contact_sheet(
-        self, node: Node, kind: Literal["prop", "item"]
-    ) -> NodeExecutionResult:
-        values = self._package.props.props if kind == "prop" else self._package.items.items
-        directory = "props" if kind == "prop" else "items"
-        entries = []
-        for entry in values:
-            entity_id = entry.prop_id if isinstance(entry, PropContent) else entry.item_id
-            entries.append((entity_id, self._run_dir / f"content/{directory}/{entity_id}.png"))
-        output = self._run_dir / node.outputs[0]
-        data = _contact_sheet(entries, title=f"{kind} catalog")
-        sidecar = await _write_local_image(
+    async def _catalog_contact_sheet(self, node: Node) -> NodeExecutionResult:
+        family = self._family(node)
+        entries = [
+            (
+                entity_id,
+                self._run_dir
+                / self._published_port(
+                    CATALOG_ASSET_GENERATE.type_id,
+                    {"family": family, "entity_id": entity_id},
+                    "image",
+                ),
+            )
+            for entity_id, _entry in self._catalog_entries(family)
+        ]
+        output = self._run_dir / node.port("sheet").artifact_ref
+        data = _contact_sheet(entries, title=f"{family} catalog")
+        await _write_local_image(
             output,
             data,
-            prompt=f"Assemble the complete stable-ID {kind} catalog contact sheet.",
+            prompt=f"Assemble the complete stable-ID {family} catalog contact sheet.",
             inputs=[
                 (path.relative_to(self._run_dir).as_posix(), path.read_bytes())
                 for _, path in entries
             ],
-            validation={"entry_count": len(entries), "asset_kind": kind},
+            validation={"entry_count": len(entries), "asset_kind": family},
         )
-        return self._result(node, (output, sidecar), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    async def _actor_motion_rebase(self, node: Node, player: PlayerContent) -> NodeExecutionResult:
+    async def _actor_motion_rebase(self, node: Node) -> NodeExecutionResult:
         """Judge every one of this actor's atlases against its idle baseline, on one plate.
 
         Separate states are separate provider calls, so nothing in the pixels ties their draw
@@ -938,20 +1011,21 @@ class PreparedContentNodeHandler:
         drawn small looks small.
         """
 
-        root = self._run_dir / f"content/players/{player.player_id}"
+        player = self._rebase_player(node)
         states = [motion.state for motion in player.motions]
+        atlases = self._published_state_atlases(node, states)
         frames_by_state = {}
         for state in states:
             geometry = motion_atlas_geometry("player", state)
             frames_by_state[state] = split_atlas_columns(
-                (root / f"states/{state}.png").read_bytes(),
+                (self._run_dir / atlases[state]).read_bytes(),
                 geometry.columns,
                 geometry.rows,
             )
         plate = build_motion_rebase_plate(frames_by_state)
 
-        plate_output = self._run_dir / node.outputs[1]
-        plate_sidecar = await _write_local_image(
+        plate_output = self._run_dir / node.port("plate").artifact_ref
+        await _write_local_image(
             plate_output,
             plate.png,
             prompt=(
@@ -959,11 +1033,7 @@ class PreparedContentNodeHandler:
                 f"{player.player_id}: every frame of every state at one uniform source scale."
             ),
             inputs=[
-                (
-                    f"content/players/{player.player_id}/states/{state}.png",
-                    (root / f"states/{state}.png").read_bytes(),
-                )
-                for state in states
+                (atlases[state], (self._run_dir / atlases[state]).read_bytes()) for state in states
             ],
             validation={
                 "baseline_state": BASELINE_STATE,
@@ -981,7 +1051,7 @@ class PreparedContentNodeHandler:
                 raise MotionRebaseError("judge returned a reading the parser did not admit")
             return evaluate_motion_rebase(reading, published_states=states, plate=plate)
 
-        record_output = self._run_dir / node.outputs[0]
+        record_output = self._run_dir / node.port("reading").artifact_ref
         result = await self._structured.generate(
             StructuredGenerationRequest(
                 prompt=motion_rebase_prompt(player.display_name, states),
@@ -1012,16 +1082,9 @@ class PreparedContentNodeHandler:
                 },
             )
         )
-        return self._result(
-            node,
-            (record_output, Path(result.provenance_path), plate_output, plate_sidecar),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _actor_motion_rebase_verify(
-        self, node: Node, player: PlayerContent
-    ) -> NodeExecutionResult:
+    async def _actor_motion_rebase_verify(self, node: Node) -> NodeExecutionResult:
         """Close the loop on the first pass: judge the residual on a plate composed with it.
 
         The first reading is taken across atlases that disagree by up to a factor of three,
@@ -1032,26 +1095,32 @@ class PreparedContentNodeHandler:
         artwork is refused rather than corrected.
         """
 
-        root = self._run_dir / f"content/players/{player.player_id}"
+        player = self._rebase_player(node)
         states = [motion.state for motion in player.motions]
+        atlases = self._published_state_atlases(node, states)
         frames_by_state = {}
         for state in states:
             geometry = motion_atlas_geometry("player", state)
             frames_by_state[state] = split_atlas_columns(
-                (root / f"states/{state}.png").read_bytes(),
+                (self._run_dir / atlases[state]).read_bytes(),
                 geometry.columns,
                 geometry.rows,
             )
         plate = build_motion_rebase_plate(frames_by_state)
         first_pass = admit_first_pass_record(
-            json.loads((root / "motion-rebase-first-pass.json").read_bytes()),
+            json.loads(
+                (
+                    self._run_dir
+                    / self._dependency_artifact(node, kind="rebase-reading-v1", port_id="reading")
+                ).read_bytes()
+            ),
             published_states=states,
             plate=plate,
         )
         verification_plate = build_motion_rebase_verification_plate(frames_by_state, first_pass)
 
-        plate_output = self._run_dir / node.outputs[1]
-        plate_sidecar = await _write_local_image(
+        plate_output = self._run_dir / node.port("plate").artifact_ref
+        await _write_local_image(
             plate_output,
             verification_plate.png,
             prompt=(
@@ -1060,11 +1129,7 @@ class PreparedContentNodeHandler:
                 "multiplier applied."
             ),
             inputs=[
-                (
-                    f"content/players/{player.player_id}/states/{state}.png",
-                    (root / f"states/{state}.png").read_bytes(),
-                )
-                for state in states
+                (atlases[state], (self._run_dir / atlases[state]).read_bytes()) for state in states
             ],
             validation={
                 "baseline_state": BASELINE_STATE,
@@ -1091,7 +1156,7 @@ class PreparedContentNodeHandler:
                 verification_plate=verification_plate,
             )
 
-        record_output = self._run_dir / node.outputs[0]
+        record_output = self._run_dir / node.port("reading").artifact_ref
         result = await self._structured.generate(
             StructuredGenerationRequest(
                 prompt=motion_rebase_verification_prompt(player.display_name, states),
@@ -1124,24 +1189,15 @@ class PreparedContentNodeHandler:
                 },
             )
         )
-        return self._result(
-            node,
-            (record_output, Path(result.provenance_path), plate_output, plate_sidecar),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _actor_review(
-        self,
-        node: Node,
-        *,
-        kind: MotionActorKind,
-        entity_id: str,
-        display_name: str,
-        references: Sequence[ContentReference],
-    ) -> NodeExecutionResult:
-        actor_root = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}"
-        contact = actor_root / "contact-sheet.png"
+    async def _actor_review(self, node: Node) -> NodeExecutionResult:
+        kind = self._actor_kind(node)
+        entry = self._actor(node)
+        entity_id = _entity_id(entry)
+        display_name = entry.display_name
+        references = self._content_references(self._actor_references(kind), entry.reference_ids)
+        contact = self._run_dir / self._dependency_artifact(node, kind="contact-sheet-v1")
         structured_refs = [self._run_structured_reference(contact)]
         states: Sequence[str]
         expressions: Sequence[str]
@@ -1149,29 +1205,26 @@ class PreparedContentNodeHandler:
         # Only a player declares equipment. Empty for the other actor kinds rather than absent, so
         # the prompt below reads the same shape for all three.
         equipment_clause = ""
-        if kind == "player":
-            player = self._player(entity_id)
-            authored_prompt = player.prompt
-            motions = player.motions
+        if isinstance(entry, PlayerContent):
+            authored_prompt = entry.prompt
+            motions = entry.motions
             states = [motion.state for motion in motions]
-            expressions = player.dialogue_art.expressions
+            expressions = entry.dialogue_art.expressions
             equipment_clause = (
                 "The character's declared equipment is "
-                f"{player.equipment}. Confirm that "
-                f"{player_equipment_art(player.equipment).review_clause}. "
+                f"{entry.equipment}. Confirm that "
+                f"{player_equipment_art(entry.equipment).review_clause}. "
             )
-        elif kind == "mob":
-            mob = self._mob(entity_id)
-            authored_prompt = mob.prompt
-            motions = mob.motions
+        elif isinstance(entry, MobContent):
+            authored_prompt = entry.prompt
+            motions = entry.motions
             states = [motion.state for motion in motions]
             expressions = []
         else:
-            npc = self._npc(entity_id)
-            authored_prompt = npc.prompt
-            motions = npc.motions
+            authored_prompt = entry.prompt
+            motions = entry.motions
             states = [motion.state for motion in motions]
-            expressions = npc.dialogue_expressions
+            expressions = entry.dialogue_expressions
         structured_refs.extend(self._package_structured_reference(ref) for ref in references)
         source_facings = {state: self._motion_source_facing(kind, state) for state in states}
         motion_semantics = {state: motion_semantic_direction(kind, state) for state in states}
@@ -1230,33 +1283,55 @@ class PreparedContentNodeHandler:
             metadata={"checkpoint": "content", "kind": kind, "entity_id": entity_id},
         )
 
-    async def _catalog_review(
-        self, node: Node, kind: Literal["prop", "item"]
-    ) -> NodeExecutionResult:
-        directory = "props" if kind == "prop" else "items"
-        contact = self._run_dir / f"content/{directory}/contact-sheet.png"
-        catalog = self._package.props if kind == "prop" else self._package.items
+    async def _catalog_review(self, node: Node) -> NodeExecutionResult:
+        """Judge one catalog family's board, and a projectile's axis where that applies.
+
+        The projectile residue again: every authored direction carries the axis its
+        silhouette must read as, and the judge is told why that matters - the consumer
+        scales, mirrors and rotates the subject along it.
+        """
+
+        family = self._family(node)
+        contact = self._run_dir / self._dependency_artifact(node, kind="contact-sheet-v1")
         references = [self._run_structured_reference(contact)]
-        entries: Sequence[PropContent | ItemContent] = (
-            self._package.props.props if kind == "prop" else self._package.items.items
+        entries = self._catalog_entries(family)
+        expected_ids = [entity_id for entity_id, _entry in entries]
+        references.extend(
+            self._package_structured_reference(ref) for ref in self._catalog_references(family)
         )
-        expected_ids = [
-            entry.prop_id if isinstance(entry, PropContent) else entry.item_id for entry in entries
-        ]
-        authored_directions = [
-            {
-                "asset_id": (entry.prop_id if isinstance(entry, PropContent) else entry.item_id),
-                "prompt": entry.prompt,
-            }
-            for entry in entries
-        ]
-        references.extend(self._package_structured_reference(ref) for ref in catalog.references)
-        return await self._run_review(
-            node,
-            prompt=(
-                f"Review the complete generated {kind} catalog. The exact complete stable-ID list "
-                f"is {expected_ids}. Authored directions are {authored_directions}. Image 1 is a "
-                "locally labeled stable-ID contact sheet; remaining images are authored "
+        if family == "projectile":
+            authored_directions: list[dict[str, object]] = [
+                {
+                    "asset_id": entity_id,
+                    "prompt": entry.prompt,
+                    "must_read_as": projectile_silhouette_art(entry.silhouette).review_clause,
+                }
+                for entity_id, entry in entries
+                if isinstance(entry, ProjectileContent)
+            ]
+            prompt = (
+                "Review the complete generated projectile catalog. The exact complete stable-ID "
+                f"list is {expected_ids}. Authored directions are {authored_directions}, each "
+                "carrying the drawn axis its silhouette requires. Image 1 is a locally labeled "
+                "stable-ID contact sheet; remaining images are authored style references. The "
+                "contact sheet was locally alpha-composited from decoded RGBA sources onto "
+                "checkerboards. Deterministic decoding proved true alpha, zero-alpha canvas "
+                "borders, visible subject pixels, and exactly one connected subject per source. "
+                "Judge alpha isolation from the checkerboard composition and these deterministic "
+                "facts, and do not claim the expected manifest is missing. Judge, for every "
+                "entry: authored identity fidelity, style coherence, and above all whether the "
+                "drawn subject matches its stated axis, because the consumer scales, mirrors and "
+                "rotates these along that axis and a reversed or tilted subject flies backwards. "
+                "Report concrete visible defects. Uncertainty must not be called accept."
+            )
+        else:
+            authored_directions = [
+                {"asset_id": entity_id, "prompt": entry.prompt} for entity_id, entry in entries
+            ]
+            prompt = (
+                f"Review the complete generated {family} catalog. The exact complete stable-ID "
+                f"list is {expected_ids}. Authored directions are {authored_directions}. Image 1 "
+                "is a locally labeled stable-ID contact sheet; remaining images are authored "
                 "style/scene references. The contact sheet was locally alpha-composited from "
                 "decoded RGBA sources onto checkerboards. Deterministic decoding proved true "
                 "alpha, zero-alpha canvas borders, and visible subject pixels for every source. "
@@ -1267,9 +1342,12 @@ class PreparedContentNodeHandler:
                 "side-view gameplay framing, native-alpha isolation, scale consistency within the "
                 "catalog, and complete catalog coverage. Report concrete visible defects. "
                 "Uncertainty must not be called accept."
-            ),
+            )
+        return await self._run_review(
+            node,
+            prompt=prompt,
             references=references,
-            metadata={"checkpoint": "content", "kind": kind},
+            metadata={"checkpoint": "content", "kind": family},
         )
 
     async def _run_review(
@@ -1280,7 +1358,7 @@ class PreparedContentNodeHandler:
         references: Sequence[StructuredReference],
         metadata: Mapping[str, object],
     ) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
+        output = self._run_dir / node.port("verdict").artifact_ref
         result = await self._structured.generate(
             StructuredGenerationRequest(
                 prompt=prompt,
@@ -1299,12 +1377,7 @@ class PreparedContentNodeHandler:
                 metadata=metadata,
             )
         )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _write_bindings(self, node: Node) -> NodeExecutionResult:
         gameplay = self._package.gameplay
@@ -1390,10 +1463,9 @@ class PreparedContentNodeHandler:
             "all_references_resolved": True,
         }
         coverage = _coverage_matrix(self._package)
-        binding_path, coverage_path = (self._run_dir / value for value in node.outputs)
-        atomic_write_json(binding_path, bindings)
-        atomic_write_json(coverage_path, coverage)
-        return self._result(node, (binding_path, coverage_path), provider_operations=0)
+        atomic_write_json(self._run_dir / node.port("bindings").artifact_ref, bindings)
+        atomic_write_json(self._run_dir / node.port("coverage").artifact_ref, coverage)
+        return self._result(node, provider_operations=0)
 
     def _visual_prompt(self, specific: str) -> str:
         universe = self._package.file(self._package.game.universe.source).data.decode("utf-8")
@@ -1458,257 +1530,99 @@ class PreparedContentNodeHandler:
     def _npc(self, entity_id: str) -> NpcContent:
         return next(entry for entry in self._package.npcs.npcs if entry.npc_id == entity_id)
 
-    def _prop(self, entity_id: str) -> PropContent:
-        return next(entry for entry in self._package.props.props if entry.prop_id == entity_id)
-
-    def _item(self, entity_id: str) -> ItemContent:
-        return next(entry for entry in self._package.items.items if entry.item_id == entity_id)
-
-    def _projectile(self, entity_id: str) -> ProjectileContent:
-        catalog = self._package.projectiles
-        if catalog is None:
-            raise ValueError("this package declares no projectile catalog")
-        return next(entry for entry in catalog.projectiles if entry.projectile_id == entity_id)
-
-    async def _generate_projectile(
-        self, node: Node, projectile: ProjectileContent
-    ) -> NodeExecutionResult:
-        catalog = self._package.projectiles
-        assert catalog is not None
-        art = projectile_silhouette_art(projectile.silhouette)
-        output = self._run_dir / node.outputs[0]
-        prompt = self._visual_prompt(
-            f"{art.axis_directive}\n"
-            f"Generate exactly one canonical projectile asset, stable ID "
-            f"{projectile.projectile_id}: {art.shape_clause}.\n"
-            f"Authored direction: {projectile.prompt}\n"
-            "Draw exactly ONE connected object and nothing else. No motion trail, speed line, "
-            "spark, glow streak, impact burst, smoke, or detached fragment: the runtime supplies "
-            "motion, and anything painted beside the object is measured as part of it. Center the "
-            "complete object with comfortable transparent padding on every side. Output true alpha "
-            "with no floor, scenery, shadow plate, frame, text, label, symbol, or second object."
-        )
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=prompt,
-                artifact_path=output,
-                input_references=self._image_references(
-                    catalog.references, projectile.reference_ids
-                ),
-                quality="high",
-                background="transparent",
-                output_format="png",
-                size="1024x1024",
-                timeout_seconds=600,
-                metadata={
-                    "checkpoint": "content",
-                    "kind": "projectile",
-                    "entity_id": projectile.projectile_id,
-                },
-                validate=lambda artifact: _validate_projectile_image(artifact.data),
-            )
-        )
-        return self._result(
-            node,
-            (output, Path(result.provenance_path)),
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
-
-    def _validate_projectile(
-        self, node: Node, projectile: ProjectileContent
-    ) -> NodeExecutionResult:
-        artifact = self._run_dir / f"content/projectiles/{projectile.projectile_id}.png"
-        output = self._run_dir / node.outputs[0]
-        report = _validate_projectile_image(artifact.read_bytes())
-        atomic_write_json(
-            output,
-            {
-                "projectile_id": projectile.projectile_id,
-                "silhouette": projectile.silhouette,
-                **report,
-            },
-        )
-        return self._result(node, (output,), provider_operations=0)
-
-    async def _projectile_contact_sheet(self, node: Node) -> NodeExecutionResult:
-        catalog = self._package.projectiles
-        assert catalog is not None
-        entries = [
-            (
-                entry.projectile_id,
-                self._run_dir / f"content/projectiles/{entry.projectile_id}.png",
-            )
-            for entry in catalog.projectiles
-        ]
-        output = self._run_dir / node.outputs[0]
-        data = _contact_sheet(entries, title="projectile catalog")
-        sidecar = await _write_local_image(
-            output,
-            data,
-            prompt="Assemble the complete stable-ID projectile catalog contact sheet.",
-            inputs=[
-                (path.relative_to(self._run_dir).as_posix(), path.read_bytes())
-                for _, path in entries
-            ],
-            validation={"entry_count": len(entries), "asset_kind": "projectile"},
-        )
-        return self._result(node, (output, sidecar), provider_operations=0)
-
-    async def _projectile_review(self, node: Node) -> NodeExecutionResult:
-        catalog = self._package.projectiles
-        assert catalog is not None
-        contact = self._run_dir / "content/projectiles/contact-sheet.png"
-        references = [self._run_structured_reference(contact)]
-        references.extend(self._package_structured_reference(ref) for ref in catalog.references)
-        expected_ids = [entry.projectile_id for entry in catalog.projectiles]
-        authored_directions = [
-            {
-                "asset_id": entry.projectile_id,
-                "prompt": entry.prompt,
-                "must_read_as": projectile_silhouette_art(entry.silhouette).review_clause,
-            }
-            for entry in catalog.projectiles
-        ]
-        return await self._run_review(
-            node,
-            prompt=(
-                "Review the complete generated projectile catalog. The exact complete stable-ID "
-                f"list is {expected_ids}. Authored directions are {authored_directions}, each "
-                "carrying the drawn axis its silhouette requires. Image 1 is a locally labeled "
-                "stable-ID contact sheet; remaining images are authored style references. The "
-                "contact sheet was locally alpha-composited from decoded RGBA sources onto "
-                "checkerboards. Deterministic decoding proved true alpha, zero-alpha canvas "
-                "borders, visible subject pixels, and exactly one connected subject per source. "
-                "Judge alpha isolation from the checkerboard composition and these deterministic "
-                "facts, and do not claim the expected manifest is missing. Judge, for every "
-                "entry: authored identity fidelity, style coherence, and above all whether the "
-                "drawn subject matches its stated axis, because the consumer scales, mirrors and "
-                "rotates these along that axis and a reversed or tilted subject flies backwards. "
-                "Report concrete visible defects. Uncertainty must not be called accept."
-            ),
-            references=references,
-            metadata={"checkpoint": "content", "kind": "projectile"},
-        )
-
     def _result(
-        self,
-        node: Node,
-        paths: tuple[Path, ...],
-        *,
-        attempts: int = 1,
-        provider_operations: int,
+        self, node: Node, *, attempts: int = 1, provider_operations: int
     ) -> NodeExecutionResult:
+        """Every declared port, artifact then sidecar, exactly as the type promised."""
+
+        refs: list[str] = []
+        for port in node.ports:
+            refs.append(port.artifact_ref)
+            if port.sidecar_ref is not None:
+                refs.append(port.sidecar_ref)
         return NodeExecutionResult(
             cache=CacheDisposition.MISS,
             attempts=attempts,
             provider_operations=provider_operations,
-            artifacts=tuple(_node_artifact(self._run_dir, path) for path in paths),
+            artifacts=tuple(
+                _node_artifact(self._run_dir, self._run_dir / ref)
+                for ref in refs
+                if (self._run_dir / ref).is_file()
+            ),
         )
 
     def _cached_primary_artifact_valid(self, node: Node, data: bytes) -> bool:
+        """Re-prove a restored image against the contract the node was asked for.
+
+        Keyed on the node's declared type and parameters rather than on its id, which
+        is what makes the geometry question answerable: a climb atlas is two cells on a
+        2464x3328 canvas, and validating every cached strip against the 4x1 default
+        rejected those forever, so a climb state could never be served from cache.
+        """
+
         if node.operation != OperationKind.IMAGE_GENERATION:
             return True
         try:
-            player_match = _PLAYER_NODE.fullmatch(node.node_id)
-            if player_match:
-                if player_match["state_action"] == "generate":
-                    _validate_atlas(
-                        data,
-                        columns=MOTION_ATLAS_COLUMNS,
-                        rows=MOTION_ATLAS_ROWS,
-                        required_cells=MOTION_ATLAS_REQUIRED_CELLS,
-                    )
-                elif player_match["action"] == "dialogue-generate":
-                    expressions = self._player(player_match["entity_id"]).dialogue_art.expressions
-                    columns, rows = dialogue_atlas_grid(len(expressions))
-                    _validate_atlas(
-                        data,
-                        columns=columns,
-                        rows=rows,
-                        required_cells=len(expressions),
-                    )
+            if node.type_id == MOTION_ATLAS_GENERATE.type_id:
+                self._validate_cached_atlas(
+                    data, motion_atlas_geometry(self._actor_kind(node), node.params["state"])
+                )
+            elif node.type_id == WORLD_SPRITE_GENERATE.type_id:
+                self._validate_cached_atlas(data, motion_atlas_geometry("npc", "idle"))
+            elif node.type_id == DIALOGUE_ATLAS_GENERATE.type_id:
+                expressions = self._dialogue_expressions(node)
+                columns, rows = dialogue_atlas_grid(len(expressions))
+                _validate_atlas(data, columns=columns, rows=rows, required_cells=len(expressions))
+            elif node.type_id == ACTOR_CONCEPT_GENERATE.type_id:
+                _validate_transparent_image(data, width=1024, height=1536)
+            elif node.type_id == CATALOG_ASSET_GENERATE.type_id:
+                if self._family(node) == "projectile":
+                    _validate_projectile_image(data)
                 else:
-                    _validate_transparent_image(data, width=1024, height=1536)
-                return True
-            mob_match = _MOB_NODE.fullmatch(node.node_id)
-            if mob_match:
-                if mob_match["state_action"] == "generate":
-                    _validate_atlas(
-                        data,
-                        columns=MOTION_ATLAS_COLUMNS,
-                        rows=MOTION_ATLAS_ROWS,
-                        required_cells=MOTION_ATLAS_REQUIRED_CELLS,
-                    )
-                else:
-                    _validate_transparent_image(data, width=1024, height=1536)
-                return True
-            npc_match = _NPC_NODE.fullmatch(node.node_id)
-            if npc_match:
-                if npc_match["action"] == "world-generate":
-                    _validate_atlas(
-                        data,
-                        columns=MOTION_ATLAS_COLUMNS,
-                        rows=MOTION_ATLAS_ROWS,
-                        required_cells=MOTION_ATLAS_REQUIRED_CELLS,
-                    )
-                elif npc_match["action"] == "dialogue-generate":
-                    expressions = self._npc(npc_match["entity_id"]).dialogue_expressions
-                    columns, rows = dialogue_atlas_grid(len(expressions))
-                    _validate_atlas(
-                        data,
-                        columns=columns,
-                        rows=rows,
-                        required_cells=len(expressions),
-                    )
-                else:
-                    _validate_transparent_image(data, width=1024, height=1536)
-                return True
-            if _CATALOG_NODE.fullmatch(node.node_id):
-                _validate_transparent_image(data, width=1024, height=1024)
-                return True
-            if _PROJECTILE_NODE.fullmatch(node.node_id):
-                _validate_projectile_image(data)
-                return True
-            if _UI_INVENTORY_NODE.fullmatch(node.node_id):
+                    _validate_transparent_image(data, width=1024, height=1024)
+            elif node.type_id == UI_INVENTORY_GENERATE.type_id:
                 _validate_inventory_panel_image(data)
-                return True
+            else:
+                return False
         except (OSError, ValueError):
             return False
-        return False
+        return True
 
-
-def content_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
-    # Both per-player terminals: the semantic review, and the motion-rebase verification whose
-    # record the manifest binds. The verification depends on the first-pass judgement, so naming
-    # it pulls the whole rebase chain into the closure; a checkpoint that ran only the review
-    # would leave the rebase unproduced and integration would fail on a missing artifact.
-    player_targets = tuple(
-        node_id
-        for entry in package.player.players
-        for node_id in (
-            f"player-{entry.player_id}-review",
-            f"player-{entry.player_id}-motion-rebase-verify",
+    @staticmethod
+    def _validate_cached_atlas(data: bytes, geometry: MotionAtlasGeometry) -> None:
+        _validate_atlas(
+            data,
+            columns=geometry.columns,
+            rows=geometry.rows,
+            required_cells=geometry.required_cells,
+            width=geometry.width,
+            height=geometry.height,
         )
+
+
+#: The declared terminals of the content checkpoint. Naming types rather than rebuilding
+#: node ids keeps two properties the id strings had to promise by hand: the motion-rebase
+#: verification is a terminal in its own right, so naming it pulls the whole rebase chain
+#: into the closure instead of leaving the record the manifest binds unproduced; and the
+#: projectile review is here exactly when the package declared a projectile catalog,
+#: because that is exactly when the graph carries the node.
+CONTENT_TARGET_TYPE_IDS: frozenset[str] = frozenset(
+    node_type.type_id
+    for node_type in (
+        ACTOR_REVIEW,
+        MOTION_REBASE_VERIFY,
+        CATALOG_REVIEW,
+        SOUNDTRACK_VALIDATE,
+        UI_INVENTORY_REVIEW,
+        GAMEPLAY_BINDINGS_VALIDATE,
     )
-    mob_targets = tuple(f"mob-{entry.mob_id}-review" for entry in package.mobs.mobs)
-    npc_targets = tuple(f"npc-{entry.npc_id}-review" for entry in package.npcs.npcs)
-    track_targets = tuple(f"track-{entry.track_id}-validate" for entry in package.soundtrack.tracks)
-    return (
-        *player_targets,
-        *mob_targets,
-        *npc_targets,
-        "props-review",
-        "items-review",
-        # Only when the package declares the catalog, because the nodes only exist then. Missing
-        # here, the content checkpoint produced no projectile sprite while `runtime_artifact_paths`
-        # went on requiring one unconditionally, so integration failed on a missing artifact - the
-        # same trap the motion-rebase terminal above is spelled out to avoid.
-        *(() if package.projectiles is None else ("projectiles-review",)),
-        "ui-inventory-panel-review",
-        *track_targets,
-        "gameplay-bindings-validate",
-    )
+)
+
+
+def content_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """Every content terminal this plan carries, in graph order."""
+
+    return tuple(node.node_id for node in graph.nodes if node.type_id in CONTENT_TARGET_TYPE_IDS)
 
 
 def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
@@ -1821,10 +1735,6 @@ def _motion_presentation(
         if motion.state == state:
             return motion
     raise ValueError(f"{_entity_id(entry)} declares no motion state {state}")
-
-
-def _kind_directory(kind: str) -> str:
-    return {"player": "players", "mob": "mobs", "npc": "npcs"}[kind]
 
 
 def _validate_transparent_image(data: bytes, *, width: int, height: int) -> dict[str, object]:
@@ -2147,7 +2057,7 @@ async def _write_local_image(
             params={"version": CONTENT_HANDLER_VERSION},
             validation=dict(validation),
             component=SoftwareIdentity(
-                name="@stage-gen/scrolling-preview", version=CONTENT_HANDLER_VERSION
+                name="@stage-gen/sideview-platformer", version=CONTENT_HANDLER_VERSION
             ),
             tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             attempts=1,

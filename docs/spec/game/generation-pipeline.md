@@ -4,28 +4,41 @@
 >
 > This is the canonical human overview of prepared-game generation — the
 > side-view platformer recipe's pipeline (`2d/sideview/platformer` in the
-> [asset taxonomy](../asset-taxonomy.md)). The dialogue-scene recipe declares
-> its own graph document kind and is not covered here. The typed package graph is
+> [asset taxonomy](../asset-taxonomy.md)). The sibling dialogue-scene and
+> [point-and-click room](pointclick-room.md) recipes each declare their own graph
+> document kind and are not covered here. The typed package graph is
 > the machine authority, and the compact graph contract embedded below is checked against the
 > Bellweather fixture. Text-only prompt planning, `WorldSpec`, `VillageSpec`, map books, and the
 > former Wave A/Wave B stage barriers are not inputs to this pipeline.
+
+Every node in this graph is **typed**. It persists a `type_id` — a taxonomy path from the
+[asset taxonomy](../asset-taxonomy.md), such as `2d/sideview/platformer/motion_atlas.generate` —
+plus the `params` that distinguish one instance of that type from another, the typed `ports` it
+publishes (each an artifact reference, its payload kind, and its provenance sidecar), and the
+`card` a reader needs to see what the node is told: its static prompt or packaged template, and
+the derived reference inputs it pulls from upstream ports. Nodes emitted by a subgraph template
+also stamp the `template_id` that produced them. Dispatch is a registry lookup over `type_id`
+([`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) declares
+the recipe's whole type census); it is not a regex over node identifiers, and no reader recovers a
+node's kind from an output path convention.
 
 ## Authority and source topology
 
 | Boundary | Current authority |
 | --- | --- |
 | Authored package membership and cross-contract closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) |
-| Asset-level fan-out, dependencies, outputs, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
+| Asset-level fan-out, dependencies, typed ports, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
+| The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
 | Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
 | Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
-| Scrolling-preview resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
+| Side-view platformer resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
 | Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_world.py) |
 | Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_content.py) |
 | Leaf provider retries, decoding, validation, and atomic persistence | Provider-neutral components and adapters |
 | Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py) |
 
-The scrolling-preview executor is deliberately thin. It resolves one directory or ZIP, asks the
+The side-view platformer executor is deliberately thin. It resolves one directory or ZIP, asks the
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
 game, hide asset fan-outs inside a coarse stage, or implement provider retry loops.
 
@@ -112,7 +125,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "bbca9d958ba295b5b5e662cd0caeb320bdf9719f2b8f0944f08908ad4f55d169",
+  "topology_sha256": "0c85fcc8d415a20670601f819112150a1dd78aec163aa1756b9169679d450164",
   "node_count": 221,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -379,6 +392,11 @@ Cache admission additionally validates actual upstream artifact digests as linea
 existence alone is never a hit. A changed model, prompt, reference byte, dependency contract, or
 upstream artifact invalidates the relevant reuse boundary.
 
+Reuse is namespaced per recipe branch: `sideview-platformer-world-v1` covers map work and
+`sideview-platformer-content-v1` covers cast, catalog, UI, soundtrack, and binding work. Each
+node type additionally carries its own `contract_version`, so a changed contract invalidates one
+kind of work while a namespace bump invalidates that whole branch.
+
 Prop contact measurement is a local validation and publication boundary, not an image-generation
 operation. The prop PNG remains unchanged. The validator thresholds native alpha, rejects tiny
 detached fragments, retains meaningful components, and publishes the lowest meaningful contact as
@@ -392,10 +410,16 @@ counts one successful provider operation per provider node.
 
 ## Persisted execution evidence
 
+The recipe this pipeline belongs to is persisted as `recipe: "sideview-platformer"`, and its
+execution documents declare the matching kinds: `sideview-platformer-execution-graph-v1` for the
+plan, `-event-v1` for each trace record, `-summary-v1`, `-projection-v1`, and
+`-view-v1` at `schema_version` 3 for the derived run view. The sibling recipes declare their own
+kinds, so a reader never has to infer which recipe wrote a run directory.
+
 | File | Contract |
 | --- | --- |
 | `package.json` | Captured package identity, stable IDs, and the closure digest |
-| `execution-plan.json` | Nodes, dependencies, resources, outputs, cache keys, models, and estimates |
+| `execution-plan.json` | Typed nodes (`type_id`, `params`, `ports`, `card`, `template_id`), dependencies, resources, cache keys, models, and estimates |
 | `execution-projection.json` | Resource spans, critical path, call counts, time, and budget range |
 | `execution-trace.jsonl` | Immutable run/node events with queue, duration, cache, attempts, calls, and errors |
 | `execution-summary.json` | Terminal status and per-node result projection |

@@ -95,19 +95,24 @@ endpoint, prompt and non-secret parameters, input hashes, attempt count,
 timestamp, media facts, post-processing, and output hash. Provenance supports
 debugging and reproducibility; it is not an IP license.
 
-## First recipe and preview
+## Recipes and preview
 
-The existing detailed asset contracts describe a side-view scrolling-world
-recipe: a concept root, parallax layers, terrain tiles, character/mob sheets,
-props, items, inventory, and portals. Those contracts remain useful as the
-first comprehensive integration case.
+Three recipes compile onto the one engine: `sideview-platformer`,
+`dialogue-scene`, and `pointclick-room`. Each declares its own graph document
+kind, so no recipe can read another's plan, and none may define another's
+assumptions or artifact layout.
+
+The existing detailed asset contracts describe the first of them, the side-view
+platformer recipe: a concept root, parallax layers, terrain tiles, character/mob
+sheets, props, items, inventory, and portals. Those contracts remain useful as
+the first comprehensive integration case.
 
 The browser preview composes that recipe into a scene with a horizontal camera,
 heightmap terrain, movement, interactions, and portals. All of those choices
 stay under `web/`. A different recipe or engine can consume the same generic
 component results through a different manifest/adapter.
 
-See [scrolling-preview asset contracts](asset-contracts.md) and the
+See [side-view platformer asset contracts](asset-contracts.md) and the
 [web preview boundary](../web-preview.md).
 
 The `dialogue-scene` sibling recipe packages one caller-directed appearance
@@ -118,6 +123,13 @@ portable scene data for the Visual Novel Scene Kit. Its
 [deferred animation notes](../dialogue-scene-animation.md) preserve the same
 headless-recipe and downstream-consumer boundary. It compiles onto the same
 engine under its own graph document kind.
+
+The `pointclick-room` sibling recipe packages one fixed painted room, its
+cursor-driven hotspots, an inventory, and a puzzle declared as data and proven
+finishable before any generation is paid for. Its
+[room specification](game/pointclick-room.md) owns the authored
+`pointclick-room-v1` contract, the graph, and the `pointclick-room-runtime-v1`
+manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
 The Python package under `src/stage_gen/` is the sole headless implementation.
 Node and TypeScript are confined to the optional `web/` adapter.

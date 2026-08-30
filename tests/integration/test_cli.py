@@ -118,8 +118,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     view_path = tmp_path / "run/execution-view.json"
     assert view_path.is_file()
     view_document = json.loads(view_path.read_text(encoding="utf-8"))
-    assert view_document["kind"] == "prepared-game-execution-view-v1"
-    assert view_document["schema_version"] == 2
+    assert view_document["kind"] == "sideview-platformer-execution-view-v1"
+    assert view_document["schema_version"] == 3
     assert str(tmp_path) not in view_path.read_text(encoding="utf-8")
 
     error = StringIO()

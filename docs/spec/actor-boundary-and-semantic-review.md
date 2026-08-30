@@ -5,7 +5,7 @@ Scope: side-view actor strips in the platformer recipe
 This note has two deliberately separate status classes:
 
 - **Current implementation**: deterministic chroma matte and actor-boundary processing, plus the
-  scrolling-preview actor-facing review.
+  side-view platformer actor-facing review.
 - **Future proposal**: a reusable semantic-review capability and broader semantic criteria.
 
 The current code uses `src/stage_gen/components/structured_generation/` and
@@ -87,7 +87,7 @@ web/lib/sideview-platformer/                        consumer-owned runtime geome
 
 The current actor-facing review deliberately reuses `StructuredGenerationService`; the generic
 component knows only the strict schema, prompt, references, persistence, and provider operation.
-`review_criteria.py` owns the scrolling-preview meanings of `right`, `front`, and which stages
+`review_criteria.py` owns the side-view platformer meanings of `right`, `front`, and which stages
 carry a facing requirement.
 
 Runtime-specific measurements remain in `web/lib/sideview-platformer/`. They are consumer decisions and are
@@ -124,7 +124,7 @@ The deterministic boundary pipeline is implemented in
 | `validate_isolated_view_alpha` | hard requirement: cutout wholly inside the inset |
 | `fit_isolated_view_alpha(maximum_height_fraction, anchor)` | cleans, rescales, and repositions into the inset and size contract with `anchor="center"` or `anchor="bottom"` |
 | `normalize_canonical_grid` | normalizes accepted alpha content cell by cell under a `GridContract` |
-| `contract_for_stage` | selects the exact producer grid contract for a scrolling-preview stage |
+| `contract_for_stage` | selects the exact producer grid contract for a side-view platformer stage |
 
 Prepared-package actor sheets take a separate current path through
 `src/stage_gen/media/sprite_sheets.py`. Their provider `*.source.png` is preserved, and the local
@@ -178,7 +178,7 @@ measures. Unit coverage in `tests/unit/media/test_images.py` verifies partial al
 distance arithmetic, bounded despill, unbounded despill when the band radius is zero, and
 parameter rejection.
 
-For scrolling-preview artifacts, the executor records `matte_version` in the canonical
+For side-view platformer artifacts, the executor records `matte_version` in the canonical
 transparency provenance and cache validation requires the same current value. The run-level
 `transparency_mode` selects `native`, `ai`, or `chroma` for transparent assets; failures do not
 switch strategies. Choosing between those modes by individual asset role is not implemented and
@@ -285,7 +285,7 @@ add a fallback reader for a superseded artifact shape.
 | image transport, decoding, and provider-asset validation | `ImageGenerationService` | one provider operation and its retry policy |
 | AI background-removal transport and alpha validation | background-removal component | separate provider operation and retry policy |
 | chroma matte | `apply_chroma_transparency` | deterministic; no provider call |
-| recoverable alpha cleanup and fit | scrolling-preview raster contracts | deterministic canonicalization |
+| recoverable alpha cleanup and fit | side-view platformer raster contracts | deterministic canonicalization |
 | unrecoverable deterministic contract failure | owning generation or stage boundary | fails closed at that boundary |
 | facing-review transport, schema, and persistence | `StructuredGenerationService` | one provider operation and its retry policy |
 | confident wrong facing | `_accept_actor_facing` | at most two forced semantic regenerations, then `ActorFacingError` |

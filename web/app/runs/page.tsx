@@ -93,8 +93,8 @@ export default async function RunsPage() {
                 >
                   <span className="truncate">
                     {entry.tag}
-                    {entry.gameId ? (
-                      <span className="ml-2 text-xs text-dim">{entry.gameId}</span>
+                    {entry.label ? (
+                      <span className="ml-2 text-xs text-dim">{entry.label}</span>
                     ) : null}
                   </span>
                   <span className="text-xs text-dim max-[700px]:hidden">{states(entry)}</span>

@@ -1,4 +1,4 @@
-# Scrolling-preview terrain atlas
+# Side-view platformer terrain atlas
 
 The prepared-game ground contract is `terrain-atlas-3x3-minimal-v1`. It is a
 Godot-compatible 3x3-minimal terrain topology carried in a 12-column by 4-row
@@ -8,7 +8,7 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
 
 - `stage_gen.media.guide_lattice` owns reusable guide detection and cell
   extraction for the attributed topology template and provider paintovers.
-- `stage_gen.recipes.scrolling_preview.terrain_atlas` owns strict paintover
+- `stage_gen.recipes.sideview_platformer.terrain_atlas` owns strict paintover
   prompting and admission, deterministic chroma-alpha extraction and connector
   harmonization, 47-mask lookup admission, and structural previews.
 - `maps/<map_id>.toml` owns the exact top-to-bottom binary occupancy matrix.

@@ -100,9 +100,11 @@ def test_engine_does_not_import_the_application() -> None:
 
 ENGINE_RINGS = {
     "binding": 0,
+    "build": 0,
     "contracts": 0,
     "dry_run": 0,
     "graph": 0,
+    "node_types": 0,
     "reliability": 0,
     "schedule": 0,
     "trace": 0,

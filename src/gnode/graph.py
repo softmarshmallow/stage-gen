@@ -17,6 +17,11 @@ from gnode.reliability import atomic_write_json
 
 NODE_ID_PATTERN = r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
 OPERATION_PATTERN = r"^[a-z0-9]+(?:_[a-z0-9]+)*$"
+#: Persisted type identifier: a taxonomy path with an optional ``.step`` suffix,
+#: e.g. ``2d/sideview/platformer/map_layer.generate``. Never a module path.
+TYPE_ID_PATTERN = r"^[a-z0-9_]+(?:/[a-z0-9_]+)*(?:\.[a-z0-9_]+)?$"
+PORT_ID_PATTERN = r"^[a-z0-9]+(?:_[a-z0-9]+)*$"
+PAYLOAD_KIND_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 LOCAL_OPERATION = "local"
 
 
@@ -52,11 +57,54 @@ class Resource(PersistedContractModel):
         return self
 
 
+class Port(PersistedContractModel):
+    """One declared output: an artifact address plus the typed record it carries.
+
+    ``kind`` names the payload contract (an application-owned persisted
+    vocabulary such as ``map-terrain-v1``); ``sidecar_ref`` keeps the
+    provenance sidecar visibly paired with its artifact instead of appearing
+    as a second undifferentiated output.
+    """
+
+    port_id: str = Field(pattern=PORT_ID_PATTERN, max_length=64)
+    artifact_ref: str = Field(min_length=1, max_length=512)
+    kind: str = Field(pattern=PAYLOAD_KIND_PATTERN, max_length=96)
+    sidecar_ref: str | None = Field(default=None, max_length=512)
+
+
+class PortRef(PersistedContractModel):
+    """An edge endpoint: one named port on one node."""
+
+    node_id: str = Field(pattern=NODE_ID_PATTERN, max_length=192)
+    port_id: str = Field(pattern=PORT_ID_PATTERN, max_length=64)
+
+
+class NodeCard(PersistedContractModel):
+    """The definition a renderer shows for a node: what it is told, statically.
+
+    ``prompt`` is the instruction text as known at plan time; ``template_ref``
+    names a packaged template resource when composition is runtime-bound;
+    ``reference_inputs`` point at the derived inputs (upstream ports) the node
+    consumes at run time, so a reader sees the static and derived halves of
+    the definition side by side without reading handler code.
+    """
+
+    prompt: str | None = Field(default=None, min_length=1, max_length=20_000)
+    template_ref: str | None = Field(default=None, max_length=192)
+    schema_name: str | None = Field(default=None, max_length=96)
+    reference_inputs: tuple[PortRef, ...] = ()
+
+
 class Node(PersistedContractModel):
     node_id: str = Field(pattern=NODE_ID_PATTERN, max_length=192)
+    type_id: str = Field(pattern=TYPE_ID_PATTERN, max_length=192)
     domain: str = Field(pattern=NODE_ID_PATTERN, max_length=96)
     description: str = Field(min_length=1, max_length=512)
+    params: dict[str, str] = Field(default_factory=dict)
     depends_on: tuple[str, ...] = ()
+    #: The subset of ``depends_on`` that orders execution without contributing
+    #: cache lineage — a barrier edge, rendered distinctly from lineage.
+    barrier_only: tuple[str, ...] = ()
     operation: str = Field(pattern=OPERATION_PATTERN, max_length=64)
     resource_id: str = Field(pattern=NODE_ID_PATTERN, max_length=96)
     provider: str | None = Field(default=None, max_length=96)
@@ -65,7 +113,10 @@ class Node(PersistedContractModel):
     max_attempts: int = Field(ge=1, le=6)
     input_sha256: tuple[str, ...] = ()
     cache_key: str = Field(pattern=SHA256_PATTERN)
-    outputs: tuple[str, ...] = ()
+    ports: tuple[Port, ...] = ()
+    card: NodeCard | None = None
+    #: Which subgraph template instance emitted this node, when one did.
+    template_id: str | None = Field(default=None, max_length=192)
     estimated_duration_seconds: float = Field(ge=0.0)
     estimated_cost_low_usd: float = Field(ge=0.0)
     estimated_cost_high_usd: float = Field(ge=0.0)
@@ -76,6 +127,30 @@ class Node(PersistedContractModel):
         if len(value) != len(set(value)):
             raise ValueError("execution node dependencies must be unique")
         return value
+
+    @field_validator("ports")
+    @classmethod
+    def validate_ports(cls, value: tuple[Port, ...]) -> tuple[Port, ...]:
+        port_ids = [port.port_id for port in value]
+        if len(port_ids) != len(set(port_ids)):
+            raise ValueError("execution node ports must be unique")
+        refs = [port.artifact_ref for port in value] + [
+            port.sidecar_ref for port in value if port.sidecar_ref is not None
+        ]
+        if len(refs) != len(set(refs)):
+            raise ValueError("execution node port artifact refs must be unique")
+        return value
+
+    def port(self, port_id: str) -> Port:
+        for port in self.ports:
+            if port.port_id == port_id:
+                return port
+        raise KeyError(f"{self.node_id} declares no port {port_id}")
+
+    def declared_artifact_refs(self) -> set[str]:
+        refs = {port.artifact_ref for port in self.ports}
+        refs.update(port.sidecar_ref for port in self.ports if port.sidecar_ref is not None)
+        return refs
 
     @field_validator("input_sha256")
     @classmethod
@@ -97,6 +172,13 @@ class Node(PersistedContractModel):
 
     @model_validator(mode="after")
     def validate_operation_ownership(self) -> Node:
+        stray = sorted(set(self.barrier_only) - set(self.depends_on))
+        if stray:
+            raise ValueError(
+                "execution node barrier edges must be declared dependencies: " + ", ".join(stray)
+            )
+        if len(self.barrier_only) != len(set(self.barrier_only)):
+            raise ValueError("execution node barrier edges must be unique")
         if self.is_local:
             if self.provider is not None or self.model is not None:
                 raise ValueError("local execution nodes must not declare provider models")
@@ -126,7 +208,7 @@ class Graph(PersistedContractModel):
     RUN_SUMMARY_KIND: ClassVar[str] = "gnode-run-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "gnode-projection-v1"
     VIEW_KIND: ClassVar[str] = "gnode-run-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 2
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
     schema_version: int = Field(ge=1)
     kind: str = Field(min_length=1, max_length=96)
@@ -232,13 +314,22 @@ def topology_sha256(graph: Graph) -> str:
         "nodes": [
             {
                 "node_id": node.node_id,
+                "type_id": node.type_id,
                 "domain": node.domain,
                 "depends_on": list(node.depends_on),
+                "barrier_only": list(node.barrier_only),
                 "operation": node.operation,
                 "resource_id": node.resource_id,
                 "retry_owner": node.retry_owner.value,
                 "max_attempts": node.max_attempts,
-                "outputs": list(node.outputs),
+                "ports": [
+                    {
+                        "port_id": port.port_id,
+                        "artifact_ref": port.artifact_ref,
+                        "kind": port.kind,
+                    }
+                    for port in node.ports
+                ],
             }
             for node in graph.nodes
         ],
@@ -387,6 +478,7 @@ def _sha256_json(value: object) -> str:
 def build_node_cache_key(
     *,
     node_id: str,
+    type_id: str,
     operation: str,
     provider: str | None,
     model: str | None,
@@ -397,6 +489,7 @@ def build_node_cache_key(
     return _sha256_json(
         {
             "node_id": node_id,
+            "type_id": type_id,
             "operation": str(operation),
             "provider": provider,
             "model": model,
@@ -405,6 +498,41 @@ def build_node_cache_key(
             "contract_version": contract_version,
         }
     )
+
+
+def dependency_port(
+    graph: Graph,
+    node: Node,
+    *,
+    kind: str,
+    port_id: str | None = None,
+    from_node: str | None = None,
+) -> tuple[Node, Port]:
+    """Resolve one typed input: the upstream port a node consumes.
+
+    This is how a handler locates what an edge carries — by the payload's
+    declared ``kind`` (and optionally the producing node or port name) —
+    instead of re-deriving a path convention the producer never promised.
+    Exactly one dependency port must match.
+    """
+
+    candidates: list[tuple[Node, Port]] = []
+    for dependency_id in node.depends_on:
+        if from_node is not None and dependency_id != from_node:
+            continue
+        producer = graph.node(dependency_id)
+        for port in producer.ports:
+            if port.kind != kind:
+                continue
+            if port_id is not None and port.port_id != port_id:
+                continue
+            candidates.append((producer, port))
+    if not candidates:
+        raise KeyError(f"{node.node_id} has no dependency port of kind {kind}")
+    if len(candidates) > 1:
+        producers = ", ".join(f"{producer.node_id}:{port.port_id}" for producer, port in candidates)
+        raise KeyError(f"{node.node_id} has ambiguous dependency ports of kind {kind}: {producers}")
+    return candidates[0]
 
 
 def write_graph(path: Path, graph: Graph) -> None:

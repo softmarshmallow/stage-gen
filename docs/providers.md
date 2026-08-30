@@ -96,7 +96,7 @@ responses contain base64 media in `data[].b64_json`, with `media_type` when it
 can be identified. Decode, inspect, validate, and normalize the output before
 writing a successful artifact record.
 
-The scrolling-preview recipe historically asked the model for exact canvases.
+The side-view platformer recipe historically asked the model for exact canvases.
 The provider adapter must separate provider-supported aspect/quality requests
 from deterministic output normalization. This route is used only by explicit
 `ai` and `chroma` compatibility modes and does not provide native alpha under

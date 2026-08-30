@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Literal
 
 from gnode import RunView, build_run_view
 from stage_gen.orchestration.execution_graph import ExecutionGraph
+from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -18,8 +19,10 @@ if TYPE_CHECKING:
 
     from gnode import ArtifactAnnotator
 
-EXECUTION_VIEW_SCHEMA_VERSION: Literal[2] = 2
-EXECUTION_VIEW_KIND: Literal["prepared-game-execution-view-v1"] = "prepared-game-execution-view-v1"
+EXECUTION_VIEW_SCHEMA_VERSION: Literal[3] = 3
+EXECUTION_VIEW_KIND: Literal["sideview-platformer-execution-view-v1"] = (
+    "sideview-platformer-execution-view-v1"
+)
 
 
 class ExecutionView(RunView):
@@ -41,6 +44,7 @@ def build_execution_view(
         graph_type=ExecutionGraph,
         view_type=ExecutionView,
         annotators=annotators,
+        types=platformer_type_index(),
     )
 
 

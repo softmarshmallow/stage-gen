@@ -39,7 +39,7 @@ exclusion list. The selection skill is
 
 ## Opt in
 
-Scrolling preview keeps its historical prompt path by default. Request the
+The side-view platformer recipe keeps its historical prompt path by default. Request the
 selector with a JSON or TOML input:
 
 ```json

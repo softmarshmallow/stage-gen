@@ -40,6 +40,7 @@ Current camera aliases:
 | --- | --- |
 | `sideview` | `lateral_orthographic_side_plane_v1` |
 | `frontview` | `screen_space_dialogue_stage_v1` |
+| `roomview` | `screen_space_room_stage_v1` |
 
 A new camera segment MUST be introduced by binding it to a canonical profile
 (a future `topdown` binds to `overhead_nadir_orthographic_ground_plane_v1`);
@@ -50,12 +51,14 @@ binding.
 
 ## Where the taxonomy lives — identifiers, not directories
 
-The full path is the **type identifier namespace**: when the node ABI lands,
-`type_id` values persist taxonomy paths (`2d/sideview/platformer/terrain_47tile`).
-Directory trees do NOT mirror the taxonomy — an eight-level source tree buys
-depth, not clarity. Module paths carry the **flattened honest name** instead:
-the narrowest segments that make the assumption visible (`platformer_map`, not
-`two_d/sideview/platformer/map`). One name, stated once, greppable.
+The full path is the **type identifier namespace**: the node ABI persists
+taxonomy paths as every node's `type_id`
+(`2d/sideview/platformer/motion_atlas.generate` — path names the module, the
+`.step` suffix names the step within it). Directory trees do NOT mirror the
+taxonomy — an eight-level source tree buys depth, not clarity. Module paths
+carry the **flattened honest name** instead: the narrowest segments that make
+the assumption visible (`platformer_map`, not `two_d/sideview/platformer/map`).
+One name, stated once, greppable.
 
 ## Census
 
@@ -77,21 +80,32 @@ the old names.
 | `components/image_repeat` | unchanged | `2d/image_repeat` | a by declaration, c in practice — repair prompts assume a gravity-bearing horizon; documented, ungated |
 | `recipes/scrolling_preview` | `recipes/sideview_platformer` | `2d/sideview/platformer` (the recipe is the genre package) | c/d |
 | `recipes/dialogue_scene` | unchanged | `2d/frontview/vn/scene` | c |
+| `recipes/pointclick_room` | new in the ABI pass | `2d/roomview/pointclick` | c/d — fixed-room stage, cursor-only interaction |
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
+| `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see
 [gnode rings](gnode-rings.md).
 
-## Persisted vocabulary is frozen until the next bump
+## The coordinated bump happened with the node ABI
 
-Module paths, directory names, and class names are free to rename because no
-persisted document may contain them (an existing engine rule). Persisted
-strings are not renamed by this pass: the recipe id `"scrolling-preview"`, the
-graph document kinds, annotator keys, and cache namespaces stay byte-frozen —
-their taxonomy-aligned successors ride the next coordinated schema bump
-together with the node ABI's `type_id` registry, so existing runs are dropped
-once, not once per rename.
+Module paths, directory names, and class names were always free to rename
+because no persisted document may contain them (an existing engine rule).
+Persisted strings waited for one coordinated schema bump — and that bump
+landed together with the node ABI's `type_id` registry, exactly as planned,
+so existing runs were dropped once, not once per rename:
+
+| Was (persisted) | Is |
+| --- | --- |
+| recipe id `"scrolling-preview"` | `"sideview-platformer"` |
+| `prepared-game-execution-{graph,event,summary,projection,view}-v1` | `sideview-platformer-execution-*-v1` |
+| `dialogue-scene-execution-graph-v1` | `dialogue-scene-execution-graph-v2` (node shape changed) |
+| cache namespaces `prepared-world-v1` / `prepared-content-v3` | `sideview-platformer-{world,content}-v1` |
+| provenance component `@stage-gen/scrolling-preview` | `@stage-gen/sideview-platformer` |
+
+The next levers are per-type: each `NodeType.contract_version` invalidates one
+kind of work; a cache namespace invalidates one recipe's whole tree.
 
 ## Validation cases
 

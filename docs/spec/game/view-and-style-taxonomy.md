@@ -11,7 +11,7 @@ The [Game contract](../../game-contract.md) owns the game-wide domain model.
 The [authored contract schema](authored-contract-schema.md) documents the
 currently executable `game.toml` vocabulary. Until a new executable schema is
 ratified and implemented, `side_view_2d` remains the only accepted projection
-of the scrolling-preview recipe.
+of the side-view platformer recipe.
 
 ## Purpose
 
@@ -373,6 +373,22 @@ This is the likely home for many conventional 2:1 pixel-art “isometric” game
 A perspective-painted room background does not turn this composition into a
 navigable perspective game camera.
 
+### `screen_space_room_stage_v1`
+
+- one fixed full-frame painted scene per room, no scrolling and no camera
+  motion;
+- screen-space placement of interactive object sprites at normalized scene
+  coordinates rather than world projection;
+- cursor-driven hit areas as the whole navigation model — the player's body,
+  if any, is never simulated; and
+- painted-perspective freedom inside the frame, because nothing is measured
+  against a world axis.
+
+This is the point-and-click room composition (the `roomview` alias in the
+asset taxonomy binds to it). Its painted depth is illustration, not a
+projection contract; a room that starts scrolling or simulating movement has
+left this profile.
+
 ## Common-label corrections
 
 Reference sheets and product discussions often use convenient labels that are
@@ -399,7 +415,7 @@ framing must be stated per motion rather than inferred once from the role.
 ## Current executable projection
 
 The one current executable value, `side_view_2d`, has the following exact
-projection in the scrolling-preview adapter:
+projection in the side-view platformer adapter:
 
 ```text
 scene_dimensionality = layered_2d

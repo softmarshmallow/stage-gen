@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from gnode import EDGE_KIND_GAP_ID, RunViewError, write_run_view
+from gnode import RunViewError, write_run_view
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_view import ExecutionView, build_execution_view
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
@@ -41,7 +41,8 @@ def test_view_joins_plan_and_trace_for_a_finished_run(dry_run_dir: Path) -> None
     assert view.duration_ms is not None
     assert view.state_counts["succeeded"] == len(view.nodes)
     assert view.state_counts["pending"] == 0
-    assert {gap.gap_id for gap in view.gaps} == {EDGE_KIND_GAP_ID}
+    # Ports closed the edge-kind and path-convention gaps; nothing else is missing.
+    assert view.gaps == ()
 
     by_id = {node.node_id: node for node in view.nodes}
     resolve = by_id["package-resolve"]
@@ -50,6 +51,15 @@ def test_view_joins_plan_and_trace_for_a_finished_run(dry_run_dir: Path) -> None
     assert resolve.duration_ms is not None
     assert resolve.artifacts
     assert all(artifact.present for artifact in resolve.artifacts)
+    # The display join: every node carries its registered type's title and archetype.
+    assert resolve.type_id == "2d/sideview/platformer/package.resolve"
+    assert resolve.title == "Package capture"
+    assert resolve.archetype == "source"
+    layer = by_id["map-crowncrag-road-layer-open_sky-generate"]
+    assert layer.archetype == "image"
+    assert layer.params == {"map_id": "crowncrag-road", "layer_id": "open_sky"}
+    assert {port.port_id for port in layer.ports} == {"image"}
+    assert by_id["map-crowncrag-road-ground-generate"].barrier_only == ("package-resolve",)
 
     view_path = dry_run_dir / "execution-view.json"
     write_run_view(view_path, view)

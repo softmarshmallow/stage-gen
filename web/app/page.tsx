@@ -6,7 +6,10 @@
 
 import Link from "next/link";
 import { listReadyProjects } from "@/lib/shell/projects";
+import { listReadyRooms } from "@/lib/shell/pointclick-room";
 import { listExecutionViewRuns } from "@/lib/shell/execution-view";
+import { sceneModuleForKind } from "@/lib/shell/scene-modules";
+import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import {
   cx,
   h1,
@@ -20,10 +23,12 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [projects, views] = await Promise.all([
+  const [projects, rooms, views] = await Promise.all([
     listReadyProjects(),
+    listReadyRooms(),
     listExecutionViewRuns(),
   ]);
+  const roomModule = sceneModuleForKind(POINTCLICK_RUNTIME_KIND);
   return (
     <main className={page}>
       <h1 className={h1}>stage-gen</h1>
@@ -82,6 +87,38 @@ export default async function Home() {
           <p className={metaLine}>
             None yet. Publish one with{" "}
             <code>stage-gen generate --checkpoint integration</code>.
+          </p>
+        )}
+      </section>
+
+      <section className="mt-8 border-t border-border pt-4">
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">point-and-click rooms</span>
+          <span className="text-dim opacity-60"> · {rooms.length}</span>
+        </div>
+        {rooms.length > 0 && roomModule ? (
+          <ul className="flex list-none flex-col gap-1.5">
+            {rooms.map((room) => (
+              <li
+                key={room.tag}
+                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] text-fg">{room.displayName}</div>
+                  <div className="mt-0.5 truncate text-[11px] text-dim">{room.tag}</div>
+                </div>
+                <Link
+                  className={cx(playActive, playSizeCompact)}
+                  href={roomModule.route(room.tag)}
+                >
+                  [ ▶ enter room ]
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className={metaLine}>
+            None yet. Generate one with <code>stage-gen pointclick-room generate</code>.
           </p>
         )}
       </section>

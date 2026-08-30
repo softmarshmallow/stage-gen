@@ -1,4 +1,4 @@
-# Scrolling-preview prompt contract
+# Side-view platformer prompt contract
 
 This page documents how the recipe assembles prompts. It is a recipe-specific
 contract, not a reusable component default. The executable prompt builders

@@ -53,6 +53,50 @@ describe("layoutExecutionGraph", () => {
     ]);
   });
 
+  test("a barrier dependency is placed as an edge that says it is one", () => {
+    const layout = layoutExecutionGraph([
+      { nodeId: "root", domain: "package", dependsOn: [] },
+      { nodeId: "paint", domain: "maps", dependsOn: ["root"] },
+      {
+        nodeId: "admit",
+        domain: "maps",
+        dependsOn: ["paint", "root"],
+        barrierOnly: ["root"],
+      },
+    ]);
+    const barrier = layout.edges.find((edge) => edge.from === "root" && edge.to === "admit");
+    const lineage = layout.edges.find((edge) => edge.from === "paint" && edge.to === "admit");
+    expect(barrier?.barrier).toBe(true);
+    expect(lineage?.barrier).toBe(false);
+    // A graph that never names a barrier draws none.
+    expect(layoutExecutionGraph(DIAMOND).edges.every((edge) => !edge.barrier)).toBe(true);
+  });
+
+  test("a contracted edge is lineage when any edge folded into it was", () => {
+    // Collapsing merges two members' edges to the same target. Calling the
+    // result a barrier would hide the lineage the pair actually carries.
+    const layout = layoutExecutionGraph(
+      [
+        { nodeId: "root", domain: "package", dependsOn: [] },
+        { nodeId: "lineage", domain: "maps", dependsOn: ["root"] },
+        { nodeId: "barrier", domain: "maps", dependsOn: ["root"], barrierOnly: ["root"] },
+      ],
+      new Set(["maps"]),
+    );
+    expect(layout.edges).toHaveLength(1);
+    expect(layout.edges[0].barrier).toBe(false);
+
+    const allBarriers = layoutExecutionGraph(
+      [
+        { nodeId: "root", domain: "package", dependsOn: [] },
+        { nodeId: "one", domain: "maps", dependsOn: ["root"], barrierOnly: ["root"] },
+        { nodeId: "two", domain: "maps", dependsOn: ["root"], barrierOnly: ["root"] },
+      ],
+      new Set(["maps"]),
+    );
+    expect(allBarriers.edges[0].barrier).toBe(true);
+  });
+
   test("an empty graph lays out to an empty canvas without throwing", () => {
     const layout = layoutExecutionGraph([]);
     expect(layout.nodes).toHaveLength(0);

@@ -109,10 +109,14 @@ uv run stage-gen <args>
 ```
 
 The CLI is the only automation surface: there is no HTTP service, and no
-process outside it starts a run. Two recipes compile onto the one engine —
-`scrolling-preview` builds a prepared game from a `game.toml` package, and
-`dialogue-scene` builds a scene bundle from an authored request document. Each
-declares its own graph document kind, so neither can read the other's plan.
+process outside it starts a run. Three recipes compile onto the one engine —
+`sideview-platformer` builds a prepared game from a `game.toml` package,
+`dialogue-scene` builds a scene bundle from an authored request document, and
+`pointclick-room` builds a fixed painted puzzle room from an authored
+`room.toml` whose puzzle is proven finishable before generation is scheduled
+(`stage-gen pointclick-room generate --input library/rooms/<id>/room.toml
+--output out/<tag>`). Each declares its own graph document kind, so no recipe
+can read another's plan.
 
 Generated runs live below the configured output directory. Recipe-specific
 names and file layouts belong in recipe manifests, not in generic
@@ -128,15 +132,16 @@ sidecars so consumers load canonical outputs without guessing from colour.
 
 ## Optional preview
 
-The current `web/` application is an optional consumer with four committed
-integration surfaces, none of which can start a run. The side-view scrolling
+The current `web/` application is an optional consumer with five committed
+integration surfaces, none of which can start a run. The side-view platformer
 preview boots one published `prepared-game-runtime-v10` package; its horizontal
 camera, parallax, terrain, movement, combat, and interaction rules are local
 consumer decisions. The asset explorer projects that same manifest's closure.
 The deterministic dialogue-scene showcase consumes a committed browser fixture
-and schema. The run viewer consumes a run's derived `execution-view.json` and
-renders it read-only. No surface owns generation or defines reusable component
-contracts.
+and schema. The room player at `/room/<tag>` replays one published
+`pointclick-room-runtime-v1` manifest through a pure reducer. The run viewer
+consumes a run's derived `execution-view.json` and renders it read-only. No
+surface owns generation or defines reusable component contracts.
 
 No production gameplay engine has been selected. A dedicated 2D engine,
 including Godot or another suitable candidate, may be evaluated later. The

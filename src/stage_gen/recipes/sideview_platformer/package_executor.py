@@ -1,4 +1,4 @@
-"""Thin prepared-package composition boundary for scrolling-preview execution."""
+"""Thin prepared-package composition boundary for side-view platformer execution."""
 
 from __future__ import annotations
 
@@ -41,6 +41,10 @@ from stage_gen.recipes.sideview_platformer.prepared_manifest import (
 from stage_gen.recipes.sideview_platformer.prepared_world import (
     PreparedWorldNodeHandler,
     world_target_node_ids,
+)
+from stage_gen.resources import (
+    terrain_atlas_template_path,
+    terrain_atlas_topology_reference_path,
 )
 
 
@@ -214,10 +218,8 @@ class PreparedPackageExecutor:
             cache_dir=cache_dir,
             image_service=image_service,
             structured_service=structured_service,
-            terrain_template_path=Path(__file__).parents[2]
-            / "resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
-            terrain_topology_reference_path=Path(__file__).parents[2]
-            / ("resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png"),
+            terrain_template_path=terrain_atlas_template_path(),
+            terrain_topology_reference_path=terrain_atlas_topology_reference_path(),
         )
         try:
             summary = await executor.run(
@@ -225,7 +227,7 @@ class PreparedPackageExecutor:
                 handler,
                 invocation_id=invocation_id,
                 trace_sink=trace,
-                target_node_ids=world_target_node_ids(plan.package),
+                target_node_ids=world_target_node_ids(plan.graph),
             )
         finally:
             trace.close()
@@ -294,7 +296,7 @@ class PreparedPackageExecutor:
                 handler,
                 invocation_id=invocation_id,
                 trace_sink=trace,
-                target_node_ids=content_target_node_ids(plan.package),
+                target_node_ids=content_target_node_ids(plan.graph),
             )
         finally:
             trace.close()

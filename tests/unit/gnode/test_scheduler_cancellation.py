@@ -22,6 +22,7 @@ from gnode import (
 def _node(node_id: str, *, depends_on: tuple[str, ...] = ()) -> Node:
     return Node(
         node_id=node_id,
+        type_id="test/step.run",
         domain="test",
         description=node_id,
         depends_on=depends_on,
@@ -31,6 +32,7 @@ def _node(node_id: str, *, depends_on: tuple[str, ...] = ()) -> Node:
         max_attempts=1,
         cache_key=build_node_cache_key(
             node_id=node_id,
+            type_id="test/step.run",
             operation="local",
             provider=None,
             model=None,

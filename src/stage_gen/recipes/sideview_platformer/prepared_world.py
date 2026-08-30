@@ -6,8 +6,7 @@ import base64
 import hashlib
 import io
 import json
-import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -25,6 +24,8 @@ from gnode import (
     NodeExecutionContext,
     NodeExecutionError,
     NodeExecutionResult,
+    NodeHandler,
+    NodeTypeRegistry,
     ProvenanceInput,
     SoftwareIdentity,
     StructuredGenerationRequest,
@@ -33,6 +34,7 @@ from gnode import (
     StructuredReference,
     atomic_write_bytes,
     atomic_write_json,
+    dependency_port,
     write_artifact_with_provenance_async,
 )
 from stage_gen.components.image_repeat import (
@@ -84,6 +86,26 @@ from stage_gen.recipes.sideview_platformer.layer_contract import (
     LOOP_REPAINT_SPAN_PX,
     LOOP_REPAINT_WINDOW_PX,
 )
+from stage_gen.recipes.sideview_platformer.package_graph import (
+    CACHE_RECORD_KIND,
+    WORLD_CACHE_NAMESPACE,
+)
+from stage_gen.recipes.sideview_platformer.package_types import (
+    MAP_CLIMBABLE_GENERATE,
+    MAP_CLIMBABLE_VALIDATE,
+    MAP_COMPOSITE,
+    MAP_GROUND_GENERATE,
+    MAP_GROUND_VALIDATE,
+    MAP_LAYER_GENERATE,
+    MAP_LAYER_LOOP_CONSTRUCT,
+    MAP_LAYER_LOOP_PAINT,
+    MAP_LAYER_VALIDATE,
+    MAP_PORTAL_GENERATE,
+    MAP_PORTAL_VALIDATE,
+    MAP_REVIEW,
+    MAP_TERRAIN_DESIGN,
+    PACKAGE_RESOLVE,
+)
 from stage_gen.recipes.sideview_platformer.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     assemble_terrain_atlas,
@@ -105,15 +127,6 @@ WORLD_HANDLER_VERSION = "prepared-world-v3"
 #: judging the same composition the player sees, not a differently-scaled approximation.
 _COMPOSITE_VIEWPORT_HEIGHT_PX = 720
 _COMPOSITE_TILE_PX = 64
-_LAYER_NODE = re.compile(
-    r"^map-(?P<map_id>.+)-layer-(?P<layer_id>[a-z0-9_]+)-(?P<action>generate|loop|validate)$"
-)
-_GROUND_NODE = re.compile(r"^map-(?P<map_id>.+)-ground-(?P<action>generate|validate)$")
-_TERRAIN_NODE = re.compile(r"^map-(?P<map_id>.+)-terrain-generate$")
-_PRESENTATION_NODE = re.compile(
-    r"^map-(?P<map_id>.+)-(?P<asset>climbable|portal)-(?P<action>generate|validate)$"
-)
-_MAP_NODE = re.compile(r"^map-(?P<map_id>.+)-(?P<action>composite|review)$")
 
 
 class PreparedWorldNodeHandler:
@@ -143,16 +156,17 @@ class PreparedWorldNodeHandler:
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
-            namespace="prepared-world-v1",
-            record_kind="prepared-world-node-cache-v1",
+            namespace=WORLD_CACHE_NAMESPACE,
+            record_kind=CACHE_RECORD_KIND,
         )
+        self._registry = self._build_registry()
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._cache.read(node, context)
         if cached is not None:
             return cached
         try:
-            result = await self._execute(node)
+            result = await self._registry(node, context)
         except NodeExecutionError:
             raise
         except Exception as error:
@@ -165,6 +179,59 @@ class PreparedWorldNodeHandler:
             ) from error
         self._cache.write(node, context, result)
         return result
+
+    # ---------------------------------------------------------------- dispatch
+
+    def _build_registry(self) -> NodeTypeRegistry:
+        """Registered types replace the five node-id regexes this handler once walked.
+
+        The manifest type is deliberately absent: this checkpoint stops at the map
+        reviews, and the registry's own "unregistered type" refusal is what says so.
+        """
+
+        registry = NodeTypeRegistry()
+        registry.register(PACKAGE_RESOLVE, self._bind(self._resolve_package))
+        registry.register(MAP_LAYER_GENERATE, self._bind(self._generate_layer))
+        registry.register(MAP_LAYER_LOOP_PAINT, self._bind(self._paint_layer_loop))
+        registry.register(MAP_LAYER_LOOP_CONSTRUCT, self._bind(self._construct_layer_loop))
+        registry.register(MAP_LAYER_VALIDATE, self._bind(self._validate_layer))
+        registry.register(MAP_TERRAIN_DESIGN, self._bind(self._generate_terrain))
+        registry.register(MAP_GROUND_GENERATE, self._bind(self._generate_ground))
+        registry.register(MAP_GROUND_VALIDATE, self._bind(self._validate_ground))
+        registry.register(MAP_CLIMBABLE_GENERATE, self._bind(self._generate_climbable))
+        registry.register(MAP_CLIMBABLE_VALIDATE, self._bind(self._validate_climbable))
+        registry.register(MAP_PORTAL_GENERATE, self._bind(self._generate_portal))
+        registry.register(MAP_PORTAL_VALIDATE, self._bind(self._validate_portal))
+        registry.register(MAP_COMPOSITE, self._bind(self._composite))
+        registry.register(MAP_REVIEW, self._bind(self._review))
+        return registry
+
+    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
+        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+            return await method(node)
+
+        return handler
+
+    # ------------------------------------------------------------- instance ids
+
+    def _node_map(self, node: Node) -> PreparedGameMap:
+        """The authored map this node instance is bound to."""
+
+        map_id = node.params.get("map_id")
+        if map_id is None:
+            raise ValueError(f"node {node.node_id} declares no map_id")
+        return self._map(map_id)
+
+    def _node_layer(self, node: Node, game_map: PreparedGameMap) -> PreparedMapLayer:
+        """The authored layer this node instance is bound to."""
+
+        layer_id = node.params.get("layer_id")
+        if layer_id is None:
+            raise ValueError(f"node {node.node_id} declares no layer_id")
+        for layer in game_map.layers:
+            if layer.layer_id == layer_id:
+                return layer
+        raise ValueError(f"map {game_map.map_id} declares no layer {layer_id}")
 
     def _terrain(self, game_map: PreparedGameMap) -> PreparedMapTerrain:
         """Read this map's generated geometry, checked against what the map asked for.
@@ -180,47 +247,15 @@ class PreparedWorldNodeHandler:
         validate_generated_terrain(game_map, terrain)
         return terrain
 
-    async def _execute(self, node: Node) -> NodeExecutionResult:
-        if node.node_id == "package-resolve":
-            path = self._run_dir / node.outputs[0]
-            atomic_write_json(path, self._package.identity())
-            return self._result(node, (path,), provider_operations=0)
-        layer_match = _LAYER_NODE.fullmatch(node.node_id)
-        if layer_match:
-            game_map = self._map(layer_match["map_id"])
-            layer = next(
-                item for item in game_map.layers if item.layer_id == layer_match["layer_id"]
-            )
-            if layer_match["action"] == "generate":
-                return await self._generate_layer(node, game_map, layer)
-            if layer_match["action"] == "loop":
-                return await self._construct_layer_loop(node, game_map, layer)
-            return await self._validate_layer(node, layer)
-        terrain_match = _TERRAIN_NODE.fullmatch(node.node_id)
-        if terrain_match:
-            return await self._generate_terrain(node, self._map(terrain_match["map_id"]))
-        ground_match = _GROUND_NODE.fullmatch(node.node_id)
-        if ground_match:
-            game_map = self._map(ground_match["map_id"])
-            if ground_match["action"] == "generate":
-                return await self._generate_ground(node, game_map)
-            return await self._validate_ground(node, game_map)
-        presentation_match = _PRESENTATION_NODE.fullmatch(node.node_id)
-        if presentation_match:
-            game_map = self._map(presentation_match["map_id"])
-            asset = cast(Literal["climbable", "portal"], presentation_match["asset"])
-            if presentation_match["action"] == "generate":
-                return await self._generate_map_presentation(node, game_map, asset)
-            return await self._validate_map_presentation(node, game_map, asset)
-        map_match = _MAP_NODE.fullmatch(node.node_id)
-        if map_match:
-            game_map = self._map(map_match["map_id"])
-            if map_match["action"] == "composite":
-                return await self._composite(node, game_map)
-            return await self._review(node, game_map)
-        raise ValueError(f"prepared world handler cannot execute node: {node.node_id}")
+    # ------------------------------------------------------------------ nodes
 
-    async def _generate_terrain(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
+    async def _resolve_package(self, node: Node) -> NodeExecutionResult:
+        atomic_write_json(
+            self._run_dir / node.port("identity").artifact_ref, self._package.identity()
+        )
+        return self._result(node, provider_operations=0)
+
+    async def _generate_terrain(self, node: Node) -> NodeExecutionResult:
         """Compose this map's terrain from its authored brief.
 
         The map asks for a shape the way it asks for artwork, and the answer is an artifact. The
@@ -229,7 +264,8 @@ class PreparedWorldNodeHandler:
         owner, which stays inside the structured-generation service.
         """
 
-        output = self._run_dir / node.outputs[0]
+        game_map = self._node_map(node)
+        output = self._run_dir / node.port("terrain").artifact_ref
         output.parent.mkdir(parents=True, exist_ok=True)
         profile = terrain_profile(game_map)
         brief = DesignBrief(intent=self._map_prompt(game_map, game_map.terrain.brief))
@@ -238,6 +274,9 @@ class PreparedWorldNodeHandler:
             profile,
             brief,
             artifact_dir=output.parent / "terrain-design",
+            # Policy as data: the semantic-regeneration budget comes from the
+            # node type's declaration, not a constant buried in a call site.
+            max_attempts=MAP_TERRAIN_DESIGN.policy.semantic_attempts,
         )
         final = attempts[-1]
         if final.problems or final.designed is None:
@@ -249,12 +288,12 @@ class PreparedWorldNodeHandler:
         terrain = compile_terrain(final.designed, game_map)
         validate_generated_terrain(game_map, terrain)
         atomic_write_json(output, json.loads(canonical_prepared_map_terrain_json(terrain)))
-        return self._result(node, (output,), provider_operations=len(attempts))
+        return self._result(node, provider_operations=len(attempts))
 
-    async def _generate_layer(
-        self, node: Node, game_map: PreparedGameMap, layer: PreparedMapLayer
-    ) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
+    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        layer = self._node_layer(node, game_map)
+        output = self._run_dir / node.port("image").artifact_ref
         prompt = self._map_prompt(game_map, layer.prompt) + (
             "\nOutput one horizontally seamless repeat unit. The left and right edges must join "
             "without a visible seam. "
@@ -288,26 +327,39 @@ class PreparedWorldNodeHandler:
         )
         return self._result(
             node,
-            (output, Path(result.provenance_path)),
             attempts=result.attempts,
             provider_operations=result.attempts,
         )
 
-    async def _construct_layer_loop(
-        self, node: Node, game_map: PreparedGameMap, layer: PreparedMapLayer
-    ) -> NodeExecutionResult:
+    async def _paint_layer_loop(self, node: Node) -> NodeExecutionResult:
+        """The generative route: admission first, then a provider edit when it fails."""
+
+        return await self._layer_loop(node)
+
+    async def _construct_layer_loop(self, node: Node) -> NodeExecutionResult:
+        """The local route: admission first, then a deterministic construction."""
+
+        return await self._layer_loop(node)
+
+    async def _layer_loop(self, node: Node) -> NodeExecutionResult:
         """Admit the generated layer as a loop, or construct one by the declared construction.
 
         The layer's own selection wins over the map's. A map's layers do not share a difficulty:
         one whose ends already agree loops under any construction, while one whose ends disagree
         in the source art fails under all of them, and a single map-wide choice cannot say so.
+
+        Which of the two loop types the plan carries follows from that same selection, so both
+        routes read one implementation: the branch below is the declaration the builder read.
         """
 
-        generated = self._graph.node(node.depends_on[0])
-        raw_data = (self._run_dir / generated.outputs[0]).read_bytes()
+        game_map = self._node_map(node)
+        layer = self._node_layer(node, game_map)
+        _producer, source_port = dependency_port(self._graph, node, kind="map-layer-raw-v1")
+        raw_data = (self._run_dir / source_port.artifact_ref).read_bytes()
         construction = layer.loop_construction or game_map.continuity.loop_construction
         alpha_policy, coverage = _layer_repeat_policies(layer)
-        output, record_path = (self._run_dir / ref for ref in node.outputs)
+        output = self._run_dir / node.port("loop_image").artifact_ref
+        record_path = self._run_dir / node.port("loop_report").artifact_ref
 
         def admit(data: bytes) -> object:
             return validate_image_repeat(
@@ -336,7 +388,7 @@ class PreparedWorldNodeHandler:
             record["construction"] = construction
         else:
             conditioning = _loop_conditioning(construction, raw_data)
-            edit_path = self._run_dir / f"{node.outputs[0].removesuffix('.loop.png')}.edit.png"
+            edit_path = self._run_dir / node.port("edit_image").artifact_ref
             transparent = layer.alpha_mode == "transparent"
             generation = await self._images.generate(
                 ImageGenerationRequest(
@@ -403,25 +455,27 @@ class PreparedWorldNodeHandler:
                 f"constructed loop for {game_map.map_id}/{layer.layer_id} failed x-repeat admission"
             )
         record["repeat"] = report.model_dump(mode="json")  # type: ignore[attr-defined]
-        sidecar = await _write_local_image(
+        await _write_local_image(
             output,
             looped,
             model=record["kind"],  # type: ignore[arg-type]
             prompt="Admit or construct the layer's horizontal loop unit.",
-            source_ref=generated.outputs[0],
+            source_ref=source_port.artifact_ref,
             source_data=raw_data,
             validation=record,
         )
         atomic_write_json(record_path, record)
-        return self._result(
-            node, (output, sidecar, record_path), provider_operations=provider_operations
-        )
+        return self._result(node, provider_operations=provider_operations)
 
-    async def _validate_layer(self, node: Node, layer: PreparedMapLayer) -> NodeExecutionResult:
-        looped = self._graph.node(node.depends_on[0])
-        raw_path = self._run_dir / looped.outputs[0]
+    async def _validate_layer(self, node: Node) -> NodeExecutionResult:
+        layer = self._node_layer(node, self._node_map(node))
+        _producer, loop_port = dependency_port(self._graph, node, kind="map-layer-loop-image-v1")
+        _report_producer, report_port = dependency_port(
+            self._graph, node, kind="layer-loop-report-v1"
+        )
+        raw_path = self._run_dir / loop_port.artifact_ref
         raw_data = raw_path.read_bytes()
-        construction = json.loads((self._run_dir / looped.outputs[1]).read_bytes())
+        construction = json.loads((self._run_dir / report_port.artifact_ref).read_bytes())
         alpha_policy, coverage = _layer_repeat_policies(layer)
         canonical = raw_data
         report = validate_image_repeat(
@@ -447,8 +501,10 @@ class PreparedWorldNodeHandler:
             # inheriting a verdict earned by a raster we no longer publish.
             raise ValueError("trimmed map layer failed deterministic x-repeat validation")
         placement = _resolve_layer_placement(layer, trim)
-        output, validation_path, preview_path = (self._run_dir / ref for ref in node.outputs)
-        sidecar = await _write_local_image(
+        output = self._run_dir / node.port("image").artifact_ref
+        validation_path = self._run_dir / node.port("validation").artifact_ref
+        preview_path = self._run_dir / node.port("repeat_preview").artifact_ref
+        await _write_local_image(
             output,
             trimmed,
             model=LAYER_PLACEMENT_CANONICALIZER,
@@ -456,7 +512,7 @@ class PreparedWorldNodeHandler:
                 "Trim the constructed map loop unit to its alpha box vertically while preserving "
                 "the repeat period."
             ),
-            source_ref=looped.outputs[0],
+            source_ref=loop_port.artifact_ref,
             source_data=raw_data,
             validation={
                 "construction": construction,
@@ -474,12 +530,11 @@ class PreparedWorldNodeHandler:
             },
         )
         atomic_write_bytes(preview_path, _bounded_repeat_preview(trimmed))
-        return self._result(
-            node, (output, sidecar, validation_path, preview_path), provider_operations=0
-        )
+        return self._result(node, provider_operations=0)
 
-    async def _generate_ground(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
+    async def _generate_ground(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        output = self._run_dir / node.port("image").artifact_ref
         style = self._package.game.style
         material_direction = (
             f"{game_map.ground.prompt.strip()} Target style: {style.label}; "
@@ -529,14 +584,14 @@ class PreparedWorldNodeHandler:
         )
         return self._result(
             node,
-            (output, Path(result.provenance_path)),
             attempts=result.attempts,
             provider_operations=result.attempts,
         )
 
-    async def _validate_ground(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
-        generated = self._graph.node(node.depends_on[0])
-        raw_path = self._run_dir / generated.outputs[0]
+    async def _validate_ground(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        _producer, source_port = dependency_port(self._graph, node, kind="ground-atlas-raw-v1")
+        raw_path = self._run_dir / source_port.artifact_ref
         raw = raw_path.read_bytes()
         canonical, validation = assemble_terrain_atlas(
             raw,
@@ -544,8 +599,10 @@ class PreparedWorldNodeHandler:
         )
         if validation["classification"] != "direct_pass":
             raise ValueError("dynamic terrain atlas validation requires direct_pass media")
-        output, validation_path, evidence_path = (self._run_dir / ref for ref in node.outputs)
-        sidecar = await _write_local_image(
+        output = self._run_dir / node.port("image").artifact_ref
+        validation_path = self._run_dir / node.port("validation").artifact_ref
+        evidence_path = self._run_dir / node.port("evidence").artifact_ref
+        await _write_local_image(
             output,
             canonical,
             model=MATERIAL_ASSEMBLER_ID,
@@ -554,14 +611,14 @@ class PreparedWorldNodeHandler:
                 "apply the authoritative 47-mask lookup, harmonize only legal connector edges, "
                 "and assemble the canonical atlas deterministically."
             ),
-            source_ref=generated.outputs[0],
+            source_ref=source_port.artifact_ref,
             source_data=raw,
             validation=validation,
         )
         atomic_write_json(validation_path, validation)
         occupancy = self._terrain(game_map).occupancy
         evidence, _ = compose_canonical_terrain(canonical, occupancy)
-        evidence_sidecar = await _write_local_image(
+        await _write_local_image(
             evidence_path,
             evidence,
             model="terrain-atlas-authored-occupancy-preview-v1",
@@ -574,19 +631,27 @@ class PreparedWorldNodeHandler:
                 "map_id": game_map.map_id,
             },
         )
-        return self._result(
-            node,
-            (output, sidecar, validation_path, evidence_path, evidence_sidecar),
-            provider_operations=0,
-        )
+        return self._result(node, provider_operations=0)
+
+    async def _generate_climbable(self, node: Node) -> NodeExecutionResult:
+        return await self._generate_map_presentation(node, "climbable")
+
+    async def _generate_portal(self, node: Node) -> NodeExecutionResult:
+        return await self._generate_map_presentation(node, "portal")
+
+    async def _validate_climbable(self, node: Node) -> NodeExecutionResult:
+        return await self._validate_map_presentation(node, "climbable")
+
+    async def _validate_portal(self, node: Node) -> NodeExecutionResult:
+        return await self._validate_map_presentation(node, "portal")
 
     async def _generate_map_presentation(
         self,
         node: Node,
-        game_map: PreparedGameMap,
         asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
+        game_map = self._node_map(node)
+        output = self._run_dir / node.port("image").artifact_ref
         roles: Sequence[ClimbableRole] | None = None
         mode: str
         if asset == "climbable":
@@ -663,7 +728,6 @@ class PreparedWorldNodeHandler:
         )
         return self._result(
             node,
-            (output, Path(result.provenance_path)),
             attempts=result.attempts,
             provider_operations=result.attempts,
         )
@@ -671,11 +735,11 @@ class PreparedWorldNodeHandler:
     async def _validate_map_presentation(
         self,
         node: Node,
-        game_map: PreparedGameMap,
         asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
-        generated = self._graph.node(node.depends_on[0])
-        raw_path = self._run_dir / generated.outputs[0]
+        game_map = self._node_map(node)
+        source_port = self._graph.node(node.depends_on[0]).port("image")
+        raw_path = self._run_dir / source_port.artifact_ref
         raw = raw_path.read_bytes()
         roles: Sequence[ClimbableRole] | None = None
         if asset == "climbable":
@@ -684,24 +748,22 @@ class PreparedWorldNodeHandler:
                 raise ValueError(f"map {game_map.map_id} does not declare climbable")
             roles = [climbable.role_of(entry.variant_id) for entry in climbable.variants]
         canonical, validation = _canonicalize_map_presentation(raw, asset=asset, roles=roles)
-        output, validation_path = (self._run_dir / ref for ref in node.outputs)
-        sidecar = await _write_local_image(
+        output = self._run_dir / node.port("image").artifact_ref
+        validation_path = self._run_dir / node.port("validation").artifact_ref
+        await _write_local_image(
             output,
             canonical,
             model=f"prepared-map-{asset}-alpha-component-repack-v1",
             prompt=f"Isolate and repack the map-local {asset} presentation.",
-            source_ref=generated.outputs[0],
+            source_ref=source_port.artifact_ref,
             source_data=raw,
             validation=validation,
         )
         atomic_write_json(validation_path, validation)
-        return self._result(
-            node,
-            (output, sidecar, validation_path),
-            provider_operations=0,
-        )
+        return self._result(node, provider_operations=0)
 
-    async def _composite(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
+    async def _composite(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
         backgrounds = sorted(
             (layer for layer in game_map.layers if layer.plane == "background"),
             key=lambda item: item.order,
@@ -787,7 +849,7 @@ class PreparedWorldNodeHandler:
         layer_periods = {
             layer.layer_id: period for layer, period in zip(ordered, periods, strict=True)
         }
-        output = self._run_dir / node.outputs[0]
+        output = self._run_dir / node.port("image").artifact_ref
         inputs = [
             (
                 f"maps/{game_map.map_id}/layers/{layer.layer_id}.png",
@@ -798,7 +860,7 @@ class PreparedWorldNodeHandler:
             for layer in ordered
         ]
         inputs.append((f"maps/{game_map.map_id}/ground.png", ground_path.read_bytes()))
-        sidecar = await _write_local_image_multi(
+        await _write_local_image_multi(
             output,
             data,
             model="prepared-map-placed-compositor-v6",
@@ -813,10 +875,11 @@ class PreparedWorldNodeHandler:
                 "height": canvas.height,
             },
         )
-        return self._result(node, (output, sidecar), provider_operations=0)
+        return self._result(node, provider_operations=0)
 
-    async def _review(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
-        output = self._run_dir / node.outputs[0]
+    async def _review(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        output = self._run_dir / node.port("verdict").artifact_ref
         composite_path = self._run_dir / f"maps/{game_map.map_id}/composite.png"
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
         ground_evidence_path = self._run_dir / f"maps/{game_map.map_id}/ground.evidence.png"
@@ -918,7 +981,6 @@ class PreparedWorldNodeHandler:
         )
         return self._result(
             node,
-            (output, Path(result.provenance_path)),
             attempts=result.attempts,
             provider_operations=result.attempts,
         )
@@ -1084,12 +1146,25 @@ class PreparedWorldNodeHandler:
     def _result(
         self,
         node: Node,
-        paths: tuple[Path, ...],
         *,
         attempts: int = 1,
         provider_operations: int,
     ) -> NodeExecutionResult:
-        artifacts = tuple(_node_artifact(self._run_dir, path) for path in paths)
+        """Report exactly the ports this node declared, artifact then paired sidecar.
+
+        A declared address that carries nothing this run is skipped rather than
+        invented: the loop repaint intermediate exists only when admission
+        escalated to a provider edit, and a record port has no sidecar to pair.
+        """
+
+        refs: list[str] = []
+        for port in node.ports:
+            refs.append(port.artifact_ref)
+            if port.sidecar_ref is not None:
+                refs.append(port.sidecar_ref)
+        artifacts = tuple(
+            _node_artifact(self._run_dir, ref) for ref in refs if (self._run_dir / ref).is_file()
+        )
         return NodeExecutionResult(
             cache=CacheDisposition.MISS,
             attempts=attempts,
@@ -1098,8 +1173,14 @@ class PreparedWorldNodeHandler:
         )
 
 
-def world_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:
-    return tuple(f"map-{game_map.map_id}-review" for game_map in package.maps)
+def world_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """Every map review: the world checkpoint's terminals, read off the plan.
+
+    The plan already says which nodes are map reviews, so the checkpoint asks it
+    instead of rebuilding node-id strings the builder alone is entitled to spell.
+    """
+
+    return tuple(node.node_id for node in graph.nodes if node.type_id == MAP_REVIEW.type_id)
 
 
 def _loop_conditioning(construction: LoopConstruction, data: bytes) -> SeamConditioning:
@@ -1535,7 +1616,7 @@ async def _write_local_image_multi(
             params={"version": WORLD_HANDLER_VERSION},
             validation=dict(validation),
             component=SoftwareIdentity(
-                name="@stage-gen/scrolling-preview", version=WORLD_HANDLER_VERSION
+                name="@stage-gen/sideview-platformer", version=WORLD_HANDLER_VERSION
             ),
             tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
             attempts=1,
@@ -1589,11 +1670,9 @@ def _parse_review(value: object) -> dict[str, object]:
     return value
 
 
-def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
-    data = path.read_bytes()
-    return NodeArtifact(
-        artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
-    )
+def _node_artifact(run_dir: Path, ref: str) -> NodeArtifact:
+    data = (run_dir / ref).read_bytes()
+    return NodeArtifact(artifact_ref=ref, sha256=_sha(data), bytes=len(data))
 
 
 def _data_url(data: bytes, media_type: str) -> str:

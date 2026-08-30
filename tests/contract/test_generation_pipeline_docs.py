@@ -171,15 +171,15 @@ def test_checkpoint_closure_paragraphs_state_the_real_closure_sizes() -> None:
     from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
     from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
 
-    package, graph = _bellweather_graph()
+    _package, graph = _bellweather_graph()
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
 
     world = re.search(r"World checkpoint is the exact (\d+)-node closure", source)
     content = re.search(r"Content checkpoint is the exact (\d+)-node closure", source)
     assert world is not None and content is not None
 
-    assert int(world.group(1)) == len(_closure(graph, world_target_node_ids(package)))
-    assert int(content.group(1)) == len(_closure(graph, content_target_node_ids(package)))
+    assert int(world.group(1)) == len(_closure(graph, world_target_node_ids(graph)))
+    assert int(content.group(1)) == len(_closure(graph, content_target_node_ids(graph)))
 
 
 def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -> None:
@@ -197,10 +197,10 @@ def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -
 
     package, graph = _bellweather_graph()
     by_id = {node.node_id: node for node in graph.nodes}
-    reachable = _closure(graph, world_target_node_ids(package)) | _closure(
-        graph, content_target_node_ids(package)
+    reachable = _closure(graph, world_target_node_ids(graph)) | _closure(
+        graph, content_target_node_ids(graph)
     )
-    produced = {output for node_id in reachable for output in by_id[node_id].outputs}
+    produced = {ref for node_id in reachable for ref in by_id[node_id].declared_artifact_refs()}
 
     assert [path for path in runtime_artifact_paths(package) if path not in produced] == []
 

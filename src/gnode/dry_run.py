@@ -199,7 +199,10 @@ def _fake_artifact_bytes(
         "operation": node.operation,
         "dependency_cache_keys": list(dependency_cache_keys),
         "dependency_lineage": list(dependency_lineage),
-        "declared_outputs": list(node.outputs),
+        "declared_ports": [
+            {"port_id": port.port_id, "artifact_ref": port.artifact_ref, "kind": port.kind}
+            for port in node.ports
+        ],
     }
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
 

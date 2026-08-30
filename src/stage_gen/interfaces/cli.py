@@ -57,6 +57,8 @@ from stage_gen.recipes.dialogue_scene.character_bundle import (
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
+from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
+from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
@@ -180,6 +182,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--acceptance-spec", required=True, dest="acceptance_spec_path"
     )
     dialogue_review_parser.add_argument("--usage", required=True, choices=("local-demo",))
+
+    room_parser = commands.add_parser(
+        "pointclick-room",
+        description="Plan and execute one authored point-and-click puzzle room",
+    )
+    room_commands = room_parser.add_subparsers(dest="room_command", required=True)
+    room_generate_parser = room_commands.add_parser(
+        "generate",
+        help="execute one authored room document as an asset graph",
+    )
+    room_generate_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored pointclick-room document (TOML)",
+    )
+    room_generate_parser.add_argument("--output", required=True, dest="output_path")
+    room_generate_parser.add_argument("--cache-dir", dest="cache_dir")
+    room_generate_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    room_generate_parser.add_argument("--invocation-id")
+    room_generate_parser.add_argument(
+        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
+    )
 
     dialogue_character_parser = commands.add_parser(
         "dialogue-character",
@@ -348,12 +373,14 @@ def _build_run_view_for(run_dir: Path) -> RunView:
     if not plan_path.is_file():
         raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
     declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
-    if declared == "dialogue-scene-execution-graph-v1":
+    if declared == "dialogue-scene-execution-graph-v2":
         return build_dialogue_scene_view(run_dir)
-    if declared == "prepared-game-execution-graph-v1":
+    if declared == "pointclick-room-execution-graph-v1":
+        return build_pointclick_room_view(run_dir)
+    if declared == "sideview-platformer-execution-graph-v1":
         return build_execution_view(
             run_dir,
-            annotators={"scrolling-preview": annotate_sideview_platformer_artifact},
+            annotators={"sideview-platformer": annotate_sideview_platformer_artifact},
         )
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
@@ -624,6 +651,48 @@ async def _dispatch_dialogue_scene(
     return 0 if run.summary.ok else 1
 
 
+async def _dispatch_pointclick_room(
+    args: argparse.Namespace,
+    *,
+    config: StageGenConfig,
+    stdout: TextIO,
+) -> int:
+    executor = PointClickRoomExecutor(config)
+    output_path = Path(args.output_path)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".pointclick-cache"
+    invocation_id = args.invocation_id or f"room-{uuid.uuid4().hex}"
+    if args.dry_run:
+        run = await executor.dry_run(
+            Path(args.input_path),
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+            failure_node_id=args.failure_node,
+        )
+    else:
+        if args.failure_node is not None:
+            raise ValueError("--failure-node is available only with --dry-run")
+        run = await executor.run(
+            Path(args.input_path),
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+        )
+    report = {
+        "ok": run.summary.ok,
+        "recipe": "pointclick-room",
+        "room_id": run.plan.resolved.room.room_id,
+        "run_dir": str(output_path),
+        "graph_sha256": run.plan.graph.graph_sha256,
+        "topology_sha256": run.plan.graph.topology_sha256,
+        "node_count": len(run.plan.graph.nodes),
+        "provider_operation_counts": run.summary.provider_operation_counts,
+        "duration_ms": run.summary.duration_ms,
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0 if run.summary.ok else 1
+
+
 async def _dispatch_async(
     args: argparse.Namespace,
     *,
@@ -633,6 +702,8 @@ async def _dispatch_async(
     config = load_config()
     if args.command == "dialogue-scene":
         return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
+    if args.command == "pointclick-room":
+        return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
     if args.command == "generate":
         if args.output_path is None:
             raise ValueError("generate requires --output")

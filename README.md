@@ -146,10 +146,11 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Two recipes compiled onto that engine: `scrolling-preview` builds a prepared game
-  from a `game.toml` package, and `dialogue-scene` builds an adult, non-explicit scene
-  bundle from an authored request. Each declares its own graph document kind, so neither
-  can read the other's plan.
+- Three recipes compiled onto that engine: `sideview-platformer` builds a prepared game
+  from a `game.toml` package, `dialogue-scene` builds an adult, non-explicit scene
+  bundle from an authored request, and `pointclick-room` builds a fixed painted puzzle
+  room from an authored `room.toml`. Each declares its own graph document kind, so no
+  recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
   keys, an append-only trace, and the derived run view above.
@@ -164,7 +165,12 @@ its own records support, and the reader judges liveness from when the trace was 
   presentation, cast, motion, sequences, gameplay, content catalogs, and consumer bindings,
   plus an executable [authored `game.toml` schema](docs/spec/game/authored-contract-schema.md).
 - A machine-checked [canonical game-generation pipeline](docs/spec/game/generation-pipeline.md)
-  covering the current scrolling DAG, operation contracts, internal fan-out, and execution semantics.
+  covering the current side-view platformer DAG, typed nodes, operation contracts, internal
+  fan-out, and execution semantics.
+- A [point-and-click puzzle room recipe](docs/spec/game/pointclick-room.md) whose authored
+  `pointclick-room-v1` document is proven finishable before any generation is paid for, and
+  whose `pointclick-room-runtime-v1` manifest a browser consumer replays with the same state
+  machine the proof searched.
 - A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
   with stable track IDs and digest-bound generation, plus [authored map books](docs/game-maps.md)
   that order map identities and select game-global track pools without owning geometry.
@@ -178,9 +184,29 @@ its own records support, and the reader judges liveness from when the trace was 
 
 The stable product boundary is coherent **2D asset generation**. Genre,
 viewpoint and camera, composition rules, and validation harnesses belong to
-individual recipes. `scrolling-preview` is the side-view reference integration;
-`dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe.
-Neither recipe may define the other's assumptions or artifact layout.
+individual recipes. `sideview-platformer` is the side-view reference integration;
+`dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe;
+`pointclick-room` is a fixed-room, cursor-driven puzzle recipe. No recipe may
+define another's assumptions or artifact layout.
+
+The point-and-click recipe (`2d/roomview/pointclick`) is the newest of the three.
+One room is one authored `pointclick-room-v1` document under
+`library/rooms/<room_id>/room.toml`: a backdrop brief, hotspots with normalized
+regions, items, and interactions written in a closed grammar of two verbs and four
+effects. The recipe searches the room's reachable state space and refuses a room
+that cannot reach its win condition, so the puzzle is proven finishable before a
+cent is spent; generation supplies art and narration only. The run publishes a
+`pointclick-room-runtime-v1` manifest that the `/room/<tag>` browser consumer
+replays with the same state machine the proof searched.
+
+```sh
+uv run stage-gen pointclick-room generate \
+  --input library/rooms/clockmakers_attic/room.toml \
+  --output out/clockmakers-attic
+```
+
+Add `--dry-run` for the free rehearsal. See the
+[point-and-click puzzle room specification](docs/spec/game/pointclick-room.md).
 
 ## Authored dialogue in the same game
 
@@ -327,8 +353,9 @@ bun run build
 ```
 
 `web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
-package, `/packages/<tag>` projects that manifest's closure, and `/runs` renders
-exported run views. Browser code never receives provider credentials, and the
+package, `/packages/<tag>` projects that manifest's closure, `/room/<tag>` replays
+one published `pointclick-room-runtime-v1` room, and `/runs` renders exported run
+views. Browser code never receives provider credentials, and the
 docs gate checks that nothing under `web/lib/shell` can spawn a process.
 
 ## Configuration and providers

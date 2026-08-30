@@ -259,7 +259,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
         prepared.graph,
         handler,
         invocation_id="content-handler",
-        target_node_ids=content_target_node_ids(prepared.package),
+        target_node_ids=content_target_node_ids(prepared.graph),
     )
 
     assert summary.ok is True

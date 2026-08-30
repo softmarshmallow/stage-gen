@@ -19,7 +19,7 @@ state, animation, rigging, lip sync, or a game runtime.
 | `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
 | `web/`                                  | Strict bundle validation, immutable installation, projection into web runtime objects, activation, status, and rollback. It never imports Python recipe internals or calls providers. |
 
-`dialogue-scene` is a sibling of `scrolling-preview`, not a mode within it.
+`dialogue-scene` is a sibling of `sideview-platformer`, not a mode within it.
 Recipe vocabulary and visual assumptions do not enter generic components; web
 camera, UI, and gameplay assumptions do not enter the producer bundle.
 

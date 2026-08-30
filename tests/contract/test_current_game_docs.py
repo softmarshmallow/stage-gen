@@ -17,6 +17,7 @@ CURRENT_GAME_DOC_PATHS = (
     "docs/spec/game/ui.md",
     "docs/spec/scene-gameplay-components.md",
     "docs/spec/game/dialogue-and-cutscene-sequences.md",
+    "docs/spec/game/pointclick-room.md",
 )
 
 RETIRED_PREPARED_IDENTITIES = (
@@ -39,6 +40,15 @@ RETIRED_PREPARED_IDENTITIES = (
     "game-map-book-v1",
     "game-map-book-manifest-v2",
     "manifest V7",
+    # Retired by the coordinated persisted-vocabulary bump that landed with the node ABI.
+    # The before/after table in docs/spec/asset-taxonomy.md is the one place these survive,
+    # deliberately as history; no current game doc may advertise them again.
+    "scrolling-preview",
+    "prepared-game-execution-graph-v1",
+    "prepared-game-execution-view-v1",
+    "dialogue-scene-execution-graph-v1",
+    "prepared-world-v1",
+    "prepared-content-v3",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -119,6 +129,18 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "deterministically assemble 47-mask atlas" in pipeline
     assert "Player `crouch` is the current explicit vocabulary boundary" in pipeline
     assert "Optional map-local climbable and portal branches" in pipeline
+    # The persisted recipe identity and its execution-document kinds, post-bump.
+    for identity in (
+        '`recipe: "sideview-platformer"`',
+        "`sideview-platformer-execution-graph-v1`",
+        "`sideview-platformer-world-v1`",
+        "`sideview-platformer-content-v1`",
+    ):
+        assert identity in pipeline
+    # Nodes are typed and registry-dispatched, not addressed by path or name convention.
+    assert "Every node in this graph is **typed**" in pipeline
+    assert "`2d/sideview/platformer/motion_atlas.generate`" in pipeline
+    assert "Dispatch is a registry lookup over `type_id`" in pipeline
 
     ui = documents["docs/spec/game/ui.md"]
     assert "exact current identity is `game-ui-v1`" in ui
@@ -142,3 +164,15 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     sequences = documents["docs/spec/game/dialogue-and-cutscene-sequences.md"]
     assert "current prepared gameplay consumer" in sequences
     assert "`prepared-game-runtime-v10`" in sequences
+
+    room = documents["docs/spec/game/pointclick-room.md"]
+    for identity in (
+        "`pointclick-room-v1`",
+        "`pointclick-room-execution-graph-v1`",
+        "`pointclick-room-runtime-v1`",
+        "`pointclick-solvability-v1`",
+    ):
+        assert identity in room
+    assert "The third recipe on the engine, at taxonomy path `2d/roomview/pointclick`" in room
+    # Admission is a proof, not a schema check: the recipe refuses an unfinishable room.
+    assert "**Admission is a proof.**" in room

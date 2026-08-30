@@ -11,11 +11,12 @@ from typing import TYPE_CHECKING, Literal
 
 from gnode import RunView, build_run_view
 from stage_gen.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
+from stage_gen.recipes.dialogue_scene.scene_types import dialogue_type_index
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-DIALOGUE_VIEW_SCHEMA_VERSION: Literal[2] = 2
+DIALOGUE_VIEW_SCHEMA_VERSION: Literal[3] = 3
 DIALOGUE_VIEW_KIND: Literal["dialogue-scene-execution-view-v1"] = "dialogue-scene-execution-view-v1"
 
 
@@ -33,6 +34,7 @@ def build_dialogue_scene_view(run_dir: Path) -> DialogueSceneView:
         run_dir,
         graph_type=DialogueSceneGraph,
         view_type=DialogueSceneView,
+        types=dialogue_type_index(),
     )
 
 

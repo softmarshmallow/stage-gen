@@ -12,6 +12,8 @@ export interface LayoutNodeInput {
   readonly nodeId: string;
   readonly domain: string;
   readonly dependsOn: readonly string[];
+  /** The subset of dependsOn that orders execution without carrying lineage. */
+  readonly barrierOnly?: readonly string[];
 }
 
 export interface PlacedNode {
@@ -27,6 +29,8 @@ export interface PlacedNode {
 export interface PlacedEdge {
   readonly from: string;
   readonly to: string;
+  /** True when this edge only orders execution: a cache barrier, not lineage. */
+  readonly barrier: boolean;
   readonly x1: number;
   readonly y1: number;
   readonly x2: number;
@@ -63,6 +67,8 @@ interface ContractedNode {
   readonly domain: string;
   readonly memberIds: readonly string[];
   readonly dependsOn: readonly string[];
+  /** Contracted edges that stayed barriers: every edge folded in was one. */
+  readonly barrierDependsOn: ReadonlySet<string>;
 }
 
 function collapsedId(domain: string): string {
@@ -82,19 +88,25 @@ function contract(
   }
   const contracted = new Map<
     string,
-    { domain: string; memberIds: string[]; dependsOn: Set<string> }
+    { domain: string; memberIds: string[]; dependsOn: Map<string, boolean> }
   >();
   for (const node of nodes) {
     const id = idFor.get(node.nodeId) ?? node.nodeId;
+    const barriers = new Set(node.barrierOnly ?? []);
     const entry = contracted.get(id) ?? {
       domain: node.domain,
       memberIds: [],
-      dependsOn: new Set<string>(),
+      dependsOn: new Map<string, boolean>(),
     };
     entry.memberIds.push(node.nodeId);
     for (const dependency of node.dependsOn) {
       const target = idFor.get(dependency) ?? dependency;
-      if (target !== id) entry.dependsOn.add(target);
+      if (target === id) continue;
+      // Collapsing merges edges: the contracted edge is a barrier only when
+      // every edge folded into it was one. A single lineage edge makes it
+      // lineage, because that is what the pair actually carries.
+      const barrier = barriers.has(dependency) && (entry.dependsOn.get(target) ?? true);
+      entry.dependsOn.set(target, barrier);
     }
     contracted.set(id, entry);
   }
@@ -102,7 +114,10 @@ function contract(
     id,
     domain: entry.domain,
     memberIds: entry.memberIds,
-    dependsOn: [...entry.dependsOn].sort(),
+    dependsOn: [...entry.dependsOn.keys()].sort(),
+    barrierDependsOn: new Set(
+      [...entry.dependsOn.entries()].filter(([, barrier]) => barrier).map(([target]) => target),
+    ),
   }));
 }
 
@@ -189,6 +204,7 @@ export function layoutExecutionGraph(
       edges.push({
         from: dependency,
         to: node.id,
+        barrier: node.barrierDependsOn.has(dependency),
         x1: source.x + CHIP_WIDTH,
         y1: source.y + CHIP_HEIGHT / 2,
         x2: target.x,

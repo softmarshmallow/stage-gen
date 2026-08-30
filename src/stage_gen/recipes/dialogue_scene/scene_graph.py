@@ -6,11 +6,15 @@ documents are called, and which header fields bind a graph to one authored reque
 
 A dialogue scene is not a game package, so it carries its own document kind rather
 than borrowing the prepared-game one. Two recipes, two vocabularies, one engine.
+
+Every node instantiates a declared type (scene_types.py) and declares typed ports;
+where a node's instruction text is known at plan time it rides the node's card, so
+the plan itself states what each node will be told, and the runtime consumes the
+same text instead of a second composition.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, Literal
 
@@ -21,22 +25,59 @@ from gnode import (
     Binding,
     BindingTable,
     Graph,
+    GraphBuilder,
     ModelRef,
-    Node,
-    Resource,
-    RetryOwner,
-    build_node_cache_key,
+    NodeCard,
+    Port,
+    PortRef,
     seal_graph,
 )
-from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES, ReuseSource
+from stage_gen.recipes.dialogue_scene.models import (
+    EXPRESSION_STATES,
+    DialogueThemeRequestV3,
+    ReuseSource,
+)
+from stage_gen.recipes.dialogue_scene.prompts import concept_prompt, plan_prompt
+from stage_gen.recipes.dialogue_scene.scene_types import (
+    ATTEMPT_LEDGER_KIND,
+    BACKDROP_GENERATE,
+    BACKDROP_INGEST,
+    BACKDROP_KIND,
+    BUNDLE_KIND,
+    BUNDLE_PACKAGE,
+    CONCEPT_GENERATE,
+    CONCEPT_INGEST,
+    CONCEPT_KIND,
+    EXPRESSION_DERIVE,
+    EXPRESSION_GENERATE,
+    EXPRESSION_SOURCE_KIND,
+    EXPRESSION_SPRITE_KIND,
+    MATTE_RAW_KIND,
+    MERGED_ATTEMPTS_KIND,
+    PLAN_COMPILE,
+    PLAN_KIND,
+    PROFILE_KIND,
+    PROFILE_RESOLVE,
+    PROVIDER_RAW_KIND,
+    REQUEST_KIND,
+    REQUEST_RESOLVE,
+    SPRITE_CANONICALIZE,
+    SPRITE_MATTE,
+    STYLE_ANCHOR_KIND,
+    STYLE_SELECT,
+)
 
 if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
-DIALOGUE_GRAPH_SCHEMA_VERSION = 1
+DIALOGUE_GRAPH_SCHEMA_VERSION = 2
 DIALOGUE_TRACE_SCHEMA_VERSION = 1
-DIALOGUE_GRAPH_CONTRACT_VERSION = "dialogue-scene-graph-v1"
+#: The cache tree this recipe's node artifacts live under. Renaming it is the
+#: whole-recipe invalidation lever; per-type levers are the types' own
+#: ``contract_version`` values.
+DIALOGUE_CACHE_NAMESPACE = "dialogue-scene-nodes-v1"
+DIALOGUE_CACHE_RECORD_KIND = "dialogue-scene-node-cache-v2"
 
 
 class DialogueOperationKind(StrEnum):
@@ -56,10 +97,10 @@ class DialogueSceneGraph(Graph):
     RUN_SUMMARY_KIND: ClassVar[str] = "dialogue-scene-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "dialogue-scene-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 2
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
-    schema_version: Literal[1]
-    kind: Literal["dialogue-scene-execution-graph-v1"]
+    schema_version: Literal[2]
+    kind: Literal["dialogue-scene-execution-graph-v2"]
     recipe: Literal["dialogue-scene"]
     scene_id: str
     request_sha256: str = Field(pattern=SHA256_PATTERN)
@@ -82,12 +123,6 @@ class DialogueSceneGraph(Graph):
 IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output",)
 BACKGROUND_REMOVAL_FEATURES = ("alpha_matte",)
-
-_REQUIRED_FEATURES: dict[DialogueOperationKind, tuple[str, ...]] = {
-    DialogueOperationKind.IMAGE_GENERATION: IMAGE_FEATURES,
-    DialogueOperationKind.STRUCTURED_GENERATION: STRUCTURED_FEATURES,
-    DialogueOperationKind.BACKGROUND_REMOVAL: BACKGROUND_REMOVAL_FEATURES,
-}
 
 
 def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
@@ -138,118 +173,33 @@ def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
     return BindingTable(bindings)
 
 
-class _GraphBuilder:
-    def __init__(self, profile: BindingTable) -> None:
-        self.profile = profile
-        self._nodes: list[Node] = []
-        self._by_id: dict[str, Node] = {}
+def _artifact(port_id: str, ref: str, kind: str) -> Port:
+    """One artifact-plus-sidecar port; the pair stays visibly one payload."""
 
-    @property
-    def nodes(self) -> tuple[Node, ...]:
-        return tuple(self._nodes)
+    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
 
-    def provider(
-        self,
-        node_id: str,
-        *,
-        domain: str,
-        description: str,
-        operation: DialogueOperationKind,
-        depends_on: Sequence[str],
-        input_digests: Sequence[str],
-        outputs: Sequence[str],
-    ) -> Node:
-        binding = self.profile.require(operation, *_REQUIRED_FEATURES[operation])
-        return self.add(
-            node_id,
-            domain=domain,
-            description=description,
-            operation=operation,
-            depends_on=depends_on,
-            input_digests=input_digests,
-            outputs=outputs,
-            provider=binding.model.provider,
-            model=binding.model.model,
-            resource_id=binding.resource_id,
-            retry_owner=RetryOwner.COMPONENT,
-            max_attempts=6,
-            duration_seconds=binding.estimated_duration_seconds,
-            cost_low=binding.estimated_cost_low_usd,
-            cost_high=binding.estimated_cost_high_usd,
+
+def _attempts(node_id: str) -> Port:
+    return Port(
+        port_id="attempts",
+        artifact_ref=f"attempts/{node_id}.json",
+        kind=ATTEMPT_LEDGER_KIND,
+    )
+
+
+def expression_template_ids(scene: ResolvedDialogueScene) -> tuple[str, str]:
+    """The packaged prompt-template identities this request binds, plan-time known."""
+
+    native = scene.request.transparency_mode == "native"
+    if isinstance(scene.request, DialogueThemeRequestV3):
+        return (
+            "profile-native-neutral-v1" if native else "profile-neutral-v1",
+            "profile-native-expression-edit-v1" if native else "profile-expression-edit-v1",
         )
-
-    def add(
-        self,
-        node_id: str,
-        *,
-        domain: str,
-        description: str,
-        operation: DialogueOperationKind,
-        depends_on: Sequence[str] = (),
-        input_digests: Sequence[str] = (),
-        outputs: Sequence[str] = (),
-        provider: str | None = None,
-        model: str | None = None,
-        resource_id: str = "local",
-        retry_owner: RetryOwner = RetryOwner.NONE,
-        max_attempts: int = 1,
-        duration_seconds: float = 0.25,
-        cost_low: float = 0.0,
-        cost_high: float = 0.0,
-    ) -> Node:
-        if node_id in self._by_id:
-            raise ValueError(f"duplicate dialogue graph node: {node_id}")
-        dependency_cache_keys: list[str] = []
-        for dependency in depends_on:
-            try:
-                dependency_cache_keys.append(self._by_id[dependency].cache_key)
-            except KeyError as error:
-                raise ValueError(
-                    f"dialogue graph dependency must be added first: {node_id}->{dependency}"
-                ) from error
-        digests = tuple(dict.fromkeys(input_digests))
-        node = Node(
-            node_id=node_id,
-            domain=domain,
-            description=description,
-            depends_on=tuple(depends_on),
-            operation=operation,
-            resource_id=resource_id,
-            provider=provider,
-            model=model,
-            retry_owner=retry_owner,
-            max_attempts=max_attempts,
-            input_sha256=digests,
-            cache_key=build_node_cache_key(
-                node_id=node_id,
-                operation=operation,
-                provider=provider,
-                model=model,
-                input_sha256=digests,
-                dependency_cache_keys=dependency_cache_keys,
-                contract_version=DIALOGUE_GRAPH_CONTRACT_VERSION,
-            ),
-            outputs=tuple(outputs),
-            estimated_duration_seconds=float(duration_seconds),
-            estimated_cost_low_usd=float(cost_low),
-            estimated_cost_high_usd=float(cost_high),
-        )
-        self._nodes.append(node)
-        self._by_id[node_id] = node
-        return node
-
-
-def _resources(profile: BindingTable) -> tuple[Resource, ...]:
-    resources = [Resource(resource_id="local", rate_limit_owner="none")]
-    for binding in profile.bindings:
-        resources.append(
-            Resource(
-                resource_id=binding.resource_id,
-                requests_per_minute=binding.requests_per_minute,
-                rate_limit_owner=binding.rate_limit_owner,
-            )
-        )
-    return tuple(resources)
+    return (
+        "native-neutral-v1" if native else "neutral-v5",
+        "native-expression-edit-v1" if native else "expression-edit-v5",
+    )
 
 
 def build_dialogue_scene_graph(
@@ -257,143 +207,167 @@ def build_dialogue_scene_graph(
     *,
     profile: BindingTable,
 ) -> DialogueSceneGraph:
-    """Compile one authored request into the exact node graph it implies.
+    """Compile one authored request into the exact node graph it implies."""
 
-    The stage pipeline this replaces walked the four expressions serially inside one
-    stage, and canonicalized them inside another. Each is its own node here, so the
-    three derived expressions are three independent units of work and each
-    canonicalization is admitted, cached, and reported on its own.
-    """
-
-    builder = _GraphBuilder(profile)
+    builder = GraphBuilder(profile=profile)
     request = scene.request
     digests = (scene.request_sha256, scene.policy_digest, scene.template_digest)
+    profiled = isinstance(request, DialogueThemeRequestV3)
+    profile_model = scene.profile.profile if scene.profile is not None else None
+    neutral_template, expression_template = expression_template_ids(scene)
+    anchor_ref = PortRef(node_id="scene-style-select", port_id="anchor")
+    plan_ref = PortRef(node_id="scene-plan", port_id="document")
+    concept_ref = PortRef(node_id="scene-concept", port_id="image")
 
     builder.add(
+        REQUEST_RESOLVE,
         "scene-request",
         domain="scene",
         description="Canonicalize the authored dialogue request",
-        operation=DialogueOperationKind.LOCAL,
         input_digests=digests,
-        outputs=("request.json", "request.json.meta.json"),
+        ports=(_artifact("request", "request.json", REQUEST_KIND),),
     )
     upstream = "scene-request"
     if scene.profile is not None:
         builder.add(
+            PROFILE_RESOLVE,
             "scene-profile-resolve",
             domain="scene",
             description="Validate and materialize the authored character profile",
-            operation=DialogueOperationKind.LOCAL,
             depends_on=(upstream,),
             input_digests=(scene.profile.canonical_sha256, scene.profile.source_sha256),
-            outputs=("character-profile.json", "character-profile.json.meta.json"),
+            ports=(_artifact("profile", "character-profile.json", PROFILE_KIND),),
         )
         upstream = "scene-profile-resolve"
 
-    builder.provider(
+    builder.add(
+        STYLE_SELECT,
         "scene-style-select",
         domain="scene",
         description="Select and materialize the canonical image style anchor",
-        operation=DialogueOperationKind.STRUCTURED_GENERATION,
         depends_on=(upstream,),
         input_digests=(scene.style_resource_sha256, scene.style_compiler_sha256),
-        outputs=(
-            "style-anchor.json",
-            "style-anchor.json.meta.json",
-            "attempts/scene-style-select.json",
+        ports=(
+            _artifact("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
+            _attempts("scene-style-select"),
         ),
+        card=NodeCard(prompt=scene.style_selection_brief, schema_name="canonical_style_anchor"),
     )
 
-    concept_outputs = ("assets/concept.png", "assets/concept.png.meta.json")
-    generated_concept_outputs = (*concept_outputs, "attempts/scene-concept.json")
-    reuse_concept = scene.concept_reuse is not None
-    if reuse_concept:
+    if scene.concept_reuse is not None:
         builder.add(
+            CONCEPT_INGEST,
             "scene-concept",
             domain="appearance",
             description="Ingest the caller-supplied appearance concept",
-            operation=DialogueOperationKind.LOCAL,
             depends_on=("scene-style-select",),
-            input_digests=(scene.concept_reuse.sha256,) if scene.concept_reuse else (),
-            outputs=concept_outputs,
+            input_digests=(scene.concept_reuse.sha256,),
+            ports=(_artifact("image", "assets/concept.png", CONCEPT_KIND),),
         )
     else:
-        builder.provider(
+        builder.add(
+            CONCEPT_GENERATE,
             "scene-concept",
             domain="appearance",
             description="Generate the adult appearance identity anchor",
-            operation=DialogueOperationKind.IMAGE_GENERATION,
             depends_on=("scene-style-select",),
             input_digests=digests,
-            outputs=generated_concept_outputs,
+            ports=(
+                _artifact("image", "assets/concept.png", CONCEPT_KIND),
+                _attempts("scene-concept"),
+            ),
+            card=NodeCard(
+                prompt=concept_prompt(request, profile_model),
+                reference_inputs=(anchor_ref,),
+            ),
         )
 
-    builder.provider(
+    builder.add(
+        PLAN_COMPILE,
         "scene-plan",
         domain="scene",
         description="Compile the strict dialogue visual plan",
-        operation=DialogueOperationKind.STRUCTURED_GENERATION,
         depends_on=("scene-concept",),
         input_digests=digests,
-        outputs=("plan.json", "plan.json.meta.json", "attempts/scene-plan.json"),
+        ports=(
+            _artifact("document", "plan.json", PLAN_KIND),
+            _attempts("scene-plan"),
+        ),
+        card=NodeCard(
+            prompt=plan_prompt(request, scene.request_sha256, profile_model),
+            schema_name="dialogue_scene_plan_v3" if profiled else "dialogue_scene_plan_v2",
+            reference_inputs=(concept_ref,),
+        ),
     )
 
-    background_outputs = ("assets/background.png", "assets/background.png.meta.json")
-    generated_background_outputs = (
-        *background_outputs,
-        *(
-            ("raw/background-provider.png", "raw/background-provider.png.meta.json")
-            if request.transparency_mode == "native"
-            else ()
-        ),
-        "attempts/scene-background.json",
-    )
+    native = request.transparency_mode == "native"
     if isinstance(request.background, ReuseSource):
         builder.add(
+            BACKDROP_INGEST,
             "scene-background",
             domain="scene",
             description="Ingest the caller-supplied scene background",
-            operation=DialogueOperationKind.LOCAL,
             depends_on=("scene-plan",),
             input_digests=(request.background.sha256,),
-            outputs=background_outputs,
+            ports=(_artifact("image", "assets/background.png", BACKDROP_KIND),),
         )
     else:
-        builder.provider(
+        builder.add(
+            BACKDROP_GENERATE,
             "scene-background",
             domain="scene",
             description="Generate the scene background",
-            operation=DialogueOperationKind.IMAGE_GENERATION,
             depends_on=("scene-plan",),
             input_digests=digests,
-            outputs=generated_background_outputs,
+            ports=(
+                _artifact("image", "assets/background.png", BACKDROP_KIND),
+                *(
+                    (_artifact("provider_raw", "raw/background-provider.png", PROVIDER_RAW_KIND),)
+                    if native
+                    else ()
+                ),
+                _attempts("scene-background"),
+            ),
+            card=NodeCard(reference_inputs=(plan_ref, anchor_ref)),
         )
 
-    builder.provider(
+    builder.add(
+        EXPRESSION_GENERATE,
         "scene-expression-neutral",
         domain="expression",
         description="Generate the identity-locked neutral expression source",
-        operation=DialogueOperationKind.IMAGE_GENERATION,
+        params={"state": "neutral"},
         depends_on=("scene-plan", "scene-concept"),
         input_digests=digests,
-        outputs=(
-            "raw/expression-neutral.png",
-            "raw/expression-neutral.png.meta.json",
-            "attempts/scene-expression-neutral.json",
+        ports=(
+            _artifact("source", "raw/expression-neutral.png", EXPRESSION_SOURCE_KIND),
+            _attempts("scene-expression-neutral"),
+        ),
+        card=NodeCard(
+            template_ref=neutral_template,
+            reference_inputs=(concept_ref, plan_ref, anchor_ref),
         ),
     )
     for state in EXPRESSION_STATES[1:]:
-        builder.provider(
+        builder.add(
+            EXPRESSION_DERIVE,
             f"scene-expression-{state}",
             domain="expression",
             description=f"Derive the {state} expression from the neutral source",
-            operation=DialogueOperationKind.IMAGE_GENERATION,
+            params={"state": state},
             depends_on=("scene-expression-neutral",),
             input_digests=digests,
-            outputs=(
-                f"raw/expression-{state}.png",
-                f"raw/expression-{state}.png.meta.json",
-                f"attempts/scene-expression-{state}.json",
+            ports=(
+                _artifact("source", f"raw/expression-{state}.png", EXPRESSION_SOURCE_KIND),
+                _attempts(f"scene-expression-{state}"),
+            ),
+            card=NodeCard(
+                template_ref=expression_template,
+                reference_inputs=(
+                    PortRef(node_id="scene-expression-neutral", port_id="source"),
+                    plan_ref,
+                    anchor_ref,
+                ),
             ),
         )
 
@@ -401,53 +375,62 @@ def build_dialogue_scene_graph(
     for state in EXPRESSION_STATES:
         node_id = f"scene-canonicalize-{state}"
         canonicalize_ids.append(node_id)
-        outputs = (
-            f"assets/expression-{state}.png",
-            f"assets/expression-{state}.png.meta.json",
-        )
+        sprite = _artifact("sprite", f"assets/expression-{state}.png", EXPRESSION_SPRITE_KIND)
+        source_ref = PortRef(node_id=f"scene-expression-{state}", port_id="source")
         if request.transparency_mode == "ai":
-            builder.provider(
+            builder.add(
+                SPRITE_MATTE,
                 node_id,
                 domain="expression",
                 description=f"Derive the portable {state} sprite through background removal",
-                operation=DialogueOperationKind.BACKGROUND_REMOVAL,
+                params={"state": state},
                 depends_on=(f"scene-expression-{state}",),
                 input_digests=(scene.transparency_digest,),
-                outputs=(
-                    f"raw/expression-{state}.removed.png",
-                    f"raw/expression-{state}.removed.png.meta.json",
-                    *outputs,
-                    f"attempts/{node_id}.json",
+                ports=(
+                    _artifact("matte", f"raw/expression-{state}.removed.png", MATTE_RAW_KIND),
+                    sprite,
+                    _attempts(node_id),
+                ),
+                card=NodeCard(
+                    prompt="Remove the background while preserving the adult character.",
+                    reference_inputs=(source_ref,),
                 ),
             )
         else:
             builder.add(
+                SPRITE_CANONICALIZE,
                 node_id,
                 domain="expression",
                 description=f"Derive the portable {state} sprite",
-                operation=DialogueOperationKind.LOCAL,
+                params={"state": state},
                 depends_on=(f"scene-expression-{state}",),
                 input_digests=(scene.transparency_digest,),
-                outputs=outputs,
+                ports=(sprite,),
+                card=NodeCard(reference_inputs=(source_ref,)),
             )
 
     builder.add(
+        BUNDLE_PACKAGE,
         "scene-bundle",
         domain="scene",
         description="Write the portable dialogue bundle",
-        operation=DialogueOperationKind.LOCAL,
         depends_on=("scene-background", *canonicalize_ids),
         input_digests=digests,
-        outputs=("attempts.json", "bundle.json", "bundle.json.meta.json"),
+        ports=(
+            Port(
+                port_id="merged_attempts", artifact_ref="attempts.json", kind=MERGED_ATTEMPTS_KIND
+            ),
+            _artifact("bundle", "bundle.json", BUNDLE_KIND),
+        ),
     )
 
     return seal_graph(
         DialogueSceneGraph,
-        resources=_resources(profile),
+        resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
         schema_version=DIALOGUE_GRAPH_SCHEMA_VERSION,
-        kind="dialogue-scene-execution-graph-v1",
+        kind="dialogue-scene-execution-graph-v2",
         recipe="dialogue-scene",
         scene_id=scene.scene_id,
         request_sha256=scene.request_sha256,
@@ -455,11 +438,13 @@ def build_dialogue_scene_graph(
 
 
 __all__ = [
-    "DIALOGUE_GRAPH_CONTRACT_VERSION",
+    "DIALOGUE_CACHE_NAMESPACE",
+    "DIALOGUE_CACHE_RECORD_KIND",
     "DIALOGUE_GRAPH_SCHEMA_VERSION",
     "DIALOGUE_TRACE_SCHEMA_VERSION",
     "DialogueOperationKind",
     "DialogueSceneGraph",
     "build_dialogue_scene_graph",
     "dialogue_graph_profile",
+    "expression_template_ids",
 ]

@@ -1,7 +1,7 @@
 # Visual Content Direction shared-seed A/B case study
 
 > **Evidence scope:** compiler-plus-reference-edit experiment. This is not an
-> end-to-end `scrolling-preview` run and not a runtime contract.
+> end-to-end `sideview-platformer` run and not a runtime contract.
 
 This experiment compared one compiler-produced maximum treatment against a
 manually authored neutral shared reference. It tested whether a structured LLM
@@ -49,7 +49,7 @@ It does not establish:
 
 - equal perceptual distance between adjacent levels;
 - stable behavior across image or text models;
-- a reference-image input for `scrolling-preview`;
+- a reference-image input for `sideview-platformer`;
 - an end-to-end recipe result;
 - automatic semantic approval; or
 - a general character-generation component.
