@@ -16,10 +16,10 @@ from gnode import (
     ArtifactProvenance,
     BinaryArtifact,
     ProvenanceInput,
+    ProviderResponseMetadata,
     RetryPolicy,
     write_artifact_with_provenance,
 )
-from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_repeat import (
     INTENDED_LOOP_MIN_ACCEPT_CONFIDENCE,
     INTENDED_LOOP_REVIEW_PROMPT_VERSION,

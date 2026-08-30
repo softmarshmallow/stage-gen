@@ -7,13 +7,15 @@ from typing import Any
 import httpx
 import pytest
 
-from gnode import RetryExhaustedError, RetryPolicy
-from stage_gen.components.structured_generation import (
+from gnode import (
+    RetryExhaustedError,
+    RetryPolicy,
     StructuredGenerationRequest,
     StructuredGenerationService,
     StructuredOutputSchema,
     StructuredReference,
 )
+from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
 from stage_gen.providers.openrouter import OpenRouterStructuredBackend
 
 
@@ -92,6 +94,8 @@ async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await StructuredGenerationService[dict[str, int]](
             OpenRouterStructuredBackend(api_key="secret", model="author/text", client=client),
+            component=STRUCTURED_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(
             StructuredGenerationRequest(
@@ -161,6 +165,8 @@ async def test_structured_publishes_caller_canonical_value_and_validation(
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await StructuredGenerationService[dict[str, float]](
             OpenRouterStructuredBackend(api_key="secret", model="author/text", client=client),
+            component=STRUCTURED_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(
             StructuredGenerationRequest(
@@ -205,6 +211,8 @@ async def test_structured_rejects_nonfinite_json_on_all_six_attempts(tmp_path: P
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         service = StructuredGenerationService[object](
             OpenRouterStructuredBackend(api_key="secret", model="author/text", client=client),
+            component=STRUCTURED_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         )
         with pytest.raises(RetryExhaustedError, match="invalid JSON content"):
@@ -264,6 +272,8 @@ async def test_structured_http_failure_keeps_only_bounded_safe_provider_detail(
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         service = StructuredGenerationService[object](
             OpenRouterStructuredBackend(api_key=api_key, model="author/text", client=client),
+            component=STRUCTURED_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         )
         with pytest.raises(RetryExhaustedError) as raised:

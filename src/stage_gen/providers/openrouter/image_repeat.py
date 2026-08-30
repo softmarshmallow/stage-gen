@@ -8,16 +8,12 @@ from io import BytesIO
 import httpx
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from stage_gen.components.image_generation import (
-    ImageGenerationRequest,
-    ImageReference,
-)
+from gnode import ImageGenerationRequest, ImageReference, inspect_image
 from stage_gen.components.image_repeat.models import (
     MASKED_IMAGE_EDIT_CAPABILITY,
     MaskedImageEditRequest,
     ProviderImageRepeatEdit,
 )
-from stage_gen.media import inspect_image
 
 from .image import OPENROUTER_BASE_URL, OPENROUTER_IMAGE_MODEL, OpenRouterImageBackend
 

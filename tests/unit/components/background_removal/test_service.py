@@ -7,11 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
-from gnode import RetryPolicy
-from stage_gen.components.background_removal import (
+from gnode import (
     BackgroundRemovalRequest,
     BackgroundRemovalService,
+    RetryPolicy,
 )
+from stage_gen.identity import BACKGROUND_REMOVAL_COMPONENT, STAGE_GEN_TOOL
 from stage_gen.providers.fal import FalBackgroundRemovalBackend
 
 from .._helpers import png_bytes
@@ -62,6 +63,8 @@ async def test_fal_retries_and_downloads_image_and_mask_without_key(tmp_path: Pa
             FalBackgroundRemovalBackend(
                 api_key="fal-secret", base_url="https://fal.test", client=client
             ),
+            component=BACKGROUND_REMOVAL_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).remove(
             BackgroundRemovalRequest(

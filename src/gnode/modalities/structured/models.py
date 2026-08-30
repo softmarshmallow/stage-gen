@@ -4,14 +4,14 @@ import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import ClassVar, Literal, Protocol
 
-from gnode import CancellationToken
-from stage_gen.components._types import (
+from gnode.modalities._types import (
     ProviderResponseMetadata,
     validate_optional_number,
     validate_optional_timeout,
 )
+from gnode.reliability import CancellationToken
 
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
 
@@ -163,7 +163,10 @@ class ProviderStructuredOutput:
     response_metadata: ProviderResponseMetadata
 
 
-class StructuredGenerationBackend(Protocol):
+class StructuredModelV1(Protocol):
+    """The v1 structured model spec: one attempt, no loop, injected credentials."""
+
+    spec_version: ClassVar[Literal[1]]
     provider: str
     model: str
     secrets: tuple[str, ...]

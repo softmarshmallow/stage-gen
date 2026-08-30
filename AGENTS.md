@@ -8,13 +8,17 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 ## Architecture
 
 - Keep identifiers, comments, logs, tests, and user-facing source strings in English.
-- Python is the sole headless implementation, split in two: `src/gnode/` is the agnostic asset-graph engine
-  (topology, scheduling, trace, run view, model bindings, reliability, provenance) and `src/stage_gen/` is the
-  application that consumes it. `gnode` exposes one import surface — `from gnode import X`, never a submodule — and
-  imports no application package; a contract test enforces both directions. Nothing game-, recipe-, or media-specific
-  belongs in `gnode`. Components remain provider-neutral, providers
-  implement their protocols, and orchestration is the composition root. Shared recipe-neutral media inspection and transforms
-  belong in `media`; capability-specific processing stays with its component, and recipe-specific canonicalization with its recipe.
+- Python is the sole headless implementation, split in two: `src/gnode/` is the ringed asset-graph
+  SDK and `src/stage_gen/` is the application that consumes it. gnode's rings (`docs/spec/gnode-rings.md`):
+  ring 0 the agnostic engine core (topology, scheduling, trace, run view, model bindings, reliability,
+  provenance — media-free), ring 1 per-modality model specs and retry-owning services, ring 2 first-party
+  provider adapters. A ring imports only rings below it; nothing game-, recipe-, or genre-specific belongs
+  in any ring, and the engine ships no brand — provenance identities come from the application. Consumers
+  import only declared surfaces (`from gnode import X`; provider adapters via `gnode.providers.<name>` once
+  ring 2 lands); gnode imports no application package; a contract test enforces all of it. Providers
+  implement the ring-1 protocols, and orchestration is the composition root. Shared recipe-neutral media
+  inspection and transforms belong in `media`; capability-specific processing stays with its component, and
+  recipe-specific canonicalization with its recipe.
 - Recipes own generation-specific genre, composition, layout, artifact, and validation assumptions; consumer adapters
   own runtime camera, scene, engine, and gameplay assumptions. Neither may leak them into generic components. `web/`
   consumes public headless CLI and manifest contracts; it is not a second generator.

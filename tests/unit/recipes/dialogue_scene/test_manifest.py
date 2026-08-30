@@ -8,8 +8,8 @@ import pytest
 from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
-from stage_gen.components import StyleModeSelection
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
+from stage_gen.image_style import StyleModeSelection
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,

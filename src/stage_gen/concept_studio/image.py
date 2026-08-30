@@ -14,18 +14,16 @@ from typing import Protocol, cast
 from gnode import (
     ArtifactRights,
     BinaryArtifact,
-    InputProvenance,
-    ProvenanceInput,
-    SoftwareIdentity,
-    build_artifact_provenance,
-    serialize_provenance,
-)
-from stage_gen.components._types import ProviderResponseMetadata
-from stage_gen.components.image_generation import (
     ImageGenerationRequest,
     ImageGenerationResult,
     ImageGenerationService,
     ImageReference,
+    InputProvenance,
+    ProvenanceInput,
+    ProviderResponseMetadata,
+    SoftwareIdentity,
+    build_artifact_provenance,
+    serialize_provenance,
 )
 from stage_gen.config import CapabilityName, StageGenConfig, load_config
 from stage_gen.media import ImageNormalizationRecord, inspect_image, normalize_image_to_png

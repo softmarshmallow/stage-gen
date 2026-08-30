@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from gnode import BinaryArtifact as BinaryArtifact
+from gnode.contracts import BinaryArtifact as BinaryArtifact
 
 type JsonObject = dict[str, Any]
 type ValidationResult = Mapping[str, Any] | None

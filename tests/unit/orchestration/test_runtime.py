@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.capabilities import CapabilityArtifactResult, remove_background
-from stage_gen.components.background_removal import BackgroundRemovalRequest
-from stage_gen.components.image_generation import ImageGenerationRequest
-from stage_gen.components.music_generation import (
-    AudioNormalizationRequest,
+from gnode import (
+    BackgroundRemovalRequest,
+    ImageGenerationRequest,
     MusicGenerationRequest,
-)
-from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
+)
+from stage_gen.capabilities import CapabilityArtifactResult, remove_background
+from stage_gen.components.audio_normalization import (
+    AudioNormalizationRequest,
 )
 from stage_gen.config import StageGenConfig
 

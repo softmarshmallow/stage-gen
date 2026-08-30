@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import re
+from typing import ClassVar, Literal
 
 import httpx
 
-from stage_gen.components.image_generation.models import (
-    ImageGenerationRequest,
-    ProviderImage,
-)
-from stage_gen.media import decode_base64_strict, inspect_image
+from gnode import ImageGenerationRequest, ProviderImage, decode_base64_strict, inspect_image
 from stage_gen.providers._http import (
     assert_success,
     json_object,
@@ -57,6 +54,8 @@ class OpenAIImageBackend:
     Retry, caller validation, and persistence deliberately remain owned by
     ``ImageGenerationService``.
     """
+
+    spec_version: ClassVar[Literal[1]] = 1
 
     provider = "openai"
     supports_native_alpha = True

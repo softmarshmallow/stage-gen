@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components import StructuredGenerationRequest, StructuredOutputSchema
+from gnode import StructuredGenerationRequest, StructuredOutputSchema
 from stage_gen.orchestration import create_structured_service
 
 from ._contracts import assert_persisted_artifact

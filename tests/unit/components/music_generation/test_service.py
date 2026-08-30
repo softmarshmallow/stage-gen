@@ -7,11 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
-from gnode import RetryPolicy
-from stage_gen.components.music_generation import (
+from gnode import (
     MusicGenerationRequest,
     MusicGenerationService,
+    RetryPolicy,
 )
+from stage_gen.identity import MUSIC_GENERATION_COMPONENT, STAGE_GEN_TOOL
 from stage_gen.providers.openrouter import OpenRouterMusicBackend
 
 from .._helpers import wav_bytes
@@ -44,6 +45,8 @@ async def test_music_assembles_sse_audio_and_persists_provenance(tmp_path: Path)
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await MusicGenerationService(
             OpenRouterMusicBackend(api_key="secret", client=client),
+            component=MUSIC_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(
             MusicGenerationRequest(
@@ -97,6 +100,8 @@ async def test_music_retries_empty_invalid_and_provider_native_steps_audio(
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await MusicGenerationService(
             OpenRouterMusicBackend(api_key="secret", client=client),
+            component=MUSIC_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(
             MusicGenerationRequest(

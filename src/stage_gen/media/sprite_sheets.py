@@ -9,7 +9,7 @@ from typing import Literal
 
 from PIL import Image, ImageChops
 
-from .images import inspect_image
+from gnode import inspect_image
 
 ALPHA_COMPONENT_REPACK_VERSION = "alpha-component-repack-v1"
 ALPHA_GROUND_CONTACT_VERSION = "alpha-ground-contact-v1"

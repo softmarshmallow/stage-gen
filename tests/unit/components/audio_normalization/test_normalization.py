@@ -19,7 +19,7 @@ from gnode import (
     sha256_hex,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components.music_generation import (
+from stage_gen.components.audio_normalization import (
     AudioNormalizationRequest,
     FfmpegAudioNormalizer,
 )

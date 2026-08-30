@@ -12,17 +12,15 @@ from PIL import Image
 
 from gnode import (
     BinaryArtifact,
-    ProvenanceInput,
-    RetryExhaustedError,
-    write_artifact_with_provenance,
-)
-from stage_gen.components import (
     ImageGenerationRequest,
     ImageGenerationResult,
+    ProvenanceInput,
+    ProviderResponseMetadata,
+    RetryExhaustedError,
     StructuredGenerationRequest,
     StructuredGenerationResult,
+    write_artifact_with_provenance,
 )
-from stage_gen.components._types import ProviderResponseMetadata
 
 
 def chroma_png() -> bytes:

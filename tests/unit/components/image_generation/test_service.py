@@ -8,12 +8,14 @@ from typing import Any
 import httpx
 import pytest
 
-from gnode import RetryExhaustedError, RetryPolicy
-from stage_gen.components.image_generation import (
+from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    RetryExhaustedError,
+    RetryPolicy,
 )
+from stage_gen.identity import IMAGE_GENERATION_COMPONENT, STAGE_GEN_TOOL
 from stage_gen.providers.openrouter import OpenRouterImageBackend
 
 from .._helpers import png_bytes
@@ -47,7 +49,10 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         backend = OpenRouterImageBackend(api_key="image-secret", client=client)
         service = ImageGenerationService(
-            backend, retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0)
+            backend,
+            component=IMAGE_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
+            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         )
         output = tmp_path / "asset.png"
         result = await service.generate(
@@ -196,6 +201,8 @@ async def test_image_service_owns_exactly_six_attempts(tmp_path: Path) -> None:
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         service = ImageGenerationService(
             OpenRouterImageBackend(api_key="secret", client=client),
+            component=IMAGE_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         )
         with pytest.raises(RetryExhaustedError):
@@ -233,6 +240,8 @@ async def test_image_caller_validation_retries_inside_provider_boundary(tmp_path
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await ImageGenerationService(
             OpenRouterImageBackend(api_key="secret", client=client),
+            component=IMAGE_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(
             ImageGenerationRequest(

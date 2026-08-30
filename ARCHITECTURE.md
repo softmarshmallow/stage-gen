@@ -7,20 +7,27 @@ reusable core stops at validated artifacts, manifests, and provenance. A
 preview or game runtime is a downstream consumer, never the definition of the
 generator.
 
-It is built on `gnode`, an **asset graph** engine: a build system for generative
+It is built on `gnode`, an **asset graph** SDK: a build system for generative
 assets whose contracts must be met. Nodes produce persistent, content-addressed
 artifacts validated before they are accepted; correctness does not depend on
 execution order; a failed provider operation is retried by exactly one owner and
-never by the scheduler. `gnode` knows nothing about games, recipes, or media —
-`stage-gen` is one application on top of it.
+never by the scheduler. `gnode` grows in rings ([gnode rings](docs/spec/gnode-rings.md)):
+a media-free engine core, per-modality model specs and services above it, and
+first-party provider adapters above those. A ring imports only rings below it,
+and nothing game-, recipe-, or genre-specific belongs in any ring — `stage-gen`
+is one application on top of the SDK.
 
 ## Repository boundaries
 
 ```text
-src/gnode/                    asset-graph engine: topology, scheduling, trace,
-                              run view, model bindings, reliability, provenance
-src/stage_gen/components/     provider-neutral services and capability processing
-src/stage_gen/providers/      OpenRouter and fal adapters
+src/gnode/                    ringed asset-graph SDK — ring 0: engine core
+                              (topology, scheduling, trace, run view, model
+                              bindings, reliability, provenance; media-free);
+                              ring 1 gnode/modalities/: per-modality model
+                              specs and retry-owning services
+src/stage_gen/components/     application components and capability processing
+src/stage_gen/providers/      OpenRouter, OpenAI, and fal adapters implementing
+                              the ring-1 model specs (moving to gnode ring 2)
 src/stage_gen/media/          shared recipe-neutral inspection and transforms
 src/stage_gen/recipes/        recipe-specific composition, processing, and manifests
 src/stage_gen/orchestration/  run preparation, concrete composition, and summaries
@@ -36,10 +43,10 @@ Arrows below point from an importer to the layer it imports:
 ```text
 interfaces    --imports----------> orchestration
 orchestration --imports/composes-> recipes   --imports----------> components
-orchestration --imports/composes-> providers --implements-------> components
+orchestration --imports/composes-> providers --implements-------> gnode ring-1 model specs
 components    --imports----------> media
-everything in stage_gen -------->  gnode (top level only; never a submodule)
-gnode         --imports----------> nothing in stage_gen
+everything in stage_gen -------->  gnode (declared surfaces only)
+gnode         --imports----------> nothing in stage_gen; ring N only rings < N
 ```
 
 The last two lines are the engine boundary, and they are enforced mechanically

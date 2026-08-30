@@ -8,27 +8,34 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn, Protocol, Self, cast
 
-from gnode import ArtifactRights, BinaryArtifact, RetryPolicy
-from stage_gen.components.background_removal import (
+from gnode import (
+    ArtifactRights,
     BackgroundMaskArtifact,
     BackgroundRemovalRequest,
     BackgroundRemovalService,
-)
-from stage_gen.components.image_generation import (
+    BinaryArtifact,
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
-)
-from stage_gen.components.music_generation import (
-    AudioNormalizationRequest,
-    FfmpegAudioNormalizer,
     MusicGenerationRequest,
     MusicGenerationService,
+    MusicOutputFormat,
+    RetryPolicy,
+    StructuredGenerationService,
+    inspect_image,
 )
-from stage_gen.components.music_generation.models import MusicOutputFormat
-from stage_gen.components.structured_generation import StructuredGenerationService
+from stage_gen.components.audio_normalization import (
+    AudioNormalizationRequest,
+    FfmpegAudioNormalizer,
+)
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.media import inspect_image
+from stage_gen.identity import (
+    BACKGROUND_REMOVAL_COMPONENT,
+    IMAGE_GENERATION_COMPONENT,
+    MUSIC_GENERATION_COMPONENT,
+    STAGE_GEN_TOOL,
+    STRUCTURED_GENERATION_COMPONENT,
+)
 from stage_gen.providers import (
     FalBackgroundRemovalBackend,
     OpenAIImageBackend,
@@ -56,6 +63,8 @@ def create_image_service(
 ) -> ImageGenerationService:
     return ImageGenerationService(
         OpenRouterImageBackend(api_key=api_key, model=model, base_url=base_url),
+        component=IMAGE_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )
 
@@ -77,6 +86,8 @@ def create_openai_image_service(
             base_url=base_url,
             images_per_minute=images_per_minute,
         ),
+        component=IMAGE_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )
 
@@ -90,6 +101,8 @@ def create_structured_service(
 ) -> StructuredGenerationService[object]:
     return StructuredGenerationService(
         OpenRouterStructuredBackend(api_key=api_key, model=model, base_url=base_url),
+        component=STRUCTURED_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )
 
@@ -103,6 +116,8 @@ def create_background_removal_service(
 ) -> BackgroundRemovalService:
     return BackgroundRemovalService(
         FalBackgroundRemovalBackend(api_key=api_key, model=model, base_url=base_url),
+        component=BACKGROUND_REMOVAL_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )
 
@@ -116,6 +131,8 @@ def create_music_service(
 ) -> MusicGenerationService:
     return MusicGenerationService(
         OpenRouterMusicBackend(api_key=api_key, model=model, base_url=base_url),
+        component=MUSIC_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )
 

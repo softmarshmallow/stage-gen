@@ -1,10 +1,14 @@
-"""Provider-neutral reusable generation components."""
+"""Application-owned generation components.
 
-from .background_removal import (
-    BackgroundMaskArtifact,
-    BackgroundRemovalRequest,
-    BackgroundRemovalResult,
-    BackgroundRemovalService,
+The provider-neutral modality services live in the engine (`gnode` ring 1);
+what remains here is application vocabulary: authored-contract components,
+the image-repeat admission system, audio post-processing, and genre modules.
+"""
+
+from .audio_normalization import (
+    AudioNormalizationRequest,
+    AudioNormalizationResult,
+    FfmpegAudioNormalizer,
 )
 from .character_profile import (
     PROFILE_LIBRARY_RESOLUTION_VERSION,
@@ -22,23 +26,6 @@ from .character_profile import (
     load_character_profile_bytes,
     resolve_character_profile_binding,
 )
-from .image_generation import (
-    STYLE_ANCHOR_RENDERER_VERSION,
-    STYLE_ANCHOR_SCHEMA_VERSION,
-    STYLE_COMPILER_VERSION,
-    CanonicalStyleAnchor,
-    ImageAssetKind,
-    ImageGenerationRequest,
-    ImageGenerationResult,
-    ImageGenerationService,
-    ImageReference,
-    ImageStyleVocabulary,
-    StyleMode,
-    StyleModeSelection,
-    append_style_anchor_once,
-    canonical_style_anchor_digest,
-    render_style_anchor,
-)
 from .image_repeat import (
     DIRECT_WRAP_ADMISSION_ALGORITHM,
     ENDPOINT_CONDITIONED_REPAIR_ALGORITHM,
@@ -55,48 +42,21 @@ from .image_repeat import (
     MaskedImageEditRequest,
     ProviderImageRepeatEdit,
 )
-from .music_generation import (
-    MusicGenerationRequest,
-    MusicGenerationResult,
-    MusicGenerationService,
-    MusicReference,
-)
-from .structured_generation import (
-    StructuredGenerationRequest,
-    StructuredGenerationResult,
-    StructuredGenerationService,
-    StructuredOutputSchema,
-    StructuredReference,
-)
 
 __all__ = [
-    "BackgroundMaskArtifact",
-    "BackgroundRemovalRequest",
-    "BackgroundRemovalResult",
-    "BackgroundRemovalService",
+    "AudioNormalizationRequest",
+    "AudioNormalizationResult",
     "CharacterProfile",
-    "CharacterProfileLoadError",
     "CharacterProfileBinding",
+    "CharacterProfileLoadError",
     "CharacterProfileReference",
     "CharacterProfileReferenceReader",
     "CharacterProfileRights",
     "CharacterProfileRightsStatus",
-    "PROFILE_LIBRARY_RESOLUTION_VERSION",
-    "ResolvedCharacterProfile",
-    "STYLE_ANCHOR_RENDERER_VERSION",
-    "STYLE_ANCHOR_SCHEMA_VERSION",
-    "STYLE_COMPILER_VERSION",
-    "CanonicalStyleAnchor",
-    "ImageAssetKind",
-    "ImageGenerationRequest",
-    "ImageGenerationResult",
-    "ImageGenerationService",
-    "ImageReference",
-    "ImageStyleVocabulary",
     "DIRECT_WRAP_ADMISSION_ALGORITHM",
     "ENDPOINT_CONDITIONED_REPAIR_ALGORITHM",
+    "FfmpegAudioNormalizer",
     "IMAGE_REPEAT_SCHEMA_VERSION",
-    "MASKED_IMAGE_EDIT_CAPABILITY",
     "ImageRepeatAdmissionRequest",
     "ImageRepeatManifest",
     "ImageRepeatRepairRequest",
@@ -104,26 +64,15 @@ __all__ = [
     "ImageRepeatService",
     "ImageRepeatValidationError",
     "IntendedLoopReviewer",
+    "MASKED_IMAGE_EDIT_CAPABILITY",
     "MaskedImageEditBackend",
     "MaskedImageEditRequest",
-    "MusicGenerationRequest",
-    "MusicGenerationResult",
-    "MusicGenerationService",
-    "MusicReference",
+    "PROFILE_LIBRARY_RESOLUTION_VERSION",
     "ProviderImageRepeatEdit",
-    "StructuredGenerationRequest",
-    "StructuredGenerationResult",
-    "StructuredGenerationService",
-    "StructuredOutputSchema",
-    "StructuredReference",
-    "StyleMode",
-    "StyleModeSelection",
-    "append_style_anchor_once",
+    "ResolvedCharacterProfile",
     "canonical_character_profile_json",
-    "canonical_style_anchor_digest",
     "character_profile_sha256",
     "load_character_profile",
     "load_character_profile_bytes",
     "resolve_character_profile_binding",
-    "render_style_anchor",
 ]

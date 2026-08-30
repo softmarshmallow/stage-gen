@@ -1,3 +1,11 @@
+"""Background-removal (matting) request/response contracts — a v1 wart, on purpose.
+
+This request transcribes one vendor's matting surface (BiRefNet variant names,
+operating resolutions, and their cross-field rules) rather than a neutral
+matting vocabulary. It is versioned precisely so a provider-neutral spec can
+arrive as V2 without pretending this one was neutral.
+"""
+
 from __future__ import annotations
 
 import inspect
@@ -5,15 +13,15 @@ import re
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import ClassVar, Literal, Protocol
 
-from gnode import CancellationToken
-from stage_gen.components._types import (
+from gnode.modalities._types import (
     BinaryArtifact,
     JsonObject,
     ProviderResponseMetadata,
     validate_optional_timeout,
 )
+from gnode.reliability import CancellationToken
 
 BackgroundModelVariant = Literal[
     "General Use (Light)",
@@ -124,7 +132,10 @@ class ProviderBackgroundRemoval:
     mask: BackgroundMaskArtifact | None = None
 
 
-class BackgroundRemovalBackend(Protocol):
+class BackgroundRemovalModelV1(Protocol):
+    """The v1 matting model spec: one attempt, no loop, injected credentials."""
+
+    spec_version: ClassVar[Literal[1]]
     provider: str
     model: str
     secrets: tuple[str, ...]

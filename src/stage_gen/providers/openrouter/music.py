@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, ClassVar, Literal
 
 import httpx
 
-from stage_gen.components._types import JsonObject
-from stage_gen.components.music_generation.models import MusicGenerationRequest, ProviderMusic
-from stage_gen.media import (
+from gnode import (
+    JsonObject,
+    MusicGenerationRequest,
+    ProviderMusic,
     assert_audio_signature,
     decode_base64_strict,
     normalize_audio_media_type,
@@ -25,6 +26,7 @@ _DATA_URI = re.compile(r"^data:([^;,]+);base64,(.+)$", re.IGNORECASE | re.DOTALL
 
 
 class OpenRouterMusicBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "openrouter"
 
     def __init__(

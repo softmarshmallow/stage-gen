@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from stage_gen.components import ImageGenerationRequest, ImageReference
+from gnode import ImageGenerationRequest, ImageReference
 from stage_gen.media import NATIVE_ALPHA_OPAQUE_THRESHOLD, inspect_image
 from stage_gen.providers.openai import OpenAIImageBackend
 

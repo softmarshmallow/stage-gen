@@ -15,12 +15,8 @@ from gnode import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components import (
-    CanonicalStyleAnchor,
-    CharacterProfile,
-    canonical_style_anchor_digest,
-    character_profile_sha256,
-)
+from stage_gen.components import CharacterProfile, character_profile_sha256
+from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,

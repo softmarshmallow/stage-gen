@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from stage_gen.components.structured_generation import canonicalize_strict_json_schema
+from gnode import canonicalize_strict_json_schema
 from stage_gen.recipes.dialogue_scene.models import DialogueScenePlanDraft
 
 # These are JSON Schema vocabulary, not application-owned persisted keys. Their

@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
-from gnode import CancellationToken
-from stage_gen.components.image_generation.style import (
+from gnode import CancellationToken, StructuredGenerationRequest, StructuredOutputSchema
+from stage_gen.image_style import (
     STYLE_ANCHOR_RENDERER_VERSION,
     STYLE_COMPILER_VERSION,
     CanonicalStyleAnchor,
@@ -17,10 +17,6 @@ from stage_gen.components.image_generation.style import (
     ImageStyleVocabulary,
     StyleModeSelection,
     canonical_style_anchor_digest,
-)
-from stage_gen.components.structured_generation import (
-    StructuredGenerationRequest,
-    StructuredOutputSchema,
 )
 from stage_gen.resources import image_style_skill_path, image_style_vocabulary_path
 

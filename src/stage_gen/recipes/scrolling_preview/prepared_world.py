@@ -14,7 +14,11 @@ from typing import Literal, cast
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
 from gnode import (
+    BinaryArtifact,
     CacheDisposition,
+    ImageGenerationRequest,
+    ImageGenerationService,
+    ImageReference,
     InputProvenance,
     Node,
     NodeArtifact,
@@ -23,17 +27,14 @@ from gnode import (
     NodeExecutionResult,
     ProvenanceInput,
     SoftwareIdentity,
+    StructuredGenerationRequest,
+    StructuredGenerationService,
+    StructuredOutputSchema,
+    StructuredReference,
     atomic_write_bytes,
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components import (
-    ImageGenerationRequest,
-    ImageGenerationService,
-    StructuredGenerationRequest,
-    StructuredGenerationService,
-)
-from stage_gen.components._types import BinaryArtifact
 from stage_gen.components.game_map import PreparedGameMap, PreparedMapLayer
 from stage_gen.components.game_map.prepared import (
     PreparedMapTerrain,
@@ -41,14 +42,12 @@ from stage_gen.components.game_map.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
-from stage_gen.components.image_generation import ImageReference
 from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     build_three_repeat_preview,
     validate_image_repeat,
 )
 from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
-from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.media import (
     LOOP_METHODS,
     AlphaComponentRepackContract,

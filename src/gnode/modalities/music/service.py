@@ -3,42 +3,40 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Self
 
-from gnode import (
-    ProvenanceInput,
+from gnode.contracts import ProvenanceInput, SoftwareIdentity
+from gnode.modalities._types import BinaryArtifact, run_validator
+from gnode.modalities.signatures import assert_audio_signature
+from gnode.reliability import (
     RetryContext,
     RetryPolicy,
-    SoftwareIdentity,
     hash_input_reference,
     retry_with_backoff,
     sanitize_reference,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components._types import BinaryArtifact, run_validator
-from stage_gen.media import assert_audio_signature
 
 from .models import (
-    MusicGenerationBackend,
     MusicGenerationRequest,
     MusicGenerationResult,
+    MusicModelV1,
     ProviderMusic,
 )
-
-MUSIC_GENERATION_COMPONENT = SoftwareIdentity(name="@stage-gen/music-generation", version="0.0.0")
-DEFAULT_TOOL = SoftwareIdentity(name="stage-gen", version="0.0.0")
 
 
 class MusicGenerationService:
     def __init__(
         self,
-        backend: MusicGenerationBackend,
+        backend: MusicModelV1,
         *,
+        component: SoftwareIdentity,
+        tool: SoftwareIdentity,
         retry_policy: RetryPolicy | None = None,
-        tool: SoftwareIdentity = DEFAULT_TOOL,
         now: datetime | None = None,
     ) -> None:
         self._backend = backend
-        self._retry_policy = retry_policy
+        self._component = component
         self._tool = tool
+        self._retry_policy = retry_policy
         self._now = now
 
     async def __aenter__(self) -> Self:
@@ -132,7 +130,7 @@ class MusicGenerationService:
                     "caller": request.validate is not None,
                     **caller_facts,
                 },
-                component=MUSIC_GENERATION_COMPONENT,
+                component=self._component,
                 tool=self._tool,
                 attempts=attempts,
                 response=response,

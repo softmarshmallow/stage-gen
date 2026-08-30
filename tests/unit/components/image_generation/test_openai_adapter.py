@@ -9,7 +9,7 @@ import httpx
 import pytest
 from PIL import Image
 
-from stage_gen.components.image_generation import ImageGenerationRequest, ImageReference
+from gnode import ImageGenerationRequest, ImageReference
 from stage_gen.providers.openai import OpenAIImageBackend
 
 from .._helpers import png_bytes

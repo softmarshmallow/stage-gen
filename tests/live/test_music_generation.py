@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components import MusicGenerationRequest
+from gnode import MusicGenerationRequest
 from stage_gen.media import assert_audio_signature
 from stage_gen.orchestration import create_music_service
 

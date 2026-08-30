@@ -5,19 +5,21 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import ClassVar, Literal
 
-from gnode import RetryPolicy
-from stage_gen.components._types import ProviderResponseMetadata
+from gnode import (
+    ProviderResponseMetadata,
+    ProviderStructuredOutput,
+    RetryPolicy,
+    StructuredGenerationRequest,
+    StructuredGenerationService,
+)
 from stage_gen.components.platformer_map_design import (
     MAX_QUOTED_PROBLEMS,
     DesignBrief,
     design_chunks,
 )
-from stage_gen.components.structured_generation import (
-    ProviderStructuredOutput,
-    StructuredGenerationRequest,
-    StructuredGenerationService,
-)
+from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
 
 from ._profiles import GROUND_FOOTED_PROFILE
 
@@ -78,6 +80,7 @@ _TOO_DEEP_SENTENCE: dict[str, object] = {
 
 
 class _ScriptedComposerBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     """Replays canned compositions in order, repeating the last one once the script runs out."""
 
     provider = "scripted-composer"
@@ -110,7 +113,10 @@ class _ScriptedComposerBackend:
 
 def _service(backend: _ScriptedComposerBackend) -> StructuredGenerationService[object]:
     return StructuredGenerationService[object](
-        backend, retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0)
+        backend,
+        component=STRUCTURED_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
+        retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
     )
 
 

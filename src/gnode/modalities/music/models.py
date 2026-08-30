@@ -4,15 +4,16 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import ClassVar, Literal, Protocol
 
-from gnode import ArtifactRights, CancellationToken
-from stage_gen.components._types import (
+from gnode.contracts import ArtifactRights
+from gnode.modalities._types import (
     ArtifactValidator,
     ProviderResponseMetadata,
     validate_optional_number,
     validate_optional_timeout,
 )
+from gnode.reliability import CancellationToken
 
 MusicOutputFormat = Literal["mp3", "wav"]
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
@@ -90,7 +91,10 @@ class ProviderMusic:
     text: str | None = None
 
 
-class MusicGenerationBackend(Protocol):
+class MusicModelV1(Protocol):
+    """The v1 music model spec: one attempt, no loop, injected credentials."""
+
+    spec_version: ClassVar[Literal[1]]
     provider: str
     model: str
     secrets: tuple[str, ...]

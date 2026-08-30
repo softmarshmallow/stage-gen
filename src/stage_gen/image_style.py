@@ -1,4 +1,10 @@
-"""Provider-neutral, deterministic image style-anchor contracts."""
+"""The application's closed image-style vocabulary and its prompt-anchor compiler.
+
+Style is art direction, not a model interface: the engine only knows the
+generic ``PromptAnchor`` it is handed. This module owns the closed
+``StyleMode``/``ImageAssetKind`` vocabulary, the canonical anchor contract,
+and the compiler from an anchor to the engine's prompt-anchor shape.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,8 @@ from hashlib import sha256
 from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from gnode import PromptAnchor
 
 STYLE_ANCHOR_SCHEMA_VERSION: Literal[1] = 1
 STYLE_ANCHOR_RENDERER_VERSION: Literal[1] = 1
@@ -28,7 +36,7 @@ ImageAssetKind = Literal[
     "effect_sheet",
 ]
 
-_STYLE_ANCHOR_PREFIX = "Canonical style anchor — "
+STYLE_ANCHOR_PREFIX = "Canonical style anchor — "
 _SHA256_LENGTH = 64
 
 
@@ -148,7 +156,7 @@ def render_style_anchor(anchor: CanonicalStyleAnchor, asset_kind: ImageAssetKind
     traits = "; ".join(anchor.observable_traits)
     exclusions = "; ".join(anchor.exclusions)
     rendered = (
-        f"{_STYLE_ANCHOR_PREFIX}medium: {anchor.medium_keyword}. "
+        f"{STYLE_ANCHOR_PREFIX}medium: {anchor.medium_keyword}. "
         f"Observable traits: {traits}. Asset treatment: {treatment}."
     )
     if exclusions:
@@ -164,7 +172,7 @@ def append_style_anchor_once(
     """Append the canonical clause idempotently and reject conflicting pre-anchors."""
 
     rendered = render_style_anchor(anchor, asset_kind)
-    occurrences = prompt.count(_STYLE_ANCHOR_PREFIX)
+    occurrences = prompt.count(STYLE_ANCHOR_PREFIX)
     if occurrences == 0:
         return f"{prompt.rstrip()}\n\n{rendered}"
     if occurrences == 1 and rendered in prompt:
@@ -172,7 +180,35 @@ def append_style_anchor_once(
     raise ValueError("image prompt already contains a different or malformed style anchor")
 
 
+def compile_style_prompt_anchor(
+    anchor: CanonicalStyleAnchor,
+    asset_kind: ImageAssetKind,
+) -> PromptAnchor:
+    """Compile one anchor into the engine's generic prompt-anchor shape.
+
+    Key order below is the persisted provenance order; it must not change.
+    """
+
+    return PromptAnchor(
+        clause=render_style_anchor(anchor, asset_kind),
+        marker=STYLE_ANCHOR_PREFIX,
+        provenance_key="style_anchor",
+        provenance={
+            "anchor_sha256": canonical_style_anchor_digest(anchor),
+            "asset_kind": asset_kind,
+            "compiler_sha256": anchor.compiler_sha256,
+            "compiler_version": anchor.compiler_version,
+            "renderer_version": STYLE_ANCHOR_RENDERER_VERSION,
+            "resource_sha256": anchor.resource_sha256,
+            "skill_sha256": anchor.skill_sha256,
+            "style_mode": anchor.style_mode,
+            "vocabulary_sha256": anchor.vocabulary_sha256,
+        },
+    )
+
+
 __all__ = [
+    "STYLE_ANCHOR_PREFIX",
     "STYLE_ANCHOR_RENDERER_VERSION",
     "STYLE_ANCHOR_SCHEMA_VERSION",
     "STYLE_COMPILER_VERSION",
@@ -185,5 +221,6 @@ __all__ = [
     "append_style_anchor_once",
     "canonical_style_anchor_bytes",
     "canonical_style_anchor_digest",
+    "compile_style_prompt_anchor",
     "render_style_anchor",
 ]

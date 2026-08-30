@@ -15,8 +15,14 @@ from typing import Literal, cast
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from gnode import (
+    BinaryArtifact,
     CacheDisposition,
+    ImageGenerationRequest,
+    ImageGenerationService,
+    ImageReference,
     InputProvenance,
+    MusicGenerationRequest,
+    MusicGenerationService,
     Node,
     NodeArtifact,
     NodeExecutionContext,
@@ -24,18 +30,13 @@ from gnode import (
     NodeExecutionResult,
     ProvenanceInput,
     SoftwareIdentity,
+    StructuredGenerationRequest,
+    StructuredGenerationService,
+    StructuredOutputSchema,
+    StructuredReference,
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components import (
-    ImageGenerationRequest,
-    ImageGenerationService,
-    MusicGenerationRequest,
-    MusicGenerationService,
-    StructuredGenerationRequest,
-    StructuredGenerationService,
-)
-from stage_gen.components._types import BinaryArtifact
 from stage_gen.components.game_content import (
     ContentReference,
     ItemContent,
@@ -63,8 +64,6 @@ from stage_gen.components.game_ui import (
     UiReference,
     inventory_panel_layout_contract,
 )
-from stage_gen.components.image_generation import ImageReference
-from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
 from stage_gen.media import (
     AlphaComponentRepackContract,
     measure_alpha_ground_contact,

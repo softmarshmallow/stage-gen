@@ -3,23 +3,27 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import ClassVar, Literal
 
 import httpx
 import pytest
 from pydantic import ValidationError
 
-from gnode import RetryPolicy
-from stage_gen.components._types import ProviderResponseMetadata
-from stage_gen.components.image_generation import CanonicalStyleAnchor
-from stage_gen.components.structured_generation import (
+from gnode import (
+    ProviderResponseMetadata,
     ProviderStructuredOutput,
+    RetryPolicy,
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
+from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
 from stage_gen.image_prompting import (
     build_image_style_compiler_request,
     image_style_compiler_cache_key,
     load_image_style_resources,
+)
+from stage_gen.image_style import (
+    CanonicalStyleAnchor,
 )
 from stage_gen.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.resources import image_style_resource_digests
@@ -99,6 +103,7 @@ def test_compiler_schema_allows_only_vocabulary_mode_and_cache_binds_resources(
 
 
 class _StyleSelectionBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "test"
     model = "test-structured"
     secrets: tuple[str, ...] = ()
@@ -142,6 +147,8 @@ async def test_existing_structured_service_owns_retry_and_persists_local_anchor(
     )
     result = await StructuredGenerationService[CanonicalStyleAnchor](
         backend,
+        component=STRUCTURED_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
         retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
     ).generate(request)
     assert backend.calls == result.attempts == 2
@@ -201,6 +208,8 @@ async def test_style_compiler_matches_working_openrouter_shape_and_six_attempt_c
                 base_url="https://openrouter.ai/api/v1",
                 client=client,
             ),
+            component=STRUCTURED_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
             retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
         ).generate(request)
 

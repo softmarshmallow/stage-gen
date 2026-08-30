@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components import BackgroundRemovalRequest, ImageGenerationRequest
+from gnode import BackgroundRemovalRequest, ImageGenerationRequest
 from stage_gen.media import inspect_image
 from stage_gen.orchestration import create_background_removal_service, create_image_service
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from stage_gen.components.image_generation.models import ImageQuality, ImageResolution
+from gnode import ImageQuality, ImageResolution
 
 GPT_IMAGE_2: Literal["openai/gpt-image-2"] = "openai/gpt-image-2"
 GROK_IMAGINE_IMAGE_2: Literal["x-ai/grok-imagine-image-2.0"] = "x-ai/grok-imagine-image-2.0"

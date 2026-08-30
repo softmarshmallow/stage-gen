@@ -23,8 +23,11 @@ from PIL import Image
 
 from gnode import (
     ArtifactRights,
+    BackgroundRemovalRequest,
     BinaryArtifact,
     CacheDisposition,
+    ImageGenerationRequest,
+    ImageReference,
     InputProvenance,
     NodeArtifact,
     NodeExecutionError,
@@ -32,23 +35,21 @@ from gnode import (
     ProvenanceInput,
     RetryExhaustedError,
     SoftwareIdentity,
+    StructuredGenerationRequest,
+    StructuredOutputSchema,
+    StructuredReference,
     atomic_write_json,
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components import (
-    BackgroundRemovalRequest,
+from stage_gen.image_prompting import build_image_style_compiler_request
+from stage_gen.image_style import (
     CanonicalStyleAnchor,
     ImageAssetKind,
-    ImageGenerationRequest,
-    ImageReference,
-    StructuredGenerationRequest,
-    StructuredOutputSchema,
-    StructuredReference,
     append_style_anchor_once,
     canonical_style_anchor_digest,
+    compile_style_prompt_anchor,
 )
-from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.media import (
     CHROMA_MATTE_VERSION,
     MAGENTA_EDGE_DECONTAMINATION_VERSION,
@@ -102,13 +103,14 @@ from stage_gen.recipes.node_cache import NodeArtifactCache
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from gnode import Node, NodeExecutionContext
-    from stage_gen.components.background_removal import (
+    from gnode import (
         BackgroundMaskArtifact,
         BackgroundRemovalService,
+        ImageGenerationService,
+        Node,
+        NodeExecutionContext,
+        StructuredGenerationService,
     )
-    from stage_gen.components.image_generation import ImageGenerationService
-    from stage_gen.components.structured_generation import StructuredGenerationService
     from stage_gen.recipes.dialogue_scene.models import DialoguePlan
 
 _COMPONENT_V3 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")
@@ -629,8 +631,7 @@ class DialogueSceneNodeHandler:
                 recipe_contract=scene.recipe_version,
             ),
             provenance_schema_version=2,
-            style_anchor=anchor,
-            asset_kind=asset_kind,
+            prompt_anchor=compile_style_prompt_anchor(anchor, asset_kind),
         )
         return await self._provider_call(
             node,

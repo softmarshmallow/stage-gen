@@ -9,10 +9,10 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
-from gnode import Scheduler
-from stage_gen.components import (
+from gnode import (
     ImageGenerationRequest,
     MusicGenerationRequest,
+    Scheduler,
     StructuredGenerationRequest,
 )
 from stage_gen.components.game_ui import (

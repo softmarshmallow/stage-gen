@@ -8,14 +8,16 @@ from typing import cast
 
 import pytest
 
-from stage_gen.capabilities import CapabilityArtifactResult
-from stage_gen.components._types import ProviderResponseMetadata
-from stage_gen.components.music_generation import (
-    AudioNormalizationRequest,
-    AudioNormalizationResult,
+from gnode import (
     MusicGenerationRequest,
     MusicGenerationResult,
     MusicGenerationService,
+    ProviderResponseMetadata,
+)
+from stage_gen.capabilities import CapabilityArtifactResult
+from stage_gen.components.audio_normalization import (
+    AudioNormalizationRequest,
+    AudioNormalizationResult,
 )
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration import runtime as runtime_module

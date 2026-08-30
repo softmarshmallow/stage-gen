@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import json
+from typing import ClassVar, Literal
 
 import httpx
 
-from stage_gen.components.structured_generation.models import (
-    ProviderStructuredOutput,
-    StructuredGenerationRequest,
-)
+from gnode import ProviderStructuredOutput, StructuredGenerationRequest
 from stage_gen.providers._http import (
     assert_success,
     json_object,
@@ -19,6 +17,7 @@ OPENROUTER_STRUCTURED_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 class OpenRouterStructuredBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "openrouter"
 
     def __init__(

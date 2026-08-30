@@ -1,25 +1,17 @@
 from .models import (
-    MusicGenerationBackend,
     MusicGenerationRequest,
     MusicGenerationResult,
+    MusicModelV1,
     MusicReference,
     ProviderMusic,
-)
-from .normalization import (
-    AudioNormalizationRequest,
-    AudioNormalizationResult,
-    FfmpegAudioNormalizer,
 )
 from .service import MusicGenerationService
 
 __all__ = [
-    "AudioNormalizationRequest",
-    "AudioNormalizationResult",
-    "FfmpegAudioNormalizer",
-    "MusicGenerationBackend",
     "MusicGenerationRequest",
     "MusicGenerationResult",
     "MusicGenerationService",
+    "MusicModelV1",
     "MusicReference",
     "ProviderMusic",
 ]

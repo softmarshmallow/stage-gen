@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components import ImageGenerationRequest
+from gnode import ImageGenerationRequest
 from stage_gen.media import inspect_image
 from stage_gen.orchestration import create_image_service
 

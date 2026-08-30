@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import ClassVar, Literal
+
 import httpx
 
-from stage_gen.components.image_generation.models import (
+from gnode import (
     ImageGenerationRequest,
     ProviderImage,
+    assert_image_signature,
+    decode_base64_strict,
+    normalize_media_type,
 )
-from stage_gen.media import assert_image_signature, decode_base64_strict, normalize_media_type
 from stage_gen.providers._http import (
     assert_success,
     json_object,
@@ -19,6 +23,7 @@ OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2"
 
 
 class OpenRouterImageBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "openrouter"
     supports_native_alpha = False
 

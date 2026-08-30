@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import re
+from typing import ClassVar, Literal
 
 import httpx
 
-from stage_gen.components.background_removal.models import (
+from gnode import (
     BackgroundMaskArtifact,
     BackgroundMaskMetadata,
     BackgroundRemovalRequest,
     ProviderBackgroundRemoval,
+    assert_image_signature,
+    decode_base64_strict,
+    normalize_media_type,
 )
-from stage_gen.media import assert_image_signature, decode_base64_strict, normalize_media_type
 from stage_gen.providers._http import (
     assert_success,
     json_object,
@@ -24,6 +27,7 @@ _DATA_URI = re.compile(r"^data:([^;,]+);base64,(.+)$", re.IGNORECASE | re.DOTALL
 
 
 class FalBackgroundRemovalBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "fal"
 
     def __init__(

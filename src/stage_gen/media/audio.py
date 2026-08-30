@@ -42,32 +42,6 @@ class AudioProbe:
     bit_rate: float | None
 
 
-def normalize_audio_media_type(value: str) -> str:
-    normalized = value.strip().lower().split(";", 1)[0]
-    if normalized in {"mp3", "audio/mp3", "audio/mpeg3"}:
-        return "audio/mpeg"
-    if normalized in {"wav", "audio/x-wav", "audio/wave"}:
-        return "audio/wav"
-    if not normalized.startswith("audio/"):
-        raise ValueError(f"expected audio media type, received {normalized}")
-    return normalized
-
-
-def assert_audio_signature(data: bytes, media_type: str) -> None:
-    media_type = normalize_audio_media_type(media_type)
-    mp3 = media_type == "audio/mpeg" and (
-        data.startswith(b"ID3") or (len(data) >= 2 and data[0] == 0xFF and data[1] & 0xE0 == 0xE0)
-    )
-    wav = (
-        media_type == "audio/wav"
-        and len(data) >= 12
-        and data[:4] == b"RIFF"
-        and data[8:12] == b"WAVE"
-    )
-    if not mp3 and not wav:
-        raise ValueError(f"audio bytes do not match declared media type {media_type}")
-
-
 async def run_process(
     command: str,
     args: Sequence[str],

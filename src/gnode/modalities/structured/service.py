@@ -6,12 +6,10 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Self, cast
 
-from gnode import (
-    BinaryArtifact,
-    ProvenanceInput,
+from gnode.contracts import BinaryArtifact, ProvenanceInput, SoftwareIdentity
+from gnode.reliability import (
     RetryContext,
     RetryPolicy,
-    SoftwareIdentity,
     hash_input_reference,
     retry_with_backoff,
     sanitize_reference,
@@ -20,29 +18,26 @@ from gnode import (
 
 from .models import (
     ProviderStructuredOutput,
-    StructuredGenerationBackend,
     StructuredGenerationRequest,
     StructuredGenerationResult,
+    StructuredModelV1,
 )
-
-STRUCTURED_GENERATION_COMPONENT = SoftwareIdentity(
-    name="@stage-gen/structured-generation", version="0.0.0"
-)
-DEFAULT_TOOL = SoftwareIdentity(name="stage-gen", version="0.0.0")
 
 
 class StructuredGenerationService[T]:
     def __init__(
         self,
-        backend: StructuredGenerationBackend,
+        backend: StructuredModelV1,
         *,
+        component: SoftwareIdentity,
+        tool: SoftwareIdentity,
         retry_policy: RetryPolicy | None = None,
-        tool: SoftwareIdentity = DEFAULT_TOOL,
         now: datetime | None = None,
     ) -> None:
         self._backend = backend
-        self._retry_policy = retry_policy
+        self._component = component
         self._tool = tool
+        self._retry_policy = retry_policy
         self._now = now
 
     async def __aenter__(self) -> Self:
@@ -146,7 +141,7 @@ class StructuredGenerationService[T]:
                     "schema": "caller-validated",
                     **caller_validation,
                 },
-                component=STRUCTURED_GENERATION_COMPONENT,
+                component=self._component,
                 tool=self._tool,
                 attempts=attempts,
                 response=response,

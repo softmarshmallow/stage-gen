@@ -6,6 +6,7 @@ from collections.abc import Iterator, Mapping
 
 import pytest
 
+from gnode import StructuredOutputSchema
 from stage_gen.components.platformer_map_design import (
     PlatformerProfile,
     build_chunk_prompt,
@@ -16,7 +17,6 @@ from stage_gen.components.platformer_map_design import (
     vocabulary,
 )
 from stage_gen.components.platformer_map_design import grammar as grammar_module
-from stage_gen.components.structured_generation import StructuredOutputSchema
 
 from ._profiles import CHAINED_SHAFT_PROFILE, CLIMBLESS_PROFILE, GROUND_FOOTED_PROFILE
 

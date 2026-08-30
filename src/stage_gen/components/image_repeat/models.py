@@ -15,11 +15,12 @@ from gnode import (
     ArtifactRights,
     CancellationToken,
     PersistedContractModel,
+    ProviderResponseMetadata,
     RightsStatus,
     assert_safe_path_segment,
     redact_secrets,
+    validate_optional_timeout,
 )
-from stage_gen.components._types import ProviderResponseMetadata, validate_optional_timeout
 
 IMAGE_REPEAT_SCHEMA_VERSION: Literal[2] = 2
 DIRECT_WRAP_ADMISSION_ALGORITHM: Literal["direct-wrap-admission-v2"] = "direct-wrap-admission-v2"

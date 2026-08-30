@@ -4,16 +4,14 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import ClassVar, Literal, Protocol
 
-from gnode import CancellationToken
-from stage_gen.components._types import (
+from gnode.modalities._types import (
     ArtifactValidator,
     ProviderResponseMetadata,
     validate_optional_timeout,
 )
-
-from .style import CanonicalStyleAnchor, ImageAssetKind
+from gnode.reliability import CancellationToken
 
 ImageQuality = Literal["auto", "low", "medium", "high"]
 ImageBackground = Literal["auto", "opaque", "transparent"]
@@ -39,6 +37,43 @@ class ImageReference:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptAnchor:
+    """One exact clause appended to a prompt idempotently and recorded verbatim.
+
+    The engine knows nothing about what the clause means - an application
+    compiles its own vocabulary (a style anchor, a house rule) into the
+    rendered ``clause``, a ``marker`` substring that identifies the clause
+    family inside a prompt, and the ``provenance`` block recorded under
+    ``provenance_key`` in the artifact's params. Key order in ``provenance``
+    is preserved into the persisted bytes.
+    """
+
+    clause: str
+    marker: str
+    provenance_key: str
+    provenance: Mapping[str, object]
+
+    def __post_init__(self) -> None:
+        if not self.clause.strip():
+            raise ValueError("prompt anchor clause must be non-empty")
+        if not self.marker.strip() or self.marker not in self.clause:
+            raise ValueError("prompt anchor marker must be a substring of its clause")
+        if not self.provenance_key.strip():
+            raise ValueError("prompt anchor provenance_key must be non-empty")
+
+
+def append_prompt_anchor_once(prompt: str, anchor: PromptAnchor) -> str:
+    """Append the anchor clause idempotently and reject conflicting pre-anchors."""
+
+    occurrences = prompt.count(anchor.marker)
+    if occurrences == 0:
+        return f"{prompt.rstrip()}\n\n{anchor.clause}"
+    if occurrences == 1 and anchor.clause in prompt:
+        return prompt
+    raise ValueError("prompt already contains a different or malformed anchor")
+
+
+@dataclass(frozen=True, slots=True)
 class ImageGenerationRequest:
     prompt: str
     artifact_path: str | Path
@@ -57,8 +92,7 @@ class ImageGenerationRequest:
     cancellation: CancellationToken | None = None
     validate: ArtifactValidator | None = None
     provenance_schema_version: Literal[2] = 2
-    style_anchor: CanonicalStyleAnchor | None = None
-    asset_kind: ImageAssetKind | None = None
+    prompt_anchor: PromptAnchor | None = None
     resolution: ImageResolution | None = None
     size: str | None = None
 
@@ -96,8 +130,6 @@ class ImageGenerationRequest:
         validate_optional_timeout(self.timeout_seconds)
         if self.provenance_schema_version != 2:
             raise ValueError("provenance_schema_version must be 2")
-        if (self.style_anchor is None) != (self.asset_kind is None):
-            raise ValueError("style_anchor and asset_kind must be provided together")
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +140,10 @@ class ProviderImage:
     applied_params: Mapping[str, object] | None = None
 
 
-class ImageGenerationBackend(Protocol):
+class ImageModelV1(Protocol):
+    """The v1 image model spec: one attempt, no loop, injected credentials."""
+
+    spec_version: ClassVar[Literal[1]]
     provider: str
     model: str
     secrets: tuple[str, ...]

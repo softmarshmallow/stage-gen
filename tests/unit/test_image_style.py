@@ -2,22 +2,27 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import ClassVar, Literal
 
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.components._types import ProviderResponseMetadata
-from stage_gen.components.image_generation import (
-    CanonicalStyleAnchor,
+from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ProviderImage,
+    ProviderResponseMetadata,
+)
+from stage_gen.identity import IMAGE_GENERATION_COMPONENT, STAGE_GEN_TOOL
+from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
+from stage_gen.image_style import (
+    CanonicalStyleAnchor,
     StyleModeSelection,
     append_style_anchor_once,
     canonical_style_anchor_digest,
+    compile_style_prompt_anchor,
     render_style_anchor,
 )
-from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 
 
 def _anchor(mode: str = "cel_shaded_anime_2d") -> CanonicalStyleAnchor:
@@ -80,16 +85,27 @@ def test_renderer_rejects_missing_or_conflicting_treatment() -> None:
         )
 
 
-def test_image_request_requires_anchor_and_asset_kind_as_a_pair(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="provided together"):
-        ImageGenerationRequest(
-            prompt="subject",
-            artifact_path=tmp_path / "asset.png",
-            style_anchor=_anchor(),
-        )
+def test_compiled_anchor_carries_marker_key_and_ordered_provenance() -> None:
+    anchor = _anchor()
+    compiled = compile_style_prompt_anchor(anchor, "character_sprite")
+    assert compiled.marker == "Canonical style anchor — "
+    assert compiled.clause == render_style_anchor(anchor, "character_sprite")
+    assert compiled.provenance_key == "style_anchor"
+    assert list(compiled.provenance) == [
+        "anchor_sha256",
+        "asset_kind",
+        "compiler_sha256",
+        "compiler_version",
+        "renderer_version",
+        "resource_sha256",
+        "skill_sha256",
+        "style_mode",
+        "vocabulary_sha256",
+    ]
 
 
 class _RecordingBackend:
+    spec_version: ClassVar[Literal[1]] = 1
     provider = "test"
     model = "test-image"
     supports_native_alpha = False
@@ -115,7 +131,9 @@ async def test_service_preserves_legacy_request_and_binds_styled_provenance(
     tmp_path: Path,
 ) -> None:
     backend = _RecordingBackend()
-    service = ImageGenerationService(backend)
+    service = ImageGenerationService(
+        backend, component=IMAGE_GENERATION_COMPONENT, tool=STAGE_GEN_TOOL
+    )
     legacy = ImageGenerationRequest(prompt="legacy prompt", artifact_path=tmp_path / "legacy.png")
     await service.generate(legacy)
     assert backend.requests[0] is legacy
@@ -125,8 +143,7 @@ async def test_service_preserves_legacy_request_and_binds_styled_provenance(
     styled = ImageGenerationRequest(
         prompt="painted forest",
         artifact_path=tmp_path / "styled.png",
-        style_anchor=anchor,
-        asset_kind="environment_background",
+        prompt_anchor=compile_style_prompt_anchor(anchor, "environment_background"),
         provenance_schema_version=2,
     )
     await service.generate(styled)
