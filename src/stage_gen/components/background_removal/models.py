@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
+from gnode import CancellationToken
 from stage_gen.components._types import (
     BinaryArtifact,
     JsonObject,
     ProviderResponseMetadata,
     validate_optional_timeout,
 )
-from stage_gen.reliability.cancellation import CancellationToken
 
 BackgroundModelVariant = Literal[
     "General Use (Light)",

@@ -152,11 +152,17 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # authored equipment, which the prompt builder and the actor review both read.
         # The derived execution view adds two: the generic plan-and-trace join exporter, and the
         # recipe-owned artifact display annotations the CLI wires into it.
-        assert len(wheel_entries) <= 191
+        # Splitting the engine out adds the whole gnode package: its import surface and typing
+        # marker, graph, scheduler, trace, dry-run handler, run view, model bindings, and the
+        # reliability and contract modules that moved with them. The application shrank by the
+        # same modules, so the net growth is the engine's own package files.
+        assert len(wheel_entries) <= 199
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
+            "gnode/__init__.py",
+            "gnode/py.typed",
             "stage_gen/__init__.py",
             "stage_gen/py.typed",
             "stage_gen/resources/__init__.py",
@@ -195,7 +201,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # declaration, the authored Bellweather catalog, and two focused test modules.
         # The derived execution view adds its exporter and recipe-annotation source modules
         # and their two focused test modules.
-        assert len(sdist_entries) <= 416
+        # Splitting the engine out adds the gnode package's own files plus its two focused test
+        # modules: the model-binding table and the pinned plan identity.
+        # Recording cancellation adds one: the scheduler test that interrupts a run mid-flight
+        # and proves the trace says so rather than leaving it to be inferred.
+        assert len(sdist_entries) <= 427
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.

@@ -6,14 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from gnode import EDGE_KIND_GAP_ID, RunViewError, write_run_view
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_view import (
-    EDGE_KIND_GAP_ID,
-    ExecutionView,
-    ExecutionViewError,
-    build_execution_view,
-    write_execution_view,
-)
+from stage_gen.orchestration.execution_view import ExecutionView, build_execution_view
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
@@ -40,7 +35,8 @@ def test_view_joins_plan_and_trace_for_a_finished_run(dry_run_dir: Path) -> None
 
     plan = json.loads((dry_run_dir / "execution-plan.json").read_text(encoding="utf-8"))
     assert len(view.nodes) == len(plan["nodes"])
-    assert view.ok is True
+    assert view.run_state == "succeeded"
+    assert view.trace_modified_at is not None
     assert view.invocation_id == "view-fixture"
     assert view.duration_ms is not None
     assert view.state_counts["succeeded"] == len(view.nodes)
@@ -56,7 +52,7 @@ def test_view_joins_plan_and_trace_for_a_finished_run(dry_run_dir: Path) -> None
     assert all(artifact.present for artifact in resolve.artifacts)
 
     view_path = dry_run_dir / "execution-view.json"
-    write_execution_view(view_path, view)
+    write_run_view(view_path, view)
     text = view_path.read_text(encoding="utf-8")
     assert str(BELLWEATHER) not in text
     assert str(dry_run_dir) not in text
@@ -87,7 +83,10 @@ def test_view_reads_a_cut_trace_as_in_flight(dry_run_dir: Path, tmp_path: Path) 
 
     view = build_execution_view(partial)
     by_id = {node.node_id: node for node in view.nodes}
-    assert view.ok is None
+    # The records stop mid-stream. The document says exactly that and no more:
+    # whether the run is still going is a liveness question its reader answers.
+    assert view.run_state == "unfinished"
+    assert view.trace_modified_at is not None
     assert view.duration_ms is None
     assert by_id[running_node].state == "running"
     assert by_id[running_node].started_offset_ms is not None
@@ -107,13 +106,14 @@ def test_view_without_any_trace_reports_every_node_pending(
     )
 
     view = build_execution_view(planned)
-    assert view.ok is None
+    assert view.run_state == "planned"
+    assert view.trace_modified_at is None
     assert view.invocation_id is None
     assert view.state_counts["pending"] == len(view.nodes)
 
 
 def test_view_refuses_a_missing_or_unknown_plan(dry_run_dir: Path, tmp_path: Path) -> None:
-    with pytest.raises(ExecutionViewError, match=r"no execution-plan\.json"):
+    with pytest.raises(RunViewError, match=r"no execution-plan\.json"):
         build_execution_view(tmp_path)
 
     plan = json.loads((dry_run_dir / "execution-plan.json").read_text(encoding="utf-8"))
@@ -121,5 +121,41 @@ def test_view_refuses_a_missing_or_unknown_plan(dry_run_dir: Path, tmp_path: Pat
     unknown = tmp_path / "unknown"
     unknown.mkdir()
     (unknown / "execution-plan.json").write_text(json.dumps(plan), encoding="utf-8")
-    with pytest.raises(ExecutionViewError, match="not a valid"):
+    with pytest.raises(RunViewError, match="not a valid ExecutionGraph"):
         build_execution_view(unknown)
+
+
+def test_a_canceled_run_says_so_rather_than_leaving_it_to_be_inferred(
+    dry_run_dir: Path, tmp_path: Path
+) -> None:
+    """An interrupt reaches the scheduler while the sink is open, so it is recorded."""
+
+    canceled = tmp_path / "canceled"
+    canceled.mkdir()
+    (canceled / "execution-plan.json").write_text(
+        (dry_run_dir / "execution-plan.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    lines = (dry_run_dir / "execution-trace.jsonl").read_text(encoding="utf-8").splitlines()
+    kept = [line for line in lines if '"event":"run_finished"' not in line][:20]
+    started = json.loads(kept[0])
+    kept.append(
+        json.dumps(
+            {
+                "schema_version": started["schema_version"],
+                "kind": started["kind"],
+                "event": "run_canceled",
+                "invocation_id": started["invocation_id"],
+                "graph_sha256": started["graph_sha256"],
+                "offset_ms": 4_200,
+                "started_node_ids": [],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+    (canceled / "execution-trace.jsonl").write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+    view = build_execution_view(canceled)
+
+    assert view.run_state == "canceled"
+    assert view.duration_ms == 4_200

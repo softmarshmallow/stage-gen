@@ -11,11 +11,11 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
+from gnode import CancellationToken, sha256_hex
 from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
 )
-from stage_gen.reliability import CancellationToken, sha256_hex
 from stage_gen.resources import theme_compiler_skill_path
 
 THEME_SCHEMA_VERSION = 1

@@ -13,8 +13,8 @@ from typing import TextIO
 
 from PIL import Image
 
+from gnode import assert_safe_path_segment, redact_secrets
 from stage_gen.media import inspect_image
-from stage_gen.reliability import assert_safe_path_segment, redact_secrets
 
 _SPOTCHECK_PATTERNS = (
     "mob_concept_*.png",

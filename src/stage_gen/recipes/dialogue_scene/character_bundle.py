@@ -11,15 +11,20 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from stage_gen.components._secure_fs import read_absolute_regular_file
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
+    AtomicBundleFile,
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
     SoftwareIdentity,
+    atomic_write_bundle,
+    build_artifact_provenance,
+    resolve_relative_path_within_root,
+    serialize_provenance,
 )
+from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.media import (
     MAGENTA_EDGE_DECONTAMINATION_VERSION,
     decontaminate_magenta_edges,
@@ -38,12 +43,6 @@ from stage_gen.recipes.dialogue_scene.models import (
     PersistedContractModel,
     ReuseSource,
     RightsState,
-)
-from stage_gen.reliability import build_artifact_provenance, resolve_relative_path_within_root
-from stage_gen.reliability.atomic import (
-    AtomicBundleFile,
-    atomic_write_bundle,
-    serialize_provenance,
 )
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-character-bundle", version="1")

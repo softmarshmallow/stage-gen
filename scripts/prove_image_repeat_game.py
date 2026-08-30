@@ -16,6 +16,12 @@ from typing import Literal, Protocol, cast
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from gnode import (
+    assert_safe_path_segment,
+    atomic_write_json,
+    redact_secrets,
+    sanitize_for_persistence,
+)
 from stage_gen.components.image_repeat import (
     ImageRepeatAdmissionRequest,
     ImageRepeatDeterministicValidationError,
@@ -40,12 +46,6 @@ from stage_gen.orchestration.image_repeat_reviewer import (
 from stage_gen.providers.openrouter import (
     OpenRouterMaskedImageEditBackend,
     OpenRouterStructuredBackend,
-)
-from stage_gen.reliability import (
-    assert_safe_path_segment,
-    atomic_write_json,
-    redact_secrets,
-    sanitize_for_persistence,
 )
 
 type Axis = Literal["x", "y"]

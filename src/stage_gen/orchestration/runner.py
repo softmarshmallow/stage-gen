@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from gnode import assert_safe_path_segment, atomic_write_json, redact_secrets
 from stage_gen.config import parse_transparency_mode
 from stage_gen.contracts import validate_run_artifact_ref
 from stage_gen.recipes.base import (
@@ -17,11 +18,6 @@ from stage_gen.recipes.base import (
     StageContext,
     StageResult,
     resolve_force_stage_plan,
-)
-from stage_gen.reliability import (
-    assert_safe_path_segment,
-    atomic_write_json,
-    redact_secrets,
 )
 from stage_gen.tags import tag_for_transparency_mode
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from stage_gen.reliability import redact_secrets
+from gnode import redact_secrets
 
 DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS = 120.0
 MAX_DIAGNOSTIC_BYTES = 4 * 1024 * 1024

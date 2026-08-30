@@ -16,6 +16,14 @@ from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
+from gnode import (
+    ArtifactProvenance,
+    BinaryArtifact,
+    ProvenanceInput,
+    SoftwareIdentity,
+    sha256_hex,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components.game_contract import GameContractBinding
 from stage_gen.components.game_soundtrack import (
     GAME_SOUNDTRACK_LIBRARY_RESOLUTION_VERSION,
@@ -26,16 +34,9 @@ from stage_gen.components.game_soundtrack import (
     canonical_game_soundtrack_json,
     resolve_game_soundtrack_binding,
 )
-from stage_gen.contracts import (
-    ArtifactProvenance,
-    BinaryArtifact,
-    ProvenanceInput,
-    SoftwareIdentity,
-)
 from stage_gen.media import assert_audio_signature
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
-from stage_gen.reliability import sha256_hex, write_artifact_with_provenance_async
 
 if TYPE_CHECKING:
     from stage_gen.capabilities import CapabilityArtifactResult

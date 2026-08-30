@@ -6,6 +6,7 @@
 import { constants as fsConstants, promises as fs } from "node:fs";
 import path from "node:path";
 import {
+  type ExecutionRunState,
   type ExecutionView,
   parseExecutionView,
 } from "@/lib/runtime/execution-view";
@@ -85,8 +86,10 @@ export async function readExecutionView(tag: string): Promise<ExecutionView | nu
 
 export interface ExecutionViewRunListEntry {
   readonly tag: string;
-  /** null while the run is in flight; also null for an unreadable document. */
-  readonly ok: boolean | null;
+  /** What the run's records say; null for a document this build refuses. */
+  readonly runState: ExecutionRunState | null;
+  /** When the trace was last appended, so a reader can judge liveness. */
+  readonly traceModifiedAt: string | null;
   /** true when execution-view.json exists but this build refuses it. */
   readonly unreadable: boolean;
   readonly gameId: string | null;
@@ -111,7 +114,8 @@ export async function listExecutionViewRuns(): Promise<ExecutionViewRunListEntry
         if (!view) return;
         out.push({
           tag,
-          ok: view.ok,
+          runState: view.runState,
+          traceModifiedAt: view.traceModifiedAt,
           unreadable: false,
           gameId: view.gameId,
           nodeCount: view.nodes.length,
@@ -124,7 +128,8 @@ export async function listExecutionViewRuns(): Promise<ExecutionViewRunListEntry
         // invalid shape). List it so the operator sees the re-export need.
         out.push({
           tag,
-          ok: null,
+          runState: null,
+          traceModifiedAt: null,
           unreadable: true,
           gameId: null,
           nodeCount: 0,

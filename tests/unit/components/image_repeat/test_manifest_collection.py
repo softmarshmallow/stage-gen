@@ -12,6 +12,7 @@ import pytest
 from PIL import Image
 
 import stage_gen.recipes.scrolling_preview.manifest as scrolling_manifest
+from gnode import BinaryArtifact, ProvenanceInput, RetryPolicy, write_artifact_with_provenance
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_repeat import (
     INTENDED_LOOP_REVIEW_PROMPT_VERSION,
@@ -31,10 +32,8 @@ from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.orchestration.image_repeat_reviewer import StructuredIntendedLoopReviewer
 from stage_gen.recipes.scrolling_preview.manifest import write_scrolling_preview_manifest
-from stage_gen.reliability import RetryPolicy, write_artifact_with_provenance
 
 
 class _AcceptingStructuredBackend:

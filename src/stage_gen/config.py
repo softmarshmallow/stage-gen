@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pydantic import Field, field_validator
 
-from stage_gen.contracts import ContractModel
+from gnode import ContractModel
 from stage_gen.provider_env import load_provider_dotenv
 
 

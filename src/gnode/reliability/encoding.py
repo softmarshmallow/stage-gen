@@ -10,7 +10,7 @@ import re
 import socket
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
-from stage_gen.contracts import InputProvenance
+from gnode.contracts.provenance import InputProvenance
 
 _BASE64 = re.compile(r"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$")
 _DATA_REFERENCE = re.compile(r"^data:([^;,]+);base64,(.+)$", re.IGNORECASE | re.DOTALL)

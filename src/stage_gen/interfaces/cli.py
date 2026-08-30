@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Never, TextIO, cast
 
+from gnode import write_run_view
 from stage_gen.benchmarks import list_benchmark_suites, run_benchmark
 from stage_gen.capabilities import (
     HeadlessRuntime,
@@ -47,7 +48,7 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.env_import import import_provider_env
-from stage_gen.orchestration.execution_view import build_execution_view, write_execution_view
+from stage_gen.orchestration.execution_view import build_execution_view
 from stage_gen.orchestration.game_package import resolve_game_package
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     package_dialogue_character_spike,
@@ -504,11 +505,11 @@ def _dispatch(
             annotators={"scrolling-preview": annotate_scrolling_preview_artifact},
         )
         view_path = Path(args.output_path) if args.output_path else run_dir / "execution-view.json"
-        write_execution_view(view_path, view)
+        write_run_view(view_path, view)
         view_report = {
             "gaps": len(view.gaps),
             "nodes": len(view.nodes),
-            "ok": view.ok,
+            "run_state": view.run_state,
             "output": str(view_path),
             "states": view.state_counts,
         }

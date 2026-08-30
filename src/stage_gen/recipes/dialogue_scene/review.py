@@ -11,15 +11,20 @@ from typing import Literal
 
 from pydantic import Field, ValidationError
 
-from stage_gen.components import CharacterProfile, canonical_character_profile_json
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
     SoftwareIdentity,
+    atomic_write_bytes,
+    build_artifact_provenance,
+    resolve_relative_path_within_root,
+    serialize_provenance,
+    write_artifact_with_provenance,
 )
+from stage_gen.components import CharacterProfile, canonical_character_profile_json
 from stage_gen.recipes.base import JsonObject
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
@@ -30,13 +35,6 @@ from stage_gen.recipes.dialogue_scene.models import (
     PersistedContractModel,
     ReviewState,
     RightsState,
-)
-from stage_gen.reliability import (
-    atomic_write_bytes,
-    build_artifact_provenance,
-    resolve_relative_path_within_root,
-    serialize_provenance,
-    write_artifact_with_provenance,
 )
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene-review", version="2")

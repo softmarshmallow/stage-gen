@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
+from gnode import ArtifactProvenance
 from stage_gen.components.game_map import load_game_map
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import ArtifactProvenance
 from stage_gen.recipes.base import StageContext, resolve_force_stage_plan
 from stage_gen.recipes.scrolling_preview import manifest as manifest_module
 from stage_gen.recipes.scrolling_preview import map_book as map_book_module

@@ -9,6 +9,15 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from gnode import (
+    ArtifactProvenance,
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+    SoftwareIdentity,
+    sha256_hex,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components.game_contract import (
     GameContractBinding,
     ResolvedGameContract,
@@ -28,16 +37,8 @@ from stage_gen.components.game_soundtrack import (
     ResolvedGameSoundtrack,
     resolve_game_soundtrack_binding,
 )
-from stage_gen.contracts import (
-    ArtifactProvenance,
-    BinaryArtifact,
-    InputProvenance,
-    ProvenanceInput,
-    SoftwareIdentity,
-)
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
-from stage_gen.reliability import sha256_hex, write_artifact_with_provenance_async
 
 MAP_BOOK_RESOLUTION_VERSION = "scrolling-game-map-book-resolution-v2"
 MAP_BOOK_MANIFEST_KIND = "game-map-book-manifest-v2"

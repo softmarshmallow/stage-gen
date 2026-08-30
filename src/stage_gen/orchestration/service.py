@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from gnode import CancellationToken
 from stage_gen.config import (
     CapabilityName,
     StageGenConfig,
@@ -22,7 +23,6 @@ from stage_gen.recipes.base import (
     resolve_force_stage_plan,
 )
 from stage_gen.recipes.registry import get_recipe
-from stage_gen.reliability import CancellationToken
 from stage_gen.tags import tag_for_transparency_mode
 
 

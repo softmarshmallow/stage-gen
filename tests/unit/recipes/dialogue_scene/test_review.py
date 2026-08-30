@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from gnode import ArtifactProvenance
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
-from stage_gen.contracts import ArtifactProvenance
 from stage_gen.interfaces.cli import main
 from stage_gen.recipes.dialogue_scene.executor import DialogueExecutorContext, DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.identity import content_sha256

@@ -73,12 +73,19 @@ uv run stage-gen generate \
 
 The plan expands Bellweather into the exact map, actor, catalog, soundtrack, validation, review,
 and manifest DAG. `--dry-run` executes the graph with deterministic fake operations and writes a
-sanitized trace. Calling package generation without `--dry-run` currently fails before provider
-construction; live map and content handlers are connected in the following implementation
-checkpoints. There is no bare-prompt fallback.
+sanitized trace. There is no bare-prompt fallback.
 
-GPT Image 2 native alpha remains the quality-first live route once those handlers are enabled.
-The standalone compatibility background-removal command remains available:
+A live run is bounded by exactly one checkpoint, requires provider credentials, and spends money.
+Calling `generate` without `--dry-run` and without `--checkpoint` fails before provider
+construction. `--checkpoint world` executes the map-review targets and their complete
+dependency closure; `--checkpoint content` independently executes the cast, catalog, UI,
+soundtrack, and stable-ID binding targets and theirs. Neither paid checkpoint assembles a
+manifest. `--checkpoint integration` is provider-free: it validates the package-derived runtime
+closure over accepted `--artifact-root` directories and atomically publishes one immutable
+`prepared-game-runtime-v10` run.
+
+GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
+background-removal command remains available:
 
 ```sh
 uv run stage-gen remove-background \
@@ -89,27 +96,45 @@ The dry-run directory contains `package.json`, `execution-plan.json`,
 `execution-projection.json`, `execution-trace.jsonl`, and `execution-summary.json`. See the
 [canonical generation pipeline](docs/spec/game/generation-pipeline.md) for the executable graph,
 resource limits, cache lineage, retry ownership, and operation counts. `stage-gen export-view
---run RUN_DIR` additionally derives `execution-view.json`, a read-only join of the plan and
-trace for run inspection.
+--run RUN_DIR` additionally derives `execution-view.json`; see
+[Reading a run back](#reading-a-run-back).
 
 ## Generation cost
 
-Budget approximately **USD 20** for a complete first generation of a Bellweather-sized game. The
+Budget approximately **USD 22** for a complete first generation of a Bellweather-sized game. The
 provider-free planner exposes the current estimate before any live request is made:
 
 | Bellweather reference package | Planned amount |
 | --- | ---: |
-| Image generation | 91 operations |
-| Structured generation and review | 16 operations |
+| Planned graph | 221 nodes |
+| Image generation | 93 operations |
+| Structured generation and review | 21 operations |
 | Music generation | 3 operations |
-| Estimated provider spend | **USD 4.02–21.88** |
-| Practical first-run budget | **About USD 20–22** |
+| Estimated provider spend | **USD 4.13–22.68** |
+| Practical first-run budget | **About USD 21–23** |
 
 This is a conservative planning allowance, not a provider quote. Active model pricing, retries,
 and deliberate semantic regenerations can change the final charge. Valid cache hits do not repeat
 provider work, so focused revisions and resumed runs are normally cheaper than the first complete
 generation. The generated `execution-projection.json` is the authority for the selected package;
 the [canonical generation pipeline](docs/spec/game/generation-pipeline.md) explains its assumptions.
+
+## Reading a run back
+
+A run appends a sanitized trace while it executes. `stage-gen export-view --run RUN_DIR` joins
+that trace with the plan it ran into `execution-view.json`: a derived, read-only document holding
+each node's state, timings, cache disposition, attempts, known cost, produced artifacts, and the
+dependency that blocked it. The web adapter renders that document as the graph the run actually
+was — one lane per domain, one chip per node, and an inspector over whichever node is selected.
+
+![The run viewer: Bellweather's execution graph with one node's facts and its generated artifact](.github/assets/readme/run-viewer.webp)
+
+_`out/bellweather-rebase-v3` exported and opened at `/runs/<tag>`. The viewer reads documents the
+CLI wrote; it holds no engine state and generates nothing._
+
+Runs are read from `out/`, or from `STAGE_GEN_OUT_DIR` when it is set. A run whose trace stops
+without a result is reported as interrupted rather than in flight: the document states only what
+its own records support, and the reader judges liveness from when the trace was last appended.
 
 ## What it provides
 
@@ -120,6 +145,9 @@ the [canonical generation pipeline](docs/spec/game/generation-pipeline.md) expla
   cancellation, path confinement, and redaction.
 - Recipe orchestration with progress, cache validation, atomic summaries,
   manifests, artifact hashes, and adjacent provenance.
+- An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
+  features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
+  keys, an append-only trace, and the derived run view above.
 - A CLI plus an optional loopback HTTP/SSE service.
 - A replaceable Next.js/React/Tailwind/Phaser preview that consumes completed manifests
   without moving gameplay assumptions into Python components.
@@ -227,25 +255,36 @@ referenced-media closure before any provider operation.
 
 ## Architecture
 
-Python under `src/stage_gen/` is the sole headless implementation. Node and
-TypeScript are confined to `web/`.
+Python is the sole headless implementation, split into an application and the
+asset-graph engine it runs on. Node and TypeScript are confined to `web/`.
 
 ```text
-src/stage_gen/
-  contracts/           typed artifact and provenance contracts
+src/gnode/              the engine: an asset graph and its scheduler
+  graph.py             typed nodes, declared resources, content identity
+  schedule.py          offline projection and the live scheduler
+  trace.py             append-only run trace and post-run summary
+  view.py              derived read-only run view for a client
+  dry_run.py           deterministic provider-free node handler
+  binding.py           model@provider routes and their declared features
+  contracts/           persisted contract bases and provenance records
+  reliability/         retries, cancellation, redaction, paths, persistence
+src/stage_gen/          the application, consuming `gnode`
   components/          provider-neutral image, structured, removal, music,
                        and verified single-axis image-repeat operations
   providers/           OpenRouter and FAL HTTP adapters
   media/               deterministic image/audio inspection and normalization
-  reliability/         retries, cancellation, redaction, paths, and persistence
   recipes/             application compositions and exported manifests
-  orchestration/       run preparation, concrete composition, and run.json
+  orchestration/       package resolution, execution documents, composition
   interfaces/          CLI and optional HTTP/SSE API
   benchmarks/          credential-free and opt-in evaluation suites
   resources/           wheel-packaged templates and approved fallback music
 web/                    optional browser preview consumer
 library/characters/     source-checkout or external authored profile workspace
 ```
+
+`gnode` is the only import surface its consumers touch: `from gnode import X`,
+never a submodule, and the engine imports no application package. A contract
+test enforces both directions.
 
 Dependencies point inward: providers implement component protocols, recipes
 compose components, and `orchestration.runtime` joins concrete providers to
@@ -305,7 +344,8 @@ options.
 
 The former prompt-launching web adapter is not an active generation authority after the prepared
 package cutover. The active preview consumes the provider-free `prepared-game-runtime-v10`
-integration output. Browser code never receives provider credentials.
+integration output, and the run viewer at `/runs` consumes exported run views. Browser code never
+receives provider credentials.
 
 ## Configuration and providers
 

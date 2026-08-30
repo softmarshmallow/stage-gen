@@ -14,6 +14,14 @@ from PIL import Image, ImageDraw
 
 import stage_gen.recipes.scrolling_preview.executor as executor_module
 import stage_gen.recipes.scrolling_preview.manifest as manifest_module
+from gnode import (
+    BinaryArtifact,
+    ProvenanceInput,
+    RetryExhaustedError,
+    RetryPolicy,
+    sha256_hex,
+    write_artifact_with_provenance,
+)
 from stage_gen.components import (
     BackgroundRemovalRequest,
     BackgroundRemovalResult,
@@ -35,7 +43,6 @@ from stage_gen.components.image_generation import (
 )
 from stage_gen.components.structured_generation import ProviderStructuredOutput
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.image_prompting import IMAGE_STYLE_SELECTION_SCHEMA
 from stage_gen.media import CHROMA_MATTE_VERSION
 from stage_gen.recipes.base import StageContext
@@ -66,12 +73,6 @@ from stage_gen.recipes.scrolling_preview.village import (
     VILLAGE_SPEC_SCHEMA_NAME,
     VillageSpec,
     npc_turnaround_subject,
-)
-from stage_gen.reliability import (
-    RetryExhaustedError,
-    RetryPolicy,
-    sha256_hex,
-    write_artifact_with_provenance,
 )
 from stage_gen.theme import (
     THEME_COMPILER_VERSION,

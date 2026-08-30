@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
 
+from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     KEBAB_ID_PATTERN,
@@ -16,7 +17,6 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
-from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAME_SEQUENCE_CATALOG_SCHEMA_VERSION = 2
 GAME_SEQUENCE_SCHEMA_VERSION = 1

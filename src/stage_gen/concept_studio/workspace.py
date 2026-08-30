@@ -14,9 +14,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from stage_gen.contracts import ArtifactProvenance
+from gnode import ArtifactProvenance, AtomicWriteError
 from stage_gen.media import ImageFacts, inspect_image
-from stage_gen.reliability import AtomicWriteError
 
 CONCEPT_STUDIO_DIR = "concept-studio"
 WORKSPACES_DIR = "workspaces"

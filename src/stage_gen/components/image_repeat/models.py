@@ -11,12 +11,15 @@ from typing import Annotated, Literal, Protocol, Self
 
 from pydantic import Field, field_validator, model_validator
 
+from gnode import (
+    ArtifactRights,
+    CancellationToken,
+    PersistedContractModel,
+    RightsStatus,
+    assert_safe_path_segment,
+    redact_secrets,
+)
 from stage_gen.components._types import ProviderResponseMetadata, validate_optional_timeout
-from stage_gen.contracts import ArtifactRights
-from stage_gen.contracts.artifacts import PersistedContractModel
-from stage_gen.contracts.provenance import RightsStatus
-from stage_gen.reliability import assert_safe_path_segment, redact_secrets
-from stage_gen.reliability.cancellation import CancellationToken
 
 IMAGE_REPEAT_SCHEMA_VERSION: Literal[2] = 2
 DIRECT_WRAP_ADMISSION_ALGORITHM: Literal["direct-wrap-admission-v2"] = "direct-wrap-admission-v2"

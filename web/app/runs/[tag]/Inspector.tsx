@@ -8,11 +8,14 @@
 import { useState } from "react";
 import { cx, errorBanner, linkGhost, metaLine } from "@/app/ui";
 import ImageLightbox, { type LightboxImage } from "@/app/generate/[tag]/ImageLightbox";
-import type {
-  ExecutionNodeState,
-  ExecutionView,
-  ExecutionViewArtifact,
-  ExecutionViewNode,
+import {
+  type ExecutionNodeState,
+  type ExecutionRunLiveness,
+  type ExecutionView,
+  type ExecutionViewArtifact,
+  type ExecutionViewNode,
+  nodeStateLabel,
+  RUN_LIVENESS_LABELS,
 } from "@/lib/runtime/execution-view";
 import { preparedAssetUrl } from "@/lib/runtime/prepared-manifest";
 import MotionPlayer from "./MotionPlayer";
@@ -158,14 +161,23 @@ function ArtifactCard({
   );
 }
 
-export function RunFacts({ view }: { view: ExecutionView }) {
+export function RunFacts({
+  view,
+  liveness,
+}: {
+  view: ExecutionView;
+  liveness: ExecutionRunLiveness;
+}) {
   return (
     <div className="p-3 text-xs">
       <dl className="m-0 border border-border">
         <Fact term="game">{view.gameId}</Fact>
         <Fact term="recipe">{view.recipe}</Fact>
         <Fact term="invocation">{view.invocationId ?? "—"}</Fact>
-        <Fact term="result">{view.ok === null ? "in flight" : view.ok ? "ok" : "failed"}</Fact>
+        <Fact term="result">{RUN_LIVENESS_LABELS[liveness]}</Fact>
+        {view.runState === "unfinished" ? (
+          <Fact term="last event">{view.traceModifiedAt ?? "—"}</Fact>
+        ) : null}
         <Fact term="duration">{formatMs(view.durationMs)}</Fact>
         <Fact term="known cost">{formatUsd(view.knownCostUsd)}</Fact>
         <Fact term="graph">{view.graphSha256.slice(0, 12)}…</Fact>
@@ -187,17 +199,19 @@ export function RunFacts({ view }: { view: ExecutionView }) {
 export default function NodeInspector({
   tag,
   node,
+  liveness,
   onSelect,
 }: {
   tag: string;
   node: ExecutionViewNode;
+  liveness: ExecutionRunLiveness;
   onSelect: (nodeId: string) => void;
 }) {
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
   return (
     <div className="p-3 text-xs">
       <p className={cx(metaLine, "mb-1")}>
-        {STATE_MARK[node.state]} {node.state} · {node.domain}
+        {STATE_MARK[node.state]} {nodeStateLabel(node.state, liveness)} · {node.domain}
       </p>
       <p className="mt-0 mb-2 text-dim">{node.description}</p>
       {node.error ? <p className={errorBanner}>{node.error}</p> : null}

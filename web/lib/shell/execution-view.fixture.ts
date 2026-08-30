@@ -40,14 +40,15 @@ function viewNode(overrides: Record<string, unknown>): Record<string, unknown> {
 /** A three-node run: resolve → generate motion strip → validate, all green. */
 export function executionViewFixture(): Record<string, unknown> {
   return {
-    schema_version: 1,
+    schema_version: 2,
     kind: "prepared-game-execution-view-v1",
     recipe: "scrolling-preview",
     game_id: "bellweather",
     graph_sha256: DIGEST,
     topology_sha256: DIGEST,
     invocation_id: "fixture-run",
-    ok: true,
+    run_state: "succeeded",
+    trace_modified_at: "2026-08-30T12:00:00Z",
     duration_ms: 4200,
     known_cost_usd: 0.12,
     state_counts: { pending: 0, running: 0, succeeded: 3, failed: 0, skipped: 0 },
@@ -110,8 +111,14 @@ export function executionViewFixture(): Record<string, unknown> {
   };
 }
 
-/** The same run interrupted: validate never started, generate still running. */
-export function inFlightExecutionViewFixture(): Record<string, unknown> {
+/**
+ * The same run stopped mid-stream: validate never started, generate never
+ * finished. Whether that reads as running or interrupted is the reader's call,
+ * made from trace_modified_at — so callers set it to whatever they are testing.
+ */
+export function unfinishedExecutionViewFixture(
+  traceModifiedAt: string | null = "2026-08-30T12:00:00Z",
+): Record<string, unknown> {
   const document = executionViewFixture();
   const nodes = document.nodes as Record<string, unknown>[];
   nodes[1] = {
@@ -140,7 +147,8 @@ export function inFlightExecutionViewFixture(): Record<string, unknown> {
   };
   return {
     ...document,
-    ok: null,
+    run_state: "unfinished",
+    trace_modified_at: traceModifiedAt,
     duration_ms: null,
     known_cost_usd: null,
     state_counts: { pending: 1, running: 1, succeeded: 1, failed: 0, skipped: 0 },
@@ -168,7 +176,7 @@ export function failedExecutionViewFixture(): Record<string, unknown> {
   };
   return {
     ...document,
-    ok: false,
+    run_state: "failed",
     state_counts: { pending: 0, running: 0, succeeded: 1, failed: 1, skipped: 1 },
   };
 }

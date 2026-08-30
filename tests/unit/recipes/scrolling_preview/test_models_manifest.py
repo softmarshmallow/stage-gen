@@ -12,8 +12,8 @@ from PIL import Image, ImageDraw
 from pydantic import ValidationError
 
 import stage_gen.recipes.scrolling_preview.manifest as manifest_module
+from gnode import BinaryArtifact, ProvenanceInput, sha256_hex, write_artifact_with_provenance
 from stage_gen.config import TransparencyMode
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
 from stage_gen.recipes.scrolling_preview.manifest import write_scrolling_preview_manifest
 from stage_gen.recipes.scrolling_preview.models import (
@@ -35,7 +35,6 @@ from stage_gen.recipes.scrolling_preview.village import (
     VillageSpec,
     village_manifest_block,
 )
-from stage_gen.reliability import sha256_hex, write_artifact_with_provenance
 
 
 def valid_world() -> dict[str, object]:

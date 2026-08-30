@@ -10,9 +10,8 @@ from typing import Any
 
 import pytest
 
+from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
-from stage_gen.reliability import write_artifact_with_provenance
 
 
 def _load_script() -> ModuleType:

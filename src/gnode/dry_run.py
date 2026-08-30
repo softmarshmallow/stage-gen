@@ -1,4 +1,8 @@
-"""Deterministic provider-free node handler for execution-graph verification."""
+"""Deterministic provider-free node handler.
+
+Exercises scheduling, failure, trace, and cache behaviour with no provider call,
+so a plan can always be rehearsed for free (D7).
+"""
 
 from __future__ import annotations
 
@@ -7,27 +11,26 @@ import hashlib
 import json
 from pathlib import Path
 
-from stage_gen.orchestration.execution_graph import (
+from gnode.graph import (
     CacheDisposition,
-    ExecutionGraph,
-    ExecutionNode,
+    Graph,
+    Node,
     NodeArtifact,
     NodeExecutionContext,
     NodeExecutionError,
     NodeExecutionResult,
-    OperationKind,
 )
-from stage_gen.reliability import atomic_write_bytes, atomic_write_json
+from gnode.reliability import atomic_write_bytes, atomic_write_json
 
-FAKE_CACHE_SCHEMA_VERSION = 1
+DRY_RUN_CACHE_SCHEMA_VERSION = 1
 
 
-class FakeNodeHandler:
+class DryRunNodeHandler:
     """Exercise scheduling, failure, trace, and cache behavior without provider access."""
 
     def __init__(
         self,
-        graph: ExecutionGraph,
+        graph: Graph,
         *,
         run_dir: Path,
         cache_dir: Path,
@@ -44,9 +47,7 @@ class FakeNodeHandler:
         self._failure_node_id = failure_node_id
         self._time_scale = time_scale
 
-    async def __call__(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         if context.graph_sha256 != self._graph.graph_sha256:
             raise ValueError("fake execution context graph identity changed")
         dependency_cache_keys = tuple(
@@ -85,7 +86,7 @@ class FakeNodeHandler:
 
         await asyncio.sleep(node.estimated_duration_seconds * self._time_scale)
         if node.node_id == self._failure_node_id:
-            external = node.operation is not OperationKind.LOCAL
+            external = not node.is_local
             raise NodeExecutionError(
                 "injected fake-provider failure",
                 attempts=node.max_attempts,
@@ -104,7 +105,7 @@ class FakeNodeHandler:
             artifact_bytes,
             artifact_sha256,
         )
-        external = node.operation is not OperationKind.LOCAL
+        external = not node.is_local
         return NodeExecutionResult(
             cache=CacheDisposition.MISS,
             attempts=1,
@@ -121,7 +122,7 @@ class FakeNodeHandler:
 
     def _read_cache(
         self,
-        node: ExecutionNode,
+        node: Node,
         dependency_cache_keys: tuple[str, ...],
         dependency_lineage: tuple[dict[str, object], ...],
     ) -> tuple[bytes, str] | None:
@@ -135,11 +136,11 @@ class FakeNodeHandler:
             return None
         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         expected = {
-            "schema_version": FAKE_CACHE_SCHEMA_VERSION,
+            "schema_version": DRY_RUN_CACHE_SCHEMA_VERSION,
             "kind": "fake-execution-node-cache-v1",
             "node_id": node.node_id,
             "cache_key": node.cache_key,
-            "operation": node.operation.value,
+            "operation": node.operation,
             "dependency_cache_keys": list(dependency_cache_keys),
             "dependency_lineage": list(dependency_lineage),
             "artifact_file": artifact_path.name,
@@ -152,7 +153,7 @@ class FakeNodeHandler:
 
     def _write_cache(
         self,
-        node: ExecutionNode,
+        node: Node,
         dependency_cache_keys: tuple[str, ...],
         dependency_lineage: tuple[dict[str, object], ...],
         artifact_bytes: bytes,
@@ -163,11 +164,11 @@ class FakeNodeHandler:
         atomic_write_json(
             record_path,
             {
-                "schema_version": FAKE_CACHE_SCHEMA_VERSION,
+                "schema_version": DRY_RUN_CACHE_SCHEMA_VERSION,
                 "kind": "fake-execution-node-cache-v1",
                 "node_id": node.node_id,
                 "cache_key": node.cache_key,
-                "operation": node.operation.value,
+                "operation": node.operation,
                 "dependency_cache_keys": list(dependency_cache_keys),
                 "dependency_lineage": list(dependency_lineage),
                 "artifact_file": artifact_path.name,
@@ -176,17 +177,17 @@ class FakeNodeHandler:
             },
         )
 
-    def _cache_paths(self, node: ExecutionNode) -> tuple[Path, Path]:
+    def _cache_paths(self, node: Node) -> tuple[Path, Path]:
         bucket = self._cache_dir / node.cache_key[:2]
         return bucket / f"{node.cache_key}.json", bucket / f"{node.cache_key}.artifact.json"
 
 
-def _fake_artifact_ref(node: ExecutionNode) -> str:
+def _fake_artifact_ref(node: Node) -> str:
     return f"dry-run/{node.node_id}.json"
 
 
 def _fake_artifact_bytes(
-    node: ExecutionNode,
+    node: Node,
     dependency_cache_keys: tuple[str, ...],
     dependency_lineage: tuple[dict[str, object], ...],
 ) -> bytes:
@@ -195,7 +196,7 @@ def _fake_artifact_bytes(
         "kind": "fake-execution-artifact-v1",
         "node_id": node.node_id,
         "cache_key": node.cache_key,
-        "operation": node.operation.value,
+        "operation": node.operation,
         "dependency_cache_keys": list(dependency_cache_keys),
         "dependency_lineage": list(dependency_lineage),
         "declared_outputs": list(node.outputs),
@@ -203,4 +204,4 @@ def _fake_artifact_bytes(
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
 
 
-__all__ = ["FAKE_CACHE_SCHEMA_VERSION", "FakeNodeHandler"]
+__all__ = ["DRY_RUN_CACHE_SCHEMA_VERSION", "DryRunNodeHandler"]

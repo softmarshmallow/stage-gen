@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from gnode import DryRunNodeHandler, NodeStatus, Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_graph import DependencyExecutor, NodeStatus
-from stage_gen.orchestration.fake_execution import FakeNodeHandler
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.scrolling_preview.prepared_content import content_target_node_ids
 from stage_gen.recipes.scrolling_preview.prepared_world import world_target_node_ids
@@ -122,9 +121,9 @@ async def test_cache_replay_rejects_modified_content_and_lineage(tmp_path: Path)
 async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
     targets = world_target_node_ids(prepared.package)
-    summary = await DependencyExecutor(prepared.graph.resources).run(
+    summary = await Scheduler(prepared.graph.resources).run(
         prepared.graph,
-        FakeNodeHandler(
+        DryRunNodeHandler(
             prepared.graph,
             run_dir=tmp_path / "run",
             cache_dir=tmp_path / "cache",
@@ -153,9 +152,9 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
 async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) -> None:
     prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
     targets = content_target_node_ids(prepared.package)
-    summary = await DependencyExecutor(prepared.graph.resources).run(
+    summary = await Scheduler(prepared.graph.resources).run(
         prepared.graph,
-        FakeNodeHandler(
+        DryRunNodeHandler(
             prepared.graph,
             run_dir=tmp_path / "run",
             cache_dir=tmp_path / "cache",

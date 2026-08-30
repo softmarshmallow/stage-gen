@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
 from stage_gen.components import StyleModeSelection
 from stage_gen.config import StageGenConfig
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -20,7 +20,6 @@ from stage_gen.recipes.dialogue_scene.identity import (
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
 from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueThemeRequest
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
-from stage_gen.reliability import write_artifact_with_provenance
 
 from .test_contracts import request_value
 

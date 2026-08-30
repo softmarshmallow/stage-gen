@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
 
+from gnode import Binding, BindingTable, ModelRef, Node, Resource, RetryOwner, build_node_cache_key
 from stage_gen.components.game_content import (
     DEFAULT_MOTION_ANCHOR,
     ContentReference,
@@ -19,11 +19,7 @@ from stage_gen.media import (
 )
 from stage_gen.orchestration.execution_graph import (
     ExecutionGraph,
-    ExecutionNode,
-    ExecutionResource,
     OperationKind,
-    RetryOwner,
-    build_node_cache_key,
     finalize_execution_graph,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -73,36 +69,70 @@ UI_INVENTORY_PANEL_REVIEW_VERSION = "prepared-ui-inventory-panel-review-v1"
 MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
 MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
-
-@dataclass(frozen=True, slots=True)
-class PackageGraphProfile:
-    image_provider: str
-    image_model: str
-    image_ipm: int
-    structured_provider: str
-    structured_model: str
-    music_provider: str
-    music_model: str
+#: Features this recipe requires of whatever route serves each capability. A
+#: route that does not declare one is refused while planning, before any spend.
+IMAGE_FEATURES = ("transparent_background", "reference_images")
+STRUCTURED_FEATURES = ("structured_output", "image_input")
+MUSIC_FEATURES = ("instrumental_loop",)
 
 
-def package_graph_profile(config: StageGenConfig) -> PackageGraphProfile:
-    """Select provider routes without reading or retaining provider credentials."""
+_REQUIRED_FEATURES: dict[OperationKind, tuple[str, ...]] = {
+    OperationKind.IMAGE_GENERATION: IMAGE_FEATURES,
+    OperationKind.STRUCTURED_GENERATION: STRUCTURED_FEATURES,
+    OperationKind.MUSIC_GENERATION: MUSIC_FEATURES,
+}
 
-    return PackageGraphProfile(
-        image_provider="openai",
-        image_model=config.openai_image_model,
-        image_ipm=config.openai_image_ipm,
-        structured_provider="openrouter",
-        structured_model=config.text_model,
-        music_provider="openrouter",
-        music_model=config.music_model,
+
+def package_graph_profile(config: StageGenConfig) -> BindingTable:
+    """Declare the provider routes this plan may use, credentials untouched.
+
+    Each entry is one ``model@provider`` route with the features it is known to
+    support. ``verified_on`` records when that claim was last checked against
+    the provider; see docs/providers.md.
+    """
+
+    return BindingTable(
+        [
+            Binding(
+                operation=OperationKind.IMAGE_GENERATION,
+                model=ModelRef(model=config.openai_image_model, provider="openai"),
+                features=frozenset(IMAGE_FEATURES),
+                resource_id="openai-image",
+                estimated_duration_seconds=120.0,
+                estimated_cost_low_usd=0.04,
+                estimated_cost_high_usd=0.20,
+                requests_per_minute=config.openai_image_ipm,
+                rate_limit_owner="provider_adapter",
+                verified_on="2026-08-25",
+            ),
+            Binding(
+                operation=OperationKind.STRUCTURED_GENERATION,
+                model=ModelRef(model=config.text_model, provider="openrouter"),
+                features=frozenset(STRUCTURED_FEATURES),
+                resource_id="openrouter-structured",
+                estimated_duration_seconds=30.0,
+                estimated_cost_low_usd=0.005,
+                estimated_cost_high_usd=0.08,
+                verified_on="2026-08-20",
+            ),
+            Binding(
+                operation=OperationKind.MUSIC_GENERATION,
+                model=ModelRef(model=config.music_model, provider="openrouter"),
+                features=frozenset(MUSIC_FEATURES),
+                resource_id="openrouter-music",
+                estimated_duration_seconds=180.0,
+                estimated_cost_low_usd=0.10,
+                estimated_cost_high_usd=0.80,
+                verified_on="2026-08-14",
+            ),
+        ]
     )
 
 
 def build_package_execution_graph(
     package: ResolvedGamePackage,
     *,
-    profile: PackageGraphProfile,
+    profile: BindingTable,
 ) -> ExecutionGraph:
     """Expand every authored map and content entry into stable executable nodes."""
 
@@ -1152,33 +1182,18 @@ def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> str:
 
 
 class _GraphBuilder:
-    def __init__(self, package: ResolvedGamePackage, profile: PackageGraphProfile) -> None:
+    def __init__(self, package: ResolvedGamePackage, profile: BindingTable) -> None:
         self.package = package
         self.profile = profile
-        self.nodes: list[ExecutionNode] = []
-        self._by_id: dict[str, ExecutionNode] = {}
+        self.nodes: list[Node] = []
+        self._by_id: dict[str, Node] = {}
         self.resources = (
-            ExecutionResource(
+            Resource(
                 resource_id="local",
                 max_in_flight=32,
                 rate_limit_owner="none",
             ),
-            ExecutionResource(
-                resource_id="openai-image",
-                max_in_flight=None,
-                requests_per_minute=profile.image_ipm,
-                rate_limit_owner="provider_adapter",
-            ),
-            ExecutionResource(
-                resource_id="openrouter-structured",
-                max_in_flight=None,
-                rate_limit_owner="none",
-            ),
-            ExecutionResource(
-                resource_id="openrouter-music",
-                max_in_flight=None,
-                rate_limit_owner="none",
-            ),
+            *profile.resources(),
         )
 
     def add_external(
@@ -1192,27 +1207,8 @@ class _GraphBuilder:
         cache_depends_on: Sequence[str] | None = None,
         input_digests: Sequence[str],
         outputs: Sequence[str],
-    ) -> ExecutionNode:
-        if operation is OperationKind.IMAGE_GENERATION:
-            provider = self.profile.image_provider
-            model = self.profile.image_model
-            resource_id = "openai-image"
-            duration_seconds = 120.0
-            cost_low, cost_high = 0.04, 0.20
-        elif operation is OperationKind.STRUCTURED_GENERATION:
-            provider = self.profile.structured_provider
-            model = self.profile.structured_model
-            resource_id = "openrouter-structured"
-            duration_seconds = 30.0
-            cost_low, cost_high = 0.005, 0.08
-        elif operation is OperationKind.MUSIC_GENERATION:
-            provider = self.profile.music_provider
-            model = self.profile.music_model
-            resource_id = "openrouter-music"
-            duration_seconds = 180.0
-            cost_low, cost_high = 0.10, 0.80
-        else:
-            raise ValueError("add_external requires a provider operation")
+    ) -> Node:
+        binding = self.profile.require(operation, *_REQUIRED_FEATURES[operation])
         return self.add(
             node_id,
             domain=domain,
@@ -1222,14 +1218,14 @@ class _GraphBuilder:
             cache_depends_on=cache_depends_on,
             input_digests=input_digests,
             outputs=outputs,
-            provider=provider,
-            model=model,
-            resource_id=resource_id,
+            provider=binding.model.provider,
+            model=binding.model.model,
+            resource_id=binding.resource_id,
             retry_owner=RetryOwner.COMPONENT,
             max_attempts=6,
-            duration_seconds=duration_seconds,
-            cost_low=cost_low,
-            cost_high=cost_high,
+            duration_seconds=binding.estimated_duration_seconds,
+            cost_low=binding.estimated_cost_low_usd,
+            cost_high=binding.estimated_cost_high_usd,
         )
 
     def add(
@@ -1251,7 +1247,7 @@ class _GraphBuilder:
         duration_seconds: float = 0.25,
         cost_low: float = 0.0,
         cost_high: float = 0.0,
-    ) -> ExecutionNode:
+    ) -> Node:
         if node_id in self._by_id:
             raise ValueError(f"duplicate package graph node: {node_id}")
         dependency_cache_keys: list[str] = []
@@ -1268,7 +1264,7 @@ class _GraphBuilder:
                     f"package graph dependency must be added first: {node_id}->{dependency}"
                 ) from error
         unique_input_digests = tuple(dict.fromkeys(input_digests))
-        node = ExecutionNode(
+        node = Node(
             node_id=node_id,
             domain=domain,
             description=description,
@@ -1387,7 +1383,6 @@ def _motion_identity(kind: MotionActorKind, state: str, source_facing: str) -> d
 
 __all__ = [
     "PACKAGE_GRAPH_CONTRACT_VERSION",
-    "PackageGraphProfile",
     "build_package_execution_graph",
     "package_graph_profile",
 ]

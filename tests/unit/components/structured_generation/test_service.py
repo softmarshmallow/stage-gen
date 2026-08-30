@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 
+from gnode import RetryExhaustedError, RetryPolicy
 from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredGenerationService,
@@ -14,7 +15,6 @@ from stage_gen.components.structured_generation import (
     StructuredReference,
 )
 from stage_gen.providers.openrouter import OpenRouterStructuredBackend
-from stage_gen.reliability import RetryExhaustedError, RetryPolicy
 
 
 @pytest.mark.asyncio

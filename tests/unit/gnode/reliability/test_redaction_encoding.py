@@ -4,7 +4,7 @@ import base64
 
 import pytest
 
-from stage_gen.reliability import (
+from gnode import (
     assert_media_type,
     decode_base64_strict,
     hash_input_reference,

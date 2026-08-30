@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 
-from stage_gen.contracts.artifacts import PersistedContractModel
+from gnode import PersistedContractModel
 
 CharacterProfileRightsStatus = Literal["unreviewed", "restricted", "redistribution-approved"]
 

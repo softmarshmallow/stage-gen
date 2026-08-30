@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from stage_gen.reliability import (
+from gnode import (
     AbortError,
     CancellationError,
     CancellationToken,

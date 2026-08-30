@@ -14,10 +14,15 @@ from typing import Any, cast
 import pytest
 from PIL import Image
 
+from gnode import (
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+    sha256_hex,
+    write_artifact_with_provenance,
+)
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import BinaryArtifact, InputProvenance, ProvenanceInput
 from stage_gen.media import CHROMA_MATTE_VERSION
-from stage_gen.reliability import sha256_hex, write_artifact_with_provenance
 
 
 def _load_script() -> ModuleType:

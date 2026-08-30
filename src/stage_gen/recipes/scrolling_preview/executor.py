@@ -17,6 +17,18 @@ from typing import Any, cast
 from PIL import Image
 from PIL import __version__ as pillow_version
 
+from gnode import (
+    ArtifactProvenance,
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+    RetryExhaustedError,
+    RetryFailureRecord,
+    SoftwareIdentity,
+    sanitize_for_persistence,
+    sha256_hex,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components import (
     BackgroundRemovalRequest,
     BackgroundRemovalService,
@@ -43,13 +55,6 @@ from stage_gen.components.game_contract import (
 )
 from stage_gen.components.image_generation import canonical_style_anchor_digest, render_style_anchor
 from stage_gen.config import TransparencyMode
-from stage_gen.contracts import (
-    ArtifactProvenance,
-    BinaryArtifact,
-    InputProvenance,
-    ProvenanceInput,
-    SoftwareIdentity,
-)
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.media import (
     CHROMA_MATTE_VERSION,
@@ -167,13 +172,6 @@ from stage_gen.recipes.scrolling_preview.village import (
     VillageSpec,
     npc_turnaround_subject,
     village_enabled,
-)
-from stage_gen.reliability import (
-    RetryExhaustedError,
-    RetryFailureRecord,
-    sanitize_for_persistence,
-    sha256_hex,
-    write_artifact_with_provenance_async,
 )
 from stage_gen.resources import image_template_dir
 from stage_gen.theme import (

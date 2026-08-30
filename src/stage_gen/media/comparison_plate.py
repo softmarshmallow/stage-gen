@@ -32,7 +32,7 @@ from typing import Final
 
 from PIL import Image, ImageDraw, ImageFont
 
-from stage_gen.reliability.encoding import sha256_hex
+from gnode import sha256_hex
 
 COMPARISON_PLATE_SCHEMA_NAME: Final = "comparison_plate_v1"
 COMPARISON_PLATE_ERROR_CODE: Final = "comparison-plate-v1"

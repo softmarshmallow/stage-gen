@@ -4,17 +4,18 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Self
 
-from stage_gen.components._types import BinaryArtifact, run_validator
-from stage_gen.contracts import ProvenanceInput, SoftwareIdentity
-from stage_gen.media import assert_image_signature
-from stage_gen.reliability import (
+from gnode import (
+    ProvenanceInput,
     RetryContext,
     RetryPolicy,
+    SoftwareIdentity,
     hash_input_reference,
     retry_with_backoff,
     sanitize_reference,
     write_artifact_with_provenance_async,
 )
+from stage_gen.components._types import BinaryArtifact, run_validator
+from stage_gen.media import assert_image_signature
 
 from .models import (
     ImageGenerationBackend,

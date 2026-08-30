@@ -8,12 +8,79 @@
 // re-export, not a migration.
 
 export const EXECUTION_VIEW_KIND = "prepared-game-execution-view-v1";
-export const EXECUTION_VIEW_SCHEMA_VERSION = 1;
+export const EXECUTION_VIEW_SCHEMA_VERSION = 2;
 
 export const EXECUTION_VIEW_REFUSAL =
   `unsupported execution view: expected ${EXECUTION_VIEW_KIND} ` +
   `schema_version ${EXECUTION_VIEW_SCHEMA_VERSION}; re-export this run ` +
   "(stage-gen export-view --run out/<tag>)";
+
+// What a run's own records say became of it. "unfinished" deliberately does not
+// claim the run is going: a document written once cannot know that. Liveness is
+// decided by the reader from traceModifiedAt — see runLiveness below.
+export type ExecutionRunState =
+  | "planned"
+  | "unfinished"
+  | "canceled"
+  | "succeeded"
+  | "failed";
+
+export const EXECUTION_RUN_STATES: readonly ExecutionRunState[] = [
+  "planned",
+  "unfinished",
+  "canceled",
+  "succeeded",
+  "failed",
+] as const;
+
+// How long an unfinished run may stay silent before a reader stops believing it
+// is still going. Nodes are estimated at 120-180s and the scheduler's per-node
+// timeout is 1800s, so a live run appends well inside this window; past it, the
+// far likelier explanation is that the process is gone. Being wrong is cheap and
+// self-correcting in both directions: a genuinely slow run flips back to running
+// on its next event, and an abandoned one stops claiming to be alive.
+export const RUNNING_TRACE_STALENESS_MS = 15 * 60 * 1000;
+
+// What to tell a reader right now. Unlike ExecutionRunState this is not in the
+// document: it folds the run's records together with how long ago they were
+// last written, so it can only be decided at read time.
+export type ExecutionRunLiveness =
+  | "planned"
+  | "running"
+  | "interrupted"
+  | "canceled"
+  | "succeeded"
+  | "failed";
+
+export function runLiveness(
+  run: { readonly runState: ExecutionRunState; readonly traceModifiedAt: string | null },
+  now: number,
+): ExecutionRunLiveness {
+  if (run.runState !== "unfinished") return run.runState;
+  if (run.traceModifiedAt === null) return "interrupted";
+  const written = Date.parse(run.traceModifiedAt);
+  if (Number.isNaN(written)) return "interrupted";
+  return now - written <= RUNNING_TRACE_STALENESS_MS ? "running" : "interrupted";
+}
+
+// One vocabulary for every surface that names a run's condition.
+export const RUN_LIVENESS_LABELS: Record<ExecutionRunLiveness, string> = {
+  planned: "planned",
+  running: "running",
+  interrupted: "interrupted",
+  canceled: "canceled",
+  succeeded: "ok",
+  failed: "failed",
+};
+
+// A node in state "running" started and wrote no terminal record. That reads as
+// activity only while the run itself is live; otherwise nobody ever finished it.
+export function nodeStateLabel(
+  state: ExecutionNodeState,
+  liveness: ExecutionRunLiveness,
+): string {
+  return state === "running" && liveness !== "running" ? "abandoned" : state;
+}
 
 export type ExecutionNodeState =
   | "pending"
@@ -91,7 +158,8 @@ export interface ExecutionView {
   readonly graphSha256: string;
   readonly topologySha256: string;
   readonly invocationId: string | null;
-  readonly ok: boolean | null;
+  readonly runState: ExecutionRunState;
+  readonly traceModifiedAt: string | null;
   readonly durationMs: number | null;
   readonly knownCostUsd: number | null;
   readonly stateCounts: Readonly<Record<ExecutionNodeState, number>>;
@@ -136,10 +204,11 @@ function countOrNull(value: unknown, label: string): number | null {
   return count(value, label);
 }
 
-function boolOrNull(value: unknown, label: string): boolean | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "boolean") throw new Error(`${label} must be a boolean or null`);
-  return value;
+function runState(value: unknown, label: string): ExecutionRunState {
+  if ((EXECUTION_RUN_STATES as readonly unknown[]).includes(value)) {
+    return value as ExecutionRunState;
+  }
+  throw new Error(`${label} must be one of ${EXECUTION_RUN_STATES.join(", ")}`);
 }
 
 function texts(value: unknown, label: string): readonly string[] {
@@ -272,7 +341,8 @@ export function parseExecutionView(value: unknown): ExecutionView {
     graphSha256: text(root.graph_sha256, "graph_sha256"),
     topologySha256: text(root.topology_sha256, "topology_sha256"),
     invocationId: textOrNull(root.invocation_id, "invocation_id"),
-    ok: boolOrNull(root.ok, "ok"),
+    runState: runState(root.run_state, "run_state"),
+    traceModifiedAt: textOrNull(root.trace_modified_at, "trace_modified_at"),
     durationMs: countOrNull(root.duration_ms, "duration_ms"),
     knownCostUsd: countOrNull(root.known_cost_usd, "known_cost_usd"),
     stateCounts,

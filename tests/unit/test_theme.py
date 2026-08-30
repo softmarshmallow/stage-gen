@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 import stage_gen.theme as theme_module
-from stage_gen.reliability import CancellationToken, sha256_hex
+from gnode import CancellationToken, sha256_hex
 from stage_gen.resources import theme_compiler_skill_path
 from stage_gen.theme import (
     THEME_COMPILER_VERSION,

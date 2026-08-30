@@ -16,6 +16,7 @@ from typing import Literal
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field, field_validator, model_validator
 
+from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     AuthoredContractLoadError,
@@ -67,7 +68,6 @@ from stage_gen.components.gameplay_contract import (
     SetQuestStateEffect,
     load_gameplay_contract_bytes,
 )
-from stage_gen.contracts.artifacts import PersistedContractModel
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
 GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 4

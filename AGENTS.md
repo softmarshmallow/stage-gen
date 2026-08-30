@@ -8,7 +8,11 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 ## Architecture
 
 - Keep identifiers, comments, logs, tests, and user-facing source strings in English.
-- Python under `src/stage_gen/` is the sole headless implementation; components remain provider-neutral, providers
+- Python is the sole headless implementation, split in two: `src/gnode/` is the agnostic asset-graph engine
+  (topology, scheduling, trace, run view, model bindings, reliability, provenance) and `src/stage_gen/` is the
+  application that consumes it. `gnode` exposes one import surface — `from gnode import X`, never a submodule — and
+  imports no application package; a contract test enforces both directions. Nothing game-, recipe-, or media-specific
+  belongs in `gnode`. Components remain provider-neutral, providers
   implement their protocols, and orchestration is the composition root. Shared recipe-neutral media inspection and transforms
   belong in `media`; capability-specific processing stays with its component, and recipe-specific canonicalization with its recipe.
 - Recipes own generation-specific genre, composition, layout, artifact, and validation assumptions; consumer adapters
@@ -26,6 +30,8 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 
 ## Provider and artifact safety
 
+- Provider routes are declared in a `gnode` binding table as `model@provider` with the features each route supports;
+  a missing feature is refused while planning, offline, before any spend. Do not name a model inside a node's logic.
 - Each AI/provider operation has one retry owner and at most six attempts: one initial plus five retries with capped
   backoff. Keep transport, decoding, schema/media checks, and caller validation inside it; disable nested retry loops.
 - Mark artifacts successful only after validation and rollback-safe atomic artifact-plus-sidecar persistence. Cache

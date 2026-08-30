@@ -26,16 +26,12 @@ from typing import Any, Protocol, cast
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from gnode import assert_safe_path_segment, redact_secrets, sanitize_for_persistence
 from stage_gen.config import StageGenConfig, load_config, parse_transparency_mode
 from stage_gen.contracts import load_recipe_run_summary
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.cache import valid_artifact_pair
 from stage_gen.recipes.scrolling_preview.executor import ScrollingPreviewExecutor
-from stage_gen.reliability import (
-    assert_safe_path_segment,
-    redact_secrets,
-    sanitize_for_persistence,
-)
 
 _KIND = "scrolling_preview_manifest_refresh"
 

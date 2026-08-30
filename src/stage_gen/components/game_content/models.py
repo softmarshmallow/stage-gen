@@ -8,6 +8,7 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
+from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     SHA256_PATTERN,
@@ -18,7 +19,6 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
-from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAME_CONTENT_SCHEMA_VERSION = 2
 NPC_CONTENT_SCHEMA_VERSION = 3

@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from stage_gen.contracts.artifacts import PersistedContractModel
+from gnode import PersistedContractModel
 
 _SLUG = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _UINT32_MAX = (1 << 32) - 1

@@ -67,3 +67,55 @@ def test_prepared_package_resolution_has_no_provider_or_recipe_dependency() -> N
             if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden):
                 violations.append(f"{path.name}:{node.lineno} imports {imported}")
     assert not violations, "package resolution must remain provider-free:\n" + "\n".join(violations)
+
+
+ENGINE_ROOT = SOURCE_ROOT / "gnode"
+CONSUMER_ROOTS = (
+    SOURCE_ROOT / "stage_gen",
+    SOURCE_ROOT.parent / "tests",
+    SOURCE_ROOT.parent / "scripts",
+)
+
+
+def _python_sources(root: Path) -> list[Path]:
+    return sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
+
+
+def test_engine_does_not_import_the_application() -> None:
+    """gnode is the engine: it must stay usable with no application present."""
+
+    violations: list[str] = []
+    for path in _python_sources(ENGINE_ROOT):
+        package = _package_for(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            for imported in _imported_modules(node, package):
+                if imported == "stage_gen" or imported.startswith("stage_gen."):
+                    relative = path.relative_to(SOURCE_ROOT.parent)
+                    violations.append(f"{relative}:{node.lineno} imports {imported}")
+    assert not violations, "engine import boundary violations:\n" + "\n".join(violations)
+
+
+def test_application_imports_only_the_engine_top_level() -> None:
+    """One import surface keeps the engine free to move its modules."""
+
+    violations: list[str] = []
+    for root in CONSUMER_ROOTS:
+        for path in _python_sources(root):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    deep = node.module is not None and node.module.startswith("gnode.")
+                elif isinstance(node, ast.Import):
+                    deep = any(alias.name.startswith("gnode.") for alias in node.names)
+                else:
+                    continue
+                if deep:
+                    relative = path.relative_to(SOURCE_ROOT.parent)
+                    violations.append(f"{relative}:{node.lineno}")
+    assert not violations, (
+        "the engine exposes one import surface; import from gnode directly:\n"
+        + "\n".join(violations)
+    )

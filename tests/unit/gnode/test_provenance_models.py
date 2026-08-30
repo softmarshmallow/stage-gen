@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.contracts import ArtifactProvenance, ArtifactResult, ArtifactRights, ProvenanceInput
+from gnode import ArtifactProvenance, ArtifactResult, ArtifactRights, ProvenanceInput
 
 
 def unreviewed_rights() -> ArtifactRights:

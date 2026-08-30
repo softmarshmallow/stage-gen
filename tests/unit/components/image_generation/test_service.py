@@ -8,13 +8,13 @@ from typing import Any
 import httpx
 import pytest
 
+from gnode import RetryExhaustedError, RetryPolicy
 from stage_gen.components.image_generation import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
 )
 from stage_gen.providers.openrouter import OpenRouterImageBackend
-from stage_gen.reliability import RetryExhaustedError, RetryPolicy
 
 from .._helpers import png_bytes
 

@@ -6,6 +6,7 @@ import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+from gnode import RetryPolicy
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.platformer_map_design import (
     MAX_QUOTED_PROBLEMS,
@@ -17,7 +18,6 @@ from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
-from stage_gen.reliability import RetryPolicy
 
 from ._profiles import GROUND_FOOTED_PROFILE
 

@@ -13,6 +13,17 @@ from typing import Any, Protocol
 
 from PIL import Image
 
+from gnode import (
+    ArtifactRights,
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+    RetryExhaustedError,
+    SoftwareIdentity,
+    atomic_write_json,
+    resolve_relative_path_within_root,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components import (
     BackgroundMaskArtifact,
     BackgroundRemovalRequest,
@@ -32,13 +43,6 @@ from stage_gen.components import (
     canonical_style_anchor_digest,
     character_profile_sha256,
     resolve_character_profile_binding,
-)
-from stage_gen.contracts import (
-    ArtifactRights,
-    BinaryArtifact,
-    InputProvenance,
-    ProvenanceInput,
-    SoftwareIdentity,
 )
 from stage_gen.image_prompting import (
     build_image_style_compiler_request,
@@ -97,12 +101,6 @@ from stage_gen.recipes.dialogue_scene.prompts import (
     plan_prompt,
 )
 from stage_gen.recipes.dialogue_scene.schema import dialogue_plan_json_schema
-from stage_gen.reliability import (
-    RetryExhaustedError,
-    atomic_write_json,
-    resolve_relative_path_within_root,
-    write_artifact_with_provenance_async,
-)
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")
 _COMPONENT_V4 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="4")

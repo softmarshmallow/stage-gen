@@ -2,9 +2,11 @@
 
 from .atomic import (
     ArtifactBundleEntry,
+    AtomicBundleFile,
     AtomicWriteError,
     FileOperations,
     LocalFileOperations,
+    atomic_write_bundle,
     atomic_write_bytes,
     atomic_write_json,
     atomic_write_text,
@@ -49,6 +51,7 @@ __all__ = [
     "AI_RETRY_COUNT",
     "AbortError",
     "ArtifactBundleEntry",
+    "AtomicBundleFile",
     "DEFAULT_AI_ATTEMPT_TIMEOUT_S",
     "MAX_AI_ATTEMPTS",
     "AtomicWriteError",
@@ -63,6 +66,7 @@ __all__ = [
     "RetryPolicy",
     "assert_media_type",
     "assert_safe_path_segment",
+    "atomic_write_bundle",
     "atomic_write_bytes",
     "atomic_write_json",
     "atomic_write_text",

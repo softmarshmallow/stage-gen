@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 from PIL import Image
 
+from gnode import atomic_write_json
 from stage_gen.components.game_content import MotionPresentation, PropContent
 from stage_gen.components.game_contract.package import PreparedScale
 from stage_gen.components.game_map import PreparedMapLayer
@@ -41,7 +42,6 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
     runtime_mirrors_source,
 )
 from stage_gen.recipes.scrolling_preview.terrain_design import terrain_artifact_path
-from stage_gen.reliability import atomic_write_json
 
 PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 10
 #: The render projection the scrolling-preview consumer draws at. This is the only place

@@ -8,12 +8,13 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
+    write_artifact_with_provenance,
 )
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     DialogueCharacterBundle,
@@ -32,7 +33,6 @@ from stage_gen.recipes.dialogue_scene.models import (
     DialogueThemeRequest,
 )
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
-from stage_gen.reliability import write_artifact_with_provenance
 
 from .test_contracts import request_value
 

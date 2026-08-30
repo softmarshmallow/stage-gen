@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
+from gnode import CancellationToken
 from stage_gen.components.image_generation.style import (
     STYLE_ANCHOR_RENDERER_VERSION,
     STYLE_COMPILER_VERSION,
@@ -21,7 +22,6 @@ from stage_gen.components.structured_generation import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
 )
-from stage_gen.reliability import CancellationToken
 from stage_gen.resources import image_style_skill_path, image_style_vocabulary_path
 
 IMAGE_STYLE_SKILL_NAME = "anchor-image-style"

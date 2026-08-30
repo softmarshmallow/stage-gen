@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from stage_gen.orchestration.execution_graph import ExecutionNode, OperationKind, RetryOwner
+from gnode import Node, RetryOwner
+from stage_gen.orchestration.execution_graph import OperationKind
 from stage_gen.recipes.scrolling_preview.view_annotations import (
     annotate_scrolling_preview_artifact,
 )
 
 
-def _node() -> ExecutionNode:
-    return ExecutionNode(
+def _node() -> Node:
+    return Node(
         node_id="player-wayfarer-state-idle-generate",
         domain="player-wayfarer",
         description="generate one motion strip",

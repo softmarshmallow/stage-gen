@@ -13,7 +13,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { button, cx } from "@/app/ui";
-import type { ExecutionNodeState, ExecutionView } from "@/lib/runtime/execution-view";
+import {
+  type ExecutionNodeState,
+  type ExecutionRunLiveness,
+  type ExecutionView,
+  nodeStateLabel,
+  RUN_LIVENESS_LABELS,
+} from "@/lib/runtime/execution-view";
 import { layoutExecutionGraph } from "@/lib/runtime/execution-view-layout";
 import {
   centerOn,
@@ -60,7 +66,15 @@ const STATES = ["pending", "running", "succeeded", "failed", "skipped"] as const
 /** A collapsed chip wears the loudest state among the nodes it stands for. */
 const CHIP_STATE_PRIORITY = ["failed", "running", "pending", "skipped", "succeeded"] as const;
 
-export default function RunViewer({ tag, view }: { tag: string; view: ExecutionView }) {
+export default function RunViewer({
+  tag,
+  view,
+  liveness,
+}: {
+  tag: string;
+  view: ExecutionView;
+  liveness: ExecutionRunLiveness;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -404,13 +418,13 @@ export default function RunViewer({ tag, view }: { tag: string; view: ExecutionV
           <span className="text-sm font-semibold text-fg">{tag}</span>
           <span>
             {view.gameId} · {view.recipe} ·{" "}
-            {view.ok === null ? "in flight" : view.ok ? "ok" : "failed"} · {view.nodes.length} nodes
+            {RUN_LIVENESS_LABELS[liveness]} · {view.nodes.length} nodes
           </span>
         </p>
         <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[11px] text-dim">
           {STATES.map((state) => (
             <span key={state} className={view.stateCounts[state] > 0 ? "text-fg" : undefined}>
-              {STATE_MARK[state]} {view.stateCounts[state]} {state}
+              {STATE_MARK[state]} {view.stateCounts[state]} {nodeStateLabel(state, liveness)}
             </span>
           ))}
         </p>
@@ -477,9 +491,9 @@ export default function RunViewer({ tag, view }: { tag: string; view: ExecutionV
           </div>
           <div className="min-h-0 flex-1 overflow-auto overscroll-none">
             {selected ? (
-              <NodeInspector tag={tag} node={selected} onSelect={focusNode} />
+              <NodeInspector tag={tag} node={selected} liveness={liveness} onSelect={focusNode} />
             ) : (
-              <RunFacts view={view} />
+              <RunFacts view={view} liveness={liveness} />
             )}
           </div>
         </aside>

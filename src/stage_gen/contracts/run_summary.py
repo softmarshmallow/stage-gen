@@ -11,7 +11,7 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 
-from .artifacts import PersistedContractModel
+from gnode import PersistedContractModel
 
 RUN_SUMMARY_SCHEMA_VERSION = 3
 RUN_SUMMARY_KIND = "recipe_run_v3"

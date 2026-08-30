@@ -9,15 +9,20 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from stage_gen.components._secure_fs import read_absolute_regular_file
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
+    AtomicBundleFile,
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
     SoftwareIdentity,
+    atomic_write_bundle,
+    build_artifact_provenance,
+    resolve_relative_path_within_root,
+    serialize_provenance,
 )
+from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     DialogueCharacterBundle,
     DialogueCharacterIndependentReview,
@@ -26,12 +31,6 @@ from stage_gen.recipes.dialogue_scene.character_bundle import (
 from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES, DialogueBeat
 from stage_gen.recipes.scrolling_preview.manifest import _lower_snake_case_manifest
-from stage_gen.reliability import build_artifact_provenance, resolve_relative_path_within_root
-from stage_gen.reliability.atomic import (
-    AtomicBundleFile,
-    atomic_write_bundle,
-    serialize_provenance,
-)
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/scrolling-dialogue-character-import", version="1")
 _TOOL = SoftwareIdentity(name="stage-gen", version="0.0.0")

@@ -8,6 +8,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
+from gnode import RetryPolicy
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_generation import CanonicalStyleAnchor
 from stage_gen.components.structured_generation import (
@@ -21,7 +22,6 @@ from stage_gen.image_prompting import (
     load_image_style_resources,
 )
 from stage_gen.providers.openrouter import OpenRouterStructuredBackend
-from stage_gen.reliability import RetryPolicy
 from stage_gen.resources import image_style_resource_digests
 
 

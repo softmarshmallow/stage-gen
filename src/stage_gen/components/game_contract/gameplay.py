@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from gnode import PersistedContractModel
 from stage_gen.components.game_contract.spawning import MobPopulationDirection
-from stage_gen.contracts.artifacts import PersistedContractModel
 
 
 class CombatTextPolicy(PersistedContractModel):

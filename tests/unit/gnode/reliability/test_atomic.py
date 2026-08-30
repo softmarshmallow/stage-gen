@@ -7,25 +7,21 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.contracts import (
+from gnode import (
+    ArtifactBundleEntry,
     ArtifactRights,
+    AtomicBundleFile,
+    AtomicWriteError,
     BinaryArtifact,
     InputProvenance,
+    LocalFileOperations,
     ProvenanceInput,
     SoftwareIdentity,
-)
-from stage_gen.reliability import (
-    ArtifactBundleEntry,
-    AtomicWriteError,
-    LocalFileOperations,
+    atomic_write_bundle,
     record_artifact_rights,
     sha256_hex,
     write_artifact_bundle_with_provenance,
     write_artifact_with_provenance,
-)
-from stage_gen.reliability.atomic import (
-    AtomicBundleFile,
-    atomic_write_bundle,
 )
 
 

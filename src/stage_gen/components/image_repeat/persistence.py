@@ -11,7 +11,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from stage_gen.reliability import AbortError, CancellationToken, redact_secrets
+from gnode import AbortError, CancellationToken, redact_secrets
 
 PersistenceCheckpoint = Callable[[str], None]
 

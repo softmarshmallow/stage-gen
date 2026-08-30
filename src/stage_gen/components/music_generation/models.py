@@ -6,14 +6,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
+from gnode import ArtifactRights, CancellationToken
 from stage_gen.components._types import (
     ArtifactValidator,
     ProviderResponseMetadata,
     validate_optional_number,
     validate_optional_timeout,
 )
-from stage_gen.contracts import ArtifactRights
-from stage_gen.reliability.cancellation import CancellationToken
 
 MusicOutputFormat = Literal["mp3", "wav"]
 _REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)

@@ -12,6 +12,13 @@ from typing import Any, Literal
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+from gnode import (
+    CancellationError,
+    CancellationToken,
+    assert_safe_path_segment,
+    resolve_relative_path_within_root,
+    resolve_writable_path_within_root,
+)
 from stage_gen.capabilities import HeadlessRuntime, generate_image_artifact
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.orchestration.service import (
@@ -22,13 +29,6 @@ from stage_gen.orchestration.service import (
 )
 from stage_gen.recipes.base import RunSummary
 from stage_gen.recipes.registry import list_recipes
-from stage_gen.reliability import (
-    CancellationError,
-    CancellationToken,
-    assert_safe_path_segment,
-    resolve_relative_path_within_root,
-    resolve_writable_path_within_root,
-)
 
 MAX_JSON_BODY_BYTES = 64 * 1024
 RunState = Literal["queued", "running", "done", "failed", "cancelled"]

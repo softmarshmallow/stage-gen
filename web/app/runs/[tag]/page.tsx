@@ -8,6 +8,7 @@ import { errorBanner, h1, metaLine, page } from "@/app/ui";
 import type { ExecutionView } from "@/lib/runtime/execution-view";
 import { readExecutionView } from "@/lib/shell/execution-view";
 import { isSafeRunTag } from "@/lib/shell/runs";
+import { runLiveness } from "@/lib/runtime/execution-view";
 import RunViewer from "./RunViewer";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export default async function RunPage({ params }: { params: Promise<{ tag: strin
   // Full-bleed: the graph is the page, and the viewer floats its own chrome.
   return (
     <main className="fixed inset-0 overflow-hidden bg-bg">
-      <RunViewer tag={tag} view={view} />
+      <RunViewer tag={tag} view={view} liveness={runLiveness(view, Date.now())} />
     </main>
   );
 }

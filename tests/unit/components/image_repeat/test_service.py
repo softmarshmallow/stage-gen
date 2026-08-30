@@ -12,6 +12,13 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
+from gnode import (
+    ArtifactProvenance,
+    BinaryArtifact,
+    ProvenanceInput,
+    RetryPolicy,
+    write_artifact_with_provenance,
+)
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_repeat import (
     INTENDED_LOOP_MIN_ACCEPT_CONFIDENCE,
@@ -37,8 +44,6 @@ from stage_gen.components.image_repeat import (
     validate_image_repeat,
     verify_image_repeat_artifact,
 )
-from stage_gen.contracts import ArtifactProvenance, BinaryArtifact, ProvenanceInput
-from stage_gen.reliability import RetryPolicy, write_artifact_with_provenance
 
 type Color = tuple[int, int, int, int]
 type Outcome = Literal["good", "bad", "error"]

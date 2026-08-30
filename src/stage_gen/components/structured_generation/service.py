@@ -6,10 +6,12 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Self, cast
 
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput, SoftwareIdentity
-from stage_gen.reliability import (
+from gnode import (
+    BinaryArtifact,
+    ProvenanceInput,
     RetryContext,
     RetryPolicy,
+    SoftwareIdentity,
     hash_input_reference,
     retry_with_backoff,
     sanitize_reference,

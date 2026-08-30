@@ -13,6 +13,20 @@ from typing import Literal, cast
 
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
+from gnode import (
+    CacheDisposition,
+    InputProvenance,
+    Node,
+    NodeArtifact,
+    NodeExecutionContext,
+    NodeExecutionError,
+    NodeExecutionResult,
+    ProvenanceInput,
+    SoftwareIdentity,
+    atomic_write_bytes,
+    atomic_write_json,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components import (
     ImageGenerationRequest,
     ImageGenerationService,
@@ -35,7 +49,6 @@ from stage_gen.components.image_repeat import (
 )
 from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
-from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
     LOOP_METHODS,
     AlphaComponentRepackContract,
@@ -54,16 +67,7 @@ from stage_gen.media import (
     seal_offset_fraction,
     trim_layer_to_alpha_box,
 )
-from stage_gen.orchestration.execution_graph import (
-    CacheDisposition,
-    ExecutionGraph,
-    ExecutionNode,
-    NodeArtifact,
-    NodeExecutionContext,
-    NodeExecutionError,
-    NodeExecutionResult,
-    OperationKind,
-)
+from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.climbable_atlas import (
     MAX_HEIGHT_PARITY,
@@ -91,11 +95,6 @@ from stage_gen.recipes.scrolling_preview.terrain_design import (
     compile_terrain,
     terrain_artifact_path,
     terrain_profile,
-)
-from stage_gen.reliability import (
-    atomic_write_bytes,
-    atomic_write_json,
-    write_artifact_with_provenance_async,
 )
 
 WORLD_HANDLER_VERSION = "prepared-world-v3"
@@ -141,9 +140,7 @@ class PreparedWorldNodeHandler:
         self._terrain_template_path = terrain_template_path
         self._terrain_topology_reference_path = terrain_topology_reference_path
 
-    async def __call__(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._read_cache(node, context)
         if cached is not None:
             return cached
@@ -152,7 +149,7 @@ class PreparedWorldNodeHandler:
         except NodeExecutionError:
             raise
         except Exception as error:
-            external = node.operation is not OperationKind.LOCAL
+            external = not node.is_local
             attempts = int(getattr(error, "attempts", 1))
             raise NodeExecutionError(
                 str(error),
@@ -176,7 +173,7 @@ class PreparedWorldNodeHandler:
         validate_generated_terrain(game_map, terrain)
         return terrain
 
-    async def _execute(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _execute(self, node: Node) -> NodeExecutionResult:
         if node.node_id == "package-resolve":
             path = self._run_dir / node.outputs[0]
             atomic_write_json(path, self._package.identity())
@@ -216,9 +213,7 @@ class PreparedWorldNodeHandler:
             return await self._review(node, game_map)
         raise ValueError(f"prepared world handler cannot execute node: {node.node_id}")
 
-    async def _generate_terrain(
-        self, node: ExecutionNode, game_map: PreparedGameMap
-    ) -> NodeExecutionResult:
+    async def _generate_terrain(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
         """Compose this map's terrain from its authored brief.
 
         The map asks for a shape the way it asks for artwork, and the answer is an artifact. The
@@ -250,7 +245,7 @@ class PreparedWorldNodeHandler:
         return self._result(node, (output,), provider_operations=len(attempts))
 
     async def _generate_layer(
-        self, node: ExecutionNode, game_map: PreparedGameMap, layer: PreparedMapLayer
+        self, node: Node, game_map: PreparedGameMap, layer: PreparedMapLayer
     ) -> NodeExecutionResult:
         output = self._run_dir / node.outputs[0]
         prompt = self._map_prompt(game_map, layer.prompt) + (
@@ -292,7 +287,7 @@ class PreparedWorldNodeHandler:
         )
 
     async def _construct_layer_loop(
-        self, node: ExecutionNode, game_map: PreparedGameMap, layer: PreparedMapLayer
+        self, node: Node, game_map: PreparedGameMap, layer: PreparedMapLayer
     ) -> NodeExecutionResult:
         """Admit the generated layer as a loop, or construct one by the declared construction.
 
@@ -415,9 +410,7 @@ class PreparedWorldNodeHandler:
             node, (output, sidecar, record_path), provider_operations=provider_operations
         )
 
-    async def _validate_layer(
-        self, node: ExecutionNode, layer: PreparedMapLayer
-    ) -> NodeExecutionResult:
+    async def _validate_layer(self, node: Node, layer: PreparedMapLayer) -> NodeExecutionResult:
         looped = self._graph.node(node.depends_on[0])
         raw_path = self._run_dir / looped.outputs[0]
         raw_data = raw_path.read_bytes()
@@ -478,9 +471,7 @@ class PreparedWorldNodeHandler:
             node, (output, sidecar, validation_path, preview_path), provider_operations=0
         )
 
-    async def _generate_ground(
-        self, node: ExecutionNode, game_map: PreparedGameMap
-    ) -> NodeExecutionResult:
+    async def _generate_ground(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
         output = self._run_dir / node.outputs[0]
         style = self._package.game.style
         material_direction = (
@@ -536,9 +527,7 @@ class PreparedWorldNodeHandler:
             provider_operations=result.attempts,
         )
 
-    async def _validate_ground(
-        self, node: ExecutionNode, game_map: PreparedGameMap
-    ) -> NodeExecutionResult:
+    async def _validate_ground(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
         generated = self._graph.node(node.depends_on[0])
         raw_path = self._run_dir / generated.outputs[0]
         raw = raw_path.read_bytes()
@@ -586,7 +575,7 @@ class PreparedWorldNodeHandler:
 
     async def _generate_map_presentation(
         self,
-        node: ExecutionNode,
+        node: Node,
         game_map: PreparedGameMap,
         asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
@@ -674,7 +663,7 @@ class PreparedWorldNodeHandler:
 
     async def _validate_map_presentation(
         self,
-        node: ExecutionNode,
+        node: Node,
         game_map: PreparedGameMap,
         asset: Literal["climbable", "portal"],
     ) -> NodeExecutionResult:
@@ -705,9 +694,7 @@ class PreparedWorldNodeHandler:
             provider_operations=0,
         )
 
-    async def _composite(
-        self, node: ExecutionNode, game_map: PreparedGameMap
-    ) -> NodeExecutionResult:
+    async def _composite(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
         backgrounds = sorted(
             (layer for layer in game_map.layers if layer.plane == "background"),
             key=lambda item: item.order,
@@ -821,7 +808,7 @@ class PreparedWorldNodeHandler:
         )
         return self._result(node, (output, sidecar), provider_operations=0)
 
-    async def _review(self, node: ExecutionNode, game_map: PreparedGameMap) -> NodeExecutionResult:
+    async def _review(self, node: Node, game_map: PreparedGameMap) -> NodeExecutionResult:
         output = self._run_dir / node.outputs[0]
         composite_path = self._run_dir / f"maps/{game_map.map_id}/composite.png"
         ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
@@ -1089,7 +1076,7 @@ class PreparedWorldNodeHandler:
 
     def _result(
         self,
-        node: ExecutionNode,
+        node: Node,
         paths: tuple[Path, ...],
         *,
         attempts: int = 1,
@@ -1103,9 +1090,7 @@ class PreparedWorldNodeHandler:
             artifacts=artifacts,
         )
 
-    def _lineage(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> list[dict[str, object]]:
+    def _lineage(self, node: Node, context: NodeExecutionContext) -> list[dict[str, object]]:
         return [
             {
                 "node_id": dependency,
@@ -1117,13 +1102,11 @@ class PreparedWorldNodeHandler:
             for dependency in node.depends_on
         ]
 
-    def _cache_paths(self, node: ExecutionNode) -> tuple[Path, Path]:
+    def _cache_paths(self, node: Node) -> tuple[Path, Path]:
         root = self._cache_dir / "prepared-world-v1" / node.cache_key[:2] / node.cache_key
         return root / "record.json", root / "artifacts"
 
-    def _read_cache(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> NodeExecutionResult | None:
+    def _read_cache(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
         record_path, artifacts_dir = self._cache_paths(node)
         try:
             record = json.loads(record_path.read_text(encoding="utf-8"))
@@ -1160,7 +1143,7 @@ class PreparedWorldNodeHandler:
         )
 
     def _write_cache(
-        self, node: ExecutionNode, context: NodeExecutionContext, result: NodeExecutionResult
+        self, node: Node, context: NodeExecutionContext, result: NodeExecutionResult
     ) -> None:
         record_path, artifacts_dir = self._cache_paths(node)
         for index, artifact in enumerate(result.artifacts):

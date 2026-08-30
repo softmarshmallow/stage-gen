@@ -8,14 +8,11 @@ from pathlib import Path
 
 import pytest
 
+from gnode import project_schedule
 from stage_gen.components.game_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction
-from stage_gen.orchestration.execution_graph import (
-    ExecutionGraph,
-    OperationKind,
-    project_execution,
-)
+from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.recipes.scrolling_preview import layer_contract
 from stage_gen.recipes.scrolling_preview.package_graph import (
@@ -76,7 +73,7 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     }
     assert graph.terminal_node_id == "manifest-assemble"
     assert graph.node("package-resolve").depends_on == ()
-    assert graph.node("manifest-assemble").operation is OperationKind.LOCAL
+    assert graph.node("manifest-assemble").operation == OperationKind.LOCAL
 
     generated = graph.node("player-wayfarer-state-run-generate")
     validated = graph.node("player-wayfarer-state-run-validate")
@@ -164,12 +161,12 @@ def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> 
     generation = {
         node.node_id: node.cache_key
         for node in original.nodes
-        if node.operation is OperationKind.IMAGE_GENERATION
+        if node.operation == OperationKind.IMAGE_GENERATION
     }
     assert generation == {
         node.node_id: node.cache_key
         for node in changed.nodes
-        if node.operation is OperationKind.IMAGE_GENERATION
+        if node.operation == OperationKind.IMAGE_GENERATION
     }
 
 
@@ -284,14 +281,8 @@ def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> N
         original.node("map-sunpetal-crossing-composite").cache_key
         == changed.node("map-sunpetal-crossing-composite").cache_key
     )
-    assert {
-        node.node_id: node.cache_key
-        for node in original.nodes
-        if node.operation is not OperationKind.LOCAL
-    } == {
-        node.node_id: node.cache_key
-        for node in changed.nodes
-        if node.operation is not OperationKind.LOCAL
+    assert {node.node_id: node.cache_key for node in original.nodes if not node.is_local} == {
+        node.node_id: node.cache_key for node in changed.nodes if not node.is_local
     }
     assert (
         original.node("manifest-assemble").cache_key != changed.node("manifest-assemble").cache_key
@@ -364,12 +355,12 @@ def test_reshaping_terrain_does_not_re_bill_any_artwork() -> None:
     paid = {
         node.node_id: node.cache_key
         for node in original.nodes
-        if node.operation is OperationKind.IMAGE_GENERATION
+        if node.operation == OperationKind.IMAGE_GENERATION
     }
     assert paid == {
         node.node_id: node.cache_key
         for node in changed.nodes
-        if node.operation is OperationKind.IMAGE_GENERATION
+        if node.operation == OperationKind.IMAGE_GENERATION
     }
     # The terrain node itself must react, or nothing would ever recompose the level.
     generate = f"map-{CROWNCRAG}-terrain-generate"
@@ -428,7 +419,7 @@ def test_declared_climbable_variants_and_prompts_remain_atlas_generation_identit
 
 def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
     graph = _graph()
-    projection = project_execution(graph)
+    projection = project_schedule(graph)
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
@@ -440,7 +431,7 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
     image_starts = sorted(
         span.started_offset_ms
         for span in projection.spans
-        if span.operation is OperationKind.IMAGE_GENERATION
+        if span.operation == OperationKind.IMAGE_GENERATION
     )
     assert all(current - previous >= 400 for previous, current in pairwise(image_starts))
 
@@ -499,14 +490,14 @@ def test_loop_node_kind_follows_the_construction_not_its_name() -> None:
     node_id = f"map-{CROWNCRAG}-layer-{layer_id}-loop"
 
     baseline = build_package_execution_graph(package, profile=profile)
-    assert baseline.node(node_id).operation is OperationKind.LOCAL
+    assert baseline.node(node_id).operation == OperationKind.LOCAL
 
     for construction in ("generated_bridge", "seam_repaint", "fold_repaint"):
         overridden = build_package_execution_graph(
             _with_layer_construction(package, CROWNCRAG, layer_id, construction),
             profile=profile,
         )
-        assert overridden.node(node_id).operation is OperationKind.IMAGE_GENERATION, construction
+        assert overridden.node(node_id).operation == OperationKind.IMAGE_GENERATION, construction
 
 
 def test_a_layer_construction_override_reruns_only_that_layer_loop() -> None:
@@ -657,22 +648,16 @@ def test_editing_an_authored_member_reaches_the_nodes_that_capture_and_assemble_
 
     for node_id in ("package-resolve", "manifest-assemble"):
         assert original.node(node_id).cache_key != changed.node(node_id).cache_key, node_id
-    assert {
-        node.node_id: node.cache_key
-        for node in original.nodes
-        if node.operation is not OperationKind.LOCAL
-    } == {
-        node.node_id: node.cache_key
-        for node in changed.nodes
-        if node.operation is not OperationKind.LOCAL
+    assert {node.node_id: node.cache_key for node in original.nodes if not node.is_local} == {
+        node.node_id: node.cache_key for node in changed.nodes if not node.is_local
     }
 
 
 def test_a_projectile_fans_out_one_generated_sprite_and_a_family_review() -> None:
     graph = _graph()
 
-    assert graph.node("projectile-paperwing_dart-generate").operation is (
-        OperationKind.IMAGE_GENERATION
+    assert (
+        graph.node("projectile-paperwing_dart-generate").operation == OperationKind.IMAGE_GENERATION
     )
     assert graph.node("projectile-paperwing_dart-generate").outputs == (
         "content/projectiles/paperwing_dart.png",
@@ -683,7 +668,7 @@ def test_a_projectile_fans_out_one_generated_sprite_and_a_family_review() -> Non
     assert graph.node("projectiles-contact-sheet").depends_on == (
         "projectile-paperwing_dart-validate",
     )
-    assert graph.node("projectiles-review").operation is OperationKind.STRUCTURED_GENERATION
+    assert graph.node("projectiles-review").operation == OperationKind.STRUCTURED_GENERATION
 
 
 def test_a_projectiles_cache_key_ignores_how_the_object_moves(tmp_path: Path) -> None:

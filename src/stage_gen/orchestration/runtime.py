@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn, Protocol, Self, cast
 
+from gnode import ArtifactRights, BinaryArtifact, RetryPolicy
 from stage_gen.components.background_removal import (
     BackgroundMaskArtifact,
     BackgroundRemovalRequest,
@@ -27,7 +28,6 @@ from stage_gen.components.music_generation import (
 from stage_gen.components.music_generation.models import MusicOutputFormat
 from stage_gen.components.structured_generation import StructuredGenerationService
 from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import ArtifactRights, BinaryArtifact
 from stage_gen.media import inspect_image
 from stage_gen.providers import (
     FalBackgroundRemovalBackend,
@@ -36,7 +36,6 @@ from stage_gen.providers import (
     OpenRouterMusicBackend,
     OpenRouterStructuredBackend,
 )
-from stage_gen.reliability import RetryPolicy
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence

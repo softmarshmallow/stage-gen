@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from gnode import RetryExhaustedError, RetryPolicy
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_repeat import (
     IMAGE_REPEAT_FAILURE_CODES,
@@ -31,7 +32,6 @@ from stage_gen.orchestration.image_repeat_reviewer import (
     INTENDED_LOOP_REVIEW_SCHEMA_NAME,
     StructuredIntendedLoopReviewer,
 )
-from stage_gen.reliability import RetryExhaustedError, RetryPolicy
 
 
 class _ScriptedStructuredBackend:

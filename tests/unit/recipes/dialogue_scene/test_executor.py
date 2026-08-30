@@ -10,6 +10,13 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from gnode import (
+    BinaryArtifact,
+    ProvenanceInput,
+    RetryExhaustedError,
+    RetryPolicy,
+    write_artifact_with_provenance,
+)
 from stage_gen.components import (
     BackgroundRemovalRequest,
     BackgroundRemovalService,
@@ -28,7 +35,6 @@ from stage_gen.components.background_removal.models import ProviderBackgroundRem
 from stage_gen.components.image_generation.models import ProviderImage
 from stage_gen.components.structured_generation import ProviderStructuredOutput
 from stage_gen.config import StageGenConfig
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
 from stage_gen.image_prompting import load_image_style_resources
 from stage_gen.media import inspect_image
 from stage_gen.recipes.base import StageContext
@@ -41,7 +47,6 @@ from stage_gen.recipes.dialogue_scene.identity import canonical_sha256, content_
 from stage_gen.recipes.dialogue_scene.models import DialogueBundleV3
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
 from stage_gen.recipes.dialogue_scene.schema import dialogue_plan_json_schema
-from stage_gen.reliability import RetryExhaustedError, RetryPolicy, write_artifact_with_provenance
 
 from .test_contracts import profile_request_value, request_value
 

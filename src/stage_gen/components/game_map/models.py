@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from stage_gen.contracts.artifacts import PersistedContractModel
+from gnode import PersistedContractModel
 
 GAME_MAP_SCHEMA_VERSION = 2
 GAME_MAP_BOOK_SCHEMA_VERSION = 1

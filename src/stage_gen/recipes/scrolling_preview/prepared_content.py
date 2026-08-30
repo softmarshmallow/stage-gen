@@ -14,6 +14,20 @@ from typing import Literal, cast
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+from gnode import (
+    CacheDisposition,
+    InputProvenance,
+    Node,
+    NodeArtifact,
+    NodeExecutionContext,
+    NodeExecutionError,
+    NodeExecutionResult,
+    ProvenanceInput,
+    SoftwareIdentity,
+    atomic_write_bytes,
+    atomic_write_json,
+    write_artifact_with_provenance_async,
+)
 from stage_gen.components import (
     ImageGenerationRequest,
     ImageGenerationService,
@@ -52,7 +66,6 @@ from stage_gen.components.game_ui import (
 )
 from stage_gen.components.image_generation import ImageReference
 from stage_gen.components.structured_generation import StructuredOutputSchema, StructuredReference
-from stage_gen.contracts import InputProvenance, ProvenanceInput, SoftwareIdentity
 from stage_gen.media import (
     AlphaComponentRepackContract,
     measure_alpha_ground_contact,
@@ -60,16 +73,7 @@ from stage_gen.media import (
     repack_alpha_components,
 )
 from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
-from stage_gen.orchestration.execution_graph import (
-    CacheDisposition,
-    ExecutionGraph,
-    ExecutionNode,
-    NodeArtifact,
-    NodeExecutionContext,
-    NodeExecutionError,
-    NodeExecutionResult,
-    OperationKind,
-)
+from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_COLUMNS,
@@ -105,11 +109,6 @@ from stage_gen.recipes.scrolling_preview.projectile_silhouettes import (
 )
 from stage_gen.recipes.scrolling_preview.soundtrack import soundtrack_track_prompt
 from stage_gen.recipes.scrolling_preview.weapon_silhouettes import player_equipment_art
-from stage_gen.reliability import (
-    atomic_write_bytes,
-    atomic_write_json,
-    write_artifact_with_provenance_async,
-)
 from stage_gen.resources import inventory_template_path
 
 CONTENT_HANDLER_VERSION = "prepared-content-v4"
@@ -164,9 +163,7 @@ class PreparedContentNodeHandler:
             npc_world_orientation=(self._package.npcs.world_orientation if kind == "npc" else None),
         )
 
-    async def __call__(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._read_cache(node, context)
         if cached is not None:
             return cached
@@ -175,7 +172,7 @@ class PreparedContentNodeHandler:
         except NodeExecutionError:
             raise
         except Exception as error:
-            external = node.operation is not OperationKind.LOCAL
+            external = not node.is_local
             attempts = int(getattr(error, "attempts", 1))
             raise NodeExecutionError(
                 str(error),
@@ -185,7 +182,7 @@ class PreparedContentNodeHandler:
         self._write_cache(node, context, result)
         return result
 
-    async def _execute(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _execute(self, node: Node) -> NodeExecutionResult:
         if node.node_id == "package-resolve":
             path = self._run_dir / node.outputs[0]
             atomic_write_json(path, self._package.identity())
@@ -228,14 +225,14 @@ class PreparedContentNodeHandler:
             return await self._track_node(node, match)
         raise ValueError(f"prepared content handler cannot execute node: {node.node_id}")
 
-    async def _ui_inventory_node(self, node: ExecutionNode, action: str) -> NodeExecutionResult:
+    async def _ui_inventory_node(self, node: Node, action: str) -> NodeExecutionResult:
         if action == "generate":
             return await self._generate_inventory_panel(node)
         if action == "validate":
             return await self._validate_inventory_panel(node)
         return await self._review_inventory_panel(node)
 
-    async def _generate_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _generate_inventory_panel(self, node: Node) -> NodeExecutionResult:
         panel = self._package.ui.inventory_panel
         output = self._run_dir / node.outputs[0]
         template = inventory_template_path()
@@ -291,7 +288,7 @@ class PreparedContentNodeHandler:
             provider_operations=result.attempts,
         )
 
-    async def _validate_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _validate_inventory_panel(self, node: Node) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
         data = source.read_bytes()
         canonical_data, facts = _canonicalize_inventory_panel_image(data)
@@ -331,7 +328,7 @@ class PreparedContentNodeHandler:
             provider_operations=0,
         )
 
-    async def _review_inventory_panel(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _review_inventory_panel(self, node: Node) -> NodeExecutionResult:
         panel = self._package.ui.inventory_panel
         evidence = self._run_dir / "ui/inventory_panel.evidence.png"
         references = [self._run_structured_reference(evidence)]
@@ -357,7 +354,7 @@ class PreparedContentNodeHandler:
             metadata={"checkpoint": "ui", "role": "inventory_panel"},
         )
 
-    async def _player_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
+    async def _player_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         player = self._player(match["entity_id"])
         if match["state"] is not None:
             if match["state_action"] == "generate":
@@ -392,7 +389,7 @@ class PreparedContentNodeHandler:
             ),
         )
 
-    async def _mob_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
+    async def _mob_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         mob = self._mob(match["entity_id"])
         if match["state"] is not None:
             if match["state_action"] == "generate":
@@ -411,7 +408,7 @@ class PreparedContentNodeHandler:
             references=self._content_references(self._package.mobs.references, mob.reference_ids),
         )
 
-    async def _npc_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
+    async def _npc_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         npc = self._npc(match["entity_id"])
         action = match["action"]
         if action == "concept-generate":
@@ -434,22 +431,20 @@ class PreparedContentNodeHandler:
             references=self._content_references(self._package.npcs.references, npc.reference_ids),
         )
 
-    async def _catalog_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
+    async def _catalog_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         kind = cast(Literal["prop", "item"], match["kind"])
         entry = self._prop(match["entity_id"]) if kind == "prop" else self._item(match["entity_id"])
         if match["action"] == "generate":
             return await self._generate_catalog_asset(node, kind, entry)
         return self._validate_catalog_asset(node, kind, match["entity_id"])
 
-    async def _projectile_node(
-        self, node: ExecutionNode, match: re.Match[str]
-    ) -> NodeExecutionResult:
+    async def _projectile_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         projectile = self._projectile(match["entity_id"])
         if match["action"] == "generate":
             return await self._generate_projectile(node, projectile)
         return self._validate_projectile(node, projectile)
 
-    async def _track_node(self, node: ExecutionNode, match: re.Match[str]) -> NodeExecutionResult:
+    async def _track_node(self, node: Node, match: re.Match[str]) -> NodeExecutionResult:
         track = self._package.soundtrack.track(match["track_id"])
         if match["action"] == "generate":
             output = self._run_dir / node.outputs[0]
@@ -503,7 +498,7 @@ class PreparedContentNodeHandler:
 
     async def _generate_concept(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: MotionActorKind,
         entry: PlayerContent | MobContent | NpcContent,
         catalog_references: Sequence[ContentReference],
@@ -546,7 +541,7 @@ class PreparedContentNodeHandler:
 
     async def _generate_motion(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: Literal["player", "mob", "npc"],
         entry: PlayerContent | MobContent | NpcContent,
         state: str,
@@ -626,7 +621,7 @@ class PreparedContentNodeHandler:
 
     async def _generate_dialogue(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: Literal["player", "npc"],
         entity_id: str,
         expressions: Sequence[str],
@@ -689,7 +684,7 @@ class PreparedContentNodeHandler:
 
     async def _generate_catalog_asset(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: Literal["prop", "item"],
         entry: PropContent | ItemContent,
     ) -> NodeExecutionResult:
@@ -730,7 +725,7 @@ class PreparedContentNodeHandler:
 
     async def _validate_motion(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: MotionActorKind,
         entry: PlayerContent | MobContent | NpcContent,
         state: str,
@@ -794,7 +789,7 @@ class PreparedContentNodeHandler:
 
     async def _validate_dialogue(
         self,
-        node: ExecutionNode,
+        node: Node,
         kind: str,
         entity_id: str,
         expressions: Sequence[str],
@@ -846,9 +841,7 @@ class PreparedContentNodeHandler:
         )
         return self._result(node, (canonical, provenance, validation), provider_operations=0)
 
-    def _validate_catalog_asset(
-        self, node: ExecutionNode, kind: str, entity_id: str
-    ) -> NodeExecutionResult:
+    def _validate_catalog_asset(self, node: Node, kind: str, entity_id: str) -> NodeExecutionResult:
         source = self._run_dir / self._graph.node(node.depends_on[0]).outputs[0]
         source_data = source.read_bytes()
         facts = _validate_transparent_image(source_data, width=1024, height=1024)
@@ -872,7 +865,7 @@ class PreparedContentNodeHandler:
         return self._result(node, (output,), provider_operations=0)
 
     async def _actor_contact_sheet(
-        self, node: ExecutionNode, kind: Literal["player", "mob", "npc"], entity_id: str
+        self, node: Node, kind: Literal["player", "mob", "npc"], entity_id: str
     ) -> NodeExecutionResult:
         root = self._run_dir / f"content/{_kind_directory(kind)}/{entity_id}"
         entries: list[tuple[str, Path]] = [("concept", root / "concept.png")]
@@ -904,7 +897,7 @@ class PreparedContentNodeHandler:
         return self._result(node, (output, sidecar), provider_operations=0)
 
     async def _catalog_contact_sheet(
-        self, node: ExecutionNode, kind: Literal["prop", "item"]
+        self, node: Node, kind: Literal["prop", "item"]
     ) -> NodeExecutionResult:
         values = self._package.props.props if kind == "prop" else self._package.items.items
         directory = "props" if kind == "prop" else "items"
@@ -926,9 +919,7 @@ class PreparedContentNodeHandler:
         )
         return self._result(node, (output, sidecar), provider_operations=0)
 
-    async def _actor_motion_rebase(
-        self, node: ExecutionNode, player: PlayerContent
-    ) -> NodeExecutionResult:
+    async def _actor_motion_rebase(self, node: Node, player: PlayerContent) -> NodeExecutionResult:
         """Judge every one of this actor's atlases against its idle baseline, on one plate.
 
         Separate states are separate provider calls, so nothing in the pixels ties their draw
@@ -1020,7 +1011,7 @@ class PreparedContentNodeHandler:
         )
 
     async def _actor_motion_rebase_verify(
-        self, node: ExecutionNode, player: PlayerContent
+        self, node: Node, player: PlayerContent
     ) -> NodeExecutionResult:
         """Close the loop on the first pass: judge the residual on a plate composed with it.
 
@@ -1133,7 +1124,7 @@ class PreparedContentNodeHandler:
 
     async def _actor_review(
         self,
-        node: ExecutionNode,
+        node: Node,
         *,
         kind: MotionActorKind,
         entity_id: str,
@@ -1231,7 +1222,7 @@ class PreparedContentNodeHandler:
         )
 
     async def _catalog_review(
-        self, node: ExecutionNode, kind: Literal["prop", "item"]
+        self, node: Node, kind: Literal["prop", "item"]
     ) -> NodeExecutionResult:
         directory = "props" if kind == "prop" else "items"
         contact = self._run_dir / f"content/{directory}/contact-sheet.png"
@@ -1274,7 +1265,7 @@ class PreparedContentNodeHandler:
 
     async def _run_review(
         self,
-        node: ExecutionNode,
+        node: Node,
         *,
         prompt: str,
         references: Sequence[StructuredReference],
@@ -1306,7 +1297,7 @@ class PreparedContentNodeHandler:
             provider_operations=result.attempts,
         )
 
-    async def _write_bindings(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _write_bindings(self, node: Node) -> NodeExecutionResult:
         gameplay = self._package.gameplay
         speaker_expressions = []
         player = self._package.player.players[0]
@@ -1471,7 +1462,7 @@ class PreparedContentNodeHandler:
         return next(entry for entry in catalog.projectiles if entry.projectile_id == entity_id)
 
     async def _generate_projectile(
-        self, node: ExecutionNode, projectile: ProjectileContent
+        self, node: Node, projectile: ProjectileContent
     ) -> NodeExecutionResult:
         catalog = self._package.projectiles
         assert catalog is not None
@@ -1516,7 +1507,7 @@ class PreparedContentNodeHandler:
         )
 
     def _validate_projectile(
-        self, node: ExecutionNode, projectile: ProjectileContent
+        self, node: Node, projectile: ProjectileContent
     ) -> NodeExecutionResult:
         artifact = self._run_dir / f"content/projectiles/{projectile.projectile_id}.png"
         output = self._run_dir / node.outputs[0]
@@ -1531,7 +1522,7 @@ class PreparedContentNodeHandler:
         )
         return self._result(node, (output,), provider_operations=0)
 
-    async def _projectile_contact_sheet(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _projectile_contact_sheet(self, node: Node) -> NodeExecutionResult:
         catalog = self._package.projectiles
         assert catalog is not None
         entries = [
@@ -1555,7 +1546,7 @@ class PreparedContentNodeHandler:
         )
         return self._result(node, (output, sidecar), provider_operations=0)
 
-    async def _projectile_review(self, node: ExecutionNode) -> NodeExecutionResult:
+    async def _projectile_review(self, node: Node) -> NodeExecutionResult:
         catalog = self._package.projectiles
         assert catalog is not None
         contact = self._run_dir / "content/projectiles/contact-sheet.png"
@@ -1593,7 +1584,7 @@ class PreparedContentNodeHandler:
 
     def _result(
         self,
-        node: ExecutionNode,
+        node: Node,
         paths: tuple[Path, ...],
         *,
         attempts: int = 1,
@@ -1606,9 +1597,7 @@ class PreparedContentNodeHandler:
             artifacts=tuple(_node_artifact(self._run_dir, path) for path in paths),
         )
 
-    def _lineage(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> list[dict[str, object]]:
+    def _lineage(self, node: Node, context: NodeExecutionContext) -> list[dict[str, object]]:
         return [
             {
                 "node_id": dependency,
@@ -1620,13 +1609,11 @@ class PreparedContentNodeHandler:
             for dependency in node.depends_on
         ]
 
-    def _cache_paths(self, node: ExecutionNode) -> tuple[Path, Path]:
+    def _cache_paths(self, node: Node) -> tuple[Path, Path]:
         root = self._cache_dir / CONTENT_CACHE_VERSION / node.cache_key[:2] / node.cache_key
         return root / "record.json", root / "artifacts"
 
-    def _read_cache(
-        self, node: ExecutionNode, context: NodeExecutionContext
-    ) -> NodeExecutionResult | None:
+    def _read_cache(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
         record_path, artifacts_dir = self._cache_paths(node)
         try:
             record = json.loads(record_path.read_text(encoding="utf-8"))
@@ -1666,8 +1653,8 @@ class PreparedContentNodeHandler:
             known_cost_usd=0.0,
         )
 
-    def _cached_primary_artifact_valid(self, node: ExecutionNode, data: bytes) -> bool:
-        if node.operation is not OperationKind.IMAGE_GENERATION:
+    def _cached_primary_artifact_valid(self, node: Node, data: bytes) -> bool:
+        if node.operation != OperationKind.IMAGE_GENERATION:
             return True
         try:
             player_match = _PLAYER_NODE.fullmatch(node.node_id)
@@ -1738,7 +1725,7 @@ class PreparedContentNodeHandler:
         return False
 
     def _write_cache(
-        self, node: ExecutionNode, context: NodeExecutionContext, result: NodeExecutionResult
+        self, node: Node, context: NodeExecutionContext, result: NodeExecutionResult
     ) -> None:
         record_path, artifacts_dir = self._cache_paths(node)
         for index, artifact in enumerate(result.artifacts):

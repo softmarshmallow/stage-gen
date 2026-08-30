@@ -7,14 +7,13 @@ from typing import cast
 
 import pytest
 
+from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
 from stage_gen.concept_studio import workspace as workspace_module
 from stage_gen.concept_studio.workspace import (
     check_workspace,
     create_workspace,
     select_candidate,
 )
-from stage_gen.contracts import BinaryArtifact, ProvenanceInput
-from stage_gen.reliability import write_artifact_with_provenance
 
 _PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"

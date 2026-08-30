@@ -206,10 +206,10 @@ def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -
 
 
 def test_projected_duration_and_cost_track_the_graph_projection() -> None:
-    from stage_gen.orchestration.execution_graph import project_execution
+    from gnode import project_schedule
 
     _, graph = _bellweather_graph()
-    projection = project_execution(graph)
+    projection = project_schedule(graph)
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
 
     duration = re.search(r"projected terminal offset is \*\*([\d.]+) seconds", source)

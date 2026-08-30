@@ -13,18 +13,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Self
 
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
-    SoftwareIdentity,
-)
-from stage_gen.media import inspect_image
-from stage_gen.reliability import (
     RetryContext,
     RetryPolicy,
+    SoftwareIdentity,
     assert_safe_path_segment,
     build_artifact_provenance,
     resolve_writable_path_within_root,
@@ -33,6 +30,7 @@ from stage_gen.reliability import (
     serialize_provenance,
     sha256_hex,
 )
+from stage_gen.media import inspect_image
 
 from .models import (
     ALPHA_RECONSTRUCTION_ALGORITHM,

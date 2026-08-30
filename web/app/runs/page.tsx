@@ -4,17 +4,40 @@
 import Link from "next/link";
 import { cx, h1, metaLine, page } from "@/app/ui";
 import {
+  type ExecutionRunLiveness,
+  RUN_LIVENESS_LABELS,
+  runLiveness,
+} from "@/lib/runtime/execution-view";
+import {
   type ExecutionViewRunListEntry,
   listExecutionViewRuns,
 } from "@/lib/shell/execution-view";
 
 export const dynamic = "force-dynamic";
 
-function badge(entry: ExecutionViewRunListEntry): { label: string; className: string } {
-  if (entry.unreadable) return { label: "re-export", className: "border-error text-error" };
-  if (entry.ok === null) return { label: "in flight", className: "border-fg text-fg" };
-  if (entry.ok) return { label: "ok", className: "border-accent text-accent" };
-  return { label: "failed", className: "border-error text-error" };
+const BADGES: Record<ExecutionRunLiveness, string> = {
+  planned: "border-dim text-dim",
+  running: "border-fg text-fg",
+  // Started and then abandoned: distinct from a run that is still going, and
+  // distinct again from one that failed on its own terms.
+  interrupted: "border-dim text-dim",
+  canceled: "border-dim text-dim",
+  succeeded: "border-accent text-accent",
+  failed: "border-error text-error",
+};
+
+function badge(
+  entry: ExecutionViewRunListEntry,
+  now: number,
+): { label: string; className: string } {
+  if (entry.unreadable || entry.runState === null) {
+    return { label: "re-export", className: "border-error text-error" };
+  }
+  const liveness = runLiveness(
+    { runState: entry.runState, traceModifiedAt: entry.traceModifiedAt },
+    now,
+  );
+  return { label: RUN_LIVENESS_LABELS[liveness], className: BADGES[liveness] };
 }
 
 function states(entry: ExecutionViewRunListEntry): string {
@@ -39,6 +62,9 @@ function duration(entry: ExecutionViewRunListEntry): string {
 
 export default async function RunsPage() {
   const runs = await listExecutionViewRuns();
+  // One clock for the whole list, read on the server: liveness is a judgement
+  // about right now, but it must be the same "now" for every row.
+  const now = Date.now();
   return (
     <main className={page}>
       <p className={metaLine}>
@@ -58,7 +84,7 @@ export default async function RunsPage() {
       ) : (
         <ol className="m-0 list-none border-t border-border">
           {runs.map((entry) => {
-            const mark = badge(entry);
+            const mark = badge(entry, now);
             return (
               <li key={entry.tag}>
                 <Link

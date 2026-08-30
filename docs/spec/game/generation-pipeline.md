@@ -13,7 +13,9 @@
 | --- | --- |
 | Authored package membership and cross-contract closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) |
 | Asset-level fan-out, dependencies, outputs, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/scrolling_preview/package_graph.py) |
-| Dependency scheduling, resource gates, result contracts, and trace | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
+| Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
+| Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
+| Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/scrolling_preview/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
 | Scrolling-preview resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/scrolling_preview/package_executor.py) |
 | Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_world.py) |
 | Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_content.py) |

@@ -9,22 +9,22 @@ from typing import Any
 
 import pytest
 
-from stage_gen.capabilities import CapabilityArtifactResult
-from stage_gen.components.game_soundtrack import GameSoundtrack
-from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.contracts import (
+from gnode import (
     ArtifactRights,
     BinaryArtifact,
     ProvenanceInput,
     SoftwareIdentity,
+    write_artifact_with_provenance_async,
 )
+from stage_gen.capabilities import CapabilityArtifactResult
+from stage_gen.components.game_soundtrack import GameSoundtrack
+from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.scrolling_preview.soundtrack import (
     collect_scrolling_soundtrack,
     generate_scrolling_soundtrack,
     resolve_scrolling_soundtrack,
 )
-from stage_gen.reliability import write_artifact_with_provenance_async
 
 _MP3_BYTES = b"ID3\x04\x00\x00\x00\x00\x00\xff\xfb\x90\x64"
 _SOFTWARE = SoftwareIdentity(name="@stage-gen/test-soundtrack", version="0.0.0")

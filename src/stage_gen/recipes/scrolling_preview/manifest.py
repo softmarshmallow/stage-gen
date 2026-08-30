@@ -16,6 +16,16 @@ from typing import Any, Literal, cast
 
 from PIL import Image
 
+from gnode import (
+    ArtifactProvenance,
+    ArtifactRights,
+    BinaryArtifact,
+    ProvenanceInput,
+    SoftwareIdentity,
+    build_artifact_provenance,
+    is_portable_artifact_reference,
+    write_artifact_with_provenance,
+)
 from stage_gen.components.character_profile import (
     CharacterProfile,
     CharacterProfileBinding,
@@ -40,13 +50,6 @@ from stage_gen.components.image_repeat import (
     verify_image_repeat_artifact,
 )
 from stage_gen.config import TransparencyMode
-from stage_gen.contracts import (
-    ArtifactProvenance,
-    ArtifactRights,
-    BinaryArtifact,
-    ProvenanceInput,
-    SoftwareIdentity,
-)
 from stage_gen.manifests import to_canonical_manifest_entry
 from stage_gen.media import inspect_image
 from stage_gen.recipes.scrolling_preview.game import (
@@ -88,11 +91,6 @@ from stage_gen.recipes.scrolling_preview.village import (
     VillageRenderProfile,
     VillageSpec,
     village_manifest_block,
-)
-from stage_gen.reliability import (
-    build_artifact_provenance,
-    is_portable_artifact_reference,
-    write_artifact_with_provenance,
 )
 from stage_gen.resources import bundled_music_path
 

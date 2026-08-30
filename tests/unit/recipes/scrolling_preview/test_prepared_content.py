@@ -9,6 +9,7 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
+from gnode import Scheduler
 from stage_gen.components import (
     ImageGenerationRequest,
     MusicGenerationRequest,
@@ -21,7 +22,6 @@ from stage_gen.components.game_ui import (
     INVENTORY_PANEL_WIDTH,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_graph import DependencyExecutor
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     dialogue_atlas_grid,
     motion_semantic_direction,
@@ -255,7 +255,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
         structured_service=structured,  # type: ignore[arg-type]
         music_service=music,  # type: ignore[arg-type]
     )
-    summary = await DependencyExecutor(prepared.graph.resources, node_timeout_seconds=120).run(
+    summary = await Scheduler(prepared.graph.resources, node_timeout_seconds=120).run(
         prepared.graph,
         handler,
         invocation_id="content-handler",

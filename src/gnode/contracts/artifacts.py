@@ -7,6 +7,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+#: Lowercase hexadecimal SHA-256, the only digest form persisted anywhere.
+SHA256_PATTERN = r"^[a-f0-9]{64}$"
+
 
 class ContractModel(BaseModel):
     """Application-boundary base that accepts Python names and aliases."""
@@ -41,7 +44,7 @@ class ArtifactResult(PersistedContractModel):
     artifact_path: str = Field(alias="artifactPath")
     provenance_path: str = Field(alias="provenancePath")
     media_type: str = Field(alias="mediaType")
-    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    sha256: str = Field(pattern=SHA256_PATTERN)
     bytes: int = Field(ge=0)
     attempts: int = Field(ge=1, le=6)
     validation: dict[str, Any] = Field(default_factory=dict)

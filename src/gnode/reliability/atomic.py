@@ -13,11 +13,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from stage_gen.contracts import (
+from gnode.contracts.artifacts import BinaryArtifact
+from gnode.contracts.provenance import (
     ArtifactDigest,
     ArtifactProvenance,
     ArtifactRights,
-    BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
 )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 from pathlib import Path
 
-from stage_gen.contracts import ArtifactProvenance
+from gnode import ArtifactProvenance
 
 
 def assert_persisted_artifact(

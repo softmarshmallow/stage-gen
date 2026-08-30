@@ -6,6 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from gnode import InputProvenance
 from stage_gen.components._secure_fs import (
     SecurePathError,
     open_absolute_directory,
@@ -16,7 +17,6 @@ from stage_gen.components.game_soundtrack.loader import (
     load_game_soundtrack_bytes,
 )
 from stage_gen.components.game_soundtrack.models import GameSoundtrack, GameSoundtrackBinding
-from stage_gen.contracts import InputProvenance
 
 GAME_SOUNDTRACK_LIBRARY_RESOLUTION_VERSION = "game-soundtrack-library-resolution-v1"
 

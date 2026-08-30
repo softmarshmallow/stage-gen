@@ -19,6 +19,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from gnode import InputProvenance
 from stage_gen.components._secure_fs import (
     SecurePathError,
     open_absolute_directory,
@@ -33,7 +34,6 @@ from stage_gen.components.game_contract.vocabulary import (
     LoadedGameVocabulary,
     load_game_vocabulary,
 )
-from stage_gen.contracts import InputProvenance
 
 GAME_LIBRARY_RESOLUTION_VERSION = "game-contract-library-resolution-v1"
 

@@ -2,15 +2,20 @@ import { describe, expect, test } from "bun:test";
 import {
   executionViewFixture,
   failedExecutionViewFixture,
-  inFlightExecutionViewFixture,
+  unfinishedExecutionViewFixture,
 } from "@/lib/shell/execution-view.fixture";
-import { EXECUTION_VIEW_REFUSAL, parseExecutionView } from "./execution-view";
+import {
+  EXECUTION_VIEW_REFUSAL,
+  parseExecutionView,
+  RUNNING_TRACE_STALENESS_MS,
+  runLiveness,
+} from "./execution-view";
 
 describe("parseExecutionView", () => {
   test("parses a finished run into camelCase runtime shapes", () => {
     const view = parseExecutionView(executionViewFixture());
     expect(view.gameId).toBe("bellweather");
-    expect(view.ok).toBe(true);
+    expect(view.runState).toBe("succeeded");
     expect(view.nodes).toHaveLength(3);
     expect(view.stateCounts.succeeded).toBe(3);
 
@@ -24,14 +29,39 @@ describe("parseExecutionView", () => {
     expect(view.gaps[0].gapId).toBe("edge-kinds-not-distinguished");
   });
 
-  test("keeps in-flight and failed states distinct", () => {
-    const inFlight = parseExecutionView(inFlightExecutionViewFixture());
-    expect(inFlight.ok).toBeNull();
-    expect(inFlight.nodes[1].state).toBe("running");
-    expect(inFlight.nodes[2].state).toBe("pending");
+describe("runLiveness", () => {
+  const written = Date.parse("2026-08-30T12:00:00Z");
+
+  test("a finished run reports what its records say, whatever the clock says", () => {
+    const view = parseExecutionView(executionViewFixture());
+    expect(runLiveness(view, written + 10 * 365 * 24 * 60 * 60 * 1000)).toBe("succeeded");
+    expect(runLiveness(parseExecutionView(failedExecutionViewFixture()), written)).toBe("failed");
+  });
+
+  test("an unfinished run is running only while its trace is still fresh", () => {
+    const view = parseExecutionView(unfinishedExecutionViewFixture());
+    expect(runLiveness(view, written + 1_000)).toBe("running");
+    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS)).toBe("running");
+    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS + 1)).toBe("interrupted");
+    // Days later — the case that used to read "in flight" for a dead run.
+    expect(runLiveness(view, written + 3 * 24 * 60 * 60 * 1000)).toBe("interrupted");
+  });
+
+  test("an unfinished run with no readable stamp never claims to be running", () => {
+    expect(runLiveness(parseExecutionView(unfinishedExecutionViewFixture(null)), written)).toBe(
+      "interrupted",
+    );
+  });
+});
+
+  test("keeps unfinished and failed states distinct", () => {
+    const unfinished = parseExecutionView(unfinishedExecutionViewFixture());
+    expect(unfinished.runState).toBe("unfinished");
+    expect(unfinished.nodes[1].state).toBe("running");
+    expect(unfinished.nodes[2].state).toBe("pending");
 
     const failed = parseExecutionView(failedExecutionViewFixture());
-    expect(failed.ok).toBe(false);
+    expect(failed.runState).toBe("failed");
     expect(failed.nodes[1].state).toBe("failed");
     expect(failed.nodes[1].error).toContain("comparison-plate-v1");
     expect(failed.nodes[2].state).toBe("skipped");
@@ -39,10 +69,15 @@ describe("parseExecutionView", () => {
   });
 
   test("refuses an unknown version with the re-export message, never migrates", () => {
-    const stale = { ...executionViewFixture(), schema_version: 2 };
+    const stale = { ...executionViewFixture(), schema_version: 1 };
     expect(() => parseExecutionView(stale)).toThrow(EXECUTION_VIEW_REFUSAL);
     const alien = { ...executionViewFixture(), kind: "someone-elses-view-v1" };
     expect(() => parseExecutionView(alien)).toThrow(EXECUTION_VIEW_REFUSAL);
+  });
+
+  test("refuses a run_state outside the declared vocabulary", () => {
+    const alien = { ...executionViewFixture(), run_state: "in flight" };
+    expect(() => parseExecutionView(alien)).toThrow("run_state must be one of");
   });
 
   test("refuses dangling dependencies and duplicate node ids", () => {

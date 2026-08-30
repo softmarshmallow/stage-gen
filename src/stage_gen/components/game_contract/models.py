@@ -52,13 +52,13 @@ from typing import Literal
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
+from gnode import PersistedContractModel
 from stage_gen.components.character_profile import CharacterProfileRights
 from stage_gen.components.game_contract.gameplay import GameplayDirection
 from stage_gen.components.game_contract.vocabulary import (
     REQUIRED_STYLE_FACET,
     GameVocabulary,
 )
-from stage_gen.contracts.artifacts import PersistedContractModel
 
 GAME_CONTRACT_SCHEMA_VERSION = 3
 

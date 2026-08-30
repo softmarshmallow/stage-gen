@@ -9,7 +9,13 @@ import pytest
 from PIL import Image
 
 import stage_gen.recipes.scrolling_preview.dialogue_character as dialogue_character_module
-from stage_gen.contracts import ArtifactProvenance, BinaryArtifact, ProvenanceInput
+from gnode import (
+    ArtifactProvenance,
+    BinaryArtifact,
+    ProvenanceInput,
+    build_artifact_provenance,
+    serialize_provenance,
+)
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     DialogueCharacterBundle,
     load_reviewed_dialogue_character_bundle,
@@ -32,8 +38,6 @@ from stage_gen.recipes.scrolling_preview.dialogue_character import (
     _validate_provenance,
     bind_dialogue_character_to_scrolling_manifest,
 )
-from stage_gen.reliability import build_artifact_provenance
-from stage_gen.reliability.atomic import serialize_provenance
 
 _REVIEWED_AT = "2026-08-24T02:03:04Z"
 

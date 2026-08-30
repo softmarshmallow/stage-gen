@@ -6,12 +6,12 @@ import json
 from pathlib import Path
 from typing import TypedDict
 
+from gnode import atomic_write_text
 from stage_gen.provider_env import (
     PROVIDER_ENV_KEYS,
     ProviderEnvKey,
     parse_provider_env,
 )
-from stage_gen.reliability import atomic_write_text
 
 
 class ImportProviderEnvResult(TypedDict):

@@ -11,6 +11,15 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol, cast
 
+from gnode import (
+    ArtifactRights,
+    BinaryArtifact,
+    InputProvenance,
+    ProvenanceInput,
+    SoftwareIdentity,
+    build_artifact_provenance,
+    serialize_provenance,
+)
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_generation import (
     ImageGenerationRequest,
@@ -19,17 +28,9 @@ from stage_gen.components.image_generation import (
     ImageReference,
 )
 from stage_gen.config import CapabilityName, StageGenConfig, load_config
-from stage_gen.contracts import (
-    ArtifactRights,
-    BinaryArtifact,
-    InputProvenance,
-    ProvenanceInput,
-    SoftwareIdentity,
-)
 from stage_gen.media import ImageNormalizationRecord, inspect_image, normalize_image_to_png
 from stage_gen.orchestration.runtime import create_image_service
 from stage_gen.provider_env import load_provider_dotenv
-from stage_gen.reliability import build_artifact_provenance, serialize_provenance
 
 from .profiles import ConceptImageExecution, resolve_execution
 from .workspace import (

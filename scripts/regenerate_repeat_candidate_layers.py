@@ -23,6 +23,7 @@ from typing import Any, Protocol, cast
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from gnode import assert_safe_path_segment, redact_secrets, sanitize_for_persistence, sha256_hex
 from stage_gen.components.background_removal import BackgroundRemovalService
 from stage_gen.config import (
     CapabilityName,
@@ -56,12 +57,6 @@ from stage_gen.recipes.scrolling_preview.executor import (
     _valid_transparency_cache,
 )
 from stage_gen.recipes.scrolling_preview.models import WorldLayer, WorldSpec
-from stage_gen.reliability import (
-    assert_safe_path_segment,
-    redact_secrets,
-    sanitize_for_persistence,
-    sha256_hex,
-)
 
 _WIDTH = 2400
 _HEIGHT = 800

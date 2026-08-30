@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from stage_gen.contracts import InputProvenance
+from gnode import InputProvenance
 
 from ._filesystem import (
     SecureCharacterProfilePathError,

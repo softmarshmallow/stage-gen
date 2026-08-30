@@ -6,6 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from gnode import InputProvenance
 from stage_gen.components._secure_fs import (
     SecurePathError,
     open_absolute_directory,
@@ -23,7 +24,6 @@ from stage_gen.components.game_map.models import (
     GameMapBookBinding,
     ResolvedGameMapBookDocument,
 )
-from stage_gen.contracts import InputProvenance
 
 GAME_MAP_LIBRARY_RESOLUTION_VERSION = "game-map-library-resolution-v1"
 

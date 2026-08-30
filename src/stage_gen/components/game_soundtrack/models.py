@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import Field, ValidationInfo, field_validator
 
-from stage_gen.contracts.artifacts import PersistedContractModel
+from gnode import PersistedContractModel
 
 GAME_SOUNDTRACK_SCHEMA_VERSION = 1
 _JS_SAFE_INTEGER_MAX = 9_007_199_254_740_991

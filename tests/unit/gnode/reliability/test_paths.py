@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.reliability import (
+from gnode import (
     assert_safe_path_segment,
     resolve_relative_path_within_root,
     resolve_writable_path_within_root,

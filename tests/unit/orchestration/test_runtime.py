@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 
 import stage_gen.orchestration.runtime as runtime_module
+from gnode import RetryPolicy
 from stage_gen.capabilities import CapabilityArtifactResult, HeadlessRuntime, remove_background
 from stage_gen.components.background_removal import BackgroundRemovalRequest
 from stage_gen.components.image_generation import ImageGenerationRequest
@@ -22,7 +23,6 @@ from stage_gen.components.structured_generation import (
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.service import GenerateRequest, generate
 from stage_gen.recipes.base import StageContext
-from stage_gen.reliability import RetryPolicy
 
 
 def test_component_requests_reject_invalid_runtime_values() -> None:

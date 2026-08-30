@@ -7,12 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
+from gnode import RetryPolicy
 from stage_gen.components.music_generation import (
     MusicGenerationRequest,
     MusicGenerationService,
 )
 from stage_gen.providers.openrouter import OpenRouterMusicBackend
-from stage_gen.reliability import RetryPolicy
 
 from .._helpers import wav_bytes
 

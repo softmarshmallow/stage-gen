@@ -8,13 +8,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from gnode import CancellationToken
 from stage_gen.config import CapabilityName, StageGenConfig
 from stage_gen.contracts import (
     RUN_SUMMARY_KIND,
     RUN_SUMMARY_SCHEMA_VERSION,
     parse_recipe_run_summary,
 )
-from stage_gen.reliability import CancellationToken
 
 type JsonObject = dict[str, Any]
 type StageRun = Callable[["StageContext"], Awaitable[Sequence[str]]]

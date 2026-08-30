@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/stage_gen"]
+packages = ["src/gnode", "src/stage_gen"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -52,6 +52,7 @@ include = [
   "/docs/**/*.json",
   "/docs/**/*.md",
   "/scripts/**/*.py",
+  "/src/gnode/**",
   "/src/stage_gen/**",
   "/tests/**/*.json",
   "/tests/**/*.py",
@@ -94,7 +95,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 ignore = ["RUF022"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["stage_gen"]
+known-first-party = ["gnode", "stage_gen"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from gnode import atomic_write_json, resolve_relative_path_within_root
 from stage_gen.recipes.dialogue_scene.identity import canonical_sha256, content_sha256
-from stage_gen.reliability import atomic_write_json, resolve_relative_path_within_root
 
 
 class DialogueStageCache:

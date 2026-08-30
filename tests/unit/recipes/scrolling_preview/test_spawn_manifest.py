@@ -10,13 +10,13 @@ from typing import Any, cast
 
 import pytest
 
+from gnode import BinaryArtifact, InputProvenance, ProvenanceInput, write_artifact_with_provenance
 from stage_gen.components.game_contract import (
     GAME_LIBRARY_RESOLUTION_VERSION,
     GameContract,
     canonical_game_contract_json,
 )
 from stage_gen.config import TransparencyMode
-from stage_gen.contracts import BinaryArtifact, InputProvenance, ProvenanceInput
 from stage_gen.recipes.scrolling_preview import manifest as manifest_module
 from stage_gen.recipes.scrolling_preview.game import (
     GAME_RESOLUTION_VERSION,
@@ -30,7 +30,6 @@ from stage_gen.recipes.scrolling_preview.map_book import (
     CollectedMapBook,
 )
 from stage_gen.recipes.scrolling_preview.soundtrack import CollectedSoundtrack
-from stage_gen.reliability import write_artifact_with_provenance
 
 
 def _mob_population(

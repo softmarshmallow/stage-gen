@@ -7,12 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
+from gnode import RetryPolicy
 from stage_gen.components.background_removal import (
     BackgroundRemovalRequest,
     BackgroundRemovalService,
 )
 from stage_gen.providers.fal import FalBackgroundRemovalBackend
-from stage_gen.reliability import RetryPolicy
 
 from .._helpers import png_bytes
 

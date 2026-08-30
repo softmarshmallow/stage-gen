@@ -5,18 +5,20 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, cast
 
-from stage_gen.components import (
-    CanonicalStyleAnchor,
-    CharacterProfile,
-    canonical_style_anchor_digest,
-    character_profile_sha256,
-)
-from stage_gen.contracts import (
+from gnode import (
     ArtifactProvenance,
     ArtifactRights,
     BinaryArtifact,
     ProvenanceInput,
     SoftwareIdentity,
+    resolve_relative_path_within_root,
+    write_artifact_with_provenance_async,
+)
+from stage_gen.components import (
+    CanonicalStyleAnchor,
+    CharacterProfile,
+    canonical_style_anchor_digest,
+    character_profile_sha256,
 )
 from stage_gen.media import inspect_image
 from stage_gen.recipes.base import StageContext
@@ -48,10 +50,6 @@ from stage_gen.recipes.dialogue_scene.prompts import (
     PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST,
     PROFILE_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
-)
-from stage_gen.reliability import (
-    resolve_relative_path_within_root,
-    write_artifact_with_provenance_async,
 )
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")

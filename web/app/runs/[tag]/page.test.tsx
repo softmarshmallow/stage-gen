@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   executionViewFixture,
   failedExecutionViewFixture,
-  inFlightExecutionViewFixture,
+  unfinishedExecutionViewFixture,
 } from "@/lib/shell/execution-view.fixture";
 import { runDirFor } from "@/lib/shell/runs";
 import MotionPlayer from "./MotionPlayer";
@@ -51,14 +51,33 @@ describe("run view route", () => {
     expect(markup).toContain("failed");
   });
 
-  test("shows in-flight runs as in flight, not done", async () => {
-    const tag = `run-view-page-inflight-${process.pid}`;
-    await writeRun(tag, inFlightExecutionViewFixture());
+  test("shows a stopped run as interrupted, not as still running", async () => {
+    const tag = `run-view-page-stopped-${process.pid}`;
+    await writeRun(
+      tag,
+      unfinishedExecutionViewFixture(new Date(Date.now() - 3 * 86_400_000).toISOString()),
+    );
 
     const markup = renderToStaticMarkup(await RunPage({ params: Promise.resolve({ tag }) }));
-    expect(markup).toContain("in flight");
-    expect(markup).toContain("1 running");
+    expect(markup).toContain("interrupted");
+    expect(markup).not.toContain("in flight");
+    // The node started and nobody finished it. Calling that "running" three days
+    // later is the same lie one level down.
+    expect(markup).toContain("1 abandoned");
+    expect(markup).not.toContain("1 running");
     expect(markup).toContain("1 pending");
+    // The evidence behind the verdict is on the page, not just the verdict.
+    expect(markup).toContain("last event");
+  });
+
+  test("a run whose trace is still fresh is shown as running", async () => {
+    const tag = `run-view-page-running-${process.pid}`;
+    await writeRun(tag, unfinishedExecutionViewFixture(new Date().toISOString()));
+
+    const markup = renderToStaticMarkup(await RunPage({ params: Promise.resolve({ tag }) }));
+    expect(markup).toContain("· running ·");
+    expect(markup).toContain("1 running");
+    expect(markup).not.toContain("abandoned");
   });
 
   test("puts the graph full-bleed under a floating panel that owns the trackpad", async () => {

@@ -11,13 +11,13 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from gnode import ArtifactProvenance
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.image_generation import ImageGenerationRequest, ImageGenerationResult
 from stage_gen.concept_studio.image import generate_concept_image
 from stage_gen.concept_studio.profiles import GROK_IMAGINE_IMAGE_2
 from stage_gen.concept_studio.workspace import create_workspace
 from stage_gen.config import StageGenConfig
-from stage_gen.contracts import ArtifactProvenance
 from stage_gen.media import inspect_image
 
 
