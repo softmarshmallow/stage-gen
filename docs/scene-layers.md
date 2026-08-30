@@ -8,7 +8,7 @@
 > map's own generated layer bundle.
 
 The optional Phaser preview composes generated art through a typed semantic
-layer contract in `web/lib/runtime/layers.ts`. Generation still publishes the
+layer contract in `web/lib/sideview-platformer/layers.ts`. Generation still publishes the
 portable `id`, `z_index`, `parallax`, and `opaque` fields; the browser adapter
 validates those fields and resolves their complete presentation contract before
 creating a texture. A manifest may carry the same resolved contract as

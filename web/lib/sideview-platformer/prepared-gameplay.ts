@@ -2,7 +2,7 @@
 // prepared-game-runtime-v10 manifest. Keep this projection in lockstep with
 // src/stage_gen/components/gameplay_contract/models.py.
 
-import type { PreparedRuntimeManifest } from "./prepared-manifest";
+import type { PreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
 import { DEFAULT_WEAPON_CLASS, WEAPON_CLASSES, type WeaponClass } from "./weapon-class";
 
 export const PREPARED_GAMEPLAY_MOVEMENTS = [

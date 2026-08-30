@@ -5,7 +5,7 @@ import {
   climbableFrameKey,
   climbableVisualWidth,
 } from "./prepared-climbable";
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 
 function mapWithClimbable(
   cells: readonly Readonly<{ x: number; y: number; width: number; height: number }>[],

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { GAMEPLAY_AUTOMATION_MODE } from "@/lib/runtime/automation";
+import { GAMEPLAY_AUTOMATION_MODE } from "@/lib/sideview-platformer/automation";
 import { preparedRuntimeManifestFixture } from "@/lib/shell/prepared-runtime.fixture";
 import { runDirFor } from "@/lib/shell/runs";
 import PreviewPage from "./page";

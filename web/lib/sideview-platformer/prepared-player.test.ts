@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { MotionBinding } from "./prepared-manifest";
+import type { MotionBinding } from "@/lib/manifest/prepared-manifest";
 import { playerSheetScaleForState } from "./sprite-scale";
 import {
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,

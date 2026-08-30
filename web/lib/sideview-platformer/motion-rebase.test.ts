@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { rebasedSheetScales } from "./sprite-scale";
 import { preparedPlayerStateRebase } from "./prepared-player";
-import type { MotionCalibration } from "./prepared-manifest";
+import type { MotionCalibration } from "@/lib/manifest/prepared-manifest";
 
 // The multipliers the judge actually returned for the canonical actor, and the defect they
 // describe: the climb strips are generated on a 1115x2850 canvas against the master states'

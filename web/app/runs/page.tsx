@@ -7,7 +7,7 @@ import {
   type ExecutionRunLiveness,
   RUN_LIVENESS_LABELS,
   runLiveness,
-} from "@/lib/runtime/execution-view";
+} from "@/lib/run-viewer/execution-view";
 import {
   type ExecutionViewRunListEntry,
   listExecutionViewRuns,

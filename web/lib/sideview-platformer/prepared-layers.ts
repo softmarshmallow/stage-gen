@@ -4,7 +4,7 @@
 // the offset; this module only turns those facts plus the viewport into a transform, so the local
 // review composite and the browser agree by construction rather than by coincidence.
 
-import type { PreparedLayerPlacement, PreparedMap } from "./prepared-manifest";
+import type { PreparedLayerPlacement, PreparedMap } from "@/lib/manifest/prepared-manifest";
 
 /**
  * Which space a layer's `topY` is measured in.

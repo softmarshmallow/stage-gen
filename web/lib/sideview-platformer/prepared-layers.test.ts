@@ -5,7 +5,7 @@ import {
   preparedWalkSurfaceY,
 } from "./prepared-layers";
 import { projectPreparedTerrainWorld } from "./prepared-terrain";
-import type { PreparedLayerPlacement, PreparedMap } from "./prepared-manifest";
+import type { PreparedLayerPlacement, PreparedMap } from "@/lib/manifest/prepared-manifest";
 
 const VIEW_H = 720;
 const TILE_PX = 64;

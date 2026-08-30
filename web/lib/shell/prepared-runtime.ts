@@ -4,7 +4,7 @@ import {
   parsePreparedRuntimeManifest,
   PREPARED_RUNTIME_KIND,
   type PreparedRuntimeManifest,
-} from "@/lib/runtime/prepared-manifest";
+} from "@/lib/manifest/prepared-manifest";
 import {
   artifactPathFor,
   assertSafeOutRoot,

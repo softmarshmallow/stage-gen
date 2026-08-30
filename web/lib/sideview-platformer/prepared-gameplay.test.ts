@@ -3,7 +3,7 @@ import {
   assertPreparedGameplayManifestClosure,
   parsePreparedGameplayContract,
 } from "./prepared-gameplay";
-import type { PreparedRuntimeManifest } from "./prepared-manifest";
+import type { PreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
 
 function gameplayFixture(): Record<string, unknown> {
   return {

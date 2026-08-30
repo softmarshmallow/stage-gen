@@ -1,8 +1,8 @@
 import type {
   RuntimeArtifact,
   RuntimeArtifactRole,
-} from "@/lib/runtime/prepared-manifest";
-import { INVENTORY_GRID_4X2_V1 } from "@/lib/runtime/inventory-layout";
+} from "@/lib/manifest/prepared-manifest";
+import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
 
 const HASH = "a".repeat(64);
 

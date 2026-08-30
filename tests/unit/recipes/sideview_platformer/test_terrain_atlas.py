@@ -120,11 +120,12 @@ def test_lookup_has_47_unique_and_reachable_masks() -> None:
 
 
 def test_web_consumer_lookup_matches_the_authoritative_packaged_contract() -> None:
+    # Byte equality, not JSON equality: nothing generates one file from the
+    # other, so the only affordable sync proof is that there is exactly one
+    # sequence of bytes on both sides of the language boundary.
     repository = Path(__file__).parents[4]
-    consumer = json.loads(
-        (repository / "web/lib/runtime/terrain-atlas-lookup.json").read_text(encoding="utf-8")
-    )
-    authoritative = json.loads(terrain_atlas_lookup_path().read_text(encoding="utf-8"))
+    consumer = (repository / "web/lib/sideview-platformer/terrain-atlas-lookup.json").read_bytes()
+    authoritative = terrain_atlas_lookup_path().read_bytes()
     assert consumer == authoritative
 
 

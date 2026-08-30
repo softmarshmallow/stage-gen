@@ -9,7 +9,7 @@ import path from "node:path";
 import {
   PREPARED_RUNTIME_KIND,
   PREPARED_RUNTIME_SCHEMA_VERSION,
-} from "@/lib/runtime/prepared-manifest";
+} from "@/lib/manifest/prepared-manifest";
 
 export const REPO_ROOT = path.resolve(process.cwd(), "..");
 export const OUT_ROOT = process.env.STAGE_GEN_OUT_DIR?.trim()

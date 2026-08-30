@@ -5,7 +5,7 @@ import { previewPolicyForRunMode } from "@/lib/shell/transparency";
 import {
   GameplayAutomationRequestError,
   resolveGameplayAutomationMode,
-} from "@/lib/runtime/automation";
+} from "@/lib/sideview-platformer/automation";
 import PreviewCanvas from "./PreviewCanvas";
 
 // Optional per-run consumer for the scrolling-world recipe. This page is a

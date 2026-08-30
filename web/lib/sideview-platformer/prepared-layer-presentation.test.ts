@@ -3,7 +3,7 @@ import {
   isNeutralLayerPresentation,
   presentPreparedLayerPixels,
 } from "./prepared-layer-presentation";
-import type { PreparedLayerPresentation } from "./prepared-manifest";
+import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
 const NEUTRAL: PreparedLayerPresentation = Object.freeze({
   contrast: 1,

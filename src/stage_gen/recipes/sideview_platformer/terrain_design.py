@@ -28,7 +28,7 @@ from stage_gen.components.platformer_map_design import (
 
 #: Measured from the runtime's own jump arc, not assumed: a rise of one tile stays reachable
 #: across eight columns of gap and a rise of two across six. Anything higher needs a climbable.
-#: See web/lib/runtime/vertical.ts and web/lib/runtime/player.ts for the source of these numbers.
+#: See web/lib/sideview-platformer/vertical.ts and player.ts for the source of these numbers.
 TERRAIN_JUMP_REACH: dict[int, int] = {1: 8, 2: 6}
 #: A level or downward crossing is not free either. Bounding it stops a design from treating two
 #: surfaces a whole screen apart as connected.
@@ -37,7 +37,8 @@ TERRAIN_LEVEL_GAP_TILES = 8
 TERRAIN_CLIMBABLE_RISE_TILES: tuple[int, ...] = (4,)
 #: The runtime refuses a ladder whose foot has no flat neighbour to its right.
 TERRAIN_CLIMBABLE_NEEDS_FLAT_FOOTING = True
-#: The consumer's viewport and figure, restated from web/lib/runtime/prepared-scene.ts so the
+#: The consumer's viewport and figure, restated from the runtime's prepared-scene.ts
+#: (web/lib/sideview-platformer) so the
 #: designer and the runtime cannot disagree about what "in frame" means. VIEW_H is 720, TILE_PX
 #: is 64, and a standing player is drawn 154px tall.
 TERRAIN_VIEWPORT_HEIGHT_PX = 720

@@ -1,4 +1,4 @@
-# Scrolling-preview runtime
+# Side-view platformer runtime
 
 This directory belongs exclusively to the optional browser preview. It is not
 the authoritative runtime for generated assets and it is not imported by

@@ -1,4 +1,4 @@
-import type { PreparedLayerPresentation } from "./prepared-manifest";
+import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
 function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));

@@ -39,7 +39,8 @@ if __package__ in {None, ""}:
 from PIL import Image, ImageChops, ImageDraw, ImageStat
 
 # --- canonical world unit -------------------------------------------------------------------
-# web/lib/runtime/prepared-scene.ts TILE_PX, and vertical.ts LADDER_VISUAL_WIDTH / OVERSHOOT.
+# web/lib/sideview-platformer/prepared-scene.ts TILE_PX, and vertical.ts
+# LADDER_VISUAL_WIDTH / OVERSHOOT.
 RUNTIME_TILE_PX = 64
 CLIMBABLE_WIDTH_TILES = Fraction(1)
 CLIMBABLE_OVERSHOOT_TILES = Fraction(1, 2)

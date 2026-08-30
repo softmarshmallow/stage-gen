@@ -12,7 +12,7 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
   prompting and admission, deterministic chroma-alpha extraction and connector
   harmonization, 47-mask lookup admission, and structural previews.
 - `maps/<map_id>.toml` owns the exact top-to-bottom binary occupancy matrix.
-- `web/lib/runtime/terrain-atlas.ts` owns eight-neighbor peering,
+- `web/lib/sideview-platformer/terrain-atlas.ts` owns eight-neighbor peering,
   atlas-coordinate selection, collision identity, engine import metadata, and
   dynamic-versus-baked behavior for that authored matrix.
 

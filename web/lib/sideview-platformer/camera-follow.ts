@@ -1,6 +1,6 @@
 /** Deterministic player-follow camera framing for the optional scrolling adapter. */
 
-import type { PreparedCameraAxis } from "./prepared-manifest";
+import type { PreparedCameraAxis } from "@/lib/manifest/prepared-manifest";
 
 export const HORIZONTAL_CAMERA_DEAD_ZONE = Object.freeze({
   leftViewportRatio: 0.375,

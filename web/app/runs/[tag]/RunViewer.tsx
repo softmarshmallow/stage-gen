@@ -19,8 +19,8 @@ import {
   type ExecutionView,
   nodeStateLabel,
   RUN_LIVENESS_LABELS,
-} from "@/lib/runtime/execution-view";
-import { layoutExecutionGraph } from "@/lib/runtime/execution-view-layout";
+} from "@/lib/run-viewer/execution-view";
+import { layoutExecutionGraph } from "@/lib/run-viewer/execution-view-layout";
 import {
   centerOn,
   fitViewport,
@@ -32,7 +32,7 @@ import {
   zoomAt,
   type Size,
   type Viewport,
-} from "@/lib/runtime/execution-view-viewport";
+} from "@/lib/run-viewer/execution-view-viewport";
 import NodeInspector, { RunFacts, STATE_MARK } from "./Inspector";
 
 const STATE_CHIP: Record<ExecutionNodeState, string> = {

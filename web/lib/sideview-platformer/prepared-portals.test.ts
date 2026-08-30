@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { PreparedGameplayContract } from "./prepared-gameplay";
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 import { preparedPortalEndpointPlacements } from "./prepared-portals";
 
 function map(

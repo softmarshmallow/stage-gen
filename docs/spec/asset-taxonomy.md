@@ -77,7 +77,7 @@ the old names.
 | `components/image_repeat` | unchanged | `2d/image_repeat` | a by declaration, c in practice — repair prompts assume a gravity-bearing horizon; documented, ungated |
 | `recipes/scrolling_preview` | `recipes/sideview_platformer` | `2d/sideview/platformer` (the recipe is the genre package) | c/d |
 | `recipes/dialogue_scene` | unchanged | `2d/frontview/vn/scene` | c |
-| `web/lib/runtime` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
+| `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

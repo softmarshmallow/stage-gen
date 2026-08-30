@@ -5,10 +5,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { errorBanner, h1, metaLine, page } from "@/app/ui";
-import type { ExecutionView } from "@/lib/runtime/execution-view";
+import type { ExecutionView } from "@/lib/run-viewer/execution-view";
 import { readExecutionView } from "@/lib/shell/execution-view";
 import { isSafeRunTag } from "@/lib/shell/runs";
-import { runLiveness } from "@/lib/runtime/execution-view";
+import { runLiveness } from "@/lib/run-viewer/execution-view";
 import RunViewer from "./RunViewer";
 
 export const dynamic = "force-dynamic";

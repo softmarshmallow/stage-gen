@@ -1,6 +1,6 @@
 import type { PortalEndpointPlacement } from "./portal";
 import type { PreparedGameplayContract } from "./prepared-gameplay";
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 
 /** Resolve map-owned portal anchors against separately authored gameplay transitions. */
 export function preparedPortalEndpointPlacements(input: Readonly<{

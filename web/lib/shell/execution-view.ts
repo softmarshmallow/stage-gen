@@ -10,7 +10,7 @@ import {
   type ExecutionRunState,
   type ExecutionView,
   parseExecutionView,
-} from "@/lib/runtime/execution-view";
+} from "@/lib/run-viewer/execution-view";
 import { artifactPathFor, assertSafeOutRoot, isSafeRunTag, OUT_ROOT, runDirFor } from "./runs";
 
 export const EXECUTION_VIEW_FILENAME = "execution-view.json";

@@ -1,4 +1,4 @@
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 import { climbableVisualWidth } from "./prepared-climbable";
 import { parseTerrainOccupancy } from "./terrain-atlas";
 import { terrainSurfaceY } from "./terrain";

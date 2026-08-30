@@ -18,9 +18,9 @@ from typing import Literal
 
 ClimbableRole = Literal["ladder", "rope"]
 
-#: web/lib/runtime/prepared-scene.ts TILE_PX
+#: web/lib/sideview-platformer/prepared-scene.ts TILE_PX
 RUNTIME_TILE_PX = 64
-#: web/lib/runtime/vertical.ts LADDER_VISUAL_WIDTH / LADDER_VISUAL_OVERSHOOT, in tiles.
+#: web/lib/sideview-platformer/vertical.ts LADDER_VISUAL_WIDTH / LADDER_VISUAL_OVERSHOOT, in tiles.
 CLIMBABLE_WIDTH_TILES = Fraction(1)
 CLIMBABLE_OVERSHOOT_TILES = Fraction(1, 2)
 GUTTER_TILES = Fraction(1)

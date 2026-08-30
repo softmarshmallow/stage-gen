@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parsePreparedRuntimeManifest } from "@/lib/runtime/prepared-manifest";
-import { INVENTORY_GRID_4X2_V1 } from "@/lib/runtime/inventory-layout";
+import { parsePreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
+import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
 import { projectPreparedRuntimeAssets } from "./prepared-assets";
 
 const DIGEST = "a".repeat(64);

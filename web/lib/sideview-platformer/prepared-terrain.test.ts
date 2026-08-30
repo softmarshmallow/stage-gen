@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 import { projectPreparedTerrainWorld } from "./prepared-terrain";
 
 function mapGeometry(

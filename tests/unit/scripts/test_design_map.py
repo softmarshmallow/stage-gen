@@ -72,7 +72,8 @@ def test_the_profile_restates_the_consumers_own_traversal_constants() -> None:
     assert movement.jump_reach == terrain_design.TERRAIN_JUMP_REACH
     assert movement.level_gap_tiles == terrain_design.TERRAIN_LEVEL_GAP_TILES
     assert movement.climbable_rise_tiles == terrain_design.TERRAIN_CLIMBABLE_RISE_TILES
-    # Boundary behaviour, not just the table: a retune of web/lib/runtime/player.ts should fail
+    # Boundary behaviour, not just the table: a retune of the runtime's player.ts
+    # (web/lib/sideview-platformer) should fail
     # here rather than in a browser.
     assert movement.reachable(1, 8) and not movement.reachable(1, 9)
     assert movement.reachable(2, 6) and not movement.reachable(2, 7)

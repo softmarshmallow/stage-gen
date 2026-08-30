@@ -15,7 +15,7 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 }
 ```
 
-[`prepared-manifest.ts`](../web/lib/runtime/prepared-manifest.ts) is the browser boundary parser.
+[`prepared-manifest.ts`](../web/lib/manifest/prepared-manifest.ts) is the browser boundary parser.
 It rejects unresolved entry maps, unsafe artifact paths, invalid digests, malformed stable IDs,
 non-4-by-1 motion strips, contradictory source-facing/mirroring policy, invalid binary occupancy,
 and malformed map-local ladder or portal projection. Artifact paths are
@@ -72,7 +72,7 @@ this page. A future review explorer needs its own explicit review-manifest bound
 
 ## Consumer ownership
 
-[`prepared-scene.ts`](../web/lib/runtime/prepared-scene.ts) owns preview-specific implementation:
+[`prepared-scene.ts`](../web/lib/sideview-platformer/prepared-scene.ts) owns preview-specific implementation:
 
 - 1280-by-720 viewport and a dead-zone follow camera whose permitted axes are read from the
   map's `[camera]` block rather than assumed; without a vertical axis the camera's world box
@@ -201,9 +201,9 @@ target in front of it while it does. A throwing class also checks the ground: a 
 behind a rise is declined rather than fired at, because the shot would die in the rise and the
 attack behaviour outranks the one that would have walked somewhere better.
 
-What the bot presses is decided by [`bot-hunter.ts`](../web/lib/runtime/bot-hunter.ts) — stand down,
+What the bot presses is decided by [`bot-hunter.ts`](../web/lib/sideview-platformer/bot-hunter.ts) — stand down,
 heal, engage, collect, pursue, patrol, arbitrated by priority once per frame — and where it can go
-is decided by [`bot-navigation.ts`](../web/lib/runtime/bot-navigation.ts), which derives level
+is decided by [`bot-navigation.ts`](../web/lib/sideview-platformer/bot-navigation.ts), which derives level
 standing surfaces from the map's authored occupancy and joins them with the moves the character can
 actually perform. A jump link exists only once the same fixed-step integration the controller runs
 proves the arc, so the graph cannot promise a ledge the character falls short of, and a character

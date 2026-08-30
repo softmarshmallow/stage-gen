@@ -2,7 +2,7 @@ import type {
   PreparedRuntimeManifest,
   RuntimeArtifact,
   RuntimeArtifactRole,
-} from "@/lib/runtime/prepared-manifest";
+} from "@/lib/manifest/prepared-manifest";
 
 export type PreparedAssetCard = Readonly<{
   path: string;

@@ -1,4 +1,4 @@
-import type { PreparedMap } from "./prepared-manifest";
+import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 
 /**
  * One addressable frame inside a map's climbable atlas.

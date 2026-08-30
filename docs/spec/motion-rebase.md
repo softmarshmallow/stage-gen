@@ -43,7 +43,7 @@ authored declaration.*
   actors, states, or games.
 - `stage_gen.recipes.scrolling_preview.motion_rebase` owns the baseline rule,
   the judging atlas layout, admission, and the published rebase record.
-- `web/lib/runtime` owns composition of the rebase with the actor's magnitude.
+- `web/lib/sideview-platformer` owns composition of the rebase with the actor's magnitude.
 
 The image model owns appearance only. Deterministic code owns plate assembly,
 admission, and arithmetic. A vision model owns one judgement: a multiplier per

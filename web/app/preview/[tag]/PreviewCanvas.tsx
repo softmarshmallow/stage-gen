@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
-import type { GameplayAutomationMode } from "@/lib/runtime/automation";
-import type { PreparedPreviewGameHandle } from "@/lib/runtime/prepared-scene";
+import type { GameplayAutomationMode } from "@/lib/sideview-platformer/automation";
+import type { PreparedPreviewGameHandle } from "@/lib/sideview-platformer/prepared-scene";
 import { cx } from "@/app/ui";
 import {
   developerKitLabel,
   developerKitToken,
   sameDeveloperKit,
   type DeveloperKit,
-} from "@/lib/runtime/developer-kit";
+} from "@/lib/sideview-platformer/developer-kit";
 
 export default function PreviewCanvas({
   tag,
@@ -40,7 +40,7 @@ export default function PreviewCanvas({
     // The browser adapter touches window at construction time, so load it
     // lazily and keep its lifecycle out of the headless pipeline.
     void (async () => {
-      const { bootPreparedGame } = await import("@/lib/runtime/prepared-scene");
+      const { bootPreparedGame } = await import("@/lib/sideview-platformer/prepared-scene");
       if (cancelled || !ref.current) return;
       preview = bootPreparedGame(ref.current, tag, transparencyPolicy, automationMode);
       handle.current = preview;

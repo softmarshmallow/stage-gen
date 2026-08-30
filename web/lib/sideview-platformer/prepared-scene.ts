@@ -27,7 +27,7 @@ import {
   type MotionBinding,
   type PreparedMap,
   type PreparedRuntimeManifest,
-} from "./prepared-manifest";
+} from "@/lib/manifest/prepared-manifest";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import { Player } from "./player";
 import { Mob } from "./mob";
@@ -80,7 +80,7 @@ import {
   selectableDeveloperKits,
   type DeveloperKit,
 } from "./developer-kit";
-import { drawnExtentPx } from "./asset-unit";
+import { drawnExtentPx } from "@/lib/manifest/asset-unit";
 import { projectileProfile } from "./projectile-class";
 import { automatedDefeatConfirmDue, resolveHomeSpawn } from "./respawn";
 import { DefeatPanel } from "./defeat-panel";

@@ -16,8 +16,8 @@ import {
   type ExecutionViewNode,
   nodeStateLabel,
   RUN_LIVENESS_LABELS,
-} from "@/lib/runtime/execution-view";
-import { preparedAssetUrl } from "@/lib/runtime/prepared-manifest";
+} from "@/lib/run-viewer/execution-view";
+import { preparedAssetUrl } from "@/lib/manifest/prepared-manifest";
 import MotionPlayer from "./MotionPlayer";
 
 export const STATE_MARK: Record<ExecutionNodeState, string> = {

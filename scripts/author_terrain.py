@@ -35,7 +35,7 @@ from stage_gen.components.platformer_map.prepared import (
     normalized_terrain_column,
 )
 
-#: web/lib/runtime/prepared-scene.ts TILE_PX and VIEW_H; vertical.ts camera clamp.
+#: web/lib/sideview-platformer/prepared-scene.ts TILE_PX and VIEW_H; vertical.ts camera clamp.
 TILE_PX = 64
 VIEW_H = 720
 VERTICAL_CAMERA_MIN_SCROLL_Y = -512

@@ -6,7 +6,7 @@ workspace, not the project's game-engine decision.
 
 ## Boundary
 
-Phaser code stays in `web/lib/runtime/` and client-only preview components. It
+Phaser code stays in `web/lib/sideview-platformer/` and client-only preview components. It
 may own browser texture registration, scene composition, camera behavior,
 input, collision, animation playback, UI, and preview-only probes.
 

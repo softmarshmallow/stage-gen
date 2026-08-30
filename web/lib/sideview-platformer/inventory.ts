@@ -22,7 +22,7 @@ import { SCENE_CONTENT_DEPTH } from "./layers";
 import {
   INVENTORY_GRID_4X2_V1,
   type InventoryPanelLayout,
-} from "./inventory-layout";
+} from "@/lib/manifest/inventory-layout";
 
 export const INVENTORY_PANEL_W = INVENTORY_GRID_4X2_V1.canvas.width;
 export const INVENTORY_PANEL_H = INVENTORY_GRID_4X2_V1.canvas.height;
