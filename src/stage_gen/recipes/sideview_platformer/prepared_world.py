@@ -35,17 +35,17 @@ from gnode import (
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components.game_map import PreparedGameMap, PreparedMapLayer
-from stage_gen.components.game_map.prepared import (
-    PreparedMapTerrain,
-    canonical_prepared_map_terrain_json,
-    load_prepared_map_terrain_bytes,
-    validate_generated_terrain,
-)
 from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     build_three_repeat_preview,
     validate_image_repeat,
+)
+from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapLayer
+from stage_gen.components.platformer_map.prepared import (
+    PreparedMapTerrain,
+    canonical_prepared_map_terrain_json,
+    load_prepared_map_terrain_bytes,
+    validate_generated_terrain,
 )
 from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
 from stage_gen.media import (
@@ -69,14 +69,14 @@ from stage_gen.media import (
 from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_cache import NodeArtifactCache
-from stage_gen.recipes.scrolling_preview.climbable_atlas import (
+from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     MAX_HEIGHT_PARITY,
     ROLE_ASPECT_ENVELOPE,
     ClimbableRole,
     plan_climbable_atlas,
     role_aspect_admits,
 )
-from stage_gen.recipes.scrolling_preview.layer_contract import (
+from stage_gen.recipes.sideview_platformer.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     LOOP_ANCHOR_BAND_PX,
     LOOP_BRIDGE_CONTEXT_SPAN_PX,
@@ -84,14 +84,14 @@ from stage_gen.recipes.scrolling_preview.layer_contract import (
     LOOP_REPAINT_SPAN_PX,
     LOOP_REPAINT_WINDOW_PX,
 )
-from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+from stage_gen.recipes.sideview_platformer.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     assemble_terrain_atlas,
     compose_canonical_terrain,
     require_terrain_atlas_source,
     terrain_atlas_generation_prompt,
 )
-from stage_gen.recipes.scrolling_preview.terrain_design import (
+from stage_gen.recipes.sideview_platformer.terrain_design import (
     compile_terrain,
     terrain_artifact_path,
     terrain_profile,

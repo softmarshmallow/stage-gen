@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.scrolling_preview.prepared_manifest import (
+from stage_gen.recipes.sideview_platformer.prepared_manifest import (
     PREPARED_RUNTIME_MANIFEST_KIND,
     RUNTIME_ARTIFACT_ROLES,
     PreparedManifestError,

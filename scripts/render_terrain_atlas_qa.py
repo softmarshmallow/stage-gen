@@ -11,7 +11,7 @@ from typing import Protocol, cast
 
 from PIL import Image, ImageDraw
 
-from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+from stage_gen.recipes.sideview_platformer.terrain_atlas import (
     assemble_terrain_atlas,
     compose_canonical_terrain,
 )

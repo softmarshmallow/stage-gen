@@ -9,7 +9,7 @@ import pytest
 from gnode import EDGE_KIND_GAP_ID, RunViewError, write_run_view
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_view import ExecutionView, build_execution_view
-from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"

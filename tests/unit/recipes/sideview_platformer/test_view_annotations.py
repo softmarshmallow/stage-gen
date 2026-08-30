@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from gnode import Node, RetryOwner
 from stage_gen.orchestration.execution_graph import OperationKind
-from stage_gen.recipes.scrolling_preview.view_annotations import (
-    annotate_scrolling_preview_artifact,
+from stage_gen.recipes.sideview_platformer.view_annotations import (
+    annotate_sideview_platformer_artifact,
 )
 
 
@@ -32,7 +32,7 @@ def test_motion_state_strips_get_frame_geometry_and_admit_the_convention() -> No
         "content/players/wayfarer/states/idle.png",
         "content/mobs/petal_puff/states/attack.png",
     ):
-        annotation = annotate_scrolling_preview_artifact(ref, node)
+        annotation = annotate_sideview_platformer_artifact(ref, node)
         assert annotation.display == "motion_atlas"
         assert annotation.motion is not None
         assert annotation.motion.frame_count == 4
@@ -43,7 +43,7 @@ def test_motion_state_strips_get_frame_geometry_and_admit_the_convention() -> No
 
 
 def test_player_climb_states_use_the_two_cell_geometry() -> None:
-    annotation = annotate_scrolling_preview_artifact(
+    annotation = annotate_sideview_platformer_artifact(
         "content/players/wayfarer/states/climb_ladder.png", _node()
     )
     assert annotation.motion is not None
@@ -51,7 +51,7 @@ def test_player_climb_states_use_the_two_cell_geometry() -> None:
 
 
 def test_npc_world_strips_are_motion_atlases() -> None:
-    annotation = annotate_scrolling_preview_artifact(
+    annotation = annotate_sideview_platformer_artifact(
         "content/npcs/brom_copperkeg/world.source.png", _node()
     )
     assert annotation.display == "motion_atlas"
@@ -69,7 +69,7 @@ def test_everything_else_falls_back_to_media_type() -> None:
         "package.identity.json": "data",
     }
     for ref, display in cases.items():
-        annotation = annotate_scrolling_preview_artifact(ref, node)
+        annotation = annotate_sideview_platformer_artifact(ref, node)
         assert annotation.display == display, ref
         assert annotation.motion is None
         assert annotation.gaps == ()

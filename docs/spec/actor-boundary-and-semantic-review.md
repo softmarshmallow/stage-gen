@@ -75,7 +75,7 @@ src/stage_gen/components/structured_generation/
 src/gnode/providers/openrouter/structured.py
   OpenRouterStructuredBackend          current structured-output transport
 
-src/stage_gen/recipes/scrolling_preview/
+src/stage_gen/recipes/sideview_platformer/
   raster_contracts.py                  deterministic alpha and grid contracts
   review_criteria.py                   recipe-owned actor-facing criteria
   executor.py                          canonicalization, facing review, regeneration
@@ -113,7 +113,7 @@ Two rules constrain that proposal:
 ### Current state
 
 The deterministic boundary pipeline is implemented in
-`src/stage_gen/recipes/scrolling_preview/raster_contracts.py`:
+`src/stage_gen/recipes/sideview_platformer/raster_contracts.py`:
 
 | function | role |
 |---|---|
@@ -187,7 +187,7 @@ remains a possible future policy, not a current contract.
 ### Current actor-facing gate
 
 The current acceptance slice specified here is recipe-specific and covers actor facing. The
-exact identifiers in `src/stage_gen/recipes/scrolling_preview/review_criteria.py` are:
+exact identifiers in `src/stage_gen/recipes/sideview_platformer/review_criteria.py` are:
 
 | identifier | current value or role |
 |---|---|

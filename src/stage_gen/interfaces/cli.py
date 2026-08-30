@@ -29,15 +29,15 @@ from stage_gen.components.game_contract import (
     ResolvedGameContract,
     resolve_game_contract_binding,
 )
-from stage_gen.components.game_map import (
+from stage_gen.components.game_soundtrack import (
+    ResolvedGameSoundtrack,
+    resolve_game_soundtrack_binding,
+)
+from stage_gen.components.platformer_map import (
     ResolvedGameMap,
     ResolvedGameMapBook,
     resolve_game_map_book_binding,
     resolve_game_map_source,
-)
-from stage_gen.components.game_soundtrack import (
-    ResolvedGameSoundtrack,
-    resolve_game_soundtrack_binding,
 )
 from stage_gen.config import (
     ConfigError,
@@ -57,9 +57,9 @@ from stage_gen.recipes.dialogue_scene.character_bundle import (
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
-from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.scrolling_preview.view_annotations import (
-    annotate_scrolling_preview_artifact,
+from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.view_annotations import (
+    annotate_sideview_platformer_artifact,
 )
 
 
@@ -353,7 +353,7 @@ def _build_run_view_for(run_dir: Path) -> RunView:
     if declared == "prepared-game-execution-graph-v1":
         return build_execution_view(
             run_dir,
-            annotators={"scrolling-preview": annotate_scrolling_preview_artifact},
+            annotators={"scrolling-preview": annotate_sideview_platformer_artifact},
         )
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "

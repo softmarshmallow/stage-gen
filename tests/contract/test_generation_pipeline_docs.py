@@ -9,7 +9,7 @@ from types import ModuleType
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.scrolling_preview.package_graph import (
+from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
@@ -168,8 +168,8 @@ def test_checkpoint_closure_paragraphs_state_the_real_closure_sizes() -> None:
     recomputes by hand. A reader sizing a paid run off either was under-budgeting.
     """
 
-    from stage_gen.recipes.scrolling_preview.prepared_content import content_target_node_ids
-    from stage_gen.recipes.scrolling_preview.prepared_world import world_target_node_ids
+    from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
+    from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
 
     package, graph = _bellweather_graph()
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
@@ -191,9 +191,9 @@ def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -
     the property they protect.
     """
 
-    from stage_gen.recipes.scrolling_preview.prepared_content import content_target_node_ids
-    from stage_gen.recipes.scrolling_preview.prepared_manifest import runtime_artifact_paths
-    from stage_gen.recipes.scrolling_preview.prepared_world import world_target_node_ids
+    from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
+    from stage_gen.recipes.sideview_platformer.prepared_manifest import runtime_artifact_paths
+    from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
 
     package, graph = _bellweather_graph()
     by_id = {node.node_id: node for node in graph.nodes}

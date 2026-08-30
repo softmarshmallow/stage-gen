@@ -14,18 +14,18 @@ from typing import Any, Literal
 from PIL import Image
 
 from gnode import atomic_write_json
-from stage_gen.components.game_content import MotionPresentation, PropContent
 from stage_gen.components.game_contract.package import PreparedScale
-from stage_gen.components.game_map import PreparedMapLayer
-from stage_gen.components.game_map.prepared import (
+from stage_gen.components.game_ui import inventory_panel_layout_contract
+from stage_gen.components.platformer_content import MotionPresentation, PropContent
+from stage_gen.components.platformer_map import PreparedMapLayer
+from stage_gen.components.platformer_map.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
-from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.scrolling_preview.asset_unit import (
+from stage_gen.recipes.sideview_platformer.asset_unit import (
     ResolvedMagnitude,
     SubjectExtentAxis,
     admit_rank_ladder,
@@ -35,13 +35,13 @@ from stage_gen.recipes.scrolling_preview.asset_unit import (
     resolve_player_magnitude,
     resolve_rank_magnitude,
 )
-from stage_gen.recipes.scrolling_preview.motion_contract import (
+from stage_gen.recipes.sideview_platformer.motion_contract import (
     dialogue_atlas_grid,
     motion_atlas_geometry,
     motion_source_facing,
     runtime_mirrors_source,
 )
-from stage_gen.recipes.scrolling_preview.terrain_design import terrain_artifact_path
+from stage_gen.recipes.sideview_platformer.terrain_design import terrain_artifact_path
 
 PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 10
 #: The render projection the scrolling-preview consumer draws at. This is the only place

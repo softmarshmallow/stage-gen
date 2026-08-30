@@ -17,7 +17,7 @@ from gnode import (
     RunViewMotion,
     generic_artifact_annotation,
 )
-from stage_gen.recipes.scrolling_preview.motion_contract import (
+from stage_gen.recipes.sideview_platformer.motion_contract import (
     DEFAULT_MOTION_ATLAS_GEOMETRY,
     MotionActorKind,
     motion_atlas_geometry,
@@ -39,7 +39,7 @@ _PLAYBACK_GAP = RunViewGap(
 )
 
 
-def annotate_scrolling_preview_artifact(artifact_ref: str, node: Node) -> ArtifactAnnotation:
+def annotate_sideview_platformer_artifact(artifact_ref: str, node: Node) -> ArtifactAnnotation:
     """Refine the generic annotation with the recipe's motion-strip conventions."""
 
     state_match = _MOTION_STATE_PATTERN.match(artifact_ref)
@@ -59,4 +59,4 @@ def annotate_scrolling_preview_artifact(artifact_ref: str, node: Node) -> Artifa
     return generic_artifact_annotation(artifact_ref, node)
 
 
-__all__ = ["annotate_scrolling_preview_artifact"]
+__all__ = ["annotate_sideview_platformer_artifact"]

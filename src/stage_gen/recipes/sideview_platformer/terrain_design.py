@@ -12,7 +12,7 @@ consumer would state a different envelope, which is exactly why the designer tak
 
 from __future__ import annotations
 
-from stage_gen.components.game_map.prepared import (
+from stage_gen.components.platformer_map.prepared import (
     MAX_UNASSISTED_TERRAIN_RISE_TILES,
     PreparedGameMap,
     PreparedMapClimbablePlacement,

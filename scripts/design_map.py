@@ -30,8 +30,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from stage_gen.components.game_map import PreparedGameMap, load_prepared_game_map_bytes
-from stage_gen.components.game_map.prepared import (
+from stage_gen.components.platformer_map import PreparedGameMap, load_prepared_game_map_bytes
+from stage_gen.components.platformer_map.prepared import (
     canonical_prepared_map_terrain_json,
     validate_generated_terrain,
 )
@@ -47,7 +47,7 @@ from stage_gen.components.platformer_map_design import (
     translate,
     vocabulary,
 )
-from stage_gen.recipes.scrolling_preview.terrain_design import (
+from stage_gen.recipes.sideview_platformer.terrain_design import (
     compile_terrain,
     terrain_artifact_path,
     terrain_profile,

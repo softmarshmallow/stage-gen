@@ -22,14 +22,14 @@ from stage_gen.components.game_ui import (
     INVENTORY_PANEL_WIDTH,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.scrolling_preview.motion_contract import (
+from stage_gen.recipes.sideview_platformer.motion_contract import (
     dialogue_atlas_grid,
     motion_semantic_direction,
     motion_source_facing,
     runtime_mirrors_source,
 )
-from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.scrolling_preview.prepared_content import (
+from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     _validate_atlas,
     _validate_transparent_image,

@@ -7,12 +7,12 @@ import json
 from collections.abc import Iterable, Sequence
 
 from gnode import Binding, BindingTable, ModelRef, Node, Resource, RetryOwner, build_node_cache_key
-from stage_gen.components.game_content import (
+from stage_gen.components.platformer_content import (
     DEFAULT_MOTION_ANCHOR,
     ContentReference,
     MotionPresentation,
 )
-from stage_gen.components.game_map import PreparedGameMap, PreparedMapReference
+from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapReference
 from stage_gen.config import StageGenConfig
 from stage_gen.media import (
     LOOP_METHODS,
@@ -23,7 +23,7 @@ from stage_gen.orchestration.execution_graph import (
     finalize_execution_graph,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.scrolling_preview.layer_contract import (
+from stage_gen.recipes.sideview_platformer.layer_contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     NON_GENERATIVE_LAYER_FIELDS,
     PLACEMENT_ONLY_CLIMBABLE_FIELDS,
@@ -31,14 +31,14 @@ from stage_gen.recipes.scrolling_preview.layer_contract import (
     RUNTIME_ONLY_LAYER_FIELDS,
     loop_method_identity,
 )
-from stage_gen.recipes.scrolling_preview.motion_contract import (
+from stage_gen.recipes.sideview_platformer.motion_contract import (
     DEFAULT_MOTION_ATLAS_GEOMETRY,
     MotionActorKind,
     motion_atlas_geometry,
     motion_source_facing,
     recipe_owned_motion_direction,
 )
-from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+from stage_gen.recipes.sideview_platformer.terrain_atlas import (
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
 )

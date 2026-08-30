@@ -26,19 +26,19 @@ from stage_gen.orchestration.runtime import (
     create_openai_image_service,
     create_structured_service,
 )
-from stage_gen.recipes.scrolling_preview.package_graph import (
+from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
-from stage_gen.recipes.scrolling_preview.prepared_content import (
+from stage_gen.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     content_target_node_ids,
 )
-from stage_gen.recipes.scrolling_preview.prepared_manifest import (
+from stage_gen.recipes.sideview_platformer.prepared_manifest import (
     PreparedManifestResult,
     assemble_prepared_runtime,
 )
-from stage_gen.recipes.scrolling_preview.prepared_world import (
+from stage_gen.recipes.sideview_platformer.prepared_world import (
     PreparedWorldNodeHandler,
     world_target_node_ids,
 )

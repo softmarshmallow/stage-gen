@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from stage_gen.components.game_contract.package import PreparedScale
-from stage_gen.recipes.scrolling_preview.asset_unit import (
+from stage_gen.recipes.sideview_platformer.asset_unit import (
     AssetUnitError,
     ResolvedMagnitude,
     admit_entity_consistency,

@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from gnode import PersistedContractModel
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
-from stage_gen.components.game_map.models import (
+from stage_gen.components.platformer_map.models import (
     GameMap,
     GameMapBook,
     ResolvedGameMapBookDocument,

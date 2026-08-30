@@ -12,13 +12,13 @@ from stage_gen.components._secure_fs import (
     open_absolute_directory,
     read_relative_regular_file,
 )
-from stage_gen.components.game_map.loader import (
+from stage_gen.components.platformer_map.loader import (
     canonical_game_map_json,
     canonical_resolved_game_map_book_json,
     load_game_map_book_bytes,
     load_game_map_bytes,
 )
-from stage_gen.components.game_map.models import (
+from stage_gen.components.platformer_map.models import (
     GameMap,
     GameMapBook,
     GameMapBookBinding,

@@ -5,20 +5,20 @@ from pathlib import Path
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_content import (
+from stage_gen.components.dialogue_sequence import (
+    load_game_sequence_bytes,
+    load_game_sequence_catalog_bytes,
+)
+from stage_gen.components.game_contract import load_prepared_game_contract_bytes
+from stage_gen.components.game_ui import load_game_ui_bytes
+from stage_gen.components.platformer_content import (
     load_mob_content_bytes,
     load_npc_content_bytes,
     load_player_content_bytes,
     load_projectile_content_bytes,
 )
-from stage_gen.components.game_contract import load_prepared_game_contract_bytes
-from stage_gen.components.game_map import load_prepared_game_map_bytes
-from stage_gen.components.game_sequence import (
-    load_game_sequence_bytes,
-    load_game_sequence_catalog_bytes,
-)
-from stage_gen.components.game_ui import load_game_ui_bytes
-from stage_gen.components.gameplay_contract import load_gameplay_contract_bytes
+from stage_gen.components.platformer_gameplay import load_gameplay_contract_bytes
+from stage_gen.components.platformer_map import load_prepared_game_map_bytes
 
 PACKAGE = Path(__file__).resolve().parents[3] / "library" / "games" / "bellweather"
 

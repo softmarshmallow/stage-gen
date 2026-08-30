@@ -13,7 +13,7 @@ from pathlib import Path
 from gnode import LOCAL_OPERATION
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
-from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"

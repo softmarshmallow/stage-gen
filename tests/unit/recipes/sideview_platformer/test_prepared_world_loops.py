@@ -8,7 +8,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from stage_gen.media import LOOP_METHODS, LoopConstruction
-from stage_gen.recipes.scrolling_preview.prepared_world import (
+from stage_gen.recipes.sideview_platformer.prepared_world import (
     _assemble_loop,
     _construct_deterministic,
     _loop_conditioning,

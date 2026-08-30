@@ -30,7 +30,22 @@ from stage_gen.components._secure_fs import (
     read_absolute_regular_file,
     read_relative_regular_file,
 )
-from stage_gen.components.game_content import (
+from stage_gen.components.dialogue_sequence import (
+    DialogueNode,
+    GameSequence,
+    GameSequenceCatalog,
+    OutcomeNode,
+    load_game_sequence_bytes,
+    load_game_sequence_catalog_bytes,
+)
+from stage_gen.components.game_contract import (
+    PreparedGameContract,
+    canonical_prepared_game_contract_json,
+    load_prepared_game_contract_bytes,
+)
+from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
+from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
+from stage_gen.components.platformer_content import (
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
     WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
     ItemContentCatalog,
@@ -46,28 +61,13 @@ from stage_gen.components.game_content import (
     load_projectile_content_bytes,
     load_prop_content_bytes,
 )
-from stage_gen.components.game_contract import (
-    PreparedGameContract,
-    canonical_prepared_game_contract_json,
-    load_prepared_game_contract_bytes,
-)
-from stage_gen.components.game_map import PreparedGameMap, load_prepared_game_map_bytes
-from stage_gen.components.game_sequence import (
-    DialogueNode,
-    GameSequence,
-    GameSequenceCatalog,
-    OutcomeNode,
-    load_game_sequence_bytes,
-    load_game_sequence_catalog_bytes,
-)
-from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
-from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
-from stage_gen.components.gameplay_contract import (
+from stage_gen.components.platformer_gameplay import (
     GameplayContract,
     GrantItemEffect,
     SetQuestStateEffect,
     load_gameplay_contract_bytes,
 )
+from stage_gen.components.platformer_map import PreparedGameMap, load_prepared_game_map_bytes
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
 GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 4

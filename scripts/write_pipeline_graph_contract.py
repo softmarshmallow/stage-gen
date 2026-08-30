@@ -28,7 +28,7 @@ if __package__ in {None, ""}:
 
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.game_package import resolve_game_package
-from stage_gen.recipes.scrolling_preview.package_graph import (
+from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )

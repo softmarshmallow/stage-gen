@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.components.game_map import (
+from stage_gen.components.platformer_map import (
     GameMap,
     GameMapBook,
     GameMapLoadError,

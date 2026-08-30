@@ -60,7 +60,7 @@ async def generate_image_artifact(
     reference_paths: Sequence[str] = (),
     runtime: HeadlessRuntime | None = None,
 ) -> CapabilityArtifactResult:
-    assert_capabilities(config, ("image-generation",))
+    assert_capabilities(config, ("image_generation",))
     if not output_path.lower().endswith(".png"):
         raise ValueError("generate-image output must use a .png extension")
     owned = None
@@ -89,7 +89,7 @@ async def remove_background(
     config: StageGenConfig,
     runtime: HeadlessRuntime | None = None,
 ) -> CapabilityArtifactResult:
-    assert_capabilities(config, ("background-removal",))
+    assert_capabilities(config, ("background_removal",))
     owned = None
     if runtime is None:
         from stage_gen.orchestration.runtime import create_headless_runtime
@@ -113,7 +113,7 @@ async def generate_music(
     runtime: HeadlessRuntime | None = None,
     metadata: Mapping[str, object] | None = None,
 ) -> CapabilityArtifactResult:
-    assert_capabilities(config, ("music-generation",))
+    assert_capabilities(config, ("music_generation",))
     if output_format not in {"mp3", "wav"}:
         raise ValueError("format must be mp3 or wav")
     owned = None

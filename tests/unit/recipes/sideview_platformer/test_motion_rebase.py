@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from stage_gen.media.comparison_plate import BandedComparisonPlate
-from stage_gen.recipes.scrolling_preview.motion_rebase import (
+from stage_gen.recipes.sideview_platformer.motion_rebase import (
     MotionRebaseError,
     MotionRebaseReading,
     StateRebaseReading,

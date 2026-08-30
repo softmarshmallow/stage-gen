@@ -15,15 +15,15 @@
 | Boundary | Current authority |
 | --- | --- |
 | Authored package membership and cross-contract closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) |
-| Asset-level fan-out, dependencies, outputs, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/scrolling_preview/package_graph.py) |
+| Asset-level fan-out, dependencies, outputs, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
 | Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
-| Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/scrolling_preview/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
-| Scrolling-preview resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/scrolling_preview/package_executor.py) |
-| Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_world.py) |
-| Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_content.py) |
+| Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
+| Scrolling-preview resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
+| Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_world.py) |
+| Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_content.py) |
 | Leaf provider retries, decoding, validation, and atomic persistence | Provider-neutral components and adapters |
-| Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_manifest.py) |
+| Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py) |
 
 The scrolling-preview executor is deliberately thin. It resolves one directory or ZIP, asks the
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
@@ -430,7 +430,7 @@ contain credentials, authorization headers, signed URLs, temporary paths, or abs
 ## Runtime closure roles
 
 Every artifact in `manifest.json`'s closure declares what it is published for. The role is chosen
-at the publication site in [`prepared_manifest.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_manifest.py)
+at the publication site in [`prepared_manifest.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py)
 and stated once, beside the path, in `runtime_artifact_closure`.
 
 | Role | Meaning | Members |

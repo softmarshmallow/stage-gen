@@ -15,11 +15,11 @@ from stage_gen.provider_env import load_provider_dotenv
 
 
 class CapabilityName(StrEnum):
-    STRUCTURED_GENERATION = "structured-generation"
-    IMAGE_GENERATION = "image-generation"
-    NATIVE_IMAGE_GENERATION = "native-image-generation"
-    BACKGROUND_REMOVAL = "background-removal"
-    MUSIC_GENERATION = "music-generation"
+    STRUCTURED_GENERATION = "structured_generation"
+    IMAGE_GENERATION = "image_generation"
+    NATIVE_IMAGE_GENERATION = "native_image_generation"
+    BACKGROUND_REMOVAL = "background_removal"
+    MUSIC_GENERATION = "music_generation"
 
 
 class TransparencyMode(StrEnum):

@@ -10,16 +10,16 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.recipes.scrolling_preview.climbable_atlas import (
+from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     ClimbableRole,
     nominal_cell_box,
     plan_climbable_atlas,
 )
-from stage_gen.recipes.scrolling_preview.prepared_world import (
+from stage_gen.recipes.sideview_platformer.prepared_world import (
     _canonicalize_map_presentation,
     _validate_map_presentation_source,
 )
-from stage_gen.recipes.scrolling_preview.terrain_atlas import (
+from stage_gen.recipes.sideview_platformer.terrain_atlas import (
     CANONICAL_CELL_PX,
     MAXIMUM_CONNECTOR_ALPHA_MISMATCH,
     assemble_terrain_atlas,

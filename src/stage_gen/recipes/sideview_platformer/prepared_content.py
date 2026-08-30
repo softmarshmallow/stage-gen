@@ -37,17 +37,7 @@ from gnode import (
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components.game_content import (
-    ContentReference,
-    ItemContent,
-    MobContent,
-    MotionPresentation,
-    NpcContent,
-    PlayerContent,
-    ProjectileContent,
-    PropContent,
-)
-from stage_gen.components.game_sequence import DialogueNode
+from stage_gen.components.dialogue_sequence import DialogueNode
 from stage_gen.components.game_ui import (
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
@@ -64,6 +54,16 @@ from stage_gen.components.game_ui import (
     UiReference,
     inventory_panel_layout_contract,
 )
+from stage_gen.components.platformer_content import (
+    ContentReference,
+    ItemContent,
+    MobContent,
+    MotionPresentation,
+    NpcContent,
+    PlayerContent,
+    ProjectileContent,
+    PropContent,
+)
 from stage_gen.media import (
     AlphaComponentRepackContract,
     measure_alpha_ground_contact,
@@ -74,7 +74,7 @@ from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_co
 from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_cache import NodeArtifactCache
-from stage_gen.recipes.scrolling_preview.motion_contract import (
+from stage_gen.recipes.sideview_platformer.motion_contract import (
     MOTION_ATLAS_COLUMNS,
     MOTION_ATLAS_HEIGHT,
     MOTION_ATLAS_REQUIRED_CELLS,
@@ -87,7 +87,7 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
     motion_source_facing,
     runtime_mirrors_source,
 )
-from stage_gen.recipes.scrolling_preview.motion_rebase import (
+from stage_gen.recipes.sideview_platformer.motion_rebase import (
     BASELINE_STATE,
     MOTION_REBASE_CORRECTION_SCHEMA_NAME,
     MOTION_REBASE_SCHEMA_NAME,
@@ -103,11 +103,11 @@ from stage_gen.recipes.scrolling_preview.motion_rebase import (
     motion_rebase_verification_prompt,
     parse_motion_rebase,
 )
-from stage_gen.recipes.scrolling_preview.projectile_silhouettes import (
+from stage_gen.recipes.sideview_platformer.projectile_silhouettes import (
     projectile_silhouette_art,
 )
-from stage_gen.recipes.scrolling_preview.soundtrack import soundtrack_track_prompt
-from stage_gen.recipes.scrolling_preview.weapon_silhouettes import player_equipment_art
+from stage_gen.recipes.sideview_platformer.soundtrack import soundtrack_track_prompt
+from stage_gen.recipes.sideview_platformer.weapon_silhouettes import player_equipment_art
 from stage_gen.resources import inventory_template_path
 
 CONTENT_HANDLER_VERSION = "prepared-content-v4"

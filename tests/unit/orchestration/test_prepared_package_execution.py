@@ -5,9 +5,9 @@ from pathlib import Path
 
 from gnode import DryRunNodeHandler, NodeStatus, Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.scrolling_preview.prepared_content import content_target_node_ids
-from stage_gen.recipes.scrolling_preview.prepared_world import world_target_node_ids
+from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
+from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"

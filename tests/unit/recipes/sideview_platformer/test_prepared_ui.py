@@ -16,7 +16,7 @@ from stage_gen.components.game_ui import (
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
 )
-from stage_gen.recipes.scrolling_preview.prepared_content import (
+from stage_gen.recipes.sideview_platformer.prepared_content import (
     _canonicalize_inventory_panel_image,
     _validate_inventory_panel_image,
 )

@@ -29,7 +29,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from stage_gen.components.game_map.prepared import (
+from stage_gen.components.platformer_map.prepared import (
     MAX_UNASSISTED_TERRAIN_RISE_TILES,
     bottom_contiguous_surface_row,
     normalized_terrain_column,

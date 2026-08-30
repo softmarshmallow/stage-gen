@@ -9,13 +9,13 @@ from pathlib import Path
 import pytest
 
 from gnode import project_schedule
-from stage_gen.components.game_map import PreparedGameMap, PreparedMapClimbable
+from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction
 from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.scrolling_preview import layer_contract
-from stage_gen.recipes.scrolling_preview.package_graph import (
+from stage_gen.recipes.sideview_platformer import layer_contract
+from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )

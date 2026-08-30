@@ -23,7 +23,7 @@ portable paths below the selected run. The asset route permits nested paths only
 path-segment, containment, regular-file, and realpath checks.
 
 The Python producer is
-[`prepared_manifest.py`](../src/stage_gen/recipes/scrolling_preview/prepared_manifest.py). It
+[`prepared_manifest.py`](../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py). It
 searches accepted artifact roots in caller priority order, validates the complete package-derived
 media closure before writing, assembles in a temporary sibling directory, and atomically renames
 the complete run into place. Integration is provider-free:

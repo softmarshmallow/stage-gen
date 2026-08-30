@@ -5,12 +5,12 @@ from pathlib import Path
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_map import (
+from stage_gen.components.platformer_map import (
     bottom_contiguous_surface_row,
     load_prepared_game_map_bytes,
     normalized_terrain_column,
 )
-from stage_gen.components.game_map.prepared import (
+from stage_gen.components.platformer_map.prepared import (
     PreparedMapTerrain,
     validate_generated_terrain,
 )

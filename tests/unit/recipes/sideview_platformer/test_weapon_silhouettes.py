@@ -4,12 +4,12 @@ from typing import get_args
 
 import pytest
 
-from stage_gen.components.game_content.models import (
+from stage_gen.components.platformer_content.models import (
     WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
     PlayerEquipment,
 )
-from stage_gen.components.gameplay_contract.models import WeaponClass
-from stage_gen.recipes.scrolling_preview.weapon_silhouettes import (
+from stage_gen.components.platformer_gameplay.models import WeaponClass
+from stage_gen.recipes.sideview_platformer.weapon_silhouettes import (
     PLAYER_EQUIPMENT_ART,
     player_equipment_art,
 )

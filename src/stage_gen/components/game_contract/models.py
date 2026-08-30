@@ -77,7 +77,7 @@ RoleOrientation = Literal["side", "front", "three_quarter"]
 #: Whether a role ships as a multi-frame strip or a single drawn cell.
 RoleAnimation = Literal["strip", "still"]
 
-#: Widest and narrowest builds an author may state, matching `recipes.scrolling_preview
+#: Widest and narrowest builds an author may state, matching `recipes.sideview_platformer
 #: .proportion`. Repeated as bounds rather than imported because this component may not import a
 #: recipe; the pair is asserted equal in `tests/unit/components/game_contract/test_models.py`.
 MINIMUM_HEADS_TALL = 2.0
