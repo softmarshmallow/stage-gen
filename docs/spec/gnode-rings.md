@@ -1,8 +1,8 @@
 # gnode rings
 
-> **Contract maturity: ratified structure.** The ring-1 and ring-2 extraction
-> lands in the same change series as this document; the layering law and the
-> promotion policy are normative from ratification.
+> **Contract maturity: current.** The ring-1 and ring-2 extraction is
+> implemented; the layering law and the promotion policy are normative and
+> lint-enforced.
 
 `gnode` is the asset-graph engine this repository incubates: a build system for
 generative assets whose contracts must be met. That species claim was never

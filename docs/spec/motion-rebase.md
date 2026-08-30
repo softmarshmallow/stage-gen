@@ -1,6 +1,8 @@
 # Motion rebase
 
-> **Contract maturity: ratified TO-BE master.**
+> **Contract maturity: ratified TO-BE master.** Scope: the side-view platformer
+> recipe's motion atlases (`2d/sideview/platformer` in the
+> [asset taxonomy](asset-taxonomy.md)).
 >
 > This document defines how an actor's motion atlases are brought into
 > agreement with one another: what the baseline is, what the judging atlas

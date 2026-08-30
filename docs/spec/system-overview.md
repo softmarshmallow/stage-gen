@@ -40,10 +40,10 @@ validator for the reusable component.
 A recipe declares a directed acyclic graph from explicit inputs. Dependent nodes
 receive artifacts through typed results or a manifest, and a recipe decides
 which component families to compose. Concurrency is an execution property, not
-an implication of the declared edges: the current scrolling runner executes
-top-level stages sequentially while selected stages fan out internal work. See
-the [canonical game-generation pipeline](game/generation-pipeline.md) for the
-machine-checked current graph and its explicitly separate target scheduler.
+an implication of the declared edges: the engine schedules every node by data
+availability under declared resource gates. See the
+[canonical game-generation pipeline](game/generation-pipeline.md) for the
+machine-checked current graph.
 
 Examples of reusable operations include:
 
@@ -70,12 +70,8 @@ Every headless run has:
 4. component-level progress and failure state;
 5. resumable skip-if-valid behavior;
 6. artifact results with adjacent provenance; and
-7. one exact `recipe_run_v3` summary that records executed stage outcomes and
-   final status.
-
-The current summary does not persist the resolved graph or an immutable trace.
-Those are documented as target observability work in the
-[canonical game-generation pipeline](game/generation-pipeline.md).
+7. a persisted execution plan, an append-only execution trace, and a run
+   summary — the documents the read-only run viewer consumes.
 
 An artifact is valid only after media inspection succeeds. HTTP success or a
 non-empty URL is insufficient. Partial files do not satisfy the cache.
@@ -114,15 +110,14 @@ component results through a different manifest/adapter.
 See [scrolling-preview asset contracts](asset-contracts.md) and the
 [web preview boundary](../web-preview.md).
 
-The planned `dialogue-scene` sibling recipe packages one caller-directed
-appearance concept, a finite set of static expression variants for that
-identity, and portable scene data for the Visual Novel Scene Kit. Its
+The `dialogue-scene` sibling recipe packages one caller-directed appearance
+concept, a finite set of static expression variants for that identity, and
+portable scene data for the Visual Novel Scene Kit. Its
 [asset contract](dialogue-scene-assets.md),
 [optional preview](../dialogue-scene-preview.md), and
 [deferred animation notes](../dialogue-scene-animation.md) preserve the same
-headless-recipe and downstream-consumer boundary. A deterministic browser
-vertical slice implements state-driven variant swapping; the provider-backed
-headless recipe does not yet exist.
+headless-recipe and downstream-consumer boundary. It compiles onto the same
+engine under its own graph document kind.
 
 The Python package under `src/stage_gen/` is the sole headless implementation.
 Node and TypeScript are confined to the optional `web/` adapter.

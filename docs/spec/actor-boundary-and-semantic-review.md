@@ -1,5 +1,7 @@
 # Actor boundary and semantic review
 
+Scope: side-view actor strips in the platformer recipe
+(`2d/sideview/platformer` in the [asset taxonomy](asset-taxonomy.md)).
 This note has two deliberately separate status classes:
 
 - **Current implementation**: deterministic chroma matte and actor-boundary processing, plus the

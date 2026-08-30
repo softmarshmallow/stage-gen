@@ -271,18 +271,16 @@ provider concurrency tier.
 
 # Asset specifications
 
-> **Filenames below are the producer's working names, not the published contract.**
-> What a consumer loads is the path each artifact is published at in
-> `prepared-game-runtime-v10`, listed by role in the
-> [canonical pipeline](game/generation-pipeline.md#runtime-closure-roles). The
-> geometry, references, and grids in this section are the authority; the names are
-> illustrative.
+> **Output rows name the published `prepared-game-runtime-v10` paths.** Each is
+> the closure path `prepared_manifest.py` publishes with role `asset`; sidecar
+> validation records ride the same closure as role `provenance`. Where a section
+> documents a legacy or run-internal artifact, its row says so explicitly.
 
 ## World concept
 
 | | |
 |---|---|
-| **Output** | `concept_<tag>.png` |
+| **Output** | Authored reference image inside the game package — consumed digest-bound; never generated or published by the prepared pipeline |
 | **Canvas** | 1536 × 1024 (aspect 3:2 landscape) |
 | **Inputs** | _none_ — text prompt only (the user's world description) |
 | **Layout prior** | n/a |
@@ -303,7 +301,7 @@ for that shape; this section documents what the producer draws from it.
 
 | | |
 |---|---|
-| **Output** | One raster per authored map layer |
+| **Output** | `maps/<map_id>/layers/<layer_id>.png` (its `<layer_id>.validation.json` rides the closure as provenance) |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | World concept, the authored map source's layer entry (id, z_index, parallax, opaque, paint_region, description) |
 | **Layout prior** | **none** (see "Looping" below) |
@@ -451,7 +449,7 @@ permission remains in `gameplay.toml`.
 
 | | |
 |---|---|
-| **Output** | `character_<tag>-fromcombined_climb.png` |
+| **Output** | `content/players/<player_id>/states/climb_ladder.png` and `climb_rope.png` |
 | **Canvas** | 256 × 128 |
 | **Inputs** | Character concept |
 
@@ -465,7 +463,7 @@ gutter. The ladder itself is not painted into the character strip.
 
 | | |
 |---|---|
-| **Output** | `character_concept_<tag>.png` |
+| **Output** | `content/players/<player_id>/concept.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | World concept, optional user description |
 | **Layout prior** | n/a |
@@ -549,7 +547,7 @@ while player content owns this visual atlas.
 
 | | |
 |---|---|
-| **Output** | `character_<tag>_combined.png` |
+| **Output** | Not produced by prepared packages (legacy prompt-run sheet); the published equivalents are `content/players/<player_id>/states/<state>.png` |
 | **Canvas** | 2400 × 3440 (aspect ≈ 30:43, tall, ~5:7) |
 | **Inputs** | Layout prior (5×4 master template), character concept |
 | **Post-processing** | After generation, the sheet is split into 5 per-state strips (`character_<tag>-fromcombined_<state>.png`) for the runtime to load. |
@@ -583,7 +581,7 @@ the same overall body size whether running, jumping, or crouched.
 
 | | |
 |---|---|
-| **Output** | `character_<tag>_attack.png` |
+| **Output** | `content/players/<player_id>/states/attack.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template), character concept |
 
@@ -610,7 +608,7 @@ template.
 
 | | |
 |---|---|
-| **Output** | `mob_concept_<tag>_<i>.png` (i = 0 … N-1) |
+| **Output** | `content/mobs/<mob_id>/concept.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | World concept, the authored mob entry (tier_label, body_plan, name, brief) |
 | **Layout prior** | n/a |
@@ -655,7 +653,7 @@ respect — monotonic power across the ladder.
 
 | | |
 |---|---|
-| **Output** | `mob_<tag>_<i>_idle.png` |
+| **Output** | `content/mobs/<mob_id>/states/idle.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template — reused from the character template), creature concept (variant `i`) |
 
@@ -674,7 +672,7 @@ the contact base touches the feet rail.
 
 | | |
 |---|---|
-| **Output** | `mob_<tag>_<i>_hurt.png` |
+| **Output** | `content/mobs/<mob_id>/states/hurt.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template), creature concept (variant `i`) |
 
@@ -697,7 +695,7 @@ swaps between idle and hurt sheets without re-anchoring.
 
 | | |
 |---|---|
-| **Output** | `obstacles_<tag>_<i>.png` |
+| **Output** | `content/props/<prop_id>.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×2 obstacle template), world concept, the authored prop entry (`sheet_theme` and its eight props) |
 
@@ -737,7 +735,7 @@ Variants `≥ 5` loop modulo 5.
 
 | | |
 |---|---|
-| **Output** | `items_<tag>.png` |
+| **Output** | `content/items/<item_id>.png` (one canonical isolated image per item) |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×2 obstacle template, reused as a generic 4×2 grid), world concept, the authored item catalog's eight entries (`kind`, `name`, `brief`) |
 
@@ -769,7 +767,7 @@ world-appropriate equivalents" menu.
 
 | | |
 |---|---|
-| **Output** | `inventory_<tag>.png` |
+| **Output** | `ui/inventory_panel.png` (generated as `ui/inventory_panel.raw.png`, published canonical) |
 | **Canvas** | 1536 × 1024 (aspect 3:2 landscape) |
 | **Inputs** | Layout prior (4×2 slot template), world concept |
 

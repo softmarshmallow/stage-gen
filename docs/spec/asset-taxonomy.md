@@ -1,8 +1,8 @@
 # Asset taxonomy and module namespace
 
-> **Contract maturity: ratified naming discipline.** The renames it prescribes
-> land in the same change series as this document; persisted vocabulary is
-> explicitly out of scope until the next coordinated schema bump.
+> **Contract maturity: current naming discipline.** The renames it prescribes
+> are implemented; persisted vocabulary is explicitly out of scope until the
+> next coordinated schema bump.
 
 This repository started as one genre — a 2D side-view scrolling platformer —
 and named its modules as if that were the whole world: the most

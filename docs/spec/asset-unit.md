@@ -1,6 +1,8 @@
 # Asset unit
 
-> **Contract maturity: ratified TO-BE master.**
+> **Contract maturity: ratified TO-BE master.** Scope: the side-view platformer
+> recipe's sprite contracts (`2d/sideview/platformer` in the
+> [asset taxonomy](asset-taxonomy.md)).
 >
 > This document defines the canonical asset unit for generated game packages:
 > what one unit is, which entity classes declare it, how a declaration is
