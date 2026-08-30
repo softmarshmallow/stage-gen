@@ -885,17 +885,17 @@ class PreparedWorldNodeHandler:
         ground_evidence_path = self._run_dir / f"maps/{game_map.map_id}/ground.evidence.png"
         references = [
             StructuredReference(
-                url=_data_url(composite_path.read_bytes(), "image/png"),
+                url=_data_url(_judge_plate(composite_path.read_bytes()), "image/png"),
                 provenance_ref=f"run://{composite_path.relative_to(self._run_dir).as_posix()}",
             ),
             StructuredReference(
-                url=_data_url(ground_evidence_path.read_bytes(), "image/png"),
+                url=_data_url(_judge_plate(ground_evidence_path.read_bytes()), "image/png"),
                 provenance_ref=(
                     f"run://{ground_evidence_path.relative_to(self._run_dir).as_posix()}"
                 ),
             ),
             StructuredReference(
-                url=_data_url(ground_path.read_bytes(), "image/png"),
+                url=_data_url(_judge_plate(ground_path.read_bytes()), "image/png"),
                 provenance_ref=f"run://{ground_path.relative_to(self._run_dir).as_posix()}",
             ),
         ]
@@ -907,7 +907,7 @@ class PreparedWorldNodeHandler:
             path = self._run_dir / f"maps/{game_map.map_id}/{asset}.png"
             references.append(
                 StructuredReference(
-                    url=_data_url(path.read_bytes(), "image/png"),
+                    url=_data_url(_judge_plate(path.read_bytes()), "image/png"),
                     provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
                 )
             )
@@ -916,7 +916,7 @@ class PreparedWorldNodeHandler:
             package_file = self._package.file(ref.source)
             references.append(
                 StructuredReference(
-                    url=_data_url(package_file.data, _media_type(ref.source)),
+                    url=_data_url(_judge_plate(package_file.data), "image/png"),
                     provenance_ref=f"package://{self._package.game.game_id}/{ref.source}#sha256={package_file.sha256}",
                 )
             )
@@ -930,13 +930,13 @@ class PreparedWorldNodeHandler:
             references.extend(
                 (
                     StructuredReference(
-                        url=_data_url(layer_path.read_bytes(), "image/png"),
+                        url=_data_url(_judge_plate(layer_path.read_bytes()), "image/png"),
                         provenance_ref=(
                             f"run://{layer_path.relative_to(self._run_dir).as_posix()}"
                         ),
                     ),
                     StructuredReference(
-                        url=_data_url(repeat_path.read_bytes(), "image/png"),
+                        url=_data_url(_judge_plate(repeat_path.read_bytes()), "image/png"),
                         provenance_ref=(
                             f"run://{repeat_path.relative_to(self._run_dir).as_posix()}"
                         ),
@@ -1673,6 +1673,32 @@ def _parse_review(value: object) -> dict[str, object]:
 def _node_artifact(run_dir: Path, ref: str) -> NodeArtifact:
     data = (run_dir / ref).read_bytes()
     return NodeArtifact(artifact_ref=ref, sha256=_sha(data), bytes=len(data))
+
+
+#: The longest side a judge reference is transported at. Judges are constrained
+#: to recognition, never measurement (doctrine), so a bounded plate changes
+#: nothing they are allowed to read - and an unbounded one already broke a
+#: review in production when a large map's reference payload crossed the
+#: provider's request ceiling.
+_JUDGE_PLATE_MAX_SIDE = 1280
+
+
+def _judge_plate(data: bytes) -> bytes:
+    """Bound one judge reference image for transport, re-encoded as PNG."""
+
+    with Image.open(io.BytesIO(data)) as opened:
+        width, height = opened.size
+        longest = max(width, height)
+        if longest <= _JUDGE_PLATE_MAX_SIDE and len(data) <= 1_500_000:
+            return data
+        scale = min(1.0, _JUDGE_PLATE_MAX_SIDE / longest)
+        resized = opened.convert("RGBA").resize(
+            (max(1, round(width * scale)), max(1, round(height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+    buffer = io.BytesIO()
+    resized.save(buffer, format="PNG")
+    return bytes(buffer.getvalue())
 
 
 def _data_url(data: bytes, media_type: str) -> str:

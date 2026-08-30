@@ -607,7 +607,9 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(composite.node_id, *presentation_validations),
             input_digests=(
                 map_direction,
-                _object_sha256({"review_contract": "prepared-map-review-v4"}),
+                # v5: judge references are transported as bounded recognition plates;
+                # an unbounded payload broke a large map's review in production.
+                _object_sha256({"review_contract": "prepared-map-review-v5"}),
             ),
             ports=(
                 _artifact("verdict", f"maps/{game_map.map_id}/review.json", "review-verdict-v1"),
