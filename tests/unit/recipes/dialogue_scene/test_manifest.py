@@ -9,9 +9,7 @@ from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
 from stage_gen.components import StyleModeSelection
-from stage_gen.config import StageGenConfig
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
-from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,
@@ -65,7 +63,7 @@ def _plan(request: DialogueThemeRequest) -> dict[str, object]:
     }
 
 
-def _write_inputs(root: Path) -> StageContext:
+def _write_inputs(root: Path) -> str:
     request = DialogueThemeRequest.model_validate(request_value())
     _write_json_pair(root / "request.json", canonical_json_bytes(request) + b"\n")
     _write_json_pair(root / "plan.json", json.dumps(_plan(request)).encode())
@@ -108,12 +106,7 @@ def _write_inputs(root: Path) -> StageContext:
                 attempts=1,
             ),
         )
-    return StageContext(
-        input=request.model_dump(mode="json"),
-        tag="manifest-test-chroma",
-        run_dir=root,
-        config=StageGenConfig(out_dir=root, transparency_mode="chroma"),
-    )
+    return "manifest-test-chroma"
 
 
 def _write_json_pair(path: Path, data: bytes) -> None:
@@ -134,8 +127,8 @@ def _write_json_pair(path: Path, data: bytes) -> None:
 async def test_manifest_binds_request_and_plan_provenance_digests(
     tmp_path: Path,
 ) -> None:
-    context = _write_inputs(tmp_path)
-    await write_dialogue_bundle(context)
+    tag = _write_inputs(tmp_path)
+    await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
     assert bundle_raw["schema_version"] == 2
     assert bundle_raw["kind"] == "dialogue-scene-bundle-v2"
@@ -174,20 +167,20 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
         tmp_path / "style-anchor.json",
         json.dumps(anchor_raw, sort_keys=True).encode(),
     )
-    await write_dialogue_bundle(context)
+    await write_dialogue_bundle(tmp_path, tag=tag)
     style_changed = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert style_changed.run_identity_sha256 != first.run_identity_sha256
 
     request_meta = json.loads((tmp_path / "request.json.meta.json").read_text(encoding="utf-8"))
     request_meta["model"] = "fixture-mutated"
     (tmp_path / "request.json.meta.json").write_text(json.dumps(request_meta), encoding="utf-8")
-    await write_dialogue_bundle(context)
+    await write_dialogue_bundle(tmp_path, tag=tag)
     second = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert canonical_sha256(second) != first_identity
 
     plan_meta = json.loads((tmp_path / "plan.json.meta.json").read_text(encoding="utf-8"))
     plan_meta["model"] = "fixture-mutated"
     (tmp_path / "plan.json.meta.json").write_text(json.dumps(plan_meta), encoding="utf-8")
-    await write_dialogue_bundle(context)
+    await write_dialogue_bundle(tmp_path, tag=tag)
     third = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert canonical_sha256(third) not in {first_identity, canonical_sha256(second)}

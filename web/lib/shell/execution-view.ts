@@ -6,6 +6,7 @@
 import { constants as fsConstants, promises as fs } from "node:fs";
 import path from "node:path";
 import {
+  EXECUTION_VIEW_KIND,
   type ExecutionRunState,
   type ExecutionView,
   parseExecutionView,
@@ -84,6 +85,16 @@ export async function readExecutionView(tag: string): Promise<ExecutionView | nu
   return parseExecutionView(JSON.parse(bytes.toString("utf8")));
 }
 
+async function isRenderableExecutionView(tag: string): Promise<boolean> {
+  try {
+    const raw = await fs.readFile(artifactPathFor(tag, EXECUTION_VIEW_FILENAME), "utf8");
+    const kind = (JSON.parse(raw) as { kind?: unknown }).kind;
+    return typeof kind !== "string" || kind === EXECUTION_VIEW_KIND;
+  } catch {
+    return true;
+  }
+}
+
 export interface ExecutionViewRunListEntry {
   readonly tag: string;
   /** What the run's records say; null for a document this build refuses. */
@@ -110,6 +121,10 @@ export async function listExecutionViewRuns(): Promise<ExecutionViewRunListEntry
       const tag = entry.name;
       if (!isSafeRunTag(tag)) return;
       try {
+        // A run belonging to another recipe carries another view kind. It is a
+        // valid document this viewer does not render, not a stale one, so it is
+        // skipped rather than reported as needing re-export.
+        if (!(await isRenderableExecutionView(tag))) return;
         const view = await readExecutionView(tag);
         if (!view) return;
         out.push({

@@ -10,7 +10,6 @@ import pytest
 from gnode import ArtifactProvenance
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
 from stage_gen.interfaces.cli import main
-from stage_gen.recipes.dialogue_scene.executor import DialogueExecutorContext, DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
 from stage_gen.recipes.dialogue_scene.models import (
@@ -24,13 +23,14 @@ from stage_gen.recipes.dialogue_scene.review import (
     transition_dialogue_review,
 )
 
+from .fakes import authored_profile_source
 from .test_contracts import profile_request_value
-from .test_executor import FakeImages, FakeStructured, _context, _profile_source
 from .test_manifest import _write_inputs
+from .test_prepared_scene import run_scene
 
 
 async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
-    await write_dialogue_bundle(_write_inputs(root))
+    await write_dialogue_bundle(root, tag=_write_inputs(root))
     bundle_path = root / "bundle.json"
     bundle = DialogueBundle.model_validate_json(bundle_path.read_bytes())
     acceptance_path = root / "acceptance.json"
@@ -68,30 +68,16 @@ def _action(bundle: Path, review: Path, acceptance: Path) -> dict[str, object]:
 async def _profile_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path, DialogueBundleV3]:
-    source = _profile_source(tmp_path, monkeypatch)
+    del monkeypatch
+    source = authored_profile_source(tmp_path)
     request = profile_request_value(content_sha256(source.read_bytes()))
-    executor = DialogueSceneExecutor(
-        DialogueExecutorContext(structured=FakeStructured(request), images=FakeImages())
-    )
-    context = _context(
-        tmp_path / "run",
+    await run_scene(
         request,
+        run_dir=tmp_path / "run",
+        cache_dir=tmp_path / "cache",
         character_library_root=source.parents[3],
     )
-    for stage in (
-        "prepare",
-        "profile-resolve",
-        "style-selection",
-        "appearance-concept",
-        "scene-plan",
-        "background",
-        "neutral",
-        "expressions",
-        "canonicalize",
-        "bundle",
-    ):
-        await executor.run_stage(stage, context)
-    bundle_path = context.run_dir / "bundle.json"
+    bundle_path = tmp_path / "run/bundle.json"
     return (
         source,
         bundle_path,
@@ -320,7 +306,7 @@ async def test_review_transition_rejects_missing_digest_camel_case_and_missing_a
         await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
 
 
-def test_public_cli_reviews_through_recipe_action_and_help(
+def test_public_cli_reviews_one_bundle_and_documents_its_controls(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     bundle_path, acceptance_path, review_value = asyncio.run(_source_bundle(tmp_path))
@@ -330,9 +316,8 @@ def test_public_cli_reviews_through_recipe_action_and_help(
     assert (
         main(
             [
-                "review",
-                "--recipe",
                 "dialogue-scene",
+                "review",
                 "--bundle",
                 str(bundle_path),
                 "--review",
@@ -351,7 +336,7 @@ def test_public_cli_reviews_through_recipe_action_and_help(
     assert result["publication_authorized"] is False
 
     with pytest.raises(SystemExit) as raised:
-        main(["review", "--help"])
+        main(["dialogue-scene", "review", "--help"])
     assert raised.value.code == 0
     help_text = capsys.readouterr().out
     assert "--acceptance-spec" in help_text

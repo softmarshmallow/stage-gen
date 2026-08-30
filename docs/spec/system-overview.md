@@ -22,10 +22,10 @@ flowchart LR
 - `src/stage_gen/recipes/` owns recipe graphs and manifests;
   `src/stage_gen/orchestration/` owns concrete provider composition, run state,
   and summaries.
-- `src/stage_gen/interfaces/` and `src/stage_gen/benchmarks/` expose the
-  Python CLI, optional HTTP/SSE API, and research workflows.
-- `web/` is an optional consumer that visualizes output and demonstrates one
-  scrolling-world recipe.
+- `src/stage_gen/interfaces/` exposes the Python CLI, which is the only way to
+  start a run.
+- `web/` is an optional consumer that previews published packages, explores
+  their bound closure, and reads exported runs back; it starts nothing.
 - `docs/` records contracts, verified provider behavior, policies, and recipe
   evidence.
 

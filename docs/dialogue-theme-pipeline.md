@@ -6,16 +6,16 @@ installation:
 ```sh
 cd web
 bun run stage-gen -- doctor --transparency native --json
-bun run stage-gen -- generate --recipe dialogue-scene \
+bun run stage-gen -- dialogue-scene generate \
   --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency native
-bun run dialogue-theme -- install --bundle ../out/<generated-tag>/bundle.json
+  --output ../out/adult-university-date
+bun run dialogue-theme -- install --bundle ../out/adult-university-date/bundle.json
 bun run dialogue-theme -- status
 ```
 
-The generate command prints `<generated-tag>`. Installation prints strict
-lower_snake_case JSON with `bundle_id`, `installed`, and
-`activation_eligible`.
+The generate command prints the run's `scene_id`, graph digests, node count, and
+per-capability provider-operation counts. Installation prints strict
+lower_snake_case JSON with `bundle_id`, `installed`, and `activation_eligible`.
 
 Verification of this workflow is credential-free: generation and orchestration
 pass end to end with injected fake services and canonical bundle tests; the real
@@ -26,14 +26,18 @@ provider-backed smoke was not authorized, was not run, and sent no data.
 ## Generate, review, and activate
 
 The Python `dialogue-scene` recipe owns the adult/non-explicit policy,
-expression taxonomy, prompts, stage DAG, generation, validation, retries, and
+expression taxonomy, prompts, node graph, generation, validation, retries, and
 portable provenance. It writes only below the isolated generated run. The web
 adapter validates and copies a completed bundle; it never calls a model, reads
 provider credentials, edits generation provenance, or generates an asset.
 
 ```text
-out/<generated-tag>/
-  run.json
+out/<run-dir>/
+  execution-plan.json
+  execution-projection.json
+  execution-trace.jsonl
+  execution-summary.json
+  scene.json
   request.json
   request.json.meta.json
   character-profile.json              # wire V3 / recipe V4 only
@@ -42,7 +46,8 @@ out/<generated-tag>/
   style-anchor.json.meta.json
   plan.json
   plan.json.meta.json
-  attempts.json
+  attempts/                            # one record per node
+  attempts.json                        # merged in graph order by the bundle node
   raw/
   assets/
     concept.png
@@ -81,20 +86,24 @@ exposes authored paths, absolute URLs, detector output, or provenance.
 From the repository root, the complete repository profile-enabled request is:
 
 ```sh
-uv run stage-gen generate --recipe dialogue-scene \
+uv run stage-gen dialogue-scene generate \
   --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency native
+  --output out/profile-enabled-date
 ```
+
+The character library root comes from configuration
+(`STAGE_GEN_CHARACTER_LIBRARY_ROOT`); a profile-enabled request without one is
+refused while resolving, before the graph is built.
 
 From `web/`, use the same public command through the stable forwarding script:
 
 ```sh
-bun run stage-gen -- generate --recipe dialogue-scene \
+bun run stage-gen -- dialogue-scene generate \
   --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency native
+  --output ../out/profile-enabled-date
 ```
 
-Before any image call, the resumable `style-selection` stage sends the request
+Before any image call, the `scene-style-select` node sends the request
 concept and scene direction through the shared strict selector. The edge result
 may name only an approved `style_mode`; local code materializes the tracked
 medium, observable traits, per-asset treatment, and exclusions into
@@ -124,7 +133,7 @@ the headless transition preserves `bundle.json` and derives the digest-bound
 
 ```sh
 cd web
-bun run stage-gen -- review --recipe dialogue-scene \
+bun run stage-gen -- dialogue-scene review \
   --bundle <run-dir>/bundle.json \
   --review <independent-review.json> \
   --acceptance-spec <acceptance-spec.json> \
@@ -148,44 +157,27 @@ Installation does not activate. Wire-v2-only activation preserves historical
 `active-commit.json`. Readers verify every state and install digest and fail
 closed on partial or tampered state.
 
-## Resume and force
+## Resume
 
-Rerun the identical generate command to resume. Canonical request content
-selects the same tag; each stage reuses only artifacts whose bytes and
-dependency digests still match. A request edit changes the digest and selects a
-new run instead of contaminating the old one.
-
-Force a complete dialogue recipe rebuild with the existing public cache
-control. It retains the same isolated run identity but bypasses every valid
-stage cache entry; unset it for normal resume behavior:
+A run directory is immutable: `--output` must not already exist. Reuse comes from
+`--cache-dir` instead, and it is content-and-lineage validated rather than
+path-based. A node is restored only when its cache key matches, the recorded
+lineage still matches what its dependencies actually produced, and every restored
+byte hashes to what was recorded:
 
 ```sh
-cd web
-STAGE_GEN_FORCE=1 bun run stage-gen -- generate --recipe dialogue-scene \
-  --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency native
+uv run stage-gen dialogue-scene generate \
+  --input examples/dialogue-theme/adult-university-date.json \
+  --output out/adult-university-date-v2 \
+  --cache-dir .cache/dialogue
 ```
 
-For a bounded retry, repeat `--force-stage` with exact stage IDs. The generic
-runner validates each ID against the selected recipe before it constructs a
-provider runtime, then computes the dependency-DAG descendants. Only requested
-roots bypass their cache entries; descendants revalidate their normal input and
-dependency digests, so byte-identical unaffected artifacts remain reusable:
-
-```sh
-cd web
-bun run stage-gen -- generate --recipe dialogue-scene \
-  --input ../examples/dialogue-theme/adult-university-date.json \
-  --transparency native \
-  --force-stage appearance-concept
-```
-
-The dialogue stage IDs are `prepare`, `style-selection`,
-`appearance-concept`, `scene-plan`, `background`, `neutral`, `expressions`,
-`canonicalize`, and `bundle`. Unknown, duplicate, and unsafe IDs fail before
-provider calls. Programmatic callers may also use
-`DialogueExecutorContext(force_stages=...)` for the same root-only cache
-bypass behavior.
+Editing the request changes its canonical digest, which changes every node's cache
+key, so the edited run rebuilds rather than contaminating the earlier one. There is
+no force flag and no per-stage bypass: a node whose inputs are unchanged is reused,
+and a node whose inputs changed is not. Re-running an accepted artifact under the
+same inputs would be a new identity, not a retry, and the graph has no verb for it
+yet.
 
 ## Status and rollback
 

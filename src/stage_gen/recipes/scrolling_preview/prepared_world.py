@@ -69,6 +69,7 @@ from stage_gen.media import (
 )
 from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.scrolling_preview.climbable_atlas import (
     MAX_HEIGHT_PARITY,
     ROLE_ASPECT_ENVELOPE,
@@ -139,9 +140,16 @@ class PreparedWorldNodeHandler:
         self._structured = structured_service
         self._terrain_template_path = terrain_template_path
         self._terrain_topology_reference_path = terrain_topology_reference_path
+        self._cache = NodeArtifactCache(
+            graph,
+            run_dir=run_dir,
+            cache_dir=cache_dir,
+            namespace="prepared-world-v1",
+            record_kind="prepared-world-node-cache-v1",
+        )
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._read_cache(node, context)
+        cached = self._cache.read(node, context)
         if cached is not None:
             return cached
         try:
@@ -156,7 +164,7 @@ class PreparedWorldNodeHandler:
                 attempts=attempts,
                 provider_operations=attempts if external else 0,
             ) from error
-        self._write_cache(node, context, result)
+        self._cache.write(node, context, result)
         return result
 
     def _terrain(self, game_map: PreparedGameMap) -> PreparedMapTerrain:
@@ -1088,78 +1096,6 @@ class PreparedWorldNodeHandler:
             attempts=attempts,
             provider_operations=provider_operations,
             artifacts=artifacts,
-        )
-
-    def _lineage(self, node: Node, context: NodeExecutionContext) -> list[dict[str, object]]:
-        return [
-            {
-                "node_id": dependency,
-                "cache_key": self._graph.node(dependency).cache_key,
-                "artifact_sha256": [
-                    artifact.sha256 for artifact in context.dependency_results[dependency].artifacts
-                ],
-            }
-            for dependency in node.depends_on
-        ]
-
-    def _cache_paths(self, node: Node) -> tuple[Path, Path]:
-        root = self._cache_dir / "prepared-world-v1" / node.cache_key[:2] / node.cache_key
-        return root / "record.json", root / "artifacts"
-
-    def _read_cache(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
-        record_path, artifacts_dir = self._cache_paths(node)
-        try:
-            record = json.loads(record_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-        if (
-            not isinstance(record, dict)
-            or record.get("cache_key") != node.cache_key
-            or record.get("lineage") != self._lineage(node, context)
-        ):
-            return None
-        outputs = record.get("artifacts")
-        if not isinstance(outputs, list):
-            return None
-        restored: list[NodeArtifact] = []
-        for index, value in enumerate(outputs):
-            if not isinstance(value, dict) or not isinstance(value.get("artifact_ref"), str):
-                return None
-            try:
-                data = (artifacts_dir / f"{index}.bin").read_bytes()
-            except OSError:
-                return None
-            if _sha(data) != value.get("sha256") or len(data) != value.get("bytes"):
-                return None
-            target = self._run_dir / value["artifact_ref"]
-            atomic_write_bytes(target, data)
-            restored.append(NodeArtifact.model_validate(value))
-        return NodeExecutionResult(
-            cache=CacheDisposition.HIT,
-            attempts=1,
-            provider_operations=0,
-            artifacts=tuple(restored),
-            known_cost_usd=0.0,
-        )
-
-    def _write_cache(
-        self, node: Node, context: NodeExecutionContext, result: NodeExecutionResult
-    ) -> None:
-        record_path, artifacts_dir = self._cache_paths(node)
-        for index, artifact in enumerate(result.artifacts):
-            atomic_write_bytes(
-                artifacts_dir / f"{index}.bin", (self._run_dir / artifact.artifact_ref).read_bytes()
-            )
-        atomic_write_json(
-            record_path,
-            {
-                "schema_version": 1,
-                "kind": "prepared-world-node-cache-v1",
-                "cache_key": node.cache_key,
-                "node_id": node.node_id,
-                "lineage": self._lineage(node, context),
-                "artifacts": [item.model_dump(mode="json") for item in result.artifacts],
-            },
         )
 
 

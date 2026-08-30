@@ -91,35 +91,29 @@ prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 The repository examples bind the exact current sample bytes:
 
 ```sh
-uv run stage-gen generate --recipe scrolling-preview \
-  --input examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root . --transparency native
-uv run stage-gen generate --recipe dialogue-scene \
+uv run stage-gen dialogue-scene generate \
   --input examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root . --transparency native
+  --output out/profile-enabled-date
 ```
 
 The same public CLI is available through the stable web forwarding script:
 
 ```sh
 cd web
-bun run stage-gen -- generate --recipe scrolling-preview \
-  --input ../examples/scrolling-preview/profile-enabled-coast.toml \
-  --character-library-root .. --transparency native
-bun run stage-gen -- generate --recipe dialogue-scene \
+bun run stage-gen -- dialogue-scene generate \
   --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --character-library-root .. --transparency native
+  --output ../out/profile-enabled-date
 ```
 
-The scrolling run persists `character_profile_<tag>.json` with provenance and
-publishes a recursively lower_snake_case schema-V3 manifest. The dialogue run
-persists `character-profile.json` with provenance and publishes wire-V3
-`bundle.json` using recipe V4. These artifacts carry identity and lineage; they
-do not authorize publication.
+A prepared game binds its cast in `game.toml` rather than in a request document,
+so the `scrolling-preview` recipe reads authored profiles through the package it
+is given. The dialogue run persists `character-profile.json` with provenance and
+publishes wire-V3 `bundle.json` using recipe V4. These artifacts carry identity
+and lineage; they do not authorize publication.
 
-Dialogue request V3 and scrolling opt-in V3 resolve only
-`library/characters/<profile_id>/profile.toml` sources, reject symlink or digest
-tampering before provider work, and persist canonical `character-profile.json`
+Dialogue request V3 resolves only
+`library/characters/<profile_id>/profile.toml` sources, rejects symlink or digest
+tampering before provider work, and persists canonical `character-profile.json`
 plus portable provenance in the ignored run directory. Request V2 remains a
 separate exact parser and graph. This integration does not define pose,
 expression, shot, provider conditioning, generated observation, runtime

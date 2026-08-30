@@ -1,16 +1,13 @@
 # Scrolling-preview image asset contracts
 
-This is the recipe-specific contract for 2D scrolling-preview media: current
-prepared-package outputs plus explicitly labelled legacy prompt/tag outputs,
-their dimensions, reference/layout inputs, sheet grids, and orchestration.
-It is not the global definition of `stage-gen`. Reusable components remain
+This is the recipe-specific contract for 2D scrolling-preview media: what each
+prepared-package asset is, its dimensions, its reference and layout inputs, and
+its sheet grid. It is not the global definition of `stage-gen`. Reusable components remain
 genre-, camera-, gameplay-, and engine-agnostic; this recipe supplies the
 side-view vocabulary explicitly.
 
-> **Provider note.** Current prepared native-alpha image operations use
-> `gpt-image-2` through the direct OpenAI image route. The legacy compatibility
-> path may use `openai/gpt-image-2` through OpenRouter for opaque/chroma media.
-> Exact canvas sizes are normalized output contracts, not a claim that every
+> **Provider note.** Prepared native-alpha image operations use `gpt-image-2`
+> through the direct OpenAI image route. Exact canvas sizes are normalized output contracts, not a claim that every
 > route accepts arbitrary pixel dimensions. Current endpoint capabilities,
 > alpha behavior, and deterministic normalization requirements are documented in
 > [model-gpt-image-2.md](model-gpt-image-2.md). Revalidate every recipe contract
@@ -32,18 +29,12 @@ portal branches receive only their declared map references; actor motion and
 dialogue receive the accepted generated actor concept; no generated world bible
 silently becomes a universal reference.
 
-The older prompt/tag path instead generates one **world concept** image and fans
-later calls from it as a shared style reference. Sections that use filenames such
-as `concept_<tag>.png`, `ladder_<tag>.png`, or `portal_<tag>.png` describe that
-legacy path only.
-
 ### 2. Intermediate "design reference" sheets for re-used / multi-variant subjects
 
 For subjects that get rendered many times in different states, a one-call
 **design reference** is generated first. In the current prepared path this is
 an identity concept with one complete side view and one front-three-quarter
-view. The legacy prompt/tag path instead uses a three-view **concept turnaround**
-(front / side / back). _Equivalent terms in the wider art pipeline include
+view. _Equivalent terms in the wider art pipeline include
 **model sheet**, **anatomy sheet**, **subject concept**, and **turnaround sheet**._
 
 Specialized generations (motion, hurt, attack, dialogue, and related strips)
@@ -139,28 +130,22 @@ assets do not bind the profile identity, so their cache keys remain unchanged.
 Only the player character concept prompt consumes durable profile prose. The
 player concept, isolated turnaround recovery, state strips, attack, climb,
 locally composed master, and derived state slices bind the resolved canonical
-identity in cache metadata and provenance inputs. World concept/spec, layers,
-terrain/materials, props/items/interface/effects, and mobs never receive it;
-their existing cache identities stay unchanged when the profile changes.
+identity in cache metadata and provenance inputs. World concept, layers, terrain/materials, props/items/interface/effects, and
+mobs never receive it; their existing cache identities stay unchanged when the
+profile changes.
 
-Presence adds `profile-resolve` and makes `wave-a` wait for it. The exact
-current manifest V7 envelope then includes a validated `character_profile`
-binding; absence omits that optional field from the same envelope. The binding
-records source and canonical digests, stable profile id and revision, rights
-status, and canonical artifact and provenance paths. It never authorizes
-publication.
+The binding records source and canonical digests, stable profile id and
+revision, rights status, and canonical artifact and provenance paths. It never
+authorizes publication.
 
-The legacy prompt/tag path uses six baseline canvas sizes. A game-directed
-legacy village adds one resident-still canvas, for seven sizes in that
-configuration. Current prepared outputs declare their geometry in the
-asset-specific prepared sections below instead of inheriting this table:
+The canvas sizes below are the shared geometry vocabulary the asset sections
+draw from; each prepared section declares which one it uses.
 
 | Canvas | Aspect | Pixel area | Used by |
 |---|---|---|---|
 | 1536 × 1024 | 3:2 (landscape) | 1.57 Mpx | World concept, inventory panel |
 | 2048 × 1024 | 2:1 (wide) | 2.10 Mpx | Portal pair sheet (entry / exit) |
-| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, character / creature / village-resident concepts, single-state motion strips, obstacle sheets, village fixture sheet, item sheet |
-| 800 × 1200 | 2:3 (portrait) | 0.96 Mpx | One game-directed, forward-facing village-resident still |
+| 2400 × 800 | 3:1 (wide strip) | 1.92 Mpx | Sky, parallax layers, character and creature concepts, single-state motion strips, obstacle sheets, item sheet |
 | 2400 × 3440 | ≈ 30:43 (tall, ~5:7) | 8.26 Mpx | Character motion master sheet (5 rows × 4 frames) |
 | 256 × 1024 | 1:4 (tall strip) | 0.26 Mpx | One complete runtime ladder |
 | 256 × 128 | 2:1 (four cells) | 0.03 Mpx | Four-frame character climb strip |
@@ -173,55 +158,6 @@ state sources is a 2400 x 800, one-row-by-four-cell strip. The local compositor
 remaps every cell into a 2400 x 688 row with the eight-pixel gutter and bottom
 anchor preserved, then stacks the five rows into the 2400 x 3440 master. The
 master is never requested as one provider image.
-
-### Optional village hub
-
-The scrolling recipe accepts one further opt-in under `village`:
-
-```json
-{
-  "schema_version": 1,
-  "kind": "village_hub_v1"
-}
-```
-
-The object carries no options and must equal those two fields exactly. A bare
-`true`, a missing field, camelCase, an extra key, another schema version, or
-another `kind` is rejected rather than coerced. The current recipe recognizes
-no alternate village input.
-
-It is the only opt-in that does **not** change the run tag. Every other one
-re-directs artwork the run already produces — a theme rewrites the concept
-prompt, a style anchor rewrites all of them, a profile or a proportion rewrites
-the player — so a shared directory would serve cached bytes generated under
-different direction. The village is strictly additive instead: no existing
-prompt, reference, or artifact changes, `world_spec_<tag>.json` keeps its exact
-bytes and gains no village field, and manifest `schema_version` remains 7.
-Enabling the village on an already-generated run therefore costs one structured
-call plus nine image calls and regenerates nothing, where a tag suffix would
-have forked the run directory and redrawn an entire world to gain nine files.
-
-Absent `village`, no village stages, assets, runtime roles, or manifest block
-are added. A current game-directed opt-in adds `village-spec` at wave 4.1,
-`village-concepts` at 4.2, and `village-stills` at 4.3; `manifest` depends on
-`village-stills`, publishes nine further `runtime_assets` roles, and adds one
-top-level `village` block. The first two stages produce the roster, four
-resident concept references, and the fixture sheet; the terminal stage produces
-four one-cell resident stills.
-
-Residents are ordinary townsfolk: not creatures from the bestiary, and not the
-player. Their `village-npc` stage family uses resident subjects with the shared
-actor-sheet builders and its own isolated-view recovery family; it never
-satisfies the player-asset predicate and therefore never receives the authored
-player profile. Semantic review names a resident as "a game character" rather
-than "a creature" and requires `front` for the current still. Compiled-theme
-routing sends resident artwork to character direction and `village-fixtures`
-to the same prop/item direction as obstacle sheets. Neither falls through to
-environment direction.
-
-Everything documented for the village here is a producer contract; it does not
-assert that any generated village media has been reviewed, approved, or
-published.
 
 ---
 
@@ -280,7 +216,7 @@ renamed into place.
 
 The older tag-based prompt recipe has a separate manifest V7 gate and its own
 run-global browser roles. Its `runtime_assets` envelope, `runtime_slot`,
-`scale_reference`, and `run.json` completion rules are legacy compatibility facts,
+and `scale_reference` rules are producer facts,
 not prepared-package authority.
 Canvas captures such as `gameplay-verification.png` are review evidence, not
 canonical generated assets, and are excluded from manifest publication.
@@ -326,37 +262,6 @@ packages do not use numbered waves: package resolution fans out map-local layers
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
 to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v10`.
 
-The wave table below documents only the older prompt/tag recipe and remains the detailed authority
-for assets produced by that legacy path.
-
-Legacy prompt generation uses six baseline stages across waves 1, 1.5, 2, 3, 4, and 5. The
-runner executes stages sequentially. The two image waves own their internal
-fan-out, while every other stage is one local or provider-neutral operation.
-An optional Visual Content Direction compile runs at wave 0.5; omitting the one
-current v1 `theme` field preserves the exact six-stage graph.
-
-| Wave | Purpose | Parallelism | Backend |
-|---|---|---|---|
-| 0.5 (controlled only) | Compile the original brief and six v1 content controls into a validated seven-field scrolling plan. | Single call; omitted when `theme` is unset. | text agent |
-| 1 | World concept (style root) | Single call. | image |
-| 1.5 | World-design agent — names every concrete asset (mobs, props, items) the rest of the pipeline draws | Single call. | text agent |
-| 2 | World concept dependants — L parallax layers (agent-designed count), ladder, character concept, N creature concepts, M obstacle sheets, item sheet, inventory panel, portal pair | Fan-out: `5 + L + N + M` calls fired together. | image |
-| 3 | Actor concept dependants — five player state strips; deterministic player-master composition; then player attack/climb and per-mob state strips. Game-directed mobs add attack to idle and hurt. | Two fan-outs separated by local composition. Exact current call counts live in the canonical pipeline document. | image + structured review + local CPU |
-| 4 | Split the composed player master into five fixed state rows and measure the final published bytes. | One deterministic split followed by five currently sequential structured vision measurements. | local CPU + text/vision agent |
-| 5 | Validate and write the per-tag artifact manifest; bind fallback preview music only when no authored soundtrack is present. | Single deterministic assembly after every enabled terminal stage. | local CPU |
-
-Legacy opt-ins add explicit nodes without changing that baseline definition:
-`game-resolve` at 0.1, `soundtrack-resolve` at 0.2, `profile-resolve` at 0.25,
-`map-book-resolve` at 0.3, `theme-compile` at 0.5, and `style-select` at 0.75.
-Village generation runs only after the mandatory artwork at waves 4.1 through
-4.3, and soundtrack generation runs at 4.5. The wave-5 manifest depends on
-every enabled terminal node, so it cannot publish a partial optional feature.
-
-The compiled Visual Content Direction plan is specific to
-`scrolling-preview`; it is not a generic character or image-generation
-contract. See the normative [content controls](content-controls-v1.md) and
-[scrolling plan](scrolling-content-direction-plan-v1.md) contracts.
-
 Provider latency, service concurrency, and account throttling are operational
 observations rather than recipe contracts. The executor may fan out independent
 requests, but this document does not promise wall-clock timing or invent a
@@ -365,6 +270,13 @@ provider concurrency tier.
 ---
 
 # Asset specifications
+
+> **Filenames below are the producer's working names, not the published contract.**
+> What a consumer loads is the path each artifact is published at in
+> `prepared-game-runtime-v10`, listed by role in the
+> [canonical pipeline](game/generation-pipeline.md#runtime-closure-roles). The
+> geometry, references, and grids in this section are the authority; the names are
+> illustrative.
 
 ## World concept
 
@@ -375,125 +287,26 @@ provider concurrency tier.
 | **Inputs** | _none_ — text prompt only (the user's world description) |
 | **Layout prior** | n/a |
 | **Used as style reference by** | every other generator in the pipeline |
-| **Wave** | 1 (serial root) |
 
 Single-image painterly composition that captures the world's palette,
 brushwork, lighting, and mood. No grid or removable exterior field.
 
 ---
 
-## World-design agent (`world_spec_<tag>.json`)
+## Parallax depth layers
 
-> **CURRENT only.** The ratified prepared-package target removes layer planning
-> from this generated bible. `game-map-v9` authors references and layer prompts
-> before ingest; see the
-> [Authored map-generation contract](game/map-generation-contract.md). Mob,
-> prop, and item migration is a separate content-contract boundary.
-
-| | |
-|---|---|
-| **Output** | `world_spec_<tag>.json` |
-| **Backend** | text-gen LLM via structured-output (`generateObject`-style) call — `openai/gpt-5.6-sol` by default |
-| **Inputs** | World concept (vision), user world prompt (text), `mob_count`, `obstacle_count` |
-| **Wave** | 1.5 (single call, between concept and image fan-out) |
-
-A vision LLM that names every concrete asset the rest of the pipeline
-draws. Without this step, a pipeline would have to fall back to a static
-menu (e.g. 8 fixed creature archetypes, 5 fixed obstacle themes, 8 fixed
-item kinds with generic suggestions) — identical across every world. With
-this step, the asset list is **re-skinned per world**: a fungal mushroom
-realm gets spore creatures and toadstool props, a cyberpunk back-alley
-gets drone scavengers and broken neon signs.
-
-### Output shape
-
-```ts
-{
-  world: { name, one_liner, narrative },
-  mobs: [
-    { tier_label, body_plan, name, brief },   // × mob_count
-  ],
-  obstacles: [
-    { sheet_theme, props: [ { name, brief }, × 8 ] },   // × obstacle_count
-  ],
-  items: [
-    { kind, name, brief },                    // × 8
-  ],
-  layers: [
-    { id, title, z_index, parallax, opaque, paint_region, description },
-    // length 1..5; exactly one entry must be opaque (the deepest backdrop)
-  ],
-}
-```
-
-**No pre-defined enums anywhere.** `tier_label`, `body_plan`, and item
-`kind` are all agent-designed strings — the agent invents this world's
-mob ladder and pickup categories from scratch using the concept image
-as its only constraint. No fixed list of "fledgling / forager / scout /
-…" tier names; no fixed list of "coin / gem / potion / …" item kinds.
-
-**Runtime contract** (the only structural commitment the agent must
-respect):
-- `mobs[]` is an **ascending power ladder**. Slot 0 is the weakest
-  creature in the world; slot `mob_count - 1` is the strongest. The
-  runtime scales HP linearly with slot index
-  (`mobHpForTier(i) = i + 1`), so monotonic power across slots is
-  load-bearing. The agent is told this directly in its prompt.
-- `mobs[i].body_plan` MUST visually distinguish slot `i` from slots
-  `i-1` and `i+1` — silhouette-distinct adjacent rungs.
-- `items[]` has exactly the inventory-slot count (8 today). The
-  agent decides what each pickup is and what to call its kind.
-
-### Naming contract (passed to the agent)
-
-- 1-3 words. Pronounceable. World-specific.
-- No generic names ("Slime", "Goblin", "Crate") — design every entry to
-  fit this world's flavour.
-- `brief` is one short sentence/clause for the image model to riff on.
-
-### Why one agent (and not separate calls per asset class)
-
-Holding `mobs[]`, `obstacles[]`, and `items[]` in a single response
-forces the agent to keep them coherent — the mob roster, the prop
-themes, and the item palette all read like one designer's output.
-Separate calls would drift in tone across rolls.
-
-### Downstream consumption
-
-Per-asset image generators read this file at gen time and feed the
-agent's design choices into their prompts:
-
-| Image generator | Reads |
-|---|---|
-| Mob concept generator | `mobs[i]`: `tier_label`, `body_plan`, `name`, `brief` (+ ladder position relative to total `mobs.length`) |
-| Obstacle sheet generator | `obstacles[i].sheet_theme`, `obstacles[i].props[0..7]` |
-| Items sheet generator | `items[0..7]` (each: `kind`, `name`, `brief`) |
-| Parallax layer generator | `layers[i]` (full entry: id, z_index, parallax, opaque, paint_region, description) |
-
-Other image generators (character, inventory, portal) do not
-read the spec — they take only the concept art as a style reference.
-
-If `world_spec_<tag>.json` is missing, the consuming generators fall
-back to generic menus so they remain runnable in isolation.
-
----
-
-## Parallax depth layers (agent-designed stack)
-
-> **CURRENT only.** The implemented producer still reads
-> `world_spec.layers[]`. In the ratified target, each map source owns its layer
-> records, arbitrary digest-locked image-reference bindings, authored `prompt`,
-> explicit background/foreground plane, order, parallax, and alpha mode. The
-> target contract, rather than this current section, is authoritative for that
-> shape.
+Each authored map source owns its layer records: digest-locked image-reference
+bindings, authored `prompt`, explicit background/foreground plane, order,
+parallax, and alpha mode. The
+[authored contract schema](game/authored-contract-schema.md) is authoritative
+for that shape; this section documents what the producer draws from it.
 
 | | |
 |---|---|
-| **Output** | `layer_<tag>_<layer.id>.png` (one per `world_spec.layers[]` entry) |
+| **Output** | One raster per authored map layer |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | World concept, **world_spec** (`layers[i]`: full entry — id, z_index, parallax, opaque, paint_region, description) |
+| **Inputs** | World concept, the authored map source's layer entry (id, z_index, parallax, opaque, paint_region, description) |
 | **Layout prior** | **none** (see "Looping" below) |
-| **Wave** | 2 (L parallel calls, where L = `world_spec.layers.length`, 1-5) |
 
 **No hardcoded sky / back / mid / front / fg.** The world-design
 agent designs the entire parallax stack: it picks how many layers
@@ -603,7 +416,7 @@ an independent semantic verdict accepts their exact bytes.
 > **Prepared map-local contract.** In `game-map-v9`, optional `[ladder]`
 > direction and placements live in the owning map. The appearance is generated
 > once per map and reused only by that map's validated placements. The older
-> prompt-only recipe may still use a run-global `ladder_<tag>.png`; it is not
+> a run-global ladder raster is not
 > the prepared-package authority.
 
 | | |
@@ -634,15 +447,13 @@ permission remains in `gameplay.toml`.
 > 2464-by-3328, 2-by-1 native-alpha sources rather than the 1536-by-1024, 4-by-1
 > contract other prepared motions use: a climb has two distinct poses, so two of
 > four cells would be near-duplicates. Which roles a package owes follows from the
-> climbable roles its maps place. The smaller file below belongs only to the
-> legacy tag-based prompt recipe.
+> climbable roles its maps place.
 
 | | |
 |---|---|
 | **Output** | `character_<tag>-fromcombined_climb.png` |
 | **Canvas** | 256 × 128 |
 | **Inputs** | Character concept |
-| **Wave** | 3 |
 
 The strip is one row by four 64 x 128 rear-facing climb frames with alternating
 hands and feet. Each frame is independently fitted behind a 2 px transparent
@@ -658,7 +469,6 @@ gutter. The ladder itself is not painted into the character strip.
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | World concept, optional user description |
 | **Layout prior** | n/a |
-| **Wave** | 2 |
 
 Three-pose turnaround sheet (front / side / back) of the same character in an
 exact 1 x 3 grid. Each view is an independent isolated subject centered wholly
@@ -742,7 +552,6 @@ while player content owns this visual atlas.
 | **Output** | `character_<tag>_combined.png` |
 | **Canvas** | 2400 × 3440 (aspect ≈ 30:43, tall, ~5:7) |
 | **Inputs** | Layout prior (5×4 master template), character concept |
-| **Wave** | 3 |
 | **Post-processing** | After generation, the sheet is split into 5 per-state strips (`character_<tag>-fromcombined_<state>.png`) for the runtime to load. |
 
 ### Grid spec — 5 rows × 4 columns
@@ -777,7 +586,6 @@ the same overall body size whether running, jumping, or crouched.
 | **Output** | `character_<tag>_attack.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template), character concept |
-| **Wave** | 3 |
 
 ### Grid spec — 1 row × 4 columns
 
@@ -804,9 +612,8 @@ template.
 |---|---|
 | **Output** | `mob_concept_<tag>_<i>.png` (i = 0 … N-1) |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | World concept, **world_spec** (`mobs[i]`: tier_label, body_plan, name, brief), optional user description fallback |
+| **Inputs** | World concept, the authored mob entry (tier_label, body_plan, name, brief) |
 | **Layout prior** | n/a |
-| **Wave** | 2 (N parallel calls) |
 
 Three-pose turnaround (front / side / back) of one creature variant. It uses
 the same isolated-thirds contract as the character turnaround: one centered,
@@ -819,7 +626,7 @@ connection across either internal seam.
 There is **no static tier table here**. The world-design agent designs
 the entire ladder per world — tier_label, body_plan, name, and brief
 for every slot — using only the concept image as a constraint. See the
-[world-design agent](#world-design-agent-world_spec_tagjson) section
+authored game contract
 above for what the agent receives.
 
 What this generator adds on top of the agent's per-slot fields:
@@ -851,7 +658,6 @@ respect — monotonic power across the ladder.
 | **Output** | `mob_<tag>_<i>_idle.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template — reused from the character template), creature concept (variant `i`) |
-| **Wave** | 3 (N parallel calls) |
 
 ### Grid spec — 1 row × 4 columns
 
@@ -871,7 +677,6 @@ the contact base touches the feet rail.
 | **Output** | `mob_<tag>_<i>_hurt.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
 | **Inputs** | Layout prior (4×1 strip template), creature concept (variant `i`) |
-| **Wave** | 3 (N parallel calls) |
 
 ### Grid spec — 1 row × 4 columns
 
@@ -894,8 +699,7 @@ swaps between idle and hurt sheets without re-anchoring.
 |---|---|
 | **Output** | `obstacles_<tag>_<i>.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | Layout prior (4×2 obstacle template), world concept, **world_spec** (`obstacles[i].sheet_theme` + `obstacles[i].props[0..7]`) |
-| **Wave** | 2 (N parallel calls) |
+| **Inputs** | Layout prior (4×2 obstacle template), world concept, the authored prop entry (`sheet_theme` and its eight props) |
 
 ### Grid spec — 2 rows × 4 columns
 
@@ -910,7 +714,7 @@ Each prop varies in size dramatically — small (~30% of cell) to large
 (~90% of cell). Above the grass band, the strategy background is removed; the
 runtime alpha-bbox-crops each cell so cell padding is irrelevant.
 
-### Theme rotation (fallback only — used when `world_spec` is missing)
+### Theme rotation (fallback only — used when the authored sheet theme is absent)
 
 In a normal pipeline run the world-design agent picks a world-appropriate
 `sheet_theme` for each sheet (and names every prop). When the spec is
@@ -935,8 +739,7 @@ Variants `≥ 5` loop modulo 5.
 |---|---|
 | **Output** | `items_<tag>.png` |
 | **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | Layout prior (4×2 obstacle template, reused as a generic 4×2 grid), world concept, **world_spec** (`items[0..7]`: `kind` + `name` + `brief`) |
-| **Wave** | 2 |
+| **Inputs** | Layout prior (4×2 obstacle template, reused as a generic 4×2 grid), world concept, the authored item catalog's eight entries (`kind`, `name`, `brief`) |
 
 ### Grid spec — 2 rows × 4 columns
 
@@ -969,7 +772,6 @@ world-appropriate equivalents" menu.
 | **Output** | `inventory_<tag>.png` |
 | **Canvas** | 1536 × 1024 (aspect 3:2 landscape) |
 | **Inputs** | Layout prior (4×2 slot template), world concept |
-| **Wave** | 2 |
 
 ### Grid spec — 2 rows × 4 slots, locked positions
 
@@ -1076,230 +878,3 @@ stable `anchor`; visual role never implies a destination.
 
 ---
 
-## Village hub (opt-in family)
-
-Nine image artifacts and one bible are generated when the run carries the
-`village` opt-in described under
-[Optional village hub](#optional-village-hub). The current game-directed path
-shares the run's parallax layers, portal pair, item sheet, and player;
-it adds four resident concept references, four forward-facing resident stills,
-and one settlement-fixture sheet.
-
-The concepts reuse the existing three-view turnaround grid and isolated-view
-recovery machinery. The fixture sheet reuses the obstacle-sheet grid and
-per-cell recovery machinery. The resident still deliberately does not reuse a
-motion-strip grid: it is one portrait cell because the runtime draws one
-unanimated, front-facing resident.
-
-| Artifact | Canvas | Grid | Cell | Gutter | Anchor | Runtime role |
-|---|---|---|---|---|---|---|
-| `npc_concept_<tag>_<i>.png` (i = 0…3) | 2400 × 800 | 1 row × 3 cols | 800 × 800 | 8 px | bottom | `village-npc-concept-<i>` |
-| `npc_<tag>_<i>_still.png` (i = 0…3) | 800 × 1200 | 1 row × 1 col | 800 × 1200 | 8 px | bottom | `village-npc-<i>-still` |
-| `village_fixtures_<tag>.png` | 2400 × 800 | 2 rows × 4 cols | 600 × 400 | 8 px | bottom | `village-fixtures` |
-
-All nine publish `alpha_expectation: "transparent"` and pass the same
-[runtime publication gate](#runtime-publication-gate) the hunting sheets pass:
-exact dimensions, transparency lineage, the declared cell geometry, and a
-provenance sidecar bound to the bytes. Resident roles carry a `binding` of
-`{"slot": i}`, stills `{"slot": i, "state": "still"}`; the fixture sheet
-carries none, because one sheet furnishes the whole settlement and its cells
-are addressed positionally exactly as an obstacle sheet's are.
-
-The two actor contracts attach to the current stills only:
-
-- **Facing review.** `village-npc-<i>-still` is reviewed as one game character
-  and must face `front`. Turnarounds are excluded because three views do not
-  have one facing.
-- **Head-matched scale reference.** `village-npc-<i>-still` publishes a required
-  measured `scale_reference`. The runtime matches its head extent to the
-  player's required idle reference; a missing or stale measurement rejects the
-  current runtime closure rather than selecting an approximate size.
-
----
-
-## Village bible (`village_spec_<tag>.json`)
-
-| | |
-|---|---|
-| **Output** | `village_spec_<tag>.json` |
-| **Backend** | text-gen LLM via structured-output call — the same route the world-design agent uses |
-| **Inputs** | World concept (vision), user world prompt, resolved game contract and vocabulary, compiled theme/style when present |
-| **Schema** | `scrolling_preview_directed_village_v1`, strict |
-| **Wave** | 4.1 (single call after the mandatory hunting assets) |
-
-A second vision-LLM pass over the **same concept image** the world bible was
-designed from. It designs a peaceful settlement belonging to that world — a hub
-the player travels to between hunts, where nothing is hunted and nothing
-attacks — and nothing else in the run reads it.
-
-It is a separate artifact rather than a field on `world_spec_<tag>.json`
-precisely because a field would have rewritten the bytes of an artifact every
-existing run already holds, and invalidated all of them.
-
-### Output shape
-
-```text
-{
-  name, one_liner, narrative, fixtures_theme,
-  npcs: [
-    {
-      role_label, name, body_plan, brief,
-      body_kind, stance, holding,
-      greeting, remark, farewell
-    },                                                                  // × 4
-  ],
-  fixtures: [
-    { name, brief },                                                     // × 8
-  ],
-}
-```
-
-`role_label`, `body_plan`, and `fixtures_theme` are agent-designed strings.
-`body_kind`, `stance`, and `holding` are closed identifiers from the resolved
-game vocabulary. A game that disables poses or held props narrows the relevant
-schema enum instead of changing the persisted shape.
-
-### Cross-field contract
-
-Every rule is about distinguishability, which no per-field constraint can
-express: four non-empty names, four non-empty role labels and four non-empty
-body plans are all individually valid while describing the same person four
-times over. A request for four townsfolk is answered most readily with four
-interchangeable humans in differently coloured aprons, and four residents that
-read as one resident repeated is the failure the schema exists to prevent.
-
-- Resident `name`s are unique case-insensitively; `role_label`s are unique.
-- Each `body_kind` must be an approved people body from the resolved game
-  vocabulary; its vocabulary entry supplies the anatomy used by image prompts.
-- Consecutive `body_plan`s must differ — the same rule adjacent mob rungs obey,
-  and the cheap half of the check: a generator that has just written "humanoid"
-  writes it again far more readily than it repeats it two entries later.
-- No two residents may share both `stance` and `holding`.
-- Fixture `name`s are unique, because fixture cells are addressed positionally
-  and two cells named the same thing make a placement report unreadable.
-- `greeting`, `remark` and `farewell` are each capped at 160 characters. This is
-  a layout fact, not a style preference: the runtime dialogue box shows one line
-  at a time across the bottom of the viewport, and a line that overflows it is a
-  line the player cannot read.
-
-`body_plan` is separate from `brief` on purpose. `brief` is appearance direction
-— wardrobe, palette, silhouette detail — while `body_plan` describes build and
-trade. In the directed schema, anatomy comes from the closed `body_kind`
-vocabulary rather than being smuggled through prose.
-
-### Downstream consumption
-
-| Image generator | Reads |
-|---|---|
-| Village resident concept generator | `npcs[i]` identity, body, appearance, stance, and held-prop direction through the resolved vocabulary |
-| Village resident still generator | The same resident plus its own concept reference and resolved body build |
-| Village fixture sheet generator | `fixtures_theme` + `fixtures[0..7]` (`name` + `brief`) |
-
-Unlike `world_spec_<tag>.json`, there is **no fallback menu**. A missing or
-unparseable bible fails the village stages rather than degrading to generic
-prompts, because the bible is the single input all nine prompts derive from and
-a generic village is not a village anyone asked for. Cache reuse re-parses the
-file as `DirectedVillageSpec`, re-runs every cross-field and vocabulary rule,
-and re-checks the recorded roster and compiled-theme identity — existence is
-never the test.
-
-The published `village` manifest block is a projection of this file, not the
-file: its exact schema V2 block carries `schema_version`, `name`, `one_liner`,
-`fixtures_theme`, one shared `render` object, and per resident
-`{slot, name, role_label, lines}`. The current render object is
-`{frames: 1, orientation: "front", animation: "still", state: "still"}`.
-`narrative`, body/appearance direction, stance, and held-prop direction stay
-behind because they are generation inputs, not runtime text.
-
----
-
-## Village resident concept (turnaround) — per resident
-
-| | |
-|---|---|
-| **Output** | `npc_concept_<tag>_<i>.png` (i = 0 … 3) |
-| **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | World concept, **village_spec** (`npcs[i]`: name, role_label, body_plan, brief) |
-| **Layout prior** | n/a |
-| **Runtime role** | `village-npc-concept-<i>` |
-| **Wave** | 4.2 (4 parallel calls, alongside the fixture sheet) |
-
-Three-pose turnaround (front / side / back) of one resident, generated from the
-identical isolated-thirds prompt builder the character and creature turnarounds
-use: one centered, fully contained subject per third, wide uniform-background
-separator bands, and no shared baseline, ground, shadow, decoration, panel,
-label, or foreground connection across either internal seam.
-
-### Grid spec — 1 row × 3 columns
-
-Cells are 800 × 800 with an 8 px gutter, anchored bottom — the character and
-creature turnaround contract unchanged.
-
-The subject handed to the shared turnaround builder is assembled from the
-resolved body anatomy, resident name and role, body plan and appearance, plus
-the vocabulary sentences for stance and any held prop. The run's world concept
-is the style reference; the authored player profile is never routed to this
-resident family.
-
-Because it is a turnaround and not a strip, this sheet is **not** facing-reviewed
-and **not** scale-measured. It is the per-resident design reference for that
-resident's still, and it inherits the same isolated-view recovery the character
-and creature turnarounds use: a sheet exhausted specifically by cross-seam
-connection can be regenerated as three independent views and refitted under the
-`village-npc` family. The recovered views are still residents, never creatures
-or player-profile consumers.
-
----
-
-## Village resident still — per resident
-
-| | |
-|---|---|
-| **Output** | `npc_<tag>_<i>_still.png` (i = 0 … 3) |
-| **Canvas** | 800 × 1200 (aspect 2:3) |
-| **Inputs** | Resident concept (resident `i`), directed village resident, resolved game vocabulary and build |
-| **Runtime role** | `village-npc-<i>-still` |
-| **Wave** | 4.3 (4 parallel calls) |
-
-### Grid spec — 1 row × 1 column
-
-The one cell is 800 × 1200 with an 8 px gutter and bottom anchor. It must contain
-one complete standing figure, crown to soles, on a clean flat background before
-canonical transparency processing. The minimum painted height is half the cell;
-there is no cross-frame camera or symmetry check because there is only one cell.
-
-The prompt requires a direct front view and uses the resolved vocabulary's
-anatomy, stance, and held-prop sentences. This is the artifact the runtime
-actually draws at frame zero without registering an animation or mirroring the
-front-facing figure. The reviewed bytes must pass the `front` facing gate and
-the game build gate, then publish the required head-extent `scale_reference`.
-
----
-
-## Village fixture sheet
-
-| | |
-|---|---|
-| **Output** | `village_fixtures_<tag>.png` |
-| **Canvas** | 2400 × 800 (aspect 3:1) |
-| **Inputs** | Layout prior (4×2 obstacle template), world concept, **village_spec** (`fixtures_theme` + `fixtures[0..7]`) |
-| **Runtime role** | `village-fixtures` |
-| **Wave** | 4.2 |
-
-### Grid spec — 2 rows × 4 columns
-
-Cells are 600 × 400 with an 8 px gutter, anchored bottom: the obstacle-sheet
-contract unchanged, including its per-cell isolation and its per-cell
-regeneration fallback under the `cell-0-scale-style-anchor` identity policy.
-
-8 self-contained settlement fixtures — stalls, wells, carts, signs, racks —
-ordered left to right across each row, one per cell, named and briefed by the
-bible. The prompt tracks the obstacle-sheet prompt clause for clause, including
-the CLEAN PLATE line; only the subject noun and the named appendages change,
-because a market stall's awning and its hanging goods are what reach across a
-cell boundary here where a tree's branches and a banner do on an obstacle sheet.
-
-The sheet is validated by the identical grid contract and rescued by the
-identical per-cell fallback, which is exactly why the prompt is not allowed to
-drift from the one those were tuned against: it would fail them in ways only a
-generated sheet reveals.

@@ -49,13 +49,11 @@ count, media type, and image dimensions. The closure list has its own canonical 
 
 ## Prepared asset explorer
 
-The details route is `/generate/<run-tag>`. For a prepared package it reads the same validated
-`manifest.json` and projects every explicitly bound closure artifact exactly once into semantic
-map, player, mob, NPC, prop, item, projectile, UI, and soundtrack groups. It does not use
-directory scans, filename conventions, `run.json`, `WorldSpec`, retry controls, or pipeline
-events. Images open in an alpha-aware lightbox and soundtrack artifacts use native audio
-controls. The home page also discovers prepared packages from this manifest, without requiring a
-legacy prompt-run summary.
+The asset route is `/packages/<run-tag>`. It reads the same validated `manifest.json` and projects
+every explicitly bound closure artifact exactly once into semantic map, player, mob, NPC, prop,
+item, projectile, UI, and soundtrack groups. It does not use directory scans, filename
+conventions, or pipeline events. Images open in an alpha-aware lightbox and soundtrack artifacts
+use native audio controls. The home page discovers prepared packages from this manifest alone.
 
 The page accounts for the whole closure, each artifact under the
 [role](spec/game/generation-pipeline.md#runtime-closure-roles) the producer published it as.
@@ -232,19 +230,19 @@ Tailwind emits its utilities inside `@layer utilities`, so unlayered third-party
 whatever the specificity. `ol.css` is the only such import; the atlas viewport marks its OpenLayers
 control overrides `!` for that reason and says so in place.
 
-## Legacy boundary
+## Consumer boundary
 
-The former prompt-launching live Generate view, scrolling manifest V7 parser, `WorldSpec`,
-`VillageSpec`, map-book adapter, and slot-derived filename scene are not authorities for prepared
-package runs. They remain repository code only for historical prompt runs while their independent
-tests and evidence are retired safely. Prepared `/generate/<run-tag>` routes use the manifest
-asset explorer, and `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
+`web/` starts no run. There is no HTTP route, form, or button that begins generation, and nothing
+under [`lib/shell`](../web/lib/shell) may import a process-spawning API - the docs gate checks the
+absence, because a shell that can spawn is one refactor away from being a second generator. The
+prompt-launching Generate view, its `POST /api/run` start/retry/SSE routes, the scrolling
+manifest V7 parser, `WorldSpec`, `VillageSpec`, the map-book adapter, and the slot-derived
+filename scene are gone rather than retired in place.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v10` is the only manifest
-accepted by the active preview.
-
-The retired prompt-launching adapter is not an active generation authority. The legacy `{ prompt, transparency_mode }` HTTP start body is rejected instead of being translated into a prepared package.
+`game.toml` is the package root, and `prepared-game-runtime-v10` is the only manifest accepted by
+the preview. A run directory that holds neither is not a subject this consumer can render, and the
+route answers 404 rather than guessing.
 
 ## Verification
 

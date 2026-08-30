@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { cx, errorBanner, linkGhost, metaLine } from "@/app/ui";
-import ImageLightbox, { type LightboxImage } from "@/app/generate/[tag]/ImageLightbox";
+import ImageLightbox, { type LightboxImage } from "@/app/ImageLightbox";
 import {
   type ExecutionNodeState,
   type ExecutionRunLiveness,

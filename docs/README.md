@@ -52,17 +52,6 @@ Start here for the headless, general-purpose system:
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —
   exact-current gameplay ownership, terrain/ladder/portal composition boundary,
   runtime lifecycle, actor state selection, population, combat, and feedback.
-- [Visual Content Direction](visual-content-direction.md) — the optional
-  `scrolling-preview` content-intensity compiler, its ownership boundary, and
-  supported caller workflow.
-- [Content controls v1](spec/content-controls-v1.md) — the normative six-axis
-  input and level contract for the current `[theme]` field.
-- [Scrolling content direction plan v1](spec/scrolling-content-direction-plan-v1.md)
-  — the recipe-specific seven-field artifact, stage mapping, cache, provenance,
-  and failure contract.
-- [Visual Content Direction A/B case study](visual-content-direction-case-study.md)
-  — the shared-reference experiment, exact evidence scope, and strict
-  visual-review result.
 - [Asset unit](spec/asset-unit.md) — ratified TO-BE canonical magnitude vocabulary: one player
   height as the unit, per-class declaration and inheritance, the legibility floor, stance-cell and
   alpha-bbox measurement, anchor and registration, fail-closed admission, and consumer projection.

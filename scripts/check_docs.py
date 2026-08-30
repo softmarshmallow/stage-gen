@@ -68,10 +68,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     env_example = (repo / ".env.example").read_text(encoding="utf-8")
     env_assignments = dict(re.findall(r"^([A-Z][A-Z0-9_]*)=(.*)$", env_example, re.MULTILINE))
     consumed_env_names: set[str] = set()
-    for source_path in (
-        repo / "src/stage_gen/config.py",
-        repo / "src/stage_gen/recipes/scrolling_preview/cache.py",
-    ):
+    for source_path in (repo / "src/stage_gen/config.py",):
         consumed_env_names.update(
             re.findall(r"""["']([A-Z][A-Z0-9_]*)["']""", source_path.read_text(encoding="utf-8"))
         )
@@ -289,30 +286,21 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         (
             "docs/web-preview.md",
             re.compile(
-                r"prompt-launching adapter is not an active generation authority",
+                r"web/` (?:starts|launches) no run",
                 re.IGNORECASE,
             ),
-            "retired prompt adapter boundary",
-        ),
-        (
-            "docs/web-preview.md",
-            re.compile(
-                r"legacy `\{ prompt, transparency_mode \}` HTTP start body is rejected",
-                re.IGNORECASE,
-            ),
-            "rejected legacy web request",
-        ),
-        (
-            "web/app/Picker.tsx",
-            re.compile(r'''aria-label="Transparency strategy"'''),
-            "transparency strategy control",
-        ),
-        (
-            "web/lib/shell/transparency.ts",
-            re.compile(r'''DEFAULT_TRANSPARENCY_MODE[^\n]*= "native"'''),
-            "web default",
+            "web is not a generation authority",
         ),
     )
+    # `web/` consumes published contracts; it must not be able to start a run. A shell that
+    # can spawn a process is one refactor away from being a second generator, so the absence
+    # of the capability is checked rather than described.
+    web_shell = repo / "web/lib/shell"
+    for source_path in sorted(web_shell.glob("*.ts")):
+        source = source_path.read_text(encoding="utf-8")
+        if "node:child_process" in source or "Bun.spawn" in source:
+            relative = source_path.relative_to(repo).as_posix()
+            failures.append(f"{relative}: web shell must not spawn a generation process")
     for relative, pattern, label in required_contracts:
         if pattern.search((repo / relative).read_text(encoding="utf-8")) is None:
             failures.append(f"{relative}: missing {label}")

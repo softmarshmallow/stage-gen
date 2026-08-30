@@ -52,7 +52,6 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     for required in (
         "stage-gen character-profile validate",
         "stage-gen character-profile digest",
-        "examples/scrolling-preview/profile-enabled-coast.toml",
         "examples/dialogue-theme/profile-enabled-date.toml",
         "STAGE_GEN_CHARACTER_LIBRARY_ROOT",
         "wire V3/recipe V4",

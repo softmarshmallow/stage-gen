@@ -143,8 +143,7 @@ single-axis result as a material tile that is safe on both axes.
 Credential-free gates:
 
 ```sh
-uv run pytest tests/unit/components/image_repeat \
-  tests/unit/orchestration/test_image_repeat_reviewer.py -q
+uv run pytest tests/unit/components/image_repeat -q
 ```
 
 Generated repeat units remain `unreviewed` for rights and publication unless a

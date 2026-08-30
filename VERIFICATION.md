@@ -41,8 +41,10 @@ uv run python scripts/check.py
 ```
 
 This checks Ruff formatting and lint, strict mypy across `src`, `tests`, and
-`scripts`, all tests not marked `live`, sdist/wheel construction, packaged
-resources, CLI help and recipe discovery, and offline benchmark list/smoke.
+`scripts`, all tests not marked `live`, documentation and publication policy,
+sdist/wheel construction, packaged resources, CLI help, and an offline plan of
+both recipes — so a route the binding table cannot serve fails here rather than
+against a provider.
 The script removes `OPENROUTER_API_KEY` and `FAL_KEY` from every child process.
 It also disables cwd `.env` credential loading for those children, so it must
 pass without network access or provider credentials.

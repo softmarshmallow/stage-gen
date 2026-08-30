@@ -13,8 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Never, TextIO, cast
 
-from gnode import write_run_view
-from stage_gen.benchmarks import list_benchmark_suites, run_benchmark
+from gnode import RunView, write_run_view
 from stage_gen.capabilities import (
     HeadlessRuntime,
     generate_image_artifact,
@@ -55,36 +54,13 @@ from stage_gen.recipes.dialogue_scene.character_bundle import (
     review_dialogue_character_bundle,
     sanitize_dialogue_character_spike,
 )
-from stage_gen.recipes.registry import list_recipes, run_recipe_action
-from stage_gen.recipes.scrolling_preview.dialogue_character import (
-    bind_dialogue_character_to_scrolling_manifest,
-)
+from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
+from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
+from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
 from stage_gen.recipes.scrolling_preview.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.scrolling_preview.view_annotations import (
     annotate_scrolling_preview_artifact,
 )
-
-COMMANDS = {
-    "generate",
-    "export-view",
-    "serve",
-    "recipes",
-    "benchmark",
-    "research",
-    "review",
-    "generate-image",
-    "remove-background",
-    "generate-music",
-    "import-env",
-    "doctor",
-    "character-profile",
-    "game",
-    "map",
-    "map-book",
-    "soundtrack",
-    "dialogue-character",
-    "package",
-}
 
 
 class CliUsageError(ValueError):
@@ -153,6 +129,80 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument(
         "--failure-node",
         help="inject one deterministic node failure during a dry run",
+    )
+
+    dialogue_parser = commands.add_parser(
+        "dialogue-scene",
+        description=(
+            "Plan, execute, and review one strict adult, non-explicit dialogue-scene bundle"
+        ),
+    )
+    dialogue_commands = dialogue_parser.add_subparsers(dest="dialogue_command", required=True)
+    dialogue_generate_parser = dialogue_commands.add_parser(
+        "generate",
+        help="execute one authored dialogue request as an asset graph",
+    )
+    dialogue_generate_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        metavar="REQUEST.json",
+        help="authored dialogue-theme-request document (JSON or TOML)",
+    )
+    dialogue_generate_parser.add_argument(
+        "--output",
+        required=True,
+        dest="output_path",
+        help="new immutable execution output directory",
+    )
+    dialogue_generate_parser.add_argument(
+        "--cache-dir",
+        dest="cache_dir",
+        help="content-and-lineage validated execution cache directory",
+    )
+    dialogue_generate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="execute deterministic fake operations without provider access",
+    )
+    dialogue_generate_parser.add_argument("--invocation-id")
+    dialogue_generate_parser.add_argument(
+        "--failure-node",
+        help="inject one deterministic node failure during a dry run",
+    )
+    dialogue_review_parser = dialogue_commands.add_parser(
+        "review",
+        help="apply a digest-bound independent review to one dialogue bundle",
+    )
+    dialogue_review_parser.add_argument("--bundle", required=True, dest="bundle_path")
+    dialogue_review_parser.add_argument("--review", required=True, dest="review_path")
+    dialogue_review_parser.add_argument(
+        "--acceptance-spec", required=True, dest="acceptance_spec_path"
+    )
+    dialogue_review_parser.add_argument("--usage", required=True, choices=("local-demo",))
+
+    dialogue_character_parser = commands.add_parser(
+        "dialogue-character",
+        description="Sanitize, package, and review a four-state dialogue character bundle",
+    )
+    dialogue_character_commands = dialogue_character_parser.add_subparsers(
+        dest="dialogue_character_command", required=True
+    )
+    sanitize_parser = dialogue_character_commands.add_parser(
+        "sanitize", help="sanitize one pending local character spike in place"
+    )
+    sanitize_parser.add_argument("--spike", required=True, dest="spike_path")
+    character_package_parser = dialogue_character_commands.add_parser(
+        "package", help="package one validated spike at its canonical run path"
+    )
+    character_package_parser.add_argument("--spike", required=True, dest="spike_path")
+    character_review_parser = dialogue_character_commands.add_parser(
+        "review", help="apply an independent review to one pending character bundle"
+    )
+    character_review_parser.add_argument("--bundle", required=True, dest="bundle_path")
+    character_review_parser.add_argument("--review", required=True, dest="review_path")
+    character_review_parser.add_argument(
+        "--acceptance-spec", required=True, dest="acceptance_spec_path"
     )
 
     export_view_parser = commands.add_parser(
@@ -233,87 +283,6 @@ def build_parser() -> argparse.ArgumentParser:
             help="workspace root containing library/games",
         )
 
-    dialogue_character_parser = commands.add_parser(
-        "dialogue-character",
-        description="Sanitize, package, review, and bind a four-state dialogue character",
-    )
-    dialogue_character_commands = dialogue_character_parser.add_subparsers(
-        dest="dialogue_character_command", required=True
-    )
-    sanitize_parser = dialogue_character_commands.add_parser(
-        "sanitize",
-        help="sanitize one pending local character spike in place",
-    )
-    sanitize_parser.add_argument(
-        "--spike",
-        required=True,
-        dest="spike_path",
-        metavar="RUN/spike-assets/character-only.json",
-        help="pending character-only spike to sanitize in place",
-    )
-    package_parser = dialogue_character_commands.add_parser(
-        "package",
-        help="package one validated spike at its canonical run path",
-    )
-    package_parser.add_argument(
-        "--spike",
-        required=True,
-        dest="spike_path",
-        metavar="RUN/spike-assets/character-only.json",
-        help="validated character-only spike to package",
-    )
-    character_review_parser = dialogue_character_commands.add_parser(
-        "review",
-        help="apply an independent review to one pending character bundle",
-    )
-    character_review_parser.add_argument(
-        "--bundle",
-        required=True,
-        dest="bundle_path",
-        metavar="RUN/dialogue-character.bundle.json",
-        help="pending character bundle to review",
-    )
-    character_review_parser.add_argument(
-        "--review",
-        required=True,
-        dest="review_path",
-        metavar="REVIEW.json",
-        help="independent digest-bound review input",
-    )
-    character_review_parser.add_argument(
-        "--acceptance-spec",
-        required=True,
-        dest="acceptance_spec_path",
-        metavar="ACCEPTANCE.json",
-        help="acceptance specification bound by the review",
-    )
-    bind_parser = dialogue_character_commands.add_parser(
-        "bind",
-        help="bind one reviewed character bundle into a current scrolling manifest",
-    )
-    bind_parser.add_argument(
-        "--bundle",
-        required=True,
-        dest="bundle_path",
-        metavar="RUN/dialogue-character.bundle.reviewed.json",
-        help="reviewed local-demo character bundle to bind",
-    )
-    bind_parser.add_argument(
-        "--manifest",
-        required=True,
-        dest="manifest_path",
-        metavar="RUN/manifest_TAG.json",
-        help="current scrolling manifest to update in place",
-    )
-    bind_parser.add_argument(
-        "--npc-slot",
-        required=True,
-        type=int,
-        choices=range(4),
-        dest="npc_slot",
-        help="verified scrolling NPC slot",
-    )
-
     map_parser = commands.add_parser(
         "map",
         description="Validate and inspect one authored game map",
@@ -342,25 +311,6 @@ def build_parser() -> argparse.ArgumentParser:
             help="workspace root containing library/games",
         )
 
-    review_parser = commands.add_parser(
-        "review", description="Apply a digest-bound independent recipe review"
-    )
-    review_parser.add_argument("--recipe", required=True)
-    review_parser.add_argument("--bundle", required=True, dest="bundle_path")
-    review_parser.add_argument("--review", required=True, dest="review_path")
-    review_parser.add_argument("--acceptance-spec", required=True, dest="acceptance_spec_path")
-    review_parser.add_argument("--usage", required=True, choices=("local-demo",))
-
-    serve_parser = commands.add_parser("serve")
-    serve_parser.add_argument("--host")
-    serve_parser.add_argument("--port", type=int, default=4317)
-    serve_parser.add_argument("--public", action="store_true", dest="allow_public")
-
-    commands.add_parser("recipes")
-    for name in ("benchmark", "research"):
-        benchmark_parser = commands.add_parser(name)
-        benchmark_parser.add_argument("suite", nargs="?", default="smoke")
-
     image_parser = commands.add_parser("generate-image")
     image_parser.add_argument("--output", required=True)
     image_parser.add_argument("--aspect-ratio", default="1:1")
@@ -386,22 +336,29 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_generate_arguments(args: Sequence[str]) -> dict[str, object]:
-    namespace = build_parser().parse_args(["generate", *args])
-    return {
-        "recipe": namespace.recipe,
-        "inputFile": namespace.input_file,
-        "prompt": " ".join(namespace.prompt).strip(),
-        "transparencyMode": namespace.transparency,
-    }
+def _build_run_view_for(run_dir: Path) -> RunView:
+    """Pick the view document by the kind the run's own plan declares.
 
+    Two recipes emit two graph kinds, and hard-drop versioning means neither type may
+    accept the other's document. Reading the declared kind first keeps the refusal a
+    clear one instead of a validation error about the wrong contract.
+    """
 
-def parse_doctor_arguments(args: Sequence[str]) -> dict[str, object]:
-    namespace = build_parser().parse_args(["doctor", *args])
-    return {
-        "json": namespace.json_output,
-        "transparencyMode": namespace.transparency,
-    }
+    plan_path = run_dir / "execution-plan.json"
+    if not plan_path.is_file():
+        raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
+    declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
+    if declared == "dialogue-scene-execution-graph-v1":
+        return build_dialogue_scene_view(run_dir)
+    if declared == "prepared-game-execution-graph-v1":
+        return build_execution_view(
+            run_dir,
+            annotators={"scrolling-preview": annotate_scrolling_preview_artifact},
+        )
+    raise ValueError(
+        f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
+        "stage-gen"
+    )
 
 
 def create_doctor_report(
@@ -458,8 +415,6 @@ def main(
     if args[0] in {"help", "-h", "--help"}:
         parser.print_help(output)
         return 0
-    if args[0] not in COMMANDS:
-        args.insert(0, "generate")
     try:
         namespace = parser.parse_args(args)
         return _dispatch(namespace, runtime=runtime, stdout=output)
@@ -484,9 +439,6 @@ def _dispatch(
     stdout: TextIO,
 ) -> int:
     command: str = args.command
-    if command == "recipes":
-        stdout.write(f"{json.dumps({'recipes': list_recipes()}, indent=2)}\n")
-        return 0
     if command == "character-profile":
         resolved = _resolve_cli_character_profile(
             input_path=Path(args.input_path),
@@ -500,10 +452,7 @@ def _dispatch(
         return 0
     if command == "export-view":
         run_dir = Path(args.run_dir)
-        view = build_execution_view(
-            run_dir,
-            annotators={"scrolling-preview": annotate_scrolling_preview_artifact},
-        )
+        view = _build_run_view_for(run_dir)
         view_path = Path(args.output_path) if args.output_path else run_dir / "execution-view.json"
         write_run_view(view_path, view)
         view_report = {
@@ -556,28 +505,16 @@ def _dispatch(
         return 0
     if command == "dialogue-character":
         if args.dialogue_character_command == "sanitize":
-            dialogue_character_result = sanitize_dialogue_character_spike(args.spike_path)
+            character_result = sanitize_dialogue_character_spike(args.spike_path)
         elif args.dialogue_character_command == "package":
-            dialogue_character_result = package_dialogue_character_spike(args.spike_path)
-        elif args.dialogue_character_command == "review":
-            dialogue_character_result = review_dialogue_character_bundle(
+            character_result = package_dialogue_character_spike(args.spike_path)
+        else:
+            character_result = review_dialogue_character_bundle(
                 args.bundle_path,
                 review_path=args.review_path,
                 acceptance_spec_path=args.acceptance_spec_path,
             )
-        elif args.dialogue_character_command == "bind":
-            dialogue_character_result = bind_dialogue_character_to_scrolling_manifest(
-                args.bundle_path,
-                manifest_path=args.manifest_path,
-                npc_slot=args.npc_slot,
-            )
-        else:
-            raise CliUsageError(
-                f"unsupported dialogue-character command: {args.dialogue_character_command}"
-            )
-        stdout.write(
-            f"{json.dumps(dialogue_character_result, sort_keys=True, separators=(',', ':'))}\n"
-        )
+        stdout.write(f"{json.dumps(character_result, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "map":
         resolved_map = _resolve_cli_game_map(
@@ -627,31 +564,64 @@ def _dispatch(
                 f"fal={fal}\n"
             )
         return 0 if report["ok"] else 2
-    if command in {"benchmark", "research"}:
-        if args.suite == "list":
-            stdout.write(f"{json.dumps({'suites': list_benchmark_suites()}, indent=2)}\n")
-            return 0
-        result = run_benchmark(args.suite, load_config())
-        stdout.write(f"{json.dumps(result, indent=2)}\n")
-        return 0 if result["ok"] else 1
     if command == "import-env":
         imported = import_provider_env(args.source, args.destination)
         stdout.write(f"{json.dumps(imported, separators=(',', ':'))}\n")
         return 0
-    if command == "serve":
-        from stage_gen.interfaces.api import create_app, resolve_server_binding
-
-        try:
-            import uvicorn
-        except ImportError as error:
-            raise ValueError("serve requires the server extra: uv sync --extra server") from error
-        hostname = "0.0.0.0" if args.allow_public and not args.host else args.host
-        host, port = resolve_server_binding(
-            hostname=hostname, port=args.port, allow_public=args.allow_public
-        )
-        uvicorn.run(create_app(load_config(), runtime=runtime), host=host, port=port)
-        return 0
     return asyncio.run(_dispatch_async(args, runtime=runtime, stdout=stdout))
+
+
+async def _dispatch_dialogue_scene(
+    args: argparse.Namespace,
+    *,
+    config: StageGenConfig,
+    stdout: TextIO,
+) -> int:
+    if args.dialogue_command == "review":
+        review_result = await transition_dialogue_review(
+            {
+                "bundle_path": args.bundle_path,
+                "review_path": args.review_path,
+                "acceptance_spec_path": args.acceptance_spec_path,
+                "usage": args.usage,
+            }
+        )
+        stdout.write(f"{json.dumps(review_result, separators=(',', ':'))}\n")
+        return 0
+    executor = DialogueSceneExecutor(config)
+    output_path = Path(args.output_path)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".dialogue-cache"
+    invocation_id = args.invocation_id or f"dialogue-{uuid.uuid4().hex}"
+    if args.dry_run:
+        run = await executor.dry_run(
+            Path(args.input_path),
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+            failure_node_id=args.failure_node,
+        )
+    else:
+        if args.failure_node is not None:
+            raise ValueError("--failure-node is available only with --dry-run")
+        run = await executor.run(
+            Path(args.input_path),
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+        )
+    report = {
+        "ok": run.summary.ok,
+        "recipe": "dialogue-scene",
+        "scene_id": run.plan.scene.scene_id,
+        "run_dir": str(output_path),
+        "graph_sha256": run.plan.graph.graph_sha256,
+        "topology_sha256": run.plan.graph.topology_sha256,
+        "node_count": len(run.plan.graph.nodes),
+        "provider_operation_counts": run.summary.provider_operation_counts,
+        "duration_ms": run.summary.duration_ms,
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0 if run.summary.ok else 1
 
 
 async def _dispatch_async(
@@ -660,20 +630,9 @@ async def _dispatch_async(
     runtime: HeadlessRuntime | None,
     stdout: TextIO,
 ) -> int:
-    if args.command == "review":
-        action_result = await run_recipe_action(
-            args.recipe,
-            "review",
-            {
-                "bundle_path": args.bundle_path,
-                "review_path": args.review_path,
-                "acceptance_spec_path": args.acceptance_spec_path,
-                "usage": args.usage,
-            },
-        )
-        stdout.write(f"{json.dumps(action_result, separators=(',', ':'))}\n")
-        return 0
     config = load_config()
+    if args.command == "dialogue-scene":
+        return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
     if args.command == "generate":
         if args.output_path is None:
             raise ValueError("generate requires --output")

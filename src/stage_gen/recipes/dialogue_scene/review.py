@@ -25,7 +25,6 @@ from gnode import (
     write_artifact_with_provenance,
 )
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
-from stage_gen.recipes.base import JsonObject
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueBundle,
@@ -49,13 +48,13 @@ class _ReviewActionRequest(PersistedContractModel):
     usage: Literal["local-demo"]
 
 
-async def transition_dialogue_review(input_value: Mapping[str, object]) -> JsonObject:
+async def transition_dialogue_review(input_value: Mapping[str, object]) -> dict[str, object]:
     """Derive an immutable reviewed bundle without changing generation artifacts."""
 
     return await asyncio.to_thread(_transition_dialogue_review_sync, input_value)
 
 
-def _transition_dialogue_review_sync(input_value: Mapping[str, object]) -> JsonObject:
+def _transition_dialogue_review_sync(input_value: Mapping[str, object]) -> dict[str, object]:
     """Perform the filesystem transition off the caller's event loop."""
 
     try:
@@ -199,7 +198,7 @@ def _transition_dialogue_review_v3(
     review_output_path: Path,
     acceptance_bytes: bytes,
     root: Path,
-) -> JsonObject:
+) -> dict[str, object]:
     try:
         bundle = DialogueBundleV3.model_validate_json(source_bytes)
         review = IndependentReviewV3.model_validate_json(review_input_path.read_bytes())

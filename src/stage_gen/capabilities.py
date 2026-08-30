@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from stage_gen.config import StageGenConfig, assert_capabilities
-from stage_gen.recipes.base import RecipeRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +27,7 @@ class CapabilityArtifactResult:
         }
 
 
-class HeadlessRuntime(RecipeRuntime, Protocol):
+class HeadlessRuntime(Protocol):
     async def generate_image(
         self,
         *,

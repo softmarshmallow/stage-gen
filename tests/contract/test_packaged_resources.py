@@ -11,13 +11,9 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
 WHEEL_RESOURCES = {
-    "stage_gen/resources/fixtures/image_gen_templates/character_template.png",
-    "stage_gen/resources/fixtures/image_gen_templates/character_template_combined.png",
     "stage_gen/resources/fixtures/image_gen_templates/inventory_template.png",
-    "stage_gen/resources/fixtures/image_gen_templates/obstacle_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
-    "stage_gen/resources/fixtures/loading.gif",
     "stage_gen/resources/fixtures/prompts.txt",
     "stage_gen/resources/fixtures/styles.txt",
     "stage_gen/resources/music/preview-loop.mp3",
@@ -25,7 +21,6 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/prompting/image_style_vocabulary_v1.json",
     "stage_gen/resources/prompting/game_vocabulary_v1.json",
     "stage_gen/resources/skills/anchor-image-style/SKILL.md",
-    "stage_gen/resources/skills/compile-theme-art-direction/SKILL.md",
     "stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json",
 }
 SDIST_RESOURCES = {f"src/{name}" for name in WHEEL_RESOURCES}
@@ -173,7 +168,6 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(name.startswith("concept-studio/") for name in wheel_entries)
         assert not any(_is_docs_media(name) for name in wheel_entries)
-        assert not any(_is_gameplay_demo_fixture(name) for name in wheel_entries)
         wheel.extractall(installed)
 
     extracted_sdist_parent = tmp_path / "extracted-sdist"
@@ -205,17 +199,16 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # modules: the model-binding table and the pinned plan identity.
         # Recording cancellation adds one: the scheduler test that interrupts a run mid-flight
         # and proves the trace says so rather than leaving it to be inferred.
-        assert len(sdist_entries) <= 427
+        assert len(sdist_entries) <= 360
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. The archive is still bounded well under the packaging budget.
-        assert sum(sdist_entries.values()) < 6_500_000
+        assert sum(sdist_entries.values()) < 5_100_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
         assert all(sdist_entries[name] > 0 for name in SDIST_RESOURCES)
         assert not any(_is_docs_media(name) for name in sdist_entries)
-        assert not any(_is_gameplay_demo_fixture(name) for name in sdist_entries)
         env_handle = sdist.extractfile(f"{root}/.env.example")
         assert env_handle is not None
         env_example = env_handle.read().decode("utf-8")
@@ -232,7 +225,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             "-m",
             "pytest",
             "-q",
-            "tests/unit/orchestration/test_config_tags.py",
+            "tests/unit/test_config.py",
         ],
         cwd=extracted_sdist,
         env=sdist_test_environment,
@@ -253,25 +246,16 @@ from stage_gen.resources import (
     terrain_atlas_lookup_path,
     terrain_atlas_template_path,
     terrain_atlas_topology_reference_path,
-    theme_compiler_skill_path,
 )
-from stage_gen.theme import load_theme_compiler_skill
 from stage_gen.image_prompting import load_image_style_resources
 
 paths = required_resource_paths()
-assert len(paths) == 16
+assert len(paths) == 11
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert terrain_atlas_template_path().is_file()
 assert terrain_atlas_topology_reference_path().is_file()
 assert terrain_atlas_lookup_path().is_file()
-assert theme_compiler_skill_path().read_text(encoding="utf-8").startswith(
-    "---\\nname: compile-theme-art-direction\\n"
-)
-skill = load_theme_compiler_skill()
-assert skill.name == "compile-theme-art-direction"
-assert skill.body.startswith("# Compile Theme Art Direction\\n")
-assert len(skill.sha256) == 64
 style_resources = load_image_style_resources()
 assert image_style_skill_path().read_text(encoding="utf-8").startswith(
     "---\\nname: anchor-image-style\\n"
@@ -546,13 +530,6 @@ def _assert_archive_hygiene(entries: Mapping[str, int], *, resource_prefix: str)
 def _is_docs_media(name: str) -> bool:
     path = PurePosixPath(name)
     return "docs" in path.parts and path.suffix.lower() in MEDIA_SUFFIXES
-
-
-def _is_gameplay_demo_fixture(name: str) -> bool:
-    parts = PurePosixPath(name).parts
-    return any(
-        parts[index : index + 2] == ("fixtures", "gameplay-demo") for index in range(len(parts))
-    )
 
 
 def _media_family(suffix: str) -> str:

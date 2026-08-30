@@ -7,13 +7,9 @@ from pathlib import Path
 
 _RESOURCE_ROOT = Path(__file__).resolve().parent
 _REQUIRED_RELATIVE_PATHS = (
-    "fixtures/image_gen_templates/character_template.png",
-    "fixtures/image_gen_templates/character_template_combined.png",
     "fixtures/image_gen_templates/inventory_template.png",
-    "fixtures/image_gen_templates/obstacle_template.png",
     "fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
-    "fixtures/loading.gif",
     "fixtures/prompts.txt",
     "fixtures/styles.txt",
     "music/preview-loop.mp3",
@@ -21,7 +17,6 @@ _REQUIRED_RELATIVE_PATHS = (
     "prompting/image_style_vocabulary_v1.json",
     "prompting/game_vocabulary_v1.json",
     "skills/anchor-image-style/SKILL.md",
-    "skills/compile-theme-art-direction/SKILL.md",
     "terrain/godot_3x3_minimal_lookup_v1.json",
 )
 
@@ -60,12 +55,6 @@ def bundled_music_path() -> Path:
     """Return the installed fallback music artifact; metadata stays adjacent."""
 
     return _RESOURCE_ROOT / "music" / "preview-loop.mp3"
-
-
-def theme_compiler_skill_path() -> Path:
-    """Return the tracked art-direction skill consumed by the theme compiler."""
-
-    return _RESOURCE_ROOT / "skills" / "compile-theme-art-direction" / "SKILL.md"
 
 
 def image_style_skill_path() -> Path:
@@ -112,6 +101,5 @@ __all__ = [
     "terrain_atlas_lookup_path",
     "terrain_atlas_template_path",
     "terrain_atlas_topology_reference_path",
-    "theme_compiler_skill_path",
     "game_vocabulary_path",
 ]

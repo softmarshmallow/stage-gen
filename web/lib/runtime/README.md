@@ -302,27 +302,10 @@ automation, where a second actor would make the transcript a recording of the bo
 
 ## Canvas-only still capture
 
-Build once, then capture the frame-zero route overview from the production
-server. The command targets the Phaser canvas element itself, validates a clean
-runtime probe, loaded traversal roles, at least three visible tiers plus one
-ladder, one fully visible player and live mob at a minimum 64px projected
-height, a fully visible portal and pickup, the foreground safe band, and the
-HUD's 24px margin. Frame zero stages those real runtime subjects on the three
-lowest distinct platform elevations, then restores their exact gameplay state
-before frame one. The overview camera frames those three decks and the ladder
-rather than the whole graph, because a branching layout can run far above and
-past the route and fitting all of it would shrink every subject the still
-exists to show. It writes an exact 1280x720 PNG and adjacent JSON evidence under
-the ignored root report directory; the preview header, browser chrome, and
-Next development overlay cannot enter the element screenshot.
-
-```sh
-cd web
-bun run build
-bun run gameplay:still -- \
-  --tag whimsical-storybook-fantasy-6fa8e3e1-ai \
-  --output output/playwright/whimsical-storybook-fantasy.canvas.png
-```
+The frame-zero still capture that used to live here is gone with the gameplay
+harness: its fixture wrote the retired scrolling manifest V7, which the
+prepared-only scene cannot boot. Capturing a still from a published package
+needs a new harness written against `prepared-game-runtime-v10`.
 
 Pure operations such as media inspection, alpha conversion, and generic grid
 slicing may eventually move to reusable components. Phaser texture

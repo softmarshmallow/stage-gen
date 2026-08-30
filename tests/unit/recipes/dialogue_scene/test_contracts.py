@@ -5,12 +5,18 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from stage_gen.config import StageGenConfig
 from stage_gen.interfaces.cli import _parse_input_document
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueThemeRequest
-from stage_gen.recipes.dialogue_scene.recipe import (
-    dialogue_scene_recipe,
-    parse_dialogue_scene_input,
+from stage_gen.recipes.dialogue_scene.scene_graph import (
+    DialogueSceneGraph,
+    build_dialogue_scene_graph,
+    dialogue_graph_profile,
+)
+from stage_gen.recipes.dialogue_scene.scene_request import (
+    parse_dialogue_request,
+    resolve_dialogue_scene,
 )
 
 
@@ -74,23 +80,21 @@ def profile_request_value(source_sha256: str, **overrides: object) -> dict[str, 
 
 
 def test_request_is_strict_canonical_and_rejects_v1_or_camel_case() -> None:
-    parsed = parse_dialogue_scene_input(request_value())
+    parsed = _parsed(request_value())
     reversed_value = dict(reversed(list(parsed.items())))
     assert canonical_json_bytes(parsed) == canonical_json_bytes(reversed_value)
     assert canonical_sha256(parsed) == canonical_sha256(reversed_value)
 
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        parse_dialogue_scene_input(request_value(kind="dialogue-theme-request"))
+        _parsed(request_value(kind="dialogue-theme-request"))
     camel = request_value()
     camel["sceneBrief"] = camel.pop("scene_brief")
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        parse_dialogue_scene_input(camel)
+        _parsed(camel)
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        parse_dialogue_scene_input({**request_value(), "unknown": True})
+        _parsed({**request_value(), "unknown": True})
     with pytest.raises(ValueError, match="content policy"):
-        parse_dialogue_scene_input(
-            request_value(scene_brief="A minor in a university study lounge")
-        )
+        _parsed(request_value(scene_brief="A minor in a university study lounge"))
 
 
 def test_request_accepts_native_alpha_and_defaults_new_documents_to_native() -> None:
@@ -108,14 +112,14 @@ def test_request_rejects_underage_duplicate_beats_and_unknown_expression() -> No
     assert isinstance(appearance, dict)
     underage["appearance"] = {**appearance, "age": 20}
     with pytest.raises(ValueError):
-        parse_dialogue_scene_input(underage)
+        _parsed(underage)
 
     duplicate = request_value()
     dialogue = duplicate["dialogue"]
     assert isinstance(dialogue, list)
     duplicate["dialogue"] = [dialogue[0], dialogue[0]]
     with pytest.raises(ValueError, match="unique"):
-        parse_dialogue_scene_input(duplicate)
+        _parsed(duplicate)
 
     invalid_state = request_value()
     invalid_dialogue = invalid_state["dialogue"]
@@ -124,62 +128,77 @@ def test_request_rejects_underage_duplicate_beats_and_unknown_expression() -> No
     assert isinstance(first_beat, dict)
     invalid_state["dialogue"] = [{**first_beat, "expression_state": "angry"}]
     with pytest.raises(ValueError):
-        parse_dialogue_scene_input(invalid_state)
+        _parsed(invalid_state)
 
     without_background = request_value(background={"mode": "none"})
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        parse_dialogue_scene_input(without_background)
+        _parsed(without_background)
+
+
+def _graph(document: dict[str, object]) -> DialogueSceneGraph:
+    scene = resolve_dialogue_scene(document)
+    return build_dialogue_scene_graph(scene, profile=dialogue_graph_profile(StageGenConfig()))
 
 
 def test_recipe_declares_locked_dependency_dag() -> None:
-    assert [stage.name for stage in dialogue_scene_recipe.stages] == [
-        "prepare",
-        "style-selection",
-        "appearance-concept",
+    graph = _graph(request_value())
+    assert [node.node_id for node in graph.nodes] == [
+        "scene-request",
+        "scene-style-select",
+        "scene-concept",
         "scene-plan",
-        "background",
-        "neutral",
-        "expressions",
-        "canonicalize",
-        "bundle",
+        "scene-background",
+        "scene-expression-neutral",
+        "scene-expression-delighted",
+        "scene-expression-flustered",
+        "scene-expression-concerned",
+        "scene-canonicalize-neutral",
+        "scene-canonicalize-delighted",
+        "scene-canonicalize-flustered",
+        "scene-canonicalize-concerned",
+        "scene-bundle",
     ]
-    assert dialogue_scene_recipe.stages[-1].depends_on == ("background", "canonicalize")
+    assert graph.terminal_node_id == "scene-bundle"
+    assert graph.node("scene-bundle").depends_on == (
+        "scene-background",
+        "scene-canonicalize-neutral",
+        "scene-canonicalize-delighted",
+        "scene-canonicalize-flustered",
+        "scene-canonicalize-concerned",
+    )
+
+
+def test_each_derived_expression_is_its_own_node_off_the_neutral_source() -> None:
+    # The stage pipeline this replaces derived three expressions inside one stage and
+    # canonicalized four inside another, so a single bad state failed the whole batch.
+    graph = _graph(request_value())
+    for state in ("delighted", "flustered", "concerned"):
+        assert graph.node(f"scene-expression-{state}").depends_on == ("scene-expression-neutral",)
+        assert graph.node(f"scene-canonicalize-{state}").depends_on == (
+            f"scene-expression-{state}",
+        )
 
 
 def test_profile_request_is_strict_v3_and_selects_only_the_profile_dag() -> None:
     request = profile_request_value("a" * 64)
-    parsed = parse_dialogue_scene_input(request)
+    parsed = _parsed(request)
     assert parsed == request
-    assert [stage.name for stage in dialogue_scene_recipe.stages_for(parsed)] == [
-        "prepare",
-        "profile-resolve",
-        "style-selection",
-        "appearance-concept",
-        "scene-plan",
-        "background",
-        "neutral",
-        "expressions",
-        "canonicalize",
-        "bundle",
-    ]
-    assert dialogue_scene_recipe.stages_for(request_value()) == dialogue_scene_recipe.stages
+    assert "scene-profile-resolve" not in {node.node_id for node in _graph(request_value()).nodes}
 
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v3"):
-        parse_dialogue_scene_input(
-            profile_request_value("a" * 64, character_profile={"ref": "profile.toml"})
-        )
+        _parsed(profile_request_value("a" * 64, character_profile={"ref": "profile.toml"}))
     outside_library = profile_request_value("a" * 64)
     outside_binding = outside_library["character_profile"]
     assert isinstance(outside_binding, dict)
     outside_binding["ref"] = "authored/mira/profile.toml"
     with pytest.raises(ValueError, match="library/characters"):
-        parse_dialogue_scene_input(outside_library)
+        _parsed(outside_library)
     camel = profile_request_value("a" * 64)
     binding = camel["character_profile"]
     assert isinstance(binding, dict)
     binding["sourceSha256"] = binding.pop("source_sha256")
     with pytest.raises(ValueError, match="invalid dialogue-theme-request-v3"):
-        parse_dialogue_scene_input(camel)
+        _parsed(camel)
 
 
 def test_bundle_paths_rights_and_review_are_strict() -> None:
@@ -324,9 +343,7 @@ def test_canonical_serialization_is_standards_compliant_json() -> None:
 
 def test_cli_document_loader_routes_json_and_toml_to_strict_request() -> None:
     value = request_value()
-    assert parse_dialogue_scene_input(
-        _parse_input_document(json.dumps(value), suffix=".json")
-    ) == parse_dialogue_scene_input(value)
+    assert _parsed(_parse_input_document(json.dumps(value), suffix=".json")) == _parsed(value)
     toml = """
 schema_version = 2
 kind = "dialogue-theme-request-v2"
@@ -359,6 +376,8 @@ slot = "right"
 framing_zoom = 70
 source_framing_zoom = 70
 """
-    assert parse_dialogue_scene_input(_parse_input_document(toml, suffix=".toml")) == (
-        parse_dialogue_scene_input(value)
-    )
+    assert _parsed(_parse_input_document(toml, suffix=".toml")) == (_parsed(value))
+
+
+def _parsed(document: object) -> dict[str, object]:
+    return parse_dialogue_request(document).model_dump(mode="json", exclude_none=True)

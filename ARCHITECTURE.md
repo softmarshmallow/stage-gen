@@ -22,8 +22,7 @@ src/stage_gen/providers/      OpenRouter and fal adapters
 src/stage_gen/media/          shared recipe-neutral inspection and transforms
 src/stage_gen/recipes/        recipe-specific composition, processing, and manifests
 src/stage_gen/orchestration/  run preparation, concrete composition, and summaries
-src/stage_gen/interfaces/     argparse CLI and optional HTTP/SSE API
-src/stage_gen/benchmarks/     headless evaluation entrypoints
+src/stage_gen/interfaces/     argparse CLI, the only automation surface
 src/stage_gen/resources/      wheel-packaged recipe resources
 library/characters/           source-checkout or external authored profile workspace
 web/                          optional browser preview adapter
@@ -90,16 +89,6 @@ must be committed with their provenance and integrity metadata; credentials,
 authorization headers, signed query strings, and embedded reference bytes are
 never persisted.
 
-Visual Content Direction is an optional `scrolling-preview` recipe stage,
-implemented by the v1 `theme-compile` node. It uses the provider-neutral
-structured-generation component to compile strict numeric content controls and
-a base brief into a recipe-specific seven-field prose plan before deterministic
-recipe composition. It is not itself a reusable component or standalone image
-pipeline. Raw controls do not cross the image boundary. The packaged policy
-digest, compiler version, and normalized control digest bind provenance and
-downstream cache identity; see
-[Visual Content Direction](docs/visual-content-direction.md).
-
 ## Headless path
 
 The supported entry point is:
@@ -108,10 +97,11 @@ The supported entry point is:
 uv run stage-gen <args>
 ```
 
-The CLI is the primary automation surface. The HTTP service exposes the same
-headless capabilities for local tools. Benchmarks and research cases live
-under `src/stage_gen/benchmarks/`; they test declared component contracts
-without depending on a browser scene.
+The CLI is the only automation surface: there is no HTTP service, and no
+process outside it starts a run. Two recipes compile onto the one engine —
+`scrolling-preview` builds a prepared game from a `game.toml` package, and
+`dialogue-scene` builds a scene bundle from an authored request document. Each
+declares its own graph document kind, so neither can read the other's plan.
 
 Generated runs live below the configured output directory. Recipe-specific
 names and file layouts belong in recipe manifests, not in generic
@@ -119,23 +109,23 @@ orchestration. Shared, capability-specific, and recipe-specific deterministic
 processing stays at its owning boundary, remains independently testable, and
 is recorded in provenance.
 
-Transparency is a recipe input, not a provider-global toggle. The first recipe
-defaults to validated AI background removal; its explicit degraded chroma
-fallback remains deterministic and local. Opaque artifacts bypass both paths.
+Transparency is a recipe input, not a provider-global toggle. Native
+provider alpha is the default; validated AI background removal and an explicit
+degraded chroma fallback remain available, the latter deterministic and local. Opaque artifacts bypass both paths.
 The selected strategy and raw-to-derived lineage travel in manifests and
 sidecars so consumers load canonical outputs without guessing from colour.
 
 ## Optional preview
 
-The current `web/` application is an optional consumer with three committed
-integration surfaces. The side-view scrolling preview may launch the public
-headless command and read completed run manifests; its horizontal camera,
-parallax, terrain, movement, combat, and interaction rules are local consumer
-decisions. The deterministic dialogue-scene showcase consumes a committed
-browser fixture and schema backed optionally by installed output from the
-provider-backed dialogue-scene recipe. The run viewer consumes a run's derived
-`execution-view.json` and renders it read-only. No surface owns generation or
-defines reusable component contracts.
+The current `web/` application is an optional consumer with four committed
+integration surfaces, none of which can start a run. The side-view scrolling
+preview boots one published `prepared-game-runtime-v10` package; its horizontal
+camera, parallax, terrain, movement, combat, and interaction rules are local
+consumer decisions. The asset explorer projects that same manifest's closure.
+The deterministic dialogue-scene showcase consumes a committed browser fixture
+and schema. The run viewer consumes a run's derived `execution-view.json` and
+renders it read-only. No surface owns generation or defines reusable component
+contracts.
 
 No production gameplay engine has been selected. A dedicated 2D engine,
 including Godot or another suitable candidate, may be evaluated later. The

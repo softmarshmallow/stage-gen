@@ -45,8 +45,8 @@ provider or create a populated environment file:
 
 ```sh
 uv sync --all-extras
-uv run stage-gen recipes
-uv run stage-gen benchmark smoke
+uv run stage-gen --help
+uv run stage-gen doctor
 ```
 
 ### Validate and plan the prepared reference game
@@ -143,16 +143,18 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Recipe orchestration with progress, cache validation, atomic summaries,
-  manifests, artifact hashes, and adjacent provenance.
+- Two recipes compiled onto that engine: `scrolling-preview` builds a prepared game
+  from a `game.toml` package, and `dialogue-scene` builds an adult, non-explicit scene
+  bundle from an authored request. Each declares its own graph document kind, so neither
+  can read the other's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
   keys, an append-only trace, and the derived run view above.
-- A CLI plus an optional loopback HTTP/SSE service.
+- One CLI, which is the only way to start a run.
 - A replaceable Next.js/React/Tailwind/Phaser preview that consumes completed manifests
   without moving gameplay assumptions into Python components.
 - A reusable, provider-neutral [authored character library](docs/character-library.md)
-  shared by opt-in dialogue-scene and scrolling-preview requests.
+  shared by `dialogue-scene` requests and prepared game packages alike.
 - One [canonical bundled demo package](docs/game-package.md), selected by
   `library/games/main.toml`, that current-schema validation and future demo serving can share.
 - A canonical [game contract](docs/game-contract.md) that separates game-wide
@@ -275,8 +277,7 @@ src/stage_gen/          the application, consuming `gnode`
   media/               deterministic image/audio inspection and normalization
   recipes/             application compositions and exported manifests
   orchestration/       package resolution, execution documents, composition
-  interfaces/          CLI and optional HTTP/SSE API
-  benchmarks/          credential-free and opt-in evaluation suites
+  interfaces/          the argparse CLI, the only automation surface
   resources/           wheel-packaged templates and approved fallback music
 web/                    optional browser preview consumer
 library/characters/     source-checkout or external authored profile workspace
@@ -309,43 +310,23 @@ matching Playwright Chromium browser once:
 ```sh
 cd web
 bun install --frozen-lockfile
-bunx playwright install chromium
 bun run dev
 ```
 
-`ffmpeg` and `ffprobe` must be on `PATH` for gameplay recording and generated
-music normalization/inspection. Verify the optional adapter with:
+`ffmpeg` and `ffprobe` must be on `PATH` for generated-music normalization and
+inspection. Verify the optional adapter with:
 
 ```sh
 cd web
 bun run check
 bun test
 bun run build
-bun run gameplay:verify
 ```
 
-`gameplay:verify` runs the current 900-frame fixed-step transcript twice and
-requires identical selected-frame hashes. It validates the current demo; the
-historical capture's immutable evidence remains in its adjacent sidecars.
-
-Create a reusable 30-second local report with:
-
-```sh
-cd web
-bun run gameplay:record
-```
-
-The default writes `gameplay-report.mp4`, `gameplay-report.poster.png`, and
-`gameplay-report.recording.json` under the ignored `output/playwright/`
-directory. Reports bind fixture, timeline, source, transcript, checkpoint, and
-media-probe hashes and remain `unreviewed` until independently reviewed.
-Run `bun run gameplay:record -- --help` for custom-source, output, and dry-run
-options.
-
-The former prompt-launching web adapter is not an active generation authority after the prepared
-package cutover. The active preview consumes the provider-free `prepared-game-runtime-v10`
-integration output, and the run viewer at `/runs` consumes exported run views. Browser code never
-receives provider credentials.
+`web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
+package, `/packages/<tag>` projects that manifest's closure, and `/runs` renders
+exported run views. Browser code never receives provider credentials, and the
+docs gate checks that nothing under `web/lib/shell` can spawn a process.
 
 ## Configuration and providers
 
@@ -368,13 +349,6 @@ read from the process environment.
 
 Provider and model contracts can change independently of this repository.
 Review [Provider operations](docs/providers.md) before changing an adapter.
-
-The optional API is loopback-only unless public binding is explicitly
-authorized:
-
-```sh
-uv run stage-gen serve --host 127.0.0.1 --port 4317
-```
 
 ## Reliability and provenance
 

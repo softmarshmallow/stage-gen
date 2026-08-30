@@ -10,12 +10,18 @@ uv run stage-gen --help
 Use the CLI help as the source of truth for currently implemented pipeline and
 benchmark arguments. Do not document an aspirational subcommand as shipped.
 
-The current offline suite is runnable without provider calls:
+The offline evidence a change is expected to produce is the plan and the dry
+run, both provider-free:
 
 ```sh
-uv run stage-gen benchmark list
-uv run stage-gen benchmark smoke
+uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen generate --input library/games/bellweather --dry-run \
+  --output out/plan-check --cache-dir .cache/plan-check
 ```
+
+There is no separate benchmark subcommand. A suite whose only assertion was that
+the registry still listed itself measured nothing the test suite did not already
+prove, and it is gone rather than kept as a shell to hang future suites on.
 
 ## Evidence bundle
 

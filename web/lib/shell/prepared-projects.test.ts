@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 describe("prepared project discovery", () => {
-  test("surfaces a valid manifest without requiring legacy run.json", async () => {
+  test("surfaces one validated prepared-runtime package", async () => {
     const tag = `test-prepared-project-${process.pid}`;
     const runDir = runDirFor(tag);
     cleanup.push(runDir);
@@ -37,8 +37,7 @@ describe("prepared project discovery", () => {
     );
     expect(project).toEqual({
       tag,
-      prompt: "Prepared Fixture",
-      endedAt: null,
+      displayName: "Prepared Fixture",
       conceptFile: "content/player/concept.png",
     });
   });

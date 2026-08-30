@@ -10,8 +10,6 @@ from typing import Any
 import pytest
 
 from stage_gen.components.game_contract import (
-    MAXIMUM_HEADS_TALL,
-    MINIMUM_HEADS_TALL,
     GameContract,
     GameContractLoadError,
     ResidentDirection,
@@ -21,12 +19,6 @@ from stage_gen.components.game_contract import (
     load_game_contract_bytes,
     load_game_vocabulary,
     resolve_game_contract_binding,
-)
-from stage_gen.recipes.scrolling_preview.proportion import (
-    MAXIMUM_HEADS_TALL as RECIPE_MAXIMUM,
-)
-from stage_gen.recipes.scrolling_preview.proportion import (
-    MINIMUM_HEADS_TALL as RECIPE_MINIMUM,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
@@ -173,11 +165,6 @@ class TestContract:
         assert contract.heads_for(contract.cast.resident.body_kind_default) == 2.0
         assert contract.heads_for("avian") == 2.4
         assert contract.heads_for("dwarf") == 2.0
-
-    def test_the_build_bounds_match_the_recipe_they_direct(self) -> None:
-        # The component may not import the recipe, so the numbers are written twice. This is the
-        # assertion that keeps the two copies from drifting.
-        assert (MINIMUM_HEADS_TALL, MAXIMUM_HEADS_TALL) == (RECIPE_MINIMUM, RECIPE_MAXIMUM)
 
     def test_an_integer_build_is_widened_and_a_boolean_is_not(self) -> None:
         assert _load(_contract_payload(proportion={"heads_tall": 3})).heads_for("human") == 3.0

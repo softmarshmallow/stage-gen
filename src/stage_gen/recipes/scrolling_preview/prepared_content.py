@@ -24,7 +24,6 @@ from gnode import (
     NodeExecutionResult,
     ProvenanceInput,
     SoftwareIdentity,
-    atomic_write_bytes,
     atomic_write_json,
     write_artifact_with_provenance_async,
 )
@@ -75,6 +74,7 @@ from stage_gen.media import (
 from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
 from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.scrolling_preview.motion_contract import (
     MOTION_ATLAS_COLUMNS,
     MOTION_ATLAS_HEIGHT,
@@ -153,6 +153,16 @@ class PreparedContentNodeHandler:
         self._images = image_service
         self._structured = structured_service
         self._music = music_service
+        self._cache = NodeArtifactCache(
+            graph,
+            run_dir=run_dir,
+            cache_dir=cache_dir,
+            namespace=CONTENT_CACHE_VERSION,
+            record_kind="prepared-content-node-cache-v1",
+            admit=lambda node, payloads: (
+                bool(payloads) and self._cached_primary_artifact_valid(node, payloads[0])
+            ),
+        )
 
     def _motion_source_facing(
         self, kind: MotionActorKind, state: str
@@ -164,7 +174,7 @@ class PreparedContentNodeHandler:
         )
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._read_cache(node, context)
+        cached = self._cache.read(node, context)
         if cached is not None:
             return cached
         try:
@@ -179,7 +189,7 @@ class PreparedContentNodeHandler:
                 attempts=attempts,
                 provider_operations=attempts if external else 0,
             ) from error
-        self._write_cache(node, context, result)
+        self._cache.write(node, context, result)
         return result
 
     async def _execute(self, node: Node) -> NodeExecutionResult:
@@ -1597,62 +1607,6 @@ class PreparedContentNodeHandler:
             artifacts=tuple(_node_artifact(self._run_dir, path) for path in paths),
         )
 
-    def _lineage(self, node: Node, context: NodeExecutionContext) -> list[dict[str, object]]:
-        return [
-            {
-                "node_id": dependency,
-                "cache_key": self._graph.node(dependency).cache_key,
-                "artifact_sha256": [
-                    artifact.sha256 for artifact in context.dependency_results[dependency].artifacts
-                ],
-            }
-            for dependency in node.depends_on
-        ]
-
-    def _cache_paths(self, node: Node) -> tuple[Path, Path]:
-        root = self._cache_dir / CONTENT_CACHE_VERSION / node.cache_key[:2] / node.cache_key
-        return root / "record.json", root / "artifacts"
-
-    def _read_cache(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
-        record_path, artifacts_dir = self._cache_paths(node)
-        try:
-            record = json.loads(record_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-        if (
-            not isinstance(record, dict)
-            or record.get("cache_key") != node.cache_key
-            or record.get("lineage") != self._lineage(node, context)
-        ):
-            return None
-        outputs = record.get("artifacts")
-        if not isinstance(outputs, list):
-            return None
-        restored: list[NodeArtifact] = []
-        payloads: list[bytes] = []
-        for index, value in enumerate(outputs):
-            if not isinstance(value, dict) or not isinstance(value.get("artifact_ref"), str):
-                return None
-            try:
-                data = (artifacts_dir / f"{index}.bin").read_bytes()
-            except OSError:
-                return None
-            if _sha(data) != value.get("sha256") or len(data) != value.get("bytes"):
-                return None
-            payloads.append(data)
-            restored.append(NodeArtifact.model_validate(value))
-        if not payloads or not self._cached_primary_artifact_valid(node, payloads[0]):
-            return None
-        for artifact, data in zip(restored, payloads, strict=True):
-            atomic_write_bytes(self._run_dir / artifact.artifact_ref, data)
-        return NodeExecutionResult(
-            cache=CacheDisposition.HIT,
-            attempts=1,
-            provider_operations=0,
-            artifacts=tuple(restored),
-            known_cost_usd=0.0,
-        )
-
     def _cached_primary_artifact_valid(self, node: Node, data: bytes) -> bool:
         if node.operation != OperationKind.IMAGE_GENERATION:
             return True
@@ -1723,27 +1677,6 @@ class PreparedContentNodeHandler:
         except (OSError, ValueError):
             return False
         return False
-
-    def _write_cache(
-        self, node: Node, context: NodeExecutionContext, result: NodeExecutionResult
-    ) -> None:
-        record_path, artifacts_dir = self._cache_paths(node)
-        for index, artifact in enumerate(result.artifacts):
-            atomic_write_bytes(
-                artifacts_dir / f"{index}.bin",
-                (self._run_dir / artifact.artifact_ref).read_bytes(),
-            )
-        atomic_write_json(
-            record_path,
-            {
-                "schema_version": 1,
-                "kind": "prepared-content-node-cache-v1",
-                "cache_key": node.cache_key,
-                "node_id": node.node_id,
-                "lineage": self._lineage(node, context),
-                "artifacts": [entry.model_dump(mode="json") for entry in result.artifacts],
-            },
-        )
 
 
 def content_target_node_ids(package: ResolvedGamePackage) -> tuple[str, ...]:

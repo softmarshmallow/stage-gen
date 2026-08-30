@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from stage_gen.capabilities import CapabilityArtifactResult, HeadlessRuntime
+from stage_gen.capabilities import CapabilityArtifactResult
 from stage_gen.components._types import ProviderResponseMetadata
 from stage_gen.components.music_generation import (
     AudioNormalizationRequest,
@@ -88,25 +88,6 @@ class _FakeNormalizer:
             true_peak_dbtp=-1.5,
             ffmpeg_version="test",
         )
-
-
-async def test_composed_runtime_forwards_music_metadata(tmp_path: Path) -> None:
-    standalone = _RecordingStandalone()
-    runtime = runtime_module._ComposedHeadlessRuntime(
-        cast("HeadlessRuntime", standalone),
-        {},
-        standalone_resource=_Closable(),
-    )
-    metadata = {"game_id": "test-game", "track_id": "village_evening"}
-
-    await runtime.generate_music(
-        prompt="original instrumental",
-        output_path=str(tmp_path / "track.mp3"),
-        output_format="mp3",
-        metadata=metadata,
-    )
-
-    assert standalone.metadata == metadata
 
 
 async def test_default_runtime_persists_caller_music_metadata(

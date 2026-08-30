@@ -1,14 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  isPreparedRuntimeRun,
-  isSafeRunTag,
-  readRunInput,
-} from "@/lib/shell/runs";
-import {
-  previewPolicyForRunMode,
-  transparencyModeLabel,
-} from "@/lib/shell/transparency";
+import { isPreparedRuntimeRun, isSafeRunTag } from "@/lib/shell/runs";
+import { previewPolicyForRunMode } from "@/lib/shell/transparency";
 import {
   GameplayAutomationRequestError,
   resolveGameplayAutomationMode,
@@ -37,10 +30,9 @@ export default async function PreviewPage({
     if (error instanceof GameplayAutomationRequestError) notFound();
     throw error;
   }
-  const input = await readRunInput(tag);
   const prepared = await isPreparedRuntimeRun(tag);
-  const transparencyMode = input?.transparencyMode ?? (prepared ? "native" : null);
-  const policy = previewPolicyForRunMode(transparencyMode);
+  if (!prepared) notFound();
+  const policy = previewPolicyForRunMode(prepared);
   if (automationMode) {
     // A capture records one published run. The override is dropped here as well as inside
     // `bootPreparedGame`, so neither the shell nor the scene can be the one place it leaks.
@@ -60,7 +52,7 @@ export default async function PreviewPage({
   return (
     <main className="bg-bg">
       <div className="flex items-center gap-4 px-4 py-2 text-xs text-dim">
-        <Link href={`/generate/${tag}`} className="text-fg no-underline">
+        <Link href="/" className="text-fg no-underline">
           [ ◂ back ]
         </Link>
         <span>
@@ -68,10 +60,7 @@ export default async function PreviewPage({
           <span className="text-fg">{tag}</span>
         </span>
         <span data-testid="preview-transparency-mode">
-          transparency:{" "}
-          <span className="text-fg">
-            {transparencyModeLabel(transparencyMode)}
-          </span>
+          transparency: <span className="text-fg">canonical alpha</span>
         </span>
       </div>
       <PreviewCanvas

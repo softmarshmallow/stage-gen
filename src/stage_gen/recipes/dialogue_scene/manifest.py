@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Literal, cast
 
 from gnode import (
@@ -21,7 +22,6 @@ from stage_gen.components import (
     character_profile_sha256,
 )
 from stage_gen.media import inspect_image
-from stage_gen.recipes.base import StageContext
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,
@@ -56,24 +56,26 @@ _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")
 _COMPONENT_V4 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="4")
 
 
-async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
-    request_bytes = _read(context, "request.json")
+async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
+    """Assemble the portable bundle from one completed run directory."""
+
+    request_bytes = _read(run_dir, "request.json")
     request_document = json.loads(request_bytes)
     if isinstance(request_document, dict) and request_document.get("schema_version") == 3:
-        return await _write_dialogue_bundle_v3(context, request_bytes)
-    request_provenance = _read(context, "request.json.meta.json")
+        return await _write_dialogue_bundle_v3(run_dir, tag, request_bytes)
+    request_provenance = _read(run_dir, "request.json.meta.json")
     _validate_provenance(request_provenance, request_bytes, "request")
     request = DialogueThemeRequest.model_validate_json(request_bytes)
-    plan_bytes = _read(context, "plan.json")
-    plan_provenance = _read(context, "plan.json.meta.json")
+    plan_bytes = _read(run_dir, "plan.json")
+    plan_provenance = _read(run_dir, "plan.json.meta.json")
     _validate_provenance(plan_provenance, plan_bytes, "plan")
     plan = DialogueScenePlan.model_validate_json(plan_bytes)
     if plan.request_sha256 != canonical_sha256(request):
         raise ValueError("bundle plan request digest does not match canonical request")
-    ledger_bytes = _read(context, "attempts.json")
+    ledger_bytes = _read(run_dir, "attempts.json")
     ledger = AttemptLedger.model_validate_json(ledger_bytes)
-    style_anchor_bytes = _read(context, "style-anchor.json")
-    style_anchor_provenance = _read(context, "style-anchor.json.meta.json")
+    style_anchor_bytes = _read(run_dir, "style-anchor.json")
+    style_anchor_provenance = _read(run_dir, "style-anchor.json.meta.json")
     _validate_provenance(style_anchor_provenance, style_anchor_bytes, "style anchor")
     style_anchor = CanonicalStyleAnchor.model_validate_json(style_anchor_bytes)
     style_binding = _style_binding(style_anchor)
@@ -98,14 +100,14 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
     )
 
     assets: list[BundleArtifact] = []
-    assets.append(_asset(context, ledger, "concept", "concept", "assets/concept.png", None))
+    assets.append(_asset(run_dir, ledger, "concept", "concept", "assets/concept.png", None))
     assets.append(
-        _asset(context, ledger, "background", "background", "assets/background.png", None)
+        _asset(run_dir, ledger, "background", "background", "assets/background.png", None)
     )
     for state in EXPRESSION_STATES:
         assets.append(
             _asset(
-                context,
+                run_dir,
                 ledger,
                 f"{request.appearance.id}-{state}",
                 "expression",
@@ -119,7 +121,7 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
         kind="dialogue-scene-bundle-v2",
         recipe="dialogue-scene",
         recipe_version="dialogue-scene-v3",
-        tag=context.tag,
+        tag=tag,
         run_identity_sha256=identity_sha,
         request=BundleFile(
             path="request.json",
@@ -184,7 +186,7 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
     )
     data = canonical_json_bytes(bundle) + b"\n"
     provenance = await write_artifact_with_provenance_async(
-        context.run_dir / "bundle.json",
+        run_dir / "bundle.json",
         BinaryArtifact(data=data, media_type="application/json"),
         ProvenanceInput(
             schema_version=2,
@@ -218,22 +220,24 @@ async def write_dialogue_bundle(context: StageContext) -> tuple[str, ...]:
             ),
         ),
     )
-    return ("bundle.json", provenance.relative_to(context.run_dir).as_posix())
+    return ("bundle.json", provenance.relative_to(run_dir).as_posix())
 
 
-async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes) -> tuple[str, ...]:
-    request_provenance = _read(context, "request.json.meta.json")
+async def _write_dialogue_bundle_v3(
+    run_dir: Path, tag: str, request_bytes: bytes
+) -> tuple[str, ...]:
+    request_provenance = _read(run_dir, "request.json.meta.json")
     _validate_provenance(request_provenance, request_bytes, "request")
     request = DialogueThemeRequestV3.model_validate_json(request_bytes)
-    profile_bytes = _read(context, "character-profile.json")
-    profile_provenance = _read(context, "character-profile.json.meta.json")
+    profile_bytes = _read(run_dir, "character-profile.json")
+    profile_provenance = _read(run_dir, "character-profile.json.meta.json")
     _validate_provenance(profile_provenance, profile_bytes, "character profile")
     profile = CharacterProfile.model_validate_json(profile_bytes)
     profile_sha256 = character_profile_sha256(profile)
     if profile_sha256 != content_sha256(profile_bytes):
         raise ValueError("character profile artifact is not canonical")
-    plan_bytes = _read(context, "plan.json")
-    plan_provenance = _read(context, "plan.json.meta.json")
+    plan_bytes = _read(run_dir, "plan.json")
+    plan_provenance = _read(run_dir, "plan.json.meta.json")
     _validate_provenance(plan_provenance, plan_bytes, "plan")
     plan = DialogueScenePlanV3.model_validate_json(plan_bytes)
     if plan.request_sha256 != canonical_sha256(request):
@@ -250,10 +254,10 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
     )
     if actual_profile != expected_profile:
         raise ValueError("bundle plan character profile binding mismatch")
-    ledger_bytes = _read(context, "attempts.json")
+    ledger_bytes = _read(run_dir, "attempts.json")
     ledger = AttemptLedger.model_validate_json(ledger_bytes)
-    style_anchor_bytes = _read(context, "style-anchor.json")
-    style_anchor_provenance = _read(context, "style-anchor.json.meta.json")
+    style_anchor_bytes = _read(run_dir, "style-anchor.json")
+    style_anchor_provenance = _read(run_dir, "style-anchor.json.meta.json")
     _validate_provenance(style_anchor_provenance, style_anchor_bytes, "style anchor")
     style_anchor = CanonicalStyleAnchor.model_validate_json(style_anchor_bytes)
     style_binding = _style_binding(style_anchor)
@@ -279,11 +283,11 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
         }
     )
     assets = [
-        _asset(context, ledger, "concept", "concept", "assets/concept.png", None),
-        _asset(context, ledger, "background", "background", "assets/background.png", None),
+        _asset(run_dir, ledger, "concept", "concept", "assets/concept.png", None),
+        _asset(run_dir, ledger, "background", "background", "assets/background.png", None),
         *[
             _asset(
-                context,
+                run_dir,
                 ledger,
                 f"{profile.profile_id}-{state}",
                 "expression",
@@ -304,7 +308,7 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
         kind="dialogue-scene-bundle-v3",
         recipe="dialogue-scene",
         recipe_version="dialogue-scene-v4",
-        tag=context.tag,
+        tag=tag,
         run_identity_sha256=identity_sha,
         request=BundleFile(
             path="request.json",
@@ -331,7 +335,7 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
     )
     data = canonical_json_bytes(bundle) + b"\n"
     provenance = await write_artifact_with_provenance_async(
-        context.run_dir / "bundle.json",
+        run_dir / "bundle.json",
         BinaryArtifact(data=data, media_type="application/json"),
         ProvenanceInput(
             schema_version=2,
@@ -378,7 +382,7 @@ async def _write_dialogue_bundle_v3(context: StageContext, request_bytes: bytes)
             ),
         ),
     )
-    return ("bundle.json", provenance.relative_to(context.run_dir).as_posix())
+    return ("bundle.json", provenance.relative_to(run_dir).as_posix())
 
 
 def _profile_scene_data(
@@ -432,16 +436,16 @@ def _profile_scene_data(
 
 
 def _asset(
-    context: StageContext,
+    run_dir: Path,
     ledger: AttemptLedger,
     asset_id: str,
     role: str,
     path: str,
     state: str | None,
 ) -> BundleArtifact:
-    data = _read(context, path)
+    data = _read(run_dir, path)
     provenance_path = f"{path}.meta.json"
-    provenance = _read(context, provenance_path)
+    provenance = _read(run_dir, provenance_path)
     _validate_provenance(provenance, data, f"asset {asset_id}")
     facts = inspect_image(data, expected_media_type="image/png")
     selected = [
@@ -502,10 +506,8 @@ def _validate_provenance(data: bytes, artifact: bytes, label: str) -> None:
         raise ValueError(f"{label} provenance artifact digest mismatch")
 
 
-def _read(context: StageContext, relative: str) -> bytes:
-    return resolve_relative_path_within_root(
-        context.run_dir, relative, "dialogue bundle path"
-    ).read_bytes()
+def _read(run_dir: Path, relative: str) -> bytes:
+    return resolve_relative_path_within_root(run_dir, relative, "dialogue bundle path").read_bytes()
 
 
 def _expression_copy(state: str) -> tuple[str, str]:

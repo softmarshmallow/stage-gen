@@ -38,111 +38,13 @@ from stage_gen.providers import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
 
-    from stage_gen.capabilities import CapabilityArtifactResult, HeadlessRuntime
-    from stage_gen.recipes.base import RecipeExecutor, StageContext
+    from stage_gen.capabilities import CapabilityArtifactResult
 
 
 class _AsyncClosable(Protocol):
     async def aclose(self) -> None: ...
-
-
-class _RecipeExecutorFactory(Protocol):
-    def __call__(
-        self,
-        *,
-        image_service: ImageGenerationService,
-        structured_service: StructuredGenerationService[object],
-        background_service: BackgroundRemovalService | None,
-    ) -> RecipeExecutor: ...
-
-
-class _CallableRecipeExecutor:
-    """Adapt an existing recipe-owned stage callable to the generic protocol."""
-
-    def __init__(
-        self,
-        run_stage: Callable[[str, StageContext], Awaitable[Sequence[str]]],
-    ) -> None:
-        self._run_stage = run_stage
-
-    async def run_stage(self, stage_name: str, context: StageContext) -> Sequence[str]:
-        return await self._run_stage(stage_name, context)
-
-
-class _ComposedHeadlessRuntime:
-    """Join generic capability operations to recipe-id-keyed executors."""
-
-    def __init__(
-        self,
-        standalone: HeadlessRuntime,
-        executors: Mapping[str, RecipeExecutor],
-        *,
-        standalone_resource: _AsyncClosable,
-        resources: Sequence[_AsyncClosable] = (),
-    ) -> None:
-        self._standalone = standalone
-        self._executors = dict(executors)
-        self._standalone_resource = standalone_resource
-        self._resources = tuple(resources)
-
-    async def generate_image(
-        self,
-        *,
-        prompt: str,
-        output_path: str,
-        aspect_ratio: str,
-        reference_paths: Sequence[str],
-    ) -> CapabilityArtifactResult:
-        return await self._standalone.generate_image(
-            prompt=prompt,
-            output_path=output_path,
-            aspect_ratio=aspect_ratio,
-            reference_paths=reference_paths,
-        )
-
-    async def remove_background(
-        self, *, input_path: str, output_path: str
-    ) -> CapabilityArtifactResult:
-        return await self._standalone.remove_background(
-            input_path=input_path, output_path=output_path
-        )
-
-    async def generate_music(
-        self,
-        *,
-        prompt: str,
-        output_path: str,
-        output_format: str,
-        metadata: Mapping[str, object] | None = None,
-    ) -> CapabilityArtifactResult:
-        return await self._standalone.generate_music(
-            prompt=prompt,
-            output_path=output_path,
-            output_format=output_format,
-            metadata=metadata,
-        )
-
-    async def run_recipe_stage(
-        self, recipe_id: str, stage_name: str, context: StageContext
-    ) -> Sequence[str]:
-        try:
-            executor = self._executors[recipe_id]
-        except KeyError as error:
-            raise ValueError(f"no recipe executor registered for recipe: {recipe_id}") from error
-        return await executor.run_stage(stage_name, context)
-
-    async def aclose(self) -> None:
-        first_error: BaseException | None = None
-        for resource in (self._standalone_resource, *self._resources):
-            try:
-                await resource.aclose()
-            except BaseException as error:
-                if first_error is None:
-                    first_error = error
-        if first_error is not None:
-            raise first_error
 
 
 def create_image_service(
@@ -432,14 +334,6 @@ class DefaultHeadlessRuntime:
             await asyncio.to_thread(raw.unlink, missing_ok=True)
             await asyncio.to_thread(Path(f"{raw}.meta.json").unlink, missing_ok=True)
 
-    async def run_recipe_stage(
-        self, recipe_id: str, stage_name: str, context: StageContext
-    ) -> Sequence[str]:
-        del context
-        raise NotImplementedError(
-            f"recipe stage {recipe_id}/{stage_name} requires a composed recipe executor"
-        )
-
 
 def create_headless_runtime(
     config: StageGenConfig,
@@ -453,115 +347,6 @@ def create_headless_runtime(
         image_service=image_service,
         background_service=background_service,
         music_service=music_service,
-    )
-
-
-def _create_scrolling_preview_executor(
-    *,
-    image_service: ImageGenerationService,
-    structured_service: StructuredGenerationService[object],
-    background_service: BackgroundRemovalService | None,
-) -> RecipeExecutor:
-    from stage_gen.recipes.scrolling_preview.executor import ScrollingPreviewExecutor
-
-    executor = ScrollingPreviewExecutor(
-        image_service=image_service,
-        structured_service=structured_service,
-        background_service=background_service,
-    )
-    return _CallableRecipeExecutor(executor.run_scrolling_preview_stage)
-
-
-def _create_dialogue_scene_executor(
-    *,
-    image_service: ImageGenerationService,
-    structured_service: StructuredGenerationService[object],
-    background_service: BackgroundRemovalService | None,
-) -> RecipeExecutor:
-    from stage_gen.recipes.dialogue_scene.executor import (
-        DialogueExecutorContext,
-        DialogueSceneExecutor,
-    )
-
-    return DialogueSceneExecutor(
-        DialogueExecutorContext(
-            structured=structured_service,
-            images=image_service,
-            background=background_service,
-        )
-    )
-
-
-_RECIPE_EXECUTOR_FACTORIES: dict[str, _RecipeExecutorFactory] = {
-    "dialogue-scene": _create_dialogue_scene_executor,
-    "scrolling-preview": _create_scrolling_preview_executor,
-}
-
-
-def create_default_runtime(
-    config: StageGenConfig,
-    recipe_id: str = "scrolling-preview",
-) -> _ComposedHeadlessRuntime:
-    """Compose concrete provider services with the selected recipe executor."""
-
-    try:
-        executor_factory = _RECIPE_EXECUTOR_FACTORIES[recipe_id]
-    except KeyError as error:
-        raise ValueError(f"no recipe executor registered for recipe: {recipe_id}") from error
-
-    api_key = config.open_router_api_key
-    if api_key is None:
-        raise RuntimeError("OPENROUTER_API_KEY is required to compose the generation runtime")
-    openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
-    if config.transparency_mode is TransparencyMode.NATIVE:
-        if config.openai_api_key is None:
-            raise RuntimeError("OPENAI_API_KEY is required for native image generation")
-        image_service = create_openai_image_service(
-            api_key=config.openai_api_key,
-            model=config.openai_image_model,
-            base_url=config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=config.openai_image_ipm,
-        )
-        if not image_service.supports_native_alpha:
-            raise RuntimeError("configured OpenAI image model is not verified for native alpha")
-    else:
-        image_service = create_image_service(
-            api_key=api_key, model=config.image_model, base_url=openrouter_url
-        )
-    structured_service = create_structured_service(
-        api_key=api_key, model=config.text_model, base_url=openrouter_url
-    )
-    background_service = (
-        create_background_removal_service(
-            api_key=config.fal_key,
-            model=config.background_removal_model,
-            base_url=config.fal_base_url or "https://fal.run",
-        )
-        if config.fal_key is not None
-        else None
-    )
-    music_service = create_music_service(
-        api_key=api_key,
-        model=config.music_model,
-        base_url=openrouter_url,
-    )
-    standalone_runtime = create_headless_runtime(
-        config,
-        image_service=image_service,
-        background_service=background_service,
-        music_service=music_service,
-    )
-    standalone = cast("HeadlessRuntime", standalone_runtime)
-    recipe_executor = executor_factory(
-        image_service=image_service,
-        structured_service=structured_service,
-        background_service=background_service,
-    )
-    return _ComposedHeadlessRuntime(
-        standalone,
-        {recipe_id: recipe_executor},
-        standalone_resource=standalone_runtime,
-        resources=(structured_service,),
     )
 
 

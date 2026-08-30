@@ -4,7 +4,9 @@ import { buildHeightmap, buildHeightmapFromSeed } from "./heightmap";
 const STAGE_OPTIONS = Object.freeze({ cols: 200, minH: 1, maxH: 4 });
 
 describe("heightmap seeding", () => {
-  test("preserves the legacy tag terrain through its explicit seed", () => {
+  test("an explicit numeric seed reproduces what string hashing produced", () => {
+    // Terrain used to be seeded by hashing a run tag. The seed is explicit now; this
+    // pins the equivalence so the migration cannot silently change a generated map.
     expect(buildHeightmapFromSeed(1_235_206_006, STAGE_OPTIONS)).toEqual(
       buildHeightmap(
         "original-deterministic-gameplay-showcase-532c8ee7-chroma",

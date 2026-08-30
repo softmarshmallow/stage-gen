@@ -1,11 +1,12 @@
-// Picker view (root URL).
+// Home (root URL).
 //
-// Phase 8 / TC-100..103, 113. Server component renders the input + Generate
-// island and a quick-demo list of already-completed projects under out/.
+// A consumer index over out/: the published runtime packages that can be previewed,
+// and the traced runs that can be read back. Generation happens in the headless CLI;
+// nothing on this page starts a run.
 
 import Link from "next/link";
-import Picker from "./Picker";
 import { listReadyProjects } from "@/lib/shell/projects";
+import { listExecutionViewRuns } from "@/lib/shell/execution-view";
 import {
   cx,
   h1,
@@ -18,27 +19,24 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function shortPrompt(s: string, max = 90): string {
-  if (s.length <= max) return s;
-  return s.slice(0, max - 1).trimEnd() + "…";
-}
-
 export default async function Home() {
-  const projects = await listReadyProjects();
+  const [projects, views] = await Promise.all([
+    listReadyProjects(),
+    listExecutionViewRuns(),
+  ]);
   return (
     <main className={page}>
       <h1 className={h1}>stage-gen</h1>
       <p className={cx(metaLine, "mb-5")}>
-        optional scrolling-preview adapter · reusable generation runs headlessly
+        consumer surfaces over <code>out/</code> · generation runs headlessly
       </p>
-      <Picker presets={[]} />
 
-      {projects.length > 0 ? (
-        <section className="mt-8 border-t border-border pt-4">
-          <div className="mb-2 text-[13px]">
-            <span className="text-dim">ready preview runs</span>
-            <span className="text-dim opacity-60"> · {projects.length} done</span>
-          </div>
+      <section>
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">published runtime packages</span>
+          <span className="text-dim opacity-60"> · {projects.length}</span>
+        </div>
+        {projects.length > 0 ? (
           <ul className="flex list-none flex-col gap-1.5">
             {projects.map((p) => (
               <li
@@ -59,8 +57,8 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-[13px] text-fg" title={p.prompt}>
-                    {shortPrompt(p.prompt)}
+                  <div className="truncate text-[13px] text-fg">
+                    {p.displayName}
                   </div>
                   <div className="mt-0.5 truncate text-[11px] text-dim">
                     {p.tag}
@@ -73,15 +71,32 @@ export default async function Home() {
                   >
                     [ ▶ open preview ]
                   </Link>
-                  <Link className={linkGhost} href={`/generate/${p.tag}`}>
-                    [ ⌕ details ]
+                  <Link className={linkGhost} href={`/packages/${p.tag}`}>
+                    [ ⌕ assets ]
                   </Link>
                 </div>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        ) : (
+          <p className={metaLine}>
+            None yet. Publish one with{" "}
+            <code>stage-gen generate --checkpoint integration</code>.
+          </p>
+        )}
+      </section>
+
+      <section className="mt-8 border-t border-border pt-4">
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">exported runs</span>
+          <span className="text-dim opacity-60"> · {views.length}</span>
+        </div>
+        <p className={cx(metaLine, "mb-2")}>
+          <Link className={linkGhost} href="/runs">
+            [ ⌕ open the run viewer ]
+          </Link>
+        </p>
+      </section>
     </main>
   );
 }

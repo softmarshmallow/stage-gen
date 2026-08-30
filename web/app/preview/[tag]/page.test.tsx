@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GAMEPLAY_AUTOMATION_MODE } from "@/lib/runtime/automation";
+import { preparedRuntimeManifestFixture } from "@/lib/shell/prepared-runtime.fixture";
 import { runDirFor } from "@/lib/shell/runs";
 import PreviewPage from "./page";
 
@@ -28,22 +29,8 @@ describe("preview route automation shell", () => {
     cleanup.push(runDir);
     await mkdir(runDir, { recursive: true });
     await writeFile(
-      path.join(runDir, "run.json"),
-      JSON.stringify({
-        schema_version: 3,
-        kind: "recipe_run_v3",
-        recipe: "scrolling-preview",
-        input: { prompt: "automation shell contract", transparency_mode: "ai" },
-        tag,
-        run_dir: tag,
-        started_at: "2026-08-25T00:00:00Z",
-        ended_at: "2026-08-25T00:00:01Z",
-        duration_ms: 1_000,
-        ok: true,
-        stages: [
-          { stage: "concept", ok: true, duration_ms: 1_000, artifacts: ["concept.png"] },
-        ],
-      }),
+      path.join(runDir, "manifest.json"),
+      JSON.stringify(preparedRuntimeManifestFixture()),
       "utf8",
     );
 
