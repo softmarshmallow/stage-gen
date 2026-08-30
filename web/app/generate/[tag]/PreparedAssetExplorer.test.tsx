@@ -72,7 +72,7 @@ describe("prepared asset explorer", () => {
     expect(markup).toContain(
       "/api/assets/prepared-fixture-v1/soundtrack/day%20theme.mp3",
     );
-    expect(markup).toContain("<audio controls=\"\"");
+    expect(markup).toMatch(/<audio [^>]*controls=""/);
     expect(markup).not.toContain("retry");
     expect(markup).not.toContain("pending");
   });
@@ -80,8 +80,9 @@ describe("prepared asset explorer", () => {
   test("lists a provenance record as a file rather than a broken image", () => {
     const markup = renderToStaticMarkup(<PreparedAssetExplorer model={model} />);
 
-    expect(markup).toContain(
-      '<a class="sg-slot" href="/api/assets/prepared-fixture-v1/maps/village/terrain.json"',
+    // A link to the bytes, not an image element that would render broken.
+    expect(markup).toMatch(
+      /<a [^>]*href="\/api\/assets\/prepared-fixture-v1\/maps\/village\/terrain\.json"/,
     );
     expect(markup).toContain("terrain.json · 3 KB");
     expect(markup).toContain("nothing loads them to play");

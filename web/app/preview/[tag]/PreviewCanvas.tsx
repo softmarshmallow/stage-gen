@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import type { GameplayAutomationMode } from "@/lib/runtime/automation";
 import type { PreparedPreviewGameHandle } from "@/lib/runtime/prepared-scene";
+import { cx } from "@/app/ui";
 import {
   developerKitLabel,
   developerKitToken,
@@ -124,15 +125,7 @@ export function DeveloperKitBar({
   return (
     <div
       data-testid="developer-kit-console"
-      style={{
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-        flexWrap: "wrap",
-        padding: "8px 16px 0",
-        color: "#666",
-        fontSize: 12,
-      }}
+      className="flex flex-wrap items-center gap-2 px-4 pt-2 text-xs text-dim"
     >
       <span>kit</span>
       {kits.map((kit, index) => {
@@ -148,15 +141,10 @@ export function DeveloperKitBar({
             data-testid={`developer-kit-option-${developerKitToken(kit)}`}
             aria-pressed={isCurrent}
             onClick={() => onSelect(kit, isPublished)}
-            style={{
-              font: "inherit",
-              color: isCurrent ? "#0a0a0a" : "#e6e6e6",
-              background: isCurrent ? "#e6e6e6" : "transparent",
-              border: "1px solid #333",
-              borderRadius: 3,
-              padding: "1px 6px",
-              cursor: "pointer",
-            }}
+            className={cx(
+              "cursor-pointer rounded-[3px] border border-border px-1.5 py-px",
+              isCurrent ? "bg-fg text-bg" : "text-fg",
+            )}
           >
             {developerKitLabel(kit)}
             {isPublished ? " ·authored" : ""}

@@ -9,6 +9,7 @@ import {
   DEFAULT_TRANSPARENCY_MODE,
   type TransparencyMode,
 } from "@/lib/shell/transparency";
+import { button, chip, errorBanner, textarea } from "./ui";
 
 // Neutral, repository-authored prompts for the scrolling-preview recipe.
 // They intentionally avoid named properties, creators, studios, and styles.
@@ -84,12 +85,10 @@ export default function Picker(_props: { presets: string[] }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ color: "var(--dim)", marginBottom: 4 }}>
-          scrolling-preview recipe prompt:
-        </div>
+      <div className="mb-4">
+        <div className="mb-1 text-dim">scrolling-preview recipe prompt:</div>
         <textarea
-          className="sg-textarea"
+          className={textarea}
           aria-label="scrolling preview asset prompt"
           placeholder="describe an original side-view asset set…"
           value={prompt}
@@ -98,8 +97,8 @@ export default function Picker(_props: { presets: string[] }) {
         />
       </div>
 
-      <label style={{ display: "block", marginBottom: 16, color: "var(--fg)" }}>
-        <span style={{ display: "block", marginBottom: 4 }}>transparency strategy:</span>
+      <label className="mb-4 block text-fg">
+        <span className="mb-1 block">transparency strategy:</span>
         <select
           value={transparencyMode}
           disabled={busy}
@@ -110,7 +109,7 @@ export default function Picker(_props: { presets: string[] }) {
           <option value="ai">AI background removal — compatibility fallback</option>
           <option value="chroma">Chroma key — degraded local fallback</option>
         </select>
-        <span style={{ display: "block", color: "var(--dim)", marginTop: 4 }}>
+        <span className="mt-1 block text-dim">
           {transparencyMode === "native"
             ? "default; the image model creates alpha directly, preserving edge detail"
             : transparencyMode === "ai"
@@ -119,14 +118,14 @@ export default function Picker(_props: { presets: string[] }) {
         </span>
       </label>
 
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ color: "var(--dim)", marginBottom: 6 }}>presets:</div>
-        <div className="sg-chips">
+      <div className="mb-4">
+        <div className="mb-1.5 text-dim">presets:</div>
+        <div className="flex flex-wrap gap-1.5">
           {CHIPS.map((c) => (
             <button
               key={c.label}
               type="button"
-              className="sg-chip"
+              className={chip}
               onClick={() => setPrompt(c.prompt)}
               title={c.prompt}
             >
@@ -137,15 +136,15 @@ export default function Picker(_props: { presets: string[] }) {
       </div>
 
       {error ? (
-        <div className="sg-error-banner" role="alert">
+        <div className={errorBanner} role="alert">
           {error}
         </div>
       ) : null}
 
-      <div style={{ textAlign: "right", marginTop: 16 }}>
+      <div className="mt-4 text-right">
         <button
           type="button"
-          className="sg-btn"
+          className={button}
           disabled={!canSubmit}
           onClick={onGenerate}
         >

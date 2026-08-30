@@ -8,6 +8,25 @@ import type {
   PreparedAssetGroup,
 } from "@/lib/shell/prepared-assets";
 import ImageLightbox, { type LightboxImage } from "./ImageLightbox";
+import {
+  assetGrid,
+  assetPath,
+  audioGrid,
+  cx,
+  h1,
+  headerStrip,
+  metaLine,
+  page,
+  playActive,
+  playSize,
+  sectionHeading,
+  slot,
+  slotIdle,
+  slotImage,
+  slotInner,
+  slotLabel,
+  slotPresent,
+} from "@/app/ui";
 
 export type PreparedAssetExplorerModel = Readonly<{
   tag: string;
@@ -58,37 +77,43 @@ export default function PreparedAssetExplorer({
   );
 
   return (
-    <main className="sg-page">
-      <div className="sg-meta-line">
+    <main className={page}>
+      <div className={metaLine}>
         <Link href="/">stage-gen</Link> / prepared asset explorer
       </div>
 
-      <div className="sg-header-strip">
+      <div className={headerStrip}>
         <div>
-          <h1 className="sg-h1">{model.display_name}</h1>
-          <div className="sg-meta-line">
-            game: <span style={{ color: "var(--fg)" }}>{model.game_id}</span> · revision{" "}
-            <span style={{ color: "var(--fg)" }}>{model.revision}</span>
+          <h1 className={h1}>{model.display_name}</h1>
+          <div className={metaLine}>
+            game: <span className="text-fg">{model.game_id}</span> · revision{" "}
+            <span className="text-fg">{model.revision}</span>
           </div>
-          <div className="sg-meta-line">
-            tag: <span style={{ color: "var(--fg)" }}>{model.tag}</span>
+          <div className={metaLine}>
+            tag: <span className="text-fg">{model.tag}</span>
           </div>
-          <div className="sg-meta-line">
-            status: <span style={{ color: "var(--accent)" }}>prepared</span> ·{" "}
+          <div className={metaLine}>
+            status: <span className="text-accent">prepared</span> ·{" "}
             {model.artifact_count} closure artifacts · {assetCount} assets ·{" "}
             {provenanceCount} provenance
             {ungroupedCount > 0 ? (
               <>
                 {" "}
-                · <span style={{ color: "var(--error)" }}>{ungroupedCount} ungrouped</span>
+                · <span className="text-error">{ungroupedCount} ungrouped</span>
               </>
             ) : null}
           </div>
-          <div className="sg-meta-line" title={model.package_sha256}>
-            package: <span style={{ color: "var(--fg)" }}>{model.package_sha256.slice(0, 16)}…</span>
+          <div className={metaLine} title={model.package_sha256}>
+            package:{" "}
+            <span className="text-fg">
+              {model.package_sha256.slice(0, 16)}…
+            </span>
           </div>
         </div>
-        <Link className="sg-play is-active" href={`/preview/${model.tag}`}>
+        <Link
+          className={cx(playActive, playSize)}
+          href={`/preview/${model.tag}`}
+        >
           [ preview ▸ ]
         </Link>
       </div>
@@ -100,21 +125,29 @@ export default function PreparedAssetExplorer({
         const note = noteFor(group);
         return (
           <section key={group.group_id} aria-labelledby={`group-${group.group_id}`}>
-            <div className="sg-section-h" id={`group-${group.group_id}`}>
+            <div className={sectionHeading} id={`group-${group.group_id}`}>
               {group.label} · {group.assets.length}
             </div>
-            {note ? <div className="sg-asset-path">{note}</div> : null}
-            <div className={audioOnly ? "sg-audio-grid" : "sg-grid"}>
+            {note ? <div className={assetPath}>{note}</div> : null}
+            <div className={audioOnly ? audioGrid : assetGrid}>
               {group.assets.map((asset: PreparedAssetCard) => {
                 const url = preparedAssetUrl(model.tag, asset.path);
                 if (asset.media_type.startsWith("audio/")) {
                   return (
-                    <article className="sg-audio-card" key={asset.path}>
-                      <div className="sg-asset-label">{asset.label}</div>
-                      <audio controls preload="metadata" src={url}>
+                    <article
+                      className="min-w-0 border border-accent bg-bg p-2.5"
+                      key={asset.path}
+                    >
+                      <div className="text-fg">{asset.label}</div>
+                      <audio
+                        className="my-2 block w-full"
+                        controls
+                        preload="metadata"
+                        src={url}
+                      >
                         <a href={url}>download {asset.label}</a>
                       </audio>
-                      <div className="sg-asset-path" title={asset.path}>
+                      <div className={assetPath} title={asset.path}>
                         {asset.path}
                       </div>
                     </article>
@@ -123,17 +156,21 @@ export default function PreparedAssetExplorer({
                 if (!asset.media_type.startsWith("image/")) {
                   return (
                     <a
-                      className="sg-slot"
+                      className={cx(slot, slotIdle)}
                       key={asset.path}
                       href={url}
                       target="_blank"
                       rel="noreferrer"
                       aria-label={`open ${asset.path}`}
                     >
-                      <div className="sg-slot-inner">
-                        <span className="sg-slot-record">{"{ }"}</span>
+                      <div className={cx(slotInner, "bg-well")}>
+                        {/* A published record with nothing to render is shown
+                            as a file, never as a broken image. */}
+                        <span className="select-none text-lg text-dim">
+                          {"{ }"}
+                        </span>
                       </div>
-                      <div className="sg-slot-label" title={asset.path}>
+                      <div className={slotLabel} title={asset.path}>
                         {asset.path.split("/").at(-1)} · {formatBytes(asset.bytes)}
                       </div>
                     </a>
@@ -142,7 +179,7 @@ export default function PreparedAssetExplorer({
                 return (
                   <button
                     type="button"
-                    className="sg-slot is-active"
+                    className={cx(slot, slotPresent)}
                     key={asset.path}
                     aria-label={`open ${asset.label}: ${asset.path}`}
                     onClick={() =>
@@ -156,16 +193,21 @@ export default function PreparedAssetExplorer({
                       })
                     }
                   >
-                    <div className={`sg-slot-inner${asset.transparent ? " alpha-checker" : ""}`}>
+                    <div
+                      className={cx(
+                        slotInner,
+                        asset.transparent ? "alpha-checker" : "bg-well",
+                      )}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        className="sg-slot-img"
+                        className={slotImage}
                         src={url}
                         alt={asset.label}
                         loading="lazy"
                       />
                     </div>
-                    <div className="sg-slot-label" title={asset.path}>
+                    <div className={slotLabel} title={asset.path}>
                       {asset.label}
                     </div>
                   </button>

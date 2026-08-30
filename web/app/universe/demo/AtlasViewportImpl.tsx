@@ -34,7 +34,8 @@ import {
   classifyWheelNavigation,
   panCenterFromCurrentView,
 } from "@/lib/illustrated-map/wheel-navigation";
-import styles from "./UniverseDemo.module.css";
+import { cx } from "@/app/ui";
+import { mapSurface } from "./atlas";
 
 export interface AtlasViewportProps {
   readonly manifest: IllustratedMapManifestV1;
@@ -331,7 +332,22 @@ export default function AtlasViewportImpl(props: AtlasViewportProps) {
   return (
     <div
       ref={targetRef}
-      className={styles.mapCanvas}
+      className={cx(
+        mapSurface,
+        "relative touch-none overflow-hidden overscroll-contain bg-[#1a1a1a]",
+        "outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-accent)]",
+        // OpenLayers injects its own controls into this element, so reach them
+        // from here rather than from a global sheet that outlives the
+        // component. `ol.css` arrives unlayered and therefore outranks every
+        // Tailwind layer whatever the specificity, which is what `!` answers.
+        "[&_.ol-viewport]:font-mono!",
+        "[&_.ol-control]:rounded-none! [&_.ol-control]:bg-bg/[0.82]! [&_.ol-control]:p-0.5!",
+        "[&_.ol-control_button]:size-[30px]! [&_.ol-control_button]:rounded-none!",
+        "[&_.ol-control_button]:border! [&_.ol-control_button]:border-dim!",
+        "[&_.ol-control_button]:bg-bg! [&_.ol-control_button]:text-fg!",
+        "[&_.ol-control_button:hover]:border-accent! [&_.ol-control_button:hover]:text-accent!",
+        "[&_.ol-control_button:focus]:border-accent! [&_.ol-control_button:focus]:text-accent!",
+      )}
       role="region"
       aria-label={`Interactive map of ${props.manifest.display_name}`}
       aria-describedby="map-instructions"

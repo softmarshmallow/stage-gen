@@ -214,6 +214,24 @@ are chosen by travel cost through that graph, so an unreachable mob is not pursu
 declines instead. Nothing consults a clock it was not handed or a random number, so a replayed view
 sequence produces the same intents.
 
+## Presentation
+
+The shell is styled with [Tailwind CSS](https://tailwindcss.com) v4 and carries no hand-written
+stylesheet. [`app/globals.css`](../web/app/globals.css) is the Tailwind configuration, not a
+theme: it imports Tailwind, names the source globs, declares the design tokens
+(`--color-bg`, `--color-fg`, `--color-dim`, `--color-accent`, `--color-error`, `--color-border`,
+plus the `vn-` palette of the demo-only visual-novel route), and defines the three patterns no
+utility class can spell — the alpha checkerboard and that route's sky and star field. Everything
+else is written on the element that wears it, so a rule cannot outlive its markup.
+
+[`app/ui.ts`](../web/app/ui.ts) holds the class strings shared by more than one file: the page
+frame, the bracket-button, the Play CTA, the asset slot and its states. They are values, not a
+cascade — nothing there overrides anything else, and an unused one is a dead export.
+
+Tailwind emits its utilities inside `@layer utilities`, so unlayered third-party CSS outranks them
+whatever the specificity. `ol.css` is the only such import; the atlas viewport marks its OpenLayers
+control overrides `!` for that reason and says so in place.
+
 ## Legacy boundary
 
 The former prompt-launching live Generate view, scrolling manifest V7 parser, `WorldSpec`,

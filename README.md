@@ -119,7 +119,7 @@ the [canonical generation pipeline](docs/spec/game/generation-pipeline.md) expla
 - Recipe orchestration with progress, cache validation, atomic summaries,
   manifests, artifact hashes, and adjacent provenance.
 - A CLI plus an optional loopback HTTP/SSE service.
-- A replaceable Next.js/React/Phaser preview that consumes completed manifests
+- A replaceable Next.js/React/Tailwind/Phaser preview that consumes completed manifests
   without moving gameplay assumptions into Python components.
 - A reusable, provider-neutral [authored character library](docs/character-library.md)
   shared by opt-in dialogue-scene and scrolling-preview requests.
@@ -261,7 +261,7 @@ See [Architecture](ARCHITECTURE.md), the
 
 ## Optional web preview
 
-Web development and deterministic gameplay automation require Bun 1.3.3 (the
+Web development and deterministic gameplay automation require Bun 1.4.0 (the
 version pinned by `web/package.json`). Install the locked dependencies and the
 matching Playwright Chromium browser once:
 

@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import type { AtlasViewportProps } from "./AtlasViewportImpl";
-import styles from "./UniverseDemo.module.css";
+import { mapSurface } from "./atlas";
 
 const AtlasViewportImpl = dynamic(() => import("./AtlasViewportImpl"), {
   ssr: false,
   loading: () => (
-    <div className={styles.mapLoading} role="status">
+    <div className={`${mapSurface} grid place-items-center text-dim`} role="status">
       Preparing atlas…
     </div>
   ),

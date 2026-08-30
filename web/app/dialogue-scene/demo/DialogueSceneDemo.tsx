@@ -21,6 +21,38 @@ import type {
   DialogueSceneDemoFixture,
   DialogueSceneExpressionState,
 } from "@/lib/dialogue-scene/schema";
+import { cx } from "@/app/ui";
+
+// "Signal at Blue Hour" — a showcase theme for one demo route. It deliberately
+// does not obey the terminal visual language the rest of the shell wears; its
+// palette lives in `globals.css` under the `vn-` names.
+
+/** Teal focus ring, everywhere something in this scene takes focus. */
+const FOCUS =
+  "focus-visible:outline-2 focus-visible:outline-vn-teal " +
+  "focus-visible:outline-offset-[3px]";
+
+/** The glass pill every dialogue control wears. */
+const CONTROL =
+  "min-h-11 cursor-pointer rounded-full border border-vn-edge/24 bg-vn-glass/66 " +
+  "px-4 py-[7px] text-vn-paper backdrop-blur-[10px] backdrop-saturate-[1.08] " +
+  "enabled:hover:border-vn-rose enabled:hover:bg-vn-rose/12 " +
+  "disabled:cursor-not-allowed disabled:border-white/12 disabled:text-[#667792] " +
+  "max-[700px]:min-w-0 max-[700px]:flex-1 max-[700px]:px-2 max-[700px]:py-[5px] " +
+  "max-[700px]:text-[11px]";
+
+/** The one loud control in the scene: advance, or restart once it has ended. */
+const ADVANCE =
+  "enabled:border-vn-rose " +
+  "enabled:bg-[linear-gradient(100deg,#f29abb,#f7bfd3_56%,#ffd69b)] " +
+  "enabled:font-extrabold enabled:text-vn-ink " +
+  "enabled:shadow-[0_8px_24px_rgba(203,112,166,0.24)] " +
+  // Focused, it keeps its fill and gains a ring that reads on the night sky.
+  "enabled:focus-visible:border-[#fff4f8] enabled:focus-visible:outline-[3px] " +
+  "enabled:focus-visible:shadow-[0_0_0_2px_var(--color-vn-night),0_9px_28px_rgba(203,112,166,0.32)]";
+
+/** Dim caption text used for status, help, and framing labels. */
+const CAPTION = "text-xs text-vn-muted";
 
 export default function DialogueSceneDemo({
   fixture,
@@ -126,23 +158,59 @@ export default function DialogueSceneDemo({
     : `${playback.cursor + 1} of ${beatCount}`;
 
   return (
-    <main className="sg-dialogue-demo-page">
-      <section className="sg-dialogue-game-shell" aria-label={fixture.title}>
-        <header className="sg-dialogue-demo-header">
-          <a className="sg-dialogue-demo-back" href="/" aria-label="Leave dialogue scene">
+    <main
+      // The root layout paints the body to match, so an overscroll bounce
+      // does not reveal the terminal ground under the night sky.
+      data-vn-scene
+      className={cx(
+        "vn-sky relative grid min-h-dvh w-full place-items-center overflow-hidden",
+        "p-[clamp(16px,3vw,38px)] font-vn-body text-vn-paper max-[700px]:p-2",
+        // A sparse star field over the sky, behind everything else.
+        "before:vn-stars before:pointer-events-none before:absolute before:inset-0",
+        "before:opacity-55 before:content-['']",
+        "[&>*]:relative [&>*]:z-[1]",
+      )}
+    >
+      <section
+        data-vn-game-shell
+        className="w-[min(1120px,100%)] overflow-hidden rounded-3xl border border-vn-edge/24 bg-[rgba(4,12,31,0.82)] p-2.5 shadow-[0_30px_90px_rgba(0,2,14,0.58),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[14px] backdrop-saturate-[1.08] max-[700px]:rounded-[17px] max-[700px]:p-1.5"
+        aria-label={fixture.title}
+      >
+        <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-[5px] pt-[3px] pb-3 max-[700px]:gap-[7px] max-[700px]:px-0.5 max-[700px]:pt-0.5 max-[700px]:pb-[7px]">
+          <a
+            className={cx(
+              "inline-flex min-h-10 items-center rounded-full border border-transparent",
+              "px-[11px] py-[7px] text-xs tracking-[0.06em] text-vn-muted no-underline",
+              "hover:border-vn-edge/24 hover:bg-white/[0.06] hover:text-vn-teal",
+              "focus-visible:border-vn-edge/24 focus-visible:bg-white/[0.06]",
+              "focus-visible:text-vn-teal",
+              "max-[700px]:min-h-9 max-[700px]:px-[7px] max-[700px]:py-[5px]",
+              "max-[700px]:text-[10px]",
+              FOCUS,
+            )}
+            href="/"
+            aria-label="Leave dialogue scene"
+          >
             ← Exit
           </a>
-          <div className="sg-dialogue-game-title">
-            <h1>{fixture.title}</h1>
-            <p className="sg-dialogue-demo-scene-label">{fixture.sceneLabel}</p>
+          <div className="min-w-0 text-center">
+            <h1 className="mb-0.5 truncate font-vn-display text-[clamp(20px,3vw,34px)] leading-[1.08] font-semibold tracking-[-0.025em] text-white [text-shadow:0_4px_24px_rgba(0,0,0,0.32),0_0_32px_rgba(242,154,187,0.1)] max-[700px]:text-[clamp(18px,6vw,26px)]">
+              {fixture.title}
+            </h1>
+            <p className="truncate text-[11px] tracking-[0.04em] text-vn-muted max-[700px]:text-[9px]">
+              {fixture.sceneLabel}
+            </p>
           </div>
-          <span className="sg-dialogue-game-progress" aria-live="polite">
+          <span
+            className="min-w-[58px] text-right text-[11px] tracking-[0.08em] tabular-nums uppercase text-vn-muted max-[700px]:min-w-[44px] max-[700px]:text-[9px]"
+            aria-live="polite"
+          >
             {complete ? "Complete" : `${playback.cursor + 1} / ${beatCount}`}
           </span>
         </header>
 
         <section
-          className="sg-dialogue-stage"
+          className="relative isolate aspect-[16/9] w-full overflow-hidden rounded-2xl border border-vn-edge/42 bg-vn-stage shadow-[0_24px_68px_rgba(0,4,18,0.48),0_0_0_1px_rgba(242,154,187,0.05)] max-[700px]:aspect-auto max-[700px]:h-[min(68dvh,128vw)] max-[700px]:min-h-[420px] max-[700px]:rounded-xl max-[400px]:min-h-[400px]"
           aria-label={`Interactive dialogue scene. Current expression: ${expressionVariant.label.toLowerCase()}.`}
           data-expression-state={expressionState}
           data-source-framing-zoom={fixture.presentation.sourceFramingZoom}
@@ -150,14 +218,14 @@ export default function DialogueSceneDemo({
           {/* Plain images are intentional here: these are deterministic composition layers. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className="sg-dialogue-background"
+            className="absolute inset-0 z-0 h-full w-full select-none object-cover saturate-[1.05] contrast-[1.02]"
             src={fixture.background.src}
             alt={fixture.background.alt}
             draggable={false}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className="sg-dialogue-standing-sprite"
+            className="absolute top-[var(--sg-dialogue-framing-y,6%)] left-[var(--sg-dialogue-framing-x,72%)] z-[1] h-[min(98%,820px)] w-auto max-w-[66%] origin-top -translate-x-1/2 scale-[var(--sg-dialogue-framing-scale,1)] select-none object-contain object-top drop-shadow-[0_18px_20px_rgba(0,8,24,0.35)] max-[700px]:h-[94%] max-[700px]:max-w-[110%]"
             src={expressionVariant.src}
             alt={expressionVariant.alt}
             draggable={false}
@@ -165,7 +233,7 @@ export default function DialogueSceneDemo({
           />
 
           <button
-            className="sg-dialogue-stage-advance"
+            className="absolute inset-0 z-[2] h-full w-full cursor-pointer border-0 bg-transparent p-0 enabled:hover:bg-white/[0.015] disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-vn-teal focus-visible:outline-offset-[-5px]"
             type="button"
             onClick={() => act("next")}
             disabled={!playback.dialogueVisible || complete}
@@ -180,34 +248,44 @@ export default function DialogueSceneDemo({
 
           <div
             id="dialogue-scene-panel"
-            className="sg-dialogue-panel"
+            className="pointer-events-none absolute right-[clamp(14px,3vw,36px)] bottom-[clamp(14px,3vw,30px)] left-[clamp(14px,3vw,36px)] z-[4] min-h-[clamp(118px,16vw,158px)] rounded-2xl border border-vn-edge/68 bg-vn-panel/92 bg-[linear-gradient(125deg,rgba(13,29,63,0.97),rgba(43,29,68,0.92))] px-[clamp(18px,3vw,30px)] pt-[clamp(24px,3vw,32px)] pb-6 shadow-[0_18px_52px_rgba(0,3,18,0.46),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[14px] backdrop-saturate-[1.12] after:absolute after:top-3 after:right-4 after:text-[15px] after:text-vn-rose/78 after:content-['✦'] max-[700px]:right-2 max-[700px]:bottom-2 max-[700px]:left-2 max-[700px]:min-h-[146px] max-[700px]:rounded-[13px] max-[700px]:px-3.5 max-[700px]:pt-[25px] max-[700px]:pb-6"
             hidden={!playback.dialogueVisible}
             aria-live="polite"
             aria-atomic="true"
           >
-            <div className="sg-dialogue-namebox">
+            <div className="absolute top-[-16px] left-5 min-w-[114px] rounded-full border border-white/70 bg-[linear-gradient(100deg,#f29abb,#f6bed2_52%,#ffd69b)] px-[15px] py-[5px] text-center font-extrabold text-vn-ink shadow-[0_7px_22px_rgba(203,112,166,0.24)]">
               {complete ? "Scene complete" : beat?.speaker}
             </div>
-            <p>
+            <p className="max-w-[68ch] text-[clamp(16px,1.8vw,21px)] leading-[1.48] text-pretty text-vn-paper max-[700px]:text-[clamp(16px,4.4vw,19px)]">
               {complete
                 ? "The scene has ended. Restart to play again, or go back to revisit the ending."
                 : beat?.text}
             </p>
-            <span className="sg-dialogue-line-count" aria-hidden="true">
+            <span
+              className="absolute right-[15px] bottom-2 text-[11px] text-vn-muted max-[700px]:text-[9px]"
+              aria-hidden="true"
+            >
               {complete ? "Restart to play again" : `${progressLabel} · continue`}
             </span>
           </div>
 
           {!playback.dialogueVisible ? (
-            <div className="sg-dialogue-asset-only" role="status">
+            <div
+              className="absolute bottom-2.5 left-2.5 z-[3] rounded-full border border-white/25 bg-[rgba(7,21,46,0.82)] px-2 py-1 text-[11px] text-vn-muted"
+              role="status"
+            >
               Dialogue hidden
             </div>
           ) : null}
         </section>
 
-        <div className="sg-dialogue-controls" aria-label="Dialogue navigation" role="group">
+        <div
+          className="flex items-center gap-2 px-1.5 pt-2.5 pb-0.5 max-[700px]:flex-wrap max-[700px]:items-stretch max-[700px]:gap-[5px] max-[700px]:pt-[7px] max-[700px]:pb-0"
+          aria-label="Dialogue navigation"
+          role="group"
+        >
           <button
-            className="sg-btn"
+            className={cx(CONTROL, FOCUS)}
             type="button"
             onClick={() => act("back")}
             disabled={playback.cursor === 0}
@@ -216,7 +294,10 @@ export default function DialogueSceneDemo({
             ← Back
           </button>
           <span
-            className="sg-dialogue-control-status"
+            className={cx(
+              CAPTION,
+              "min-w-[120px] text-center max-[700px]:order-first max-[700px]:w-full",
+            )}
             aria-live="polite"
             aria-atomic="true"
           >
@@ -224,7 +305,7 @@ export default function DialogueSceneDemo({
           </span>
           <DialogueSceneAdvanceButton complete={complete} onAction={act} />
           <button
-            className="sg-btn sg-dialogue-visibility"
+            className={cx(CONTROL, FOCUS, "ml-auto max-[700px]:ml-0 max-[700px]:basis-full")}
             type="button"
             onClick={() => act("toggle-dialogue")}
             aria-controls="dialogue-scene-panel"
@@ -234,15 +315,23 @@ export default function DialogueSceneDemo({
           </button>
         </div>
 
-        <p className="sg-dialogue-key-help">
+        <p className="mt-1 mb-0.5 text-center text-[10px] tracking-[0.04em] text-vn-muted max-[700px]:text-[9px]">
           Enter / Space: advance · ← / →: navigate
         </p>
 
-        <details className="sg-dialogue-framing">
-          <summary>Display options</summary>
-          <div className="sg-dialogue-framing-heading">
+        <details className="mx-1 mt-1.5 mb-0.5 rounded-xl border border-vn-edge/24 bg-white/[0.035] backdrop-blur-[12px] backdrop-saturate-[1.06]">
+          <summary
+            className={cx(
+              "cursor-pointer px-3 py-[9px] text-[11px] text-vn-muted",
+              "open:border-b open:border-white/10 open:text-vn-paper",
+              FOCUS,
+            )}
+          >
+            Display options
+          </summary>
+          <div className="flex items-start justify-between gap-4 px-3 pt-2.5 max-[700px]:gap-2">
             <output
-              className="sg-dialogue-framing-output"
+              className={cx(CAPTION, "flex flex-none flex-col items-start text-left")}
               htmlFor="dialogue-scene-framing-range dialogue-scene-framing-number"
               aria-live="polite"
             >
@@ -251,10 +340,23 @@ export default function DialogueSceneDemo({
             </output>
           </div>
 
-          <div className="sg-dialogue-framing-inputs">
-            <label htmlFor="dialogue-scene-framing-range">Character framing</label>
+          <div className="grid grid-cols-[auto_minmax(180px,1fr)_auto_96px] items-center gap-x-3 gap-y-2 px-3 pt-2.5 pb-3 max-[700px]:grid-cols-[minmax(0,1fr)_112px] max-[700px]:gap-x-2 max-[700px]:gap-y-1.5">
+            <label
+              htmlFor="dialogue-scene-framing-range"
+              className={cx(
+                CAPTION,
+                "max-[700px]:col-start-1 max-[700px]:row-start-1 max-[700px]:text-[10px]",
+              )}
+            >
+              Character framing
+            </label>
             <input
               id="dialogue-scene-framing-range"
+              className={cx(
+                "min-h-11 w-full accent-vn-rose",
+                "max-[700px]:col-start-1 max-[700px]:row-start-2",
+                FOCUS,
+              )}
               type="range"
               min={DIALOGUE_SCENE_FRAMING_EVIDENCE_MIN}
               max={DIALOGUE_SCENE_FRAMING_EVIDENCE_MAX}
@@ -262,10 +364,24 @@ export default function DialogueSceneDemo({
               value={framingZoom}
               onChange={(event) => updateFramingZoom(event.currentTarget.valueAsNumber)}
             />
-            <label htmlFor="dialogue-scene-framing-number">Framing value</label>
+            <label
+              htmlFor="dialogue-scene-framing-number"
+              className={cx(
+                CAPTION,
+                "max-[700px]:col-start-2 max-[700px]:row-start-1 max-[700px]:text-[10px]",
+              )}
+            >
+              Framing value
+            </label>
             <input
               id="dialogue-scene-framing-number"
-              className="sg-input sg-dialogue-framing-number"
+              className={cx(
+                "min-h-11 w-full rounded-[9px] border border-white/32 bg-white/[0.07]",
+                "px-3 py-2 text-vn-paper caret-vn-paper outline-none",
+                "focus:border-vn-teal",
+                "max-[700px]:col-start-2 max-[700px]:row-start-2",
+                FOCUS,
+              )}
               type="number"
               inputMode="numeric"
               min={DIALOGUE_SCENE_FRAMING_EVIDENCE_MIN}
@@ -309,8 +425,9 @@ export function DialogueSceneAdvanceButton({
   const controlState = complete ? "restart" : "advance";
   return (
     <button
-      className="sg-btn sg-dialogue-advance"
+      className={cx(CONTROL, ADVANCE, FOCUS)}
       type="button"
+      data-primary="true"
       data-control-state={controlState}
       onClick={() => onAction(complete ? "restart" : "next")}
       aria-label={complete ? "Restart dialogue from first beat" : "Next dialogue beat"}

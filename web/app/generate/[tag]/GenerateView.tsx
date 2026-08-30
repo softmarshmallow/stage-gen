@@ -29,6 +29,25 @@ import {
   type TransparencyMode,
 } from "@/lib/shell/transparency";
 import ImageLightbox, { type LightboxImage } from "./ImageLightbox";
+import {
+  assetGrid,
+  cx,
+  errorBanner,
+  headerStrip,
+  metaLine,
+  page,
+  playActive,
+  playIdle,
+  playSize,
+  sectionHeading,
+  slot as slotFrame,
+  slotFailed as slotFailedStyle,
+  slotIdle,
+  slotImage,
+  slotInner,
+  slotLabel,
+  slotPresent,
+} from "@/app/ui";
 
 interface InitialState {
   tag: string;
@@ -258,33 +277,31 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
   }
 
   return (
-    <main className="sg-page">
-      <div className="sg-meta-line">
+    <main className={page}>
+      <div className={metaLine}>
         <Link href="/">stage-gen</Link> /{" "}
-        <span style={{ color: "var(--fg)" }}>
-          {initial.prompt ?? "(unknown prompt)"}
-        </span>
+        <span className="text-fg">{initial.prompt ?? "(unknown prompt)"}</span>
       </div>
 
-      <div className="sg-header-strip">
+      <div className={headerStrip}>
         <div>
-          <div className="sg-meta-line">
-            tag: <span style={{ color: "var(--fg)" }}>{tag}</span>
+          <div className={metaLine}>
+            tag: <span className="text-fg">{tag}</span>
           </div>
-          <div className="sg-meta-line">
-            status: <span style={{ color: "var(--fg)" }}>{status}</span>
+          <div className={metaLine}>
+            status: <span className="text-fg">{status}</span>
             {failedStage ? ` (${failedStage})` : ""}
           </div>
-          <div className="sg-meta-line" data-testid="transparency-mode">
+          <div className={metaLine} data-testid="transparency-mode">
             transparency:{" "}
-            <span style={{ color: "var(--fg)" }}>
+            <span className="text-fg">
               {transparencyModeLabel(initial.transparencyMode)}
             </span>
           </div>
         </div>
         <Link
           href={previewReady ? `/preview/${tag}` : "#"}
-          className={`sg-play${previewReady ? " is-active" : ""}`}
+          className={cx(previewReady ? playActive : playIdle, playSize)}
           aria-disabled={!previewReady}
           tabIndex={previewReady ? 0 : -1}
           data-testid="preview-cta"
@@ -297,7 +314,7 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       </div>
 
       {status === "failed" ? (
-        <div className="sg-error-banner" role="alert">
+        <div className={errorBanner} role="alert">
           pipeline failed{failedStage ? ` at stage ${failedStage}` : ""}.
           check log below for details. retry individual assets via the slot
           retry button, or restart the whole run from the picker.
@@ -305,22 +322,28 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
       ) : null}
 
       {retryError ? (
-        <div className="sg-error-banner" role="alert">
+        <div className={errorBanner} role="alert">
           retry failed: {retryError}
         </div>
       ) : null}
 
-      <div className="sg-progress" data-testid="progress">
+      {/* Block characters rendered as text; the bar IS the spinner. */}
+      <div
+        className="flex items-center gap-2 whitespace-pre text-dim"
+        data-testid="progress"
+      >
         {status === "running" ? (
+          /* loading.gif is the only animated element on the page, and this
+             is the only place it appears. */
           <img
-            className="sg-progress-loading"
+            className="h-12 w-12 object-contain"
             src="/loading.gif"
             alt=""
             aria-hidden
           />
         ) : null}
         <span>progress: </span>
-        <span className="sg-progress-fill">{bar.filled}</span>
+        <span className="text-accent">{bar.filled}</span>
         <span>{bar.rest}</span>
         <span>
           {"  "}
@@ -330,26 +353,25 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
 
       {/* Concept image full-width banner — DESIGN.md: appears the moment
           it's ready, full-size at the top of the page. */}
-      <div className="sg-concept-banner">
+      <div className="my-4 flex min-h-[200px] cursor-pointer items-center justify-center border border-border bg-well">
         {conceptFile ? (
           <button
             type="button"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              width: "100%",
-              display: "block",
-            }}
+            className="block w-full cursor-pointer"
             onClick={() => openLightbox(conceptSlot, conceptFile)}
             aria-label="open world concept fullscreen"
           >
             <img
+              className="block h-auto w-full"
               src={`/api/assets/${tag}/${conceptFile}`}
               alt={conceptSlot.label}
             />
           </button>
         ) : (
-          <div className="sg-concept-pending" aria-label="concept pending">
+          <div
+            className="px-4 py-12 text-[13px] tracking-[0.05em] text-dim opacity-60"
+            aria-label="concept pending"
+          >
             world concept · pending
           </div>
         )}
@@ -359,8 +381,8 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
           Pre-concept the user only sees the progress bar + concept-pending banner. */}
       {conceptFile ? nonConceptGroups.map((g) => (
         <section key={g.section}>
-          <div className="sg-section-h">{g.section}</div>
-          <div className="sg-grid">
+          <div className={sectionHeading}>{g.section}</div>
+          <div className={assetGrid}>
             {g.slots.map((slot) => {
               const matched = extractMatchedFilename(slot, present);
               const failed = slotFailed(slot);
@@ -368,9 +390,10 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
                 <div key={slot.id}>
                   <button
                     type="button"
-                    className={`sg-slot${failed ? " is-failed" : ""}${
-                      matched ? " is-active" : ""
-                    }`}
+                    className={cx(
+                      slotFrame,
+                      failed ? slotFailedStyle : matched ? slotPresent : slotIdle,
+                    )}
                     onClick={() => {
                       if (matched) openLightbox(slot, matched);
                       else if (failed) onRetry(slot);
@@ -384,24 +407,31 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
                           : `${slot.label} loading`
                     }
                   >
-                    <div className="sg-slot-inner">
+                    <div className={cx(slotInner, "bg-well")}>
                       {matched ? (
                         <img
-                          className="sg-slot-img"
+                          className={slotImage}
                           src={`/api/assets/${tag}/${matched}`}
                           alt={slot.label}
                         />
                       ) : failed ? (
-                        <span className="sg-slot-fail" aria-hidden>
+                        <span
+                          className="text-2xl font-bold text-error"
+                          aria-hidden
+                        >
                           ×
                         </span>
                       ) : (
-                        <span className="sg-slot-pending" aria-hidden>
+                        /* Empty slots show a dim placeholder, not a spinner. */
+                        <span
+                          className="select-none text-lg text-dim opacity-40"
+                          aria-hidden
+                        >
                           ·
                         </span>
                       )}
                     </div>
-                    <div className="sg-slot-label">
+                    <div className={slotLabel}>
                       {slot.label}
                       {failed
                         ? retrying.has(slot.filenames[0] ?? "")
@@ -417,17 +447,15 @@ export default function GenerateView({ initial }: { initial: InitialState }) {
         </section>
       )) : null}
 
-      <div className="sg-log" ref={logRef} data-testid="log">
+      <div
+        className="mt-6 max-h-[200px] overflow-y-auto border-t border-border py-2 text-xs whitespace-pre-wrap text-dim"
+        ref={logRef}
+        data-testid="log"
+      >
         {logLines.length === 0 ? (
-          <div className="sg-log-line">
-            (no log lines yet — waiting for pipeline output…)
-          </div>
+          <div>(no log lines yet — waiting for pipeline output…)</div>
         ) : (
-          logLines.map((line, i) => (
-            <div className="sg-log-line" key={i}>
-              {line}
-            </div>
-          ))
+          logLines.map((line, i) => <div key={i}>{line}</div>)
         )}
       </div>
 

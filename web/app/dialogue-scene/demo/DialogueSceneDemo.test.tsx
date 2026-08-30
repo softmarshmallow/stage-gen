@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { dialogueSceneDemoFixture } from "@/lib/dialogue-scene/demo-fixture";
@@ -11,7 +9,7 @@ describe("dialogue-scene demo component contract", () => {
       <DialogueSceneDemo fixture={dialogueSceneDemoFixture} />,
     );
 
-    expect(markup).toContain('class="sg-dialogue-game-shell"');
+    expect(markup).toContain("data-vn-game-shell");
     expect(markup).toContain('aria-label="Leave dialogue scene"');
     expect(markup).toContain("← Exit");
     expect(markup).toContain(dialogueSceneDemoFixture.title);
@@ -22,7 +20,7 @@ describe("dialogue-scene demo component contract", () => {
     expect(markup).toContain(dialogueSceneDemoFixture.dialogue[0].text);
     expect(markup).toContain('aria-label="Previous dialogue beat"');
     expect(markup).toContain('aria-label="Next dialogue beat"');
-    expect(markup).toContain('class="sg-btn sg-dialogue-advance"');
+    expect(markup).toContain('data-primary="true"');
     expect(markup).toContain('data-control-state="advance"');
     expect(markup).toContain('aria-controls="dialogue-scene-panel"');
     expect(markup).toContain("Hide dialogue");
@@ -57,17 +55,26 @@ describe("dialogue-scene demo component contract", () => {
     expect(markup).toContain('data-control-state="restart"');
     expect(markup).toContain('aria-label="Restart dialogue from first beat"');
     expect(markup).toContain("↻ Restart");
-    expect(markup).not.toContain("disabled");
+    expect(markup).not.toContain('disabled="');
   });
 
   test("locks a readable focused primary-control treatment", () => {
-    const css = readFileSync(path.resolve(import.meta.dir, "../../globals.css"), "utf8");
-    expect(css).toContain(
-      ".sg-dialogue-controls .sg-dialogue-advance:focus-visible:not(:disabled)",
+    // Focus must not strip the fill off the one loud control: a focused
+    // advance button keeps its gradient and dark ink, and gains a ring that
+    // reads against the night sky rather than disappearing into it.
+    const markup = renderToStaticMarkup(
+      <DialogueSceneAdvanceButton complete={false} onAction={() => undefined} />,
     );
-    expect(css).toMatch(
-      /\.sg-dialogue-controls \.sg-dialogue-advance:focus-visible:not\(:disabled\)\s*\{[^}]*background: linear-gradient\(100deg, #f29abb[^}]*color: var\(--vn-ink\)/s,
+
+    expect(markup).toContain(
+      "enabled:bg-[linear-gradient(100deg,#f29abb,#f7bfd3_56%,#ffd69b)]",
     );
+    expect(markup).toContain("enabled:text-vn-ink");
+    expect(markup).toContain("enabled:focus-visible:border-[#fff4f8]");
+    expect(markup).toContain(
+      "enabled:focus-visible:shadow-[0_0_0_2px_var(--color-vn-night),0_9px_28px_rgba(203,112,166,0.32)]",
+    );
+    expect(markup).toContain("focus-visible:outline-vn-teal");
   });
 
   test("saturates a valid public fixture value before synchronizing bounded controls", () => {

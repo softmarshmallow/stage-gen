@@ -804,7 +804,7 @@ describe("reusable gameplay recorder contracts", () => {
       const webRoot = path.resolve(import.meta.dir, "../..");
       const identity = await validateRecorderDependencies(webRoot);
       expect(identity.nextCliPath).toBe("node_modules/next/dist/bin/next");
-      expect(identity.packages.next).toMatch(/^15\./);
+      expect(identity.packages.next).toMatch(/^16\./);
       expect(identity.packages.playwright).toMatch(/^1\./);
       expect(identity.implementations.next.fileCount).toBeGreaterThan(1_000);
       expect(identity.implementations.playwright.fileCount).toBeGreaterThan(10);

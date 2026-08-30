@@ -58,30 +58,18 @@ export default async function PreviewPage({
     );
   }
   return (
-    <main style={{ padding: 0, margin: 0, background: "#0a0a0a" }}>
-      <div
-        style={{
-          padding: "8px 16px",
-          color: "#666",
-          fontSize: 12,
-          display: "flex",
-          gap: 16,
-          alignItems: "center",
-        }}
-      >
-        <Link
-          href={`/generate/${tag}`}
-          style={{ color: "#e6e6e6", textDecoration: "none" }}
-        >
+    <main className="bg-bg">
+      <div className="flex items-center gap-4 px-4 py-2 text-xs text-dim">
+        <Link href={`/generate/${tag}`} className="text-fg no-underline">
           [ ◂ back ]
         </Link>
         <span>
           stage-gen / optional scrolling preview /{" "}
-          <span style={{ color: "#e6e6e6" }}>{tag}</span>
+          <span className="text-fg">{tag}</span>
         </span>
         <span data-testid="preview-transparency-mode">
           transparency:{" "}
-          <span style={{ color: "#e6e6e6" }}>
+          <span className="text-fg">
             {transparencyModeLabel(transparencyMode)}
           </span>
         </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { button, cx } from "@/app/ui";
 
 export type LightboxImage = Readonly<{
   path: string;
@@ -39,20 +40,23 @@ export default function ImageLightbox({
 
   return (
     <div
-      className="sg-lightbox"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black p-6"
       role="dialog"
       aria-modal="true"
       aria-label={asset.label}
       onClick={(event) => {
-        if ((event.target as HTMLElement).closest(".sg-lightbox-meta")) return;
+        // The caption strip is the one part of the overlay that is not a
+        // dismiss target: it carries the alpha toggle.
+        if ((event.target as HTMLElement).closest("[data-lightbox-meta]")) return;
         onClose();
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        className={`sg-lightbox-img${
-          asset.transparent && showAlpha ? " alpha-checker" : ""
-        }`}
+        className={cx(
+          "max-h-[calc(95vh-80px)] max-w-[95vw] object-contain",
+          asset.transparent && showAlpha && "alpha-checker",
+        )}
         src={asset.url}
         alt={asset.label}
         onLoad={(event) => {
@@ -60,7 +64,10 @@ export default function ImageLightbox({
           setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
         }}
       />
-      <div className="sg-lightbox-meta">
+      <div
+        className="mt-3 flex items-center gap-4 text-xs text-dim"
+        data-lightbox-meta
+      >
         <span>{asset.path}</span>
         {dimensions.width && dimensions.height ? (
           <span>
@@ -70,7 +77,7 @@ export default function ImageLightbox({
         {asset.transparent ? (
           <button
             type="button"
-            className="sg-btn"
+            className={button}
             onClick={(event) => {
               event.stopPropagation();
               setShowAlpha((visible) => !visible);
@@ -79,7 +86,7 @@ export default function ImageLightbox({
             [ {showAlpha ? "hide" : "show"} alpha ]
           </button>
         ) : null}
-        <span style={{ color: "var(--dim)" }}>(esc to close)</span>
+        <span>(esc to close)</span>
       </div>
     </div>
   );

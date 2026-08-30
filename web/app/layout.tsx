@@ -17,7 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/* One typeface, one body size, one line height — see DESIGN.md. The
+          visual-novel demo route paints its own ground, and says so, so an
+          overscroll bounce there does not reveal the terminal black. */}
+      <body className="bg-bg font-mono text-sm/[1.5] text-fg antialiased has-[[data-vn-scene]]:bg-vn-night">
+        {children}
+      </body>
     </html>
   );
 }
