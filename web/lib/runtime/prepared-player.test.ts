@@ -13,6 +13,7 @@ const ASSET = Object.freeze({
   sha256: "a".repeat(64),
   bytes: 1,
   media_type: "image/png",
+  role: "asset" as const,
 });
 
 function crouchBinding(): MotionBinding {

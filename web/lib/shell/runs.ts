@@ -19,6 +19,10 @@ import {
   type TransparencyMode,
 } from "./transparency";
 import { tagFor } from "./tag";
+import {
+  PREPARED_RUNTIME_KIND,
+  PREPARED_RUNTIME_SCHEMA_VERSION,
+} from "@/lib/runtime/prepared-manifest";
 
 export { promptFromRunSummary } from "./transparency";
 
@@ -129,8 +133,8 @@ export async function isPreparedRuntimeRun(tag: string): Promise<boolean> {
       unknown
     >;
     return (
-      parsed["schema_version"] === 9 &&
-      parsed["kind"] === "prepared-game-runtime-v9"
+      parsed["schema_version"] === PREPARED_RUNTIME_SCHEMA_VERSION &&
+      parsed["kind"] === PREPARED_RUNTIME_KIND
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;

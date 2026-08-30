@@ -43,7 +43,7 @@ from stage_gen.recipes.scrolling_preview.motion_contract import (
 from stage_gen.recipes.scrolling_preview.terrain_design import terrain_artifact_path
 from stage_gen.reliability import atomic_write_json
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 9
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 10
 #: The render projection the scrolling-preview consumer draws at. This is the only place
 #: the asset unit meets pixels, and a consumer multiplies through it exactly once.
 RUNTIME_TILE_PX = 64
@@ -51,7 +51,23 @@ RUNTIME_TILE_PX = 64
 #: The state the asset unit measures. Every other state reaches its scale through a rebase
 #: multiplier, so measuring a second one would create a second authority for one quantity.
 _BASELINE_STATE = "idle"
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v9"
+PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v10"
+
+#: What a consumer is expected to do with one published byte set.
+#:
+#: ``asset`` names media this package publishes as its own content. Every one of them is bound
+#: by name somewhere in the manifest, so a consumer enumerating what the game is made of must
+#: account for all of them. ``provenance`` names the records and judged plates a run ships so it
+#: can be re-derived and audited; their readable values are already inlined in the manifest, so
+#: nothing has to fetch them to present the game.
+#:
+#: The role is declared where an artifact is published and never inferred downstream. Neither a
+#: filename, a directory, nor a media type can carry it: a judged comparison plate is a PNG under
+#: `content/` exactly like the artwork it was composed from. Before this was declared, every
+#: consumer that enumerated the closure had to guess, and each new provenance artifact silently
+#: broke the ones that guessed wrong.
+RuntimeArtifactRole = Literal["asset", "provenance"]
+RUNTIME_ARTIFACT_ROLES: tuple[RuntimeArtifactRole, ...] = ("asset", "provenance")
 
 
 class PreparedManifestError(ValueError):
@@ -204,17 +220,36 @@ def _assemble_prepared_runtime(
     # Silhouette height carries threat, so the ladder is admitted before anything reads it.
     admit_rank_ladder(scale, {mob.mob_id: mob.rank for mob in package.mobs.mobs})
 
-    def publish(relative_path: str) -> dict[str, object]:
+    def _publish(relative_path: str, role: RuntimeArtifactRole) -> dict[str, object]:
         existing = artifacts.get(relative_path)
         if existing is not None:
+            if existing["role"] != role:
+                raise PreparedManifestError(
+                    f"runtime artifact is published as both {existing['role']} and {role}: "
+                    f"{relative_path}"
+                )
             return existing
         source = _find_artifact(roots, relative_path)
         target = _safe_output_path(output_dir, relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
-        record = _artifact_record(target, relative_path)
+        record = _artifact_record(target, relative_path, role)
         artifacts[relative_path] = record
         return record
+
+    def publish(relative_path: str) -> dict[str, object]:
+        """Publish one asset and return the record the manifest binds it by."""
+
+        return _publish(relative_path, "asset")
+
+    def publish_provenance(relative_path: str) -> None:
+        """Publish one record or judged plate the run ships so it can be re-derived.
+
+        Nothing is returned, because provenance is never bound as an asset. It reaches a
+        consumer through the closure alone, where its declared role says not to present it.
+        """
+
+        _publish(relative_path, "provenance")
 
     def prop_manifest(prop: PropContent) -> dict[str, object]:
         relative_path = f"content/props/{prop.prop_id}.png"
@@ -244,7 +279,7 @@ def _assemble_prepared_runtime(
         relative_path = f"maps/{map_id}/layers/{layer_id}.png"
         asset = publish(relative_path)
         validation_path = f"maps/{map_id}/layers/{layer_id}.validation.json"
-        publish(validation_path)
+        publish_provenance(validation_path)
         validation = json.loads(_safe_output_path(output_dir, validation_path).read_bytes())
         placement = validation.get("placement")
         if not isinstance(placement, dict):
@@ -289,6 +324,10 @@ def _assemble_prepared_runtime(
             _find_artifact(roots, terrain_artifact_path(game_map.map_id)).read_bytes()
         )
         validate_generated_terrain(game_map, terrain)
+        # The record the occupancy below was read from travels with the run so a consumer can
+        # re-derive the world instead of trusting the inlined copy. Nothing fetches it to play:
+        # it is provenance, not an asset.
+        publish_provenance(terrain_artifact_path(game_map.map_id))
         map_manifest: dict[str, object] = {
             "map_id": game_map.map_id,
             "revision": game_map.revision,
@@ -304,14 +343,13 @@ def _assemble_prepared_runtime(
             "layers": [layer_manifest(game_map.map_id, layer) for layer in game_map.layers],
             "ground": {
                 "mode": game_map.ground.mode,
-                # Geometry is a generated artifact like any other. It is published so the run
-                # records its digest and lineage, and inlined so the consumer can read the world
-                # without a second fetch -- the same treatment portal endpoints already get.
+                # Inlined so the consumer can read the world without a second fetch -- the same
+                # treatment portal endpoints already get. The generated record itself is in the
+                # closure as provenance, which is where its digest and lineage live.
                 "occupancy": list(terrain.occupancy),
                 "vertical_fit": game_map.ground.vertical_fit,
                 "walk_surface_row": terrain.walk_surface_row,
                 "asset": publish(f"maps/{game_map.map_id}/ground.png"),
-                "terrain_asset": publish(terrain_artifact_path(game_map.map_id)),
             },
         }
         if game_map.climbable is not None:
@@ -324,7 +362,7 @@ def _assemble_prepared_runtime(
             # is several times narrower than a ladder; without this the runtime has no way to draw
             # each at its own width.
             climbable_validation_path = f"maps/{game_map.map_id}/climbable.validation.json"
-            publish(climbable_validation_path)
+            publish_provenance(climbable_validation_path)
             climbable_validation = json.loads(
                 _safe_output_path(output_dir, climbable_validation_path).read_bytes()
             )
@@ -406,7 +444,7 @@ def _assemble_prepared_runtime(
             ),
             **_motion_rebase_binding(
                 output_dir,
-                publish,
+                publish_provenance,
                 player.player_id,
                 [motion.state for motion in player.motions],
             ),
@@ -563,6 +601,7 @@ def _assemble_prepared_runtime(
             "artifacts": artifact_records,
         },
     }
+    _validate_closure_roles(manifest, artifacts)
     atomic_write_json(output_dir / "manifest.json", manifest)
     return PreparedManifestResult(
         manifest=manifest,
@@ -644,7 +683,7 @@ def _subject_calibration(
 
 def _motion_rebase_binding(
     output_dir: Path,
-    publish: Callable[[str], dict[str, object]],
+    publish_provenance: Callable[[str], None],
     player_id: str,
     states: Sequence[str],
 ) -> dict[str, object]:
@@ -657,10 +696,10 @@ def _motion_rebase_binding(
     """
 
     relative_path = f"content/players/{player_id}/motion-rebase.json"
-    publish(relative_path)
-    publish(f"content/players/{player_id}/motion-rebase-first-pass.json")
-    publish(f"content/players/{player_id}/motion-rebase-plate.png")
-    publish(f"content/players/{player_id}/motion-rebase-verification-plate.png")
+    publish_provenance(relative_path)
+    publish_provenance(f"content/players/{player_id}/motion-rebase-first-pass.json")
+    publish_provenance(f"content/players/{player_id}/motion-rebase-plate.png")
+    publish_provenance(f"content/players/{player_id}/motion-rebase-verification-plate.png")
     record = json.loads(_safe_output_path(output_dir, relative_path).read_bytes())
     if not isinstance(record, dict):
         raise PreparedManifestError(f"player {player_id} motion rebase record is not an object")
@@ -743,7 +782,9 @@ def _safe_output_path(output_dir: Path, relative_path: str) -> Path:
     return target
 
 
-def _artifact_record(path: Path, relative_path: str) -> dict[str, object]:
+def _artifact_record(
+    path: Path, relative_path: str, role: RuntimeArtifactRole
+) -> dict[str, object]:
     data = path.read_bytes()
     suffix = path.suffix.lower()
     record: dict[str, object] = {
@@ -751,6 +792,8 @@ def _artifact_record(path: Path, relative_path: str) -> dict[str, object]:
         "sha256": hashlib.sha256(data).hexdigest(),
         "bytes": len(data),
         "media_type": _media_type(suffix),
+        # Declared at publication, because nothing about the bytes reveals it.
+        "role": role,
     }
     if suffix in {".png", ".jpg", ".jpeg", ".webp"}:
         with Image.open(path) as image:
@@ -768,9 +811,61 @@ def _media_type(suffix: str) -> str:
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
         ".mp3": "audio/mpeg",
-        # Generated terrain geometry is published like any other artifact.
+        # Generated geometry and measurement records are published like any other artifact.
         ".json": "application/json",
     }.get(suffix, "application/octet-stream")
+
+
+def _is_artifact_record(value: dict[str, object]) -> bool:
+    """Recognise a published artifact record wherever it is bound in the manifest."""
+
+    return isinstance(value.get("path"), str) and {"sha256", "bytes", "media_type", "role"} <= set(
+        value
+    )
+
+
+def _bound_artifact_paths(manifest: dict[str, object]) -> set[str]:
+    """Collect every artifact the manifest binds by name, ignoring the closure listing itself."""
+
+    bound: set[str] = set()
+    pending: list[object] = [value for key, value in manifest.items() if key != "closure"]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, dict):
+            if _is_artifact_record(current):
+                path = current["path"]
+                assert isinstance(path, str)
+                bound.add(path)
+                continue
+            pending.extend(current.values())
+        elif isinstance(current, list):
+            pending.extend(current)
+    return bound
+
+
+def _validate_closure_roles(
+    manifest: dict[str, object], artifacts: dict[str, dict[str, object]]
+) -> None:
+    """Prove the published closure and the manifest's bindings say the same thing.
+
+    This is the producer's job, not a consumer's. A consumer handed a valid manifest can present
+    every asset without guessing, and the run that would have made it guess fails here instead of
+    at somebody's page load.
+    """
+
+    bound = _bound_artifact_paths(manifest)
+    assets = {path for path, record in artifacts.items() if record["role"] == "asset"}
+    unbound = sorted(assets - bound)
+    if unbound:
+        raise PreparedManifestError(
+            "assets are published without a manifest binding: " + ", ".join(unbound)
+        )
+    unpublished = sorted(bound - assets)
+    if unpublished:
+        raise PreparedManifestError(
+            "the manifest binds artifacts that are not published as assets: "
+            + ", ".join(unpublished)
+        )
 
 
 def _canonical_sha256(value: Any) -> str:
@@ -780,63 +875,91 @@ def _canonical_sha256(value: Any) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
-    """Return the deterministic expected media closure for tests and reporting."""
+def runtime_artifact_closure(
+    package: ResolvedGamePackage,
+) -> tuple[tuple[str, RuntimeArtifactRole], ...]:
+    """Return the deterministic expected closure, each path beside the role it is published as.
 
-    paths: list[str] = []
+    This is the same declaration the assembler makes, stated once where tests, the execution
+    graph, and reporting can all read it. A new artifact has to choose a role here, so growing
+    the closure is a decision rather than an accident.
+    """
+
+    closure: list[tuple[str, RuntimeArtifactRole]] = []
     for game_map in package.maps:
         for layer in game_map.layers:
-            paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.png")
+            closure.append((f"maps/{game_map.map_id}/layers/{layer.layer_id}.png", "asset"))
             # The measured placement travels with the raster so a published runtime stays usable
             # as an artifact root for a later corrective run.
-            paths.append(f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json")
-        paths.append(f"maps/{game_map.map_id}/ground.png")
-        # Generated geometry travels with the run exactly as a generated image does.
-        paths.append(terrain_artifact_path(game_map.map_id))
+            closure.append(
+                (f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json", "provenance")
+            )
+        closure.append((f"maps/{game_map.map_id}/ground.png", "asset"))
+        # Generated geometry travels with the run, but the manifest already inlines what a
+        # consumer reads from it.
+        closure.append((terrain_artifact_path(game_map.map_id), "provenance"))
         if game_map.climbable is not None:
-            paths.append(f"maps/{game_map.map_id}/climbable.png")
+            closure.append((f"maps/{game_map.map_id}/climbable.png", "asset"))
             # The measured per-variant cell geometry travels with the sheet, exactly as a layer's
             # measured placement travels with its raster.
-            paths.append(f"maps/{game_map.map_id}/climbable.validation.json")
+            closure.append((f"maps/{game_map.map_id}/climbable.validation.json", "provenance"))
         if game_map.portal is not None:
-            paths.append(f"maps/{game_map.map_id}/portal.png")
+            closure.append((f"maps/{game_map.map_id}/portal.png", "asset"))
     for player in package.player.players:
-        paths.append(f"content/players/{player.player_id}/concept.png")
-        paths.extend(
-            f"content/players/{player.player_id}/states/{motion.state}.png"
+        closure.append((f"content/players/{player.player_id}/concept.png", "asset"))
+        closure.extend(
+            (f"content/players/{player.player_id}/states/{motion.state}.png", "asset")
             for motion in player.motions
         )
-        paths.append(f"content/players/{player.player_id}/dialogue.png")
+        closure.append((f"content/players/{player.player_id}/dialogue.png", "asset"))
         # The judged rebase and the plates it was read from travel with the run: the multipliers
         # are a property of this artwork, so a consumer must be able to re-derive them rather
         # than trust a value copied forward. Both passes ship - the first-pass record and its
         # plate, then the verification plate the residual was read from.
-        paths.append(f"content/players/{player.player_id}/motion-rebase.json")
-        paths.append(f"content/players/{player.player_id}/motion-rebase-first-pass.json")
-        paths.append(f"content/players/{player.player_id}/motion-rebase-plate.png")
-        paths.append(f"content/players/{player.player_id}/motion-rebase-verification-plate.png")
-    for mob in package.mobs.mobs:
-        paths.append(f"content/mobs/{mob.mob_id}/concept.png")
-        paths.extend(
-            f"content/mobs/{mob.mob_id}/states/{motion.state}.png" for motion in mob.motions
+        closure.append((f"content/players/{player.player_id}/motion-rebase.json", "provenance"))
+        closure.append(
+            (f"content/players/{player.player_id}/motion-rebase-first-pass.json", "provenance")
         )
-    for npc in package.npcs.npcs:
-        paths.extend(
+        closure.append(
+            (f"content/players/{player.player_id}/motion-rebase-plate.png", "provenance")
+        )
+        closure.append(
             (
-                f"content/npcs/{npc.npc_id}/world.png",
-                f"content/npcs/{npc.npc_id}/dialogue.png",
+                f"content/players/{player.player_id}/motion-rebase-verification-plate.png",
+                "provenance",
             )
         )
-    paths.extend(f"content/props/{entry.prop_id}.png" for entry in package.props.props)
-    paths.extend(f"content/items/{entry.item_id}.png" for entry in package.items.items)
+    for mob in package.mobs.mobs:
+        closure.append((f"content/mobs/{mob.mob_id}/concept.png", "asset"))
+        closure.extend(
+            (f"content/mobs/{mob.mob_id}/states/{motion.state}.png", "asset")
+            for motion in mob.motions
+        )
+    for npc in package.npcs.npcs:
+        closure.extend(
+            (
+                (f"content/npcs/{npc.npc_id}/world.png", "asset"),
+                (f"content/npcs/{npc.npc_id}/dialogue.png", "asset"),
+            )
+        )
+    closure.extend((f"content/props/{entry.prop_id}.png", "asset") for entry in package.props.props)
+    closure.extend((f"content/items/{entry.item_id}.png", "asset") for entry in package.items.items)
     if package.projectiles is not None:
-        paths.extend(
-            f"content/projectiles/{entry.projectile_id}.png"
+        closure.extend(
+            (f"content/projectiles/{entry.projectile_id}.png", "asset")
             for entry in package.projectiles.projectiles
         )
-    paths.append("ui/inventory_panel.png")
-    paths.extend(f"soundtrack/{track.track_id}.mp3" for track in package.soundtrack.tracks)
-    return tuple(sorted(paths))
+    closure.append(("ui/inventory_panel.png", "asset"))
+    closure.extend(
+        (f"soundtrack/{track.track_id}.mp3", "asset") for track in package.soundtrack.tracks
+    )
+    return tuple(sorted(closure))
+
+
+def runtime_artifact_paths(package: ResolvedGamePackage) -> tuple[str, ...]:
+    """Return the deterministic expected media closure for tests and reporting."""
+
+    return tuple(path for path, _ in runtime_artifact_closure(package))
 
 
 def verify_prepared_runtime(run_dir: Path) -> dict[str, object]:
@@ -872,7 +995,14 @@ def verify_prepared_runtime(run_dir: Path) -> dict[str, object]:
             raise PreparedManifestError(f"runtime closure artifact is not a file: {relative_path}")
         if not target.resolve(strict=True).is_relative_to(root):
             raise PreparedManifestError(f"runtime closure artifact escapes run: {relative_path}")
-        actual = _artifact_record(target, relative_path)
+        role = raw_record.get("role")
+        if role not in RUNTIME_ARTIFACT_ROLES:
+            raise PreparedManifestError(
+                f"runtime closure artifact declares no known role: {relative_path}"
+            )
+        # Every other field is re-derived from the bytes. A role cannot be, so it is read back
+        # from the declaration and checked against the vocabulary instead.
+        actual = _artifact_record(target, relative_path, role)
         if actual != raw_record:
             raise PreparedManifestError(f"runtime closure artifact drifted: {relative_path}")
         paths.append(relative_path)
@@ -903,9 +1033,12 @@ def verify_prepared_runtime(run_dir: Path) -> dict[str, object]:
 __all__ = [
     "PREPARED_RUNTIME_MANIFEST_KIND",
     "PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION",
+    "RUNTIME_ARTIFACT_ROLES",
+    "RuntimeArtifactRole",
     "PreparedManifestError",
     "PreparedManifestResult",
     "assemble_prepared_runtime",
+    "runtime_artifact_closure",
     "runtime_artifact_paths",
     "verify_prepared_runtime",
 ]

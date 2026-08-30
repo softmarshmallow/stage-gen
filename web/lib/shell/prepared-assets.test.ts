@@ -5,12 +5,13 @@ import { projectPreparedRuntimeAssets } from "./prepared-assets";
 
 const DIGEST = "a".repeat(64);
 
-function image(path: string) {
+function image(path: string, role = "asset") {
   return {
     path,
     sha256: DIGEST,
     bytes: 100,
     media_type: "image/png",
+    role,
     width: 128,
     height: 64,
   };
@@ -22,6 +23,17 @@ function audio(path: string) {
     sha256: DIGEST,
     bytes: 200,
     media_type: "audio/mpeg",
+    role: "asset",
+  };
+}
+
+function record(path: string) {
+  return {
+    path,
+    sha256: DIGEST,
+    bytes: 300,
+    media_type: "application/json",
+    role: "provenance",
   };
 }
 
@@ -42,13 +54,20 @@ function preparedManifestFixture() {
     npcDialogue: image("content/npcs/guide/dialogue.png"),
     prop: image("content/props/signpost.png"),
     item: image("content/items/coin.png"),
+    projectile: image("content/projectiles/pebble.png"),
     track: audio("soundtrack/meadow.mp3"),
     inventoryPanel: image("ui/inventory_panel.png"),
   };
-  const closure = Object.values(assets).reverse();
+  // Published by the run and bound by nothing: the closure is wider than the bindings, which is
+  // the shape a real package has and the one this projection has to survive.
+  const provenance = [
+    image("content/players/hero/motion-rebase-plate.png", "provenance"),
+    record("maps/meadow/terrain.json"),
+  ];
+  const closure = [...Object.values(assets), ...provenance].reverse();
   return {
-    schema_version: 9,
-    kind: "prepared-game-runtime-v9",
+    schema_version: 10,
+    kind: "prepared-game-runtime-v10",
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",
@@ -313,6 +332,23 @@ function preparedManifestFixture() {
         asset: assets.item,
       },
     ],
+    projectiles: [
+      {
+        calibration: {
+          height_units: 0.2,
+          height_units_source: "authored",
+          source_px_per_unit: 700,
+          measured_sha256: "1111111111111111111111111111111111111111111111111111111111111111",
+          subject_extent_px: 140,
+        },
+        projectile_id: "pebble",
+        display_name: "Sling Pebble",
+        silhouette: "round",
+        flight: "arc",
+        impact: "puff",
+        asset: assets.projectile,
+      },
+    ],
     ui: {
       inventory_panel: {
         ...INVENTORY_GRID_4X2_V1,
@@ -492,8 +528,10 @@ describe("prepared runtime asset projection", () => {
       "npc-guide",
       "props",
       "items",
+      "projectiles",
       "ui",
       "soundtrack",
+      "provenance",
     ]);
     expect(groups[0]?.assets.map((asset) => asset.path)).toEqual([
       "maps/meadow/layers/sky.png",
@@ -512,15 +550,18 @@ describe("prepared runtime asset projection", () => {
 
     const cards = groups.flatMap((entry) => entry.assets);
     const paths = cards.map((asset) => asset.path);
+    // The whole closure is accounted for, each artifact under the role it was published as.
     expect(cards).toHaveLength(manifest.closure.artifact_count);
     expect(new Set(paths).size).toBe(paths.length);
     expect(new Set(paths)).toEqual(
       new Set(manifest.closure.artifacts.map((artifact) => artifact.path)),
     );
-    expect(cards.at(-1)).toEqual({
+    expect(groups.filter((entry) => entry.role === "provenance")).toHaveLength(1);
+    expect(cards.find((asset) => asset.path === "soundtrack/meadow.mp3")).toEqual({
       path: "soundtrack/meadow.mp3",
       label: "Meadow Theme",
       media_type: "audio/mpeg",
+      bytes: 200,
       transparent: false,
     });
     expect(Object.isFrozen(groups)).toBeTrue();
@@ -539,15 +580,6 @@ describe("prepared runtime asset projection", () => {
       projectPreparedRuntimeAssets(parsePreparedRuntimeManifest(missing)),
     ).toThrow(
       "prepared asset is missing from closure: content/props/signpost.png",
-    );
-
-    const extra = structuredClone(preparedManifestFixture());
-    extra.closure.artifacts.push(image("content/props/extra.png"));
-    extra.closure.artifact_count = extra.closure.artifacts.length;
-    expect(() =>
-      projectPreparedRuntimeAssets(parsePreparedRuntimeManifest(extra)),
-    ).toThrow(
-      "prepared asset closure contains an unbound artifact: content/props/extra.png",
     );
 
     const divergent = structuredClone(preparedManifestFixture());
@@ -591,6 +623,73 @@ describe("prepared runtime asset projection", () => {
       projectPreparedRuntimeAssets(parsePreparedRuntimeManifest(duplicateBinding)),
     ).toThrow(
       "prepared asset binding path is used more than once: content/props/signpost.png",
+    );
+  });
+  test("lists provenance under its own role instead of presenting it as content", () => {
+    const manifest = parsePreparedRuntimeManifest(preparedManifestFixture());
+    const groups = projectPreparedRuntimeAssets(manifest);
+
+    const provenance = groups.find((entry) => entry.group_id === "provenance");
+    expect(provenance?.role).toBe("provenance");
+    // Listed in the order the producer published them, which is the closure's own order.
+    expect(provenance?.assets.map((asset) => asset.path)).toEqual([
+      "maps/meadow/terrain.json",
+      "content/players/hero/motion-rebase-plate.png",
+    ]);
+    // A judged plate is a PNG under `content/`, so no media type or path convention could have
+    // separated it from the artwork it was composed from. The declared role does.
+    expect(provenance?.assets[1]?.media_type).toBe("image/png");
+    expect(
+      groups
+        .filter((entry) => entry.role === "asset")
+        .flatMap((entry) => entry.assets.map((asset) => asset.path)),
+    ).not.toContain("content/players/hero/motion-rebase-plate.png");
+  });
+
+  test("lists an asset it cannot group yet rather than refusing to render the page", () => {
+    // This is the whole failure mode the role vocabulary exists to stop: a package grows an
+    // artifact family before this view learns it. Showing the run minus one card beats showing
+    // nobody anything.
+    const grown = structuredClone(preparedManifestFixture());
+    grown.closure.artifacts.push(image("content/pets/moth.png"));
+    grown.closure.artifact_count = grown.closure.artifacts.length;
+
+    const groups = projectPreparedRuntimeAssets(parsePreparedRuntimeManifest(grown));
+    const ungrouped = groups.find((entry) => entry.group_id === "ungrouped");
+    expect(ungrouped?.role).toBe("asset");
+    expect(ungrouped?.assets.map((asset) => asset.path)).toEqual([
+      "content/pets/moth.png",
+    ]);
+    expect(groups.flatMap((entry) => entry.assets)).toHaveLength(
+      grown.closure.artifact_count,
+    );
+  });
+
+  test("rejects a binding onto an artifact published as provenance", () => {
+    // The judged plate is shaped exactly like the artwork, so only the role catches this.
+    const misbound = structuredClone(preparedManifestFixture());
+    misbound.items[0]!.asset = image(
+      "content/players/hero/motion-rebase-plate.png",
+      "provenance",
+    );
+    misbound.closure.artifacts = misbound.closure.artifacts.filter(
+      (artifact) => artifact.path !== "content/items/coin.png",
+    );
+    misbound.closure.artifact_count = misbound.closure.artifacts.length;
+
+    expect(() =>
+      projectPreparedRuntimeAssets(parsePreparedRuntimeManifest(misbound)),
+    ).toThrow(
+      "prepared asset binding resolves to a provenance artifact: content/players/hero/motion-rebase-plate.png",
+    );
+  });
+
+  test("rejects a closure artifact with no declared role", () => {
+    const roleless = structuredClone(preparedManifestFixture());
+    delete (roleless.closure.artifacts[0] as { role?: string }).role;
+
+    expect(() => parsePreparedRuntimeManifest(roleless)).toThrow(
+      "closure.artifacts[0].role is invalid",
     );
   });
 });

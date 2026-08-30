@@ -312,6 +312,12 @@ button:disabled {
   font-size: 18px;
   user-select: none;
 }
+/* A published record with nothing to render: shown as a file, never as a broken image. */
+.sg-slot-record {
+  color: var(--dim);
+  font-size: 18px;
+  user-select: none;
+}
 .sg-slot-fail {
   color: var(--error);
   font-size: 24px;

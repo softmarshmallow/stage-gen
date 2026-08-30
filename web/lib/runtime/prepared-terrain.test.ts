@@ -17,6 +17,7 @@ function mapGeometry(
         sha256: "a".repeat(64),
         bytes: 1,
         media_type: "image/png",
+        role: "asset" as const,
       },
     },
     climbable: {
@@ -26,6 +27,7 @@ function mapGeometry(
         sha256: "b".repeat(64),
         bytes: 1,
         media_type: "image/png",
+        role: "asset" as const,
       },
       index_order: "left_to_right",
       variants: [

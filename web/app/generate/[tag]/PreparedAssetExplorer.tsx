@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { preparedAssetUrl } from "@/lib/runtime/prepared-manifest";
-import type { PreparedAssetGroup } from "@/lib/shell/prepared-assets";
+import type {
+  PreparedAssetCard,
+  PreparedAssetGroup,
+} from "@/lib/shell/prepared-assets";
 import ImageLightbox, { type LightboxImage } from "./ImageLightbox";
 
 export type PreparedAssetExplorerModel = Readonly<{
@@ -16,12 +19,43 @@ export type PreparedAssetExplorerModel = Readonly<{
   groups: readonly PreparedAssetGroup[];
 }>;
 
+const UNGROUPED_GROUP_ID = "ungrouped";
+
+function countAssets(groups: readonly PreparedAssetGroup[]): number {
+  return groups.reduce((total, group) => total + group.assets.length, 0);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function noteFor(group: PreparedAssetGroup): string | null {
+  if (group.group_id === UNGROUPED_GROUP_ID) {
+    return "published as content by this package, but this view has no place for it yet";
+  }
+  if (group.role === "provenance") {
+    return "records and judged plates the run ships so it can be re-derived; nothing loads them to play";
+  }
+  return null;
+}
+
 export default function PreparedAssetExplorer({
   model,
 }: {
   model: PreparedAssetExplorerModel;
 }) {
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
+
+  const assetGroups = model.groups.filter((group) => group.role === "asset");
+  const assetCount = countAssets(assetGroups);
+  const provenanceCount = countAssets(
+    model.groups.filter((group) => group.role === "provenance"),
+  );
+  const ungroupedCount = countAssets(
+    model.groups.filter((group) => group.group_id === UNGROUPED_GROUP_ID),
+  );
 
   return (
     <main className="sg-page">
@@ -41,7 +75,14 @@ export default function PreparedAssetExplorer({
           </div>
           <div className="sg-meta-line">
             status: <span style={{ color: "var(--accent)" }}>prepared</span> ·{" "}
-            {model.artifact_count} / {model.artifact_count} manifest-bound artifacts
+            {model.artifact_count} closure artifacts · {assetCount} assets ·{" "}
+            {provenanceCount} provenance
+            {ungroupedCount > 0 ? (
+              <>
+                {" "}
+                · <span style={{ color: "var(--error)" }}>{ungroupedCount} ungrouped</span>
+              </>
+            ) : null}
           </div>
           <div className="sg-meta-line" title={model.package_sha256}>
             package: <span style={{ color: "var(--fg)" }}>{model.package_sha256.slice(0, 16)}…</span>
@@ -56,13 +97,15 @@ export default function PreparedAssetExplorer({
         const audioOnly = group.assets.every((asset) =>
           asset.media_type.startsWith("audio/"),
         );
+        const note = noteFor(group);
         return (
           <section key={group.group_id} aria-labelledby={`group-${group.group_id}`}>
             <div className="sg-section-h" id={`group-${group.group_id}`}>
               {group.label} · {group.assets.length}
             </div>
+            {note ? <div className="sg-asset-path">{note}</div> : null}
             <div className={audioOnly ? "sg-audio-grid" : "sg-grid"}>
-              {group.assets.map((asset) => {
+              {group.assets.map((asset: PreparedAssetCard) => {
                 const url = preparedAssetUrl(model.tag, asset.path);
                 if (asset.media_type.startsWith("audio/")) {
                   return (
@@ -75,6 +118,25 @@ export default function PreparedAssetExplorer({
                         {asset.path}
                       </div>
                     </article>
+                  );
+                }
+                if (!asset.media_type.startsWith("image/")) {
+                  return (
+                    <a
+                      className="sg-slot"
+                      key={asset.path}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`open ${asset.path}`}
+                    >
+                      <div className="sg-slot-inner">
+                        <span className="sg-slot-record">{"{ }"}</span>
+                      </div>
+                      <div className="sg-slot-label" title={asset.path}>
+                        {asset.path.split("/").at(-1)} · {formatBytes(asset.bytes)}
+                      </div>
+                    </a>
                   );
                 }
                 return (

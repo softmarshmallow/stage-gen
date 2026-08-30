@@ -10,8 +10,8 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 
 ```json
 {
-  "schema_version": 8,
-  "kind": "prepared-game-runtime-v9"
+  "schema_version": 10,
+  "kind": "prepared-game-runtime-v10"
 }
 ```
 
@@ -51,15 +51,26 @@ count, media type, and image dimensions. The closure list has its own canonical 
 
 The details route is `/generate/<run-tag>`. For a prepared package it reads the same validated
 `manifest.json` and projects every explicitly bound closure artifact exactly once into semantic
-map, player, mob, NPC, prop, item, UI, and soundtrack groups. It does not use directory scans,
-filename conventions, `run.json`, `WorldSpec`, retry controls, or pipeline events. Images open in
-an alpha-aware lightbox and soundtrack artifacts use native audio controls. The home page also
-discovers prepared packages from this manifest, without requiring a legacy prompt-run summary.
+map, player, mob, NPC, prop, item, projectile, UI, and soundtrack groups. It does not use
+directory scans, filename conventions, `run.json`, `WorldSpec`, retry controls, or pipeline
+events. Images open in an alpha-aware lightbox and soundtrack artifacts use native audio
+controls. The home page also discovers prepared packages from this manifest, without requiring a
+legacy prompt-run summary.
+
+The page accounts for the whole closure, each artifact under the
+[role](spec/game/generation-pipeline.md#runtime-closure-roles) the producer published it as.
+Artifacts published as `provenance` are listed as records rather than presented as content, and a
+record with nothing to render is shown as a file instead of a broken image. An `asset` no group
+claims is listed as ungrouped and counted in the header: a package that grew a family this view
+has not learned yet is this view falling behind, and the page says so rather than refusing to
+render the rest of the run. Completeness of the classification is the producer's invariant,
+enforced when the manifest is assembled; the page never has to infer a role from a path or a
+media type.
 
 This explorer is intentionally runtime-closure-only. Producer review evidence, contact sheets,
-map composites, authored references, and validation reports remain in their checkpoint artifact
-roots; they must not be copied into the gameplay closure merely to populate this page. A future
-review explorer needs its own explicit review-manifest boundary.
+map composites, authored references, and reports outside the published closure remain in their
+checkpoint artifact roots; they must not be copied into the gameplay closure merely to populate
+this page. A future review explorer needs its own explicit review-manifest boundary.
 
 ## Consumer ownership
 
@@ -212,7 +223,7 @@ tests and evidence are retired safely. Prepared `/generate/<run-tag>` routes use
 asset explorer, and `/preview/<run-tag>` boots `PreparedStageScene` exclusively.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v9` is the only manifest
+`game.toml` is the package root, and `prepared-game-runtime-v10` is the only manifest
 accepted by the active preview.
 
 The retired prompt-launching adapter is not an active generation authority. The legacy `{ prompt, transparency_mode }` HTTP start body is rejected instead of being translated into a prepared package.

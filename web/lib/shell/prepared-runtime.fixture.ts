@@ -1,14 +1,22 @@
-import type { RuntimeArtifact } from "@/lib/runtime/prepared-manifest";
+import type {
+  RuntimeArtifact,
+  RuntimeArtifactRole,
+} from "@/lib/runtime/prepared-manifest";
 import { INVENTORY_GRID_4X2_V1 } from "@/lib/runtime/inventory-layout";
 
 const HASH = "a".repeat(64);
 
-function artifact(path: string, mediaType = "image/png"): RuntimeArtifact {
+function artifact(
+  path: string,
+  mediaType = "image/png",
+  role: RuntimeArtifactRole = "asset",
+): RuntimeArtifact {
   return {
     path,
     sha256: HASH,
     bytes: 128,
     media_type: mediaType,
+    role,
     width: 64,
     height: 64,
   };
@@ -23,6 +31,12 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   const playerCrouch = artifact("content/player/states/crouch.png");
   const playerDialogue = artifact("content/player/dialogue.png");
   const inventoryPanel = artifact("ui/inventory_panel.png");
+  // Published beside the assets and bound by nothing, exactly as a real run ships it.
+  const terrainRecord = artifact(
+    "maps/village/terrain.json",
+    "application/json",
+    "provenance",
+  );
   const artifacts = [
     background,
     ground,
@@ -32,11 +46,12 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
     playerCrouch,
     playerDialogue,
     inventoryPanel,
+    terrainRecord,
   ];
 
   return {
-    schema_version: 9,
-    kind: "prepared-game-runtime-v9",
+    schema_version: 10,
+    kind: "prepared-game-runtime-v10",
     game_id: "prepared_fixture",
     revision: 1,
     display_name: "Prepared Fixture",

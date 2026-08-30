@@ -32,6 +32,7 @@ function map(
         sha256: "a".repeat(64),
         bytes: 1,
         media_type: "image/png",
+        role: "asset" as const,
       },
     },
     portal: {
@@ -42,6 +43,7 @@ function map(
         sha256: "b".repeat(64),
         bytes: 1,
         media_type: "image/png",
+        role: "asset" as const,
       },
     },
   };

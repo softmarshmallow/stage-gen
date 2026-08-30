@@ -262,12 +262,15 @@ never silently changes the selected strategy.
 ### Runtime publication gate
 
 Prepared manifest completion requires the complete package-derived runtime
-closure. `prepared-game-runtime-v9` publishes every map's layers, 47-mask ground
+closure. `prepared-game-runtime-v10` publishes every map's layers, 47-mask ground
 atlas, authored occupancy, and only the ladder or portal bundles that map declares;
 it also publishes all authored actor motions, dialogue, props, items, inventory UI,
 soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoint
 anchors remain inside their owning map record, while climb permission and transition
 relationships remain in gameplay. There is no run-global prepared ladder or portal.
+Every closure artifact declares an `asset` or `provenance` role at publication; see
+[runtime closure roles](game/generation-pipeline.md#runtime-closure-roles) for the partition and
+the invariant integration enforces over it.
 Every published prop also carries `ground_contact_y_normalized`, deterministically measured
 from meaningful native-alpha components. This keeps authored transparent padding intact while
 preventing the runtime from treating the canvas bottom as the object's terrain contact.
@@ -321,7 +324,7 @@ The [canonical game-generation pipeline](game/generation-pipeline.md) owns the c
 package graph, conditional composition, operation counts, and execution semantics. Prepared
 packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
-to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v9`.
+to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v10`.
 
 The wave table below documents only the older prompt/tag recipe and remains the detailed authority
 for assets produced by that legacy path.

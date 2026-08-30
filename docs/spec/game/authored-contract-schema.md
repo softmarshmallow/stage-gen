@@ -189,7 +189,7 @@ Membership stays exact: a member named here but absent is rejected as
 every member path, digest, and byte size as `closure_sha256`, which appears in
 the resolved package identity and in the `game-package-validation-v4` report.
 The scrolling DAG consumes this resolved package and integration emits only
-`prepared-game-runtime-v9`.
+`prepared-game-runtime-v10`.
 
 Validate the canonical package with:
 

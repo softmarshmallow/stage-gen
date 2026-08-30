@@ -2,6 +2,7 @@ import { constants as fsConstants, promises as fs } from "node:fs";
 import path from "node:path";
 import {
   parsePreparedRuntimeManifest,
+  PREPARED_RUNTIME_KIND,
   type PreparedRuntimeManifest,
 } from "@/lib/runtime/prepared-manifest";
 import {
@@ -40,6 +41,10 @@ async function assertRealDirectory(
  * Read and validate the immutable prepared-runtime authority for one safe run.
  * The file is opened without following symlinks and its inode is rechecked
  * after reading so consumers never parse a path-swapped manifest.
+ *
+ * A manifest published under any other identity is not a prepared run here, exactly as an absent
+ * one is not. A manifest that claims this identity and then fails validation still throws,
+ * because that is a contract violation rather than a run this build does not read.
  */
 export async function readPreparedRuntimeManifest(
   tag: string,
@@ -87,5 +92,11 @@ export async function readPreparedRuntimeManifest(
     throw new Error("run directory changed while its manifest was being read");
   }
 
-  return parsePreparedRuntimeManifest(JSON.parse(bytes.toString("utf8")));
+  const declared: unknown = JSON.parse(bytes.toString("utf8"));
+  const kind =
+    typeof declared === "object" && declared !== null
+      ? (declared as Record<string, unknown>).kind
+      : undefined;
+  if (kind !== PREPARED_RUNTIME_KIND) return null;
+  return parsePreparedRuntimeManifest(declared);
 }

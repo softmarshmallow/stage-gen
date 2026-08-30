@@ -31,7 +31,7 @@ executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their 
 Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
 provider-free terminal operation over accepted artifact roots. It validates the complete
 package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one run whose tag is immutable by default, and emits `prepared-game-runtime-v9`. The
+publishes one run whose tag is immutable by default, and emits `prepared-game-runtime-v10`. The
 `--dry-run` path still exercises the complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -416,10 +416,31 @@ counts one successful provider operation per provider node.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v9` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v10` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.
+
+## Runtime closure roles
+
+Every artifact in `manifest.json`'s closure declares what it is published for. The role is chosen
+at the publication site in [`prepared_manifest.py`](../../../src/stage_gen/recipes/scrolling_preview/prepared_manifest.py)
+and stated once, beside the path, in `runtime_artifact_closure`.
+
+| Role | Meaning | Members |
+| --- | --- | --- |
+| `asset` | Media this package publishes as its own content. Bound by name somewhere in the manifest, and a consumer enumerating what the game is made of must account for all of them. | Map layers, ground atlas, optional climbable and portal sheets, actor concepts, motion atlases, dialogue atlases, props, items, projectiles, inventory panel, soundtrack tracks |
+| `provenance` | Records and judged plates the run ships so it can be re-derived and audited. Their readable values are already inlined in the manifest, so nothing fetches them to present the game. | `maps/*/layers/*.validation.json`, `maps/*/climbable.validation.json`, `maps/*/terrain.json`, `content/players/*/motion-rebase*.json`, `content/players/*/motion-rebase*-plate.png` |
+
+Nothing observable separates the two, which is why the role is declared rather than inferred: a
+judged comparison plate is a PNG under `content/` exactly like the artwork it was composed from,
+and a measured placement record is JSON exactly like generated terrain geometry.
+
+Integration enforces the partition before it writes anything: every `asset` must be bound by the
+manifest, and every manifest binding must be published as an `asset`. Adding an artifact to the
+closure therefore means choosing its role, and a consumer never has to guess. Consumers validate
+the vocabulary and may present, list, or ignore an artifact by role, but must not classify by
+filename, directory, or media type.
 
 ```bash
 uv run stage-gen package plan --input library/games/bellweather

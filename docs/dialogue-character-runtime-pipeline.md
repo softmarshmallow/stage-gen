@@ -5,7 +5,7 @@
 Prepared games author NPC visual identity in `content/npcs.toml` and dialogue
 control flow in `sequences/*.toml`. Those sources are resolved together before
 generation, generated inside one immutable run, and projected into
-`prepared-game-runtime-v9`. The browser never reaches into a sibling run or
+`prepared-game-runtime-v10`. The browser never reaches into a sibling run or
 invents missing dialogue.
 
 ## Ownership
@@ -38,7 +38,7 @@ game.toml
 
 NPC catalog review + resolved sequences + all other asset branches
   -> provider-free integration
-     -> prepared-game-runtime-v9
+     -> prepared-game-runtime-v10
         -> strict prepared web consumer
            -> interaction prompt and dialogue presentation
 ```

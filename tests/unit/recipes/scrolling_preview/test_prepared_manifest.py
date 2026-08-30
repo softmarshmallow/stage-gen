@@ -10,8 +10,12 @@ from PIL import Image
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.recipes.scrolling_preview.prepared_manifest import (
     PREPARED_RUNTIME_MANIFEST_KIND,
+    RUNTIME_ARTIFACT_ROLES,
     PreparedManifestError,
+    _bound_artifact_paths,
+    _validate_closure_roles,
     assemble_prepared_runtime,
+    runtime_artifact_closure,
     runtime_artifact_paths,
     verify_prepared_runtime,
 )
@@ -218,7 +222,6 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "crowncrag-road",
     ]
     assert len(maps[0]["ground"]["occupancy"]) == package.maps[0].terrain.rows
-    assert maps[0]["ground"]["terrain_asset"]["sha256"]
     assert maps[0]["layers"][2]["presentation"] == {
         "contrast": 0.84,
         "saturation": 0.9,
@@ -405,3 +408,96 @@ def test_publishing_a_run_tag_is_immutable_until_replacement_is_explicit(tmp_pat
     verify_prepared_runtime(output)
     assert list(tmp_path.glob(".runtime.assembling-*")) == []
     assert list(tmp_path.glob(".runtime.retired-*")) == []
+
+
+def _artifact(path: str, role: str) -> dict[str, object]:
+    return {
+        "path": path,
+        "sha256": "0" * 64,
+        "bytes": 1,
+        "media_type": "image/png",
+        "role": role,
+    }
+
+
+def test_every_published_artifact_declares_the_role_the_closure_expects(tmp_path: Path) -> None:
+    """The graph's declaration and the assembler's publication are one statement, not two."""
+
+    package = resolve_game_package(BELLWEATHER)
+    complete = tmp_path / "complete"
+    _prepare_complete_root(complete, package)
+
+    result = assemble_prepared_runtime(
+        package,
+        artifact_roots=(complete,),
+        output_dir=tmp_path / "runtime",
+    )
+
+    closure = result.manifest["closure"]
+    assert isinstance(closure, dict)
+    artifacts = closure["artifacts"]
+    assert isinstance(artifacts, list)
+    published = tuple((record["path"], record["role"]) for record in artifacts)
+    assert published == runtime_artifact_closure(package)
+    # A role is a decision rather than a default, so both the vocabulary allows are in use.
+    assert {role for _, role in published} == set(RUNTIME_ARTIFACT_ROLES)
+
+
+def test_assets_are_exactly_what_the_manifest_binds(tmp_path: Path) -> None:
+    """A consumer enumerating assets can trust the role instead of guessing from the path."""
+
+    package = resolve_game_package(BELLWEATHER)
+    complete = tmp_path / "complete"
+    _prepare_complete_root(complete, package)
+
+    result = assemble_prepared_runtime(
+        package,
+        artifact_roots=(complete,),
+        output_dir=tmp_path / "runtime",
+    )
+
+    closure = result.manifest["closure"]
+    assert isinstance(closure, dict)
+    artifacts = closure["artifacts"]
+    assert isinstance(artifacts, list)
+    assets = {record["path"] for record in artifacts if record["role"] == "asset"}
+    provenance = {record["path"] for record in artifacts if record["role"] == "provenance"}
+    assert _bound_artifact_paths(result.manifest) == assets
+    assert provenance and not provenance & assets
+    player_id = package.player.players[0].player_id
+    # The case no media type can classify: a judged plate is a PNG that nothing presents.
+    assert f"content/players/{player_id}/motion-rebase-plate.png" in provenance
+    assert f"content/players/{player_id}/states/idle.png" in assets
+
+
+def test_assembly_rejects_an_asset_no_binding_claims() -> None:
+    manifest: dict[str, object] = {"items": []}
+
+    with pytest.raises(PreparedManifestError, match="without a manifest binding"):
+        _validate_closure_roles(
+            manifest, {"content/items/coin.png": _artifact("content/items/coin.png", "asset")}
+        )
+
+
+def test_assembly_rejects_a_binding_the_closure_does_not_publish_as_an_asset() -> None:
+    record = _artifact("maps/meadow/terrain.json", "provenance")
+    manifest: dict[str, object] = {"maps": [{"ground": {"terrain_asset": record}}]}
+
+    with pytest.raises(PreparedManifestError, match="not published as assets"):
+        _validate_closure_roles(manifest, {"maps/meadow/terrain.json": record})
+
+
+def test_verification_rejects_a_closure_artifact_with_no_declared_role(tmp_path: Path) -> None:
+    package = resolve_game_package(BELLWEATHER)
+    complete = tmp_path / "complete"
+    _prepare_complete_root(complete, package)
+    output = tmp_path / "runtime"
+    assemble_prepared_runtime(package, artifact_roots=(complete,), output_dir=output)
+
+    manifest_path = output / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    del manifest["closure"]["artifacts"][0]["role"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(PreparedManifestError, match="declares no known role"):
+        verify_prepared_runtime(output)

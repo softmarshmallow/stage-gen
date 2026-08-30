@@ -32,7 +32,7 @@ describe("prepared asset explorer route", () => {
     const markup = renderToStaticMarkup(page);
 
     expect(markup).toContain("prepared asset explorer");
-    expect(markup).toContain("8 / 8 manifest-bound artifacts");
+    expect(markup).toContain("9 closure artifacts · 8 assets · 1 provenance");
     expect(markup).toContain(`href="/preview/${tag}"`);
     expect(markup).toContain(
       `/api/assets/${tag}/content/player/concept.png`,

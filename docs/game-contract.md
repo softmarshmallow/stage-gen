@@ -331,7 +331,7 @@ does not by itself define a core game contract.
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `game-sequence-catalog-v2`, and `game-sequence-v1` contracts. Provider-free
-  integration emits only `prepared-game-runtime-v9`.
+  integration emits only `prepared-game-runtime-v10`.
 - Subsystems such as population, motion, sequences, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an

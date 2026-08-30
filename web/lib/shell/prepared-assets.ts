@@ -1,12 +1,14 @@
 import type {
   PreparedRuntimeManifest,
   RuntimeArtifact,
+  RuntimeArtifactRole,
 } from "@/lib/runtime/prepared-manifest";
 
 export type PreparedAssetCard = Readonly<{
   path: string;
   label: string;
   media_type: string;
+  bytes: number;
   width?: number;
   height?: number;
   transparent: boolean;
@@ -15,6 +17,8 @@ export type PreparedAssetCard = Readonly<{
 export type PreparedAssetGroup = Readonly<{
   group_id: string;
   label: string;
+  /** What the producer published these for. Provenance is listed, never presented as content. */
+  role: RuntimeArtifactRole;
   assets: readonly PreparedAssetCard[];
 }>;
 
@@ -27,6 +31,7 @@ type BoundAsset = Readonly<{
 type BoundGroup = Readonly<{
   group_id: string;
   label: string;
+  role: RuntimeArtifactRole;
   assets: readonly BoundAsset[];
 }>;
 
@@ -47,10 +52,12 @@ function group(
   groupId: string,
   label: string,
   assets: readonly BoundAsset[],
+  role: RuntimeArtifactRole = "asset",
 ): BoundGroup {
   return Object.freeze({
     group_id: groupId,
     label,
+    role,
     assets: Object.freeze([...assets]),
   });
 }
@@ -61,15 +68,25 @@ function sameArtifact(left: RuntimeArtifact, right: RuntimeArtifact): boolean {
     left.sha256 === right.sha256 &&
     left.bytes === right.bytes &&
     left.media_type === right.media_type &&
+    left.role === right.role &&
     left.width === right.width &&
     left.height === right.height
   );
 }
 
-function validateExactClosure(
+/**
+ * Reconcile what this view binds against the closure the producer published.
+ *
+ * Throws only on a self-contradictory manifest, which the producer already refuses to write: a
+ * binding it never published, a binding whose metadata disagrees with the closure, or a binding
+ * onto something published as provenance. Everything else is returned rather than thrown -- an
+ * artifact this view has not learned to group is the view falling behind the package, and a
+ * details page that cannot show one asset should say so, not refuse to render the other hundred.
+ */
+function accountForClosure(
   groups: readonly BoundGroup[],
   manifest: PreparedRuntimeManifest,
-): void {
+): readonly RuntimeArtifact[] {
   if (manifest.closure.artifact_count !== manifest.closure.artifacts.length) {
     throw new Error("prepared asset closure count disagrees with its artifacts");
   }
@@ -101,14 +118,17 @@ function validateExactClosure(
           `prepared asset metadata disagrees with closure: ${artifact.path}`,
         );
       }
+      if (closureArtifact.role !== "asset") {
+        throw new Error(
+          `prepared asset binding resolves to a ${closureArtifact.role} artifact: ${artifact.path}`,
+        );
+      }
     }
   }
 
-  for (const path of closureByPath.keys()) {
-    if (!boundPaths.has(path)) {
-      throw new Error(`prepared asset closure contains an unbound artifact: ${path}`);
-    }
-  }
+  return Object.freeze(
+    manifest.closure.artifacts.filter((artifact) => !boundPaths.has(artifact.path)),
+  );
 }
 
 function card(asset: BoundAsset): PreparedAssetCard {
@@ -117,6 +137,7 @@ function card(asset: BoundAsset): PreparedAssetCard {
     path: artifact.path,
     label: asset.label,
     media_type: artifact.media_type,
+    bytes: artifact.bytes,
     ...(artifact.width === undefined ? {} : { width: artifact.width }),
     ...(artifact.height === undefined ? {} : { height: artifact.height }),
     transparent: asset.transparent,
@@ -125,7 +146,9 @@ function card(asset: BoundAsset): PreparedAssetCard {
 
 /**
  * Project the prepared runtime's explicit stable-ID bindings into an asset
- * explorer model. No filename convention participates in classification.
+ * explorer model. No filename convention participates in classification: an
+ * artifact is grouped because the manifest binds it, and listed as provenance
+ * because the producer published it under that role.
  */
 export function projectPreparedRuntimeAssets(
   manifest: PreparedRuntimeManifest,
@@ -222,6 +245,18 @@ export function projectPreparedRuntimeAssets(
     );
   }
 
+  if (manifest.projectiles.length > 0) {
+    groups.push(
+      group(
+        "projectiles",
+        "Projectiles",
+        manifest.projectiles.map((projectile) =>
+          bound(projectile.asset, projectile.display_name, true),
+        ),
+      ),
+    );
+  }
+
   groups.push(
     group("ui", "UI", [
       bound(manifest.ui.inventory_panel.asset, "Inventory panel", true),
@@ -240,12 +275,37 @@ export function projectPreparedRuntimeAssets(
     );
   }
 
-  validateExactClosure(groups, manifest);
+  // The closure is accounted for in full: whatever no group above claimed is listed under the
+  // role it was published as, so nothing published can disappear from this page unremarked.
+  const unclaimed = accountForClosure(groups, manifest);
+  const ungrouped = unclaimed.filter((artifact) => artifact.role === "asset");
+  const provenance = unclaimed.filter((artifact) => artifact.role === "provenance");
+  if (ungrouped.length > 0) {
+    groups.push(
+      group(
+        "ungrouped",
+        "Ungrouped assets",
+        ungrouped.map((artifact) => bound(artifact, artifact.path, true)),
+      ),
+    );
+  }
+  if (provenance.length > 0) {
+    groups.push(
+      group(
+        "provenance",
+        "Provenance",
+        provenance.map((artifact) => bound(artifact, artifact.path, true)),
+        "provenance",
+      ),
+    );
+  }
+
   return Object.freeze(
     groups.map((entry) =>
       Object.freeze({
         group_id: entry.group_id,
         label: entry.label,
+        role: entry.role,
         assets: Object.freeze(entry.assets.map(card)),
       }),
     ),

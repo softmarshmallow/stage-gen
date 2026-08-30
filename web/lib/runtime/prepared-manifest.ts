@@ -4,11 +4,29 @@ import {
   type InventoryPanelLayout,
 } from "./inventory-layout";
 
+/**
+ * What the producer says one published byte set is for.
+ *
+ * `asset` is media the package publishes as its own content, and every one of them is bound by
+ * name somewhere in this manifest. `provenance` is a record or judged plate the run ships so it
+ * can be re-derived and audited; its readable values are already inlined here, so no consumer
+ * fetches it to present the game.
+ *
+ * Declared rather than inferred, because nothing observable separates the two: a judged
+ * comparison plate is a PNG under `content/` exactly like the artwork it was composed from.
+ */
+export type RuntimeArtifactRole = "asset" | "provenance";
+
+/** The one prepared-runtime identity this build reads. There is no second one. */
+export const PREPARED_RUNTIME_KIND = "prepared-game-runtime-v10";
+export const PREPARED_RUNTIME_SCHEMA_VERSION = 10;
+
 export type RuntimeArtifact = Readonly<{
   path: string;
   sha256: string;
   bytes: number;
   media_type: string;
+  role: RuntimeArtifactRole;
   width?: number;
   height?: number;
 }>;
@@ -163,8 +181,8 @@ export type MotionCalibration = Readonly<{
 }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 9;
-  kind: "prepared-game-runtime-v9";
+  schema_version: 10;
+  kind: "prepared-game-runtime-v10";
   game_id: string;
   revision: number;
   display_name: string;
@@ -362,11 +380,16 @@ function artifact(value: unknown, label: string): RuntimeArtifact {
   }
   const sha256 = text(record.sha256, `${label}.sha256`);
   if (!SHA256.test(sha256)) throw new Error(`${label}.sha256 is invalid`);
+  const role = record.role;
+  if (role !== "asset" && role !== "provenance") {
+    throw new Error(`${label}.role is invalid`);
+  }
   return Object.freeze({
     path,
     sha256,
     bytes: integer(record.bytes, `${label}.bytes`, 1),
     media_type: text(record.media_type, `${label}.media_type`),
+    role,
     ...(record.width === undefined
       ? {}
       : { width: integer(record.width, `${label}.width`, 1) }),
@@ -618,7 +641,10 @@ function motionStates(value: unknown, label: string): Readonly<Record<string, Mo
 
 export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeManifest {
   const root = object(value, "prepared runtime manifest");
-  if (root.schema_version !== 9 || root.kind !== "prepared-game-runtime-v9") {
+  if (
+    root.schema_version !== PREPARED_RUNTIME_SCHEMA_VERSION ||
+    root.kind !== PREPARED_RUNTIME_KIND
+  ) {
     throw new Error("prepared runtime manifest identity is invalid");
   }
   const rawPresentation = object(root.presentation, "presentation");
@@ -1035,8 +1061,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 9,
-    kind: "prepared-game-runtime-v9",
+    schema_version: 10,
+    kind: "prepared-game-runtime-v10",
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),

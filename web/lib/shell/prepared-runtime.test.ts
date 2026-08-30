@@ -32,7 +32,7 @@ describe("prepared runtime manifest reading", () => {
 
     const manifest = await readPreparedRuntimeManifest(tag);
     expect(await isPreparedRuntimeRun(tag)).toBeTrue();
-    expect(manifest?.kind).toBe("prepared-game-runtime-v9");
+    expect(manifest?.kind).toBe("prepared-game-runtime-v10");
     expect(manifest?.display_name).toBe("Prepared Fixture");
     expect(manifest?.player.concept.path).toBe("content/player/concept.png");
   });
@@ -58,19 +58,39 @@ describe("prepared runtime manifest reading", () => {
     );
   });
 
-  test("rejects malformed prepared manifest contracts", async () => {
+  test("does not read a run published under another identity", async () => {
+    // Not a broken manifest and not this build's business: one identity is read here, and a run
+    // published under any other is simply not a prepared run.
+    const tag = `test-prepared-foreign-${process.pid}`;
+    const runDir = runDirFor(tag);
+    cleanup.push(runDir);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(
+      path.join(runDir, "manifest.json"),
+      JSON.stringify({ schema_version: 9, kind: "prepared-game-runtime-v9" }),
+      "utf8",
+    );
+
+    expect(await readPreparedRuntimeManifest(tag)).toBeNull();
+    expect(await isPreparedRuntimeRun(tag)).toBeFalse();
+  });
+
+  test("rejects a manifest that claims this identity and then fails validation", async () => {
     const tag = `test-prepared-malformed-${process.pid}`;
     const runDir = runDirFor(tag);
     cleanup.push(runDir);
     await mkdir(runDir, { recursive: true });
     await writeFile(
       path.join(runDir, "manifest.json"),
-      JSON.stringify({ schema_version: 1, kind: "not-prepared" }),
+      JSON.stringify({
+        ...preparedRuntimeManifestFixture(),
+        entry_map_id: "no_such_map",
+      }),
       "utf8",
     );
 
     await expect(readPreparedRuntimeManifest(tag)).rejects.toThrow(
-      "prepared runtime manifest identity is invalid",
+      "entry_map_id does not resolve",
     );
   });
 });

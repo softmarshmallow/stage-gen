@@ -35,6 +35,7 @@ RETIRED_PREPARED_IDENTITIES = (
     "prepared-game-runtime-v1",
     "prepared-game-runtime-v2",
     "prepared-game-runtime-v3",
+    "prepared-game-runtime-v9",
     "game-map-book-v1",
     "game-map-book-manifest-v2",
     "manifest V7",
@@ -62,7 +63,10 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     for path, document in documents.items():
         for identity in RETIRED_PREPARED_IDENTITIES:
-            assert identity not in document, f"{path} advertises retired identity {identity}"
+            # Bounded on the right, so a retired `-v1` is not read out of a current `-v10`.
+            assert re.search(rf"{re.escape(identity)}(?![0-9])", document) is None, (
+                f"{path} advertises retired identity {identity}"
+            )
         for pattern in FORBIDDEN_OLD_VERSION_SUPPORT:
             assert re.search(pattern, document, flags=re.IGNORECASE) is None, (
                 f"{path} advertises old-version support matching {pattern!r}"
@@ -75,7 +79,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
         "`game-map-v9`",
-        "`prepared-game-runtime-v9`",
+        "`prepared-game-runtime-v10`",
     ):
         assert identity in game_contract
     assert "climbable geometry and placement" in game_contract
@@ -92,7 +96,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-map-v9`",
         "`climbable-atlas-v1`",
         "`portal-pair-1x2-v1`",
-        "`prepared-game-runtime-v9`",
+        "`prepared-game-runtime-v10`",
     ):
         assert identity in maps
     assert "packaged 47-mask" in maps
@@ -123,12 +127,12 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     soundtrack = documents["docs/game-soundtrack.md"]
     assert "exact identity is\n`game-soundtrack-v1`" in soundtrack
     assert "Provider-free integration" in soundtrack
-    assert "`prepared-game-runtime-v9`" in soundtrack
+    assert "`prepared-game-runtime-v10`" in soundtrack
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue
     assert "dialogue\ncontrol flow in `sequences/*.toml`" in dialogue
-    assert "`prepared-game-runtime-v9`" in dialogue
+    assert "`prepared-game-runtime-v10`" in dialogue
 
     gameplay = documents["docs/spec/scene-gameplay-components.md"]
     assert "`gameplay-contract-v1`" in gameplay
@@ -137,4 +141,4 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     sequences = documents["docs/spec/game/dialogue-and-cutscene-sequences.md"]
     assert "current prepared gameplay consumer" in sequences
-    assert "`prepared-game-runtime-v9`" in sequences
+    assert "`prepared-game-runtime-v10`" in sequences
