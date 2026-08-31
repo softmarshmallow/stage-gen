@@ -59,8 +59,9 @@ Start here for the headless, general-purpose system:
   skip/resume, checkpoint, and cutscene-realization semantics.
 - [Scenario: the executable narrative subset](spec/game/scenario.md) — the
   ratified decision to build a data-only text IR rather than adopt a narrative
-  library, its closed statement vocabulary, its reachability proof, the runtime
-  boundary, and the staged milestone that makes a visual novel a game.
+  library, the current `scenario-v1` contract and Ren'Py-shaped script surface,
+  its closed statement vocabulary, the reachability proof that admits both
+  offline, and the runtime boundary still to be built.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.

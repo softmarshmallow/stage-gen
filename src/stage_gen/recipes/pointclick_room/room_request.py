@@ -10,12 +10,11 @@ reference that silently changed.
 
 from __future__ import annotations
 
-import hashlib
 import tomllib
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from gnode import resolve_relative_path_within_root
+from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.image_prompting import load_image_style_resources
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
 from stage_gen.recipes.pointclick_room.models import (
@@ -109,21 +108,17 @@ def _read_reference(root: Path, reference: RoomReference) -> ResolvedRoomReferen
     """Read one authored reference, confined to the package and digest-bound."""
 
     source = reference.source
-    path = resolve_relative_path_within_root(root, source, "room reference source")
-    if path.is_symlink() or not path.is_file():
-        raise ValueError(f"room reference {source} must be a regular file inside the package")
-    data = path.read_bytes()
-    digest = hashlib.sha256(data).hexdigest()
-    if digest != reference.source_sha256:
-        raise ValueError(
-            f"room reference {source} does not match its authored digest: "
-            f"declared {reference.source_sha256}, found {digest}"
-        )
+    data = read_digest_bound_member(
+        root,
+        source,
+        expected_sha256=reference.source_sha256,
+        label="room reference",
+    )
     return ResolvedRoomReference(
         reference_id=reference.reference_id,
         source=source,
-        sha256=digest,
-        media_type=_MEDIA_TYPES[path.suffix.lower()],
+        sha256=reference.source_sha256,
+        media_type=_MEDIA_TYPES[PurePosixPath(source).suffix.lower()],
         data=data,
     )
 

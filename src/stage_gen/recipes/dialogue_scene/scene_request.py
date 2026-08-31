@@ -21,7 +21,8 @@ from pathlib import Path, PurePosixPath
 
 from pydantic import ValidationError
 
-from gnode import InputProvenance, resolve_relative_path_within_root
+from gnode import InputProvenance
+from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.components.character_profile import (
     CharacterProfile,
@@ -32,7 +33,6 @@ from stage_gen.media import CHROMA_MATTE_VERSION, MAGENTA_EDGE_DECONTAMINATION_V
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,
-    content_sha256,
 )
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueRequest,
@@ -227,21 +227,17 @@ def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneRefer
     """Read one authored reference and hold it to the digest the author recorded."""
 
     source = reference.source
-    path = resolve_relative_path_within_root(root, source, "scene reference source")
-    if path.is_symlink() or not path.is_file():
-        raise ValueError(f"scene reference {source} must be a regular file inside the package")
-    data = path.read_bytes()
-    digest = content_sha256(data)
-    if digest != reference.source_sha256:
-        raise ValueError(
-            f"scene reference {source} does not match its authored digest: "
-            f"declared {reference.source_sha256}, found {digest}"
-        )
+    data = read_digest_bound_member(
+        root,
+        source,
+        expected_sha256=reference.source_sha256,
+        label="scene reference",
+    )
     media_type = _MEDIA_TYPES[PurePosixPath(source).suffix.lower()]
     return ResolvedSceneReference(
         reference_id=reference.reference_id,
         source=source,
-        sha256=digest,
+        sha256=reference.source_sha256,
         media_type=media_type,
         data=data,
         rights_status=reference.rights_status,

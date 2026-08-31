@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import zipfile
 from io import StringIO
 from pathlib import Path
@@ -411,3 +412,63 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
     assert "doctor-openai" not in rendered
     assert "doctor-openrouter" not in rendered
     assert "doctor-fal" not in rendered
+
+
+def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/larkfield"
+    output = StringIO()
+
+    assert main(["scenario", "check", "--input", str(package)], stdout=output) == 0
+
+    report = json.loads(output.getvalue())
+    assert report["admitted"] is True
+    assert report["scenario_id"] == "last_class"
+    assert report["endings"] == {
+        "listened": ["arrival", "listening", "recording", "ending_quiet"],
+        "talked": ["arrival", "asking", "recording", "ending_talked"],
+    }
+
+
+def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    package = tmp_path / "larkfield"
+    shutil.copytree(repository / "library/games/larkfield", package)
+    script = package / "scenarios/last_class.scenario"
+    script.write_text(script.read_text(encoding="utf-8") + '\n"Extra."\n', encoding="utf-8")
+
+    assert main(["scenario", "check", "--input", str(package)], stdout=StringIO()) != 0
+    assert "does not match its authored digest" in capsys.readouterr().err
+
+
+def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Repairing a digest must not be a way to bless prose the proof would refuse."""
+
+    repository = Path(__file__).resolve().parents[2]
+    package = tmp_path / "larkfield"
+    shutil.copytree(repository / "library/games/larkfield", package)
+    script = package / "scenarios/last_class.scenario"
+    original = script.read_text(encoding="utf-8")
+
+    script.write_text(original + "\n\nlabel orphan:\n    end talked\n", encoding="utf-8")
+    assert (
+        main(
+            ["scenario", "check", "--input", str(package), "--write-digest"],
+            stdout=StringIO(),
+        )
+        != 0
+    )
+    assert "labels no path reaches: orphan" in capsys.readouterr().err
+
+    script.write_text(original.replace("hot dust", "dust"), encoding="utf-8")
+    output = StringIO()
+    assert (
+        main(["scenario", "check", "--input", str(package), "--write-digest"], stdout=output) == 0
+    )
+    repaired = json.loads(output.getvalue())
+    assert repaired["admitted"] is True
+    assert repaired["script_sha256"] in (package / "scenario.toml").read_text(encoding="utf-8")

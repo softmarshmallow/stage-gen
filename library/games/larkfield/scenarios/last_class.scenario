@@ -1,0 +1,73 @@
+# The Last Class of Summer — Larkfield's first scenario.
+#
+# Every name used here is declared in ../scenario.toml. This file is only the
+# part a person writes; digests, rights, and generation briefs live there.
+
+label arrival:
+    stage classroom_day
+    play summer_room
+
+    "The last bell went twenty minutes ago. The room still smells of chalk and hot dust."
+
+    show nao neutral at center
+
+    nao "Everyone's gone home. I wanted to record the room before they lock the building."
+
+    menu:
+        "Say nothing, and listen with her.":
+            jump listening
+        "Ask what she's recording.":
+            jump asking
+
+
+label listening:
+    set stayed_quiet
+
+    "So you say nothing. The cicadas fill the gap where the answer would have been."
+
+    nao delighted "Thank you. Most people start talking the second I hold this up."
+
+    jump recording
+
+
+label asking:
+    set asked_about_recorder
+
+    you "What is there to record? It's an empty room."
+
+    nao flustered "It's not empty. It's just quiet. Those aren't the same, and I can prove it."
+
+    jump recording
+
+
+label recording:
+    stage classroom_dusk
+
+    "She holds the recorder out at arm's length. The fluorescent tubes tick overhead. Somewhere below, a door closes."
+
+    nao neutral "There. That's the building settling. It does that every evening at about this time."
+
+    if stayed_quiet and not asked_about_recorder:
+        jump ending_quiet
+
+    jump ending_talked
+
+
+label ending_quiet:
+    nao delighted "You heard it too. I could tell. You went still."
+
+    "She stops the recorder without looking at it, the way you stop a clock you already trust."
+
+    hide nao
+    stop summer_room
+    end listened
+
+
+label ending_talked:
+    nao concerned "You'll hear it on the playback. Probably. It's under everything else we said."
+
+    "She winds the cable around the recorder twice, and does not offer to play it back."
+
+    hide nao
+    stop summer_room
+    end talked

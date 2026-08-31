@@ -1,10 +1,13 @@
 # Scenario: the executable narrative subset
 
-> **Contract maturity: decision ratified, contract proposed, nothing
-> implemented.** The choice recorded under [Decision](#decision) is settled and
-> should not be re-litigated without new evidence. The authored contract,
-> statement vocabulary, and admission rules below are a target shape. No
-> scenario parser, runtime, or proof exists in this tree yet.
+> **Contract maturity: exact-current for the authored contract, the script
+> surface, and the admission proof. The runtime and its consumer are not built.**
+> Executable authority: `src/stage_gen/components/scenario/`, the authored
+> `library/games/larkfield/scenario.toml` beside its script, and
+> `stage-gen scenario check`. The choice recorded under [Decision](#decision) is
+> settled and should not be re-litigated without new evidence. Everything under
+> [Runtime](#runtime) and [The shell is not Scenario](#the-shell-is-not-scenario)
+> remains a target shape: nothing plays a scenario yet.
 
 The [dialogue and cutscene sequence contract](dialogue-and-cutscene-sequences.md)
 owns the canonical semantic vocabulary for authored narrative: sequences, nodes,
@@ -122,6 +125,14 @@ exactly as `[[references]]` pins an image. Admission checks the two halves
 against each other in both directions: a name the script uses that the
 declarations do not carry is refused, and so is a declaration nothing uses.
 
+**The digest costs the author something, and the tooling pays it back.** An
+image reference is pinned by hand because images change rarely; a script under
+active writing changes every save, so a hand-copied hash would be stale more
+often than not. `stage-gen scenario check` therefore reports the digest the
+current bytes would need, and `--write-digest` rewrites that one line in place
+and then proves the scenario anyway. Repairing a digest is explicitly not a way
+to bless prose the proof would refuse.
+
 **Blocks do not fall through.** Every block MUST end with a terminal statement —
 `jump`, `choice`, `branch`, or `end`. A block never inherits the next block in
 file order. This is the sequence contract's own rule ("Nodes do not inherit a
@@ -231,12 +242,19 @@ An ordered run of `if_jump` statements followed by a bare `jump` compiles to one
 mandatory default. A `branch` therefore cannot be written without a default,
 because a block that ends on a failed `if` would not terminate.
 
-### Two restrictions, both open
+### Two restrictions, both settled
 
 Real Ren'Py is more permissive in two places, and the restrictions below exist
 only to keep "a block never falls through" true uniformly, which is the property
-the proof rests on. Both cost the author extra labels. Both should be settled
-before M1 rather than discovered during it.
+the proof rests on. Both cost the author extra labels. Both were settled in
+favour of keeping them, and the parser enforces them.
+
+A third question was settled at the same time: **flags stay boolean, with no
+counters.** A stat like `affection += 1` is therefore inexpressible, and a
+threshold is written as N flags plus a branch. Counters would multiply the
+proof's space by each counter's range and would put a comparison operator into
+the grammar, which is the first crack in "conditions are flag tests only".
+Revisit only when a real scenario is blocked on it.
 
 **A `menu` option body must be exactly one `jump`.** Ren'Py allows arbitrary
 statements inside an option and then falls through. Allowing that here would
@@ -359,14 +377,27 @@ refuse:
 - a block with no terminal statement;
 - an actor, expression, stage, or audio track that the cast and catalogs do not
   declare, or a declared one nothing uses;
-- a scenario with no reachable `end`; and
-- a scenario whose reachable state space exceeds the declared ceiling — refused
-  rather than partially proven, because a proof that gave up quietly is worse
-  than no proof; and
+- a scenario with no reachable `end`;
+- a reachable `choice` at which no option's condition holds, which would strand
+  the player with nothing to click;
+- a scenario whose reachable state space exceeds the ceiling — refused rather
+  than partially proven, because a proof that gave up quietly is worse than no
+  proof; and
 - a script whose bytes do not match `script_sha256`, or which references a name
   the declarations do not carry, or declarations carrying a name the script
   never uses. The two halves are one authored member and are admitted together
   or not at all.
+
+**The search takes the first satisfied branch edge, because the runtime does.**
+Exploring every satisfied edge instead would report a later edge as reachable
+when no player can ever take it, and admission would be unsound. This is the
+rule `_fireable` already carries on the room side, restated for branches.
+
+**The ceiling lives in code, not in the authored file**
+(`MAX_REACHABLE_STATES`), so an author cannot raise their own limit. It is not a
+formality: the space is `labels x 2^flags`, so ten flags is nothing and
+twenty-five is thirty-three million states. Keeping flags few is the authoring
+discipline this number enforces.
 
 The proof, with one shortest path to each ending as evidence, is persisted into
 the run, the way `puzzle.validation.json` already is.
@@ -405,6 +436,16 @@ and the visual-novel consumer drawing it. Producer side, the package grows a
 is horizontal scaling of proven generation rather than a new capability. Ships
 narration, multi-actor staging with the speaker highlighted, choices, flags, and
 chained blocks.
+
+M1 is landing in increments, because most of it costs nothing and the expensive
+part is separable:
+
+| Increment | Scope | Cost | State |
+| --- | --- | --- | --- |
+| 1 | Contract, script surface, compiler, admission proof, `scenario check` | none | **landed** |
+| 2 | The runtime reducer and the visual-novel consumer drawing choices and stages | none — plays on the four expression plates already generated | not started |
+| 3 | Cast and stage fan-out in the recipe | provider spend, needs explicit authorization | not started |
+| 4 | Retire the parallel beat list and `game-sequence-v1` | none | not started |
 
 **M2 — the shell.** Persistence, save slots, backlog, skip-already-read,
 auto-advance, preferences. Cross-genre; unblocks the platformer roster.

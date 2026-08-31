@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import re
 import sys
 import tomllib
 import uuid
@@ -38,6 +39,12 @@ from stage_gen.components.platformer_map import (
     ResolvedGameMapBook,
     resolve_game_map_book_binding,
     resolve_game_map_source,
+)
+from stage_gen.components.scenario import (
+    SCENARIO_DOCUMENT_NAME,
+    read_scenario_declarations,
+    resolve_scenario,
+    script_digest,
 )
 from stage_gen.config import (
     ConfigError,
@@ -228,6 +235,28 @@ def build_parser() -> argparse.ArgumentParser:
     character_review_parser.add_argument("--review", required=True, dest="review_path")
     character_review_parser.add_argument(
         "--acceptance-spec", required=True, dest="acceptance_spec_path"
+    )
+
+    scenario_parser = commands.add_parser(
+        "scenario",
+        description="Admit one authored scenario: parse the script, compile it, and prove it",
+    )
+    scenario_commands = scenario_parser.add_subparsers(dest="scenario_command", required=True)
+    scenario_check_parser = scenario_commands.add_parser(
+        "check",
+        help="prove one authored scenario finishable, offline and before any spend",
+    )
+    scenario_check_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored package directory (scenario.toml plus scenarios/<id>.scenario)",
+    )
+    scenario_check_parser.add_argument(
+        "--write-digest",
+        action="store_true",
+        dest="write_digest",
+        help="rewrite script_sha256 in scenario.toml to match the script's current bytes",
     )
 
     export_view_parser = commands.add_parser(
@@ -595,7 +624,60 @@ def _dispatch(
         imported = import_provider_env(args.source, args.destination)
         stdout.write(f"{json.dumps(imported, separators=(',', ':'))}\n")
         return 0
+    if command == "scenario":
+        return _dispatch_scenario(args, stdout=stdout)
     return asyncio.run(_dispatch_async(args, runtime=runtime, stdout=stdout))
+
+
+def _dispatch_scenario(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    """Admission with no event loop, no config, and no provider - it never needs one."""
+
+    root = Path(args.input_path)
+    if args.write_digest:
+        return _write_scenario_digest(root, stdout=stdout)
+    resolved = resolve_scenario(root)
+    report = {
+        "admitted": resolved.admission.admitted,
+        "scenario_id": resolved.declarations.scenario_id,
+        "game_id": resolved.declarations.game_id,
+        "blocks": len(resolved.program.blocks),
+        "reachable_states": resolved.admission.reachable_states,
+        "program_sha256": resolved.program_sha256,
+        "endings": {
+            witness.outcome_id: list(witness.path) for witness in resolved.admission.witnesses
+        },
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0
+
+
+def _write_scenario_digest(root: Path, *, stdout: TextIO) -> int:
+    """Repair `script_sha256` after a prose edit.
+
+    Every save of the script invalidates the hand-copied digest, so leaving the
+    author to run `sha256sum` and paste the result is a needless way to make the
+    contract feel hostile. The rewrite is a single line in place: nothing else in
+    the document is touched, and the scenario is still proven afterwards.
+    """
+
+    declarations = read_scenario_declarations(root)
+    actual = script_digest(root, declarations)
+    document = root / SCENARIO_DOCUMENT_NAME
+    text = document.read_text(encoding="utf-8")
+    updated = re.sub(
+        r'^script_sha256 = "[0-9a-f]{64}"$',
+        f'script_sha256 = "{actual}"',
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if updated == text and declarations.script_sha256 != actual:
+        raise ValueError(f"could not locate script_sha256 in {document}")
+    document.write_text(updated, encoding="utf-8")
+    resolved = resolve_scenario(root)
+    report = {"script_sha256": actual, "admitted": resolved.admission.admitted}
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0
 
 
 async def _dispatch_dialogue_scene(

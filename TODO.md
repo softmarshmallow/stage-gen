@@ -16,17 +16,32 @@ publication still require explicit authorization even when their implementation 
 The decision and target contract are in [scenario](docs/spec/game/scenario.md). M1 and M2 are
 ordered but coupled: branching without skip-already-read is unexplorable in practice.
 
-- [ ] M1 — land `scenario-v1`: the authored text IR with its closed statement vocabulary, the
-      reachability proof that refuses an unreachable ending, orphan label, unset flag, or
-      non-terminating block, and the deterministic runtime the visual-novel consumer draws. The
-      package grows a cast of several characters and several stages; that part is horizontal
-      scaling of proven generation, not a new capability.
+- [x] M1 increment 1 — the authored contract, the Ren'Py-shaped script surface, the compiler, and
+      the reachability proof. `src/stage_gen/components/scenario/`, the authored
+      `library/games/larkfield/scenario.toml` beside its script, and `stage-gen scenario check`.
+      Recipe-neutral by construction: it is a component, not a recipe, because two genres are meant
+      to consume one authored shape.
+- [ ] M1 increment 2 — the runtime reducer and the visual-novel consumer that draws it: choices,
+      stage swaps, actor slots, and an end card naming the outcome. Costs nothing: larkfield's run
+      already holds one background and four expression plates, which is enough art for branching,
+      two endings, and a replay. Widen `web/lib/dialogue/conversation.ts` from a cursor over beats
+      to `{block, index, flags, seen}` rather than adding a fourth dialogue walker, and register the
+      visual novel in `web/lib/shell/scene-modules.ts`, which it is still missing from.
+- [ ] M1 increment 3 — grow the package to a cast of several characters and several stages. This is
+      horizontal scaling of proven generation, not a new capability, but it is the first increment
+      that spends money: it needs explicit authorization, it must update
+      `docs/spec/game/generation-pipeline.md` and its executable graph contract in the same change,
+      and every accepted visual needs semantic review by someone other than its producer.
 - [ ] M2 — land the player shell: persistence, save slots, backlog, skip-already-read,
       auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster
       is blocked on — build it once for both.
-- [ ] Retire the parallel beat list once M1 lands. The platformer's village dialogue box and the
-      visual-novel scene already share one conversation core; both should consume scenarios rather
-      than keeping a second authored shape that can drift.
+- [ ] Retire the parallel beat lists once M1 lands, and count them honestly: there are three
+      authored narrative shapes (`game-sequence-v1` in bellweather, `[[dialogue]]` in
+      `scene.toml`, and now `scenario-v1`) and three runtime walkers. Only two of the walkers use
+      the shared conversation core, and one of those — `DialogueBox` — is dead code nothing
+      imports; the platformer's live dialogue is an untyped inline graph walk in
+      `web/lib/sideview-platformer/prepared-scene.ts` reached through an `as unknown as` cast.
+      Collapse all of it onto scenarios, deleting rather than aliasing, and drop old runs.
 
 ## Runtime acceptance
 

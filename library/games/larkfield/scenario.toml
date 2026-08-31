@@ -1,0 +1,76 @@
+# The declarative half of one scenario: every name the script may refer to, and
+# nothing a person writes as prose. Digests, rights, and generation briefs live
+# here because those are package facts rather than narrative — and keeping them
+# out of the script is what lets the script stay a plain text file with no schema
+# noise in it.
+#
+# Admission checks the two halves against each other in both directions: a name
+# the script uses and this file does not declare is refused, and so is a
+# declaration the script never uses.
+
+schema_version = 1
+kind = "scenario-v1"
+game_id = "larkfield"
+scenario_id = "last_class"
+display_name = "The Last Class of Summer"
+revision = 1
+
+# The script is a package member bound to exact bytes, the way an image reference
+# is. Editing the prose changes this digest; `stage-gen scenario check` reports
+# the correct value and `--write-digest` repairs it.
+script = "scenarios/last_class.scenario"
+script_sha256 = "b30d38daf3492ab6bb89766526438ce69e9882e9db52af4aa6bac9aa9d503962"
+entry = "arrival"
+
+# ------------------------------------------------------------------- the cast
+# An actor with a profile is drawn. An actor without one speaks but is never
+# shown — the protagonist convention, and the reason `you` needs no plates.
+
+[[cast]]
+actor_id = "nao"
+profile = "character.toml"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+[[cast]]
+actor_id = "you"
+display_name = "You"
+
+# ----------------------------------------------------------------- the stages
+# Each stage is one generated background. The brief is what the recipe sends; the
+# scenario never names a file or a run.
+
+[[stages]]
+stage_id = "classroom_day"
+brief = "An original empty classroom in late afternoon, warm light, rice fields through the open windows, no people"
+
+[[stages]]
+stage_id = "classroom_dusk"
+brief = "The same empty classroom at blue hour, ceiling lights on, the fields outside gone dark, no people"
+
+# ------------------------------------------------------------------ the audio
+
+[[tracks]]
+track_id = "summer_room"
+brief = "Sparse piano over cicadas, unhurried, a little hollow"
+
+# ------------------------------------------------------------------ the flags
+# Booleans, declared up front. Anything a condition reads must appear here, and
+# something reachable must set it.
+
+[[flags]]
+flag_id = "stayed_quiet"
+
+[[flags]]
+flag_id = "asked_about_recorder"
+
+# ---------------------------------------------------------------- the endings
+# Named so completion can be tracked and so the proof can insist each one is
+# reachable.
+
+[[endings]]
+outcome_id = "listened"
+label = "You listened"
+
+[[endings]]
+outcome_id = "talked"
+label = "You asked"
