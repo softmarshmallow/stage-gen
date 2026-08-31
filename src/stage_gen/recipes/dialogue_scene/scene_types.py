@@ -37,7 +37,9 @@ REQUEST_RESOLVE = NodeType(
     title="Dialogue request",
     archetype=ViewArchetype.SOURCE,
     operation="local",
-    contract_version="dialogue-request-resolve-v1",
+    # v2: the published document is exactly its canonical bytes, with no
+    # trailing newline, so its file digest is the digest the plan binds.
+    contract_version="dialogue-request-resolve-v2",
 )
 
 PROFILE_RESOLVE = NodeType(

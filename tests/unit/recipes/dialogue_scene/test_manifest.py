@@ -83,7 +83,7 @@ def _write_inputs(root: Path) -> str:
 
     package = write_scene_package(root / "package")
     scene = resolve_dialogue_scene(read_scene_document(package), root=package)
-    _write_json_pair(root / "request.json", scene.request_bytes + b"\n")
+    _write_json_pair(root / "request.json", scene.request_bytes)
     _write_json_pair(
         root / "character-profile.json",
         canonical_character_profile_json(scene.profile.profile),

@@ -1021,8 +1021,26 @@ function projectFixture(
   bundleId: string,
   profile: ValidatedSourceBundle["profile"],
 ): DialogueSceneDemoFixture {
-  const assetUrl = (asset: BundleAsset): string =>
-    `/dialogue-scene/themes/${bundleId}/assets/${asset.sha256}.png`;
+  return projectDialogueSceneFixture(
+    bundle,
+    profile,
+    (asset) => `/dialogue-scene/themes/${bundleId}/assets/${asset.sha256}.png`,
+  );
+}
+
+/**
+ * Project one validated bundle into the runtime fixture the player consumes.
+ *
+ * Where the assets are served from is the caller's business: an installed theme
+ * copies them under `public/`, while a run is played straight out of `out/`.
+ * Everything else about the projection is the same, so it lives here once.
+ */
+export function projectDialogueSceneFixture(
+  bundle: DialogueBundleContract,
+  profile: { readonly profile_id: string; readonly revision: number },
+  assetUrl: (asset: BundleAsset) => string,
+): DialogueSceneDemoFixture {
+  const roleAssets = requireRoleAssets(bundle.assets);
   const variants = new Map(
     bundle.scene_data.expression_variants.map((entry) => [entry.state, entry]),
   );

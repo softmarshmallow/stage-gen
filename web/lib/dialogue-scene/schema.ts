@@ -120,6 +120,11 @@ const DEMO_ASSET_PATH =
   /^\/dialogue-scene\/demo(?:\/[a-z0-9][a-z0-9-]*)*\/[a-z0-9][a-z0-9.-]*\.png$/;
 const INSTALLED_THEME_ASSET_PATH =
   /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
+// A run played in place, streamed from out/<tag>/ through the per-tag asset API.
+// Installing a scene as the site's active theme is a separate, deliberate act;
+// this is the shape you get when you open the run you just generated.
+const RUN_ASSET_PATH =
+  /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/;
 const STABLE_ID = /^[a-z][a-z0-9-]{0,63}$/;
 
 /** Validate the camelCase runtime/UI projection; this is not a persisted parser. */
@@ -316,7 +321,7 @@ export function validateDialogueSceneRuntimeFixture(
   const appearance = Object.freeze({
     id: appearanceId,
     label: strictText(appearanceRaw.label, "appearance.label", 96),
-    age: strictInteger(appearanceRaw.age, "appearance.age", 21, 120),
+    age: strictInteger(appearanceRaw.age, "appearance.age", 18, 120),
     role: strictText(appearanceRaw.role, "appearance.role", 160),
     tagline: strictText(appearanceRaw.tagline, "appearance.tagline", 160),
     description: strictText(appearanceRaw.description, "appearance.description", 3000),
@@ -365,6 +370,19 @@ export function validateDialogueSceneRuntimeFixture(
     new Set(installedBundleIdValues).size !== 1
   ) {
     throw new Error("dialogue-scene installed fixture assets must share one bundle id");
+  }
+  // A fixture assembled from two runs is two scenes wearing one name.
+  const runTags = assetPaths.map(
+    (assetPathValue) => RUN_ASSET_PATH.exec(assetPathValue)?.[1] ?? null,
+  );
+  const runTagValues = runTags.filter((tag): tag is string => tag !== null);
+  if (runTagValues.length !== 0 && runTagValues.length !== assetPaths.length) {
+    throw new Error(
+      "dialogue-scene fixture assets must all use the committed demo, one installed bundle, or one run",
+    );
+  }
+  if (runTagValues.length > 0 && new Set(runTagValues).size !== 1) {
+    throw new Error("dialogue-scene run fixture assets must share one run tag");
   }
   const presentation = Object.freeze({
     framingZoom: strictFiniteNumber(
@@ -675,9 +693,13 @@ function stableId(value: unknown, label: string): string {
 
 function assetPath(value: unknown, label: string): string {
   const parsed = strictText(value, label, 240);
-  if (!DEMO_ASSET_PATH.test(parsed) && !INSTALLED_THEME_ASSET_PATH.test(parsed)) {
+  if (
+    !DEMO_ASSET_PATH.test(parsed) &&
+    !INSTALLED_THEME_ASSET_PATH.test(parsed) &&
+    !RUN_ASSET_PATH.test(parsed)
+  ) {
     throw new Error(
-      `${label} must be a confined dialogue-scene demo or installed-theme PNG path`,
+      `${label} must be a confined dialogue-scene demo, installed-theme, or run PNG path`,
     );
   }
   return parsed;

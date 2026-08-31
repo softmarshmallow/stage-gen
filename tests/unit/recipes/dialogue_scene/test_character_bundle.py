@@ -139,7 +139,7 @@ def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
 
 
 def _write_run_members(root: Path, scene: ResolvedDialogueScene) -> None:
-    _write_pair(root / "request.json", scene.request_bytes + b"\n", "application/json")
+    _write_pair(root / "request.json", scene.request_bytes, "application/json")
     _write_pair(root / "plan.json", canonical_json_bytes(_plan(scene)) + b"\n", "application/json")
     _write_pair(
         root / "character-profile.json",

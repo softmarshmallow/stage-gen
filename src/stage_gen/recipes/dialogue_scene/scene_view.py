@@ -24,6 +24,7 @@ class DialogueSceneView(RunView):
     """One dialogue-scene run, read back as the graph it was."""
 
     recipe: str
+    game_id: str
     scene_id: str
 
 

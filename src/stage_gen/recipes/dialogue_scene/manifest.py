@@ -66,6 +66,10 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     plan = DialogueScenePlan.model_validate_json(plan_bytes)
     if plan.request_sha256 != canonical_sha256(request):
         raise ValueError("bundle plan request digest does not match canonical request")
+    # The published file must be the canonical document, not merely parse to it,
+    # so a consumer holding the bundle and the file can compare the two digests.
+    if content_sha256(request_bytes) != plan.request_sha256:
+        raise ValueError("request artifact is not canonical")
     expected_profile = (
         request.character_profile.ref,
         request.character_profile.source_sha256,

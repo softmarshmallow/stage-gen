@@ -5,6 +5,7 @@ import {
   DIALOGUE_SCENE_THEME_FIXTURE_KIND,
   parseDialogueSceneThemeFixture,
   serializeDialogueSceneThemeFixture,
+  validateDialogueSceneRuntimeFixture,
 } from "./schema";
 
 function mutableFixture(): Record<string, unknown> {
@@ -53,7 +54,7 @@ describe("dialogue-scene deterministic fixture schema", () => {
     const escapedPath = mutableFixture();
     (escapedPath.background as Record<string, unknown>).src = "../background.png";
     expect(() => parseDialogueSceneThemeFixture(escapedPath)).toThrow(
-      "confined dialogue-scene demo or installed-theme PNG path",
+      "confined dialogue-scene demo, installed-theme, or run PNG path",
     );
   });
 
@@ -73,7 +74,7 @@ describe("dialogue-scene deterministic fixture schema", () => {
 
     variants[0].src = `/dialogue-scene/themes/latest/assets/${"3".repeat(64)}.png`;
     expect(() => parseDialogueSceneThemeFixture(installed)).toThrow(
-      "confined dialogue-scene demo or installed-theme PNG path",
+      "confined dialogue-scene demo, installed-theme, or run PNG path",
     );
   });
 
@@ -121,7 +122,7 @@ describe("dialogue-scene deterministic fixture schema", () => {
     const minor = mutableFixture();
     (minor.appearance as Record<string, unknown>).age = 17;
     expect(() => parseDialogueSceneThemeFixture(minor)).toThrow(
-      "appearance.age must be an integer from 21 to 120",
+      "appearance.age must be an integer from 18 to 120",
     );
 
     const profileMismatch = mutableFixture();
@@ -225,6 +226,53 @@ describe("dialogue-scene deterministic fixture schema", () => {
     prior.kind = "dialogue-scene-theme-fixture-v0";
     expect(() => parseDialogueSceneThemeFixture(prior)).toThrow(
       "dialogue-scene theme fixture schema_version must be 1",
+    );
+  });
+});
+
+describe("run-played fixtures", () => {
+  const runSrc = (name: string) => `/api/assets/larkfield/assets/${name}.png`;
+
+  function runFixture(): Record<string, unknown> {
+    const base = structuredClone(dialogueSceneDemoFixture) as unknown as Record<
+      string,
+      unknown
+    >;
+    const appearance = base.appearance as Record<string, unknown>;
+    return {
+      ...base,
+      background: { ...(base.background as object), src: runSrc("background") },
+      appearance: { ...appearance, conceptSrc: runSrc("concept") },
+      expressionVariants: (
+        base.expressionVariants as { state: string }[]
+      ).map((variant) => ({ ...variant, src: runSrc(`expression-${variant.state}`) })),
+    };
+  }
+
+  test("accepts a fixture streamed from one run", () => {
+    const fixture = validateDialogueSceneRuntimeFixture(runFixture());
+    expect(fixture.background.src).toBe(runSrc("background"));
+  });
+
+  test("refuses a fixture assembled from two runs", () => {
+    const mixed = runFixture();
+    mixed.background = {
+      ...(mixed.background as object),
+      src: "/api/assets/other-run/assets/background.png",
+    };
+    expect(() => validateDialogueSceneRuntimeFixture(mixed)).toThrow(
+      "must share one run tag",
+    );
+  });
+
+  test("refuses a fixture that mixes a run with the committed demo", () => {
+    const mixed = runFixture();
+    mixed.background = {
+      ...(mixed.background as object),
+      src: (dialogueSceneDemoFixture.background as { src: string }).src,
+    };
+    expect(() => validateDialogueSceneRuntimeFixture(mixed)).toThrow(
+      "one installed bundle, or one run",
     );
   });
 });

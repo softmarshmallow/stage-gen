@@ -65,7 +65,6 @@ from stage_gen.media import (
     normalize_png_cover,
 )
 from stage_gen.recipes.dialogue_scene.identity import (
-    canonical_json_bytes,
     content_sha256,
 )
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
@@ -231,9 +230,17 @@ class DialogueSceneNodeHandler:
     # ------------------------------------------------------------------ nodes
 
     async def _write_request(self, node: Node) -> NodeExecutionResult:
+        """Publish the canonical document as exactly its canonical bytes.
+
+        No trailing newline: the plan binds the canonical digest, so the file the
+        run ships has to hash to that same value or a consumer holding both can
+        never prove the plan was compiled from the document beside it. The
+        character profile is published the same way, for the same reason.
+        """
+
         await self._write_local(
             "request.json",
-            canonical_json_bytes(self._scene.request.model_dump(mode="json")) + b"\n",
+            self._scene.request_bytes,
             "application/json",
             "Canonicalize the authored dialogue request.",
             params={"request_sha256": self._scene.request_sha256},
@@ -242,8 +249,6 @@ class DialogueSceneNodeHandler:
 
     async def _write_profile(self, node: Node) -> NodeExecutionResult:
         profile = self._scene.profile
-        if profile is None:
-            raise ValueError("scene-profile-resolve requires dialogue-theme-request-v3")
         rights = profile.profile.rights
         await self._write_local(
             "character-profile.json",
