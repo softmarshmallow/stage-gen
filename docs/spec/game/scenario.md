@@ -406,9 +406,9 @@ the run, the way `puzzle.validation.json` already is.
 
 The runtime is a pure reducer over `(block, statement index, flags, seen)`
 (`web/lib/scenario/runtime.ts`). It owns no drawing, no asset paths, no engine
-types, and no genre vocabulary — the same discipline
-`web/lib/dialogue/conversation.ts` already held, widened from a cursor over beats
-to a walk over a graph of blocks with flags.
+types, and no genre vocabulary. Both genres walk it: the visual novel stages a
+cast against generated backdrops, and the side-view platformer plays the same
+programs in a portrait panel over its map.
 
 Two properties the consumer depends on, and one it must not assume:
 

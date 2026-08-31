@@ -534,11 +534,14 @@ with equivalent digest, rights, failure, and prefetch guarantees.
 ## Illustrative target shape
 
 The following example communicates the proposed boundaries. It is not an
-implemented schema and reserves no final field layout:
+implemented schema and reserves no final field layout. Its `kind` is deliberately
+a name no contract claims: `game-sequence-v1` was retired when both genres moved
+onto [`scenario-v1`](scenario.md), and reusing that identity here would make an
+illustration look like a shape something still writes.
 
 ```toml
 schema_version = 1
-kind = "game-sequence-v1"
+kind = "proposed-cutscene-sequence"
 game_id = "example-game"
 sequence_id = "village-gate-warning"
 revision = 1
