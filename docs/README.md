@@ -11,8 +11,9 @@ Start here for the headless, general-purpose system:
   the module census, and the system-vs-author ownership rule.
 - [Universe ontology and visual explanation taxonomy](spec/universe/taxonomy-v0.md)
   — the ratified documentation-only V0 storyworld classes, relationships,
-  identity markers, narrative roles, explanatory asset obligations, and
-  extension boundary for future genre profiles.
+  poster/synopsis/expansion-direction source roles, relational outputs,
+  identity markers, explanatory asset obligations, generic graph-and-gallery
+  consumer baseline, and extension boundary for future genre profiles.
 - [Component contract](component-contract.md) — reusable-module requirements.
 - [Image style anchor](image-style-anchor.md) — tracked rendering-medium
   vocabulary, single-token model selection, and digest-bound prompt clause.

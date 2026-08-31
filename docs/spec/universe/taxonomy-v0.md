@@ -12,11 +12,13 @@
 > standard classes such as planets for science fiction, but they MUST project
 > those additions onto this core rather than replace it.
 >
-> This specification does not claim implementation support. It does not define
-> a serialized input schema, root filename, node registry, execution graph,
-> provider operation, generated manifest, web experience, or migration plan.
-> The current [prepared-game contracts](../../game-contract.md) and recipes
-> remain unchanged.
+> This specification does not claim implementation support. It ratifies the
+> conceptual source and output roles, including the minimum generic V1
+> consumer, but it does not define a serialized schema, root filename, node
+> registry, execution graph, provider operation, persisted manifest shape,
+> route implementation, or migration plan. The current
+> [prepared-game contracts](../../game-contract.md) and recipes remain
+> unchanged.
 
 ## Purpose
 
@@ -40,6 +42,95 @@ V0 therefore separates four concerns:
 3. **explanatory assets** state what an audience needs to see or understand;
 4. **engagement projections** arrange those assets for a particular genre and
    audience experience.
+
+## Conceptual source inputs
+
+The first universe-expansion workflow receives three distinct required source
+roles. A future serialized contract MAY store their values inline or by
+digest-bound reference, but it MUST preserve their roles rather than flatten
+them into one undifferentiated prompt.
+
+### Poster
+
+The **poster** is one static visual source: movie poster, key art, cover,
+one-sheet, or another image that establishes visual evidence and an initial
+design grammar. It is neither an exhaustive world model nor automatic proof of
+every depicted detail. Promotional typography, performer likeness, layout,
+and marketing composition MUST NOT silently become storyworld canon.
+
+A future executable contract MUST bind the exact source bytes and record the
+rights basis for using the image as a reference.
+
+### Synopsis
+
+The **synopsis** is the explicit textual account of the premise, subjects,
+conflicts, setting, and present state supplied by the author. Its claims are
+source facts unless they are internally contradictory or explicitly marked as
+uncertain, disputed, or perspectival.
+
+### Expansion direction
+
+The **expansion direction** is an instruction about how the universe should be
+ratified or expanded: its desired scope, emphasis, depth, omissions, audience
+entry, and acceptable degree of invention. It is not itself a description of
+the world. It MAY request, for example, deeper institutions, a building-scale
+explanation, or preservation of mystery. It MUST NOT silently override a
+source fact; an intentional reinterpretation or divergence must be exposed as
+such.
+
+### Source authority and lineage
+
+Ratification MUST reconcile the three inputs without confusing their
+authority. Accepted claims MUST distinguish at least:
+
+- authored facts stated by the synopsis;
+- literal visual observations supported by the poster;
+- conservative inferences needed to connect supplied evidence; and
+- generated extensions admitted because they satisfy the expansion direction.
+
+Unresolved conflicts between sources MUST remain visible for review. The
+poster supplies visual evidence and grammar, the synopsis supplies explicit
+world claims, and the expansion direction controls the transformation. None of
+the three is permission to hide unsupported assumptions.
+
+Source-evidence bindings and expansion rationale are distinct. A direction
+requirement MAY justify admitting a generated extension, but it MUST NOT be
+recorded as factual evidence that the extension already existed in the poster
+or synopsis. Display summaries, audience viewpoints, and asset descriptions
+MUST bind to lineaged canonical facts rather than becoming an untracked second
+place to invent canon.
+
+## Conceptual target outputs
+
+A successful universe-expansion workflow produces one coherent package with
+four connected output roles:
+
+1. an **expanded universe document** containing the premise, viewpoints,
+   present state, canonical entities, and the facts needed to explain them;
+2. a **relational graph** containing stable entity identities and typed,
+   scoped relationships, including perspective or temporal qualification when
+   needed;
+3. an **explanatory asset set** whose records bind each asset to its purpose,
+   canonical subjects, applicable relationships, and expressed world facts;
+   and
+4. a **ratification record** exposing source lineage, generated extensions,
+   unresolved questions, validation findings, coverage decisions, and
+   revision identity.
+
+Output cardinality is intentionally irregular. A universe MAY contain no
+vehicles, many rooms, one central event, several overlapping place layers, or
+hundreds of actor-to-collective relationships. Neither generation nor a
+generic consumer may require empty franchise-shaped categories to make the
+package look regular.
+
+The relational graph is a semantic storyworld graph and MAY contain cycles.
+It is not the acyclic execution graph used to schedule generation work. An
+asset record is connected to the graph through stable subject and relationship
+identities; a file path or gallery position is not semantic identity.
+
+"Ratified" means admitted as coherent authored meaning. It does not mean that
+generated media has passed semantic review, been accepted for publication, or
+been activated by a public consumer.
 
 ## Ownership and library boundary
 
@@ -572,6 +663,42 @@ A map and a comic are therefore not peer ontology categories. A map primarily
 orients; a comic is an engagement projection that composes actors, places,
 things, events, and ideas.
 
+## V1 generic consumer baseline
+
+Because universe outputs have irregular classes, cardinality, topology, and
+media, the minimum V1 consumer is a generic **graph explorer plus gallery**.
+It is a package reader, not a second universe generator.
+
+The graph explorer MUST:
+
+- read canonical entities and relationships rather than execution nodes;
+- support cyclic semantic relationships;
+- filter by core class, declared narrower kind, and relationship family;
+- expose the selected subject's facts, lineage, neighbors, and bound assets;
+  and
+- treat layout coordinates and clustering as client-owned presentation, not
+  canonical world facts.
+
+The gallery MUST:
+
+- index every explanatory asset record without assuming a fixed asset census;
+- filter by explanatory purpose, subject, core class, narrower kind, and media
+  kind;
+- cross-link selections back to their canonical subjects and relationships;
+- expose metadata and a safe open or download path when it cannot present a
+  media kind inline; and
+- preserve review and publication state rather than treating file presence as
+  acceptance.
+
+The existing `/universe/demo` illustrated-map route remains a specialized map
+spike. It demonstrates a possible image-space orientation projection, but its
+current manifest does not carry the universe subject, relationship, fact,
+review, and publication bindings required of a conforming explanatory asset.
+A future binding or adapter MAY connect it to the canonical package; the map
+manifest is not the root universe contract and MUST NOT be widened into one.
+Atlas, timeline, blueprint, dossier, investigation, and other refined
+experiences MAY later consume the same canonical package.
+
 ## V0 ratification rules
 
 Before generation, a future universe ratifier MUST establish all of the
@@ -592,6 +719,14 @@ following:
 11. Every required artwork states the audience question it answers.
 12. No major entity is explained only through prose when its defining
     properties are visual or spatial.
+13. Every accepted world claim records its source or generated-extension
+    lineage.
+14. The result satisfies the expansion direction without presenting that
+    direction as a world fact.
+15. Source conflicts and deliberate reinterpretations remain visible for
+    review.
+16. The semantic graph passes ontology, relationship, identity, and coverage
+    admission before paid visual fan-out begins.
 
 Ratification MUST reject or return for revision:
 
@@ -670,5 +805,8 @@ That comparison should determine:
 - which engagement projections deserve first-party support; and
 - where V0 is too agnostic to produce a useful authored discipline.
 
-Only after those decisions are ratified should an executable authored schema,
-node taxonomy, generation graph, manifest, or consumer contract be proposed.
+Only after those decisions are ratified should the exact serialized schema,
+staged node topology, persisted manifest shape, implementation, and specialized
+consumer contracts be proposed. The conceptual source roles, target output
+roles, and generic V1 graph-and-gallery baseline above are already part of this
+V0 authority.
