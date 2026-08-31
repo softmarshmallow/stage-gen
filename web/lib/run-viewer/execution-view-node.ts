@@ -7,6 +7,7 @@
 
 import type {
   ExecutionViewArtifact,
+  ExecutionViewAuthoredInput,
   ExecutionViewCard,
   ExecutionViewNode,
   ExecutionViewPort,
@@ -96,6 +97,40 @@ export function resolveReferenceInputs(
         ? null
         : (upstream?.artifacts.find((entry) => entry.artifactRef === port.artifactRef) ?? null);
     return { reference, node: upstream, port, artifact };
+  });
+}
+
+/** One authored input, joined against the copy the run published, if any. */
+export interface ResolvedAuthoredInput {
+  readonly input: ExecutionViewAuthoredInput;
+  /**
+   * The run's own copy of those bytes, when some node republished the package
+   * member into the run. Absent is normal: an authored input lives in the
+   * package, and only a recipe that ships it also writes it here.
+   */
+  readonly artifact: ExecutionViewArtifact | null;
+}
+
+/**
+ * Join a node's authored inputs to the run's copy of them. Matching is by
+ * artifact ref and digest together: same path with different bytes is a
+ * different file, and saying otherwise would put the wrong picture on screen.
+ */
+export function resolveAuthoredInputs(
+  card: ExecutionViewCard | null,
+  nodes: Iterable<ExecutionViewNode>,
+): readonly ResolvedAuthoredInput[] {
+  // Materialized once: callers pass a map's values, and a one-shot iterator
+  // would be exhausted by the first input and starve every one after it.
+  const published = [...nodes];
+  return (card?.authoredInputs ?? []).map((input) => {
+    for (const node of published) {
+      const artifact = node.artifacts.find(
+        (entry) => entry.artifactRef === input.ref && entry.sha256 === input.sha256,
+      );
+      if (artifact) return { input, artifact };
+    }
+    return { input, artifact: null };
   });
 }
 

@@ -6,6 +6,14 @@ a side effect of moving code, renaming a symbol, or re-declaring a provider
 route. Re-pinned 2026-08-31 for the node-ABI schema bump (typed nodes, ports,
 and the taxonomy-aligned persisted vocabulary), which changed every digest by
 design in one coordinated move.
+
+Re-pinned again 2026-08-31: the node card gained ``authored_inputs`` so that a
+package member a node is handed can never be invisible in the plan. Bellweather
+plans exactly the same work — the topology digest below is unchanged, and no
+cache key moved, because the card is not part of one — but every card now
+carries the field, so the document digest moves with it. This recipe declares
+no authored inputs yet; wiring its reference images through the new field is a
+deliberate later change that will move this digest again.
 """
 
 from __future__ import annotations
@@ -22,7 +30,7 @@ REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 221
-BELLWEATHER_GRAPH_SHA256 = "48557dc1acbf37cba8cbc5adcfa28d642931fb56e6fbcac67719898cf7d3e110"
+BELLWEATHER_GRAPH_SHA256 = "a842a1914679311fc62b39d646ef42a9fbcecf7d946391f7e81a651bd88f1410"
 BELLWEATHER_TOPOLOGY_SHA256 = "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d"
 
 

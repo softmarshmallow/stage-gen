@@ -85,7 +85,11 @@ it and a run must carry the bytes it names.
 Every generation node's **complete static prompt rides its card in the plan**
 — the handler sends the card text verbatim with the style anchor appended
 once, so `execution-plan.json` states exactly what each node will be told
-before a cent is spent, and the run viewer renders it.
+before a cent is spent, and the run viewer renders it. Each image card also
+names the cover as an `authored_inputs` entry — label, package path, digest —
+so the file that will be attached to the call is legible in the plan and in
+the viewer rather than hiding inside a cache key, the way a derived input is
+legible through its upstream port.
 
 ## Runtime manifest — `pointclick-room-runtime-v2`
 

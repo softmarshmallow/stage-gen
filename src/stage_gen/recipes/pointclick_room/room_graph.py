@@ -15,6 +15,7 @@ from pydantic import Field
 
 from gnode import (
     SHA256_PATTERN,
+    AuthoredInput,
     Binding,
     BindingTable,
     Graph,
@@ -206,11 +207,16 @@ def build_pointclick_room_graph(
         card=NodeCard(prompt=resolved.style_selection_brief, schema_name="canonical_style_anchor"),
     )
 
-    # Every image is drawn against the room's authored style references, so their
-    # digests ride each image node's identity: swapping the cover in the package
-    # is a new look, and the whole room re-bills on purpose. They are authored
-    # inputs rather than upstream ports, so they appear here and not in the card.
+    # Every image is drawn against the room's authored style references. Their
+    # digests ride each image node's identity — swapping the cover in the package
+    # is a new look, and the whole room re-bills on purpose — and each card names
+    # them as authored inputs, so a reader of the plan sees the file that will be
+    # attached to the call rather than an unexplained digest.
     style_digests = tuple(reference.sha256 for reference in resolved.style_references)
+    style_inputs = tuple(
+        AuthoredInput(label=reference.reference_id, ref=reference.source, sha256=reference.sha256)
+        for reference in resolved.style_references
+    )
 
     builder.add(
         BACKDROP_GENERATE,
@@ -227,7 +233,11 @@ def build_pointclick_room_graph(
             _artifact("image", "assets/backdrop.png", BACKDROP_KIND),
             _attempts("room-backdrop"),
         ),
-        card=NodeCard(prompt=backdrop_prompt(room), reference_inputs=(anchor_ref,)),
+        card=NodeCard(
+            prompt=backdrop_prompt(room),
+            reference_inputs=(anchor_ref,),
+            authored_inputs=style_inputs,
+        ),
     )
 
     sprite_validations: list[str] = []
@@ -256,6 +266,7 @@ def build_pointclick_room_graph(
                 card=NodeCard(
                     prompt=hotspot_sprite_prompt(room, hotspot),
                     reference_inputs=(anchor_ref,),
+                    authored_inputs=style_inputs,
                 ),
             )
             validated = builder.add(
@@ -301,6 +312,7 @@ def build_pointclick_room_graph(
                 card=NodeCard(
                     prompt=item_icon_prompt(room, item),
                     reference_inputs=(anchor_ref,),
+                    authored_inputs=style_inputs,
                 ),
             )
             validated = builder.add(

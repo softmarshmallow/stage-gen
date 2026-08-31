@@ -79,20 +79,37 @@ class PortRef(PersistedContractModel):
     port_id: str = Field(pattern=PORT_ID_PATTERN, max_length=64)
 
 
+class AuthoredInput(PersistedContractModel):
+    """One input a node consumes that no upstream node produced.
+
+    An authored input comes from the package the run was asked to build — a
+    reference image, a template, a document the author put there. It carries
+    the digest that binds it, so the plan states which exact bytes the node
+    will be handed instead of leaving them implicit in an opaque cache key.
+    """
+
+    label: str = Field(pattern=NODE_ID_PATTERN, max_length=96)
+    ref: str = Field(min_length=1, max_length=512)
+    sha256: str = Field(pattern=SHA256_PATTERN)
+
+
 class NodeCard(PersistedContractModel):
     """The definition a renderer shows for a node: what it is told, statically.
 
     ``prompt`` is the instruction text as known at plan time; ``template_ref``
     names a packaged template resource when composition is runtime-bound;
     ``reference_inputs`` point at the derived inputs (upstream ports) the node
-    consumes at run time, so a reader sees the static and derived halves of
-    the definition side by side without reading handler code.
+    consumes at run time; ``authored_inputs`` name the package members it is
+    handed that nothing upstream produced. A reader sees the static, derived,
+    and authored halves of the definition side by side without reading handler
+    code — an input that reaches a provider is never invisible in the plan.
     """
 
     prompt: str | None = Field(default=None, min_length=1, max_length=20_000)
     template_ref: str | None = Field(default=None, max_length=192)
     schema_name: str | None = Field(default=None, max_length=96)
     reference_inputs: tuple[PortRef, ...] = ()
+    authored_inputs: tuple[AuthoredInput, ...] = ()
 
 
 class Node(PersistedContractModel):

@@ -152,6 +152,12 @@ def test_the_authored_cover_conditions_every_generated_image() -> None:
     assert image_nodes, "the room generates images"
     for node in image_nodes:
         assert cover.sha256 in node.input_sha256, node.node_id
+        # An input that reaches a provider is never invisible in the plan: the
+        # card names the file, not just an unexplained digest.
+        assert node.card is not None
+        authored = {entry.label: entry for entry in node.card.authored_inputs}
+        assert authored["cover_style"].ref == "references/cover.png", node.node_id
+        assert authored["cover_style"].sha256 == cover.sha256, node.node_id
     # The run ships the bytes the manifest names: the bundle republishes it.
     bundle = graph.node("room-bundle")
     assert bundle.port("reference_cover_style").artifact_ref == "references/cover.png"

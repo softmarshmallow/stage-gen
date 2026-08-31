@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { executionViewFixture } from "@/lib/shell/execution-view.fixture";
 import {
+  type ExecutionViewCard,
   type ExecutionViewNode,
   parseExecutionView,
   type ViewArchetype,
@@ -9,6 +10,7 @@ import {
   isPrompted,
   nodeChipLabel,
   nodeHeading,
+  resolveAuthoredInputs,
   resolveReferenceInputs,
   sidecarRefFor,
   verdictPort,
@@ -100,6 +102,63 @@ describe("resolveReferenceInputs", () => {
   test("a node with no card has nothing to resolve", () => {
     const { byId } = fixtureNodes();
     expect(resolveReferenceInputs(null, byId)).toHaveLength(0);
+  });
+});
+
+describe("resolveAuthoredInputs", () => {
+  const card = (
+    ...inputs: readonly { label: string; ref: string; sha256: string }[]
+  ): ExecutionViewCard => ({
+    prompt: null,
+    templateRef: null,
+    schemaName: null,
+    referenceInputs: [],
+    authoredInputs: inputs,
+  });
+
+  test("joins an authored input to the run's own copy of those bytes", () => {
+    const { nodes } = fixtureNodes();
+    const published = nodes[1].artifacts[0];
+    const resolved = resolveAuthoredInputs(
+      card({ label: "cover_style", ref: published.artifactRef, sha256: published.sha256 }),
+      nodes,
+    );
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].artifact?.artifactRef).toBe(published.artifactRef);
+  });
+
+  test("same path, different bytes is a different file", () => {
+    const { nodes } = fixtureNodes();
+    const published = nodes[1].artifacts[0];
+    const resolved = resolveAuthoredInputs(
+      card({ label: "cover_style", ref: published.artifactRef, sha256: "0".repeat(64) }),
+      nodes,
+    );
+    expect(resolved[0].artifact).toBeNull();
+  });
+
+  test("every input is resolved when the caller passes a one-shot iterator", () => {
+    const { nodes, byId } = fixtureNodes();
+    const published = nodes[1].artifacts[0];
+    const entry = { label: "cover_style", ref: published.artifactRef, sha256: published.sha256 };
+    const resolved = resolveAuthoredInputs(
+      card(entry, { ...entry, label: "second_reference" }),
+      byId.values(),
+    );
+    expect(resolved.map((item) => item.artifact?.artifactRef)).toEqual([
+      published.artifactRef,
+      published.artifactRef,
+    ]);
+  });
+
+  test("an authored input the run never republished still names its file", () => {
+    const { nodes } = fixtureNodes();
+    const resolved = resolveAuthoredInputs(
+      card({ label: "cover_style", ref: "references/cover.png", sha256: "a".repeat(64) }),
+      nodes,
+    );
+    expect(resolved[0].artifact).toBeNull();
+    expect(resolved[0].input.ref).toBe("references/cover.png");
   });
 });
 

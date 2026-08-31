@@ -182,16 +182,29 @@ export interface ExecutionViewPortRef {
 }
 
 /**
+ * One input the node consumes that no upstream node produced: a member of the
+ * authored package, named and digest-bound, so an input that reaches a
+ * provider is never invisible in the plan.
+ */
+export interface ExecutionViewAuthoredInput {
+  readonly label: string;
+  readonly ref: string;
+  readonly sha256: string;
+}
+
+/**
  * The node's definition: what it is told, statically. `prompt` is the text as
  * known at plan time, `templateRef` names a packaged template when composition
- * is runtime-bound, and `referenceInputs` point at the derived inputs the node
- * consumes at run time — so the static and derived halves read side by side.
+ * is runtime-bound, `referenceInputs` point at the derived inputs the node
+ * consumes at run time, and `authoredInputs` name the package members it is
+ * handed — so the static, derived, and authored halves read side by side.
  */
 export interface ExecutionViewCard {
   readonly prompt: string | null;
   readonly templateRef: string | null;
   readonly schemaName: string | null;
   readonly referenceInputs: readonly ExecutionViewPortRef[];
+  readonly authoredInputs: readonly ExecutionViewAuthoredInput[];
 }
 
 export interface ExecutionViewNode {
@@ -418,6 +431,15 @@ function portRef(value: unknown, label: string): ExecutionViewPortRef {
   });
 }
 
+function authoredInput(value: unknown, label: string): ExecutionViewAuthoredInput {
+  const record = object(value, label);
+  return Object.freeze({
+    label: text(record.label, `${label}.label`),
+    ref: text(record.ref, `${label}.ref`),
+    sha256: text(record.sha256, `${label}.sha256`),
+  });
+}
+
 function card(value: unknown, label: string): ExecutionViewCard | null {
   if (value === null || value === undefined) return null;
   const record = object(value, label);
@@ -428,6 +450,11 @@ function card(value: unknown, label: string): ExecutionViewCard | null {
     referenceInputs: Object.freeze(
       array(record.reference_inputs ?? [], `${label}.reference_inputs`).map((entry, index) =>
         portRef(entry, `${label}.reference_inputs[${index}]`),
+      ),
+    ),
+    authoredInputs: Object.freeze(
+      array(record.authored_inputs ?? [], `${label}.authored_inputs`).map((entry, index) =>
+        authoredInput(entry, `${label}.authored_inputs[${index}]`),
       ),
     ),
   });

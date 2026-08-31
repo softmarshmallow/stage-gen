@@ -24,7 +24,9 @@ import {
 import {
   isPrompted,
   nodeHeading,
+  type ResolvedAuthoredInput,
   type ResolvedReference,
+  resolveAuthoredInputs,
   resolveReferenceInputs,
   sidecarRefFor,
   verdictPort,
@@ -266,6 +268,60 @@ function ReferenceInput({
   );
 }
 
+/**
+ * One authored input: a package member the node is handed that nothing
+ * upstream produced. It has no source node to jump to, so it shows the file,
+ * its digest, and — when the run republished those exact bytes — the picture
+ * the node was actually given.
+ */
+function AuthoredInputEntry({
+  tag,
+  resolved,
+  onZoom,
+}: {
+  tag: string;
+  resolved: ResolvedAuthoredInput;
+  onZoom: (image: LightboxImage) => void;
+}) {
+  const { input, artifact } = resolved;
+  const url = artifact?.present ? preparedAssetUrl(tag, artifact.artifactRef) : null;
+  const isPicture = artifact !== null && artifact.present && artifact.display === "image";
+  return (
+    <li className="flex items-start gap-2 border border-border p-1.5">
+      {isPicture && url && artifact ? (
+        <button
+          type="button"
+          className="alpha-checker flex size-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-border hover:border-fg"
+          onClick={() =>
+            onZoom({
+              path: artifact.artifactRef,
+              label: artifact.artifactRef,
+              url,
+              transparent: artifact.mediaType === "image/png",
+            })
+          }
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="max-h-full max-w-full object-contain"
+            src={url}
+            alt={input.ref}
+            loading="lazy"
+          />
+        </button>
+      ) : null}
+      <div className="min-w-0 flex-1 text-[11px]">
+        <p className="m-0 truncate text-fg">{input.label}</p>
+        <p className="m-0 truncate text-dim" title={input.ref}>
+          {input.ref}
+        </p>
+        <p className="m-0 truncate text-dim">sha256 {input.sha256.slice(0, 12)}</p>
+        {artifact === null ? <p className="m-0 text-dim">authored, not republished</p> : null}
+      </div>
+    </li>
+  );
+}
+
 /** The node's declared outputs, whether or not the run has written them. */
 function PortList({ ports }: { ports: readonly ExecutionViewPort[] }) {
   return (
@@ -399,12 +455,14 @@ function Definition({
   const card = node.card;
   const prompt = isPrompted(node.archetype) ? card?.prompt : null;
   const references = resolveReferenceInputs(card, nodesById);
+  const authored = resolveAuthoredInputs(card, nodesById.values());
   const answer = verdictPort(node);
   if (
     !prompt &&
     !card?.templateRef &&
     !card?.schemaName &&
     references.length === 0 &&
+    authored.length === 0 &&
     node.ports.length === 0 &&
     answer === null
   ) {
@@ -440,6 +498,21 @@ function Definition({
                 tag={tag}
                 resolved={resolved}
                 onSelect={onSelect}
+                onZoom={onZoom}
+              />
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {authored.length > 0 ? (
+        <>
+          <SectionHeading>authored inputs ({authored.length})</SectionHeading>
+          <ul className="m-0 mb-1.5 list-none space-y-1.5">
+            {authored.map((resolved) => (
+              <AuthoredInputEntry
+                key={resolved.input.label}
+                tag={tag}
+                resolved={resolved}
                 onZoom={onZoom}
               />
             ))}
