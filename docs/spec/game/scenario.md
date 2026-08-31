@@ -53,7 +53,12 @@ engine anyway. That work is real, bounded, and shared with the platformer; see
 **What we take from Ren'Py.** Its answers, not its runtime: the statement set as
 a checklist, the skip-already-read rule keyed on stable statement identity, the
 save-slot model with a thumbnail and the line in progress, and the backlog as a
-first-class expectation rather than a nicety.
+first-class expectation rather than a nicety. We also take its **surface
+shape** — see [The script](#the-script) — because a language model has seen far
+more `.rpy` than it will ever see of an invented schema, so a Ren'Py-shaped
+script makes idiomatic generation land in-subset by default. Taking the shape is
+not taking the semantics: every part of Ren'Py that is code is replaced, and the
+result is a surface over a closed vocabulary rather than a language.
 
 **The asymmetry that keeps this reversible.** Because a scenario is data with a
 closed vocabulary, emitting a `.rpy` from it later — for a native build on real
@@ -71,7 +76,7 @@ such:
 | Term | Owner | Meaning |
 | --- | --- | --- |
 | `sequence` | [sequence contract](dialogue-and-cutscene-sequences.md) | The canonical authored semantic graph. May be branching, timed, cinematic, or gameplay-coupled. Larger than any implementation. |
-| `scenario` | this document | The executable subset: a data-only text IR, its admission proof, and the deterministic runtime that walks it. |
+| `scenario` | this document | The executable subset: a data-only text IR, the script surface that compiles onto it, its admission proof, and the deterministic runtime that walks it. |
 
 A scenario is what a sequence compiles *to* when its semantics fall inside the
 subset. A sequence outside the subset MUST be refused by that compiler rather
@@ -82,29 +87,40 @@ for production. It carries no genre in its name, which is deliberate — the
 platformer's village dialogue box already walks the same conversation core, and
 is expected to consume scenarios rather than keeping a parallel beat list.
 
-## The three parts
+## The four parts
 
 1. **The authored contract** (`scenario-v1`) — strict TOML, closed statement
    vocabulary, no expressions beyond flag tests, no embedded code.
-2. **The admission proof** — a bounded search of the exact reachable state space
+2. **The authored surface** — a line-oriented script file that compiles one to
+   one onto that vocabulary, so the part a person writes is prose rather than
+   schema. See [The script](#the-script).
+3. **The admission proof** — a bounded search of the exact reachable state space
    that refuses an unreachable ending, an orphan label, a flag nothing sets, or
    a block that cannot terminate. Offline, before any generation is paid for.
-3. **The runtime** — a deterministic reducer over `(block, statement, flags)`,
+4. **The runtime** — a deterministic reducer over `(block, statement, flags)`,
    free of engine, manifest, and genre vocabulary, drawn by each genre's own
    consumer.
 
 ## Authored contract — `scenario-v1`
 
-A scenario is a package member, named by exact relative path and exact bytes,
-the way every other authored member is:
+A scenario is **two package members**, each named by exact relative path and
+exact bytes, the way every other authored member is:
 
 ```text
-library/games/<game_id>/scenario.toml
-library/games/<game_id>/scenarios/<scenario_id>.toml
+library/games/<game_id>/scenario.toml                  # declarations
+library/games/<game_id>/scenarios/<scenario_id>.scenario  # the script
 ```
 
-A scenario declares its cast, its stages, its audio tracks, its flags, and an
-ordered list of labelled blocks.
+The split is by what the content *is*, not by size. Everything carrying a
+digest, a rights basis, or a generation brief — cast, stages, audio tracks,
+flags, endings — is package data and stays in TOML. The script holds only
+narrative. That keeps schema noise out of the file where prose lives, and keeps
+the digest-bound members where the rest of the package's members already are.
+
+`scenario.toml` names the script by path and pins it with `script_sha256`,
+exactly as `[[references]]` pins an image. Admission checks the two halves
+against each other in both directions: a name the script uses that the
+declarations do not carry is refused, and so is a declaration nothing uses.
 
 **Blocks do not fall through.** Every block MUST end with a terminal statement —
 `jump`, `choice`, `branch`, or `end`. A block never inherits the next block in
@@ -141,6 +157,191 @@ Deliberately outside the subset, each refused rather than approximated: `wait`,
 control leases, and voice synchronization. Every one belongs to the sequence
 contract and none is required to make a visual novel playable.
 
+## The script
+
+The statement vocabulary above is the contract. Writing it directly as TOML
+arrays-of-tables costs roughly twenty lines of file per line of dialogue, which
+is tolerable for a machine and miserable for the human who should be writing the
+prose. The authored surface is therefore a line-oriented script that compiles
+one to one onto those ten statements and adds nothing.
+
+**The surface is deliberately Ren'Py-shaped.** Not out of deference — the
+[Decision](#decision) stands — but for one concrete reason: a language model has
+seen vastly more `.rpy` than it will ever see of a schema we invent, so idiomatic
+Ren'Py should land inside our subset *by default*, without the generator being
+taught a dialect. Where the surface departs from Ren'Py, it is because that part
+of Ren'Py is code.
+
+| Ren'Py | Scenario | Why |
+| --- | --- | --- |
+| `$ flag = True` | `set flag` | `$` is the doorway to arbitrary Python. Closing it is most of why this contract exists. |
+| `if a and not b:` | `if a and not b:` | Same spelling, restricted grammar: declared flag names, `and`, `not`. Idiomatic Ren'Py lands in-subset. |
+| `return` | `end <outcome>` | Endings are named, so completion is trackable and the proof can require each to be reachable. |
+| `scene bg classroom` | `stage classroom_day` | A stage is a declared package member, not an image path the script names. |
+| `play music "x.ogg"` | `play summer_room` | Likewise a declared track, not a file. |
+
+### Grammar
+
+Line-oriented; one nesting level; no expression grammar beyond flags, `and`,
+and `not`. Blank lines are insignificant. `#` to end of line is a comment.
+Indentation is significant only for block bodies and `menu` options.
+
+```ebnf
+script      = { label_block } ;
+label_block = "label" , ident , ":" , NEWLINE , INDENT , { statement } , DEDENT ;
+
+statement   = say | narrate | show | hide | stage | audio
+            | set | menu | if_jump | jump | end ;
+
+narrate     = STRING ;                                (* line, no speaker *)
+say         = ident , [ ident ] , STRING ;            (* speaker, expression *)
+show        = "show" , ident , [ ident ] , [ "at" , slot ] ;
+hide        = "hide" , ident ;
+stage       = "stage" , ident ;
+audio       = ( "play" | "stop" ) , ident ;
+set         = "set" , [ "not" ] , ident ;
+jump        = "jump" , ident ;
+end         = "end" , ident ;
+
+menu        = "menu" , ":" , NEWLINE , INDENT , option , { option } , DEDENT ;
+option      = STRING , [ "if" , condition ] , ":" , NEWLINE ,
+              INDENT , jump , DEDENT ;
+
+if_jump     = "if" , condition , ":" , NEWLINE , INDENT , jump , DEDENT ;
+condition   = term , { "and" , term } ;
+term        = [ "not" ] , ident ;
+
+slot        = "left" | "center" | "right" ;
+ident       = lower_snake_case ;
+```
+
+`say` is Ren'Py's say-with-image-attributes: `nao delighted "..."` both speaks
+and changes the shown expression, which is how the form is already used in the
+wild.
+
+Because `say` begins with a bare identifier, the statement keywords are
+**reserved**: `label`, `show`, `hide`, `stage`, `play`, `stop`, `set`, `menu`,
+`if`, `jump`, `end`, `at`, `and`, `not`. An `actor_id` equal to any of them is
+refused at admission rather than resolved by lookahead, because a cast member
+named `end` would make `end talked` mean two things and the file would parse
+differently depending on which reading a future parser preferred.
+
+An ordered run of `if_jump` statements followed by a bare `jump` compiles to one
+`branch`: each `if` is an edge in authored order, and the trailing `jump` is the
+mandatory default. A `branch` therefore cannot be written without a default,
+because a block that ends on a failed `if` would not terminate.
+
+### Two restrictions, both open
+
+Real Ren'Py is more permissive in two places, and the restrictions below exist
+only to keep "a block never falls through" true uniformly, which is the property
+the proof rests on. Both cost the author extra labels. Both should be settled
+before M1 rather than discovered during it.
+
+**A `menu` option body must be exactly one `jump`.** Ren'Py allows arbitrary
+statements inside an option and then falls through. Allowing that here would
+mean compiling each option body into an anonymous block, which the proof would
+have to name in its output — workable, but it puts labels in error messages that
+the author never wrote.
+
+**`if` takes no `elif` or `else`, and its body is one `jump`.** The ordered-runs
+rule above recovers `elif` chains exactly; what it does not recover is a
+conditional that guards a few statements inline.
+
+### Worked example
+
+```renpy
+label arrival:
+    stage classroom_day
+    play summer_room
+
+    "The last bell went twenty minutes ago. The room still smells of chalk."
+
+    show nao neutral at center
+
+    nao "Everyone's gone home. I wanted to record the room before they lock up."
+
+    menu:
+        "Say nothing, and listen with her.":
+            jump listening
+        "Ask what she's recording.":
+            jump asking
+
+
+label listening:
+    set stayed_quiet
+
+    "So you say nothing. The cicadas fill the gap where the answer would have been."
+
+    nao delighted "Thank you. Most people start talking the second I hold this up."
+
+    jump recording
+
+
+label recording:
+    stage classroom_dusk
+
+    nao neutral "That's the building settling. It does that every evening."
+
+    if stayed_quiet and not asked_about_recorder:
+        jump ending_quiet
+
+    jump ending_talked
+
+
+label ending_quiet:
+    nao delighted "You heard it too. I could tell. You went still."
+
+    hide nao
+    stop summer_room
+    end listened
+```
+
+with the names it uses declared beside it:
+
+```toml
+schema_version = 1
+kind = "scenario-v1"
+scenario_id = "last_class"
+script = "scenarios/last_class.scenario"
+script_sha256 = "<sha256 of the exact script bytes>"
+entry = "arrival"
+
+[[cast]]
+actor_id = "nao"
+profile = "character.toml"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+# An actor with no profile speaks but is never shown: the protagonist
+# convention, and the reason `you` needs no generated plates.
+[[cast]]
+actor_id = "you"
+display_name = "You"
+
+[[stages]]
+stage_id = "classroom_day"
+brief = "An original empty classroom in late afternoon, warm light, no people"
+
+[[tracks]]
+track_id = "summer_room"
+brief = "Sparse piano over cicadas, unhurried, a little hollow"
+
+[[flags]]
+flag_id = "stayed_quiet"
+
+[[endings]]
+outcome_id = "listened"
+label = "You listened"
+```
+
+### The parser
+
+The surface adds a parser, which the TOML-only shape did not have. It stays
+small by construction — line-oriented, one nesting level, ten keywords, no
+expression grammar — and it MUST fail closed with the offending line number
+rather than skip, guess, or partially accept. It performs no name resolution:
+whether `nao` or `stayed_quiet` exists is admission's question, not the parser's.
+
 ## Admission is a proof
 
 The precedent is already in this repository. `resolve_pointclick_room`
@@ -161,7 +362,11 @@ refuse:
 - a scenario with no reachable `end`; and
 - a scenario whose reachable state space exceeds the declared ceiling — refused
   rather than partially proven, because a proof that gave up quietly is worse
-  than no proof.
+  than no proof; and
+- a script whose bytes do not match `script_sha256`, or which references a name
+  the declarations do not carry, or declarations carrying a name the script
+  never uses. The two halves are one authored member and are admitted together
+  or not at all.
 
 The proof, with one shortest path to each ending as evidence, is persisted into
 the run, the way `puzzle.validation.json` already is.
@@ -216,7 +421,10 @@ more coupled than their ordering suggests.
 
 This document does not:
 
-- introduce a scripting language, expression evaluator, or embedded code;
+- introduce a scripting language. The script surface is a line-oriented notation
+  over a closed statement vocabulary with no expression evaluator, no variables
+  beyond declared booleans, no user-defined names, and no embedded code. A
+  surface that acquires any of those has stopped being this contract;
 - restate or amend the [sequence contract](dialogue-and-cutscene-sequences.md),
   which remains the canonical semantic authority;
 - select or replace the browser engine, which stays the shared Phaser consumer;
