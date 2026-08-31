@@ -15,11 +15,14 @@ import re
 
 from stage_gen.components.character_profile import CharacterProfile
 from stage_gen.recipes.dialogue_scene.identity import canonical_sha256
-from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES, DialogueRequest
+from stage_gen.recipes.dialogue_scene.models import (
+    EXPRESSION_STATES,
+    MAXIMUM_AGE,
+    MINIMUM_AGE,
+    DialogueRequest,
+)
 
 POLICY_VERSION = 3
-MINIMUM_AGE = 18
-MAXIMUM_AGE = 120
 CONTENT_POLICY = {
     "version": POLICY_VERSION,
     "minimum_age": MINIMUM_AGE,

@@ -1823,7 +1823,7 @@ function parseSceneData(value: unknown): SceneData {
     appearance: Object.freeze({
       id: appearanceId,
       label: strictText(appearance.label, "appearance.label", 96),
-      age: strictInteger(appearance.age, "appearance.age", 21, 120),
+      age: strictInteger(appearance.age, "appearance.age", 18, 120),
       role: strictText(appearance.role, "appearance.role", 160),
       tagline: strictText(appearance.tagline, "appearance.tagline", 160),
       description: strictText(

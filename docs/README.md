@@ -9,6 +9,10 @@ Start here for the headless, general-purpose system:
 - [Asset taxonomy](spec/asset-taxonomy.md) — the module namespace
   (`<space>/<camera>/<genre>/<module>`), its profile-bound camera aliases,
   the module census, and the system-vs-author ownership rule.
+- [Universe ontology and visual explanation taxonomy](spec/universe/taxonomy-v0.md)
+  — the ratified documentation-only V0 storyworld classes, relationships,
+  identity markers, narrative roles, explanatory asset obligations, and
+  extension boundary for future genre profiles.
 - [Component contract](component-contract.md) — reusable-module requirements.
 - [Image style anchor](image-style-anchor.md) — tracked rendering-medium
   vocabulary, single-token model selection, and digest-bound prompt clause.

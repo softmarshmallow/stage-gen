@@ -26,6 +26,11 @@ class PersistedContractModel(BaseModel):
         return self
 
 
+#: The recipe's content floor, stated once. policy.py owns the rule; the
+#: persisted projections below only have to agree with it.
+MINIMUM_AGE = 18
+MAXIMUM_AGE = 120
+
 ExpressionState = Literal["neutral", "delighted", "flustered", "concerned"]
 TransparencyMode = Literal["native", "ai", "chroma"]
 RightsStatus = Literal["unreviewed", "restricted", "redistribution-approved"]
@@ -427,7 +432,9 @@ class SceneBackground(PersistedContractModel):
 class SceneAppearance(PersistedContractModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
     label: str = Field(min_length=1, max_length=96)
-    age: int = Field(ge=21, le=120)
+    #: Kept in step with the recipe's own floor in policy.py; the projection must
+    #: not admit anyone the resolver already refused, nor refuse anyone it passed.
+    age: int = Field(ge=MINIMUM_AGE, le=MAXIMUM_AGE)
     role: str = Field(min_length=1, max_length=120)
     tagline: str = Field(min_length=1, max_length=120)
     description: str = Field(min_length=1, max_length=280)
