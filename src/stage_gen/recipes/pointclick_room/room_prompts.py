@@ -12,6 +12,17 @@ from __future__ import annotations
 
 from stage_gen.recipes.pointclick_room.models import Hotspot, Item, PointClickRoom
 
+#: Every image after the cover is generated against it. Words alone do not hold
+#: an art direction across independent draws — the backdrop and the sprites came
+#: back in visibly different styles from the same style clause — so the cover is
+#: attached as pixels and this clause states exactly what it is for.
+STYLE_REFERENCE_CLAUSE = (
+    "The attached image is this game's style reference. Reproduce its palette, shape language, "
+    "line weight, edge treatment and level of detail exactly. Take the composition and the "
+    "subject only from the instructions above; do not copy the reference's layout or repeat "
+    "objects from it that were not asked for."
+)
+
 
 def _region_span(hotspot: Hotspot) -> str:
     region = hotspot.region
@@ -27,6 +38,22 @@ def _style_clause(room: PointClickRoom) -> str:
     if avoid:
         clause += f" Avoid: {avoid}."
     return clause
+
+
+def cover_prompt(room: PointClickRoom) -> str:
+    """The one image every other image is drawn against.
+
+    It is key art, not a playfield: no clearance zones, no declared regions, no
+    hotspot bookkeeping. Its only job is to fix the art direction in pixels.
+    """
+
+    return (
+        "Paint one piece of cover key art for a point-and-click puzzle game, as a single "
+        f"full-frame illustration. {room.scene.brief} Show the world of the game at its most "
+        "characteristic: its materials, its light, and its palette, composed as one hero image. "
+        f"{_style_clause(room)} No text, no logo, no title lettering, no UI, no watermarks, "
+        "no people."
+    )
 
 
 def backdrop_prompt(room: PointClickRoom) -> str:
@@ -58,7 +85,7 @@ def backdrop_prompt(room: PointClickRoom) -> str:
         "Paint one complete point-and-click adventure room interior as a single full-frame "
         f"scene. {room.scene.brief} {_style_clause(room)} No text, no watermarks, no UI, "
         "no people unless the scene brief names them."
-        f"{scenery_clause}{clearance_clause}"
+        f"{scenery_clause}{clearance_clause} {STYLE_REFERENCE_CLAUSE}"
     )
 
 
@@ -67,7 +94,7 @@ def hotspot_sprite_prompt(room: PointClickRoom, hotspot: Hotspot) -> str:
         f"One isolated object on a fully transparent background: {hotspot.label}. "
         f"{hotspot.brief} {_style_clause(room)} The object belongs in this scene: "
         f"{room.scene.brief} Single subject, complete silhouette, no ground shadow, "
-        "no text, nothing else in frame."
+        f"no text, nothing else in frame. {STYLE_REFERENCE_CLAUSE}"
     )
 
 
@@ -75,7 +102,8 @@ def item_icon_prompt(room: PointClickRoom, item: Item) -> str:
     return (
         f"One isolated inventory item icon on a fully transparent background: {item.label}. "
         f"{item.brief} {_style_clause(room)} Single centered object, complete silhouette, "
-        "readable at small size, no ground shadow, no text, nothing else in frame."
+        f"readable at small size, no ground shadow, no text, nothing else in frame. "
+        f"{STYLE_REFERENCE_CLAUSE}"
     )
 
 
@@ -141,7 +169,9 @@ def narration_json_schema() -> dict[str, object]:
 
 
 __all__ = [
+    "STYLE_REFERENCE_CLAUSE",
     "backdrop_prompt",
+    "cover_prompt",
     "hotspot_sprite_prompt",
     "item_icon_prompt",
     "narration_ids",

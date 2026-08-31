@@ -25,6 +25,8 @@ export interface ReadyRoom {
   tag: string;
   displayName: string;
   roomId: string;
+  /** Run-relative ref of the key art the room's assets were generated against. */
+  cover: string;
 }
 
 export async function listReadyRooms(): Promise<ReadyRoom[]> {
@@ -39,7 +41,12 @@ export async function listReadyRooms(): Promise<ReadyRoom[]> {
       try {
         const manifest = await readRoomManifest(tag);
         if (manifest) {
-          out.push({ tag, displayName: manifest.displayName, roomId: manifest.roomId });
+          out.push({
+            tag,
+            displayName: manifest.displayName,
+            roomId: manifest.roomId,
+            cover: manifest.cover,
+          });
         }
       } catch {
         // An invalid room manifest is not a ready room.

@@ -1,5 +1,5 @@
 /**
- * The point-and-click room runtime contract: `pointclick-room-runtime-v1`.
+ * The point-and-click room runtime contract: `pointclick-room-runtime-v2`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
@@ -7,7 +7,7 @@
  * from this document alone.
  */
 
-export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v1";
+export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v2";
 export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 1;
 
 export const POINTCLICK_REFUSAL =
@@ -63,6 +63,8 @@ export interface RoomManifest {
   readonly displayName: string;
   readonly revision: number;
   readonly roomSha256: string;
+  /** The key art every image in this room was generated against. */
+  readonly cover: string;
   readonly scene: { readonly width: number; readonly height: number; readonly backdrop: string };
   readonly hotspots: readonly RoomHotspot[];
   readonly items: readonly RoomItem[];
@@ -222,6 +224,7 @@ export function parseRoomManifest(value: unknown): RoomManifest {
     displayName: text(raw.display_name, "display_name"),
     revision: integer(raw.revision, "revision"),
     roomSha256: text(raw.room_sha256, "room_sha256"),
+    cover: text(raw.cover, "cover"),
     scene: {
       width: integer(scene.width, "scene.width"),
       height: integer(scene.height, "scene.height"),

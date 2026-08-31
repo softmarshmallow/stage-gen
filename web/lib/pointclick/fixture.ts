@@ -3,11 +3,12 @@
 export function roomManifestFixture(): Record<string, unknown> {
   return {
     schema_version: 1,
-    kind: "pointclick-room-runtime-v1",
+    kind: "pointclick-room-runtime-v2",
     room_id: "test_room",
     display_name: "Test Room",
     revision: 1,
     room_sha256: "a".repeat(64),
+    cover: "references/cover.png",
     scene: { width: 1280, height: 720, backdrop: "assets/backdrop.png" },
     hotspots: [
       {

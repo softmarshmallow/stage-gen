@@ -49,6 +49,9 @@ RETIRED_PREPARED_IDENTITIES = (
     "dialogue-scene-execution-graph-v1",
     "prepared-world-v1",
     "prepared-content-v3",
+    # Retired when the room gained its cover: every published room image is now
+    # generated against one style reference, and the manifest ships it.
+    "pointclick-room-runtime-v1",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -169,7 +172,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     for identity in (
         "`pointclick-room-v1`",
         "`pointclick-room-execution-graph-v1`",
-        "`pointclick-room-runtime-v1`",
+        "`pointclick-room-runtime-v2`",
         "`pointclick-solvability-v1`",
     ):
         assert identity in room

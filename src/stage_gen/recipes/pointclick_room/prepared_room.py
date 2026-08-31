@@ -8,6 +8,7 @@ with the runtime-selected style anchor appended once.
 
 from __future__ import annotations
 
+import base64
 import json
 from io import BytesIO
 from pathlib import Path
@@ -20,6 +21,7 @@ from gnode import (
     BinaryArtifact,
     CacheDisposition,
     ImageGenerationRequest,
+    ImageReference,
     NodeArtifact,
     NodeExecutionError,
     NodeExecutionResult,
@@ -55,6 +57,7 @@ from stage_gen.recipes.pointclick_room.room_graph import (
 from stage_gen.recipes.pointclick_room.room_prompts import narration_ids, narration_json_schema
 from stage_gen.recipes.pointclick_room.room_types import (
     BACKDROP_GENERATE,
+    COVER_GENERATE,
     HOTSPOT_SPRITE_GENERATE,
     HOTSPOT_SPRITE_KIND,
     HOTSPOT_SPRITE_VALIDATE,
@@ -84,6 +87,13 @@ if TYPE_CHECKING:
 _COMPONENT = SoftwareIdentity(name="@stage-gen/pointclick-room", version="1")
 
 SPRITE_SIZE = 1024
+
+#: The one image every other image is generated against.
+COVER_REF = "references/cover.png"
+
+
+def _data_url(data: bytes) -> str:
+    return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def room_target_node_ids(graph: PointClickRoomGraph) -> tuple[str, ...]:
@@ -146,6 +156,7 @@ class PointClickRoomNodeHandler:
         registry = NodeTypeRegistry()
         registry.register(ROOM_RESOLVE, self._bind(self._write_room))
         registry.register(STYLE_SELECT, self._bind(self._select_style))
+        registry.register(COVER_GENERATE, self._bind(self._cover))
         registry.register(BACKDROP_GENERATE, self._bind(self._backdrop))
         registry.register(HOTSPOT_SPRITE_GENERATE, self._bind(self._sprite))
         registry.register(ITEM_ICON_GENERATE, self._bind(self._sprite))
@@ -183,6 +194,20 @@ class PointClickRoomNodeHandler:
         )
         result = await self._provider_call(
             node, "style-anchor", request.prompt, lambda: self._structured.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _cover(self, node: Node) -> NodeExecutionResult:
+        scene = self._resolved.room.scene
+        result = await self._image(
+            node,
+            role="cover",
+            output=node.port("image").artifact_ref,
+            asset_kind="illustration",
+            width=scene.width,
+            height=scene.height,
+            transparent=False,
+            references=(),
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -348,7 +373,7 @@ class PointClickRoomNodeHandler:
                 raise ValueError(f"narration is missing the generated line for {key}")
             return line
 
-        artifacts = ["assets/backdrop.png"]
+        artifacts = [COVER_REF, "assets/backdrop.png"]
         hotspots = []
         for hotspot in room.hotspots:
             sprite_ref = (
@@ -391,6 +416,9 @@ class PointClickRoomNodeHandler:
             "display_name": room.display_name,
             "revision": room.revision,
             "room_sha256": self._resolved.room_sha256,
+            # The cover is the art direction of record: every other image in this
+            # manifest was generated against it, so it ships with them.
+            "cover": COVER_REF,
             "scene": {
                 "width": room.scene.width,
                 "height": room.scene.height,
@@ -425,12 +453,17 @@ class PointClickRoomNodeHandler:
         width: int,
         height: int,
         transparent: bool,
+        references: tuple[str, ...] = (COVER_REF,),
     ) -> Any:
         prompt = self._card_prompt(node)
         anchor = self._style_anchor()
         request = ImageGenerationRequest(
             prompt=prompt,
             artifact_path=self._run_dir / output,
+            input_references=tuple(
+                ImageReference(url=_data_url(self._read(ref)), provenance_ref=ref)
+                for ref in references
+            ),
             quality="high",
             background="transparent" if transparent else "opaque",
             output_format="png",

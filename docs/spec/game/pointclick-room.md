@@ -54,23 +54,33 @@ persisted into the run as `puzzle.validation.json`
 
 `stage-gen pointclick-room generate --input library/rooms/<id>/room.toml
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 14 nodes: `room.resolve` → `style_anchor.select` → the
-backdrop, one generate+validate pair per sprite hotspot
+the shipped room is 15 nodes: `room.resolve` → `style_anchor.select` →
+`cover.generate` → the backdrop, one generate+validate pair per sprite hotspot
 (`hotspot-pipeline@v1` template instances) and per item icon
 (`item-icon-pipeline@v1`), one `narration.compile` structured call covering
 every authored narration gap under a closed-id strict schema (omitted
 entirely when the author wrote every line), the local `puzzle.validate`
 proof, and the terminal `room.bundle`.
 
+**The cover is the art direction of record.** `cover.generate` paints one
+piece of key art into `references/cover.png`, and every image after it —
+backdrop, hotspot sprites, item icons — is generated with that file attached
+as an input reference plus a clause naming it a style reference. Words alone
+do not hold a look across independent draws: the first flat-graphic room came
+back with a flat backdrop and glossy gradient icons from the identical style
+clause. The cover is lineage for every image that follows it, so replacing it
+re-bills the room deliberately rather than leaving assets drawn against a
+reference that no longer exists.
+
 Every generation node's **complete static prompt rides its card in the plan**
 — the handler sends the card text verbatim with the style anchor appended
 once, so `execution-plan.json` states exactly what each node will be told
 before a cent is spent, and the run viewer renders it.
 
-## Runtime manifest — `pointclick-room-runtime-v1`
+## Runtime manifest — `pointclick-room-runtime-v2`
 
-The terminal bundle writes `manifest.json` into the run directory: scene frame
-and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
+The terminal bundle writes `manifest.json` into the run directory: the cover
+ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
 generated one), the win condition, and a digest-bound closure of every
 published artifact. The web consumer (`web/lib/pointclick/`, route

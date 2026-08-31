@@ -101,14 +101,23 @@ export default async function Home() {
             {rooms.map((room) => (
               <li
                 key={room.tag}
-                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
+                className="grid grid-cols-[64px_1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg max-[480px]:grid-cols-[48px_1fr]"
               >
+                <div className="flex h-12 w-16 items-center justify-center overflow-hidden bg-well text-dim">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="h-full w-full object-cover"
+                    src={`/api/assets/${room.tag}/${room.cover}`}
+                    alt=""
+                    aria-hidden
+                  />
+                </div>
                 <div className="min-w-0">
                   <div className="truncate text-[13px] text-fg">{room.displayName}</div>
                   <div className="mt-0.5 truncate text-[11px] text-dim">{room.tag}</div>
                 </div>
                 <Link
-                  className={cx(playActive, playSizeCompact)}
+                  className={cx(playActive, playSizeCompact, "max-[480px]:col-span-full max-[480px]:justify-self-end")}
                   href={roomModule.route(room.tag)}
                 >
                   [ ▶ enter room ]
