@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { button, cx } from "@/app/ui";
 
 export type LightboxImage = Readonly<{
@@ -38,35 +39,38 @@ export default function ImageLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black p-6"
+      className="fixed inset-0 z-[100] flex flex-col bg-black/70 p-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={asset.label}
       onClick={(event) => {
-        // The caption strip is the one part of the overlay that is not a
-        // dismiss target: it carries the alpha toggle.
-        if ((event.target as HTMLElement).closest("[data-lightbox-meta]")) return;
+        // Everything outside the image and its caption strip is a dismiss
+        // target; the strip carries the alpha toggle and must survive a click.
+        if ((event.target as HTMLElement).closest("[data-lightbox-content]")) return;
         onClose();
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className={cx(
-          "max-h-[calc(95vh-80px)] max-w-[95vw] object-contain",
-          asset.transparent && showAlpha && "alpha-checker",
-        )}
-        src={asset.url}
-        alt={asset.label}
-        onLoad={(event) => {
-          const image = event.currentTarget;
-          setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
-        }}
-      />
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className={cx(
+            "max-h-full max-w-full object-contain",
+            asset.transparent && showAlpha && "alpha-checker",
+          )}
+          data-lightbox-content
+          src={asset.url}
+          alt={asset.label}
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+          }}
+        />
+      </div>
       <div
-        className="mt-3 flex items-center gap-4 text-xs text-dim"
-        data-lightbox-meta
+        className="mt-3 flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-dim"
+        data-lightbox-content
       >
         <span>{asset.path}</span>
         {dimensions.width && dimensions.height ? (
@@ -90,4 +94,12 @@ export default function ImageLightbox({
       </div>
     </div>
   );
+
+  // The lightbox opens from panels that carry a backdrop filter, and a
+  // backdrop filter makes its element the containing block for every fixed
+  // descendant. Rendered in place, `inset-0` and the viewport units below it
+  // would measure against a 380px panel rather than the window. Portalling to
+  // the body is what keeps this a window-sized dialog wherever it is opened
+  // from; it is not a mounting convenience.
+  return typeof document === "undefined" ? null : createPortal(overlay, document.body);
 }
