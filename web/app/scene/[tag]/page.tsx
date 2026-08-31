@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import DialogueSceneDemo from "@/app/dialogue-scene/demo/DialogueSceneDemo";
+import ScenePlayer from "./ScenePlayer";
 import { readSceneFixture } from "@/lib/shell/dialogue-scene";
 import { isSafeRunTag } from "@/lib/shell/runs";
 
 export const dynamic = "force-dynamic";
 
 // The visual-novel consumer, played straight out of the run that produced it —
-// the same shape the point-and-click room uses. Installing a scene as the site's
-// active theme is a separate, deliberate act; this page is for looking at what
-// you just generated, so it reads `out/<tag>/bundle.json` and streams that run's
-// own assets. The only chrome is one way back out.
+// the same shape the point-and-click room uses, on the same engine. Installing a
+// scene as the site's active theme is a separate, deliberate act; this page is
+// for looking at what you just generated, so it reads `out/<tag>/bundle.json`
+// and streams that run's own assets. The only chrome is one way back out.
 export default async function ScenePage({ params }: { params: Promise<{ tag: string }> }) {
   const { tag } = await params;
   if (!isSafeRunTag(tag)) notFound();
@@ -27,7 +27,7 @@ export default async function ScenePage({ params }: { params: Promise<{ tag: str
         </span>
       </div>
       <div className="min-h-0 flex-1">
-        <DialogueSceneDemo fixture={fixture} />
+        <ScenePlayer fixture={fixture} />
       </div>
     </main>
   );

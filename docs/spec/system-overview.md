@@ -131,6 +131,13 @@ finishable before any generation is paid for. Its
 `pointclick-room-v2` contract, the graph, and the `pointclick-room-runtime-v2`
 manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
+Every genre that plays a conversation walks the same machine. The village
+dialogue box in the platformer and the visual-novel scene are two presentations
+of one ordered cursor over beats, kept in `web/lib/dialogue/` free of any
+engine, manifest, or genre vocabulary — each consumer owns only how it draws
+the ends. That boundary is what lets a conversation become a node later without
+either genre owning the answer.
+
 The Python package under `src/stage_gen/` is the sole headless implementation.
 Node and TypeScript are confined to the optional `web/` adapter.
 

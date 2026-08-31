@@ -83,6 +83,8 @@ the old names.
 | `recipes/pointclick_room` | new in the ABI pass | `2d/roomview/pointclick` | c/d — fixed-room stage, cursor-only interaction |
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
 | `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
+| `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |
+| `web/lib/dialogue` | new | the agnostic conversation core both genres walk | a |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

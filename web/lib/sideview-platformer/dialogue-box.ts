@@ -13,8 +13,18 @@
 // only appears at the end of a conversation, which is the part a screenshot check never reaches.
 // `nextDialogueCursor` is therefore an exported pure function, unit-tested without Phaser, and
 // the class does nothing with the cursor except render whatever the function returns.
+//
+// That machine is not the platformer's, though: the visual novel walks the same beats with the
+// same cursor. It lives in `lib/dialogue/conversation` now, and this function is the village's
+// spelling of it - the town closes its panel at the end, so a finished conversation becomes the
+// `null` this caller already knew how to handle.
 
 import Phaser from "phaser";
+import {
+  advanceConversationCursor,
+  conversationIsFinished,
+  CONVERSATION_BEFORE_FIRST,
+} from "@/lib/dialogue/conversation";
 import { SCENE_CONTENT_DEPTH } from "./layers";
 import type { DialogueExpressionState } from "./dialogue-sequence";
 
@@ -58,7 +68,7 @@ const SPEAKER_LINE_GAP_PX = 10;
  * Exported so `open()` and the tests express "before the first line" with the same value rather
  * than each picking their own sentinel.
  */
-export const DIALOGUE_CURSOR_BEFORE_FIRST = -1;
+export const DIALOGUE_CURSOR_BEFORE_FIRST = CONVERSATION_BEFORE_FIRST;
 
 /**
  * Which line a conversation shows next, or null when it is over.
@@ -83,9 +93,8 @@ export function nextDialogueCursor(
 ): number | null {
   if (!Number.isSafeInteger(lineCount) || lineCount <= 0) return null;
   if (!Number.isSafeInteger(cursor)) return null;
-  if (cursor < 0) return 0;
-  const next = cursor + 1;
-  return next < lineCount ? next : null;
+  const next = advanceConversationCursor(cursor, lineCount, "next");
+  return conversationIsFinished(next, lineCount) ? null : next;
 }
 
 export type DialoguePresentationBeat = Readonly<{

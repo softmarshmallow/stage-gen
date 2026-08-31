@@ -1,0 +1,138 @@
+// Layout for the in-canvas visual-novel HUD, kept free of Phaser.
+//
+// The scene is played inside the canvas the way a visual novel is: one fixed
+// design space that the engine scales to whatever viewport it lands in. That
+// only works if the layout is deterministic, so every rectangle the scene draws
+// is computed here as a pure function of the design frame and unit-tested,
+// rather than measured off DOM elements.
+//
+// Unlike the point-and-click room, the dialogue panel is drawn *over* the art
+// rather than in a band beneath it. A room authors click targets across its
+// whole frame, so a panel on top eventually covers something the player has to
+// reach; a scene has exactly one target — advance — and it is the whole canvas.
+// Overlaying is both the genre's convention and safe here for that reason.
+
+export interface Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface Size {
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * The design frame: the producer's own background contract.
+ *
+ * `dialogue-scene-bundle-v4` admits exactly one background size, so the frame
+ * is known before the texture loads and the layout never waits on it.
+ */
+export const DIALOGUE_STAGE: Size = Object.freeze({ width: 1672, height: 941 });
+
+export const PANEL_MARGIN_X = 36;
+export const PANEL_MARGIN_BOTTOM = 30;
+export const PANEL_HEIGHT = 208;
+export const PANEL_PADDING_X = 34;
+export const PANEL_PADDING_TOP = 44;
+export const CHIP_HEIGHT = 46;
+export const CHIP_MIN_WIDTH = 150;
+export const CHIP_PADDING_X = 26;
+export const CHIP_OFFSET_X = 28;
+
+/** The sprite's share of the frame, matching the authored presentation. */
+export const SPRITE_HEIGHT_RATIO = 0.98;
+export const SPRITE_MAX_WIDTH_RATIO = 0.66;
+
+export interface FramingPlacement {
+  /** Normalized presentation scale, about the sprite's top-centre. */
+  readonly scale: number;
+  readonly xPercent: number;
+  readonly yPercent: number;
+}
+
+/**
+ * Where the character stands, in design pixels.
+ *
+ * The authored presentation gives a scale and a top-centre anchor as
+ * percentages; this resolves them against the frame while preserving the
+ * sprite's aspect, so a wide plate is limited by width and a tall one by
+ * height rather than being stretched to fit either.
+ */
+export function spriteFrame(
+  stage: Size,
+  source: Size,
+  placement: FramingPlacement,
+): Rect {
+  if (source.width <= 0 || source.height <= 0) {
+    throw new Error("dialogue-scene sprite source must have a positive size");
+  }
+  const aspect = source.width / source.height;
+  let height = stage.height * SPRITE_HEIGHT_RATIO;
+  let width = height * aspect;
+  const maximumWidth = stage.width * SPRITE_MAX_WIDTH_RATIO;
+  if (width > maximumWidth) {
+    width = maximumWidth;
+    height = width / aspect;
+  }
+  const scaled = { width: width * placement.scale, height: height * placement.scale };
+  const anchorX = (placement.xPercent / 100) * stage.width;
+  const anchorY = (placement.yPercent / 100) * stage.height;
+  return Object.freeze({
+    x: anchorX - scaled.width / 2,
+    y: anchorY,
+    width: scaled.width,
+    height: scaled.height,
+  });
+}
+
+export function dialoguePanelRect(stage: Size): Rect {
+  return Object.freeze({
+    x: PANEL_MARGIN_X,
+    y: stage.height - PANEL_MARGIN_BOTTOM - PANEL_HEIGHT,
+    width: stage.width - PANEL_MARGIN_X * 2,
+    height: PANEL_HEIGHT,
+  });
+}
+
+/** The speaker's name plate, straddling the panel's top edge. */
+export function speakerChipRect(panel: Rect, labelWidth: number): Rect {
+  const width = Math.max(CHIP_MIN_WIDTH, labelWidth + CHIP_PADDING_X * 2);
+  return Object.freeze({
+    x: panel.x + CHIP_OFFSET_X,
+    y: panel.y - CHIP_HEIGHT / 2,
+    width,
+    height: CHIP_HEIGHT,
+  });
+}
+
+/** Top-left anchor of the panel's body copy. */
+export function bodyTextPoint(panel: Rect): { readonly x: number; readonly y: number } {
+  return Object.freeze({ x: panel.x + PANEL_PADDING_X, y: panel.y + PANEL_PADDING_TOP });
+}
+
+export function bodyTextWrapWidth(panel: Rect): number {
+  return panel.width - PANEL_PADDING_X * 2;
+}
+
+/** Bottom-right anchor of the one-line progress readout, inside the panel. */
+export function progressPoint(panel: Rect): { readonly x: number; readonly y: number } {
+  return Object.freeze({
+    x: panel.x + panel.width - PANEL_PADDING_X,
+    y: panel.y + panel.height - 16,
+  });
+}
+
+/** The end card, centred on the frame. */
+export function completeCardRect(stage: Size): Rect {
+  const width = Math.min(760, stage.width - PANEL_MARGIN_X * 4);
+  const height = 240;
+  return Object.freeze({
+    x: (stage.width - width) / 2,
+    y: (stage.height - height) / 2,
+    width,
+    height,
+  });
+}
