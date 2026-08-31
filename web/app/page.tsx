@@ -9,7 +9,7 @@ import { listReadyProjects } from "@/lib/shell/projects";
 import { listReadyScenes } from "@/lib/shell/dialogue-scene";
 import { listReadyRooms } from "@/lib/shell/pointclick-room";
 import { listExecutionViewRuns } from "@/lib/shell/execution-view";
-import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/theme-adapter";
+import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/bundle";
 import { sceneModuleForKind } from "@/lib/shell/scene-modules";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import {
@@ -154,7 +154,7 @@ export default async function Home() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     className="h-full w-full object-cover"
-                    src={`/api/assets/${scene.tag}/${scene.identityReference}`}
+                    src={`/api/assets/${scene.tag}/${scene.styleReference}`}
                     alt=""
                     aria-hidden
                   />

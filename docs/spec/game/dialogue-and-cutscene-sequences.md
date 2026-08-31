@@ -616,12 +616,11 @@ outcome_id = "warning-declined"
 
 ## Relationship to current repository capabilities
 
-The implemented [dialogue-scene recipe](../dialogue-scene-assets.md) currently
-carries a linear list of one to twelve caller-authored beats. Each beat has a
-speaker, text, and one locked static expression state. The optional
-[preview](../../dialogue-scene-preview.md) advances linearly and does not own
-narrative state, branch persistence, timed shot tracks, actor blocking, or a
-general cutscene controller.
+The implemented [dialogue-scene recipe](../dialogue-scene-assets.md) now carries
+an authored [scenario](scenario.md) rather than a linear beat list: labelled
+blocks, choices, boolean flags, and named endings, proven reachable before any
+art is generated. It still does not own timed shot tracks, actor blocking beyond
+three slots, save persistence, or a general cutscene controller.
 
 The scrolling
 [dialogue-character projection](../../dialogue-character-runtime-pipeline.md)

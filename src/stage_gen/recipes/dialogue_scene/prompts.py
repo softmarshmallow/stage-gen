@@ -14,16 +14,28 @@ from stage_gen.recipes.dialogue_scene.models import (
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
 
-PROMPT_TEMPLATE_VERSION = 6
+PROMPT_TEMPLATE_VERSION = 7
 _BASE = (
     "Coming-of-age drama, not romance. All depicted people are adults age 18 or older, fully "
     "clothed and presented non-sexually. No text, logos, or watermark."
 )
-#: Named once so every image node says the same thing about the authored plate.
+#: Two clauses, because one plate cannot mean two things once a scene has a cast.
+#:
+#: The style plate is the scene's art direction of record and every image is drawn
+#: against it. It used to also assert "match its character identity exactly", which
+#: was true while a scene had exactly one character and became a bug the moment it
+#: had three: a plate showing one actor would have pulled the whole cast toward that
+#: face. Identity is asserted only where a plate genuinely IS that actor.
+STYLE_REFERENCE_CLAUSE = (
+    "One attached reference is this scene's authored style plate. It is the art direction of "
+    "record: match its rendering medium, palette, line quality and light exactly. It is NOT a "
+    "reference for who this character is - do not copy any person depicted in it. Where it "
+    "disagrees with the instructions above, the instructions win."
+)
 IDENTITY_REFERENCE_CLAUSE = (
-    "One attached reference is this scene's authored identity-and-style plate. It is the art "
-    "direction of record: match its rendering medium, palette, light and character identity "
-    "exactly. Where it disagrees with the instructions above, the instructions win."
+    "One attached reference is this character's own authored identity plate. Match the person "
+    "in it exactly: face, hair, build, and wardrobe. Where it disagrees with the instructions "
+    "above, the instructions win."
 )
 TEMPLATES = {
     "version": PROMPT_TEMPLATE_VERSION,
@@ -32,6 +44,7 @@ TEMPLATES = {
     "neutral": "Create a full-body neutral sprite on flat chroma magenta.",
     "expression": "Edit only the face to the requested expression.",
     "base_policy": _BASE,
+    "style_reference": STYLE_REFERENCE_CLAUSE,
     "identity_reference": IDENTITY_REFERENCE_CLAUSE,
     "profile_contract": "character-profile-v1",
     "profile_precedence": "authored-identity-wardrobe-invariants-override",
@@ -67,22 +80,34 @@ def plan_prompt(
         f"{TEMPLATES['plan']} {_BASE}\n"
         f"Request SHA-256: {request_sha256}. Policy digest: {POLICY_DIGEST}. "
         f"Template digest: {template_digest}. Preserve the four expression states exactly.\n"
-        f"{IDENTITY_REFERENCE_CLAUSE}\n"
+        f"{STYLE_REFERENCE_CLAUSE}\n"
         f"REQUEST: {payload}{profile_line}"
     )
 
 
-def background_prompt(request: DialogueRequest, plan: DialogueScenePlan) -> str:
-    description = request.background.description or request.scene_brief
+def background_prompt(brief: str) -> str:
+    """One backdrop, from the stage's own authored brief.
+
+    Plan-time known, because a stage is declared by the scenario rather than
+    derived from a generated plan: the whole instruction rides the node's card, so
+    `execution-plan.json` states what each backdrop will be told before a cent is
+    spent.
+    """
+
     return (
-        f"{TEMPLATES['background']} {_BASE}\nScene: {description}. "
-        f"Lighting: {plan.shared_locks.lighting}. "
+        f"{TEMPLATES['background']} {_BASE}\nScene: {brief}. "
         "Wide visual-novel dialogue backdrop, no people, no characters, fully opaque.\n"
-        f"{IDENTITY_REFERENCE_CLAUSE}"
+        f"{STYLE_REFERENCE_CLAUSE}"
     )
 
 
-def neutral_prompt(request: DialogueRequest, plan: DialogueScenePlan) -> str:
+def neutral_prompt(
+    request: DialogueRequest,
+    plan: DialogueScenePlan,
+    *,
+    has_identity_plate: bool = False,
+) -> str:
+    identity_clause = f"\n{IDENTITY_REFERENCE_CLAUSE}" if has_identity_plate else ""
     template = (
         "Create a full-body neutral sprite with native alpha."
         if request.transparency_mode == "native"
@@ -97,11 +122,12 @@ def neutral_prompt(request: DialogueRequest, plan: DialogueScenePlan) -> str:
     return (
         f"{template} {_BASE}\n{plan.direction_for('neutral')}. "
         f"Required identity: {plan.shared_locks.identity}. Required wardrobe: "
-        f"{plan.shared_locks.wardrobe}. Preserve those locks from the authored identity plate. "
+        f"{plan.shared_locks.wardrobe}. Those locks are authoritative for who this is. "
         "Full body, isolated character with a clear silhouette and separable edges for a "
         "cutout-friendly composition; no environmental staging. Fixed pose and crop, "
         f"{background_direction}\n"
-        f"{IDENTITY_REFERENCE_CLAUSE}"
+        f"{STYLE_REFERENCE_CLAUSE}"
+        f"{identity_clause}"
     )
 
 

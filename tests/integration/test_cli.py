@@ -153,7 +153,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
     package = repository / "library/games/larkfield"
-    profile = package / "character.toml"
+    profile = package / "characters/nao.toml"
     validate_output = StringIO()
     assert (
         main(
@@ -173,7 +173,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     assert validated == {
         "binding": {
             "kind": "character-profile-binding-v1",
-            "ref": "character.toml",
+            "ref": "characters/nao.toml",
             "schema_version": 1,
             "source_sha256": validated["source_sha256"],
         },
@@ -424,10 +424,10 @@ def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() 
     report = json.loads(output.getvalue())
     assert report["admitted"] is True
     assert report["scenario_id"] == "last_class"
-    assert report["endings"] == {
-        "listened": ["arrival", "listening", "recording", "ending_quiet"],
-        "talked": ["arrival", "asking", "recording", "ending_talked"],
-    }
+    # Four endings, each with one shortest route as evidence.
+    assert set(report["endings"]) == {"broadcast", "talked", "listened", "locked_out"}
+    assert report["endings"]["broadcast"][0] == "arrival"
+    assert report["endings"]["broadcast"][-1] == "ending_broadcast"
 
 
 def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(

@@ -249,22 +249,19 @@ class Block(ScenarioModel):
 
 
 class CastMember(ScenarioModel):
-    """An actor with a profile is drawn; one without speaks but is never shown."""
+    """One actor the narrative can name.
+
+    An actor that declares expressions can be shown; one that declares none
+    speaks but is never drawn - the protagonist convention. Drawability is stated
+    that way, in narrative terms, because a scenario must not know which package
+    member supplies an actor's face. Which profile and which authored plate draw
+    this actor is the consuming scene's binding, so the same scenario can be
+    staged by the visual novel and by the platformer's dialogue box.
+    """
 
     actor_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str | None = Field(default=None, max_length=96)
-    profile: str | None = None
     expressions: list[str] = Field(default_factory=list, max_length=32)
-
-    @field_validator("profile")
-    @classmethod
-    def validate_profile(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = portable_relative_path(value, "cast profile")
-        if not normalized.endswith(".toml"):
-            raise ValueError("cast profile must be a package-relative .toml member")
-        return normalized
 
     @field_validator("display_name")
     @classmethod
@@ -282,15 +279,11 @@ class CastMember(ScenarioModel):
             if expression in RESERVED_WORDS:
                 raise ValueError(f"cast expression {expression} is a reserved statement keyword")
         unique_values(self.expressions, "cast expression")
-        if self.expressions and self.profile is None:
-            raise ValueError(
-                f"cast member {self.actor_id} declares expressions but no profile to draw them from"
-            )
         return self
 
     @property
     def drawable(self) -> bool:
-        return self.profile is not None
+        return bool(self.expressions)
 
 
 class StageDeclaration(ScenarioModel):

@@ -1,25 +1,63 @@
-schema_version = 2
-kind = "dialogue-scene-v2"
+schema_version = 3
+kind = "dialogue-scene-v3"
 game_id = "larkfield"
 display_name = "Larkfield"
-revision = 1
+revision = 2
 scene_brief = "A student records an empty classroom after the last class of summer"
 transparency_mode = "native"
 
 # The art direction of record, as pixels rather than adjectives. Nothing in the
-# graph paints this: it is published into the run as the concept plate and every
+# graph paints this: it is published into the run as the style plate and every
 # generated image is drawn against it, so its digest rides each image node's
 # cache identity. Replacing the file is a new look and re-bills the scene.
-identity_reference_id = "cover"
+#
+# It fixes medium, palette and light for the whole scene. It is NOT an identity
+# reference for the cast: the plate shows one person, and asserting its identity
+# over three actors would pull all of them toward that one face. Only an actor
+# that binds the plate as its own `reference_id` is held to the person in it.
+style_reference_id = "cover"
 
-# The authored identity of record, bound to exact bytes. The scene document names
-# every member it depends on by exact relative path; the resolver reads each one
-# and refuses a digest that no longer matches, offline, before any spend.
-[character_profile]
+# The narrative, as an authored scenario rather than a flat beat list. The scene
+# binds scenario.toml by digest, and scenario.toml binds its script the same way,
+# so this one recorded hash closes over every word the scene can say. Admission
+# proves the whole thing finishable offline, before any art is paid for.
+[scenario]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenario.toml"
+source_sha256 = "6a02267404dd2d1fe9fe652dfa43db755c81506ed226db325e53898d83afe738"
+
+# Which package members draw each actor the scenario can show. The scenario says
+# who exists and what they can wear on their face; this says whose profile and
+# whose plate supply it.
+
+[[cast]]
+actor_id = "nao"
+reference_id = "cover"
+
+[cast.character_profile]
 schema_version = 1
 kind = "character-profile-binding-v1"
-ref = "character.toml"
+ref = "characters/nao.toml"
 source_sha256 = "7c07c3ecf9f0cbdde264692fe8d88fae730e41059041b7a77e43a5f6e86c065b"
+
+[[cast]]
+actor_id = "haruki"
+
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/haruki.toml"
+source_sha256 = "477694cded27c7c916b3c25bc42bfe47193d8604686298670f4cc7dd68097387"
+
+[[cast]]
+actor_id = "sayaka"
+
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/sayaka.toml"
+source_sha256 = "13afd93f6923bda74f4a9fd4c0da4cbf2fa67de46e581ec9d6292043ad739725"
 
 [[references]]
 reference_id = "cover"
@@ -33,20 +71,6 @@ rights_basis = [
     "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
 ]
 
-[background]
-description = "An original empty classroom at blue hour, warm ceiling lights, open windows onto summer rice fields, no people"
-
 [presentation]
-slot = "right"
 framing_zoom = 70
 source_framing_zoom = 70
-
-# The narrative, as an authored scenario rather than a flat beat list. The scene
-# binds scenario.toml by digest, and scenario.toml binds its script the same way,
-# so this one recorded hash closes over every word the scene can say. Admission
-# proves the whole thing finishable offline, before any art is paid for.
-[scenario]
-schema_version = 1
-kind = "scenario-binding-v1"
-ref = "scenario.toml"
-source_sha256 = "7d973b172a8b5645a4d00f967964ab65598b36de219f8da0b4af93568c608f87"

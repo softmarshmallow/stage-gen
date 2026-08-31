@@ -13,23 +13,34 @@ kind = "scenario-v1"
 game_id = "larkfield"
 scenario_id = "last_class"
 display_name = "The Last Class of Summer"
-revision = 1
+revision = 2
 
 # The script is a package member bound to exact bytes, the way an image reference
 # is. Editing the prose changes this digest; `stage-gen scenario check` reports
 # the correct value and `--write-digest` repairs it.
 script = "scenarios/last_class.scenario"
-script_sha256 = "b30d38daf3492ab6bb89766526438ce69e9882e9db52af4aa6bac9aa9d503962"
+script_sha256 = "fe9f032250c425745907dca49d40b4424f7c25fd34d074248e4e5811760a0103"
 entry = "arrival"
 
 # ------------------------------------------------------------------- the cast
-# An actor with a profile is drawn. An actor without one speaks but is never
-# shown — the protagonist convention, and the reason `you` needs no plates.
+# An actor that declares expressions can be shown; one that declares none speaks
+# but is never drawn — the protagonist convention, and the reason `you` needs no
+# plates. Which profile draws each of these is the scene's binding, not this
+# file's, so the same scenario could be staged by another consumer.
 
 [[cast]]
 actor_id = "nao"
 display_name = "Nao"
-profile = "character.toml"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+[[cast]]
+actor_id = "haruki"
+display_name = "Haruki"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+[[cast]]
+actor_id = "sayaka"
+display_name = "Ms Toda"
 expressions = ["neutral", "delighted", "flustered", "concerned"]
 
 [[cast]]
@@ -42,11 +53,15 @@ display_name = "You"
 
 [[stages]]
 stage_id = "classroom_day"
-brief = "An original empty classroom in late afternoon, warm light, rice fields through the open windows, no people"
+brief = "An original empty classroom in late afternoon, warm low sun through open windows, rice fields beyond, chairs still down, no people"
 
 [[stages]]
 stage_id = "classroom_dusk"
-brief = "The same empty classroom at blue hour, ceiling lights on, the fields outside gone dark, no people"
+brief = "The same empty classroom at blue hour, ceiling fluorescents on, the fields outside gone dark, no people"
+
+[[stages]]
+stage_id = "radio_room"
+brief = "A small disused school broadcast room under a staircase, grey equipment panels and a dusty console, one warm desk lamp, no people"
 
 # ------------------------------------------------------------------ the audio
 
@@ -64,14 +79,31 @@ flag_id = "stayed_quiet"
 [[flags]]
 flag_id = "asked_about_recorder"
 
+[[flags]]
+flag_id = "heard_the_signal"
+
+[[flags]]
+flag_id = "told_haruki"
+
+[[flags]]
+flag_id = "keys_borrowed"
+
 # ---------------------------------------------------------------- the endings
 # Named so completion can be tracked and so the proof can insist each one is
 # reachable.
+
+[[endings]]
+outcome_id = "broadcast"
+label = "You heard it on the antenna"
+
+[[endings]]
+outcome_id = "talked"
+label = "Forty minutes of nothing"
 
 [[endings]]
 outcome_id = "listened"
 label = "You listened"
 
 [[endings]]
-outcome_id = "talked"
-label = "You asked"
+outcome_id = "locked_out"
+label = "It's under everything else"

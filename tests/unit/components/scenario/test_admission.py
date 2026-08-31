@@ -167,9 +167,11 @@ def test_an_expression_the_actor_does_not_declare_is_refused(tmp_path: Path) -> 
         _admit(tmp_path, script=script)
 
 
-def test_showing_an_actor_with_no_profile_to_draw_from_is_refused(tmp_path: Path) -> None:
+def test_showing_an_actor_that_declares_no_expressions_is_refused(tmp_path: Path) -> None:
+    """Drawability is stated narratively: an actor with no expressions is never shown."""
+
     script = DEFAULT_SCRIPT.replace("show nao neutral at center", "show you at center")
-    with pytest.raises(ScenarioAdmissionError, match="actor `you`, which declares no profile"):
+    with pytest.raises(ScenarioAdmissionError, match="actor `you`, which declares no expressions"):
         _admit(tmp_path, script=script)
 
 
@@ -191,7 +193,7 @@ def test_a_cast_member_the_script_never_uses_is_refused(tmp_path: Path) -> None:
     cast = [
         {
             "actor_id": "nao",
-            "profile": "character.toml",
+            "display_name": "Nao",
             "expressions": ["neutral", "delighted", "flustered"],
         },
         {"actor_id": "you", "display_name": "You"},
@@ -205,7 +207,7 @@ def test_an_actor_named_after_a_statement_keyword_is_refused(tmp_path: Path) -> 
     """`end talked` would mean two things if a cast member could be named `end`."""
 
     cast = [
-        {"actor_id": "end", "profile": "character.toml", "expressions": ["neutral"]},
+        {"actor_id": "end", "display_name": "End", "expressions": ["neutral"]},
         {"actor_id": "you", "display_name": "You"},
     ]
     with pytest.raises(ValueError, match="reserved statement keyword"):

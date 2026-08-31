@@ -61,6 +61,28 @@ export interface FramingPlacement {
  * sprite's aspect, so a wide plate is limited by width and a tall one by
  * height rather than being stretched to fit either.
  */
+/**
+ * Where an actor standing in one slot is drawn.
+ *
+ * Three slots across the stage rather than one fixed side, because a scene with
+ * a cast has to be able to put two people on screen and have the player see who
+ * is where. The centre slot is the old single-character position, so a one-actor
+ * scene is framed exactly as it always was.
+ */
+export function slotFrame(
+  stage: Size,
+  source: Size,
+  placement: FramingPlacement,
+  slot: "left" | "center" | "right",
+): Rect {
+  const centred = spriteFrame(stage, source, placement);
+  const offsets = { left: -0.26, center: 0, right: 0.26 } as const;
+  // Not rounded: `spriteFrame` is not either, and the canvas is scaled to the
+  // viewport anyway, so rounding here would only make the centre slot disagree
+  // with the single-actor framing it is supposed to reproduce exactly.
+  return Object.freeze({ ...centred, x: centred.x + stage.width * offsets[slot] });
+}
+
 export function spriteFrame(
   stage: Size,
   source: Size,

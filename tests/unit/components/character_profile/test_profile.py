@@ -340,7 +340,7 @@ def test_repository_sample_is_strict_original_and_reference_free() -> None:
     """The shipped profile is a member of the game package that binds it."""
 
     repository = Path(__file__).resolve().parents[4]
-    path = repository / "library/games/larkfield/character.toml"
+    path = repository / "library/games/larkfield/characters/nao.toml"
     profile = load_character_profile(path)
     assert profile.profile_id == "nao-kirishima"
     assert profile.rights.status == "unreviewed"

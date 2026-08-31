@@ -1,0 +1,19 @@
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "haruki-onodera"
+revision = 1
+display_name = "Haruki Onodera"
+age_years = 18
+description = "An original final-year student who keeps the school's disused radio club alive on his own."
+visual_identity = "Young man of above-average height with a lean build, straight black hair pushed back from a high forehead, and narrow dark eyes behind thin wire-rimmed glasses."
+wardrobe = "Modest navy-and-white summer uniform with a short-sleeved white shirt worn untucked, navy trousers, and a knitted grey tie left deliberately loose."
+invariants = [
+  "Thin wire-rimmed glasses and straight black hair pushed back",
+  "Knitted grey tie worn loose over an untucked white shirt",
+  "A folded circuit notebook in his left trouser pocket",
+  "Adult proportions and a dry, unimpressed bearing",
+]
+
+[rights]
+status = "unreviewed"
+basis = ["Original repository-authored text with no external character or media reference."]

@@ -24,27 +24,30 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
 - [x] M1 increment 2 — the runtime reducer (`web/lib/scenario/`), the scene's digest-bound scenario
       binding, and both consumers drawing choices and named endings. The visual novel is registered
       in `web/lib/shell/scene-modules.ts`, which it had never been.
-- [ ] Regenerate larkfield against the current contracts. The bump changed the art identity, so the
-      existing `out/larkfield/` artifacts are stale by construction and a re-run costs about five
-      provider images. Until it happens `/scene/larkfield` has no v5 bundle to read, and the only
-      in-browser evidence for the runtime is the committed demo fixture at `/dialogue-scene/demo`,
-      which does play both of its endings. Needs explicit authorization; do it together with
-      increment 3 rather than paying for the fan-out twice.
-- [ ] M1 increment 3 — grow the package to a cast of several characters and several stages. This is
-      horizontal scaling of proven generation, not a new capability, but it is the first increment
-      that spends money: it needs explicit authorization, it must update
-      `docs/spec/game/generation-pipeline.md` and its executable graph contract in the same change,
-      and every accepted visual needs semantic review by someone other than its producer.
+- [x] M1 increment 3 — the cast-and-stage fan-out. The graph reads no fixed count: one backdrop per
+      declared stage, one profile/plan/neutral/derive/canonicalize chain per drawable actor.
+      Larkfield now ships three drawn actors across three stages, generated in one 38-node run
+      (15 provider images).
+- [ ] Independent semantic review of the twelve expression plates and three backdrops in
+      `out/larkfield/`. Generated visuals are unreviewed by default and need a verdict from someone
+      other than their producer before any of it is treated as acceptance evidence or published.
+- [ ] The style plate still shows one specific character. It is bound as Nao's own identity plate
+      AND as the scene's style plate, which works but conflates two roles in one file: the honest
+      shape is a character-free art-direction plate for the scene, with each actor binding its own
+      identity plate if it has one. Nothing is broken today - the prompt clauses were split so only
+      Nao is held to the plate's identity - but a second scene reusing this package would inherit
+      Nao's face as its house style.
 - [ ] M2 — land the player shell: persistence, save slots, backlog, skip-already-read,
       auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster
       is blocked on — build it once for both.
-- [ ] Retire the parallel beat lists once M1 lands, and count them honestly: there are three
-      authored narrative shapes (`game-sequence-v1` in bellweather, `[[dialogue]]` in
-      `scene.toml`, and now `scenario-v1`) and three runtime walkers. Only two of the walkers use
-      the shared conversation core, and one of those — `DialogueBox` — is dead code nothing
-      imports; the platformer's live dialogue is an untyped inline graph walk in
-      `web/lib/sideview-platformer/prepared-scene.ts` reached through an `as unknown as` cast.
-      Collapse all of it onto scenarios, deleting rather than aliasing, and drop old runs.
+- [ ] Collapse the last parallel narrative shape. `[[dialogue]]` and the theme installer are gone;
+      what remains is `game-sequence-v1` in bellweather and the platformer's untyped inline graph
+      walk in `web/lib/sideview-platformer/prepared-scene.ts` (reached through an `as unknown as`
+      cast), plus `web/lib/sideview-platformer/dialogue-box.ts`, which is dead code nothing imports.
+      Rewrite bellweather's four sequences in the scenario surface, delete `game-sequence-v1` and
+      `game-sequence-catalog-v2` rather than aliasing them, and point the platformer at
+      `web/lib/scenario/runtime.ts`. `web/lib/dialogue/conversation.ts` is then the degenerate case
+      of that runtime and should go with it.
 
 ## Runtime acceptance
 

@@ -189,7 +189,7 @@ function settle(program: ScenarioProgram, start: ScenarioState): ScenarioState {
       state = { ...state, index: 0 };
       continue;
     }
-    if (isPresented(statement)) return markSeen(state);
+    if (isPresented(statement)) return markSeen(speak(state, statement));
     state = apply(program, state, statement);
     if (state.outcome !== null) return state;
   }
@@ -255,6 +255,29 @@ function apply(
     default:
       return { ...state, index: state.index + 1 };
   }
+}
+
+/**
+ * A line that names an expression re-dresses its speaker for as long as the
+ * line and everything after it, exactly as the script surface reads: `mara
+ * delighted "..."` means Mara is delighted from here on, not just staged where
+ * `show` last put her. Staging itself stays `show`'s job - a line spoken from
+ * off stage changes nothing.
+ */
+function speak(state: ScenarioState, statement: ScenarioStatement): ScenarioState {
+  if (statement.kind !== "line" || statement.speaker === null || statement.expression === null) {
+    return state;
+  }
+  const staged = scenarioActor(state, statement.speaker);
+  if (staged === null || staged.expression === statement.expression) return state;
+  return {
+    ...state,
+    actors: state.actors.map((actor) =>
+      actor.actorId === statement.speaker
+        ? { ...actor, expression: statement.expression }
+        : actor,
+    ),
+  };
 }
 
 function markSeen(state: ScenarioState): ScenarioState {

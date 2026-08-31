@@ -16,6 +16,26 @@ from typing import Any
 
 from PIL import Image
 
+SECOND_CHARACTER_TOML = """\
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "ren-hoshino"
+revision = 1
+display_name = "Ren"
+age_years = 41
+description = "An original caretaker who locks the seminar building every evening."
+visual_identity = "Person of average height with close-cropped grey hair and deep-set brown eyes."
+wardrobe = "Olive work jacket over a plain shirt, dark trousers, and a ring of keys."
+invariants = [
+  "Close-cropped grey hair",
+  "Olive work jacket and a ring of keys",
+]
+
+[rights]
+status = "unreviewed"
+basis = ["Original repository-authored text with no external character reference."]
+"""
+
 CHARACTER_TOML = """\
 schema_version = 1
 kind = "character-profile-v1"
@@ -40,7 +60,8 @@ SCENARIO_SCRIPT = """\
 label opening:
     stage lounge
     "The lamps are still on over the empty seminar table."
-    show mio neutral at right
+    show mio neutral at center
+    show ren neutral at left
     mio "I hoped you would stay after the seminar."
 
     menu:
@@ -53,11 +74,13 @@ label opening:
 label staying:
     set stayed
     mio delighted "Then sit. The notes will keep."
+    ren concerned "I will be locking up at seven regardless."
     jump closing
 
 
 label leaving:
     mio flustered "Of course. I did not mean to keep you."
+    ren flustered "The east door is already bolted, for what it is worth."
     jump closing
 
 
@@ -70,12 +93,15 @@ label closing:
 
 label ending_stayed:
     mio concerned "Next week, then. Same table."
+    ren delighted "Next week."
     hide mio
+    hide ren
     end stayed_late
 
 
 label ending_left:
     hide mio
+    hide ren
     end went_home
 """
 
@@ -94,7 +120,12 @@ entry = "opening"
 
 [[cast]]
 actor_id = "mio"
-profile = "character.toml"
+display_name = "Mio"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+[[cast]]
+actor_id = "ren"
+display_name = "Ren"
 expressions = ["neutral", "delighted", "flustered", "concerned"]
 
 [[stages]]
@@ -128,8 +159,11 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "references").mkdir(exist_ok=True)
     (root / "scenarios").mkdir(exist_ok=True)
+    (root / "characters").mkdir(exist_ok=True)
     character_bytes = CHARACTER_TOML.encode("utf-8")
-    (root / "character.toml").write_bytes(character_bytes)
+    (root / "characters/mio.toml").write_bytes(character_bytes)
+    second_bytes = SECOND_CHARACTER_TOML.encode("utf-8")
+    (root / "characters/ren.toml").write_bytes(second_bytes)
     cover = cover_png()
     (root / "references/cover.png").write_bytes(cover)
     script_bytes = SCENARIO_SCRIPT.encode("utf-8")
@@ -140,6 +174,7 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
     (root / "scenario.toml").write_bytes(scenario_bytes)
     document = scene_value(
         character_sha256=hashlib.sha256(character_bytes).hexdigest(),
+        second_sha256=hashlib.sha256(second_bytes).hexdigest(),
         cover_sha256=hashlib.sha256(cover).hexdigest(),
         scenario_sha256=hashlib.sha256(scenario_bytes).hexdigest(),
         **overrides,
@@ -151,6 +186,7 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
 def scene_value(
     *,
     character_sha256: str,
+    second_sha256: str,
     cover_sha256: str,
     scenario_sha256: str,
     **overrides: object,
@@ -158,19 +194,34 @@ def scene_value(
     """The authored document, as a plain value a test can mutate before parsing."""
 
     value: dict[str, Any] = {
-        "schema_version": 2,
-        "kind": "dialogue-scene-v2",
+        "schema_version": 3,
+        "kind": "dialogue-scene-v3",
         "game_id": "seminar_hall",
         "display_name": "Seminar Hall",
         "revision": 1,
         "scene_brief": "A student stays behind in the study lounge after a seminar",
-        "identity_reference_id": "cover",
-        "character_profile": {
-            "schema_version": 1,
-            "kind": "character-profile-binding-v1",
-            "ref": "character.toml",
-            "source_sha256": character_sha256,
-        },
+        "style_reference_id": "cover",
+        "cast": [
+            {
+                "actor_id": "mio",
+                "reference_id": "cover",
+                "character_profile": {
+                    "schema_version": 1,
+                    "kind": "character-profile-binding-v1",
+                    "ref": "characters/mio.toml",
+                    "source_sha256": character_sha256,
+                },
+            },
+            {
+                "actor_id": "ren",
+                "character_profile": {
+                    "schema_version": 1,
+                    "kind": "character-profile-binding-v1",
+                    "ref": "characters/ren.toml",
+                    "source_sha256": second_sha256,
+                },
+            },
+        ],
         "references": [
             {
                 "reference_id": "cover",
@@ -180,14 +231,13 @@ def scene_value(
                 "rights_basis": ["Original brand-neutral test fixture."],
             }
         ],
-        "background": {"description": "Evening study lounge"},
         "scenario": {
             "schema_version": 1,
             "kind": "scenario-binding-v1",
             "ref": "scenario.toml",
             "source_sha256": scenario_sha256,
         },
-        "presentation": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
+        "presentation": {"framing_zoom": 70, "source_framing_zoom": 70},
         "transparency_mode": "chroma",
     }
     value.update(overrides)

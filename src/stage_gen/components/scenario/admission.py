@@ -173,7 +173,7 @@ def _require_drawable_actor(
     assert member is not None
     if not member.drawable:
         raise ScenarioAdmissionError(
-            f"{where} shows actor `{actor}`, which declares no profile to draw from"
+            f"{where} shows actor `{actor}`, which declares no expressions to be drawn with"
         )
     if expression is not None and expression not in member.expressions:
         raise ScenarioAdmissionError(

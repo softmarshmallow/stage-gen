@@ -24,17 +24,14 @@ def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> No
     resolved = resolve_scenario(LARKFIELD)
     assert resolved.declarations.scenario_id == "last_class"
     assert resolved.program.entry == "arrival"
-    assert [block.label for block in resolved.program.blocks] == [
-        "arrival",
-        "listening",
-        "asking",
-        "recording",
-        "ending_quiet",
-        "ending_talked",
-    ]
+    labels = [block.label for block in resolved.program.blocks]
+    assert labels[:3] == ["arrival", "listening", "asking"]
+    assert len(labels) == 20
     witnesses = {witness.outcome_id: witness.path for witness in resolved.admission.witnesses}
-    assert witnesses["listened"] == ["arrival", "listening", "recording", "ending_quiet"]
-    assert witnesses["talked"] == ["arrival", "asking", "recording", "ending_talked"]
+    # Four endings, each with one shortest route as evidence.
+    assert set(witnesses) == {"broadcast", "talked", "listened", "locked_out"}
+    assert witnesses["broadcast"][:3] == ["arrival", "listening", "the_playback"]
+    assert witnesses["broadcast"][-1] == "ending_broadcast"
 
 
 def test_the_shipped_scenario_declares_the_digest_of_its_own_script() -> None:
@@ -93,14 +90,6 @@ def test_a_symlinked_script_file_is_refused(tmp_path: Path) -> None:
 def test_a_script_path_that_escapes_the_package_is_refused(tmp_path: Path) -> None:
     write_scenario_package(tmp_path, script_path_override=True)
     with pytest.raises(ValueError, match=re.escape("must equal scenarios/last_class.scenario")):
-        resolve_scenario(tmp_path)
-
-
-def test_a_cast_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> None:
-    """Admission proves the narrative; this proves the package."""
-
-    write_scenario_package(tmp_path, write_profile=False)
-    with pytest.raises(ValueError, match="not a readable package member"):
         resolve_scenario(tmp_path)
 
 

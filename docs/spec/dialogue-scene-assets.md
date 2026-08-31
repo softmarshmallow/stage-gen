@@ -199,6 +199,4 @@ built-in `anime-v2/` demo set is also consumer-owned fixture data rather than a
 producer bundle example. Neither tree is rewritten by theme generation or by
 this contract migration.
 
-See the [operator workflow](../dialogue-theme-pipeline.md),
-[preview boundary](../dialogue-scene-preview.md), and
-[framing control](../dialogue-scene-framing.md).
+See [framing control](../dialogue-scene-framing.md).

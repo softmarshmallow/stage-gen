@@ -36,10 +36,16 @@ async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
     acceptance_path = root / "run/acceptance.json"
     acceptance_path.write_text('{"criterion":"all six selected assets pass"}\n', encoding="utf-8")
     review = {
-        "schema_version": 5,
-        "kind": "dialogue-scene-review-v5",
-        "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
-        "character_profile_sha256": bundle.character_profile_sha256,
+        "schema_version": 6,
+        "kind": "dialogue-scene-review-v6",
+        "cast": [
+            {
+                "actor_id": actor.actor_id,
+                "character_profile_source_sha256": actor.character_profile_binding.source_sha256,
+                "character_profile_sha256": actor.character_profile_sha256,
+            }
+            for actor in bundle.actors
+        ],
         "status": "pass",
         "usage": "local-demo",
         "source_bundle_sha256": content_sha256(bundle_path.read_bytes()),
@@ -75,7 +81,7 @@ async def _profile_bundle(
     await run_scene(package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache")
     bundle_path = tmp_path / "run/bundle.json"
     return (
-        package / "character.toml",
+        package / "characters/mio.toml",
         bundle_path,
         DialogueBundle.model_validate_json(bundle_path.read_bytes()),
     )
@@ -89,14 +95,20 @@ async def test_profile_v3_review_binds_source_and_canonical_profile_digests(
     acceptance = bundle_path.parent / "acceptance.json"
     acceptance.write_text('{"criterion":"profile and all assets pass"}\n', encoding="utf-8")
     review_value = {
-        "schema_version": 5,
-        "kind": "dialogue-scene-review-v5",
+        "schema_version": 6,
+        "kind": "dialogue-scene-review-v6",
         "status": "pass",
         "usage": "local-demo",
         "source_bundle_sha256": content_sha256(bundle_path.read_bytes()),
         "acceptance_spec_sha256": content_sha256(acceptance.read_bytes()),
-        "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
-        "character_profile_sha256": bundle.character_profile_sha256,
+        "cast": [
+            {
+                "actor_id": actor.actor_id,
+                "character_profile_source_sha256": actor.character_profile_binding.source_sha256,
+                "character_profile_sha256": actor.character_profile_sha256,
+            }
+            for actor in bundle.actors
+        ],
         "independent_reviewer": True,
         "asset_sha256": [asset.sha256 for asset in bundle.assets],
         "publication_authorized": False,
@@ -111,8 +123,17 @@ async def test_profile_v3_review_binds_source_and_canonical_profile_digests(
     review = IndependentReview.model_validate_json(
         (bundle_path.parent / "review.json").read_bytes()
     )
-    assert reviewed.character_profile_sha256 == review.character_profile_sha256
-    assert review.character_profile_source_sha256 == content_sha256(source.read_bytes())
+    # The verdict vouches for every actor's exact profile bytes, not just one.
+    assert {entry.actor_id for entry in review.cast} == {
+        actor.actor_id for actor in reviewed.actors
+    }
+    by_actor = {actor.actor_id: actor for actor in reviewed.actors}
+    for entry in review.cast:
+        assert entry.character_profile_sha256 == by_actor[entry.actor_id].character_profile_sha256
+    assert any(
+        entry.character_profile_source_sha256 == content_sha256(source.read_bytes())
+        for entry in review.cast
+    )
 
 
 @pytest.mark.asyncio
@@ -120,13 +141,13 @@ async def test_profile_v3_review_rejects_noncanonical_profile_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _source, bundle_path, bundle = await _profile_bundle(tmp_path, monkeypatch)
-    profile_path = bundle_path.parent / bundle.character_profile.path
+    profile_path = bundle_path.parent / bundle.actors[0].character_profile.path
     profile_document = json.loads(profile_path.read_bytes())
     noncanonical = json.dumps(profile_document, indent=2, ensure_ascii=False).encode("utf-8")
     profile_path.write_bytes(noncanonical)
-    changed = bundle.model_copy(
+    changed = bundle.actors[0].model_copy(
         update={
-            "character_profile": bundle.character_profile.model_copy(
+            "character_profile": bundle.actors[0].character_profile.model_copy(
                 update={"sha256": content_sha256(noncanonical)}
             ),
             "character_profile_sha256": content_sha256(noncanonical),
@@ -156,7 +177,7 @@ async def test_profile_v3_review_rejects_profile_provenance_lineage_tamper(
     message: str,
 ) -> None:
     _source, bundle_path, bundle = await _profile_bundle(tmp_path, monkeypatch)
-    provenance_path = bundle_path.parent / bundle.character_profile.provenance_path
+    provenance_path = bundle_path.parent / bundle.actors[0].character_profile.provenance_path
     provenance = json.loads(provenance_path.read_bytes())
     if field == "model":
         provenance[field] = value
@@ -168,9 +189,9 @@ async def test_profile_v3_review_rejects_profile_provenance_lineage_tamper(
         provenance["params"][field] = value
     provenance_bytes = json.dumps(provenance, sort_keys=True).encode("utf-8")
     provenance_path.write_bytes(provenance_bytes)
-    changed = bundle.model_copy(
+    changed = bundle.actors[0].model_copy(
         update={
-            "character_profile": bundle.character_profile.model_copy(
+            "character_profile": bundle.actors[0].character_profile.model_copy(
                 update={"provenance_sha256": content_sha256(provenance_bytes)}
             )
         }
@@ -185,23 +206,23 @@ async def test_profile_v3_review_rejects_profile_revision_not_bound_by_provenanc
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _source, bundle_path, bundle = await _profile_bundle(tmp_path, monkeypatch)
-    profile_path = bundle_path.parent / bundle.character_profile.path
+    profile_path = bundle_path.parent / bundle.actors[0].character_profile.path
     profile = CharacterProfile.model_validate_json(profile_path.read_bytes()).model_copy(
         update={"revision": 2}
     )
     profile_bytes = canonical_character_profile_json(profile)
     profile_sha256 = content_sha256(profile_bytes)
     profile_path.write_bytes(profile_bytes)
-    provenance_path = bundle_path.parent / bundle.character_profile.provenance_path
+    provenance_path = bundle_path.parent / bundle.actors[0].character_profile.provenance_path
     provenance = json.loads(provenance_path.read_bytes())
     provenance["artifact"]["sha256"] = profile_sha256
     provenance["artifact"]["bytes"] = len(profile_bytes)
     provenance["params"]["character_profile_sha256"] = profile_sha256
     provenance_bytes = json.dumps(provenance, sort_keys=True).encode("utf-8")
     provenance_path.write_bytes(provenance_bytes)
-    changed = bundle.model_copy(
+    changed = bundle.actors[0].model_copy(
         update={
-            "character_profile": bundle.character_profile.model_copy(
+            "character_profile": bundle.actors[0].character_profile.model_copy(
                 update={
                     "sha256": profile_sha256,
                     "provenance_sha256": content_sha256(provenance_bytes),

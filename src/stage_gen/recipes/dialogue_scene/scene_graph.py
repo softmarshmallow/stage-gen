@@ -16,6 +16,7 @@ same text instead of a second composition.
 from __future__ import annotations
 
 from enum import StrEnum
+from hashlib import sha256
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import Field
@@ -34,7 +35,7 @@ from gnode import (
     seal_graph,
 )
 from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
-from stage_gen.recipes.dialogue_scene.prompts import plan_prompt
+from stage_gen.recipes.dialogue_scene.prompts import background_prompt, plan_prompt
 from stage_gen.recipes.dialogue_scene.scene_types import (
     ATTEMPT_LEDGER_KIND,
     BACKDROP_GENERATE,
@@ -186,6 +187,18 @@ def _attempts(node_id: str) -> Port:
     )
 
 
+def _slug(value: str) -> str:
+    """Node and asset ids are kebab; the authored vocabulary is snake."""
+
+    return value.replace("_", "-")
+
+
+def _brief_digest(brief: str) -> str:
+    """One stage's own words, so editing one backdrop does not re-bill the others."""
+
+    return sha256(brief.encode("utf-8")).hexdigest()
+
+
 def expression_template_ids(scene: ResolvedDialogueScene) -> tuple[str, str]:
     """The packaged prompt-template identities this request binds, plan-time known."""
 
@@ -201,31 +214,37 @@ def build_dialogue_scene_graph(
     *,
     profile: BindingTable,
 ) -> DialogueSceneGraph:
-    """Compile one authored request into the exact node graph it implies."""
+    """Compile one authored request into the exact node graph it implies.
+
+    The graph fans out twice over what the scenario declares: once per drawable
+    actor and once per stage. Nothing here reads a fixed count - a scene with one
+    actor and one backdrop produces the graph it used to, and a scene with a cast
+    of four across three rooms produces the same shape, wider.
+    """
 
     builder = GraphBuilder(profile=profile)
     request = scene.request
-    identity = scene.identity_reference
+    style_plate = scene.style_reference
     # The authored plate's digest rides every image node's cache identity, so
     # replacing the file re-bills the scene rather than leaving sprites drawn
     # against a plate that no longer exists.
     # `art_request_sha256`, not `request_sha256`: the narrative is deliberately
     # outside every image node's cache identity, so rewording a line of dialogue
-    # does not re-bill five provider images that would come back identical.
+    # does not re-bill provider images that would come back identical.
     digests = (
         scene.art_request_sha256,
         scene.policy_digest,
         scene.template_digest,
-        identity.sha256,
+        style_plate.sha256,
     )
-    identity_inputs = (
-        AuthoredInput(label=identity.reference_id, ref=identity.source, sha256=identity.sha256),
+    style_inputs = (
+        AuthoredInput(
+            label=style_plate.reference_id, ref=style_plate.source, sha256=style_plate.sha256
+        ),
     )
-    profile_model = scene.profile.profile
     neutral_template, expression_template = expression_template_ids(scene)
     anchor_ref = PortRef(node_id="scene-style-select", port_id="anchor")
-    plan_ref = PortRef(node_id="scene-plan", port_id="document")
-    concept_ref = PortRef(node_id="scene-concept", port_id="image")
+    style_ref = PortRef(node_id="scene-style-plate", port_id="image")
 
     builder.add(
         REQUEST_RESOLVE,
@@ -257,10 +276,10 @@ def build_dialogue_scene_graph(
         ),
     )
     builder.add(
-        PROFILE_RESOLVE,
-        "scene-profile-resolve",
+        STYLE_SELECT,
+        "scene-style-select",
         domain="scene",
-        description="Validate and materialize the authored character profile",
+        description="Select and materialize the canonical image style anchor",
         depends_on=("scene-request",),
         # A barrier edge, not a lineage one. `scene-request` publishes the whole
         # authored document, so its own cache key has to cover every byte of it -
@@ -272,19 +291,9 @@ def build_dialogue_scene_graph(
         cache_depends_on=(),
         input_digests=(
             scene.art_request_sha256,
-            scene.profile.canonical_sha256,
-            scene.profile.source_sha256,
+            scene.style_resource_sha256,
+            scene.style_compiler_sha256,
         ),
-        ports=(_artifact("profile", "character-profile.json", PROFILE_KIND),),
-    )
-
-    builder.add(
-        STYLE_SELECT,
-        "scene-style-select",
-        domain="scene",
-        description="Select and materialize the canonical image style anchor",
-        depends_on=("scene-profile-resolve",),
-        input_digests=(scene.style_resource_sha256, scene.style_compiler_sha256),
         ports=(
             _artifact("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
             _attempts("scene-style-select"),
@@ -297,143 +306,190 @@ def build_dialogue_scene_graph(
     # run here so every downstream node reads it through an ordinary port.
     builder.add(
         CONCEPT_INGEST,
-        "scene-concept",
-        domain="appearance",
-        description="Publish the authored identity-and-style plate",
-        depends_on=("scene-style-select",),
-        input_digests=(identity.sha256,),
-        ports=(_artifact("image", "assets/concept.png", CONCEPT_KIND),),
-        card=NodeCard(authored_inputs=identity_inputs),
-    )
-
-    builder.add(
-        PLAN_COMPILE,
-        "scene-plan",
+        "scene-style-plate",
         domain="scene",
-        description="Compile the strict dialogue visual plan",
-        depends_on=("scene-concept",),
-        input_digests=digests,
-        ports=(
-            _artifact("document", "plan.json", PLAN_KIND),
-            _attempts("scene-plan"),
-        ),
-        card=NodeCard(
-            prompt=plan_prompt(request, scene.request_sha256, profile_model),
-            schema_name="dialogue_scene_plan_v4",
-            reference_inputs=(concept_ref,),
-        ),
+        description="Publish the authored style plate",
+        depends_on=("scene-style-select",),
+        input_digests=(style_plate.sha256,),
+        ports=(_artifact("image", "assets/style-plate.png", CONCEPT_KIND),),
+        card=NodeCard(authored_inputs=style_inputs),
     )
 
     native = request.transparency_mode == "native"
-    builder.add(
-        BACKDROP_GENERATE,
-        "scene-background",
-        domain="scene",
-        description="Generate the scene background",
-        depends_on=("scene-plan", "scene-concept"),
-        input_digests=digests,
-        ports=(
-            _artifact("image", "assets/background.png", BACKDROP_KIND),
-            *(
-                (_artifact("provider_raw", "raw/background-provider.png", PROVIDER_RAW_KIND),)
-                if native
-                else ()
-            ),
-            _attempts("scene-background"),
-        ),
-        # The backdrop is drawn against the same authored plate as the sprites,
-        # so one room and the character standing in it agree on their light.
-        card=NodeCard(
-            reference_inputs=(concept_ref, plan_ref, anchor_ref),
-            authored_inputs=identity_inputs,
-        ),
-    )
+    terminal_ids: list[str] = []
 
-    builder.add(
-        EXPRESSION_GENERATE,
-        "scene-expression-neutral",
-        domain="expression",
-        description="Generate the identity-locked neutral expression source",
-        params={"state": "neutral"},
-        depends_on=("scene-plan", "scene-concept"),
-        input_digests=digests,
-        ports=(
-            _artifact("source", "raw/expression-neutral.png", EXPRESSION_SOURCE_KIND),
-            _attempts("scene-expression-neutral"),
-        ),
-        card=NodeCard(
-            template_ref=neutral_template,
-            reference_inputs=(concept_ref, plan_ref, anchor_ref),
-            authored_inputs=identity_inputs,
-        ),
-    )
-    for state in EXPRESSION_STATES[1:]:
+    # ------------------------------------------------------------------ stages
+    for stage in scene.scenario.program.stages:
+        node_id = f"stage-{_slug(stage.stage_id)}"
+        terminal_ids.append(node_id)
         builder.add(
-            EXPRESSION_DERIVE,
-            f"scene-expression-{state}",
-            domain="expression",
-            description=f"Derive the {state} expression from the neutral source",
-            params={"state": state},
-            depends_on=("scene-expression-neutral",),
-            input_digests=digests,
+            BACKDROP_GENERATE,
+            node_id,
+            domain="stage",
+            description=f"Generate the {stage.stage_id} backdrop",
+            params={"stage": stage.stage_id},
+            depends_on=("scene-style-plate",),
+            input_digests=(*digests, _brief_digest(stage.brief)),
             ports=(
-                _artifact("source", f"raw/expression-{state}.png", EXPRESSION_SOURCE_KIND),
-                _attempts(f"scene-expression-{state}"),
-            ),
-            card=NodeCard(
-                template_ref=expression_template,
-                reference_inputs=(
-                    PortRef(node_id="scene-expression-neutral", port_id="source"),
-                    plan_ref,
-                    anchor_ref,
+                _artifact("image", f"assets/{node_id}.png", BACKDROP_KIND),
+                *(
+                    (
+                        _artifact(
+                            "provider_raw",
+                            f"raw/{node_id}-provider.png",
+                            PROVIDER_RAW_KIND,
+                        ),
+                    )
+                    if native
+                    else ()
                 ),
+                _attempts(node_id),
+            ),
+            # Every backdrop is drawn against the same authored plate as the
+            # sprites, so a room and the people standing in it agree on light.
+            card=NodeCard(
+                prompt=background_prompt(stage.brief),
+                reference_inputs=(style_ref, anchor_ref),
+                authored_inputs=style_inputs,
             ),
         )
 
-    canonicalize_ids: list[str] = []
-    for state in EXPRESSION_STATES:
-        node_id = f"scene-canonicalize-{state}"
-        canonicalize_ids.append(node_id)
-        sprite = _artifact("sprite", f"assets/expression-{state}.png", EXPRESSION_SPRITE_KIND)
-        source_ref = PortRef(node_id=f"scene-expression-{state}", port_id="source")
-        if request.transparency_mode == "ai":
+    # ------------------------------------------------------------------ actors
+    for actor in scene.actors:
+        slug = actor.asset_prefix
+        plate = actor.identity_reference
+        actor_inputs = (
+            style_inputs
+            if plate is None
+            else (
+                *style_inputs,
+                AuthoredInput(label=plate.reference_id, ref=plate.source, sha256=plate.sha256),
+            )
+        )
+        actor_digests = (
+            *digests,
+            actor.profile.canonical_sha256,
+            *(() if plate is None else (plate.sha256,)),
+        )
+        profile_node = f"actor-{slug}-profile"
+        plan_node = f"actor-{slug}-plan"
+        neutral_node = f"actor-{slug}-neutral"
+
+        builder.add(
+            PROFILE_RESOLVE,
+            profile_node,
+            domain="actor",
+            description=f"Validate and materialize the authored profile for {actor.actor_id}",
+            params={"actor": actor.actor_id},
+            depends_on=("scene-style-plate",),
+            input_digests=(actor.profile.canonical_sha256, actor.profile.source_sha256),
+            ports=(_artifact("profile", f"characters/{slug}.json", PROFILE_KIND),),
+        )
+        builder.add(
+            PLAN_COMPILE,
+            plan_node,
+            domain="actor",
+            description=f"Compile the strict visual plan for {actor.actor_id}",
+            params={"actor": actor.actor_id},
+            # The plate is a real dependency, not just a card reference: the
+            # handler reads it through its dependency port, so the edge has to
+            # exist for lineage to be declared rather than assumed.
+            depends_on=(profile_node, "scene-style-plate"),
+            input_digests=actor_digests,
+            ports=(
+                _artifact("document", f"plans/{slug}.json", PLAN_KIND),
+                _attempts(plan_node),
+            ),
+            card=NodeCard(
+                prompt=plan_prompt(request, scene.request_sha256, actor.profile.profile),
+                schema_name="dialogue_scene_plan_v6",
+                reference_inputs=(style_ref,),
+            ),
+        )
+        plan_ref = PortRef(node_id=plan_node, port_id="document")
+        builder.add(
+            EXPRESSION_GENERATE,
+            neutral_node,
+            domain="actor",
+            description=f"Generate the identity-locked neutral sprite for {actor.actor_id}",
+            params={"actor": actor.actor_id, "state": "neutral"},
+            depends_on=(plan_node, "scene-style-plate"),
+            input_digests=actor_digests,
+            ports=(
+                _artifact("source", f"raw/{slug}-neutral.png", EXPRESSION_SOURCE_KIND),
+                _attempts(neutral_node),
+            ),
+            card=NodeCard(
+                template_ref=neutral_template,
+                reference_inputs=(style_ref, plan_ref, anchor_ref),
+                authored_inputs=actor_inputs,
+            ),
+        )
+        for state in EXPRESSION_STATES[1:]:
             builder.add(
-                SPRITE_MATTE,
-                node_id,
-                domain="expression",
-                description=f"Derive the portable {state} sprite through background removal",
-                params={"state": state},
-                depends_on=(f"scene-expression-{state}",),
-                input_digests=(scene.transparency_digest,),
+                EXPRESSION_DERIVE,
+                f"actor-{slug}-{state}",
+                domain="actor",
+                description=f"Derive the {state} expression for {actor.actor_id}",
+                params={"actor": actor.actor_id, "state": state},
+                depends_on=(neutral_node,),
+                input_digests=actor_digests,
                 ports=(
-                    _artifact("matte", f"raw/expression-{state}.removed.png", MATTE_RAW_KIND),
-                    sprite,
-                    _attempts(node_id),
+                    _artifact("source", f"raw/{slug}-{state}.png", EXPRESSION_SOURCE_KIND),
+                    _attempts(f"actor-{slug}-{state}"),
                 ),
                 card=NodeCard(
-                    prompt="Remove the background while preserving the adult character.",
-                    reference_inputs=(source_ref,),
+                    template_ref=expression_template,
+                    reference_inputs=(
+                        PortRef(node_id=neutral_node, port_id="source"),
+                        plan_ref,
+                        anchor_ref,
+                    ),
                 ),
             )
-        else:
-            builder.add(
-                SPRITE_CANONICALIZE,
-                node_id,
-                domain="expression",
-                description=f"Derive the portable {state} sprite",
-                params={"state": state},
-                depends_on=(f"scene-expression-{state}",),
-                input_digests=(scene.transparency_digest,),
-                ports=(sprite,),
-                card=NodeCard(reference_inputs=(source_ref,)),
-            )
+        for state in EXPRESSION_STATES:
+            node_id = f"actor-{slug}-canonicalize-{state}"
+            terminal_ids.append(node_id)
+            sprite = _artifact("sprite", f"assets/{slug}-{state}.png", EXPRESSION_SPRITE_KIND)
+            source_ref = PortRef(node_id=f"actor-{slug}-{state}", port_id="source")
+            if request.transparency_mode == "ai":
+                builder.add(
+                    SPRITE_MATTE,
+                    node_id,
+                    domain="actor",
+                    description=f"Matte the portable {state} sprite for {actor.actor_id}",
+                    params={"actor": actor.actor_id, "state": state},
+                    depends_on=(f"actor-{slug}-{state}",),
+                    input_digests=(scene.transparency_digest,),
+                    ports=(
+                        _artifact("matte", f"raw/{slug}-{state}.removed.png", MATTE_RAW_KIND),
+                        sprite,
+                        _attempts(node_id),
+                    ),
+                    card=NodeCard(
+                        prompt="Remove the background while preserving the adult character.",
+                        reference_inputs=(source_ref,),
+                    ),
+                )
+            else:
+                builder.add(
+                    SPRITE_CANONICALIZE,
+                    node_id,
+                    domain="actor",
+                    description=f"Derive the portable {state} sprite for {actor.actor_id}",
+                    params={"actor": actor.actor_id, "state": state},
+                    depends_on=(f"actor-{slug}-{state}",),
+                    input_digests=(scene.transparency_digest,),
+                    ports=(sprite,),
+                    card=NodeCard(reference_inputs=(source_ref,)),
+                )
 
     builder.add(
         BUNDLE_PACKAGE,
         "scene-bundle",
         domain="scene",
         description="Write the portable dialogue bundle",
-        depends_on=("scene-scenario", "scene-background", *canonicalize_ids),
+        depends_on=("scene-scenario", *terminal_ids),
         input_digests=(*digests, scene.scenario.program_sha256),
         ports=(
             Port(

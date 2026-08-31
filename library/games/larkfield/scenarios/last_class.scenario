@@ -3,11 +3,12 @@
 # Every name used here is declared in ../scenario.toml. This file is only the
 # part a person writes; digests, rights, and generation briefs live there.
 
+
 label arrival:
     stage classroom_day
     play summer_room
 
-    "The last bell went twenty minutes ago. The room still smells of chalk and hot dust."
+    "The last bell went twenty minutes ago. The room still smells of chalk and hot dust, and the fans have already been switched off for the season."
 
     show nao neutral at center
 
@@ -27,7 +28,7 @@ label listening:
 
     nao delighted "Thank you. Most people start talking the second I hold this up."
 
-    jump recording
+    jump the_playback
 
 
 label asking:
@@ -37,23 +38,192 @@ label asking:
 
     nao flustered "It's not empty. It's just quiet. Those aren't the same, and I can prove it."
 
-    jump recording
+    jump the_playback
 
 
-label recording:
+label the_playback:
+    "She rewinds a little way and holds the recorder flat on the desk between you."
+
+    nao neutral "There. Under the cicadas. It does that every evening at about this time."
+
+    "Something is there. Not a hum, not a voice. Three notes, evenly spaced, and then nothing."
+
+    menu:
+        "Tell her you heard it too.":
+            jump heard_it
+        "Tell her it's the pipes cooling down.":
+            jump dismissed
+
+
+label heard_it:
+    set heard_the_signal
+
+    you "Three notes. I heard them."
+
+    nao delighted "You heard it. I've played that to four people and you are the first one who didn't say pipes."
+
+    jump haruki_arrives
+
+
+label dismissed:
+    you "It's the pipes. The building does that when the sun goes off the west wall."
+
+    nao concerned "Maybe. The pipes have very good rhythm, then."
+
+    jump haruki_arrives
+
+
+label haruki_arrives:
     stage classroom_dusk
 
-    "She holds the recorder out at arm's length. The fluorescent tubes tick overhead. Somewhere below, a door closes."
+    "The corridor light clicks on outside. Someone has been standing in the doorway long enough to have heard most of it."
 
-    nao neutral "There. That's the building settling. It does that every evening at about this time."
+    show haruki neutral at left
+
+    haruki "The pipes don't do that. I've had eleven months to get bored of the pipes."
+
+    menu:
+        "Tell him about the three notes." if heard_the_signal:
+            jump tell_haruki
+        "Ask what he's doing here this late.":
+            jump ask_club
+        "Say you were just leaving.":
+            jump part_ways
+
+
+label tell_haruki:
+    set told_haruki
+
+    you "Three notes, evenly spaced, every evening. She has it on tape."
+
+    haruki flustered "Every evening. You are aware that is the single most annoying thing you could have told me tonight."
+
+    jump the_locked_door
+
+
+label ask_club:
+    you "What keeps you here this late?"
+
+    haruki neutral "Radio club. I am the radio club. Membership peaked at three and then everyone discovered other interests."
+
+    nao delighted "He has a whole room. Under the stairs, with a door and everything."
+
+    jump the_locked_door
+
+
+label part_ways:
+    haruki neutral "Suit yourself. The building locks at seven whether you're in it or not."
+
+    hide haruki
+    jump evening_ends
+
+
+label the_locked_door:
+    "The door under the stairs is the kind nobody looks at twice. There is a receiver behind it that has not been switched on since spring."
+
+    haruki concerned "It's locked, before you ask. They took the key off me in April for reasons I still consider unfair."
+
+    menu:
+        "Go and ask Ms Toda for it.":
+            jump ask_toda
+        "Leave it for tonight.":
+            jump part_ways
+
+
+label ask_toda:
+    show sayaka neutral at right
+
+    sayaka "The three of you look like a delegation. That is never a good sign at this hour."
+
+    menu:
+        "Tell her exactly what's on the tape." if heard_the_signal:
+            jump tell_toda
+        "Tell her it's for a club project.":
+            jump pretext
+
+
+label tell_toda:
+    set keys_borrowed
+
+    you "There are three notes on Nao's recording. Every evening, same time. We want to hear them on something better than a phone speaker."
+
+    sayaka delighted "Well. That is a considerably better reason than the one I was braced for."
+
+    "She unclips the lanyard without looking at it, the way you hand over something you have been waiting to be asked for."
+
+    hide sayaka
+    jump the_radio_room
+
+
+label pretext:
+    you "It's for a club project. Nothing complicated."
+
+    sayaka concerned "Then it will keep until Monday, when I can be there for it. Go home, all of you."
+
+    hide sayaka
+    hide haruki
+    jump evening_ends
+
+
+label the_radio_room:
+    stage radio_room
+
+    "The room under the stairs is smaller than a door suggests. Dust on the console, a wall of grey panels, and one dial still turned to where somebody left it."
+
+    haruki delighted "Nobody has touched this since April. Give me a minute."
+
+    nao neutral "Take two. It's not going anywhere before seven."
+
+    if keys_borrowed and told_haruki:
+        jump ending_broadcast
+
+    if keys_borrowed:
+        jump ending_talked
+
+    jump evening_ends
+
+
+label evening_ends:
+    stage classroom_dusk
+
+    "The fluorescent tubes tick overhead. Somewhere below, a door closes, and the building settles the way it does every evening at about this time."
 
     if stayed_quiet and not asked_about_recorder:
-        jump ending_quiet
+        jump ending_listened
 
-    jump ending_talked
+    jump ending_locked_out
 
 
-label ending_quiet:
+# --------------------------------------------------------------- the endings
+
+
+label ending_broadcast:
+    "The receiver warms up the way old things do, slowly and then all at once."
+
+    haruki delighted "There. Three notes. On a real antenna, from something that is definitely not a pipe."
+
+    nao delighted "Say that again with the recorder running."
+
+    hide nao
+    hide haruki
+    stop summer_room
+    end broadcast
+
+
+label ending_talked:
+    haruki concerned "Nothing. Forty minutes of nothing, and it's ten to seven."
+
+    nao neutral "Then we know where it isn't. That's not the same as nothing."
+
+    hide nao
+    hide haruki
+    stop summer_room
+    end talked
+
+
+label ending_listened:
+    show nao delighted at center
+
     nao delighted "You heard it too. I could tell. You went still."
 
     "She stops the recorder without looking at it, the way you stop a clock you already trust."
@@ -63,11 +233,13 @@ label ending_quiet:
     end listened
 
 
-label ending_talked:
+label ending_locked_out:
+    show nao concerned at center
+
     nao concerned "You'll hear it on the playback. Probably. It's under everything else we said."
 
     "She winds the cable around the recorder twice, and does not offer to play it back."
 
     hide nao
     stop summer_room
-    end talked
+    end locked_out

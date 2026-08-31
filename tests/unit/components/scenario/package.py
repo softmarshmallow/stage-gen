@@ -57,23 +57,6 @@ label ending_talked:
     end talked
 """
 
-PROFILE = """\
-schema_version = 1
-kind = "character-profile-v1"
-profile_id = "nao"
-revision = 1
-display_name = "Nao"
-age_years = 18
-description = "An original adult test character"
-visual_identity = "Chin-length black hair"
-wardrobe = "Navy summer uniform"
-invariants = ["Chin-length black hair"]
-
-[rights]
-status = "unreviewed"
-basis = ["Original test text"]
-"""
-
 
 def declarations_value(*, script_sha256: str, **overrides: Any) -> dict[str, Any]:
     """The default declarations, with any top-level key replaced."""
@@ -91,7 +74,7 @@ def declarations_value(*, script_sha256: str, **overrides: Any) -> dict[str, Any
         "cast": [
             {
                 "actor_id": "nao",
-                "profile": "character.toml",
+                "display_name": "Nao",
                 "expressions": ["neutral", "delighted", "flustered"],
             },
             {"actor_id": "you", "display_name": "You"},
@@ -112,7 +95,6 @@ def write_scenario_package(
     *,
     script: str = DEFAULT_SCRIPT,
     declared_sha256: str | None = None,
-    write_profile: bool = True,
     script_path_override: bool = False,
     **overrides: Any,
 ) -> Path:
@@ -126,8 +108,6 @@ def write_scenario_package(
     script_path.parent.mkdir(parents=True, exist_ok=True)
     script_path.write_text(script, encoding="utf-8")
     actual = hashlib.sha256(script.encode("utf-8")).hexdigest()
-    if write_profile:
-        (root / "character.toml").write_text(PROFILE, encoding="utf-8")
     value = declarations_value(script_sha256=declared_sha256 or actual, **overrides)
     if script_path_override:
         value["script"] = "elsewhere/last_class.scenario"

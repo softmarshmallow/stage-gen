@@ -35,12 +35,12 @@ def _png(width: int, height: int, *, alpha: bool) -> bytes:
     return output.getvalue()
 
 
-def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
-    profile = scene.profile
+def _plan(scene: ResolvedDialogueScene, index: int) -> dict[str, object]:
+    profile = scene.actors[index].profile
     return {
-        "schema_version": 5,
-        "kind": "dialogue-scene-plan-v5",
-        "recipe_version": "dialogue-scene-v6",
+        "schema_version": 6,
+        "kind": "dialogue-scene-plan-v6",
+        "recipe_version": "dialogue-scene-v7",
         "policy_version": "coming-of-age-nonexplicit-v3",
         "expression_profile": "expression-core-v3",
         "request_sha256": scene.request_sha256,
@@ -48,7 +48,7 @@ def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
         "character_profile_ref": profile.ref,
         "character_profile_source_sha256": profile.source_sha256,
         "character_profile_sha256": profile.canonical_sha256,
-        "identity_reference_sha256": scene.identity_reference.sha256,
+        "identity_reference_sha256": scene.style_reference.sha256,
         "shared_locks": {
             "identity": "Mio identity",
             "wardrobe": "navy cardigan",
@@ -84,11 +84,17 @@ def _write_inputs(root: Path) -> str:
     package = write_scene_package(root / "package")
     scene = resolve_dialogue_scene(read_scene_document(package), root=package)
     _write_json_pair(root / "request.json", scene.request_bytes)
-    _write_json_pair(
-        root / "character-profile.json",
-        canonical_character_profile_json(scene.profile.profile),
-    )
-    _write_json_pair(root / "plan.json", json.dumps(_plan(scene)).encode())
+    (root / "characters").mkdir(exist_ok=True)
+    (root / "plans").mkdir(exist_ok=True)
+    for index, actor in enumerate(scene.actors):
+        _write_json_pair(
+            root / f"characters/{actor.asset_prefix}.json",
+            canonical_character_profile_json(actor.profile.profile),
+        )
+        _write_json_pair(
+            root / f"plans/{actor.asset_prefix}.json",
+            json.dumps(_plan(scene, index)).encode(),
+        )
     _write_json_pair(root / "scenario.json", scene.scenario.program_bytes)
     _write_json_pair(
         root / "scenario.validation.json",
@@ -113,10 +119,14 @@ def _write_inputs(root: Path) -> str:
     assets = root / "assets"
     assets.mkdir()
     files = {
-        "concept.png": scene.identity_reference.data,
-        "background.png": _png(1672, 941, alpha=False),
+        "style-plate.png": scene.style_reference.data,
         **{
-            f"expression-{state}.png": _png(1024, 1536, alpha=True)
+            f"stage-{stage.stage_id.replace('_', '-')}.png": _png(1672, 941, alpha=False)
+            for stage in scene.scenario.program.stages
+        },
+        **{
+            f"{actor.asset_prefix}-{state}.png": _png(1024, 1536, alpha=True)
+            for actor in scene.actors
             for state in ("neutral", "delighted", "flustered", "concerned")
         },
     }
@@ -161,8 +171,8 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     tag = _write_inputs(tmp_path)
     await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 5
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v5"
+    assert bundle_raw["schema_version"] == 6
+    assert bundle_raw["kind"] == "dialogue-scene-bundle-v6"
     assert "sceneData" not in bundle_raw
     assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
     bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))
@@ -173,13 +183,16 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     assert first.request.provenance_sha256 == content_sha256(
         (tmp_path / "request.json.meta.json").read_bytes()
     )
-    assert first.plan.provenance_path == "plan.json.meta.json"
-    assert first.plan.provenance_sha256 == content_sha256(
-        (tmp_path / "plan.json.meta.json").read_bytes()
+    mio = next(actor for actor in first.actors if actor.actor_id == "mio")
+    assert mio.plan.provenance_path == "plans/mio.json.meta.json"
+    assert mio.plan.provenance_sha256 == content_sha256(
+        (tmp_path / "plans/mio.json.meta.json").read_bytes()
     )
     anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
-    assert first.recipe_version == "dialogue-scene-v6"
-    assert first.scene_data.appearance.art_direction == "clean 2D Japanese anime illustration"
+    assert first.recipe_version == "dialogue-scene-v7"
+    assert first.scene_data.actors[0].appearance.art_direction == (
+        "clean 2D Japanese anime illustration"
+    )
     assert bundle_sidecar["params"]["style_resource_sha256"] == anchor_raw["resource_sha256"]
     assert bundle_sidecar["params"]["style_compiler_sha256"] == anchor_raw["compiler_sha256"]
     assert bundle_sidecar["params"]["style_anchor_path"] == "style-anchor.json"
@@ -209,9 +222,9 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     second = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert canonical_sha256(second) != first_identity
 
-    plan_meta = json.loads((tmp_path / "plan.json.meta.json").read_text(encoding="utf-8"))
+    plan_meta = json.loads((tmp_path / "plans/mio.json.meta.json").read_text(encoding="utf-8"))
     plan_meta["model"] = "fixture-mutated"
-    (tmp_path / "plan.json.meta.json").write_text(json.dumps(plan_meta), encoding="utf-8")
+    (tmp_path / "plans/mio.json.meta.json").write_text(json.dumps(plan_meta), encoding="utf-8")
     await write_dialogue_bundle(tmp_path, tag=tag)
     third = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert canonical_sha256(third) not in {first_identity, canonical_sha256(second)}

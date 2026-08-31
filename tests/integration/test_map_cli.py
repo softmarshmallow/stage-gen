@@ -309,7 +309,7 @@ soundtrack_track_ids = ["first_theme", "second_theme"]
 
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    external_profile = repository / "library/games/larkfield/character.toml"
+    external_profile = repository / "library/games/larkfield/characters/nao.toml"
     workspace = tmp_path / "workspace"
     source = workspace / "character.toml"
     source.parent.mkdir(parents=True)

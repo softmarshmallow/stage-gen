@@ -1,0 +1,19 @@
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "sayaka-toda"
+revision = 1
+display_name = "Sayaka Toda"
+age_years = 34
+description = "An original teacher who stayed on at a rural school after most of her colleagues transferred away."
+visual_identity = "Woman of average height with a composed posture, shoulder-length dark brown hair tied low at the nape, and tired warm brown eyes."
+wardrobe = "Plain charcoal cardigan over a soft cream blouse, a long grey skirt, flat brown shoes, and a lanyard of school keys at her waist."
+invariants = [
+  "Shoulder-length dark brown hair tied low at the nape",
+  "Charcoal cardigan over a cream blouse and a long grey skirt",
+  "A lanyard of school keys at her waist",
+  "Adult proportions and a patient, unhurried bearing",
+]
+
+[rights]
+status = "unreviewed"
+basis = ["Original repository-authored text with no external character or media reference."]

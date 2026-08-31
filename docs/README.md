@@ -61,7 +61,7 @@ Start here for the headless, general-purpose system:
   ratified decision to build a data-only text IR rather than adopt a narrative
   library, the current `scenario-v1` contract and Ren'Py-shaped script surface,
   its closed statement vocabulary, the reachability proof that admits both
-  offline, and the runtime boundary still to be built.
+  offline, and the deterministic runtime both consumers walk.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.
@@ -113,12 +113,8 @@ Start here for the headless, general-purpose system:
 - [Web preview adapter](web-preview.md) — optional first consumer.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
-  (`dialogue-scene-v2`) produced by recipe `dialogue-scene-v6` into
-  `dialogue-scene-bundle-v5`, which the web installer is the sole reader of.
-- [Dialogue-theme operator workflow](dialogue-theme-pipeline.md) — generation,
-  resume/force, install, review/rights gates, activation, status, and rollback.
-- [Dialogue-scene preview](dialogue-scene-preview.md) — implemented
-  deterministic demo boundary, bundle installer, and active-fixture projection.
+  (`dialogue-scene-v3`) produced by recipe `dialogue-scene-v7` into
+  `dialogue-scene-bundle-v6`, read by the scene consumer at `/scene/<tag>`.
 - [Dialogue-scene framing control](dialogue-scene-framing.md) — implemented
   deterministic consumer mapping and prompt research.
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred

@@ -8,6 +8,7 @@ import {
   speakerChipRect,
   choiceAt,
   choiceRects,
+  slotFrame,
   spriteFrame,
   SPRITE_MAX_WIDTH_RATIO,
 } from "./scene-hud";
@@ -113,5 +114,23 @@ describe("choice layout", () => {
 
   test("a choice with no options lays nothing out rather than guessing", () => {
     expect(choiceRects(DIALOGUE_STAGE, 0)).toEqual([]);
+  });
+});
+
+describe("actor slots", () => {
+  test("three slots spread across the stage, centre matching the old single position", () => {
+    const centre = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "center");
+    expect(centre.x).toBe(spriteFrame(DIALOGUE_STAGE, PLATE, CENTRED).x);
+    const left = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "left");
+    const right = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "right");
+    expect(left.x).toBeLessThan(centre.x);
+    expect(right.x).toBeGreaterThan(centre.x);
+    // Same figure, only moved: a slot changes where somebody stands, not how big
+    // they are, or two people on stage would read as being at different depths.
+    for (const frame of [left, centre, right]) {
+      expect(frame.width).toBe(centre.width);
+      expect(frame.height).toBe(centre.height);
+      expect(frame.y).toBe(centre.y);
+    }
   });
 });

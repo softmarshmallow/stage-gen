@@ -35,7 +35,7 @@ from stage_gen.components.character_profile import (
     load_character_profile,
 )
 
-profile = load_character_profile("library/games/larkfield/character.toml")
+profile = load_character_profile("library/games/larkfield/characters/nao.toml")
 artifact_bytes = canonical_character_profile_json(profile)
 artifact_sha256 = character_profile_sha256(profile)
 ```
@@ -78,10 +78,10 @@ digest required by that binding without calling a provider or writing output:
 
 ```sh
 uv run stage-gen character-profile validate \
-  --input library/games/larkfield/character.toml \
+  --input library/games/larkfield/characters/nao.toml \
   --package-root library/games/larkfield
 uv run stage-gen character-profile digest \
-  --input library/games/larkfield/character.toml \
+  --input library/games/larkfield/characters/nao.toml \
   --package-root library/games/larkfield
 ```
 

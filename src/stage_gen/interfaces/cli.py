@@ -56,11 +56,6 @@ from stage_gen.config import (
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.execution_view import build_execution_view
 from stage_gen.orchestration.game_package import resolve_game_package
-from stage_gen.recipes.dialogue_scene.character_bundle import (
-    package_dialogue_character_spike,
-    review_dialogue_character_bundle,
-    sanitize_dialogue_character_spike,
-)
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
@@ -211,30 +206,6 @@ def build_parser() -> argparse.ArgumentParser:
     room_generate_parser.add_argument("--invocation-id")
     room_generate_parser.add_argument(
         "--failure-node", dest="failure_node", help="inject one dry-run node failure"
-    )
-
-    dialogue_character_parser = commands.add_parser(
-        "dialogue-character",
-        description="Sanitize, package, and review a four-state dialogue character bundle",
-    )
-    dialogue_character_commands = dialogue_character_parser.add_subparsers(
-        dest="dialogue_character_command", required=True
-    )
-    sanitize_parser = dialogue_character_commands.add_parser(
-        "sanitize", help="sanitize one pending local character spike in place"
-    )
-    sanitize_parser.add_argument("--spike", required=True, dest="spike_path")
-    character_package_parser = dialogue_character_commands.add_parser(
-        "package", help="package one validated spike at its canonical run path"
-    )
-    character_package_parser.add_argument("--spike", required=True, dest="spike_path")
-    character_review_parser = dialogue_character_commands.add_parser(
-        "review", help="apply an independent review to one pending character bundle"
-    )
-    character_review_parser.add_argument("--bundle", required=True, dest="bundle_path")
-    character_review_parser.add_argument("--review", required=True, dest="review_path")
-    character_review_parser.add_argument(
-        "--acceptance-spec", required=True, dest="acceptance_spec_path"
     )
 
     scenario_parser = commands.add_parser(
@@ -558,19 +529,6 @@ def _dispatch(
             stdout.write(
                 f"{json.dumps(soundtrack_report, sort_keys=True, separators=(',', ':'))}\n"
             )
-        return 0
-    if command == "dialogue-character":
-        if args.dialogue_character_command == "sanitize":
-            character_result = sanitize_dialogue_character_spike(args.spike_path)
-        elif args.dialogue_character_command == "package":
-            character_result = package_dialogue_character_spike(args.spike_path)
-        else:
-            character_result = review_dialogue_character_bundle(
-                args.bundle_path,
-                review_path=args.review_path,
-                acceptance_spec_path=args.acceptance_spec_path,
-            )
-        stdout.write(f"{json.dumps(character_result, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "map":
         resolved_map = _resolve_cli_game_map(

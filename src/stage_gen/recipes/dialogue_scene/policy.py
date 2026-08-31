@@ -56,8 +56,6 @@ def assert_dialogue_policy(
     request: DialogueRequest, profile: CharacterProfile | None = None
 ) -> None:
     values = [request.scene_brief]
-    if request.background.description is not None:
-        values.append(request.background.description)
     if profile is not None:
         _assert_adult(profile)
         values.extend(

@@ -118,8 +118,7 @@ See [side-view platformer asset contracts](asset-contracts.md) and the
 The `dialogue-scene` sibling recipe packages one caller-directed appearance
 concept, a finite set of static expression variants for that identity, and
 portable scene data for the Visual Novel Scene Kit. Its
-[asset contract](dialogue-scene-assets.md),
-[optional preview](../dialogue-scene-preview.md), and
+[asset contract](dialogue-scene-assets.md) and
 [deferred animation notes](../dialogue-scene-animation.md) preserve the same
 headless-recipe and downstream-consumer boundary. It compiles onto the same
 engine under its own graph document kind.

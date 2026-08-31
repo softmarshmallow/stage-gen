@@ -1,286 +1,126 @@
 import { describe, expect, test } from "bun:test";
-import rawFixture from "./demo-fixture.json";
-import { serializeScenarioProgram } from "@/lib/scenario/program";
-import { dialogueSceneDemoFixture } from "./demo-fixture";
+
+import { ferryProgramDocument } from "@/lib/scenario/program.fixture";
+import { parseScenarioProgram, serializeScenarioProgram } from "@/lib/scenario/program";
 import {
-  DIALOGUE_SCENE_THEME_FIXTURE_KIND,
-  parseDialogueSceneThemeFixture,
-  serializeDialogueSceneThemeFixture,
-  validateDialogueSceneRuntimeFixture,
+  dialogueSceneExpression,
+  dialogueSceneStage,
+  validateDialogueSceneFixture,
 } from "./schema";
 
-function mutableFixture(): Record<string, unknown> {
-  return structuredClone(rawFixture) as unknown as Record<string, unknown>;
+const program = parseScenarioProgram(ferryProgramDocument());
+
+function runSrc(name: string): string {
+  return `/api/assets/harborlight/assets/${name}.png`;
 }
 
-describe("dialogue-scene deterministic fixture schema", () => {
-  test("parses and freezes the committed caller-authored fixture", () => {
-    expect(dialogueSceneDemoFixture.schemaVersion).toBe(1);
-    expect(dialogueSceneDemoFixture.mode).toBe("deterministic-demo");
-    expect(dialogueSceneDemoFixture.authorship).toBe("caller-authored");
-    expect(dialogueSceneDemoFixture.background.src).toBe(
-      "/dialogue-scene/demo/anime/background.png",
-    );
-    expect(dialogueSceneDemoFixture.expressionVariants.map((variant) => variant.state)).toEqual([
-      "neutral",
-      "delighted",
-      "flustered",
-      "concerned",
-    ]);
-    expect(dialogueSceneDemoFixture.expressionVariants[0].src).toBe(
-      "/dialogue-scene/demo/anime/heroine-neutral.png",
-    );
-    expect(dialogueSceneDemoFixture.appearance.conceptSrc).toBe(
-      "/dialogue-scene/demo/anime/concept-key-art.png",
-    );
-    expect(dialogueSceneDemoFixture.appearance.age).toBe(23);
-    expect(dialogueSceneDemoFixture.presentation.framingZoom).toBe(70);
-    expect(dialogueSceneDemoFixture.presentation.sourceFramingZoom).toBe(70);
-    expect(dialogueSceneDemoFixture.scenario.scenarioId).toBe("blue_hour");
-    expect(dialogueSceneDemoFixture.scenario.blocks).toHaveLength(6);
-    expect(Object.isFrozen(dialogueSceneDemoFixture)).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.presentation)).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.expressionVariants)).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.expressionVariants[0])).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.scenario)).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.scenario.blocks)).toBeTrue();
+/** A fixture that exactly covers what the authored ferry scenario asks for. */
+function fixture(): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    fixtureId: "harborlight-scene",
+    title: "The Ferry Bell",
+    sceneLabel: "Two travellers wait for the last ferry",
+    presentation: { framingZoom: 70, sourceFramingZoom: 70 },
+    styleSrc: runSrc("style-plate"),
+    stages: program.stages.map((stage) => ({
+      stageId: stage.stageId,
+      id: stage.stageId.replace(/_/g, "-"),
+      src: runSrc(`stage-${stage.stageId.replace(/_/g, "-")}`),
+      alt: stage.brief.slice(0, 160),
+    })),
+    actors: program.cast
+      .filter((member) => member.expressions.length > 0)
+      .map((member) => ({
+        actorId: member.actorId,
+        appearance: {
+          id: member.actorId.replace(/_/g, "-"),
+          label: member.displayName ?? member.actorId,
+          age: 18,
+          role: "An original harbor local",
+          description: "An original harbor local",
+          visualIdentity: "Dark hair and dark eyes",
+          artDirection: "cel shaded anime",
+        },
+        expressions: member.expressions.map((state) => ({
+          id: `${member.actorId.replace(/_/g, "-")}-${state}`,
+          src: runSrc(`${member.actorId.replace(/_/g, "-")}-${state}`),
+          alt: `${member.displayName ?? member.actorId} looking ${state}`,
+          state,
+          label: state,
+          description: `A ${state} expression`,
+        })),
+      })),
+    scenario: serializeScenarioProgram(program),
+  };
+}
+
+describe("dialogue-scene runtime fixture", () => {
+  test("it accepts a scene whose art covers its whole cast and every stage", () => {
+    const parsed = validateDialogueSceneFixture(fixture());
+    expect(parsed.actors.map((actor) => actor.actorId)).toEqual(["mara", "teo"]);
+    expect(parsed.stages.map((stage) => stage.stageId)).toEqual(["pier_dusk", "boathouse"]);
+    expect(Object.isFrozen(parsed)).toBeTrue();
   });
 
-  test("rejects unknown fields and paths outside the demo asset root", () => {
-    const unknownField = mutableFixture();
-    unknownField.unexpected = true;
-    expect(() => parseDialogueSceneThemeFixture(unknownField)).toThrow(
-      "unexpected unexpected",
-    );
-
-    const escapedPath = mutableFixture();
-    (escapedPath.background as Record<string, unknown>).src = "../background.png";
-    expect(() => parseDialogueSceneThemeFixture(escapedPath)).toThrow(
-      "confined dialogue-scene demo, installed-theme, or run PNG path",
-    );
-  });
-
-  test("accepts only content-addressed installed-theme asset paths", () => {
-    const installed = mutableFixture();
-    const digest = "a".repeat(64);
-    (installed.background as Record<string, unknown>).src =
-      `/dialogue-scene/themes/${digest}/assets/${"1".repeat(64)}.png`;
-    (installed.appearance as Record<string, unknown>).concept_src =
-      `/dialogue-scene/themes/${digest}/assets/${"2".repeat(64)}.png`;
-    const variants = installed.expression_variants as Record<string, unknown>[];
-    variants.forEach((variant, index) => {
-      variant.src =
-        `/dialogue-scene/themes/${digest}/assets/${String(index + 3).repeat(64)}.png`;
-    });
-    expect(parseDialogueSceneThemeFixture(installed).background.src).toContain(digest);
-
-    variants[0].src = `/dialogue-scene/themes/latest/assets/${"3".repeat(64)}.png`;
-    expect(() => parseDialogueSceneThemeFixture(installed)).toThrow(
-      "confined dialogue-scene demo, installed-theme, or run PNG path",
+  test("it refuses a scenario that stages a backdrop the fixture has no plate for", () => {
+    const value = fixture();
+    value.stages = (value.stages as unknown[]).slice(0, 1);
+    expect(() => validateDialogueSceneFixture(value)).toThrow(
+      "has no backdrop for stage boathouse",
     );
   });
 
-  test("binds every installed asset path to one immutable bundle", () => {
-    const installed = mutableFixture();
-    const firstBundle = "a".repeat(64);
-    const secondBundle = "b".repeat(64);
-    const assetPath = (bundleId: string, marker: string) =>
-      `/dialogue-scene/themes/${bundleId}/assets/${marker.repeat(64)}.png`;
-    (installed.background as Record<string, unknown>).src = assetPath(
-      firstBundle,
-      "1",
-    );
-    (installed.appearance as Record<string, unknown>).concept_src = assetPath(
-      firstBundle,
-      "2",
-    );
-    const variants = installed.expression_variants as Record<string, unknown>[];
-    variants.forEach((variant, index) => {
-      variant.src = assetPath(firstBundle, String(index + 3));
-    });
-    expect(parseDialogueSceneThemeFixture(installed).background.src).toContain(
-      firstBundle,
-    );
-
-    variants[0].src = assetPath(secondBundle, "3");
-    expect(() => parseDialogueSceneThemeFixture(installed)).toThrow(
-      "installed fixture assets must share one bundle id",
-    );
-
-    variants[0].src = rawFixture.expression_variants[0].src;
-    expect(() => parseDialogueSceneThemeFixture(installed)).toThrow(
-      "must all use the committed demo or one installed bundle",
+  test("it refuses a scenario that shows an actor the fixture cannot draw", () => {
+    const value = fixture();
+    value.actors = (value.actors as unknown[]).slice(0, 1);
+    expect(() => validateDialogueSceneFixture(value)).toThrow(
+      "has no plates for actor teo",
     );
   });
 
-  test("binds every expression variant to one adult appearance identity", () => {
-    const mismatch = mutableFixture();
-    const variants = mismatch.expression_variants as Record<string, unknown>[];
-    variants[0].appearance_id = "another-appearance";
-    expect(() => parseDialogueSceneThemeFixture(mismatch)).toThrow(
-      "expression variant must reference appearance.id",
-    );
+  test("it refuses an actor missing one of the expressions the script uses", () => {
+    const value = fixture();
+    const actors = value.actors as { expressions: unknown[] }[];
+    actors[0]!.expressions = actors[0]!.expressions.slice(0, 2);
+    expect(() => validateDialogueSceneFixture(value)).toThrow("has no concerned plate");
+  });
 
-    const minor = mutableFixture();
-    (minor.appearance as Record<string, unknown>).age = 17;
-    expect(() => parseDialogueSceneThemeFixture(minor)).toThrow(
-      "appearance.age must be an integer from 18 to 120",
-    );
-
-    const profileMismatch = mutableFixture();
-    (profileMismatch.profile_identity as Record<string, unknown>).profile_id =
-      "another-appearance";
-    expect(() => parseDialogueSceneThemeFixture(profileMismatch)).toThrow(
-      "profile identity must reference appearance.id",
-    );
-
-    const duplicatedId = mutableFixture();
-    const duplicateVariants = duplicatedId.expression_variants as Record<
-      string,
-      unknown
-    >[];
-    duplicateVariants[1].id = duplicateVariants[0].id;
-    expect(() => parseDialogueSceneThemeFixture(duplicatedId)).toThrow(
-      "expression variant id is duplicated",
+  test("it refuses assets assembled from two different runs", () => {
+    const value = fixture();
+    value.styleSrc = "/api/assets/other-run/assets/style-plate.png";
+    expect(() => validateDialogueSceneFixture(value)).toThrow(
+      "must all share one run or installed bundle",
     );
   });
 
-  test("requires one of each expression state and binds every beat to the vocabulary", () => {
-    const duplicatedState = mutableFixture();
-    const variants = duplicatedState.expression_variants as Record<string, unknown>[];
-    variants[1].state = "neutral";
-    expect(() => parseDialogueSceneThemeFixture(duplicatedState)).toThrow(
-      "expression state is duplicated: neutral",
-    );
-
-    // The scenario may only name expressions this scene has a plate for; the
-    // alternative is a missing texture discovered by a player.
-    const unknownExpression = mutableFixture();
-    const scenario = unknownExpression.scenario as Record<string, unknown>;
-    const cast = scenario.cast as Record<string, unknown>[];
-    cast[0].expressions = ["neutral", "surprised"];
-    expect(() => parseDialogueSceneThemeFixture(unknownExpression)).toThrow(
-      "asks for an expression it has no plate for: surprised",
-    );
+  test("it refuses an asset path outside the confined roots", () => {
+    const value = fixture();
+    value.styleSrc = "/public/style-plate.png";
+    expect(() => validateDialogueSceneFixture(value)).toThrow("must be a confined run");
   });
 
-  test("requires a finite public framing value from 0 through 100", () => {
-    for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, -0.1, 100.1, "70"]) {
-      const fixture = mutableFixture();
-      (fixture.presentation as Record<string, unknown>).framing_zoom = invalid;
-      expect(() => parseDialogueSceneThemeFixture(fixture)).toThrow(
-        "presentation.framingZoom must be a finite number from 0 to 100",
-      );
-    }
-
-    const invalidBaseline = mutableFixture();
-    (invalidBaseline.presentation as Record<string, unknown>).source_framing_zoom = 101;
-    expect(() => parseDialogueSceneThemeFixture(invalidBaseline)).toThrow(
-      "presentation.sourceFramingZoom must be a finite number from 0 to 100",
+  test("it refuses unknown and missing keys alike", () => {
+    expect(() => validateDialogueSceneFixture({ ...fixture(), extra: 1 })).toThrow(
+      "unexpected extra",
     );
-  });
-
-  test("accepts only safe profile identity facts in the persisted fixture", () => {
-    const fixture = mutableFixture();
-    expect(parseDialogueSceneThemeFixture(fixture).profileIdentity).toEqual({
-      profileId: "mio-amamiya",
-      revision: 4,
-    });
-
-    (fixture.profile_identity as Record<string, unknown>).source_path =
-      "/private/profile.toml";
-    expect(() => parseDialogueSceneThemeFixture(fixture)).toThrow(
-      "profile_identity keys must match the schema",
-    );
-  });
-
-  test("round-trips the exact current persisted theme fixture at the UI boundary", () => {
-    const fixture = parseDialogueSceneThemeFixture(mutableFixture());
-    const persisted = serializeDialogueSceneThemeFixture(fixture);
-
-    expect(persisted.schema_version).toBe(1);
-    expect(persisted.kind).toBe(DIALOGUE_SCENE_THEME_FIXTURE_KIND);
-    expect(persisted.profile_identity).toEqual({
-      profile_id: "mio-amamiya",
-      revision: 4,
-    });
-    expect("schemaVersion" in persisted).toBeFalse();
-    expect("profileIdentity" in persisted).toBeFalse();
-    expect(persisted as unknown).toEqual(rawFixture);
-    expect(parseDialogueSceneThemeFixture(persisted)).toEqual(fixture);
-  });
-
-  test("rejects aliases, unknown fields, and prior persisted theme fixtures", () => {
-    const current = mutableFixture();
-
-    const camel = structuredClone(current);
-    camel.profileIdentity = camel.profile_identity;
-    delete camel.profile_identity;
-    expect(() => parseDialogueSceneThemeFixture(camel)).toThrow(
-      "dialogue-scene theme fixture keys must match the schema",
-    );
-
-    const unknown = structuredClone(current);
-    unknown.legacy = true;
-    expect(() => parseDialogueSceneThemeFixture(unknown)).toThrow(
-      "dialogue-scene theme fixture keys must match the schema",
-    );
-
-    const prior = structuredClone(current);
-    prior.schema_version = 0;
-    prior.kind = "dialogue-scene-theme-fixture-v0";
-    expect(() => parseDialogueSceneThemeFixture(prior)).toThrow(
-      "dialogue-scene theme fixture schema_version must be 1",
-    );
+    const missing = fixture();
+    delete missing.title;
+    expect(() => validateDialogueSceneFixture(missing)).toThrow("missing title");
   });
 });
 
-describe("run-played fixtures", () => {
-  const runSrc = (name: string) => `/api/assets/larkfield/assets/${name}.png`;
+describe("looking things up by the names the scenario uses", () => {
+  const parsed = validateDialogueSceneFixture(fixture());
 
-  function runFixture(): Record<string, unknown> {
-    const base = structuredClone(dialogueSceneDemoFixture) as unknown as Record<
-      string,
-      unknown
-    >;
-    const appearance = base.appearance as Record<string, unknown>;
-    return {
-      ...base,
-      background: { ...(base.background as object), src: runSrc("background") },
-      appearance: { ...appearance, conceptSrc: runSrc("concept") },
-      expressionVariants: (
-        base.expressionVariants as { state: string }[]
-      ).map((variant) => ({ ...variant, src: runSrc(`expression-${variant.state}`) })),
-      // The validator reads the persisted wire shape, so the parsed program in
-      // the committed fixture has to go back to it.
-      scenario: serializeScenarioProgram(dialogueSceneDemoFixture.scenario),
-    };
-  }
-
-  test("accepts a fixture streamed from one run", () => {
-    const fixture = validateDialogueSceneRuntimeFixture(runFixture());
-    expect(fixture.background.src).toBe(runSrc("background"));
+  test("a stage id resolves to its backdrop, and an unknown one to null", () => {
+    expect(dialogueSceneStage(parsed, "boathouse")?.src).toBe(runSrc("stage-boathouse"));
+    expect(dialogueSceneStage(parsed, "nowhere")).toBeNull();
   });
 
-  test("refuses a fixture assembled from two runs", () => {
-    const mixed = runFixture();
-    mixed.background = {
-      ...(mixed.background as object),
-      src: "/api/assets/other-run/assets/background.png",
-    };
-    expect(() => validateDialogueSceneRuntimeFixture(mixed)).toThrow(
-      "must share one run tag",
-    );
-  });
-
-  test("refuses a fixture that mixes a run with the committed demo", () => {
-    const mixed = runFixture();
-    mixed.background = {
-      ...(mixed.background as object),
-      src: (dialogueSceneDemoFixture.background as { src: string }).src,
-    };
-    expect(() => validateDialogueSceneRuntimeFixture(mixed)).toThrow(
-      "one installed bundle, or one run",
-    );
+  test("an actor resolves to the named expression, falling back to its first plate", () => {
+    expect(dialogueSceneExpression(parsed, "teo", "delighted")?.state).toBe("delighted");
+    expect(dialogueSceneExpression(parsed, "teo", null)?.state).toBe("neutral");
+    expect(dialogueSceneExpression(parsed, "nobody", "neutral")).toBeNull();
   });
 });

@@ -26,6 +26,7 @@ from gnode import (
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
+    BundleActor,
     DialogueBundle,
     IndependentReview,
     PersistedContractModel,
@@ -105,15 +106,24 @@ def _transition_dialogue_review(
         raise ValueError("review source_bundle_sha256 does not match bundle.json")
     if review.acceptance_spec_sha256 != acceptance_sha256:
         raise ValueError("review acceptance_spec_sha256 does not match the acceptance spec")
-    if review.character_profile_source_sha256 != (bundle.character_profile_binding.source_sha256):
-        raise ValueError("review character_profile_source_sha256 does not match bundle.json")
-    if review.character_profile_sha256 != bundle.character_profile_sha256:
-        raise ValueError("review character_profile_sha256 does not match bundle.json")
+    expected_cast = {
+        actor.actor_id: (
+            actor.character_profile_binding.source_sha256,
+            actor.character_profile_sha256,
+        )
+        for actor in bundle.actors
+    }
+    actual_cast = {
+        entry.actor_id: (entry.character_profile_source_sha256, entry.character_profile_sha256)
+        for entry in review.cast
+    }
+    if actual_cast != expected_cast:
+        raise ValueError("review cast profile digests do not match bundle.json")
     expected_asset_sha256 = [asset.sha256 for asset in bundle.assets]
     if Counter(review.asset_sha256) != Counter(expected_asset_sha256):
         raise ValueError("review asset_sha256 must bind every selected asset digest exactly once")
     _validate_selected_assets(root, bundle)
-    _validate_profile_artifact(root, bundle)
+    _validate_profile_artifacts(root, bundle)
     canonical_review = review.model_copy(update={"asset_sha256": expected_asset_sha256})
     review_bytes = canonical_json_bytes(canonical_review) + b"\n"
     provenance_input = ProvenanceInput(
@@ -121,7 +131,7 @@ def _transition_dialogue_review(
         provider="local",
         model="deterministic-dialogue-review-v3",
         prompt="Record a profile-bound independent review for local demo use only.",
-        refs=["bundle.json", "character-profile.json"],
+        refs=["bundle.json", *(actor.character_profile.path for actor in bundle.actors)],
         inputs=[
             InputProvenance(
                 ref="bundle.json",
@@ -137,21 +147,32 @@ def _transition_dialogue_review(
                 bytes=len(acceptance_bytes),
                 media_type="application/json",
             ),
-            InputProvenance(
-                ref="character-profile.json",
-                sha256=bundle.character_profile_sha256,
-                source="content",
-                bytes=(root / bundle.character_profile.path).stat().st_size,
-                media_type="application/json",
-            ),
+            *[
+                InputProvenance(
+                    ref=actor.character_profile.path,
+                    sha256=actor.character_profile_sha256,
+                    source="content",
+                    bytes=(root / actor.character_profile.path).stat().st_size,
+                    media_type="application/json",
+                )
+                for actor in bundle.actors
+            ],
         ],
         params={
             "usage": action.usage,
             "source_bundle_sha256": source_sha256,
             "acceptance_spec_sha256": acceptance_sha256,
-            "character_profile_ref": bundle.character_profile_binding.ref,
-            "character_profile_source_sha256": (bundle.character_profile_binding.source_sha256),
-            "character_profile_sha256": bundle.character_profile_sha256,
+            "cast": [
+                {
+                    "actor_id": actor.actor_id,
+                    "character_profile_ref": actor.character_profile_binding.ref,
+                    "character_profile_source_sha256": (
+                        actor.character_profile_binding.source_sha256
+                    ),
+                    "character_profile_sha256": actor.character_profile_sha256,
+                }
+                for actor in bundle.actors
+            ],
             "asset_sha256": expected_asset_sha256,
         },
         validation={
@@ -202,8 +223,7 @@ def _transition_dialogue_review(
         "usage": action.usage,
         "source_bundle_sha256": source_sha256,
         "reviewed_bundle_sha256": content_sha256(reviewed_bytes),
-        "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
-        "character_profile_sha256": bundle.character_profile_sha256,
+        "cast": [actor.actor_id for actor in bundle.actors],
         "bundle_path": str(reviewed_path),
         "review_path": str(review_output_path),
         "review_provenance_path": str(review_provenance_path),
@@ -232,8 +252,13 @@ def _validate_selected_assets(root: Path, bundle: DialogueBundle) -> None:
             raise ValueError(f"selected asset digest mismatch: {asset.id}")
 
 
-def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
-    binding = bundle.character_profile
+def _validate_profile_artifacts(root: Path, bundle: DialogueBundle) -> None:
+    for actor in bundle.actors:
+        _validate_profile_artifact(root, actor)
+
+
+def _validate_profile_artifact(root: Path, actor: BundleActor) -> None:
+    binding = actor.character_profile
     path = resolve_relative_path_within_root(root, binding.path, "character profile path")
     provenance = resolve_relative_path_within_root(
         root, binding.provenance_path, "character profile provenance path"
@@ -245,7 +270,7 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
     provenance_bytes = provenance.read_bytes()
     if content_sha256(profile_bytes) != binding.sha256:
         raise ValueError("character profile artifact digest mismatch")
-    if binding.sha256 != bundle.character_profile_sha256:
+    if binding.sha256 != actor.character_profile_sha256:
         raise ValueError("character profile canonical digest mismatch")
     if content_sha256(provenance_bytes) != binding.provenance_sha256:
         raise ValueError("character profile provenance digest mismatch")
@@ -257,7 +282,7 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
         raise ValueError("character profile artifact is not canonical")
     # The binding names a package member by relative path; the run cannot prove
     # what that path meant, only that the bytes it shipped are the ones bound.
-    ref = bundle.character_profile_binding.ref
+    ref = actor.character_profile_binding.ref
     ref_parts = ref.split("/")
     if not ref.endswith(".toml") or any(part in {"", ".", ".."} for part in ref_parts):
         raise ValueError("character profile artifact binding ref is invalid")
@@ -281,15 +306,15 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
         record.refs,
     ) != (
         "local",
-        "deterministic-dialogue-scene-v6",
+        "deterministic-dialogue-scene-v7",
         "@stage-gen/dialogue-scene",
         "5",
-        [bundle.character_profile_binding.ref],
+        [actor.character_profile_binding.ref],
     ):
         raise ValueError("character profile provenance producer lineage mismatch")
     expected_source_input = InputProvenance(
-        ref=bundle.character_profile_binding.ref,
-        sha256=bundle.character_profile_binding.source_sha256,
+        ref=actor.character_profile_binding.ref,
+        sha256=actor.character_profile_binding.source_sha256,
         source="content",
         bytes=None,
         media_type="application/toml",
@@ -312,9 +337,9 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
     ):
         raise ValueError("character profile provenance source input binding mismatch")
     expected_params = {
-        "character_profile_ref": bundle.character_profile_binding.ref,
-        "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
-        "character_profile_sha256": bundle.character_profile_sha256,
+        "character_profile_ref": actor.character_profile_binding.ref,
+        "character_profile_source_sha256": actor.character_profile_binding.source_sha256,
+        "character_profile_sha256": actor.character_profile_sha256,
         "profile_id": profile.profile_id,
         "revision": profile.revision,
     }

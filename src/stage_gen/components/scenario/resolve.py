@@ -64,17 +64,16 @@ class ResolvedScenario:
 
 
 def canonical_program_json(program: ScenarioProgram) -> bytes:
-    """Serialize the program with its optional fields present, not omitted.
+    """The repository's ordinary canonical form: sorted, compact, nulls omitted.
 
-    The repository's usual canonical form drops nulls, which is right for a
-    document whose reader tolerates absence. This one is read by a consumer that
-    refuses unknown *and missing* keys, so `speaker: null` has to be on the wire:
-    an absent key and a null one would otherwise mean the same thing to the
-    producer and different things to the reader.
+    One wire shape, not two. The program is published both as its own run
+    artifact and embedded in the scene bundle, and the bundle is serialized by
+    the shared canonical form - so a program that kept its nulls would be two
+    different documents depending on where a consumer read it.
     """
 
     return json.dumps(
-        program.model_dump(mode="json"),
+        program.model_dump(mode="json", exclude_none=True),
         ensure_ascii=False,
         allow_nan=False,
         sort_keys=True,
@@ -122,7 +121,6 @@ def resolve_scenario(root: Path) -> ResolvedScenario:
     script = read_script_text(root, declarations)
     program = compile_scenario(declarations, parse_scenario(script))
     admission = admit_scenario(declarations, program)
-    _check_cast_profiles(root, declarations)
     program_bytes = canonical_program_json(program)
     return ResolvedScenario(
         declarations=declarations,
@@ -131,27 +129,6 @@ def resolve_scenario(root: Path) -> ResolvedScenario:
         program_bytes=program_bytes,
         program_sha256=sha256_bytes(program_bytes),
     )
-
-
-def _check_cast_profiles(root: Path, declarations: ScenarioDeclarations) -> None:
-    """A drawn actor names a package member, so the member has to be there.
-
-    Admission proves the narrative; this proves the package. Without it a cast
-    member pointing at a profile nobody wrote would be discovered during
-    generation, which is the one place the whole contract exists to move failures
-    out of.
-    """
-
-    for member in declarations.cast:
-        if member.profile is None:
-            continue
-        try:
-            read_package_member(root, member.profile, label="cast profile")
-        except (OSError, ValueError) as error:
-            raise ValueError(
-                f"cast member `{member.actor_id}` names profile {member.profile}, "
-                f"which is not a readable package member: {error}"
-            ) from None
 
 
 __all__ = [

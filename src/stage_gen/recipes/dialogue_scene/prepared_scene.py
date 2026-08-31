@@ -82,11 +82,7 @@ from stage_gen.recipes.dialogue_scene.models import (
     SpriteGeometry,
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
-from stage_gen.recipes.dialogue_scene.prompts import (
-    background_prompt,
-    expression_prompt,
-    neutral_prompt,
-)
+from stage_gen.recipes.dialogue_scene.prompts import expression_prompt, neutral_prompt
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DIALOGUE_CACHE_NAMESPACE,
     DIALOGUE_CACHE_RECORD_KIND,
@@ -95,6 +91,7 @@ from stage_gen.recipes.dialogue_scene.scene_graph import (
 )
 from stage_gen.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
+    ResolvedSceneActor,
     profile_lock_values,
 )
 from stage_gen.recipes.dialogue_scene.scene_types import (
@@ -221,6 +218,20 @@ class DialogueSceneNodeHandler:
 
         return handler
 
+    def _node_actor(self, node: Node) -> ResolvedSceneActor:
+        """The declared actor this node instance is bound to."""
+
+        actor_id = node.params.get("actor")
+        if actor_id is None:
+            raise ValueError(f"node {node.node_id} declares no actor")
+        return self._scene.actor(str(actor_id))
+
+    def _node_stage(self, node: Node) -> str:
+        stage_id = node.params.get("stage")
+        if stage_id is None:
+            raise ValueError(f"node {node.node_id} declares no stage")
+        return str(stage_id)
+
     def _node_state(self, node: Node) -> ExpressionState:
         """The declared expression this node instance is bound to."""
 
@@ -286,10 +297,10 @@ class DialogueSceneNodeHandler:
         return self._result(node, provider_operations=0)
 
     async def _write_profile(self, node: Node) -> NodeExecutionResult:
-        profile = self._scene.profile
+        profile = self._node_actor(node).profile
         rights = profile.profile.rights
         await self._write_local(
-            "character-profile.json",
+            node.port("profile").artifact_ref,
             profile.canonical_bytes,
             "application/json",
             "Validate and canonicalize the authored character profile.",
@@ -336,15 +347,15 @@ class DialogueSceneNodeHandler:
         carries their rights decision across, because the run now ships a copy.
         """
 
-        identity = self._scene.identity_reference
+        identity = self._scene.style_reference
         await self._write_local(
-            "assets/concept.png",
+            "assets/style-plate.png",
             identity.data,
             identity.media_type,
-            "Publish the authored identity-and-style plate.",
+            "Publish the authored style plate.",
             refs=[identity.provenance_ref],
             params={
-                "role": "concept",
+                "role": "style",
                 "reference_id": identity.reference_id,
                 "source": identity.source,
                 "source_sha256": identity.sha256,
@@ -368,40 +379,48 @@ class DialogueSceneNodeHandler:
                 "Return only the strict dialogue-scene-plan JSON. Do not add story, "
                 "dialogue, provider instructions, paths, or policy exceptions."
             ),
-            artifact_path=self._run_dir / "plan.json",
+            artifact_path=self._run_dir / node.port("document").artifact_ref,
             references=(_structured_reference(concept, concept_path),),
             schema=StructuredOutputSchema(
-                name="dialogue_scene_plan_v4",
+                name="dialogue_scene_plan_v6",
                 json_schema=dialogue_plan_json_schema(),
                 strict=True,
             ),
-            parse=self._parse_plan,
+            parse=lambda value: self._parse_plan(self._node_actor(node), value),
             artifact_value=lambda value: value.model_dump(mode="json", exclude_none=True),
             metadata={
                 "node": node.node_id,
                 "request_sha256": scene.request_sha256,
                 "policy_sha256": POLICY_DIGEST,
                 "template_sha256": scene.template_digest,
-                **self._profile_provenance(),
+                **self._profile_provenance(self._node_actor(node)),
                 **self._style_provenance(),
             },
             timeout_seconds=self._timeout,
             provenance_schema_version=2,
         )
         result = await self._provider_call(
-            node, "plan", prompt, [concept], lambda: self._structured.generate(request), "plan.json"
+            node,
+            "plan",
+            prompt,
+            [concept],
+            lambda: self._structured.generate(request),
+            node.port("document").artifact_ref,
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _backdrop_generate(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
         native = scene.request.transparency_mode == "native"
-        provider_output = "raw/background-provider.png" if native else "assets/background.png"
-        prompt = background_prompt(scene.request, self._plan_document())
-        # The room is drawn against the authored plate the character stands in,
-        # so the backdrop and the sprites cannot disagree about the light.
-        concept_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
-        references = ((self._read(concept_relative), concept_relative),)
+        published = node.port("image").artifact_ref
+        provider_output = node.port("provider_raw").artifact_ref if native else published
+        prompt = self._card_prompt(node)
+        # Every room is drawn against the same authored plate the cast is, so a
+        # backdrop and the people standing in it cannot disagree about the light.
+        style_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
+        references = ((self._read(style_relative), style_relative),)
+        # "background" is the asset role that provenance and validation key on;
+        # which stage this instance draws is already on the node's params.
         result = await self._image(
             node, "background", prompt, provider_output, references, alpha=False
         )
@@ -411,7 +430,7 @@ class DialogueSceneNodeHandler:
             result.data, width=BACKGROUND_WIDTH, height=BACKGROUND_HEIGHT
         )
         await self._write_local(
-            "assets/background.png",
+            published,
             normalized,
             "image/png",
             "Normalize the provider-native opaque dialogue background to the runtime canvas.",
@@ -436,11 +455,14 @@ class DialogueSceneNodeHandler:
     async def _expression(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
         state = self._node_state(node)
-        plan = self._plan_document()
+        actor = self._node_actor(node)
+        plan = self._plan_document(actor)
         alpha = scene.request.transparency_mode == "native"
         if state == "neutral":
             source_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
-            prompt = neutral_prompt(scene.request, plan)
+            prompt = neutral_prompt(
+                scene.request, plan, has_identity_plate=actor.identity_reference is not None
+            )
         else:
             source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
             prompt = expression_prompt(
@@ -524,7 +546,10 @@ class DialogueSceneNodeHandler:
             "image/png",
             "Canonicalize dialogue sprite transparency.",
             refs=[source_relative],
-            params={"derivation": derivation, **self._profile_provenance()},
+            params={
+                "derivation": derivation,
+                **self._profile_provenance(self._node_actor(node)),
+            },
             attempts=attempts,
         )
         return self._result(node, attempts=attempts, provider_operations=provider_operations)
@@ -543,7 +568,7 @@ class DialogueSceneNodeHandler:
                 "recipe": self._scene.recipe_version,
                 "node": node.node_id,
                 "state": state,
-                **self._profile_provenance(),
+                **self._profile_provenance(self._node_actor(node)),
             },
             timeout_seconds=self._timeout,
             validate=_background_validator(
@@ -590,7 +615,7 @@ class DialogueSceneNodeHandler:
 
     # ---------------------------------------------------------------- helpers
 
-    def _parse_plan(self, value: object) -> DialoguePlan:
+    def _parse_plan(self, actor: ResolvedSceneActor, value: object) -> DialoguePlan:
         scene = self._scene
         draft = DialogueScenePlanDraft.model_validate(value)
         states = [
@@ -598,12 +623,12 @@ class DialogueSceneNodeHandler:
             for state in EXPRESSION_STATES
         ]
         native = scene.request.transparency_mode == "native"
-        profile = scene.profile
+        profile = actor.profile
         identity, wardrobe = profile_lock_values(profile.profile)
         return DialogueScenePlan(
-            schema_version=5,
-            kind="dialogue-scene-plan-v5",
-            recipe_version="dialogue-scene-v6",
+            schema_version=6,
+            kind="dialogue-scene-plan-v6",
+            recipe_version="dialogue-scene-v7",
             policy_version="coming-of-age-nonexplicit-v3",
             expression_profile="expression-core-v3",
             request_sha256=scene.request_sha256,
@@ -611,7 +636,11 @@ class DialogueSceneNodeHandler:
             character_profile_ref=profile.ref,
             character_profile_source_sha256=profile.source_sha256,
             character_profile_sha256=profile.canonical_sha256,
-            identity_reference_sha256=scene.identity_reference.sha256,
+            identity_reference_sha256=(
+                actor.identity_reference.sha256
+                if actor.identity_reference is not None
+                else scene.style_reference.sha256
+            ),
             shared_locks=SharedLocks(
                 identity=identity,
                 wardrobe=wardrobe,
@@ -688,7 +717,11 @@ class DialogueSceneNodeHandler:
                     if native
                     else {}
                 ),
-                **self._profile_provenance(),
+                **(
+                    {}
+                    if node.params.get("actor") is None
+                    else self._profile_provenance(self._node_actor(node))
+                ),
             },
             timeout_seconds=self._timeout,
             validate=_image_validator(
@@ -836,24 +869,21 @@ class DialogueSceneNodeHandler:
     def _style_anchor(self) -> CanonicalStyleAnchor:
         return CanonicalStyleAnchor.model_validate_json(self._read("style-anchor.json"))
 
-    def _plan_document(self) -> DialoguePlan:
-        return DialogueScenePlan.model_validate_json(self._read("plan.json"))
+    def _plan_document(self, actor: ResolvedSceneActor) -> DialoguePlan:
+        return DialogueScenePlan.model_validate_json(self._read(f"plans/{actor.asset_prefix}.json"))
 
-    def _profile_model(self) -> Any:
-        return None if self._scene.profile is None else self._scene.profile.profile
-
-    def _profile_provenance(self) -> dict[str, object]:
-        profile = self._scene.profile
-        if profile is None:
-            return {}
-        artifact = self._read("character-profile.json")
-        provenance = self._read("character-profile.json.meta.json")
+    def _profile_provenance(self, actor: ResolvedSceneActor) -> dict[str, object]:
+        profile = actor.profile
+        path = f"characters/{actor.asset_prefix}.json"
+        artifact = self._read(path)
+        provenance = self._read(f"{path}.meta.json")
         return {
+            "actor_id": actor.actor_id,
             "character_profile_ref": profile.ref,
             "character_profile_source_sha256": profile.source_sha256,
-            "character_profile_path": "character-profile.json",
+            "character_profile_path": path,
             "character_profile_sha256": content_sha256(artifact),
-            "character_profile_provenance_path": "character-profile.json.meta.json",
+            "character_profile_provenance_path": f"{path}.meta.json",
             "character_profile_provenance_sha256": content_sha256(provenance),
         }
 

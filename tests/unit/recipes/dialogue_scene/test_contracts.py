@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -85,13 +86,13 @@ def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Pat
     assert canonical_json_bytes(parsed) == canonical_json_bytes(reversed_value)
     assert canonical_sha256(parsed) == canonical_sha256(reversed_value)
 
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed({**document, "kind": "dialogue-theme-request-v3"})
     camel = dict(document)
     camel["sceneBrief"] = camel.pop("scene_brief")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed(camel)
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed({**document, "unknown": True})
     with pytest.raises(ValueError, match="content policy"):
         _parsed({**document, "scene_brief": "A minor stays behind after the seminar"})
@@ -114,46 +115,56 @@ def test_the_scene_binds_its_narrative_as_a_digest_bound_member(tmp_path: Path) 
     binding = document["scenario"]
     assert isinstance(binding, dict)
     assert binding["ref"] == "scenario.toml"
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed({**document, "scenario": {**binding, "ref": "../elsewhere.toml"}})
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed({**document, "dialogue": [{"id": "a", "speaker": "Mio", "text": "Hi."}]})
 
 
 def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> None:
-    """The binding names a member by relative path; anything else leaves the package."""
+    """Each cast binding names a member by relative path; anything else escapes."""
 
     document = _document(write_scene_package(tmp_path / "pkg"))
-    binding = document["character_profile"]
+    cast = document["cast"]
+    assert isinstance(cast, list)
+    first = cast[0]
+    assert isinstance(first, dict)
+    binding = first["character_profile"]
     assert isinstance(binding, dict)
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
-        _parsed({**document, "character_profile": {"ref": "character.toml"}})
-    # The binding refuses escape itself; the document refuses a member that is
-    # not a profile at all, so neither check depends on the other holding.
-    with pytest.raises(ValueError, match="parent segments"):
-        _parsed({**document, "character_profile": {**binding, "ref": "../elsewhere.toml"}})
-    with pytest.raises(ValueError, match="package-relative TOML member"):
-        _parsed({**document, "character_profile": {**binding, "ref": "character.json"}})
+
+    def with_first(profile: object) -> dict[str, object]:
+        return {**document, "cast": [{**first, "character_profile": profile}, cast[1]]}
+
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+        _parsed(with_first({"ref": "characters/mio.toml"}))
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+        _parsed(with_first({**binding, "ref": "../elsewhere.toml"}))
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+        _parsed(with_first({**binding, "ref": "characters/mio.json"}))
     camel = dict(binding)
     camel["sourceSha256"] = camel.pop("source_sha256")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
-        _parsed({**document, "character_profile": camel})
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+        _parsed(with_first(camel))
 
 
 def test_an_underage_character_profile_is_refused(tmp_path: Path) -> None:
-    """The age floor is the legal adult line, and it is enforced offline."""
-
     root = write_scene_package(tmp_path / "pkg")
-    source = (root / "character.toml").read_text(encoding="utf-8")
-    (root / "character.toml").write_bytes(
-        source.replace("age_years = 23", "age_years = 16").encode()
+    profile = root / "characters/mio.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace("age_years = 23", "age_years = 17"),
+        encoding="utf-8",
     )
     document = _document(root)
-    binding = document["character_profile"]
-    assert isinstance(binding, dict)
-    binding["source_sha256"] = hashlib.sha256((root / "character.toml").read_bytes()).hexdigest()
-    with pytest.raises(ValueError, match="adult age from 18"):
-        resolve_dialogue_scene(document, root=root)
+    cast = document["cast"]
+    assert isinstance(cast, list)
+    first = cast[0]
+    assert isinstance(first, dict)
+    binding = dict(first["character_profile"])
+    binding["source_sha256"] = hashlib.sha256(profile.read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="requires an adult age"):
+        resolve_dialogue_scene(
+            {**document, "cast": [{**first, "character_profile": binding}, cast[1]]}, root=root
+        )
 
 
 def test_a_reference_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:
@@ -174,37 +185,38 @@ def test_a_reference_declared_but_never_used_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="never used"):
         _parsed({**document, "references": [*references, spare]})
     with pytest.raises(ValueError, match="undeclared reference"):
-        _parsed({**document, "identity_reference_id": "missing"})
+        _parsed({**document, "style_reference_id": "missing"})
 
 
 def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
     graph = _graph(write_scene_package(tmp_path / "pkg"))
-    assert [node.node_id for node in graph.nodes] == [
+    ids = [node.node_id for node in graph.nodes]
+    assert ids[:5] == [
         "scene-request",
         "scene-scenario",
-        "scene-profile-resolve",
         "scene-style-select",
-        "scene-concept",
-        "scene-plan",
-        "scene-background",
-        "scene-expression-neutral",
-        "scene-expression-delighted",
-        "scene-expression-flustered",
-        "scene-expression-concerned",
-        "scene-canonicalize-neutral",
-        "scene-canonicalize-delighted",
-        "scene-canonicalize-flustered",
-        "scene-canonicalize-concerned",
-        "scene-bundle",
+        "scene-style-plate",
+        "stage-lounge",
     ]
+    # One backdrop per declared stage, and a full expression fan-out per actor.
+    assert [node_id for node_id in ids if node_id.startswith("stage-")] == ["stage-lounge"]
+    for actor in ("mio", "ren"):
+        assert f"actor-{actor}-profile" in ids
+        assert f"actor-{actor}-plan" in ids
+        assert f"actor-{actor}-neutral" in ids
+        for state in ("delighted", "flustered", "concerned"):
+            assert f"actor-{actor}-{state}" in ids
+        for state in ("neutral", "delighted", "flustered", "concerned"):
+            assert f"actor-{actor}-canonicalize-{state}" in ids
     assert graph.terminal_node_id == "scene-bundle"
     assert graph.node("scene-bundle").depends_on == (
         "scene-scenario",
-        "scene-background",
-        "scene-canonicalize-neutral",
-        "scene-canonicalize-delighted",
-        "scene-canonicalize-flustered",
-        "scene-canonicalize-concerned",
+        "stage-lounge",
+        *(
+            f"actor-{actor}-canonicalize-{state}"
+            for actor in ("mio", "ren")
+            for state in ("neutral", "delighted", "flustered", "concerned")
+        ),
     )
 
 
@@ -219,233 +231,219 @@ def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
     root = write_scene_package(tmp_path / "pkg")
     resolved = _resolved(root)
     graph = _graph(root)
-    concept = graph.node("scene-concept")
-    assert concept.operation == "local"
-    assert concept.card is not None
-    authored = {entry.label: entry for entry in concept.card.authored_inputs}
+    plate = graph.node("scene-style-plate")
+    assert plate.operation == "local"
+    assert plate.card is not None
+    authored = {entry.label: entry for entry in plate.card.authored_inputs}
     assert authored["cover"].ref == "references/cover.png"
-    assert authored["cover"].sha256 == resolved.identity_reference.sha256
+    assert authored["cover"].sha256 == resolved.style_reference.sha256
 
+    # One backdrop plus four expressions for each of two actors.
     image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
-    assert len(image_nodes) == 5
+    assert len(image_nodes) == 9
     for node in image_nodes:
-        assert resolved.identity_reference.sha256 in node.input_sha256, node.node_id
+        assert resolved.style_reference.sha256 in node.input_sha256, node.node_id
 
-    # The backdrop is drawn against the same plate the character stands in.
-    background = graph.node("scene-background")
+    # Every backdrop is drawn against the same plate the cast stands in.
+    background = graph.node("stage-lounge")
     assert background.card is not None
     assert any(
-        reference.node_id == "scene-concept" for reference in background.card.reference_inputs
+        reference.node_id == "scene-style-plate" for reference in background.card.reference_inputs
     )
+
+    # Only the actor that binds the plate as its own is held to its identity.
+    mio = graph.node("actor-mio-neutral")
+    ren = graph.node("actor-ren-neutral")
+    assert mio.card is not None and ren.card is not None
+    assert len(mio.card.authored_inputs) == 2
+    assert len(ren.card.authored_inputs) == 1
 
 
 def test_each_derived_expression_is_its_own_node_off_the_neutral_source(tmp_path: Path) -> None:
     # The stage pipeline this replaces derived three expressions inside one stage and
     # canonicalized four inside another, so a single bad state failed the whole batch.
     graph = _graph(write_scene_package(tmp_path / "pkg"))
-    for state in ("delighted", "flustered", "concerned"):
-        assert graph.node(f"scene-expression-{state}").depends_on == ("scene-expression-neutral",)
-        assert graph.node(f"scene-canonicalize-{state}").depends_on == (
-            f"scene-expression-{state}",
-        )
+    for actor in ("mio", "ren"):
+        for state in ("delighted", "flustered", "concerned"):
+            assert graph.node(f"actor-{actor}-{state}").depends_on == (f"actor-{actor}-neutral",)
+            assert graph.node(f"actor-{actor}-canonicalize-{state}").depends_on == (
+                f"actor-{actor}-{state}",
+            )
 
 
-def test_bundle_paths_rights_and_review_are_strict() -> None:
-    raw: dict[str, object] = {
-        "schema_version": 5,
-        "kind": "dialogue-scene-bundle-v5",
-        "recipe": "dialogue-scene",
-        "recipe_version": "dialogue-scene-v6",
-        "tag": "demo",
-        "game_id": "seminar_hall",
-        "run_identity_sha256": "a" * 64,
-        "request": {
-            "path": "request.json",
-            "sha256": "b" * 64,
-            "provenance_path": "request.json.meta.json",
-            "provenance_sha256": "1" * 64,
-        },
-        "plan": {
-            "path": "plan.json",
+def _bundle_value(root: Path) -> dict[str, Any]:
+    """A structurally valid bundle for the fixture package, built from its own scene.
+
+    Built rather than hand-written: a literal would have to be rewritten by hand
+    every time the cast or the stage list changes, and a stale literal is exactly
+    the thing a strictness test cannot afford.
+    """
+
+    resolved = _resolved(root)
+    program = json.loads(resolved.scenario.program_bytes)
+    states = ("neutral", "delighted", "flustered", "concerned")
+    actors = list(resolved.actors)
+
+    def bundle_file(path: str) -> dict[str, object]:
+        return {
+            "path": path,
+            "sha256": "a" * 64,
+            "provenance_path": f"{path}.meta.json",
+            "provenance_sha256": "b" * 64,
+        }
+
+    media = {
+        "style": {"width": 1024, "height": 1536, "alpha": False},
+        "background": {"width": 1672, "height": 941, "alpha": False},
+        "expression": {"width": 1024, "height": 1536, "alpha": True},
+    }
+
+    def artifact(
+        asset_id: str, role: str, path: str, state: str | None, actor: str | None
+    ) -> dict[str, Any]:
+        return {
+            "id": asset_id,
+            "role": role,
+            "actor_id": actor,
+            "state": state,
+            "path": path,
             "sha256": "c" * 64,
-            "provenance_path": "plan.json.meta.json",
-            "provenance_sha256": "2" * 64,
-        },
-        "character_profile": {
-            "path": "character-profile.json",
-            "sha256": "5" * 64,
-            "provenance_path": "character-profile.json.meta.json",
-            "provenance_sha256": "6" * 64,
-        },
-        "character_profile_binding": {
-            "schema_version": 1,
-            "kind": "character-profile-binding-v1",
-            "ref": "character.toml",
-            "source_sha256": "7" * 64,
-        },
-        "character_profile_sha256": "5" * 64,
-        "identity_reference": {
-            "path": "assets/concept.png",
-            "sha256": "d" * 64,
-            "provenance_path": "assets/concept.png.meta.json",
-            "provenance_sha256": "e" * 64,
-        },
-        "identity_reference_source": "references/cover.png",
-        "assets": [
+            "bytes": 1,
+            "media": {"mime_type": "image/png", **media[role]},
+            "provenance_path": f"{path}.meta.json",
+            "provenance_sha256": "d" * 64,
+            "selected_attempt": 1,
+        }
+
+    return {
+        "schema_version": 6,
+        "kind": "dialogue-scene-bundle-v6",
+        "recipe": "dialogue-scene",
+        "recipe_version": "dialogue-scene-v7",
+        "tag": "seminar-hall",
+        "game_id": "seminar_hall",
+        "run_identity_sha256": "e" * 64,
+        "request": bundle_file("request.json"),
+        "actors": [
             {
-                "id": "concept",
-                "role": "concept",
-                "state": None,
-                "path": "assets/concept.png",
-                "sha256": "d" * 64,
-                "bytes": 1,
-                "media": {
-                    "mime_type": "image/png",
-                    "width": 1024,
-                    "height": 1536,
-                    "alpha": False,
+                "actor_id": actor.actor_id,
+                "character_profile": bundle_file(f"characters/{actor.asset_prefix}.json"),
+                "character_profile_binding": {
+                    "schema_version": 1,
+                    "kind": "character-profile-binding-v1",
+                    "ref": actor.profile.ref,
+                    "source_sha256": actor.profile.source_sha256,
                 },
-                "provenance_path": "assets/concept.png.meta.json",
-                "provenance_sha256": "e" * 64,
-                "selected_attempt": 0,
-            },
-            {
-                "id": "background",
-                "role": "background",
-                "state": None,
-                "path": "assets/background.png",
-                "sha256": "3" * 64,
-                "bytes": 1,
-                "media": {
-                    "mime_type": "image/png",
-                    "width": 1672,
-                    "height": 941,
-                    "alpha": False,
-                },
-                "provenance_path": "assets/background.png.meta.json",
-                "provenance_sha256": "4" * 64,
-                "selected_attempt": 1,
-            },
-            *[
-                {
-                    "id": f"mio-{state}",
-                    "role": "expression",
-                    "state": state,
-                    "path": f"assets/expression-{state}.png",
-                    "sha256": "d" * 64,
-                    "bytes": 1,
-                    "media": {
-                        "mime_type": "image/png",
-                        "width": 1024,
-                        "height": 1536,
-                        "alpha": True,
-                    },
-                    "provenance_path": f"assets/expression-{state}.png.meta.json",
-                    "provenance_sha256": "e" * 64,
-                    "selected_attempt": 1,
-                }
-                for state in ("neutral", "delighted", "flustered", "concerned")
-            ],
+                "character_profile_sha256": actor.profile.canonical_sha256,
+                "plan": bundle_file(f"plans/{actor.asset_prefix}.json"),
+            }
+            for actor in actors
         ],
-        "attempt_ledger": {"path": "attempts.json", "sha256": "f" * 64},
-        "scenario": {
-            "path": "scenario.json",
-            "sha256": "1" * 64,
-            "provenance_path": "scenario.json.meta.json",
-            "provenance_sha256": "2" * 64,
-        },
-        "scenario_validation": {
-            "path": "scenario.validation.json",
-            "sha256": "3" * 64,
-            "provenance_path": "scenario.validation.json.meta.json",
-            "provenance_sha256": "4" * 64,
-        },
+        "scenario": bundle_file("scenario.json"),
+        "scenario_validation": bundle_file("scenario.validation.json"),
         "scenario_binding": {
             "schema_version": 1,
             "kind": "scenario-binding-v1",
             "ref": "scenario.toml",
-            "source_sha256": "5" * 64,
+            "source_sha256": resolved.request.scenario.source_sha256,
         },
-        "scenario_sha256": "1" * 64,
-        "scene_data": {
-            "scene_id": "mio-scene",
-            "title": "Study lounge",
-            "scene_label": "Study lounge",
-            "concept_asset_id": "concept",
-            "background": {"asset_id": "background", "alt": "Study lounge"},
-            "appearance": {
-                "id": "mio",
-                "label": "Mio",
-                "age": 23,
-                "role": "Final-year student",
-                "tagline": "Final-year student",
-                "description": "Young woman in a navy cardigan",
-                "visual_identity": "Young woman in a navy cardigan",
-                "art_direction": "Original visual novel art",
-            },
-            "placement": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
-            "available_states": ["neutral", "delighted", "flustered", "concerned"],
-            "expression_variants": [
-                {
-                    "id": f"mio-{state}",
-                    "asset_id": f"mio-{state}",
-                    "appearance_id": "mio",
-                    "state": state,
-                    "label": state,
-                    "description": f"A {state} expression",
-                    "alt": f"Mio with a {state} expression",
-                    "slot": "right",
-                }
-                for state in ("neutral", "delighted", "flustered", "concerned")
+        "scenario_sha256": "f" * 64,
+        "style_reference": bundle_file("assets/style-plate.png"),
+        "style_reference_source": "references/cover.png",
+        "assets": [
+            artifact("style-plate", "style", "assets/style-plate.png", None, None),
+            *[
+                artifact(
+                    stage["stage_id"].replace("_", "-"),
+                    "background",
+                    f"assets/stage-{stage['stage_id'].replace('_', '-')}.png",
+                    None,
+                    None,
+                )
+                for stage in program["stages"]
             ],
-            "scenario": {
-                "schema_version": 1,
-                "kind": "scenario-program-v1",
-                "game_id": "seminar_hall",
-                "scenario_id": "after_seminar",
-                "display_name": "After the Seminar",
-                "revision": 1,
-                "script_sha256": "6" * 64,
-                "entry": "only",
-                "cast": [
-                    {
-                        "actor_id": "mio",
-                        "display_name": None,
-                        "profile": "character.toml",
-                        "expressions": ["neutral"],
-                    }
-                ],
-                "stages": [{"stage_id": "lounge", "brief": "An original empty lounge"}],
-                "tracks": [],
-                "flags": [],
-                "endings": [{"outcome_id": "done", "label": "Done"}],
-                "blocks": [
-                    {
-                        "label": "only",
-                        "statements": [
-                            {
-                                "kind": "line",
-                                "speaker": "mio",
-                                "expression": None,
-                                "text": "I hoped you would stay.",
-                            },
-                            {"kind": "end", "outcome": "done"},
-                        ],
-                    }
-                ],
-            },
+            *[
+                artifact(
+                    f"{actor.asset_prefix}-{state}",
+                    "expression",
+                    f"assets/{actor.asset_prefix}-{state}.png",
+                    state,
+                    actor.actor_id,
+                )
+                for actor in actors
+                for state in states
+            ],
+        ],
+        "attempt_ledger": {"path": "attempts.json", "sha256": "1" * 64},
+        "scene_data": {
+            "scene_id": "seminar-hall-scene",
+            "title": "After the Seminar",
+            "scene_label": "A student stays behind",
+            "style_asset_id": "style-plate",
+            "stages": [
+                {
+                    "stage_id": stage["stage_id"],
+                    "asset_id": stage["stage_id"].replace("_", "-"),
+                    "alt": stage["brief"][:160],
+                }
+                for stage in program["stages"]
+            ],
+            "actors": [
+                {
+                    "actor_id": actor.actor_id,
+                    "appearance": {
+                        "id": actor.profile.profile.profile_id,
+                        "label": actor.profile.profile.display_name,
+                        "age": actor.profile.profile.age_years,
+                        "role": "A student",
+                        "tagline": "A student",
+                        "description": actor.profile.profile.description,
+                        "visual_identity": actor.profile.profile.visual_identity,
+                        "art_direction": "cel shaded anime",
+                    },
+                    "expression_variants": [
+                        {
+                            "id": f"{actor.asset_prefix}-{state}",
+                            "asset_id": f"{actor.asset_prefix}-{state}",
+                            "appearance_id": actor.profile.profile.profile_id,
+                            "state": state,
+                            "label": state.title(),
+                            "description": f"A {state} expression",
+                            "alt": f"{actor.display_name} looking {state}",
+                        }
+                        for state in states
+                    ],
+                }
+                for actor in actors
+            ],
+            "placement": {"framing_zoom": 70, "source_framing_zoom": 70},
+            "available_states": list(states),
+            "scenario": program,
         },
         "review": {"status": "pending", "path": None, "sha256": None},
         "rights": {"aggregate": "unreviewed", "publication_authorized": False},
     }
+
+
+def test_bundle_paths_rights_and_review_are_strict(tmp_path: Path) -> None:
+    raw = _bundle_value(write_scene_package(tmp_path / "pkg"))
     assert DialogueBundle.model_validate(raw).rights.publication_authorized is False
-    legacy = {**raw, "schema_version": 4, "kind": "dialogue-scene-bundle-v4"}
+
+    legacy = {**raw, "schema_version": 5, "kind": "dialogue-scene-bundle-v5"}
     with pytest.raises(ValidationError):
         DialogueBundle.model_validate(legacy)
+
     camel = {**raw, "runIdentitySha256": raw["run_identity_sha256"]}
     del camel["run_identity_sha256"]
     with pytest.raises(ValidationError):
         DialogueBundle.model_validate(camel)
+
+    # An actor in the inventory that scene_data does not stage, and vice versa,
+    # is refused: the two halves name one cast or the bundle is inconsistent.
+    mismatched = {**raw, "actors": raw["actors"][:1]}
+    with pytest.raises(ValidationError, match="name the same cast"):
+        DialogueBundle.model_validate(mismatched)
+
     assets = raw["assets"]
     assert isinstance(assets, list)
     assets[0]["path"] = "../escape.png"
@@ -511,9 +509,7 @@ def test_rewording_a_line_does_not_re_bill_a_single_image(tmp_path: Path) -> Non
     edited = _graph(package)
 
     art_nodes = [
-        node.node_id
-        for node in original.nodes
-        if node.node_id.startswith(("scene-background", "scene-expression", "scene-canonicalize"))
+        node.node_id for node in original.nodes if node.node_id.startswith(("stage-", "actor-"))
     ]
     assert art_nodes, "the fixture must contain generated art"
     for node_id in art_nodes:

@@ -11,9 +11,9 @@
 
 import { useEffect, useRef } from "react";
 import type { DialogueSceneGameHandle } from "@/lib/dialogue-scene/scene-game";
-import type { DialogueSceneDemoFixture } from "@/lib/dialogue-scene/schema";
+import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 
-export default function ScenePlayer({ fixture }: { fixture: DialogueSceneDemoFixture }) {
+export default function ScenePlayer({ fixture }: { fixture: DialogueSceneFixture }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

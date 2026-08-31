@@ -5,7 +5,7 @@
 // route that boots it. Nothing here parses a manifest — each module keeps its
 // own strict contract; this table only says who answers for which kind.
 
-import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/theme-adapter";
+import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/bundle";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import { PREPARED_RUNTIME_KIND } from "@/lib/manifest/prepared-manifest";
 

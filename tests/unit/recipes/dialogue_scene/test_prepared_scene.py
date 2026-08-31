@@ -63,30 +63,34 @@ async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: P
     )
 
     assert summary.ok
-    # Two structured calls (style anchor, plan) and five images: the background and
-    # one per expression state. The concept plate is authored, so nothing buys it.
-    assert len(structured.calls) == 2
-    assert len(images.requests) == 5
+    # Three structured calls (one style anchor, one plan per actor) and nine
+    # images: one backdrop per stage, plus four expressions for each of two
+    # actors. The style plate is authored, so nothing buys it.
+    assert len(structured.calls) == 3
+    assert len(images.requests) == 9
     bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
-    assert bundle.identity_reference_source == "references/cover.png"
-    assert bundle.identity_reference.sha256 == content_sha256(
+    assert bundle.style_reference_source == "references/cover.png"
+    assert bundle.style_reference.sha256 == content_sha256(
         (package / "references/cover.png").read_bytes()
     )
     # The run ships the authored bytes, not a redraw of them.
-    assert (tmp_path / "run/assets/concept.png").read_bytes() == (
+    assert (tmp_path / "run/assets/style-plate.png").read_bytes() == (
         package / "references/cover.png"
     ).read_bytes()
     assert {artifact.role for artifact in bundle.assets} == {
-        "concept",
+        "style",
         "background",
         "expression",
     }
-    assert [artifact.state for artifact in bundle.assets if artifact.state] == [
-        "neutral",
-        "delighted",
-        "flustered",
-        "concerned",
-    ]
+    # Every actor carries the whole locked taxonomy, in order.
+    assert [actor.actor_id for actor in bundle.actors] == ["mio", "ren"]
+    for actor in bundle.scene_data.actors:
+        assert [variant.state for variant in actor.expression_variants] == [
+            "neutral",
+            "delighted",
+            "flustered",
+            "concerned",
+        ]
 
 
 @pytest.mark.asyncio
@@ -103,23 +107,34 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
 
     per_node = sorted(path.name for path in (tmp_path / "run/attempts").iterdir())
     assert per_node == [
-        "scene-background.json",
-        "scene-expression-concerned.json",
-        "scene-expression-delighted.json",
-        "scene-expression-flustered.json",
-        "scene-expression-neutral.json",
-        "scene-plan.json",
+        "actor-mio-concerned.json",
+        "actor-mio-delighted.json",
+        "actor-mio-flustered.json",
+        "actor-mio-neutral.json",
+        "actor-mio-plan.json",
+        "actor-ren-concerned.json",
+        "actor-ren-delighted.json",
+        "actor-ren-flustered.json",
+        "actor-ren-neutral.json",
+        "actor-ren-plan.json",
         "scene-style-select.json",
+        "stage-lounge.json",
     ]
     ledger = AttemptLedger.model_validate_json((tmp_path / "run/attempts.json").read_bytes())
+    # Merged in graph order, so the ledger reads as the run happened.
     assert [record.stage for record in ledger.attempts] == [
         "scene-style-select",
-        "scene-plan",
-        "scene-background",
-        "scene-expression-neutral",
-        "scene-expression-delighted",
-        "scene-expression-flustered",
-        "scene-expression-concerned",
+        "stage-lounge",
+        "actor-mio-plan",
+        "actor-mio-neutral",
+        "actor-mio-delighted",
+        "actor-mio-flustered",
+        "actor-mio-concerned",
+        "actor-ren-plan",
+        "actor-ren-neutral",
+        "actor-ren-delighted",
+        "actor-ren-flustered",
+        "actor-ren-concerned",
     ]
     assert all(record.outcome == "selected" for record in ledger.attempts)
 
@@ -154,13 +169,17 @@ async def test_the_graph_resolves_the_authored_character_before_any_art(
     )
 
     assert summary.ok
-    profile = json.loads((tmp_path / "run/character-profile.json").read_text(encoding="utf-8"))
+    profile = json.loads((tmp_path / "run/characters/mio.json").read_text(encoding="utf-8"))
     assert profile["profile_id"] == "mio-researcher"
     bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
-    assert bundle.character_profile_binding.ref == "character.toml"
-    assert bundle.character_profile_binding.source_sha256 == content_sha256(
-        (package / "character.toml").read_bytes()
+    # One binding per drawable actor, each naming the exact member it came from.
+    bound = {actor.actor_id: actor.character_profile_binding for actor in bundle.actors}
+    assert sorted(bound) == ["mio", "ren"]
+    assert bound["mio"].ref == "characters/mio.toml"
+    assert bound["mio"].source_sha256 == content_sha256(
+        (package / "characters/mio.toml").read_bytes()
     )
+    assert bound["ren"].ref == "characters/ren.toml"
 
 
 @pytest.mark.asyncio
@@ -173,7 +192,7 @@ async def test_the_published_plate_carries_the_authored_rights_decision(
     await run_scene(package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache")
 
     sidecar = json.loads(
-        (tmp_path / "run/assets/concept.png.meta.json").read_text(encoding="utf-8")
+        (tmp_path / "run/assets/style-plate.png.meta.json").read_text(encoding="utf-8")
     )
     assert sidecar["rights"]["status"] == "unreviewed"
     assert sidecar["rights"]["basis"] == ["Original brand-neutral test fixture."]

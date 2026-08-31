@@ -29,13 +29,14 @@ import {
   DIALOGUE_STAGE,
   dialoguePanelRect,
   progressPoint,
+  slotFrame,
   speakerChipRect,
-  spriteFrame,
   type Rect,
 } from "./scene-hud";
-import type {
-  DialogueSceneDemoFixture,
-  DialogueSceneExpressionState,
+import {
+  dialogueSceneExpression,
+  dialogueSceneStage,
+  type DialogueSceneFixture,
 } from "./schema";
 import { scenarioActionForKey, scenarioOptionForKey } from "@/lib/scenario/keys";
 import {
@@ -47,7 +48,17 @@ import {
   type ScenarioState,
 } from "@/lib/scenario/runtime";
 
-const BACKDROP_KEY = "vn:backdrop";
+function stageKey(stageId: string): string {
+  return `vn:stage:${stageId}`;
+}
+
+function plateKey(actorId: string, state: string): string {
+  return `vn:actor:${actorId}:${state}`;
+}
+
+/** How much an actor who is not speaking is dimmed and pushed back. */
+const LISTENER_TINT = 0x7f8496;
+const LISTENER_ALPHA = 0.82;
 
 const PANEL_FILL = 0x111a33;
 const PANEL_ALPHA = 0.93;
@@ -89,10 +100,6 @@ const CHOICE_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: PAPER,
 };
 
-function expressionKey(state: DialogueSceneExpressionState): string {
-  return `vn:expression:${state}`;
-}
-
 export interface DialogueSceneGameHandle {
   destroy(removeCanvas: boolean): void;
 }
@@ -100,7 +107,9 @@ export interface DialogueSceneGameHandle {
 class DialogueScene extends Phaser.Scene {
   private playback: ScenarioState;
 
-  private character!: Phaser.GameObjects.Image;
+  private backdrop!: Phaser.GameObjects.Image;
+  /** One sprite per drawable actor, shown or hidden as the scenario stages them. */
+  private readonly cast = new Map<string, Phaser.GameObjects.Image>();
   private panel!: Phaser.GameObjects.Graphics;
   private chip!: Phaser.GameObjects.Graphics;
   private speaker!: Phaser.GameObjects.Text;
@@ -110,27 +119,41 @@ class DialogueScene extends Phaser.Scene {
   private completeLayer!: Phaser.GameObjects.Container;
   private completeTitle!: Phaser.GameObjects.Text;
 
-  constructor(private readonly fixture: DialogueSceneDemoFixture) {
+  constructor(private readonly fixture: DialogueSceneFixture) {
     super("dialogue-scene");
     this.playback = initialScenarioState(fixture.scenario);
   }
 
   preload(): void {
-    this.load.image(BACKDROP_KEY, this.fixture.background.src);
-    for (const variant of this.fixture.expressionVariants) {
-      this.load.image(expressionKey(variant.state), variant.src);
+    for (const stage of this.fixture.stages) {
+      this.load.image(stageKey(stage.stageId), stage.src);
+    }
+    for (const actor of this.fixture.actors) {
+      for (const variant of actor.expressions) {
+        this.load.image(plateKey(actor.actorId, variant.state), variant.src);
+      }
     }
   }
 
   create(): void {
-    this.add
-      .image(0, 0, BACKDROP_KEY)
+    const opening = this.fixture.stages[0]!;
+    this.backdrop = this.add
+      .image(0, 0, stageKey(opening.stageId))
       .setOrigin(0, 0)
       .setDisplaySize(DIALOGUE_STAGE.width, DIALOGUE_STAGE.height)
       .setDepth(DEPTH.backdrop);
 
-    this.character = this.add.image(0, 0, expressionKey("neutral")).setOrigin(0, 0);
-    this.character.setDepth(DEPTH.sprite);
+    for (const actor of this.fixture.actors) {
+      const first = actor.expressions[0]!;
+      this.cast.set(
+        actor.actorId,
+        this.add
+          .image(0, 0, plateKey(actor.actorId, first.state))
+          .setOrigin(0, 0)
+          .setDepth(DEPTH.sprite)
+          .setVisible(false),
+      );
+    }
 
     this.createPanel();
     this.createChoiceLayer();
@@ -243,7 +266,8 @@ class DialogueScene extends Phaser.Scene {
 
   private render(): void {
     const view = scenarioView(this.fixture.scenario, this.playback);
-    this.renderCharacter();
+    this.renderStage();
+    this.renderCast(view?.kind === "line" ? view.speaker : null);
 
     const showingLine = view?.kind === "line";
     const showingChoice = view?.kind === "choice";
@@ -294,37 +318,63 @@ class DialogueScene extends Phaser.Scene {
     });
   }
 
-  private renderCharacter(): void {
-    // Whoever the scenario has on stage, at the expression it last set. An actor
-    // with no plate is not silently swapped for a neutral one: the scene simply
-    // shows nobody, because a wrong face is worse than an empty stage.
-    const staged = this.playback.actors[this.playback.actors.length - 1];
-    const state = staged?.expression as DialogueSceneExpressionState | undefined;
-    if (staged === undefined || state === undefined || !this.textures.exists(expressionKey(state))) {
-      this.character.setVisible(false);
-      return;
-    }
-    this.character.setVisible(true);
-    const key = expressionKey(state);
-    const source = this.textures.get(key).getSourceImage();
+  private renderStage(): void {
+    const stageId = this.playback.stage;
+    if (stageId === null) return;
+    const stage = dialogueSceneStage(this.fixture, stageId);
+    // The fixture validator already refused a scenario that stages something it
+    // has no backdrop for, so a miss here would be a contract violation rather
+    // than a scene to paper over.
+    if (stage === null) return;
+    this.backdrop.setTexture(stageKey(stage.stageId));
+  }
+
+  private renderCast(speaker: string | null): void {
+    // Everybody the scenario has on stage, each in the slot it put them in and
+    // at the expression it last named. Whoever is speaking is drawn at full
+    // colour in front; the rest are dimmed and pushed back, which is how a
+    // player knows who is talking without reading the name chip.
     const framing = mapDialogueSceneFraming(this.fixture.presentation.framingZoom);
     const baseline = mapDialogueSceneFraming(this.fixture.presentation.sourceFramingZoom);
-    const frame = spriteFrame(
-      DIALOGUE_STAGE,
-      { width: source.width || 1, height: source.height || 1 },
-      {
-        scale: normalizeDialogueSceneFramingScale(
-          framing.presentation.scale,
-          baseline.presentation.scale,
-        ),
-        xPercent: framing.presentation.position.xPercent,
-        yPercent: framing.presentation.position.yPercent,
-      },
-    );
-    this.character
-      .setTexture(key)
-      .setPosition(frame.x, frame.y)
-      .setDisplaySize(frame.width, frame.height);
+    const placement = {
+      scale: normalizeDialogueSceneFramingScale(
+        framing.presentation.scale,
+        baseline.presentation.scale,
+      ),
+      xPercent: framing.presentation.position.xPercent,
+      yPercent: framing.presentation.position.yPercent,
+    };
+    const staged = new Map(this.playback.actors.map((actor) => [actor.actorId, actor]));
+    for (const [actorId, sprite] of this.cast) {
+      const onStage = staged.get(actorId);
+      if (onStage === undefined) {
+        sprite.setVisible(false);
+        continue;
+      }
+      const variant = dialogueSceneExpression(this.fixture, actorId, onStage.expression);
+      if (variant === null) {
+        sprite.setVisible(false);
+        continue;
+      }
+      const key = plateKey(actorId, variant.state);
+      const source = this.textures.get(key).getSourceImage();
+      const frame = slotFrame(
+        DIALOGUE_STAGE,
+        { width: source.width || 1, height: source.height || 1 },
+        placement,
+        onStage.slot,
+      );
+      const speaking = speaker === actorId;
+      sprite
+        .setVisible(true)
+        .setTexture(key)
+        .setPosition(frame.x, frame.y)
+        .setDisplaySize(frame.width, frame.height)
+        .setDepth(DEPTH.sprite + (speaking ? 1 : 0))
+        .setAlpha(speaking ? 1 : LISTENER_ALPHA);
+      if (speaking) sprite.clearTint();
+      else sprite.setTint(LISTENER_TINT);
+    }
   }
 
   private renderSpeaker(label: string): void {
@@ -350,7 +400,7 @@ class DialogueScene extends Phaser.Scene {
  */
 export function bootDialogueSceneGame(
   parent: HTMLElement,
-  fixture: DialogueSceneDemoFixture,
+  fixture: DialogueSceneFixture,
 ): DialogueSceneGameHandle {
   const game = new Phaser.Game({
     type: Phaser.AUTO,

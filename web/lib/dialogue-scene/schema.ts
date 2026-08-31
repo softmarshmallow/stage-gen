@@ -1,15 +1,17 @@
-import {
-  parseScenarioProgram,
-  serializeScenarioProgram,
-  type ScenarioProgram,
-} from "@/lib/scenario/program";
+// The visual-novel runtime fixture: what one played scene needs, and nothing else.
+//
+// Validated by hand and strictly, the way every persisted contract in this
+// repository is - unknown keys and missing keys are both refused, because a
+// fixture that parsed by ignoring a field is a fixture nobody can reason about.
+//
+// A scene has a cast and a set of stages now. It used to have exactly one
+// character and exactly one backdrop, and the shape said so in a dozen places;
+// what is left is a list of actors, a list of stages, and the compiled scenario
+// that decides which of them is on screen at any moment.
 
-export const DIALOGUE_SCENE_DEMO_SCHEMA_VERSION = 1 as const;
-export const DIALOGUE_SCENE_DEMO_MODE = "deterministic-demo" as const;
-export const DIALOGUE_SCENE_DEMO_AUTHORSHIP = "caller-authored" as const;
-export const DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION = 1 as const;
-export const DIALOGUE_SCENE_THEME_FIXTURE_KIND =
-  "dialogue-scene-theme-fixture-v1" as const;
+import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
+
+export const DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION = 1 as const;
 export const DIALOGUE_SCENE_EXPRESSION_STATES = Object.freeze([
   "neutral",
   "delighted",
@@ -20,556 +22,294 @@ export const DIALOGUE_SCENE_EXPRESSION_STATES = Object.freeze([
 export type DialogueSceneExpressionState =
   (typeof DIALOGUE_SCENE_EXPRESSION_STATES)[number];
 
-export interface DialogueSceneDemoAsset {
+export interface DialogueSceneAsset {
   readonly id: string;
   readonly src: string;
   readonly alt: string;
 }
 
-export interface DialogueSceneDemoAppearance {
+export interface DialogueSceneStage extends DialogueSceneAsset {
+  /** The scenario's own `stage_id`, which `stage <id>` switches to. */
+  readonly stageId: string;
+}
+
+export interface DialogueSceneAppearance {
   readonly id: string;
   readonly label: string;
   readonly age: number;
   readonly role: string;
-  readonly tagline: string;
   readonly description: string;
   readonly visualIdentity: string;
   readonly artDirection: string;
-  readonly conceptSrc: string;
 }
 
-export interface DialogueSceneDemoExpressionVariant extends DialogueSceneDemoAsset {
-  readonly appearanceId: string;
+export interface DialogueSceneExpressionVariant extends DialogueSceneAsset {
   readonly state: DialogueSceneExpressionState;
   readonly label: string;
   readonly description: string;
-  readonly slot: "right";
 }
 
-export interface DialogueSceneDemoPresentation {
+export interface DialogueSceneActor {
+  /** The scenario's own `actor_id`, which `show <id>` names. */
+  readonly actorId: string;
+  readonly appearance: DialogueSceneAppearance;
+  readonly expressions: readonly DialogueSceneExpressionVariant[];
+}
+
+export interface DialogueScenePresentation {
   readonly framingZoom: number;
   readonly sourceFramingZoom: number;
 }
 
-export interface DialogueSceneDemoFixture {
-  readonly schemaVersion: typeof DIALOGUE_SCENE_DEMO_SCHEMA_VERSION;
+export interface DialogueSceneFixture {
+  readonly schemaVersion: typeof DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION;
   readonly fixtureId: string;
-  readonly mode: typeof DIALOGUE_SCENE_DEMO_MODE;
-  readonly authorship: typeof DIALOGUE_SCENE_DEMO_AUTHORSHIP;
   readonly title: string;
   readonly sceneLabel: string;
-  readonly presentation: DialogueSceneDemoPresentation;
-  readonly background: DialogueSceneDemoAsset;
-  readonly appearance: DialogueSceneDemoAppearance;
-  readonly expressionVariants: readonly DialogueSceneDemoExpressionVariant[];
+  readonly presentation: DialogueScenePresentation;
+  readonly styleSrc: string;
+  readonly stages: readonly DialogueSceneStage[];
+  readonly actors: readonly DialogueSceneActor[];
   /** The compiled narrative this scene plays; see `lib/scenario`. */
   readonly scenario: ScenarioProgram;
-  readonly profileIdentity: {
-    readonly profileId: string;
-    readonly revision: number;
-  };
 }
 
-export interface DialogueSceneThemeFixtureV1 {
-  readonly schema_version: typeof DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION;
-  readonly kind: typeof DIALOGUE_SCENE_THEME_FIXTURE_KIND;
-  readonly fixture_id: string;
-  readonly mode: typeof DIALOGUE_SCENE_DEMO_MODE;
-  readonly authorship: typeof DIALOGUE_SCENE_DEMO_AUTHORSHIP;
-  readonly title: string;
-  readonly scene_label: string;
-  readonly profile_identity: {
-    readonly profile_id: string;
-    readonly revision: number;
-  };
-  readonly presentation: {
-    readonly framing_zoom: number;
-    readonly source_framing_zoom: number;
-  };
-  readonly background: DialogueSceneDemoAsset;
-  readonly appearance: Readonly<{
-    id: string;
-    label: string;
-    age: number;
-    role: string;
-    tagline: string;
-    description: string;
-    visual_identity: string;
-    art_direction: string;
-    concept_src: string;
-  }>;
-  readonly expression_variants: readonly Readonly<{
-    id: string;
-    src: string;
-    alt: string;
-    appearance_id: string;
-    state: DialogueSceneExpressionState;
-    label: string;
-    description: string;
-    slot: "right";
-  }>[];
-  readonly scenario: unknown;
-}
-
-const DEMO_ASSET_PATH =
-  /^\/dialogue-scene\/demo(?:\/[a-z0-9][a-z0-9-]*)*\/[a-z0-9][a-z0-9.-]*\.png$/;
-const INSTALLED_THEME_ASSET_PATH =
-  /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
-// A run played in place, streamed from out/<tag>/ through the per-tag asset API.
-// Installing a scene as the site's active theme is a separate, deliberate act;
-// this is the shape you get when you open the run you just generated.
+// A run played in place, streamed from out/<tag>/ through the per-tag asset API,
+// or a reviewed bundle installed as a theme. Both are digest-addressed; nothing
+// else may reach the canvas.
 const RUN_ASSET_PATH =
   /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/;
+const INSTALLED_THEME_ASSET_PATH =
+  /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
 const STABLE_ID = /^[a-z][a-z0-9-]{0,63}$/;
+const SNAKE_ID = /^[a-z][a-z0-9_]{0,63}$/;
 
-/** Validate the camelCase runtime/UI projection; this is not a persisted parser. */
-export function validateDialogueSceneRuntimeFixture(
-  value: unknown,
-): DialogueSceneDemoFixture {
+/**
+ * Validate one runtime fixture, including that its art covers its narrative.
+ *
+ * The cross-check is the point: a scenario may only `stage` and `show` things
+ * this fixture has a plate for. Without it a missing texture would be discovered
+ * by a player mid-scene rather than by the validator that had every fact needed
+ * to refuse it.
+ */
+export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixture {
   const root = strictRecord(
     value,
     [
       "schemaVersion",
       "fixtureId",
-      "mode",
-      "authorship",
       "title",
       "sceneLabel",
-      "profileIdentity",
       "presentation",
-      "background",
-      "appearance",
-      "expressionVariants",
+      "styleSrc",
+      "stages",
+      "actors",
       "scenario",
     ],
-    "dialogue-scene runtime fixture",
+    "dialogue-scene fixture",
   );
-
-  if (root.schemaVersion !== DIALOGUE_SCENE_DEMO_SCHEMA_VERSION) {
-    throw new Error("dialogue-scene demo fixture schemaVersion must be 1");
+  if (root.schemaVersion !== DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION) {
+    throw new Error("dialogue-scene fixture schemaVersion must be 1");
   }
-  if (root.mode !== DIALOGUE_SCENE_DEMO_MODE) {
-    throw new Error('dialogue-scene demo fixture mode must be "deterministic-demo"');
-  }
-  if (root.authorship !== DIALOGUE_SCENE_DEMO_AUTHORSHIP) {
-    throw new Error('dialogue-scene demo fixture authorship must be "caller-authored"');
-  }
-
   const presentationRaw = strictRecord(
     root.presentation,
     ["framingZoom", "sourceFramingZoom"],
-    "dialogue-scene demo presentation",
+    "dialogue-scene fixture presentation",
   );
-  const profileIdentityRaw = strictRecord(
-    root.profileIdentity,
-    ["profileId", "revision"],
-    "dialogue-scene runtime profile identity",
-  );
-  const profileIdentity = Object.freeze({
-    profileId: stableId(
-      profileIdentityRaw.profileId,
-      "profileIdentity.profileId",
-    ),
-    revision: strictInteger(
-      profileIdentityRaw.revision,
-      "profileIdentity.revision",
-      1,
-      2147483647,
-    ),
-  });
+  const scenario = parseScenarioProgram(root.scenario);
 
-  const backgroundRaw = strictRecord(
-    root.background,
-    ["id", "src", "alt"],
-    "dialogue-scene demo background",
-  );
-  const appearanceRaw = strictRecord(
-    root.appearance,
-    [
-      "id",
-      "label",
-      "age",
-      "role",
-      "tagline",
-      "description",
-      "visualIdentity",
-      "artDirection",
-      "conceptSrc",
-    ],
-    "dialogue-scene demo appearance",
-  );
-
-  const appearanceId = stableId(appearanceRaw.id, "appearance.id");
-  if (
-    !Array.isArray(root.expressionVariants) ||
-    root.expressionVariants.length !== DIALOGUE_SCENE_EXPRESSION_STATES.length
-  ) {
-    throw new Error(
-      "dialogue-scene demo expressionVariants must contain the four required expression states",
-    );
-  }
-
-  const variantStates = new Set<DialogueSceneExpressionState>();
-  const variantIds = new Set<string>();
-  const expressionVariants = Object.freeze(
-    root.expressionVariants.map((rawVariant, index) => {
-      const variant = strictRecord(
-        rawVariant,
-        [
-          "id",
-          "src",
-          "alt",
-          "appearanceId",
-          "state",
-          "label",
-          "description",
-          "slot",
-        ],
-        `dialogue-scene demo expressionVariants[${index}]`,
+  const stages = Object.freeze(
+    list(root.stages, "stages", 1).map((entry, index) => {
+      const stage = strictRecord(
+        entry,
+        ["stageId", "id", "src", "alt"],
+        `dialogue-scene fixture stages[${index}]`,
       );
-      if (variant.slot !== "right") {
-        throw new Error(
-          `dialogue-scene demo expressionVariants[${index}].slot must be "right"`,
-        );
-      }
-      const variantAppearanceId = stableId(
-        variant.appearanceId,
-        `expressionVariants[${index}].appearanceId`,
-      );
-      if (variantAppearanceId !== appearanceId) {
-        throw new Error(
-          "dialogue-scene demo expression variant must reference appearance.id",
-        );
-      }
-      const state = expressionState(
-        variant.state,
-        `expressionVariants[${index}].state`,
-      );
-      if (variantStates.has(state)) {
-        throw new Error(`dialogue-scene demo expression state is duplicated: ${state}`);
-      }
-      variantStates.add(state);
-      const id = stableId(variant.id, `expressionVariants[${index}].id`);
-      if (variantIds.has(id)) {
-        throw new Error(`dialogue-scene demo expression variant id is duplicated: ${id}`);
-      }
-      variantIds.add(id);
       return Object.freeze({
-        id,
-        src: assetPath(variant.src, `expressionVariants[${index}].src`),
-        alt: strictText(variant.alt, `expressionVariants[${index}].alt`, 160),
-        appearanceId: variantAppearanceId,
-        state,
-        label: strictText(variant.label, `expressionVariants[${index}].label`, 64),
-        description: strictText(
-          variant.description,
-          `expressionVariants[${index}].description`,
-          220,
-        ),
-        slot: "right" as const,
+        stageId: snakeId(stage.stageId, `stages[${index}].stageId`),
+        id: stableId(stage.id, `stages[${index}].id`),
+        src: assetPath(stage.src, `stages[${index}].src`),
+        alt: strictText(stage.alt, `stages[${index}].alt`, 160),
       });
     }),
   );
-  for (const requiredState of DIALOGUE_SCENE_EXPRESSION_STATES) {
-    if (!variantStates.has(requiredState)) {
-      throw new Error(`dialogue-scene demo expression state is missing: ${requiredState}`);
+  const actors = Object.freeze(
+    list(root.actors, "actors", 1).map((entry, index) => actor(entry, index)),
+  );
+
+  const fixture: DialogueSceneFixture = Object.freeze({
+    schemaVersion: DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION,
+    fixtureId: stableId(root.fixtureId, "fixtureId"),
+    title: strictText(root.title, "title", 96),
+    sceneLabel: strictText(root.sceneLabel, "sceneLabel", 160),
+    presentation: Object.freeze({
+      framingZoom: framing(presentationRaw.framingZoom, "presentation.framingZoom"),
+      sourceFramingZoom: framing(
+        presentationRaw.sourceFramingZoom,
+        "presentation.sourceFramingZoom",
+      ),
+    }),
+    styleSrc: assetPath(root.styleSrc, "styleSrc"),
+    stages,
+    actors,
+    scenario,
+  });
+
+  assertOneOrigin(fixture);
+  assertArtCoversNarrative(fixture);
+  return fixture;
+}
+
+/** The stage a scenario id names, or null when the fixture has no plate for it. */
+export function dialogueSceneStage(
+  fixture: DialogueSceneFixture,
+  stageId: string,
+): DialogueSceneStage | null {
+  return fixture.stages.find((stage) => stage.stageId === stageId) ?? null;
+}
+
+/** One actor's plate at a given expression, or null when either is unknown. */
+export function dialogueSceneExpression(
+  fixture: DialogueSceneFixture,
+  actorId: string,
+  state: string | null,
+): DialogueSceneExpressionVariant | null {
+  const found = fixture.actors.find((entry) => entry.actorId === actorId);
+  if (found === undefined) return null;
+  return (
+    found.expressions.find((variant) => variant.state === (state ?? "neutral")) ??
+    found.expressions[0] ??
+    null
+  );
+}
+
+// ---------------------------------------------------------------- validation
+
+function actor(value: unknown, index: number): DialogueSceneActor {
+  const record = strictRecord(
+    value,
+    ["actorId", "appearance", "expressions"],
+    `dialogue-scene fixture actors[${index}]`,
+  );
+  const appearanceRaw = strictRecord(
+    record.appearance,
+    ["id", "label", "age", "role", "description", "visualIdentity", "artDirection"],
+    `dialogue-scene fixture actors[${index}].appearance`,
+  );
+  const appearanceId = stableId(appearanceRaw.id, `actors[${index}].appearance.id`);
+  const seen = new Set<string>();
+  const expressions = list(
+    record.expressions,
+    `actors[${index}].expressions`,
+    1,
+  ).map((entry, at) => {
+    const variant = strictRecord(
+      entry,
+      ["id", "src", "alt", "state", "label", "description"],
+      `dialogue-scene fixture actors[${index}].expressions[${at}]`,
+    );
+    const state = expressionState(variant.state, `actors[${index}].expressions[${at}].state`);
+    if (seen.has(state)) {
+      throw new Error(`dialogue-scene fixture actor ${appearanceId} repeats state ${state}`);
+    }
+    seen.add(state);
+    return Object.freeze({
+      id: stableId(variant.id, `actors[${index}].expressions[${at}].id`),
+      src: assetPath(variant.src, `actors[${index}].expressions[${at}].src`),
+      alt: strictText(variant.alt, `actors[${index}].expressions[${at}].alt`, 160),
+      state,
+      label: strictText(variant.label, `actors[${index}].expressions[${at}].label`, 96),
+      description: strictText(
+        variant.description,
+        `actors[${index}].expressions[${at}].description`,
+        200,
+      ),
+    });
+  });
+  return Object.freeze({
+    actorId: snakeId(record.actorId, `actors[${index}].actorId`),
+    appearance: Object.freeze({
+      id: appearanceId,
+      label: strictText(appearanceRaw.label, `actors[${index}].appearance.label`, 96),
+      age: strictInteger(appearanceRaw.age, `actors[${index}].appearance.age`, 18, 120),
+      role: strictText(appearanceRaw.role, `actors[${index}].appearance.role`, 160),
+      description: strictText(
+        appearanceRaw.description,
+        `actors[${index}].appearance.description`,
+        3000,
+      ),
+      visualIdentity: strictText(
+        appearanceRaw.visualIdentity,
+        `actors[${index}].appearance.visualIdentity`,
+        3000,
+      ),
+      artDirection: strictText(
+        appearanceRaw.artDirection,
+        `actors[${index}].appearance.artDirection`,
+        200,
+      ),
+    }),
+    expressions: Object.freeze(expressions),
+  });
+}
+
+/**
+ * Every asset comes from the same run, or the same installed bundle.
+ *
+ * A fixture assembled from two runs is two scenes wearing one name: the sprites
+ * would be drawn against a plate the backdrop never saw.
+ */
+function assertOneOrigin(fixture: DialogueSceneFixture): void {
+  const paths = [
+    fixture.styleSrc,
+    ...fixture.stages.map((stage) => stage.src),
+    ...fixture.actors.flatMap((entry) => entry.expressions.map((variant) => variant.src)),
+  ];
+  if (new Set(paths).size !== paths.length) {
+    throw new Error("dialogue-scene fixture asset paths must be distinct");
+  }
+  const origins = new Set(
+    paths.map((path) => {
+      const run = RUN_ASSET_PATH.exec(path);
+      if (run !== null) return `run:${run[1]}`;
+      const theme = INSTALLED_THEME_ASSET_PATH.exec(path);
+      if (theme !== null) return `theme:${theme[1]}`;
+      throw new Error(`dialogue-scene fixture asset path is not confined: ${path}`);
+    }),
+  );
+  if (origins.size !== 1) {
+    throw new Error("dialogue-scene fixture assets must all share one run or installed bundle");
+  }
+}
+
+function assertArtCoversNarrative(fixture: DialogueSceneFixture): void {
+  const stageIds = new Set(fixture.stages.map((stage) => stage.stageId));
+  for (const stage of fixture.scenario.stages) {
+    if (!stageIds.has(stage.stageId)) {
+      throw new Error(
+        `dialogue-scene fixture has no backdrop for stage ${stage.stageId}`,
+      );
     }
   }
-
-  // The narrative is a compiled scenario, validated by its own contract. Every
-  // expression it names must be one this scene actually has a plate for: a
-  // missing texture is exactly the silent fallback the asset contract refuses.
-  const scenario = parseScenarioProgram(root.scenario);
-  for (const member of scenario.cast) {
+  const byActor = new Map(fixture.actors.map((entry) => [entry.actorId, entry]));
+  for (const member of fixture.scenario.cast) {
+    if (member.expressions.length === 0) continue;
+    const drawn = byActor.get(member.actorId);
+    if (drawn === undefined) {
+      throw new Error(`dialogue-scene fixture has no plates for actor ${member.actorId}`);
+    }
+    const states = new Set(drawn.expressions.map((variant) => variant.state));
     for (const expression of member.expressions) {
-      if (!(DIALOGUE_SCENE_EXPRESSION_STATES as readonly string[]).includes(expression)) {
+      if (!states.has(expression as DialogueSceneExpressionState)) {
         throw new Error(
-          `dialogue-scene fixture scenario asks for an expression it has no plate for: ${expression}`,
+          `dialogue-scene fixture actor ${member.actorId} has no ${expression} plate`,
         );
       }
     }
   }
-
-  const background = Object.freeze({
-    id: stableId(backgroundRaw.id, "background.id"),
-    src: assetPath(backgroundRaw.src, "background.src"),
-    alt: strictText(backgroundRaw.alt, "background.alt", 160),
-  });
-  const appearance = Object.freeze({
-    id: appearanceId,
-    label: strictText(appearanceRaw.label, "appearance.label", 96),
-    age: strictInteger(appearanceRaw.age, "appearance.age", 18, 120),
-    role: strictText(appearanceRaw.role, "appearance.role", 160),
-    tagline: strictText(appearanceRaw.tagline, "appearance.tagline", 160),
-    description: strictText(appearanceRaw.description, "appearance.description", 3000),
-    visualIdentity: strictText(
-      appearanceRaw.visualIdentity,
-      "appearance.visualIdentity",
-      3000,
-    ),
-    artDirection: strictText(
-      appearanceRaw.artDirection,
-      "appearance.artDirection",
-      220,
-    ),
-    conceptSrc: assetPath(appearanceRaw.conceptSrc, "appearance.conceptSrc"),
-  });
-  if (profileIdentity.profileId !== appearance.id) {
-    throw new Error("dialogue-scene profile identity must reference appearance.id");
-  }
-  const assetPaths = [
-    background.src,
-    appearance.conceptSrc,
-    ...expressionVariants.map((variant) => variant.src),
-  ];
-  if (
-    new Set(assetPaths).size !==
-    2 + expressionVariants.length
-  ) {
-    throw new Error("dialogue-scene demo asset paths must be distinct");
-  }
-  const installedBundleIds = assetPaths.map(
-    (assetPathValue) => INSTALLED_THEME_ASSET_PATH.exec(assetPathValue)?.[1] ?? null,
-  );
-  const installedCount = installedBundleIds.filter(
-    (bundleId): bundleId is string => bundleId !== null,
-  ).length;
-  if (installedCount !== 0 && installedCount !== assetPaths.length) {
-    throw new Error(
-      "dialogue-scene fixture assets must all use the committed demo or one installed bundle",
-    );
-  }
-  const installedBundleIdValues = installedBundleIds.filter(
-    (bundleId): bundleId is string => bundleId !== null,
-  );
-  if (
-    installedCount > 0 &&
-    new Set(installedBundleIdValues).size !== 1
-  ) {
-    throw new Error("dialogue-scene installed fixture assets must share one bundle id");
-  }
-  // A fixture assembled from two runs is two scenes wearing one name.
-  const runTags = assetPaths.map(
-    (assetPathValue) => RUN_ASSET_PATH.exec(assetPathValue)?.[1] ?? null,
-  );
-  const runTagValues = runTags.filter((tag): tag is string => tag !== null);
-  if (runTagValues.length !== 0 && runTagValues.length !== assetPaths.length) {
-    throw new Error(
-      "dialogue-scene fixture assets must all use the committed demo, one installed bundle, or one run",
-    );
-  }
-  if (runTagValues.length > 0 && new Set(runTagValues).size !== 1) {
-    throw new Error("dialogue-scene run fixture assets must share one run tag");
-  }
-  const presentation = Object.freeze({
-    framingZoom: strictFiniteNumber(
-      presentationRaw.framingZoom,
-      "presentation.framingZoom",
-      0,
-      100,
-    ),
-    sourceFramingZoom: strictFiniteNumber(
-      presentationRaw.sourceFramingZoom,
-      "presentation.sourceFramingZoom",
-      0,
-      100,
-    ),
-  });
-
-  return Object.freeze({
-    schemaVersion: DIALOGUE_SCENE_DEMO_SCHEMA_VERSION,
-    fixtureId: stableId(root.fixtureId, "fixtureId"),
-    mode: DIALOGUE_SCENE_DEMO_MODE,
-    authorship: DIALOGUE_SCENE_DEMO_AUTHORSHIP,
-    title: strictText(root.title, "title", 96),
-    sceneLabel: strictText(root.sceneLabel, "sceneLabel", 160),
-    presentation,
-    background,
-    appearance,
-    expressionVariants,
-    scenario,
-    profileIdentity,
-  });
 }
 
-/** Parse the one current persisted/public theme fixture and adapt it to the UI shape. */
-export function parseDialogueSceneThemeFixture(
-  value: unknown,
-): DialogueSceneDemoFixture {
-  const root = strictRecord(
-    value,
-    [
-      "schema_version",
-      "kind",
-      "fixture_id",
-      "mode",
-      "authorship",
-      "title",
-      "scene_label",
-      "profile_identity",
-      "presentation",
-      "background",
-      "appearance",
-      "expression_variants",
-      "scenario",
-    ],
-    "dialogue-scene theme fixture",
-  );
-  if (root.schema_version !== DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION) {
-    throw new Error("dialogue-scene theme fixture schema_version must be 1");
-  }
-  if (root.kind !== DIALOGUE_SCENE_THEME_FIXTURE_KIND) {
-    throw new Error(
-      `dialogue-scene theme fixture kind must be ${DIALOGUE_SCENE_THEME_FIXTURE_KIND}`,
-    );
-  }
-  const profile = strictRecord(
-    root.profile_identity,
-    ["profile_id", "revision"],
-    "dialogue-scene theme fixture profile_identity",
-  );
-  const presentation = strictRecord(
-    root.presentation,
-    ["framing_zoom", "source_framing_zoom"],
-    "dialogue-scene theme fixture presentation",
-  );
-  const background = strictRecord(
-    root.background,
-    ["id", "src", "alt"],
-    "dialogue-scene theme fixture background",
-  );
-  const appearance = strictRecord(
-    root.appearance,
-    [
-      "id",
-      "label",
-      "age",
-      "role",
-      "tagline",
-      "description",
-      "visual_identity",
-      "art_direction",
-      "concept_src",
-    ],
-    "dialogue-scene theme fixture appearance",
-  );
-  if (!Array.isArray(root.expression_variants)) {
-    throw new Error("dialogue-scene theme fixture expression_variants must be an array");
-  }
-  const variants = root.expression_variants.map((value, index) => {
-    const variant = strictRecord(
-      value,
-      [
-        "id",
-        "src",
-        "alt",
-        "appearance_id",
-        "state",
-        "label",
-        "description",
-        "slot",
-      ],
-      `dialogue-scene theme fixture expression_variants[${index}]`,
-    );
-    return {
-      id: variant.id,
-      src: variant.src,
-      alt: variant.alt,
-      appearanceId: variant.appearance_id,
-      state: variant.state,
-      label: variant.label,
-      description: variant.description,
-      slot: variant.slot,
-    };
-  });
-  return validateDialogueSceneRuntimeFixture({
-    schemaVersion: DIALOGUE_SCENE_DEMO_SCHEMA_VERSION,
-    fixtureId: root.fixture_id,
-    mode: root.mode,
-    authorship: root.authorship,
-    title: root.title,
-    sceneLabel: root.scene_label,
-    profileIdentity: {
-      profileId: profile.profile_id,
-      revision: profile.revision,
-    },
-    presentation: {
-      framingZoom: presentation.framing_zoom,
-      sourceFramingZoom: presentation.source_framing_zoom,
-    },
-    background,
-    appearance: {
-      id: appearance.id,
-      label: appearance.label,
-      age: appearance.age,
-      role: appearance.role,
-      tagline: appearance.tagline,
-      description: appearance.description,
-      visualIdentity: appearance.visual_identity,
-      artDirection: appearance.art_direction,
-      conceptSrc: appearance.concept_src,
-    },
-    expressionVariants: variants,
-    scenario: root.scenario,
-  });
-}
-
-/** Project the internal UI fixture to the one current persisted/public contract. */
-export function serializeDialogueSceneThemeFixture(
-  fixture: DialogueSceneDemoFixture,
-): DialogueSceneThemeFixtureV1 {
-  // Validation reads the persisted wire shape, so the already-parsed program has
-  // to go back to it first. Re-validating rather than trusting the caller is the
-  // point: this is the last gate before bytes are written to a theme directory.
-  const parsed = validateDialogueSceneRuntimeFixture({
-    ...fixture,
-    scenario: serializeScenarioProgram(fixture.scenario),
-  });
-  return Object.freeze({
-    schema_version: DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION,
-    kind: DIALOGUE_SCENE_THEME_FIXTURE_KIND,
-    fixture_id: parsed.fixtureId,
-    mode: parsed.mode,
-    authorship: parsed.authorship,
-    title: parsed.title,
-    scene_label: parsed.sceneLabel,
-    profile_identity: Object.freeze({
-      profile_id: parsed.profileIdentity.profileId,
-      revision: parsed.profileIdentity.revision,
-    }),
-    presentation: Object.freeze({
-      framing_zoom: parsed.presentation.framingZoom,
-      source_framing_zoom: parsed.presentation.sourceFramingZoom,
-    }),
-    background: Object.freeze({ ...parsed.background }),
-    appearance: Object.freeze({
-      id: parsed.appearance.id,
-      label: parsed.appearance.label,
-      age: parsed.appearance.age,
-      role: parsed.appearance.role,
-      tagline: parsed.appearance.tagline,
-      description: parsed.appearance.description,
-      visual_identity: parsed.appearance.visualIdentity,
-      art_direction: parsed.appearance.artDirection,
-      concept_src: parsed.appearance.conceptSrc,
-    }),
-    expression_variants: Object.freeze(
-      parsed.expressionVariants.map((variant) =>
-        Object.freeze({
-          id: variant.id,
-          src: variant.src,
-          alt: variant.alt,
-          appearance_id: variant.appearanceId,
-          state: variant.state,
-          label: variant.label,
-          description: variant.description,
-          slot: variant.slot,
-        }),
-      ),
-    ),
-    scenario: serializeScenarioProgram(fixture.scenario),
-  });
-}
+// ------------------------------------------------------------------- scalars
 
 function strictRecord(
   value: unknown,
@@ -595,84 +335,73 @@ function strictRecord(
   return record;
 }
 
+function list(value: unknown, label: string, minimum: number): readonly unknown[] {
+  if (!Array.isArray(value)) throw new Error(`dialogue-scene fixture ${label} must be an array`);
+  if (value.length < minimum) {
+    throw new Error(`dialogue-scene fixture ${label} must contain at least ${minimum} entries`);
+  }
+  return value;
+}
+
 function strictText(value: unknown, label: string, maxLength: number): string {
-  if (
-    typeof value !== "string" ||
-    value.length < 1 ||
-    value.length > maxLength ||
-    value !== value.trim()
-  ) {
-    throw new Error(`${label} must be a non-empty trimmed string up to ${maxLength} characters`);
+  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+    throw new Error(`dialogue-scene fixture ${label} must be a trimmed non-empty string`);
+  }
+  if (value.length > maxLength) {
+    throw new Error(`dialogue-scene fixture ${label} must be at most ${maxLength} characters`);
   }
   return value;
 }
 
-function strictFiniteNumber(
-  value: unknown,
-  label: string,
-  minimum: number,
-  maximum: number,
-): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value) ||
-    value < minimum ||
-    value > maximum
-  ) {
-    throw new Error(`${label} must be a finite number from ${minimum} to ${maximum}`);
+function strictInteger(value: unknown, label: string, min: number, max: number): number {
+  if (!Number.isSafeInteger(value) || (value as number) < min || (value as number) > max) {
+    throw new Error(`dialogue-scene fixture ${label} must be an integer from ${min} to ${max}`);
   }
-  return value;
+  return value as number;
 }
 
-function strictInteger(
-  value: unknown,
-  label: string,
-  minimum: number,
-  maximum: number,
-): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value < minimum ||
-    value > maximum
-  ) {
-    throw new Error(`${label} must be an integer from ${minimum} to ${maximum}`);
+function framing(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new Error(`dialogue-scene fixture ${label} must be a finite value from 0 through 100`);
   }
   return value;
 }
 
 function stableId(value: unknown, label: string): string {
-  const parsed = strictText(value, label, 64);
-  if (!STABLE_ID.test(parsed)) {
-    throw new Error(`${label} must be a stable lowercase kebab-case id`);
+  if (typeof value !== "string" || !STABLE_ID.test(value)) {
+    throw new Error(`dialogue-scene fixture ${label} must be a stable kebab id`);
   }
-  return parsed;
+  return value;
+}
+
+function snakeId(value: unknown, label: string): string {
+  if (typeof value !== "string" || !SNAKE_ID.test(value)) {
+    throw new Error(`dialogue-scene fixture ${label} must be a lower_snake_case id`);
+  }
+  return value;
 }
 
 function assetPath(value: unknown, label: string): string {
-  const parsed = strictText(value, label, 240);
   if (
-    !DEMO_ASSET_PATH.test(parsed) &&
-    !INSTALLED_THEME_ASSET_PATH.test(parsed) &&
-    !RUN_ASSET_PATH.test(parsed)
+    typeof value !== "string" ||
+    (!RUN_ASSET_PATH.test(value) && !INSTALLED_THEME_ASSET_PATH.test(value))
   ) {
     throw new Error(
-      `${label} must be a confined dialogue-scene demo, installed-theme, or run PNG path`,
+      `dialogue-scene fixture ${label} must be a confined run or installed-theme PNG path`,
     );
   }
-  return parsed;
+  return value;
 }
 
 function expressionState(value: unknown, label: string): DialogueSceneExpressionState {
-  const parsed = strictText(value, label, 32);
   if (
-    !DIALOGUE_SCENE_EXPRESSION_STATES.includes(
-      parsed as DialogueSceneExpressionState,
-    )
+    typeof value !== "string" ||
+    !(DIALOGUE_SCENE_EXPRESSION_STATES as readonly string[]).includes(value)
   ) {
     throw new Error(
-      `${label} must be one of ${DIALOGUE_SCENE_EXPRESSION_STATES.join(", ")}`,
+      `dialogue-scene fixture ${label} must be one of ` +
+        DIALOGUE_SCENE_EXPRESSION_STATES.join(", "),
     );
   }
-  return parsed as DialogueSceneExpressionState;
+  return value as DialogueSceneExpressionState;
 }

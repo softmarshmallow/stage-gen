@@ -26,6 +26,7 @@ from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.components.character_profile import (
     CharacterProfile,
+    CharacterProfileBinding,
     resolve_character_profile_binding,
 )
 from stage_gen.components.scenario import (
@@ -98,6 +99,23 @@ class ResolvedSceneReference:
 
 
 @dataclass(frozen=True, slots=True)
+class ResolvedSceneActor:
+    """One drawable actor, with the profile and optional plate that draw it."""
+
+    actor_id: str
+    display_name: str
+    expressions: tuple[str, ...]
+    profile: ResolvedSceneProfile
+    #: This actor's own authored plate, when the scene bound one. Absent means the
+    #: actor is drawn from its profile words against the scene style plate alone.
+    identity_reference: ResolvedSceneReference | None
+
+    @property
+    def asset_prefix(self) -> str:
+        return self.actor_id.replace("_", "-")
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedDialogueScene:
     """One authored scene package, resolved offline into a plannable scene."""
 
@@ -120,9 +138,15 @@ class ResolvedDialogueScene:
     style_resource_sha256: str
     style_compiler_sha256: str
     style_selection_brief: str
-    profile: ResolvedSceneProfile
-    identity_reference: ResolvedSceneReference
+    #: Every drawable actor the scenario names, in the scenario's cast order.
+    actors: tuple[ResolvedSceneActor, ...]
+    #: The scene's art direction of record: medium, palette and light for every
+    #: generated image, actor plates included.
+    style_reference: ResolvedSceneReference
     scenario: ResolvedScenario
+
+    def actor(self, actor_id: str) -> ResolvedSceneActor:
+        return next(actor for actor in self.actors if actor.actor_id == actor_id)
 
     def identity(self) -> dict[str, object]:
         """The portable record of exactly which package this run was planned from."""
@@ -140,11 +164,22 @@ class ResolvedDialogueScene:
             "transparency_mode": self.request.transparency_mode,
             "style_compiler_sha256": self.style_compiler_sha256,
             "style_resource_sha256": self.style_resource_sha256,
-            "character_profile_ref": self.profile.ref,
-            "character_profile_sha256": self.profile.canonical_sha256,
-            "character_profile_source_sha256": self.profile.source_sha256,
-            "identity_reference_source": self.identity_reference.source,
-            "identity_reference_sha256": self.identity_reference.sha256,
+            "cast": [
+                {
+                    "actor_id": actor.actor_id,
+                    "character_profile_ref": actor.profile.ref,
+                    "character_profile_sha256": actor.profile.canonical_sha256,
+                    "character_profile_source_sha256": actor.profile.source_sha256,
+                    "identity_reference_sha256": (
+                        None
+                        if actor.identity_reference is None
+                        else actor.identity_reference.sha256
+                    ),
+                }
+                for actor in self.actors
+            ],
+            "style_reference_source": self.style_reference.source,
+            "style_reference_sha256": self.style_reference.sha256,
             "scenario_ref": self.request.scenario.ref,
             "scenario_source_sha256": self.request.scenario.source_sha256,
             "scenario_program_sha256": self.scenario.program_sha256,
@@ -170,7 +205,7 @@ def parse_dialogue_request(document: object) -> DialogueRequest:
     try:
         request = DialogueSceneDocument.model_validate(dict(document))
     except ValidationError as error:
-        raise ValueError(f"invalid dialogue-scene-v2: {error}") from None
+        raise ValueError(f"invalid dialogue-scene-v3: {error}") from None
     assert_dialogue_policy(request)
     return request
 
@@ -179,34 +214,38 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
     """Validate and materialize everything the plan needs, touching no provider."""
 
     request = parse_dialogue_request(document)
-    request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
+    # The model, not a pre-dumped dict: canonical form drops nulls, and a cast
+    # entry that binds no plate carries one. Dumping first would publish bytes
+    # that no longer hash to the canonical digest the plan and bundle compare
+    # against, which is exactly the mismatch the bundle refuses.
+    request_bytes = canonical_json_bytes(request)
     # The narrative is admitted before anything else is materialized, so a scene
     # whose scenario cannot be finished costs nothing.
     scenario = _resolve_scenario(request, root=root)
-    profile = _resolve_profile(request, root=root)
-    identity_reference = _read_reference(root, request.identity_reference())
+    style_reference = _read_reference(root, request.style_reference())
+    actors = _resolve_actors(request, scenario, root=root)
     resources = load_image_style_resources()
     return ResolvedDialogueScene(
         request=request,
         request_bytes=request_bytes,
         request_sha256=canonical_sha256(request),
         art_request_sha256=_art_request_sha256(request),
-        scene_id=_scene_id(request, profile),
+        scene_id=_scene_id(request),
         recipe_version=recipe_version(request),
         policy_digest=POLICY_DIGEST,
         template_digest=template_digest(request),
         transparency_digest=_transparency_digest(request),
         style_resource_sha256=resources.resource_sha256,
         style_compiler_sha256=resources.compiler_sha256,
-        style_selection_brief=style_selection_brief(request, profile),
-        profile=profile,
-        identity_reference=identity_reference,
+        style_selection_brief=style_selection_brief(request, actors),
+        actors=actors,
+        style_reference=style_reference,
         scenario=scenario,
     )
 
 
 def recipe_version(request: DialogueRequest) -> str:
-    return "dialogue-scene-v6"
+    return "dialogue-scene-v7"
 
 
 def template_digest(request: DialogueRequest) -> str:
@@ -215,16 +254,26 @@ def template_digest(request: DialogueRequest) -> str:
     )
 
 
-def style_selection_brief(request: DialogueRequest, profile: ResolvedSceneProfile) -> str:
-    authored = profile.profile
+def style_selection_brief(request: DialogueRequest, actors: tuple[ResolvedSceneActor, ...]) -> str:
+    """One anchor for the whole scene, briefed on every actor that appears in it.
+
+    The anchor is scene-wide, so a brief written from one character would let the
+    others drift out of the look the first one set.
+    """
+
     return canonical_json_bytes(
         {
             "scene_brief": request.scene_brief,
-            "appearance_description": authored.visual_identity,
-            "wardrobe": authored.wardrobe,
-            "invariants": authored.invariants,
-            "background_direction": request.background.description,
-            "character_profile_sha256": profile.canonical_sha256,
+            "cast": [
+                {
+                    "actor_id": actor.actor_id,
+                    "appearance_description": actor.profile.profile.visual_identity,
+                    "wardrobe": actor.profile.profile.wardrobe,
+                    "invariants": actor.profile.profile.invariants,
+                    "character_profile_sha256": actor.profile.canonical_sha256,
+                }
+                for actor in actors
+            ],
         }
     ).decode("utf-8")
 
@@ -288,11 +337,10 @@ def _art_request_sha256(request: DialogueRequest) -> str:
                 "domain": "stage-gen/dialogue-scene/art-identity/v1",
                 "game_id": document["game_id"],
                 "scene_brief": document["scene_brief"],
-                "background": document["background"],
                 "presentation": document["presentation"],
                 "transparency_mode": document["transparency_mode"],
-                "character_profile": document["character_profile"],
-                "identity_reference_id": document["identity_reference_id"],
+                "cast": document["cast"],
+                "style_reference_id": document["style_reference_id"],
                 "references": document["references"],
             }
         )
@@ -334,11 +382,50 @@ def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenar
     return scenario
 
 
-def _resolve_profile(request: DialogueRequest, *, root: Path) -> ResolvedSceneProfile:
-    resolved = resolve_character_profile_binding(
-        request.character_profile,
-        package_root=root,
+def _resolve_actors(
+    request: DialogueRequest,
+    scenario: ResolvedScenario,
+    *,
+    root: Path,
+) -> tuple[ResolvedSceneActor, ...]:
+    """Bind every drawable actor the scenario names to the members that draw it.
+
+    Checked in both directions, the way the scenario's own two halves are: a
+    drawable actor with no scene binding could not be drawn, and a binding for an
+    actor the narrative never shows would pay for plates nobody sees.
+    """
+
+    bindings = {member.actor_id: member for member in request.cast}
+    drawable = [member for member in scenario.declarations.cast if member.drawable]
+    missing = sorted({member.actor_id for member in drawable} - set(bindings))
+    if missing:
+        raise ValueError(
+            "scene cast does not bind every drawable actor the scenario shows: "
+            + ", ".join(missing)
+        )
+    unused = sorted(set(bindings) - {member.actor_id for member in drawable})
+    if unused:
+        raise ValueError("scene cast binds actors the scenario never draws: " + ", ".join(unused))
+    return tuple(
+        ResolvedSceneActor(
+            actor_id=member.actor_id,
+            display_name=member.display_name or member.actor_id,
+            expressions=tuple(member.expressions),
+            profile=_resolve_profile(bindings[member.actor_id].character_profile, root=root),
+            identity_reference=(
+                None
+                if bindings[member.actor_id].reference_id is None
+                else _read_reference(
+                    root, request.reference(str(bindings[member.actor_id].reference_id))
+                )
+            ),
+        )
+        for member in drawable
     )
+
+
+def _resolve_profile(binding: CharacterProfileBinding, *, root: Path) -> ResolvedSceneProfile:
+    resolved = resolve_character_profile_binding(binding, package_root=root)
     profile = resolved.profile
     if len(profile.profile_id) > SCENE_ID_MAX_LENGTH:
         raise ValueError("dialogue character_profile profile_id exceeds the scene binding limit")
@@ -369,14 +456,17 @@ def _transparency_digest(request: DialogueRequest) -> str:
     return sha256(canonical_json_bytes(parts)).hexdigest()
 
 
-def _scene_id(request: DialogueRequest, profile: ResolvedSceneProfile) -> str:
-    return f"{profile.profile.profile_id}-{canonical_sha256(request)[:12]}"
+def _scene_id(request: DialogueRequest) -> str:
+    """Named for the game rather than for one character, now that a scene has a cast."""
+
+    return f"{request.game_id.replace('_', '-')}-{canonical_sha256(request)[:12]}"
 
 
 __all__ = [
     "SCENE_DOCUMENT_NAME",
     "SCENE_ID_MAX_LENGTH",
     "ResolvedDialogueScene",
+    "ResolvedSceneActor",
     "ResolvedSceneProfile",
     "ResolvedSceneReference",
     "parse_dialogue_request",

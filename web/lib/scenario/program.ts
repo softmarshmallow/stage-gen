@@ -107,7 +107,7 @@ export interface ScenarioBlock {
 export interface ScenarioCastMember {
   readonly actorId: string;
   readonly displayName: string | null;
-  readonly profile: string | null;
+  /** An actor that declares expressions can be shown; one that declares none speaks only. */
   readonly expressions: readonly string[];
 }
 
@@ -163,12 +163,11 @@ export function parseScenarioProgram(value: unknown): ScenarioProgram {
       "entry",
       "cast",
       "stages",
-      "tracks",
-      "flags",
       "endings",
       "blocks",
     ],
     "scenario program",
+    ["tracks", "flags"],
   );
   exact(root.schema_version, 1, "scenario program schema_version");
   exact(root.kind, SCENARIO_PROGRAM_KIND, "scenario program kind");
@@ -182,8 +181,8 @@ export function parseScenarioProgram(value: unknown): ScenarioProgram {
     entry: snakeId(root.entry, "scenario entry"),
     cast: Object.freeze(list(root.cast, "scenario cast", 1).map(castMember)),
     stages: Object.freeze(list(root.stages, "scenario stages", 1).map(stageDeclaration)),
-    tracks: Object.freeze(list(root.tracks, "scenario tracks", 0).map(trackDeclaration)),
-    flags: Object.freeze(list(root.flags, "scenario flags", 0).map(flagDeclaration)),
+    tracks: Object.freeze(list(root.tracks ?? [], "scenario tracks", 0).map(trackDeclaration)),
+    flags: Object.freeze(list(root.flags ?? [], "scenario flags", 0).map(flagDeclaration)),
     endings: Object.freeze(list(root.endings, "scenario endings", 1).map(ending)),
     blocks: Object.freeze(list(root.blocks, "scenario blocks", 1).map(block)),
   };
@@ -203,13 +202,17 @@ export function parseScenarioProgram(value: unknown): ScenarioProgram {
 function castMember(value: unknown, index: number): ScenarioCastMember {
   const record = strictRecord(
     value,
-    ["actor_id", "display_name", "profile", "expressions"],
+    ["actor_id", "expressions"],
     `scenario cast[${index}]`,
+    ["display_name"],
   );
   return Object.freeze({
     actorId: snakeId(record.actor_id, `scenario cast[${index}].actor_id`),
-    displayName: optionalText(record.display_name, `scenario cast[${index}].display_name`, 96),
-    profile: optionalText(record.profile, `scenario cast[${index}].profile`, 256),
+    displayName: optionalText(
+      record.display_name ?? null,
+      `scenario cast[${index}].display_name`,
+      96,
+    ),
     expressions: Object.freeze(
       list(record.expressions, `scenario cast[${index}].expressions`, 0).map((entry, at) =>
         snakeId(entry, `scenario cast[${index}].expressions[${at}]`),
@@ -323,10 +326,11 @@ function statement(value: unknown, label: string): ScenarioStatement {
 }
 
 function lineStatement(value: unknown, label: string): ScenarioLine {
-  const record = strictRecord(value, ["kind", "speaker", "expression", "text"], label);
-  const speaker = record.speaker === null ? null : snakeId(record.speaker, `${label} speaker`);
+  const record = strictRecord(value, ["kind", "text"], label, ["speaker", "expression"]);
+  const speaker =
+    record.speaker == null ? null : snakeId(record.speaker, `${label} speaker`);
   const expression =
-    record.expression === null ? null : snakeId(record.expression, `${label} expression`);
+    record.expression == null ? null : snakeId(record.expression, `${label} expression`);
   if (expression !== null && speaker === null) {
     throw new Error(`${label} is narration and cannot carry an expression`);
   }
@@ -339,11 +343,12 @@ function lineStatement(value: unknown, label: string): ScenarioLine {
 }
 
 function showStatement(value: unknown, label: string): ScenarioShow {
-  const record = strictRecord(value, ["kind", "actor", "expression", "slot"], label);
+  const record = strictRecord(value, ["kind", "actor", "slot"], label, ["expression"]);
   return Object.freeze({
     kind: "show",
     actor: snakeId(record.actor, `${label} actor`),
-    expression: record.expression === null ? null : snakeId(record.expression, `${label} expression`),
+    expression:
+      record.expression == null ? null : snakeId(record.expression, `${label} expression`),
     slot: slot(record.slot, `${label} slot`),
   });
 }
@@ -361,26 +366,31 @@ function audioStatement(value: unknown, label: string): ScenarioAudio {
 }
 
 function setStatement(value: unknown, label: string): ScenarioSet {
-  const record = strictRecord(value, ["kind", "flag", "value"], label);
-  if (typeof record.value !== "boolean") {
-    throw new Error(`${label} value must be a boolean`);
-  }
+  const record = strictRecord(value, ["kind", "flag"], label, ["value"]);
+  // `set <flag>` compiles to value true, and the canonical form omits a default.
+  const raw = record.value ?? true;
+  if (typeof raw !== "boolean") throw new Error(`${label} value must be a boolean`);
   return Object.freeze({
     kind: "set",
     flag: snakeId(record.flag, `${label} flag`),
-    value: record.value,
+    value: raw,
   });
 }
 
 function choiceStatement(value: unknown, label: string): ScenarioChoice {
   const record = strictRecord(value, ["kind", "options"], label);
   const options = list(record.options, `${label} options`, 2).map((entry, index) => {
-    const option = strictRecord(entry, ["text", "target", "condition"], `${label} option ${index}`);
+    const option = strictRecord(
+      entry,
+      ["text", "target"],
+      `${label} option ${index}`,
+      ["condition"],
+    );
     return Object.freeze({
       text: text(option.text, `${label} option ${index} text`, TEXT_MAX),
       target: snakeId(option.target, `${label} option ${index} target`),
       condition:
-        option.condition === null
+        option.condition == null
           ? null
           : condition(option.condition, `${label} option ${index} condition`),
     });
@@ -405,11 +415,11 @@ function branchStatement(value: unknown, label: string): ScenarioBranch {
 }
 
 function condition(value: unknown, label: string): ScenarioCondition {
-  const record = strictRecord(value, ["requires", "forbids"], label);
-  const requires = list(record.requires, `${label} requires`, 0).map((entry, index) =>
+  const record = strictRecord(value, [], label, ["requires", "forbids"]);
+  const requires = list(record.requires ?? [], `${label} requires`, 0).map((entry, index) =>
     snakeId(entry, `${label} requires[${index}]`),
   );
-  const forbids = list(record.forbids, `${label} forbids`, 0).map((entry, index) =>
+  const forbids = list(record.forbids ?? [], `${label} forbids`, 0).map((entry, index) =>
     snakeId(entry, `${label} forbids[${index}]`),
   );
   if (requires.length === 0 && forbids.length === 0) {
@@ -420,20 +430,30 @@ function condition(value: unknown, label: string): ScenarioCondition {
 
 // ------------------------------------------------------------------ scalars
 
+/**
+ * Refuse unknown keys and missing REQUIRED keys; allow optional ones to be absent.
+ *
+ * Absent and null mean the same thing on this wire. The producer's canonical
+ * form omits nulls, so `speaker: null` on a narration line simply is not there -
+ * demanding the key would refuse every document the producer actually writes.
+ * Unknown keys are still refused, which is the half of strictness that catches
+ * drift.
+ */
 function strictRecord(
   value: unknown,
-  expectedKeys: readonly string[],
+  requiredKeys: readonly string[],
   label: string,
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
   }
   const record = value as Record<string, unknown>;
-  const expected = new Set(expectedKeys);
-  const missing = expectedKeys.filter(
+  const known = new Set([...requiredKeys, ...optionalKeys]);
+  const missing = requiredKeys.filter(
     (key) => !Object.prototype.hasOwnProperty.call(record, key),
   );
-  const extra = Object.keys(record).filter((key) => !expected.has(key));
+  const extra = Object.keys(record).filter((key) => !known.has(key));
   if (missing.length > 0 || extra.length > 0) {
     throw new Error(
       `${label} keys must match the schema` +
@@ -520,7 +540,6 @@ export function serializeScenarioProgram(program: ScenarioProgram): unknown {
     cast: program.cast.map((member) => ({
       actor_id: member.actorId,
       display_name: member.displayName,
-      profile: member.profile,
       expressions: [...member.expressions],
     })),
     stages: program.stages.map((stage) => ({
