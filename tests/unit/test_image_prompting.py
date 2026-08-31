@@ -29,17 +29,23 @@ from stage_gen.image_style import (
 from stage_gen.resources import image_style_resource_digests
 
 
-def test_resources_cover_three_recognized_modes_and_exact_asset_treatments() -> None:
+def test_resources_cover_every_recognized_mode_and_exact_asset_treatments() -> None:
     resources = load_image_style_resources()
     modes = {mode.style_mode: mode for mode in resources.vocabulary.modes}
     assert set(modes) == {
         "cel_shaded_anime_2d",
         "photorealistic_natural",
         "gouache_illustration_2d",
+        "flat_graphic_2d",
     }
     assert modes["cel_shaded_anime_2d"].medium_keyword == ("clean 2D Japanese anime illustration")
     assert modes["photorealistic_natural"].medium_keyword == ("photorealistic natural photography")
     assert modes["gouache_illustration_2d"].medium_keyword == ("editorial gouache illustration")
+    assert modes["flat_graphic_2d"].medium_keyword == ("flat graphic vector illustration")
+    assert (
+        "overlap and value steps"
+        in modes["flat_graphic_2d"].asset_treatments["environment_background"]
+    )
     assert (
         "visual novel character sprite"
         in modes["cel_shaded_anime_2d"].asset_treatments["character_sprite"]

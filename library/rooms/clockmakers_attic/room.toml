@@ -6,17 +6,17 @@ schema_version = 1
 kind = "pointclick-room-v1"
 room_id = "clockmakers_attic"
 display_name = "The Clockmaker's Attic"
-revision = 1
+revision = 2
 
 [style]
-label = "warm storybook mechanical whimsy"
+label = "flat graphic poster art"
 keywords = [
-    "painterly gouache texture",
-    "amber lamplight",
-    "soft dust motes",
-    "intricate brass detail",
+    "large flat colour fields",
+    "no gradients or texture",
+    "geometric shape language",
+    "warm lamp-lit palette with one accent",
 ]
-avoid = ["photorealism", "horror", "neon", "text"]
+avoid = ["photorealism", "horror", "neon", "text", "painterly brush texture"]
 
 # The brief names only mood and scenery; sprite-hotspot objects (the dust
 # sheet, the music box) are deliberately absent — a separate sprite is

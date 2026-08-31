@@ -86,6 +86,33 @@
         "glossy digital airbrushing",
         "vector-flat rendering"
       ]
+    },
+    {
+      "style_mode": "flat_graphic_2d",
+      "medium_keyword": "flat graphic vector illustration",
+      "observable_traits": [
+        "large flat fields of unmodulated colour",
+        "no gradients, grain or brush texture",
+        "confident geometric shape language",
+        "limited palette with one reserved accent colour"
+      ],
+      "asset_treatments": {
+        "concept_art": "flat graphic concept art with bold silhouettes and a limited palette",
+        "character_sprite": "flat graphic character sprite with one hard-edged readable silhouette",
+        "environment_background": "flat graphic environment where depth comes from overlap and value steps rather than shading",
+        "illustration": "finished flat graphic composition with deliberate negative space",
+        "asset_sheet": "flat graphic asset sheet sharing one palette and one edge treatment",
+        "tileable_texture": "seamless flat graphic texture built from repeating hard-edged shapes",
+        "interface_art": "flat graphic interface art with strong contrast and clear hierarchy",
+        "effect_sheet": "flat graphic effect sheet with hard-edged shapes and clear timing steps"
+      },
+      "exclusions": [
+        "photorealistic rendering",
+        "painterly brush texture",
+        "3D rendering",
+        "airbrushed gradients",
+        "anime cel shading"
+      ]
     }
   ]
 }

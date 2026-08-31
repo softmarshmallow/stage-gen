@@ -27,6 +27,7 @@ _EXPECTED_STYLE_MODES = {
     "cel_shaded_anime_2d",
     "photorealistic_natural",
     "gouache_illustration_2d",
+    "flat_graphic_2d",
 }
 _EXPECTED_ASSET_KINDS = {
     "concept_art",

@@ -31,11 +31,16 @@ medium, traits, and exclusions stay byte-identical across a whole run.
 
 ## Vocabulary
 
-Three modes ship in v1: `cel_shaded_anime_2d`, `photorealistic_natural`, and
-`gouache_illustration_2d`. Each defines one medium keyword, four observable
-traits, per-asset treatments for the eight `ImageAssetKind` values, and an
-exclusion list. The selection skill is
+Four modes ship in v1: `cel_shaded_anime_2d`, `photorealistic_natural`,
+`gouache_illustration_2d`, and `flat_graphic_2d`. Each defines one medium
+keyword, four observable traits, per-asset treatments for the eight
+`ImageAssetKind` values, and an exclusion list. The selection skill is
 `stage_gen/resources/skills/anchor-image-style/SKILL.md`.
+
+Adding a mode is additive for validation — a persisted anchor naming an older
+mode still validates — but it rewrites `vocabulary_sha256`, so every cached
+node whose lineage includes a style anchor misses and regenerates. Modes are
+therefore added when art direction demands one, not for convenience.
 
 ## Opt in
 

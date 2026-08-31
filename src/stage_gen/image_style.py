@@ -24,6 +24,7 @@ StyleMode = Literal[
     "cel_shaded_anime_2d",
     "photorealistic_natural",
     "gouache_illustration_2d",
+    "flat_graphic_2d",
 ]
 ImageAssetKind = Literal[
     "concept_art",
