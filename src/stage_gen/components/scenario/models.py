@@ -132,8 +132,8 @@ class SetStatement(ScenarioModel):
 class Condition(ScenarioModel):
     """Flag tests only: everything in `requires` set, everything in `forbids` clear."""
 
-    requires: tuple[str, ...] = ()
-    forbids: tuple[str, ...] = ()
+    requires: list[str] = Field(default_factory=list)
+    forbids: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_terms(self) -> Condition:
@@ -167,11 +167,11 @@ class ChoiceStatement(ScenarioModel):
     """Authored options in authored order. Terminal: control leaves the block."""
 
     kind: Literal["choice"] = "choice"
-    options: tuple[ChoiceOption, ...] = Field(min_length=2, max_length=8)
+    options: list[ChoiceOption] = Field(min_length=2, max_length=8)
 
     @field_validator("options")
     @classmethod
-    def validate_options(cls, value: tuple[ChoiceOption, ...]) -> tuple[ChoiceOption, ...]:
+    def validate_options(cls, value: list[ChoiceOption]) -> list[ChoiceOption]:
         unique_values((option.text for option in value), "choice option text")
         return value
 
@@ -185,7 +185,7 @@ class BranchStatement(ScenarioModel):
     """First satisfied edge wins; the default is required, so a branch always leaves."""
 
     kind: Literal["branch"] = "branch"
-    edges: tuple[BranchEdge, ...] = Field(min_length=1, max_length=16)
+    edges: list[BranchEdge] = Field(min_length=1, max_length=16)
     default: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
 
 
@@ -221,7 +221,7 @@ TERMINAL_KINDS: frozenset[str] = frozenset({"choice", "branch", "jump", "end"})
 
 class Block(ScenarioModel):
     label: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
-    statements: tuple[Statement, ...] = Field(min_length=1, max_length=512)
+    statements: list[Statement] = Field(min_length=1, max_length=512)
 
     @model_validator(mode="after")
     def validate_terminates_exactly_once(self) -> Block:
@@ -404,12 +404,12 @@ class ScenarioProgram(PersistedContractModel):
     revision: int = Field(ge=1)
     script_sha256: str = Field(pattern=SHA256_PATTERN)
     entry: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
-    cast: tuple[CastMember, ...] = Field(min_length=1)
-    stages: tuple[StageDeclaration, ...] = Field(min_length=1)
-    tracks: tuple[TrackDeclaration, ...] = ()
-    flags: tuple[FlagDeclaration, ...] = ()
-    endings: tuple[EndingDeclaration, ...] = Field(min_length=1)
-    blocks: tuple[Block, ...] = Field(min_length=1, max_length=512)
+    cast: list[CastMember] = Field(min_length=1)
+    stages: list[StageDeclaration] = Field(min_length=1)
+    tracks: list[TrackDeclaration] = Field(default_factory=list)
+    flags: list[FlagDeclaration] = Field(default_factory=list)
+    endings: list[EndingDeclaration] = Field(min_length=1)
+    blocks: list[Block] = Field(min_length=1, max_length=512)
 
     @model_validator(mode="after")
     def validate_labels(self) -> ScenarioProgram:
@@ -427,7 +427,7 @@ class EndingWitness(PersistedContractModel):
 
     outcome_id: str
     #: Block labels from the entry to the block whose `end` names this outcome.
-    path: tuple[str, ...] = Field(min_length=1)
+    path: list[str] = Field(min_length=1)
 
 
 class ScenarioAdmissionReport(PersistedContractModel):
@@ -438,8 +438,8 @@ class ScenarioAdmissionReport(PersistedContractModel):
     scenario_id: str
     admitted: bool
     reachable_states: int = Field(ge=1)
-    reachable_labels: tuple[str, ...] = ()
-    witnesses: tuple[EndingWitness, ...] = ()
+    reachable_labels: list[str] = Field(default_factory=list)
+    witnesses: list[EndingWitness] = Field(default_factory=list)
 
 
 __all__ = [

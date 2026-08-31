@@ -211,7 +211,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         attempt_ledger=AttemptLedgerBinding(
             path="attempts.json", sha256=content_sha256(ledger_bytes)
         ),
-        scene_data=_profile_scene_data(request, profile, style_anchor),
+        scene_data=_profile_scene_data(request, profile, style_anchor, scenario_program),
         review=ReviewState(status="pending", path=None, sha256=None),
         rights=RightsState(aggregate="unreviewed", publication_authorized=False),
     )
@@ -275,6 +275,7 @@ def _profile_scene_data(
     request: DialogueSceneDocument,
     profile: CharacterProfile,
     style_anchor: CanonicalStyleAnchor,
+    scenario: ScenarioProgram,
 ) -> SceneData:
     role = profile.description[:120]
     return SceneData.model_validate(
@@ -316,6 +317,7 @@ def _profile_scene_data(
                 }
                 for state in EXPRESSION_STATES
             ],
+            "scenario": scenario,
         }
     )
 

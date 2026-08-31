@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from stage_gen.components.character_profile import CharacterProfileBinding
+from stage_gen.components.scenario import ScenarioProgram
 
 
 class PersistedContractModel(BaseModel):
@@ -489,6 +490,16 @@ class SceneData(PersistedContractModel):
     placement: ScenePlacement
     available_states: list[ExpressionState]
     expression_variants: list[SceneExpressionVariant]
+    #: The compiled narrative, embedded rather than referenced.
+    #:
+    #: `scene_data` is the consumer's projection of the run, and the narrative is
+    #: the substance of it. The run still publishes `scenario.json` as its own
+    #: artifact - that is the graph node's port and where the proof points - but a
+    #: consumer that had to fetch a second file to know what anybody says would
+    #: make every consumer of this bundle, installed themes included, learn a new
+    #: retrieval path. The manifest builds this from the published bytes, so the
+    #: two are the same content by construction rather than by promise.
+    scenario: ScenarioProgram
 
     @model_validator(mode="after")
     def exact_projection_bindings(self) -> SceneData:

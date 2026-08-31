@@ -322,7 +322,7 @@ def _parse_menu(
     if len(options) < 2:
         raise _error(header, "a menu must offer at least two options")
     _ = indent
-    return ChoiceStatement(options=tuple(options))
+    return ChoiceStatement(options=options)
 
 
 def _parse_option(cursor: _Cursor, indent: int) -> ChoiceOption:
@@ -408,7 +408,7 @@ def _parse_condition(line: _SourceLine, words: list[str]) -> Condition:
             raise _error(line, f"conditions join with `and`; found `{words[index]}`")
         index += 1
     try:
-        return Condition(requires=tuple(requires), forbids=tuple(forbids))
+        return Condition(requires=requires, forbids=forbids)
     except ValueError as error:
         raise _error(line, str(error)) from None
 

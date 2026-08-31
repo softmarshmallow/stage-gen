@@ -398,6 +398,42 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
                 }
                 for state in ("neutral", "delighted", "flustered", "concerned")
             ],
+            "scenario": {
+                "schema_version": 1,
+                "kind": "scenario-program-v1",
+                "game_id": "seminar_hall",
+                "scenario_id": "after_seminar",
+                "display_name": "After the Seminar",
+                "revision": 1,
+                "script_sha256": "6" * 64,
+                "entry": "only",
+                "cast": [
+                    {
+                        "actor_id": "mio",
+                        "display_name": None,
+                        "profile": "character.toml",
+                        "expressions": ["neutral"],
+                    }
+                ],
+                "stages": [{"stage_id": "lounge", "brief": "An original empty lounge"}],
+                "tracks": [],
+                "flags": [],
+                "endings": [{"outcome_id": "done", "label": "Done"}],
+                "blocks": [
+                    {
+                        "label": "only",
+                        "statements": [
+                            {
+                                "kind": "line",
+                                "speaker": "mio",
+                                "expression": None,
+                                "text": "I hoped you would stay.",
+                            },
+                            {"kind": "end", "outcome": "done"},
+                        ],
+                    }
+                ],
+            },
         },
         "review": {"status": "pending", "path": None, "sha256": None},
         "rights": {"aggregate": "unreviewed", "publication_authorized": False},

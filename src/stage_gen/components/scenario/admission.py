@@ -300,11 +300,11 @@ def _prove(program: ScenarioProgram) -> ScenarioAdmissionReport:
         scenario_id=program.scenario_id,
         admitted=True,
         reachable_states=len(seen),
-        reachable_labels=tuple(sorted(reached)),
-        witnesses=tuple(
-            EndingWitness(outcome_id=outcome, path=witnesses[outcome])
+        reachable_labels=sorted(reached),
+        witnesses=[
+            EndingWitness(outcome_id=outcome, path=list(witnesses[outcome]))
             for outcome in sorted(witnesses)
-        ),
+        ],
     )
 
 

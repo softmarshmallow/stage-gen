@@ -1,5 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  parseScenarioProgram,
+  serializeScenarioProgram,
+  type ScenarioProgram,
+} from "@/lib/scenario/program";
+import {
   copyFile,
   lstat,
   mkdir,
@@ -25,6 +30,8 @@ import {
   type DialogueSceneDemoFixture,
   type DialogueSceneExpressionState,
 } from "./schema";
+
+export const DIALOGUE_SCENE_BUNDLE_KIND = "dialogue-scene-bundle-v5" as const;
 
 export const DIALOGUE_THEME_ADAPTER_VERSION = 3 as const;
 
@@ -161,16 +168,11 @@ interface SceneData {
     readonly alt: string;
     readonly slot: "right";
   }[];
-  readonly dialogue: readonly {
-    readonly id: string;
-    readonly speaker: string;
-    readonly text: string;
-    readonly expression_state: DialogueSceneExpressionState;
-  }[];
+  readonly scenario: ScenarioProgram;
 }
 
 export interface DialogueSceneBundleV4 {
-  readonly schema_version: 4;
+  readonly schema_version: 5;
   readonly kind: "dialogue-scene-bundle-v5";
   readonly recipe: "dialogue-scene";
   readonly recipe_version: "dialogue-scene-v6";
@@ -187,6 +189,16 @@ export interface DialogueSceneBundleV4 {
     readonly source_sha256: string;
   };
   readonly character_profile_sha256: string;
+  /** The compiled narrative and the proof that admitted it. */
+  readonly scenario: BundleFileBinding;
+  readonly scenario_validation: BundleFileBinding;
+  readonly scenario_binding: {
+    readonly schema_version: 1;
+    readonly kind: "scenario-binding-v1";
+    readonly ref: string;
+    readonly source_sha256: string;
+  };
+  readonly scenario_sha256: string;
   /** The authored plate every image was drawn against, as the run republished it. */
   readonly identity_reference: BundleFileBinding;
   readonly identity_reference_source: string;
@@ -211,7 +223,7 @@ export interface DialogueSceneBundleV4 {
 
 interface ActiveBundleBinding {
   readonly bundle_id: string;
-  readonly wire_schema_version: 4;
+  readonly wire_schema_version: 5;
   readonly kind: "dialogue-scene-bundle-v5";
   readonly recipe_version: "dialogue-scene-v6";
   readonly source_bundle_sha256: string;
@@ -339,6 +351,10 @@ export function parseDialogueSceneBundleV4(
       "character_profile",
       "character_profile_binding",
       "character_profile_sha256",
+      "scenario",
+      "scenario_validation",
+      "scenario_binding",
+      "scenario_sha256",
       "identity_reference",
       "identity_reference_source",
       "assets",
@@ -348,9 +364,9 @@ export function parseDialogueSceneBundleV4(
       "rights",
     ],
     [],
-    "dialogue-scene bundle v4",
+    "dialogue-scene bundle v5",
   );
-  exact(root.schema_version, 4, "bundle.schema_version");
+  exact(root.schema_version, 5, "bundle.schema_version");
   exact(root.kind, "dialogue-scene-bundle-v5", "bundle.kind");
   exact(root.recipe, "dialogue-scene", "bundle.recipe");
   exact(root.recipe_version, "dialogue-scene-v6", "bundle.recipe_version");
@@ -362,6 +378,14 @@ export function parseDialogueSceneBundleV4(
   );
   exact(binding.schema_version, 1, "character profile binding schema_version");
   exact(binding.kind, "character-profile-binding-v1", "character profile binding kind");
+  const scenarioBinding = strictRecord(
+    root.scenario_binding,
+    ["schema_version", "kind", "ref", "source_sha256"],
+    [],
+    "bundle.scenario_binding",
+  );
+  exact(scenarioBinding.schema_version, 1, "scenario binding schema_version");
+  exact(scenarioBinding.kind, "scenario-binding-v1", "scenario binding kind");
   const attempt = strictRecord(
     root.attempt_ledger,
     ["path", "sha256"],
@@ -380,7 +404,7 @@ export function parseDialogueSceneBundleV4(
     );
   }
   return Object.freeze({
-    schema_version: 4,
+    schema_version: 5,
     kind: "dialogue-scene-bundle-v5",
     recipe: "dialogue-scene",
     recipe_version: "dialogue-scene-v6",
@@ -403,6 +427,21 @@ export function parseDialogueSceneBundleV4(
       root.character_profile_sha256,
       "bundle.character_profile_sha256",
     ),
+    scenario: parseBundleFile(root.scenario, "bundle.scenario"),
+    scenario_validation: parseBundleFile(
+      root.scenario_validation,
+      "bundle.scenario_validation",
+    ),
+    scenario_binding: Object.freeze({
+      schema_version: 1,
+      kind: "scenario-binding-v1",
+      ref: portableProfileRef(scenarioBinding.ref, "bundle.scenario_binding.ref"),
+      source_sha256: digest(
+        scenarioBinding.source_sha256,
+        "bundle.scenario_binding.source_sha256",
+      ),
+    }),
+    scenario_sha256: digest(root.scenario_sha256, "bundle.scenario_sha256"),
     identity_reference: parseBundleFile(root.identity_reference, "bundle.identity_reference"),
     identity_reference_source: portableReuseRef(
       root.identity_reference_source,
@@ -1088,12 +1127,7 @@ export function projectDialogueSceneFixture(
         slot: "right",
       };
     }),
-    dialogue: bundle.scene_data.dialogue.map((beat) => ({
-      id: beat.id,
-      speaker: beat.speaker,
-      text: beat.text,
-      expressionState: beat.expression_state,
-    })),
+    scenario: serializeScenarioProgram(bundle.scene_data.scenario),
     profileIdentity: {
       profileId: profile.profile_id,
       revision: profile.revision,
@@ -1434,12 +1468,12 @@ function parseActiveBundleBinding(
     [],
     label,
   );
-  exact(root.wire_schema_version, 4, `${label} wire_schema_version`);
+  exact(root.wire_schema_version, 5, `${label} wire_schema_version`);
   exact(root.kind, "dialogue-scene-bundle-v5", `${label} kind`);
   exact(root.recipe_version, "dialogue-scene-v6", `${label} recipe_version`);
   return Object.freeze({
     bundle_id: digest(root.bundle_id, `${label} bundle_id`),
-    wire_schema_version: 4,
+    wire_schema_version: 5,
     kind: "dialogue-scene-bundle-v5",
     recipe_version: "dialogue-scene-v6",
     source_bundle_sha256: digest(
@@ -1679,7 +1713,7 @@ function parseSceneData(value: unknown): SceneData {
       "placement",
       "available_states",
       "expression_variants",
-      "dialogue",
+      "scenario",
     ],
     [],
     "bundle.scene_data",
@@ -1779,35 +1813,8 @@ function parseSceneData(value: unknown): SceneData {
       slot: "right" as const,
     });
   });
-  if (
-    !Array.isArray(root.dialogue) ||
-    root.dialogue.length < 1 ||
-    root.dialogue.length > 12
-  ) {
-    throw new Error("bundle.scene_data.dialogue must contain 1 to 12 beats");
-  }
-  const beatIds = new Set<string>();
-  const dialogue = root.dialogue.map((entry, index) => {
-    const record = strictRecord(
-      entry,
-      ["id", "speaker", "text", "expression_state"],
-      [],
-      `bundle.scene_data.dialogue[${index}]`,
-    );
-    const id = stableId(record.id, `bundle.scene_data.dialogue[${index}].id`);
-    if (beatIds.has(id))
-      throw new Error(`bundle dialogue id is duplicated: ${id}`);
-    beatIds.add(id);
-    return Object.freeze({
-      id,
-      speaker: strictText(record.speaker, `dialogue[${index}].speaker`, 80),
-      text: strictText(record.text, `dialogue[${index}].text`, 1000),
-      expression_state: expressionState(
-        record.expression_state,
-        `dialogue[${index}].expression_state`,
-      ),
-    });
-  });
+  // The narrative is validated by its own contract, not re-described here.
+  const scenario = parseScenarioProgram(root.scenario);
   const appearanceId = stableId(
     appearance.id,
     "bundle.scene_data.appearance.id",
@@ -1877,7 +1884,7 @@ function parseSceneData(value: unknown): SceneData {
     }),
     available_states: Object.freeze(available_states),
     expression_variants: Object.freeze(expression_variants),
-    dialogue: Object.freeze(dialogue),
+    scenario,
   });
 }
 
@@ -2178,14 +2185,14 @@ function validateRequestEnvelope(
       "character_profile",
       "references",
       "background",
-      "dialogue",
+      "scenario",
       "presentation",
       "transparency_mode",
     ],
     [],
     "bundle request",
   );
-  exact(root.schema_version, 1, "bundle request schema_version");
+  exact(root.schema_version, 2, "bundle request schema_version");
   exact(root.kind, "dialogue-scene-v2", "bundle request kind");
   if (root.game_id !== bundle.game_id) {
     throw new Error("request game_id does not match bundle");
@@ -2213,6 +2220,27 @@ function validateRequestEnvelope(
   ) {
     throw new Error("request character profile binding does not match bundle");
   }
+  // The narrative binding travels with the request and has to be the one the
+  // bundle names, or the run would be playing a scenario nobody admitted.
+  const scenarioBinding = strictRecord(
+    root.scenario,
+    ["schema_version", "kind", "ref", "source_sha256"],
+    [],
+    "bundle request scenario",
+  );
+  exact(scenarioBinding.schema_version, 1, "request scenario schema_version");
+  exact(scenarioBinding.kind, "scenario-binding-v1", "request scenario kind");
+  const scenarioRef = portableProfileRef(scenarioBinding.ref, "request scenario ref");
+  const scenarioSource = digest(
+    scenarioBinding.source_sha256,
+    "request scenario source_sha256",
+  );
+  if (
+    scenarioRef !== bundle.scenario_binding.ref ||
+    scenarioSource !== bundle.scenario_binding.source_sha256
+  ) {
+    throw new Error("request scenario binding does not match bundle");
+  }
   const background = strictRecord(
     root.background,
     [],
@@ -2222,33 +2250,6 @@ function validateRequestEnvelope(
   if (background.description !== undefined) {
     strictText(background.description, "bundle request background description", 2000);
   }
-  if (
-    !Array.isArray(root.dialogue) ||
-    root.dialogue.length < 1 ||
-    root.dialogue.length > 12
-  ) {
-    throw new Error("bundle request dialogue must contain 1 to 12 beats");
-  }
-  const beatIds = new Set<string>();
-  root.dialogue.forEach((value, index) => {
-    const beat = strictRecord(
-      value,
-      ["id", "speaker", "text", "expression_state"],
-      [],
-      `bundle request dialogue[${index}]`,
-    );
-    const id = kebabId(beat.id, `bundle request dialogue[${index}].id`, 48);
-    if (beatIds.has(id)) {
-      throw new Error(`bundle request dialogue id is duplicated: ${id}`);
-    }
-    beatIds.add(id);
-    strictText(beat.speaker, `bundle request dialogue[${index}].speaker`, 64);
-    strictText(beat.text, `bundle request dialogue[${index}].text`, 320);
-    expressionState(
-      beat.expression_state,
-      `bundle request dialogue[${index}].expression_state`,
-    );
-  });
   const presentation = strictRecord(
     root.presentation,
     ["slot", "framing_zoom", "source_framing_zoom"],
@@ -2372,7 +2373,7 @@ function validatePlanEnvelope(
     [],
     "bundle plan",
   );
-  exact(root.schema_version, 4, "bundle plan schema_version");
+  exact(root.schema_version, 5, "bundle plan schema_version");
   exact(root.kind, "dialogue-scene-plan-v5", "bundle plan kind");
   exact(root.recipe_version, "dialogue-scene-v6", "bundle plan recipe_version");
   exact(
@@ -2932,7 +2933,7 @@ function validateReviewProof(
     [],
     "review record",
   );
-  exact(record.schema_version, 4, "review record schema_version");
+  exact(record.schema_version, 5, "review record schema_version");
   exact(record.kind, "dialogue-scene-review-v5", "review record kind");
   exact(record.status, expectedStatus, "review record status");
   exact(record.usage, "local-demo", "review record usage");

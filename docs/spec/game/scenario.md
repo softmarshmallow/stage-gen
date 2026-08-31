@@ -1,13 +1,13 @@
 # Scenario: the executable narrative subset
 
 > **Contract maturity: exact-current for the authored contract, the script
-> surface, and the admission proof. The runtime and its consumer are not built.**
-> Executable authority: `src/stage_gen/components/scenario/`, the authored
-> `library/games/larkfield/scenario.toml` beside its script, and
+> surface, the admission proof, and the runtime that walks it.** Executable
+> authority: `src/stage_gen/components/scenario/`, `web/lib/scenario/`, the
+> authored `library/games/larkfield/scenario.toml` beside its script, and
 > `stage-gen scenario check`. The choice recorded under [Decision](#decision) is
-> settled and should not be re-litigated without new evidence. Everything under
-> [Runtime](#runtime) and [The shell is not Scenario](#the-shell-is-not-scenario)
-> remains a target shape: nothing plays a scenario yet.
+> settled and should not be re-litigated without new evidence.
+> [The shell is not Scenario](#the-shell-is-not-scenario) remains a target
+> shape: there are no save slots, no backlog, and no skip-already-read.
 
 The [dialogue and cutscene sequence contract](dialogue-and-cutscene-sequences.md)
 owns the canonical semantic vocabulary for authored narrative: sequences, nodes,
@@ -404,10 +404,24 @@ the run, the way `puzzle.validation.json` already is.
 
 ## Runtime
 
-The runtime is a pure reducer over `(block, statement index, flags, seen)`. It
-owns no drawing, no asset paths, no engine types, and no genre vocabulary — the
-same discipline `web/lib/dialogue/conversation.ts` already holds, widened from a
-cursor over beats to a cursor over statements with branches.
+The runtime is a pure reducer over `(block, statement index, flags, seen)`
+(`web/lib/scenario/runtime.ts`). It owns no drawing, no asset paths, no engine
+types, and no genre vocabulary — the same discipline
+`web/lib/dialogue/conversation.ts` already held, widened from a cursor over beats
+to a walk over a graph of blocks with flags.
+
+Two properties the consumer depends on, and one it must not assume:
+
+- **Invisible statements settle inside the reducer.** `show`, `hide`, `stage`,
+  `audio`, `set`, `jump` and `branch` change the world and hand control straight
+  on; only a line, a choice, or an ending stops. What is drawn is therefore a
+  pure function of the state, rather than something a view re-derives by peeking
+  at the next few statements.
+- **A branch takes the first satisfied edge**, matching the proof exactly. A
+  runtime that chose differently would be playing a scenario nobody admitted.
+- **The walk is bounded**, not trusted. Every block terminates and the proof
+  refused any scenario that cannot reach an `end`, but a cycle of invisible
+  statements is still expressible, so the reducer refuses rather than hangs.
 
 The runtime graph and the generation execution graph are **different graphs with
 different lifetimes**: one the player walks, one the pipeline schedules. They
@@ -424,9 +438,11 @@ of Scenario**, because they are not narrative: they are a persistence substrate
 and a consumer shell serving every genre. The platformer's champion roster is
 blocked on the same missing substrate. One piece of work, two genres.
 
-Scenario's only obligation to the shell is to make it possible: stable statement
-identity, so "already read" is addressable, and a serializable runtime state,
-so a save slot has something exact to record.
+Scenario's only obligation to the shell is to make it possible, and it now meets
+it: statement identity is `<label>#<index>` — an authored position, stable across
+a save because it does not depend on the route the player took — and the runtime
+state is plain data with a `seen` set already in it. Nothing persists any of that
+yet; that is M2.
 
 ## Milestones
 
@@ -443,9 +459,9 @@ part is separable:
 | Increment | Scope | Cost | State |
 | --- | --- | --- | --- |
 | 1 | Contract, script surface, compiler, admission proof, `scenario check` | none | **landed** |
-| 2 | The runtime reducer and the visual-novel consumer drawing choices and stages | none — plays on the four expression plates already generated | not started |
+| 2 | The runtime reducer, the scene's scenario binding, and the consumer drawing choices and endings | none | **landed** |
 | 3 | Cast and stage fan-out in the recipe | provider spend, needs explicit authorization | not started |
-| 4 | Retire the parallel beat list and `game-sequence-v1` | none | not started |
+| 4 | Retire `game-sequence-v1` and the platformer's inline walker | none | not started |
 
 **M2 — the shell.** Persistence, save slots, backlog, skip-already-read,
 auto-advance, preferences. Cross-genre; unblocks the platformer roster.

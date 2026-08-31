@@ -33,8 +33,8 @@ def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> No
         "ending_talked",
     ]
     witnesses = {witness.outcome_id: witness.path for witness in resolved.admission.witnesses}
-    assert witnesses["listened"] == ("arrival", "listening", "recording", "ending_quiet")
-    assert witnesses["talked"] == ("arrival", "asking", "recording", "ending_talked")
+    assert witnesses["listened"] == ["arrival", "listening", "recording", "ending_quiet"]
+    assert witnesses["talked"] == ["arrival", "asking", "recording", "ending_talked"]
 
 
 def test_the_shipped_scenario_declares_the_digest_of_its_own_script() -> None:

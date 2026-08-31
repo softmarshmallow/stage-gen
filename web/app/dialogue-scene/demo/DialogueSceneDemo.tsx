@@ -7,19 +7,21 @@ import {
   mapDialogueSceneFraming,
   normalizeDialogueSceneFramingScale,
 } from "@/lib/dialogue-scene/framing";
+import { scenarioActionForDocumentKey } from "@/lib/scenario/keys";
 import {
-  currentDialogueSceneBeat,
-  currentDialogueSceneExpressionState,
-  dialogueSceneActionForDocumentKey,
-  dialogueSceneIsComplete,
-  initialDialogueScenePlayback,
-  reduceDialogueScenePlayback,
-  type DialogueScenePlaybackAction,
-} from "@/lib/dialogue-scene/playback";
-import type {
-  DialogueSceneDemoExpressionVariant,
-  DialogueSceneDemoFixture,
-  DialogueSceneExpressionState,
+  initialScenarioState,
+  reduceScenario,
+  scenarioIsFinished,
+  scenarioProgress,
+  scenarioView,
+  type ScenarioAction,
+  type ScenarioState,
+} from "@/lib/scenario/runtime";
+import {
+  DIALOGUE_SCENE_EXPRESSION_STATES,
+  type DialogueSceneDemoExpressionVariant,
+  type DialogueSceneDemoFixture,
+  type DialogueSceneExpressionState,
 } from "@/lib/dialogue-scene/schema";
 import { cx } from "@/app/ui";
 
@@ -59,7 +61,13 @@ export default function DialogueSceneDemo({
 }: {
   fixture: DialogueSceneDemoFixture;
 }) {
-  const [playback, setPlayback] = useState(initialDialogueScenePlayback);
+  // A local undo stack, not the save/backlog substrate. This route is a framing
+  // and expression preview, so stepping back one statement is a convenience it
+  // owns; the real backlog is a cross-genre shell concern and is not this.
+  const [history, setHistory] = useState<readonly ScenarioState[]>(() => [
+    initialScenarioState(fixture.scenario),
+  ]);
+  const [dialogueVisible, setDialogueVisible] = useState(true);
   const [framingZoom, setFramingZoom] = useState(() =>
     Math.min(
       DIALOGUE_SCENE_FRAMING_EVIDENCE_MAX,
@@ -74,13 +82,16 @@ export default function DialogueSceneDemo({
       ),
     ),
   );
-  const beatCount = fixture.dialogue.length;
-  const beat = currentDialogueSceneBeat(fixture.dialogue, playback);
-  const complete = dialogueSceneIsComplete(beatCount, playback);
-  const expressionState = currentDialogueSceneExpressionState(
-    fixture.dialogue,
-    playback,
-  );
+  const playback = history[history.length - 1]!;
+  const view = scenarioView(fixture.scenario, playback);
+  const progress = scenarioProgress(fixture.scenario, playback);
+  const beatCount = progress.total;
+  const complete = scenarioIsFinished(playback);
+  const staged = playback.actors[playback.actors.length - 1];
+  // The scene has exactly four plates; a scenario that named a fifth was refused
+  // when the fixture validated, so an unstaged actor is the only gap left and it
+  // falls back to the neutral plate rather than showing an empty frame.
+  const expressionState = asExpressionState(staged?.expression ?? null);
   const expressionVariant = requireExpressionVariant(
     fixture.expressionVariants,
     expressionState,
@@ -105,11 +116,19 @@ export default function DialogueSceneDemo({
   } as CSSProperties;
 
   const act = useCallback(
-    (action: DialogueScenePlaybackAction) => {
-      setPlayback((current) => reduceDialogueScenePlayback(beatCount, current, action));
+    (action: ScenarioAction) => {
+      setHistory((current) => {
+        const from = current[current.length - 1]!;
+        const next = reduceScenario(fixture.scenario, from, action);
+        if (next === from) return current;
+        return action.kind === "restart" ? [next] : [...current, next];
+      });
     },
-    [beatCount],
+    [fixture.scenario],
   );
+  const stepBack = useCallback(() => {
+    setHistory((current) => (current.length > 1 ? current.slice(0, -1) : current));
+  }, []);
 
   const updateFramingZoom = useCallback((value: number) => {
     if (!Number.isFinite(value)) return;
@@ -132,7 +151,7 @@ export default function DialogueSceneDemo({
     function onKeyDown(event: KeyboardEvent) {
       const target =
         event.target instanceof Element ? event.target : document.activeElement;
-      const action = dialogueSceneActionForDocumentKey(event.key, {
+      const action = scenarioActionForDocumentKey(event.key, {
         defaultPrevented: event.defaultPrevented,
         modified: event.altKey || event.ctrlKey || event.metaKey,
         editableTarget:
@@ -155,7 +174,7 @@ export default function DialogueSceneDemo({
 
   const progressLabel = complete
     ? `Scene complete · ${beatCount} of ${beatCount}`
-    : `${playback.cursor + 1} of ${beatCount}`;
+    : `${progress.seen} of ${beatCount}`;
 
   return (
     <main
@@ -205,7 +224,7 @@ export default function DialogueSceneDemo({
             className="min-w-[58px] text-right text-[11px] tracking-[0.08em] tabular-nums uppercase text-vn-muted max-[700px]:min-w-[44px] max-[700px]:text-[9px]"
             aria-live="polite"
           >
-            {complete ? "Complete" : `${playback.cursor + 1} / ${beatCount}`}
+            {complete ? "Complete" : `${progress.seen} / ${beatCount}`}
           </span>
         </header>
 
@@ -235,31 +254,51 @@ export default function DialogueSceneDemo({
           <button
             className="absolute inset-0 z-[2] h-full w-full cursor-pointer border-0 bg-transparent p-0 enabled:hover:bg-white/[0.015] disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-vn-teal focus-visible:outline-offset-[-5px]"
             type="button"
-            onClick={() => act("next")}
-            disabled={!playback.dialogueVisible || complete}
+            onClick={() => act({ kind: "advance" })}
+            disabled={!dialogueVisible || complete || view?.kind === "choice"}
             aria-label={
               complete
                 ? "Dialogue scene complete"
-                : playback.dialogueVisible
+                : dialogueVisible
                   ? "Advance to the next dialogue beat"
                   : "Dialogue is hidden; use the Show dialogue control"
             }
           />
 
+          {view?.kind === "choice" && dialogueVisible ? (
+            <div
+              className="absolute inset-x-[clamp(14px,3vw,36px)] top-1/2 z-[5] flex -translate-y-1/2 flex-col gap-3"
+              role="group"
+              aria-label="Choose what to say"
+            >
+              {view.options.map((option, index) => (
+                <button
+                  key={option.target + option.text}
+                  type="button"
+                  data-choice-option={index}
+                  className="cursor-pointer rounded-2xl border border-vn-edge/70 bg-vn-panel/92 px-6 py-4 text-left text-[clamp(15px,1.7vw,19px)] text-vn-paper shadow-[0_12px_36px_rgba(0,3,18,0.42)] backdrop-blur-[10px] hover:bg-vn-panel focus-visible:outline-2 focus-visible:outline-vn-teal focus-visible:outline-offset-2"
+                  onClick={() => act({ kind: "choose", option: index })}
+                >
+                  {option.text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div
             id="dialogue-scene-panel"
             className="pointer-events-none absolute right-[clamp(14px,3vw,36px)] bottom-[clamp(14px,3vw,30px)] left-[clamp(14px,3vw,36px)] z-[4] min-h-[clamp(118px,16vw,158px)] rounded-2xl border border-vn-edge/68 bg-vn-panel/92 bg-[linear-gradient(125deg,rgba(13,29,63,0.97),rgba(43,29,68,0.92))] px-[clamp(18px,3vw,30px)] pt-[clamp(24px,3vw,32px)] pb-6 shadow-[0_18px_52px_rgba(0,3,18,0.46),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[14px] backdrop-saturate-[1.12] after:absolute after:top-3 after:right-4 after:text-[15px] after:text-vn-rose/78 after:content-['✦'] max-[700px]:right-2 max-[700px]:bottom-2 max-[700px]:left-2 max-[700px]:min-h-[146px] max-[700px]:rounded-[13px] max-[700px]:px-3.5 max-[700px]:pt-[25px] max-[700px]:pb-6"
-            hidden={!playback.dialogueVisible}
+            hidden={!dialogueVisible || view?.kind === "choice"}
             aria-live="polite"
             aria-atomic="true"
           >
             <div className="absolute top-[-16px] left-5 min-w-[114px] rounded-full border border-white/70 bg-[linear-gradient(100deg,#f29abb,#f6bed2_52%,#ffd69b)] px-[15px] py-[5px] text-center font-extrabold text-vn-ink shadow-[0_7px_22px_rgba(203,112,166,0.24)]">
-              {complete ? "Scene complete" : beat?.speaker}
+              {complete ? "Scene complete" : (view?.kind === "line" ? view.speakerLabel : null)}
             </div>
             <p className="max-w-[68ch] text-[clamp(16px,1.8vw,21px)] leading-[1.48] text-pretty text-vn-paper max-[700px]:text-[clamp(16px,4.4vw,19px)]">
               {complete
-                ? "The scene has ended. Restart to play again, or go back to revisit the ending."
-                : beat?.text}
+                ? `${view?.kind === "end" ? view.label : "The scene has ended"}. Restart to play again, or go back to revisit the ending.`
+                : view?.kind === "line" ? view.text : null}
             </p>
             <span
               className="absolute right-[15px] bottom-2 text-[11px] text-vn-muted max-[700px]:text-[9px]"
@@ -269,7 +308,7 @@ export default function DialogueSceneDemo({
             </span>
           </div>
 
-          {!playback.dialogueVisible ? (
+          {!dialogueVisible ? (
             <div
               className="absolute bottom-2.5 left-2.5 z-[3] rounded-full border border-white/25 bg-[rgba(7,21,46,0.82)] px-2 py-1 text-[11px] text-vn-muted"
               role="status"
@@ -287,8 +326,8 @@ export default function DialogueSceneDemo({
           <button
             className={cx(CONTROL, FOCUS)}
             type="button"
-            onClick={() => act("back")}
-            disabled={playback.cursor === 0}
+            onClick={stepBack}
+            disabled={history.length === 1}
             aria-label="Previous dialogue beat"
           >
             ← Back
@@ -307,11 +346,11 @@ export default function DialogueSceneDemo({
           <button
             className={cx(CONTROL, FOCUS, "ml-auto max-[700px]:ml-0 max-[700px]:basis-full")}
             type="button"
-            onClick={() => act("toggle-dialogue")}
+            onClick={() => setDialogueVisible((value) => !value)}
             aria-controls="dialogue-scene-panel"
-            aria-pressed={!playback.dialogueVisible}
+            aria-pressed={!dialogueVisible}
           >
-            {playback.dialogueVisible ? "Hide dialogue" : "Show dialogue"}
+            {dialogueVisible ? "Hide dialogue" : "Show dialogue"}
           </button>
         </div>
 
@@ -418,9 +457,7 @@ export function DialogueSceneAdvanceButton({
   onAction,
 }: {
   readonly complete: boolean;
-  readonly onAction: (
-    action: Extract<DialogueScenePlaybackAction, "next" | "restart">,
-  ) => void;
+  readonly onAction: (action: ScenarioAction) => void;
 }) {
   const controlState = complete ? "restart" : "advance";
   return (
@@ -429,7 +466,7 @@ export function DialogueSceneAdvanceButton({
       type="button"
       data-primary="true"
       data-control-state={controlState}
-      onClick={() => onAction(complete ? "restart" : "next")}
+      onClick={() => onAction(complete ? { kind: "restart" } : { kind: "advance" })}
       aria-label={complete ? "Restart dialogue from first beat" : "Next dialogue beat"}
     >
       {complete ? "↻ Restart" : "Next →"}
@@ -446,6 +483,14 @@ function requireExpressionVariant(
     throw new Error(`dialogue-scene fixture is missing expression state: ${state}`);
   }
   return variant;
+}
+
+function asExpressionState(
+  value: string | null,
+): DialogueSceneExpressionState {
+  return DIALOGUE_SCENE_EXPRESSION_STATES.includes(value as DialogueSceneExpressionState)
+    ? (value as DialogueSceneExpressionState)
+    : "neutral";
 }
 
 function formatFramingZoom(value: number): string {

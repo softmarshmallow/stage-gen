@@ -5,6 +5,7 @@
 // route that boots it. Nothing here parses a manifest — each module keeps its
 // own strict contract; this table only says who answers for which kind.
 
+import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/theme-adapter";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import { PREPARED_RUNTIME_KIND } from "@/lib/manifest/prepared-manifest";
 
@@ -27,6 +28,16 @@ export const SCENE_MODULES: readonly SceneModule[] = [
     kind: POINTCLICK_RUNTIME_KIND,
     label: "point-and-click room",
     route: (tag) => `/room/${encodeURIComponent(tag)}`,
+  },
+  {
+    // The visual novel was the one genre missing from this table: the index
+    // hard-coded its route while the other two went through the registry, so a
+    // third consumer of "which route plays this kind" would have found two
+    // answers. A scene is identified by its bundle rather than a manifest,
+    // which is a run-shape difference, not a reason to stay unregistered.
+    kind: DIALOGUE_SCENE_BUNDLE_KIND,
+    label: "visual novel scene",
+    route: (tag) => `/scene/${encodeURIComponent(tag)}`,
   },
 ];
 

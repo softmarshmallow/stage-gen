@@ -49,6 +49,7 @@ from .parser import RawBlock, RawIf, ScenarioSyntaxError, parse_scenario
 from .resolve import (
     SCENARIO_RESOLUTION_VERSION,
     ResolvedScenario,
+    canonical_program_json,
     read_scenario_declarations,
     read_script_text,
     resolve_scenario,
@@ -96,6 +97,7 @@ __all__ = [
     "Statement",
     "TrackDeclaration",
     "admit_scenario",
+    "canonical_program_json",
     "compile_scenario",
     "parse_scenario",
     "read_scenario_declarations",

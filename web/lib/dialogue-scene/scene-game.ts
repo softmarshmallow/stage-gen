@@ -9,10 +9,11 @@
 // and the end card all drawn inside the canvas. Embedded on a phone it fills
 // the screen and plays; embedded in a page it letterboxes.
 //
-// The engine is only the view. Every transition still goes through the pure
-// reducer in `playback.ts`, and the character's placement still comes from
-// `framing.ts` — putting an engine underneath gave the scene no second opinion
-// about which beat is showing or how the character is framed.
+// The engine is only the view. Every transition goes through the pure reducer in
+// `lib/scenario/runtime.ts` — which is where the branching lives, and which the
+// platformer is meant to share — and the character's placement still comes from
+// `framing.ts`. Putting an engine underneath gave the scene no second opinion
+// about which statement is showing, who is on stage, or which flags are set.
 
 import Phaser from "phaser";
 import {
@@ -20,18 +21,10 @@ import {
   normalizeDialogueSceneFramingScale,
 } from "./framing";
 import {
-  currentDialogueSceneBeat,
-  currentDialogueSceneExpressionState,
-  dialogueSceneActionForKey,
-  dialogueSceneIsComplete,
-  initialDialogueScenePlayback,
-  reduceDialogueScenePlayback,
-  type DialogueScenePlaybackAction,
-  type DialogueScenePlaybackState,
-} from "./playback";
-import {
   bodyTextPoint,
   bodyTextWrapWidth,
+  choiceAt,
+  choiceRects,
   completeCardRect,
   DIALOGUE_STAGE,
   dialoguePanelRect,
@@ -44,6 +37,15 @@ import type {
   DialogueSceneDemoFixture,
   DialogueSceneExpressionState,
 } from "./schema";
+import { scenarioActionForKey, scenarioOptionForKey } from "@/lib/scenario/keys";
+import {
+  initialScenarioState,
+  reduceScenario,
+  scenarioIsFinished,
+  scenarioProgress,
+  scenarioView,
+  type ScenarioState,
+} from "@/lib/scenario/runtime";
 
 const BACKDROP_KEY = "vn:backdrop";
 
@@ -51,13 +53,15 @@ const PANEL_FILL = 0x111a33;
 const PANEL_ALPHA = 0.93;
 const PANEL_STROKE = 0x6f7bb0;
 const CHIP_FILL = 0xf3a7c4;
+const CHOICE_FILL = 0x16203f;
+const CHOICE_HOVER = 0x243358;
 const INK = "#141726";
 const PAPER = "#f4f1ee";
 const DIM = "#a9b0c8";
 const CORNER = 18;
 
-/** Depth rungs: world, then character, then the panel, then the end card. */
-const DEPTH = { backdrop: 0, sprite: 10, panel: 100, complete: 200 } as const;
+/** Depth rungs: world, then character, then the panel, then choices, then the end card. */
+const DEPTH = { backdrop: 0, sprite: 10, panel: 100, choice: 150, complete: 200 } as const;
 
 const BODY_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: "Georgia, 'Times New Roman', serif",
@@ -79,6 +83,12 @@ const META_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: DIM,
 };
 
+const CHOICE_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  fontFamily: "Georgia, 'Times New Roman', serif",
+  fontSize: "28px",
+  color: PAPER,
+};
+
 function expressionKey(state: DialogueSceneExpressionState): string {
   return `vn:expression:${state}`;
 }
@@ -88,7 +98,7 @@ export interface DialogueSceneGameHandle {
 }
 
 class DialogueScene extends Phaser.Scene {
-  private playback: DialogueScenePlaybackState = initialDialogueScenePlayback();
+  private playback: ScenarioState;
 
   private character!: Phaser.GameObjects.Image;
   private panel!: Phaser.GameObjects.Graphics;
@@ -96,14 +106,13 @@ class DialogueScene extends Phaser.Scene {
   private speaker!: Phaser.GameObjects.Text;
   private body!: Phaser.GameObjects.Text;
   private progress!: Phaser.GameObjects.Text;
+  private choiceLayer!: Phaser.GameObjects.Container;
   private completeLayer!: Phaser.GameObjects.Container;
+  private completeTitle!: Phaser.GameObjects.Text;
 
   constructor(private readonly fixture: DialogueSceneDemoFixture) {
     super("dialogue-scene");
-  }
-
-  private get beatCount(): number {
-    return this.fixture.dialogue.length;
+    this.playback = initialScenarioState(fixture.scenario);
   }
 
   preload(): void {
@@ -124,13 +133,34 @@ class DialogueScene extends Phaser.Scene {
     this.character.setDepth(DEPTH.sprite);
 
     this.createPanel();
+    this.createChoiceLayer();
     this.createCompleteCard();
 
-    // The whole frame advances, the way a visual novel does: there is exactly
-    // one thing to do, so there is no button to find.
-    this.input.on(Phaser.Input.Events.POINTER_UP, () => this.act("next"));
+    // A tap on the frame advances, because a visual novel with one thing to do
+    // needs no button to find. When a choice is up, the tap has to land on an
+    // option instead: the whole frame no longer means one thing.
+    this.input.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer) => {
+      const view = scenarioView(this.fixture.scenario, this.playback);
+      if (view?.kind === "choice") {
+        const option = choiceAt(DIALOGUE_STAGE, view.options.length, {
+          x: pointer.worldX,
+          y: pointer.worldY,
+        });
+        if (option !== null) this.act({ kind: "choose", option });
+        return;
+      }
+      this.act({ kind: "advance" });
+    });
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
-      const action = dialogueSceneActionForKey(event.key);
+      const view = scenarioView(this.fixture.scenario, this.playback);
+      if (view?.kind === "choice") {
+        const option = scenarioOptionForKey(event.key);
+        if (option === null || option >= view.options.length) return;
+        event.preventDefault();
+        this.act({ kind: "choose", option });
+        return;
+      }
+      const action = scenarioActionForKey(event.key);
       if (action === null) return;
       event.preventDefault();
       this.act(action);
@@ -165,6 +195,10 @@ class DialogueScene extends Phaser.Scene {
       .setDepth(DEPTH.panel + 1);
   }
 
+  private createChoiceLayer(): void {
+    this.choiceLayer = this.add.container(0, 0).setDepth(DEPTH.choice).setVisible(false);
+  }
+
   private createCompleteCard(): void {
     const card = completeCardRect(DIALOGUE_STAGE);
     const frame = this.add.graphics();
@@ -172,8 +206,8 @@ class DialogueScene extends Phaser.Scene {
     frame.fillRoundedRect(card.x, card.y, card.width, card.height, CORNER);
     frame.lineStyle(2, CHIP_FILL, 0.85);
     frame.strokeRoundedRect(card.x, card.y, card.width, card.height, CORNER);
-    const title = this.add
-      .text(card.x + card.width / 2, card.y + card.height / 2 - 26, "Scene complete", {
+    this.completeTitle = this.add
+      .text(card.x + card.width / 2, card.y + card.height / 2 - 26, "", {
         ...BODY_STYLE,
         fontSize: "38px",
       })
@@ -182,54 +216,95 @@ class DialogueScene extends Phaser.Scene {
       .text(
         card.x + card.width / 2,
         card.y + card.height / 2 + 34,
-        "tap to play again · ← to step back",
+        "tap to play again",
         META_STYLE,
       )
       .setOrigin(0.5, 0.5);
     this.completeLayer = this.add
-      .container(0, 0, [frame, title, hint])
+      .container(0, 0, [frame, this.completeTitle, hint])
       .setDepth(DEPTH.complete)
       .setVisible(false);
   }
 
-  private act(action: DialogueScenePlaybackAction): void {
+  private act(action: Parameters<typeof reduceScenario>[2]): void {
     // Advancing off the end plays again rather than doing nothing. The reducer
-    // is right to hold at the terminal cursor - that is what "finished" means -
-    // but a tap that visibly does nothing reads as a broken scene, so the view
-    // decides what the end card's one gesture is for.
+    // is right to hold at the ending - that is what "finished" means - but a tap
+    // that visibly does nothing reads as a broken scene, so the view decides
+    // what the end card's one gesture is for.
     const intent =
-      action === "next" && dialogueSceneIsComplete(this.beatCount, this.playback)
-        ? "restart"
+      action.kind === "advance" && scenarioIsFinished(this.playback)
+        ? ({ kind: "restart" } as const)
         : action;
-    const next = reduceDialogueScenePlayback(this.beatCount, this.playback, intent);
+    const next = reduceScenario(this.fixture.scenario, this.playback, intent);
     if (next === this.playback) return;
     this.playback = next;
     this.render();
   }
 
   private render(): void {
-    const complete = dialogueSceneIsComplete(this.beatCount, this.playback);
-    const state = currentDialogueSceneExpressionState(this.fixture.dialogue, this.playback);
-    this.renderCharacter(state);
+    const view = scenarioView(this.fixture.scenario, this.playback);
+    this.renderCharacter();
 
-    // The end card says the scene is over; a panel repeating it underneath says
-    // it twice. Only one of the two is on screen at a time.
-    const beat = currentDialogueSceneBeat(this.fixture.dialogue, this.playback);
-    this.panel.setVisible(!complete);
-    this.chip.setVisible(!complete);
-    this.speaker.setVisible(!complete);
-    this.body.setVisible(!complete);
-    this.progress.setVisible(!complete);
-    this.completeLayer.setVisible(complete);
-    if (complete) return;
-    this.body.setText(beat?.text ?? "");
-    this.progress.setText(
-      `${this.playback.cursor + 1} / ${this.beatCount} · tap to continue`,
-    );
-    this.renderSpeaker(beat?.speaker ?? "");
+    const showingLine = view?.kind === "line";
+    const showingChoice = view?.kind === "choice";
+    // Exactly one of the three surfaces is on screen at a time; a panel repeating
+    // the end card underneath it would say the same thing twice.
+    this.panel.setVisible(showingLine);
+    this.chip.setVisible(showingLine);
+    this.speaker.setVisible(showingLine);
+    this.body.setVisible(showingLine);
+    this.progress.setVisible(showingLine);
+    this.choiceLayer.setVisible(showingChoice);
+    this.completeLayer.setVisible(view?.kind === "end");
+
+    if (view?.kind === "end") {
+      this.completeTitle.setText(view.label);
+      this.choiceLayer.removeAll(true);
+      return;
+    }
+    if (showingChoice) {
+      this.renderChoices(view.options.map((option) => option.text));
+      return;
+    }
+    this.choiceLayer.removeAll(true);
+    if (!showingLine) return;
+    this.body.setText(view.text);
+    const progress = scenarioProgress(this.fixture.scenario, this.playback);
+    this.progress.setText(`${progress.seen} / ${progress.total} · tap to continue`);
+    this.renderSpeaker(view.speakerLabel ?? "");
   }
 
-  private renderCharacter(state: DialogueSceneExpressionState): void {
+  private renderChoices(labels: readonly string[]): void {
+    this.choiceLayer.removeAll(true);
+    const rects = choiceRects(DIALOGUE_STAGE, labels.length);
+    rects.forEach((rect, index) => {
+      const box = this.add.graphics();
+      box.fillStyle(index === 0 ? CHOICE_HOVER : CHOICE_FILL, 0.94);
+      box.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
+      box.lineStyle(2, PANEL_STROKE, 0.8);
+      box.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
+      const label = this.add
+        .text(rect.x + rect.width / 2, rect.y + rect.height / 2, labels[index] ?? "", {
+          ...CHOICE_STYLE,
+          wordWrap: { width: rect.width - 48 },
+          align: "center",
+        })
+        .setOrigin(0.5, 0.5);
+      this.choiceLayer.add([box, label]);
+    });
+  }
+
+  private renderCharacter(): void {
+    // Whoever the scenario has on stage, at the expression it last set. An actor
+    // with no plate is not silently swapped for a neutral one: the scene simply
+    // shows nobody, because a wrong face is worse than an empty stage.
+    const staged = this.playback.actors[this.playback.actors.length - 1];
+    const state = staged?.expression as DialogueSceneExpressionState | undefined;
+    if (staged === undefined || state === undefined || !this.textures.exists(expressionKey(state))) {
+      this.character.setVisible(false);
+      return;
+    }
+    this.character.setVisible(true);
     const key = expressionKey(state);
     const source = this.textures.get(key).getSourceImage();
     const framing = mapDialogueSceneFraming(this.fixture.presentation.framingZoom);
@@ -259,6 +334,7 @@ class DialogueScene extends Phaser.Scene {
       this.speaker.width,
     );
     this.chip.clear();
+    if (label === "") return;
     this.chip.fillStyle(CHIP_FILL, 1);
     this.chip.fillRoundedRect(chip.x, chip.y, chip.width, chip.height, chip.height / 2);
     this.speaker.setPosition(chip.x + chip.width / 2, chip.y + chip.height / 2).setOrigin(0.5, 0.5);

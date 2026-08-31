@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import rawFixture from "./demo-fixture.json";
+import { serializeScenarioProgram } from "@/lib/scenario/program";
 import { dialogueSceneDemoFixture } from "./demo-fixture";
 import {
   DIALOGUE_SCENE_THEME_FIXTURE_KIND,
@@ -35,13 +36,14 @@ describe("dialogue-scene deterministic fixture schema", () => {
     expect(dialogueSceneDemoFixture.appearance.age).toBe(23);
     expect(dialogueSceneDemoFixture.presentation.framingZoom).toBe(70);
     expect(dialogueSceneDemoFixture.presentation.sourceFramingZoom).toBe(70);
-    expect(dialogueSceneDemoFixture.dialogue).toHaveLength(8);
+    expect(dialogueSceneDemoFixture.scenario.scenarioId).toBe("blue_hour");
+    expect(dialogueSceneDemoFixture.scenario.blocks).toHaveLength(6);
     expect(Object.isFrozen(dialogueSceneDemoFixture)).toBeTrue();
     expect(Object.isFrozen(dialogueSceneDemoFixture.presentation)).toBeTrue();
     expect(Object.isFrozen(dialogueSceneDemoFixture.expressionVariants)).toBeTrue();
     expect(Object.isFrozen(dialogueSceneDemoFixture.expressionVariants[0])).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.dialogue)).toBeTrue();
-    expect(Object.isFrozen(dialogueSceneDemoFixture.dialogue[0])).toBeTrue();
+    expect(Object.isFrozen(dialogueSceneDemoFixture.scenario)).toBeTrue();
+    expect(Object.isFrozen(dialogueSceneDemoFixture.scenario.blocks)).toBeTrue();
   });
 
   test("rejects unknown fields and paths outside the demo asset root", () => {
@@ -151,11 +153,14 @@ describe("dialogue-scene deterministic fixture schema", () => {
       "expression state is duplicated: neutral",
     );
 
-    const unknownBeatState = mutableFixture();
-    const dialogue = unknownBeatState.dialogue as Record<string, unknown>[];
-    dialogue[0].expression_state = "surprised";
-    expect(() => parseDialogueSceneThemeFixture(unknownBeatState)).toThrow(
-      "must be one of neutral, delighted, flustered, concerned",
+    // The scenario may only name expressions this scene has a plate for; the
+    // alternative is a missing texture discovered by a player.
+    const unknownExpression = mutableFixture();
+    const scenario = unknownExpression.scenario as Record<string, unknown>;
+    const cast = scenario.cast as Record<string, unknown>[];
+    cast[0].expressions = ["neutral", "surprised"];
+    expect(() => parseDialogueSceneThemeFixture(unknownExpression)).toThrow(
+      "asks for an expression it has no plate for: surprised",
     );
   });
 
@@ -246,6 +251,9 @@ describe("run-played fixtures", () => {
       expressionVariants: (
         base.expressionVariants as { state: string }[]
       ).map((variant) => ({ ...variant, src: runSrc(`expression-${variant.state}`) })),
+      // The validator reads the persisted wire shape, so the parsed program in
+      // the committed fixture has to go back to it.
+      scenario: serializeScenarioProgram(dialogueSceneDemoFixture.scenario),
     };
   }
 

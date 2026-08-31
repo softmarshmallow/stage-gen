@@ -6,6 +6,8 @@ import {
   DIALOGUE_STAGE,
   dialoguePanelRect,
   speakerChipRect,
+  choiceAt,
+  choiceRects,
   spriteFrame,
   SPRITE_MAX_WIDTH_RATIO,
 } from "./scene-hud";
@@ -77,5 +79,39 @@ describe("panel geometry", () => {
     expect(card.x + card.width / 2).toBeCloseTo(DIALOGUE_STAGE.width / 2, 5);
     expect(card.y + card.height / 2).toBeCloseTo(DIALOGUE_STAGE.height / 2, 5);
     expect(card.width).toBeLessThan(DIALOGUE_STAGE.width);
+  });
+});
+
+describe("choice layout", () => {
+  test("options stack centred, equal width, and never reach the dialogue panel", () => {
+    const rects = choiceRects(DIALOGUE_STAGE, 3);
+    expect(rects).toHaveLength(3);
+    const panel = dialoguePanelRect(DIALOGUE_STAGE);
+    for (const rect of rects) {
+      expect(rect.x).toBeGreaterThan(0);
+      expect(rect.x + rect.width).toBeLessThanOrEqual(DIALOGUE_STAGE.width);
+      expect(rect.y).toBeGreaterThan(0);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(panel.y);
+    }
+    expect(new Set(rects.map((rect) => rect.width)).size).toBe(1);
+    expect(rects[1]!.y).toBeGreaterThan(rects[0]!.y + rects[0]!.height);
+  });
+
+  test("a point inside an option names it, and one outside names none", () => {
+    const rects = choiceRects(DIALOGUE_STAGE, 2);
+    const second = rects[1]!;
+    expect(
+      choiceAt(DIALOGUE_STAGE, 2, {
+        x: second.x + second.width / 2,
+        y: second.y + second.height / 2,
+      }),
+    ).toBe(1);
+    expect(choiceAt(DIALOGUE_STAGE, 2, { x: 4, y: 4 })).toBeNull();
+    // The gap between two options is not part of either one.
+    expect(choiceAt(DIALOGUE_STAGE, 2, { x: second.x + 10, y: second.y - 6 })).toBeNull();
+  });
+
+  test("a choice with no options lays nothing out rather than guessing", () => {
+    expect(choiceRects(DIALOGUE_STAGE, 0)).toEqual([]);
   });
 });

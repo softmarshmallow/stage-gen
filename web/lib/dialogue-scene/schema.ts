@@ -1,3 +1,9 @@
+import {
+  parseScenarioProgram,
+  serializeScenarioProgram,
+  type ScenarioProgram,
+} from "@/lib/scenario/program";
+
 export const DIALOGUE_SCENE_DEMO_SCHEMA_VERSION = 1 as const;
 export const DIALOGUE_SCENE_DEMO_MODE = "deterministic-demo" as const;
 export const DIALOGUE_SCENE_DEMO_AUTHORSHIP = "caller-authored" as const;
@@ -40,13 +46,6 @@ export interface DialogueSceneDemoExpressionVariant extends DialogueSceneDemoAss
   readonly slot: "right";
 }
 
-export interface DialogueSceneDemoBeat {
-  readonly id: string;
-  readonly speaker: string;
-  readonly text: string;
-  readonly expressionState: DialogueSceneExpressionState;
-}
-
 export interface DialogueSceneDemoPresentation {
   readonly framingZoom: number;
   readonly sourceFramingZoom: number;
@@ -63,7 +62,8 @@ export interface DialogueSceneDemoFixture {
   readonly background: DialogueSceneDemoAsset;
   readonly appearance: DialogueSceneDemoAppearance;
   readonly expressionVariants: readonly DialogueSceneDemoExpressionVariant[];
-  readonly dialogue: readonly DialogueSceneDemoBeat[];
+  /** The compiled narrative this scene plays; see `lib/scenario`. */
+  readonly scenario: ScenarioProgram;
   readonly profileIdentity: {
     readonly profileId: string;
     readonly revision: number;
@@ -108,12 +108,7 @@ export interface DialogueSceneThemeFixtureV1 {
     description: string;
     slot: "right";
   }>[];
-  readonly dialogue: readonly Readonly<{
-    id: string;
-    speaker: string;
-    text: string;
-    expression_state: DialogueSceneExpressionState;
-  }>[];
+  readonly scenario: unknown;
 }
 
 const DEMO_ASSET_PATH =
@@ -145,7 +140,7 @@ export function validateDialogueSceneRuntimeFixture(
       "background",
       "appearance",
       "expressionVariants",
-      "dialogue",
+      "scenario",
     ],
     "dialogue-scene runtime fixture",
   );
@@ -281,37 +276,19 @@ export function validateDialogueSceneRuntimeFixture(
     }
   }
 
-  if (
-    !Array.isArray(root.dialogue) ||
-    root.dialogue.length < 1 ||
-    root.dialogue.length > 12
-  ) {
-    throw new Error("dialogue-scene demo dialogue must contain 1 to 12 beats");
-  }
-  const beatIds = new Set<string>();
-  const dialogue = Object.freeze(
-    root.dialogue.map((rawBeat, index) => {
-      const beat = strictRecord(
-        rawBeat,
-        ["id", "speaker", "text", "expressionState"],
-        `dialogue-scene demo dialogue[${index}]`,
-      );
-      const id = stableId(beat.id, `dialogue[${index}].id`);
-      if (beatIds.has(id)) {
-        throw new Error(`dialogue-scene demo dialogue id is duplicated: ${id}`);
+  // The narrative is a compiled scenario, validated by its own contract. Every
+  // expression it names must be one this scene actually has a plate for: a
+  // missing texture is exactly the silent fallback the asset contract refuses.
+  const scenario = parseScenarioProgram(root.scenario);
+  for (const member of scenario.cast) {
+    for (const expression of member.expressions) {
+      if (!(DIALOGUE_SCENE_EXPRESSION_STATES as readonly string[]).includes(expression)) {
+        throw new Error(
+          `dialogue-scene fixture scenario asks for an expression it has no plate for: ${expression}`,
+        );
       }
-      beatIds.add(id);
-      return Object.freeze({
-        id,
-        speaker: strictText(beat.speaker, `dialogue[${index}].speaker`, 80),
-        text: strictText(beat.text, `dialogue[${index}].text`, 1000),
-        expressionState: expressionState(
-          beat.expressionState,
-          `dialogue[${index}].expressionState`,
-        ),
-      });
-    }),
-  );
+    }
+  }
 
   const background = Object.freeze({
     id: stableId(backgroundRaw.id, "background.id"),
@@ -410,7 +387,7 @@ export function validateDialogueSceneRuntimeFixture(
     background,
     appearance,
     expressionVariants,
-    dialogue,
+    scenario,
     profileIdentity,
   });
 }
@@ -434,7 +411,7 @@ export function parseDialogueSceneThemeFixture(
       "background",
       "appearance",
       "expression_variants",
-      "dialogue",
+      "scenario",
     ],
     "dialogue-scene theme fixture",
   );
@@ -505,22 +482,6 @@ export function parseDialogueSceneThemeFixture(
       slot: variant.slot,
     };
   });
-  if (!Array.isArray(root.dialogue)) {
-    throw new Error("dialogue-scene theme fixture dialogue must be an array");
-  }
-  const dialogue = root.dialogue.map((value, index) => {
-    const beat = strictRecord(
-      value,
-      ["id", "speaker", "text", "expression_state"],
-      `dialogue-scene theme fixture dialogue[${index}]`,
-    );
-    return {
-      id: beat.id,
-      speaker: beat.speaker,
-      text: beat.text,
-      expressionState: beat.expression_state,
-    };
-  });
   return validateDialogueSceneRuntimeFixture({
     schemaVersion: DIALOGUE_SCENE_DEMO_SCHEMA_VERSION,
     fixtureId: root.fixture_id,
@@ -549,7 +510,7 @@ export function parseDialogueSceneThemeFixture(
       conceptSrc: appearance.concept_src,
     },
     expressionVariants: variants,
-    dialogue,
+    scenario: root.scenario,
   });
 }
 
@@ -557,7 +518,13 @@ export function parseDialogueSceneThemeFixture(
 export function serializeDialogueSceneThemeFixture(
   fixture: DialogueSceneDemoFixture,
 ): DialogueSceneThemeFixtureV1 {
-  const parsed = validateDialogueSceneRuntimeFixture(fixture);
+  // Validation reads the persisted wire shape, so the already-parsed program has
+  // to go back to it first. Re-validating rather than trusting the caller is the
+  // point: this is the last gate before bytes are written to a theme directory.
+  const parsed = validateDialogueSceneRuntimeFixture({
+    ...fixture,
+    scenario: serializeScenarioProgram(fixture.scenario),
+  });
   return Object.freeze({
     schema_version: DIALOGUE_SCENE_THEME_FIXTURE_SCHEMA_VERSION,
     kind: DIALOGUE_SCENE_THEME_FIXTURE_KIND,
@@ -600,16 +567,7 @@ export function serializeDialogueSceneThemeFixture(
         }),
       ),
     ),
-    dialogue: Object.freeze(
-      parsed.dialogue.map((beat) =>
-        Object.freeze({
-          id: beat.id,
-          speaker: beat.speaker,
-          text: beat.text,
-          expression_state: beat.expressionState,
-        }),
-      ),
-    ),
+    scenario: serializeScenarioProgram(fixture.scenario),
   });
 }
 

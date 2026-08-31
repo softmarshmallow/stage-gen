@@ -72,54 +72,254 @@
       "slot": "right"
     }
   ],
-  "dialogue": [
-    {
-      "id": "late-arrival",
-      "speaker": "Mio",
-      "text": "You made it. I was starting to suspect the meteor shower had better plans for you than I did.",
-      "expression_state": "neutral"
-    },
-    {
-      "id": "cocoa-offering",
-      "speaker": "You",
-      "text": "The last train was late. I brought hot cocoa as an apology—and remembered the cinnamon.",
-      "expression_state": "neutral"
-    },
-    {
-      "id": "remembered-cinnamon",
-      "speaker": "Mio",
-      "text": "You remembered. That may be the most convincing research result I’ve seen all week.",
-      "expression_state": "delighted"
-    },
-    {
-      "id": "second-date",
-      "speaker": "You",
-      "text": "Then… if the sky cooperates, could we call tonight a second date?",
-      "expression_state": "flustered"
-    },
-    {
-      "id": "first-date",
-      "speaker": "Mio",
-      "text": "Only if we agree the first was the night we stayed up until dawn calibrating the receiver.",
-      "expression_state": "flustered"
-    },
-    {
-      "id": "array-silence",
-      "speaker": "Mio",
-      "text": "Wait—the western array just went quiet. If that timing drift is real, we’ll miss the entire event.",
-      "expression_state": "concerned"
-    },
-    {
-      "id": "where-needed",
-      "speaker": "You",
-      "text": "Tell me where you need me.",
-      "expression_state": "concerned"
-    },
-    {
-      "id": "beside-me",
-      "speaker": "Mio",
-      "text": "Beside me. For the array—and, if you’re willing, after the stars are done too.",
-      "expression_state": "delighted"
-    }
-  ]
+  "scenario": {
+    "blocks": [
+      {
+        "label": "arrival",
+        "statements": [
+          {
+            "kind": "stage",
+            "stage": "observatory_deck"
+          },
+          {
+            "action": "play",
+            "kind": "audio",
+            "track": "blue_hour"
+          },
+          {
+            "actor": "mio",
+            "expression": "neutral",
+            "kind": "show",
+            "slot": "right"
+          },
+          {
+            "expression": null,
+            "kind": "line",
+            "speaker": "mio",
+            "text": "You made it. I was starting to suspect the meteor shower had better plans for you than I did."
+          },
+          {
+            "expression": null,
+            "kind": "line",
+            "speaker": "you",
+            "text": "The last train was late. I brought hot cocoa as an apology - and remembered the cinnamon."
+          },
+          {
+            "expression": "delighted",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "You remembered. That may be the most convincing research result I've seen all week."
+          },
+          {
+            "kind": "choice",
+            "options": [
+              {
+                "condition": null,
+                "target": "second_date",
+                "text": "Ask whether tonight counts as a second date."
+              },
+              {
+                "condition": null,
+                "target": "the_array",
+                "text": "Ask what the array is picking up."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "second_date",
+        "statements": [
+          {
+            "flag": "called_it_a_date",
+            "kind": "set",
+            "value": true
+          },
+          {
+            "expression": "flustered",
+            "kind": "line",
+            "speaker": "you",
+            "text": "Then... if the sky cooperates, could we call tonight a second date?"
+          },
+          {
+            "expression": "flustered",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "Only if we agree the first was the night we stayed up until dawn calibrating the receiver."
+          },
+          {
+            "kind": "jump",
+            "target": "the_drift"
+          }
+        ]
+      },
+      {
+        "label": "the_array",
+        "statements": [
+          {
+            "expression": null,
+            "kind": "line",
+            "speaker": "you",
+            "text": "What is the array actually hearing tonight?"
+          },
+          {
+            "expression": "neutral",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "Mostly the sky arguing with itself. Ask again in an hour and I may have a better answer."
+          },
+          {
+            "kind": "jump",
+            "target": "the_drift"
+          }
+        ]
+      },
+      {
+        "label": "the_drift",
+        "statements": [
+          {
+            "kind": "stage",
+            "stage": "observatory_night"
+          },
+          {
+            "expression": "concerned",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "Wait - the western array just went quiet. If that timing drift is real, we'll miss the entire event."
+          },
+          {
+            "expression": "concerned",
+            "kind": "line",
+            "speaker": "you",
+            "text": "Tell me where you need me."
+          },
+          {
+            "default": "ending_the_work",
+            "edges": [
+              {
+                "condition": {
+                  "forbids": [],
+                  "requires": [
+                    "called_it_a_date"
+                  ]
+                },
+                "target": "ending_beside_me"
+              }
+            ],
+            "kind": "branch"
+          }
+        ]
+      },
+      {
+        "label": "ending_beside_me",
+        "statements": [
+          {
+            "expression": "delighted",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "Beside me. For the array - and, if you're willing, after the stars are done too."
+          },
+          {
+            "actor": "mio",
+            "kind": "hide"
+          },
+          {
+            "action": "stop",
+            "kind": "audio",
+            "track": "blue_hour"
+          },
+          {
+            "kind": "end",
+            "outcome": "beside_me"
+          }
+        ]
+      },
+      {
+        "label": "ending_the_work",
+        "statements": [
+          {
+            "expression": "neutral",
+            "kind": "line",
+            "speaker": "mio",
+            "text": "West cabinet, second shelf. Bring the spare timing card and we may still catch it."
+          },
+          {
+            "actor": "mio",
+            "kind": "hide"
+          },
+          {
+            "action": "stop",
+            "kind": "audio",
+            "track": "blue_hour"
+          },
+          {
+            "kind": "end",
+            "outcome": "the_work"
+          }
+        ]
+      }
+    ],
+    "cast": [
+      {
+        "actor_id": "mio",
+        "display_name": "Mio",
+        "expressions": [
+          "neutral",
+          "delighted",
+          "flustered",
+          "concerned"
+        ],
+        "profile": "character.toml"
+      },
+      {
+        "actor_id": "you",
+        "display_name": "You",
+        "expressions": [
+          "neutral",
+          "flustered",
+          "concerned"
+        ],
+        "profile": "character.toml"
+      }
+    ],
+    "display_name": "Signal at Blue Hour",
+    "endings": [
+      {
+        "label": "Beside me",
+        "outcome_id": "beside_me"
+      },
+      {
+        "label": "The work first",
+        "outcome_id": "the_work"
+      }
+    ],
+    "entry": "arrival",
+    "flags": [
+      {
+        "flag_id": "called_it_a_date"
+      }
+    ],
+    "game_id": "signal-at-blue-hour",
+    "kind": "scenario-program-v1",
+    "revision": 1,
+    "scenario_id": "blue_hour",
+    "schema_version": 1,
+    "script_sha256": "1d9b3dc5d2485370a59f6f99ecdfd99f89ac7fd5904355097704ba7725178c3c",
+    "stages": [
+      {
+        "brief": "An original observatory deck at blue hour, receiver dishes against a darkening sky, no people",
+        "stage_id": "observatory_deck"
+      },
+      {
+        "brief": "The same observatory deck after full dark, instrument lamps on, no people",
+        "stage_id": "observatory_night"
+      }
+    ],
+    "tracks": [
+      {
+        "brief": "Sparse synth pads over distant wind, patient and a little expectant",
+        "track_id": "blue_hour"
+      }
+    ]
+  }
 }

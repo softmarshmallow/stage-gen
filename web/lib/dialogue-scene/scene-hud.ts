@@ -136,3 +136,52 @@ export function completeCardRect(stage: Size): Rect {
     height,
   });
 }
+
+const CHOICE_HEIGHT = 84;
+const CHOICE_GAP = 18;
+const CHOICE_WIDTH_RATIO = 0.68;
+
+/**
+ * Where each option of a choice is drawn, stacked and centred over the stage.
+ *
+ * Pure and exported for the same reason `spriteFrame` is: no test in this
+ * repository simulates a click, so hit-testing that lived inside the Phaser
+ * scene would be verified by nothing at all. Keeping it here means the geometry
+ * a player has to hit is checked by the same kind of unit test as the panel.
+ */
+export function choiceRects(stage: Size, count: number): readonly Rect[] {
+  if (!Number.isSafeInteger(count) || count < 1) return [];
+  const width = Math.round(stage.width * CHOICE_WIDTH_RATIO);
+  const x = Math.round((stage.width - width) / 2);
+  const block = count * CHOICE_HEIGHT + (count - 1) * CHOICE_GAP;
+  // Centred in the space above the dialogue panel, never overlapping it.
+  const available = dialoguePanelRect(stage).y;
+  const top = Math.max(Math.round((available - block) / 2), CHOICE_GAP);
+  return Object.freeze(
+    Array.from({ length: count }, (_unused, index) =>
+      Object.freeze({
+        x,
+        y: top + index * (CHOICE_HEIGHT + CHOICE_GAP),
+        width,
+        height: CHOICE_HEIGHT,
+      }),
+    ),
+  );
+}
+
+/** Which option a pointer at this stage-space point is over, or null. */
+export function choiceAt(
+  stage: Size,
+  count: number,
+  point: { readonly x: number; readonly y: number },
+): number | null {
+  const rects = choiceRects(stage, count);
+  const index = rects.findIndex(
+    (rect) =>
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height,
+  );
+  return index === -1 ? null : index;
+}

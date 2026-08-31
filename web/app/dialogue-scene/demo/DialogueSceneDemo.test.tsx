@@ -4,6 +4,22 @@ import { dialogueSceneDemoFixture } from "@/lib/dialogue-scene/demo-fixture";
 import DialogueSceneDemo, { DialogueSceneAdvanceButton } from "./DialogueSceneDemo";
 
 describe("dialogue-scene demo component contract", () => {
+  test("the committed demo is a branching scenario, not a straight line", () => {
+    const { scenario } = dialogueSceneDemoFixture;
+    const choices = scenario.blocks.flatMap((block) =>
+      block.statements.filter((statement) => statement.kind === "choice"),
+    );
+    expect(choices.length).toBeGreaterThan(0);
+    expect(scenario.endings.length).toBeGreaterThan(1);
+    // Every choice option has to name a block that exists, or the demo route
+    // would offer the player a dead end.
+    const labels = new Set(scenario.blocks.map((block) => block.label));
+    for (const choice of choices) {
+      if (choice.kind !== "choice") continue;
+      for (const option of choice.options) expect(labels.has(option.target)).toBeTrue();
+    }
+  });
+
   test("renders a game-first scene with accessible controls and no demo dossier", () => {
     const markup = renderToStaticMarkup(
       <DialogueSceneDemo fixture={dialogueSceneDemoFixture} />,
@@ -17,7 +33,11 @@ describe("dialogue-scene demo component contract", () => {
     expect(markup).toContain(dialogueSceneDemoFixture.background.alt);
     expect(markup).toContain(dialogueSceneDemoFixture.background.src);
     expect(markup).toContain(dialogueSceneDemoFixture.expressionVariants[0].src);
-    expect(markup).toContain(dialogueSceneDemoFixture.dialogue[0].text);
+    const opening = dialogueSceneDemoFixture.scenario.blocks[0]!.statements.find(
+      (statement) => statement.kind === "line",
+    );
+    expect(opening?.kind).toBe("line");
+    if (opening?.kind === "line") expect(markup).toContain(opening.text);
     expect(markup).toContain('aria-label="Previous dialogue beat"');
     expect(markup).toContain('aria-label="Next dialogue beat"');
     expect(markup).toContain('data-primary="true"');

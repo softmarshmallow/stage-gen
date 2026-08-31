@@ -21,12 +21,15 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       `library/games/larkfield/scenario.toml` beside its script, and `stage-gen scenario check`.
       Recipe-neutral by construction: it is a component, not a recipe, because two genres are meant
       to consume one authored shape.
-- [ ] M1 increment 2 — the runtime reducer and the visual-novel consumer that draws it: choices,
-      stage swaps, actor slots, and an end card naming the outcome. Costs nothing: larkfield's run
-      already holds one background and four expression plates, which is enough art for branching,
-      two endings, and a replay. Widen `web/lib/dialogue/conversation.ts` from a cursor over beats
-      to `{block, index, flags, seen}` rather than adding a fourth dialogue walker, and register the
-      visual novel in `web/lib/shell/scene-modules.ts`, which it is still missing from.
+- [x] M1 increment 2 — the runtime reducer (`web/lib/scenario/`), the scene's digest-bound scenario
+      binding, and both consumers drawing choices and named endings. The visual novel is registered
+      in `web/lib/shell/scene-modules.ts`, which it had never been.
+- [ ] Regenerate larkfield against the current contracts. The bump changed the art identity, so the
+      existing `out/larkfield/` artifacts are stale by construction and a re-run costs about five
+      provider images. Until it happens `/scene/larkfield` has no v5 bundle to read, and the only
+      in-browser evidence for the runtime is the committed demo fixture at `/dialogue-scene/demo`,
+      which does play both of its endings. Needs explicit authorization; do it together with
+      increment 3 rather than paying for the fan-out twice.
 - [ ] M1 increment 3 — grow the package to a cast of several characters and several stages. This is
       horizontal scaling of proven generation, not a new capability, but it is the first increment
       that spends money: it needs explicit authorization, it must update

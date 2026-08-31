@@ -9,6 +9,7 @@ import { listReadyProjects } from "@/lib/shell/projects";
 import { listReadyScenes } from "@/lib/shell/dialogue-scene";
 import { listReadyRooms } from "@/lib/shell/pointclick-room";
 import { listExecutionViewRuns } from "@/lib/shell/execution-view";
+import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/theme-adapter";
 import { sceneModuleForKind } from "@/lib/shell/scene-modules";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import {
@@ -31,6 +32,9 @@ export default async function Home() {
     listExecutionViewRuns(),
   ]);
   const roomModule = sceneModuleForKind(POINTCLICK_RUNTIME_KIND);
+  const sceneModule = sceneModuleForKind(DIALOGUE_SCENE_BUNDLE_KIND);
+  const sceneRoute = (tag: string) =>
+    sceneModule?.route(tag) ?? `/scene/${encodeURIComponent(tag)}`;
   return (
     <main className={page}>
       <h1 className={h1}>stage-gen</h1>
@@ -161,7 +165,7 @@ export default async function Home() {
                 </div>
                 <Link
                   className={cx(playActive, playSizeCompact, "max-[480px]:col-span-full max-[480px]:justify-self-end")}
-                  href={`/scene/${encodeURIComponent(scene.tag)}`}
+                  href={sceneRoute(scene.tag)}
                 >
                   [ ▶ play scene ]
                 </Link>

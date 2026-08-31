@@ -36,7 +36,7 @@ def compile_scenario(
 ) -> ScenarioProgram:
     """Bind the two authored halves into one program. Resolves no names."""
 
-    blocks = tuple(_fold_block(raw) for raw in raw_blocks)
+    blocks = [_fold_block(raw) for raw in raw_blocks]
     try:
         return ScenarioProgram(
             game_id=declarations.game_id,
@@ -45,11 +45,11 @@ def compile_scenario(
             revision=declarations.revision,
             script_sha256=declarations.script_sha256,
             entry=declarations.entry,
-            cast=tuple(declarations.cast),
-            stages=tuple(declarations.stages),
-            tracks=tuple(declarations.tracks),
-            flags=tuple(declarations.flags),
-            endings=tuple(declarations.endings),
+            cast=list(declarations.cast),
+            stages=list(declarations.stages),
+            tracks=list(declarations.tracks),
+            flags=list(declarations.flags),
+            endings=list(declarations.endings),
             blocks=blocks,
         )
     except ValidationError as error:
@@ -72,10 +72,10 @@ def _fold_block(raw: RawBlock) -> Block:
                 )
             statements.append(
                 BranchStatement(
-                    edges=tuple(
+                    edges=[
                         BranchEdge(condition=entry.condition, target=entry.target)
                         for entry in pending
-                    ),
+                    ],
                     default=statement.target,
                 )
             )
@@ -88,7 +88,7 @@ def _fold_block(raw: RawBlock) -> Block:
             "`jump <label>` that is its default, or the block cannot terminate"
         )
     try:
-        return Block(label=raw.label, statements=tuple(statements))
+        return Block(label=raw.label, statements=statements)
     except ValidationError as error:
         raise ScenarioCompileError(f"line {raw.line}: {_first_message(error)}") from None
 

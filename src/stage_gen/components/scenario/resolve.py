@@ -12,6 +12,7 @@ they are admitted together or not at all.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,7 +21,6 @@ from stage_gen.components._authored_package import (
     read_package_member,
 )
 from stage_gen.components._game_input import (
-    canonical_contract_json,
     parse_toml_contract,
     sha256_bytes,
 )
@@ -61,6 +61,25 @@ class ResolvedScenario:
             "program_sha256": self.program_sha256,
             "reachable_states": self.admission.reachable_states,
         }
+
+
+def canonical_program_json(program: ScenarioProgram) -> bytes:
+    """Serialize the program with its optional fields present, not omitted.
+
+    The repository's usual canonical form drops nulls, which is right for a
+    document whose reader tolerates absence. This one is read by a consumer that
+    refuses unknown *and missing* keys, so `speaker: null` has to be on the wire:
+    an absent key and a null one would otherwise mean the same thing to the
+    producer and different things to the reader.
+    """
+
+    return json.dumps(
+        program.model_dump(mode="json"),
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def read_scenario_declarations(root: Path) -> ScenarioDeclarations:
@@ -104,7 +123,7 @@ def resolve_scenario(root: Path) -> ResolvedScenario:
     program = compile_scenario(declarations, parse_scenario(script))
     admission = admit_scenario(declarations, program)
     _check_cast_profiles(root, declarations)
-    program_bytes = canonical_contract_json(program)
+    program_bytes = canonical_program_json(program)
     return ResolvedScenario(
         declarations=declarations,
         program=program,
@@ -137,6 +156,7 @@ def _check_cast_profiles(root: Path, declarations: ScenarioDeclarations) -> None
 
 __all__ = [
     "SCENARIO_RESOLUTION_VERSION",
+    "canonical_program_json",
     "ResolvedScenario",
     "read_scenario_declarations",
     "read_script_text",

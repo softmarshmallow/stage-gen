@@ -28,6 +28,7 @@ entry = "arrival"
 
 [[cast]]
 actor_id = "nao"
+display_name = "Nao"
 profile = "character.toml"
 expressions = ["neutral", "delighted", "flustered", "concerned"]
 

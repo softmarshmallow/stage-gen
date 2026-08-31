@@ -49,4 +49,4 @@ source_framing_zoom = 70
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenario.toml"
-source_sha256 = "566670941f45243de3fa93ee4369c58f24cc33fc80e766e978281b01ec8882b9"
+source_sha256 = "7d973b172a8b5645a4d00f967964ab65598b36de219f8da0b4af93568c608f87"

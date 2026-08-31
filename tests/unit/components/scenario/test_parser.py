@@ -83,7 +83,7 @@ def test_a_menu_compiles_options_in_authored_order() -> None:
     assert [option.text for option in statement.options] == ["Stay.", "Go."]
     assert statement.options[0].condition is None
     assert statement.options[1].condition is not None
-    assert statement.options[1].condition.requires == ("quiet",)
+    assert statement.options[1].condition.requires == ["quiet"]
 
 
 def test_a_menu_option_body_must_be_exactly_one_jump() -> None:
@@ -108,8 +108,8 @@ def test_a_menu_must_offer_at_least_two_options() -> None:
 def test_conditions_join_with_and_and_negate_with_not() -> None:
     statement = _one_block("    if quiet and not spoken:\n        jump a")[0]
     assert isinstance(statement, RawIf)
-    assert statement.condition.requires == ("quiet",)
-    assert statement.condition.forbids == ("spoken",)
+    assert statement.condition.requires == ["quiet"]
+    assert statement.condition.forbids == ["spoken"]
 
 
 def test_a_condition_joined_with_anything_but_and_is_refused() -> None:

@@ -24,6 +24,44 @@ import {
 } from "./theme-adapter";
 import { runDialogueTheme } from "../../scripts/dialogue-theme";
 
+/** One admitted program, the smallest that still exercises a line and an ending. */
+const SCENARIO_PROGRAM = {
+  schema_version: 1,
+  kind: "scenario-program-v1",
+  game_id: "seminar-hall",
+  scenario_id: "after_seminar",
+  display_name: "After the Seminar",
+  revision: 1,
+  script_sha256: "c".repeat(64),
+  entry: "opening",
+  cast: [
+    {
+      actor_id: "mio",
+      display_name: "Mio",
+      profile: "character.toml",
+      expressions: ["neutral"],
+    },
+  ],
+  stages: [{ stage_id: "lounge", brief: "An original empty evening lounge, no people" }],
+  tracks: [],
+  flags: [],
+  endings: [{ outcome_id: "stayed_late", label: "You stayed" }],
+  blocks: [
+    {
+      label: "opening",
+      statements: [
+        {
+          kind: "line",
+          speaker: "mio",
+          expression: null,
+          text: "I hoped you would stay after the seminar.",
+        },
+        { kind: "end", outcome: "stayed_late" },
+      ],
+    },
+  ],
+} as const;
+
 const cleanupDirectories: string[] = [];
 
 afterEach(async () => {
@@ -404,7 +442,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(priorShape.bundlePath, JSON.stringify(shed));
     await expect(
       installDialogueTheme(priorShape.bundlePath, priorShape.options),
-    ).rejects.toThrow("dialogue-scene bundle v4 keys must match the schema");
+    ).rejects.toThrow("dialogue-scene bundle v5 keys must match the schema");
 
     const current = await createBundle("wrong-current-recipe", "pending");
     const bundle = JSON.parse(
@@ -628,7 +666,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(topLevelPath, JSON.stringify(topLevel));
     await expect(
       installDialogueTheme(topLevelPath, setup.options),
-    ).rejects.toThrow("dialogue-scene bundle v4 keys must match the schema");
+    ).rejects.toThrow("dialogue-scene bundle v5 keys must match the schema");
 
     const nested = structuredClone(original);
     const scene = nested.scene_data as Record<string, unknown>;
@@ -647,7 +685,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(priorPath, JSON.stringify(prior));
     await expect(
       installDialogueTheme(priorPath, setup.options),
-    ).rejects.toThrow("bundle.schema_version must be 4");
+    ).rejects.toThrow("bundle.schema_version must be 5");
   });
 
   test("requires current request and plan envelopes and rejects bound camelCase", async () => {
@@ -847,7 +885,7 @@ async function createBundle(
   const identityReferenceSha256 = "c".repeat(64);
   const request = Buffer.from(
     JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       kind: "dialogue-scene-v2",
       game_id: "seminar_hall",
       display_name: "Seminar Hall",
@@ -865,14 +903,12 @@ async function createBundle(
         },
       ],
       background: { description: "Evening study lounge" },
-      dialogue: [
-        {
-          id: "opening",
-          speaker: "Mio",
-          text: "I hoped you would stay after the seminar.",
-          expression_state: "neutral",
-        },
-      ],
+      scenario: {
+        schema_version: 1,
+        kind: "scenario-binding-v1",
+        ref: "scenario.toml",
+        source_sha256: "b".repeat(64),
+      },
       presentation: {
         slot: "right",
         framing_zoom: 70,
@@ -964,7 +1000,7 @@ async function createBundle(
   );
   const plan = Buffer.from(
     JSON.stringify({
-      schema_version: 4,
+      schema_version: 5,
       kind: "dialogue-scene-plan-v5",
       recipe_version: "dialogue-scene-v6",
       policy_version: "coming-of-age-nonexplicit-v3",
@@ -1161,7 +1197,7 @@ async function createBundle(
   }
 
   const bundle = {
-    schema_version: 4,
+    schema_version: 5,
     kind: "dialogue-scene-bundle-v5",
     recipe: "dialogue-scene",
     recipe_version: "dialogue-scene-v6",
@@ -1188,6 +1224,25 @@ async function createBundle(
     },
     character_profile_binding: profileBinding,
     character_profile_sha256: sha256(characterProfileBytes),
+    scenario: {
+      path: "scenario.json",
+      sha256: "e".repeat(64),
+      provenance_path: "scenario.json.meta.json",
+      provenance_sha256: "f".repeat(64),
+    },
+    scenario_validation: {
+      path: "scenario.validation.json",
+      sha256: "1".repeat(64),
+      provenance_path: "scenario.validation.json.meta.json",
+      provenance_sha256: "2".repeat(64),
+    },
+    scenario_binding: {
+      schema_version: 1,
+      kind: "scenario-binding-v1",
+      ref: "scenario.toml",
+      source_sha256: "b".repeat(64),
+    },
+    scenario_sha256: "e".repeat(64),
     identity_reference: {
       path: "assets/concept.png",
       sha256: identityReferenceSha256,
@@ -1260,14 +1315,7 @@ async function createBundle(
           slot: "right",
         },
       ],
-      dialogue: [
-        {
-          id: "opening",
-          speaker: "Mio",
-          text: "I hoped you would stay after the seminar.",
-          expression_state: "neutral",
-        },
-      ],
+      scenario: SCENARIO_PROGRAM,
     },
     attempt_ledger: { path: "attempts.json", sha256: sha256(attempts) },
     review: { status: "pending" },
@@ -1313,7 +1361,7 @@ async function createBundle(
     const status = eligibility === "failed-review" ? "fail" : "pass";
     const reviewBytes = Buffer.from(
       JSON.stringify({
-        schema_version: 4,
+        schema_version: 5,
         kind: "dialogue-scene-review-v5",
         status,
         usage: "local-demo",
