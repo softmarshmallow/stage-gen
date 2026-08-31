@@ -5,10 +5,6 @@ publication still require explicit authorization even when their implementation 
 
 ## Exact current contracts
 
-- [ ] Collapse the Python `dialogue-scene` request, plan, review, and bundle models onto one exact
-      lower_snake_case contract. `character_profile` remains optional by presence; delete the V2/V3
-      dispatch and unions, reject every other schema/kind, and update core examples, tests, docs,
-      and the Python-to-web boundary together.
 - [ ] Remove remaining alternate public shapes instead of maintaining readers for them. The
       audited debt includes camelCase artifact/capability and doctor output, the scrolling manifest,
       `legacyDialogueBeats`, and tracked historical JSON below `web/public/dialogue-scene/demo/anime/`

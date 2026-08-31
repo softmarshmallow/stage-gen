@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
@@ -28,9 +27,7 @@ from stage_gen.components import CharacterProfile, canonical_character_profile_j
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueBundle,
-    DialogueBundleV3,
     IndependentReview,
-    IndependentReviewV3,
     PersistedContractModel,
     ReviewState,
     RightsState,
@@ -75,121 +72,18 @@ def _transition_dialogue_review_sync(input_value: Mapping[str, object]) -> dict[
     acceptance_bytes = acceptance_path.read_bytes()
     if not acceptance_bytes:
         raise ValueError("acceptance spec must be non-empty")
-    source_document = json.loads(source_bytes)
-    if isinstance(source_document, dict) and source_document.get("schema_version") == 3:
-        return _transition_dialogue_review_v3(
-            action=action,
-            source_path=source_path,
-            source_bytes=source_bytes,
-            review_input_path=review_input_path,
-            review_output_path=review_output_path,
-            acceptance_bytes=acceptance_bytes,
-            root=root,
-        )
-    try:
-        bundle = DialogueBundle.model_validate_json(source_bytes)
-        review = IndependentReview.model_validate_json(review_input_path.read_bytes())
-    except ValidationError as error:
-        raise ValueError(f"invalid dialogue review contract: {error}") from None
-    _validate_source_state(bundle)
-
-    source_sha256 = content_sha256(source_bytes)
-    acceptance_sha256 = content_sha256(acceptance_bytes)
-    if review.source_bundle_sha256 != source_sha256:
-        raise ValueError("review source_bundle_sha256 does not match bundle.json")
-    if review.acceptance_spec_sha256 != acceptance_sha256:
-        raise ValueError("review acceptance_spec_sha256 does not match the acceptance spec")
-    expected_asset_sha256 = [asset.sha256 for asset in bundle.assets]
-    if Counter(review.asset_sha256) != Counter(expected_asset_sha256):
-        raise ValueError("review asset_sha256 must bind every selected asset digest exactly once")
-    _validate_selected_assets(root, bundle)
-
-    canonical_review = review.model_copy(update={"asset_sha256": expected_asset_sha256})
-    review_bytes = canonical_json_bytes(canonical_review) + b"\n"
-    provenance_input = ProvenanceInput(
-        schema_version=2,
-        provider="local",
-        model="deterministic-dialogue-review-v2",
-        prompt="Record a digest-bound independent review for local demo use only.",
-        refs=["bundle.json"],
-        inputs=[
-            InputProvenance(
-                ref="bundle.json",
-                sha256=source_sha256,
-                source="content",
-                bytes=len(source_bytes),
-                media_type="application/json",
-            ),
-            InputProvenance(
-                ref="acceptance-spec",
-                sha256=acceptance_sha256,
-                source="content",
-                bytes=len(acceptance_bytes),
-                media_type="application/json",
-            ),
-        ],
-        params={
-            "usage": action.usage,
-            "source_bundle_sha256": source_sha256,
-            "acceptance_spec_sha256": acceptance_sha256,
-            "asset_sha256": expected_asset_sha256,
-        },
-        validation={
-            "status": "pass",
-            "independent_reviewer": True,
-            "selected_assets": len(expected_asset_sha256),
-            "publication_authorized": False,
-        },
-        component=_COMPONENT,
-        tool=_TOOL,
-        timestamp=canonical_review.reviewed_at,
-        attempts=1,
-        rights=ArtifactRights(
-            status="restricted",
-            attribution=[],
-            basis=["Independent digest-bound review passed for local demo use."],
-            reviewed_at=canonical_review.reviewed_at,
-        ),
-    )
-    review_provenance_path = Path(f"{review_output_path}.meta.json")
-    _persist_review_pair_immutable(
-        review_output_path, review_bytes, provenance_input, review_provenance_path
+    return _transition_dialogue_review(
+        action=action,
+        source_path=source_path,
+        source_bytes=source_bytes,
+        review_input_path=review_input_path,
+        review_output_path=review_output_path,
+        acceptance_bytes=acceptance_bytes,
+        root=root,
     )
 
-    reviewed_bundle = DialogueBundle.model_validate(
-        {
-            **bundle.model_dump(mode="json", exclude_none=True),
-            "review": ReviewState(
-                status="pass",
-                path="review.json",
-                sha256=content_sha256(review_bytes),
-                provenance_path="review.json.meta.json",
-                provenance_sha256=content_sha256(review_provenance_path.read_bytes()),
-            ).model_dump(mode="json"),
-            "rights": RightsState(aggregate="restricted", publication_authorized=False).model_dump(
-                mode="json"
-            ),
-        }
-    )
-    reviewed_bytes = canonical_json_bytes(reviewed_bundle) + b"\n"
-    reviewed_path = root / "bundle.reviewed.json"
-    _persist_immutable(reviewed_path, reviewed_bytes, "reviewed bundle")
-    if source_path.read_bytes() != source_bytes:
-        raise RuntimeError("source bundle changed during review transition")
-    return {
-        "schema_version": 2,
-        "kind": "dialogue-review-transition-result-v2",
-        "usage": action.usage,
-        "source_bundle_sha256": source_sha256,
-        "reviewed_bundle_sha256": content_sha256(reviewed_bytes),
-        "bundle_path": str(reviewed_path),
-        "review_path": str(review_output_path),
-        "review_provenance_path": str(review_provenance_path),
-        "publication_authorized": False,
-    }
 
-
-def _transition_dialogue_review_v3(
+def _transition_dialogue_review(
     *,
     action: _ReviewActionRequest,
     source_path: Path,
@@ -200,8 +94,8 @@ def _transition_dialogue_review_v3(
     root: Path,
 ) -> dict[str, object]:
     try:
-        bundle = DialogueBundleV3.model_validate_json(source_bytes)
-        review = IndependentReviewV3.model_validate_json(review_input_path.read_bytes())
+        bundle = DialogueBundle.model_validate_json(source_bytes)
+        review = IndependentReview.model_validate_json(review_input_path.read_bytes())
     except ValidationError as error:
         raise ValueError(f"invalid dialogue review contract: {error}") from None
     _validate_source_state(bundle)
@@ -282,7 +176,7 @@ def _transition_dialogue_review_v3(
     _persist_review_pair_immutable(
         review_output_path, review_bytes, provenance_input, review_provenance_path
     )
-    reviewed_bundle = DialogueBundleV3.model_validate(
+    reviewed_bundle = DialogueBundle.model_validate(
         {
             **bundle.model_dump(mode="json", exclude_none=True),
             "review": ReviewState(
@@ -317,14 +211,14 @@ def _transition_dialogue_review_v3(
     }
 
 
-def _validate_source_state(bundle: DialogueBundle | DialogueBundleV3) -> None:
+def _validate_source_state(bundle: DialogueBundle) -> None:
     if bundle.review.status != "pending":
         raise ValueError("source bundle review must be pending")
     if bundle.rights.aggregate != "unreviewed" or bundle.rights.publication_authorized:
         raise ValueError("source bundle rights must be unreviewed and publication-disabled")
 
 
-def _validate_selected_assets(root: Path, bundle: DialogueBundle | DialogueBundleV3) -> None:
+def _validate_selected_assets(root: Path, bundle: DialogueBundle) -> None:
     for asset in bundle.assets:
         path = resolve_relative_path_within_root(root, asset.path, "selected asset path")
         if path.is_symlink() or not path.is_file():
@@ -338,7 +232,7 @@ def _validate_selected_assets(root: Path, bundle: DialogueBundle | DialogueBundl
             raise ValueError(f"selected asset digest mismatch: {asset.id}")
 
 
-def _validate_profile_artifact(root: Path, bundle: DialogueBundleV3) -> None:
+def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
     binding = bundle.character_profile
     path = resolve_relative_path_within_root(root, binding.path, "character profile path")
     provenance = resolve_relative_path_within_root(
@@ -361,16 +255,12 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundleV3) -> None:
         raise ValueError(f"invalid canonical character profile artifact: {error}") from None
     if canonical_character_profile_json(profile) != profile_bytes:
         raise ValueError("character profile artifact is not canonical")
-    profile_ref_parts = bundle.character_profile_binding.ref.split("/")
-    if (
-        len(profile_ref_parts) != 4
-        or profile_ref_parts[:2] != ["library", "characters"]
-        or profile_ref_parts[3] != "profile.toml"
-    ):
+    # The binding names a package member by relative path; the run cannot prove
+    # what that path meant, only that the bytes it shipped are the ones bound.
+    ref = bundle.character_profile_binding.ref
+    ref_parts = ref.split("/")
+    if not ref.endswith(".toml") or any(part in {"", ".", ".."} for part in ref_parts):
         raise ValueError("character profile artifact binding ref is invalid")
-    profile_directory = profile_ref_parts[2]
-    if profile.profile_id != profile_directory:
-        raise ValueError("character profile artifact profile_id does not match its binding")
     try:
         record = ArtifactProvenance.model_validate_json(provenance_bytes)
     except ValidationError as error:
@@ -391,9 +281,9 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundleV3) -> None:
         record.refs,
     ) != (
         "local",
-        "deterministic-dialogue-scene-v4",
+        "deterministic-dialogue-scene-v5",
         "@stage-gen/dialogue-scene",
-        "4",
+        "5",
         [bundle.character_profile_binding.ref],
     ):
         raise ValueError("character profile provenance producer lineage mismatch")

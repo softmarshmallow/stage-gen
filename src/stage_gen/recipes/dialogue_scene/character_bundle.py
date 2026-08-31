@@ -24,6 +24,7 @@ from gnode import (
     resolve_relative_path_within_root,
     serialize_provenance,
 )
+from stage_gen.components import CharacterProfile, character_profile_sha256
 from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.media import (
     MAGENTA_EDGE_DECONTAMINATION_VERSION,
@@ -38,10 +39,9 @@ from stage_gen.recipes.dialogue_scene.identity import (
 from stage_gen.recipes.dialogue_scene.models import (
     EXPRESSION_STATES,
     DialogueBeat,
+    DialogueSceneDocument,
     DialogueScenePlan,
-    DialogueThemeRequest,
     PersistedContractModel,
-    ReuseSource,
     RightsState,
 )
 
@@ -94,7 +94,7 @@ class DialogueCharacterIdentityReference(_StrictModel):
 class DialogueCharacterIdentity(_StrictModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     label: str = Field(min_length=1, max_length=96)
-    age: int = Field(ge=21, le=120)
+    age: int = Field(ge=18, le=120)
     identity_reference: DialogueCharacterIdentityReference
 
 
@@ -133,20 +133,21 @@ class _PendingSpikeReview(_StrictModel):
 
 
 class DialogueCharacterOnlySpike(_StrictModel):
-    schema_version: Literal[1]
-    kind: Literal["dialogue-character-only-spike-v1"]
+    schema_version: Literal[2]
+    kind: Literal["dialogue-character-only-spike-v2"]
     status: Literal["ready-for-local-demo"]
     character: DialogueCharacterIdentity
     available_states: list[Literal["neutral", "delighted", "flustered", "concerned"]]
     assets: list[DialogueCharacterAsset]
     source_plan: str
+    source_profile: str
     source_request: str
     background: None
     review: _PendingSpikeReview
     publication_authorized: Literal[False]
     note: str = Field(min_length=1)
 
-    @field_validator("source_plan", "source_request")
+    @field_validator("source_plan", "source_profile", "source_request")
     @classmethod
     def portable_source_path(cls, value: str) -> str:
         return _portable(value, "spike source path")
@@ -181,16 +182,17 @@ DialogueCharacterBundleReviewState = Annotated[
 
 
 class DialogueCharacterBundle(_StrictModel):
-    schema_version: Literal[1]
-    kind: Literal["dialogue-character-bundle-v1"]
+    schema_version: Literal[2]
+    kind: Literal["dialogue-character-bundle-v2"]
     recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v3"]
+    recipe_version: Literal["dialogue-scene-v5"]
     tag: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,199}$")
     run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     character: DialogueCharacterIdentity
     source_spike: DialogueCharacterFile
     request: DialogueCharacterFile
     plan: DialogueCharacterFile
+    character_profile: DialogueCharacterFile
     available_states: list[Literal["neutral", "delighted", "flustered", "concerned"]]
     assets: list[DialogueCharacterAsset]
     dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
@@ -399,6 +401,35 @@ def sanitize_dialogue_character_spike(spike_path: str | Path) -> dict[str, objec
     )
 
 
+def _assert_spike_identity(
+    spike: DialogueCharacterOnlySpike,
+    request: DialogueSceneDocument,
+    plan: DialogueScenePlan,
+    profile: CharacterProfile,
+) -> None:
+    """Hold the spike's declared identity to the run's own authored members.
+
+    The character's facts live in the profile the package binds, and the plate
+    every sprite was drawn from is the scene's authored reference - so a spike
+    that names either of them differently is describing a different run.
+    """
+
+    expected = (profile.profile_id, profile.display_name, profile.age_years)
+    actual = (spike.character.id, spike.character.label, spike.character.age)
+    if actual != expected:
+        raise ValueError("spike character identity does not match the authored profile")
+    if plan.appearance_id != profile.profile_id:
+        raise ValueError("dialogue plan appearance binding does not match the authored profile")
+    if plan.character_profile_sha256 != character_profile_sha256(profile):
+        raise ValueError("dialogue plan character profile digest mismatch")
+    reference = request.identity_reference()
+    if (spike.character.identity_reference.ref, spike.character.identity_reference.sha256) != (
+        reference.source,
+        reference.source_sha256,
+    ):
+        raise ValueError("spike identity reference does not match the authored scene reference")
+
+
 def _validated_spike_path(spike_path: str | Path) -> tuple[Path, Path]:
     path = Path(spike_path).absolute()
     if path.name != "character-only.json" or path.parent.name != "spike-assets":
@@ -454,23 +485,20 @@ def _load_pending_dialogue_character_spike(
     plan_path, plan_bytes, _plan_provenance_path, _plan_provenance = _read_bound_relative(
         root, spike.source_plan, "dialogue plan"
     )
-    request = _parse(DialogueThemeRequest, request_bytes, "dialogue request")
+    profile_path, profile_bytes, _profile_provenance_path, _profile_provenance = (
+        _read_bound_relative(root, spike.source_profile, "character profile")
+    )
+    request = _parse(DialogueSceneDocument, request_bytes, "dialogue request")
     plan = _parse(DialogueScenePlan, plan_bytes, "dialogue plan")
+    profile = _parse(CharacterProfile, profile_bytes, "character profile")
     if plan.request_sha256 != canonical_sha256(request):
         raise ValueError("dialogue plan request digest mismatch")
-    concept = request.appearance.concept
-    if not isinstance(concept, ReuseSource):
-        raise ValueError("dialogue character spike requires a reused identity reference")
-    expected_identity = (request.appearance.id, request.appearance.label, request.appearance.age)
-    actual_identity = (spike.character.id, spike.character.label, spike.character.age)
-    if actual_identity != expected_identity:
-        raise ValueError("spike character identity does not match the dialogue request")
-    if (spike.character.identity_reference.ref, spike.character.identity_reference.sha256) != (
-        concept.ref,
-        concept.sha256,
+    _assert_spike_identity(spike, request, plan, profile)
+    if (
+        request_path != root / spike.source_request
+        or plan_path != root / spike.source_plan
+        or profile_path != root / spike.source_profile
     ):
-        raise ValueError("spike identity reference does not match the dialogue request")
-    if request_path != root / spike.source_request or plan_path != root / spike.source_plan:
         raise ValueError("dialogue character source paths must remain confined to the run")
 
     assets = [_load_spike_asset(root, asset) for asset in spike.assets]
@@ -755,28 +783,21 @@ def package_dialogue_character_spike(
     plan_path, plan_bytes, plan_provenance_path, plan_provenance = _read_bound_relative(
         root, spike.source_plan, "dialogue plan"
     )
-    request = _parse(DialogueThemeRequest, request_bytes, "dialogue request")
+    profile_path, profile_bytes, profile_provenance_path, profile_provenance = _read_bound_relative(
+        root, spike.source_profile, "character profile"
+    )
+    request = _parse(DialogueSceneDocument, request_bytes, "dialogue request")
     plan = _parse(DialogueScenePlan, plan_bytes, "dialogue plan")
+    profile = _parse(CharacterProfile, profile_bytes, "character profile")
     if plan.request_sha256 != canonical_sha256(request):
         raise ValueError("dialogue plan request digest mismatch")
-    concept = request.appearance.concept
-    if not isinstance(concept, ReuseSource):
-        raise ValueError("dialogue character spike requires a reused identity reference")
-    expected_identity = (request.appearance.id, request.appearance.label, request.appearance.age)
-    actual_identity = (spike.character.id, spike.character.label, spike.character.age)
-    if actual_identity != expected_identity:
-        raise ValueError("spike character identity does not match the dialogue request")
-    if (spike.character.identity_reference.ref, spike.character.identity_reference.sha256) != (
-        concept.ref,
-        concept.sha256,
-    ):
-        raise ValueError("spike identity reference does not match the dialogue request")
+    _assert_spike_identity(spike, request, plan, profile)
 
     assets = [_validate_asset(root, asset) for asset in spike.assets]
     run_identity_sha256 = canonical_sha256(
         {
             "domain": "stage-gen/dialogue-character-bundle/run-identity/v1",
-            "recipe": "dialogue-scene-v3",
+            "recipe": "dialogue-scene-v5",
             "tag": tag,
             "request_sha256": canonical_sha256(request),
             "plan_sha256": canonical_sha256(plan),
@@ -785,10 +806,10 @@ def package_dialogue_character_spike(
         }
     )
     bundle = DialogueCharacterBundle(
-        schema_version=1,
-        kind="dialogue-character-bundle-v1",
+        schema_version=2,
+        kind="dialogue-character-bundle-v2",
         recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v3",
+        recipe_version="dialogue-scene-v5",
         tag=tag,
         run_identity_sha256=run_identity_sha256,
         character=spike.character,
@@ -810,6 +831,12 @@ def package_dialogue_character_spike(
             plan_provenance_path.relative_to(root).as_posix(),
             plan_provenance,
         ),
+        character_profile=_file_binding(
+            profile_path.relative_to(root).as_posix(),
+            profile_bytes,
+            profile_provenance_path.relative_to(root).as_posix(),
+            profile_provenance,
+        ),
         available_states=list(EXPRESSION_STATES),
         assets=assets,
         dialogue=request.dialogue,
@@ -829,6 +856,7 @@ def package_dialogue_character_spike(
         _input(spike_relative, spike_bytes, "application/json"),
         _input(request_path.relative_to(root).as_posix(), request_bytes, "application/json"),
         _input(plan_path.relative_to(root).as_posix(), plan_bytes, "application/json"),
+        _input(profile_path.relative_to(root).as_posix(), profile_bytes, "application/json"),
         *[
             item
             for asset in bundle.assets
@@ -851,12 +879,13 @@ def package_dialogue_character_spike(
         provider="local",
         model="deterministic-dialogue-character-package-v1",
         prompt="Package four validated dialogue character states into a portable bundle.",
-        refs=[spike_relative, request_path.name, plan_path.name],
+        refs=[spike_relative, request_path.name, plan_path.name, profile_path.name],
         inputs=inputs,
         params={
             "source_spike_sha256": content_sha256(spike_bytes),
             "request_sha256": content_sha256(request_bytes),
             "plan_sha256": content_sha256(plan_bytes),
+            "character_profile_sha256": content_sha256(profile_bytes),
             "identity_sha256": spike.character.identity_reference.sha256,
             "run_identity_sha256": run_identity_sha256,
             "asset_sha256": [asset.sha256 for asset in bundle.assets],

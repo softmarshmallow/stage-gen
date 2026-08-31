@@ -229,24 +229,24 @@ wiring lives in `gameplay.toml`, and node order lives under `sequences/`.
 
 ## Reusable authored characters
 
-Profiles live in an explicit workspace root and are intentionally excluded from
-wheel and sdist packages. In a source checkout, validate the repository sample and
-validate the repository sample with:
+A character profile is a member of the game package that binds it, named by
+exact relative path and exact bytes. Packages live in an explicit workspace root
+and are intentionally excluded from wheel and sdist packages. In a source
+checkout, validate the shipped profile with:
 
 ```sh
 uv run stage-gen character-profile validate \
-  --input library/characters/mira-vale-cartographer/profile.toml \
-  --character-library-root .
+  --input library/games/larkfield/character.toml \
+  --package-root library/games/larkfield
 uv run stage-gen character-profile digest \
-  --input library/characters/mira-vale-cartographer/profile.toml \
-  --character-library-root .
+  --input library/games/larkfield/character.toml \
+  --package-root library/games/larkfield
 ```
 
-Installed CLI users must provide their own workspace root containing
-`library/characters/`, either with `--character-library-root` or
-`STAGE_GEN_CHARACTER_LIBRARY_ROOT`. Profiles describe durable identity only;
-per-shot direction, pose conditioning, image observation, and consistency
-reports remain [future research](docs/spec/dialogue-character-direction.md).
+Installed CLI users pass their own package directory with `--package-root`.
+Profiles describe durable identity only; per-shot direction, pose conditioning,
+image observation, and consistency reports remain
+[future research](docs/spec/dialogue-character-direction.md).
 
 ## Authored game contracts
 
@@ -311,7 +311,7 @@ src/stage_gen/          the application, consuming `gnode`
   interfaces/          the argparse CLI, the only automation surface
   resources/           wheel-packaged templates and approved fallback music
 web/                    optional browser preview consumer
-library/characters/     source-checkout or external authored profile workspace
+library/games/          source-checkout or external authored package workspace
 ```
 
 `gnode` is the only import surface its consumers touch: `from gnode import X`,

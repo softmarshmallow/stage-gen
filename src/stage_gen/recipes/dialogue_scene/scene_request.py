@@ -1,23 +1,27 @@
-"""Resolve one authored dialogue request into everything the plan is built from.
+"""Resolve one authored scene package into everything the plan is built from.
 
-Planning must be able to state the whole graph - and refuse a bad request - without
+Planning must be able to state the whole graph - and refuse a bad package - without
 reaching a provider. Every digest a node's cache key needs is settled here: the
-canonical request, the policy, the prompt templates, the transparency derivation, the
-packaged style resources, the authored character profile, and any reused source image.
+canonical scene document, the policy, the prompt templates, the transparency
+derivation, the packaged style resources, the authored character profile, and the
+authored reference images the scene is drawn against.
+
+A scene is a directory, not a loose request file. Every member it names is read from
+inside that directory, confined to it, following no symlink, and matched against the
+digest the author recorded.
 """
 
 from __future__ import annotations
 
-import json
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from pydantic import ValidationError
 
-from gnode import InputProvenance
+from gnode import InputProvenance, resolve_relative_path_within_root
 from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.components.character_profile import (
     CharacterProfile,
@@ -32,9 +36,9 @@ from stage_gen.recipes.dialogue_scene.identity import (
 )
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueRequest,
-    DialogueThemeRequest,
-    DialogueThemeRequestV3,
-    ReuseSource,
+    DialogueSceneDocument,
+    RightsStatus,
+    SceneReference,
 )
 from stage_gen.recipes.dialogue_scene.policy import (
     POLICY_DIGEST,
@@ -43,12 +47,18 @@ from stage_gen.recipes.dialogue_scene.policy import (
 )
 from stage_gen.recipes.dialogue_scene.prompts import (
     NATIVE_ALPHA_TEMPLATE_DIGEST,
-    PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST,
-    PROFILE_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
 )
 
 SCENE_ID_MAX_LENGTH = 48
+#: The authored root every scene package is read from.
+SCENE_DOCUMENT_NAME = "scene.toml"
+_MEDIA_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,18 +74,25 @@ class ResolvedSceneProfile:
 
 
 @dataclass(frozen=True, slots=True)
-class IngestedSource:
-    """One caller-supplied image the request reuses instead of generating."""
+class ResolvedSceneReference:
+    """One authored package image, read and matched against its declared digest."""
 
-    role: str
-    ref: str
+    reference_id: str
+    source: str
     sha256: str
+    media_type: str
     data: bytes
+    rights_status: RightsStatus
+    rights_basis: tuple[str, ...]
+
+    @property
+    def provenance_ref(self) -> str:
+        return f"{self.source}#sha256={self.sha256}"
 
 
 @dataclass(frozen=True, slots=True)
 class ResolvedDialogueScene:
-    """One authored request, resolved offline into a plannable scene."""
+    """One authored scene package, resolved offline into a plannable scene."""
 
     request: DialogueRequest
     request_bytes: bytes
@@ -88,17 +105,17 @@ class ResolvedDialogueScene:
     style_resource_sha256: str
     style_compiler_sha256: str
     style_selection_brief: str
-    profile: ResolvedSceneProfile | None
-    concept_reuse: IngestedSource | None
-    background_reuse: IngestedSource | None
+    profile: ResolvedSceneProfile
+    identity_reference: ResolvedSceneReference
 
     def identity(self) -> dict[str, object]:
-        """The portable record of exactly which request this run was planned from."""
+        """The portable record of exactly which package this run was planned from."""
 
-        identity: dict[str, object] = {
+        return {
             "schema_version": 1,
             "kind": "dialogue-scene-request-identity-v1",
             "scene_id": self.scene_id,
+            "game_id": self.request.game_id,
             "recipe_version": self.recipe_version,
             "request_sha256": self.request_sha256,
             "request_schema_version": self.request.schema_version,
@@ -107,59 +124,45 @@ class ResolvedDialogueScene:
             "transparency_mode": self.request.transparency_mode,
             "style_compiler_sha256": self.style_compiler_sha256,
             "style_resource_sha256": self.style_resource_sha256,
+            "character_profile_ref": self.profile.ref,
+            "character_profile_sha256": self.profile.canonical_sha256,
+            "character_profile_source_sha256": self.profile.source_sha256,
+            "identity_reference_source": self.identity_reference.source,
+            "identity_reference_sha256": self.identity_reference.sha256,
         }
-        if self.profile is not None:
-            identity["character_profile_ref"] = self.profile.ref
-            identity["character_profile_sha256"] = self.profile.canonical_sha256
-            identity["character_profile_source_sha256"] = self.profile.source_sha256
-        return identity
 
 
-def read_dialogue_request_document(input_path: Path) -> dict[str, object]:
-    """Read one authored request from a JSON or TOML file, following no symlink."""
+def read_scene_document(root: Path) -> dict[str, object]:
+    """Read one authored scene package's root document, following no symlink."""
 
-    data = read_absolute_regular_file(input_path.resolve(), label="dialogue request")
-    if input_path.suffix == ".toml":
-        document = tomllib.loads(data.decode("utf-8"))
-    else:
-        document = json.loads(data.decode("utf-8"))
+    path = (root / SCENE_DOCUMENT_NAME).resolve()
+    data = read_absolute_regular_file(path, label="dialogue scene document")
+    document = tomllib.loads(data.decode("utf-8"))
     if not isinstance(document, dict):
-        raise ValueError("dialogue request document must be a JSON or TOML object")
+        raise ValueError("dialogue scene document must be a TOML object")
     return document
 
 
 def parse_dialogue_request(document: object) -> DialogueRequest:
-    """Parse the exact declared contract version; V2 is never reinterpreted as V3."""
+    """Parse the exact declared contract; no other version is reinterpreted as this one."""
 
     if not isinstance(document, Mapping):
-        raise ValueError("dialogue-scene input requires a versioned JSON or TOML object")
-    raw = dict(document)
-    request_type = (
-        DialogueThemeRequestV3 if raw.get("schema_version") == 3 else DialogueThemeRequest
-    )
+        raise ValueError("dialogue-scene input requires a versioned TOML object")
     try:
-        request = request_type.model_validate(raw)
+        request = DialogueSceneDocument.model_validate(dict(document))
     except ValidationError as error:
-        version = "v3" if request_type is DialogueThemeRequestV3 else "v2"
-        raise ValueError(f"invalid dialogue-theme-request-{version}: {error}") from None
+        raise ValueError(f"invalid dialogue-scene-v1: {error}") from None
     assert_dialogue_policy(request)
     return request
 
 
-def resolve_dialogue_scene(
-    document: object,
-    *,
-    character_library_root: Path | None = None,
-) -> ResolvedDialogueScene:
+def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueScene:
     """Validate and materialize everything the plan needs, touching no provider."""
 
     request = parse_dialogue_request(document)
     request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
-    profile = (
-        _resolve_profile(request, character_library_root=character_library_root)
-        if isinstance(request, DialogueThemeRequestV3)
-        else None
-    )
+    profile = _resolve_profile(request, root=root)
+    identity_reference = _read_reference(root, request.identity_reference())
     resources = load_image_style_resources()
     return ResolvedDialogueScene(
         request=request,
@@ -174,51 +177,30 @@ def resolve_dialogue_scene(
         style_compiler_sha256=resources.compiler_sha256,
         style_selection_brief=style_selection_brief(request, profile),
         profile=profile,
-        concept_reuse=_ingest(request, "concept"),
-        background_reuse=_ingest(request, "background"),
+        identity_reference=identity_reference,
     )
 
 
 def recipe_version(request: DialogueRequest) -> str:
-    return (
-        "dialogue-scene-v4" if isinstance(request, DialogueThemeRequestV3) else "dialogue-scene-v3"
-    )
+    return "dialogue-scene-v5"
 
 
 def template_digest(request: DialogueRequest) -> str:
     return (
-        PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST
-        if isinstance(request, DialogueThemeRequestV3) and request.transparency_mode == "native"
-        else PROFILE_TEMPLATE_DIGEST
-        if isinstance(request, DialogueThemeRequestV3)
-        else NATIVE_ALPHA_TEMPLATE_DIGEST
-        if request.transparency_mode == "native"
-        else TEMPLATE_DIGEST
+        NATIVE_ALPHA_TEMPLATE_DIGEST if request.transparency_mode == "native" else TEMPLATE_DIGEST
     )
 
 
-def style_selection_brief(request: DialogueRequest, profile: ResolvedSceneProfile | None) -> str:
-    background_direction = getattr(request.background, "description", None)
-    if isinstance(request, DialogueThemeRequestV3):
-        if profile is None:
-            raise ValueError("profile-enabled dialogue requests require a resolved profile")
-        authored = profile.profile
-        return canonical_json_bytes(
-            {
-                "scene_brief": request.scene_brief,
-                "appearance_description": authored.visual_identity,
-                "wardrobe": authored.wardrobe,
-                "invariants": authored.invariants,
-                "background_direction": background_direction,
-                "character_profile_sha256": profile.canonical_sha256,
-            }
-        ).decode("utf-8")
+def style_selection_brief(request: DialogueRequest, profile: ResolvedSceneProfile) -> str:
+    authored = profile.profile
     return canonical_json_bytes(
         {
             "scene_brief": request.scene_brief,
-            "appearance_description": request.appearance.description,
-            "concept_direction": getattr(request.appearance.concept, "description", None),
-            "background_direction": background_direction,
+            "appearance_description": authored.visual_identity,
+            "wardrobe": authored.wardrobe,
+            "invariants": authored.invariants,
+            "background_direction": request.background.description,
+            "character_profile_sha256": profile.canonical_sha256,
         }
     ).decode("utf-8")
 
@@ -241,16 +223,36 @@ def profile_lock_values(profile: CharacterProfile) -> tuple[str, str]:
     return identity, wardrobe
 
 
-def _resolve_profile(
-    request: DialogueThemeRequestV3,
-    *,
-    character_library_root: Path | None,
-) -> ResolvedSceneProfile:
-    if character_library_root is None:
-        raise ValueError("profile-enabled dialogue generation requires character_library_root")
+def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneReference:
+    """Read one authored reference and hold it to the digest the author recorded."""
+
+    source = reference.source
+    path = resolve_relative_path_within_root(root, source, "scene reference source")
+    if path.is_symlink() or not path.is_file():
+        raise ValueError(f"scene reference {source} must be a regular file inside the package")
+    data = path.read_bytes()
+    digest = content_sha256(data)
+    if digest != reference.source_sha256:
+        raise ValueError(
+            f"scene reference {source} does not match its authored digest: "
+            f"declared {reference.source_sha256}, found {digest}"
+        )
+    media_type = _MEDIA_TYPES[PurePosixPath(source).suffix.lower()]
+    return ResolvedSceneReference(
+        reference_id=reference.reference_id,
+        source=source,
+        sha256=digest,
+        media_type=media_type,
+        data=data,
+        rights_status=reference.rights_status,
+        rights_basis=tuple(reference.rights_basis),
+    )
+
+
+def _resolve_profile(request: DialogueRequest, *, root: Path) -> ResolvedSceneProfile:
     resolved = resolve_character_profile_binding(
         request.character_profile,
-        character_library_root=character_library_root,
+        package_root=root,
     )
     profile = resolved.profile
     if len(profile.profile_id) > SCENE_ID_MAX_LENGTH:
@@ -271,25 +273,6 @@ def _resolve_profile(
     )
 
 
-def _ingest(request: DialogueRequest, role: str) -> IngestedSource | None:
-    source = (
-        request.background
-        if role == "background"
-        else request.appearance.concept
-        if isinstance(request, DialogueThemeRequest)
-        else None
-    )
-    if not isinstance(source, ReuseSource):
-        return None
-    if source.ref.startswith(("http://", "https://")):
-        raise ValueError("dialogue reuse currently requires a caller-accessible local file")
-    path = Path(source.ref).expanduser().resolve()
-    data = read_absolute_regular_file(path, label=f"{role} reuse")
-    if content_sha256(data) != source.sha256:
-        raise ValueError(f"{role} reuse digest mismatch")
-    return IngestedSource(role=role, ref=source.ref, sha256=source.sha256, data=data)
-
-
 def _transparency_digest(request: DialogueRequest) -> str:
     """Bind the exact derivation the canonicalize nodes will apply."""
 
@@ -301,25 +284,19 @@ def _transparency_digest(request: DialogueRequest) -> str:
     return sha256(canonical_json_bytes(parts)).hexdigest()
 
 
-def _scene_id(request: DialogueRequest, profile: ResolvedSceneProfile | None) -> str:
-    subject = (
-        profile.profile.profile_id
-        if profile is not None
-        else request.appearance.id
-        if isinstance(request, DialogueThemeRequest)
-        else "scene"
-    )
-    return f"{subject}-{canonical_sha256(request)[:12]}"
+def _scene_id(request: DialogueRequest, profile: ResolvedSceneProfile) -> str:
+    return f"{profile.profile.profile_id}-{canonical_sha256(request)[:12]}"
 
 
 __all__ = [
+    "SCENE_DOCUMENT_NAME",
     "SCENE_ID_MAX_LENGTH",
-    "IngestedSource",
     "ResolvedDialogueScene",
     "ResolvedSceneProfile",
+    "ResolvedSceneReference",
     "parse_dialogue_request",
     "profile_lock_values",
-    "read_dialogue_request_document",
+    "read_scene_document",
     "recipe_version",
     "resolve_dialogue_scene",
     "style_selection_brief",

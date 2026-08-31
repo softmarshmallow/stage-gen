@@ -3,9 +3,9 @@
 Every node in this recipe's graph instantiates one of these declarations. The
 type carries what used to live in three unrelated places — the dispatch branch,
 the per-family contract version, and the viewer's guess at a display kind — and
-its policy states the attempt budgets as data. Reuse variants (a caller-supplied
-concept or backdrop) are their own types rather than flags, because a node that
-ingests is a different kind of work from a node that generates.
+its policy states the attempt budgets as data. Publishing an authored plate is
+its own type rather than a flag on a generator, because handing a node bytes the
+author supplied is a different kind of work from asking a provider for them.
 
 ``type_id`` values are persisted taxonomy paths (docs/spec/asset-taxonomy.md):
 ``2d/frontview/vn/<module>.<step>``.
@@ -58,22 +58,12 @@ STYLE_SELECT = NodeType(
     contract_version="dialogue-style-select-v1",
 )
 
-CONCEPT_GENERATE = NodeType(
-    type_id="2d/frontview/vn/portrait_concept.generate",
-    title="Appearance concept",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=("transparent_background", "reference_images"),
-    policy=_PROVIDER_POLICY,
-    contract_version="dialogue-concept-v1",
-)
-
 CONCEPT_INGEST = NodeType(
-    type_id="2d/frontview/vn/portrait_concept.ingest",
-    title="Appearance concept (reused)",
+    type_id="2d/frontview/vn/portrait_concept.publish",
+    title="Identity plate",
     archetype=ViewArchetype.SOURCE,
     operation="local",
-    contract_version="dialogue-concept-ingest-v1",
+    contract_version="dialogue-concept-publish-v1",
 )
 
 PLAN_COMPILE = NodeType(
@@ -94,14 +84,6 @@ BACKDROP_GENERATE = NodeType(
     features=("transparent_background", "reference_images"),
     policy=_PROVIDER_POLICY,
     contract_version="dialogue-backdrop-v1",
-)
-
-BACKDROP_INGEST = NodeType(
-    type_id="2d/frontview/vn/backdrop.ingest",
-    title="Scene backdrop (reused)",
-    archetype=ViewArchetype.SOURCE,
-    operation="local",
-    contract_version="dialogue-backdrop-ingest-v1",
 )
 
 EXPRESSION_GENERATE = NodeType(
@@ -154,11 +136,9 @@ DIALOGUE_NODE_TYPES: tuple[NodeType, ...] = (
     REQUEST_RESOLVE,
     PROFILE_RESOLVE,
     STYLE_SELECT,
-    CONCEPT_GENERATE,
     CONCEPT_INGEST,
     PLAN_COMPILE,
     BACKDROP_GENERATE,
-    BACKDROP_INGEST,
     EXPRESSION_GENERATE,
     EXPRESSION_DERIVE,
     SPRITE_MATTE,
@@ -174,11 +154,9 @@ def dialogue_type_index() -> dict[str, NodeType]:
 __all__ = [
     "ATTEMPT_LEDGER_KIND",
     "BACKDROP_GENERATE",
-    "BACKDROP_INGEST",
     "BACKDROP_KIND",
     "BUNDLE_KIND",
     "BUNDLE_PACKAGE",
-    "CONCEPT_GENERATE",
     "CONCEPT_INGEST",
     "CONCEPT_KIND",
     "DIALOGUE_NODE_TYPES",

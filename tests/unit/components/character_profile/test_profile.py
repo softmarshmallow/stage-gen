@@ -71,11 +71,11 @@ def test_profile_binding_is_versioned_portable_and_source_digest_bound() -> None
         {
             "schema_version": 1,
             "kind": "character-profile-binding-v1",
-            "ref": "library/characters/mira-vale-cartographer/profile.toml",
+            "ref": "character.toml",
             "source_sha256": "a" * 64,
         }
     )
-    assert binding.ref == "library/characters/mira-vale-cartographer/profile.toml"
+    assert binding.ref == "character.toml"
 
     with pytest.raises(ValueError):
         CharacterProfileBinding.model_validate(
@@ -337,9 +337,11 @@ def test_reviewed_rights_need_no_license_or_notice(tmp_path: Path) -> None:
 
 
 def test_repository_sample_is_strict_original_and_reference_free() -> None:
+    """The shipped profile is a member of the game package that binds it."""
+
     repository = Path(__file__).resolve().parents[4]
-    path = repository / "library/characters/mira-vale-cartographer/profile.toml"
+    path = repository / "library/games/larkfield/character.toml"
     profile = load_character_profile(path)
-    assert profile.profile_id == path.parent.name
+    assert profile.profile_id == "nao-kirishima"
     assert profile.rights.status == "unreviewed"
     assert profile.references == []

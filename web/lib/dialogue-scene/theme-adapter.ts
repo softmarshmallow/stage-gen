@@ -30,6 +30,7 @@ export const DIALOGUE_THEME_ADAPTER_VERSION = 3 as const;
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const STABLE_ID = /^[a-z][a-z0-9-]*$/;
+const SNAKE_ID = /^[a-z0-9]+(?:_[a-z0-9]+)*$/;
 const PORTABLE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const MAX_JSON_BYTES = 8 * 1024 * 1024;
 const MAX_PNG_BYTES = 64 * 1024 * 1024;
@@ -72,7 +73,7 @@ const JSON_SCHEMA_KEYWORDS = new Set([
 type AssetRole = "concept" | "background" | "expression";
 type ReviewStatus = "pending" | "pass" | "fail";
 type RightsStatus = "unreviewed" | "restricted" | "redistribution-approved";
-type DialogueBundleContract = DialogueSceneBundleV3;
+type DialogueBundleContract = DialogueSceneBundleV4;
 
 interface BundleFileBinding {
   readonly path: string;
@@ -168,12 +169,13 @@ interface SceneData {
   }[];
 }
 
-export interface DialogueSceneBundleV3 {
-  readonly schema_version: 3;
-  readonly kind: "dialogue-scene-bundle-v3";
+export interface DialogueSceneBundleV4 {
+  readonly schema_version: 4;
+  readonly kind: "dialogue-scene-bundle-v4";
   readonly recipe: "dialogue-scene";
-  readonly recipe_version: "dialogue-scene-v4";
+  readonly recipe_version: "dialogue-scene-v5";
   readonly tag: string;
+  readonly game_id: string;
   readonly run_identity_sha256: string;
   readonly request: BundleFileBinding;
   readonly plan: BundleFileBinding;
@@ -185,6 +187,9 @@ export interface DialogueSceneBundleV3 {
     readonly source_sha256: string;
   };
   readonly character_profile_sha256: string;
+  /** The authored plate every image was drawn against, as the run republished it. */
+  readonly identity_reference: BundleFileBinding;
+  readonly identity_reference_source: string;
   readonly assets: readonly BundleAsset[];
   readonly scene_data: SceneData;
   readonly attempt_ledger: {
@@ -206,9 +211,9 @@ export interface DialogueSceneBundleV3 {
 
 interface ActiveBundleBinding {
   readonly bundle_id: string;
-  readonly wire_schema_version: 3;
-  readonly kind: "dialogue-scene-bundle-v3";
-  readonly recipe_version: "dialogue-scene-v4";
+  readonly wire_schema_version: 4;
+  readonly kind: "dialogue-scene-bundle-v4";
+  readonly recipe_version: "dialogue-scene-v5";
   readonly source_bundle_sha256: string;
   readonly install_receipt_sha256: string;
 }
@@ -250,8 +255,8 @@ interface InstallReceipt {
   readonly adapter_version: 3;
   readonly bundle_id: string;
   readonly bundle_wire_schema_version: 3;
-  readonly bundle_kind: "dialogue-scene-bundle-v3";
-  readonly recipe_version: "dialogue-scene-v4";
+  readonly bundle_kind: "dialogue-scene-bundle-v4";
+  readonly recipe_version: "dialogue-scene-v5";
   readonly source_bundle_sha256: string;
   readonly fixture_sha256: string;
   readonly character_profile_source_sha256: string;
@@ -316,9 +321,9 @@ interface ValidatedInstall {
   readonly bundle: DialogueBundleContract;
 }
 
-export function parseDialogueSceneBundleV3(
+export function parseDialogueSceneBundleV4(
   value: unknown,
-): DialogueSceneBundleV3 {
+): DialogueSceneBundleV4 {
   const root = strictRecord(
     value,
     [
@@ -327,12 +332,15 @@ export function parseDialogueSceneBundleV3(
       "recipe",
       "recipe_version",
       "tag",
+      "game_id",
       "run_identity_sha256",
       "request",
       "plan",
       "character_profile",
       "character_profile_binding",
       "character_profile_sha256",
+      "identity_reference",
+      "identity_reference_source",
       "assets",
       "scene_data",
       "attempt_ledger",
@@ -340,12 +348,12 @@ export function parseDialogueSceneBundleV3(
       "rights",
     ],
     [],
-    "dialogue-scene bundle v3",
+    "dialogue-scene bundle v4",
   );
-  exact(root.schema_version, 3, "bundle.schema_version");
-  exact(root.kind, "dialogue-scene-bundle-v3", "bundle.kind");
+  exact(root.schema_version, 4, "bundle.schema_version");
+  exact(root.kind, "dialogue-scene-bundle-v4", "bundle.kind");
   exact(root.recipe, "dialogue-scene", "bundle.recipe");
-  exact(root.recipe_version, "dialogue-scene-v4", "bundle.recipe_version");
+  exact(root.recipe_version, "dialogue-scene-v5", "bundle.recipe_version");
   const binding = strictRecord(
     root.character_profile_binding,
     ["schema_version", "kind", "ref", "source_sha256"],
@@ -372,11 +380,12 @@ export function parseDialogueSceneBundleV3(
     );
   }
   return Object.freeze({
-    schema_version: 3,
-    kind: "dialogue-scene-bundle-v3",
+    schema_version: 4,
+    kind: "dialogue-scene-bundle-v4",
     recipe: "dialogue-scene",
-    recipe_version: "dialogue-scene-v4",
+    recipe_version: "dialogue-scene-v5",
     tag: strictText(root.tag, "bundle.tag", 160),
+    game_id: snakeId(root.game_id, "bundle.game_id", 64),
     run_identity_sha256: digest(root.run_identity_sha256, "bundle.run_identity_sha256"),
     request: parseBundleFile(root.request, "bundle.request"),
     plan: parseBundleFile(root.plan, "bundle.plan"),
@@ -394,6 +403,11 @@ export function parseDialogueSceneBundleV3(
       root.character_profile_sha256,
       "bundle.character_profile_sha256",
     ),
+    identity_reference: parseBundleFile(root.identity_reference, "bundle.identity_reference"),
+    identity_reference_source: portableReuseRef(
+      root.identity_reference_source,
+      "bundle.identity_reference_source",
+    ),
     assets: Object.freeze(assets),
     scene_data,
     attempt_ledger: Object.freeze({
@@ -406,7 +420,7 @@ export function parseDialogueSceneBundleV3(
 }
 
 function parseDialogueSceneBundle(value: unknown): DialogueBundleContract {
-  return parseDialogueSceneBundleV3(value);
+  return parseDialogueSceneBundleV4(value);
 }
 
 function validateSceneAssetBindings(
@@ -532,8 +546,8 @@ export async function installDialogueTheme(
         adapter_version: 3,
         bundle_id: bundleId,
         bundle_wire_schema_version: 3,
-        bundle_kind: "dialogue-scene-bundle-v3",
-        recipe_version: "dialogue-scene-v4",
+        bundle_kind: "dialogue-scene-bundle-v4",
+        recipe_version: "dialogue-scene-v5",
         character_profile_source_sha256:
           validated.bundle.character_profile_binding.source_sha256,
         character_profile_sha256: validated.bundle.character_profile_sha256,
@@ -1402,14 +1416,14 @@ function parseActiveBundleBinding(
     [],
     label,
   );
-  exact(root.wire_schema_version, 3, `${label} wire_schema_version`);
-  exact(root.kind, "dialogue-scene-bundle-v3", `${label} kind`);
-  exact(root.recipe_version, "dialogue-scene-v4", `${label} recipe_version`);
+  exact(root.wire_schema_version, 4, `${label} wire_schema_version`);
+  exact(root.kind, "dialogue-scene-bundle-v4", `${label} kind`);
+  exact(root.recipe_version, "dialogue-scene-v5", `${label} recipe_version`);
   return Object.freeze({
     bundle_id: digest(root.bundle_id, `${label} bundle_id`),
-    wire_schema_version: 3,
-    kind: "dialogue-scene-bundle-v3",
-    recipe_version: "dialogue-scene-v4",
+    wire_schema_version: 4,
+    kind: "dialogue-scene-bundle-v4",
+    recipe_version: "dialogue-scene-v5",
     source_bundle_sha256: digest(
       root.source_bundle_sha256,
       `${label} source_bundle_sha256`,
@@ -1849,7 +1863,7 @@ function parseSceneData(value: unknown): SceneData {
   });
 }
 
-function parseReview(value: unknown): DialogueSceneBundleV3["review"] {
+function parseReview(value: unknown): DialogueSceneBundleV4["review"] {
   const record = strictRecord(
     value,
     ["status"],
@@ -1883,7 +1897,7 @@ function parseReview(value: unknown): DialogueSceneBundleV3["review"] {
   });
 }
 
-function parseRights(value: unknown): DialogueSceneBundleV3["rights"] {
+function parseRights(value: unknown): DialogueSceneBundleV4["rights"] {
   const record = strictRecord(
     value,
     ["aggregate", "publication_authorized"],
@@ -2138,8 +2152,13 @@ function validateRequestEnvelope(
     [
       "schema_version",
       "kind",
+      "game_id",
+      "display_name",
+      "revision",
       "scene_brief",
+      "identity_reference_id",
       "character_profile",
+      "references",
       "background",
       "dialogue",
       "presentation",
@@ -2148,9 +2167,15 @@ function validateRequestEnvelope(
     [],
     "bundle request",
   );
-  exact(root.schema_version, 3, "bundle request schema_version");
-  exact(root.kind, "dialogue-theme-request-v3", "bundle request kind");
+  exact(root.schema_version, 1, "bundle request schema_version");
+  exact(root.kind, "dialogue-scene-v1", "bundle request kind");
+  if (root.game_id !== bundle.game_id) {
+    throw new Error("request game_id does not match bundle");
+  }
+  strictText(root.display_name, "bundle request display_name", 96);
+  strictInteger(root.revision, "bundle request revision", 1, Number.MAX_SAFE_INTEGER);
   strictText(root.scene_brief, "bundle request scene_brief", 96);
+  validateAuthoredReferences(root, bundle);
   const characterProfile = strictRecord(
     root.character_profile,
     ["schema_version", "kind", "ref", "source_sha256"],
@@ -2170,7 +2195,15 @@ function validateRequestEnvelope(
   ) {
     throw new Error("request character profile binding does not match bundle");
   }
-  parseRequestAssetSource(root.background, "bundle request background");
+  const background = strictRecord(
+    root.background,
+    [],
+    ["description"],
+    "bundle request background",
+  );
+  if (background.description !== undefined) {
+    strictText(background.description, "bundle request background description", 2000);
+  }
   if (
     !Array.isArray(root.dialogue) ||
     root.dialogue.length < 1 ||
@@ -2224,34 +2257,75 @@ function validateRequestEnvelope(
   );
 }
 
-function parseRequestAssetSource(value: unknown, label: string): void {
-  const envelope = strictRecord(value, [], [], label, true);
-  if (envelope.mode === "generate") {
-    const generated = strictRecord(
-      value,
-      ["mode"],
-      ["description"],
-      label,
-    );
-    if (generated.description !== undefined) {
-      strictText(generated.description, `${label} description`, 2000);
-    }
-    return;
+/**
+ * The authored references the scene was drawn against, held to the bundle.
+ *
+ * The plate the run republished is the one the package declared, so the two must
+ * agree on both its path and its bytes; a run that shipped something else is not
+ * this scene, whatever its filename says.
+ */
+function validateAuthoredReferences(
+  root: Record<string, unknown>,
+  bundle: DialogueBundleContract,
+): void {
+  const identityReferenceId = snakeId(
+    root.identity_reference_id,
+    "bundle request identity_reference_id",
+    64,
+  );
+  if (!Array.isArray(root.references) || root.references.length < 1) {
+    throw new Error("bundle request references must declare at least one entry");
   }
-  const reused = strictRecord(
-    value,
-    ["mode", "ref", "sha256", "rights"],
-    [],
-    label,
-  );
-  exact(reused.mode, "reuse", `${label} mode`);
-  portableReuseRef(reused.ref, `${label} ref`);
-  digest(reused.sha256, `${label} sha256`);
-  enumValue(
-    reused.rights,
-    ["unreviewed", "restricted", "redistribution-approved"] as const,
-    `${label} rights`,
-  );
+  const seen = new Set<string>();
+  let identity: Record<string, unknown> | null = null;
+  root.references.forEach((value, index) => {
+    const reference = strictRecord(
+      value,
+      ["reference_id", "source", "source_sha256", "rights_status", "rights_basis"],
+      [],
+      `bundle request references[${index}]`,
+    );
+    const id = snakeId(
+      reference.reference_id,
+      `bundle request references[${index}].reference_id`,
+      64,
+    );
+    if (seen.has(id)) {
+      throw new Error(`bundle request reference_id is duplicated: ${id}`);
+    }
+    seen.add(id);
+    portableReuseRef(reference.source, `bundle request references[${index}].source`);
+    digest(
+      reference.source_sha256,
+      `bundle request references[${index}].source_sha256`,
+    );
+    enumValue(
+      reference.rights_status,
+      ["unreviewed", "restricted", "redistribution-approved"] as const,
+      `bundle request references[${index}].rights_status`,
+    );
+    if (!Array.isArray(reference.rights_basis) || reference.rights_basis.length < 1) {
+      throw new Error(
+        `bundle request references[${index}].rights_basis must state at least one line`,
+      );
+    }
+    reference.rights_basis.forEach((line, lineIndex) => {
+      strictText(line, `bundle request references[${index}].rights_basis[${lineIndex}]`, 320);
+    });
+    if (id === identityReferenceId) {
+      identity = reference;
+    }
+  });
+  if (identity === null) {
+    throw new Error("bundle request identity_reference_id names an undeclared reference");
+  }
+  const declared = identity as Record<string, unknown>;
+  if (declared.source !== bundle.identity_reference_source) {
+    throw new Error("request identity reference source does not match bundle");
+  }
+  if (declared.source_sha256 !== bundle.identity_reference.sha256) {
+    throw new Error("request identity reference digest does not match the published plate");
+  }
 }
 
 function validatePlanEnvelope(
@@ -2271,6 +2345,7 @@ function validatePlanEnvelope(
       "character_profile_ref",
       "character_profile_source_sha256",
       "character_profile_sha256",
+      "identity_reference_sha256",
       "shared_locks",
       "geometry",
       "states",
@@ -2279,19 +2354,25 @@ function validatePlanEnvelope(
     [],
     "bundle plan",
   );
-  exact(root.schema_version, 3, "bundle plan schema_version");
-  exact(root.kind, "dialogue-scene-plan-v3", "bundle plan kind");
-  exact(root.recipe_version, "dialogue-scene-v4", "bundle plan recipe_version");
+  exact(root.schema_version, 4, "bundle plan schema_version");
+  exact(root.kind, "dialogue-scene-plan-v4", "bundle plan kind");
+  exact(root.recipe_version, "dialogue-scene-v5", "bundle plan recipe_version");
   exact(
     root.policy_version,
-    "adult-romance-nonexplicit-v2",
+    "coming-of-age-nonexplicit-v3",
     "bundle plan policy_version",
   );
   exact(
     root.expression_profile,
-    "romance-core-v2",
+    "expression-core-v3",
     "bundle plan expression_profile",
   );
+  if (
+    digest(root.identity_reference_sha256, "bundle plan identity_reference_sha256") !==
+    bundle.identity_reference.sha256
+  ) {
+    throw new Error("plan identity_reference_sha256 does not match the published plate");
+  }
   if (
     digest(root.request_sha256, "bundle plan request_sha256") !==
     bundle.request.sha256
@@ -2833,8 +2914,8 @@ function validateReviewProof(
     [],
     "review record",
   );
-  exact(record.schema_version, 3, "review record schema_version");
-  exact(record.kind, "dialogue-scene-review-v3", "review record kind");
+  exact(record.schema_version, 4, "review record schema_version");
+  exact(record.kind, "dialogue-scene-review-v4", "review record kind");
   exact(record.status, expectedStatus, "review record status");
   exact(record.usage, "local-demo", "review record usage");
   const sourceBundleSha256 = digest(
@@ -2893,7 +2974,7 @@ function validateReviewProof(
 
 function validateV4ReviewProvenance(
   value: unknown,
-  bundle: DialogueSceneBundleV3,
+  bundle: DialogueSceneBundleV4,
   sourceBundleSha256: string,
 ): void {
   const root = strictRecord(
@@ -2993,12 +3074,12 @@ function parseInstallReceipt(value: unknown): InstallReceipt {
   );
   exact(
     root.bundle_kind,
-    "dialogue-scene-bundle-v3",
+    "dialogue-scene-bundle-v4",
     "install receipt bundle_kind",
   );
   exact(
     root.recipe_version,
-    "dialogue-scene-v4",
+    "dialogue-scene-v5",
     "install receipt recipe_version",
   );
   return Object.freeze({
@@ -3007,8 +3088,8 @@ function parseInstallReceipt(value: unknown): InstallReceipt {
     adapter_version: 3,
     bundle_id: digest(root.bundle_id, "install receipt bundle_id"),
     bundle_wire_schema_version: 3,
-    bundle_kind: "dialogue-scene-bundle-v3",
-    recipe_version: "dialogue-scene-v4",
+    bundle_kind: "dialogue-scene-bundle-v4",
+    recipe_version: "dialogue-scene-v5",
     source_bundle_sha256: digest(
       root.source_bundle_sha256,
       "install receipt source_bundle_sha256",
@@ -3360,27 +3441,22 @@ function portableReuseRef(value: unknown, label: string): string {
   return ref;
 }
 
+/**
+ * The profile ref names a member of the package that bound it. The consumer
+ * cannot see that package, so it checks portability and shape only - the digest
+ * is what actually binds the bytes.
+ */
 function portableProfileRef(value: unknown, label: string): string {
   const ref = portablePath(value, label);
-  const parts = ref.split("/");
-  if (
-    parts.length !== 4 ||
-    parts[0] !== "library" ||
-    parts[1] !== "characters" ||
-    parts[3] !== "profile.toml" ||
-    parts[2].length > 96 ||
-    !STABLE_ID.test(parts[2])
-  ) {
-    throw new Error(
-      `${label} must equal library/characters/<profile_id>/profile.toml`,
-    );
+  if (!ref.endsWith(".toml")) {
+    throw new Error(`${label} must name a package-relative TOML member`);
   }
   return ref;
 }
 
 function parseCanonicalCharacterProfile(
   bytes: Buffer,
-  bundle: DialogueSceneBundleV3,
+  bundle: DialogueSceneBundleV4,
 ): { readonly profile_id: string; readonly revision: number } {
   const value = parseJson(bytes, "character profile");
   assertLowerSnakeCaseKeys(value, "character profile");
@@ -3406,10 +3482,8 @@ function parseCanonicalCharacterProfile(
   exact(root.kind, "character-profile-v1", "character profile kind");
   const profileId = stableId(root.profile_id, "character profile profile_id");
   const revision = strictInteger(root.revision, "character profile revision", 1, 2147483647);
-  const expectedRef = `library/characters/${profileId}/profile.toml`;
-  if (bundle.character_profile_binding.ref !== expectedRef) {
-    throw new Error("character profile id does not match authored source binding");
-  }
+  // The profile's id is no longer encoded in its path, so the scene projection
+  // is what has to agree with it; the binding digest still holds the bytes.
   if (bundle.scene_data.appearance.id !== profileId) {
     throw new Error("character profile id does not match scene appearance");
   }
@@ -3507,6 +3581,13 @@ function kebabId(value: unknown, label: string, maximumLength: number): string {
   const parsed = strictText(value, label, maximumLength);
   if (!STABLE_ID.test(parsed))
     throw new Error(`${label} must be a stable lowercase kebab id`);
+  return parsed;
+}
+
+function snakeId(value: unknown, label: string, maximumLength: number): string {
+  const parsed = strictText(value, label, maximumLength);
+  if (!SNAKE_ID.test(parsed))
+    throw new Error(`${label} must be a stable lowercase snake id`);
   return parsed;
 }
 

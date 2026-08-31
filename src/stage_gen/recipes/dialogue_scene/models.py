@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Annotated, Literal
+from pathlib import PurePosixPath
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -51,20 +52,35 @@ def _validate_review_timestamp(value: str) -> str:
     return value
 
 
-class GenerateSource(PersistedContractModel):
-    mode: Literal["generate"] = "generate"
+class BackgroundDirection(PersistedContractModel):
+    """What the backdrop should show, in the author's words."""
+
     description: str | None = Field(default=None, min_length=1, max_length=2000)
 
 
-class ReuseSource(PersistedContractModel):
-    mode: Literal["reuse"]
-    ref: str = Field(min_length=1)
-    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    rights: RightsStatus = "unreviewed"
+class SceneReference(PersistedContractModel):
+    """One authored image the scene is drawn against, bound to its exact bytes.
 
-    @field_validator("ref")
+    A reference is a package member, not something a node paints for itself: the
+    resolver reads the file and refuses a digest that no longer matches, offline,
+    before any spend. The rights decision travels with it, because the run
+    republishes these bytes and a consumer must be able to read what it may do
+    with them.
+    """
+
+    reference_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
+    source: str
+    source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    rights_status: RightsStatus
+    rights_basis: list[str] = Field(min_length=1, max_length=16)
+
+    @field_validator("source")
     @classmethod
-    def portable_reference(cls, value: str) -> str:
+    def source_lives_in_the_package(cls, value: str) -> str:
+        if not value or value != value.strip():
+            raise ValueError("scene reference source must be a trimmed relative path")
+        if not value.startswith("references/"):
+            raise ValueError("scene references must live under references/")
         segments = value.split("/")
         if (
             "\x00" in value
@@ -72,21 +88,18 @@ class ReuseSource(PersistedContractModel):
             or "\\" in value
             or any(segment in {"", ".", ".."} for segment in segments)
         ):
-            raise ValueError("reuse ref must be a portable relative path")
+            raise ValueError("scene reference source must be a portable relative path")
+        if PurePosixPath(value).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            raise ValueError("scene reference source must be a png, jpeg, or webp image")
         return value
 
-
-AssetSource = Annotated[GenerateSource | ReuseSource, Field(discriminator="mode")]
-BackgroundSource = AssetSource
-
-
-class AppearanceRequest(PersistedContractModel):
-    id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
-    label: str = Field(min_length=1, max_length=96)
-    age: int = Field(ge=21, le=120)
-    role: str = Field(min_length=1, max_length=120)
-    description: str = Field(min_length=1, max_length=280)
-    concept: AssetSource = Field(default_factory=GenerateSource)
+    @field_validator("rights_basis")
+    @classmethod
+    def trimmed_basis(cls, value: list[str]) -> list[str]:
+        for item in value:
+            if not item or item != item.strip():
+                raise ValueError("each rights basis line must be a trimmed non-empty string")
+        return value
 
 
 class DialogueBeat(PersistedContractModel):
@@ -102,50 +115,73 @@ class PresentationRequest(PersistedContractModel):
     source_framing_zoom: int = Field(default=70, ge=0, le=100)
 
 
-class DialogueThemeRequest(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["dialogue-theme-request-v2"]
-    scene_brief: str = Field(min_length=1, max_length=96)
-    appearance: AppearanceRequest
-    background: BackgroundSource
-    dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
-    presentation: PresentationRequest = Field(default_factory=PresentationRequest)
-    transparency_mode: TransparencyMode = "native"
+class DialogueSceneDocument(PersistedContractModel):
+    """The authored root of one visual-novel scene package.
 
-    @model_validator(mode="after")
-    def unique_beats_and_known_speaker(self) -> DialogueThemeRequest:
-        ids = [beat.id for beat in self.dialogue]
-        if len(ids) != len(set(ids)):
-            raise ValueError("dialogue beat ids must be unique")
-        return self
+    One scene = one directory under ``library/games/`` holding this document
+    beside the members it names by exact relative path: the character profile it
+    binds, and the ``references/`` its art is drawn against. Temporary by
+    intent - the standing goal is for every game kind to be declared through
+    ``game.toml`` - so this contract owns only what a scene needs today and
+    stays easy to absorb.
+    """
 
-
-class DialogueThemeRequestV3(PersistedContractModel):
-    """Profile-enabled request; V2 is intentionally not reinterpreted."""
-
-    schema_version: Literal[3]
-    kind: Literal["dialogue-theme-request-v3"]
+    schema_version: Literal[1]
+    kind: Literal["dialogue-scene-v1"]
+    game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
+    display_name: str = Field(min_length=1, max_length=96)
+    revision: int = Field(ge=1)
     scene_brief: str = Field(min_length=1, max_length=96)
     character_profile: CharacterProfileBinding
-    background: BackgroundSource
+    #: The declared reference that fixes this character's look. It is published
+    #: into the run as the concept plate, so nothing generates the art direction.
+    identity_reference_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
+    references: list[SceneReference] = Field(min_length=1, max_length=16)
+    background: BackgroundDirection = Field(default_factory=BackgroundDirection)
     dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
     presentation: PresentationRequest = Field(default_factory=PresentationRequest)
     transparency_mode: TransparencyMode = "native"
 
     @model_validator(mode="after")
-    def unique_beats(self) -> DialogueThemeRequestV3:
+    def closed_package_bindings(self) -> DialogueSceneDocument:
         ids = [beat.id for beat in self.dialogue]
         if len(ids) != len(set(ids)):
             raise ValueError("dialogue beat ids must be unique")
-        parts = self.character_profile.ref.split("/")
-        if len(parts) != 4 or parts[:2] != ["library", "characters"] or parts[3] != "profile.toml":
+        ref = self.character_profile.ref
+        segments = ref.split("/")
+        if (
+            ref.startswith(("/", "~"))
+            or "\\" in ref
+            or any(segment in {"", ".", ".."} for segment in segments)
+            or not ref.endswith(".toml")
+        ):
+            raise ValueError("character_profile ref must be a package-relative TOML member")
+        reference_ids = [reference.reference_id for reference in self.references]
+        if len(reference_ids) != len(set(reference_ids)):
+            raise ValueError("reference_id values must be unique")
+        sources = [reference.source for reference in self.references]
+        if len(sources) != len(set(sources)):
+            raise ValueError("reference sources must be unique")
+        if self.identity_reference_id not in reference_ids:
             raise ValueError(
-                "character_profile ref must equal library/characters/<profile_id>/profile.toml"
+                f"identity_reference_id names an undeclared reference: {self.identity_reference_id}"
             )
+        # Every declared reference must be consumed. An unused declaration is a
+        # file the run would republish and the manifest would name for nothing.
+        unused = set(reference_ids) - {self.identity_reference_id}
+        if unused:
+            raise ValueError(f"references declared but never used: {sorted(unused)}")
         return self
 
+    def identity_reference(self) -> SceneReference:
+        return next(
+            reference
+            for reference in self.references
+            if reference.reference_id == self.identity_reference_id
+        )
 
-DialogueRequest = DialogueThemeRequest | DialogueThemeRequestV3
+
+DialogueRequest = DialogueSceneDocument
 
 
 class SharedLocks(PersistedContractModel):
@@ -211,13 +247,17 @@ class DialogueScenePlanDraft(PersistedContractModel):
 
 
 class DialogueScenePlan(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["dialogue-scene-plan-v2"]
-    recipe_version: Literal["dialogue-scene-v3"]
-    policy_version: Literal["adult-romance-nonexplicit-v2"]
-    expression_profile: Literal["romance-core-v2"]
+    schema_version: Literal[4]
+    kind: Literal["dialogue-scene-plan-v4"]
+    recipe_version: Literal["dialogue-scene-v5"]
+    policy_version: Literal["coming-of-age-nonexplicit-v3"]
+    expression_profile: Literal["expression-core-v3"]
     request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    appearance_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
+    appearance_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,95}$")
+    character_profile_ref: str = Field(min_length=1)
+    character_profile_source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    character_profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    identity_reference_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     shared_locks: SharedLocks
     geometry: SpriteGeometry
     states: list[ExpressionDirection]
@@ -233,33 +273,7 @@ class DialogueScenePlan(PersistedContractModel):
         return next(item.direction for item in self.states if item.id == state)
 
 
-class DialogueScenePlanV3(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["dialogue-scene-plan-v3"]
-    recipe_version: Literal["dialogue-scene-v4"]
-    policy_version: Literal["adult-romance-nonexplicit-v2"]
-    expression_profile: Literal["romance-core-v2"]
-    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    appearance_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,95}$")
-    character_profile_ref: str = Field(min_length=1)
-    character_profile_source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    character_profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    shared_locks: SharedLocks
-    geometry: SpriteGeometry
-    states: list[ExpressionDirection]
-    prompt_templates: list[PromptTemplateBinding]
-
-    @model_validator(mode="after")
-    def exact_expression_contract(self) -> DialogueScenePlanV3:
-        if tuple(state.id for state in self.states) != EXPRESSION_STATES:
-            raise ValueError("plan states must use the locked taxonomy and order")
-        return self
-
-    def direction_for(self, state: ExpressionState) -> str:
-        return next(item.direction for item in self.states if item.id == state)
-
-
-DialoguePlan = DialogueScenePlan | DialogueScenePlanV3
+DialoguePlan = DialogueScenePlan
 
 
 class AttemptRecord(PersistedContractModel):
@@ -348,34 +362,8 @@ class ReviewState(PersistedContractModel):
 
 
 class IndependentReview(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["dialogue-scene-review-v2"]
-    status: Literal["pass"]
-    usage: Literal["local-demo"]
-    source_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    acceptance_spec_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    independent_reviewer: Literal[True]
-    asset_sha256: list[str] = Field(min_length=6, max_length=6)
-    publication_authorized: Literal[False]
-    reviewed_at: str
-
-    @field_validator("asset_sha256")
-    @classmethod
-    def valid_asset_digests(cls, value: list[str]) -> list[str]:
-        digest = re.compile(r"^[a-f0-9]{64}$")
-        if any(digest.fullmatch(item) is None for item in value):
-            raise ValueError("asset_sha256 entries must be SHA-256 digests")
-        return value
-
-    @field_validator("reviewed_at")
-    @classmethod
-    def valid_review_timestamp(cls, value: str) -> str:
-        return _validate_review_timestamp(value)
-
-
-class IndependentReviewV3(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["dialogue-scene-review-v3"]
+    schema_version: Literal[4]
+    kind: Literal["dialogue-scene-review-v4"]
     status: Literal["pass"]
     usage: Literal["local-demo"]
     source_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -491,14 +479,22 @@ class SceneData(PersistedContractModel):
 
 
 class DialogueBundle(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["dialogue-scene-bundle-v2"]
+    schema_version: Literal[4]
+    kind: Literal["dialogue-scene-bundle-v4"]
     recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v3"]
+    recipe_version: Literal["dialogue-scene-v5"]
     tag: str = Field(min_length=1)
+    game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     request: BundleFile
     plan: BundleFile
+    character_profile: BundleFile
+    character_profile_binding: CharacterProfileBinding
+    character_profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    #: The authored plate every image in the run was drawn against, named by the
+    #: package path it came from and the exact bytes the run republished.
+    identity_reference: BundleFile
+    identity_reference_source: str = Field(min_length=1)
     assets: list[BundleArtifact]
     scene_data: SceneData
     attempt_ledger: AttemptLedgerBinding
@@ -528,46 +524,5 @@ class DialogueBundle(PersistedContractModel):
         return self
 
 
-class DialogueBundleV3(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["dialogue-scene-bundle-v3"]
-    recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v4"]
-    tag: str = Field(min_length=1)
-    run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    request: BundleFile
-    plan: BundleFile
-    character_profile: BundleFile
-    character_profile_binding: CharacterProfileBinding
-    character_profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    assets: list[BundleArtifact]
-    scene_data: SceneData
-    attempt_ledger: AttemptLedgerBinding
-    review: ReviewState = Field(default_factory=ReviewState)
-    rights: RightsState = Field(default_factory=RightsState)
-
-    @model_validator(mode="after")
-    def unique_roles_and_paths(self) -> DialogueBundleV3:
-        paths = [artifact.path for artifact in self.assets]
-        if len(paths) != len(set(paths)):
-            raise ValueError("bundle asset paths must be unique")
-        expressions = [artifact.state for artifact in self.assets if artifact.role == "expression"]
-        if tuple(expressions) != EXPRESSION_STATES:
-            raise ValueError("bundle must contain each expression state in locked order")
-        if sum(artifact.role == "concept" for artifact in self.assets) != 1:
-            raise ValueError("bundle must contain exactly one concept")
-        if sum(artifact.role == "background" for artifact in self.assets) != 1:
-            raise ValueError("bundle must contain exactly one background")
-        asset_ids = {artifact.id for artifact in self.assets}
-        scene_asset_ids = {
-            self.scene_data.concept_asset_id,
-            self.scene_data.background.asset_id,
-            *(variant.asset_id for variant in self.scene_data.expression_variants),
-        }
-        if scene_asset_ids != asset_ids:
-            raise ValueError("scene_data asset bindings must exactly match selected assets")
-        return self
-
-
-DialogueBundleContract = DialogueBundle | DialogueBundleV3
-DialogueReview = IndependentReview | IndependentReviewV3
+DialogueBundleContract = DialogueBundle
+DialogueReview = IndependentReview

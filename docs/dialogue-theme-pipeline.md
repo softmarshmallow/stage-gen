@@ -7,9 +7,9 @@ installation:
 cd web
 bun run stage-gen -- doctor --transparency native --json
 bun run stage-gen -- dialogue-scene generate \
-  --input ../examples/dialogue-theme/adult-university-date.json \
-  --output ../out/adult-university-date
-bun run dialogue-theme -- install --bundle ../out/adult-university-date/bundle.json
+  --input ../library/games/larkfield \
+  --output ../out/larkfield
+bun run dialogue-theme -- install --bundle ../out/larkfield/bundle.json
 bun run dialogue-theme -- status
 ```
 
@@ -61,46 +61,42 @@ out/<run-dir>/
   bundle.json.meta.json
 ```
 
-`bundle.json` is the only adapter input. The adapter preserves exact wire-v2
-branches for recipe v2/v3 and separately accepts only
-`dialogue-scene-bundle-v3` with `schema_version: 3` and
-`recipe_version: "dialogue-scene-v4"`. Every persisted key is strict
+`bundle.json` is the only adapter input. The adapter accepts exactly one
+contract: `dialogue-scene-bundle-v4` with `schema_version: 4` and
+`recipe_version: "dialogue-scene-v5"`. Every persisted key is strict
 lower_snake_case, and unknown versions or camelCase input are rejected. Its asset,
 request, plan, attempt, and provenance references are run-relative POSIX paths
 with SHA-256 bindings. Raw and rejected candidates are lineage, not runtime
-assets.
+assets. There is no prior-version branch: an older bundle is a different
+document, not an older dialect to reinterpret.
 
-The web consumer retains already-installed `dialogue-scene-v2` compatibility
-through an explicit `v2`/`v3` recipe-version allowlist. It validates v2 against
-the historical contract without inventing style defaults. V3 additionally
-requires matching digest-bound style facts in plan and bundle provenance;
-unknown recipe versions fail closed.
-
-Recipe v4 additionally binds the authored-source digest from a strict
+The bundle binds the authored-source digest from a strict
 `character-profile-binding-v1`, the canonical `character-profile-v1` artifact
-and provenance, and matching plan, bundle, and independent-review facts. The
-installer copies these records opaquely. Runtime fixture projection exposes
+and provenance, the authored identity plate the run republished, and matching
+plan, bundle, and independent-review facts. The consumer checks that the plate
+the run shipped is the one the package declared, by digest rather than by path.
+The installer copies these records opaquely. Runtime fixture projection exposes
 only `profileIdentity.profileId` and `profileIdentity.revision`; it never
 exposes authored paths, absolute URLs, detector output, or provenance.
 
-From the repository root, the complete repository profile-enabled request is:
+From the repository root, the complete authored scene package is:
 
 ```sh
 uv run stage-gen dialogue-scene generate \
-  --input examples/dialogue-theme/profile-enabled-date.toml \
-  --output out/profile-enabled-date
+  --input library/games/larkfield \
+  --output out/larkfield
 ```
 
-The character library root comes from configuration
-(`STAGE_GEN_CHARACTER_LIBRARY_ROOT`); a profile-enabled request without one is
-refused while resolving, before the graph is built.
+The package names every member it depends on by exact relative path and exact
+digest, so there is no library-root configuration to supply and nothing to
+resolve outside that directory.
 
 From `web/`, use the same public command through the stable forwarding script:
 
 ```sh
 bun run stage-gen -- dialogue-scene generate \
-  --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --output ../out/profile-enabled-date
+  --input ../library/games/larkfield \
+  --output ../out/larkfield
 ```
 
 Before any image call, the `scene-style-select` node sends the request
@@ -167,13 +163,15 @@ byte hashes to what was recorded:
 
 ```sh
 uv run stage-gen dialogue-scene generate \
-  --input examples/dialogue-theme/adult-university-date.json \
-  --output out/adult-university-date-v2 \
+  --input library/games/larkfield \
+  --output out/larkfield-v2 \
   --cache-dir .cache/dialogue
 ```
 
-Editing the request changes its canonical digest, which changes every node's cache
-key, so the edited run rebuilds rather than contaminating the earlier one. There is
+Editing the scene document changes its canonical digest, which changes every
+node's cache key, so the edited run rebuilds rather than contaminating the
+earlier one. Replacing an authored reference does the same: its digest rides
+each image node's identity, so a new plate re-bills the scene deliberately. There is
 no force flag and no per-stage bypass: a node whose inputs are unchanged is reused,
 and a node whose inputs changed is not. Re-running an accepted artifact under the
 same inputs would be a new identity, not a retry, and the graph has no verb for it
@@ -217,9 +215,9 @@ prior state.
 fallback from failed native alpha. The CLI rejects a command-line transparency
 mode that conflicts with the request.
 
-The tracked sample is the strict `dialogue-theme-request-v2` wire contract: all
-JSON/TOML keys are lower_snake_case, and v1 or camelCase input is rejected. It
-generates both concept and background. A reuse request instead
-names a portable relative path, its exact SHA-256 digest, and its current rights
-state. The recipe copies the bytes into the run, never symlinks them, and never
-infers redistribution approval.
+The tracked sample is the strict `dialogue-scene-v1` authored contract: all TOML
+keys are lower_snake_case, and camelCase or unknown fields are rejected. The
+identity plate is not generated at all - `[[references]]` names a package member
+by relative path, exact SHA-256 digest, and rights state, and the run publishes
+those bytes as its concept asset. The recipe copies them into the run, never
+symlinks them, and never infers redistribution approval.

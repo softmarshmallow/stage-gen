@@ -107,13 +107,13 @@ The scrolling recipe accepts one opt-in shared binding under `character_profile`
 {
   "schema_version": 1,
   "kind": "character-profile-binding-v1",
-  "ref": "library/characters/mira-vale-cartographer/profile.toml",
+  "ref": "character.toml",
   "source_sha256": "<exact lowercase SHA-256>"
 }
 ```
 
 The current `CharacterProfileBinding` accepts exactly these four fields. Its
-`ref` must equal `library/characters/<profile_id>/profile.toml`; camelCase,
+`ref` must name a package-relative TOML member; camelCase,
 extra keys, absolute paths, URLs, traversal, symlinks, and source-digest
 mismatches fail closed. With an explicit character-library root,
 `profile-resolve` securely reads the bound TOML and its local references,

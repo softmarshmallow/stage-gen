@@ -17,6 +17,7 @@ from gnode import (
     SoftwareIdentity,
     write_artifact_with_provenance,
 )
+from stage_gen.components import canonical_character_profile_json
 from stage_gen.recipes.dialogue_scene.character_bundle import (
     DialogueCharacterBundle,
     load_reviewed_dialogue_character_bundle,
@@ -26,20 +27,20 @@ from stage_gen.recipes.dialogue_scene.character_bundle import (
 )
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
-    canonical_sha256,
     content_sha256,
 )
-from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
-    DialogueThemeRequest,
-)
+from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
+from stage_gen.recipes.dialogue_scene.scene_request import (
+    ResolvedDialogueScene,
+    read_scene_document,
+    resolve_dialogue_scene,
+)
 
-from .test_contracts import request_value
+from .package import write_scene_package
 
 _FIXTURE_TIME = datetime(2026, 8, 24, 1, 2, 3, tzinfo=UTC)
 _REVIEWED_AT = "2026-08-24T02:03:04Z"
-_IDENTITY_SHA256 = "5" * 64
 
 
 def _png(state_index: int) -> bytes:
@@ -83,49 +84,40 @@ def _write_pair(path: Path, data: bytes, media_type: str) -> Path:
     )
 
 
-def _request(*, line: str = "The valley remembers every kindness.") -> DialogueThemeRequest:
-    appearance = {
-        "id": "elowen-vale-herbalist",
-        "label": "Elowen Vale",
-        "age": 24,
-        "role": "Village herbalist",
-        "description": "Adult herbalist wearing an original forest-green travel dress",
-        "concept": {
-            "mode": "reuse",
-            "ref": "out/scrolling-demo/npc_scrolling-demo_2_still.png",
-            "sha256": _IDENTITY_SHA256,
-            "rights": "unreviewed",
-        },
-    }
-    return DialogueThemeRequest.model_validate(
-        request_value(
-            scene_brief="Adult village herbalist conversation beside a quiet garden",
-            appearance=appearance,
-            background={"mode": "generate", "description": "Quiet herb garden"},
-            dialogue=[
-                {
-                    "id": "opening",
-                    "speaker": "Elowen Vale",
-                    "text": line,
-                    "expression_state": "neutral",
-                }
-            ],
-        )
+def _scene(
+    root: Path, *, line: str = "The valley remembers every kindness."
+) -> ResolvedDialogueScene:
+    package = write_scene_package(
+        root / "package",
+        dialogue=[
+            {
+                "id": "opening",
+                "speaker": "Mio",
+                "text": line,
+                "expression_state": "neutral",
+            }
+        ],
     )
+    return resolve_dialogue_scene(read_scene_document(package), root=package)
 
 
-def _plan(request: DialogueThemeRequest) -> dict[str, object]:
+def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
+    profile = scene.profile
     return {
-        "schema_version": 2,
-        "kind": "dialogue-scene-plan-v2",
-        "recipe_version": "dialogue-scene-v3",
-        "policy_version": "adult-romance-nonexplicit-v2",
-        "expression_profile": "romance-core-v2",
-        "request_sha256": canonical_sha256(request),
-        "appearance_id": request.appearance.id,
+        "schema_version": 4,
+        "kind": "dialogue-scene-plan-v4",
+        "recipe_version": "dialogue-scene-v5",
+        "policy_version": "coming-of-age-nonexplicit-v3",
+        "expression_profile": "expression-core-v3",
+        "request_sha256": scene.request_sha256,
+        "appearance_id": profile.profile.profile_id,
+        "character_profile_ref": profile.ref,
+        "character_profile_source_sha256": profile.source_sha256,
+        "character_profile_sha256": profile.canonical_sha256,
+        "identity_reference_sha256": scene.identity_reference.sha256,
         "shared_locks": {
-            "identity": "adult Elowen Vale identity",
-            "wardrobe": "forest-green travel dress",
+            "identity": "Mio identity",
+            "wardrobe": "navy cardigan",
             "pose": "fixed conversational pose",
             "lighting": "soft afternoon light",
             "style": "original polished 2D storybook illustration",
@@ -137,29 +129,26 @@ def _plan(request: DialogueThemeRequest) -> dict[str, object]:
             "safe_bounds": [0.0, 0.0, 1.0, 1.0],
         },
         "states": [
-            {"id": state, "direction": f"adult {state} expression"} for state in EXPRESSION_STATES
+            {"id": state, "direction": f"a {state} expression"} for state in EXPRESSION_STATES
         ],
         "prompt_templates": [
-            {"id": "neutral-v5", "sha256": TEMPLATE_DIGEST},
-            {"id": "expression-edit-v5", "sha256": TEMPLATE_DIGEST},
+            {"id": "profile-neutral-v1", "sha256": TEMPLATE_DIGEST},
+            {"id": "profile-expression-edit-v1", "sha256": TEMPLATE_DIGEST},
         ],
     }
 
 
-def _write_request_and_plan(root: Path, request: DialogueThemeRequest) -> None:
+def _write_run_members(root: Path, scene: ResolvedDialogueScene) -> None:
+    _write_pair(root / "request.json", scene.request_bytes + b"\n", "application/json")
+    _write_pair(root / "plan.json", canonical_json_bytes(_plan(scene)) + b"\n", "application/json")
     _write_pair(
-        root / "request.json",
-        canonical_json_bytes(request) + b"\n",
-        "application/json",
-    )
-    _write_pair(
-        root / "plan.json",
-        canonical_json_bytes(_plan(request)) + b"\n",
+        root / "character-profile.json",
+        canonical_character_profile_json(scene.profile.profile),
         "application/json",
     )
 
 
-def _write_spike(root: Path) -> Path:
+def _write_spike(root: Path, scene: ResolvedDialogueScene) -> Path:
     spike_dir = root / "spike-assets"
     spike_dir.mkdir(parents=True)
     assets: list[dict[str, object]] = []
@@ -181,22 +170,25 @@ def _write_spike(root: Path) -> Path:
                 "provenance_sha256": content_sha256(provenance_path.read_bytes()),
             }
         )
+    profile = scene.profile.profile
+    reference = scene.identity_reference
     spike = {
-        "schema_version": 1,
-        "kind": "dialogue-character-only-spike-v1",
+        "schema_version": 2,
+        "kind": "dialogue-character-only-spike-v2",
         "status": "ready-for-local-demo",
         "character": {
-            "id": "elowen-vale-herbalist",
-            "label": "Elowen Vale",
-            "age": 24,
+            "id": profile.profile_id,
+            "label": profile.display_name,
+            "age": profile.age_years,
             "identity_reference": {
-                "ref": "out/scrolling-demo/npc_scrolling-demo_2_still.png",
-                "sha256": _IDENTITY_SHA256,
+                "ref": reference.source,
+                "sha256": reference.sha256,
             },
         },
         "available_states": list(EXPRESSION_STATES),
         "assets": assets,
         "source_plan": "plan.json",
+        "source_profile": "character-profile.json",
         "source_request": "request.json",
         "background": None,
         "review": {"status": "pending"},
@@ -231,8 +223,9 @@ def _write_spike(root: Path) -> Path:
 def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     root = tmp_path / "dialogue-character-test"
     root.mkdir()
-    _write_request_and_plan(root, _request())
-    return root, _write_spike(root)
+    scene = _scene(root)
+    _write_run_members(root, scene)
+    return root, _write_spike(root, scene)
 
 
 def _assert_input_binding(root: Path, item: InputProvenance) -> None:
@@ -366,14 +359,16 @@ def test_package_is_strict_digest_bound_idempotent_and_immutable(tmp_path: Path)
 
     assert first["bundle_sha256"] == content_sha256(bundle_bytes)
     assert bundle.recipe == "dialogue-scene"
-    assert bundle.recipe_version == "dialogue-scene-v3"
+    assert bundle.recipe_version == "dialogue-scene-v5"
     assert bundle.tag == root.name
     assert bundle.review.status == "pending"
     assert bundle.rights.aggregate == "unreviewed"
     assert bundle.rights.publication_authorized is False
     assert tuple(bundle.available_states) == EXPRESSION_STATES
     assert tuple(asset.state for asset in bundle.assets) == EXPRESSION_STATES
-    assert bundle.dialogue == _request().dialogue
+    assert [beat.model_dump(mode="json") for beat in bundle.dialogue] == [
+        beat.model_dump(mode="json") for beat in _scene(root / "reread").request.dialogue
+    ]
     assert bundle.request.sha256 == content_sha256((root / "request.json").read_bytes())
     assert bundle.request.provenance_sha256 == content_sha256(
         (root / "request.json.meta.json").read_bytes()
@@ -394,6 +389,7 @@ def test_package_is_strict_digest_bound_idempotent_and_immutable(tmp_path: Path)
         "spike-assets/character-only.json",
         "request.json",
         "plan.json",
+        "character-profile.json",
         *{ref for asset in bundle.assets for ref in (asset.path, asset.provenance_path)},
     }
     for item in provenance.inputs:
@@ -403,8 +399,7 @@ def test_package_is_strict_digest_bound_idempotent_and_immutable(tmp_path: Path)
     assert second == first
     assert bundle_path.read_bytes() == bundle_bytes
 
-    changed_request = _request(line="The garden remembers every promise.")
-    _write_request_and_plan(root, changed_request)
+    _write_run_members(root, _scene(root / "changed", line="The garden remembers every promise."))
     with pytest.raises(ValueError, match="conflicting immutable dialogue character package"):
         package_dialogue_character_spike(spike_path)
 

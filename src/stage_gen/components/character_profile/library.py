@@ -1,4 +1,9 @@
-"""Secure resolution of digest-bound profiles from an explicit authored library root."""
+"""Secure resolution of digest-bound profiles from an explicit authored package root.
+
+A profile is a member of the package that binds it, named by exact relative path
+and exact bytes. Resolution stays inside that root, follows no symlink, and
+refuses a digest that no longer matches - offline, before any spend.
+"""
 
 from __future__ import annotations
 
@@ -66,19 +71,17 @@ class ResolvedCharacterProfile:
 def resolve_character_profile_binding(
     value: object,
     *,
-    character_library_root: str | Path,
+    package_root: str | Path,
 ) -> ResolvedCharacterProfile:
-    """Resolve one exact library binding without following filesystem symlinks."""
+    """Resolve one exact package binding without following filesystem symlinks."""
 
     binding = CharacterProfileBinding.model_validate(value)
     parts = PurePosixPath(binding.ref).parts
-    if len(parts) != 4 or parts[:2] != ("library", "characters") or parts[3] != "profile.toml":
-        raise ValueError(
-            "character_profile ref must equal library/characters/<profile_id>/profile.toml"
-        )
-    root = Path(character_library_root).absolute()
+    if not parts or parts[-1].split(".")[-1].lower() != "toml":
+        raise ValueError("character_profile ref must name a TOML member of the package")
+    root = Path(package_root).absolute()
     try:
-        with open_absolute_directory(root, label="character library root") as root_fd:
+        with open_absolute_directory(root, label="character package root") as root_fd:
             source_bytes = read_relative_regular_file(
                 root_fd,
                 parts,
@@ -100,8 +103,6 @@ def resolve_character_profile_binding(
                 source_suffix=".toml",
                 reference_reader=read_reference,
             )
-            if profile.profile_id != parts[2]:
-                raise ValueError("character profile profile_id must match its library directory")
             canonical_bytes = canonical_character_profile_json(profile)
             return ResolvedCharacterProfile(
                 binding=binding,

@@ -136,20 +136,20 @@ def build_parser() -> argparse.ArgumentParser:
     dialogue_parser = commands.add_parser(
         "dialogue-scene",
         description=(
-            "Plan, execute, and review one strict adult, non-explicit dialogue-scene bundle"
+            "Plan, execute, and review one non-explicit visual-novel dialogue-scene bundle"
         ),
     )
     dialogue_commands = dialogue_parser.add_subparsers(dest="dialogue_command", required=True)
     dialogue_generate_parser = dialogue_commands.add_parser(
         "generate",
-        help="execute one authored dialogue request as an asset graph",
+        help="execute one authored scene package as an asset graph",
     )
     dialogue_generate_parser.add_argument(
         "--input",
         required=True,
         dest="input_path",
-        metavar="REQUEST.json",
-        help="authored dialogue-theme-request document (JSON or TOML)",
+        metavar="PACKAGE",
+        help="authored scene package directory containing scene.toml",
     )
     dialogue_generate_parser.add_argument(
         "--output",
@@ -275,9 +275,9 @@ def build_parser() -> argparse.ArgumentParser:
         action_parser = profile_commands.add_parser(action)
         action_parser.add_argument("--input", required=True, dest="input_path")
         action_parser.add_argument(
-            "--character-library-root",
+            "--package-root",
             required=True,
-            help="workspace root containing library/characters",
+            help="authored package directory the profile is a member of",
         )
 
     game_parser = commands.add_parser(
@@ -469,7 +469,7 @@ def _dispatch(
     if command == "character-profile":
         resolved = _resolve_cli_character_profile(
             input_path=Path(args.input_path),
-            character_library_root=Path(args.character_library_root),
+            package_root=Path(args.package_root),
         )
         if args.character_profile_command == "digest":
             stdout.write(f"{resolved.source_sha256}\n")
@@ -964,19 +964,16 @@ def _resolve_cli_game_map_book(*, input_path: Path, game_library_root: Path) -> 
 
 
 def _resolve_cli_character_profile(
-    *, input_path: Path, character_library_root: Path
+    *, input_path: Path, package_root: Path
 ) -> ResolvedCharacterProfile:
-    root = character_library_root.absolute()
+    root = package_root.absolute()
     source = input_path.absolute()
     try:
         relative = source.relative_to(root)
     except ValueError as error:
-        raise ValueError("character profile input must be inside character library root") from error
-    parts = relative.parts
-    if len(parts) != 4 or parts[:2] != ("library", "characters") or parts[3] != "profile.toml":
-        raise ValueError(
-            "character profile input must equal ROOT/library/characters/<profile_id>/profile.toml"
-        )
+        raise ValueError("character profile input must be inside the package root") from error
+    if relative.suffix.lower() != ".toml":
+        raise ValueError("character profile input must be a TOML member of the package")
     source_sha256 = _secure_cli_source_sha256(source, label="character profile input")
     return resolve_character_profile_binding(
         {
@@ -985,5 +982,5 @@ def _resolve_cli_character_profile(
             "ref": relative.as_posix(),
             "source_sha256": source_sha256,
         },
-        character_library_root=root,
+        package_root=root,
     )

@@ -151,7 +151,8 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
-    profile = repository / "library/characters/mira-vale-cartographer/profile.toml"
+    package = repository / "library/games/larkfield"
+    profile = package / "character.toml"
     validate_output = StringIO()
     assert (
         main(
@@ -160,8 +161,8 @@ def test_character_profile_cli_validate_digest_help_and_errors(
                 "validate",
                 "--input",
                 str(profile),
-                "--character-library-root",
-                str(repository),
+                "--package-root",
+                str(package),
             ],
             stdout=validate_output,
         )
@@ -171,19 +172,19 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     assert validated == {
         "binding": {
             "kind": "character-profile-binding-v1",
-            "ref": "library/characters/mira-vale-cartographer/profile.toml",
+            "ref": "character.toml",
             "schema_version": 1,
-            "source_sha256": "3637614c8d5a13cfa6d4f7aa889a750bdecac2c1f14375483e26ef37aedfb0cf",
+            "source_sha256": validated["source_sha256"],
         },
         "canonical_bytes": validated["canonical_bytes"],
         "canonical_sha256": validated["canonical_sha256"],
         "kind": "resolved-character-profile-v1",
-        "profile_id": "mira-vale-cartographer",
+        "profile_id": "nao-kirishima",
         "resolution_version": "character-profile-library-resolution-v1",
         "revision": 1,
         "rights_status": "unreviewed",
         "schema_version": 1,
-        "source_sha256": "3637614c8d5a13cfa6d4f7aa889a750bdecac2c1f14375483e26ef37aedfb0cf",
+        "source_sha256": validated["source_sha256"],
         "valid": True,
     }
     digest_output = StringIO()
@@ -194,8 +195,8 @@ def test_character_profile_cli_validate_digest_help_and_errors(
                 "digest",
                 "--input",
                 str(profile),
-                "--character-library-root",
-                str(repository),
+                "--package-root",
+                str(package),
             ],
             stdout=digest_output,
         )
@@ -208,7 +209,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     help_text = capsys.readouterr().out
     assert exit_info.value.code == 0
     assert "--input INPUT_PATH" in help_text
-    assert "--character-library-root CHARACTER_LIBRARY_ROOT" in help_text
+    assert "--package-root PACKAGE_ROOT" in help_text
 
     error_output = StringIO()
     outside = tmp_path / "profile.toml"
@@ -220,17 +221,17 @@ def test_character_profile_cli_validate_digest_help_and_errors(
                 "validate",
                 "--input",
                 str(outside),
-                "--character-library-root",
-                str(repository),
+                "--package-root",
+                str(package),
             ],
             stderr=error_output,
         )
         == 1
     )
-    assert "must be inside character library root" in error_output.getvalue()
+    assert "must be inside the package root" in error_output.getvalue()
 
     invalid_root = tmp_path / "workspace"
-    invalid_profile = invalid_root / "library/characters/broken/profile.toml"
+    invalid_profile = invalid_root / "broken.toml"
     invalid_profile.parent.mkdir(parents=True)
     invalid_profile.write_text(
         'schema_version = 1\nkind = "character-profile-v1"\nprofile_id = "broken"\n',
@@ -244,7 +245,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
                 "validate",
                 "--input",
                 str(invalid_profile),
-                "--character-library-root",
+                "--package-root",
                 str(invalid_root),
             ],
             stderr=invalid_output,

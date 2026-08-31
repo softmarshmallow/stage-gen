@@ -309,10 +309,9 @@ soundtrack_track_ids = ["first_theme", "second_theme"]
 
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    profile_id = "mira-vale-cartographer"
-    external_profile = repository / f"library/characters/{profile_id}/profile.toml"
+    external_profile = repository / "library/games/larkfield/character.toml"
     workspace = tmp_path / "workspace"
-    source = workspace / f"library/characters/{profile_id}/profile.toml"
+    source = workspace / "character.toml"
     source.parent.mkdir(parents=True)
     source.symlink_to(external_profile)
     errors = io.StringIO()
@@ -324,7 +323,7 @@ def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> Non
                 "validate",
                 "--input",
                 str(source),
-                "--character-library-root",
+                "--package-root",
                 str(workspace),
             ],
             stderr=errors,
@@ -343,8 +342,8 @@ def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> Non
         ("map-book", "library/games/../maps/index.toml", "--game-library-root"),
         (
             "character-profile",
-            "library/characters/../profile.toml",
-            "--character-library-root",
+            "library/games/../profile.toml",
+            "--package-root",
         ),
     ],
 )

@@ -35,7 +35,7 @@ src/stage_gen/recipes/        recipe-specific composition, processing, and manif
 src/stage_gen/orchestration/  run preparation, concrete composition, and summaries
 src/stage_gen/interfaces/     argparse CLI, the only automation surface
 src/stage_gen/resources/      wheel-packaged recipe resources
-library/characters/           source-checkout or external authored profile workspace
+library/games/                source-checkout or external authored package workspace
 web/                          optional browser preview adapter
 docs/                         contracts, operations, research, and policy
 ```

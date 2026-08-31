@@ -11,33 +11,35 @@ from gnode import ArtifactProvenance
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
 from stage_gen.interfaces.cli import main
 from stage_gen.recipes.dialogue_scene.identity import content_sha256
-from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
-from stage_gen.recipes.dialogue_scene.models import (
-    DialogueBundle,
-    DialogueBundleV3,
-    IndependentReview,
-    IndependentReviewV3,
-)
+from stage_gen.recipes.dialogue_scene.models import DialogueBundle, IndependentReview
 from stage_gen.recipes.dialogue_scene.review import (
     _validate_profile_artifact,
     transition_dialogue_review,
 )
 
-from .fakes import authored_profile_source
-from .test_contracts import profile_request_value
-from .test_manifest import _write_inputs
+from .package import write_scene_package
 from .test_prepared_scene import run_scene
 
 
 async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
-    await write_dialogue_bundle(root, tag=_write_inputs(root))
-    bundle_path = root / "bundle.json"
+    """A reviewable bundle from a real run.
+
+    The review validates the character profile's own provenance lineage, so the
+    fixture has to be a run the recipe actually produced rather than hand-written
+    JSON that merely has the right shape.
+    """
+
+    package = write_scene_package(root / "package")
+    await run_scene(package, run_dir=root / "run", cache_dir=root / "cache")
+    bundle_path = root / "run/bundle.json"
     bundle = DialogueBundle.model_validate_json(bundle_path.read_bytes())
-    acceptance_path = root / "acceptance.json"
+    acceptance_path = root / "run/acceptance.json"
     acceptance_path.write_text('{"criterion":"all six selected assets pass"}\n', encoding="utf-8")
     review = {
-        "schema_version": 2,
-        "kind": "dialogue-scene-review-v2",
+        "schema_version": 4,
+        "kind": "dialogue-scene-review-v4",
+        "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
+        "character_profile_sha256": bundle.character_profile_sha256,
         "status": "pass",
         "usage": "local-demo",
         "source_bundle_sha256": content_sha256(bundle_path.read_bytes()),
@@ -67,21 +69,15 @@ def _action(bundle: Path, review: Path, acceptance: Path) -> dict[str, object]:
 
 async def _profile_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Path, Path, DialogueBundleV3]:
+) -> tuple[Path, Path, DialogueBundle]:
     del monkeypatch
-    source = authored_profile_source(tmp_path)
-    request = profile_request_value(content_sha256(source.read_bytes()))
-    await run_scene(
-        request,
-        run_dir=tmp_path / "run",
-        cache_dir=tmp_path / "cache",
-        character_library_root=source.parents[3],
-    )
+    package = write_scene_package(tmp_path / "package")
+    await run_scene(package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache")
     bundle_path = tmp_path / "run/bundle.json"
     return (
-        source,
+        package / "character.toml",
         bundle_path,
-        DialogueBundleV3.model_validate_json(bundle_path.read_bytes()),
+        DialogueBundle.model_validate_json(bundle_path.read_bytes()),
     )
 
 
@@ -93,8 +89,8 @@ async def test_profile_v3_review_binds_source_and_canonical_profile_digests(
     acceptance = bundle_path.parent / "acceptance.json"
     acceptance.write_text('{"criterion":"profile and all assets pass"}\n', encoding="utf-8")
     review_value = {
-        "schema_version": 3,
-        "kind": "dialogue-scene-review-v3",
+        "schema_version": 4,
+        "kind": "dialogue-scene-review-v4",
         "status": "pass",
         "usage": "local-demo",
         "source_bundle_sha256": content_sha256(bundle_path.read_bytes()),
@@ -109,10 +105,10 @@ async def test_profile_v3_review_binds_source_and_canonical_profile_digests(
     incoming = _write_review(bundle_path.parent, review_value)
     result = await transition_dialogue_review(_action(bundle_path, incoming, acceptance))
     assert result["kind"] == "dialogue-review-transition-result-v3"
-    reviewed = DialogueBundleV3.model_validate_json(
+    reviewed = DialogueBundle.model_validate_json(
         (bundle_path.parent / "bundle.reviewed.json").read_bytes()
     )
-    review = IndependentReviewV3.model_validate_json(
+    review = IndependentReview.model_validate_json(
         (bundle_path.parent / "review.json").read_bytes()
     )
     assert reviewed.character_profile_sha256 == review.character_profile_sha256
@@ -147,7 +143,7 @@ async def test_profile_v3_review_rejects_noncanonical_profile_json(
     [
         ("profile_id", "other-profile", "params mismatch"),
         ("revision", 99, "params mismatch"),
-        ("model", "deterministic-dialogue-scene-v3", "producer lineage mismatch"),
+        ("model", "deterministic-dialogue-scene-v4", "producer lineage mismatch"),
         ("input_sha256", "f" * 64, "source input binding mismatch"),
         ("rights_basis", ["Tampered rights basis."], "rights mismatch"),
     ],
@@ -224,13 +220,13 @@ async def test_review_transition_is_immutable_idempotent_and_provenance_bound(
     tmp_path: Path,
 ) -> None:
     bundle_path, acceptance_path, review_value = await _source_bundle(tmp_path)
-    review_input = _write_review(tmp_path, review_value)
+    review_input = _write_review(bundle_path.parent, review_value)
     source_before = bundle_path.read_bytes()
 
     first = await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
-    reviewed_path = tmp_path / "bundle.reviewed.json"
-    review_path = tmp_path / "review.json"
-    provenance_path = tmp_path / "review.json.meta.json"
+    reviewed_path = bundle_path.parent / "bundle.reviewed.json"
+    review_path = bundle_path.parent / "review.json"
+    provenance_path = bundle_path.parent / "review.json.meta.json"
     first_bytes = reviewed_path.read_bytes()
     first_provenance = provenance_path.read_bytes()
     second = await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
@@ -277,12 +273,12 @@ async def test_review_transition_rejects_invalid_bindings_and_authorization(
 ) -> None:
     bundle_path, acceptance_path, review_value = await _source_bundle(tmp_path)
     review_value.update(mutation)
-    review_input = _write_review(tmp_path, review_value)
+    review_input = _write_review(bundle_path.parent, review_value)
 
     with pytest.raises(ValueError, match=message):
         await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
-    assert not (tmp_path / "bundle.reviewed.json").exists()
-    assert not (tmp_path / "review.json").exists()
+    assert not (bundle_path.parent / "bundle.reviewed.json").exists()
+    assert not (bundle_path.parent / "review.json").exists()
 
 
 @pytest.mark.asyncio
@@ -292,7 +288,7 @@ async def test_review_transition_rejects_missing_digest_camel_case_and_missing_a
     bundle_path, acceptance_path, review_value = await _source_bundle(tmp_path)
     review_value["asset_sha256"] = review_value["asset_sha256"][:-1]  # type: ignore[index]
     review_value["sourceBundleSha256"] = review_value.pop("source_bundle_sha256")
-    review_input = _write_review(tmp_path, review_value)
+    review_input = _write_review(bundle_path.parent, review_value)
     with pytest.raises(ValueError, match=r"sourceBundleSha256|asset_sha256"):
         await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
 
@@ -300,8 +296,8 @@ async def test_review_transition_rejects_missing_digest_camel_case_and_missing_a
     missing_root.mkdir()
     bundle_path, acceptance_path, review_value = await _source_bundle(missing_root)
     selected = DialogueBundle.model_validate_json(bundle_path.read_bytes()).assets[0]
-    (missing_root / selected.path).unlink()
-    review_input = _write_review(missing_root, review_value)
+    (bundle_path.parent / selected.path).unlink()
+    review_input = _write_review(bundle_path.parent, review_value)
     with pytest.raises(ValueError, match="selected asset is missing"):
         await transition_dialogue_review(_action(bundle_path, review_input, acceptance_path))
 
@@ -310,7 +306,7 @@ def test_public_cli_reviews_one_bundle_and_documents_its_controls(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     bundle_path, acceptance_path, review_value = asyncio.run(_source_bundle(tmp_path))
-    review_input = _write_review(tmp_path, review_value)
+    review_input = _write_review(bundle_path.parent, review_value)
     output = StringIO()
 
     assert (
@@ -332,7 +328,7 @@ def test_public_cli_reviews_one_bundle_and_documents_its_controls(
         == 0
     )
     result = json.loads(output.getvalue())
-    assert result["kind"] == "dialogue-review-transition-result-v2"
+    assert result["kind"] == "dialogue-review-transition-result-v3"
     assert result["publication_authorized"] is False
 
     with pytest.raises(SystemExit) as raised:

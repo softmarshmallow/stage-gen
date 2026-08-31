@@ -1,149 +1,153 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from stage_gen.config import StageGenConfig
-from stage_gen.interfaces.cli import _parse_input_document
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
-from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueThemeRequest
+from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueSceneDocument
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
     build_dialogue_scene_graph,
     dialogue_graph_profile,
 )
 from stage_gen.recipes.dialogue_scene.scene_request import (
+    ResolvedDialogueScene,
     parse_dialogue_request,
+    read_scene_document,
     resolve_dialogue_scene,
 )
 
-
-def request_value(**overrides: object) -> dict[str, object]:
-    value: dict[str, object] = {
-        "schema_version": 2,
-        "kind": "dialogue-theme-request-v2",
-        "scene_brief": "Adult university study lounge after a graduate seminar",
-        "appearance": {
-            "id": "mio-researcher",
-            "label": "Mio",
-            "age": 23,
-            "role": "Graduate researcher",
-            "description": "Adult woman in a navy cardigan",
-            "concept": {
-                "mode": "generate",
-                "description": "Original clean Japanese anime visual-novel character direction",
-            },
-        },
-        "background": {"mode": "generate", "description": "Evening study lounge"},
-        "dialogue": [
-            {
-                "id": "opening",
-                "speaker": "Mio",
-                "text": "I hoped you would stay after the seminar.",
-                "expression_state": "neutral",
-            }
-        ],
-        "presentation": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
-        "transparency_mode": "chroma",
-    }
-    value.update(overrides)
-    return value
+from .package import write_scene_package
 
 
-def profile_request_value(source_sha256: str, **overrides: object) -> dict[str, object]:
-    value: dict[str, object] = {
-        "schema_version": 3,
-        "kind": "dialogue-theme-request-v3",
-        "scene_brief": "Adult cartographer conversation beside a quiet harbor",
-        "character_profile": {
-            "schema_version": 1,
-            "kind": "character-profile-binding-v1",
-            "ref": "library/characters/mira-vale-cartographer/profile.toml",
-            "source_sha256": source_sha256,
-        },
-        "background": {"mode": "generate", "description": "Quiet harbor at dusk"},
-        "dialogue": [
-            {
-                "id": "opening",
-                "speaker": "Mira Vale",
-                "text": "The tide changed the coastline again.",
-                "expression_state": "neutral",
-            }
-        ],
-        "presentation": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
-        "transparency_mode": "chroma",
-    }
-    value.update(overrides)
-    return value
+def _document(root: Path) -> dict[str, object]:
+    return read_scene_document(root)
 
 
-def test_request_is_strict_canonical_and_rejects_v1_or_camel_case() -> None:
-    parsed = _parsed(request_value())
+def _resolved(root: Path) -> ResolvedDialogueScene:
+    return resolve_dialogue_scene(_document(root), root=root)
+
+
+def _graph(root: Path) -> DialogueSceneGraph:
+    return build_dialogue_scene_graph(
+        _resolved(root), profile=dialogue_graph_profile(StageGenConfig())
+    )
+
+
+def _parsed(document: dict[str, object]) -> dict[str, object]:
+    return parse_dialogue_request(document).model_dump(mode="json", exclude_none=True)
+
+
+def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Path) -> None:
+    root = write_scene_package(tmp_path / "pkg")
+    document = _document(root)
+    parsed = _parsed(document)
     reversed_value = dict(reversed(list(parsed.items())))
     assert canonical_json_bytes(parsed) == canonical_json_bytes(reversed_value)
     assert canonical_sha256(parsed) == canonical_sha256(reversed_value)
 
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        _parsed(request_value(kind="dialogue-theme-request"))
-    camel = request_value()
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+        _parsed({**document, "kind": "dialogue-theme-request-v3"})
+    camel = dict(document)
     camel["sceneBrief"] = camel.pop("scene_brief")
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
         _parsed(camel)
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        _parsed({**request_value(), "unknown": True})
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+        _parsed({**document, "unknown": True})
     with pytest.raises(ValueError, match="content policy"):
-        _parsed(request_value(scene_brief="A minor in a university study lounge"))
+        _parsed({**document, "scene_brief": "A minor stays behind after the seminar"})
 
 
-def test_request_accepts_native_alpha_and_defaults_new_documents_to_native() -> None:
-    explicit = DialogueThemeRequest.model_validate(request_value(transparency_mode="native"))
+def test_scene_document_defaults_to_native_alpha(tmp_path: Path) -> None:
+    document = _document(write_scene_package(tmp_path / "pkg"))
+    explicit = DialogueSceneDocument.model_validate({**document, "transparency_mode": "native"})
     assert explicit.transparency_mode == "native"
 
-    omitted = request_value()
+    omitted = dict(document)
     del omitted["transparency_mode"]
-    assert DialogueThemeRequest.model_validate(omitted).transparency_mode == "native"
+    assert DialogueSceneDocument.model_validate(omitted).transparency_mode == "native"
 
 
-def test_request_rejects_underage_duplicate_beats_and_unknown_expression() -> None:
-    underage = request_value()
-    appearance = underage["appearance"]
-    assert isinstance(appearance, dict)
-    underage["appearance"] = {**appearance, "age": 20}
-    with pytest.raises(ValueError):
-        _parsed(underage)
-
-    duplicate = request_value()
-    dialogue = duplicate["dialogue"]
+def test_scene_document_rejects_duplicate_beats_and_unknown_expression(tmp_path: Path) -> None:
+    document = _document(write_scene_package(tmp_path / "pkg"))
+    dialogue = document["dialogue"]
     assert isinstance(dialogue, list)
-    duplicate["dialogue"] = [dialogue[0], dialogue[0]]
     with pytest.raises(ValueError, match="unique"):
-        _parsed(duplicate)
+        _parsed({**document, "dialogue": [dialogue[0], dialogue[0]]})
 
-    invalid_state = request_value()
-    invalid_dialogue = invalid_state["dialogue"]
-    assert isinstance(invalid_dialogue, list)
-    first_beat = invalid_dialogue[0]
+    first_beat = dialogue[0]
     assert isinstance(first_beat, dict)
-    invalid_state["dialogue"] = [{**first_beat, "expression_state": "angry"}]
     with pytest.raises(ValueError):
-        _parsed(invalid_state)
-
-    without_background = request_value(background={"mode": "none"})
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v2"):
-        _parsed(without_background)
+        _parsed({**document, "dialogue": [{**first_beat, "expression_state": "angry"}]})
 
 
-def _graph(document: dict[str, object]) -> DialogueSceneGraph:
-    scene = resolve_dialogue_scene(document)
-    return build_dialogue_scene_graph(scene, profile=dialogue_graph_profile(StageGenConfig()))
+def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> None:
+    """The binding names a member by relative path; anything else leaves the package."""
+
+    document = _document(write_scene_package(tmp_path / "pkg"))
+    binding = document["character_profile"]
+    assert isinstance(binding, dict)
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+        _parsed({**document, "character_profile": {"ref": "character.toml"}})
+    # The binding refuses escape itself; the document refuses a member that is
+    # not a profile at all, so neither check depends on the other holding.
+    with pytest.raises(ValueError, match="parent segments"):
+        _parsed({**document, "character_profile": {**binding, "ref": "../elsewhere.toml"}})
+    with pytest.raises(ValueError, match="package-relative TOML member"):
+        _parsed({**document, "character_profile": {**binding, "ref": "character.json"}})
+    camel = dict(binding)
+    camel["sourceSha256"] = camel.pop("source_sha256")
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+        _parsed({**document, "character_profile": camel})
 
 
-def test_recipe_declares_locked_dependency_dag() -> None:
-    graph = _graph(request_value())
+def test_an_underage_character_profile_is_refused(tmp_path: Path) -> None:
+    """The age floor is the legal adult line, and it is enforced offline."""
+
+    root = write_scene_package(tmp_path / "pkg")
+    source = (root / "character.toml").read_text(encoding="utf-8")
+    (root / "character.toml").write_bytes(
+        source.replace("age_years = 23", "age_years = 16").encode()
+    )
+    document = _document(root)
+    binding = document["character_profile"]
+    assert isinstance(binding, dict)
+    binding["source_sha256"] = hashlib.sha256((root / "character.toml").read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="adult age from 18"):
+        resolve_dialogue_scene(document, root=root)
+
+
+def test_a_reference_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:
+    root = write_scene_package(tmp_path / "pkg")
+    (root / "references/cover.png").write_bytes(b"\x89PNG\r\n\x1a\nnot the authored bytes")
+    with pytest.raises(ValueError, match="does not match its authored digest"):
+        resolve_dialogue_scene(_document(root), root=root)
+
+
+def test_a_reference_declared_but_never_used_is_refused(tmp_path: Path) -> None:
+    """An unused declaration is a file the manifest would name for nothing."""
+
+    root = write_scene_package(tmp_path / "pkg")
+    document = _document(root)
+    references = document["references"]
+    assert isinstance(references, list)
+    spare = {**references[0], "reference_id": "spare", "source": "references/spare.png"}
+    with pytest.raises(ValueError, match="never used"):
+        _parsed({**document, "references": [*references, spare]})
+    with pytest.raises(ValueError, match="undeclared reference"):
+        _parsed({**document, "identity_reference_id": "missing"})
+
+
+def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
+    graph = _graph(write_scene_package(tmp_path / "pkg"))
     assert [node.node_id for node in graph.nodes] == [
         "scene-request",
+        "scene-profile-resolve",
         "scene-style-select",
         "scene-concept",
         "scene-plan",
@@ -168,10 +172,41 @@ def test_recipe_declares_locked_dependency_dag() -> None:
     )
 
 
-def test_each_derived_expression_is_its_own_node_off_the_neutral_source() -> None:
+def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
+    """Nothing in the graph paints the art direction, and the plan says whose it is.
+
+    The concept node became local when the plate stopped being generated, so the
+    scene buys one fewer image than it used to; every image node still keys on
+    the plate's bytes, so replacing the file re-bills the scene deliberately.
+    """
+
+    root = write_scene_package(tmp_path / "pkg")
+    resolved = _resolved(root)
+    graph = _graph(root)
+    concept = graph.node("scene-concept")
+    assert concept.operation == "local"
+    assert concept.card is not None
+    authored = {entry.label: entry for entry in concept.card.authored_inputs}
+    assert authored["cover"].ref == "references/cover.png"
+    assert authored["cover"].sha256 == resolved.identity_reference.sha256
+
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert len(image_nodes) == 5
+    for node in image_nodes:
+        assert resolved.identity_reference.sha256 in node.input_sha256, node.node_id
+
+    # The backdrop is drawn against the same plate the character stands in.
+    background = graph.node("scene-background")
+    assert background.card is not None
+    assert any(
+        reference.node_id == "scene-concept" for reference in background.card.reference_inputs
+    )
+
+
+def test_each_derived_expression_is_its_own_node_off_the_neutral_source(tmp_path: Path) -> None:
     # The stage pipeline this replaces derived three expressions inside one stage and
     # canonicalized four inside another, so a single bad state failed the whole batch.
-    graph = _graph(request_value())
+    graph = _graph(write_scene_package(tmp_path / "pkg"))
     for state in ("delighted", "flustered", "concerned"):
         assert graph.node(f"scene-expression-{state}").depends_on == ("scene-expression-neutral",)
         assert graph.node(f"scene-canonicalize-{state}").depends_on == (
@@ -179,35 +214,14 @@ def test_each_derived_expression_is_its_own_node_off_the_neutral_source() -> Non
         )
 
 
-def test_profile_request_is_strict_v3_and_selects_only_the_profile_dag() -> None:
-    request = profile_request_value("a" * 64)
-    parsed = _parsed(request)
-    assert parsed == request
-    assert "scene-profile-resolve" not in {node.node_id for node in _graph(request_value()).nodes}
-
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v3"):
-        _parsed(profile_request_value("a" * 64, character_profile={"ref": "profile.toml"}))
-    outside_library = profile_request_value("a" * 64)
-    outside_binding = outside_library["character_profile"]
-    assert isinstance(outside_binding, dict)
-    outside_binding["ref"] = "authored/mira/profile.toml"
-    with pytest.raises(ValueError, match="library/characters"):
-        _parsed(outside_library)
-    camel = profile_request_value("a" * 64)
-    binding = camel["character_profile"]
-    assert isinstance(binding, dict)
-    binding["sourceSha256"] = binding.pop("source_sha256")
-    with pytest.raises(ValueError, match="invalid dialogue-theme-request-v3"):
-        _parsed(camel)
-
-
 def test_bundle_paths_rights_and_review_are_strict() -> None:
-    raw = {
-        "schema_version": 2,
-        "kind": "dialogue-scene-bundle-v2",
+    raw: dict[str, object] = {
+        "schema_version": 4,
+        "kind": "dialogue-scene-bundle-v4",
         "recipe": "dialogue-scene",
-        "recipe_version": "dialogue-scene-v3",
+        "recipe_version": "dialogue-scene-v5",
         "tag": "demo",
+        "game_id": "seminar_hall",
         "run_identity_sha256": "a" * 64,
         "request": {
             "path": "request.json",
@@ -221,6 +235,26 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
             "provenance_path": "plan.json.meta.json",
             "provenance_sha256": "2" * 64,
         },
+        "character_profile": {
+            "path": "character-profile.json",
+            "sha256": "5" * 64,
+            "provenance_path": "character-profile.json.meta.json",
+            "provenance_sha256": "6" * 64,
+        },
+        "character_profile_binding": {
+            "schema_version": 1,
+            "kind": "character-profile-binding-v1",
+            "ref": "character.toml",
+            "source_sha256": "7" * 64,
+        },
+        "character_profile_sha256": "5" * 64,
+        "identity_reference": {
+            "path": "assets/concept.png",
+            "sha256": "d" * 64,
+            "provenance_path": "assets/concept.png.meta.json",
+            "provenance_sha256": "e" * 64,
+        },
+        "identity_reference_source": "references/cover.png",
         "assets": [
             {
                 "id": "concept",
@@ -237,7 +271,7 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
                 },
                 "provenance_path": "assets/concept.png.meta.json",
                 "provenance_sha256": "e" * 64,
-                "selected_attempt": 1,
+                "selected_attempt": 0,
             },
             {
                 "id": "background",
@@ -283,15 +317,15 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
             "title": "Study lounge",
             "scene_label": "Study lounge",
             "concept_asset_id": "concept",
-            "background": {"asset_id": "background", "alt": "University study lounge"},
+            "background": {"asset_id": "background", "alt": "Study lounge"},
             "appearance": {
                 "id": "mio",
                 "label": "Mio",
                 "age": 23,
-                "role": "Graduate researcher",
-                "tagline": "Graduate researcher",
-                "description": "Adult woman in a navy cardigan",
-                "visual_identity": "Adult woman in a navy cardigan",
+                "role": "Final-year student",
+                "tagline": "Final-year student",
+                "description": "Young woman in a navy cardigan",
+                "visual_identity": "Young woman in a navy cardigan",
                 "art_direction": "Original visual novel art",
             },
             "placement": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
@@ -303,7 +337,7 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
                     "appearance_id": "mio",
                     "state": state,
                     "label": state,
-                    "description": f"Adult {state} expression",
+                    "description": f"A {state} expression",
                     "alt": f"Mio with a {state} expression",
                     "slot": "right",
                 }
@@ -322,62 +356,23 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
         "rights": {"aggregate": "unreviewed", "publication_authorized": False},
     }
     assert DialogueBundle.model_validate(raw).rights.publication_authorized is False
-    legacy = {**raw, "schema_version": 1, "kind": "dialogue-scene-bundle"}
+    legacy = {**raw, "schema_version": 3, "kind": "dialogue-scene-bundle-v3"}
     with pytest.raises(ValidationError):
         DialogueBundle.model_validate(legacy)
     camel = {**raw, "runIdentitySha256": raw["run_identity_sha256"]}
     del camel["run_identity_sha256"]
     with pytest.raises(ValidationError):
         DialogueBundle.model_validate(camel)
-    raw["assets"][0]["path"] = "../escape.png"  # type: ignore[index]
+    assets = raw["assets"]
+    assert isinstance(assets, list)
+    assets[0]["path"] = "../escape.png"
     with pytest.raises(ValidationError, match="portable relative"):
         DialogueBundle.model_validate(raw)
 
 
-def test_canonical_serialization_is_standards_compliant_json() -> None:
-    request = DialogueThemeRequest.model_validate(request_value())
+def test_canonical_serialization_is_standards_compliant_json(tmp_path: Path) -> None:
+    document = read_scene_document(write_scene_package(tmp_path / "pkg"))
+    request = DialogueSceneDocument.model_validate(document)
     assert json.loads(canonical_json_bytes(request)) == request.model_dump(
         mode="json", exclude_none=True
     )
-
-
-def test_cli_document_loader_routes_json_and_toml_to_strict_request() -> None:
-    value = request_value()
-    assert _parsed(_parse_input_document(json.dumps(value), suffix=".json")) == _parsed(value)
-    toml = """
-schema_version = 2
-kind = "dialogue-theme-request-v2"
-scene_brief = "Adult university study lounge after a graduate seminar"
-transparency_mode = "chroma"
-
-[appearance]
-id = "mio-researcher"
-label = "Mio"
-age = 23
-role = "Graduate researcher"
-description = "Adult woman in a navy cardigan"
-
-[appearance.concept]
-mode = "generate"
-description = "Original clean Japanese anime visual-novel character direction"
-
-[background]
-mode = "generate"
-description = "Evening study lounge"
-
-[[dialogue]]
-id = "opening"
-speaker = "Mio"
-text = "I hoped you would stay after the seminar."
-expression_state = "neutral"
-
-[presentation]
-slot = "right"
-framing_zoom = 70
-source_framing_zoom = 70
-"""
-    assert _parsed(_parse_input_document(toml, suffix=".toml")) == (_parsed(value))
-
-
-def _parsed(document: object) -> dict[str, object]:
-    return parse_dialogue_request(document).model_dump(mode="json", exclude_none=True)

@@ -75,8 +75,6 @@ from stage_gen.recipes.dialogue_scene.models import (
     AttemptRecord,
     DialogueScenePlan,
     DialogueScenePlanDraft,
-    DialogueScenePlanV3,
-    DialogueThemeRequestV3,
     ExpressionDirection,
     ExpressionState,
     PromptTemplateBinding,
@@ -101,9 +99,7 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
 )
 from stage_gen.recipes.dialogue_scene.scene_types import (
     BACKDROP_GENERATE,
-    BACKDROP_INGEST,
     BUNDLE_PACKAGE,
-    CONCEPT_GENERATE,
     CONCEPT_INGEST,
     EXPRESSION_DERIVE,
     EXPRESSION_GENERATE,
@@ -132,8 +128,7 @@ if TYPE_CHECKING:
     )
     from stage_gen.recipes.dialogue_scene.models import DialoguePlan
 
-_COMPONENT_V3 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")
-_COMPONENT_V4 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="4")
+_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
 
 SPRITE_WIDTH = 1024
 SPRITE_HEIGHT = 1536
@@ -208,11 +203,9 @@ class DialogueSceneNodeHandler:
         registry.register(REQUEST_RESOLVE, self._bind(self._write_request))
         registry.register(PROFILE_RESOLVE, self._bind(self._write_profile))
         registry.register(STYLE_SELECT, self._bind(self._select_style))
-        registry.register(CONCEPT_GENERATE, self._bind(self._concept_generate))
-        registry.register(CONCEPT_INGEST, self._bind(self._concept_ingest))
+        registry.register(CONCEPT_INGEST, self._bind(self._concept_publish))
         registry.register(PLAN_COMPILE, self._bind(self._plan))
         registry.register(BACKDROP_GENERATE, self._bind(self._backdrop_generate))
-        registry.register(BACKDROP_INGEST, self._bind(self._backdrop_ingest))
         registry.register(EXPRESSION_GENERATE, self._bind(self._expression))
         registry.register(EXPRESSION_DERIVE, self._bind(self._expression))
         registry.register(SPRITE_MATTE, self._bind(self._canonicalize_matte))
@@ -292,24 +285,34 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _concept_ingest(self, node: Node) -> NodeExecutionResult:
-        reuse = self._scene.concept_reuse
-        if reuse is None:
-            raise ValueError("concept ingestion requires a caller-supplied concept")
+    async def _concept_publish(self, node: Node) -> NodeExecutionResult:
+        """Publish the authored identity plate into the run, rights and all.
+
+        The bytes were read and digest-checked while the package resolved, so
+        this writes what the author committed - never a redraw of it - and
+        carries their rights decision across, because the run now ships a copy.
+        """
+
+        identity = self._scene.identity_reference
         await self._write_local(
             "assets/concept.png",
-            reuse.data,
-            "image/png",
-            "Ingest the caller-owned appearance concept.",
-            refs=[f"sha256:{reuse.sha256}"],
-            params={"role": "concept", "reuse_ref": reuse.ref},
+            identity.data,
+            identity.media_type,
+            "Publish the authored identity-and-style plate.",
+            refs=[identity.provenance_ref],
+            params={
+                "role": "concept",
+                "reference_id": identity.reference_id,
+                "source": identity.source,
+                "source_sha256": identity.sha256,
+            },
+            rights=ArtifactRights(
+                status=identity.rights_status,
+                basis=list(identity.rights_basis),
+                reviewed_at=None,
+            ),
         )
         return self._result(node, provider_operations=0)
-
-    async def _concept_generate(self, node: Node) -> NodeExecutionResult:
-        prompt = self._card_prompt(node)
-        result = await self._image(node, "concept", prompt, "assets/concept.png", (), alpha=False)
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _plan(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
@@ -325,11 +328,7 @@ class DialogueSceneNodeHandler:
             artifact_path=self._run_dir / "plan.json",
             references=(_structured_reference(concept, concept_path),),
             schema=StructuredOutputSchema(
-                name=(
-                    "dialogue_scene_plan_v3"
-                    if isinstance(scene.request, DialogueThemeRequestV3)
-                    else "dialogue_scene_plan_v2"
-                ),
+                name="dialogue_scene_plan_v4",
                 json_schema=dialogue_plan_json_schema(),
                 strict=True,
             ),
@@ -351,26 +350,18 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _backdrop_ingest(self, node: Node) -> NodeExecutionResult:
-        reuse = self._scene.background_reuse
-        if reuse is None:
-            raise ValueError("backdrop ingestion requires a caller-supplied background")
-        await self._write_local(
-            "assets/background.png",
-            reuse.data,
-            "image/png",
-            "Ingest the caller-owned scene background.",
-            refs=[f"sha256:{reuse.sha256}"],
-            params={"role": "background", "reuse_ref": reuse.ref},
-        )
-        return self._result(node, provider_operations=0)
-
     async def _backdrop_generate(self, node: Node) -> NodeExecutionResult:
         scene = self._scene
         native = scene.request.transparency_mode == "native"
         provider_output = "raw/background-provider.png" if native else "assets/background.png"
         prompt = background_prompt(scene.request, self._plan_document())
-        result = await self._image(node, "background", prompt, provider_output, (), alpha=False)
+        # The room is drawn against the authored plate the character stands in,
+        # so the backdrop and the sprites cannot disagree about the light.
+        concept_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
+        references = ((self._read(concept_relative), concept_relative),)
+        result = await self._image(
+            node, "background", prompt, provider_output, references, alpha=False
+        )
         if not native:
             return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
         normalized, record = normalize_png(
@@ -564,65 +555,23 @@ class DialogueSceneNodeHandler:
             for state in EXPRESSION_STATES
         ]
         native = scene.request.transparency_mode == "native"
-        if isinstance(scene.request, DialogueThemeRequestV3):
-            profile = scene.profile
-            if profile is None:
-                raise ValueError("profile-enabled plans require a resolved character profile")
-            identity, wardrobe = profile_lock_values(profile.profile)
-            return DialogueScenePlanV3(
-                schema_version=3,
-                kind="dialogue-scene-plan-v3",
-                recipe_version="dialogue-scene-v4",
-                policy_version="adult-romance-nonexplicit-v2",
-                expression_profile="romance-core-v2",
-                request_sha256=scene.request_sha256,
-                appearance_id=profile.profile.profile_id,
-                character_profile_ref=profile.ref,
-                character_profile_source_sha256=profile.source_sha256,
-                character_profile_sha256=profile.canonical_sha256,
-                shared_locks=SharedLocks(
-                    identity=identity,
-                    wardrobe=wardrobe,
-                    pose=draft.shared_locks.pose,
-                    lighting=draft.shared_locks.lighting,
-                    style=draft.shared_locks.style,
-                ),
-                geometry=SpriteGeometry(),
-                states=states,
-                prompt_templates=[
-                    PromptTemplateBinding(
-                        id="profile-native-neutral-v1" if native else "profile-neutral-v1",
-                        sha256=scene.template_digest,
-                    ),
-                    PromptTemplateBinding(
-                        id=(
-                            "profile-native-expression-edit-v1"
-                            if native
-                            else "profile-expression-edit-v1"
-                        ),
-                        sha256=scene.template_digest,
-                    ),
-                ],
-            )
-        appearance = scene.request.appearance
+        profile = scene.profile
+        identity, wardrobe = profile_lock_values(profile.profile)
         return DialogueScenePlan(
-            schema_version=2,
-            kind="dialogue-scene-plan-v2",
-            recipe_version="dialogue-scene-v3",
-            policy_version="adult-romance-nonexplicit-v2",
-            expression_profile="romance-core-v2",
+            schema_version=4,
+            kind="dialogue-scene-plan-v4",
+            recipe_version="dialogue-scene-v5",
+            policy_version="coming-of-age-nonexplicit-v3",
+            expression_profile="expression-core-v3",
             request_sha256=scene.request_sha256,
-            appearance_id=appearance.id,
+            appearance_id=profile.profile.profile_id,
+            character_profile_ref=profile.ref,
+            character_profile_source_sha256=profile.source_sha256,
+            character_profile_sha256=profile.canonical_sha256,
+            identity_reference_sha256=scene.identity_reference.sha256,
             shared_locks=SharedLocks(
-                identity=(
-                    f"{appearance.label}, adult age {appearance.age}. "
-                    f"Required appearance and wardrobe: {appearance.description}."
-                ),
-                wardrobe=(
-                    "Required wardrobe and appearance details: "
-                    f"{appearance.description}. Do not replace specified clothing "
-                    "with occupation-associated attire."
-                ),
+                identity=identity,
+                wardrobe=wardrobe,
                 pose=draft.shared_locks.pose,
                 lighting=draft.shared_locks.lighting,
                 style=draft.shared_locks.style,
@@ -631,11 +580,15 @@ class DialogueSceneNodeHandler:
             states=states,
             prompt_templates=[
                 PromptTemplateBinding(
-                    id="native-neutral-v1" if native else "neutral-v5",
+                    id="profile-native-neutral-v1" if native else "profile-neutral-v1",
                     sha256=scene.template_digest,
                 ),
                 PromptTemplateBinding(
-                    id="native-expression-edit-v1" if native else "expression-edit-v5",
+                    id=(
+                        "profile-native-expression-edit-v1"
+                        if native
+                        else "profile-expression-edit-v1"
+                    ),
                     sha256=scene.template_digest,
                 ),
             ],
@@ -783,11 +736,7 @@ class DialogueSceneNodeHandler:
                 inputs=inputs or [],
                 params=params or {},
                 validation={"nonempty": True},
-                component=(
-                    _COMPONENT_V4
-                    if isinstance(scene.request, DialogueThemeRequestV3)
-                    else _COMPONENT_V3
-                ),
+                component=_COMPONENT,
                 tool=STAGE_GEN_TOOL,
                 attempts=attempts,
                 rights=rights
@@ -845,10 +794,7 @@ class DialogueSceneNodeHandler:
         return CanonicalStyleAnchor.model_validate_json(self._read("style-anchor.json"))
 
     def _plan_document(self) -> DialoguePlan:
-        data = self._read("plan.json")
-        if isinstance(self._scene.request, DialogueThemeRequestV3):
-            return DialogueScenePlanV3.model_validate_json(data)
-        return DialogueScenePlan.model_validate_json(data)
+        return DialogueScenePlan.model_validate_json(self._read("plan.json"))
 
     def _profile_model(self) -> Any:
         return None if self._scene.profile is None else self._scene.profile.profile

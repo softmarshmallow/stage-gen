@@ -36,7 +36,7 @@ from stage_gen.recipes.dialogue_scene.scene_graph import (
 )
 from stage_gen.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
-    read_dialogue_request_document,
+    read_scene_document,
     resolve_dialogue_scene,
 )
 
@@ -56,16 +56,14 @@ class DialogueSceneRun:
 
 
 class DialogueSceneExecutor:
-    """Resolve, plan, and dispatch one authored dialogue request."""
+    """Resolve, plan, and dispatch one authored scene package."""
 
     def __init__(self, config: StageGenConfig) -> None:
         self._config = config
 
-    def plan(self, input_path: Path) -> DialogueScenePlan:
-        scene = resolve_dialogue_scene(
-            read_dialogue_request_document(input_path),
-            character_library_root=self._config.character_library_root,
-        )
+    def plan(self, package_root: Path) -> DialogueScenePlan:
+        root = package_root.absolute()
+        scene = resolve_dialogue_scene(read_scene_document(root), root=root)
         graph = build_dialogue_scene_graph(
             scene,
             profile=dialogue_graph_profile(self._config),
@@ -78,7 +76,7 @@ class DialogueSceneExecutor:
 
     async def dry_run(
         self,
-        input_path: Path,
+        package_root: Path,
         *,
         run_dir: Path,
         cache_dir: Path,
@@ -87,7 +85,7 @@ class DialogueSceneExecutor:
         time_scale: float = 0.0001,
     ) -> DialogueSceneRun:
         assert_safe_path_segment(invocation_id, "invocation_id")
-        plan = await self._open_run(input_path, run_dir=run_dir)
+        plan = await self._open_run(package_root, run_dir=run_dir)
         trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
         scheduler = Scheduler(
             plan.graph.resources,
@@ -114,7 +112,7 @@ class DialogueSceneExecutor:
 
     async def run(
         self,
-        input_path: Path,
+        package_root: Path,
         *,
         run_dir: Path,
         cache_dir: Path,
@@ -127,7 +125,7 @@ class DialogueSceneExecutor:
             raise ValueError("dialogue-scene execution requires OPENAI_API_KEY")
         if self._config.open_router_api_key is None:
             raise ValueError("dialogue-scene execution requires OPENROUTER_API_KEY")
-        plan = await self._open_run(input_path, run_dir=run_dir)
+        plan = await self._open_run(package_root, run_dir=run_dir)
         trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
         image_service = create_openai_image_service(
             api_key=self._config.openai_api_key,
@@ -179,8 +177,8 @@ class DialogueSceneExecutor:
         write_run_summary(run_dir / "execution-summary.json", summary)
         return DialogueSceneRun(plan=plan, summary=summary, run_dir=run_dir)
 
-    async def _open_run(self, input_path: Path, *, run_dir: Path) -> DialogueScenePlan:
-        plan = self.plan(input_path)
+    async def _open_run(self, package_root: Path, *, run_dir: Path) -> DialogueScenePlan:
+        plan = self.plan(package_root)
         await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
         write_graph(run_dir / "execution-plan.json", plan.graph)
         atomic_write_json(

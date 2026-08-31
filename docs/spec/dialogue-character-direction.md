@@ -119,33 +119,24 @@ versions, kinds, fields, enum values, and camelCase aliases fail closed.
 installer/state implementation. These values are independent and must never be
 compared as if they were one version sequence.
 
-The legacy shipped combination is wire v2 produced by recipe v3:
-
-| Surface | Current exact wire contract | Current implementation identity |
-|---|---|---|
-| request | `schema_version: 2`, `kind: dialogue-theme-request-v2` | parsed by recipe `dialogue-scene-v3` |
-| plan | `schema_version: 2`, `kind: dialogue-scene-plan-v2` | `recipe_version: dialogue-scene-v3` |
-| pending/reviewed bundle | `schema_version: 2`, `kind: dialogue-scene-bundle-v2` | `recipe_version: dialogue-scene-v3` |
-| independent review record | `schema_version: 2`, `kind: dialogue-scene-review-v2` | deterministic review transition v2 |
-| install receipt | `schema_version: 2`, `kind: dialogue-theme-install-v2` | `adapter_version: 2` |
-| active pointer | `schema_version: 2`, `kind: dialogue-theme-active-v2` | `adapter_version: 2` |
-
-The implemented profile-only combination is wire V3 produced by recipe V4.
+The recipe carries exactly one identity. There is no prior wire version to
+accept: an older bundle is a different document, not an older dialect. The
+implemented combination is the authored package produced by recipe V5.
 Direction and conditioning require a future wire version and must not be added
-to or inferred from V3:
+to or inferred from it:
 
 | Surface | Exact contract map (implemented unless marked future) | Required binding |
 |---|---|---|
-| request | `schema_version: 3`, `kind: dialogue-theme-request-v3` | shared `character-profile-binding-v1` ref and exact authored-source digest |
+| authored scene package | `schema_version: 1`, `kind: dialogue-scene-v1` | package-relative `character-profile-binding-v1` ref, exact authored-source digest, and digest-bound `[[references]]` |
 | character profile | `schema_version: 1`, `kind: character-profile-v1` | canonical profile JSON digest |
-| character direction (future) | future wire | not accepted by request V3 |
-| pose conditioning (future) | future wire | not accepted by request V3 |
-| plan | `schema_version: 3`, `kind: dialogue-scene-plan-v3` | `recipe_version: dialogue-scene-v4`; profile source/canonical digests and locally enforced locks |
+| character direction (future) | future wire | not accepted by the scene document |
+| pose conditioning (future) | future wire | not accepted by the scene document |
+| plan | `schema_version: 4`, `kind: dialogue-scene-plan-v4` | `recipe_version: dialogue-scene-v5`; profile source/canonical digests, the authored identity-plate digest, and locally enforced locks |
 | observation (future) | `schema_version: 1`, `kind: dialogue-character-observation-v1` | one direction-controlled sprite image digest plus detector/config identity only |
 | consistency report (future) | `schema_version: 1`, `kind: dialogue-character-consistency-report-v1` | profile, direction, observation, comparator, and selected sprite-image digests |
-| embedded review state | strict `status`, `path`, `sha256`, `provenance_path`, `provenance_sha256` | pending omits evidence; completed binds review v3 and provenance digests |
-| independent review record | `schema_version: 3`, `kind: dialogue-scene-review-v3` | source bundle, acceptance spec, selected images, and profile source/canonical digests |
-| pending/reviewed bundle | `schema_version: 3`, `kind: dialogue-scene-bundle-v3` | `recipe_version: dialogue-scene-v4`; canonical profile artifact/provenance and review binding |
+| embedded review state | strict `status`, `path`, `sha256`, `provenance_path`, `provenance_sha256` | pending omits evidence; completed binds review v4 and provenance digests |
+| independent review record | `schema_version: 4`, `kind: dialogue-scene-review-v4` | source bundle, acceptance spec, selected images, and profile source/canonical digests |
+| pending/reviewed bundle | `schema_version: 4`, `kind: dialogue-scene-bundle-v4` | `recipe_version: dialogue-scene-v5`; game id, canonical profile artifact/provenance, the republished identity plate, and review binding |
 | review transition result | `schema_version: 3`, `kind: dialogue-review-transition-result-v3` | pending and derived reviewed bundle digests |
 | install receipt | `schema_version: 3`, `kind: dialogue-theme-install-v3` | `adapter_version: 3`; bundle wire kind/version and copied evidence binding digests |
 | active pointer | `schema_version: 3`, `kind: dialogue-theme-active-v3` | `adapter_version: 3`; active/previous bundle ids, wire kind/version, and source digest |
@@ -192,8 +183,8 @@ recipe acceptance policy.
 
 ### TOML authoring and JSON artifact policy
 
-The repository source is
-`library/characters/<profile_id>/profile.toml`. TOML is the human-authoring
+The repository source is a package member, `library/games/<game_id>/character.toml`.
+TOML is the human-authoring
 format; strict JSON is an equal loader input, not a second source of truth. Both
 encodings validate through the same provider-neutral `CharacterProfile` model.
 Duplicate keys, unknown or camelCase fields, TOML native date/time values,
@@ -269,21 +260,21 @@ generated image, it remains an input artifact with separate lineage.
 
 ## Superseded direction JSON research sketch
 
-This historical sketch is not a valid request V3 and is retained only to show
-the direction vocabulary under study. The implemented strict V3 parser rejects
+This historical sketch is not a valid scene document and is retained only to
+show the direction vocabulary under study. The implemented strict parser rejects
 `character_direction` and `pose_conditioning`; its exact profile binding is
-documented in [Authored character library](../character-library.md). A future
+documented in [Authored character profiles](../character-library.md). A future
 direction wire version must publish a new synchronized JSON/TOML example.
 
 ```json
 {
-  "schema_version": 3,
-  "kind": "dialogue-theme-request-v3",
+  "schema_version": 1,
+  "kind": "dialogue-scene-v1",
   "scene_brief": "Lantern-lit festival conversation",
   "character_profile": {
     "schema_version": 1,
     "kind": "character-profile-binding-v1",
-    "ref": "library/characters/saki-festival-volunteer/profile.toml",
+    "ref": "character.toml",
     "source_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   },
   "character_direction": {
@@ -366,13 +357,13 @@ direction wire version must publish a new synchronized JSON/TOML example.
 
 ## Superseded direction TOML research sketch
 
-Like the JSON sketch, this is not accepted by strict request V3. The shared
+Like the JSON sketch, this is not accepted by the strict parser. The shared
 profile binding shape is synchronized here only so recipe consumers do not
 drift; all following direction and conditioning tables remain future research.
 
 ```toml
-schema_version = 3
-kind = "dialogue-theme-request-v3"
+schema_version = 1
+kind = "dialogue-scene-v1"
 scene_brief = "Lantern-lit festival conversation"
 random_seed = 41027
 transparency_mode = "ai"
@@ -380,7 +371,7 @@ transparency_mode = "ai"
 [character_profile]
 schema_version = 1
 kind = "character-profile-binding-v1"
-ref = "library/characters/saki-festival-volunteer/profile.toml"
+ref = "character.toml"
 source_sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [character_direction]
@@ -800,15 +791,14 @@ supporting evidence; the independent reviewer is responsible for semantic
 acceptance and may override comparator classifications only in the review
 record, never by mutating observations or the report.
 
-## V2 migration and compatibility
+## Migration and compatibility
 
-- Keep `dialogue-theme-request-v2`, `dialogue-scene-plan-v2`, and
-  `dialogue-scene-bundle-v2` unchanged and accepted through their existing
-  explicit wire-v2 parsers. They remain recipe-v3 outputs; neither the v3 suffix
-  in `dialogue-scene-v3` nor an installed bundle id makes them wire v3.
-- Profile-only request/plan/bundle wire V3 is introduced only with recipe V4.
-  Do not add aliases such as `characterProfile`, convert V2 records in place, or
-  synthesize observations for historical images.
+- The recipe keeps one identity. Prior request, plan, bundle, and review
+  contracts were removed rather than kept behind a parser, and prior runs were
+  dropped rather than migrated: a document the current contract cannot read is
+  not an older dialect to reinterpret.
+- Do not add aliases such as `characterProfile`, convert prior records in place,
+  or synthesize observations for historical images.
 - A future explicit migration command may map v2 `appearance` to
   `character_profile` and create a documented legacy direction from the current
   prompt defaults. Its output requires a new future request wire with new

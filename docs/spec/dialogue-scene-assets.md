@@ -23,31 +23,41 @@ state, animation, rigging, lip sync, or a game runtime.
 Recipe vocabulary and visual assumptions do not enter generic components; web
 camera, UI, and gameplay assumptions do not enter the producer bundle.
 
-## Public request: `dialogue-theme-request-v2`
+## Authored package: `dialogue-scene-v1`
 
-The JSON or TOML input is strict. Every application-owned key is
-lower_snake_case; v1, camelCase, unknown keys, and implicit aliases are
-rejected.
+One scene is one directory under `library/games/`, holding `scene.toml` beside
+the members it names by exact relative path: the character profile it binds, and
+the `references/` its art is drawn against. The document is strict TOML: every
+key is lower_snake_case; camelCase, unknown keys, and implicit aliases are
+rejected. The contract is temporary by intent - the standing goal is for every
+game kind to be declared through `game.toml`.
 
 ```json
 {
-  "schema_version": 2,
-  "kind": "dialogue-theme-request-v2",
-  "scene_brief": "Adult university study lounge after a graduate seminar",
-  "appearance": {
-    "id": "mio-researcher",
-    "label": "Mio",
-    "age": 23,
-    "role": "Graduate researcher",
-    "description": "Adult woman in a navy cardigan",
-    "concept": {
-      "mode": "generate",
-      "description": "Original clean Japanese anime visual-novel character direction"
-    }
+  "schema_version": 1,
+  "kind": "dialogue-scene-v1",
+  "game_id": "larkfield",
+  "display_name": "Larkfield",
+  "revision": 1,
+  "scene_brief": "A student records an empty classroom after the last class of summer",
+  "identity_reference_id": "cover",
+  "character_profile": {
+    "schema_version": 1,
+    "kind": "character-profile-binding-v1",
+    "ref": "character.toml",
+    "source_sha256": "<sha256-of-the-exact-character.toml-bytes>"
   },
+  "references": [
+    {
+      "reference_id": "cover",
+      "source": "references/cover.png",
+      "source_sha256": "<sha256-of-the-exact-plate-bytes>",
+      "rights_status": "unreviewed",
+      "rights_basis": ["Original brand-neutral first-party plate."]
+    }
+  ],
   "background": {
-    "mode": "generate",
-    "description": "Evening university study lounge with no people"
+    "description": "An original empty classroom at blue hour, no people"
   },
   "dialogue": [
     {
@@ -66,26 +76,32 @@ rejected.
 }
 ```
 
-Exactly one appearance and a required background are supported. Appearance age
-is `21..120`; the recipe owns the locked `neutral`, `delighted`, `flustered`,
-and `concerned` taxonomy. Dialogue contains `1..12` caller-authored beats and
-passes through unchanged. Every beat must select a locked expression state.
+Exactly one character and a background direction are supported. The profile's
+age is `18..120`; the recipe owns the locked `neutral`, `delighted`, `flustered`,
+and `concerned` taxonomy. Dialogue contains `1..12` authored beats and passes
+through unchanged. Every beat must select a locked expression state.
 `transparency_mode` is quality-first `native`, explicit compatibility `ai`, or
 the explicit degraded `chroma` path.
 
-Concept and background sources use `mode: "generate"` or `mode: "reuse"`.
-Reuse requires a portable reference, exact SHA-256, and explicit rights state;
-the recipe verifies and copies it into the isolated run rather than symlinking
-or inferring redistribution permission.
+**The identity plate is authored, not generated.** `identity_reference_id` names
+one declared reference; the resolver reads its bytes from inside the package,
+follows no symlink, and refuses a digest that no longer matches - offline,
+before any spend. That plate is published into the run as the concept asset,
+attached to every generated image, and its digest rides each image node's cache
+identity, so replacing the file re-bills the scene deliberately rather than
+leaving sprites drawn against a plate that no longer exists. Its rights decision
+travels with the bytes, because the run ships a copy; the recipe never infers
+redistribution permission. A declared reference nothing consumes is refused.
 
 ## Plan and stage graph
 
-Structured generation writes `dialogue-scene-plan-v2` with
-`schema_version: 2`, `recipe_version: "dialogue-scene-v3"`,
-`policy_version: "adult-romance-nonexplicit-v2"`, and
-`expression_profile: "romance-core-v2"`. It binds the canonical request digest,
-appearance id, shared identity/wardrobe/pose/lighting locks, fixed canvas
-geometry, the four expression directions, and prompt-template digests.
+Structured generation writes `dialogue-scene-plan-v4` with
+`schema_version: 4`, `recipe_version: "dialogue-scene-v5"`,
+`policy_version: "coming-of-age-nonexplicit-v3"`, and
+`expression_profile: "expression-core-v3"`. It binds the canonical document
+digest, appearance id, the authored profile and identity-plate digests, shared
+identity/wardrobe/pose/lighting locks, fixed canvas geometry, the four
+expression directions, and prompt-template digests.
 
 Before planning or images, structured generation may select only one approved
 style vocabulary mode. Deterministic local code materializes the exact medium,
@@ -95,12 +111,12 @@ identity, plan provenance, and bundle provenance.
 
 The exact stages are:
 
-1. `prepare`: validate the request and ingest reusable references.
+1. `prepare`: validate the package and read its digest-bound members.
 2. `style-selection`: select a mode and locally materialize the style anchor.
-3. `appearance-concept`: produce or copy the opaque identity anchor.
+3. `identity-plate`: publish the authored plate into the run; nothing generates it.
 4. `scene-plan`: produce and validate the strict structured plan.
-5. `background`: produce or copy the required opaque scene plate.
-6. `neutral`: derive the neutral opaque/chroma sprite from the concept.
+5. `background`: produce the opaque scene plate against the authored plate.
+6. `neutral`: derive the neutral opaque/chroma sprite from the authored plate.
 7. `expressions`: edit the neutral reference into three expression variants.
 8. `canonicalize`: create the four validated transparent runtime sprites.
 9. `bundle`: validate all bindings and write the portable bundle.
@@ -116,15 +132,17 @@ Within structured provenance, standard JSON Schema vocabulary—including
 its mandated spelling. Recipe-owned property names, definition identifiers,
 and matching reference targets are lower_snake_case.
 
-## Portable bundle: `dialogue-scene-bundle-v2`
+## Portable bundle: `dialogue-scene-bundle-v4`
 
-`bundle.json` is the adapter's sole input. It has `schema_version: 2`,
-`kind: "dialogue-scene-bundle-v2"`, `recipe: "dialogue-scene"`, and
-`recipe_version: "dialogue-scene-v3"`. It binds canonical request and plan
-files plus their provenance paths and SHA-256 digests, `attempts.json`, run
-identity, review state, rights state, and exactly six selected assets:
+`bundle.json` is the adapter's sole input. It has `schema_version: 4`,
+`kind: "dialogue-scene-bundle-v4"`, `recipe: "dialogue-scene"`, and
+`recipe_version: "dialogue-scene-v5"`. It binds the game id, canonical document
+and plan files plus their provenance paths and SHA-256 digests, the canonical
+character profile, the authored identity plate and the package path it came
+from, `attempts.json`, run identity, review state, rights state, and exactly six
+selected assets:
 
-- one opaque `concept` PNG at `1024x1536`;
+- one opaque `concept` PNG at `1024x1536`, republished from the authored plate;
 - one opaque `background` PNG at `1672x941`; and
 - four `1024x1536` alpha-bearing `expression` PNGs, one for each locked state.
 
@@ -145,11 +163,11 @@ an immutable digest-addressed installation. Only then does it translate
 `scene_data` into the web fixture's internal runtime naming. The adapter may
 not invent missing copy, generation facts, review evidence, or rights.
 
-Consumer compatibility is an explicit allowlist: historical
-`dialogue-scene-v2` installations remain valid under their original contract,
-while `dialogue-scene-v3` must bind the style-anchor artifact, its provenance,
-and matching compiler/resource facts through plan and bundle provenance. No v2
-style values are synthesized, and unknown recipe versions are rejected.
+The consumer accepts exactly one contract. It must bind the style-anchor
+artifact, its provenance, and matching compiler/resource facts through plan and
+bundle provenance, and it checks that the published plate is the one the package
+declared, by digest rather than by path. No style values are synthesized, and
+unknown recipe versions are rejected.
 
 ## Provenance, review, and publication
 

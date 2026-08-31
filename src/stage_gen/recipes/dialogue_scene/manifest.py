@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -31,11 +30,8 @@ from stage_gen.recipes.dialogue_scene.models import (
     BundleArtifact,
     BundleFile,
     DialogueBundle,
-    DialogueBundleV3,
+    DialogueSceneDocument,
     DialogueScenePlan,
-    DialogueScenePlanV3,
-    DialogueThemeRequest,
-    DialogueThemeRequestV3,
     MediaFacts,
     ReviewState,
     RightsState,
@@ -44,189 +40,19 @@ from stage_gen.recipes.dialogue_scene.models import (
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
 from stage_gen.recipes.dialogue_scene.prompts import (
     NATIVE_ALPHA_TEMPLATE_DIGEST,
-    PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST,
-    PROFILE_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
 )
 
-_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="3")
-_COMPONENT_V4 = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="4")
+_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
 
 
 async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     """Assemble the portable bundle from one completed run directory."""
 
     request_bytes = _read(run_dir, "request.json")
-    request_document = json.loads(request_bytes)
-    if isinstance(request_document, dict) and request_document.get("schema_version") == 3:
-        return await _write_dialogue_bundle_v3(run_dir, tag, request_bytes)
     request_provenance = _read(run_dir, "request.json.meta.json")
     _validate_provenance(request_provenance, request_bytes, "request")
-    request = DialogueThemeRequest.model_validate_json(request_bytes)
-    plan_bytes = _read(run_dir, "plan.json")
-    plan_provenance = _read(run_dir, "plan.json.meta.json")
-    _validate_provenance(plan_provenance, plan_bytes, "plan")
-    plan = DialogueScenePlan.model_validate_json(plan_bytes)
-    if plan.request_sha256 != canonical_sha256(request):
-        raise ValueError("bundle plan request digest does not match canonical request")
-    ledger_bytes = _read(run_dir, "attempts.json")
-    ledger = AttemptLedger.model_validate_json(ledger_bytes)
-    style_anchor_bytes = _read(run_dir, "style-anchor.json")
-    style_anchor_provenance = _read(run_dir, "style-anchor.json.meta.json")
-    _validate_provenance(style_anchor_provenance, style_anchor_bytes, "style anchor")
-    style_anchor = CanonicalStyleAnchor.model_validate_json(style_anchor_bytes)
-    style_binding = _style_binding(style_anchor)
-
-    identity_sha = canonical_sha256(
-        {
-            "domain": "stage-gen/dialogue-scene/run-identity/v3",
-            "recipe": "dialogue-scene-v3",
-            "request_sha256": canonical_sha256(request),
-            "reference_sha256": _reference_digests(request),
-            "policy_sha256": POLICY_DIGEST,
-            "profile": "romance-core-v2",
-            "template_sha256": (
-                NATIVE_ALPHA_TEMPLATE_DIGEST
-                if request.transparency_mode == "native"
-                else TEMPLATE_DIGEST
-            ),
-            "transparency_mode": request.transparency_mode,
-            "normalization": "pillow-dialogue-v2",
-            **style_binding,
-        }
-    )
-
-    assets: list[BundleArtifact] = []
-    assets.append(_asset(run_dir, ledger, "concept", "concept", "assets/concept.png", None))
-    assets.append(
-        _asset(run_dir, ledger, "background", "background", "assets/background.png", None)
-    )
-    for state in EXPRESSION_STATES:
-        assets.append(
-            _asset(
-                run_dir,
-                ledger,
-                f"{request.appearance.id}-{state}",
-                "expression",
-                f"assets/expression-{state}.png",
-                state,
-            )
-        )
-
-    bundle = DialogueBundle(
-        schema_version=2,
-        kind="dialogue-scene-bundle-v2",
-        recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v3",
-        tag=tag,
-        run_identity_sha256=identity_sha,
-        request=BundleFile(
-            path="request.json",
-            sha256=content_sha256(request_bytes),
-            provenance_path="request.json.meta.json",
-            provenance_sha256=content_sha256(request_provenance),
-        ),
-        plan=BundleFile(
-            path="plan.json",
-            sha256=content_sha256(plan_bytes),
-            provenance_path="plan.json.meta.json",
-            provenance_sha256=content_sha256(plan_provenance),
-        ),
-        assets=assets,
-        attempt_ledger=AttemptLedgerBinding(
-            path="attempts.json", sha256=content_sha256(ledger_bytes)
-        ),
-        scene_data=SceneData.model_validate(
-            {
-                "scene_id": f"{request.appearance.id}-scene",
-                "title": request.scene_brief[:96],
-                "scene_label": request.scene_brief[:160],
-                "concept_asset_id": "concept",
-                "background": {
-                    "asset_id": "background",
-                    "alt": f"Dialogue background for {request.scene_brief}"[:160],
-                },
-                "appearance": {
-                    "id": request.appearance.id,
-                    "label": request.appearance.label,
-                    "age": request.appearance.age,
-                    "role": request.appearance.role,
-                    "tagline": request.appearance.role,
-                    "description": request.appearance.description,
-                    "visual_identity": request.appearance.description,
-                    "art_direction": style_anchor.medium_keyword,
-                },
-                "placement": {
-                    "slot": request.presentation.slot,
-                    "framing_zoom": request.presentation.framing_zoom,
-                    "source_framing_zoom": request.presentation.source_framing_zoom,
-                },
-                "available_states": list(EXPRESSION_STATES),
-                "expression_variants": [
-                    {
-                        "id": f"{request.appearance.id}-{state}",
-                        "asset_id": f"{request.appearance.id}-{state}",
-                        "appearance_id": request.appearance.id,
-                        "state": state,
-                        "label": _expression_copy(state)[0],
-                        "description": _expression_copy(state)[1],
-                        "alt": f"{request.appearance.label} with a {state} expression",
-                        "slot": request.presentation.slot,
-                    }
-                    for state in EXPRESSION_STATES
-                ],
-                "dialogue": [beat.model_dump(mode="json") for beat in request.dialogue],
-            }
-        ),
-        review=ReviewState(status="pending", path=None, sha256=None),
-        rights=RightsState(aggregate="unreviewed", publication_authorized=False),
-    )
-    data = canonical_json_bytes(bundle) + b"\n"
-    provenance = await write_artifact_with_provenance_async(
-        run_dir / "bundle.json",
-        BinaryArtifact(data=data, media_type="application/json"),
-        ProvenanceInput(
-            schema_version=2,
-            provider="local",
-            model="deterministic-dialogue-bundle-v3",
-            prompt="Assemble the selected dialogue assets into the portable bundle contract.",
-            refs=[
-                "request.json",
-                "plan.json",
-                "attempts.json",
-                "style-anchor.json",
-                "style-anchor.json.meta.json",
-            ],
-            params={
-                "run_identity_sha256": identity_sha,
-                "selected_assets": len(assets),
-                "style_anchor_path": "style-anchor.json",
-                "style_anchor_artifact_sha256": content_sha256(style_anchor_bytes),
-                "style_anchor_provenance_path": "style-anchor.json.meta.json",
-                "style_anchor_provenance_sha256": content_sha256(style_anchor_provenance),
-                **style_binding,
-            },
-            validation={"strict_schema": True, "portable_paths": True},
-            component=_COMPONENT,
-            tool=STAGE_GEN_TOOL,
-            attempts=1,
-            rights=ArtifactRights(
-                status="unreviewed",
-                attribution=[],
-                basis=[],
-                reviewed_at=None,
-            ),
-        ),
-    )
-    return ("bundle.json", provenance.relative_to(run_dir).as_posix())
-
-
-async def _write_dialogue_bundle_v3(
-    run_dir: Path, tag: str, request_bytes: bytes
-) -> tuple[str, ...]:
-    request_provenance = _read(run_dir, "request.json.meta.json")
-    _validate_provenance(request_provenance, request_bytes, "request")
-    request = DialogueThemeRequestV3.model_validate_json(request_bytes)
+    request = DialogueSceneDocument.model_validate_json(request_bytes)
     profile_bytes = _read(run_dir, "character-profile.json")
     profile_provenance = _read(run_dir, "character-profile.json.meta.json")
     _validate_provenance(profile_provenance, profile_bytes, "character profile")
@@ -237,7 +63,7 @@ async def _write_dialogue_bundle_v3(
     plan_bytes = _read(run_dir, "plan.json")
     plan_provenance = _read(run_dir, "plan.json.meta.json")
     _validate_provenance(plan_provenance, plan_bytes, "plan")
-    plan = DialogueScenePlanV3.model_validate_json(plan_bytes)
+    plan = DialogueScenePlan.model_validate_json(plan_bytes)
     if plan.request_sha256 != canonical_sha256(request):
         raise ValueError("bundle plan request digest does not match canonical request")
     expected_profile = (
@@ -252,6 +78,16 @@ async def _write_dialogue_bundle_v3(
     )
     if actual_profile != expected_profile:
         raise ValueError("bundle plan character profile binding mismatch")
+    # The run must ship the exact plate the package declared, not a lookalike:
+    # the republished bytes are compared to the author's digest, not its path.
+    authored_reference = request.identity_reference()
+    concept_bytes = _read(run_dir, "assets/concept.png")
+    concept_provenance = _read(run_dir, "assets/concept.png.meta.json")
+    concept_sha256 = content_sha256(concept_bytes)
+    if concept_sha256 != authored_reference.source_sha256:
+        raise ValueError("published identity plate does not match the authored reference digest")
+    if plan.identity_reference_sha256 != concept_sha256:
+        raise ValueError("bundle plan identity reference binding mismatch")
     ledger_bytes = _read(run_dir, "attempts.json")
     ledger = AttemptLedger.model_validate_json(ledger_bytes)
     style_anchor_bytes = _read(run_dir, "style-anchor.json")
@@ -261,19 +97,21 @@ async def _write_dialogue_bundle_v3(
     style_binding = _style_binding(style_anchor)
     identity_sha = canonical_sha256(
         {
-            "domain": "stage-gen/dialogue-scene/run-identity/v4",
-            "recipe": "dialogue-scene-v4",
+            "domain": "stage-gen/dialogue-scene/run-identity/v5",
+            "recipe": "dialogue-scene-v5",
+            "game_id": request.game_id,
             "request_sha256": canonical_sha256(request),
-            "reference_sha256": _background_reference_digests(request),
+            "identity_reference_source": authored_reference.source,
+            "identity_reference_sha256": concept_sha256,
             "character_profile_ref": request.character_profile.ref,
             "character_profile_source_sha256": request.character_profile.source_sha256,
             "character_profile_sha256": profile_sha256,
             "policy_sha256": POLICY_DIGEST,
-            "profile": "romance-core-v2",
+            "profile": "expression-core-v3",
             "template_sha256": (
-                PROFILE_NATIVE_ALPHA_TEMPLATE_DIGEST
+                NATIVE_ALPHA_TEMPLATE_DIGEST
                 if request.transparency_mode == "native"
-                else PROFILE_TEMPLATE_DIGEST
+                else TEMPLATE_DIGEST
             ),
             "transparency_mode": request.transparency_mode,
             "normalization": "pillow-dialogue-v2",
@@ -301,12 +139,13 @@ async def _write_dialogue_bundle_v3(
         provenance_path="character-profile.json.meta.json",
         provenance_sha256=content_sha256(profile_provenance),
     )
-    bundle = DialogueBundleV3(
-        schema_version=3,
-        kind="dialogue-scene-bundle-v3",
+    bundle = DialogueBundle(
+        schema_version=4,
+        kind="dialogue-scene-bundle-v4",
         recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v4",
+        recipe_version="dialogue-scene-v5",
         tag=tag,
+        game_id=request.game_id,
         run_identity_sha256=identity_sha,
         request=BundleFile(
             path="request.json",
@@ -323,6 +162,13 @@ async def _write_dialogue_bundle_v3(
         character_profile=profile_file,
         character_profile_binding=request.character_profile,
         character_profile_sha256=profile_sha256,
+        identity_reference=BundleFile(
+            path="assets/concept.png",
+            sha256=concept_sha256,
+            provenance_path="assets/concept.png.meta.json",
+            provenance_sha256=content_sha256(concept_provenance),
+        ),
+        identity_reference_source=authored_reference.source,
         assets=assets,
         attempt_ledger=AttemptLedgerBinding(
             path="attempts.json", sha256=content_sha256(ledger_bytes)
@@ -338,8 +184,8 @@ async def _write_dialogue_bundle_v3(
         ProvenanceInput(
             schema_version=2,
             provider="local",
-            model="deterministic-dialogue-bundle-v4",
-            prompt="Assemble profile-bound dialogue assets into the portable bundle contract.",
+            model="deterministic-dialogue-bundle-v5",
+            prompt="Assemble the authored scene package's assets into the portable bundle.",
             refs=[
                 "request.json",
                 "plan.json",
@@ -354,6 +200,8 @@ async def _write_dialogue_bundle_v3(
                 "selected_assets": len(assets),
                 "character_profile_ref": request.character_profile.ref,
                 "character_profile_source_sha256": request.character_profile.source_sha256,
+                "identity_reference_source": authored_reference.source,
+                "identity_reference_sha256": concept_sha256,
                 "character_profile_path": "character-profile.json",
                 "character_profile_sha256": profile_sha256,
                 "character_profile_provenance_path": "character-profile.json.meta.json",
@@ -369,8 +217,9 @@ async def _write_dialogue_bundle_v3(
                 "portable_paths": True,
                 "profile_source_digest_verified": True,
                 "profile_canonical_digest_verified": True,
+                "identity_reference_digest_verified": True,
             },
-            component=_COMPONENT_V4,
+            component=_COMPONENT,
             tool=STAGE_GEN_TOOL,
             attempts=1,
             rights=ArtifactRights(
@@ -385,7 +234,7 @@ async def _write_dialogue_bundle_v3(
 
 
 def _profile_scene_data(
-    request: DialogueThemeRequestV3,
+    request: DialogueSceneDocument,
     profile: CharacterProfile,
     style_anchor: CanonicalStyleAnchor,
 ) -> SceneData:
@@ -470,20 +319,6 @@ def _asset(
         provenance_sha256=content_sha256(provenance),
         selected_attempt=selected_attempt,
     )
-
-
-def _reference_digests(request: DialogueThemeRequest) -> list[str]:
-    result: list[str] = []
-    for source in (request.appearance.concept, request.background):
-        digest = getattr(source, "sha256", None)
-        if digest:
-            result.append(digest)
-    return sorted(result)
-
-
-def _background_reference_digests(request: DialogueThemeRequestV3) -> list[str]:
-    digest = getattr(request.background, "sha256", None)
-    return [digest] if isinstance(digest, str) else []
 
 
 def _style_binding(anchor: CanonicalStyleAnchor) -> dict[str, object]:

@@ -8,18 +8,23 @@ import pytest
 from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
+from stage_gen.components import canonical_character_profile_json
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from stage_gen.recipes.dialogue_scene.identity import (
-    canonical_json_bytes,
     canonical_sha256,
     content_sha256,
 )
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
-from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueThemeRequest
+from stage_gen.recipes.dialogue_scene.models import DialogueBundle
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
+from stage_gen.recipes.dialogue_scene.scene_request import (
+    ResolvedDialogueScene,
+    read_scene_document,
+    resolve_dialogue_scene,
+)
 
-from .test_contracts import request_value
+from .package import write_scene_package
 
 
 def _png(width: int, height: int, *, alpha: bool) -> bytes:
@@ -30,17 +35,22 @@ def _png(width: int, height: int, *, alpha: bool) -> bytes:
     return output.getvalue()
 
 
-def _plan(request: DialogueThemeRequest) -> dict[str, object]:
+def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
+    profile = scene.profile
     return {
-        "schema_version": 2,
-        "kind": "dialogue-scene-plan-v2",
-        "recipe_version": "dialogue-scene-v3",
-        "policy_version": "adult-romance-nonexplicit-v2",
-        "expression_profile": "romance-core-v2",
-        "request_sha256": canonical_sha256(request),
-        "appearance_id": request.appearance.id,
+        "schema_version": 4,
+        "kind": "dialogue-scene-plan-v4",
+        "recipe_version": "dialogue-scene-v5",
+        "policy_version": "coming-of-age-nonexplicit-v3",
+        "expression_profile": "expression-core-v3",
+        "request_sha256": scene.request_sha256,
+        "appearance_id": profile.profile.profile_id,
+        "character_profile_ref": profile.ref,
+        "character_profile_source_sha256": profile.source_sha256,
+        "character_profile_sha256": profile.canonical_sha256,
+        "identity_reference_sha256": scene.identity_reference.sha256,
         "shared_locks": {
-            "identity": "adult Mio identity",
+            "identity": "Mio identity",
             "wardrobe": "navy cardigan",
             "pose": "fixed conversational pose",
             "lighting": "soft evening light",
@@ -53,20 +63,32 @@ def _plan(request: DialogueThemeRequest) -> dict[str, object]:
             "safe_bounds": [0.0, 0.0, 1.0, 1.0],
         },
         "states": [
-            {"id": state, "direction": f"adult {state} expression"}
+            {"id": state, "direction": f"a {state} expression"}
             for state in ("neutral", "delighted", "flustered", "concerned")
         ],
         "prompt_templates": [
-            {"id": "neutral-v5", "sha256": TEMPLATE_DIGEST},
-            {"id": "expression-edit-v5", "sha256": TEMPLATE_DIGEST},
+            {"id": "profile-neutral-v1", "sha256": TEMPLATE_DIGEST},
+            {"id": "profile-expression-edit-v1", "sha256": TEMPLATE_DIGEST},
         ],
     }
 
 
 def _write_inputs(root: Path) -> str:
-    request = DialogueThemeRequest.model_validate(request_value())
-    _write_json_pair(root / "request.json", canonical_json_bytes(request) + b"\n")
-    _write_json_pair(root / "plan.json", json.dumps(_plan(request)).encode())
+    """A completed run directory, including the republished authored plate.
+
+    The bundle refuses a concept whose bytes are not the ones the package
+    declared, so the fixture publishes the package's own cover rather than a
+    lookalike PNG of the right size.
+    """
+
+    package = write_scene_package(root / "package")
+    scene = resolve_dialogue_scene(read_scene_document(package), root=package)
+    _write_json_pair(root / "request.json", scene.request_bytes + b"\n")
+    _write_json_pair(
+        root / "character-profile.json",
+        canonical_character_profile_json(scene.profile.profile),
+    )
+    _write_json_pair(root / "plan.json", json.dumps(_plan(scene)).encode())
     anchor = materialize_style_anchor(
         StyleModeSelection(
             schema_version=1,
@@ -86,7 +108,7 @@ def _write_inputs(root: Path) -> str:
     assets = root / "assets"
     assets.mkdir()
     files = {
-        "concept.png": _png(1024, 1536, alpha=False),
+        "concept.png": scene.identity_reference.data,
         "background.png": _png(1672, 941, alpha=False),
         **{
             f"expression-{state}.png": _png(1024, 1536, alpha=True)
@@ -134,8 +156,8 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     tag = _write_inputs(tmp_path)
     await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 2
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v2"
+    assert bundle_raw["schema_version"] == 4
+    assert bundle_raw["kind"] == "dialogue-scene-bundle-v4"
     assert "sceneData" not in bundle_raw
     assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
     bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))
@@ -151,7 +173,7 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
         (tmp_path / "plan.json.meta.json").read_bytes()
     )
     anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
-    assert first.recipe_version == "dialogue-scene-v3"
+    assert first.recipe_version == "dialogue-scene-v5"
     assert first.scene_data.appearance.art_direction == "clean 2D Japanese anime illustration"
     assert bundle_sidecar["params"]["style_resource_sha256"] == anchor_raw["resource_sha256"]
     assert bundle_sidecar["params"]["style_compiler_sha256"] == anchor_raw["compiler_sha256"]

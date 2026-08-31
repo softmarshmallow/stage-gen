@@ -102,10 +102,9 @@ Start here for the headless, general-purpose system:
   integration decision.
 - [Web preview adapter](web-preview.md) — optional first consumer.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
-  the current producer/consumer boundary: Python still exposes strict wire
-  V2/recipe V3 with bundle V2 and profile-bound wire V3/recipe V4 with bundle
-  V3, while the web installer accepts only wire V3/recipe V4; the planned single
-  contract keeps `character_profile` optional by presence.
+  the current producer/consumer boundary: one authored package contract
+  (`dialogue-scene-v1`) produced by recipe `dialogue-scene-v5` into
+  `dialogue-scene-bundle-v4`, which the web installer is the sole reader of.
 - [Dialogue-theme operator workflow](dialogue-theme-pipeline.md) — generation,
   resume/force, install, review/rights gates, activation, status, and rollback.
 - [Dialogue-scene preview](dialogue-scene-preview.md) — implemented
@@ -130,17 +129,15 @@ characters, mobs, inventory, and portals are the first recipe, the side-view
 platformer. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
 
-The Visual Novel Scene Kit Python producer currently has two strict
-lower_snake_case paths: wire V2/recipe V3 produces bundle V2, and the
-profile-bound wire V3/recipe V4 produces bundle V3. The deterministic web
-installer accepts only wire V3/recipe V4, validates and copies its immutable
-files, then projects accepted `scene_data` into the active fixture without
-generating or inventing copy. The pending
-[atomic producer cutover](../TODO.md#exact-current-contracts) will replace the
-two Python paths with one exact contract whose optional `character_profile`
-binding is selected by presence. Only `web/public/dialogue-scene/demo/anime/`
-is historical: it preserves its showcase provenance and is not an accepted
-current portable-bundle example.
+The Visual Novel Scene Kit Python producer has one strict lower_snake_case
+path: an authored package (`dialogue-scene-v1`) resolved by recipe
+`dialogue-scene-v5` into `dialogue-scene-bundle-v4`. Prior contracts were
+removed rather than kept behind a parser, and prior runs were dropped rather
+than migrated. The deterministic web installer reads that one contract,
+validates and copies its immutable files, then projects accepted `scene_data`
+into the active fixture without generating or inventing copy. Only
+`web/public/dialogue-scene/demo/anime/` is historical: it preserves its showcase
+provenance and is not an accepted current portable-bundle example.
 
 Provider facts in this repository were last verified on 2026-08-14. Re-check
 capability metadata before changing adapters because hosted model contracts

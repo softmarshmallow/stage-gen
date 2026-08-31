@@ -1,17 +1,21 @@
-# Authored character library
+# Authored character profiles
 
-The repository `library/characters/` tree owns reusable, human-authored character
-profiles. It is not generated output, a provider cache, a recipe fixture, or a
-publication root. Each character has one stable directory and source document:
+A character profile is reusable, human-authored identity: not generated output, a
+provider cache, a recipe fixture, or a publication root. A profile is a **member
+of the game package that binds it**, named by exact relative path and exact
+bytes, the same way that package names every other authored member:
 
 ```text
-library/characters/<profile_id>/profile.toml
+library/games/<game_id>/character.toml
 ```
 
+There is no separate global character tree. A profile that no package names is a
+file nothing can resolve, and a package that names one owns its rights statement
+alongside its own.
+
 `profile_id` is a stable logical identity. Increment `revision` whenever any
-semantic profile value, rights statement, or reference binding changes; do not
-rename the directory to encode revisions. The original
-`mira-vale-cartographer` profile is intentionally `unreviewed` and has no media
+semantic profile value, rights statement, or reference binding changes. The
+shipped `nao-kirishima` profile is intentionally `unreviewed` and has no media
 references. It demonstrates the contract without implying generated artwork,
 redistribution permission, or publication approval.
 
@@ -31,7 +35,7 @@ from stage_gen.components.character_profile import (
     load_character_profile,
 )
 
-profile = load_character_profile("library/characters/mira-vale-cartographer/profile.toml")
+profile = load_character_profile("library/games/larkfield/character.toml")
 artifact_bytes = canonical_character_profile_json(profile)
 artifact_sha256 = character_profile_sha256(profile)
 ```
@@ -55,19 +59,18 @@ statement; profile rights never silently grant rights to external bytes.
 
 The authored library is external workspace content, not Python package data.
 The repository sample remains available in a source checkout, but neither wheels
-nor source distributions bundle `library/`. An installed CLI must receive the
-workspace root explicitly with `--character-library-root PATH` (or
-`STAGE_GEN_CHARACTER_LIBRARY_ROOT`); that root must contain
-`library/characters/`. Profile-aware recipes use the exact shared binding below;
-the source digest binds authored bytes while the shared resolver computes
-canonical profile identity only after loader validation:
+nor source distributions bundle `library/`. An installed CLI receives the package
+directory explicitly with `--package-root PATH`. Profile-aware recipes use the
+exact shared binding below; the source digest binds authored bytes while the
+shared resolver computes canonical profile identity only after loader
+validation, resolving the ref inside that package root and following no symlink:
 
 ```toml
 [character_profile]
 schema_version = 1
 kind = "character-profile-binding-v1"
-ref = "library/characters/mira-vale-cartographer/profile.toml"
-source_sha256 = "<sha256-of-the-exact-profile.toml-bytes>"
+ref = "character.toml"
+source_sha256 = "<sha256-of-the-exact-character.toml-bytes>"
 ```
 
 From the repository root, validate the contract and print the authored-source
@@ -75,11 +78,11 @@ digest required by that binding without calling a provider or writing output:
 
 ```sh
 uv run stage-gen character-profile validate \
-  --input library/characters/mira-vale-cartographer/profile.toml \
-  --character-library-root .
+  --input library/games/larkfield/character.toml \
+  --package-root library/games/larkfield
 uv run stage-gen character-profile digest \
-  --input library/characters/mira-vale-cartographer/profile.toml \
-  --character-library-root .
+  --input library/games/larkfield/character.toml \
+  --package-root library/games/larkfield
 ```
 
 `validate` emits deterministic compact lower_snake_case JSON containing stable
@@ -88,12 +91,12 @@ prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 
 ## Runnable recipe inputs
 
-The repository examples bind the exact current sample bytes:
+The recipe takes a package directory, and the package names its own members:
 
 ```sh
 uv run stage-gen dialogue-scene generate \
-  --input examples/dialogue-theme/profile-enabled-date.toml \
-  --output out/profile-enabled-date
+  --input library/games/larkfield \
+  --output out/larkfield
 ```
 
 The same public CLI is available through the stable web forwarding script:
@@ -101,25 +104,23 @@ The same public CLI is available through the stable web forwarding script:
 ```sh
 cd web
 bun run stage-gen -- dialogue-scene generate \
-  --input ../examples/dialogue-theme/profile-enabled-date.toml \
-  --output ../out/profile-enabled-date
+  --input ../library/games/larkfield \
+  --output ../out/larkfield
 ```
 
 A prepared game binds its cast in `game.toml` rather than in a request document,
 so the `sideview-platformer` recipe reads authored profiles through the package it
 is given. The dialogue run persists `character-profile.json` with provenance and
-publishes wire-V3 `bundle.json` using recipe V4. These artifacts carry identity
-and lineage; they do not authorize publication.
+publishes `dialogue-scene-bundle-v4` using recipe `dialogue-scene-v5`. These
+artifacts carry identity and lineage; they do not authorize publication.
 
-Dialogue request V3 resolves only
-`library/characters/<profile_id>/profile.toml` sources, rejects symlink or digest
-tampering before provider work, and persists canonical `character-profile.json`
-plus portable provenance in the ignored run directory. Request V2 remains a
-separate exact parser and graph. This integration does not define pose,
-expression, shot, provider conditioning, generated observation, runtime
-placement, or publication approval.
+The scene document resolves only package-relative TOML members, rejects symlink
+or digest tampering before provider work, and persists canonical
+`character-profile.json` plus portable provenance in the ignored run directory.
+This integration does not define pose, expression, shot, provider conditioning,
+generated observation, runtime placement, or publication approval.
 
 Per-shot direction, pose conditioning, generated observation, and cross-image
 consistency remain explicitly proposed research in
 [Dialogue character direction and observation](spec/dialogue-character-direction.md);
-request V3 neither accepts nor synthesizes them from a profile.
+the scene document neither accepts nor synthesizes them from a profile.

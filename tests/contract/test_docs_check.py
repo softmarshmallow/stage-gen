@@ -52,9 +52,9 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     for required in (
         "stage-gen character-profile validate",
         "stage-gen character-profile digest",
-        "examples/dialogue-theme/profile-enabled-date.toml",
-        "STAGE_GEN_CHARACTER_LIBRARY_ROOT",
-        "wire V3/recipe V4",
+        "library/games/larkfield",
+        "--package-root",
+        "dialogue-scene-bundle-v4",
     ):
         assert required in readme or required in library or required in docs_index
     assert "At committed HEAD it is not a provider-backed" not in architecture

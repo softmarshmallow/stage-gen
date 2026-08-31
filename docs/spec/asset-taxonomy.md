@@ -100,7 +100,7 @@ so existing runs were dropped once, not once per rename:
 | --- | --- |
 | recipe id `"scrolling-preview"` | `"sideview-platformer"` |
 | `prepared-game-execution-{graph,event,summary,projection,view}-v1` | `sideview-platformer-execution-*-v1` |
-| `dialogue-scene-execution-graph-v1` | `dialogue-scene-execution-graph-v2` (node shape changed) |
+| `dialogue-scene-execution-graph-v1` | `dialogue-scene-execution-graph-v3` (node shape and authored contract changed) |
 | cache namespaces `prepared-world-v1` / `prepared-content-v3` | `sideview-platformer-{world,content}-v1` |
 | provenance component `@stage-gen/scrolling-preview` | `@stage-gen/sideview-platformer` |
 

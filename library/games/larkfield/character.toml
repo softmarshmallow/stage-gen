@@ -1,0 +1,19 @@
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "nao-kirishima"
+revision = 1
+display_name = "Nao Kirishima"
+age_years = 18
+description = "An original final-year student who records the sounds of the farming town she lives in."
+visual_identity = "Young woman of average height with warm fair skin, dark brown eyes, and chin-length black hair held back by a thin brass clip above her right ear."
+wardrobe = "Modest navy-and-white summer uniform with a short-sleeved white blouse, a knee-length navy pleated skirt, white socks and brown loafers, and a canvas satchel."
+invariants = [
+  "Chin-length black hair with a thin brass clip above the right ear",
+  "Modest navy-and-white summer uniform with a knee-length pleated skirt",
+  "A compact field recorder clipped to the strap of a canvas satchel",
+  "Adult proportions and a quiet, observant demeanor",
+]
+
+[rights]
+status = "unreviewed"
+basis = ["Original repository-authored text with no external character or media reference."]

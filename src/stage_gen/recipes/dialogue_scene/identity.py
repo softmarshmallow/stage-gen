@@ -9,8 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-RECIPE_VERSION = 3
-PROFILE_RECIPE_VERSION = 4
+RECIPE_VERSION = 5
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -34,13 +33,14 @@ def content_sha256(data: bytes) -> str:
 
 
 def run_identity(request: object) -> str:
-    if _request_schema_version(request) == 3:
-        digest_input = {
-            "recipe_version": PROFILE_RECIPE_VERSION,
-            "request": request,
-        }
-        return f"dialogue-{canonical_sha256(digest_input)[:24]}"
-    return f"dialogue-{canonical_sha256(request)[:24]}"
+    """One run identity, over the recipe version and the authored document together.
+
+    The version rides the digest so a recipe change moves every identity, rather
+    than two documents that happen to canonicalize alike sharing a run.
+    """
+
+    digest_input = {"recipe_version": RECIPE_VERSION, "request": request}
+    return f"dialogue-{canonical_sha256(digest_input)[:24]}"
 
 
 def stage_identity(
@@ -62,11 +62,3 @@ def stage_identity(
             "inputs": dict(inputs or {}),
         }
     )
-
-
-def _request_schema_version(request: object) -> object:
-    if isinstance(request, BaseModel):
-        return getattr(request, "schema_version", None)
-    if isinstance(request, Mapping):
-        return request.get("schema_version")
-    return None

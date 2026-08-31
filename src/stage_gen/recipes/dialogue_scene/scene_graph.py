@@ -22,6 +22,7 @@ from pydantic import Field
 
 from gnode import (
     SHA256_PATTERN,
+    AuthoredInput,
     Binding,
     BindingTable,
     Graph,
@@ -32,20 +33,14 @@ from gnode import (
     PortRef,
     seal_graph,
 )
-from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
-    DialogueThemeRequestV3,
-    ReuseSource,
-)
-from stage_gen.recipes.dialogue_scene.prompts import concept_prompt, plan_prompt
+from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
+from stage_gen.recipes.dialogue_scene.prompts import plan_prompt
 from stage_gen.recipes.dialogue_scene.scene_types import (
     ATTEMPT_LEDGER_KIND,
     BACKDROP_GENERATE,
-    BACKDROP_INGEST,
     BACKDROP_KIND,
     BUNDLE_KIND,
     BUNDLE_PACKAGE,
-    CONCEPT_GENERATE,
     CONCEPT_INGEST,
     CONCEPT_KIND,
     EXPRESSION_DERIVE,
@@ -71,12 +66,12 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
-DIALOGUE_GRAPH_SCHEMA_VERSION = 2
+DIALOGUE_GRAPH_SCHEMA_VERSION = 3
 DIALOGUE_TRACE_SCHEMA_VERSION = 1
 #: The cache tree this recipe's node artifacts live under. Renaming it is the
 #: whole-recipe invalidation lever; per-type levers are the types' own
 #: ``contract_version`` values.
-DIALOGUE_CACHE_NAMESPACE = "dialogue-scene-nodes-v1"
+DIALOGUE_CACHE_NAMESPACE = "dialogue-scene-nodes-v2"
 DIALOGUE_CACHE_RECORD_KIND = "dialogue-scene-node-cache-v2"
 
 
@@ -99,9 +94,10 @@ class DialogueSceneGraph(Graph):
     VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
     VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
-    schema_version: Literal[2]
-    kind: Literal["dialogue-scene-execution-graph-v2"]
+    schema_version: Literal[3]
+    kind: Literal["dialogue-scene-execution-graph-v3"]
     recipe: Literal["dialogue-scene"]
+    game_id: str
     scene_id: str
     request_sha256: str = Field(pattern=SHA256_PATTERN)
 
@@ -112,7 +108,7 @@ class DialogueSceneGraph(Graph):
         return self.recipe
 
     def view_header(self) -> dict[str, object]:
-        return {"recipe": self.recipe, "scene_id": self.scene_id}
+        return {"recipe": self.recipe, "game_id": self.game_id, "scene_id": self.scene_id}
 
     def operation_vocabulary(self) -> tuple[str, ...]:
         """Report every declared operation, so a zero count stays visible."""
@@ -191,14 +187,9 @@ def expression_template_ids(scene: ResolvedDialogueScene) -> tuple[str, str]:
     """The packaged prompt-template identities this request binds, plan-time known."""
 
     native = scene.request.transparency_mode == "native"
-    if isinstance(scene.request, DialogueThemeRequestV3):
-        return (
-            "profile-native-neutral-v1" if native else "profile-neutral-v1",
-            "profile-native-expression-edit-v1" if native else "profile-expression-edit-v1",
-        )
     return (
-        "native-neutral-v1" if native else "neutral-v5",
-        "native-expression-edit-v1" if native else "expression-edit-v5",
+        "profile-native-neutral-v1" if native else "profile-neutral-v1",
+        "profile-native-expression-edit-v1" if native else "profile-expression-edit-v1",
     )
 
 
@@ -211,9 +202,20 @@ def build_dialogue_scene_graph(
 
     builder = GraphBuilder(profile=profile)
     request = scene.request
-    digests = (scene.request_sha256, scene.policy_digest, scene.template_digest)
-    profiled = isinstance(request, DialogueThemeRequestV3)
-    profile_model = scene.profile.profile if scene.profile is not None else None
+    identity = scene.identity_reference
+    # The authored plate's digest rides every image node's cache identity, so
+    # replacing the file re-bills the scene rather than leaving sprites drawn
+    # against a plate that no longer exists.
+    digests = (
+        scene.request_sha256,
+        scene.policy_digest,
+        scene.template_digest,
+        identity.sha256,
+    )
+    identity_inputs = (
+        AuthoredInput(label=identity.reference_id, ref=identity.source, sha256=identity.sha256),
+    )
+    profile_model = scene.profile.profile
     neutral_template, expression_template = expression_template_ids(scene)
     anchor_ref = PortRef(node_id="scene-style-select", port_id="anchor")
     plan_ref = PortRef(node_id="scene-plan", port_id="document")
@@ -227,25 +229,22 @@ def build_dialogue_scene_graph(
         input_digests=digests,
         ports=(_artifact("request", "request.json", REQUEST_KIND),),
     )
-    upstream = "scene-request"
-    if scene.profile is not None:
-        builder.add(
-            PROFILE_RESOLVE,
-            "scene-profile-resolve",
-            domain="scene",
-            description="Validate and materialize the authored character profile",
-            depends_on=(upstream,),
-            input_digests=(scene.profile.canonical_sha256, scene.profile.source_sha256),
-            ports=(_artifact("profile", "character-profile.json", PROFILE_KIND),),
-        )
-        upstream = "scene-profile-resolve"
+    builder.add(
+        PROFILE_RESOLVE,
+        "scene-profile-resolve",
+        domain="scene",
+        description="Validate and materialize the authored character profile",
+        depends_on=("scene-request",),
+        input_digests=(scene.profile.canonical_sha256, scene.profile.source_sha256),
+        ports=(_artifact("profile", "character-profile.json", PROFILE_KIND),),
+    )
 
     builder.add(
         STYLE_SELECT,
         "scene-style-select",
         domain="scene",
         description="Select and materialize the canonical image style anchor",
-        depends_on=(upstream,),
+        depends_on=("scene-profile-resolve",),
         input_digests=(scene.style_resource_sha256, scene.style_compiler_sha256),
         ports=(
             _artifact("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
@@ -254,33 +253,19 @@ def build_dialogue_scene_graph(
         card=NodeCard(prompt=scene.style_selection_brief, schema_name="canonical_style_anchor"),
     )
 
-    if scene.concept_reuse is not None:
-        builder.add(
-            CONCEPT_INGEST,
-            "scene-concept",
-            domain="appearance",
-            description="Ingest the caller-supplied appearance concept",
-            depends_on=("scene-style-select",),
-            input_digests=(scene.concept_reuse.sha256,),
-            ports=(_artifact("image", "assets/concept.png", CONCEPT_KIND),),
-        )
-    else:
-        builder.add(
-            CONCEPT_GENERATE,
-            "scene-concept",
-            domain="appearance",
-            description="Generate the adult appearance identity anchor",
-            depends_on=("scene-style-select",),
-            input_digests=digests,
-            ports=(
-                _artifact("image", "assets/concept.png", CONCEPT_KIND),
-                _attempts("scene-concept"),
-            ),
-            card=NodeCard(
-                prompt=concept_prompt(request, profile_model),
-                reference_inputs=(anchor_ref,),
-            ),
-        )
+    # Nothing generates the art direction. The authored plate arrives with the
+    # package, is held to its declared digest offline, and is published into the
+    # run here so every downstream node reads it through an ordinary port.
+    builder.add(
+        CONCEPT_INGEST,
+        "scene-concept",
+        domain="appearance",
+        description="Publish the authored identity-and-style plate",
+        depends_on=("scene-style-select",),
+        input_digests=(identity.sha256,),
+        ports=(_artifact("image", "assets/concept.png", CONCEPT_KIND),),
+        card=NodeCard(authored_inputs=identity_inputs),
+    )
 
     builder.add(
         PLAN_COMPILE,
@@ -295,41 +280,35 @@ def build_dialogue_scene_graph(
         ),
         card=NodeCard(
             prompt=plan_prompt(request, scene.request_sha256, profile_model),
-            schema_name="dialogue_scene_plan_v3" if profiled else "dialogue_scene_plan_v2",
+            schema_name="dialogue_scene_plan_v4",
             reference_inputs=(concept_ref,),
         ),
     )
 
     native = request.transparency_mode == "native"
-    if isinstance(request.background, ReuseSource):
-        builder.add(
-            BACKDROP_INGEST,
-            "scene-background",
-            domain="scene",
-            description="Ingest the caller-supplied scene background",
-            depends_on=("scene-plan",),
-            input_digests=(request.background.sha256,),
-            ports=(_artifact("image", "assets/background.png", BACKDROP_KIND),),
-        )
-    else:
-        builder.add(
-            BACKDROP_GENERATE,
-            "scene-background",
-            domain="scene",
-            description="Generate the scene background",
-            depends_on=("scene-plan",),
-            input_digests=digests,
-            ports=(
-                _artifact("image", "assets/background.png", BACKDROP_KIND),
-                *(
-                    (_artifact("provider_raw", "raw/background-provider.png", PROVIDER_RAW_KIND),)
-                    if native
-                    else ()
-                ),
-                _attempts("scene-background"),
+    builder.add(
+        BACKDROP_GENERATE,
+        "scene-background",
+        domain="scene",
+        description="Generate the scene background",
+        depends_on=("scene-plan", "scene-concept"),
+        input_digests=digests,
+        ports=(
+            _artifact("image", "assets/background.png", BACKDROP_KIND),
+            *(
+                (_artifact("provider_raw", "raw/background-provider.png", PROVIDER_RAW_KIND),)
+                if native
+                else ()
             ),
-            card=NodeCard(reference_inputs=(plan_ref, anchor_ref)),
-        )
+            _attempts("scene-background"),
+        ),
+        # The backdrop is drawn against the same authored plate as the sprites,
+        # so one room and the character standing in it agree on their light.
+        card=NodeCard(
+            reference_inputs=(concept_ref, plan_ref, anchor_ref),
+            authored_inputs=identity_inputs,
+        ),
+    )
 
     builder.add(
         EXPRESSION_GENERATE,
@@ -346,6 +325,7 @@ def build_dialogue_scene_graph(
         card=NodeCard(
             template_ref=neutral_template,
             reference_inputs=(concept_ref, plan_ref, anchor_ref),
+            authored_inputs=identity_inputs,
         ),
     )
     for state in EXPRESSION_STATES[1:]:
@@ -430,8 +410,9 @@ def build_dialogue_scene_graph(
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
         schema_version=DIALOGUE_GRAPH_SCHEMA_VERSION,
-        kind="dialogue-scene-execution-graph-v2",
+        kind="dialogue-scene-execution-graph-v3",
         recipe="dialogue-scene",
+        game_id=request.game_id,
         scene_id=scene.scene_id,
         request_sha256=scene.request_sha256,
     )

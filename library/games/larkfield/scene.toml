@@ -1,0 +1,60 @@
+schema_version = 1
+kind = "dialogue-scene-v1"
+game_id = "larkfield"
+display_name = "Larkfield"
+revision = 1
+scene_brief = "A student records an empty classroom after the last class of summer"
+transparency_mode = "native"
+
+# The art direction of record, as pixels rather than adjectives. Nothing in the
+# graph paints this: it is published into the run as the concept plate and every
+# generated image is drawn against it, so its digest rides each image node's
+# cache identity. Replacing the file is a new look and re-bills the scene.
+identity_reference_id = "cover"
+
+# The authored identity of record, bound to exact bytes. The scene document names
+# every member it depends on by exact relative path; the resolver reads each one
+# and refuses a digest that no longer matches, offline, before any spend.
+[character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "character.toml"
+source_sha256 = "7c07c3ecf9f0cbdde264692fe8d88fae730e41059041b7a77e43a5f6e86c065b"
+
+[[references]]
+reference_id = "cover"
+source = "references/cover.png"
+source_sha256 = "228cf2c677da07f924c15696538bb738c82e1533f251fcacd37a0c7674fcf091"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this scene document and its character profile.",
+    "First-party AI-generated plate selected by the task owner from a six-candidate sheet on 2026-08-31.",
+    "Drawn against concept-studio/gallery/the-sky-remembers/images/cover.webp as a style reference only, for medium, palette and light; no subject, composition, or wardrobe was copied from it.",
+    "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
+]
+
+[background]
+description = "An original empty classroom at blue hour, warm ceiling lights, open windows onto summer rice fields, no people"
+
+[presentation]
+slot = "right"
+framing_zoom = 70
+source_framing_zoom = 70
+
+[[dialogue]]
+id = "record-the-room"
+speaker = "Nao"
+text = "Everyone's gone home. I wanted to record the room before they lock the building."
+expression_state = "neutral"
+
+[[dialogue]]
+id = "stay-quiet"
+speaker = "You"
+text = "Then I'll stay quiet. I'd like to hear what an empty room sounds like."
+expression_state = "delighted"
+
+[[dialogue]]
+id = "desks-and-cicadas"
+speaker = "Nao"
+text = "It's just desks and cicadas. Don't make it sound clever."
+expression_state = "flustered"

@@ -392,31 +392,29 @@ describe("dialogue theme web adapter", () => {
   });
 
   test("rejects prior bundle wire and recipe versions", async () => {
-    for (const recipeVersion of [
-      "dialogue-scene-v2",
-      "dialogue-scene-v3",
-    ] as const) {
-      const prior = await createBundle(
-        `prior-${recipeVersion}`,
-        "pending",
-        undefined,
-        undefined,
-        recipeVersion,
-      );
-      await expect(
-        installDialogueTheme(prior.bundlePath, prior.options),
-      ).rejects.toThrow("dialogue-scene bundle v3 keys must match the schema");
-    }
+    // Only one contract exists; a prior one is a different document, not an
+    // older dialect the adapter should try to read.
+    const priorShape = await createBundle("prior-shape", "pending");
+    const shed = JSON.parse(
+      await readFile(priorShape.bundlePath, "utf8"),
+    ) as Record<string, unknown>;
+    delete shed.game_id;
+    delete shed.identity_reference;
+    delete shed.identity_reference_source;
+    await writeFile(priorShape.bundlePath, JSON.stringify(shed));
+    await expect(
+      installDialogueTheme(priorShape.bundlePath, priorShape.options),
+    ).rejects.toThrow("dialogue-scene bundle v4 keys must match the schema");
 
     const current = await createBundle("wrong-current-recipe", "pending");
     const bundle = JSON.parse(
       await readFile(current.bundlePath, "utf8"),
     ) as Record<string, unknown>;
-    bundle.recipe_version = "dialogue-scene-v3";
+    bundle.recipe_version = "dialogue-scene-v4";
     await writeFile(current.bundlePath, JSON.stringify(bundle));
     await expect(
       installDialogueTheme(current.bundlePath, current.options),
-    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v4"');
+    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v5"');
   });
   test("installs wire-v3 recipe-v4 and publishes one exact current active pointer", async () => {
     const first = await createBundle("profile-first", "local");
@@ -505,9 +503,6 @@ describe("dialogue theme web adapter", () => {
     const camel = await createBundle(
       "profile-camel-v4",
       "local",
-      undefined,
-      undefined,
-      "dialogue-scene-v4",
     );
     const camelBundle = JSON.parse(await readFile(camel.bundlePath, "utf8")) as Record<string, unknown>;
     const camelBinding = camelBundle.character_profile_binding as Record<string, unknown>;
@@ -522,9 +517,6 @@ describe("dialogue theme web adapter", () => {
     const profileTamper = await createBundle(
       "profile-tamper-v4",
       "local",
-      undefined,
-      undefined,
-      "dialogue-scene-v4",
     );
     await writeFile(
       path.join(profileTamper.bundleDirectory, "character-profile.json"),
@@ -537,9 +529,6 @@ describe("dialogue theme web adapter", () => {
     const setup = await createBundle(
       "partial-state-v4",
       "local",
-      undefined,
-      undefined,
-      "dialogue-scene-v4",
     );
     const installed = await installDialogueTheme(setup.bundlePath, setup.options);
     await activateDialogueTheme(installed.bundle_id, setup.options);
@@ -560,11 +549,11 @@ describe("dialogue theme web adapter", () => {
     const unknownBundle = JSON.parse(
       await readFile(unknown.bundlePath, "utf8"),
     ) as Record<string, unknown>;
-    unknownBundle.recipe_version = "dialogue-scene-v5";
+    unknownBundle.recipe_version = "dialogue-scene-v6";
     await writeFile(unknown.bundlePath, JSON.stringify(unknownBundle));
     await expect(
       installDialogueTheme(unknown.bundlePath, unknown.options),
-    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v4"');
+    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v5"');
 
     const missing = await createBundle("missing-style-binding", "pending");
     const missingBundle = JSON.parse(
@@ -639,7 +628,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(topLevelPath, JSON.stringify(topLevel));
     await expect(
       installDialogueTheme(topLevelPath, setup.options),
-    ).rejects.toThrow("dialogue-scene bundle v3 keys must match the schema");
+    ).rejects.toThrow("dialogue-scene bundle v4 keys must match the schema");
 
     const nested = structuredClone(original);
     const scene = nested.scene_data as Record<string, unknown>;
@@ -658,7 +647,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(priorPath, JSON.stringify(prior));
     await expect(
       installDialogueTheme(priorPath, setup.options),
-    ).rejects.toThrow("bundle.schema_version must be 3");
+    ).rejects.toThrow("bundle.schema_version must be 4");
   });
 
   test("requires current request and plan envelopes and rejects bound camelCase", async () => {
@@ -834,10 +823,6 @@ async function createBundle(
     | "publication-authorized",
   existingRoot?: string,
   existingStateRoot?: string,
-  recipeVersion:
-    | "dialogue-scene-v2"
-    | "dialogue-scene-v3"
-    | "dialogue-scene-v4" = "dialogue-scene-v4",
 ): Promise<{
   readonly root: string;
   readonly bundleDirectory: string;
@@ -855,37 +840,45 @@ async function createBundle(
   const profileBinding = {
     schema_version: 1,
     kind: "character-profile-binding-v1",
-    ref: "library/characters/mio-amamiya/profile.toml",
+    ref: "character.toml",
     source_sha256: profileSourceSha256,
   };
+  const identityReferenceSource = "references/cover.png";
+  const identityReferenceSha256 = "c".repeat(64);
   const request = Buffer.from(
     JSON.stringify({
-      schema_version: recipeVersion === "dialogue-scene-v4" ? 3 : 2,
-      kind:
-        recipeVersion === "dialogue-scene-v4"
-          ? "dialogue-theme-request-v3"
-          : "dialogue-theme-request-v2",
-      ...(recipeVersion === "dialogue-scene-v4"
-        ? {
-            scene_brief: "Adult researchers meet after an evening seminar.",
-            character_profile: profileBinding,
-            background: { mode: "generate" },
-            dialogue: [
-              {
-                id: "opening",
-                speaker: "Mio",
-                text: "I hoped you would stay after the seminar.",
-                expression_state: "neutral",
-              },
-            ],
-            presentation: {
-              slot: "right",
-              framing_zoom: 70,
-              source_framing_zoom: 70,
-            },
-            transparency_mode: "ai",
-          }
-        : { slug }),
+      schema_version: 1,
+      kind: "dialogue-scene-v1",
+      game_id: "seminar_hall",
+      display_name: "Seminar Hall",
+      revision: 1,
+      scene_brief: "Researchers meet after an evening seminar.",
+      identity_reference_id: "cover",
+      character_profile: profileBinding,
+      references: [
+        {
+          reference_id: "cover",
+          source: identityReferenceSource,
+          source_sha256: identityReferenceSha256,
+          rights_status: "unreviewed",
+          rights_basis: ["Original brand-neutral test fixture."],
+        },
+      ],
+      background: { description: "Evening study lounge" },
+      dialogue: [
+        {
+          id: "opening",
+          speaker: "Mio",
+          text: "I hoped you would stay after the seminar.",
+          expression_state: "neutral",
+        },
+      ],
+      presentation: {
+        slot: "right",
+        framing_zoom: 70,
+        source_framing_zoom: 70,
+      },
+      transparency_mode: "ai",
     }),
   );
   const requestProvenance = Buffer.from(
@@ -971,21 +964,18 @@ async function createBundle(
   );
   const plan = Buffer.from(
     JSON.stringify({
-      schema_version: recipeVersion === "dialogue-scene-v4" ? 3 : 2,
-      kind:
-        recipeVersion === "dialogue-scene-v4"
-          ? "dialogue-scene-plan-v3"
-          : "dialogue-scene-plan-v2",
-      recipe_version: recipeVersion,
-      policy_version: "adult-romance-nonexplicit-v2",
-      expression_profile: "romance-core-v2",
-      ...(recipeVersion === "dialogue-scene-v4"
-        ? {
+      schema_version: 4,
+      kind: "dialogue-scene-plan-v4",
+      recipe_version: "dialogue-scene-v5",
+      policy_version: "coming-of-age-nonexplicit-v3",
+      expression_profile: "expression-core-v3",
+      ...{
             request_sha256: sha256(request),
             appearance_id: "mio-amamiya",
             character_profile_ref: profileBinding.ref,
             character_profile_source_sha256: profileBinding.source_sha256,
             character_profile_sha256: sha256(characterProfileBytes),
+            identity_reference_sha256: identityReferenceSha256,
             shared_locks: {
               identity: "Adult woman with an indigo bob and star hairpin",
               wardrobe: "Contemporary adult evening wear",
@@ -1006,11 +996,10 @@ async function createBundle(
               { id: "concerned", direction: "focused concern" },
             ],
             prompt_templates: [
-              { id: "neutral-v5", sha256: "5".repeat(64) },
-              { id: "expression-edit-v5", sha256: "5".repeat(64) },
+              { id: "profile-neutral-v1", sha256: "5".repeat(64) },
+              { id: "profile-expression-edit-v1", sha256: "5".repeat(64) },
             ],
-          }
-        : { slug }),
+          },
     }),
   );
   const planProvenance = Buffer.from(
@@ -1019,29 +1008,17 @@ async function createBundle(
       slug,
       artifact: { sha256: sha256(plan) },
       params: {
-        ...(recipeVersion !== "dialogue-scene-v2"
-          ? {
-              metadata: {
-                stage: "scene-plan",
-                request_sha256: sha256(request),
-                ...styleBinding,
-                ...(recipeVersion === "dialogue-scene-v4"
-                  ? {
-                      character_profile_ref: profileBinding.ref,
-                      character_profile_source_sha256:
-                        profileBinding.source_sha256,
-                      character_profile_path: "character-profile.json",
-                      character_profile_sha256: sha256(characterProfileBytes),
-                      character_profile_provenance_path:
-                        "character-profile.json.meta.json",
-                      character_profile_provenance_sha256: sha256(
-                        characterProfileProvenance,
-                      ),
-                    }
-                  : {}),
-              },
-            }
-          : {}),
+        metadata: {
+          stage: "scene-plan",
+          request_sha256: sha256(request),
+          ...styleBinding,
+          character_profile_ref: profileBinding.ref,
+          character_profile_source_sha256: profileBinding.source_sha256,
+          character_profile_path: "character-profile.json",
+          character_profile_sha256: sha256(characterProfileBytes),
+          character_profile_provenance_path: "character-profile.json.meta.json",
+          character_profile_provenance_sha256: sha256(characterProfileProvenance),
+        },
         schema: {
           $defs: {
             scene_plan: {
@@ -1075,26 +1052,22 @@ async function createBundle(
     path.join(bundleDirectory, "plan.json.meta.json"),
     planProvenance,
   );
-  if (recipeVersion !== "dialogue-scene-v2") {
-    await writeFile(
-      path.join(bundleDirectory, "style-anchor.json"),
-      styleAnchorBytes,
-    );
-    await writeFile(
-      path.join(bundleDirectory, "style-anchor.json.meta.json"),
-      styleAnchorProvenance,
-    );
-  }
-  if (recipeVersion === "dialogue-scene-v4") {
-    await writeFile(
-      path.join(bundleDirectory, "character-profile.json"),
-      characterProfileBytes,
-    );
-    await writeFile(
-      path.join(bundleDirectory, "character-profile.json.meta.json"),
-      characterProfileProvenance,
-    );
-  }
+  await writeFile(
+    path.join(bundleDirectory, "style-anchor.json"),
+    styleAnchorBytes,
+  );
+  await writeFile(
+    path.join(bundleDirectory, "style-anchor.json.meta.json"),
+    styleAnchorProvenance,
+  );
+  await writeFile(
+    path.join(bundleDirectory, "character-profile.json"),
+    characterProfileBytes,
+  );
+  await writeFile(
+    path.join(bundleDirectory, "character-profile.json.meta.json"),
+    characterProfileProvenance,
+  );
   await writeFile(path.join(bundleDirectory, "attempts.json"), attempts);
 
   const assetSpecs = [
@@ -1188,14 +1161,12 @@ async function createBundle(
   }
 
   const bundle = {
-    schema_version: recipeVersion === "dialogue-scene-v4" ? 3 : 2,
-    kind:
-      recipeVersion === "dialogue-scene-v4"
-        ? "dialogue-scene-bundle-v3"
-        : "dialogue-scene-bundle-v2",
+    schema_version: 4,
+    kind: "dialogue-scene-bundle-v4",
     recipe: "dialogue-scene",
-    recipe_version: recipeVersion,
+    recipe_version: "dialogue-scene-v5",
     tag: slug,
+    game_id: "seminar_hall",
     run_identity_sha256: sha256(Buffer.from(`run:${slug}`)),
     request: {
       path: "request.json",
@@ -1209,18 +1180,21 @@ async function createBundle(
       provenance_path: "plan.json.meta.json",
       provenance_sha256: sha256(planProvenance),
     },
-    ...(recipeVersion === "dialogue-scene-v4"
-      ? {
-          character_profile: {
-            path: "character-profile.json",
-            sha256: sha256(characterProfileBytes),
-            provenance_path: "character-profile.json.meta.json",
-            provenance_sha256: sha256(characterProfileProvenance),
-          },
-          character_profile_binding: profileBinding,
-          character_profile_sha256: sha256(characterProfileBytes),
-        }
-      : {}),
+    character_profile: {
+      path: "character-profile.json",
+      sha256: sha256(characterProfileBytes),
+      provenance_path: "character-profile.json.meta.json",
+      provenance_sha256: sha256(characterProfileProvenance),
+    },
+    character_profile_binding: profileBinding,
+    character_profile_sha256: sha256(characterProfileBytes),
+    identity_reference: {
+      path: "assets/concept.png",
+      sha256: identityReferenceSha256,
+      provenance_path: "assets/concept.png.meta.json",
+      provenance_sha256: "d".repeat(64),
+    },
+    identity_reference_source: identityReferenceSource,
     assets,
     scene_data: {
       scene_id: slug,
@@ -1307,63 +1281,46 @@ async function createBundle(
     path.join(bundleDirectory, "bundle.json"),
     pendingBundleBytes,
   );
-  if (recipeVersion !== "dialogue-scene-v2") {
-    await writeFile(
-      path.join(bundleDirectory, "bundle.json.meta.json"),
-      JSON.stringify({
-        schema_version: 2,
-        artifact: { sha256: sha256(pendingBundleBytes) },
-        refs: [
-          "request.json",
-          "plan.json",
-          "attempts.json",
-          "style-anchor.json",
-          "style-anchor.json.meta.json",
-          ...(recipeVersion === "dialogue-scene-v4"
-            ? ["character-profile.json", "character-profile.json.meta.json"]
-            : []),
-        ],
-        params: {
-          run_identity_sha256: bundle.run_identity_sha256,
-          selected_assets: 6,
-          ...styleBinding,
-          ...(recipeVersion === "dialogue-scene-v4"
-            ? {
-                character_profile_ref: profileBinding.ref,
-                character_profile_source_sha256: profileBinding.source_sha256,
-                character_profile_path: "character-profile.json",
-                character_profile_sha256: sha256(characterProfileBytes),
-                character_profile_provenance_path:
-                  "character-profile.json.meta.json",
-                character_profile_provenance_sha256: sha256(
-                  characterProfileProvenance,
-                ),
-              }
-            : {}),
-        },
-      }),
-    );
-  }
+  await writeFile(
+    path.join(bundleDirectory, "bundle.json.meta.json"),
+    JSON.stringify({
+      schema_version: 2,
+      artifact: { sha256: sha256(pendingBundleBytes) },
+      refs: [
+        "request.json",
+        "plan.json",
+        "attempts.json",
+        "style-anchor.json",
+        "style-anchor.json.meta.json",
+        "character-profile.json",
+        "character-profile.json.meta.json",
+      ],
+      params: {
+        run_identity_sha256: bundle.run_identity_sha256,
+        selected_assets: 6,
+        ...styleBinding,
+        character_profile_ref: profileBinding.ref,
+        character_profile_source_sha256: profileBinding.source_sha256,
+        character_profile_path: "character-profile.json",
+        character_profile_sha256: sha256(characterProfileBytes),
+        character_profile_provenance_path: "character-profile.json.meta.json",
+        character_profile_provenance_sha256: sha256(characterProfileProvenance),
+      },
+    }),
+  );
   let bundlePath = path.join(bundleDirectory, "bundle.json");
   if (eligibility !== "pending") {
     const status = eligibility === "failed-review" ? "fail" : "pass";
     const reviewBytes = Buffer.from(
       JSON.stringify({
-        schema_version: recipeVersion === "dialogue-scene-v4" ? 3 : 2,
-        kind:
-          recipeVersion === "dialogue-scene-v4"
-            ? "dialogue-scene-review-v3"
-            : "dialogue-scene-review-v2",
+        schema_version: 4,
+        kind: "dialogue-scene-review-v4",
         status,
         usage: "local-demo",
         source_bundle_sha256: sha256(pendingBundleBytes),
         acceptance_spec_sha256: "a".repeat(64),
-        ...(recipeVersion === "dialogue-scene-v4"
-          ? {
-              character_profile_source_sha256: profileBinding.source_sha256,
-              character_profile_sha256: sha256(characterProfileBytes),
-            }
-          : {}),
+        character_profile_source_sha256: profileBinding.source_sha256,
+        character_profile_sha256: sha256(characterProfileBytes),
         independent_reviewer: true,
         asset_sha256: assets.map((asset) => asset.sha256),
         publication_authorized: false,
@@ -1374,17 +1331,13 @@ async function createBundle(
       JSON.stringify({
         schema_version: 2,
         artifact: { sha256: sha256(reviewBytes) },
-        ...(recipeVersion === "dialogue-scene-v4"
-          ? {
-              refs: ["bundle.json", "character-profile.json"],
-              params: {
-                source_bundle_sha256: sha256(pendingBundleBytes),
-                character_profile_ref: profileBinding.ref,
-                character_profile_source_sha256: profileBinding.source_sha256,
-                character_profile_sha256: sha256(characterProfileBytes),
-              },
-            }
-          : {}),
+        refs: ["bundle.json", "character-profile.json"],
+        params: {
+          source_bundle_sha256: sha256(pendingBundleBytes),
+          character_profile_ref: profileBinding.ref,
+          character_profile_source_sha256: profileBinding.source_sha256,
+          character_profile_sha256: sha256(characterProfileBytes),
+        },
       }),
     );
     await writeFile(path.join(bundleDirectory, "review.json"), reviewBytes);

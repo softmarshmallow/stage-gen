@@ -24,7 +24,6 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
             "STAGE_GEN_IMAGE_MODEL": "new/image",
             "STAGE_GEN_CAPABILITY_TIMEOUT_MS": "1250",
             "STAGE_GEN_OPENAI_IMAGE_IPM": "150",
-            "STAGE_GEN_CHARACTER_LIBRARY_ROOT": "/workspace/characters",
             "STAGE_GEN_GAME_LIBRARY_ROOT": "/workspace/games",
         }
     )
@@ -35,12 +34,10 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     assert config.transparency_mode is TransparencyMode.NATIVE
     assert config.openai_image_ipm == 150
     assert config.capability_timeout_s == 1.25
-    assert config.character_library_root == Path("/workspace/characters")
     assert config.game_library_root == Path("/workspace/games")
 
 
 def test_authored_library_roots_are_unset_by_default() -> None:
-    assert load_config(env={}).character_library_root is None
     assert load_config(env={}).game_library_root is None
 
 

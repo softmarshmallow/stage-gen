@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "kind": "game-package-reference-provenance-v1",
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_scene_identity_reference_v1",
+  "state": "unreviewed",
+  "game_id": "larkfield",
+  "reference_id": "cover",
+  "source": "references/cover.png",
+  "sha256": "228cf2c677da07f924c15696538bb738c82e1533f251fcacd37a0c7674fcf091",
+  "bytes": 2441875,
+  "media": {
+    "mime_type": "image/png",
+    "width": 1024,
+    "height": 1536,
+    "alpha": false
+  },
+  "role": "The authored identity-and-style plate for the Larkfield scene package. It is published into every run as the concept plate and attached to every generated image, so the scene's look and the character's identity are authored once by a person rather than painted by the pipeline for itself.",
+  "generation": {
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "quality": "high",
+    "size": "1024x1536",
+    "background": "opaque",
+    "output_format": "png",
+    "attempt_count": 1,
+    "prompt": "Create one identity-and-style plate for a coming-of-age visual-novel scene. Coming-of-age drama, not romance. Exactly one non-sexualized 18-year-old final-year female student, fully clothed and modestly dressed: ordinary proportions, a knee-length skirt, no suggestive posing, framing, or camera angle, nothing tight or revealing. Original brand-neutral scene. No text, pseudo-text, signage words, logos, insignia, signatures, watermarks, UI, or borders.\nAdult character: Nao Kirishima, an 18-year-old final-year student who records the sounds of the farming town she lives in. Authoritative appearance: young woman of average height with warm fair skin, dark brown eyes, and chin-length black hair held back by a thin brass clip above her right ear. Authoritative wardrobe: a modest navy-and-white summer uniform with a short-sleeved white blouse, a knee-length navy pleated skirt, white socks and brown loafers, and a canvas satchel with a compact field recorder clipped to its strap. These authored identity, appearance and wardrobe facts override any conflicting inferred direction, including anything implied by the attached reference.\nStaging: She stands in the centre aisle of an empty high school classroom, wooden desks on either side, a wide green chalkboard wiped clean behind her, warm afternoon light crossing the room from the left.\nVertical portrait plate. Full-body character, standing at eye level, turned three-quarter toward the viewer, occupying most of the frame height. Her face is clearly visible, unobscured and well lit, with readable features - this plate is the identity reference every later expression is drawn from. Clear silhouette with separable edges suitable for sprite extraction, while the room around her stays readable enough to anchor the setting and its light. Opaque environmental background. No other people.\nThe attached image is a style reference only. Take from it the rendering medium, palette, light and atmosphere: a luminous pastoral pixel painting with decisive graphic shadow bands, clean coherent pixel clusters, crisp silhouette edges, restrained texture, sparse dithering, minimal outline, and modern high-color pixel art that is neither strict retro nor smooth digital painting. Take nothing else from it. Do not copy its character, its age, its clothing, its railway crossing, or its composition.",
+    "prompt_sha256": "15484555cac8503672aff9c7cd9b7d73ecfacc8425bc59cfcbb8eefdfd9509ac",
+    "input_references": [
+      "repo://concept-studio/gallery/the-sky-remembers/images/cover.webp#sha256=6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6"
+    ]
+  },
+  "style_reference": {
+    "ref": "concept-studio/gallery/the-sky-remembers/images/cover.webp",
+    "sha256": "6006077d867b3f3e323c0fb8208b004d2f99d5138a6383c22915b6b8e108ebe6",
+    "usage": "Attached as an input reference for medium, palette, light and atmosphere only. The prompt states explicitly that no subject, age, wardrobe, location, or composition is taken from it."
+  },
+  "selection": {
+    "spike": "larkfield-cover-v1",
+    "candidate": "aisle_center",
+    "candidate_count": 6,
+    "selected_on": "2026-08-31",
+    "selected_by": "task owner",
+    "rationale": "Front-facing with the clearest, best-lit face; unobstructed silhouette on both sides for sprite extraction; the classroom reads unmistakably and its warm light matches the style reference's register."
+  },
+  "visual_review": {
+    "status": "pending",
+    "note": "Selecting a candidate is not publication approval. A semantic review verdict must be recorded against these exact bytes before the rights status may move."
+  },
+  "rights": {
+    "status": "unreviewed",
+    "basis": [
+      "Original brand-neutral prompt composed from this scene document and its character profile.",
+      "First-party AI-generated plate selected by the task owner from a six-candidate sheet on 2026-08-31.",
+      "Drawn against concept-studio/gallery/the-sky-remembers/images/cover.webp as a style reference only, for medium, palette and light; no subject, composition, or wardrobe was copied from it.",
+      "No independent semantic review of the exact committed bytes is recorded yet."
+    ],
+    "publication_authorized": false
+  }
+}
