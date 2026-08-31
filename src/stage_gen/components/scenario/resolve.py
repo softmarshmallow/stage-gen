@@ -27,8 +27,9 @@ from stage_gen.components._game_input import (
 from stage_gen.components.scenario.admission import admit_scenario
 from stage_gen.components.scenario.compile import compile_scenario
 from stage_gen.components.scenario.models import (
-    SCENARIO_DOCUMENT_NAME,
+    SCENARIO_CATALOG_NAME,
     ScenarioAdmissionReport,
+    ScenarioCatalog,
     ScenarioDeclarations,
     ScenarioProgram,
 )
@@ -81,11 +82,27 @@ def canonical_program_json(program: ScenarioProgram) -> bytes:
     ).encode("utf-8")
 
 
-def read_scenario_declarations(root: Path) -> ScenarioDeclarations:
-    """Read and validate `scenario.toml`, following no symlink at any depth."""
+def read_scenario_catalog(root: Path) -> ScenarioCatalog:
+    """Read and validate `scenarios/index.toml`, following no symlink at any depth."""
 
-    data = read_package_member(root, SCENARIO_DOCUMENT_NAME, label="scenario document")
-    return parse_toml_contract(data, model=ScenarioDeclarations, label="scenario-v1")
+    data = read_package_member(root, SCENARIO_CATALOG_NAME, label="scenario catalog")
+    return parse_toml_contract(data, model=ScenarioCatalog, label="scenario-catalog-v1")
+
+
+def read_scenario_declarations(root: Path, scenario_id: str) -> ScenarioDeclarations:
+    """Read and validate one `scenarios/<id>.toml`, following no symlink at any depth."""
+
+    source = f"scenarios/{scenario_id}.toml"
+    data = read_package_member(root, source, label="scenario document")
+    declarations = parse_toml_contract(data, model=ScenarioDeclarations, label="scenario-v1")
+    # The catalog names the file and the file names itself; a disagreement means
+    # one of the two is about a scenario nobody asked for.
+    if declarations.scenario_id != scenario_id:
+        raise ValueError(
+            f"{source} declares scenario_id `{declarations.scenario_id}`, "
+            f"which its own path does not name"
+        )
+    return declarations
 
 
 def read_script_text(root: Path, declarations: ScenarioDeclarations) -> str:
@@ -114,10 +131,10 @@ def script_digest(root: Path, declarations: ScenarioDeclarations) -> str:
     return sha256_bytes(read_package_member(root, declarations.script, label="scenario script"))
 
 
-def resolve_scenario(root: Path) -> ResolvedScenario:
-    """Admit one authored scenario package, touching no provider."""
+def resolve_scenario(root: Path, scenario_id: str) -> ResolvedScenario:
+    """Admit one authored scenario, touching no provider."""
 
-    declarations = read_scenario_declarations(root)
+    declarations = read_scenario_declarations(root, scenario_id)
     script = read_script_text(root, declarations)
     program = compile_scenario(declarations, parse_scenario(script))
     admission = admit_scenario(declarations, program)
@@ -131,12 +148,25 @@ def resolve_scenario(root: Path) -> ResolvedScenario:
     )
 
 
+def resolve_scenario_catalog(root: Path) -> tuple[ResolvedScenario, ...]:
+    """Admit every scenario a game declares, in catalog order.
+
+    Order is the author's, not the filesystem's, so a manifest built from this
+    is stable across machines.
+    """
+
+    catalog = read_scenario_catalog(root)
+    return tuple(resolve_scenario(root, scenario_id) for scenario_id in catalog.scenario_ids)
+
+
 __all__ = [
     "SCENARIO_RESOLUTION_VERSION",
     "canonical_program_json",
     "ResolvedScenario",
     "read_scenario_declarations",
     "read_script_text",
+    "read_scenario_catalog",
     "resolve_scenario",
+    "resolve_scenario_catalog",
     "script_digest",
 ]

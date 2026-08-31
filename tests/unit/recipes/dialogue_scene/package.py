@@ -171,7 +171,12 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
     scenario_bytes = scenario_toml(script_sha256=hashlib.sha256(script_bytes).hexdigest()).encode(
         "utf-8"
     )
-    (root / "scenario.toml").write_bytes(scenario_bytes)
+    (root / "scenarios/after_seminar.toml").write_bytes(scenario_bytes)
+    (root / "scenarios/index.toml").write_text(
+        'schema_version = 1\nkind = "scenario-catalog-v1"\ngame_id = "seminar_hall"\n'
+        'revision = 1\n\n[[scenarios]]\nscenario_id = "after_seminar"\n',
+        encoding="utf-8",
+    )
     document = scene_value(
         character_sha256=hashlib.sha256(character_bytes).hexdigest(),
         second_sha256=hashlib.sha256(second_bytes).hexdigest(),
@@ -234,7 +239,7 @@ def scene_value(
         "scenario": {
             "schema_version": 1,
             "kind": "scenario-binding-v1",
-            "ref": "scenario.toml",
+            "ref": "scenarios/after_seminar.toml",
             "source_sha256": scenario_sha256,
         },
         "presentation": {"framing_zoom": 70, "source_framing_zoom": 70},

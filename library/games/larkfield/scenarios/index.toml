@@ -1,0 +1,10 @@
+# Which scenarios this game holds. One, today - the visual novel is a single
+# story - but the catalog is the same shape the platformer reads, so a game that
+# grows a second scenario does not grow a second contract.
+schema_version = 1
+kind = "scenario-catalog-v1"
+game_id = "larkfield"
+revision = 1
+
+[[scenarios]]
+scenario_id = "last_class"

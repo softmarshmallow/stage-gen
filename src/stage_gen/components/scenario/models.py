@@ -31,7 +31,9 @@ from stage_gen.components.game_soundtrack import TrackGenerationIntent
 
 SCENARIO_SCHEMA_VERSION = 1
 SCENARIO_KIND = "scenario-v1"
-SCENARIO_DOCUMENT_NAME = "scenario.toml"
+SCENARIO_CATALOG_SCHEMA_VERSION = 1
+SCENARIO_CATALOG_KIND = "scenario-catalog-v1"
+SCENARIO_CATALOG_NAME = "scenarios/index.toml"
 
 #: Statement keywords may not be actor ids. `say` begins with a bare identifier, so
 #: a cast member named `end` would make `end talked` mean two things and the file
@@ -331,8 +333,43 @@ class EndingDeclaration(ScenarioModel):
         return normalized_text(value, "ending label")
 
 
+class ScenarioSource(ScenarioModel):
+    """One catalog entry. The declarations file is derived, not authored twice."""
+
+    scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+
+    @property
+    def source(self) -> str:
+        return f"scenarios/{self.scenario_id}.toml"
+
+
+class ScenarioCatalog(ScenarioModel):
+    """`scenarios/index.toml`: which scenarios a game holds.
+
+    A game is not one story. The visual novel happens to ship a single scenario
+    and the platformer ships one per conversation, and both read the same
+    catalog: a game that held its narrative in a differently-shaped file
+    depending on genre would be two contracts wearing one name.
+    """
+
+    schema_version: Literal[1]
+    kind: Literal["scenario-catalog-v1"]
+    game_id: str = Field(pattern=GAME_REFERENCE_PATTERN, max_length=96)
+    revision: int = Field(ge=1)
+    scenarios: list[ScenarioSource] = Field(min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def validate_closure(self) -> ScenarioCatalog:
+        unique_values((entry.scenario_id for entry in self.scenarios), "catalog scenario_id")
+        return self
+
+    @property
+    def scenario_ids(self) -> tuple[str, ...]:
+        return tuple(entry.scenario_id for entry in self.scenarios)
+
+
 class ScenarioDeclarations(ScenarioModel):
-    """`scenario.toml`: every name the script may use, and nothing written as prose."""
+    """`scenarios/<id>.toml`: every name the script may use, and no prose."""
 
     schema_version: Literal[1]
     kind: Literal["scenario-v1"]
@@ -448,7 +485,9 @@ class ScenarioAdmissionReport(PersistedContractModel):
 
 __all__ = [
     "RESERVED_WORDS",
-    "SCENARIO_DOCUMENT_NAME",
+    "SCENARIO_CATALOG_KIND",
+    "SCENARIO_CATALOG_NAME",
+    "SCENARIO_CATALOG_SCHEMA_VERSION",
     "SCENARIO_KIND",
     "SCENARIO_SCHEMA_VERSION",
     "TERMINAL_KINDS",
@@ -468,7 +507,9 @@ __all__ = [
     "JumpStatement",
     "LineStatement",
     "ScenarioAdmissionReport",
+    "ScenarioCatalog",
     "ScenarioDeclarations",
+    "ScenarioSource",
     "ScenarioProgram",
     "SetStatement",
     "ShowStatement",

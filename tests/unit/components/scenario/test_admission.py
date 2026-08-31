@@ -28,12 +28,12 @@ from .package import DEFAULT_SCRIPT, write_scenario_package
 
 def _admit(tmp_path: Path, *, script: str = DEFAULT_SCRIPT, **overrides: Any) -> None:
     write_scenario_package(tmp_path, script=script, **overrides)
-    resolve_scenario(tmp_path)
+    resolve_scenario(tmp_path, "last_class")
 
 
 def test_the_default_package_is_admitted_and_reaches_every_ending(tmp_path: Path) -> None:
     write_scenario_package(tmp_path)
-    resolved = resolve_scenario(tmp_path)
+    resolved = resolve_scenario(tmp_path, "last_class")
     assert resolved.admission.admitted is True
     assert {witness.outcome_id for witness in resolved.admission.witnesses} == {
         "listened",

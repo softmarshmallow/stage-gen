@@ -53,7 +53,7 @@ def _repoint_digests(package: Path) -> None:
     to move both, or it proves a digest mismatch rather than what it meant to.
     """
 
-    scenario = package / "scenario.toml"
+    scenario = package / "scenarios/after_seminar.toml"
     script = package / "scenarios/after_seminar.scenario"
     scenario.write_text(
         re.sub(
@@ -114,7 +114,7 @@ def test_the_scene_binds_its_narrative_as_a_digest_bound_member(tmp_path: Path) 
     document = _document(write_scene_package(tmp_path / "pkg"))
     binding = document["scenario"]
     assert isinstance(binding, dict)
-    assert binding["ref"] == "scenario.toml"
+    assert binding["ref"] == "scenarios/after_seminar.toml"
     with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
         _parsed({**document, "scenario": {**binding, "ref": "../elsewhere.toml"}})
     with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
@@ -344,7 +344,7 @@ def _bundle_value(root: Path) -> dict[str, Any]:
         "scenario_binding": {
             "schema_version": 1,
             "kind": "scenario-binding-v1",
-            "ref": "scenario.toml",
+            "ref": "scenarios/after_seminar.toml",
             "source_sha256": resolved.request.scenario.source_sha256,
         },
         "scenario_sha256": "f" * 64,
@@ -463,7 +463,7 @@ def test_a_scenario_that_drifted_from_its_digest_is_refused(tmp_path: Path) -> N
     """The scene pins the scenario, which pins its script: one hash, whole narrative."""
 
     package = write_scene_package(tmp_path / "pkg")
-    scenario = package / "scenario.toml"
+    scenario = package / "scenarios/after_seminar.toml"
     scenario.write_text(
         scenario.read_text(encoding="utf-8").replace("revision = 1", "revision = 2"),
         encoding="utf-8",

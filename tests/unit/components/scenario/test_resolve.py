@@ -21,7 +21,7 @@ LARKFIELD = REPOSITORY_ROOT / "library/games/larkfield"
 def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> None:
     """The package in the tree is the happy path; a fixture cannot stand in for it."""
 
-    resolved = resolve_scenario(LARKFIELD)
+    resolved = resolve_scenario(LARKFIELD, "last_class")
     assert resolved.declarations.scenario_id == "last_class"
     assert resolved.program.entry == "arrival"
     labels = [block.label for block in resolved.program.blocks]
@@ -35,14 +35,14 @@ def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> No
 
 
 def test_the_shipped_scenario_declares_the_digest_of_its_own_script() -> None:
-    declarations = read_scenario_declarations(LARKFIELD)
+    declarations = read_scenario_declarations(LARKFIELD, "last_class")
     assert script_digest(LARKFIELD, declarations) == declarations.script_sha256
 
 
 def test_a_script_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:
     write_scenario_package(tmp_path, declared_sha256="0" * 64)
     with pytest.raises(ValueError, match="does not match its authored digest"):
-        resolve_scenario(tmp_path)
+        resolve_scenario(tmp_path, "last_class")
 
 
 def test_the_digest_helper_reports_what_edited_prose_would_need(tmp_path: Path) -> None:
@@ -50,7 +50,7 @@ def test_the_digest_helper_reports_what_edited_prose_would_need(tmp_path: Path) 
 
     edited = DEFAULT_SCRIPT.replace("The room is empty.", "The room is very empty.")
     write_scenario_package(tmp_path, script=edited, declared_sha256="0" * 64)
-    declarations = read_scenario_declarations(tmp_path)
+    declarations = read_scenario_declarations(tmp_path, "last_class")
     assert (
         script_digest(tmp_path, declarations) == hashlib.sha256(edited.encode("utf-8")).hexdigest()
     )
@@ -71,7 +71,7 @@ def test_a_script_reached_through_a_symlinked_directory_is_refused(tmp_path: Pat
     real.rmdir()
     real.symlink_to(outside, target_is_directory=True)
     with pytest.raises(SecurePathError, match="must not traverse a symlink"):
-        resolve_scenario(package)
+        resolve_scenario(package, "last_class")
 
 
 def test_a_symlinked_script_file_is_refused(tmp_path: Path) -> None:
@@ -84,20 +84,20 @@ def test_a_symlinked_script_file_is_refused(tmp_path: Path) -> None:
     script.unlink()
     script.symlink_to(outside)
     with pytest.raises(SecurePathError, match="regular non-symlink file"):
-        resolve_scenario(package)
+        resolve_scenario(package, "last_class")
 
 
 def test_a_script_path_that_escapes_the_package_is_refused(tmp_path: Path) -> None:
     write_scenario_package(tmp_path, script_path_override=True)
     with pytest.raises(ValueError, match=re.escape("must equal scenarios/last_class.scenario")):
-        resolve_scenario(tmp_path)
+        resolve_scenario(tmp_path, "last_class")
 
 
 def test_the_identity_names_the_exact_prose_the_program_was_compiled_from(
     tmp_path: Path,
 ) -> None:
     write_scenario_package(tmp_path)
-    resolved = resolve_scenario(tmp_path)
+    resolved = resolve_scenario(tmp_path, "last_class")
     identity = resolved.identity()
     assert identity["kind"] == "scenario-identity-v1"
     assert identity["script_sha256"] == resolved.declarations.script_sha256
@@ -106,7 +106,7 @@ def test_the_identity_names_the_exact_prose_the_program_was_compiled_from(
 
 def test_the_compiled_program_is_canonical_and_stable(tmp_path: Path) -> None:
     write_scenario_package(tmp_path)
-    first = resolve_scenario(tmp_path)
-    second = resolve_scenario(tmp_path)
+    first = resolve_scenario(tmp_path, "last_class")
+    second = resolve_scenario(tmp_path, "last_class")
     assert first.program_bytes == second.program_bytes
     assert first.program_sha256 == hashlib.sha256(first.program_bytes).hexdigest()

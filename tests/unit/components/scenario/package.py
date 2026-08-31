@@ -111,7 +111,23 @@ def write_scenario_package(
     value = declarations_value(script_sha256=declared_sha256 or actual, **overrides)
     if script_path_override:
         value["script"] = "elsewhere/last_class.scenario"
-    (root / "scenario.toml").write_text(to_toml(value), encoding="utf-8")
+    scenario_id = str(value["scenario_id"])
+    (root / f"scenarios/{scenario_id}.toml").write_text(to_toml(value), encoding="utf-8")
+    (root / "scenarios/index.toml").write_text(
+        "\n".join(
+            [
+                "schema_version = 1",
+                'kind = "scenario-catalog-v1"',
+                f'game_id = "{value["game_id"]}"',
+                "revision = 1",
+                "",
+                "[[scenarios]]",
+                f'scenario_id = "{scenario_id}"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
     return root
 
 

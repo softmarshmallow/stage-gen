@@ -32,10 +32,10 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       already proved every `play`/`stop` names one; what was missing was generation and playback.
       One track per declared track, carrying the soundtrack component's own `TrackGenerationIntent`
       rather than a second shape, compiled by the one prompt compiler both recipes now share.
-- [ ] Independent semantic review of the twelve expression plates, three backdrops, and three
-      music tracks in `out/larkfield/`. Audio needs a separate listening verdict from the visual
-      one; neither is the producer's to give, and neither may become acceptance evidence or be
-      published until it is.
+- [x] Independent semantic review of the twelve expression plates, three backdrops, and three
+      music tracks in `out/larkfield/`, and of the visual novel's play. Given by the task owner on
+      2026-09-01; the producer did not give it. This covers acceptance of the run in `out/larkfield`
+      only - publication remains a separate authorization.
 - [ ] Larkfield's style plate still shows one specific character. This is an authoring defect in
       one package, not a system one: `style_reference_id` and a cast member's `reference_id` are
       independent, a plate bound by nobody validates, and `has_identity_plate` then goes false for

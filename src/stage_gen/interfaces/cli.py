@@ -41,7 +41,8 @@ from stage_gen.components.platformer_map import (
     resolve_game_map_source,
 )
 from stage_gen.components.scenario import (
-    SCENARIO_DOCUMENT_NAME,
+    ResolvedScenario,
+    read_scenario_catalog,
     read_scenario_declarations,
     resolve_scenario,
     script_digest,
@@ -221,13 +222,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--input",
         required=True,
         dest="input_path",
-        help="authored package directory (scenario.toml plus scenarios/<id>.scenario)",
+        help="authored package directory holding scenarios/index.toml",
+    )
+    scenario_check_parser.add_argument(
+        "--scenario",
+        default=None,
+        help="one scenario_id from the catalog; omit to check every scenario the game holds",
     )
     scenario_check_parser.add_argument(
         "--write-digest",
         action="store_true",
         dest="write_digest",
-        help="rewrite script_sha256 in scenario.toml to match the script's current bytes",
+        help="rewrite script_sha256 in each scenario document to match its script",
     )
 
     export_view_parser = commands.add_parser(
@@ -591,13 +597,24 @@ def _dispatch_scenario(args: argparse.Namespace, *, stdout: TextIO) -> int:
     """Admission with no event loop, no config, and no provider - it never needs one."""
 
     root = Path(args.input_path)
+    catalog = read_scenario_catalog(root)
+    ids = catalog.scenario_ids if args.scenario is None else (args.scenario,)
+    if args.scenario is not None and args.scenario not in catalog.scenario_ids:
+        raise ValueError(f"scenario `{args.scenario}` is not in {root}/scenarios/index.toml")
     if args.write_digest:
-        return _write_scenario_digest(root, stdout=stdout)
-    resolved = resolve_scenario(root)
+        return _write_scenario_digests(root, ids, stdout=stdout)
     report = {
+        "game_id": catalog.game_id,
+        "scenarios": [_scenario_report(resolve_scenario(root, entry)) for entry in ids],
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0
+
+
+def _scenario_report(resolved: ResolvedScenario) -> dict[str, object]:
+    return {
         "admitted": resolved.admission.admitted,
         "scenario_id": resolved.declarations.scenario_id,
-        "game_id": resolved.declarations.game_id,
         "blocks": len(resolved.program.blocks),
         "reachable_states": resolved.admission.reachable_states,
         "program_sha256": resolved.program_sha256,
@@ -605,11 +622,9 @@ def _dispatch_scenario(args: argparse.Namespace, *, stdout: TextIO) -> int:
             witness.outcome_id: list(witness.path) for witness in resolved.admission.witnesses
         },
     }
-    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
-    return 0
 
 
-def _write_scenario_digest(root: Path, *, stdout: TextIO) -> int:
+def _write_scenario_digests(root: Path, scenario_ids: tuple[str, ...], *, stdout: TextIO) -> int:
     """Repair `script_sha256` after a prose edit.
 
     Every save of the script invalidates the hand-copied digest, so leaving the
@@ -618,23 +633,25 @@ def _write_scenario_digest(root: Path, *, stdout: TextIO) -> int:
     the document is touched, and the scenario is still proven afterwards.
     """
 
-    declarations = read_scenario_declarations(root)
-    actual = script_digest(root, declarations)
-    document = root / SCENARIO_DOCUMENT_NAME
-    text = document.read_text(encoding="utf-8")
-    updated = re.sub(
-        r'^script_sha256 = "[0-9a-f]{64}"$',
-        f'script_sha256 = "{actual}"',
-        text,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    if updated == text and declarations.script_sha256 != actual:
-        raise ValueError(f"could not locate script_sha256 in {document}")
-    document.write_text(updated, encoding="utf-8")
-    resolved = resolve_scenario(root)
-    report = {"script_sha256": actual, "admitted": resolved.admission.admitted}
-    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    written: dict[str, str] = {}
+    for scenario_id in scenario_ids:
+        declarations = read_scenario_declarations(root, scenario_id)
+        actual = script_digest(root, declarations)
+        document = root / f"scenarios/{scenario_id}.toml"
+        text = document.read_text(encoding="utf-8")
+        updated = re.sub(
+            r'^script_sha256 = "[0-9a-f]{64}"$',
+            f'script_sha256 = "{actual}"',
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if updated == text and declarations.script_sha256 != actual:
+            raise ValueError(f"could not locate script_sha256 in {document}")
+        document.write_text(updated, encoding="utf-8")
+        resolve_scenario(root, scenario_id)
+        written[scenario_id] = actual
+    stdout.write(f"{json.dumps(written, sort_keys=True, separators=(',', ':'))}\n")
     return 0
 
 

@@ -18,13 +18,14 @@ transparency_mode = "native"
 style_reference_id = "cover"
 
 # The narrative, as an authored scenario rather than a flat beat list. The scene
-# binds scenario.toml by digest, and scenario.toml binds its script the same way,
-# so this one recorded hash closes over every word the scene can say. Admission
-# proves the whole thing finishable offline, before any art is paid for.
+# binds its scenario document by digest, and that document binds its script the
+# same way, so one recorded hash closes over every word the scene can say. A game
+# may hold several scenarios; this names the one it plays. Admission proves the
+# whole thing finishable offline, before any art is paid for.
 [scenario]
 schema_version = 1
 kind = "scenario-binding-v1"
-ref = "scenario.toml"
+ref = "scenarios/last_class.toml"
 source_sha256 = "71b6d7109b77a16eefcc81ed7185f8dcd641e1031c6d0106d356e901e0570a2a"
 
 # Which package members draw each actor the scenario can show. The scenario says

@@ -13,6 +13,7 @@ digest the author recorded.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -30,7 +31,6 @@ from stage_gen.components.character_profile import (
     resolve_character_profile_binding,
 )
 from stage_gen.components.scenario import (
-    SCENARIO_DOCUMENT_NAME,
     ResolvedScenario,
     resolve_scenario,
 )
@@ -347,19 +347,33 @@ def art_request_sha256(request: DialogueRequest) -> str:
     ).hexdigest()
 
 
+#: `scenarios/<id>.toml`, with the id held to the scenario contract's own spelling.
+_SCENARIO_REF = re.compile(r"scenarios/([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\.toml")
+
+
+def _scenario_id_from_ref(ref: str) -> str:
+    """`scenarios/<id>.toml` -> `<id>`, refusing anything else."""
+
+    match = _SCENARIO_REF.fullmatch(ref)
+    if match is None:
+        raise ValueError("dialogue scene scenario ref must be scenarios/<scenario_id>.toml")
+    return match.group(1)
+
+
 def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenario:
     """Admit the authored narrative and hold it to the digest the scene recorded.
 
-    The scene binds `scenario.toml`, which in turn binds its script by digest, so
-    one recorded hash in the scene document closes over the whole narrative. The
+    The scene binds one `scenarios/<id>.toml`, which in turn binds its script by
+    digest, so one recorded hash closes over the whole narrative. Which scenario
+    a scene plays is the scene's to say - a game may hold several - so the ref is
+    read for the id rather than pinned to a fixed filename. The
     expressions the scenario asks for must exist in this recipe's locked taxonomy:
     art the pipeline cannot draw is refused here rather than discovered as a
     missing texture in the browser.
     """
 
     binding = request.scenario
-    if binding.ref != SCENARIO_DOCUMENT_NAME:
-        raise ValueError(f"dialogue scene scenario ref must be {SCENARIO_DOCUMENT_NAME}")
+    scenario_id = _scenario_id_from_ref(binding.ref)
     declared = sha256(
         read_absolute_regular_file((root / binding.ref).resolve(), label="dialogue scene scenario")
     ).hexdigest()
@@ -368,7 +382,7 @@ def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenar
             f"dialogue scene scenario {binding.ref} does not match its authored digest: "
             f"declared {binding.source_sha256}, found {declared}"
         )
-    scenario = resolve_scenario(root)
+    scenario = resolve_scenario(root, scenario_id)
     assert_scenario_policy(scenario.program)
     if scenario.declarations.game_id != request.game_id:
         raise ValueError("dialogue scene scenario game_id must match the scene document")

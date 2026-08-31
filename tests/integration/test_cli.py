@@ -422,12 +422,15 @@ def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() 
     assert main(["scenario", "check", "--input", str(package)], stdout=output) == 0
 
     report = json.loads(output.getvalue())
-    assert report["admitted"] is True
-    assert report["scenario_id"] == "last_class"
+    # The catalog is checked whole; larkfield holds one scenario today.
+    assert report["game_id"] == "larkfield"
+    assert [entry["scenario_id"] for entry in report["scenarios"]] == ["last_class"]
+    scenario = report["scenarios"][0]
+    assert scenario["admitted"] is True
     # Four endings, each with one shortest route as evidence.
-    assert set(report["endings"]) == {"broadcast", "talked", "listened", "locked_out"}
-    assert report["endings"]["broadcast"][0] == "arrival"
-    assert report["endings"]["broadcast"][-1] == "ending_broadcast"
+    assert set(scenario["endings"]) == {"broadcast", "talked", "listened", "locked_out"}
+    assert scenario["endings"]["broadcast"][0] == "arrival"
+    assert scenario["endings"]["broadcast"][-1] == "ending_broadcast"
 
 
 def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(
@@ -470,5 +473,5 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
         main(["scenario", "check", "--input", str(package), "--write-digest"], stdout=output) == 0
     )
     repaired = json.loads(output.getvalue())
-    assert repaired["admitted"] is True
-    assert repaired["script_sha256"] in (package / "scenario.toml").read_text(encoding="utf-8")
+    declarations = (package / "scenarios/last_class.toml").read_text(encoding="utf-8")
+    assert repaired["last_class"] in declarations
