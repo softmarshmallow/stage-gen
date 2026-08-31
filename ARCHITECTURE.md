@@ -112,9 +112,9 @@ The CLI is the only automation surface: there is no HTTP service, and no
 process outside it starts a run. Three recipes compile onto the one engine —
 `sideview-platformer` builds a prepared game from a `game.toml` package,
 `dialogue-scene` builds a scene bundle from an authored request document, and
-`pointclick-room` builds a fixed painted puzzle room from an authored
-`room.toml` whose puzzle is proven finishable before generation is scheduled
-(`stage-gen pointclick-room generate --input library/rooms/<id>/room.toml
+`pointclick-room` builds a fixed painted puzzle room from an authored package
+whose puzzle is proven finishable before generation is scheduled
+(`stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>`). Each declares its own graph document kind, so no recipe
 can read another's plan.
 

@@ -47,7 +47,7 @@ from stage_gen.image_style import (
 from stage_gen.media import inspect_image
 from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.node_cache import NodeArtifactCache
-from stage_gen.recipes.pointclick_room.models import prove_room_solvable
+from stage_gen.recipes.pointclick_room.models import RoomReference, prove_room_solvable
 from stage_gen.recipes.pointclick_room.room_graph import (
     POINTCLICK_CACHE_NAMESPACE,
     POINTCLICK_CACHE_RECORD_KIND,
@@ -57,7 +57,6 @@ from stage_gen.recipes.pointclick_room.room_graph import (
 from stage_gen.recipes.pointclick_room.room_prompts import narration_ids, narration_json_schema
 from stage_gen.recipes.pointclick_room.room_types import (
     BACKDROP_GENERATE,
-    COVER_GENERATE,
     HOTSPOT_SPRITE_GENERATE,
     HOTSPOT_SPRITE_KIND,
     HOTSPOT_SPRITE_VALIDATE,
@@ -73,7 +72,7 @@ from stage_gen.recipes.pointclick_room.room_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable, Callable, Sequence
 
     from gnode import (
         ImageGenerationService,
@@ -88,12 +87,9 @@ _COMPONENT = SoftwareIdentity(name="@stage-gen/pointclick-room", version="1")
 
 SPRITE_SIZE = 1024
 
-#: The one image every other image is generated against.
-COVER_REF = "references/cover.png"
 
-
-def _data_url(data: bytes) -> str:
-    return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
+def _data_url(data: bytes, media_type: str) -> str:
+    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def room_target_node_ids(graph: PointClickRoomGraph) -> tuple[str, ...]:
@@ -156,7 +152,6 @@ class PointClickRoomNodeHandler:
         registry = NodeTypeRegistry()
         registry.register(ROOM_RESOLVE, self._bind(self._write_room))
         registry.register(STYLE_SELECT, self._bind(self._select_style))
-        registry.register(COVER_GENERATE, self._bind(self._cover))
         registry.register(BACKDROP_GENERATE, self._bind(self._backdrop))
         registry.register(HOTSPOT_SPRITE_GENERATE, self._bind(self._sprite))
         registry.register(ITEM_ICON_GENERATE, self._bind(self._sprite))
@@ -194,20 +189,6 @@ class PointClickRoomNodeHandler:
         )
         result = await self._provider_call(
             node, "style-anchor", request.prompt, lambda: self._structured.generate(request)
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def _cover(self, node: Node) -> NodeExecutionResult:
-        scene = self._resolved.room.scene
-        result = await self._image(
-            node,
-            role="cover",
-            output=node.port("image").artifact_ref,
-            asset_kind="illustration",
-            width=scene.width,
-            height=scene.height,
-            transparent=False,
-            references=(),
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -350,6 +331,7 @@ class PointClickRoomNodeHandler:
 
     async def _bundle(self, node: Node) -> NodeExecutionResult:
         room = self._resolved.room
+        await self._publish_style_references(room.references)
         records: list[dict[str, object]] = []
         for graph_node in self._graph.nodes:
             path = self._run_dir / "attempts" / f"{graph_node.node_id}.json"
@@ -373,7 +355,8 @@ class PointClickRoomNodeHandler:
                 raise ValueError(f"narration is missing the generated line for {key}")
             return line
 
-        artifacts = [COVER_REF, "assets/backdrop.png"]
+        artifacts = [reference.source for reference in self._resolved.style_references]
+        artifacts.append("assets/backdrop.png")
         hotspots = []
         for hotspot in room.hotspots:
             sprite_ref = (
@@ -416,9 +399,9 @@ class PointClickRoomNodeHandler:
             "display_name": room.display_name,
             "revision": room.revision,
             "room_sha256": self._resolved.room_sha256,
-            # The cover is the art direction of record: every other image in this
-            # manifest was generated against it, so it ships with them.
-            "cover": COVER_REF,
+            # The cover is the art direction of record: it is the authored image
+            # every other image here was generated against, so it ships with them.
+            "cover": self._resolved.style_references[0].source,
             "scene": {
                 "width": room.scene.width,
                 "height": room.scene.height,
@@ -443,6 +426,36 @@ class PointClickRoomNodeHandler:
 
     # ---------------------------------------------------------------- helpers
 
+    async def _publish_style_references(self, catalog: Sequence[RoomReference]) -> None:
+        """Copy the authored references into the run, rights and digest intact.
+
+        The run is what ships: a consumer plays from the manifest alone, so the
+        bytes it names have to be in it. This is the one place the recipe crosses
+        the package boundary, and it carries the author's rights decision across
+        rather than minting a fresh one.
+        """
+
+        rights_by_id = {reference.reference_id: reference for reference in catalog}
+        for reference in self._resolved.style_references:
+            authored = rights_by_id[reference.reference_id]
+            await self._write_local(
+                reference.source,
+                reference.data,
+                reference.media_type,
+                "Republish the authored style reference into the playable run.",
+                params={
+                    "reference_id": reference.reference_id,
+                    "source": reference.source,
+                    "source_sha256": reference.sha256,
+                },
+                rights=ArtifactRights(
+                    status=authored.rights_status,
+                    attribution=[],
+                    basis=list(authored.rights_basis),
+                    reviewed_at=None,
+                ),
+            )
+
     async def _image(
         self,
         node: Node,
@@ -453,23 +466,30 @@ class PointClickRoomNodeHandler:
         width: int,
         height: int,
         transparent: bool,
-        references: tuple[str, ...] = (COVER_REF,),
     ) -> Any:
         prompt = self._card_prompt(node)
         anchor = self._style_anchor()
         request = ImageGenerationRequest(
             prompt=prompt,
             artifact_path=self._run_dir / output,
+            # The authored style references, as pixels. Their provenance names the
+            # package member and the digest the resolver matched, not a local path.
             input_references=tuple(
-                ImageReference(url=_data_url(self._read(ref)), provenance_ref=ref)
-                for ref in references
+                ImageReference(
+                    url=_data_url(reference.data, reference.media_type),
+                    provenance_ref=(
+                        f"package://{self._resolved.room.room_id}/{reference.source}"
+                        f"#sha256={reference.sha256}"
+                    ),
+                )
+                for reference in self._resolved.style_references
             ),
             quality="high",
             background="transparent" if transparent else "opaque",
             output_format="png",
             size=f"{width}x{height}",
             metadata={
-                "recipe": "pointclick-room-v1",
+                "recipe": "pointclick-room-v2",
                 "node": node.node_id,
                 "role": role,
                 "room_sha256": self._resolved.room_sha256,
@@ -518,6 +538,7 @@ class PointClickRoomNodeHandler:
         prompt: str,
         *,
         params: dict[str, object] | None = None,
+        rights: ArtifactRights | None = None,
     ) -> None:
         await write_artifact_with_provenance_async(
             self._run_dir / relative,
@@ -532,9 +553,8 @@ class PointClickRoomNodeHandler:
                 component=_COMPONENT,
                 tool=STAGE_GEN_TOOL,
                 attempts=1,
-                rights=ArtifactRights(
-                    status="unreviewed", attribution=[], basis=[], reviewed_at=None
-                ),
+                rights=rights
+                or ArtifactRights(status="unreviewed", attribution=[], basis=[], reviewed_at=None),
             ),
         )
 
@@ -632,7 +652,7 @@ def _image_validator(
             "width": facts.width,
             "height": facts.height,
             "alpha": facts.has_alpha,
-            "recipe_contract": "pointclick-room-v1",
+            "recipe_contract": "pointclick-room-v2",
         }
 
     return validate

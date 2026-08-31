@@ -27,7 +27,6 @@ from gnode import (
 )
 from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
-    cover_prompt,
     hotspot_sprite_prompt,
     item_icon_prompt,
     narration_ids,
@@ -37,7 +36,6 @@ from stage_gen.recipes.pointclick_room.room_types import (
     ATTEMPT_LEDGER_KIND,
     BACKDROP_GENERATE,
     BACKDROP_KIND,
-    COVER_GENERATE,
     COVER_KIND,
     HOTSPOT_SPRITE_GENERATE,
     HOTSPOT_SPRITE_KIND,
@@ -208,43 +206,28 @@ def build_pointclick_room_graph(
         card=NodeCard(prompt=resolved.style_selection_brief, schema_name="canonical_style_anchor"),
     )
 
-    # The cover is generated first and then attached to every other image as an
-    # input reference: an art direction survives independent draws as pixels,
-    # not as adjectives. Every downstream image therefore takes it as lineage —
-    # a new cover is a new look, and the whole room re-bills on purpose.
-    builder.add(
-        COVER_GENERATE,
-        "room-cover",
-        domain="room",
-        description="Paint the cover key art every other image is drawn against",
-        depends_on=("room-style-select",),
-        input_digests=(
-            _text_digest(cover_prompt(room)),
-            _text_digest(f"{room.scene.width}x{room.scene.height}"),
-        ),
-        ports=(
-            _artifact("image", "references/cover.png", COVER_KIND),
-            _attempts("room-cover"),
-        ),
-        card=NodeCard(prompt=cover_prompt(room), reference_inputs=(anchor_ref,)),
-    )
-    cover_ref = PortRef(node_id="room-cover", port_id="image")
+    # Every image is drawn against the room's authored style references, so their
+    # digests ride each image node's identity: swapping the cover in the package
+    # is a new look, and the whole room re-bills on purpose. They are authored
+    # inputs rather than upstream ports, so they appear here and not in the card.
+    style_digests = tuple(reference.sha256 for reference in resolved.style_references)
 
     builder.add(
         BACKDROP_GENERATE,
         "room-backdrop",
         domain="room",
         description="Paint the full-frame room backdrop",
-        depends_on=("room-style-select", "room-cover"),
+        depends_on=("room-style-select",),
         input_digests=(
             _text_digest(backdrop_prompt(room)),
             _text_digest(f"{room.scene.width}x{room.scene.height}"),
+            *style_digests,
         ),
         ports=(
             _artifact("image", "assets/backdrop.png", BACKDROP_KIND),
             _attempts("room-backdrop"),
         ),
-        card=NodeCard(prompt=backdrop_prompt(room), reference_inputs=(anchor_ref, cover_ref)),
+        card=NodeCard(prompt=backdrop_prompt(room), reference_inputs=(anchor_ref,)),
     )
 
     sprite_validations: list[str] = []
@@ -259,8 +242,11 @@ def build_pointclick_room_graph(
                 domain="hotspots",
                 description=f"generate the {hotspot.label} hotspot object",
                 params={"hotspot_id": hotspot.hotspot_id},
-                depends_on=("room-style-select", "room-cover"),
-                input_digests=(_text_digest(hotspot_sprite_prompt(room, hotspot)),),
+                depends_on=("room-style-select",),
+                input_digests=(
+                    _text_digest(hotspot_sprite_prompt(room, hotspot)),
+                    *style_digests,
+                ),
                 ports=(
                     _artifact(
                         "image", f"assets/hotspots/{hotspot.hotspot_id}.png", HOTSPOT_SPRITE_KIND
@@ -269,7 +255,7 @@ def build_pointclick_room_graph(
                 ),
                 card=NodeCard(
                     prompt=hotspot_sprite_prompt(room, hotspot),
-                    reference_inputs=(anchor_ref, cover_ref),
+                    reference_inputs=(anchor_ref,),
                 ),
             )
             validated = builder.add(
@@ -303,15 +289,18 @@ def build_pointclick_room_graph(
                 domain="items",
                 description=f"generate the {item.label} inventory icon",
                 params={"item_id": item.item_id},
-                depends_on=("room-style-select", "room-cover"),
-                input_digests=(_text_digest(item_icon_prompt(room, item)),),
+                depends_on=("room-style-select",),
+                input_digests=(
+                    _text_digest(item_icon_prompt(room, item)),
+                    *style_digests,
+                ),
                 ports=(
                     _artifact("image", f"assets/items/{item.item_id}.png", ITEM_ICON_KIND),
                     _attempts(generate_id),
                 ),
                 card=NodeCard(
                     prompt=item_icon_prompt(room, item),
-                    reference_inputs=(anchor_ref, cover_ref),
+                    reference_inputs=(anchor_ref,),
                 ),
             )
             validated = builder.add(
@@ -374,7 +363,6 @@ def build_pointclick_room_graph(
         domain="room",
         description="Assemble the playable room runtime manifest",
         depends_on=(
-            "room-cover",
             "room-backdrop",
             *sprite_validations,
             *item_validations,
@@ -383,6 +371,12 @@ def build_pointclick_room_graph(
         ),
         input_digests=(resolved.room_sha256,),
         ports=(
+            # The bundle republishes the authored style references into the run:
+            # the manifest names them, so the run must carry the bytes it names.
+            *(
+                _artifact(f"reference_{reference.reference_id}", reference.source, COVER_KIND)
+                for reference in resolved.style_references
+            ),
             _record("manifest", "manifest.json", MANIFEST_KIND),
             Port(
                 port_id="merged_attempts",

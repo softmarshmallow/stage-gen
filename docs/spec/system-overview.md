@@ -128,7 +128,7 @@ The `pointclick-room` sibling recipe packages one fixed painted room, its
 cursor-driven hotspots, an inventory, and a puzzle declared as data and proven
 finishable before any generation is paid for. Its
 [room specification](game/pointclick-room.md) owns the authored
-`pointclick-room-v1` contract, the graph, and the `pointclick-room-runtime-v1`
+`pointclick-room-v2` contract, the graph, and the `pointclick-room-runtime-v2`
 manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
 The Python package under `src/stage_gen/` is the sole headless implementation.

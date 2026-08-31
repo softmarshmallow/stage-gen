@@ -62,7 +62,9 @@ class PointClickRoomExecutor:
         self._config = config
 
     def plan(self, input_path: Path) -> PointClickRoomPlan:
-        resolved = resolve_pointclick_room(read_room_document(input_path))
+        """Resolve one authored room package directory into its exact plan."""
+
+        resolved = resolve_pointclick_room(read_room_document(input_path), root=input_path)
         graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(self._config))
         return PointClickRoomPlan(
             resolved=resolved, graph=graph, projection=project_schedule(graph)

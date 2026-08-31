@@ -52,6 +52,9 @@ RETIRED_PREPARED_IDENTITIES = (
     # Retired when the room gained its cover: every published room image is now
     # generated against one style reference, and the manifest ships it.
     "pointclick-room-runtime-v1",
+    # Retired when the cover became an authored package member: a room is a
+    # directory of room.toml plus the references its art is drawn against.
+    "pointclick-room-v1",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -170,7 +173,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     room = documents["docs/spec/game/pointclick-room.md"]
     for identity in (
-        "`pointclick-room-v1`",
+        "`pointclick-room-v2`",
         "`pointclick-room-execution-graph-v1`",
         "`pointclick-room-runtime-v2`",
         "`pointclick-solvability-v1`",

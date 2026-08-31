@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_room_style_reference_v1",
+  "state": "unreviewed",
+  "artifact": {
+    "path": "references/cover.png",
+    "media_type": "image/png",
+    "width": 1280,
+    "height": 720,
+    "bytes": 1074182,
+    "sha256": "12cb908d31c047ae021b9e3f95e48c5c167d1240ed1bae614a8591a5931db405"
+  },
+  "generation": {
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "quality": "high",
+    "size": "1280x720",
+    "background": "opaque",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [],
+    "generated_at": "2026-08-31T03:46:19.364Z",
+    "prompt": "Paint one complete point-and-click adventure room interior as a single full-frame scene. A cozy attic workshop of an absent clockmaker at dusk: sloped timber rafters, fading light, shelves of jars and cogs, and worn floorboards with a faded round rug. Art direction: flat graphic poster. Keywords: large flat colour fields, no gradients, geometric shape language, single accent colour. Avoid: photorealism, horror, neon, text. No text, no watermarks, no UI, no people unless the scene brief names them. The following interactive scenery must be painted into the scene, clearly legible, each inside its stated normalized region (x and y run 0-1 from the top-left corner): Cluttered workbench (a long timber workbench crowded with clockmaker's tools, tiny drawers, and shavings) placed inside x 0.02-0.32, y 0.52-0.86; Great brass clock (an ornate brass wall clock with an exposed keyhole, stopped at seven minutes past three) placed inside x 0.46-0.66, y 0.16-0.54; Round window (a round leaded window holding the last violet light of dusk) placed inside x 0.10-0.25, y 0.10-0.36; Tin lantern (a punched-tin lantern with a stub of candle, hanging from a rafter hook) placed inside x 0.30-0.41, y 0.05-0.29. Leave visually quiet, uncluttered surfaces - plain wall, floor, furniture top, or soft shadow - inside these normalized regions: x 0.72-0.94, y 0.50-0.86; x 0.74-0.90, y 0.58-0.80. Paint no distinct object inside them; separate sprites will be composited there later.\n\nCanonical style anchor — medium: flat vector illustration. Observable traits: large flat fields of unmodulated colour; no gradients, grain or brush texture anywhere; confident geometric shape language with simplified forms; limited palette with one reserved accent colour. Asset treatment: poster-flat room interior where depth comes from overlap and value steps, never from shading. Exclude: painterly texture; photorealistic rendering; 3D rendering; airbrush gradients.",
+    "prompt_hash_scope": "full_exact_utf8_string",
+    "prompt_sha256": "a86a6c4aedbcbb777cf33efecbf1f27bf44b8e8cb4e8f079c0c693530725229f"
+  },
+  "selection": {
+    "spike": "attic-style-v1",
+    "candidate": "flat_vector",
+    "candidate_count": 10,
+    "selected_by": "authenticated task owner",
+    "selected_at": "2026-08-31",
+    "note": "Ten art directions were generated through the recipe's own backdrop prompt, varying only the style anchor. The task owner shortlisted three and this candidate was taken forward as the room's art direction of record."
+  },
+  "visual_review": {
+    "status": "pending",
+    "artifact_sha256": "12cb908d31c047ae021b9e3f95e48c5c167d1240ed1bae614a8591a5931db405",
+    "artifact_bytes": 1074182,
+    "note": "The task owner selected this candidate from a downscaled concept sheet. Selecting a candidate is not publication approval: an independent pass on these exact bytes is still owed before the rights status may change."
+  },
+  "rights": {
+    "status": "unreviewed",
+    "reviewed_at": null,
+    "basis": [
+      "Original brand-neutral prompt composed from the authored room document, with no third-party image input.",
+      "First-party AI-generated image; provider and model identity are recorded for reproducibility and are not themselves a redistribution grant.",
+      "No independent semantic review of the exact committed bytes has been recorded, so the artifact is unreviewed."
+    ]
+  }
+}

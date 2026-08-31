@@ -149,7 +149,7 @@ its own records support, and the reader judges liveness from when the trace was 
 - Three recipes compiled onto that engine: `sideview-platformer` builds a prepared game
   from a `game.toml` package, `dialogue-scene` builds an adult, non-explicit scene
   bundle from an authored request, and `pointclick-room` builds a fixed painted puzzle
-  room from an authored `room.toml`. Each declares its own graph document kind, so no
+  room from an authored room package. Each declares its own graph document kind, so no
   recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
@@ -168,8 +168,8 @@ its own records support, and the reader judges liveness from when the trace was 
   covering the current side-view platformer DAG, typed nodes, operation contracts, internal
   fan-out, and execution semantics.
 - A [point-and-click puzzle room recipe](docs/spec/game/pointclick-room.md) whose authored
-  `pointclick-room-v1` document is proven finishable before any generation is paid for, and
-  whose `pointclick-room-runtime-v1` manifest a browser consumer replays with the same state
+  `pointclick-room-v2` package is proven finishable before any generation is paid for, and
+  whose `pointclick-room-runtime-v2` manifest a browser consumer replays with the same state
   machine the proof searched.
 - A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
   with stable track IDs and digest-bound generation, plus [authored map books](docs/game-maps.md)
@@ -190,18 +190,20 @@ individual recipes. `sideview-platformer` is the side-view reference integration
 define another's assumptions or artifact layout.
 
 The point-and-click recipe (`2d/roomview/pointclick`) is the newest of the three.
-One room is one authored `pointclick-room-v1` document under
-`library/rooms/<room_id>/room.toml`: a backdrop brief, hotspots with normalized
+One room is one authored package under `library/games/<game_id>/`: a
+`pointclick-room-v2` `room.toml` — a backdrop brief, hotspots with normalized
 regions, items, and interactions written in a closed grammar of two verbs and four
-effects. The recipe searches the room's reachable state space and refuses a room
-that cannot reach its win condition, so the puzzle is proven finishable before a
-cent is spent; generation supplies art and narration only. The run publishes a
-`pointclick-room-runtime-v1` manifest that the `/room/<tag>` browser consumer
-replays with the same state machine the proof searched.
+effects — beside the `references/` it is drawn against. The recipe searches the
+room's reachable state space and refuses a room that cannot reach its win
+condition, so the puzzle is proven finishable before a cent is spent; generation
+supplies art and narration only, and the art direction arrives as an authored
+image rather than an adjective. The run publishes a `pointclick-room-runtime-v2`
+manifest that the `/room/<tag>` browser consumer replays with the same state
+machine the proof searched.
 
 ```sh
 uv run stage-gen pointclick-room generate \
-  --input library/rooms/clockmakers_attic/room.toml \
+  --input library/games/clockmakers_attic \
   --output out/clockmakers-attic
 ```
 

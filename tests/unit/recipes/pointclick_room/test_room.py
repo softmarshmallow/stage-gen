@@ -21,6 +21,7 @@ from stage_gen.recipes.pointclick_room.room_graph import (
     room_graph_profile,
 )
 from stage_gen.recipes.pointclick_room.room_request import (
+    ResolvedPointClickRoom,
     read_room_document,
     resolve_pointclick_room,
 )
@@ -28,15 +29,19 @@ from stage_gen.recipes.pointclick_room.room_types import pointclick_type_index
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ATTIC = REPOSITORY_ROOT / "library/rooms/clockmakers_attic/room.toml"
+ATTIC = REPOSITORY_ROOT / "library/games/clockmakers_attic"
 
 
 def _attic_document() -> dict[str, Any]:
-    return tomllib.loads(ATTIC.read_text(encoding="utf-8"))
+    return tomllib.loads((ATTIC / "room.toml").read_text(encoding="utf-8"))
+
+
+def _resolved_attic() -> ResolvedPointClickRoom:
+    return resolve_pointclick_room(read_room_document(ATTIC), root=ATTIC)
 
 
 def test_the_shipped_room_is_valid_and_provably_finishable() -> None:
-    resolved = resolve_pointclick_room(read_room_document(ATTIC))
+    resolved = _resolved_attic()
     assert resolved.room.room_id == "clockmakers_attic"
     report = resolved.solvability
     assert report.solvable
@@ -56,7 +61,7 @@ def test_an_unwinnable_room_is_refused_before_any_art_is_planned() -> None:
             effect for effect in effects if effect.get("grant_item") != "small_gear"
         ]
     with pytest.raises(ValueError, match=r"obtainable|cannot be finished"):
-        resolve_pointclick_room(document)
+        resolve_pointclick_room(document, root=ATTIC)
 
 
 def test_a_hidden_hotspot_nothing_reveals_is_refused() -> None:
@@ -92,7 +97,7 @@ def test_the_proof_searches_the_runtime_machine_not_a_more_permissive_one() -> N
     ]
     document["win"] = {"requires": ["found_it"]}
     with pytest.raises(ValueError, match=r"cannot be finished|never fire"):
-        resolve_pointclick_room(document)
+        resolve_pointclick_room(document, root=ATTIC)
 
 
 def test_win_flags_must_be_settable() -> None:
@@ -103,7 +108,7 @@ def test_win_flags_must_be_settable() -> None:
 
 
 def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None:
-    resolved = resolve_pointclick_room(read_room_document(ATTIC))
+    resolved = _resolved_attic()
     graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(StageGenConfig()))
     types = pointclick_type_index()
     for node in graph.nodes:
@@ -126,6 +131,46 @@ def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None
     assert sprite.port("image").artifact_ref == "assets/hotspots/dust_sheet.png"
     # Scenery hotspots get no sprite nodes at all.
     assert all(node.node_id != "hotspot-workbench-generate" for node in graph.nodes)
+
+
+def test_the_authored_cover_conditions_every_generated_image() -> None:
+    """The art direction is an authored file, not a picture the room paints itself.
+
+    Nothing generates the style reference: it arrives with the package, so the
+    graph carries no cover node, and every image node keys on the exact bytes it
+    will be sent — replacing the file re-bills the room rather than leaving
+    assets drawn against a reference that no longer exists.
+    """
+
+    resolved = _resolved_attic()
+    cover = resolved.style_references[0]
+    assert cover.source == "references/cover.png"
+    assert cover.data[:8] == b"\x89PNG\r\n\x1a\n"
+    graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(StageGenConfig()))
+    assert all("cover" not in node.type_id for node in graph.nodes)
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert image_nodes, "the room generates images"
+    for node in image_nodes:
+        assert cover.sha256 in node.input_sha256, node.node_id
+    # The run ships the bytes the manifest names: the bundle republishes it.
+    bundle = graph.node("room-bundle")
+    assert bundle.port("reference_cover_style").artifact_ref == "references/cover.png"
+
+
+def test_a_reference_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:
+    package = tmp_path / "room"
+    (package / "references").mkdir(parents=True)
+    (package / "room.toml").write_bytes((ATTIC / "room.toml").read_bytes())
+    (package / "references/cover.png").write_bytes(b"\x89PNG\r\n\x1a\nnot the reviewed bytes")
+    with pytest.raises(ValueError, match="does not match its authored digest"):
+        resolve_pointclick_room(read_room_document(package), root=package)
+
+
+def test_a_style_naming_an_undeclared_reference_is_refused() -> None:
+    document = _attic_document()
+    document["style"]["reference_ids"] = ["some_other_concept"]
+    with pytest.raises(ValueError, match="unknown reference ids"):
+        PointClickRoom.model_validate(document)
 
 
 def test_dry_run_and_view_round_trip(tmp_path: Path) -> None:

@@ -28,8 +28,8 @@ Start here for the headless, general-purpose system:
   machine-checked current side-view platformer DAG, typed nodes, stage and operation
   contracts, internal fan-out, execution semantics, and explicitly separated target evolution.
 - [Point-and-click puzzle room](spec/game/pointclick-room.md) — the third recipe
-  (`2d/roomview/pointclick`): the authored `pointclick-room-v1` room document, its
-  solvability proof, the 16-node graph, and the `pointclick-room-runtime-v1` manifest.
+  (`2d/roomview/pointclick`): the authored `pointclick-room-v2` room package, its
+  solvability proof, the 14-node graph, and the `pointclick-room-runtime-v2` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.

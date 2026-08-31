@@ -12,15 +12,25 @@ from __future__ import annotations
 
 from stage_gen.recipes.pointclick_room.models import Hotspot, Item, PointClickRoom
 
-#: Every image after the cover is generated against it. Words alone do not hold
-#: an art direction across independent draws — the backdrop and the sprites came
-#: back in visibly different styles from the same style clause — so the cover is
-#: attached as pixels and this clause states exactly what it is for.
+#: Every image is generated against the room's authored style reference. Words
+#: alone do not hold an art direction across independent draws — a backdrop and
+#: its sprites came back in visibly different styles from the same style clause
+#: — so the reference is attached as pixels and these clauses state what it is
+#: for. Objects are cut out of the room, so they must not inherit its layout.
 STYLE_REFERENCE_CLAUSE = (
-    "The attached image is this game's style reference. Reproduce its palette, shape language, "
-    "line weight, edge treatment and level of detail exactly. Take the composition and the "
-    "subject only from the instructions above; do not copy the reference's layout or repeat "
+    "The attached image is this game's authored style reference. Reproduce its palette, shape "
+    "language, line weight, edge treatment and level of detail exactly. Take the composition and "
+    "the subject only from the instructions above; do not copy the reference's layout or repeat "
     "objects from it that were not asked for."
+)
+
+#: The backdrop is the one image whose subject the reference may already be, so
+#: it is told to follow it — and told which side wins where the two disagree.
+BACKDROP_REFERENCE_CLAUSE = (
+    "The attached image is this room's authored style reference. Reproduce its palette, shape "
+    "language, line weight, edge treatment and level of detail exactly. It may already depict "
+    "this room; where it disagrees with the regions and clearance zones stated above, the "
+    "instructions above win."
 )
 
 
@@ -38,22 +48,6 @@ def _style_clause(room: PointClickRoom) -> str:
     if avoid:
         clause += f" Avoid: {avoid}."
     return clause
-
-
-def cover_prompt(room: PointClickRoom) -> str:
-    """The one image every other image is drawn against.
-
-    It is key art, not a playfield: no clearance zones, no declared regions, no
-    hotspot bookkeeping. Its only job is to fix the art direction in pixels.
-    """
-
-    return (
-        "Paint one piece of cover key art for a point-and-click puzzle game, as a single "
-        f"full-frame illustration. {room.scene.brief} Show the world of the game at its most "
-        "characteristic: its materials, its light, and its palette, composed as one hero image. "
-        f"{_style_clause(room)} No text, no logo, no title lettering, no UI, no watermarks, "
-        "no people."
-    )
 
 
 def backdrop_prompt(room: PointClickRoom) -> str:
@@ -85,7 +79,7 @@ def backdrop_prompt(room: PointClickRoom) -> str:
         "Paint one complete point-and-click adventure room interior as a single full-frame "
         f"scene. {room.scene.brief} {_style_clause(room)} No text, no watermarks, no UI, "
         "no people unless the scene brief names them."
-        f"{scenery_clause}{clearance_clause} {STYLE_REFERENCE_CLAUSE}"
+        f"{scenery_clause}{clearance_clause} {BACKDROP_REFERENCE_CLAUSE}"
     )
 
 
@@ -169,9 +163,9 @@ def narration_json_schema() -> dict[str, object]:
 
 
 __all__ = [
+    "BACKDROP_REFERENCE_CLAUSE",
     "STYLE_REFERENCE_CLAUSE",
     "backdrop_prompt",
-    "cover_prompt",
     "hotspot_sprite_prompt",
     "item_icon_prompt",
     "narration_ids",

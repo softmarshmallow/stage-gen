@@ -15,20 +15,22 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
-from gnode import PersistedContractModel
+from gnode import PersistedContractModel, RightsStatus
 
 POINTCLICK_ROOM_SCHEMA_VERSION = 1
-POINTCLICK_ROOM_KIND = "pointclick-room-v1"
+POINTCLICK_ROOM_KIND = "pointclick-room-v2"
 
 SNAKE_ID = Annotated[
     str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", min_length=1, max_length=64)
 ]
 BRIEF = Annotated[str, StringConstraints(min_length=1, max_length=2_000)]
 LABEL = Annotated[str, StringConstraints(min_length=1, max_length=96)]
+SHA256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 #: The closed verb vocabulary. ``inspect`` reads; ``use`` acts, optionally with
 #: a held item. Two verbs are the whole grammar on purpose — Machinarium-class
@@ -43,10 +45,41 @@ class SceneDeclaration(PersistedContractModel):
     height: int = Field(default=720, ge=360, le=1080)
 
 
+class RoomReference(PersistedContractModel):
+    """One authored image the room's art is generated against.
+
+    The package pattern the platformer already uses, at room scale: art
+    direction arrives as pixels the author put in the package — digest-bound,
+    with an explicit rights basis — never as a picture the pipeline paints for
+    itself first. Words do not hold a look across independent draws; a file
+    does, and this is the file.
+    """
+
+    reference_id: SNAKE_ID
+    source: str
+    source_sha256: SHA256
+    rights_status: RightsStatus
+    rights_basis: list[BRIEF] = Field(min_length=1, max_length=16)
+
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, value: str) -> str:
+        if value != value.strip() or not value:
+            raise ValueError("room reference source must be a trimmed relative path")
+        if not value.startswith("references/"):
+            raise ValueError("room references must live under references/")
+        if PurePosixPath(value).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            raise ValueError("room references must use PNG, JPEG, or WebP")
+        return value
+
+
 class RoomStyle(PersistedContractModel):
     label: LABEL
     keywords: list[LABEL] = Field(default_factory=list)
     avoid: list[LABEL] = Field(default_factory=list)
+    #: The authored reference images every generated image in this room is drawn
+    #: against. At least one: a room's look is a picture, not an adjective list.
+    reference_ids: list[SNAKE_ID] = Field(min_length=1, max_length=8)
 
 
 class HotspotRegion(PersistedContractModel):
@@ -137,16 +170,37 @@ class WinCondition(PersistedContractModel):
 
 class PointClickRoom(PersistedContractModel):
     schema_version: Literal[1]
-    kind: Literal["pointclick-room-v1"]
+    kind: Literal["pointclick-room-v2"]
     room_id: SNAKE_ID
     display_name: LABEL
     revision: int = Field(ge=1)
+    references: list[RoomReference] = Field(min_length=1, max_length=16)
     style: RoomStyle
     scene: SceneDeclaration
     hotspots: list[Hotspot] = Field(min_length=1)
     items: list[Item] = Field(default_factory=list)
     interactions: list[Interaction] = Field(min_length=1)
     win: WinCondition
+
+    @model_validator(mode="after")
+    def validate_reference_closure(self) -> PointClickRoom:
+        reference_ids = [reference.reference_id for reference in self.references]
+        sources = [reference.source for reference in self.references]
+        if len(reference_ids) != len(set(reference_ids)):
+            raise ValueError("reference ids must be unique")
+        if len(sources) != len(set(sources)):
+            raise ValueError("reference sources must be unique")
+        declared = set(reference_ids)
+        selected = set(self.style.reference_ids)
+        unknown = sorted(selected - declared)
+        if unknown:
+            raise ValueError("style names unknown reference ids: " + ", ".join(unknown))
+        unused = sorted(declared - selected)
+        if unused:
+            # A reference nothing draws against is a file nobody reviewed for a
+            # reason; the closure stays exact in both directions.
+            raise ValueError("declared references are never used: " + ", ".join(unused))
+        return self
 
     @model_validator(mode="after")
     def validate_references(self) -> PointClickRoom:
@@ -325,6 +379,7 @@ __all__ = [
     "Interaction",
     "Item",
     "PointClickRoom",
+    "RoomReference",
     "RoomSolvabilityReport",
     "RoomState",
     "RoomStyle",

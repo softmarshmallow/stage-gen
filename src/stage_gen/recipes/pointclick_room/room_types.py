@@ -20,7 +20,9 @@ IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output",)
 
 #: Payload kinds (persisted vocabulary).
-ROOM_KIND = "pointclick-room-v1"
+ROOM_KIND = "pointclick-room-v2"
+#: The authored style reference, republished into the run by the bundle so the
+#: playable manifest is a closed set of bytes rather than a pointer at a package.
 COVER_KIND = "room-style-reference-v1"
 BACKDROP_KIND = "room-backdrop-v1"
 PROVIDER_RAW_KIND = "provider-raw-image-v1"
@@ -40,7 +42,7 @@ ROOM_RESOLVE = NodeType(
     title="Room document",
     archetype=ViewArchetype.SOURCE,
     operation="local",
-    contract_version="room-resolve-v1",
+    contract_version="room-resolve-v2",
 )
 
 STYLE_SELECT = NodeType(
@@ -51,16 +53,6 @@ STYLE_SELECT = NodeType(
     features=STRUCTURED_FEATURES,
     policy=_PROVIDER,
     contract_version="room-style-select-v1",
-)
-
-COVER_GENERATE = NodeType(
-    type_id=f"{_P}/cover.generate",
-    title="Style reference cover",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="room-cover-v1",
 )
 
 BACKDROP_GENERATE = NodeType(
@@ -132,13 +124,12 @@ ROOM_BUNDLE = NodeType(
     title="Room runtime bundle",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    contract_version="room-bundle-v2",
+    contract_version="room-bundle-v3",
 )
 
 POINTCLICK_NODE_TYPES: tuple[NodeType, ...] = (
     ROOM_RESOLVE,
     STYLE_SELECT,
-    COVER_GENERATE,
     BACKDROP_GENERATE,
     HOTSPOT_SPRITE_GENERATE,
     HOTSPOT_SPRITE_VALIDATE,
@@ -158,7 +149,6 @@ __all__ = [
     "ATTEMPT_LEDGER_KIND",
     "BACKDROP_GENERATE",
     "BACKDROP_KIND",
-    "COVER_GENERATE",
     "COVER_KIND",
     "HOTSPOT_SPRITE_GENERATE",
     "HOTSPOT_SPRITE_KIND",

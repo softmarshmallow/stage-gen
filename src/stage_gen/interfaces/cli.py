@@ -196,7 +196,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--input",
         required=True,
         dest="input_path",
-        help="authored pointclick-room document (TOML)",
+        help="authored pointclick-room package directory (room.toml plus references/)",
     )
     room_generate_parser.add_argument("--output", required=True, dest="output_path")
     room_generate_parser.add_argument("--cache-dir", dest="cache_dir")

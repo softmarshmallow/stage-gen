@@ -18,17 +18,23 @@ taxonomy path. The authored `room.toml` is a text IR composed inside that
 grammar. Generation supplies art and narration only; puzzle logic never comes
 from a model.
 
-## Authored contract — `pointclick-room-v1`
+## Authored contract — `pointclick-room-v2`
 
-One room = one directory `library/rooms/<room_id>/` holding `room.toml`
-(schema: `PointClickRoom` in
+One room = one authored package directory `library/games/<game_id>/` holding
+`room.toml` beside the `references/` its art is generated against — the same
+package shape the platformer's `game.toml` uses (schema: `PointClickRoom` in
 [`models.py`](../../../src/stage_gen/recipes/pointclick_room/models.py);
 unknown fields rejected):
 
-- `schema_version = 1`, `kind = "pointclick-room-v1"`, `room_id`,
+- `schema_version = 1`, `kind = "pointclick-room-v2"`, `room_id`,
   `display_name`, `revision`.
-- `[style]` — label, keywords, avoid; feeds the model-selected canonical style
-  anchor exactly as the dialogue recipe does.
+- `[[references]]` — the authored images this room is drawn against: id,
+  `source` under `references/`, `source_sha256`, and an explicit rights status
+  and basis. The resolver reads the bytes and refuses a digest that no longer
+  matches, offline, before any spend.
+- `[style]` — label, keywords, avoid, and `reference_ids` naming at least one
+  declared reference; the words feed the model-selected canonical style anchor
+  exactly as the dialogue recipe does, and the reference carries the look.
 - `[scene]` — the backdrop brief and the fixed frame (default 1280×720).
 - `[[hotspots]]` — id, label, brief, normalized `region` rect, `hidden` flag,
   and `art`: `"sprite"` hotspots get their own generated transparent object
@@ -52,25 +58,29 @@ persisted into the run as `puzzle.validation.json`
 
 ## Pipeline — `pointclick-room-execution-graph-v1`
 
-`stage-gen pointclick-room generate --input library/rooms/<id>/room.toml
+`stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 15 nodes: `room.resolve` → `style_anchor.select` →
-`cover.generate` → the backdrop, one generate+validate pair per sprite hotspot
+the shipped room is 14 nodes: `room.resolve` → `style_anchor.select` → the
+backdrop, one generate+validate pair per sprite hotspot
 (`hotspot-pipeline@v1` template instances) and per item icon
 (`item-icon-pipeline@v1`), one `narration.compile` structured call covering
 every authored narration gap under a closed-id strict schema (omitted
 entirely when the author wrote every line), the local `puzzle.validate`
 proof, and the terminal `room.bundle`.
 
-**The cover is the art direction of record.** `cover.generate` paints one
-piece of key art into `references/cover.png`, and every image after it —
-backdrop, hotspot sprites, item icons — is generated with that file attached
-as an input reference plus a clause naming it a style reference. Words alone
-do not hold a look across independent draws: the first flat-graphic room came
-back with a flat backdrop and glossy gradient icons from the identical style
-clause. The cover is lineage for every image that follows it, so replacing it
+**The cover is the art direction of record, and the author supplies it.**
+Every image the room generates — backdrop, hotspot sprites, item icons — is
+sent the authored `references/cover.png` as an input reference plus a clause
+naming it a style reference. Words alone do not hold a look across independent
+draws: a flat-graphic room came back with a flat backdrop and glossy gradient
+icons from the identical style clause. So the reference is pixels, and it is
+an authored package member rather than something the pipeline paints for
+itself first — the look is chosen once, by a person, and every draw is held to
+it. Its digest rides each image node's cache identity, so replacing the file
 re-bills the room deliberately rather than leaving assets drawn against a
-reference that no longer exists.
+reference that no longer exists. The terminal bundle republishes it into the
+run, carrying the authored rights decision across, because the manifest names
+it and a run must carry the bytes it names.
 
 Every generation node's **complete static prompt rides its card in the plan**
 — the handler sends the card text verbatim with the style anchor appended
@@ -83,7 +93,7 @@ The terminal bundle writes `manifest.json` into the run directory: the cover
 ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
 generated one), the win condition, and a digest-bound closure of every
-published artifact.
+published artifact — the republished cover included.
 
 The web consumer (`web/lib/pointclick/`, route `/room/<tag>`) plays the room
 from this document alone, on the same Phaser engine as the platformer: one
