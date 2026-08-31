@@ -1,0 +1,31 @@
+# Migrated from the retired `game-sequence-v1` file of the same name. The
+# policy blocks it carried are gone: seven of their nine fields were
+# single-valued literals, and the map it named is the one the interaction
+# that binds this scenario already names.
+schema_version = 1
+kind = "scenario-v1"
+game_id = "bellweather"
+scenario_id = "elowen_skybell_memory"
+display_name = "What the Skybells Remember"
+revision = 1
+script = "scenarios/elowen_skybell_memory.scenario"
+script_sha256 = "dc5310ae7c41848ce8486e452945a833f487fd707e1229b8b2eba038efc9459e"
+entry = "elowen_notices_wayfarer"
+
+[[cast]]
+actor_id = "elowen_thistledew"
+display_name = "Elowen Thistledew"
+expressions = ["concerned", "thoughtful", "delighted", "neutral"]
+
+[[cast]]
+actor_id = "wayfarer"
+display_name = "Wayfarer"
+expressions = ["curious", "concerned", "determined", "delighted"]
+
+[[stages]]
+stage_id = "sunpetal_crossing"
+brief = "Sunpetal Crossing, the village square by the east road"
+
+[[endings]]
+outcome_id = "skybell_memory_shared"
+label = "What the Skybells Remember"

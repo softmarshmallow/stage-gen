@@ -1,0 +1,24 @@
+# Migrated from the retired `game-sequence-v1` file of the same name.
+# The lines are the authored ones, copied rather than rewritten.
+
+label mara_greeting:
+    stage sunpetal_crossing
+    show mara_crumbwell welcoming at center
+    mara_crumbwell "Warm bread and a warm welcome. The east road has been waiting for you."
+    jump wayfarer_question
+
+label wayfarer_question:
+    show wayfarer curious at center
+    wayfarer "Waiting? I thought roads only went where people walked."
+    jump mara_warning
+
+label mara_warning:
+    mara_crumbwell concerned "Not since the royal chronicle opened. Bring back five runaway pages before the path forgets us too."
+    jump wayfarer_accepts
+
+label wayfarer_accepts:
+    wayfarer determined "Then I will give it a story worth remembering."
+    jump journey_begun
+
+label journey_begun:
+    end journey_begun

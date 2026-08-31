@@ -3,10 +3,6 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from stage_gen.components.dialogue_sequence import (
-    GAME_SEQUENCE_CATALOG_SCHEMA_VERSION,
-    GAME_SEQUENCE_SCHEMA_VERSION,
-)
 from stage_gen.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.game_soundtrack import GAME_SOUNDTRACK_SCHEMA_VERSION
 from stage_gen.components.game_ui import GAME_UI_SCHEMA_VERSION
@@ -17,6 +13,10 @@ from stage_gen.components.platformer_content import (
 )
 from stage_gen.components.platformer_gameplay import GAMEPLAY_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.platformer_map import PREPARED_GAME_MAP_SCHEMA_VERSION
+from stage_gen.components.scenario import (
+    SCENARIO_CATALOG_SCHEMA_VERSION,
+    SCENARIO_SCHEMA_VERSION,
+)
 from stage_gen.orchestration.game_package import GAME_PACKAGE_SELECTOR_SCHEMA_VERSION
 
 
@@ -48,8 +48,8 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
         f"npc-content-v{NPC_CONTENT_SCHEMA_VERSION}",
         f"prop-content-v{GAME_CONTENT_SCHEMA_VERSION}",
         f"item-content-v{GAME_CONTENT_SCHEMA_VERSION}",
-        f"game-sequence-catalog-v{GAME_SEQUENCE_CATALOG_SCHEMA_VERSION}",
-        f"game-sequence-v{GAME_SEQUENCE_SCHEMA_VERSION}",
+        f"scenario-catalog-v{SCENARIO_CATALOG_SCHEMA_VERSION}",
+        f"scenario-v{SCENARIO_SCHEMA_VERSION}",
     ):
         assert f"`{current_contract}`" in document
 

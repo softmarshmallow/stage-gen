@@ -47,7 +47,7 @@ class MapSource(PackageSource):
         return self
 
 
-class SequenceCatalogSource(PersistedContractModel):
+class ScenarioCatalogSource(PersistedContractModel):
     index_source: str
 
     @field_validator("index_source")
@@ -274,7 +274,7 @@ class PreparedGameContract(PersistedContractModel):
     soundtrack: PackageSource
     maps: list[MapSource] = Field(min_length=1, max_length=64)
     content: PreparedContentSources
-    sequences: SequenceCatalogSource
+    scenarios: ScenarioCatalogSource
     evidence: dict[str, PreparedEvidence] = Field(min_length=1, max_length=64)
     rights: PreparedRights
 
@@ -326,7 +326,7 @@ class PreparedGameContract(PersistedContractModel):
                     )
                 }
             ),
-            "sequences": (self.sequences.index_source, "sequences/index.toml"),
+            "scenarios": (self.scenarios.index_source, "scenarios/index.toml"),
         }
         for label, (actual, expected) in exact_sources.items():
             if actual != expected:
@@ -343,7 +343,7 @@ class PreparedGameContract(PersistedContractModel):
             self.content.props.source,
             self.content.items.source,
             *([] if self.content.projectiles is None else [self.content.projectiles.source]),
-            self.sequences.index_source,
+            self.scenarios.index_source,
         ]
         unique_values(member_sources, "package member source")
         return self
@@ -374,7 +374,7 @@ __all__ = [
     "PreparedProportion",
     "PreparedRights",
     "PreparedStyle",
-    "SequenceCatalogSource",
+    "ScenarioCatalogSource",
     "UniverseSource",
     "canonical_prepared_game_contract_json",
     "load_prepared_game_contract_bytes",

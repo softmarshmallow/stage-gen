@@ -594,7 +594,13 @@ def _assemble_prepared_runtime(
             "tracks": tracks,
         },
         "gameplay": package.gameplay.model_dump(mode="json"),
-        "sequences": [sequence.model_dump(mode="json") for sequence in package.sequences],
+        # The compiled program, not the authored declarations: the consumer walks a
+        # graph, and re-deriving it in TypeScript would be a second compiler that
+        # could disagree with the proof.
+        "scenarios": [
+            scenario.program.model_dump(mode="json", exclude_none=True)
+            for scenario in package.scenarios
+        ],
         "closure": {
             "artifact_count": len(artifact_records),
             "artifacts_sha256": closure_sha256,

@@ -212,7 +212,7 @@ def build_package_execution_graph(
         GAMEPLAY_BINDINGS_VALIDATE,
         "gameplay-bindings-validate",
         domain="gameplay",
-        description="validate gameplay, sequence, placement, drop, and stable-ID bindings",
+        description="validate gameplay, scenario, placement, drop, and stable-ID bindings",
         depends_on=(package_root,),
         cache_depends_on=(),
         input_digests=(
@@ -222,8 +222,16 @@ def build_package_execution_graph(
                 (
                     "gameplay.toml",
                     *(entry.source for entry in package.game.maps),
-                    "sequences/index.toml",
-                    *(entry.source for entry in package.sequence_catalog.sequences),
+                    "scenarios/index.toml",
+                    # Both halves: the declarations and the prose they sign for.
+                    *(
+                        member
+                        for entry in package.scenario_catalog.scenarios
+                        for member in (
+                            f"scenarios/{entry.scenario_id}.toml",
+                            f"scenarios/{entry.scenario_id}.scenario",
+                        )
+                    ),
                 ),
             ),
         ),

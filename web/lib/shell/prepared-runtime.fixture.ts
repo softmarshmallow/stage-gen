@@ -191,7 +191,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
       tracks: [],
     },
     gameplay: {},
-    sequences: [],
+    scenarios: [],
     closure: {
       artifact_count: artifacts.length,
       artifacts_sha256: "c".repeat(64),

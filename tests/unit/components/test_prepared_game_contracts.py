@@ -5,10 +5,6 @@ from pathlib import Path
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.dialogue_sequence import (
-    load_game_sequence_bytes,
-    load_game_sequence_catalog_bytes,
-)
 from stage_gen.components.game_contract import load_prepared_game_contract_bytes
 from stage_gen.components.game_ui import load_game_ui_bytes
 from stage_gen.components.platformer_content import (
@@ -19,6 +15,10 @@ from stage_gen.components.platformer_content import (
 )
 from stage_gen.components.platformer_gameplay import load_gameplay_contract_bytes
 from stage_gen.components.platformer_map import load_prepared_game_map_bytes
+from stage_gen.components.scenario import (
+    load_scenario_catalog_bytes,
+    resolve_scenario_bytes,
+)
 
 PACKAGE = Path(__file__).resolve().parents[3] / "library" / "games" / "bellweather"
 
@@ -35,7 +35,7 @@ def test_each_prepared_contract_module_loads_the_canonical_source() -> None:
     player = load_player_content_bytes(_bytes("content/player.toml"))
     mobs = load_mob_content_bytes(_bytes("content/mobs.toml"))
     npcs = load_npc_content_bytes(_bytes("content/npcs.toml"))
-    sequence = load_game_sequence_bytes(_bytes("sequences/sunpetal-welcome.toml"))
+    catalog = load_scenario_catalog_bytes(_bytes("scenarios/index.toml"))
 
     assert game.game_id == gameplay.game_id == game_map.game_id == "bellweather"
     assert ui.game_id == game.game_id
@@ -50,7 +50,12 @@ def test_each_prepared_contract_module_loads_the_canonical_source() -> None:
     assert [entry.npc_id for entry in npcs.npcs] == game.cast.npc_ids
     assert all(entry.motions[0].playback_mode == "hold" for entry in npcs.npcs)
     assert all(entry.motions[0].canonical_frame_indices == [0] for entry in npcs.npcs)
-    assert sequence.entry_node_id == "mara_greeting"
+    assert catalog.scenario_ids == (
+        "sunpetal_welcome",
+        "elowen_skybell_memory",
+        "brom_mended_things",
+        "pip_lantern_road",
+    )
 
 
 def test_prepared_root_rejects_unknown_fields() -> None:
@@ -84,26 +89,26 @@ def test_prepared_root_rejects_a_reintroduced_member_digest() -> None:
         load_prepared_game_contract_bytes(source)
 
 
-def test_sequence_catalog_rejects_the_retired_digest_pinning_identity() -> None:
-    source = _bytes("sequences/index.toml").replace(
-        b'schema_version = 2\nkind = "game-sequence-catalog-v2"',
-        b'schema_version = 1\nkind = "game-sequence-catalog-v1"',
+def test_scenario_catalog_rejects_a_retired_identity() -> None:
+    source = _bytes("scenarios/index.toml").replace(
+        b'kind = "scenario-catalog-v1"',
+        b'kind = "game-sequence-catalog-v2"',
         1,
     )
 
     with pytest.raises(AuthoredContractLoadError, match="literal_error"):
-        load_game_sequence_catalog_bytes(source)
+        load_scenario_catalog_bytes(source)
 
 
-def test_sequence_catalog_rejects_a_reintroduced_source_digest() -> None:
-    source = _bytes("sequences/index.toml").replace(
-        b'source = "sequences/sunpetal-welcome.toml"\n',
-        b'source = "sequences/sunpetal-welcome.toml"\nsource_sha256 = "' + b"0" * 64 + b'"\n',
+def test_scenario_catalog_rejects_a_reintroduced_source_digest() -> None:
+    source = _bytes("scenarios/index.toml").replace(
+        b'scenario_id = "sunpetal_welcome"\n',
+        b'scenario_id = "sunpetal_welcome"\nsource_sha256 = "' + b"0" * 64 + b'"\n',
         1,
     )
 
     with pytest.raises(AuthoredContractLoadError, match="extra_forbidden"):
-        load_game_sequence_catalog_bytes(source)
+        load_scenario_catalog_bytes(source)
 
 
 def test_map_contract_rejects_a_second_opaque_layer() -> None:
@@ -160,13 +165,24 @@ def test_npc_contract_rejects_the_obsolete_world_motions_field() -> None:
         load_npc_content_bytes(source)
 
 
-def test_sequence_contract_rejects_an_unresolved_node() -> None:
-    source = _bytes("sequences/sunpetal-welcome.toml").replace(
-        b'next_node_id = "wayfarer_question"', b'next_node_id = "missing_node"', 1
-    )
+def test_a_scenario_whose_script_drifted_from_its_digest_is_refused() -> None:
+    """The catalog names the halves; the declarations sign for the prose."""
 
-    with pytest.raises(AuthoredContractLoadError, match="unknown node_id"):
-        load_game_sequence_bytes(source)
+    with pytest.raises(ValueError, match="does not match its authored digest"):
+        resolve_scenario_bytes(
+            _bytes("scenarios/sunpetal_welcome.toml"),
+            _bytes("scenarios/sunpetal_welcome.scenario") + b'\n"Extra."\n',
+            scenario_id="sunpetal_welcome",
+        )
+
+
+def test_a_scenario_whose_declared_id_is_not_its_path_is_refused() -> None:
+    with pytest.raises(ValueError, match="which its own path does not name"):
+        resolve_scenario_bytes(
+            _bytes("scenarios/sunpetal_welcome.toml"),
+            _bytes("scenarios/sunpetal_welcome.scenario"),
+            scenario_id="elowen_skybell_memory",
+        )
 
 
 def _as_ranged(source: bytes) -> bytes:

@@ -64,7 +64,7 @@ game
 │   ├── action
 │   ├── reaction
 │   └── terminal states
-├── sequences
+├── scenarios
 │   ├── dialogue
 │   ├── cutscenes
 │   ├── scripted gameplay
@@ -101,7 +101,7 @@ library/games/<game_id>/
 │   └── <map_id>.toml
 ├── content/
 ├── references/
-└── sequences/
+└── scenarios/
     ├── index.toml
     └── <sequence_id>.toml
 ```
@@ -330,9 +330,9 @@ does not by itself define a core game contract.
   `game-contract-v7`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
-  `game-sequence-catalog-v2`, and `game-sequence-v1` contracts. Provider-free
+  `scenario-catalog-v1`, and `scenario-v1` contracts. Provider-free
   integration emits only `prepared-game-runtime-v10`.
-- Subsystems such as population, motion, sequences, maps, and soundtrack
+- Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
   existing profile by implication.

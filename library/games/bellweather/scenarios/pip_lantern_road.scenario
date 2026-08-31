@@ -1,0 +1,40 @@
+# Migrated from the retired `game-sequence-v1` file of the same name.
+# The lines are the authored ones, copied rather than rewritten.
+
+label pip_offers_route_check:
+    stage sunpetal_crossing
+    show pip_pennant cheerful at center
+    pip_pennant "Eastbound Wayfarer! Boots tied, tart packed, heroic speech rehearsed? Good. Now show me the route you intend to follow."
+    jump wayfarer_admits_no_map
+
+label wayfarer_admits_no_map:
+    show wayfarer curious at center
+    wayfarer "I was going to keep the village behind me and the castle ahead. It sounded more reliable before you asked."
+    jump pip_warns_about_road
+
+label pip_warns_about_road:
+    pip_pennant alert "Crowncrag Road can move a landmark without moving the ground beneath it. If the bells sound farther away while you stand still, the story is turning you around."
+    jump wayfarer_asks_about_flame
+
+label wayfarer_asks_about_flame:
+    wayfarer concerned "And your blue flame knows the difference? You hold that lantern as if it has brought someone home before."
+    jump pip_remembers_sibling
+
+label pip_remembers_sibling:
+    pip_pennant puzzled "My sibling carried its twin on an expedition years ago. Their flame never returned, but this one still leans east some nights, as though answering a call too faint for me to hear."
+    jump wayfarer_offers_to_watch
+
+label wayfarer_offers_to_watch:
+    wayfarer determined "If I find another blue light, an old camp, or even a trail that should not be there, I will remember who is waiting for word."
+    jump pip_sets_boundary
+
+label pip_sets_boundary:
+    pip_pennant neutral "Thank you. But do not chase my hope past your good sense. Mark every safe return before exploring farther; a waykeeper values the road home as much as the road ahead."
+    jump wayfarer_repeats_rule
+
+label wayfarer_repeats_rule:
+    wayfarer delighted "Castle ahead, village behind, and a return path kept in mind. That is a much better plan than my first one."
+    jump lantern_promise_shared
+
+label lantern_promise_shared:
+    end lantern_promise_shared

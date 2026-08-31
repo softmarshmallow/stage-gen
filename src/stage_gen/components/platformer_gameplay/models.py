@@ -244,11 +244,35 @@ class PropPlacement(PersistedContractModel):
     normalized_x: float = Field(ge=0.0, le=1.0)
 
 
+class InteractionOutcome(PersistedContractModel):
+    """What one of a scenario's endings means for this game.
+
+    The scenario says the story reached `journey_begun`; it does not know what a
+    quest is. Binding the consequence here keeps the narrative playable by any
+    consumer and keeps gameplay's vocabulary out of it.
+    """
+
+    outcome_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    effect_ids: list[str] = Field(default_factory=list, max_length=64)
+
+    @field_validator("effect_ids")
+    @classmethod
+    def validate_effect_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "interaction effect_id")
+        return value
+
+
 class Interaction(PersistedContractModel):
     interaction_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     actor_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
-    sequence_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
+    scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    outcomes: list[InteractionOutcome] = Field(default_factory=list, max_length=32)
+
+    @model_validator(mode="after")
+    def validate_outcomes(self) -> Interaction:
+        unique_values((entry.outcome_id for entry in self.outcomes), "interaction outcome_id")
+        return self
 
 
 class Quest(PersistedContractModel):
@@ -368,6 +392,7 @@ __all__ = [
     "GameplayEffect",
     "GrantItemEffect",
     "Interaction",
+    "InteractionOutcome",
     "InventoryPolicy",
     "LootRule",
     "MapTransition",

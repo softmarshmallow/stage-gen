@@ -195,8 +195,9 @@ line, shot, and cue in one growing table.
 The target authored layout is:
 
 ```text
-library/games/<game_id>/sequences/index.toml
-library/games/<game_id>/sequences/<sequence_id>.toml
+library/games/<game_id>/scenarios/index.toml
+library/games/<game_id>/scenarios/<scenario_id>.toml
+library/games/<game_id>/scenarios/<scenario_id>.scenario
 ```
 
 `index.toml` is an ordered catalog. Each entry binds one stable sequence ID to
@@ -628,37 +629,30 @@ imports reviewed expression assets and ordered beats into a screen-fixed
 overlay. Its movement lock and beat cursor prove one consumer integration, not
 the general sequence contract proposed here.
 
-The current prepared gameplay consumer accepts sequence and NPC-expression
-projections only inside `prepared-game-runtime-v10` and validates each declared
-block as one unit. An NPC exposes interaction only when gameplay binds it to a
-resolved sequence. A malformed declared sequence fails closed and does not
-substitute unrelated dialogue. A future sequence extension must either preflight
-its complete required projection or carry an explicit authored fallback node or
-outcome.
+The current prepared gameplay consumer accepts compiled scenario programs and
+NPC-expression projections only inside `prepared-game-runtime-v10`, and validates
+each declared block as one unit. An NPC exposes interaction only when gameplay
+binds it to a resolved scenario. A malformed declared scenario fails closed and
+does not substitute unrelated dialogue. A future extension must either preflight
+its complete required projection or carry an explicit authored fallback.
 
-The current dialogue asset recipe also receives and persists its own copy of
-caller-authored beats. A future sequence-aware recipe must instead consume a
-digest-bound projection of canonical sequence, node, and utterance identities.
-Dialogue text and beat order cannot be authored independently in both the
-sequence catalog and an asset-generation request because those copies can drift
-while their images continue to validate.
+Dialogue text is authored in exactly one place. The retired `game-sequence-v1`
+catalog and the dialogue recipe's own copy of caller-authored beats could each
+hold a version of the same line, and those copies could drift while their images
+continued to validate; both are gone. Both genres now consume a digest-bound
+projection of one canonical scenario, and a consumer that wants to say something
+new has to say it in the script.
 
-The exact compilable subset for the existing rich gameplay overlay is therefore
-a linear chain of one to twelve dialogue nodes with unique IDs, static supported
-expression states, manual forward advance, one bound resident identity, and no
-choices, conditional branches, effects, voice synchronization, timed cues,
-shot program, checkpoint rewind, or cutscene realization. A compiler MUST refuse
-anything outside that subset instead of erasing the unsupported semantics.
+The [scenario contract](scenario.md) is the subset of this specification chosen
+for implementation: lines, choices, ordered flag-only branches, staging actions
+and named endings, plus a reachability proof and one deterministic runtime that
+both the visual novel and the side-view platformer walk. It does not restate or
+amend this specification, which remains the canonical semantic authority; it
+records which part of it is built, and why the implementation is a data-only
+text IR rather than an adopted narrative engine. Semantics outside the scenario
+subset stay refused rather than approximated.
 
-The [scenario contract](scenario.md) is the widening of that subset chosen for
-implementation: `dialogue`, `choice`, `branch`, `action`, and `exit` nodes with
-flag-only conditions, plus a reachability proof and a deterministic runtime. It
-does not restate or amend this specification, which remains the canonical
-semantic authority; it records which part of it is built first, and why the
-implementation is a data-only text IR rather than an adopted narrative engine.
-Node kinds outside the scenario subset stay refused rather than approximated.
-
-The current prepared sequence and runtime shapes remain valid only as the exact
+The current prepared scenario and runtime shapes remain valid only as the exact
 `prepared-game-runtime-v10` projection. They MUST NOT silently acquire unsupported
 shot, timeline, or cutscene semantics. A future adapter must either emit the
 exact supported subset or fail; it cannot erase authored semantics to fit a

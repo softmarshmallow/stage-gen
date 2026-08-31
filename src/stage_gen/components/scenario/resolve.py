@@ -131,11 +131,52 @@ def script_digest(root: Path, declarations: ScenarioDeclarations) -> str:
     return sha256_bytes(read_package_member(root, declarations.script, label="scenario script"))
 
 
+def load_scenario_catalog_bytes(data: bytes) -> ScenarioCatalog:
+    """Parse a catalog already read as bytes, for a package captured from a ZIP."""
+
+    return parse_toml_contract(data, model=ScenarioCatalog, label="scenario-catalog-v1")
+
+
+def resolve_scenario_bytes(
+    declarations_bytes: bytes, script_bytes: bytes, *, scenario_id: str
+) -> ResolvedScenario:
+    """Admit one scenario from bytes already captured, holding the same digest.
+
+    The prepared game package is captured whole - from a directory or a ZIP -
+    before anything validates it, so its members arrive as bytes rather than as
+    paths. The digest check is the one this must not lose: it is what makes the
+    declarations a signature over the prose rather than a description of it.
+    """
+
+    declarations = parse_toml_contract(
+        declarations_bytes, model=ScenarioDeclarations, label="scenario-v1"
+    )
+    if declarations.scenario_id != scenario_id:
+        raise ValueError(
+            f"scenarios/{scenario_id}.toml declares scenario_id "
+            f"`{declarations.scenario_id}`, which its own path does not name"
+        )
+    found = sha256_bytes(script_bytes)
+    if found != declarations.script_sha256:
+        raise ValueError(
+            f"scenario script {declarations.script} does not match its authored digest: "
+            f"declared {declarations.script_sha256}, found {found}"
+        )
+    try:
+        script = script_bytes.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"scenario script is not valid UTF-8: {error}") from None
+    return _admit(declarations, script)
+
+
 def resolve_scenario(root: Path, scenario_id: str) -> ResolvedScenario:
     """Admit one authored scenario, touching no provider."""
 
     declarations = read_scenario_declarations(root, scenario_id)
-    script = read_script_text(root, declarations)
+    return _admit(declarations, read_script_text(root, declarations))
+
+
+def _admit(declarations: ScenarioDeclarations, script: str) -> ResolvedScenario:
     program = compile_scenario(declarations, parse_scenario(script))
     admission = admit_scenario(declarations, program)
     program_bytes = canonical_program_json(program)
@@ -166,7 +207,9 @@ __all__ = [
     "read_scenario_declarations",
     "read_script_text",
     "read_scenario_catalog",
+    "load_scenario_catalog_bytes",
     "resolve_scenario",
+    "resolve_scenario_bytes",
     "resolve_scenario_catalog",
     "script_digest",
 ]

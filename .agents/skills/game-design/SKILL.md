@@ -38,7 +38,7 @@ shapes.
   gameplay *numbers* and no placement, but they are not free of gameplay: a few
   fields are closed names the package validator holds against `gameplay.toml`,
   and `player.equipment` is the one to watch. See below.
-- `sequences/*.toml`: authored dialogue and control sequences.
+- `scenarios/*.toml` and `scenarios/*.scenario`: authored narrative, proven finishable.
 - `soundtrack.toml`: music identities and generation direction.
 
 Use stable `lower_snake_case` IDs. Keep every cross-reference explicit.

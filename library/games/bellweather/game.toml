@@ -110,8 +110,8 @@ source = "content/items.toml"
 [content.projectiles]
 source = "content/projectiles.toml"
 
-[sequences]
-index_source = "sequences/index.toml"
+[scenarios]
+index_source = "scenarios/index.toml"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

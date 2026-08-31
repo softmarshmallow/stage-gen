@@ -1,3 +1,4 @@
+import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 import type { ScaleVocabulary, SubjectCalibration } from "./asset-unit";
 import {
   parseInventoryPanelLayout,
@@ -258,7 +259,8 @@ export type PreparedRuntimeManifest = Readonly<{
     }>[];
   }>;
   gameplay: Record<string, unknown>;
-  sequences: readonly Record<string, unknown>[];
+  /** The compiled narratives, validated rather than passed through opaque. */
+  scenarios: readonly ScenarioProgram[];
   closure: Readonly<{
     artifact_count: number;
     artifacts_sha256: string;
@@ -1081,7 +1083,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     ui: Object.freeze({ inventory_panel: inventoryPanel }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),
-    sequences: Object.freeze(array(root.sequences, "sequences").map((entry, index) => object(entry, `sequences[${index}]`))),
+    scenarios: Object.freeze(array(root.scenarios, "scenarios").map(parseScenarioProgram)),
     closure: Object.freeze({ artifact_count: closureArtifacts.length, artifacts_sha256: artifactsSha256, artifacts: Object.freeze(closureArtifacts) }),
   });
 }

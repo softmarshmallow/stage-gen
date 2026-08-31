@@ -23,15 +23,16 @@ library/games/main.toml
     ├── soundtrack.toml
     ├── maps/<map_id>.toml
     ├── content/{player,mobs,npcs,props,items}.toml
-    ├── sequences/index.toml
-    ├── sequences/<sequence_id>.toml
+    ├── scenarios/index.toml
+    ├── scenarios/<scenario_id>.toml
+    ├── scenarios/<scenario_id>.scenario
     └── references/*
 ```
 
 `game.toml` is the membership root. It names every direct contract and
 evidence member by exact source path. Map and content contracts in turn name
-the image references they actually use; the sequence catalog names every
-sequence. A named member that is absent is rejected; an unreferenced file is
+the image references they actually use; the scenario catalog names every
+scenario, and each scenario names the script it signs for. A named member that is absent is rejected; an unreferenced file is
 rejected too, rather than becoming implicit input.
 
 ## Exact-current identities
@@ -52,8 +53,8 @@ Only these prepared-package identities are accepted by the resolver:
 | Prop catalog | `prop-content-v2` |
 | Item catalog | `item-content-v2` |
 | Projectile catalog | `projectile-content-v2` (optional) |
-| Sequence catalog | `game-sequence-catalog-v2` |
-| Sequence | `game-sequence-v1` |
+| Scenario catalog | `scenario-catalog-v1` |
+| Scenario | `scenario-v1` |
 
 Successful provider-free integration emits only `prepared-game-runtime-v10`.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
@@ -101,11 +102,14 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 - the root game identity and every member schema identity;
 - every authored evidence and image-reference digest against captured bytes;
 - shared `game_id` ownership;
-- map, actor, item, prop, UI, soundtrack, quest, effect, and sequence references;
+- map, actor, item, prop, UI, soundtrack, quest, effect, and scenario references;
 - map layer ordering, alpha base, ground mode, binary occupancy, ladder geometry,
   portal endpoint support, and complete reference closure;
 - content state, facing, expression, and reference closure;
-- sequence node reachability, targets, outcomes, speakers, expressions, and effects;
+- scenario admission: label reachability, reachable endings, declared cast,
+  stages and flags, and the script digest, proven before any spend;
+- the cast and expressions a scenario names against the actors this game can
+  draw, and each interaction's bound outcomes and effects;
 - image decoding for every selected visual reference;
 - JSON syntax for selected evidence provenance and nonempty UTF-8 review text;
 - exact closure membership, rejecting both a missing member and an

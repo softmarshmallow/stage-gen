@@ -1,4 +1,15 @@
 import Phaser from "phaser";
+import {
+  initialScenarioState,
+  reduceScenario,
+  scenarioActor,
+  scenarioIsFinished,
+  scenarioView,
+  type ScenarioAction,
+  type ScenarioState,
+} from "@/lib/scenario/runtime";
+import type { ScenarioChoiceOption, ScenarioProgram } from "@/lib/scenario/program";
+import { dialogueChoicePrompt } from "./dialogue-choices";
 import type { GameplayAutomationMode } from "./automation";
 import { Bot, resolveBotControl, type BotControlSource } from "./bot";
 import { HUNTER_BOT_PROFILE } from "./bot-hunter";
@@ -153,15 +164,19 @@ const NPC_HEIGHT = 150;
 const DIALOGUE_PORTRAIT_HEIGHT = 190;
 const DIALOGUE_PANEL_CENTER_Y = VIEW_H - 128;
 const DIALOGUE_PANEL_HEIGHT = 210;
+const DIALOGUE_CHOICE_KEYCODES = [
+  Phaser.Input.Keyboard.KeyCodes.ONE,
+  Phaser.Input.Keyboard.KeyCodes.TWO,
+  Phaser.Input.Keyboard.KeyCodes.THREE,
+  Phaser.Input.Keyboard.KeyCodes.FOUR,
+  Phaser.Input.Keyboard.KeyCodes.FIVE,
+  Phaser.Input.Keyboard.KeyCodes.SIX,
+  Phaser.Input.Keyboard.KeyCodes.SEVEN,
+  Phaser.Input.Keyboard.KeyCodes.EIGHT,
+] as const;
 const DIALOGUE_PANEL_BOTTOM_Y =
   DIALOGUE_PANEL_CENTER_Y + DIALOGUE_PANEL_HEIGHT / 2;
 
-type SequenceNode = Readonly<Record<string, unknown>>;
-type Sequence = Readonly<{
-  sequence_id: string;
-  entry_node_id: string;
-  nodes: readonly SequenceNode[];
-}>;
 
 type NpcActor = {
   npcId: string;
@@ -175,10 +190,6 @@ type ContactShadowBinding = Readonly<{
   target: ContactShadowTarget;
   rings: readonly Phaser.GameObjects.Ellipse[];
 }>;
-
-function asSequences(values: readonly Record<string, unknown>[]): readonly Sequence[] {
-  return values as unknown as readonly Sequence[];
-}
 
 function preparedProjectileTextureKey(projectileId: string): string {
   return `prepared_projectile_${projectileId}`;
@@ -311,7 +322,15 @@ export class PreparedStageScene extends Phaser.Scene {
   private dialogueText?: Phaser.GameObjects.Text;
   private dialogueName?: Phaser.GameObjects.Text;
   private dialoguePortrait?: Phaser.GameObjects.Sprite;
-  private activeSequence?: { sequence: Sequence; nodeId: string };
+  private activeScenario?: {
+    program: ScenarioProgram;
+    state: ScenarioState;
+    interaction: string;
+  };
+  /** Number keys 1-8, so a choice is picked the way the visual novel picks one. */
+  private choiceKeys: readonly Phaser.Input.Keyboard.Key[] = [];
+  /** The portrait holds on the last speaker while the player reads a choice. */
+  private lastSpeakerId: string | null = null;
   private soundtrack?: HTMLAudioElement;
   private audioUnlocked = false;
   private developerKit: DeveloperKit | null = null;
@@ -363,7 +382,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.updateAutoPlayToggle(now);
     this.updateKitSwitch(now);
     this.updateDebugOverlay();
-    if (this.activeSequence) {
+    if (this.activeScenario) {
       // Drain this frame's intent and drop it. Edge-triggered requests latch until something
       // reads them, so skipping the read would queue a jump or an inventory toggle behind the
       // conversation and fire it the moment the panel closes.
@@ -955,6 +974,7 @@ export class PreparedStageScene extends Phaser.Scene {
         autoPlay: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P),
         switchKit: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K),
       };
+      this.choiceKeys = DIALOGUE_CHOICE_KEYCODES.map((code) => keyboard.addKey(code));
     }
     let unlockPending = false;
     const releaseAudioUnlock = () => {
@@ -1848,7 +1868,7 @@ export class PreparedStageScene extends Phaser.Scene {
       .filter(
         (npc) =>
           Math.abs(npc.sprite.x - player.sprite.x) < 145 &&
-          this.interactionSequenceForNpc(npc.npcId) !== undefined,
+          this.scenarioForNpc(npc.npcId) !== undefined,
       )
       .sort(
         (left, right) =>
@@ -1863,47 +1883,89 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
-  private openInteraction(npcId: string): void {
-    const sequence = this.interactionSequenceForNpc(npcId);
-    if (!sequence) return;
-    for (const npc of this.npcs) npc.talkPrompt.setVisible(false);
-    this.activeSequence = { sequence, nodeId: sequence.entry_node_id };
-    this.renderDialogueNode();
-  }
-
-  private interactionSequenceForNpc(npcId: string): Sequence | undefined {
+  /** The conversation this NPC offers on this map, if gameplay binds one. */
+  private scenarioForNpc(
+    npcId: string,
+  ): { program: ScenarioProgram; interactionId: string } | undefined {
     const interaction = this.gameplay?.interactions.find(
       (entry) => entry.map_id === this.currentMap?.map_id && entry.actor_id === npcId,
     );
-    return asSequences(this.manifest?.sequences ?? []).find(
-      (entry) => entry.sequence_id === interaction?.sequence_id,
+    const program = this.manifest?.scenarios.find(
+      (entry) => entry.scenarioId === interaction?.scenario_id,
     );
+    if (!interaction || !program) return undefined;
+    return { program, interactionId: interaction.interaction_id };
+  }
+
+  private openInteraction(npcId: string): void {
+    const bound = this.scenarioForNpc(npcId);
+    if (!bound) return;
+    const { program, interactionId } = bound;
+    for (const npc of this.npcs) npc.talkPrompt.setVisible(false);
+    this.activeScenario = {
+      program,
+      state: initialScenarioState(program),
+      interaction: interactionId,
+    };
+    this.renderDialogueNode();
   }
 
   private updateDialogueInput(): void {
     const keys = this.keys;
     if (!keys) return;
+    const active = this.activeScenario;
+    if (!active) return;
+    const view = scenarioView(active.program, active.state);
+    if (view?.kind === "choice") {
+      // A choice is chosen, not advanced past. Number keys pick an option; the
+      // scenario runtime already filtered the list to what the flags allow.
+      for (const [index, key] of this.choiceKeys.entries()) {
+        if (index < view.options.length && Phaser.Input.Keyboard.JustDown(key)) {
+          this.applyScenarioAction({ kind: "choose", option: index });
+          return;
+        }
+      }
+      return;
+    }
     if (
       Phaser.Input.Keyboard.JustDown(keys.interact) ||
       Phaser.Input.Keyboard.JustDown(keys.enter) ||
       Phaser.Input.Keyboard.JustDown(keys.jump)
     ) {
-      this.advanceDialogue();
+      this.applyScenarioAction({ kind: "advance" });
     }
   }
 
-  private renderDialogueNode(): void {
-    const active = this.activeSequence;
-    const manifest = this.manifest;
-    if (!active || !manifest) return;
-    const node = active.sequence.nodes.find((entry) => entry.node_id === active.nodeId);
-    if (!node || node.node_kind !== "dialogue") {
-      this.applyOutcome(node);
+  private applyScenarioAction(action: ScenarioAction): void {
+    const active = this.activeScenario;
+    if (!active) return;
+    const next = reduceScenario(active.program, active.state, action);
+    if (next === active.state) return;
+    active.state = next;
+    if (scenarioIsFinished(next)) {
+      this.applyOutcome(active.interaction, next.outcome);
       this.closeDialogue();
       return;
     }
-    const speakerId = String(node.speaker_id);
-    const expression = String(node.expression);
+    this.renderDialogueNode();
+  }
+
+  private renderDialogueNode(): void {
+    const active = this.activeScenario;
+    const manifest = this.manifest;
+    if (!active || !manifest) return;
+    const view = scenarioView(active.program, active.state);
+    if (view === null || view.kind === "end") {
+      this.applyOutcome(active.interaction, active.state.outcome);
+      this.closeDialogue();
+      return;
+    }
+    // Whoever spoke last owns the portrait: a choice is the player weighing what
+    // that person just said, so the panel keeps showing them.
+    const speakerId = view.kind === "line" ? (view.speaker ?? this.lastSpeakerId) : this.lastSpeakerId;
+    if (speakerId === null) return;
+    this.lastSpeakerId = speakerId;
+    const expression = scenarioActor(active.state, speakerId)?.expression ?? "neutral";
     const playerSpeaker = speakerId === manifest.player.player_id;
     const npc = manifest.npcs.find((entry) => entry.npc_id === speakerId);
     const binding = playerSpeaker ? manifest.player.dialogue : npc?.dialogue;
@@ -1911,7 +1973,9 @@ export class PreparedStageScene extends Phaser.Scene {
     const expressionIndex = binding?.expressions.indexOf(expression) ?? 0;
     this.ensureDialogueUi();
     this.dialogueName?.setText(playerSpeaker ? manifest.player.display_name : npc?.display_name ?? speakerId);
-    this.dialogueText?.setText(String(node.text));
+    this.dialogueText?.setText(
+      view.kind === "line" ? view.text : dialogueChoicePrompt(view.options),
+    );
     this.dialoguePortrait?.setTexture(texture, `expression_${Math.max(0, expressionIndex)}`);
     if (this.dialoguePortrait) {
       scaleSpriteFrameToHeight(this.dialoguePortrait, DIALOGUE_PORTRAIT_HEIGHT);
@@ -1919,18 +1983,15 @@ export class PreparedStageScene extends Phaser.Scene {
     this.dialoguePortrait?.setVisible(true);
   }
 
-  private advanceDialogue(): void {
-    const active = this.activeSequence;
-    if (!active) return;
-    const node = active.sequence.nodes.find((entry) => entry.node_id === active.nodeId);
-    if (!node || node.node_kind !== "dialogue") return;
-    active.nodeId = String(node.next_node_id);
-    this.renderDialogueNode();
-  }
-
-  private applyOutcome(node: SequenceNode | undefined): void {
-    if (!node || node.node_kind !== "outcome" || !Array.isArray(node.effect_ids)) return;
-    for (const effectId of node.effect_ids) {
+  private applyOutcome(interactionId: string, outcome: string | null): void {
+    if (outcome === null) return;
+    // The scenario reached an ending; gameplay says what that ending means here.
+    const interaction = this.gameplay?.interactions.find(
+      (entry) => entry.interaction_id === interactionId,
+    );
+    const bound = interaction?.outcomes.find((entry) => entry.outcome_id === outcome);
+    if (!bound) return;
+    for (const effectId of bound.effect_ids) {
       const effect = this.gameplay?.effects.find((entry) => entry.effect_id === effectId);
       if (!effect) continue;
       if (effect.operation === "grant_item") this.addInventory(String(effect.item_id), Number(effect.quantity));
@@ -1954,7 +2015,8 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private closeDialogue(): void {
-    this.activeSequence = undefined;
+    this.activeScenario = undefined;
+    this.lastSpeakerId = null;
     this.dialoguePanel?.setVisible(false);
     this.dialogueText?.setVisible(false);
     this.dialogueName?.setVisible(false);

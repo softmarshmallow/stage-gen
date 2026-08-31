@@ -266,29 +266,47 @@ prop_id = "homeward_signpost"
 anchor = "east_gate"
 normalized_x = 0.90
 
+# What each scenario ending means for this game. The scenario reaches an
+# outcome; gameplay says what that outcome does.
 [[interactions]]
 interaction_id = "village_welcome"
 map_id = "sunpetal-crossing"
 actor_id = "mara_crumbwell"
-sequence_id = "sunpetal-welcome"
+scenario_id = "sunpetal_welcome"
+
+[[interactions.outcomes]]
+outcome_id = "journey_begun"
+effect_ids = ["start_first_chapter", "grant_welcome_tart"]
 
 [[interactions]]
 interaction_id = "skybell_memory"
 map_id = "sunpetal-crossing"
 actor_id = "elowen_thistledew"
-sequence_id = "elowen-skybell-memory"
+scenario_id = "elowen_skybell_memory"
+
+[[interactions.outcomes]]
+outcome_id = "skybell_memory_shared"
+effect_ids = []
 
 [[interactions]]
 interaction_id = "menders_oath"
 map_id = "sunpetal-crossing"
 actor_id = "brom_copperkeg"
-sequence_id = "brom-mended-things"
+scenario_id = "brom_mended_things"
+
+[[interactions.outcomes]]
+outcome_id = "menders_oath_shared"
+effect_ids = []
 
 [[interactions]]
 interaction_id = "lantern_road"
 map_id = "sunpetal-crossing"
 actor_id = "pip_pennant"
-sequence_id = "pip-lantern-road"
+scenario_id = "pip_lantern_road"
+
+[[interactions.outcomes]]
+outcome_id = "lantern_promise_shared"
+effect_ids = []
 
 [[quests]]
 quest_id = "first_chapter"

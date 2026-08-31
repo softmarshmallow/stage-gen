@@ -3,7 +3,7 @@
 > **Contract maturity: exact-current prepared-package path.**
 
 Prepared games author NPC visual identity in `content/npcs.toml` and dialogue
-control flow in `sequences/*.toml`. Those sources are resolved together before
+control flow in `scenarios/*.scenario`. Those sources are resolved together before
 generation, generated inside one immutable run, and projected into
 `prepared-game-runtime-v10`. The browser never reaches into a sibling run or
 invents missing dialogue.
@@ -14,8 +14,9 @@ invents missing dialogue.
 | --- | --- |
 | `game.toml` | Catalog NPC identities and name the content sources plus the sequence catalog |
 | `content/npcs.toml` | NPC concept reference, runtime motion/expression requests, playback selection, and visual rights |
-| `sequences/index.toml` | Catalog sequence sources by exact path |
-| `sequences/<sequence_id>.toml` | Speakers, nodes, authored text, expressions, control flow, effects, and outcomes |
+| `scenarios/index.toml` | Catalog scenario ids |
+| `scenarios/<scenario_id>.toml` | Cast, expressions, stages, flags, endings, and the script digest |
+| `scenarios/<scenario_id>.scenario` | The authored lines and control flow |
 | Prepared-package resolver | Validate IDs, expressions, targets, reachability, effects, and complete source/reference closure |
 | Scrolling recipe | Generate NPC concepts and state sheets, recover canonical frames, review the NPC catalog, and integrate artifacts |
 | Prepared manifest | Publish digest-bound NPC states and the resolved sequence graph as one portable runtime closure |
@@ -33,10 +34,11 @@ game.toml
         -> per-NPC motion/expression generation
            -> canonical frame recovery
               -> NPC catalog review
-  -> sequences/index.toml
-     -> sequences/<sequence_id>.toml
+  -> scenarios/index.toml
+     -> scenarios/<scenario_id>.toml
+        -> scenarios/<scenario_id>.scenario
 
-NPC catalog review + resolved sequences + all other asset branches
+NPC catalog review + resolved scenarios + all other asset branches
   -> provider-free integration
      -> prepared-game-runtime-v10
         -> strict prepared web consumer

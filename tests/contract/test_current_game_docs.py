@@ -159,7 +159,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue
-    assert "dialogue\ncontrol flow in `sequences/*.toml`" in dialogue
+    assert "dialogue\ncontrol flow in `scenarios/*.scenario`" in dialogue
     assert "`prepared-game-runtime-v10`" in dialogue
 
     gameplay = documents["docs/spec/scene-gameplay-components.md"]

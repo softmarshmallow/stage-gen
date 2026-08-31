@@ -158,7 +158,12 @@ export type PreparedGameplayContract = Readonly<{
     interaction_id: string;
     map_id: string;
     actor_id: string;
-    sequence_id: string;
+    scenario_id: string;
+    /** What each of the scenario's endings means for this game. */
+    outcomes: readonly Readonly<{
+      outcome_id: string;
+      effect_ids: readonly string[];
+    }>[];
   }>[];
   quests: readonly Readonly<{
     quest_id: string;
@@ -822,14 +827,38 @@ export function parsePreparedGameplayContract(
     512,
     (value, itemPath) => {
       const item = record(value, itemPath);
-      exactKeys(item, ["interaction_id", "map_id", "actor_id", "sequence_id"], itemPath);
+      exactKeys(
+        item,
+        ["interaction_id", "map_id", "actor_id", "scenario_id", "outcomes"],
+        itemPath,
+      );
       const mapId = kebabId(item.map_id, `${itemPath}.map_id`);
       assertMap(mapIds, mapId, `${itemPath}.map_id`);
+      const outcomes = parseObjects(
+        item.outcomes,
+        `${itemPath}.outcomes`,
+        0,
+        32,
+        (entry, entryPath) => {
+          const outcome = record(entry, entryPath);
+          exactKeys(outcome, ["outcome_id", "effect_ids"], entryPath);
+          const effectIds = list(outcome.effect_ids, `${entryPath}.effect_ids`, 0, 64).map(
+            (effectId, at) => snakeId(effectId, `${entryPath}.effect_ids[${at}]`),
+          );
+          unique(effectIds, `${entryPath}.effect_ids`);
+          return Object.freeze({
+            outcome_id: snakeId(outcome.outcome_id, `${entryPath}.outcome_id`),
+            effect_ids: Object.freeze(effectIds),
+          });
+        },
+      );
+      unique(outcomes.map((entry) => entry.outcome_id), `${itemPath}.outcomes.outcome_id`);
       return Object.freeze({
         interaction_id: snakeId(item.interaction_id, `${itemPath}.interaction_id`),
         map_id: mapId,
         actor_id: snakeId(item.actor_id, `${itemPath}.actor_id`),
-        sequence_id: kebabId(item.sequence_id, `${itemPath}.sequence_id`),
+        scenario_id: snakeId(item.scenario_id, `${itemPath}.scenario_id`),
+        outcomes: Object.freeze(outcomes),
       });
     },
   );
@@ -987,11 +1016,11 @@ export function assertPreparedGameplayManifestClosure(
     (entry) => entry.track_id,
     "manifest.soundtrack.tracks.track_id",
   );
-  const sequenceIdValues = manifest.sequences.map((entry, index) =>
-    kebabId(entry.sequence_id, `manifest.sequences[${index}].sequence_id`),
-  );
-  unique(sequenceIdValues, "manifest.sequences.sequence_id");
-  const sequenceIds = new Set(sequenceIdValues);
+  // The program parser already held every id to lower_snake_case, so this
+  // only has to prove the set is a set and that gameplay's bindings land in it.
+  const scenarioIdValues = manifest.scenarios.map((entry) => entry.scenarioId);
+  unique(scenarioIdValues, "manifest.scenarios.scenario_id");
+  const scenarioIds = new Set(scenarioIdValues);
 
   if (manifest.game_id !== gameplay.game_id) {
     fail("gameplay.game_id", "does not match manifest.game_id");
@@ -1178,11 +1207,29 @@ export function assertPreparedGameplayManifestClosure(
   assertManifestReferences(
     gameplay.interactions.map(
       (entry, index): PreparedReference => [
-        `gameplay.interactions[${index}].sequence_id`,
-        entry.sequence_id,
+        `gameplay.interactions[${index}].scenario_id`,
+        entry.scenario_id,
       ],
     ),
-    sequenceIds,
-    "sequences",
+    scenarioIds,
+    "scenarios",
   );
+
+  // An interaction binds consequences to endings, so the endings must exist in
+  // the scenario it names - otherwise the effect is authored for a moment the
+  // story cannot reach.
+  const byScenario = new Map(manifest.scenarios.map((entry) => [entry.scenarioId, entry]));
+  for (const [index, interaction] of gameplay.interactions.entries()) {
+    const scenario = byScenario.get(interaction.scenario_id);
+    if (scenario === undefined) continue;
+    const outcomes = new Set(scenario.endings.map((ending) => ending.outcomeId));
+    for (const [at, outcome] of interaction.outcomes.entries()) {
+      if (!outcomes.has(outcome.outcome_id)) {
+        throw new Error(
+          `gameplay.interactions[${index}].outcomes[${at}].outcome_id ` +
+            `does not resolve to an ending of scenario ${interaction.scenario_id}`,
+        );
+      }
+    }
+  }
 }

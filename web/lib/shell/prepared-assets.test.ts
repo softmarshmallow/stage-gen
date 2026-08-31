@@ -366,7 +366,7 @@ function preparedManifestFixture() {
       ],
     },
     gameplay: {},
-    sequences: [],
+    scenarios: [],
     closure: {
       artifact_count: closure.length,
       artifacts_sha256: DIGEST,

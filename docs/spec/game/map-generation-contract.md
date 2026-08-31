@@ -49,7 +49,7 @@ library/games/<game_id>/
 │   ├── <map_id>.toml
 │   └── ...
 ├── content/
-├── sequences/
+├── scenarios/
 └── references/
 ```
 

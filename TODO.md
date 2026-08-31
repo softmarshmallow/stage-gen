@@ -50,14 +50,12 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
 - [ ] M2 — land the player shell: persistence, save slots, backlog, skip-already-read,
       auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster
       is blocked on — build it once for both.
-- [ ] Collapse the last parallel narrative shape. `[[dialogue]]` and the theme installer are gone;
-      what remains is `game-sequence-v1` in bellweather and the platformer's untyped inline graph
-      walk in `web/lib/sideview-platformer/prepared-scene.ts` (reached through an `as unknown as`
-      cast), plus `web/lib/sideview-platformer/dialogue-box.ts`, which is dead code nothing imports.
-      Rewrite bellweather's four sequences in the scenario surface, delete `game-sequence-v1` and
-      `game-sequence-catalog-v2` rather than aliasing them, and point the platformer at
-      `web/lib/scenario/runtime.ts`. `web/lib/dialogue/conversation.ts` is then the degenerate case
-      of that runtime and should go with it.
+- [x] Collapse the last parallel narrative shape. `game-sequence-v1` and
+      `game-sequence-catalog-v2` are deleted rather than aliased, bellweather's four conversations
+      are authored scenarios proven finishable offline, and the platformer walks
+      `web/lib/scenario/runtime.ts` instead of an untyped inline graph reached through
+      `as unknown as`. `dialogue-box.ts` and `lib/dialogue/conversation.ts` went with them. One
+      authored narrative contract, one runtime, two genres.
 
 ## Runtime acceptance
 

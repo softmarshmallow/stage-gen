@@ -162,7 +162,7 @@ its own records support, and the reader judges liveness from when the trace was 
 - One [canonical bundled demo package](docs/game-package.md), selected by
   `library/games/main.toml`, that current-schema validation and future demo serving can share.
 - A canonical [game contract](docs/game-contract.md) that separates game-wide
-  presentation, cast, motion, sequences, gameplay, content catalogs, and consumer bindings,
+  presentation, cast, motion, scenarios, gameplay, content catalogs, and consumer bindings,
   plus an executable [authored `game.toml` schema](docs/spec/game/authored-contract-schema.md).
 - A machine-checked [canonical game-generation pipeline](docs/spec/game/generation-pipeline.md)
   covering the current side-view platformer DAG, typed nodes, operation contracts, internal
@@ -218,14 +218,15 @@ Bellweather's authored sequence contracts bind speaker, expression, dialogue,
 node flow, and outcomes to stable NPC and player artwork. The runtime resolves
 Mara Crumbwell's interaction from
 [`gameplay.toml`](library/games/bellweather/gameplay.toml), loads
-[`sunpetal-welcome.toml`](library/games/bellweather/sequences/sunpetal-welcome.toml),
+[`sunpetal_welcome.scenario`](library/games/bellweather/scenarios/sunpetal_welcome.scenario),
 and presents the conversation inside the same generated map and gameplay
 session shown above.
 
 Dialogue remains authored game content rather than an image-generation side
 effect: NPC identities and expression vocabularies live in
 [`content/npcs.toml`](library/games/bellweather/content/npcs.toml), interaction
-wiring lives in `gameplay.toml`, and node order lives under `sequences/`.
+wiring lives in `gameplay.toml`, and the conversation itself lives under
+`scenarios/` as an authored script proven finishable before any spend.
 
 ## Reusable authored characters
 
@@ -256,7 +257,7 @@ A profile says who the player is. The
 authored request and game/soundtrack/map closure used by tests and the future
 hosted demo. The [game contract](docs/game-contract.md) is the current-only
 domain authority beneath that selector: it says how presentation, cast,
-motion, sequences, gameplay, catalogs, and consumer bindings compose without
+motion, scenarios, gameplay, catalogs, and consumer bindings compose without
 making one recipe or runtime the source of truth. The implemented
 [authored contract schema](docs/spec/game/authored-contract-schema.md) fixes the
 current run's camera, style keywords, cast-wide build in heads, and supported

@@ -1,10 +1,8 @@
 // The scenario runtime: a pure reducer over `{block, index, flags, seen}`.
 //
-// It owns no drawing, no asset paths, no engine types, and no genre vocabulary -
-// the same discipline `lib/dialogue/conversation.ts` already holds, widened from
-// a cursor over one ordered run of beats to a walk over a graph of blocks with
-// flags. Both genres are meant to consume this; the visual novel is only the
-// first.
+// It owns no drawing, no asset paths, no engine types, and no genre vocabulary.
+// Both genres consume it: the visual novel stages a cast against backdrops, and
+// the platformer plays the same programs in a portrait panel over its map.
 //
 // The one rule that has to match the producer exactly: **a branch takes the first
 // satisfied edge.** The Python admission proof searched that machine, so a

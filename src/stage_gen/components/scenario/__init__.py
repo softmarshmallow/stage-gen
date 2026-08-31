@@ -54,10 +54,12 @@ from .resolve import (
     SCENARIO_RESOLUTION_VERSION,
     ResolvedScenario,
     canonical_program_json,
+    load_scenario_catalog_bytes,
     read_scenario_catalog,
     read_scenario_declarations,
     read_script_text,
     resolve_scenario,
+    resolve_scenario_bytes,
     resolve_scenario_catalog,
     script_digest,
 )
@@ -112,8 +114,10 @@ __all__ = [
     "parse_scenario",
     "read_scenario_declarations",
     "read_script_text",
+    "load_scenario_catalog_bytes",
     "read_scenario_catalog",
     "resolve_scenario",
+    "resolve_scenario_bytes",
     "resolve_scenario_catalog",
     "script_digest",
 ]

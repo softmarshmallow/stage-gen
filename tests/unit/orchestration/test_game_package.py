@@ -52,7 +52,7 @@ def test_resolve_bellweather_directory_captures_complete_exact_current_package()
     ]
     assert [entry.mob_id for entry in package.mobs.mobs] == package.game.cast.mob_ids
     assert [entry.npc_id for entry in package.npcs.npcs] == package.game.cast.npc_ids
-    assert package.sequence_catalog.sequences[0].sequence_id == "sunpetal-welcome"
+    assert package.scenario_catalog.scenario_ids[0] == "sunpetal_welcome"
     assert re.fullmatch(r"[a-f0-9]{64}", package.closure_sha256)
 
 

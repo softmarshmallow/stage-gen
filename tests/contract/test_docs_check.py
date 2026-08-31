@@ -153,7 +153,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "orthogonal presentation program",
         "A **cutscene**",
         "control leases",
-        "The current prepared sequence and runtime shapes remain valid",
+        "The current prepared scenario and runtime shapes remain valid",
     ):
         assert required in sequence_doc
 

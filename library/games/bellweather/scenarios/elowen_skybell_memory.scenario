@@ -1,0 +1,40 @@
+# Migrated from the retired `game-sequence-v1` file of the same name.
+# The lines are the authored ones, copied rather than rewritten.
+
+label elowen_notices_wayfarer:
+    stage sunpetal_crossing
+    show elowen_thistledew concerned at center
+    elowen_thistledew "Before you take the east road, may I see your sleeve? That silver dust is story-pollen. The missing pages have already brushed past you."
+    jump wayfarer_asks_about_pollen
+
+label wayfarer_asks_about_pollen:
+    show wayfarer curious at center
+    wayfarer "Can a page leave pollen? I thought the chronicle was ink and paper, not a garden."
+    jump elowen_explains_skybells
+
+label elowen_explains_skybells:
+    elowen_thistledew thoughtful "Stories root wherever people repeat them. Skybells once grew along every remembered path in my childhood valley; when the valley was forgotten, the flowers vanished with it."
+    jump wayfarer_hears_the_loss
+
+label wayfarer_hears_the_loss:
+    wayfarer concerned "So recovering the pages might restore more than the road. It might return things people have stopped knowing how to miss."
+    jump elowen_shows_sprig
+
+label elowen_shows_sprig:
+    elowen_thistledew delighted "Exactly. This one fresh sprig appeared at dawn beside the road marker. A small proof that memory can grow back before anyone is ready to believe it."
+    jump wayfarer_promises_to_notice
+
+label wayfarer_promises_to_notice:
+    wayfarer determined "Then I will bring back the pages, but I will also watch what changes around them. Tiny signs deserve witnesses too."
+    jump elowen_gives_counsel
+
+label elowen_gives_counsel:
+    elowen_thistledew neutral "Keep that instinct. When Crowncrag Road rearranges itself, trust the living details: bent grass, startled birds, and flowers facing light no map remembers."
+    jump wayfarer_thanks_elowen
+
+label wayfarer_thanks_elowen:
+    wayfarer delighted "A path read like a garden. That is the first lesson today I am certain I will remember."
+    jump skybell_memory_shared
+
+label skybell_memory_shared:
+    end skybell_memory_shared

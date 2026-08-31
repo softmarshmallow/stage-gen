@@ -16,9 +16,9 @@
 // is already on disk, not a regeneration.
 //
 // Everything below the class is world-space. The name label and the talk prompt scroll with the
-// camera because they belong to a position in the town, not to the screen; the dialogue box that
-// opens when the player talks is the screen-fixed half of this feature and lives in
-// `dialogue-box.ts`.
+// camera because they belong to a position in the town, not to the screen; the panel that opens
+// when the player talks is the screen-fixed half of this feature, and the conversation it plays
+// is a scenario walked by `lib/scenario/runtime.ts`.
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./layers";

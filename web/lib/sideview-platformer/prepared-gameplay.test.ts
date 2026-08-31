@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { parseScenarioProgram } from "@/lib/scenario/program";
 import {
   assertPreparedGameplayManifestClosure,
   parsePreparedGameplayContract,
@@ -141,7 +142,8 @@ function gameplayFixture(): Record<string, unknown> {
         interaction_id: "meet_baker",
         map_id: "village-map",
         actor_id: "baker",
-        sequence_id: "meet-baker",
+        scenario_id: "meet_baker",
+        outcomes: [{ outcome_id: "greeted", effect_ids: [] }],
       },
     ],
     quests: [
@@ -223,7 +225,32 @@ function manifestFixture(): Record<string, unknown> {
       ],
     },
     projectiles: [{ projectile_id: "paperwing_dart" }],
-    sequences: [{ sequence_id: "meet-baker" }],
+    scenarios: [
+      parseScenarioProgram({
+        schema_version: 1,
+        kind: "scenario-program-v1",
+        game_id: "village-game",
+        scenario_id: "meet_baker",
+        display_name: "Meet the Baker",
+        revision: 1,
+        script_sha256: "0".repeat(64),
+        entry: "greeting",
+        cast: [{ actor_id: "baker", expressions: ["neutral"] }],
+        stages: [{ stage_id: "village", brief: "The village square" }],
+        endings: [{ outcome_id: "greeted", label: "You said hello" }],
+        blocks: [
+          {
+            label: "greeting",
+            statements: [
+              { kind: "stage", stage: "village" },
+              { kind: "show", actor: "baker", expression: "neutral", slot: "center" },
+              { kind: "line", speaker: "baker", text: "Fresh bread today." },
+              { kind: "end", outcome: "greeted" },
+            ],
+          },
+        ],
+      }),
+    ],
   };
 }
 
@@ -435,14 +462,22 @@ describe("gameplay-contract-v1 prepared runtime boundary", () => {
       "gameplay.boss_encounters[0].track_id does not resolve to manifest soundtrack tracks",
     );
 
-    const sequence = gameplayFixture();
-    records(sequence.interactions)[0]!.sequence_id = "missing-sequence";
-    expect(() => assertFixtureClosure(manifestFixture(), sequence)).toThrow(
-      "gameplay.interactions[0].sequence_id does not resolve to manifest sequences",
+    const scenario = gameplayFixture();
+    records(scenario.interactions)[0]!.scenario_id = "missing_scenario";
+    expect(() => assertFixtureClosure(manifestFixture(), scenario)).toThrow(
+      "gameplay.interactions[0].scenario_id does not resolve to manifest scenarios",
+    );
+
+    // An effect bound to an ending the story cannot reach is dead authoring.
+    const outcome = gameplayFixture();
+    (records(outcome.interactions)[0]!.outcomes as Record<string, unknown>[])[0]!.outcome_id =
+      "never_reached";
+    expect(() => assertFixtureClosure(manifestFixture(), outcome)).toThrow(
+      "does not resolve to an ending of scenario meet_baker",
     );
   });
 
-  test("rejects duplicate manifest catalog and sequence identities", () => {
+  test("rejects duplicate manifest catalog and scenario identities", () => {
     const cases: readonly (readonly [
       path: string,
       mutate: (manifest: Record<string, unknown>) => void,
@@ -465,8 +500,8 @@ describe("gameplay-contract-v1 prepared runtime boundary", () => {
       ["manifest.soundtrack.tracks.track_id values must be unique", (manifest) => {
         records(child(manifest, "soundtrack").tracks).push({ track_id: "boss_theme" });
       }],
-      ["manifest.sequences.sequence_id values must be unique", (manifest) => {
-        records(manifest.sequences).push({ sequence_id: "meet-baker" });
+      ["manifest.scenarios.scenario_id values must be unique", (manifest) => {
+        (manifest.scenarios as unknown[]).push((manifest.scenarios as unknown[])[0]!);
       }],
     ];
 

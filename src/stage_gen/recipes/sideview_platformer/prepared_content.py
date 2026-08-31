@@ -39,7 +39,6 @@ from gnode import (
     dependency_port,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components.dialogue_sequence import DialogueNode
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_ui import (
     INVENTORY_CANVAS_HEIGHT,
@@ -1391,28 +1390,27 @@ class PreparedContentNodeHandler:
         speaker_expressions = []
         player = self._package.player.players[0]
         npc_by_id = {entry.npc_id: entry for entry in self._package.npcs.npcs}
-        for sequence in self._package.sequences:
-            for sequence_node in sequence.nodes:
-                if not isinstance(sequence_node, DialogueNode):
-                    continue
+        for scenario in self._package.scenarios:
+            scenario_id = scenario.declarations.scenario_id
+            for member in scenario.declarations.cast:
                 expressions = (
                     player.dialogue_art.expressions
-                    if sequence_node.speaker_id == player.player_id
-                    else npc_by_id[sequence_node.speaker_id].dialogue_expressions
+                    if member.actor_id == player.player_id
+                    else npc_by_id[member.actor_id].dialogue_expressions
                 )
-                if sequence_node.expression not in expressions:
-                    raise ValueError(
-                        f"sequence expression does not resolve: {sequence.sequence_id}/"
-                        f"{sequence_node.node_id}/{sequence_node.expression}"
+                for expression in member.expressions:
+                    if expression not in expressions:
+                        raise ValueError(
+                            f"scenario expression does not resolve: {scenario_id}/"
+                            f"{member.actor_id}/{expression}"
+                        )
+                    speaker_expressions.append(
+                        {
+                            "scenario_id": scenario_id,
+                            "speaker_id": member.actor_id,
+                            "expression": expression,
+                        }
                     )
-                speaker_expressions.append(
-                    {
-                        "sequence_id": sequence.sequence_id,
-                        "node_id": sequence_node.node_id,
-                        "speaker_id": sequence_node.speaker_id,
-                        "expression": sequence_node.expression,
-                    }
-                )
         bindings = {
             "schema_version": 1,
             "kind": "prepared-gameplay-bindings-v1",
@@ -1436,7 +1434,7 @@ class PreparedContentNodeHandler:
                 entry.model_dump(mode="json") for entry in gameplay.prop_placements
             ],
             "interactions": [entry.model_dump(mode="json") for entry in gameplay.interactions],
-            "sequence_speaker_expressions": speaker_expressions,
+            "scenario_speaker_expressions": speaker_expressions,
             "effect_ids": [entry.effect_id for entry in gameplay.effects],
             "track_ids": sorted(
                 {track_id for map_use in gameplay.map_uses for track_id in map_use.track_ids}
@@ -1686,7 +1684,7 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
         "item_ids": [entry.item_id for entry in package.items.items],
         "projectile_ids": projectile_ids,
         "track_ids": list(package.soundtrack.track_ids),
-        "sequence_ids": [entry.sequence_id for entry in package.sequences],
+        "scenario_ids": [entry.declarations.scenario_id for entry in package.scenarios],
         # Content families only: map layers and their loop passes are the map recipe's fan-out and
         # are counted by the execution graph, not here. Every family the *content* recipe draws
         # contributes, and a family that contributes nothing to these two totals is a family whose

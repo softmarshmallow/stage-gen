@@ -461,7 +461,7 @@ part is separable:
 | 1 | Contract, script surface, compiler, admission proof, `scenario check` | none | **landed** |
 | 2 | The runtime reducer, the scene's scenario binding, and the consumer drawing choices and endings | none | **landed** |
 | 3 | Cast and stage fan-out in the recipe | provider spend, needs explicit authorization | not started |
-| 4 | Retire `game-sequence-v1` and the platformer's inline walker | none | not started |
+| 4 | Retire `game-sequence-v1` and the platformer's inline walker | none | done |
 
 **M2 — the shell.** Persistence, save slots, backlog, skip-already-read,
 auto-advance, preferences. Cross-genre; unblocks the platformer roster.

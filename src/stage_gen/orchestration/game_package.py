@@ -30,14 +30,6 @@ from stage_gen.components._secure_fs import (
     read_absolute_regular_file,
     read_relative_regular_file,
 )
-from stage_gen.components.dialogue_sequence import (
-    DialogueNode,
-    GameSequence,
-    GameSequenceCatalog,
-    OutcomeNode,
-    load_game_sequence_bytes,
-    load_game_sequence_catalog_bytes,
-)
 from stage_gen.components.game_contract import (
     PreparedGameContract,
     canonical_prepared_game_contract_json,
@@ -68,6 +60,12 @@ from stage_gen.components.platformer_gameplay import (
     load_gameplay_contract_bytes,
 )
 from stage_gen.components.platformer_map import PreparedGameMap, load_prepared_game_map_bytes
+from stage_gen.components.scenario import (
+    ResolvedScenario,
+    ScenarioCatalog,
+    load_scenario_catalog_bytes,
+    resolve_scenario_bytes,
+)
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
 GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 4
@@ -137,8 +135,8 @@ class ResolvedGamePackage:
     items: ItemContentCatalog
     #: None for a package whose weapons throw nothing, which is most of them.
     projectiles: ProjectileContentCatalog | None
-    sequence_catalog: GameSequenceCatalog
-    sequences: tuple[GameSequence, ...]
+    scenario_catalog: ScenarioCatalog
+    scenarios: tuple[ResolvedScenario, ...]
     files: tuple[ResolvedPackageFile, ...]
 
     def file(self, path: str) -> ResolvedPackageFile:
@@ -169,7 +167,7 @@ class ResolvedGamePackage:
                 if self.projectiles is None
                 else [entry.projectile_id for entry in self.projectiles.projectiles]
             ),
-            "sequence_ids": [entry.sequence_id for entry in self.sequences],
+            "scenario_ids": [entry.declarations.scenario_id for entry in self.scenarios],
             "track_ids": list(self.soundtrack.track_ids),
         }
 
@@ -516,18 +514,14 @@ def _resolve_captured_package(
             "invalid_projectile_content",
         )
     )
-    sequence_catalog = _load_locked(
-        member(game.sequences.index_source),
-        load_game_sequence_catalog_bytes,
-        "invalid_sequence_catalog",
+    scenario_catalog = _load_locked(
+        member(game.scenarios.index_source),
+        load_scenario_catalog_bytes,
+        "invalid_scenario_catalog",
     )
-    sequences = tuple(
-        _load_locked(
-            member(binding.source),
-            load_game_sequence_bytes,
-            "invalid_sequence_contract",
-        )
-        for binding in sequence_catalog.sequences
+    scenarios = tuple(
+        _resolve_scenario_member(member, scenario_id)
+        for scenario_id in scenario_catalog.scenario_ids
     )
 
     for evidence_id, evidence in game.evidence.items():
@@ -593,8 +587,8 @@ def _resolve_captured_package(
         items=items,
         projectiles=projectiles,
         ui=ui,
-        sequence_catalog=sequence_catalog,
-        sequences=sequences,
+        scenario_catalog=scenario_catalog,
+        scenarios=scenarios,
     )
 
     actual_paths = set(files)
@@ -631,10 +625,23 @@ def _resolve_captured_package(
         props=props,
         items=items,
         projectiles=projectiles,
-        sequence_catalog=sequence_catalog,
-        sequences=sequences,
+        scenario_catalog=scenario_catalog,
+        scenarios=scenarios,
         files=resolved_files,
     )
+
+
+def _resolve_scenario_member(member: Callable[[str], bytes], scenario_id: str) -> ResolvedScenario:
+    """Admit one scenario out of the captured package, failing with its own code."""
+
+    try:
+        return resolve_scenario_bytes(
+            member(f"scenarios/{scenario_id}.toml"),
+            member(f"scenarios/{scenario_id}.scenario"),
+            scenario_id=scenario_id,
+        )
+    except (AuthoredContractLoadError, ValueError) as error:
+        raise GamePackageValidationError("invalid_scenario_contract", str(error)) from error
 
 
 def _load_locked[ContractT](
@@ -661,8 +668,8 @@ def _validate_cross_contracts(
     props: PropContentCatalog,
     items: ItemContentCatalog,
     projectiles: ProjectileContentCatalog | None,
-    sequence_catalog: GameSequenceCatalog,
-    sequences: tuple[GameSequence, ...],
+    scenario_catalog: ScenarioCatalog,
+    scenarios: tuple[ResolvedScenario, ...],
 ) -> None:
     owned = [
         gameplay.game_id,
@@ -675,8 +682,8 @@ def _validate_cross_contracts(
         props.game_id,
         items.game_id,
         *(() if projectiles is None else (projectiles.game_id,)),
-        sequence_catalog.game_id,
-        *(entry.game_id for entry in sequences),
+        scenario_catalog.game_id,
+        *(entry.declarations.game_id for entry in scenarios),
     ]
     if any(game_id != game.game_id for game_id in owned):
         raise GamePackageValidationError(
@@ -774,7 +781,7 @@ def _validate_cross_contracts(
     prop_ids = {entry.prop_id for entry in props.props}
     item_ids = {entry.item_id for entry in items.items}
     track_ids = set(soundtrack.track_ids)
-    sequence_ids = {entry.sequence_id for entry in sequences}
+    scenario_ids = {entry.declarations.scenario_id for entry in scenarios}
 
     if player_ids != {game.cast.player_id} or gameplay.player.player_id != game.cast.player_id:
         raise GamePackageValidationError(
@@ -788,14 +795,14 @@ def _validate_cross_contracts(
         raise GamePackageValidationError(
             "npc_identity_mismatch", "game cast npc_ids must equal the NPC catalog"
         )
-    if sequence_ids != {entry.sequence_id for entry in sequence_catalog.sequences}:
+    if scenario_ids != set(scenario_catalog.scenario_ids):
         raise GamePackageValidationError(
-            "sequence_identity_mismatch", "sequence catalog and resolved sequences disagree"
+            "scenario_identity_mismatch", "scenario catalog and resolved scenarios disagree"
         )
-    for source, sequence in zip(sequence_catalog.sequences, sequences, strict=True):
-        if source.sequence_id != sequence.sequence_id:
+    for source, scenario in zip(scenario_catalog.scenarios, scenarios, strict=True):
+        if source.scenario_id != scenario.declarations.scenario_id:
             raise GamePackageValidationError(
-                "sequence_identity_mismatch", "sequence source ID does not match its contract"
+                "scenario_identity_mismatch", "scenario source ID does not match its contract"
             )
 
     required_player_states = {"idle", "walk"}
@@ -895,9 +902,9 @@ def _validate_cross_contracts(
         {entry.actor_id for entry in gameplay.interactions}, npc_ids, "interaction actor_id"
     )
     _assert_subset(
-        {entry.sequence_id for entry in gameplay.interactions},
-        sequence_ids,
-        "interaction sequence_id",
+        {entry.scenario_id for entry in gameplay.interactions},
+        scenario_ids,
+        "interaction scenario_id",
     )
     _assert_subset(
         {entry.completion_item_id for entry in gameplay.quests}, item_ids, "quest item_id"
@@ -914,27 +921,31 @@ def _validate_cross_contracts(
     npc_by_id = {entry.npc_id: entry for entry in npcs.npcs}
     player_entry = player.players[0]
     actor_ids = player_ids | npc_ids
-    for sequence in sequences:
-        _assert_subset({sequence.presentation.map_id}, map_ids, "sequence map_id")
-        for node in sequence.nodes:
-            if isinstance(node, DialogueNode):
-                _assert_subset(
-                    {
-                        node.speaker_id,
-                        node.listener_id,
-                        node.focus_subject_id,
-                        *node.visible_subject_ids,
-                    },
-                    actor_ids,
-                    "sequence actor_id",
-                )
-                if node.speaker_id == player_entry.player_id:
-                    expressions = set(player_entry.dialogue_art.expressions)
-                else:
-                    expressions = set(npc_by_id[node.speaker_id].dialogue_expressions)
-                _assert_subset({node.expression}, expressions, "sequence expression")
-            elif isinstance(node, OutcomeNode):
-                _assert_subset(node.effect_ids, effect_ids, "sequence effect_id")
+    # The scenario proved itself finishable on its own. What it cannot know is
+    # whether this game can draw the people it names, so that is checked here.
+    by_scenario = {entry.declarations.scenario_id: entry for entry in scenarios}
+    for scenario in scenarios:
+        for member_entry in scenario.declarations.cast:
+            _assert_subset({member_entry.actor_id}, actor_ids, "scenario actor_id")
+            if member_entry.actor_id == player_entry.player_id:
+                expressions = set(player_entry.dialogue_art.expressions)
+            else:
+                expressions = set(npc_by_id[member_entry.actor_id].dialogue_expressions)
+            _assert_subset(set(member_entry.expressions), expressions, "scenario expression")
+
+    # And an interaction binds consequences to endings, so both halves must
+    # resolve: an outcome the scenario never reaches would be dead authoring,
+    # and an effect gameplay does not declare would fire nothing.
+    for interaction in gameplay.interactions:
+        bound = by_scenario[interaction.scenario_id]
+        outcomes = {ending.outcome_id for ending in bound.declarations.endings}
+        _assert_subset(
+            {outcome.outcome_id for outcome in interaction.outcomes},
+            outcomes,
+            "interaction outcome_id",
+        )
+        for outcome in interaction.outcomes:
+            _assert_subset(set(outcome.effect_ids), effect_ids, "interaction effect_id")
 
 
 def _placed_climbable_roles(maps: Sequence[PreparedGameMap]) -> set[str]:
