@@ -281,7 +281,7 @@ def _validate_profile_artifact(root: Path, bundle: DialogueBundle) -> None:
         record.refs,
     ) != (
         "local",
-        "deterministic-dialogue-scene-v5",
+        "deterministic-dialogue-scene-v6",
         "@stage-gen/dialogue-scene",
         "5",
         [bundle.character_profile_binding.ref],

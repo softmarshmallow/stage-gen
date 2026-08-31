@@ -23,7 +23,7 @@ state, animation, rigging, lip sync, or a game runtime.
 Recipe vocabulary and visual assumptions do not enter generic components; web
 camera, UI, and gameplay assumptions do not enter the producer bundle.
 
-## Authored package: `dialogue-scene-v1`
+## Authored package: `dialogue-scene-v2`
 
 One scene is one directory under `library/games/`, holding `scene.toml` beside
 the members it names by exact relative path: the character profile it binds, and
@@ -35,7 +35,7 @@ game kind to be declared through `game.toml`.
 ```json
 {
   "schema_version": 1,
-  "kind": "dialogue-scene-v1",
+  "kind": "dialogue-scene-v2",
   "game_id": "larkfield",
   "display_name": "Larkfield",
   "revision": 1,
@@ -59,14 +59,12 @@ game kind to be declared through `game.toml`.
   "background": {
     "description": "An original empty classroom at blue hour, no people"
   },
-  "dialogue": [
-    {
-      "id": "opening",
-      "speaker": "Mio",
-      "text": "I hoped you would stay after the seminar.",
-      "expression_state": "neutral"
-    }
-  ],
+  "scenario": {
+    "schema_version": 1,
+    "kind": "scenario-binding-v1",
+    "ref": "scenario.toml",
+    "source_sha256": "<sha256 of the authored scenario document>"
+  },
   "presentation": {
     "slot": "right",
     "framing_zoom": 70,
@@ -95,8 +93,8 @@ redistribution permission. A declared reference nothing consumes is refused.
 
 ## Plan and stage graph
 
-Structured generation writes `dialogue-scene-plan-v4` with
-`schema_version: 4`, `recipe_version: "dialogue-scene-v5"`,
+Structured generation writes `dialogue-scene-plan-v5` with
+`schema_version: 5`, `recipe_version: "dialogue-scene-v6"`,
 `policy_version: "coming-of-age-nonexplicit-v3"`, and
 `expression_profile: "expression-core-v3"`. It binds the canonical document
 digest, appearance id, the authored profile and identity-plate digests, shared
@@ -132,11 +130,11 @@ Within structured provenance, standard JSON Schema vocabulary—including
 its mandated spelling. Recipe-owned property names, definition identifiers,
 and matching reference targets are lower_snake_case.
 
-## Portable bundle: `dialogue-scene-bundle-v4`
+## Portable bundle: `dialogue-scene-bundle-v5`
 
-`bundle.json` is the adapter's sole input. It has `schema_version: 4`,
-`kind: "dialogue-scene-bundle-v4"`, `recipe: "dialogue-scene"`, and
-`recipe_version: "dialogue-scene-v5"`. It binds the game id, canonical document
+`bundle.json` is the adapter's sole input. It has `schema_version: 5`,
+`kind: "dialogue-scene-bundle-v5"`, `recipe: "dialogue-scene"`, and
+`recipe_version: "dialogue-scene-v6"`. It binds the game id, canonical document
 and plan files plus their provenance paths and SHA-256 digests, the canonical
 character profile, the authored identity plate and the package path it came
 from, `attempts.json`, run identity, review state, rights state, and exactly six
@@ -153,10 +151,15 @@ are never selected runtime assets.
 
 The strict `scene_data` projection carries recipe/caller-owned copy only:
 `scene_id`, title and label, concept/background asset bindings and background
-alt text, appearance copy, placement and framing, available states, four
-expression records with labels/descriptions/alts, and ordered dialogue beats.
-The bundle validator requires these asset ids and state bindings to match the
-selected inventory exactly.
+alt text, appearance copy, placement and framing, available states, and four
+expression records with labels/descriptions/alts. The bundle validator requires
+these asset ids and state bindings to match the selected inventory exactly.
+
+The narrative is not part of `scene_data`. A scene binds an authored
+[scenario](game/scenario.md) instead, and the bundle names the compiled program
+and the proof that admitted it (`scenario`, `scenario_validation`) beside the
+binding it came from. A consumer plays from the program; a flat beat list would
+only ever be walkable from the first line to the last.
 
 The web adapter validates the complete portable bundle before copying it into
 an immutable digest-addressed installation. Only then does it translate

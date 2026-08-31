@@ -76,7 +76,7 @@ generation occurs. The anime sources declare `sourceFramingZoom: 70` because
 their pixels are already upper-body crops. Presentation scale is normalized to
 that baseline, and looser values are explicitly source-limited rather than
 claiming to reveal unauthored anatomy. Saving/export remains planned: a future
-editor would update the authored `dialogue-scene-v1` value without
+editor would update the authored `dialogue-scene-v2` value without
 mutating generated artifacts or provenance. Background generation remains an
 explicit headless stage and is never hidden inside the editor.
 

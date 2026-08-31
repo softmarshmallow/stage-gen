@@ -54,7 +54,7 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
         "stage-gen character-profile digest",
         "library/games/larkfield",
         "--package-root",
-        "dialogue-scene-bundle-v4",
+        "dialogue-scene-bundle-v5",
     ):
         assert required in readme or required in library or required in docs_index
     assert "At committed HEAD it is not a provider-backed" not in architecture

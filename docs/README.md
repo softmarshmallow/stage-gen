@@ -113,8 +113,8 @@ Start here for the headless, general-purpose system:
 - [Web preview adapter](web-preview.md) — optional first consumer.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
-  (`dialogue-scene-v1`) produced by recipe `dialogue-scene-v5` into
-  `dialogue-scene-bundle-v4`, which the web installer is the sole reader of.
+  (`dialogue-scene-v2`) produced by recipe `dialogue-scene-v6` into
+  `dialogue-scene-bundle-v5`, which the web installer is the sole reader of.
 - [Dialogue-theme operator workflow](dialogue-theme-pipeline.md) — generation,
   resume/force, install, review/rights gates, activation, status, and rollback.
 - [Dialogue-scene preview](dialogue-scene-preview.md) — implemented
@@ -140,8 +140,8 @@ platformer. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
 
 The Visual Novel Scene Kit Python producer has one strict lower_snake_case
-path: an authored package (`dialogue-scene-v1`) resolved by recipe
-`dialogue-scene-v5` into `dialogue-scene-bundle-v4`. Prior contracts were
+path: an authored package (`dialogue-scene-v2`) resolved by recipe
+`dialogue-scene-v6` into `dialogue-scene-bundle-v5`. Prior contracts were
 removed rather than kept behind a parser, and prior runs were dropped rather
 than migrated. The deterministic web installer reads that one contract,
 validates and copies its immutable files, then projects accepted `scene_data`

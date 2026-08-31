@@ -36,8 +36,8 @@ async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
     acceptance_path = root / "run/acceptance.json"
     acceptance_path.write_text('{"criterion":"all six selected assets pass"}\n', encoding="utf-8")
     review = {
-        "schema_version": 4,
-        "kind": "dialogue-scene-review-v4",
+        "schema_version": 5,
+        "kind": "dialogue-scene-review-v5",
         "character_profile_source_sha256": bundle.character_profile_binding.source_sha256,
         "character_profile_sha256": bundle.character_profile_sha256,
         "status": "pass",
@@ -89,8 +89,8 @@ async def test_profile_v3_review_binds_source_and_canonical_profile_digests(
     acceptance = bundle_path.parent / "acceptance.json"
     acceptance.write_text('{"criterion":"profile and all assets pass"}\n', encoding="utf-8")
     review_value = {
-        "schema_version": 4,
-        "kind": "dialogue-scene-review-v4",
+        "schema_version": 5,
+        "kind": "dialogue-scene-review-v5",
         "status": "pass",
         "usage": "local-demo",
         "source_bundle_sha256": content_sha256(bundle_path.read_bytes()),

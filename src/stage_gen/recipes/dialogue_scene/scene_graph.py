@@ -56,6 +56,9 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     PROVIDER_RAW_KIND,
     REQUEST_KIND,
     REQUEST_RESOLVE,
+    SCENARIO_ADMISSION_KIND,
+    SCENARIO_ADMIT,
+    SCENARIO_KIND,
     SPRITE_CANONICALIZE,
     SPRITE_MATTE,
     STYLE_ANCHOR_KIND,
@@ -66,7 +69,7 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
-DIALOGUE_GRAPH_SCHEMA_VERSION = 3
+DIALOGUE_GRAPH_SCHEMA_VERSION = 4
 DIALOGUE_TRACE_SCHEMA_VERSION = 1
 #: The cache tree this recipe's node artifacts live under. Renaming it is the
 #: whole-recipe invalidation lever; per-type levers are the types' own
@@ -92,10 +95,10 @@ class DialogueSceneGraph(Graph):
     RUN_SUMMARY_KIND: ClassVar[str] = "dialogue-scene-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "dialogue-scene-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 4
 
-    schema_version: Literal[3]
-    kind: Literal["dialogue-scene-execution-graph-v3"]
+    schema_version: Literal[4]
+    kind: Literal["dialogue-scene-execution-graph-v4"]
     recipe: Literal["dialogue-scene"]
     game_id: str
     scene_id: str
@@ -206,8 +209,11 @@ def build_dialogue_scene_graph(
     # The authored plate's digest rides every image node's cache identity, so
     # replacing the file re-bills the scene rather than leaving sprites drawn
     # against a plate that no longer exists.
+    # `art_request_sha256`, not `request_sha256`: the narrative is deliberately
+    # outside every image node's cache identity, so rewording a line of dialogue
+    # does not re-bill five provider images that would come back identical.
     digests = (
-        scene.request_sha256,
+        scene.art_request_sha256,
         scene.policy_digest,
         scene.template_digest,
         identity.sha256,
@@ -226,8 +232,29 @@ def build_dialogue_scene_graph(
         "scene-request",
         domain="scene",
         description="Canonicalize the authored dialogue request",
-        input_digests=digests,
+        input_digests=(scene.request_sha256, scene.policy_digest, scene.template_digest),
         ports=(_artifact("request", "request.json", REQUEST_KIND),),
+    )
+    builder.add(
+        SCENARIO_ADMIT,
+        "scene-scenario",
+        domain="scene",
+        description="Admit the authored scenario and publish its proof",
+        depends_on=("scene-request",),
+        input_digests=(scene.scenario.program_sha256,),
+        ports=(
+            _artifact("program", "scenario.json", SCENARIO_KIND),
+            _artifact("proof", "scenario.validation.json", SCENARIO_ADMISSION_KIND),
+        ),
+        card=NodeCard(
+            authored_inputs=(
+                AuthoredInput(
+                    label="scenario",
+                    ref=request.scenario.ref,
+                    sha256=request.scenario.source_sha256,
+                ),
+            )
+        ),
     )
     builder.add(
         PROFILE_RESOLVE,
@@ -235,7 +262,19 @@ def build_dialogue_scene_graph(
         domain="scene",
         description="Validate and materialize the authored character profile",
         depends_on=("scene-request",),
-        input_digests=(scene.profile.canonical_sha256, scene.profile.source_sha256),
+        # A barrier edge, not a lineage one. `scene-request` publishes the whole
+        # authored document, so its own cache key has to cover every byte of it -
+        # including the narrative. Inheriting that key here would drag the
+        # narrative back into every downstream image through the dependency
+        # chain, undoing `art_request_sha256`. The art fan-out therefore carries
+        # the art identity directly and orders after the request without
+        # borrowing its identity.
+        cache_depends_on=(),
+        input_digests=(
+            scene.art_request_sha256,
+            scene.profile.canonical_sha256,
+            scene.profile.source_sha256,
+        ),
         ports=(_artifact("profile", "character-profile.json", PROFILE_KIND),),
     )
 
@@ -394,8 +433,8 @@ def build_dialogue_scene_graph(
         "scene-bundle",
         domain="scene",
         description="Write the portable dialogue bundle",
-        depends_on=("scene-background", *canonicalize_ids),
-        input_digests=digests,
+        depends_on=("scene-scenario", "scene-background", *canonicalize_ids),
+        input_digests=(*digests, scene.scenario.program_sha256),
         ports=(
             Port(
                 port_id="merged_attempts", artifact_ref="attempts.json", kind=MERGED_ATTEMPTS_KIND
@@ -410,7 +449,7 @@ def build_dialogue_scene_graph(
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
         schema_version=DIALOGUE_GRAPH_SCHEMA_VERSION,
-        kind="dialogue-scene-execution-graph-v3",
+        kind="dialogue-scene-execution-graph-v4",
         recipe="dialogue-scene",
         game_id=request.game_id,
         scene_id=scene.scene_id,

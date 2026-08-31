@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -43,6 +44,39 @@ def _parsed(document: dict[str, object]) -> dict[str, object]:
     return parse_dialogue_request(document).model_dump(mode="json", exclude_none=True)
 
 
+def _repoint_digests(package: Path) -> None:
+    """Re-pin an edited script, the way `stage-gen scenario check --write-digest` does.
+
+    Editing prose invalidates two recorded hashes: the scenario's binding of its
+    script, and the scene's binding of the scenario. A test that edits a line has
+    to move both, or it proves a digest mismatch rather than what it meant to.
+    """
+
+    scenario = package / "scenario.toml"
+    script = package / "scenarios/after_seminar.scenario"
+    scenario.write_text(
+        re.sub(
+            r'script_sha256 = "[0-9a-f]{64}"',
+            f'script_sha256 = "{hashlib.sha256(script.read_bytes()).hexdigest()}"',
+            scenario.read_text(encoding="utf-8"),
+            count=1,
+        ),
+        encoding="utf-8",
+    )
+    scene = package / "scene.toml"
+    scenario_digest = hashlib.sha256(scenario.read_bytes()).hexdigest()
+    scene.write_text(
+        re.sub(
+            r'(\[scenario\][^\[]*?source_sha256 = )"[0-9a-f]{64}"',
+            lambda match: f'{match.group(1)}"{scenario_digest}"',
+            scene.read_text(encoding="utf-8"),
+            count=1,
+            flags=re.DOTALL,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Path) -> None:
     root = write_scene_package(tmp_path / "pkg")
     document = _document(root)
@@ -51,13 +85,13 @@ def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Pat
     assert canonical_json_bytes(parsed) == canonical_json_bytes(reversed_value)
     assert canonical_sha256(parsed) == canonical_sha256(reversed_value)
 
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
         _parsed({**document, "kind": "dialogue-theme-request-v3"})
     camel = dict(document)
     camel["sceneBrief"] = camel.pop("scene_brief")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
         _parsed(camel)
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
         _parsed({**document, "unknown": True})
     with pytest.raises(ValueError, match="content policy"):
         _parsed({**document, "scene_brief": "A minor stays behind after the seminar"})
@@ -73,17 +107,17 @@ def test_scene_document_defaults_to_native_alpha(tmp_path: Path) -> None:
     assert DialogueSceneDocument.model_validate(omitted).transparency_mode == "native"
 
 
-def test_scene_document_rejects_duplicate_beats_and_unknown_expression(tmp_path: Path) -> None:
-    document = _document(write_scene_package(tmp_path / "pkg"))
-    dialogue = document["dialogue"]
-    assert isinstance(dialogue, list)
-    with pytest.raises(ValueError, match="unique"):
-        _parsed({**document, "dialogue": [dialogue[0], dialogue[0]]})
+def test_the_scene_binds_its_narrative_as_a_digest_bound_member(tmp_path: Path) -> None:
+    """The scene carries no lines of its own; it names the scenario that does."""
 
-    first_beat = dialogue[0]
-    assert isinstance(first_beat, dict)
-    with pytest.raises(ValueError):
-        _parsed({**document, "dialogue": [{**first_beat, "expression_state": "angry"}]})
+    document = _document(write_scene_package(tmp_path / "pkg"))
+    binding = document["scenario"]
+    assert isinstance(binding, dict)
+    assert binding["ref"] == "scenario.toml"
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+        _parsed({**document, "scenario": {**binding, "ref": "../elsewhere.toml"}})
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
+        _parsed({**document, "dialogue": [{"id": "a", "speaker": "Mio", "text": "Hi."}]})
 
 
 def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> None:
@@ -92,7 +126,7 @@ def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> No
     document = _document(write_scene_package(tmp_path / "pkg"))
     binding = document["character_profile"]
     assert isinstance(binding, dict)
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
         _parsed({**document, "character_profile": {"ref": "character.toml"}})
     # The binding refuses escape itself; the document refuses a member that is
     # not a profile at all, so neither check depends on the other holding.
@@ -102,7 +136,7 @@ def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> No
         _parsed({**document, "character_profile": {**binding, "ref": "character.json"}})
     camel = dict(binding)
     camel["sourceSha256"] = camel.pop("source_sha256")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v1"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v2"):
         _parsed({**document, "character_profile": camel})
 
 
@@ -147,6 +181,7 @@ def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
     graph = _graph(write_scene_package(tmp_path / "pkg"))
     assert [node.node_id for node in graph.nodes] == [
         "scene-request",
+        "scene-scenario",
         "scene-profile-resolve",
         "scene-style-select",
         "scene-concept",
@@ -164,6 +199,7 @@ def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
     ]
     assert graph.terminal_node_id == "scene-bundle"
     assert graph.node("scene-bundle").depends_on == (
+        "scene-scenario",
         "scene-background",
         "scene-canonicalize-neutral",
         "scene-canonicalize-delighted",
@@ -216,10 +252,10 @@ def test_each_derived_expression_is_its_own_node_off_the_neutral_source(tmp_path
 
 def test_bundle_paths_rights_and_review_are_strict() -> None:
     raw: dict[str, object] = {
-        "schema_version": 4,
-        "kind": "dialogue-scene-bundle-v4",
+        "schema_version": 5,
+        "kind": "dialogue-scene-bundle-v5",
         "recipe": "dialogue-scene",
-        "recipe_version": "dialogue-scene-v5",
+        "recipe_version": "dialogue-scene-v6",
         "tag": "demo",
         "game_id": "seminar_hall",
         "run_identity_sha256": "a" * 64,
@@ -312,6 +348,25 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
             ],
         ],
         "attempt_ledger": {"path": "attempts.json", "sha256": "f" * 64},
+        "scenario": {
+            "path": "scenario.json",
+            "sha256": "1" * 64,
+            "provenance_path": "scenario.json.meta.json",
+            "provenance_sha256": "2" * 64,
+        },
+        "scenario_validation": {
+            "path": "scenario.validation.json",
+            "sha256": "3" * 64,
+            "provenance_path": "scenario.validation.json.meta.json",
+            "provenance_sha256": "4" * 64,
+        },
+        "scenario_binding": {
+            "schema_version": 1,
+            "kind": "scenario-binding-v1",
+            "ref": "scenario.toml",
+            "source_sha256": "5" * 64,
+        },
+        "scenario_sha256": "1" * 64,
         "scene_data": {
             "scene_id": "mio-scene",
             "title": "Study lounge",
@@ -343,20 +398,12 @@ def test_bundle_paths_rights_and_review_are_strict() -> None:
                 }
                 for state in ("neutral", "delighted", "flustered", "concerned")
             ],
-            "dialogue": [
-                {
-                    "id": "opening",
-                    "speaker": "Mio",
-                    "text": "I hoped you would stay.",
-                    "expression_state": "neutral",
-                }
-            ],
         },
         "review": {"status": "pending", "path": None, "sha256": None},
         "rights": {"aggregate": "unreviewed", "publication_authorized": False},
     }
     assert DialogueBundle.model_validate(raw).rights.publication_authorized is False
-    legacy = {**raw, "schema_version": 3, "kind": "dialogue-scene-bundle-v3"}
+    legacy = {**raw, "schema_version": 4, "kind": "dialogue-scene-bundle-v4"}
     with pytest.raises(ValidationError):
         DialogueBundle.model_validate(legacy)
     camel = {**raw, "runIdentitySha256": raw["run_identity_sha256"]}
@@ -376,3 +423,65 @@ def test_canonical_serialization_is_standards_compliant_json(tmp_path: Path) -> 
     assert json.loads(canonical_json_bytes(request)) == request.model_dump(
         mode="json", exclude_none=True
     )
+
+
+def test_a_scenario_that_drifted_from_its_digest_is_refused(tmp_path: Path) -> None:
+    """The scene pins the scenario, which pins its script: one hash, whole narrative."""
+
+    package = write_scene_package(tmp_path / "pkg")
+    scenario = package / "scenario.toml"
+    scenario.write_text(
+        scenario.read_text(encoding="utf-8").replace("revision = 1", "revision = 2"),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match its authored digest"):
+        _resolved(package)
+
+
+def test_the_narrative_is_admitted_before_any_art_is_planned(tmp_path: Path) -> None:
+    """An unfinishable scenario must cost nothing, so it is refused during resolve."""
+
+    package = write_scene_package(tmp_path / "pkg")
+    script = package / "scenarios/after_seminar.scenario"
+    script.write_text(
+        script.read_text(encoding="utf-8") + "\n\nlabel orphan:\n    end went_home\n",
+        encoding="utf-8",
+    )
+    _repoint_digests(package)
+    with pytest.raises(ValueError, match="labels no path reaches: orphan"):
+        _resolved(package)
+
+
+def test_rewording_a_line_does_not_re_bill_a_single_image(tmp_path: Path) -> None:
+    """The narrative is deliberately outside every image node's cache identity.
+
+    A generated plate is a function of the look, the profile and the backdrop
+    direction; it is not a function of what anybody says. If the whole document
+    rode the image cache key, editing one line of dialogue would re-bill five
+    provider images that would come back byte-identical.
+    """
+
+    original = _graph(write_scene_package(tmp_path / "before"))
+    package = write_scene_package(tmp_path / "after")
+    script = package / "scenarios/after_seminar.scenario"
+    script.write_text(
+        script.read_text(encoding="utf-8").replace(
+            "I hoped you would stay after the seminar.",
+            "I did hope you would stay after the seminar.",
+        ),
+        encoding="utf-8",
+    )
+    _repoint_digests(package)
+    edited = _graph(package)
+
+    art_nodes = [
+        node.node_id
+        for node in original.nodes
+        if node.node_id.startswith(("scene-background", "scene-expression", "scene-canonicalize"))
+    ]
+    assert art_nodes, "the fixture must contain generated art"
+    for node_id in art_nodes:
+        assert original.node(node_id).cache_key == edited.node(node_id).cache_key, node_id
+    # The narrative did change, and the nodes that carry it say so.
+    assert original.node("scene-scenario").cache_key != edited.node("scene-scenario").cache_key
+    assert original.node("scene-bundle").cache_key != edited.node("scene-bundle").cache_key

@@ -62,8 +62,8 @@ out/<run-dir>/
 ```
 
 `bundle.json` is the only adapter input. The adapter accepts exactly one
-contract: `dialogue-scene-bundle-v4` with `schema_version: 4` and
-`recipe_version: "dialogue-scene-v5"`. Every persisted key is strict
+contract: `dialogue-scene-bundle-v5` with `schema_version: 4` and
+`recipe_version: "dialogue-scene-v6"`. Every persisted key is strict
 lower_snake_case, and unknown versions or camelCase input are rejected. Its asset,
 request, plan, attempt, and provenance references are run-relative POSIX paths
 with SHA-256 bindings. Raw and rejected candidates are lineage, not runtime
@@ -215,7 +215,7 @@ prior state.
 fallback from failed native alpha. The CLI rejects a command-line transparency
 mode that conflicts with the request.
 
-The tracked sample is the strict `dialogue-scene-v1` authored contract: all TOML
+The tracked sample is the strict `dialogue-scene-v2` authored contract: all TOML
 keys are lower_snake_case, and camelCase or unknown fields are rejected. The
 identity plate is not generated at all - `[[references]]` names a package member
 by relative path, exact SHA-256 digest, and rights state, and the run publishes

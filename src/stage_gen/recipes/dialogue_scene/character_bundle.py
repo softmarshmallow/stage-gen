@@ -38,7 +38,6 @@ from stage_gen.recipes.dialogue_scene.identity import (
 )
 from stage_gen.recipes.dialogue_scene.models import (
     EXPRESSION_STATES,
-    DialogueBeat,
     DialogueSceneDocument,
     DialogueScenePlan,
     PersistedContractModel,
@@ -182,10 +181,10 @@ DialogueCharacterBundleReviewState = Annotated[
 
 
 class DialogueCharacterBundle(_StrictModel):
-    schema_version: Literal[2]
-    kind: Literal["dialogue-character-bundle-v2"]
+    schema_version: Literal[3]
+    kind: Literal["dialogue-character-bundle-v3"]
     recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v5"]
+    recipe_version: Literal["dialogue-scene-v6"]
     tag: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,199}$")
     run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     character: DialogueCharacterIdentity
@@ -195,7 +194,6 @@ class DialogueCharacterBundle(_StrictModel):
     character_profile: DialogueCharacterFile
     available_states: list[Literal["neutral", "delighted", "flustered", "concerned"]]
     assets: list[DialogueCharacterAsset]
-    dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
     review: DialogueCharacterBundleReviewState
     rights: RightsState
 
@@ -205,8 +203,6 @@ class DialogueCharacterBundle(_StrictModel):
             raise ValueError("bundle available_states must use the locked taxonomy and order")
         if tuple(asset.state for asset in self.assets) != EXPRESSION_STATES:
             raise ValueError("bundle assets must bind every locked state in order")
-        if any(beat.expression_state not in self.available_states for beat in self.dialogue):
-            raise ValueError("bundle dialogue references an unavailable state")
         if self.review.status == "pending" and self.rights != RightsState(
             aggregate="unreviewed", publication_authorized=False
         ):
@@ -797,7 +793,7 @@ def package_dialogue_character_spike(
     run_identity_sha256 = canonical_sha256(
         {
             "domain": "stage-gen/dialogue-character-bundle/run-identity/v1",
-            "recipe": "dialogue-scene-v5",
+            "recipe": "dialogue-scene-v6",
             "tag": tag,
             "request_sha256": canonical_sha256(request),
             "plan_sha256": canonical_sha256(plan),
@@ -806,10 +802,10 @@ def package_dialogue_character_spike(
         }
     )
     bundle = DialogueCharacterBundle(
-        schema_version=2,
-        kind="dialogue-character-bundle-v2",
+        schema_version=3,
+        kind="dialogue-character-bundle-v3",
         recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v5",
+        recipe_version="dialogue-scene-v6",
         tag=tag,
         run_identity_sha256=run_identity_sha256,
         character=spike.character,
@@ -839,7 +835,6 @@ def package_dialogue_character_spike(
         ),
         available_states=list(EXPRESSION_STATES),
         assets=assets,
-        dialogue=request.dialogue,
         review=DialogueCharacterBundlePendingReview(),
         rights=RightsState(aggregate="unreviewed", publication_authorized=False),
     )

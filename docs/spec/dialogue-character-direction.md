@@ -127,16 +127,16 @@ to or inferred from it:
 
 | Surface | Exact contract map (implemented unless marked future) | Required binding |
 |---|---|---|
-| authored scene package | `schema_version: 1`, `kind: dialogue-scene-v1` | package-relative `character-profile-binding-v1` ref, exact authored-source digest, and digest-bound `[[references]]` |
+| authored scene package | `schema_version: 2`, `kind: dialogue-scene-v2` | package-relative `character-profile-binding-v1` ref, a digest-bound `scenario-binding-v1` naming the narrative, exact authored-source digests, and digest-bound `[[references]]` |
 | character profile | `schema_version: 1`, `kind: character-profile-v1` | canonical profile JSON digest |
 | character direction (future) | future wire | not accepted by the scene document |
 | pose conditioning (future) | future wire | not accepted by the scene document |
-| plan | `schema_version: 4`, `kind: dialogue-scene-plan-v4` | `recipe_version: dialogue-scene-v5`; profile source/canonical digests, the authored identity-plate digest, and locally enforced locks |
+| plan | `schema_version: 5`, `kind: dialogue-scene-plan-v5` | `recipe_version: dialogue-scene-v6`; profile source/canonical digests, the authored identity-plate digest, and locally enforced locks |
 | observation (future) | `schema_version: 1`, `kind: dialogue-character-observation-v1` | one direction-controlled sprite image digest plus detector/config identity only |
 | consistency report (future) | `schema_version: 1`, `kind: dialogue-character-consistency-report-v1` | profile, direction, observation, comparator, and selected sprite-image digests |
 | embedded review state | strict `status`, `path`, `sha256`, `provenance_path`, `provenance_sha256` | pending omits evidence; completed binds review v4 and provenance digests |
-| independent review record | `schema_version: 4`, `kind: dialogue-scene-review-v4` | source bundle, acceptance spec, selected images, and profile source/canonical digests |
-| pending/reviewed bundle | `schema_version: 4`, `kind: dialogue-scene-bundle-v4` | `recipe_version: dialogue-scene-v5`; game id, canonical profile artifact/provenance, the republished identity plate, and review binding |
+| independent review record | `schema_version: 5`, `kind: dialogue-scene-review-v5` | source bundle, acceptance spec, selected images, and profile source/canonical digests |
+| pending/reviewed bundle | `schema_version: 5`, `kind: dialogue-scene-bundle-v5` | `recipe_version: dialogue-scene-v6`; game id, canonical profile artifact/provenance, the republished identity plate, and review binding |
 | review transition result | `schema_version: 3`, `kind: dialogue-review-transition-result-v3` | pending and derived reviewed bundle digests |
 | install receipt | `schema_version: 3`, `kind: dialogue-theme-install-v3` | `adapter_version: 3`; bundle wire kind/version and copied evidence binding digests |
 | active pointer | `schema_version: 3`, `kind: dialogue-theme-active-v3` | `adapter_version: 3`; active/previous bundle ids, wire kind/version, and source digest |
@@ -269,7 +269,7 @@ direction wire version must publish a new synchronized JSON/TOML example.
 ```json
 {
   "schema_version": 1,
-  "kind": "dialogue-scene-v1",
+  "kind": "dialogue-scene-v2",
   "scene_brief": "Lantern-lit festival conversation",
   "character_profile": {
     "schema_version": 1,
@@ -338,14 +338,12 @@ direction wire version must publish a new synchronized JSON/TOML example.
     "mode": "generate",
     "description": "Original lantern-lit summer festival walkway"
   },
-  "dialogue": [
-    {
-      "id": "arrival",
-      "speaker": "Saki",
-      "text": "You made it before the lanterns were lit.",
-      "expression_state": "delighted"
-    }
-  ],
+  "scenario": {
+    "schema_version": 1,
+    "kind": "scenario-binding-v1",
+    "ref": "scenario.toml",
+    "source_sha256": "<sha256 of the authored scenario document>"
+  },
   "presentation": {
     "slot": "right",
     "framing_zoom": 70,
@@ -363,7 +361,7 @@ drift; all following direction and conditioning tables remain future research.
 
 ```toml
 schema_version = 1
-kind = "dialogue-scene-v1"
+kind = "dialogue-scene-v2"
 scene_brief = "Lantern-lit festival conversation"
 random_seed = 41027
 transparency_mode = "ai"
@@ -434,11 +432,11 @@ unsupported_policy = "fail"
 mode = "generate"
 description = "Original lantern-lit summer festival walkway"
 
-[[dialogue]]
-id = "arrival"
-speaker = "Saki"
-text = "You made it before the lanterns were lit."
-expression_state = "delighted"
+[scenario]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenario.toml"
+source_sha256 = "<sha256 of the authored scenario document>"
 
 [presentation]
 slot = "right"

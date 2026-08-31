@@ -28,6 +28,11 @@ from stage_gen.components.character_profile import (
     CharacterProfile,
     resolve_character_profile_binding,
 )
+from stage_gen.components.scenario import (
+    SCENARIO_DOCUMENT_NAME,
+    ResolvedScenario,
+    resolve_scenario,
+)
 from stage_gen.image_prompting import load_image_style_resources
 from stage_gen.media import CHROMA_MATTE_VERSION, MAGENTA_EDGE_DECONTAMINATION_VERSION
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -35,6 +40,7 @@ from stage_gen.recipes.dialogue_scene.identity import (
     canonical_sha256,
 )
 from stage_gen.recipes.dialogue_scene.models import (
+    EXPRESSION_STATES,
     DialogueRequest,
     DialogueSceneDocument,
     RightsStatus,
@@ -44,6 +50,7 @@ from stage_gen.recipes.dialogue_scene.policy import (
     POLICY_DIGEST,
     assert_character_profile_policy,
     assert_dialogue_policy,
+    assert_scenario_policy,
 )
 from stage_gen.recipes.dialogue_scene.prompts import (
     NATIVE_ALPHA_TEMPLATE_DIGEST,
@@ -97,6 +104,14 @@ class ResolvedDialogueScene:
     request: DialogueRequest
     request_bytes: bytes
     request_sha256: str
+    #: The request digest with the narrative removed, for image cache identity.
+    #: Every generated plate depends on the look, the profile, and the backdrop
+    #: direction; none of them depends on what anybody says. Digesting the whole
+    #: document into an image node would re-bill five provider images every time
+    #: a line of dialogue is reworded, which would make editing prose expensive
+    #: for no reason. The ground node already excludes placement fields from its
+    #: cache identity for exactly this reason.
+    art_request_sha256: str
     scene_id: str
     recipe_version: str
     policy_digest: str
@@ -107,6 +122,7 @@ class ResolvedDialogueScene:
     style_selection_brief: str
     profile: ResolvedSceneProfile
     identity_reference: ResolvedSceneReference
+    scenario: ResolvedScenario
 
     def identity(self) -> dict[str, object]:
         """The portable record of exactly which package this run was planned from."""
@@ -129,6 +145,9 @@ class ResolvedDialogueScene:
             "character_profile_source_sha256": self.profile.source_sha256,
             "identity_reference_source": self.identity_reference.source,
             "identity_reference_sha256": self.identity_reference.sha256,
+            "scenario_ref": self.request.scenario.ref,
+            "scenario_source_sha256": self.request.scenario.source_sha256,
+            "scenario_program_sha256": self.scenario.program_sha256,
         }
 
 
@@ -151,7 +170,7 @@ def parse_dialogue_request(document: object) -> DialogueRequest:
     try:
         request = DialogueSceneDocument.model_validate(dict(document))
     except ValidationError as error:
-        raise ValueError(f"invalid dialogue-scene-v1: {error}") from None
+        raise ValueError(f"invalid dialogue-scene-v2: {error}") from None
     assert_dialogue_policy(request)
     return request
 
@@ -161,6 +180,9 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
 
     request = parse_dialogue_request(document)
     request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
+    # The narrative is admitted before anything else is materialized, so a scene
+    # whose scenario cannot be finished costs nothing.
+    scenario = _resolve_scenario(request, root=root)
     profile = _resolve_profile(request, root=root)
     identity_reference = _read_reference(root, request.identity_reference())
     resources = load_image_style_resources()
@@ -168,6 +190,7 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
         request=request,
         request_bytes=request_bytes,
         request_sha256=canonical_sha256(request),
+        art_request_sha256=_art_request_sha256(request),
         scene_id=_scene_id(request, profile),
         recipe_version=recipe_version(request),
         policy_digest=POLICY_DIGEST,
@@ -178,11 +201,12 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
         style_selection_brief=style_selection_brief(request, profile),
         profile=profile,
         identity_reference=identity_reference,
+        scenario=scenario,
     )
 
 
 def recipe_version(request: DialogueRequest) -> str:
-    return "dialogue-scene-v5"
+    return "dialogue-scene-v6"
 
 
 def template_digest(request: DialogueRequest) -> str:
@@ -243,6 +267,71 @@ def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneRefer
         rights_status=reference.rights_status,
         rights_basis=tuple(reference.rights_basis),
     )
+
+
+def _art_request_sha256(request: DialogueRequest) -> str:
+    """Digest exactly the authored fields a generated image depends on.
+
+    An allowlist rather than "the whole document minus the narrative", because
+    the point is to name what the art is a function of. Every plate depends on
+    the look, the profile, the backdrop direction, the framing, and the
+    transparency mode; none depends on what anybody says, on the schema version,
+    or on any field a future revision adds for a consumer's benefit. Digesting
+    the whole document here would re-bill five provider images on every contract
+    bump and on every reworded line, which is a cost with nothing to show for it.
+    """
+
+    document = request.model_dump(mode="json")
+    return sha256(
+        canonical_json_bytes(
+            {
+                "domain": "stage-gen/dialogue-scene/art-identity/v1",
+                "game_id": document["game_id"],
+                "scene_brief": document["scene_brief"],
+                "background": document["background"],
+                "presentation": document["presentation"],
+                "transparency_mode": document["transparency_mode"],
+                "character_profile": document["character_profile"],
+                "identity_reference_id": document["identity_reference_id"],
+                "references": document["references"],
+            }
+        )
+    ).hexdigest()
+
+
+def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenario:
+    """Admit the authored narrative and hold it to the digest the scene recorded.
+
+    The scene binds `scenario.toml`, which in turn binds its script by digest, so
+    one recorded hash in the scene document closes over the whole narrative. The
+    expressions the scenario asks for must exist in this recipe's locked taxonomy:
+    art the pipeline cannot draw is refused here rather than discovered as a
+    missing texture in the browser.
+    """
+
+    binding = request.scenario
+    if binding.ref != SCENARIO_DOCUMENT_NAME:
+        raise ValueError(f"dialogue scene scenario ref must be {SCENARIO_DOCUMENT_NAME}")
+    declared = sha256(
+        read_absolute_regular_file((root / binding.ref).resolve(), label="dialogue scene scenario")
+    ).hexdigest()
+    if declared != binding.source_sha256:
+        raise ValueError(
+            f"dialogue scene scenario {binding.ref} does not match its authored digest: "
+            f"declared {binding.source_sha256}, found {declared}"
+        )
+    scenario = resolve_scenario(root)
+    assert_scenario_policy(scenario.program)
+    if scenario.declarations.game_id != request.game_id:
+        raise ValueError("dialogue scene scenario game_id must match the scene document")
+    for member in scenario.declarations.cast:
+        unknown = sorted(set(member.expressions) - set(EXPRESSION_STATES))
+        if unknown:
+            raise ValueError(
+                f"scenario cast member {member.actor_id} asks for expressions this recipe "
+                f"cannot draw: {', '.join(unknown)}"
+            )
+    return scenario
 
 
 def _resolve_profile(request: DialogueRequest, *, root: Path) -> ResolvedSceneProfile:

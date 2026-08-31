@@ -38,9 +38,9 @@ def _png(width: int, height: int, *, alpha: bool) -> bytes:
 def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
     profile = scene.profile
     return {
-        "schema_version": 4,
-        "kind": "dialogue-scene-plan-v4",
-        "recipe_version": "dialogue-scene-v5",
+        "schema_version": 5,
+        "kind": "dialogue-scene-plan-v5",
+        "recipe_version": "dialogue-scene-v6",
         "policy_version": "coming-of-age-nonexplicit-v3",
         "expression_profile": "expression-core-v3",
         "request_sha256": scene.request_sha256,
@@ -89,6 +89,11 @@ def _write_inputs(root: Path) -> str:
         canonical_character_profile_json(scene.profile.profile),
     )
     _write_json_pair(root / "plan.json", json.dumps(_plan(scene)).encode())
+    _write_json_pair(root / "scenario.json", scene.scenario.program_bytes)
+    _write_json_pair(
+        root / "scenario.validation.json",
+        json.dumps(scene.scenario.admission.model_dump(mode="json"), sort_keys=True).encode(),
+    )
     anchor = materialize_style_anchor(
         StyleModeSelection(
             schema_version=1,
@@ -156,8 +161,8 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     tag = _write_inputs(tmp_path)
     await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 4
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v4"
+    assert bundle_raw["schema_version"] == 5
+    assert bundle_raw["kind"] == "dialogue-scene-bundle-v5"
     assert "sceneData" not in bundle_raw
     assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
     bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))
@@ -173,7 +178,7 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
         (tmp_path / "plan.json.meta.json").read_bytes()
     )
     anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
-    assert first.recipe_version == "dialogue-scene-v5"
+    assert first.recipe_version == "dialogue-scene-v6"
     assert first.scene_data.appearance.art_direction == "clean 2D Japanese anime illustration"
     assert bundle_sidecar["params"]["style_resource_sha256"] == anchor_raw["resource_sha256"]
     assert bundle_sidecar["params"]["style_compiler_sha256"] == anchor_raw["compiler_sha256"]

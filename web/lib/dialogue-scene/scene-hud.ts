@@ -27,7 +27,7 @@ export interface Size {
 /**
  * The design frame: the producer's own background contract.
  *
- * `dialogue-scene-bundle-v4` admits exactly one background size, so the frame
+ * `dialogue-scene-bundle-v5` admits exactly one background size, so the frame
  * is known before the texture loads and the layout never waits on it.
  */
 export const DIALOGUE_STAGE: Size = Object.freeze({ width: 1672, height: 941 });

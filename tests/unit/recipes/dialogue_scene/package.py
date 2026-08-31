@@ -36,6 +36,83 @@ status = "unreviewed"
 basis = ["Original repository-authored text with no external character reference."]
 """
 
+SCENARIO_SCRIPT = """\
+label opening:
+    stage lounge
+    "The lamps are still on over the empty seminar table."
+    show mio neutral at right
+    mio "I hoped you would stay after the seminar."
+
+    menu:
+        "Stay a while.":
+            jump staying
+        "Say you have to go.":
+            jump leaving
+
+
+label staying:
+    set stayed
+    mio delighted "Then sit. The notes will keep."
+    jump closing
+
+
+label leaving:
+    mio flustered "Of course. I did not mean to keep you."
+    jump closing
+
+
+label closing:
+    if stayed:
+        jump ending_stayed
+
+    jump ending_left
+
+
+label ending_stayed:
+    mio concerned "Next week, then. Same table."
+    hide mio
+    end stayed_late
+
+
+label ending_left:
+    hide mio
+    end went_home
+"""
+
+
+def scenario_toml(*, script_sha256: str) -> str:
+    return f'''\
+schema_version = 1
+kind = "scenario-v1"
+game_id = "seminar_hall"
+scenario_id = "after_seminar"
+display_name = "After the Seminar"
+revision = 1
+script = "scenarios/after_seminar.scenario"
+script_sha256 = "{script_sha256}"
+entry = "opening"
+
+[[cast]]
+actor_id = "mio"
+profile = "character.toml"
+expressions = ["neutral", "delighted", "flustered", "concerned"]
+
+[[stages]]
+stage_id = "lounge"
+brief = "An original empty evening study lounge, warm lamps, no people"
+
+[[flags]]
+flag_id = "stayed"
+
+[[endings]]
+outcome_id = "stayed_late"
+label = "You stayed"
+
+[[endings]]
+outcome_id = "went_home"
+label = "You left"
+'''
+
 
 def cover_png() -> bytes:
     """A deterministic stand-in for the authored identity plate."""
@@ -50,25 +127,39 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
 
     root.mkdir(parents=True, exist_ok=True)
     (root / "references").mkdir(exist_ok=True)
+    (root / "scenarios").mkdir(exist_ok=True)
     character_bytes = CHARACTER_TOML.encode("utf-8")
     (root / "character.toml").write_bytes(character_bytes)
     cover = cover_png()
     (root / "references/cover.png").write_bytes(cover)
+    script_bytes = SCENARIO_SCRIPT.encode("utf-8")
+    (root / "scenarios/after_seminar.scenario").write_bytes(script_bytes)
+    scenario_bytes = scenario_toml(script_sha256=hashlib.sha256(script_bytes).hexdigest()).encode(
+        "utf-8"
+    )
+    (root / "scenario.toml").write_bytes(scenario_bytes)
     document = scene_value(
         character_sha256=hashlib.sha256(character_bytes).hexdigest(),
         cover_sha256=hashlib.sha256(cover).hexdigest(),
+        scenario_sha256=hashlib.sha256(scenario_bytes).hexdigest(),
         **overrides,
     )
     (root / "scene.toml").write_text(_to_toml(document), encoding="utf-8")
     return root
 
 
-def scene_value(*, character_sha256: str, cover_sha256: str, **overrides: object) -> dict[str, Any]:
+def scene_value(
+    *,
+    character_sha256: str,
+    cover_sha256: str,
+    scenario_sha256: str,
+    **overrides: object,
+) -> dict[str, Any]:
     """The authored document, as a plain value a test can mutate before parsing."""
 
     value: dict[str, Any] = {
-        "schema_version": 1,
-        "kind": "dialogue-scene-v1",
+        "schema_version": 2,
+        "kind": "dialogue-scene-v2",
         "game_id": "seminar_hall",
         "display_name": "Seminar Hall",
         "revision": 1,
@@ -90,14 +181,12 @@ def scene_value(*, character_sha256: str, cover_sha256: str, **overrides: object
             }
         ],
         "background": {"description": "Evening study lounge"},
-        "dialogue": [
-            {
-                "id": "opening",
-                "speaker": "Mio",
-                "text": "I hoped you would stay after the seminar.",
-                "expression_state": "neutral",
-            }
-        ],
+        "scenario": {
+            "schema_version": 1,
+            "kind": "scenario-binding-v1",
+            "ref": "scenario.toml",
+            "source_sha256": scenario_sha256,
+        },
         "presentation": {"slot": "right", "framing_zoom": 70, "source_framing_zoom": 70},
         "transparency_mode": "chroma",
     }

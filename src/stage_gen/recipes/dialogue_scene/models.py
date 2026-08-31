@@ -107,11 +107,32 @@ class SceneReference(PersistedContractModel):
         return value
 
 
-class DialogueBeat(PersistedContractModel):
-    id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
-    speaker: str = Field(min_length=1, max_length=64)
-    text: str = Field(min_length=1, max_length=320)
-    expression_state: ExpressionState
+class ScenarioBinding(PersistedContractModel):
+    """The narrative this scene plays, bound to exact bytes.
+
+    A scene used to carry its own flat beat list, which could only ever be walked
+    from the first line to the last. The narrative is a `scenario-v1` package
+    member now, so the same scene admits choices, flags, and endings, and one
+    authored shape serves both genres instead of two that can drift apart.
+    """
+
+    schema_version: Literal[1] = 1
+    kind: Literal["scenario-binding-v1"] = "scenario-binding-v1"
+    ref: str = Field(min_length=1, max_length=256)
+    source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @field_validator("ref")
+    @classmethod
+    def package_relative_toml(cls, value: str) -> str:
+        segments = value.split("/")
+        if (
+            value.startswith(("/", "~"))
+            or "\\" in value
+            or any(segment in {"", ".", ".."} for segment in segments)
+            or not value.endswith(".toml")
+        ):
+            raise ValueError("scenario ref must be a package-relative TOML member")
+        return value
 
 
 class PresentationRequest(PersistedContractModel):
@@ -131,27 +152,26 @@ class DialogueSceneDocument(PersistedContractModel):
     stays easy to absorb.
     """
 
-    schema_version: Literal[1]
-    kind: Literal["dialogue-scene-v1"]
+    schema_version: Literal[2]
+    kind: Literal["dialogue-scene-v2"]
     game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     display_name: str = Field(min_length=1, max_length=96)
     revision: int = Field(ge=1)
     scene_brief: str = Field(min_length=1, max_length=96)
     character_profile: CharacterProfileBinding
+    #: The narrative, as an authored `scenario-v1` member. Proven finishable
+    #: offline before any art is paid for.
+    scenario: ScenarioBinding
     #: The declared reference that fixes this character's look. It is published
     #: into the run as the concept plate, so nothing generates the art direction.
     identity_reference_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     references: list[SceneReference] = Field(min_length=1, max_length=16)
     background: BackgroundDirection = Field(default_factory=BackgroundDirection)
-    dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
     presentation: PresentationRequest = Field(default_factory=PresentationRequest)
     transparency_mode: TransparencyMode = "native"
 
     @model_validator(mode="after")
     def closed_package_bindings(self) -> DialogueSceneDocument:
-        ids = [beat.id for beat in self.dialogue]
-        if len(ids) != len(set(ids)):
-            raise ValueError("dialogue beat ids must be unique")
         ref = self.character_profile.ref
         segments = ref.split("/")
         if (
@@ -252,9 +272,9 @@ class DialogueScenePlanDraft(PersistedContractModel):
 
 
 class DialogueScenePlan(PersistedContractModel):
-    schema_version: Literal[4]
-    kind: Literal["dialogue-scene-plan-v4"]
-    recipe_version: Literal["dialogue-scene-v5"]
+    schema_version: Literal[5]
+    kind: Literal["dialogue-scene-plan-v5"]
+    recipe_version: Literal["dialogue-scene-v6"]
     policy_version: Literal["coming-of-age-nonexplicit-v3"]
     expression_profile: Literal["expression-core-v3"]
     request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -367,8 +387,8 @@ class ReviewState(PersistedContractModel):
 
 
 class IndependentReview(PersistedContractModel):
-    schema_version: Literal[4]
-    kind: Literal["dialogue-scene-review-v4"]
+    schema_version: Literal[5]
+    kind: Literal["dialogue-scene-review-v5"]
     status: Literal["pass"]
     usage: Literal["local-demo"]
     source_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -469,7 +489,6 @@ class SceneData(PersistedContractModel):
     placement: ScenePlacement
     available_states: list[ExpressionState]
     expression_variants: list[SceneExpressionVariant]
-    dialogue: list[DialogueBeat] = Field(min_length=1, max_length=12)
 
     @model_validator(mode="after")
     def exact_projection_bindings(self) -> SceneData:
@@ -480,16 +499,14 @@ class SceneData(PersistedContractModel):
             raise ValueError("scene_data expression_variants must use the locked taxonomy")
         if any(item.appearance_id != self.appearance.id for item in self.expression_variants):
             raise ValueError("scene_data expression appearance binding must match appearance")
-        if any(beat.expression_state not in self.available_states for beat in self.dialogue):
-            raise ValueError("scene_data dialogue references an unavailable expression")
         return self
 
 
 class DialogueBundle(PersistedContractModel):
-    schema_version: Literal[4]
-    kind: Literal["dialogue-scene-bundle-v4"]
+    schema_version: Literal[5]
+    kind: Literal["dialogue-scene-bundle-v5"]
     recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v5"]
+    recipe_version: Literal["dialogue-scene-v6"]
     tag: str = Field(min_length=1)
     game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -498,6 +515,13 @@ class DialogueBundle(PersistedContractModel):
     character_profile: BundleFile
     character_profile_binding: CharacterProfileBinding
     character_profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    #: The compiled narrative and the proof that admitted it. A consumer plays
+    #: from `scenario`; `scenario_validation` is the evidence, carried because a
+    #: run must name everything it contains.
+    scenario: BundleFile
+    scenario_validation: BundleFile
+    scenario_binding: ScenarioBinding
+    scenario_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     #: The authored plate every image in the run was drawn against, named by the
     #: package path it came from and the exact bytes the run republished.
     identity_reference: BundleFile

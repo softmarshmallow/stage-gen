@@ -31,6 +31,16 @@ MATTE_RAW_KIND = "matte-raw-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v1"
 MERGED_ATTEMPTS_KIND = "attempt-ledger-merged-v1"
 BUNDLE_KIND = "dialogue-bundle-v1"
+SCENARIO_KIND = "scenario-program-v1"
+SCENARIO_ADMISSION_KIND = "scenario-admission-v1"
+
+SCENARIO_ADMIT = NodeType(
+    type_id="2d/frontview/vn/scenario.admit",
+    title="Scenario admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="dialogue-scenario-admit-v1",
+)
 
 REQUEST_RESOLVE = NodeType(
     type_id="2d/frontview/vn/request.resolve",
@@ -136,6 +146,7 @@ BUNDLE_PACKAGE = NodeType(
 
 DIALOGUE_NODE_TYPES: tuple[NodeType, ...] = (
     REQUEST_RESOLVE,
+    SCENARIO_ADMIT,
     PROFILE_RESOLVE,
     STYLE_SELECT,
     CONCEPT_INGEST,
@@ -175,6 +186,9 @@ __all__ = [
     "PROVIDER_RAW_KIND",
     "REQUEST_KIND",
     "REQUEST_RESOLVE",
+    "SCENARIO_ADMISSION_KIND",
+    "SCENARIO_ADMIT",
+    "SCENARIO_KIND",
     "SPRITE_CANONICALIZE",
     "SPRITE_MATTE",
     "STYLE_ANCHOR_KIND",

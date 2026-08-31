@@ -1,5 +1,5 @@
-schema_version = 1
-kind = "dialogue-scene-v1"
+schema_version = 2
+kind = "dialogue-scene-v2"
 game_id = "larkfield"
 display_name = "Larkfield"
 revision = 1
@@ -41,20 +41,12 @@ slot = "right"
 framing_zoom = 70
 source_framing_zoom = 70
 
-[[dialogue]]
-id = "record-the-room"
-speaker = "Nao"
-text = "Everyone's gone home. I wanted to record the room before they lock the building."
-expression_state = "neutral"
-
-[[dialogue]]
-id = "stay-quiet"
-speaker = "You"
-text = "Then I'll stay quiet. I'd like to hear what an empty room sounds like."
-expression_state = "delighted"
-
-[[dialogue]]
-id = "desks-and-cicadas"
-speaker = "Nao"
-text = "It's just desks and cicadas. Don't make it sound clever."
-expression_state = "flustered"
+# The narrative, as an authored scenario rather than a flat beat list. The scene
+# binds scenario.toml by digest, and scenario.toml binds its script the same way,
+# so this one recorded hash closes over every word the scene can say. Admission
+# proves the whole thing finishable offline, before any art is paid for.
+[scenario]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenario.toml"
+source_sha256 = "566670941f45243de3fa93ee4369c58f24cc33fc80e766e978281b01ec8882b9"

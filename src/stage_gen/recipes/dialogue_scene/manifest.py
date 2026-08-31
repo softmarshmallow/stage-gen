@@ -15,6 +15,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.components import CharacterProfile, character_profile_sha256
+from stage_gen.components.scenario import ScenarioAdmissionReport, ScenarioProgram
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image
@@ -92,6 +93,22 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         raise ValueError("published identity plate does not match the authored reference digest")
     if plan.identity_reference_sha256 != concept_sha256:
         raise ValueError("bundle plan identity reference binding mismatch")
+    # The narrative the run publishes must be the narrative the package declared:
+    # the program names the script digest, and the scene named the scenario's.
+    scenario_bytes = _read(run_dir, "scenario.json")
+    scenario_provenance = _read(run_dir, "scenario.json.meta.json")
+    _validate_provenance(scenario_provenance, scenario_bytes, "scenario")
+    scenario_program = ScenarioProgram.model_validate_json(scenario_bytes)
+    if scenario_program.game_id != request.game_id:
+        raise ValueError("published scenario game_id does not match the request")
+    scenario_proof_bytes = _read(run_dir, "scenario.validation.json")
+    scenario_proof_provenance = _read(run_dir, "scenario.validation.json.meta.json")
+    _validate_provenance(scenario_proof_provenance, scenario_proof_bytes, "scenario proof")
+    scenario_proof = ScenarioAdmissionReport.model_validate_json(scenario_proof_bytes)
+    if not scenario_proof.admitted:
+        raise ValueError("bundle refuses a scenario its own proof did not admit")
+    if scenario_proof.scenario_id != scenario_program.scenario_id:
+        raise ValueError("scenario proof does not describe the published scenario")
     ledger_bytes = _read(run_dir, "attempts.json")
     ledger = AttemptLedger.model_validate_json(ledger_bytes)
     style_anchor_bytes = _read(run_dir, "style-anchor.json")
@@ -102,7 +119,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     identity_sha = canonical_sha256(
         {
             "domain": "stage-gen/dialogue-scene/run-identity/v5",
-            "recipe": "dialogue-scene-v5",
+            "recipe": "dialogue-scene-v6",
             "game_id": request.game_id,
             "request_sha256": canonical_sha256(request),
             "identity_reference_source": authored_reference.source,
@@ -110,6 +127,9 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             "character_profile_ref": request.character_profile.ref,
             "character_profile_source_sha256": request.character_profile.source_sha256,
             "character_profile_sha256": profile_sha256,
+            "scenario_ref": request.scenario.ref,
+            "scenario_source_sha256": request.scenario.source_sha256,
+            "scenario_sha256": content_sha256(scenario_bytes),
             "policy_sha256": POLICY_DIGEST,
             "profile": "expression-core-v3",
             "template_sha256": (
@@ -144,10 +164,10 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         provenance_sha256=content_sha256(profile_provenance),
     )
     bundle = DialogueBundle(
-        schema_version=4,
-        kind="dialogue-scene-bundle-v4",
+        schema_version=5,
+        kind="dialogue-scene-bundle-v5",
         recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v5",
+        recipe_version="dialogue-scene-v6",
         tag=tag,
         game_id=request.game_id,
         run_identity_sha256=identity_sha,
@@ -166,6 +186,20 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         character_profile=profile_file,
         character_profile_binding=request.character_profile,
         character_profile_sha256=profile_sha256,
+        scenario=BundleFile(
+            path="scenario.json",
+            sha256=content_sha256(scenario_bytes),
+            provenance_path="scenario.json.meta.json",
+            provenance_sha256=content_sha256(scenario_provenance),
+        ),
+        scenario_validation=BundleFile(
+            path="scenario.validation.json",
+            sha256=content_sha256(scenario_proof_bytes),
+            provenance_path="scenario.validation.json.meta.json",
+            provenance_sha256=content_sha256(scenario_proof_provenance),
+        ),
+        scenario_binding=request.scenario,
+        scenario_sha256=content_sha256(scenario_bytes),
         identity_reference=BundleFile(
             path="assets/concept.png",
             sha256=concept_sha256,
@@ -282,7 +316,6 @@ def _profile_scene_data(
                 }
                 for state in EXPRESSION_STATES
             ],
-            "dialogue": [beat.model_dump(mode="json") for beat in request.dialogue],
         }
     )
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 
 from stage_gen.components.character_profile import CharacterProfile
+from stage_gen.components.scenario import ScenarioProgram
 from stage_gen.recipes.dialogue_scene.identity import canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     EXPRESSION_STATES,
@@ -54,7 +55,7 @@ def _assert_permitted_text(*values: str) -> None:
 def assert_dialogue_policy(
     request: DialogueRequest, profile: CharacterProfile | None = None
 ) -> None:
-    values = [request.scene_brief, *(beat.text for beat in request.dialogue)]
+    values = [request.scene_brief]
     if request.background.description is not None:
         values.append(request.background.description)
     if profile is not None:
@@ -68,6 +69,29 @@ def assert_dialogue_policy(
                 *profile.invariants,
             )
         )
+    _assert_permitted_text(*values)
+
+
+def assert_scenario_policy(program: ScenarioProgram) -> None:
+    """Screen every authored word the scenario can put on screen.
+
+    The narrative moved out of the scene document and into a scenario, so the
+    policy follows it rather than staying behind on a field that no longer
+    exists. Every reachable line, every choice, and the briefs that will be sent
+    to an image or music model are screened - a branch the player might never
+    take is still a line this recipe would have generated art for.
+    """
+
+    values: list[str] = [program.display_name]
+    for block in program.blocks:
+        for statement in block.statements:
+            if statement.kind == "line":
+                values.append(statement.text)
+            elif statement.kind == "choice":
+                values.extend(option.text for option in statement.options)
+    values.extend(stage.brief for stage in program.stages)
+    values.extend(track.brief for track in program.tracks)
+    values.extend(ending.label for ending in program.endings)
     _assert_permitted_text(*values)
 
 

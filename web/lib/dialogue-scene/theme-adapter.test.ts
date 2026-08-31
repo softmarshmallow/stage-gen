@@ -414,7 +414,7 @@ describe("dialogue theme web adapter", () => {
     await writeFile(current.bundlePath, JSON.stringify(bundle));
     await expect(
       installDialogueTheme(current.bundlePath, current.options),
-    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v5"');
+    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v6"');
   });
   test("installs wire-v3 recipe-v4 and publishes one exact current active pointer", async () => {
     const first = await createBundle("profile-first", "local");
@@ -549,11 +549,11 @@ describe("dialogue theme web adapter", () => {
     const unknownBundle = JSON.parse(
       await readFile(unknown.bundlePath, "utf8"),
     ) as Record<string, unknown>;
-    unknownBundle.recipe_version = "dialogue-scene-v6";
+    unknownBundle.recipe_version = "dialogue-scene-v5";
     await writeFile(unknown.bundlePath, JSON.stringify(unknownBundle));
     await expect(
       installDialogueTheme(unknown.bundlePath, unknown.options),
-    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v5"');
+    ).rejects.toThrow('bundle.recipe_version must be "dialogue-scene-v6"');
 
     const missing = await createBundle("missing-style-binding", "pending");
     const missingBundle = JSON.parse(
@@ -848,7 +848,7 @@ async function createBundle(
   const request = Buffer.from(
     JSON.stringify({
       schema_version: 1,
-      kind: "dialogue-scene-v1",
+      kind: "dialogue-scene-v2",
       game_id: "seminar_hall",
       display_name: "Seminar Hall",
       revision: 1,
@@ -965,8 +965,8 @@ async function createBundle(
   const plan = Buffer.from(
     JSON.stringify({
       schema_version: 4,
-      kind: "dialogue-scene-plan-v4",
-      recipe_version: "dialogue-scene-v5",
+      kind: "dialogue-scene-plan-v5",
+      recipe_version: "dialogue-scene-v6",
       policy_version: "coming-of-age-nonexplicit-v3",
       expression_profile: "expression-core-v3",
       ...{
@@ -1162,9 +1162,9 @@ async function createBundle(
 
   const bundle = {
     schema_version: 4,
-    kind: "dialogue-scene-bundle-v4",
+    kind: "dialogue-scene-bundle-v5",
     recipe: "dialogue-scene",
-    recipe_version: "dialogue-scene-v5",
+    recipe_version: "dialogue-scene-v6",
     tag: slug,
     game_id: "seminar_hall",
     run_identity_sha256: sha256(Buffer.from(`run:${slug}`)),
@@ -1314,7 +1314,7 @@ async function createBundle(
     const reviewBytes = Buffer.from(
       JSON.stringify({
         schema_version: 4,
-        kind: "dialogue-scene-review-v4",
+        kind: "dialogue-scene-review-v5",
         status,
         usage: "local-demo",
         source_bundle_sha256: sha256(pendingBundleBytes),

@@ -65,6 +65,7 @@ from stage_gen.media import (
     normalize_png_cover,
 )
 from stage_gen.recipes.dialogue_scene.identity import (
+    canonical_json_bytes,
     content_sha256,
 )
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
@@ -106,6 +107,7 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     PLAN_COMPILE,
     PROFILE_RESOLVE,
     REQUEST_RESOLVE,
+    SCENARIO_ADMIT,
     SPRITE_CANONICALIZE,
     SPRITE_MATTE,
     STYLE_SELECT,
@@ -200,6 +202,7 @@ class DialogueSceneNodeHandler:
 
         registry = NodeTypeRegistry()
         registry.register(REQUEST_RESOLVE, self._bind(self._write_request))
+        registry.register(SCENARIO_ADMIT, self._bind(self._write_scenario))
         registry.register(PROFILE_RESOLVE, self._bind(self._write_profile))
         registry.register(STYLE_SELECT, self._bind(self._select_style))
         registry.register(CONCEPT_INGEST, self._bind(self._concept_publish))
@@ -244,6 +247,41 @@ class DialogueSceneNodeHandler:
             "application/json",
             "Canonicalize the authored dialogue request.",
             params={"request_sha256": self._scene.request_sha256},
+        )
+        return self._result(node, provider_operations=0)
+
+    async def _write_scenario(self, node: Node) -> NodeExecutionResult:
+        """Publish the compiled narrative and the proof that admitted it.
+
+        Both were settled while the package resolved, so this writes what was
+        already proven rather than re-deriving it. The proof ships beside the
+        program for the same reason `puzzle.validation.json` does: a run that
+        claims a scenario is finishable should carry the evidence.
+        """
+
+        scenario = self._scene.scenario
+        await self._write_local(
+            "scenario.json",
+            scenario.program_bytes,
+            "application/json",
+            "Compile the authored scenario into its program.",
+            refs=[self._scene.request.scenario.ref],
+            params={
+                "scenario_id": scenario.declarations.scenario_id,
+                "scenario_source_sha256": self._scene.request.scenario.source_sha256,
+                "script_sha256": scenario.declarations.script_sha256,
+                "program_sha256": scenario.program_sha256,
+            },
+        )
+        await self._write_local(
+            "scenario.validation.json",
+            canonical_json_bytes(scenario.admission.model_dump(mode="json")),
+            "application/json",
+            "Prove the authored scenario reachable and finishable.",
+            params={
+                "reachable_states": scenario.admission.reachable_states,
+                "endings": len(scenario.admission.witnesses),
+            },
         )
         return self._result(node, provider_operations=0)
 
@@ -563,9 +601,9 @@ class DialogueSceneNodeHandler:
         profile = scene.profile
         identity, wardrobe = profile_lock_values(profile.profile)
         return DialogueScenePlan(
-            schema_version=4,
-            kind="dialogue-scene-plan-v4",
-            recipe_version="dialogue-scene-v5",
+            schema_version=5,
+            kind="dialogue-scene-plan-v5",
+            recipe_version="dialogue-scene-v6",
             policy_version="coming-of-age-nonexplicit-v3",
             expression_profile="expression-core-v3",
             request_sha256=scene.request_sha256,

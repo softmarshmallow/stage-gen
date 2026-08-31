@@ -171,9 +171,9 @@ interface SceneData {
 
 export interface DialogueSceneBundleV4 {
   readonly schema_version: 4;
-  readonly kind: "dialogue-scene-bundle-v4";
+  readonly kind: "dialogue-scene-bundle-v5";
   readonly recipe: "dialogue-scene";
-  readonly recipe_version: "dialogue-scene-v5";
+  readonly recipe_version: "dialogue-scene-v6";
   readonly tag: string;
   readonly game_id: string;
   readonly run_identity_sha256: string;
@@ -212,8 +212,8 @@ export interface DialogueSceneBundleV4 {
 interface ActiveBundleBinding {
   readonly bundle_id: string;
   readonly wire_schema_version: 4;
-  readonly kind: "dialogue-scene-bundle-v4";
-  readonly recipe_version: "dialogue-scene-v5";
+  readonly kind: "dialogue-scene-bundle-v5";
+  readonly recipe_version: "dialogue-scene-v6";
   readonly source_bundle_sha256: string;
   readonly install_receipt_sha256: string;
 }
@@ -255,8 +255,8 @@ interface InstallReceipt {
   readonly adapter_version: 3;
   readonly bundle_id: string;
   readonly bundle_wire_schema_version: 3;
-  readonly bundle_kind: "dialogue-scene-bundle-v4";
-  readonly recipe_version: "dialogue-scene-v5";
+  readonly bundle_kind: "dialogue-scene-bundle-v5";
+  readonly recipe_version: "dialogue-scene-v6";
   readonly source_bundle_sha256: string;
   readonly fixture_sha256: string;
   readonly character_profile_source_sha256: string;
@@ -351,9 +351,9 @@ export function parseDialogueSceneBundleV4(
     "dialogue-scene bundle v4",
   );
   exact(root.schema_version, 4, "bundle.schema_version");
-  exact(root.kind, "dialogue-scene-bundle-v4", "bundle.kind");
+  exact(root.kind, "dialogue-scene-bundle-v5", "bundle.kind");
   exact(root.recipe, "dialogue-scene", "bundle.recipe");
-  exact(root.recipe_version, "dialogue-scene-v5", "bundle.recipe_version");
+  exact(root.recipe_version, "dialogue-scene-v6", "bundle.recipe_version");
   const binding = strictRecord(
     root.character_profile_binding,
     ["schema_version", "kind", "ref", "source_sha256"],
@@ -381,9 +381,9 @@ export function parseDialogueSceneBundleV4(
   }
   return Object.freeze({
     schema_version: 4,
-    kind: "dialogue-scene-bundle-v4",
+    kind: "dialogue-scene-bundle-v5",
     recipe: "dialogue-scene",
-    recipe_version: "dialogue-scene-v5",
+    recipe_version: "dialogue-scene-v6",
     tag: strictText(root.tag, "bundle.tag", 160),
     game_id: snakeId(root.game_id, "bundle.game_id", 64),
     run_identity_sha256: digest(root.run_identity_sha256, "bundle.run_identity_sha256"),
@@ -546,8 +546,8 @@ export async function installDialogueTheme(
         adapter_version: 3,
         bundle_id: bundleId,
         bundle_wire_schema_version: 3,
-        bundle_kind: "dialogue-scene-bundle-v4",
-        recipe_version: "dialogue-scene-v5",
+        bundle_kind: "dialogue-scene-bundle-v5",
+        recipe_version: "dialogue-scene-v6",
         character_profile_source_sha256:
           validated.bundle.character_profile_binding.source_sha256,
         character_profile_sha256: validated.bundle.character_profile_sha256,
@@ -1435,13 +1435,13 @@ function parseActiveBundleBinding(
     label,
   );
   exact(root.wire_schema_version, 4, `${label} wire_schema_version`);
-  exact(root.kind, "dialogue-scene-bundle-v4", `${label} kind`);
-  exact(root.recipe_version, "dialogue-scene-v5", `${label} recipe_version`);
+  exact(root.kind, "dialogue-scene-bundle-v5", `${label} kind`);
+  exact(root.recipe_version, "dialogue-scene-v6", `${label} recipe_version`);
   return Object.freeze({
     bundle_id: digest(root.bundle_id, `${label} bundle_id`),
     wire_schema_version: 4,
-    kind: "dialogue-scene-bundle-v4",
-    recipe_version: "dialogue-scene-v5",
+    kind: "dialogue-scene-bundle-v5",
+    recipe_version: "dialogue-scene-v6",
     source_bundle_sha256: digest(
       root.source_bundle_sha256,
       `${label} source_bundle_sha256`,
@@ -2186,7 +2186,7 @@ function validateRequestEnvelope(
     "bundle request",
   );
   exact(root.schema_version, 1, "bundle request schema_version");
-  exact(root.kind, "dialogue-scene-v1", "bundle request kind");
+  exact(root.kind, "dialogue-scene-v2", "bundle request kind");
   if (root.game_id !== bundle.game_id) {
     throw new Error("request game_id does not match bundle");
   }
@@ -2373,8 +2373,8 @@ function validatePlanEnvelope(
     "bundle plan",
   );
   exact(root.schema_version, 4, "bundle plan schema_version");
-  exact(root.kind, "dialogue-scene-plan-v4", "bundle plan kind");
-  exact(root.recipe_version, "dialogue-scene-v5", "bundle plan recipe_version");
+  exact(root.kind, "dialogue-scene-plan-v5", "bundle plan kind");
+  exact(root.recipe_version, "dialogue-scene-v6", "bundle plan recipe_version");
   exact(
     root.policy_version,
     "coming-of-age-nonexplicit-v3",
@@ -2933,7 +2933,7 @@ function validateReviewProof(
     "review record",
   );
   exact(record.schema_version, 4, "review record schema_version");
-  exact(record.kind, "dialogue-scene-review-v4", "review record kind");
+  exact(record.kind, "dialogue-scene-review-v5", "review record kind");
   exact(record.status, expectedStatus, "review record status");
   exact(record.usage, "local-demo", "review record usage");
   const sourceBundleSha256 = digest(
@@ -3092,12 +3092,12 @@ function parseInstallReceipt(value: unknown): InstallReceipt {
   );
   exact(
     root.bundle_kind,
-    "dialogue-scene-bundle-v4",
+    "dialogue-scene-bundle-v5",
     "install receipt bundle_kind",
   );
   exact(
     root.recipe_version,
-    "dialogue-scene-v5",
+    "dialogue-scene-v6",
     "install receipt recipe_version",
   );
   return Object.freeze({
@@ -3106,8 +3106,8 @@ function parseInstallReceipt(value: unknown): InstallReceipt {
     adapter_version: 3,
     bundle_id: digest(root.bundle_id, "install receipt bundle_id"),
     bundle_wire_schema_version: 3,
-    bundle_kind: "dialogue-scene-bundle-v4",
-    recipe_version: "dialogue-scene-v5",
+    bundle_kind: "dialogue-scene-bundle-v5",
+    recipe_version: "dialogue-scene-v6",
     source_bundle_sha256: digest(
       root.source_bundle_sha256,
       "install receipt source_bundle_sha256",

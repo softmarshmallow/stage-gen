@@ -85,28 +85,18 @@ def _write_pair(path: Path, data: bytes, media_type: str) -> Path:
 
 
 def _scene(
-    root: Path, *, line: str = "The valley remembers every kindness."
+    root: Path, *, brief: str = "A student stays behind in the study lounge after a seminar"
 ) -> ResolvedDialogueScene:
-    package = write_scene_package(
-        root / "package",
-        dialogue=[
-            {
-                "id": "opening",
-                "speaker": "Mio",
-                "text": line,
-                "expression_state": "neutral",
-            }
-        ],
-    )
+    package = write_scene_package(root / "package", scene_brief=brief)
     return resolve_dialogue_scene(read_scene_document(package), root=package)
 
 
 def _plan(scene: ResolvedDialogueScene) -> dict[str, object]:
     profile = scene.profile
     return {
-        "schema_version": 4,
-        "kind": "dialogue-scene-plan-v4",
-        "recipe_version": "dialogue-scene-v5",
+        "schema_version": 5,
+        "kind": "dialogue-scene-plan-v5",
+        "recipe_version": "dialogue-scene-v6",
         "policy_version": "coming-of-age-nonexplicit-v3",
         "expression_profile": "expression-core-v3",
         "request_sha256": scene.request_sha256,
@@ -359,16 +349,13 @@ def test_package_is_strict_digest_bound_idempotent_and_immutable(tmp_path: Path)
 
     assert first["bundle_sha256"] == content_sha256(bundle_bytes)
     assert bundle.recipe == "dialogue-scene"
-    assert bundle.recipe_version == "dialogue-scene-v5"
+    assert bundle.recipe_version == "dialogue-scene-v6"
     assert bundle.tag == root.name
     assert bundle.review.status == "pending"
     assert bundle.rights.aggregate == "unreviewed"
     assert bundle.rights.publication_authorized is False
     assert tuple(bundle.available_states) == EXPRESSION_STATES
     assert tuple(asset.state for asset in bundle.assets) == EXPRESSION_STATES
-    assert [beat.model_dump(mode="json") for beat in bundle.dialogue] == [
-        beat.model_dump(mode="json") for beat in _scene(root / "reread").request.dialogue
-    ]
     assert bundle.request.sha256 == content_sha256((root / "request.json").read_bytes())
     assert bundle.request.provenance_sha256 == content_sha256(
         (root / "request.json.meta.json").read_bytes()
@@ -399,7 +386,9 @@ def test_package_is_strict_digest_bound_idempotent_and_immutable(tmp_path: Path)
     assert second == first
     assert bundle_path.read_bytes() == bundle_bytes
 
-    _write_run_members(root, _scene(root / "changed", line="The garden remembers every promise."))
+    _write_run_members(
+        root, _scene(root / "changed", brief="A student locks the garden gate after a seminar")
+    )
     with pytest.raises(ValueError, match="conflicting immutable dialogue character package"):
         package_dialogue_character_spike(spike_path)
 

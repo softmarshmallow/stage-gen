@@ -21,7 +21,6 @@ from pydantic import Field, field_validator, model_validator
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
-    GAME_ID_PATTERN,
     SHA256_PATTERN,
     SNAKE_ID_PATTERN,
     normalized_text,
@@ -57,6 +56,14 @@ RESERVED_WORDS: frozenset[str] = frozenset(
 )
 
 Slot = Literal["left", "center", "right"]
+
+#: A scenario is recipe-neutral, and the two families it has to sit between do
+#: not agree on how a game id is spelled: the prepared game package is kebab
+#: (`GAME_ID_PATTERN`) while the dialogue scene document is snake. Both are
+#: accepted here rather than forcing a third spelling on one of them, because a
+#: scenario has to name whichever game it belongs to. Reconciling the two is real
+#: work owned by the exact-current-contracts cleanup, not by this contract.
+GAME_REFERENCE_PATTERN = r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 
 TEXT_MAX_LENGTH = 600
 
@@ -325,7 +332,7 @@ class ScenarioDeclarations(ScenarioModel):
 
     schema_version: Literal[1]
     kind: Literal["scenario-v1"]
-    game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
+    game_id: str = Field(pattern=GAME_REFERENCE_PATTERN, max_length=96)
     scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str = Field(min_length=1, max_length=96)
     revision: int = Field(ge=1)
@@ -391,7 +398,7 @@ class ScenarioProgram(PersistedContractModel):
 
     schema_version: Literal[1] = 1
     kind: Literal["scenario-program-v1"] = "scenario-program-v1"
-    game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
+    game_id: str = Field(pattern=GAME_REFERENCE_PATTERN, max_length=96)
     scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
     revision: int = Field(ge=1)
