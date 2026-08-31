@@ -28,9 +28,14 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       declared stage, one profile/plan/neutral/derive/canonicalize chain per drawable actor.
       Larkfield now ships three drawn actors across three stages, generated in one 38-node run
       (15 provider images).
-- [ ] Independent semantic review of the twelve expression plates and three backdrops in
-      `out/larkfield/`. Generated visuals are unreviewed by default and need a verdict from someone
-      other than their producer before any of it is treated as acceptance evidence or published.
+- [x] M1 increment 4 — script-driven music. The scenario already declared tracks and admission
+      already proved every `play`/`stop` names one; what was missing was generation and playback.
+      One track per declared track, carrying the soundtrack component's own `TrackGenerationIntent`
+      rather than a second shape, compiled by the one prompt compiler both recipes now share.
+- [ ] Independent semantic review of the twelve expression plates, three backdrops, and three
+      music tracks in `out/larkfield/`. Audio needs a separate listening verdict from the visual
+      one; neither is the producer's to give, and neither may become acceptance evidence or be
+      published until it is.
 - [ ] Larkfield's style plate still shows one specific character. This is an authoring defect in
       one package, not a system one: `style_reference_id` and a cast member's `reference_id` are
       independent, a plate bound by nobody validates, and `has_identity_plate` then goes false for

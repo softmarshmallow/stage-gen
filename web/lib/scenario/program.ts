@@ -116,9 +116,24 @@ export interface ScenarioStageDeclaration {
   readonly brief: string;
 }
 
+/**
+ * How the producer was asked to make this track.
+ *
+ * Production metadata the runtime never reads, carried because the compiled
+ * program is what the generator fans out over and the wire must round-trip
+ * whole. Parsed strictly all the same: an unknown key here is drift.
+ */
+export interface ScenarioTrackGeneration {
+  readonly intent: "generate";
+  readonly instrumental: boolean;
+  readonly seamlessLoop: boolean;
+  readonly targetDurationSeconds: number;
+}
+
 export interface ScenarioTrackDeclaration {
   readonly trackId: string;
   readonly brief: string;
+  readonly generation: ScenarioTrackGeneration;
 }
 
 export interface ScenarioEnding {
@@ -230,10 +245,35 @@ function stageDeclaration(value: unknown, index: number): ScenarioStageDeclarati
 }
 
 function trackDeclaration(value: unknown, index: number): ScenarioTrackDeclaration {
-  const record = strictRecord(value, ["track_id", "brief"], `scenario tracks[${index}]`);
+  const record = strictRecord(
+    value,
+    ["track_id", "brief", "generation"],
+    `scenario tracks[${index}]`,
+  );
+  const generation = strictRecord(
+    record.generation,
+    ["intent", "instrumental", "seamless_loop", "target_duration_seconds"],
+    `scenario tracks[${index}].generation`,
+  );
+  exact(generation.intent, "generate", `scenario tracks[${index}].generation.intent`);
   return Object.freeze({
     trackId: snakeId(record.track_id, `scenario tracks[${index}].track_id`),
     brief: text(record.brief, `scenario tracks[${index}].brief`, TEXT_MAX),
+    generation: Object.freeze({
+      intent: "generate" as const,
+      instrumental: boolean(
+        generation.instrumental,
+        `scenario tracks[${index}].generation.instrumental`,
+      ),
+      seamlessLoop: boolean(
+        generation.seamless_loop,
+        `scenario tracks[${index}].generation.seamless_loop`,
+      ),
+      targetDurationSeconds: positiveInteger(
+        generation.target_duration_seconds,
+        `scenario tracks[${index}].generation.target_duration_seconds`,
+      ),
+    }),
   });
 }
 
@@ -498,6 +538,11 @@ function sha256(value: unknown, label: string): string {
   return value;
 }
 
+function boolean(value: unknown, label: string): boolean {
+  if (typeof value !== "boolean") throw new Error(`${label} must be a boolean`);
+  return value;
+}
+
 function positiveInteger(value: unknown, label: string): number {
   if (!Number.isSafeInteger(value) || (value as number) < 1) {
     throw new Error(`${label} must be a positive integer`);
@@ -549,6 +594,12 @@ export function serializeScenarioProgram(program: ScenarioProgram): unknown {
     tracks: program.tracks.map((track) => ({
       track_id: track.trackId,
       brief: track.brief,
+      generation: {
+        intent: track.generation.intent,
+        instrumental: track.generation.instrumental,
+        seamless_loop: track.generation.seamlessLoop,
+        target_duration_seconds: track.generation.targetDurationSeconds,
+      },
     })),
     flags: program.flags.map((flag) => ({ flag_id: flag })),
     endings: program.endings.map((ending) => ({

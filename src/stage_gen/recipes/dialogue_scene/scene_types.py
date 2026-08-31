@@ -33,6 +33,7 @@ MERGED_ATTEMPTS_KIND = "attempt-ledger-merged-v1"
 BUNDLE_KIND = "dialogue-bundle-v1"
 SCENARIO_KIND = "scenario-program-v1"
 SCENARIO_ADMISSION_KIND = "scenario-admission-v1"
+TRACK_KIND = "dialogue-track-v1"
 
 SCENARIO_ADMIT = NodeType(
     type_id="2d/frontview/vn/scenario.admit",
@@ -85,7 +86,7 @@ PLAN_COMPILE = NodeType(
     operation="structured_generation",
     features=("structured_output",),
     policy=_PROVIDER_POLICY,
-    contract_version="dialogue-plan-compile-v1",
+    contract_version="dialogue-plan-compile-v3",
 )
 
 BACKDROP_GENERATE = NodeType(
@@ -136,6 +137,16 @@ SPRITE_CANONICALIZE = NodeType(
     contract_version="dialogue-sprite-canonicalize-v1",
 )
 
+TRACK_GENERATE = NodeType(
+    type_id="2d/frontview/vn/track.generate",
+    title="Scenario music track",
+    archetype=ViewArchetype.MUSIC,
+    operation="music_generation",
+    features=("instrumental_loop",),
+    policy=_PROVIDER_POLICY,
+    contract_version="dialogue-track-v1",
+)
+
 BUNDLE_PACKAGE = NodeType(
     type_id="2d/frontview/vn/bundle.package",
     title="Dialogue bundle",
@@ -156,6 +167,7 @@ DIALOGUE_NODE_TYPES: tuple[NodeType, ...] = (
     EXPRESSION_DERIVE,
     SPRITE_MATTE,
     SPRITE_CANONICALIZE,
+    TRACK_GENERATE,
     BUNDLE_PACKAGE,
 )
 
@@ -193,5 +205,7 @@ __all__ = [
     "SPRITE_MATTE",
     "STYLE_ANCHOR_KIND",
     "STYLE_SELECT",
+    "TRACK_GENERATE",
+    "TRACK_KIND",
     "dialogue_type_index",
 ]

@@ -20,6 +20,7 @@ import {
   mapDialogueSceneFraming,
   normalizeDialogueSceneFramingScale,
 } from "./framing";
+import { ScenarioAudio, htmlAudioTransport } from "./scene-audio";
 import {
   bodyTextPoint,
   bodyTextWrapWidth,
@@ -106,6 +107,7 @@ export interface DialogueSceneGameHandle {
 
 class DialogueScene extends Phaser.Scene {
   private playback: ScenarioState;
+  private readonly audio: ScenarioAudio;
 
   private backdrop!: Phaser.GameObjects.Image;
   /** One sprite per drawable actor, shown or hidden as the scenario stages them. */
@@ -122,6 +124,7 @@ class DialogueScene extends Phaser.Scene {
   constructor(private readonly fixture: DialogueSceneFixture) {
     super("dialogue-scene");
     this.playback = initialScenarioState(fixture.scenario);
+    this.audio = new ScenarioAudio(fixture, htmlAudioTransport());
   }
 
   preload(): void {
@@ -258,14 +261,23 @@ class DialogueScene extends Phaser.Scene {
       action.kind === "advance" && scenarioIsFinished(this.playback)
         ? ({ kind: "restart" } as const)
         : action;
+    // Every advance is a user gesture, which is exactly what a browser wants
+    // before it will start audio: the opening `play` lands on the first tap.
+    this.audio.unlock();
     const next = reduceScenario(this.fixture.scenario, this.playback, intent);
     if (next === this.playback) return;
     this.playback = next;
     this.render();
   }
 
+  /** Stop everything on teardown; the script has no say once the scene is gone. */
+  stopAudio(): void {
+    this.audio.stopAll();
+  }
+
   private render(): void {
     const view = scenarioView(this.fixture.scenario, this.playback);
+    this.audio.apply(this.playback.tracks);
     this.renderStage();
     this.renderCast(view?.kind === "line" ? view.speaker : null);
 
@@ -402,14 +414,23 @@ export function bootDialogueSceneGame(
   parent: HTMLElement,
   fixture: DialogueSceneFixture,
 ): DialogueSceneGameHandle {
+  const scene = new DialogueScene(fixture);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     width: DIALOGUE_STAGE.width,
     height: DIALOGUE_STAGE.height,
     parent,
     backgroundColor: "#05070a",
-    scene: [new DialogueScene(fixture)],
+    scene: [scene],
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   });
-  return { destroy: (removeCanvas: boolean) => game.destroy(removeCanvas) };
+  return {
+    destroy: (removeCanvas: boolean) => {
+      // Phaser tears down its own canvas; the audio elements are ours, and a
+      // track still playing after the player navigated away is the one bug
+      // every web soundtrack has shipped at least once.
+      scene.stopAudio();
+      game.destroy(removeCanvas);
+    },
+  };
 }

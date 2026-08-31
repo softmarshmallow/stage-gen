@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from stage_gen.components.character_profile import (
     CharacterProfile,
     canonical_character_profile_json,
 )
+from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.recipes.dialogue_scene.identity import canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueRequest,
@@ -13,6 +16,9 @@ from stage_gen.recipes.dialogue_scene.models import (
     ExpressionState,
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
+
+if TYPE_CHECKING:
+    from stage_gen.components.scenario import TrackDeclaration
 
 PROMPT_TEMPLATE_VERSION = 7
 _BASE = (
@@ -63,7 +69,7 @@ NATIVE_ALPHA_TEMPLATE_DIGEST = canonical_sha256(
 
 def plan_prompt(
     request: DialogueRequest,
-    request_sha256: str,
+    art_request_sha256: str,
     profile: CharacterProfile | None = None,
 ) -> str:
     payload = request.model_dump_json(exclude_none=True)
@@ -78,7 +84,7 @@ def plan_prompt(
     )
     return (
         f"{TEMPLATES['plan']} {_BASE}\n"
-        f"Request SHA-256: {request_sha256}. Policy digest: {POLICY_DIGEST}. "
+        f"Art request SHA-256: {art_request_sha256}. Policy digest: {POLICY_DIGEST}. "
         f"Template digest: {template_digest}. Preserve the four expression states exactly.\n"
         f"{STYLE_REFERENCE_CLAUSE}\n"
         f"REQUEST: {payload}{profile_line}"
@@ -155,4 +161,25 @@ def expression_prompt(
         f"{plan.shared_locks.identity}. Required wardrobe: {plan.shared_locks.wardrobe}. "
         "Preserve identity, hair, wardrobe, body, pose, crop, palette, and rendering exactly. "
         f"{background_direction}"
+    )
+
+
+def track_prompt(game_id: str, track: TrackDeclaration) -> str:
+    """One scenario track, compiled by the shared soundtrack prompt compiler.
+
+    The medium and the one staging line are this recipe's to say; performance,
+    ending and originality are not, so they come from the component that owns
+    the authored intent rather than from a second copy written here.
+    """
+
+    return music_track_prompt(
+        medium="a visual novel scene",
+        game_id=game_id,
+        track_id=track.track_id,
+        creative_brief=track.brief,
+        generation=track.generation,
+        direction=(
+            "Composed to sit under dialogue: restrained arrangement, steady dynamics, "
+            "no abrupt transitions and no sudden loud entries."
+        ),
     )

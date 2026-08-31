@@ -235,3 +235,20 @@ def _finite(value: object, label: str) -> float:
     if not math.isfinite(number):
         raise ValueError(f"{label} must be finite")
     return number
+
+
+#: A generated music stream below this is a truncated response, not a short track.
+MINIMUM_MUSIC_PAYLOAD_BYTES = 64 * 1024
+
+
+def validate_music_payload(data: bytes) -> dict[str, object]:
+    """Refuse a truncated music payload from inside a provider's retry owner.
+
+    Bytes only, deliberately: this runs on the response before it is persisted,
+    where there is no file to probe yet. Duration is a property of the decoded
+    stream and belongs to `probe_audio`, after the artifact exists.
+    """
+
+    if len(data) < MINIMUM_MUSIC_PAYLOAD_BYTES:
+        raise ValueError("generated music payload is too small")
+    return {"minimum_bytes": MINIMUM_MUSIC_PAYLOAD_BYTES, "bytes": len(data)}

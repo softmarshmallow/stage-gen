@@ -29,6 +29,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageReference,
     InputProvenance,
+    MusicGenerationRequest,
     NodeArtifact,
     NodeExecutionError,
     NodeExecutionResult,
@@ -63,6 +64,8 @@ from stage_gen.media import (
     inspect_image,
     normalize_png,
     normalize_png_cover,
+    probe_audio,
+    validate_music_payload,
 )
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
@@ -71,6 +74,7 @@ from stage_gen.recipes.dialogue_scene.identity import (
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
 from stage_gen.recipes.dialogue_scene.models import (
     EXPRESSION_STATES,
+    MINIMUM_TRACK_SECONDS,
     AttemptLedger,
     AttemptRecord,
     DialogueScenePlan,
@@ -108,6 +112,7 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     SPRITE_CANONICALIZE,
     SPRITE_MATTE,
     STYLE_SELECT,
+    TRACK_GENERATE,
 )
 from stage_gen.recipes.dialogue_scene.schema import dialogue_plan_json_schema
 from stage_gen.recipes.node_cache import NodeArtifactCache
@@ -119,11 +124,13 @@ if TYPE_CHECKING:
         BackgroundMaskArtifact,
         BackgroundRemovalService,
         ImageGenerationService,
+        MusicGenerationService,
         Node,
         NodeExecutionContext,
         NodeHandler,
         StructuredGenerationService,
     )
+    from stage_gen.components.scenario import TrackDeclaration
     from stage_gen.recipes.dialogue_scene.models import DialoguePlan
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
@@ -155,6 +162,7 @@ class DialogueSceneNodeHandler:
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[Any],
         background_service: BackgroundRemovalService | None = None,
+        music_service: MusicGenerationService | None = None,
         capability_timeout_s: float | None = None,
     ) -> None:
         self._graph = graph
@@ -163,6 +171,7 @@ class DialogueSceneNodeHandler:
         self._images = image_service
         self._structured = structured_service
         self._background = background_service
+        self._music = music_service
         self._timeout = capability_timeout_s
         self._cache = NodeArtifactCache(
             graph,
@@ -209,6 +218,7 @@ class DialogueSceneNodeHandler:
         registry.register(EXPRESSION_DERIVE, self._bind(self._expression))
         registry.register(SPRITE_MATTE, self._bind(self._canonicalize_matte))
         registry.register(SPRITE_CANONICALIZE, self._bind(self._canonicalize_local))
+        registry.register(TRACK_GENERATE, self._bind(self._track_generate))
         registry.register(BUNDLE_PACKAGE, self._bind(self._bundle))
         return registry
 
@@ -257,7 +267,7 @@ class DialogueSceneNodeHandler:
             self._scene.request_bytes,
             "application/json",
             "Canonicalize the authored dialogue request.",
-            params={"request_sha256": self._scene.request_sha256},
+            params={"art_request_sha256": self._scene.art_request_sha256},
         )
         return self._result(node, provider_operations=0)
 
@@ -382,7 +392,7 @@ class DialogueSceneNodeHandler:
             artifact_path=self._run_dir / node.port("document").artifact_ref,
             references=(_structured_reference(concept, concept_path),),
             schema=StructuredOutputSchema(
-                name="dialogue_scene_plan_v6",
+                name="dialogue_scene_plan_v7",
                 json_schema=dialogue_plan_json_schema(),
                 strict=True,
             ),
@@ -390,7 +400,7 @@ class DialogueSceneNodeHandler:
             artifact_value=lambda value: value.model_dump(mode="json", exclude_none=True),
             metadata={
                 "node": node.node_id,
-                "request_sha256": scene.request_sha256,
+                "art_request_sha256": scene.art_request_sha256,
                 "policy_sha256": POLICY_DIGEST,
                 "template_sha256": scene.template_digest,
                 **self._profile_provenance(self._node_actor(node)),
@@ -596,6 +606,59 @@ class DialogueSceneNodeHandler:
         }
         return data, derivation, result.attempts
 
+    async def _track_generate(self, node: Node) -> NodeExecutionResult:
+        """One scenario track, from its authored brief.
+
+        Music owes nothing to the style plate, so this node reads no reference
+        and composes no anchor: the brief is the whole instruction, and it is
+        already on the node's card where the plan could state it before spend.
+        """
+
+        if self._music is None:
+            raise ValueError("track generation requires a music service")
+        track = self._track(node)
+        output = self._run_dir / node.port("audio").artifact_ref
+        result = await self._provider_call(
+            node,
+            "track",
+            self._card_prompt(node),
+            [],
+            lambda: self._music.generate(  # type: ignore[union-attr]
+                MusicGenerationRequest(
+                    prompt=self._card_prompt(node),
+                    artifact_path=output,
+                    output_format="mp3",
+                    timeout_seconds=900,
+                    metadata={
+                        "recipe": self._scene.recipe_version,
+                        "node": node.node_id,
+                        "role": "track",
+                        "track_id": track.track_id,
+                    },
+                    validate=lambda artifact: validate_music_payload(artifact.data),
+                )
+            ),
+            node.port("audio").artifact_ref,
+        )
+        # Duration is a property of the decoded stream, not of the bytes, so it
+        # is checked here rather than inside the retry owner: a track too short
+        # to sit under a scene fails the node instead of being retried into the
+        # same answer.
+        probe = await probe_audio(output, timeout_seconds=120)
+        if probe.duration_seconds < MINIMUM_TRACK_SECONDS:
+            raise ValueError(
+                f"generated track {track.track_id} is {probe.duration_seconds:.1f}s, "
+                f"under the {MINIMUM_TRACK_SECONDS}s floor"
+            )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    def _track(self, node: Node) -> TrackDeclaration:
+        track_id = node.params["track"]
+        for track in self._scene.scenario.program.tracks:
+            if track.track_id == track_id:
+                return track
+        raise ValueError(f"node {node.node_id} names an undeclared track: {track_id}")
+
     async def _bundle(self, node: Node) -> NodeExecutionResult:
         """Merge every node's attempts in graph order, then write the portable bundle."""
 
@@ -626,12 +689,12 @@ class DialogueSceneNodeHandler:
         profile = actor.profile
         identity, wardrobe = profile_lock_values(profile.profile)
         return DialogueScenePlan(
-            schema_version=6,
-            kind="dialogue-scene-plan-v6",
+            schema_version=7,
+            kind="dialogue-scene-plan-v7",
             recipe_version="dialogue-scene-v7",
             policy_version="coming-of-age-nonexplicit-v3",
             expression_profile="expression-core-v3",
-            request_sha256=scene.request_sha256,
+            art_request_sha256=scene.art_request_sha256,
             appearance_id=profile.profile.profile_id,
             character_profile_ref=profile.ref,
             character_profile_source_sha256=profile.source_sha256,

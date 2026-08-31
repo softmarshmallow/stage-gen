@@ -229,7 +229,7 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
         request=request,
         request_bytes=request_bytes,
         request_sha256=canonical_sha256(request),
-        art_request_sha256=_art_request_sha256(request),
+        art_request_sha256=art_request_sha256(request),
         scene_id=_scene_id(request),
         recipe_version=recipe_version(request),
         policy_digest=POLICY_DIGEST,
@@ -318,7 +318,7 @@ def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneRefer
     )
 
 
-def _art_request_sha256(request: DialogueRequest) -> str:
+def art_request_sha256(request: DialogueRequest) -> str:
     """Digest exactly the authored fields a generated image depends on.
 
     An allowlist rather than "the whole document minus the narrative", because
@@ -467,6 +467,7 @@ __all__ = [
     "SCENE_ID_MAX_LENGTH",
     "ResolvedDialogueScene",
     "ResolvedSceneActor",
+    "art_request_sha256",
     "ResolvedSceneProfile",
     "ResolvedSceneReference",
     "parse_dialogue_request",

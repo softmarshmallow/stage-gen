@@ -25,7 +25,7 @@ from stage_gen.components.scenario import (
 )
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
-from stage_gen.media import inspect_image
+from stage_gen.media import inspect_image, probe_audio
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,
@@ -35,6 +35,7 @@ from stage_gen.recipes.dialogue_scene.models import (
     EXPRESSION_STATES,
     AttemptLedger,
     AttemptLedgerBinding,
+    AudioFacts,
     BundleActor,
     BundleArtifact,
     BundleFile,
@@ -52,6 +53,7 @@ from stage_gen.recipes.dialogue_scene.prompts import (
     NATIVE_ALPHA_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
 )
+from stage_gen.recipes.dialogue_scene.scene_request import art_request_sha256
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
 
@@ -164,6 +166,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             for actor in resolved_actors
             for state in EXPRESSION_STATES
         ],
+        *[await _track_asset(run_dir, ledger, track.track_id) for track in scenario_program.tracks],
     ]
     bundle = DialogueBundle(
         schema_version=6,
@@ -299,8 +302,8 @@ def _read_actor(
     plan_provenance = _read(run_dir, f"{plan_path}.meta.json")
     _validate_provenance(plan_provenance, plan_bytes, f"{member.actor_id} plan")
     plan = DialogueScenePlan.model_validate_json(plan_bytes)
-    if plan.request_sha256 != canonical_sha256(request):
-        raise ValueError(f"{member.actor_id} plan request digest does not match the request")
+    if plan.art_request_sha256 != art_request_sha256(request):
+        raise ValueError(f"{member.actor_id} plan art-request digest does not match the request")
     expected = (
         binding.character_profile.ref,
         binding.character_profile.source_sha256,
@@ -363,6 +366,10 @@ def _scene_data(
                 }
                 for stage in scenario.stages
             ],
+            "tracks": [
+                {"track_id": track.track_id, "asset_id": f"track-{_slug(track.track_id)}"}
+                for track in scenario.tracks
+            ],
             "actors": [
                 {
                     "actor_id": actor.actor_id,
@@ -398,6 +405,39 @@ def _scene_data(
             "available_states": list(EXPRESSION_STATES),
             "scenario": scenario,
         }
+    )
+
+
+async def _track_asset(
+    run_dir: Path,
+    ledger: AttemptLedger,
+    track_id: str,
+) -> BundleArtifact:
+    """One generated track, with its duration probed from the decoded stream."""
+
+    asset_id = f"track-{_slug(track_id)}"
+    path = f"assets/{asset_id}.mp3"
+    data = _read(run_dir, path)
+    provenance_path = f"{path}.meta.json"
+    provenance = _read(run_dir, provenance_path)
+    _validate_provenance(provenance, data, f"asset {asset_id}")
+    probe = await probe_audio(run_dir / path, timeout_seconds=120)
+    selected = [
+        attempt
+        for attempt in ledger.attempts
+        if attempt.outcome == "selected" and attempt.artifact == path
+    ]
+    return BundleArtifact(
+        id=asset_id,
+        role="track",
+        track_id=track_id,
+        path=path,
+        sha256=content_sha256(data),
+        bytes=len(data),
+        media=AudioFacts(mime_type="audio/mpeg", duration_seconds=round(probe.duration_seconds, 3)),
+        provenance_path=provenance_path,
+        provenance_sha256=content_sha256(provenance),
+        selected_attempt=selected[-1].attempt if selected else 0,
     )
 
 

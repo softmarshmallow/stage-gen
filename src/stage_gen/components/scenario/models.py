@@ -27,6 +27,7 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
+from stage_gen.components.game_soundtrack import TrackGenerationIntent
 
 SCENARIO_SCHEMA_VERSION = 1
 SCENARIO_KIND = "scenario-v1"
@@ -297,8 +298,18 @@ class StageDeclaration(ScenarioModel):
 
 
 class TrackDeclaration(ScenarioModel):
+    """One music identity the script can play, with how it should be produced.
+
+    `generation` is the soundtrack component's own `TrackGenerationIntent`, not a
+    second shape that means the same thing: whoever produces the track - this
+    recipe, another one, or a human handing over a file - reads the same
+    provider-neutral intent, and the shared prompt compiler turns it into the
+    same guarantees about performance, ending and originality.
+    """
+
     track_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     brief: str = Field(min_length=1, max_length=600)
+    generation: TrackGenerationIntent
 
     @field_validator("brief")
     @classmethod

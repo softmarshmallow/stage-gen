@@ -40,6 +40,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.components.dialogue_sequence import DialogueNode
+from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_ui import (
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
@@ -71,6 +72,7 @@ from stage_gen.media import (
     measure_alpha_ground_contact,
     probe_audio,
     repack_alpha_components,
+    validate_music_payload,
 )
 from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
 from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
@@ -134,7 +136,6 @@ from stage_gen.recipes.sideview_platformer.package_types import (
 from stage_gen.recipes.sideview_platformer.projectile_silhouettes import (
     projectile_silhouette_art,
 )
-from stage_gen.recipes.sideview_platformer.soundtrack import soundtrack_track_prompt
 from stage_gen.recipes.sideview_platformer.weapon_silhouettes import player_equipment_art
 from stage_gen.resources import inventory_template_path
 
@@ -489,7 +490,13 @@ class PreparedContentNodeHandler:
         output = self._run_dir / node.port("audio").artifact_ref
         result = await self._music.generate(
             MusicGenerationRequest(
-                prompt=soundtrack_track_prompt(self._package.game.game_id, track),
+                prompt=music_track_prompt(
+                    medium="a 2D game",
+                    game_id=self._package.game.game_id,
+                    track_id=track.track_id,
+                    creative_brief=track.creative_brief,
+                    generation=track.generation,
+                ),
                 artifact_path=output,
                 output_format="mp3",
                 timeout_seconds=900,
@@ -499,7 +506,7 @@ class PreparedContentNodeHandler:
                     "target_duration_seconds": track.generation.target_duration_seconds,
                     "seamless_loop": track.generation.seamless_loop,
                 },
-                validate=lambda artifact: _validate_audio_bytes(artifact.data),
+                validate=lambda artifact: validate_music_payload(artifact.data),
             )
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
@@ -1974,12 +1981,6 @@ def _inventory_panel_evidence(data: bytes) -> bytes:
     stream = io.BytesIO()
     canvas.convert("RGB").save(stream, format="PNG", optimize=False)
     return stream.getvalue()
-
-
-def _validate_audio_bytes(data: bytes) -> dict[str, object]:
-    if len(data) < 64 * 1024:
-        raise ValueError("generated soundtrack payload is too small")
-    return {"minimum_bytes": 64 * 1024, "bytes": len(data)}
 
 
 def _contact_sheet(entries: Sequence[tuple[str, Path]], *, title: str) -> bytes:

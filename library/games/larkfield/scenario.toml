@@ -19,7 +19,7 @@ revision = 2
 # is. Editing the prose changes this digest; `stage-gen scenario check` reports
 # the correct value and `--write-digest` repairs it.
 script = "scenarios/last_class.scenario"
-script_sha256 = "fe9f032250c425745907dca49d40b4424f7c25fd34d074248e4e5811760a0103"
+script_sha256 = "7e9eb353afd3750b246f8d80e69500040a9f2b20ff82e0d054920026897e24e4"
 entry = "arrival"
 
 # ------------------------------------------------------------------- the cast
@@ -65,9 +65,40 @@ brief = "A small disused school broadcast room under a staircase, grey equipment
 
 # ------------------------------------------------------------------ the audio
 
+# Three moods, and the script decides which one is playing. Each carries the
+# soundtrack component's own generation intent rather than a second shape that
+# means the same thing, so the shared prompt compiler gives all of them the same
+# guarantees about performance, ending and originality.
+
 [[tracks]]
 track_id = "summer_room"
-brief = "Sparse piano over cicadas, unhurried, a little hollow"
+brief = "Sparse unhurried piano over a wash of cicadas, a little hollow, late afternoon heat with nowhere to be"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 75
+
+[[tracks]]
+track_id = "dusk_signal"
+brief = "The same piano turned watchful, low sustained strings underneath and a faint repeating three-note figure, curious rather than frightening"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 75
+
+[[tracks]]
+track_id = "under_the_stairs"
+brief = "Close and airless, muted electric piano over faint tape hiss and the hum of old equipment, small and secret"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 60
 
 # ------------------------------------------------------------------ the flags
 # Booleans, declared up front. Anything a condition reads must appear here, and

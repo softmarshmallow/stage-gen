@@ -38,12 +38,12 @@ def _png(width: int, height: int, *, alpha: bool) -> bytes:
 def _plan(scene: ResolvedDialogueScene, index: int) -> dict[str, object]:
     profile = scene.actors[index].profile
     return {
-        "schema_version": 6,
-        "kind": "dialogue-scene-plan-v6",
+        "schema_version": 7,
+        "kind": "dialogue-scene-plan-v7",
         "recipe_version": "dialogue-scene-v7",
         "policy_version": "coming-of-age-nonexplicit-v3",
         "expression_profile": "expression-core-v3",
-        "request_sha256": scene.request_sha256,
+        "art_request_sha256": scene.art_request_sha256,
         "appearance_id": profile.profile.profile_id,
         "character_profile_ref": profile.ref,
         "character_profile_source_sha256": profile.source_sha256,

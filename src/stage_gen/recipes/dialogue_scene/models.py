@@ -313,12 +313,18 @@ class DialogueScenePlanDraft(PersistedContractModel):
 
 
 class DialogueScenePlan(PersistedContractModel):
-    schema_version: Literal[6]
-    kind: Literal["dialogue-scene-plan-v6"]
+    schema_version: Literal[7]
+    kind: Literal["dialogue-scene-plan-v7"]
     recipe_version: Literal["dialogue-scene-v7"]
     policy_version: Literal["coming-of-age-nonexplicit-v3"]
     expression_profile: Literal["expression-core-v3"]
-    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    #: The ART request this plan is a function of, not the whole document.
+    #:
+    #: A plan says how one actor is drawn. It does not depend on a line of
+    #: dialogue, and its cache key says so - so binding it to the full request
+    #: digest made a prose edit leave a correctly-reused plan carrying a digest
+    #: that no longer matched, and the bundle refused a run that was fine.
+    art_request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     appearance_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,95}$")
     character_profile_ref: str = Field(min_length=1)
     character_profile_source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -369,16 +375,30 @@ class MediaFacts(PersistedContractModel):
     alpha: bool
 
 
+#: A track shorter than this cannot sit under a scene without an audible seam.
+MINIMUM_TRACK_SECONDS = 20.0
+
+
+class AudioFacts(PersistedContractModel):
+    """What a decoded track actually is, probed rather than taken on trust."""
+
+    mime_type: Literal["audio/mpeg"]
+    duration_seconds: float = Field(gt=0)
+
+
 class BundleArtifact(PersistedContractModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
-    role: Literal["style", "background", "expression"]
+    role: Literal["style", "background", "expression", "track"]
     #: Which actor an expression belongs to; None for a style plate or backdrop.
     actor_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    #: Which scenario track an audio artifact carries; None for every image role.
+    track_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
     state: ExpressionState | None = None
     path: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bytes: int = Field(ge=1)
-    media: MediaFacts
+    #: Discriminated on mime_type, so an image asset's wire shape is unchanged.
+    media: MediaFacts | AudioFacts = Field(discriminator="mime_type")
     provenance_path: str = Field(min_length=1)
     provenance_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     selected_attempt: int = Field(ge=0, le=6)
@@ -392,6 +412,31 @@ class BundleArtifact(PersistedContractModel):
 
     @model_validator(mode="after")
     def role_media_contract(self) -> BundleArtifact:
+        """Each role's media is exactly what its consumer draws or plays.
+
+        The image roles are pinned to a canvas; a track is pinned to being audio
+        that a scene can actually sit under. The two are checked separately
+        because a track has no canvas and an image has no duration - that is
+        what the discriminated union is for.
+        """
+
+        if self.role == "track":
+            if self.track_id is None:
+                raise ValueError("track asset requires a track_id")
+            if self.state is not None:
+                raise ValueError("only expression assets may name a state")
+            if not isinstance(self.media, AudioFacts):
+                raise ValueError("track asset requires audio media facts")
+            if self.media.duration_seconds < MINIMUM_TRACK_SECONDS:
+                raise ValueError(
+                    f"track media contract requires at least {MINIMUM_TRACK_SECONDS}s; "
+                    f"received {self.media.duration_seconds}"
+                )
+            return self
+        if self.track_id is not None:
+            raise ValueError("only track assets may name a track_id")
+        if not isinstance(self.media, MediaFacts):
+            raise ValueError(f"{self.role} asset requires image media facts")
         expected = (1672, 941, False) if self.role == "background" else (1024, 1536, False)
         if self.role == "expression":
             expected = (1024, 1536, True)
@@ -517,6 +562,13 @@ class SceneStage(PersistedContractModel):
     alt: str = Field(min_length=1, max_length=160)
 
 
+class SceneTrack(PersistedContractModel):
+    """One generated music track, named by the track the scenario plays."""
+
+    track_id: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    asset_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+
+
 class SceneAppearance(PersistedContractModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
     label: str = Field(min_length=1, max_length=96)
@@ -568,6 +620,8 @@ class SceneData(PersistedContractModel):
     scene_label: str = Field(min_length=1, max_length=160)
     style_asset_id: Literal["style-plate"]
     stages: list[SceneStage] = Field(min_length=1, max_length=16)
+    #: Empty when the scenario declares no music; a silent scene is valid.
+    tracks: list[SceneTrack] = Field(default_factory=list, max_length=32)
     actors: list[SceneActor] = Field(min_length=1, max_length=16)
     placement: ScenePlacement
     available_states: list[ExpressionState]
@@ -612,6 +666,15 @@ class SceneData(PersistedContractModel):
             raise ValueError(
                 "scene_data stages must be exactly the scenario's stages: "
                 + ", ".join(sorted(declared_stages))
+            )
+        track_ids = [track.track_id for track in self.tracks]
+        if len(track_ids) != len(set(track_ids)):
+            raise ValueError("scene_data track ids must be unique")
+        declared_tracks = {track.track_id for track in self.scenario.tracks}
+        if declared_tracks != set(track_ids):
+            raise ValueError(
+                "scene_data tracks must be exactly the scenario's tracks: "
+                + ", ".join(sorted(declared_tracks))
             )
         return self
 
@@ -664,10 +727,14 @@ class DialogueBundle(PersistedContractModel):
         expressions = sum(artifact.role == "expression" for artifact in self.assets)
         if expressions != len(self.scene_data.actors) * len(EXPRESSION_STATES):
             raise ValueError("bundle must contain every expression state for every actor")
+        tracks = sum(artifact.role == "track" for artifact in self.assets)
+        if tracks != len(self.scene_data.tracks):
+            raise ValueError("bundle must contain one track per declared track")
         asset_ids = {artifact.id for artifact in self.assets}
         scene_asset_ids = {
             self.scene_data.style_asset_id,
             *(stage.asset_id for stage in self.scene_data.stages),
+            *(track.asset_id for track in self.scene_data.tracks),
             *(
                 variant.asset_id
                 for actor in self.scene_data.actors

@@ -34,8 +34,9 @@ from gnode import (
     PortRef,
     seal_graph,
 )
+from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
 from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
-from stage_gen.recipes.dialogue_scene.prompts import background_prompt, plan_prompt
+from stage_gen.recipes.dialogue_scene.prompts import background_prompt, plan_prompt, track_prompt
 from stage_gen.recipes.dialogue_scene.scene_types import (
     ATTEMPT_LEDGER_KIND,
     BACKDROP_GENERATE,
@@ -64,9 +65,12 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     SPRITE_MATTE,
     STYLE_ANCHOR_KIND,
     STYLE_SELECT,
+    TRACK_GENERATE,
+    TRACK_KIND,
 )
 
 if TYPE_CHECKING:
+    from stage_gen.components.scenario import TrackDeclaration
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
@@ -86,6 +90,7 @@ class DialogueOperationKind(StrEnum):
     IMAGE_GENERATION = "image_generation"
     STRUCTURED_GENERATION = "structured_generation"
     BACKGROUND_REMOVAL = "background_removal"
+    MUSIC_GENERATION = "music_generation"
 
 
 class DialogueSceneGraph(Graph):
@@ -123,6 +128,7 @@ class DialogueSceneGraph(Graph):
 IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output",)
 BACKGROUND_REMOVAL_FEATURES = ("alpha_matte",)
+MUSIC_FEATURES = ("instrumental_loop",)
 
 
 def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
@@ -157,6 +163,18 @@ def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
             verified_on="2026-08-20",
         ),
     ]
+    bindings.append(
+        Binding(
+            operation=DialogueOperationKind.MUSIC_GENERATION,
+            model=ModelRef(model=config.music_model, provider="openrouter"),
+            features=frozenset(MUSIC_FEATURES),
+            resource_id="openrouter-music",
+            estimated_duration_seconds=180.0,
+            estimated_cost_low_usd=0.10,
+            estimated_cost_high_usd=0.80,
+            verified_on="2026-08-14",
+        )
+    )
     if config.fal_key is not None:
         bindings.append(
             Binding(
@@ -197,6 +215,12 @@ def _brief_digest(brief: str) -> str:
     """One stage's own words, so editing one backdrop does not re-bill the others."""
 
     return sha256(brief.encode("utf-8")).hexdigest()
+
+
+def _track_digest(track: TrackDeclaration) -> str:
+    """One track's brief and production intent, and nothing else in the scenario."""
+
+    return sha256(canonical_json_bytes(track)).hexdigest()
 
 
 def expression_template_ids(scene: ResolvedDialogueScene) -> tuple[str, str]:
@@ -401,8 +425,8 @@ def build_dialogue_scene_graph(
                 _attempts(plan_node),
             ),
             card=NodeCard(
-                prompt=plan_prompt(request, scene.request_sha256, actor.profile.profile),
-                schema_name="dialogue_scene_plan_v6",
+                prompt=plan_prompt(request, scene.art_request_sha256, actor.profile.profile),
+                schema_name="dialogue_scene_plan_v7",
                 reference_inputs=(style_ref,),
             ),
         )
@@ -483,6 +507,35 @@ def build_dialogue_scene_graph(
                     ports=(sprite,),
                     card=NodeCard(reference_inputs=(source_ref,)),
                 )
+
+    # ------------------------------------------------------------------ tracks
+    # One track per declared music identity, exactly as one backdrop per declared
+    # stage. The scenario is the catalog: it says which tracks exist and what each
+    # one is for, and admission already refused a script that plays an undeclared
+    # track or declares one nothing plays.
+    for track in scene.scenario.program.tracks:
+        node_id = f"track-{_slug(track.track_id)}"
+        terminal_ids.append(node_id)
+        builder.add(
+            TRACK_GENERATE,
+            node_id,
+            domain="track",
+            description=f"Generate the {track.track_id} track",
+            params={"track": track.track_id},
+            # Ordered after the request, not descended from it. Music is not
+            # drawn against the style plate and owes nothing to the art
+            # identity; its own brief is the whole of its cache key, so
+            # rewording a line, re-plating the scene, or editing another
+            # track's brief all leave this one cached.
+            depends_on=("scene-request",),
+            cache_depends_on=(),
+            input_digests=(_track_digest(track),),
+            ports=(
+                _artifact("audio", f"assets/{node_id}.mp3", TRACK_KIND),
+                _attempts(node_id),
+            ),
+            card=NodeCard(prompt=track_prompt(request.game_id, track)),
+        )
 
     builder.add(
         BUNDLE_PACKAGE,

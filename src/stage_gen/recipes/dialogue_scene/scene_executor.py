@@ -25,6 +25,7 @@ from gnode import (
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.runtime import (
     create_background_removal_service,
+    create_music_service,
     create_openai_image_service,
     create_structured_service,
 )
@@ -138,6 +139,11 @@ class DialogueSceneExecutor:
             model=self._config.text_model,
             base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
         )
+        music_service = create_music_service(
+            api_key=self._config.open_router_api_key,
+            model=self._config.music_model,
+            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
+        )
         background_service = (
             create_background_removal_service(
                 api_key=self._config.fal_key,
@@ -159,6 +165,7 @@ class DialogueSceneExecutor:
             image_service=image_service,
             structured_service=structured_service,
             background_service=background_service,
+            music_service=music_service,
             capability_timeout_s=self._config.capability_timeout_s,
         )
         try:
@@ -172,6 +179,7 @@ class DialogueSceneExecutor:
             trace.close()
             await image_service.aclose()
             await structured_service.aclose()
+            await music_service.aclose()
             if background_service is not None:
                 await background_service.aclose()
         write_run_summary(run_dir / "execution-summary.json", summary)

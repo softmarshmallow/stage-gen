@@ -61,6 +61,12 @@ export interface DialogueScenePresentation {
   readonly sourceFramingZoom: number;
 }
 
+export interface DialogueSceneTrack {
+  readonly trackId: string;
+  readonly id: string;
+  readonly src: string;
+}
+
 export interface DialogueSceneFixture {
   readonly schemaVersion: typeof DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION;
   readonly fixtureId: string;
@@ -69,6 +75,8 @@ export interface DialogueSceneFixture {
   readonly presentation: DialogueScenePresentation;
   readonly styleSrc: string;
   readonly stages: readonly DialogueSceneStage[];
+  /** Empty when the scenario declares no music; a silent scene is valid. */
+  readonly tracks: readonly DialogueSceneTrack[];
   readonly actors: readonly DialogueSceneActor[];
   /** The compiled narrative this scene plays; see `lib/scenario`. */
   readonly scenario: ScenarioProgram;
@@ -81,6 +89,12 @@ const RUN_ASSET_PATH =
   /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/;
 const INSTALLED_THEME_ASSET_PATH =
   /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
+// Audio is confined exactly as art is, in its own pair rather than by loosening
+// the image patterns: a backdrop that resolved to an .mp3 should still be refused.
+const RUN_AUDIO_PATH =
+  /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.mp3$/;
+const INSTALLED_THEME_AUDIO_PATH =
+  /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.mp3$/;
 const STABLE_ID = /^[a-z][a-z0-9-]{0,63}$/;
 const SNAKE_ID = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -103,6 +117,7 @@ export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixtu
       "presentation",
       "styleSrc",
       "stages",
+      "tracks",
       "actors",
       "scenario",
     ],
@@ -133,6 +148,20 @@ export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixtu
       });
     }),
   );
+  const tracks = Object.freeze(
+    list(root.tracks, "tracks", 0).map((entry, index) => {
+      const track = strictRecord(
+        entry,
+        ["trackId", "id", "src"],
+        `dialogue-scene fixture tracks[${index}]`,
+      );
+      return Object.freeze({
+        trackId: snakeId(track.trackId, `tracks[${index}].trackId`),
+        id: stableId(track.id, `tracks[${index}].id`),
+        src: audioPath(track.src, `tracks[${index}].src`),
+      });
+    }),
+  );
   const actors = Object.freeze(
     list(root.actors, "actors", 1).map((entry, index) => actor(entry, index)),
   );
@@ -151,12 +180,14 @@ export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixtu
     }),
     styleSrc: assetPath(root.styleSrc, "styleSrc"),
     stages,
+    tracks,
     actors,
     scenario,
   });
 
   assertOneOrigin(fixture);
   assertArtCoversNarrative(fixture);
+  assertAudioCoversNarrative(fixture);
   return fixture;
 }
 
@@ -264,6 +295,7 @@ function assertOneOrigin(fixture: DialogueSceneFixture): void {
     fixture.styleSrc,
     ...fixture.stages.map((stage) => stage.src),
     ...fixture.actors.flatMap((entry) => entry.expressions.map((variant) => variant.src)),
+    ...fixture.tracks.map((track) => track.src),
   ];
   if (new Set(paths).size !== paths.length) {
     throw new Error("dialogue-scene fixture asset paths must be distinct");
@@ -274,11 +306,24 @@ function assertOneOrigin(fixture: DialogueSceneFixture): void {
       if (run !== null) return `run:${run[1]}`;
       const theme = INSTALLED_THEME_ASSET_PATH.exec(path);
       if (theme !== null) return `theme:${theme[1]}`;
+      const runAudio = RUN_AUDIO_PATH.exec(path);
+      if (runAudio !== null) return `run:${runAudio[1]}`;
+      const themeAudio = INSTALLED_THEME_AUDIO_PATH.exec(path);
+      if (themeAudio !== null) return `theme:${themeAudio[1]}`;
       throw new Error(`dialogue-scene fixture asset path is not confined: ${path}`);
     }),
   );
   if (origins.size !== 1) {
     throw new Error("dialogue-scene fixture assets must all share one run or installed bundle");
+  }
+}
+
+function assertAudioCoversNarrative(fixture: DialogueSceneFixture): void {
+  const trackIds = new Set(fixture.tracks.map((track) => track.trackId));
+  for (const track of fixture.scenario.tracks) {
+    if (!trackIds.has(track.trackId)) {
+      throw new Error(`dialogue-scene fixture has no audio for track ${track.trackId}`);
+    }
   }
 }
 
@@ -388,6 +433,18 @@ function assetPath(value: unknown, label: string): string {
   ) {
     throw new Error(
       `dialogue-scene fixture ${label} must be a confined run or installed-theme PNG path`,
+    );
+  }
+  return value;
+}
+
+function audioPath(value: unknown, label: string): string {
+  if (
+    typeof value !== "string" ||
+    (!RUN_AUDIO_PATH.test(value) && !INSTALLED_THEME_AUDIO_PATH.test(value))
+  ) {
+    throw new Error(
+      `dialogue-scene fixture ${label} must be a confined run or installed-theme MP3 path`,
     );
   }
   return value;

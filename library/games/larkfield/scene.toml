@@ -25,7 +25,7 @@ style_reference_id = "cover"
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenario.toml"
-source_sha256 = "6a02267404dd2d1fe9fe652dfa43db755c81506ed226db325e53898d83afe738"
+source_sha256 = "71b6d7109b77a16eefcc81ed7185f8dcd641e1031c6d0106d356e901e0570a2a"
 
 # Which package members draw each actor the scenario can show. The scenario says
 # who exists and what they can wear on their face; this says whose profile and

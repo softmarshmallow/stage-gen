@@ -22,9 +22,10 @@ export const DIALOGUE_SCENE_RECIPE_VERSION = "dialogue-scene-v7" as const;
 
 export interface DialogueSceneBundleAsset {
   readonly id: string;
-  readonly role: "style" | "background" | "expression";
+  readonly role: "style" | "background" | "expression" | "track";
   readonly actorId: string | null;
   readonly state: string | null;
+  readonly trackId: string | null;
   readonly path: string;
   readonly sha256: string;
 }
@@ -65,12 +66,18 @@ interface SceneActor {
   readonly expression_variants: readonly SceneExpressionVariant[];
 }
 
+interface SceneTrack {
+  readonly track_id: string;
+  readonly asset_id: string;
+}
+
 interface SceneData {
   readonly scene_id: string;
   readonly title: string;
   readonly scene_label: string;
   readonly style_asset_id: string;
   readonly stages: readonly SceneStage[];
+  readonly tracks: readonly SceneTrack[];
   readonly actors: readonly SceneActor[];
   readonly placement: {
     readonly framing_zoom: number;
@@ -89,7 +96,7 @@ export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
   const assets = array(root.assets, "bundle.assets").map((entry, index) => {
     const asset = record(entry, `bundle.assets[${index}]`);
     const role = asset.role;
-    if (role !== "style" && role !== "background" && role !== "expression") {
+    if (role !== "style" && role !== "background" && role !== "expression" && role !== "track") {
       throw new Error(`bundle.assets[${index}].role is not a known role`);
     }
     return Object.freeze({
@@ -101,6 +108,7 @@ export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
       // failing validation for not being an expression.
       actorId: optional(asset.actor_id, "asset actor_id"),
       state: optional(asset.state, "asset state"),
+      trackId: optional(asset.track_id, "asset track_id"),
       path: text(asset.path, `bundle.assets[${index}].path`),
       sha256: text(asset.sha256, `bundle.assets[${index}].sha256`),
     });
@@ -112,6 +120,13 @@ export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
     title: text(sceneRaw.title, "scene_data.title"),
     scene_label: text(sceneRaw.scene_label, "scene_data.scene_label"),
     style_asset_id: text(sceneRaw.style_asset_id, "scene_data.style_asset_id"),
+    tracks: array(sceneRaw.tracks ?? [], "scene_data.tracks").map((entry, index) => {
+      const track = record(entry, `scene_data.tracks[${index}]`);
+      return Object.freeze({
+        track_id: text(track.track_id, `scene_data.tracks[${index}].track_id`),
+        asset_id: text(track.asset_id, `scene_data.tracks[${index}].asset_id`),
+      });
+    }),
     stages: array(sceneRaw.stages, "scene_data.stages").map((entry, index) => {
       const stage = record(entry, `scene_data.stages[${index}]`);
       return Object.freeze({
@@ -206,6 +221,11 @@ export function projectDialogueSceneFixture(
       id: stage.asset_id,
       src: assetUrl(require(stage.asset_id)),
       alt: stage.alt,
+    })),
+    tracks: scene.tracks.map((track) => ({
+      trackId: track.track_id,
+      id: track.asset_id,
+      src: assetUrl(require(track.asset_id)),
     })),
     actors: scene.actors.map((actor) => ({
       actorId: actor.actor_id,

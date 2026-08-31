@@ -12,6 +12,7 @@ from gnode import (
 
 from .audio import (
     DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
+    MINIMUM_MUSIC_PAYLOAD_BYTES,
     AudioProbe,
     AudioProcessResult,
     AudioProcessRunner,
@@ -19,6 +20,7 @@ from .audio import (
     parse_loudnorm_json,
     probe_audio,
     run_process,
+    validate_music_payload,
 )
 from .guide_lattice import (
     CYAN_GUIDES,
@@ -124,6 +126,7 @@ __all__ = [
     "assemble_generated_bridge",
     "assemble_seam_repaint",
     "assert_audio_signature",
+    "validate_music_payload",
     "assert_image_signature",
     "build_bridge_conditioning",
     "build_fold_repaint_conditioning",
@@ -146,6 +149,7 @@ __all__ = [
     "normalize_png",
     "normalize_png_cover",
     "parse_loudnorm_json",
+    "MINIMUM_MUSIC_PAYLOAD_BYTES",
     "probe_audio",
     "repack_alpha_components",
     "repair_internal_cell_seams",

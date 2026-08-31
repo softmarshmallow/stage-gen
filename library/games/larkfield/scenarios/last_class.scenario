@@ -75,6 +75,8 @@ label dismissed:
 
 label haruki_arrives:
     stage classroom_dusk
+    stop summer_room
+    play dusk_signal
 
     "The corridor light clicks on outside. Someone has been standing in the doorway long enough to have heard most of it."
 
@@ -167,6 +169,8 @@ label pretext:
 
 label the_radio_room:
     stage radio_room
+    stop dusk_signal
+    play under_the_stairs
 
     "The room under the stairs is smaller than a door suggests. Dust on the console, a wall of grey panels, and one dial still turned to where somebody left it."
 
@@ -185,6 +189,8 @@ label the_radio_room:
 
 label evening_ends:
     stage classroom_dusk
+    stop under_the_stairs
+    play dusk_signal
 
     "The fluorescent tubes tick overhead. Somewhere below, a door closes, and the building settles the way it does every evening at about this time."
 
@@ -206,7 +212,7 @@ label ending_broadcast:
 
     hide nao
     hide haruki
-    stop summer_room
+    stop under_the_stairs
     end broadcast
 
 
@@ -217,7 +223,7 @@ label ending_talked:
 
     hide nao
     hide haruki
-    stop summer_room
+    stop under_the_stairs
     end talked
 
 
@@ -229,7 +235,7 @@ label ending_listened:
     "She stops the recorder without looking at it, the way you stop a clock you already trust."
 
     hide nao
-    stop summer_room
+    stop dusk_signal
     end listened
 
 
@@ -241,5 +247,5 @@ label ending_locked_out:
     "She winds the cable around the recorder twice, and does not offer to play it back."
 
     hide nao
-    stop summer_room
+    stop dusk_signal
     end locked_out

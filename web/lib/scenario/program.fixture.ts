@@ -39,7 +39,18 @@ export function ferryProgramDocument(): Record<string, unknown> {
       { stage_id: "pier_dusk", brief: "A wooden harbor pier at dusk, lanterns just lit." },
       { stage_id: "boathouse", brief: "Inside the boathouse, coiled rope and a ticket booth." },
     ],
-    tracks: [{ track_id: "harbor_wind", brief: "Low wind over water and a far bell buoy." }],
+    tracks: [
+      {
+        track_id: "harbor_wind",
+        brief: "Low wind over water and a far bell buoy.",
+        generation: {
+          intent: "generate",
+          instrumental: true,
+          seamless_loop: true,
+          target_duration_seconds: 60,
+        },
+      },
+    ],
     flags: [
       { flag_id: "asked_the_fare" },
       { flag_id: "has_token" },

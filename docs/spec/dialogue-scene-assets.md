@@ -1,20 +1,24 @@
 # Visual Novel Scene Kit: dialogue-scene asset contract
 
-> **Status: implemented v2 headless recipe.** The Python `dialogue-scene`
+> **Status: implemented v3 headless recipe.** The Python `dialogue-scene`
 > recipe generates a portable, provider-neutral bundle. The web application is
 > a consumer adapter and never generates assets.
 
-The first slice packages one adult character identity, one required scene
-background, four static expression sprites, caller-authored dialogue, and
-presentation data. It does not own story generation, branching, relationship
-state, animation, rigging, lip sync, or a game runtime.
+One scene packages a cast of adult character identities, one backdrop per
+declared stage, four static expression sprites per drawable actor, one music
+track per declared track, and presentation data, around an authored `scenario`
+that owns the narrative. It does not own story generation, relationship state,
+animation, rigging, lip sync, or a game runtime.
+
+The graph reads no fixed count anywhere: the scenario declares the cast, the
+stages and the tracks, and the fan-out follows.
 
 ## Ownership and boundary
 
 | Location                                | Responsibility                                                                                                                                                                        |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/stage_gen/recipes/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v2 models, stage graph, cache identity, validation, and bundle assembly.                                              |
-| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, and background removal with one six-attempt retry owner.                                                                    |
+| `src/stage_gen/recipes/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v3 models, stage graph, cache identity, validation, and bundle assembly.                                              |
+| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, music generation, and background removal with one six-attempt retry owner. `scenario/` owns the narrative contract and its proof; `game_soundtrack/` owns authored track intent and the one music prompt compiler both recipes use. |
 | `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms.                                                                                                                                 |
 | `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
 | `web/`                                  | Strict bundle validation, immutable installation, projection into web runtime objects, activation, status, and rollback. It never imports Python recipe internals or calls providers. |
@@ -23,7 +27,7 @@ state, animation, rigging, lip sync, or a game runtime.
 Recipe vocabulary and visual assumptions do not enter generic components; web
 camera, UI, and gameplay assumptions do not enter the producer bundle.
 
-## Authored package: `dialogue-scene-v2`
+## Authored package: `dialogue-scene-v3`
 
 One scene is one directory under `library/games/`, holding `scene.toml` beside
 the members it names by exact relative path: the character profile it binds, and
@@ -93,11 +97,13 @@ redistribution permission. A declared reference nothing consumes is refused.
 
 ## Plan and stage graph
 
-Structured generation writes `dialogue-scene-plan-v5` with
-`schema_version: 5`, `recipe_version: "dialogue-scene-v6"`,
+Structured generation writes one `dialogue-scene-plan-v7` per drawable actor,
+with `schema_version: 7`, `recipe_version: "dialogue-scene-v7"`,
 `policy_version: "coming-of-age-nonexplicit-v3"`, and
-`expression_profile: "expression-core-v3"`. It binds the canonical document
-digest, appearance id, the authored profile and identity-plate digests, shared
+`expression_profile: "expression-core-v3"`. It binds the **art** request
+digest - not the whole document, because a plan is not a function of a line of
+dialogue and its cache key says so - the appearance id, the authored profile and
+identity-plate digests, shared
 identity/wardrobe/pose/lighting locks, fixed canvas geometry, the four
 expression directions, and prompt-template digests.
 
@@ -113,11 +119,15 @@ The exact stages are:
 2. `style-selection`: select a mode and locally materialize the style anchor.
 3. `identity-plate`: publish the authored plate into the run; nothing generates it.
 4. `scene-plan`: produce and validate the strict structured plan.
-5. `background`: produce the opaque scene plate against the authored plate.
-6. `neutral`: derive the neutral opaque/chroma sprite from the authored plate.
-7. `expressions`: edit the neutral reference into three expression variants.
-8. `canonicalize`: create the four validated transparent runtime sprites.
-9. `bundle`: validate all bindings and write the portable bundle.
+5. `backdrops`: one opaque plate per declared stage, against the style plate.
+6. `neutral`: derive each actor's neutral sprite from the style plate.
+7. `expressions`: edit each neutral reference into three expression variants.
+8. `canonicalize`: create the validated transparent runtime sprites.
+9. `tracks`: one music track per declared track, from its authored brief and
+   generation intent. Ordered after the request but descended from neither the
+   narrative nor the art: music owes nothing to a style plate, so its own brief
+   and intent are the whole of its cache key.
+10. `bundle`: validate all bindings and write the portable bundle.
 
 Every provider operation owns one initial attempt plus at most five retries.
 Transport, decoding, schema/media, dimension, chroma, and alpha failures remain
@@ -130,23 +140,27 @@ Within structured provenance, standard JSON Schema vocabulary—including
 its mandated spelling. Recipe-owned property names, definition identifiers,
 and matching reference targets are lower_snake_case.
 
-## Portable bundle: `dialogue-scene-bundle-v5`
+## Portable bundle: `dialogue-scene-bundle-v6`
 
-`bundle.json` is the adapter's sole input. It has `schema_version: 5`,
-`kind: "dialogue-scene-bundle-v5"`, `recipe: "dialogue-scene"`, and
-`recipe_version: "dialogue-scene-v6"`. It binds the game id, canonical document
-and plan files plus their provenance paths and SHA-256 digests, the canonical
-character profile, the authored identity plate and the package path it came
-from, `attempts.json`, run identity, review state, rights state, and exactly six
-selected assets:
+`bundle.json` is the adapter's sole input. It has `schema_version: 6`,
+`kind: "dialogue-scene-bundle-v6"`, `recipe: "dialogue-scene"`, and
+`recipe_version: "dialogue-scene-v7"`. It binds the game id, canonical document
+and per-actor plan files plus their provenance paths and SHA-256 digests, each
+canonical character profile, the authored style plate and the package path it
+came from, the compiled scenario, `attempts.json`, run identity, review state,
+rights state, and the selected assets:
 
-- one opaque `concept` PNG at `1024x1536`, republished from the authored plate;
-- one opaque `background` PNG at `1672x941`; and
-- four `1024x1536` alpha-bearing `expression` PNGs, one for each locked state.
+- one opaque `style` PNG at `1024x1536`, republished from the authored plate;
+- one opaque `background` PNG at `1672x941` per declared stage;
+- four `1024x1536` alpha-bearing `expression` PNGs per drawable actor, one for
+  each locked state; and
+- one `audio/mpeg` `track` per declared track.
 
-Each asset record includes its id, role, optional expression state, portable
-path, content digest, byte count, media facts, provenance path and digest, and
-selected attempt. Rejected candidates and raw derivations remain lineage and
+Each asset record includes its id, role, optional expression state, optional
+actor or track id, portable path, content digest, byte count, media facts,
+provenance path and digest, and selected attempt. Media facts are discriminated
+on mime type: an image carries width, height and alpha, a track carries its
+probed duration, and each role is held to the one that fits it. Rejected candidates and raw derivations remain lineage and
 are never selected runtime assets.
 
 The strict `scene_data` projection carries recipe/caller-owned copy only:

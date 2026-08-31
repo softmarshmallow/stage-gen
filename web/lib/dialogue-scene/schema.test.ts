@@ -29,6 +29,11 @@ function fixture(): Record<string, unknown> {
       src: runSrc(`stage-${stage.stageId.replace(/_/g, "-")}`),
       alt: stage.brief.slice(0, 160),
     })),
+    tracks: program.tracks.map((track) => ({
+      trackId: track.trackId,
+      id: `track-${track.trackId.replace(/_/g, "-")}`,
+      src: `/api/assets/harborlight/assets/track-${track.trackId.replace(/_/g, "-")}.mp3`,
+    })),
     actors: program.cast
       .filter((member) => member.expressions.length > 0)
       .map((member) => ({
@@ -61,6 +66,20 @@ describe("dialogue-scene runtime fixture", () => {
     expect(parsed.actors.map((actor) => actor.actorId)).toEqual(["mara", "teo"]);
     expect(parsed.stages.map((stage) => stage.stageId)).toEqual(["pier_dusk", "boathouse"]);
     expect(Object.isFrozen(parsed)).toBeTrue();
+  });
+
+  test("it refuses a scenario that plays a track the fixture has no audio for", () => {
+    const value = fixture();
+    value.tracks = [];
+    expect(() => validateDialogueSceneFixture(value)).toThrow(
+      "has no audio for track harbor_wind",
+    );
+  });
+
+  test("it refuses a track whose src is not confined audio", () => {
+    const value = fixture();
+    (value.tracks as { src: string }[])[0]!.src = "/api/assets/harborlight/assets/track.png";
+    expect(() => validateDialogueSceneFixture(value)).toThrow("must be a confined run");
   });
 
   test("it refuses a scenario that stages a backdrop the fixture has no plate for", () => {
