@@ -83,9 +83,18 @@ The terminal bundle writes `manifest.json` into the run directory: the cover
 ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
 generated one), the win condition, and a digest-bound closure of every
-published artifact. The web consumer (`web/lib/pointclick/`, route
-`/room/<tag>`) renders the room from this document alone: backdrop image,
-positioned hotspot sprites, cursor verbs, an inventory bar, and a pure
+published artifact.
+
+The web consumer (`web/lib/pointclick/`, route `/room/<tag>`) plays the room
+from this document alone, on the same Phaser engine as the platformer: one
+canvas, sized to the authored frame plus a HUD band, scaled to whatever
+viewport it lands in. Backdrop, hotspot sprites, narration panel, inventory
+and verb controls are all drawn **inside the canvas** — the page contributes
+one link back and nothing else, so the same build is a phone game and a page
+embed. The engine is only the view: every transition goes through the pure
 reducer over `{flags, inventory, revealed, fired}` — the same state machine
 the solvability proof searched, so a room the proof admits is a room the
-runtime can finish.
+runtime can finish. Touch is first-class: tap acts, hold inspects (as does
+the secondary button), a mode toggle makes inspect sticky, and a control
+outlines the live hotspots, because a phone has no hover to discover them
+with.
