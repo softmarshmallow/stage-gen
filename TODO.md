@@ -31,12 +31,17 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
 - [ ] Independent semantic review of the twelve expression plates and three backdrops in
       `out/larkfield/`. Generated visuals are unreviewed by default and need a verdict from someone
       other than their producer before any of it is treated as acceptance evidence or published.
-- [ ] The style plate still shows one specific character. It is bound as Nao's own identity plate
-      AND as the scene's style plate, which works but conflates two roles in one file: the honest
-      shape is a character-free art-direction plate for the scene, with each actor binding its own
-      identity plate if it has one. Nothing is broken today - the prompt clauses were split so only
-      Nao is held to the plate's identity - but a second scene reusing this package would inherit
-      Nao's face as its house style.
+- [ ] Larkfield's style plate still shows one specific character. This is an authoring defect in
+      one package, not a system one: `style_reference_id` and a cast member's `reference_id` are
+      independent, a plate bound by nobody validates, and `has_identity_plate` then goes false for
+      every actor, so a character-free art-direction plate is already fully expressible with no
+      code change. Larkfield simply points both at `cover`. Nothing is broken today - the prompt
+      clauses were split so only Nao is held to the plate's identity - but a second scene reusing
+      this package would inherit Nao's face as its house style. The fix is a split rather than a
+      swap: declare a character-free `style` plate and let Nao keep the current image as her own
+      identity plate, since a swap alone would leave her identity binding pointing at nobody. Pure
+      authoring, but the style plate's digest is in every image node's cache identity, so it
+      re-bills all 15 images - batch it with the next run that regenerates anyway.
 - [ ] M2 — land the player shell: persistence, save slots, backlog, skip-already-read,
       auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster
       is blocked on — build it once for both.
