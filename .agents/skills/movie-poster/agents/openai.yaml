@@ -1,0 +1,4 @@
+interface:
+  display_name: "Movie Poster"
+  short_description: "Create restrained, realistic theatrical posters"
+  default_prompt: "Use $movie-poster to turn my approved synopsis into an original theatrical one-sheet."
