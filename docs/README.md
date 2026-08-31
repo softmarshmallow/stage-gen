@@ -56,6 +56,10 @@ Start here for the headless, general-purpose system:
 - [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md)
   — proposed TO-BE dialogue graph, choice, shot, cue-track, control-lease,
   skip/resume, checkpoint, and cutscene-realization semantics.
+- [Scenario: the executable narrative subset](spec/game/scenario.md) — the
+  ratified decision to build a data-only text IR rather than adopt a narrative
+  library, its closed statement vocabulary, its reachability proof, the runtime
+  boundary, and the staged milestone that makes a visual novel a game.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.

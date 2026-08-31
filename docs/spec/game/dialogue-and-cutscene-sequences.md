@@ -651,6 +651,14 @@ choices, conditional branches, effects, voice synchronization, timed cues,
 shot program, checkpoint rewind, or cutscene realization. A compiler MUST refuse
 anything outside that subset instead of erasing the unsupported semantics.
 
+The [scenario contract](scenario.md) is the widening of that subset chosen for
+implementation: `dialogue`, `choice`, `branch`, `action`, and `exit` nodes with
+flag-only conditions, plus a reachability proof and a deterministic runtime. It
+does not restate or amend this specification, which remains the canonical
+semantic authority; it records which part of it is built first, and why the
+implementation is a data-only text IR rather than an adopted narrative engine.
+Node kinds outside the scenario subset stay refused rather than approximated.
+
 The current prepared sequence and runtime shapes remain valid only as the exact
 `prepared-game-runtime-v10` projection. They MUST NOT silently acquire unsupported
 shot, timeline, or cutscene semantics. A future adapter must either emit the

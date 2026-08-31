@@ -136,7 +136,11 @@ dialogue box in the platformer and the visual-novel scene are two presentations
 of one ordered cursor over beats, kept in `web/lib/dialogue/` free of any
 engine, manifest, or genre vocabulary — each consumer owns only how it draws
 the ends. That boundary is what lets a conversation become a node later without
-either genre owning the answer.
+either genre owning the answer. The [scenario contract](game/scenario.md)
+records the next step: one data-only text IR with a closed statement
+vocabulary, admitted by a reachability proof the way the room's puzzle already
+is, deliberately built here rather than adopted from a narrative engine whose
+script is code.
 
 The Python package under `src/stage_gen/` is the sole headless implementation.
 Node and TypeScript are confined to the optional `web/` adapter.

@@ -11,6 +11,23 @@ publication still require explicit authorization even when their implementation 
       and `docs/media/`, plus `docs/generated-media-inventory.json`. Replace or retire each contract
       atomically with its consumers, digest bindings, and rejection tests; do not add aliases.
 
+## Scenario
+
+The decision and target contract are in [scenario](docs/spec/game/scenario.md). M1 and M2 are
+ordered but coupled: branching without skip-already-read is unexplorable in practice.
+
+- [ ] M1 — land `scenario-v1`: the authored text IR with its closed statement vocabulary, the
+      reachability proof that refuses an unreachable ending, orphan label, unset flag, or
+      non-terminating block, and the deterministic runtime the visual-novel consumer draws. The
+      package grows a cast of several characters and several stages; that part is horizontal
+      scaling of proven generation, not a new capability.
+- [ ] M2 — land the player shell: persistence, save slots, backlog, skip-already-read,
+      auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster
+      is blocked on — build it once for both.
+- [ ] Retire the parallel beat list once M1 lands. The platformer's village dialogue box and the
+      visual-novel scene already share one conversation core; both should consume scenarios rather
+      than keeping a second authored shape that can drift.
+
 ## Runtime acceptance
 
 - [ ] Add the producer-owned `character-hurt` four-frame strip and optional runtime-manifest entry.
