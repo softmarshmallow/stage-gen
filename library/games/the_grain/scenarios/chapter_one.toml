@@ -1,0 +1,52 @@
+schema_version = 1
+kind = "scenario-v1"
+game_id = "the_grain"
+scenario_id = "chapter_one"
+display_name = "One Person There"
+revision = 1
+script = "scenarios/chapter_one.scenario"
+script_sha256 = "d9c8a412e1fd0472d35c9a9189c6d398c5a5957b94ce6e3b068bdbee6348f76a"
+entry = "office_closing"
+
+[[cast]]
+actor_id = "henry_calder"
+display_name = "Henry Calder"
+
+[[cast]]
+actor_id = "ruth_ellery"
+display_name = "Ruth Ellery"
+expressions = ["composed", "exposed"]
+
+[[cast]]
+actor_id = "edwin_price"
+display_name = "Edwin Price"
+expressions = ["composed", "wary"]
+
+[[cast]]
+actor_id = "lydia_shaw"
+display_name = "Lydia Shaw"
+expressions = ["composed", "watchful"]
+
+[[stages]]
+stage_id = "calder_office_late_afternoon"
+brief = "A modest private investigator office in Los Angeles in 1972, late afternoon, frosted-glass door, two client chairs, filing cabinet, telephone, fan, no people, no readable text"
+
+[[stages]]
+stage_id = "tollands_motor_court_after_closing"
+brief = "The covered motor court of an original luxury Los Angeles department store after closing in 1972, dark stone entrance, illuminated display windows beyond, no people, no readable branding"
+
+[[stages]]
+stage_id = "tollands_cosmetics_floor_dark"
+brief = "The dark cosmetics floor of an original luxury department store after closing, mirrors, display cases, an unfinished mannequin window beneath a white paper moon, no people, no readable text"
+
+[[stages]]
+stage_id = "tollands_service_elevator"
+brief = "A 1972 department-store service elevator with a wire-glass panel, passing dim furniture, fashion, toy, and lamp floors after closing, no people, no readable text"
+
+[[stages]]
+stage_id = "winter_room_night"
+brief = "A curved top-floor department-store dining room at night in 1972, shallow glass roof, one round table laid for eight beneath amber lamps, Los Angeles lights outside, one unopened suitcase by the service bar, no people, no readable text"
+
+[[endings]]
+outcome_id = "next_guest_arrived"
+label = "The next guest arrived"

@@ -1,0 +1,9 @@
+# Ratified narrative scenarios for The Grain. This catalog can be checked
+# independently while the complete prepared game package remains unassembled.
+schema_version = 1
+kind = "scenario-catalog-v1"
+game_id = "the_grain"
+revision = 1
+
+[[scenarios]]
+scenario_id = "chapter_one"
