@@ -1,20 +1,11 @@
-schema_version = 7
-kind = "game-contract-v7"
+schema_version = 8
+kind = "game-contract-v8"
 game_id = "bellweather"
-revision = 20
+revision = 22
 display_name = "Bellweather"
 
 [universe]
 source = "universe.md"
-
-[presentation]
-view_profile = "side_view_2d"
-gameplay_space = "side_plane"
-
-[presentation.contact_shadows]
-enabled = true
-opacity = 0.18
-softness_screen_pixels = 6.0
 
 [style]
 label = "clean chibi storybook fantasy"
@@ -63,7 +54,22 @@ uncommon = 0.65
 elite = 0.85
 boss = 1.5
 
-[cast]
+# One game, one look, one or more genres: the container above holds what every
+# genre of this game must share, and each [[genres]] member carries its own
+# camera, cast roles, and contract members.
+[[genres]]
+genre = "platformer"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
 player_id = "wayfarer"
 mob_ids = [
   "petal_puff",
@@ -75,43 +81,73 @@ mob_ids = [
 ]
 npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant"]
 
-[gameplay]
+[genres.gameplay]
 source = "gameplay.toml"
 
-[ui]
+[genres.ui]
 source = "ui.toml"
 
-[soundtrack]
+[genres.soundtrack]
 source = "soundtrack.toml"
 
-[[maps]]
+[[genres.maps]]
 map_id = "sunpetal-crossing"
 source = "maps/sunpetal-crossing.toml"
 
-[[maps]]
+[[genres.maps]]
 map_id = "crowncrag-road"
 source = "maps/crowncrag-road.toml"
 
-[content.player]
+[genres.content.player]
 source = "content/player.toml"
 
-[content.mobs]
+[genres.content.mobs]
 source = "content/mobs.toml"
 
-[content.npcs]
+[genres.content.npcs]
 source = "content/npcs.toml"
 
-[content.props]
+[genres.content.props]
 source = "content/props.toml"
 
-[content.items]
+[genres.content.items]
 source = "content/items.toml"
 
-[content.projectiles]
+[genres.content.projectiles]
 source = "content/projectiles.toml"
 
-[scenarios]
+[genres.scenarios]
 index_source = "scenarios/index.toml"
+
+[[genres]]
+genre = "runner"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
+avatar_id = "wayfarer_sprinter"
+
+[genres.gameplay]
+source = "runner/gameplay.toml"
+
+[genres.track]
+source = "runner/track.toml"
+
+[genres.content.avatar]
+source = "runner/content/avatar.toml"
+
+[genres.content.props]
+source = "runner/content/props.toml"
+
+[genres.content.items]
+source = "runner/content/items.toml"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

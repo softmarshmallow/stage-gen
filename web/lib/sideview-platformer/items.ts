@@ -5,7 +5,7 @@
 // player overlap and calls collect() on contact (TC-087).
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { terrainSurfaceY } from "./terrain";
 
 export type ItemKindIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | number;

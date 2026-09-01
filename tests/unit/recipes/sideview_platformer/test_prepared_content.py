@@ -21,12 +21,14 @@ from stage_gen.components.game_ui import (
     INVENTORY_PANEL_TOP,
     INVENTORY_PANEL_WIDTH,
 )
+from stage_gen.components.sideview_actor.motion_geometry import (
+    dialogue_atlas_grid,
+    runtime_mirrors_source,
+)
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_platformer.motion_contract import (
-    dialogue_atlas_grid,
     motion_semantic_direction,
     motion_source_facing,
-    runtime_mirrors_source,
 )
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.sideview_platformer.prepared_content import (

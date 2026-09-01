@@ -39,15 +39,17 @@ def test_each_prepared_contract_module_loads_the_canonical_source() -> None:
 
     assert game.game_id == gameplay.game_id == game_map.game_id == "bellweather"
     assert ui.game_id == game.game_id
-    assert player.players[0].player_id == game.cast.player_id
+    platformer = game.platformer_member()
+    assert platformer is not None
+    assert player.players[0].player_id == platformer.cast.player_id
     assert "crouch" in gameplay.navigation.allowed_movements
     crouch = next(motion for motion in player.players[0].motions if motion.state == "crouch")
     assert crouch.playback_mode == "loop"
     assert crouch.canonical_frame_indices == [0, 1, 2, 3]
     assert crouch.frames_per_second == 6
-    assert [entry.mob_id for entry in mobs.mobs] == game.cast.mob_ids
+    assert [entry.mob_id for entry in mobs.mobs] == platformer.cast.mob_ids
     assert npcs.world_orientation == "front"
-    assert [entry.npc_id for entry in npcs.npcs] == game.cast.npc_ids
+    assert [entry.npc_id for entry in npcs.npcs] == platformer.cast.npc_ids
     assert all(entry.motions[0].playback_mode == "hold" for entry in npcs.npcs)
     assert all(entry.motions[0].canonical_frame_indices == [0] for entry in npcs.npcs)
     assert catalog.scenario_ids == (
@@ -67,8 +69,8 @@ def test_prepared_root_rejects_unknown_fields() -> None:
 
 def test_prepared_root_rejects_the_retired_digest_pinning_identity() -> None:
     source = _bytes("game.toml").replace(
+        b'schema_version = 8\nkind = "game-contract-v8"',
         b'schema_version = 7\nkind = "game-contract-v7"',
-        b'schema_version = 6\nkind = "game-contract-v6"',
         1,
     )
 
@@ -292,15 +294,19 @@ def test_the_projectile_catalog_rejects_a_height_it_cannot_mean() -> None:
 def test_the_package_root_declares_the_projectile_catalog_it_ships() -> None:
     game = load_prepared_game_contract_bytes(_bytes("game.toml"))
 
-    assert game.content.projectiles is not None
-    assert game.content.projectiles.source == "content/projectiles.toml"
+    platformer = game.platformer_member()
+    assert platformer is not None
+    assert platformer.content.projectiles is not None
+    assert platformer.content.projectiles.source == "content/projectiles.toml"
 
 
 def test_a_package_that_fires_nothing_declares_no_projectile_catalog() -> None:
     # The one optional content family. Every other catalog describes something a playable package
     # must have; a projectile is owed only by a game whose weapons throw one.
     source = _bytes("game.toml").replace(
-        b'[content.projectiles]\nsource = "content/projectiles.toml"\n\n', b""
+        b'[genres.content.projectiles]\nsource = "content/projectiles.toml"\n\n', b""
     )
 
-    assert load_prepared_game_contract_bytes(source).content.projectiles is None
+    game = load_prepared_game_contract_bytes(source)
+    platformer = game.platformer_member()
+    assert platformer is not None and platformer.content.projectiles is None

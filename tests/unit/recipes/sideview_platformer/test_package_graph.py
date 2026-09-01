@@ -10,11 +10,11 @@ import pytest
 
 from gnode import Node, project_schedule
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapClimbable
+from stage_gen.components.sideview_layers import contract as layer_contract
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction
-from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.sideview_platformer import layer_contract
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
@@ -263,14 +263,17 @@ def test_playback_only_change_does_not_invalidate_provider_cache_identity() -> N
 
 def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> None:
     package = resolve_game_package(BELLWEATHER)
-    contact_shadows = package.game.presentation.contact_shadows.model_copy(update={"opacity": 0.24})
-    changed_game = package.game.model_copy(
+    contact_shadows = package.platformer.presentation.contact_shadows.model_copy(
+        update={"opacity": 0.24}
+    )
+    changed_member = package.platformer.model_copy(
         update={
-            "presentation": package.game.presentation.model_copy(
+            "presentation": package.platformer.presentation.model_copy(
                 update={"contact_shadows": contact_shadows}
             )
         }
     )
+    changed_game = package.game.model_copy(update={"genres": [changed_member]})
     first_map = package.maps[0]
     changed_layer = first_map.layers[2].model_copy(
         update={
@@ -288,6 +291,7 @@ def test_runtime_presentation_changes_only_invalidate_runtime_integration() -> N
         canonical_game_sha256="e" * 64,
         closure_sha256="d" * 64,
         game=changed_game,
+        platformer=changed_member,
         maps=(changed_map, *package.maps[1:]),
     )
     profile = package_graph_profile(StageGenConfig())

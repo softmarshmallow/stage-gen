@@ -26,10 +26,6 @@ from stage_gen.components.character_profile import (
     ResolvedCharacterProfile,
     resolve_character_profile_binding,
 )
-from stage_gen.components.game_contract import (
-    ResolvedGameContract,
-    resolve_game_contract_binding,
-)
 from stage_gen.components.game_soundtrack import (
     ResolvedGameSoundtrack,
     resolve_game_soundtrack_binding,
@@ -55,17 +51,19 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.env_import import import_provider_env
-from stage_gen.orchestration.execution_view import build_execution_view
 from stage_gen.orchestration.game_package import resolve_game_package
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
 from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
+from stage_gen.recipes.sideview_platformer.execution_view import build_execution_view
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
 )
+from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen.recipes.sideview_runner.runner_view import build_sideview_runner_view
 
 
 class CliUsageError(ValueError):
@@ -134,6 +132,13 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument(
         "--failure-node",
         help="inject one deterministic node failure during a dry run",
+    )
+    generate_parser.add_argument(
+        "--genre",
+        help=(
+            "which declared genre member to generate; optional when the package "
+            "declares exactly one"
+        ),
     )
 
     dialogue_parser = commands.add_parser(
@@ -269,6 +274,14 @@ def build_parser() -> argparse.ArgumentParser:
             dest="input_path",
             help="prepared package directory or ZIP",
         )
+        if action == "plan":
+            package_action_parser.add_argument(
+                "--genre",
+                help=(
+                    "which declared genre member to plan; optional when the package "
+                    "declares exactly one"
+                ),
+            )
 
     profile_parser = commands.add_parser(
         "character-profile",
@@ -284,20 +297,6 @@ def build_parser() -> argparse.ArgumentParser:
             "--package-root",
             required=True,
             help="authored package directory the profile is a member of",
-        )
-
-    game_parser = commands.add_parser(
-        "game",
-        description="Validate and inspect an authored game contract",
-    )
-    game_commands = game_parser.add_subparsers(dest="game_command", required=True)
-    for action in ("validate", "digest"):
-        game_action_parser = game_commands.add_parser(action)
-        game_action_parser.add_argument("--input", required=True, dest="input_path")
-        game_action_parser.add_argument(
-            "--game-library-root",
-            required=True,
-            help="workspace root containing library/games",
         )
 
     soundtrack_parser = commands.add_parser(
@@ -388,6 +387,8 @@ def _build_run_view_for(run_dir: Path) -> RunView:
             run_dir,
             annotators={"sideview-platformer": annotate_sideview_platformer_artifact},
         )
+    if declared == "sideview-runner-execution-graph-v1":
+        return build_sideview_runner_view(run_dir)
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
         "stage-gen"
@@ -465,6 +466,27 @@ def entrypoint() -> None:
     raise SystemExit(main())
 
 
+def _resolve_cli_genre(declared: Sequence[str], requested: str | None) -> str:
+    """Pick the genre member one run addresses.
+
+    One run serves one genre member. With a single declared member the flag is
+    noise, so it defaults; with several, defaulting would silently choose a
+    genre, which is exactly the kind of decision a spend-adjacent command must
+    not make on its own.
+    """
+
+    if requested is not None:
+        if requested not in declared:
+            raise ValueError(
+                f"genre {requested!r} is not declared by this package; declared: "
+                + ", ".join(declared)
+            )
+        return requested
+    if len(declared) == 1:
+        return declared[0]
+    raise ValueError("--genre is required for a package declaring several: " + ", ".join(declared))
+
+
 def _dispatch(
     args: argparse.Namespace,
     *,
@@ -502,8 +524,24 @@ def _dispatch(
         if args.package_command == "digest":
             stdout.write(f"{resolved_package.closure_sha256}\n")
         elif args.package_command == "plan":
+            declared_genres = [entry.genre for entry in resolved_package.game.genres]
+            genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
+            # The genre dispatch point: each genre member plans through its own
+            # recipe executor.
+            if genre == "runner":
+                runner_plan = SideviewRunnerExecutor(load_config()).plan(Path(args.input_path))
+                plan_report = {
+                    "genre": genre,
+                    "graph": runner_plan.graph.model_dump(mode="json"),
+                    "projection": runner_plan.projection.model_dump(mode="json"),
+                }
+                stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
+                return 0
+            if genre != "platformer":
+                raise ValueError(f"no recipe is registered for genre {genre!r}")
             plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))
             plan_report = {
+                "genre": genre,
                 "graph": plan.graph.model_dump(mode="json"),
                 "projection": plan.projection.model_dump(mode="json"),
             }
@@ -511,17 +549,6 @@ def _dispatch(
         else:
             package_report = {"valid": True, **resolved_package.identity()}
             stdout.write(f"{json.dumps(package_report, sort_keys=True, separators=(',', ':'))}\n")
-        return 0
-    if command == "game":
-        resolved_game = _resolve_cli_game_contract(
-            input_path=Path(args.input_path),
-            game_library_root=Path(args.game_library_root),
-        )
-        if args.game_command == "digest":
-            stdout.write(f"{resolved_game.source_sha256}\n")
-        else:
-            game_report = {"valid": True, **resolved_game.identity()}
-            stdout.write(f"{json.dumps(game_report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "soundtrack":
         resolved_soundtrack = _resolve_cli_game_soundtrack(
@@ -764,7 +791,62 @@ async def _dispatch_async(
     if args.command == "generate":
         if args.output_path is None:
             raise ValueError("generate requires --output")
+        generate_package = resolve_game_package(Path(args.input_path))
+        declared_genres = [entry.genre for entry in generate_package.game.genres]
+        genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
         output_path = Path(args.output_path)
+        # The genre dispatch point: each genre member executes through its own
+        # recipe executor. The runner runs single-shot; the platformer keeps its
+        # bounded checkpoints below.
+        if genre == "runner":
+            runner_cache = (
+                Path(args.cache_dir)
+                if args.cache_dir is not None
+                else output_path.parent / ".stage-gen-cache"
+            )
+            if args.checkpoint is not None:
+                raise ValueError(
+                    "the runner genre runs single-shot; --checkpoint is platformer-only"
+                )
+            if args.artifact_roots or args.replace_output:
+                raise ValueError(
+                    "--artifact-root/--replace-output are platformer integration flags"
+                )
+            runner_executor = SideviewRunnerExecutor(config)
+            if args.dry_run:
+                runner_invocation = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
+                runner_result = await runner_executor.dry_run(
+                    Path(args.input_path),
+                    run_dir=output_path,
+                    cache_dir=runner_cache,
+                    invocation_id=runner_invocation,
+                    failure_node_id=args.failure_node,
+                )
+            else:
+                if args.failure_node is not None:
+                    raise ValueError("--failure-node is available only with --dry-run")
+                runner_invocation = args.invocation_id or f"runner-{uuid.uuid4().hex}"
+                runner_result = await runner_executor.run(
+                    Path(args.input_path),
+                    run_dir=output_path,
+                    cache_dir=runner_cache,
+                    invocation_id=runner_invocation,
+                )
+            runner_report = {
+                "ok": runner_result.summary.ok,
+                "genre": genre,
+                "invocation_id": runner_invocation,
+                "graph_sha256": runner_result.plan.graph.graph_sha256,
+                "topology_sha256": runner_result.plan.graph.topology_sha256,
+                "node_count": len(runner_result.plan.graph.nodes),
+                "provider_operation_counts": runner_result.summary.provider_operation_counts,
+                "duration_ms": runner_result.summary.duration_ms,
+                "run_dir": str(output_path),
+            }
+            stdout.write(f"{json.dumps(runner_report, sort_keys=True, separators=(',', ':'))}\n")
+            return 0 if runner_result.summary.ok else 1
+        if genre != "platformer":
+            raise ValueError(f"no recipe is registered for genre {genre!r}")
         cache_dir = (
             Path(args.cache_dir)
             if args.cache_dir is not None
@@ -792,6 +874,7 @@ async def _dispatch_async(
                 )
                 integration_report: dict[str, object] = {
                     "ok": True,
+                    "genre": genre,
                     "checkpoint": checkpoint,
                     "invocation_id": invocation_id,
                     "graph_sha256": integration_result.plan.graph.graph_sha256,
@@ -833,6 +916,7 @@ async def _dispatch_async(
                 live_graph = content_result.plan.graph
             report = {
                 "ok": live_summary.ok,
+                "genre": genre,
                 "checkpoint": checkpoint,
                 "invocation_id": invocation_id,
                 "graph_sha256": live_graph.graph_sha256,
@@ -856,6 +940,7 @@ async def _dispatch_async(
         )
         dry_run_report = {
             "ok": dry_run_result.summary.ok,
+            "genre": genre,
             "invocation_id": invocation_id,
             "graph_sha256": dry_run_result.plan.graph.graph_sha256,
             "topology_sha256": dry_run_result.plan.graph.topology_sha256,
@@ -915,38 +1000,6 @@ def _secure_cli_source_sha256(source: Path, *, label: str) -> str:
     except SecurePathError as error:
         raise ValueError(str(error)) from error
     return hashlib.sha256(source_bytes).hexdigest()
-
-
-def _resolve_cli_game_contract(
-    *, input_path: Path, game_library_root: Path
-) -> ResolvedGameContract:
-    """Digest an authored game in place and resolve it exactly as a run would.
-
-    Shaped identically to `_resolve_cli_character_profile`, including computing the digest from
-    the file rather than asking for one: this command exists so an author can find out whether
-    what they wrote is valid, and requiring them to already know its digest to ask would make it
-    useless for the case it is for.
-    """
-
-    root = game_library_root.absolute()
-    source = input_path.absolute()
-    try:
-        relative = source.relative_to(root)
-    except ValueError as error:
-        raise ValueError("game contract input must be inside game library root") from error
-    parts = relative.parts
-    if len(parts) != 4 or parts[:2] != ("library", "games") or parts[3] != "game.toml":
-        raise ValueError("game contract input must equal ROOT/library/games/<game_id>/game.toml")
-    source_sha256 = _secure_cli_source_sha256(source, label="game contract input")
-    return resolve_game_contract_binding(
-        {
-            "schema_version": 1,
-            "kind": "game-contract-binding-v1",
-            "ref": relative.as_posix(),
-            "source_sha256": source_sha256,
-        },
-        game_library_root=root,
-    )
 
 
 def _resolve_cli_game_soundtrack(

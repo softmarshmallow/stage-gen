@@ -14,17 +14,8 @@ from stage_gen.components.platformer_content import (
     MotionPresentation,
 )
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapReference
-from stage_gen.config import StageGenConfig
-from stage_gen.media import (
-    LOOP_METHODS,
-)
-from stage_gen.orchestration.execution_graph import (
-    ExecutionGraph,
-    OperationKind,
-    finalize_execution_graph,
-)
-from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.sideview_platformer.layer_contract import (
+from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
+from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     NON_GENERATIVE_LAYER_FIELDS,
     PLACEMENT_ONLY_CLIMBABLE_FIELDS,
@@ -32,8 +23,21 @@ from stage_gen.recipes.sideview_platformer.layer_contract import (
     RUNTIME_ONLY_LAYER_FIELDS,
     loop_method_identity,
 )
+from stage_gen.components.sideview_terrain.atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    MATERIAL_SOURCE_CONTRACT_ID,
+)
+from stage_gen.config import StageGenConfig
+from stage_gen.media import (
+    LOOP_METHODS,
+)
+from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.sideview_platformer.execution_graph import (
+    ExecutionGraph,
+    OperationKind,
+    finalize_execution_graph,
+)
 from stage_gen.recipes.sideview_platformer.motion_contract import (
-    DEFAULT_MOTION_ATLAS_GEOMETRY,
     MotionActorKind,
     motion_atlas_geometry,
     motion_source_facing,
@@ -79,10 +83,6 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     UI_INVENTORY_VALIDATE,
     WORLD_SPRITE_GENERATE,
     WORLD_SPRITE_VALIDATE,
-)
-from stage_gen.recipes.sideview_platformer.terrain_atlas import (
-    MATERIAL_ASSEMBLER_ID,
-    MATERIAL_SOURCE_CONTRACT_ID,
 )
 from stage_gen.resources import (
     inventory_template_path,
@@ -221,7 +221,7 @@ def build_package_execution_graph(
                 package,
                 (
                     "gameplay.toml",
-                    *(entry.source for entry in package.game.maps),
+                    *(entry.source for entry in package.platformer.maps),
                     "scenarios/index.toml",
                     # Both halves: the declarations and the prose they sign for.
                     *(
@@ -1397,8 +1397,8 @@ def _visual_direction(package: ResolvedGamePackage) -> dict[str, object]:
         # Runtime contact shadows are deliberately absent: changing them must not invalidate any
         # paid generation node. These two fields remain provider-facing visual direction.
         "presentation": {
-            "view_profile": package.game.presentation.view_profile,
-            "gameplay_space": package.game.presentation.gameplay_space,
+            "view_profile": package.platformer.presentation.view_profile,
+            "gameplay_space": package.platformer.presentation.gameplay_space,
         },
     }
 

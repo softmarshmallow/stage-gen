@@ -19,19 +19,8 @@
 // button, how long the press was held) and exactly the kind of thing that goes
 // subtly wrong on touch, where there is no right-click and no hover.
 
+import type { Rect, Size } from "@/lib/shell/hud-geometry";
 import type { Verb } from "./contract";
-
-export interface Rect {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-export interface StageSize {
-  readonly width: number;
-  readonly height: number;
-}
 
 /** Gap between the HUD and the canvas edges, in design pixels. */
 export const HUD_MARGIN = 24;
@@ -83,7 +72,7 @@ export function resolveVerb(
 
 /** A hotspot's normalized region in design pixels. */
 export function hotspotRect(
-  stage: StageSize,
+  stage: Size,
   region: { readonly x: number; readonly y: number; readonly w: number; readonly h: number },
 ): Rect {
   return {
@@ -94,40 +83,20 @@ export function hotspotRect(
   };
 }
 
-/**
- * The largest rectangle of `source`'s aspect that fits inside `outer`, centred.
- *
- * A hotspot sprite is composited into an authored region, and stretching it to
- * that region's aspect is how a music box ends up wider than the shelf it
- * stands on.
- */
-export function containRect(outer: Rect, source: { width: number; height: number }): Rect {
-  if (source.width <= 0 || source.height <= 0) return outer;
-  const scale = Math.min(outer.width / source.width, outer.height / source.height);
-  const width = source.width * scale;
-  const height = source.height * scale;
-  return {
-    x: outer.x + (outer.width - width) / 2,
-    y: outer.y + (outer.height - height) / 2,
-    width,
-    height,
-  };
-}
-
 /** Everything below the room: gap, narration, gap, control bar. */
 export const HUD_BAND_HEIGHT = HUD_GAP + HUD_NARRATION_HEIGHT + HUD_GAP + HUD_BAR_HEIGHT;
 
 /** The canvas the engine is booted at: the authored frame plus the HUD band. */
-export function canvasSize(room: StageSize): StageSize {
+export function canvasSize(room: Size): Size {
   return { width: room.width, height: room.height + HUD_BAND_HEIGHT };
 }
 
 /** The playfield: the authored frame, at the top of the canvas. */
-export function roomRect(room: StageSize): Rect {
+export function roomRect(room: Size): Rect {
   return { x: 0, y: 0, width: room.width, height: room.height };
 }
 
-export function hudBarRect(room: StageSize): Rect {
+export function hudBarRect(room: Size): Rect {
   return {
     x: 0,
     y: room.height + HUD_GAP + HUD_NARRATION_HEIGHT + HUD_GAP,
@@ -136,7 +105,7 @@ export function hudBarRect(room: StageSize): Rect {
   };
 }
 
-export function narrationRect(room: StageSize): Rect {
+export function narrationRect(room: Size): Rect {
   return {
     x: HUD_MARGIN,
     y: room.height + HUD_GAP,
@@ -151,7 +120,7 @@ export function narrationRect(room: StageSize): Rect {
  * Slots are positioned by index rather than packed by a layout pass, so an item
  * keeps its place in the bar for as long as it is carried.
  */
-export function inventorySlotRects(room: StageSize, count: number): readonly Rect[] {
+export function inventorySlotRects(room: Size, count: number): readonly Rect[] {
   const y = hudLabelPoint(room).y + HUD_LABEL_BAND;
   const slots: Rect[] = [];
   for (let index = 0; index < Math.max(0, count); index += 1) {
@@ -172,7 +141,7 @@ export function inventorySlotRects(room: StageSize, count: number): readonly Rec
  * held, then what the held thing is for — so it needs its own row rather than
  * whatever space the inventory happens to leave.
  */
-export function hudLabelPoint(room: StageSize): { readonly x: number; readonly y: number } {
+export function hudLabelPoint(room: Size): { readonly x: number; readonly y: number } {
   return { x: HUD_MARGIN, y: hudBarRect(room).y + 6 };
 }
 
@@ -183,7 +152,7 @@ export interface VerbButtons {
 }
 
 /** The verb controls, right-aligned in the bar so the inventory grows towards them. */
-export function verbButtonRects(room: StageSize): VerbButtons {
+export function verbButtonRects(room: Size): VerbButtons {
   const bar = hudBarRect(room);
   const y = bar.y + (bar.height - VERB_BUTTON_HEIGHT) / 2;
   const right = room.width - HUD_MARGIN;
@@ -197,7 +166,7 @@ export function verbButtonRects(room: StageSize): VerbButtons {
 }
 
 /** The end card, centred on the room rather than on the whole canvas. */
-export function winPanelRect(room: StageSize): Rect {
+export function winPanelRect(room: Size): Rect {
   const width = Math.min(room.width - HUD_MARGIN * 4, 720);
   const height = 220;
   return {
@@ -215,7 +184,7 @@ export function winPanelRect(room: StageSize): Rect {
  * a rendering one, so this is exported for the scene to assert against rather
  * than silently overlapping the controls.
  */
-export function inventoryCapacity(room: StageSize): number {
+export function inventoryCapacity(room: Size): number {
   const controls = verbButtonRects(room);
   const available = controls.act.x - HUD_GAP - HUD_MARGIN;
   return Math.max(0, Math.floor((available + INVENTORY_SLOT_GAP) / (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GAP)));

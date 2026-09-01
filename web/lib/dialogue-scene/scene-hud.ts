@@ -12,17 +12,7 @@
 // reach; a scene has exactly one target — advance — and it is the whole canvas.
 // Overlaying is both the genre's convention and safe here for that reason.
 
-export interface Rect {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-export interface Size {
-  readonly width: number;
-  readonly height: number;
-}
+import { containSize, type Rect, type Size } from "@/lib/shell/hud-geometry";
 
 /**
  * The design frame: the producer's own background contract.
@@ -91,15 +81,13 @@ export function spriteFrame(
   if (source.width <= 0 || source.height <= 0) {
     throw new Error("dialogue-scene sprite source must have a positive size");
   }
-  const aspect = source.width / source.height;
-  let height = stage.height * SPRITE_HEIGHT_RATIO;
-  let width = height * aspect;
-  const maximumWidth = stage.width * SPRITE_MAX_WIDTH_RATIO;
-  if (width > maximumWidth) {
-    width = maximumWidth;
-    height = width / aspect;
-  }
-  const scaled = { width: width * placement.scale, height: height * placement.scale };
+  // Aspect-fit into the sprite's share of the frame: full height by default,
+  // clamped by the width budget so a wide plate shrinks instead of stretching.
+  const fitted = containSize(source, {
+    width: stage.width * SPRITE_MAX_WIDTH_RATIO,
+    height: stage.height * SPRITE_HEIGHT_RATIO,
+  });
+  const scaled = { width: fitted.width * placement.scale, height: fitted.height * placement.scale };
   const anchorX = (placement.xPercent / 100) * stage.width;
   const anchorY = (placement.yPercent / 100) * stage.height;
   return Object.freeze({

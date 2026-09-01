@@ -66,29 +66,14 @@ from stage_gen.components.platformer_content import (
     ProjectileContent,
     PropContent,
 )
-from stage_gen.media import (
-    AlphaComponentRepackContract,
-    measure_alpha_ground_contact,
-    probe_audio,
-    repack_alpha_components,
-    validate_music_payload,
-)
-from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
-from stage_gen.orchestration.execution_graph import ExecutionGraph, OperationKind
-from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.node_cache import NodeArtifactCache
-from stage_gen.recipes.sideview_platformer.motion_contract import (
+from stage_gen.components.sideview_actor.motion_geometry import (
     MOTION_ATLAS_HEIGHT,
     MOTION_ATLAS_WIDTH,
-    MotionActorKind,
     MotionAtlasGeometry,
     dialogue_atlas_grid,
-    motion_atlas_geometry,
-    motion_semantic_direction,
-    motion_source_facing,
     runtime_mirrors_source,
 )
-from stage_gen.recipes.sideview_platformer.motion_rebase import (
+from stage_gen.components.sideview_actor.motion_rebase import (
     BASELINE_STATE,
     MOTION_REBASE_CORRECTION_SCHEMA_NAME,
     MOTION_REBASE_SCHEMA_NAME,
@@ -103,6 +88,23 @@ from stage_gen.recipes.sideview_platformer.motion_rebase import (
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
     parse_motion_rebase,
+)
+from stage_gen.media import (
+    AlphaComponentRepackContract,
+    measure_alpha_ground_contact,
+    probe_audio,
+    repack_alpha_components,
+    validate_music_payload,
+)
+from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
+from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
+from stage_gen.recipes.sideview_platformer.motion_contract import (
+    MotionActorKind,
+    motion_atlas_geometry,
+    motion_semantic_direction,
+    motion_source_facing,
 )
 from stage_gen.recipes.sideview_platformer.package_graph import (
     CACHE_RECORD_KIND,

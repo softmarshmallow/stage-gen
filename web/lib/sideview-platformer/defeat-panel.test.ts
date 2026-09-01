@@ -6,7 +6,7 @@ import {
   DefeatPanel,
   defeatReturnLabel,
 } from "./defeat-panel";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { DEFEAT_PROMPT_DELAY_MS, DEFEAT_PROMPT_FADE_MS } from "./respawn";
 
 /**

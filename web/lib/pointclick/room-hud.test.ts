@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { containRect } from "@/lib/shell/hud-geometry";
 import {
   canvasSize,
-  containRect,
   HUD_BAND_HEIGHT,
   HUD_MARGIN,
   hotspotRect,

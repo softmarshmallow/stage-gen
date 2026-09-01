@@ -37,7 +37,7 @@ import {
   type ReviewOutcome,
   type ReviewVerdict,
 } from "@/lib/run-viewer/execution-view-verdict";
-import { preparedAssetUrl } from "@/lib/manifest/prepared-manifest";
+import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import MotionPlayer from "./MotionPlayer";
 
 export const STATE_MARK: Record<ExecutionNodeState, string> = {
@@ -545,7 +545,9 @@ export function RunFacts({
               ? "scene"
               : view.subject.kind === "pointclick-room-execution-view-v1"
                 ? "room"
-                : "game"
+                : view.subject.kind === "sideview-runner-execution-view-v1"
+                  ? "track"
+                  : "game"
           }
         >
           {subjectLabel(view.subject)}

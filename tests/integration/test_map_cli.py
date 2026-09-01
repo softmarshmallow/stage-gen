@@ -146,7 +146,6 @@ entry_map_id = "field-one"
 @pytest.mark.parametrize(
     ("command", "relative_source", "expected_kind", "expected_schema_version"),
     [
-        ("game", "game.toml", "resolved-game-contract-v1", 1),
         ("soundtrack", "soundtrack.toml", "resolved-game-soundtrack-v1", 1),
         ("map", "maps/field-one.toml", "resolved-game-map-v2", 2),
         ("map-book", "maps/index.toml", "resolved-game-map-book-v2", 2),
@@ -238,7 +237,6 @@ def test_map_book_cli_rejects_a_stale_locked_map(tmp_path: Path, action: str) ->
 @pytest.mark.parametrize(
     ("command", "relative_source"),
     [
-        ("game", "game.toml"),
         ("soundtrack", "soundtrack.toml"),
         ("map", "maps/field-one.toml"),
         ("map-book", "maps/index.toml"),
@@ -336,7 +334,6 @@ def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> Non
 @pytest.mark.parametrize(
     ("command", "relative_source", "root_option"),
     [
-        ("game", "library/games/../game.toml", "--game-library-root"),
         ("soundtrack", "library/games/../soundtrack.toml", "--game-library-root"),
         ("map", "library/games/../maps/entry-map.toml", "--game-library-root"),
         ("map-book", "library/games/../maps/index.toml", "--game-library-root"),

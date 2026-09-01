@@ -1087,7 +1087,3 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     closure: Object.freeze({ artifact_count: closureArtifacts.length, artifacts_sha256: artifactsSha256, artifacts: Object.freeze(closureArtifacts) }),
   });
 }
-
-export function preparedAssetUrl(tag: string, path: string): string {
-  return `/api/assets/${encodeURIComponent(tag)}/${path.split("/").map(encodeURIComponent).join("/")}`;
-}

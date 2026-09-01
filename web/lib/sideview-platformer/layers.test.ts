@@ -2,8 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   CANONICAL_SCENE_STACK,
   NEAR_FOREGROUND_DEPTH_COEFFICIENT,
-  SCENE_CONTENT_DEPTH,
-  SCENE_LAYER_DEPTH,
   foregroundPhaseForCamera,
   layoutSceneLayer,
   resolveSceneLayerStack,
@@ -19,6 +17,7 @@ import {
   type SceneLayerManifestInput,
   type SceneLayerRenderState,
 } from "./layers";
+import { SCENE_CONTENT_DEPTH, SCENE_LAYER_DEPTH } from "./depths";
 
 const CONTEXT: SceneLayerContext = Object.freeze({
   viewportWidth: 1280,

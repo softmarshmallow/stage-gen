@@ -6,10 +6,6 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import {
-  PREPARED_RUNTIME_KIND,
-  PREPARED_RUNTIME_SCHEMA_VERSION,
-} from "@/lib/manifest/prepared-manifest";
 
 export const REPO_ROOT = path.resolve(process.cwd(), "..");
 export const OUT_ROOT = process.env.STAGE_GEN_OUT_DIR?.trim()
@@ -49,25 +45,6 @@ export function runDirFor(tag: string): string {
     throw new Error("run tag escapes OUT_DIR");
   }
   return runDir;
-}
-
-export async function isPreparedRuntimeRun(tag: string): Promise<boolean> {
-  const manifestPath = artifactPathFor(tag, "manifest.json");
-  try {
-    const stat = await fs.lstat(manifestPath);
-    if (!stat.isFile() || stat.isSymbolicLink()) return false;
-    const parsed = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<
-      string,
-      unknown
-    >;
-    return (
-      parsed["schema_version"] === PREPARED_RUNTIME_SCHEMA_VERSION &&
-      parsed["kind"] === PREPARED_RUNTIME_KIND
-    );
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    return false;
-  }
 }
 
 export function artifactPathFor(tag: string, asset: string): string {

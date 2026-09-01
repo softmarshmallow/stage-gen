@@ -1,7 +1,14 @@
 """Provider-neutral prepared game-content catalog API."""
 
-from .models import (
+from stage_gen.components.actor_content import (
     DEFAULT_MOTION_ANCHOR,
+    ContentReference,
+    MotionAnchor,
+    MotionPlaybackMode,
+    MotionPresentation,
+)
+
+from .models import (
     GAME_CONTENT_SCHEMA_VERSION,
     NPC_CONTENT_SCHEMA_VERSION,
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
@@ -9,15 +16,11 @@ from .models import (
     PLAYER_GAMEPLAY_DRIVEN_STATES,
     PLAYER_MOTION_STATES,
     WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
-    ContentReference,
     DialogueArtDirection,
     ItemContent,
     ItemContentCatalog,
     MobContent,
     MobContentCatalog,
-    MotionAnchor,
-    MotionPlaybackMode,
-    MotionPresentation,
     NpcContent,
     NpcContentCatalog,
     NpcWorldOrientation,

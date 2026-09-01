@@ -27,7 +27,7 @@ import {
   MOB_HEALTH_BAR_STYLE,
   healthBarRevealedByDamage,
 } from "./health-bar";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   mobFullAlphaBounds,
   mobHitFacing,
@@ -41,7 +41,7 @@ import {
   aggressionProfile,
   resolveDamage,
 } from "./combat";
-import { anchorRepackedMotionFeet } from "./motion-playback";
+import { anchorRepackedMotionFeet } from "@/lib/sideview/motion-playback";
 import {
   constrainMobStrikeToAttackLevel,
   mobAttackLevelReachable,

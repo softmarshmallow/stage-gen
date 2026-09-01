@@ -14,10 +14,10 @@
 // source of truth about whether it can be finished.
 
 import Phaser from "phaser";
-import { preparedAssetUrl } from "@/lib/manifest/prepared-manifest";
+import { preparedAssetUrl } from "@/lib/shell/asset-url";
+import { containRect, type Rect } from "@/lib/shell/hud-geometry";
 import type { RoomHotspot, RoomManifest } from "./contract";
 import {
-  containRect,
   hotspotRect,
   hudBarRect,
   canvasSize,
@@ -28,7 +28,6 @@ import {
   resolveVerb,
   verbButtonRects,
   winPanelRect,
-  type Rect,
   type VerbMode,
 } from "./room-hud";
 import {

@@ -36,6 +36,7 @@ from gnode import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
+from stage_gen.canonical import content_sha256
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.image_style import (
@@ -45,7 +46,6 @@ from stage_gen.image_style import (
     compile_style_prompt_anchor,
 )
 from stage_gen.media import inspect_image
-from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.pointclick_room.models import RoomReference, prove_room_solvable
 from stage_gen.recipes.pointclick_room.room_graph import (

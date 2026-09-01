@@ -12,9 +12,10 @@
 // beside one without the stage changing underneath the player.
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { terrainSurfaceY } from "./terrain";
-import type { PortalEnd } from "./stages";
+/** The two ends of a portal pair: the way back in, and the way onward. */
+export type PortalEnd = "entry" | "exit";
 
 export type PortalKind = PortalEnd;
 

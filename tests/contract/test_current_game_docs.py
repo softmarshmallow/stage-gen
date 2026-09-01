@@ -28,6 +28,7 @@ RETIRED_PREPARED_IDENTITIES = (
     "game-contract-v3",
     "game-contract-v4",
     "game-contract-v6",
+    "game-contract-v7",
     "game-map-v1",
     "game-map-v2",
     "game-map-v3",
@@ -91,7 +92,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     game_contract = documents["docs/game-contract.md"]
     for identity in (
         "`game-package-v4`",
-        "`game-contract-v7`",
+        "`game-contract-v8`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
         "`game-map-v9`",
@@ -119,7 +120,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "is no map index" in maps
 
     schema = documents["docs/spec/game/authored-contract-schema.md"]
-    assert 'Only `schema_version = 7` and `kind = "game-contract-v7"` are accepted' in schema
+    assert 'Only `schema_version = 8` and `kind = "game-contract-v8"` are accepted' in schema
     assert 'source = "ui.toml"' in schema
     assert "gameplay.toml` owns climb permission and portal destinations" in schema
 

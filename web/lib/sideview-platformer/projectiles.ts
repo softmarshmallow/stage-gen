@@ -11,7 +11,7 @@
 // combat resolves, and the first one is already 40 lines long.
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   advanceShot,
   firstOverlappingTarget,

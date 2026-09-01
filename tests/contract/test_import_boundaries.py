@@ -50,6 +50,38 @@ def test_components_do_not_import_application_or_provider_layers() -> None:
     assert not violations, "component import boundary violations:\n" + "\n".join(violations)
 
 
+RECIPE_ROOT = SOURCE_ROOT / "stage_gen" / "recipes"
+
+
+def test_recipes_do_not_import_each_other() -> None:
+    """Recipes share code through declared homes (canonical, media, components,
+    the direct children of recipes/ such as node_cache), never through another
+    recipe's modules."""
+
+    recipe_packages = sorted(
+        entry.name for entry in RECIPE_ROOT.iterdir() if entry.is_dir() and entry.name[0] != "_"
+    )
+    violations: list[str] = []
+    for package_name in recipe_packages:
+        foreign = tuple(
+            f"stage_gen.recipes.{other}" for other in recipe_packages if other != package_name
+        )
+        for path in sorted((RECIPE_ROOT / package_name).rglob("*.py")):
+            package = _package_for(path)
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                    continue
+                for imported in _imported_modules(node, package):
+                    if any(
+                        imported == forbidden or imported.startswith(f"{forbidden}.")
+                        for forbidden in foreign
+                    ):
+                        relative = path.relative_to(SOURCE_ROOT.parent)
+                        violations.append(f"{relative}:{node.lineno} imports {imported}")
+    assert not violations, "recipe-to-recipe import violations:\n" + "\n".join(violations)
+
+
 def test_prepared_package_resolution_has_no_provider_or_recipe_dependency() -> None:
     path = SOURCE_ROOT / "stage_gen" / "orchestration" / "game_package.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

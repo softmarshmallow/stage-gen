@@ -30,7 +30,7 @@ node's kind from an output path convention.
 | Asset-level fan-out, dependencies, typed ports, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
 | The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
-| Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/orchestration/execution_graph.py) |
+| Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/execution_graph.py) |
 | Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
 | Side-view platformer resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
 | Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_world.py) |
@@ -165,7 +165,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact captured Bellweather closure, the content-sensitive execution-plan identity is
-`graph_sha256 = efcaabd6eba189418c4c48bc25ac0e263a0b33f880591d2563aaf94cccca95fd`.
+`graph_sha256 = d8f8c77de21953fc6eba0f87d5345bd85abb0a67dc6108b8a2aecdb4dda697c3`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 

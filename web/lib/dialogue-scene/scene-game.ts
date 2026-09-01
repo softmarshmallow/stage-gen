@@ -32,8 +32,8 @@ import {
   progressPoint,
   slotFrame,
   speakerChipRect,
-  type Rect,
 } from "./scene-hud";
+import type { Rect } from "@/lib/shell/hud-geometry";
 import {
   dialogueSceneExpression,
   dialogueSceneStage,

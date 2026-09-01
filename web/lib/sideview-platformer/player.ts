@@ -10,14 +10,14 @@
 // and reads .sprite / .state / .attacking for collision + camera follow.
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   headMatchedScale,
   masterSheetScale,
   playerSheetScaleForState,
   rebasedSheetScales,
   type ScaleReference,
-} from "./sprite-scale";
+} from "@/lib/sideview/sprite-scale";
 import {
   type PlayerDamageResolution,
   type PlayerHealResolution,
@@ -53,7 +53,7 @@ import {
   applyMotionPlayback,
   installMotionPlayback,
   type RuntimeMotionPlayback,
-} from "./motion-playback";
+} from "@/lib/sideview/motion-playback";
 import {
   PLATFORMER_COYOTE_MS,
   PLATFORMER_GRAVITY,

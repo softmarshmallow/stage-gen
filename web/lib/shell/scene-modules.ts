@@ -8,6 +8,7 @@
 import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/bundle";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
 import { PREPARED_RUNTIME_KIND } from "@/lib/manifest/prepared-manifest";
+import { RUNNER_RUNTIME_KIND } from "@/lib/sideview-runner/contract";
 
 export interface SceneModule {
   /** The manifest kind this runtime consumes (out/<tag>/manifest.json `kind`). */
@@ -38,6 +39,11 @@ export const SCENE_MODULES: readonly SceneModule[] = [
     kind: DIALOGUE_SCENE_BUNDLE_KIND,
     label: "visual novel scene",
     route: (tag) => `/scene/${encodeURIComponent(tag)}`,
+  },
+  {
+    kind: RUNNER_RUNTIME_KIND,
+    label: "infinite runner",
+    route: (tag) => `/runner/${encodeURIComponent(tag)}`,
   },
 ];
 

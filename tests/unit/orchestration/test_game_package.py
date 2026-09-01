@@ -50,8 +50,8 @@ def test_resolve_bellweather_directory_captures_complete_exact_current_package()
         "sunpetal-crossing",
         "crowncrag-road",
     ]
-    assert [entry.mob_id for entry in package.mobs.mobs] == package.game.cast.mob_ids
-    assert [entry.npc_id for entry in package.npcs.npcs] == package.game.cast.npc_ids
+    assert [entry.mob_id for entry in package.mobs.mobs] == package.platformer.cast.mob_ids
+    assert [entry.npc_id for entry in package.npcs.npcs] == package.platformer.cast.npc_ids
     assert package.scenario_catalog.scenario_ids[0] == "sunpetal_welcome"
     assert re.fullmatch(r"[a-f0-9]{64}", package.closure_sha256)
 
@@ -80,7 +80,7 @@ def test_validate_repository_selector_resolves_bellweather() -> None:
     report = validate_game_package(REPOSITORY_ROOT)
 
     assert report["valid"] is True
-    assert report["kind"] == "game-package-validation-v4"
+    assert report["kind"] == "game-package-validation-v5"
     assert report["game_id"] == "bellweather"
     assert report["generated_status"] == "not_checked"
     assert report["file_count"] == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())

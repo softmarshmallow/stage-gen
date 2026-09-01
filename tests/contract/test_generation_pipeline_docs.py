@@ -7,8 +7,8 @@ from pathlib import Path
 from types import ModuleType
 
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
 from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
@@ -31,7 +31,10 @@ def _load_contract_writer() -> ModuleType:
 _writer = _load_contract_writer()
 CONTRACT_KIND = _writer.CONTRACT_KIND
 FIXTURE_REF = _writer.FIXTURE_REF
+RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
+RUNNER_CONTRACT_KIND = _writer.RUNNER_CONTRACT_KIND
 build_graph_contract = _writer.build_graph_contract
+build_runner_graph_contract = _writer.build_runner_graph_contract
 document_contract = _writer.document_contract
 render = _writer.render
 
@@ -54,6 +57,24 @@ def test_generation_pipeline_contract_block_is_rendered_canonically() -> None:
     # still fail, or the document and the regenerated output would differ byte for byte.
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
     assert render(document_contract(PIPELINE_DOCUMENT)) in source
+
+
+def test_runner_pipeline_document_tracks_the_executable_stage_graph() -> None:
+    assert document_contract(RUNNER_PIPELINE_DOCUMENT) == build_runner_graph_contract(
+        REPOSITORY_ROOT
+    )
+
+
+def test_runner_pipeline_contract_declares_its_identity_and_fixture() -> None:
+    contract = document_contract(RUNNER_PIPELINE_DOCUMENT)
+    assert contract["kind"] == RUNNER_CONTRACT_KIND
+    assert contract["fixture_ref"] == FIXTURE_REF
+    assert (REPOSITORY_ROOT / contract["fixture_ref"]).is_dir()
+
+
+def test_runner_pipeline_contract_block_is_rendered_canonically() -> None:
+    source = RUNNER_PIPELINE_DOCUMENT.read_text(encoding="utf-8")
+    assert render(document_contract(RUNNER_PIPELINE_DOCUMENT)) in source
 
 
 def test_generation_pipeline_document_is_discoverable_from_game_authorities() -> None:

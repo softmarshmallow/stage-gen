@@ -1,35 +1,22 @@
-"""Canonical serialization and deterministic dialogue recipe identities."""
+"""Deterministic dialogue recipe identities over the shared canonical digests."""
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel
+from stage_gen.canonical import canonical_json_bytes, canonical_sha256, content_sha256
+
+__all__ = [
+    "RECIPE_VERSION",
+    "canonical_json_bytes",
+    "canonical_sha256",
+    "content_sha256",
+    "run_identity",
+    "stage_identity",
+]
 
 RECIPE_VERSION = 5
-
-
-def canonical_json_bytes(value: object) -> bytes:
-    if isinstance(value, BaseModel):
-        value = value.model_dump(mode="json", exclude_none=True)
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-
-
-def canonical_sha256(value: object) -> str:
-    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
-
-
-def content_sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
 
 
 def run_identity(request: object) -> str:

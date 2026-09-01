@@ -42,7 +42,10 @@ Only these prepared-package identities are accepted by the resolver:
 | Boundary | Current identity |
 | --- | --- |
 | Repository selector | `game-package-v4` |
-| Package root | `game-contract-v7` |
+| Package root | `game-contract-v8` |
+| Runner gameplay | `runner-gameplay-v1` |
+| Runner track | `runner-track-v1` |
+| Runner avatar catalog | `runner-avatar-v1` |
 | Gameplay | `gameplay-contract-v1` |
 | Map generation | `game-map-v9` |
 | Soundtrack | `game-soundtrack-v1` |
@@ -172,7 +175,7 @@ to be tracked and equal to Git `HEAD`:
 uv run python scripts/validate_game_package.py --root . --require-committed
 ```
 
-The `game-package-validation-v4` report keeps authored, repository, and
+The `game-package-validation-v5` report keeps authored, repository, and
 generated truth separate:
 
 - `source_status = "current"` means the complete prepared closure validates;

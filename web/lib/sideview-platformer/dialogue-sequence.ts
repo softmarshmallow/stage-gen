@@ -5,8 +5,8 @@
 // dialogue or asset identity into mutable scene state.
 
 import type Phaser from "phaser";
-import { copyImageToCanvas } from "./image-ops";
-import { registerCanvas } from "./assets";
+import { copyImageToCanvas } from "@/lib/sideview/image-ops";
+import { registerCanvas } from "@/lib/sideview/assets";
 
 export const DIALOGUE_EXPRESSION_STATES = Object.freeze([
   "neutral",

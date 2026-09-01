@@ -27,8 +27,11 @@ Start here for the headless, general-purpose system:
   ownership boundaries, cross-contract invariants, and subordinate authorities,
   with current executable identities kept explicitly separate.
 - [Authored game contract schema](spec/game/authored-contract-schema.md) — the
-  implemented current `game-contract-v7` package-root fields, closed vocabulary,
+  implemented current `game-contract-v8` package-root fields, closed vocabulary,
   validation, binding, and manifest projection.
+- [Runner genre family](spec/game/runner.md) — the infinite-runner member of the
+  v8 container: named gameplay profiles, authored tiled segments with the seam
+  rule and clearable-gap admission, and the minimal member table.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
   machine-checked current side-view platformer DAG, typed nodes, stage and operation
   contracts, internal fan-out, execution semantics, and explicitly separated target evolution.

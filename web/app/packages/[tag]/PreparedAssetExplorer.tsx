@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { preparedAssetUrl } from "@/lib/manifest/prepared-manifest";
+import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import type {
   PreparedAssetCard,
   PreparedAssetGroup,

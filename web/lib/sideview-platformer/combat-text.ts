@@ -8,7 +8,7 @@
 import type Phaser from "phaser";
 import type { DamageResolution } from "./combat";
 import { COMBAT_TEXT_FONT_FAMILY } from "./combat-font";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 
 export type CombatTextDirection = "outgoing" | "incoming";
 

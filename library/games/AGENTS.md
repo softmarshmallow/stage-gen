@@ -13,9 +13,12 @@ source closure by exact source path.
 - Promotion changes `main.toml` or its selected closure deliberately and keeps the member path list
   exact. Never migrate, infer, or preserve an old schema; update the complete package to the exact
   current schema or drop it.
-- Prepared packages contain root `game.toml` and `gameplay.toml`, map generation sources, content
-  catalogs, sequences, soundtrack direction, narrative source, and explicitly referenced evidence.
-  They do not depend on an examples request wrapper or `maps/index.toml`.
+- Prepared packages contain a root `game.toml` container declaring one or more genre members.
+  The platformer member carries `gameplay.toml`, map generation sources, content catalogs,
+  scenarios, and soundtrack direction at their fixed unprefixed paths; a runner member carries
+  its family under the fixed `runner/` prefix. The container owns the universe narrative source
+  and explicitly referenced evidence. Packages do not depend on an examples request wrapper or
+  `maps/index.toml`.
 - Authors name members by exact source path and never record member digests; ingest computes every
   member digest at capture, plus `closure_sha256` over the captured closure. The resolver rejects a
   missing member (`missing_package_file`) and an unreferenced file (`orphan_package_file`), so the

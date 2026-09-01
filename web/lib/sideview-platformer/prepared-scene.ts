@@ -29,12 +29,12 @@ import {
   loadTerrainAtlas,
   loadTrimmedSprite,
   loadTransparentSprite,
-  loadVerifiedRepeatLayer,
   registerCanvas,
-} from "./assets";
+} from "@/lib/sideview/assets";
+import { loadVerifiedRepeatLayer } from "./assets";
+import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import {
   parsePreparedRuntimeManifest,
-  preparedAssetUrl,
   type MotionBinding,
   type PreparedMap,
   type PreparedRuntimeManifest,
@@ -104,7 +104,7 @@ import {
   ladderVisualBounds,
   type VerticalWorld,
 } from "./vertical";
-import type { ScaleReference } from "./sprite-scale";
+import type { ScaleReference } from "@/lib/sideview/sprite-scale";
 import {
   registerGridPresentationFallback,
   registerPresentationFallback,
@@ -120,7 +120,7 @@ import {
   anchorRepackedMotionFeet,
   applyMotionPlayback,
   installMotionPlayback,
-} from "./motion-playback";
+} from "@/lib/sideview/motion-playback";
 import {
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
   preparedPlayerClimbArtwork,
@@ -128,8 +128,8 @@ import {
   preparedPlayerStateAdapter,
   preparedPlayerStateRebase,
 } from "./prepared-player";
-import { frameScaleForHeight } from "./sprite-scale";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { frameScaleForHeight } from "@/lib/sideview/sprite-scale";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { cameraWorldBounds } from "./camera-follow";
 import {
   preparedGroundBaselineY,
@@ -139,14 +139,14 @@ import {
 import {
   terrainAtlasBoundaryOverscanPlan,
   terrainAtlasWalkSurfaceOffset,
-} from "./terrain-atlas";
+} from "@/lib/sideview/terrain-atlas";
 import {
   projectPreparedTerrainWorld,
   type PreparedTerrainWorld,
 } from "./prepared-terrain";
 import { terrainSurfaceY } from "./terrain";
 import { preparedPortalEndpointPlacements } from "./prepared-portals";
-import { presentPreparedLayerCanvas } from "./prepared-layer-presentation";
+import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presentation";
 import { climbableAtlasFrames, climbableFrameKey } from "./prepared-climbable";
 import {
   NPC_TALK_PROMPT_GAP_PX,

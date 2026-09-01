@@ -1,6 +1,6 @@
 import type { PreparedMap } from "@/lib/manifest/prepared-manifest";
 import { climbableVisualWidth } from "./prepared-climbable";
-import { parseTerrainOccupancy } from "./terrain-atlas";
+import { parseTerrainOccupancy } from "@/lib/sideview/terrain-atlas";
 import { terrainSurfaceY } from "./terrain";
 import {
   createVerticalWorld,

@@ -21,7 +21,7 @@
 // same amber whether it got there by one blow or four.
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 
 export type HealthBarStyle = Readonly<{
   /** Drawn size of the whole capsule, in world pixels. */

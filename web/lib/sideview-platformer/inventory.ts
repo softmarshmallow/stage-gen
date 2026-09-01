@@ -18,7 +18,7 @@
 // →  rows  368, 656
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   INVENTORY_GRID_4X2_V1,
   type InventoryPanelLayout,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { rebasedSheetScales } from "./sprite-scale";
+import { rebasedSheetScales } from "@/lib/sideview/sprite-scale";
 import { preparedPlayerStateRebase } from "./prepared-player";
 import type { MotionCalibration } from "@/lib/manifest/prepared-manifest";
 

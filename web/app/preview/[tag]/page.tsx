@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isPreparedRuntimeRun, isSafeRunTag } from "@/lib/shell/runs";
+import { isPreparedRuntimeRun } from "@/lib/shell/prepared-runtime";
+import { isSafeRunTag } from "@/lib/shell/runs";
 import { previewPolicyForRunMode } from "@/lib/shell/transparency";
 import {
   GameplayAutomationRequestError,

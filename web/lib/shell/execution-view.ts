@@ -3,8 +3,7 @@
 // Absent is null; present-but-refused throws — the page turns that into the
 // re-export message rather than a crash, per the view's hard-drop versioning.
 
-import { constants as fsConstants, promises as fs } from "node:fs";
-import path from "node:path";
+import { promises as fs } from "node:fs";
 import {
   type ExecutionRunState,
   type ExecutionView,
@@ -12,32 +11,10 @@ import {
   parseExecutionView,
   subjectLabel,
 } from "@/lib/run-viewer/execution-view";
-import { artifactPathFor, assertSafeOutRoot, isSafeRunTag, OUT_ROOT, runDirFor } from "./runs";
+import { readRunDocument } from "./run-json";
+import { artifactPathFor, assertSafeOutRoot, isSafeRunTag, OUT_ROOT } from "./runs";
 
 export const EXECUTION_VIEW_FILENAME = "execution-view.json";
-
-async function lstatOrNull(
-  target: string,
-): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
-  try {
-    return await fs.lstat(target);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-async function assertRealDirectory(target: string, label: string): Promise<boolean> {
-  const stat = await lstatOrNull(target);
-  if (!stat) return false;
-  if (!stat.isDirectory() || stat.isSymbolicLink()) {
-    throw new Error(`${label} must be a real directory`);
-  }
-  if ((await fs.realpath(target)) !== path.resolve(target)) {
-    throw new Error(`${label} must not traverse a symlink`);
-  }
-  return true;
-}
 
 /**
  * Read and parse one run's execution view. Returns null when the run or the
@@ -45,45 +22,12 @@ async function assertRealDirectory(target: string, label: string): Promise<boole
  * build renders (unknown version, tampered read, invalid shape).
  */
 export async function readExecutionView(tag: string): Promise<ExecutionView | null> {
-  if (!(await assertSafeOutRoot())) return null;
-
-  const runDir = runDirFor(tag);
-  if (!(await assertRealDirectory(runDir, "run directory"))) return null;
-
-  const viewPath = artifactPathFor(tag, EXECUTION_VIEW_FILENAME);
-  const initial = await lstatOrNull(viewPath);
-  if (!initial) return null;
-  if (!initial.isFile() || initial.isSymbolicLink()) {
-    throw new Error("execution view must be a real regular file");
-  }
-
-  const handle = await fs.open(viewPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-  let bytes: Buffer;
-  let opened: Awaited<ReturnType<typeof handle.stat>>;
-  try {
-    opened = await handle.stat();
-    if (!opened.isFile()) throw new Error("execution view must be a real regular file");
-    bytes = await handle.readFile();
-  } finally {
-    await handle.close();
-  }
-
-  const current = await fs.lstat(viewPath);
-  if (
-    opened.dev !== initial.dev ||
-    opened.ino !== initial.ino ||
-    current.isSymbolicLink() ||
-    !current.isFile() ||
-    current.dev !== opened.dev ||
-    current.ino !== opened.ino
-  ) {
-    throw new Error("execution view changed while it was being read");
-  }
-  if ((await fs.realpath(runDir)) !== path.resolve(runDir)) {
-    throw new Error("run directory changed while its view was being read");
-  }
-
-  return parseExecutionView(JSON.parse(bytes.toString("utf8")));
+  const read = await readRunDocument(tag, EXECUTION_VIEW_FILENAME, {
+    label: "execution view",
+    noun: "view",
+  });
+  if (read === null) return null;
+  return parseExecutionView(read.document);
 }
 
 async function isRenderableExecutionView(tag: string): Promise<boolean> {

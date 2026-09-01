@@ -85,6 +85,13 @@ the old names.
 | `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |
 | `web/lib/dialogue` | new | the agnostic conversation core both genres walk | a |
+| `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
+| `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
+| `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |
+| `components/runner_content` | new in the runner pass | `2d/sideview/runner/content` | d |
+| `components/sideview_terrain` | lifted from the platformer recipe | `2d/sideview/terrain_47tile` | c — both side-view genres paint one atlas |
+| `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
+| `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see
@@ -121,11 +128,11 @@ later:
    Home: `2d/sideview/painted_terrain` (genre-neutral: platformers and
    side-view RPGs both consume it).
 2. **Runner vs jumper**: the asset-facing difference is the loop axis —
-   horizontal for a runner, vertical for an infinite jumper. Loop admission
-   today is single-axis with only horizontal callers, which is exactly why an
-   infinite-jumper demo is currently impossible. Home: loop-axis modules under
-   the camera (`2d/sideview/loop_x`, `2d/sideview/loop_y`), genre profiles
-   above them (`runner`, `jumper`).
+   horizontal for a runner, vertical for an infinite jumper. The horizontal
+   runner now exists at its reserved home: `runner` is a `game-contract-v8`
+   genre member (`docs/spec/game/runner.md`) over the shared `2d/sideview`
+   modules. Loop admission is still single-axis, so an infinite-jumper demo
+   remains impossible until `2d/sideview/loop_y` has a caller.
 3. **Settlements on terrain** (side-view RPG maps that do not loop):
    settlements composed onto terrain, far blurred background, no foreground —
    a finite map, which is not the looping layer system with different

@@ -20,7 +20,7 @@ import {
   sampleCombatText,
   type CombatTextMotion,
 } from "./combat-text";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 
 const MOTION: CombatTextMotion = Object.freeze({
   // Multiple of the shake pattern length, so frame zero starts at the authored anchor.

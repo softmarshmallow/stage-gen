@@ -30,10 +30,28 @@ def commands(python: str = sys.executable) -> tuple[tuple[str, ...], ...]:
         (python, "scripts/check_docs.py"),
         (python, "-m", "build", "--no-isolation"),
         ("stage-gen", "--help"),
-        # The installed entry point plans all three recipes offline: a route the binding
-        # table cannot serve, or an authored input the resolver refuses, fails here rather
-        # than against a provider.
-        ("stage-gen", "package", "plan", "--input", "library/games/bellweather"),
+        # The installed entry point plans both of Bellweather's genre members offline:
+        # a route the binding table cannot serve, or an authored input the resolver
+        # refuses, fails here rather than against a provider. The room and scene
+        # recipes have no committed package, so only their CLI surface is exercised.
+        (
+            "stage-gen",
+            "package",
+            "plan",
+            "--input",
+            "library/games/bellweather",
+            "--genre",
+            "platformer",
+        ),
+        (
+            "stage-gen",
+            "package",
+            "plan",
+            "--input",
+            "library/games/bellweather",
+            "--genre",
+            "runner",
+        ),
         ("stage-gen", "dialogue-scene", "generate", "--help"),
         ("stage-gen", "pointclick-room", "generate", "--help"),
     )

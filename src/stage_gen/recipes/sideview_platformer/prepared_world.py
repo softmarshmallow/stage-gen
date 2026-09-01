@@ -8,7 +8,7 @@ import io
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
@@ -50,25 +50,34 @@ from stage_gen.components.platformer_map.prepared import (
     validate_generated_terrain,
 )
 from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
+from stage_gen.components.sideview_layers.contract import (
+    LAYER_PLACEMENT_CANONICALIZER,
+)
+from stage_gen.components.sideview_layers.pipeline import (
+    assemble_loop,
+    construct_deterministic,
+    layer_repeat_policies,
+    loop_conditioning,
+    validate_provider_image,
+)
+from stage_gen.components.sideview_terrain.atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    assemble_terrain_atlas,
+    compose_canonical_terrain,
+    require_terrain_atlas_source,
+    terrain_atlas_generation_prompt,
+)
 from stage_gen.media import (
     LOOP_METHODS,
     AlphaComponentRepackContract,
     LoopConstruction,
     RegistrationError,
     SeamConditioning,
-    assemble_fold_repaint,
-    assemble_generated_bridge,
-    assemble_seam_repaint,
-    build_bridge_conditioning,
-    build_fold_repaint_conditioning,
-    build_seam_repaint_conditioning,
     content_bottom_offset_fraction,
-    mirror_repeat,
     repack_alpha_components,
     seal_offset_fraction,
     trim_layer_to_alpha_box,
 )
-from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.sideview_platformer.climbable_atlas import (
@@ -78,14 +87,7 @@ from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     plan_climbable_atlas,
     role_aspect_admits,
 )
-from stage_gen.recipes.sideview_platformer.layer_contract import (
-    LAYER_PLACEMENT_CANONICALIZER,
-    LOOP_ANCHOR_BAND_PX,
-    LOOP_BRIDGE_CONTEXT_SPAN_PX,
-    LOOP_BRIDGE_SPAN_PX,
-    LOOP_REPAINT_SPAN_PX,
-    LOOP_REPAINT_WINDOW_PX,
-)
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
 from stage_gen.recipes.sideview_platformer.package_graph import (
     CACHE_RECORD_KIND,
     WORLD_CACHE_NAMESPACE,
@@ -105,13 +107,6 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     MAP_REVIEW,
     MAP_TERRAIN_DESIGN,
     PACKAGE_RESOLVE,
-)
-from stage_gen.recipes.sideview_platformer.terrain_atlas import (
-    MATERIAL_ASSEMBLER_ID,
-    assemble_terrain_atlas,
-    compose_canonical_terrain,
-    require_terrain_atlas_source,
-    terrain_atlas_generation_prompt,
 )
 from stage_gen.recipes.sideview_platformer.terrain_design import (
     compile_terrain,
@@ -320,7 +315,7 @@ class PreparedWorldNodeHandler:
                     "map_id": game_map.map_id,
                     "layer_id": layer.layer_id,
                 },
-                validate=lambda artifact: _validate_provider_image(
+                validate=lambda artifact: validate_provider_image(
                     artifact.data, width=1536, height=1024, transparent=transparent
                 ),
             )
@@ -357,7 +352,7 @@ class PreparedWorldNodeHandler:
         _producer, source_port = dependency_port(self._graph, node, kind="map-layer-raw-v1")
         raw_data = (self._run_dir / source_port.artifact_ref).read_bytes()
         construction = layer.loop_construction or game_map.continuity.loop_construction
-        alpha_policy, coverage = _layer_repeat_policies(layer)
+        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
         output = self._run_dir / node.port("loop_image").artifact_ref
         record_path = self._run_dir / node.port("loop_report").artifact_ref
 
@@ -384,10 +379,10 @@ class PreparedWorldNodeHandler:
                 "provider_operations": 0,
             }
         elif not LOOP_METHODS[construction].is_generative:
-            looped, record = _construct_deterministic(construction, raw_data)
+            looped, record = construct_deterministic(construction, raw_data)
             record["construction"] = construction
         else:
-            conditioning = _loop_conditioning(construction, raw_data)
+            conditioning = loop_conditioning(construction, raw_data)
             edit_path = self._run_dir / node.port("edit_image").artifact_ref
             transparent = layer.alpha_mode == "transparent"
             generation = await self._images.generate(
@@ -418,7 +413,7 @@ class PreparedWorldNodeHandler:
             )
             provider_operations = generation.attempts
             try:
-                looped, record = _assemble_loop(
+                looped, record = assemble_loop(
                     construction, raw_data, edit_path.read_bytes(), conditioning=conditioning
                 )
                 record["construction"] = construction
@@ -427,7 +422,7 @@ class PreparedWorldNodeHandler:
                 # lands it. The fallback is required to be deterministic, so the map still gets a
                 # usable loop unit and the rejection is recorded rather than shipped as art.
                 fallback = game_map.continuity.loop_fallback
-                looped, record = _construct_deterministic(fallback, raw_data)
+                looped, record = construct_deterministic(fallback, raw_data)
                 record["construction"] = fallback
                 record["rejected_construction"] = construction
                 record["rejection"] = str(error)
@@ -443,7 +438,7 @@ class PreparedWorldNodeHandler:
             # The rejection is recorded rather than shipped, so a silent degrade stays visible.
             fallback = game_map.continuity.loop_fallback
             rejected_report = report.model_dump(mode="json")  # type: ignore[attr-defined]
-            looped, record = _construct_deterministic(fallback, raw_data)
+            looped, record = construct_deterministic(fallback, raw_data)
             record["construction"] = fallback
             record["rejected_construction"] = construction
             record["rejection"] = "constructed loop failed x-repeat admission"
@@ -476,7 +471,7 @@ class PreparedWorldNodeHandler:
         raw_path = self._run_dir / loop_port.artifact_ref
         raw_data = raw_path.read_bytes()
         construction = json.loads((self._run_dir / report_port.artifact_ref).read_bytes())
-        alpha_policy, coverage = _layer_repeat_policies(layer)
+        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
         canonical = raw_data
         report = validate_image_repeat(
             canonical,
@@ -1183,75 +1178,6 @@ def world_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
     return tuple(node.node_id for node in graph.nodes if node.type_id == MAP_REVIEW.type_id)
 
 
-def _loop_conditioning(construction: LoopConstruction, data: bytes) -> SeamConditioning:
-    """Lay out the provider canvas the selected construction needs.
-
-    Each construction shows the provider a different canvas, and the difference is the whole
-    point: the bridge shows two ends with a gap between them, while the repaints show a join
-    already sitting in the middle of continuous content.
-    """
-
-    if construction == "generated_bridge":
-        return build_bridge_conditioning(
-            data,
-            context_span=LOOP_BRIDGE_CONTEXT_SPAN_PX,
-            editable_span=LOOP_BRIDGE_SPAN_PX,
-        )
-    if construction == "seam_repaint":
-        return build_seam_repaint_conditioning(
-            data, window_span=LOOP_REPAINT_WINDOW_PX, repaint_span=LOOP_REPAINT_SPAN_PX
-        )
-    if construction == "fold_repaint":
-        return build_fold_repaint_conditioning(
-            data, window_span=LOOP_REPAINT_WINDOW_PX, repaint_span=LOOP_REPAINT_SPAN_PX
-        )
-    raise ValueError(f"{construction} is not a generative loop construction")
-
-
-def _assemble_loop(
-    construction: LoopConstruction,
-    data: bytes,
-    provider_png: bytes,
-    *,
-    conditioning: SeamConditioning,
-) -> tuple[bytes, dict[str, object]]:
-    """Land the provider's return by the rule its construction declares."""
-
-    if construction == "generated_bridge":
-        return assemble_generated_bridge(
-            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
-        )
-    if construction == "seam_repaint":
-        return assemble_seam_repaint(
-            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
-        )
-    if construction == "fold_repaint":
-        return assemble_fold_repaint(
-            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
-        )
-    raise ValueError(f"{construction} is not a generative loop construction")
-
-
-def _construct_deterministic(
-    construction: LoopConstruction, data: bytes
-) -> tuple[bytes, dict[str, object]]:
-    """Run a construction that needs no provider operation and therefore cannot fail."""
-
-    if construction == "mirror_repeat":
-        return mirror_repeat(data)
-    raise ValueError(f"{construction} is not a deterministic loop construction")
-
-
-def _layer_repeat_policies(
-    layer: PreparedMapLayer,
-) -> tuple[Literal["preserve", "require_opaque"], Literal["sparse_allowed", "continuous"]]:
-    """Return the alpha and coverage admission policies implied by a layer's alpha mode."""
-
-    if layer.alpha_mode == "transparent":
-        return "preserve", "sparse_allowed"
-    return "require_opaque", "continuous"
-
-
 def _composite_layer_top(
     *,
     anchor: str,
@@ -1540,7 +1466,7 @@ def _validate_map_presentation_source(
     expected_size: tuple[int, int],
     roles: Sequence[ClimbableRole] | None = None,
 ) -> dict[str, object]:
-    facts = _validate_provider_image(
+    facts = validate_provider_image(
         data,
         width=expected_size[0],
         height=expected_size[1],
@@ -1622,21 +1548,6 @@ async def _write_local_image_multi(
             attempts=1,
         ),
     )
-
-
-def _validate_provider_image(
-    data: bytes, *, width: int, height: int, transparent: bool
-) -> dict[str, object]:
-    with Image.open(io.BytesIO(data)) as opened:
-        image = opened.convert("RGBA")
-    if image.size != (width, height):
-        raise ValueError(f"provider image must be exactly {width}x{height}")
-    extrema = cast(tuple[int, int], image.getchannel("A").getextrema())
-    if transparent and not (extrema[0] == 0 and extrema[1] > 0):
-        raise ValueError("transparent map output must contain both transparent and visible pixels")
-    if not transparent and extrema != (255, 255):
-        raise ValueError("opaque map output must be fully opaque")
-    return {"width": width, "height": height, "alpha_min": extrema[0], "alpha_max": extrema[1]}
 
 
 def _review_schema() -> dict[str, object]:

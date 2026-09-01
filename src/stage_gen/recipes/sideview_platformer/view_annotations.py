@@ -18,8 +18,8 @@ from gnode import (
     RunViewMotion,
     generic_artifact_annotation,
 )
+from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.recipes.sideview_platformer.motion_contract import (
-    DEFAULT_MOTION_ATLAS_GEOMETRY,
     MotionActorKind,
     motion_atlas_geometry,
 )

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   debugOverlayText,
   debugOverlayToggleRequested,

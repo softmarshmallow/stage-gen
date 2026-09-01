@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { PROJECTILE_POOL_CAP, ProjectileSystem } from "./projectiles";
 import type { WorldLimits } from "./projectile-flight";
 import { projectileProfile, type ProjectileProfile } from "./projectile-class";

@@ -2,7 +2,7 @@ import type { ClimbArtwork } from "./player";
 import type { PlayerState } from "./player-state";
 import type { ClimbableRole } from "./vertical";
 import type { MotionBinding, MotionCalibration } from "@/lib/manifest/prepared-manifest";
-import type { RuntimeMotionPlayback } from "./motion-playback";
+import type { RuntimeMotionPlayback } from "@/lib/sideview/motion-playback";
 
 type PreparedPlayerStateAdapter = Readonly<{
   runtime_state: PlayerState;

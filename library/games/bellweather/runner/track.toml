@@ -1,0 +1,157 @@
+# The runner track: authored tiled segments over the shared side-view stage.
+# Segments share one 8-row grid with the walk surface at row 5; every chunk's
+# first and last columns present that surface (the seam rule), so any chunk may
+# follow any chunk and the track is infinite by construction. Pits are legal
+# here - and provably clearable against the gameplay contract's jump profile.
+
+schema_version = 1
+kind = "runner-track-v1"
+game_id = "bellweather"
+track_id = "sunpetal-sprint"
+revision = 1
+display_name = "Sunpetal Sprint"
+
+[view]
+profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[camera]
+mode = "auto_run_x_v1"
+
+[continuity]
+seamless_axis = "x"
+loop_construction = "generated_bridge"
+
+[[references]]
+reference_id = "sunpetal_scene"
+source = "references/sunpetal-crossing-scene.png"
+source_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner."]
+
+[[layers]]
+layer_id = "meadow_sky"
+reference_ids = ["sunpetal_scene"]
+plane = "background"
+order = 0
+parallax = 0.05
+alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
+prompt = "The reference's high-key morning sky alone: soft rounded clouds over the faintest distant hill line, with every building, tree, road, and character omitted."
+
+[layers.presentation]
+contrast = 0.95
+saturation = 0.9
+atmosphere_color = "#bcd6ef"
+atmosphere_strength = 0.12
+detail_blur_screen_pixels = 1.2
+
+[[layers]]
+layer_id = "hedgerow_band"
+reference_ids = ["sunpetal_scene"]
+plane = "background"
+order = 1
+parallax = 0.35
+alpha_mode = "transparent"
+vertical_anchor = "walk_surface"
+prompt = "A continuous mid-distance band of the reference's moss-green hedgerows and small round trees with occasional fence posts, no buildings or characters, quiet repeated motifs at both edges."
+
+[layers.presentation]
+contrast = 1.0
+saturation = 1.0
+atmosphere_color = "#bcd6ef"
+atmosphere_strength = 0.05
+detail_blur_screen_pixels = 0.4
+
+[ground]
+mode = "terrain-atlas-3x3-minimal-v1"
+reference_ids = ["sunpetal_scene"]
+vertical_fit = "floor_to_screen_bottom"
+prompt = "Create Sunpetal Sprint's stable terrain material from the selected scene: warm cream paving, moss-softened stone edges, restrained grass and tiny flowers at the surface, and darker compacted soil or masonry beneath. Match the clean digital-gouache-like finish and preserve broad quiet areas around a crisp readable footing line."
+
+[segments]
+rows = 8
+walk_surface_row = 5
+
+[[segments.chunks]]
+segment_id = "meadow_flat"
+difficulty = 1
+occupancy = [
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "111111111111",
+  "111111111111",
+  "111111111111",
+]
+
+[[segments.chunks]]
+segment_id = "cart_lane"
+difficulty = 2
+occupancy = [
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "111111111111",
+  "111111111111",
+  "111111111111",
+]
+
+[[segments.chunks.hazards]]
+prop_id = "toppled_cart"
+column = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 6
+row = 2
+
+[[segments.chunks]]
+segment_id = "brook_gap"
+difficulty = 3
+occupancy = [
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "1111110001111111",
+  "1111110001111111",
+  "1111110001111111",
+]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 3
+
+[[segments.chunks]]
+segment_id = "hay_run"
+difficulty = 3
+occupancy = [
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "1111111111111111",
+  "1111111111111111",
+  "1111111111111111",
+]
+
+[[segments.chunks.hazards]]
+prop_id = "hay_bundle"
+column = 4
+
+[[segments.chunks.hazards]]
+prop_id = "hay_bundle"
+column = 11
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 3

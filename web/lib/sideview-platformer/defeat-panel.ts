@@ -16,7 +16,7 @@
 // the callback is still standing in.
 
 import type Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import { defeatPromptState } from "./respawn";
 
 const VIEW_W = 1280;

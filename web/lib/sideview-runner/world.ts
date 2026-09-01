@@ -1,0 +1,242 @@
+// RunnerWorld: the one mutable state every system reads and writes.
+//
+// The world is data, the systems are behavior, and the seed is identity: a
+// world created from the same manifest and seed streams the same chunks and
+// scores the same run, which is what makes a report about a run repeatable.
+// The RNG is mulberry32 — tiny, deterministic, and good enough for chunk
+// selection, which is the only random decision the runner makes.
+
+import type { RunnerRuntimeManifest, RunnerChunk, RunnerMotionState } from "./contract";
+import type { GameSystem } from "./systems";
+import type { DifficultyState } from "./difficulty";
+import {
+  BASE_SPEED_COLUMNS_PER_SECOND,
+  rampProfile,
+  type RampProfileName,
+} from "./difficulty";
+import type { RunnerIntent } from "./intent";
+import { NEUTRAL_RUNNER_INTENT } from "./intent";
+import {
+  createSegmentStream,
+  streamAhead,
+  type SegmentStream,
+  type StreamedPickup,
+} from "./segments";
+
+export type Rng = () => number;
+
+/** The classic mulberry32: 32-bit state, uniform floats in [0, 1). */
+export function mulberry32(seed: number): Rng {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export type RunPhase = "running" | "dead";
+
+/** Why the run ended, when it has. */
+export type DeathCause = "hazard" | "pit" | "step" | null;
+
+export interface AvatarState {
+  /** Forward progress of the avatar's feet, in world columns. */
+  distanceColumns: number;
+  /** Feet altitude in occupancy-row units; larger is lower, like row indices. */
+  y: number;
+  /** Vertical speed in rows per second; positive is downward. */
+  vy: number;
+  grounded: boolean;
+  motion: RunnerMotionState;
+  /** A death the avatar itself detected this frame; run-loop folds it into the phase. */
+  deathCause: Extract<DeathCause, "pit" | "step"> | null;
+}
+
+export interface ObstaclesState {
+  /** Instance keys of pickups already collected, so they never re-score. */
+  collected: Set<string>;
+  /** True while the avatar overlaps a hazard this frame. */
+  hazardContact: boolean;
+  /** Pickups first collected this frame, for scoring and despawn effects. */
+  collectedThisFrame: StreamedPickup[];
+}
+
+export interface RunState {
+  phase: RunPhase;
+  seed: number;
+  rng: Rng;
+  score: number;
+  cause: DeathCause;
+}
+
+export interface CameraState {
+  /** Horizontal world scroll in screen pixels at parallax 1. */
+  scrollX: number;
+}
+
+/** Everything static a system needs, derived once from the manifest. */
+export interface RunnerWorldConfig {
+  readonly rows: number;
+  readonly walkSurfaceRow: number;
+  readonly tilePx: number;
+  readonly playerHeightTiles: number;
+  readonly maxClearGapColumns: number;
+  readonly maxRiseTiles: number;
+  readonly rampProfile: RampProfileName;
+  readonly chunks: readonly RunnerChunk[];
+  /** Declared prop magnitudes in player-height units, for hazard collision boxes. */
+  readonly propHeightUnits: ReadonlyMap<string, number>;
+  /** How far past the avatar the stream keeps track, in columns. */
+  readonly streamAheadColumns: number;
+  /** How far behind the avatar passed chunks are retained, in columns. */
+  readonly keepBehindColumns: number;
+  /** Screen x the avatar is pinned to, in pixels. */
+  readonly avatarScreenX: number;
+}
+
+export interface RunnerWorld {
+  intent: RunnerIntent;
+  difficulty: DifficultyState;
+  avatar: AvatarState;
+  segments: SegmentStream;
+  obstacles: ObstaclesState;
+  run: RunState;
+  camera: CameraState;
+  readonly config: RunnerWorldConfig;
+}
+
+/** Fixed design-space viewport shared by every runner boot. */
+export const RUNNER_VIEW_WIDTH = 1280;
+export const RUNNER_VIEW_HEIGHT = 720;
+
+/** Where the avatar sits on screen: a quarter in, so the run reads forward. */
+export const AVATAR_SCREEN_ANCHOR_FRACTION = 0.25;
+
+const STREAM_MARGIN_COLUMNS = 8;
+
+export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldConfig {
+  const viewportColumns = Math.ceil(RUNNER_VIEW_WIDTH / manifest.scale.tilePx);
+  return Object.freeze({
+    rows: manifest.segments.rows,
+    walkSurfaceRow: manifest.segments.walkSurfaceRow,
+    tilePx: manifest.scale.tilePx,
+    playerHeightTiles: manifest.scale.playerHeightTiles,
+    maxClearGapColumns: manifest.gameplay.maxClearGapColumns,
+    maxRiseTiles: manifest.gameplay.maxRiseTiles,
+    rampProfile: manifest.gameplay.rampProfile,
+    chunks: manifest.segments.chunks,
+    propHeightUnits: new Map(
+      manifest.props.map((prop) => [prop.id, prop.calibration.heightUnits]),
+    ),
+    streamAheadColumns: viewportColumns + STREAM_MARGIN_COLUMNS,
+    keepBehindColumns: STREAM_MARGIN_COLUMNS,
+    avatarScreenX: Math.round(RUNNER_VIEW_WIDTH * AVATAR_SCREEN_ANCHOR_FRACTION),
+  });
+}
+
+/**
+ * Screen y of a world row edge under `floor_to_screen_bottom`: the bottom of
+ * the deepest authored row meets the bottom of the canvas, so the ground can
+ * never reveal a gap beneath the world.
+ */
+export function rowToScreenY(row: number, config: RunnerWorldConfig): number {
+  return RUNNER_VIEW_HEIGHT - (config.rows - row) * config.tilePx;
+}
+
+/** Screen y of the shared walk datum: the top of the seam-column ground stack. */
+export function groundLineY(config: RunnerWorldConfig): number {
+  return rowToScreenY(config.walkSurfaceRow, config);
+}
+
+/** Horizontal world scroll that pins the avatar to its screen anchor. */
+export function cameraScrollX(distanceColumns: number, config: RunnerWorldConfig): number {
+  return distanceColumns * config.tilePx - config.avatarScreenX;
+}
+
+/**
+ * The auto-run camera: scroll is a pure function of the avatar's distance.
+ * It reads `run` as well because a restart resets the world mid-frame, and
+ * the camera must frame the fresh run, not the dead one it was following.
+ */
+export function createCameraSystem(): GameSystem<RunnerWorld> {
+  return {
+    id: "runner/camera",
+    contractVersion: "camera-system-v1",
+    reads: ["avatar", "run"],
+    writes: ["camera"],
+    update(world) {
+      world.camera.scrollX = cameraScrollX(world.avatar.distanceColumns, world.config);
+    },
+  };
+}
+
+/**
+ * Reset every dynamic half of the world in place for a new run under `seed`.
+ *
+ * In place rather than by replacement because the sealed systems and the
+ * renderer hold the world object itself; a fresh object would strand them on
+ * a dead one. The initial window is primed here so the avatar's feedback read
+ * of the stream is valid from the very first tick.
+ */
+export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
+  const rng = mulberry32(seed);
+  world.intent = NEUTRAL_RUNNER_INTENT;
+  world.difficulty = {
+    ceiling: 1,
+    speedMultiplier: 1,
+    speedColumnsPerSecond: BASE_SPEED_COLUMNS_PER_SECOND,
+  };
+  world.avatar = {
+    distanceColumns: 2,
+    y: world.config.walkSurfaceRow,
+    vy: 0,
+    grounded: true,
+    motion: "run",
+    deathCause: null,
+  };
+  world.segments = createSegmentStream(world.config.rows, world.config.walkSurfaceRow);
+  world.obstacles = { collected: new Set(), hazardContact: false, collectedThisFrame: [] };
+  world.run = { phase: "running", seed, rng, score: 0, cause: null };
+  world.camera = { scrollX: cameraScrollX(world.avatar.distanceColumns, world.config) };
+  streamAhead(
+    world.segments,
+    world.config.chunks,
+    world.difficulty.ceiling,
+    rng,
+    Math.ceil(world.avatar.distanceColumns) + world.config.streamAheadColumns,
+  );
+}
+
+export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number): RunnerWorld {
+  const config = runnerWorldConfig(manifest);
+  // The reset fills every dynamic field; the placeholders exist only to give
+  // it a complete object to work on.
+  const world: RunnerWorld = {
+    intent: NEUTRAL_RUNNER_INTENT,
+    difficulty: {
+      ceiling: 1,
+      speedMultiplier: 1,
+      speedColumnsPerSecond: BASE_SPEED_COLUMNS_PER_SECOND,
+    },
+    avatar: {
+      distanceColumns: 0,
+      y: 0,
+      vy: 0,
+      grounded: true,
+      motion: "run",
+      deathCause: null,
+    },
+    segments: createSegmentStream(config.rows, config.walkSurfaceRow),
+    obstacles: { collected: new Set(), hazardContact: false, collectedThisFrame: [] },
+    run: { phase: "running", seed, rng: mulberry32(seed), score: 0, cause: null },
+    camera: { scrollX: 0 },
+    config,
+  };
+  resetRunnerWorld(world, seed);
+  // Sanity-check the ramp profile eagerly so a bad name fails at boot.
+  rampProfile(config.rampProfile);
+  return world;
+}

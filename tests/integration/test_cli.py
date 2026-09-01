@@ -61,7 +61,13 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     assert json.loads(zip_output.getvalue())["closure_sha256"] == report["closure_sha256"]
 
     plan_output = StringIO()
-    assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0
+    assert (
+        main(
+            ["package", "plan", "--input", str(package), "--genre", "platformer"],
+            stdout=plan_output,
+        )
+        == 0
+    )
     plan = json.loads(plan_output.getvalue())
     assert len(plan["graph"]["nodes"]) == 221
     assert plan["projection"]["operation_counts"] == {
@@ -87,6 +93,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
                 "generate",
                 "--input",
                 str(package),
+                "--genre",
+                "platformer",
                 "--dry-run",
                 "--output",
                 str(tmp_path / "run"),
@@ -138,6 +146,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
                 "generate",
                 "--input",
                 str(package),
+                "--genre",
+                "platformer",
                 "--output",
                 str(tmp_path / "live-run"),
             ],

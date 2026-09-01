@@ -11,6 +11,7 @@ import {
   projectDialogueSceneFixture,
 } from "@/lib/dialogue-scene/bundle";
 import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
+import { preparedAssetUrl } from "./asset-url";
 import { assertSafeOutRoot, isSafeRunTag, OUT_ROOT, runDirFor } from "./runs";
 
 const BUNDLE_NAME = "bundle.json";
@@ -35,7 +36,7 @@ export async function readSceneFixture(tag: string): Promise<DialogueSceneFixtur
   const document = await readJson(path.join(runDirFor(tag), BUNDLE_NAME));
   if (document === null) return null;
   const bundle = parseDialogueSceneBundle(document);
-  return projectDialogueSceneFixture(bundle, (asset) => `/api/assets/${tag}/${asset.path}`);
+  return projectDialogueSceneFixture(bundle, (asset) => preparedAssetUrl(tag, asset.path));
 }
 
 export interface ReadyScene {

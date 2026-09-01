@@ -1,41 +1,23 @@
-import { constants as fsConstants, promises as fs } from "node:fs";
-import path from "node:path";
+// Server-side readers for the prepared-runtime identity a run may publish.
+//
+// Both readers go through the hardened run-json sequence; they differ only in
+// what they promise. The strict reader validates the whole contract, while the
+// identity gate answers "is this run published as a prepared runtime" without
+// judging the body, so a claiming-but-invalid manifest still reaches the
+// strict reader and fails loudly there rather than being silently hidden.
+
 import {
   parsePreparedRuntimeManifest,
   PREPARED_RUNTIME_KIND,
+  PREPARED_RUNTIME_SCHEMA_VERSION,
   type PreparedRuntimeManifest,
 } from "@/lib/manifest/prepared-manifest";
-import {
-  artifactPathFor,
-  assertSafeOutRoot,
-  runDirFor,
-} from "./runs";
+import { readRunDocument } from "./run-json";
 
-async function lstatOrNull(
-  target: string,
-): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
-  try {
-    return await fs.lstat(target);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-async function assertRealDirectory(
-  target: string,
-  label: string,
-): Promise<boolean> {
-  const stat = await lstatOrNull(target);
-  if (!stat) return false;
-  if (!stat.isDirectory() || stat.isSymbolicLink()) {
-    throw new Error(`${label} must be a real directory`);
-  }
-  if ((await fs.realpath(target)) !== path.resolve(target)) {
-    throw new Error(`${label} must not traverse a symlink`);
-  }
-  return true;
-}
+const MANIFEST_LABELS = {
+  label: "prepared runtime manifest",
+  noun: "manifest",
+} as const;
 
 /**
  * Read and validate the immutable prepared-runtime authority for one safe run.
@@ -49,54 +31,36 @@ async function assertRealDirectory(
 export async function readPreparedRuntimeManifest(
   tag: string,
 ): Promise<PreparedRuntimeManifest | null> {
-  if (!(await assertSafeOutRoot())) return null;
+  const read = await readRunDocument(tag, "manifest.json", MANIFEST_LABELS);
+  if (read === null) return null;
 
-  const runDir = runDirFor(tag);
-  if (!(await assertRealDirectory(runDir, "run directory"))) return null;
-
-  const manifestPath = artifactPathFor(tag, "manifest.json");
-  const initial = await lstatOrNull(manifestPath);
-  if (!initial) return null;
-  if (!initial.isFile() || initial.isSymbolicLink()) {
-    throw new Error("prepared runtime manifest must be a real regular file");
-  }
-
-  const handle = await fs.open(
-    manifestPath,
-    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
-  );
-  let bytes: Buffer;
-  let opened: Awaited<ReturnType<typeof handle.stat>>;
-  try {
-    opened = await handle.stat();
-    if (!opened.isFile()) {
-      throw new Error("prepared runtime manifest must be a real regular file");
-    }
-    bytes = await handle.readFile();
-  } finally {
-    await handle.close();
-  }
-
-  const current = await fs.lstat(manifestPath);
-  if (
-    opened.dev !== initial.dev ||
-    opened.ino !== initial.ino ||
-    current.isSymbolicLink() ||
-    !current.isFile() ||
-    current.dev !== opened.dev ||
-    current.ino !== opened.ino
-  ) {
-    throw new Error("prepared runtime manifest changed while it was being read");
-  }
-  if ((await fs.realpath(runDir)) !== path.resolve(runDir)) {
-    throw new Error("run directory changed while its manifest was being read");
-  }
-
-  const declared: unknown = JSON.parse(bytes.toString("utf8"));
+  const declared = read.document;
   const kind =
     typeof declared === "object" && declared !== null
       ? (declared as Record<string, unknown>).kind
       : undefined;
   if (kind !== PREPARED_RUNTIME_KIND) return null;
   return parsePreparedRuntimeManifest(declared);
+}
+
+/**
+ * Identity-only gate: does this run declare the prepared-runtime kind and
+ * schema version? Absence and every read failure answer false rather than
+ * throwing, because callers use this to decide whether a page exists at all;
+ * the strict reader above is what refuses a claiming-but-invalid manifest.
+ */
+export async function isPreparedRuntimeRun(tag: string): Promise<boolean> {
+  try {
+    const read = await readRunDocument(tag, "manifest.json", MANIFEST_LABELS);
+    if (read === null) return false;
+    const declared = read.document;
+    if (typeof declared !== "object" || declared === null) return false;
+    const record = declared as Record<string, unknown>;
+    return (
+      record["schema_version"] === PREPARED_RUNTIME_SCHEMA_VERSION &&
+      record["kind"] === PREPARED_RUNTIME_KIND
+    );
+  } catch {
+    return false;
+  }
 }

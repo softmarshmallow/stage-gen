@@ -2,18 +2,20 @@
 
 > **Contract maturity: exact-current prepared-package root.**
 >
-> This document specifies `game-contract-v7`, the root `game.toml` accepted by
+> This document specifies `game-contract-v8`, the root `game.toml` accepted by
 > prepared-package ingest. The complete package closure and transport rules live
 > in [Canonical prepared game package](../../game-package.md); execution order
 > and provider fan-out live in the [Canonical generation pipeline](generation-pipeline.md).
 
 ## Purpose
 
-`game.toml` is the membership root for one prepared game, naming every member
-by exact source path. It owns shared identity and art direction, catalogs the
-cast and maps, and names every direct contract and evidence source. It does not
-contain generated paths, provider configuration, execution order, map-use
-rules, or runtime objects.
+`game.toml` is the genre-neutral container for one prepared game, naming every
+member by exact source path. The container owns what every genre of the game
+must share - identity, universe, style, proportion, scale, evidence, and rights
+- and declares one or more `[[genres]]` members. Each genre member owns what is
+genre-scoped: its camera (`presentation`), its cast roles, and its own contract
+member table. The root does not contain generated paths, provider
+configuration, execution order, map-use rules, or runtime objects.
 
 The canonical path is:
 
@@ -21,7 +23,7 @@ The canonical path is:
 library/games/<game_id>/game.toml
 ```
 
-Only `schema_version = 7` and `kind = "game-contract-v7"` are accepted. The
+Only `schema_version = 8` and `kind = "game-contract-v8"` are accepted. The
 resolver does not translate another document shape.
 
 ## Root shape
@@ -29,23 +31,14 @@ resolver does not translate another document shape.
 The exact fields are:
 
 ```toml
-schema_version = 7
-kind = "game-contract-v7"
+schema_version = 8
+kind = "game-contract-v8"
 game_id = "example-game"
 revision = 1
 display_name = "Example Game"
 
 [universe]
 source = "universe.md"
-
-[presentation]
-view_profile = "side_view_2d"
-gameplay_space = "side_plane"
-
-[presentation.contact_shadows]
-enabled = true
-opacity = 0.18
-softness_screen_pixels = 6.0
 
 [style]
 label = "concise authored style name"
@@ -68,45 +61,59 @@ steps = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
 common = 0.5
 boss = 1.5
 
-[cast]
+# One or more genre members. Each member owns its camera, cast, and contract
+# members; a genre may appear at most once.
+[[genres]]
+genre = "platformer"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
 player_id = "player_one"
 mob_ids = ["mob_one"]
 npc_ids = ["npc_one"]
 
-[gameplay]
+[genres.gameplay]
 source = "gameplay.toml"
 
-[ui]
+[genres.ui]
 source = "ui.toml"
 
-[soundtrack]
+[genres.soundtrack]
 source = "soundtrack.toml"
 
-[[maps]]
+[[genres.maps]]
 map_id = "first-map"
 source = "maps/first-map.toml"
 
-[content.player]
+[genres.content.player]
 source = "content/player.toml"
 
-[content.mobs]
+[genres.content.mobs]
 source = "content/mobs.toml"
 
-[content.npcs]
+[genres.content.npcs]
 source = "content/npcs.toml"
 
-[content.props]
+[genres.content.props]
 source = "content/props.toml"
 
-[content.items]
+[genres.content.items]
 source = "content/items.toml"
 
 # Optional, and the only optional content family. A game whose weapons throw
 # nothing omits the section and ships no projectile artwork.
-[content.projectiles]
+[genres.content.projectiles]
 source = "content/projectiles.toml"
 
-[scenarios]
+[genres.scenarios]
 index_source = "scenarios/index.toml"
 
 [evidence.cover]
@@ -126,7 +133,11 @@ basis = ["Original authored package direction."]
 
 - `game_id` is a portable game identifier and agrees with the selected package
   identity; `revision` is at least one and `display_name` is trimmed text.
-- Presentation is currently exactly `side_view_2d` in `side_plane` gameplay
+- `genres` declares one to eight members, each a distinct genre. The platformer
+  member is the only member model today; contract members are exclusively owned
+  by one genre, while digest-locked reference images may be shared across
+  members.
+- A member's presentation is currently exactly `side_view_2d` in `side_plane` gameplay
   space. `contact_shadows` is a consumer-only grounding treatment: `opacity`
   is zero through one and `softness_screen_pixels` is zero through 32.
 - Style keywords and avoidances are ordered, unique, trimmed lists. Their order
@@ -187,7 +198,7 @@ Membership stays exact: a member named here but absent is rejected as
 `missing_package_file`, and a captured file no contract names is rejected as
 `orphan_package_file`. Resolution then digests the exact captured closure of
 every member path, digest, and byte size as `closure_sha256`, which appears in
-the resolved package identity and in the `game-package-validation-v4` report.
+the resolved package identity and in the `game-package-validation-v5` report.
 The scrolling DAG consumes this resolved package and integration emits only
 `prepared-game-runtime-v10`.
 

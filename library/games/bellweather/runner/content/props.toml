@@ -1,0 +1,25 @@
+schema_version = 2
+kind = "prop-content-v2"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "sunpetal_scene"
+source = "references/sunpetal-crossing-scene.png"
+source_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather scene reference approved by the authenticated task owner."]
+
+[[props]]
+prop_id = "toppled_cart"
+height_units = 1.00
+display_name = "Toppled Cart"
+reference_ids = ["sunpetal_scene"]
+prompt = "A small toppled wooden hand cart shedding round loaves onto the path; strict side view, isolated on transparent background, no text."
+
+[[props]]
+prop_id = "hay_bundle"
+height_units = 0.75
+display_name = "Hay Bundle"
+reference_ids = ["sunpetal_scene"]
+prompt = "A plump rolled hay bundle tied with two cords, a few straws sticking out; strict side view, isolated on transparent background, no text."

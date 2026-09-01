@@ -19,13 +19,13 @@ from gnode import (
     write_run_summary,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.execution_graph import ExecutionGraph
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.orchestration.runtime import (
     create_music_service,
     create_openai_image_service,
     create_structured_service,
 )
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
 from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,

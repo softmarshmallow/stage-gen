@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from gnode import Node, Port, RetryOwner
-from stage_gen.orchestration.execution_graph import OperationKind
+from stage_gen.recipes.sideview_platformer.execution_graph import OperationKind
 from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
 )

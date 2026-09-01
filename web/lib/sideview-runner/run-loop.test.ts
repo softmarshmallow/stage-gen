@@ -1,0 +1,82 @@
+import { describe, expect, test } from "bun:test";
+import { createRunLoopSystem, nextRunSeed, PICKUP_SCORE } from "./run-loop";
+import { parseRunnerRuntimeManifest } from "./contract";
+import { runnerManifestFixture } from "./fixture";
+import { runnerIntent } from "./intent";
+import { createRunnerWorld, mulberry32 } from "./world";
+
+const STEP = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
+const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
+const system = createRunLoopSystem();
+
+describe("createRunLoopSystem", () => {
+  test("scores this frame's collected pickups", () => {
+    const world = createRunnerWorld(manifest, 1);
+    world.obstacles.collectedThisFrame = [{ itemId: "sunleaf_token", worldColumn: 6, row: 2 }];
+    system.update(world, STEP);
+    expect(world.run.score).toBe(PICKUP_SCORE);
+    expect(world.run.phase).toBe("running");
+  });
+
+  test("hazard contact ends the run with the hazard cause", () => {
+    const world = createRunnerWorld(manifest, 1);
+    world.obstacles.hazardContact = true;
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("dead");
+    expect(world.run.cause).toBe("hazard");
+  });
+
+  test("an avatar-detected death wins the cause over simultaneous contact", () => {
+    const world = createRunnerWorld(manifest, 1);
+    world.avatar.deathCause = "pit";
+    world.obstacles.hazardContact = true;
+    system.update(world, STEP);
+    expect(world.run.cause).toBe("pit");
+  });
+
+  test("dead runs ignore scoring and wait for the restart request", () => {
+    const world = createRunnerWorld(manifest, 1);
+    world.run.phase = "dead";
+    world.run.score = 30;
+    world.obstacles.collectedThisFrame = [{ itemId: "sunleaf_token", worldColumn: 6, row: 2 }];
+    system.update(world, STEP);
+    expect(world.run.score).toBe(30);
+    expect(world.run.phase).toBe("dead");
+  });
+
+  test("a jump or action request restarts a dead run under a fresh seed", () => {
+    const world = createRunnerWorld(manifest, 1);
+    const firstSeed = world.run.seed;
+    world.run.phase = "dead";
+    world.run.score = 90;
+    world.avatar.distanceColumns = 300;
+    world.intent = runnerIntent({ jump: true });
+    system.update(world, STEP);
+    // Widened read: TS control-flow narrowing cannot see the in-place reset.
+    expect(world.run.phase as string).toBe("running");
+    expect(world.run.seed).not.toBe(firstSeed);
+    expect(world.run.score).toBe(0);
+    expect(world.avatar.distanceColumns).toBe(2);
+    expect(world.segments.chunks.length).toBeGreaterThan(0);
+  });
+
+  test("the fresh seed is deterministic from the dying run's RNG", () => {
+    const runA = createRunnerWorld(manifest, 5);
+    const runB = createRunnerWorld(manifest, 5);
+    for (const world of [runA, runB]) {
+      world.run.phase = "dead";
+      world.intent = runnerIntent({ action: true });
+      system.update(world, STEP);
+    }
+    expect(runA.run.seed).toBe(runB.run.seed);
+  });
+});
+
+describe("nextRunSeed", () => {
+  test("draws a 32-bit seed from the stream", () => {
+    const seed = nextRunSeed(mulberry32(9));
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect(seed).toBeGreaterThanOrEqual(0);
+    expect(seed).toBeLessThan(0x100000000);
+  });
+});

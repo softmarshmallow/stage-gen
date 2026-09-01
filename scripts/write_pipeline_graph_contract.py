@@ -32,6 +32,11 @@ from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
+from stage_gen.recipes.sideview_runner.runner_graph import (
+    build_runner_execution_graph,
+    runner_graph_profile,
+)
+from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_package
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/generation-pipeline.md"
@@ -39,6 +44,8 @@ CONTRACT_START = "<!-- pipeline-graph-contract:start -->"
 CONTRACT_END = "<!-- pipeline-graph-contract:end -->"
 CONTRACT_KIND = "prepared-game-execution-graph-contract-v1"
 FIXTURE_REF = "library/games/bellweather"
+RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
+RUNNER_CONTRACT_KIND = "sideview-runner-execution-graph-contract-v1"
 
 CONTRACT_PATTERN = re.compile(
     rf"{re.escape(CONTRACT_START)}\s*```json\s*(.*?)\s*```\s*{re.escape(CONTRACT_END)}",
@@ -56,6 +63,23 @@ def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     )
     return {
         "kind": CONTRACT_KIND,
+        "fixture_ref": FIXTURE_REF,
+        "graph_schema_version": graph.schema_version,
+        "topology_sha256": graph.topology_sha256,
+        "node_count": len(graph.nodes),
+        "terminal_node_id": graph.terminal_node_id,
+        "operation_counts": graph.operation_counts(),
+        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
+    }
+
+
+def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive the runner member's contract from the graph the code builds."""
+
+    resolved = resolve_runner_package(repo / FIXTURE_REF)
+    graph = build_runner_execution_graph(resolved, profile=runner_graph_profile(StageGenConfig()))
+    return {
+        "kind": RUNNER_CONTRACT_KIND,
         "fixture_ref": FIXTURE_REF,
         "graph_schema_version": graph.schema_version,
         "topology_sha256": graph.topology_sha256,
@@ -107,27 +131,35 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    built = build_graph_contract()
-    current = document_contract()
-    if built == current:
-        print(f"graph contract is current: {built['node_count']} nodes, {built['topology_sha256']}")
-        return 0
-
-    differing = sorted(
-        key for key in set(built) | set(current) if built.get(key) != current.get(key)
+    contracts = (
+        ("platformer", PIPELINE_DOCUMENT, build_graph_contract),
+        ("runner", RUNNER_PIPELINE_DOCUMENT, build_runner_graph_contract),
     )
-    if not args.write:
-        print("graph contract is STALE. Differing keys: " + ", ".join(differing))
-        print(f"  built topology_sha256:    {built.get('topology_sha256')}")
-        print(f"  document topology_sha256: {current.get('topology_sha256')}")
-        print("Run with --write to regenerate.")
-        return 1
-
-    write_contract(built)
-    print("graph contract rewritten. Differing keys were: " + ", ".join(differing))
-    print(f"  node_count {current.get('node_count')} -> {built['node_count']}")
-    print(f"  topology_sha256 {current.get('topology_sha256')} -> {built['topology_sha256']}")
-    return 0
+    status = 0
+    for label, document, build in contracts:
+        built = build()
+        current = document_contract(document)
+        if built == current:
+            print(
+                f"{label} graph contract is current: {built['node_count']} nodes, "
+                f"{built['topology_sha256']}"
+            )
+            continue
+        differing = sorted(
+            key for key in set(built) | set(current) if built.get(key) != current.get(key)
+        )
+        if not args.write:
+            print(f"{label} graph contract is STALE. Differing keys: " + ", ".join(differing))
+            print(f"  built topology_sha256:    {built.get('topology_sha256')}")
+            print(f"  document topology_sha256: {current.get('topology_sha256')}")
+            print("Run with --write to regenerate.")
+            status = 1
+            continue
+        write_contract(built, document)
+        print(f"{label} graph contract rewritten. Differing keys were: " + ", ".join(differing))
+        print(f"  node_count {current.get('node_count')} -> {built['node_count']}")
+        print(f"  topology_sha256 {current.get('topology_sha256')} -> {built['topology_sha256']}")
+    return status
 
 
 if __name__ == "__main__":

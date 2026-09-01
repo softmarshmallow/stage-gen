@@ -84,11 +84,38 @@ describe("parseExecutionView", () => {
     expect(view.nodes[1].card?.templateRef).toBe("portrait_frame_1x1_template_v1");
   });
 
-  test("isExecutionViewKind knows both recipes and nothing else", () => {
+  test("isExecutionViewKind knows every carried recipe and nothing else", () => {
     expect(isExecutionViewKind("sideview-platformer-execution-view-v1")).toBe(true);
     expect(isExecutionViewKind("dialogue-scene-execution-view-v1")).toBe(true);
+    expect(isExecutionViewKind("sideview-runner-execution-view-v1")).toBe(true);
     expect(isExecutionViewKind("prepared-game-execution-view-v1")).toBe(false);
     expect(isExecutionViewKind(3)).toBe(false);
+  });
+
+  test("accepts the sideview-runner kind and labels it by its track", () => {
+    const document = {
+      ...executionViewFixture(),
+      kind: "sideview-runner-execution-view-v1",
+      recipe: "sideview-runner",
+      track_id: "sunpetal-sprint",
+    };
+    const view = parseExecutionView(document);
+    expect(view.subject.kind).toBe("sideview-runner-execution-view-v1");
+    expect(view.subject.recipe).toBe("sideview-runner");
+    expect(subjectLabel(view.subject)).toBe("sunpetal-sprint");
+    if (view.subject.kind !== "sideview-runner-execution-view-v1") {
+      throw new Error("unreachable");
+    }
+    expect(view.subject.gameId).toBe("bellweather");
+  });
+
+  test("refuses a runner view missing its track identity", () => {
+    const document = {
+      ...executionViewFixture(),
+      kind: "sideview-runner-execution-view-v1",
+      recipe: "sideview-runner",
+    };
+    expect(() => parseExecutionView(document)).toThrow("track_id");
   });
 
   test("keeps unfinished and failed states distinct", () => {

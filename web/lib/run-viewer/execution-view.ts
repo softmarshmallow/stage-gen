@@ -13,12 +13,15 @@ export const PLATFORMER_EXECUTION_VIEW_KIND = "sideview-platformer-execution-vie
 export const DIALOGUE_EXECUTION_VIEW_KIND = "dialogue-scene-execution-view-v1";
 /** The point-and-click room recipe's view: identified by a room. */
 export const POINTCLICK_EXECUTION_VIEW_KIND = "pointclick-room-execution-view-v1";
+/** The infinite-runner recipe's view: identified by a game and its track. */
+export const RUNNER_EXECUTION_VIEW_KIND = "sideview-runner-execution-view-v1";
 
 /** Every view kind this build renders. A kind outside it is another recipe's. */
 export const EXECUTION_VIEW_KINDS = [
   PLATFORMER_EXECUTION_VIEW_KIND,
   DIALOGUE_EXECUTION_VIEW_KIND,
   POINTCLICK_EXECUTION_VIEW_KIND,
+  RUNNER_EXECUTION_VIEW_KIND,
 ] as const;
 
 export type ExecutionViewKind = (typeof EXECUTION_VIEW_KINDS)[number];
@@ -275,6 +278,12 @@ export type ExecutionViewSubject =
       readonly kind: typeof POINTCLICK_EXECUTION_VIEW_KIND;
       readonly recipe: string;
       readonly roomId: string;
+    }
+  | {
+      readonly kind: typeof RUNNER_EXECUTION_VIEW_KIND;
+      readonly recipe: string;
+      readonly gameId: string;
+      readonly trackId: string;
     };
 
 /** The one identity a run is labelled by, whichever recipe wrote it. */
@@ -286,6 +295,10 @@ export function subjectLabel(subject: ExecutionViewSubject): string {
       return subject.sceneId;
     case POINTCLICK_EXECUTION_VIEW_KIND:
       return subject.roomId;
+    case RUNNER_EXECUTION_VIEW_KIND:
+      // A runner run generates one track of one game; the track is the
+      // specific thing the run was for, so it carries the label.
+      return subject.trackId;
   }
 }
 
@@ -539,6 +552,13 @@ function subject(root: Record<string, unknown>, kind: ExecutionViewKind): Execut
       return Object.freeze({ kind, recipe, sceneId: text(root.scene_id, "scene_id") });
     case POINTCLICK_EXECUTION_VIEW_KIND:
       return Object.freeze({ kind, recipe, roomId: text(root.room_id, "room_id") });
+    case RUNNER_EXECUTION_VIEW_KIND:
+      return Object.freeze({
+        kind,
+        recipe,
+        gameId: text(root.game_id, "game_id"),
+        trackId: text(root.track_id, "track_id"),
+      });
   }
 }
 

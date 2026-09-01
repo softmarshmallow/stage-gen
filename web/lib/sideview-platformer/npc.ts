@@ -21,12 +21,12 @@
 // is a scenario walked by `lib/scenario/runtime.ts`.
 
 import Phaser from "phaser";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 import {
   headMatchedScale,
   masterSheetScale,
   type ScaleReference,
-} from "./sprite-scale";
+} from "@/lib/sideview/sprite-scale";
 import { terrainSurfaceY } from "./terrain";
 
 /**

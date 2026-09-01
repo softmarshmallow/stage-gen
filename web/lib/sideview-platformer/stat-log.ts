@@ -15,7 +15,7 @@
 
 import type Phaser from "phaser";
 import { COMBAT_TEXT_FONT_FAMILY } from "./combat-font";
-import { SCENE_CONTENT_DEPTH } from "./layers";
+import { SCENE_CONTENT_DEPTH } from "./depths";
 
 export type StatLogKind = "experience" | "level_up" | "notice";
 

@@ -6,18 +6,20 @@ import pytest
 from PIL import Image
 
 from stage_gen.components.game_contract.package import PreparedScale
-from stage_gen.recipes.sideview_platformer.asset_unit import (
+from stage_gen.components.sideview_actor.asset_unit import (
     AssetUnitError,
     ResolvedMagnitude,
     admit_entity_consistency,
-    admit_rank_ladder,
     calibrate_subject,
     measure_subject_extent,
     recovery_plate_steps,
     resolve_declared_magnitude,
     resolve_player_magnitude,
-    resolve_rank_magnitude,
     sprite_scale,
+)
+from stage_gen.recipes.sideview_platformer.asset_unit import (
+    admit_rank_ladder,
+    resolve_rank_magnitude,
 )
 
 TILE_PX = 64

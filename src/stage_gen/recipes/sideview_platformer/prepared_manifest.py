@@ -22,24 +22,28 @@ from stage_gen.components.platformer_map.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
-from stage_gen.media import measure_alpha_ground_contact
-from stage_gen.media.sprite_sheets import split_atlas_columns
-from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.sideview_platformer.asset_unit import (
+from stage_gen.components.sideview_actor.asset_unit import (
     ResolvedMagnitude,
     SubjectExtentAxis,
-    admit_rank_ladder,
     calibrate_subject,
     measure_subject_extent,
     resolve_declared_magnitude,
     resolve_player_magnitude,
+)
+from stage_gen.components.sideview_actor.motion_geometry import (
+    dialogue_atlas_grid,
+    runtime_mirrors_source,
+)
+from stage_gen.media import measure_alpha_ground_contact
+from stage_gen.media.sprite_sheets import split_atlas_columns
+from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.sideview_platformer.asset_unit import (
+    admit_rank_ladder,
     resolve_rank_magnitude,
 )
 from stage_gen.recipes.sideview_platformer.motion_contract import (
-    dialogue_atlas_grid,
     motion_atlas_geometry,
     motion_source_facing,
-    runtime_mirrors_source,
 )
 from stage_gen.recipes.sideview_platformer.terrain_design import terrain_artifact_path
 
@@ -575,7 +579,7 @@ def _assemble_prepared_runtime(
         "package_sha256": package.package_sha256,
         "canonical_game_sha256": package.canonical_game_sha256,
         "universe": package.file(package.game.universe.source).data.decode("utf-8"),
-        "presentation": package.game.presentation.model_dump(mode="json"),
+        "presentation": package.platformer.presentation.model_dump(mode="json"),
         "style": package.game.style.model_dump(mode="json"),
         "proportion": package.game.proportion.model_dump(mode="json"),
         "scale": package.game.scale.model_dump(mode="json"),
