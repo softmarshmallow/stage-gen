@@ -327,11 +327,12 @@ does not by itself define a core game contract.
   schema version and kind. Validators reject every other identity rather than
   upgrading or translating it.
 - The current prepared closure uses repository selector `game-package-v4`, root
-  `game-contract-v8`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
+  `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v1`, `game-map-v9`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `scenario-catalog-v1`, and `scenario-v1` contracts. Provider-free
-  integration emits only `prepared-game-runtime-v10`.
+  integration emits `prepared-game-runtime-v10` for the platformer member
+  and `sideview-runner-runtime-v3` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
@@ -348,7 +349,7 @@ does not by itself define a core game contract.
 
 | Contract | Authority |
 | --- | --- |
-| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v8` package-root fields, vocabulary, validation, and binding |
+| [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v9` package-root fields, vocabulary, validation, and binding |
 | [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
 | [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v9` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |

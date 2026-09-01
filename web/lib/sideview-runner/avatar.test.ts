@@ -11,8 +11,8 @@ const DT = 1 / 60;
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
 
 /** A world whose track is one long crafted chunk instead of the streamed catalog. */
-function craftedWorld(occupancyRow5: string): RunnerWorld {
-  const world = createRunnerWorld(manifest, 1);
+function craftedWorld(occupancyRow5: string, worldManifest = manifest): RunnerWorld {
+  const world = createRunnerWorld(worldManifest, 1);
   const width = occupancyRow5.length;
   const empty = "0".repeat(width);
   const stream = createSegmentStream(8, 5);
@@ -27,7 +27,7 @@ function craftedWorld(occupancyRow5: string): RunnerWorld {
         pickups: [],
       },
     ],
-    1,
+    { ceiling: 1 },
     mulberry32(1),
     width - 1,
   );
@@ -79,7 +79,7 @@ describe("jumpArcFor", () => {
   });
 
   test("refuses a nonsensical speed", () => {
-    expect(() => jumpArcFor(2, 3, 0)).toThrow("positive minimum speed");
+    expect(() => jumpArcFor(2, 3, { baseSpeedColumnsPerSecond: 0 })).toThrow("positive minimum speed");
   });
 });
 
@@ -134,7 +134,7 @@ describe("stepAvatar", () => {
           pickups: [],
         },
       ],
-      1,
+      { ceiling: 1 },
       mulberry32(1),
       width - 1,
     );
@@ -157,7 +157,7 @@ describe("stepAvatar", () => {
           pickups: [],
         },
       ],
-      1,
+      { ceiling: 1 },
       mulberry32(1),
       width - 1,
     );
@@ -176,14 +176,75 @@ describe("stepAvatar", () => {
     expect(world.avatar.motion).toBe("death");
   });
 
-  test("a held jump does not double-jump: only the edge launches", () => {
+  test("the air jump relaunches once, then the well is dry until landing", () => {
+    // The fixture plays double_arc_v1: one recovery hop in the air.
     const world = craftedWorld("1".repeat(60));
     world.intent = runnerIntent({ jump: true });
     stepAvatar(world, DT);
     expect(world.avatar.grounded).toBe(false);
-    const risingVy = world.avatar.vy;
-    // The same latched frame re-applied while airborne must not relaunch.
+    expect(world.avatar.jumpImpulses).toBe(1);
+    const arc = jumpArcFor(2, 3, world.config.arithmetic);
+    // A second press mid-air relaunches to exactly the initial speed.
     stepAvatar(world, DT);
+    expect(world.avatar.airJumpsUsed).toBe(1);
+    expect(world.avatar.jumpImpulses).toBe(2);
+    expect(world.avatar.vy).toBeCloseTo(
+      -arc.initialSpeedRowsPerSecond + arc.gravityRowsPerSecondSquared * DT,
+      6,
+    );
+    // A third press finds the well dry: gravity alone.
+    const vyBefore = world.avatar.vy;
+    stepAvatar(world, DT);
+    expect(world.avatar.jumpImpulses).toBe(2);
+    expect(world.avatar.vy).toBeGreaterThan(vyBefore);
+  });
+
+  test("landing refills the air jump", () => {
+    const world = craftedWorld("1".repeat(120));
+    world.intent = runnerIntent({ jump: true });
+    stepAvatar(world, DT);
+    stepAvatar(world, DT);
+    expect(world.avatar.airJumpsUsed).toBe(1);
+    world.intent = runnerIntent();
+    for (let tick = 0; tick < 600 && !world.avatar.grounded; tick += 1) {
+      stepAvatar(world, DT);
+    }
+    expect(world.avatar.grounded).toBe(true);
+    expect(world.avatar.airJumpsUsed).toBe(0);
+  });
+
+  test("a single_arc_v1 world refuses the air jump", () => {
+    const singleHop = runnerManifestFixture();
+    (singleHop.gameplay as Record<string, unknown>).jump_profile = "single_arc_v1";
+    const world = craftedWorld("1".repeat(60), parseRunnerRuntimeManifest(singleHop));
+    world.intent = runnerIntent({ jump: true });
+    stepAvatar(world, DT);
+    const risingVy = world.avatar.vy;
+    stepAvatar(world, DT);
+    expect(world.avatar.jumpImpulses).toBe(1);
     expect(world.avatar.vy).toBeGreaterThan(risingVy);
+  });
+
+  test("the slide holds while duck is held and releases with it", () => {
+    const world = craftedWorld("1".repeat(60));
+    world.intent = runnerIntent({ duck: true });
+    stepAvatar(world, DT);
+    expect(world.avatar.sliding).toBe(true);
+    expect(world.avatar.motion).toBe("slide");
+    world.intent = runnerIntent();
+    stepAvatar(world, DT);
+    expect(world.avatar.sliding).toBe(false);
+    expect(world.avatar.motion).toBe("run");
+  });
+
+  test("a jump cancels the slide", () => {
+    const world = craftedWorld("1".repeat(60));
+    world.intent = runnerIntent({ duck: true });
+    stepAvatar(world, DT);
+    expect(world.avatar.sliding).toBe(true);
+    world.intent = runnerIntent({ jump: true, duck: true });
+    stepAvatar(world, DT);
+    expect(world.avatar.sliding).toBe(false);
+    expect(world.avatar.motion).toBe("jump");
   });
 });

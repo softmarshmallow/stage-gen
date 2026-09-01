@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "runner-avatar-v1"
+schema_version = 2
+kind = "runner-avatar-v2"
 game_id = "bellweather"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_style"
@@ -29,6 +29,12 @@ state = "jump"
 playback_mode = "once"
 canonical_frame_indices = [0, 1, 2, 3]
 frames_per_second = 10
+
+[[avatar.motions]]
+state = "slide"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
 
 [[avatar.motions]]
 state = "death"

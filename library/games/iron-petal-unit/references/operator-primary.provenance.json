@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_operator_identity_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/operator-primary.png",
+    "media_type": "image/png",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 1633238,
+    "sha256": "ad115bd04ea9a98938269400910f7fa7aaa1571027e83df61a29a763ced1cec1"
+  },
+  "generation": {
+    "provider": "openrouter",
+    "model": "openai/gpt-image-2",
+    "quality": "high",
+    "aspect_ratio": "1:1",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [],
+    "prompt_sha256": "44f43e279d1e2d60c7d557542c07c35788ade0b5db3b20c50cff029a70a4d9e0"
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-09-02",
+    "artifact_sha256": "ad115bd04ea9a98938269400910f7fa7aaa1571027e83df61a29a763ced1cec1",
+    "artifact_bytes": 1633238,
+    "verification_report": "references/operator-primary.visual-review.md",
+    "verification_report_sha256": "961908a78ff3095ef2319dfd60ce5e7f9a147cdec6e1d64914a81c5ce309a919"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-09-02",
+    "basis": [
+      "Original brand-neutral text-only prompt with no third-party image input.",
+      "The authenticated task owner inspected and approved the exact digest-bound PNG as the canonical young operator identity on 2026-09-02.",
+      "No protected character, copied costume, logo, signature, watermark, or readable text was observed."
+    ]
+  }
+}

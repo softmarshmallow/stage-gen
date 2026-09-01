@@ -80,3 +80,60 @@ describe("nextRunSeed", () => {
     expect(seed).toBeLessThan(0x100000000);
   });
 });
+
+describe("the pickup chain", () => {
+  test("the multiplier steps at 5, 15, and 30 and caps at x4", async () => {
+    const { chainMultiplier } = await import("./run-loop");
+    expect(chainMultiplier(0)).toBe(1);
+    expect(chainMultiplier(4)).toBe(1);
+    expect(chainMultiplier(5)).toBe(2);
+    expect(chainMultiplier(15)).toBe(3);
+    expect(chainMultiplier(30)).toBe(4);
+    expect(chainMultiplier(500)).toBe(4);
+  });
+
+  test("collections extend the chain and score by the earned multiplier", async () => {
+    const { createRunLoopSystem, PICKUP_SCORE } = await import("./run-loop");
+    const { parseRunnerRuntimeManifest } = await import("./contract");
+    const { runnerManifestFixture } = await import("./fixture");
+    const { createRunnerWorld } = await import("./world");
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    const system = createRunLoopSystem();
+    const step = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
+    const token = { itemId: "sunleaf_token", worldColumn: 6, row: 2 } as const;
+    world.run.chain = 4;
+    world.obstacles.collectedThisFrame = [token];
+    system.update(world, step);
+    // Chain reaches 5 this frame, so the frame scores at the x2 it earned.
+    expect(world.run.chain).toBe(5);
+    expect(world.run.multiplier).toBe(2);
+    expect(world.run.score).toBe(PICKUP_SCORE * 2);
+  });
+
+  test("a miss breaks the chain before the frame's collections extend it", async () => {
+    const { createRunLoopSystem, PICKUP_SCORE } = await import("./run-loop");
+    const { parseRunnerRuntimeManifest } = await import("./contract");
+    const { runnerManifestFixture } = await import("./fixture");
+    const { createRunnerWorld } = await import("./world");
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    const system = createRunLoopSystem();
+    const step = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
+    world.run.chain = 40;
+    world.run.multiplier = 4;
+    world.obstacles.missedThisFrame = 1;
+    world.obstacles.collectedThisFrame = [
+      { itemId: "sunleaf_token", worldColumn: 6, row: 2 } as const,
+    ];
+    system.update(world, step);
+    expect(world.run.chain).toBe(1);
+    expect(world.run.multiplier).toBe(1);
+    expect(world.run.score).toBe(PICKUP_SCORE);
+  });
+
+  test("formatCombo is silent without a chain and loud about the multiplier", async () => {
+    const { formatCombo } = await import("./hud");
+    expect(formatCombo(0, 1)).toBe("");
+    expect(formatCombo(3, 1)).toBe("3 chain");
+    expect(formatCombo(17, 3)).toBe("\u00d73 \u00b7 17 chain");
+  });
+});

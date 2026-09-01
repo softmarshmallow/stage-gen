@@ -7,12 +7,15 @@
 // Chunk choice goes through the injected RNG, so a seed reproduces a track.
 
 import { bottomContiguousSurfaceRow, type RunnerChunk } from "./contract";
+import { rampProfile } from "./difficulty";
 import type { GameSystem } from "./systems";
 import type { RunnerWorld } from "./world";
 
 export interface StreamedHazard {
   readonly propId: string;
   readonly worldColumn: number;
+  readonly anchor: "surface" | "overhead";
+  readonly clearanceRows: number | null;
 }
 
 export interface StreamedPickup {
@@ -39,33 +42,74 @@ export interface SegmentStream {
   chunks: StreamedChunk[];
   /** World column where the next appended chunk will start. */
   nextColumn: number;
+  /** Catalog index of the most recently appended chunk, for anti-repeat. */
+  lastChunkIndex: number | null;
+  /** Appends since the last forced breather; the rest cadence's counter. */
+  appendsSinceRest: number;
 }
 
 export function createSegmentStream(rows: number, walkSurfaceRow: number): SegmentStream {
-  return { rows, walkSurfaceRow, chunks: [], nextColumn: 0 };
+  return {
+    rows,
+    walkSurfaceRow,
+    chunks: [],
+    nextColumn: 0,
+    lastChunkIndex: null,
+    appendsSinceRest: 0,
+  };
+}
+
+/** How the stream picks: the band, the anti-repeat, and the rest cadence. */
+export interface ChunkSelection {
+  readonly ceiling: number;
+  /** Chunks below this rank have aged out of the pool; defaults to 1. */
+  readonly floor?: number;
+  /** Every this-many appends, one catalog-easiest breather is forced. */
+  readonly restEveryAppends?: number;
 }
 
 /**
- * Pick the next chunk: uniform among those at or under the difficulty
- * ceiling. A catalog whose easiest chunk sits above the ceiling still has to
- * produce track, so the fallback pool is the minimum-difficulty chunks rather
- * than a refusal mid-run.
+ * Pick the next chunk: uniform among those inside the difficulty band, never
+ * the immediately previous one unless nothing else is eligible. A catalog
+ * whose whole band is empty still has to produce track, so the fallbacks
+ * widen — first to everything under the ceiling, then to the catalog's
+ * easiest rank — rather than refusing mid-run.
  */
 export function selectChunkIndex(
   chunks: readonly RunnerChunk[],
-  ceiling: number,
+  selection: ChunkSelection,
   rng: () => number,
+  previousIndex: number | null = null,
 ): number {
-  const eligible: number[] = [];
+  const floor = selection.floor ?? 1;
+  const banded: number[] = [];
+  const underCeiling: number[] = [];
   for (const [index, chunk] of chunks.entries()) {
-    if (chunk.difficulty <= ceiling) eligible.push(index);
+    if (chunk.difficulty <= selection.ceiling) {
+      underCeiling.push(index);
+      if (chunk.difficulty >= floor) banded.push(index);
+    }
   }
-  let pool = eligible;
+  let pool = banded.length > 0 ? banded : underCeiling;
   if (pool.length === 0) {
     const easiest = Math.min(...chunks.map((chunk) => chunk.difficulty));
     pool = chunks.flatMap((chunk, index) => (chunk.difficulty === easiest ? [index] : []));
   }
+  if (previousIndex !== null && pool.length > 1) {
+    const varied = pool.filter((index) => index !== previousIndex);
+    if (varied.length > 0) pool = varied;
+  }
   return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+}
+
+/** The forced breather: the catalog's easiest rank, anti-repeat still applied. */
+function selectRestIndex(
+  chunks: readonly RunnerChunk[],
+  rng: () => number,
+  previousIndex: number | null,
+): number {
+  const easiest = Math.min(...chunks.map((chunk) => chunk.difficulty));
+  return selectChunkIndex(chunks, { ceiling: easiest, floor: easiest }, rng, previousIndex);
 }
 
 function streamChunk(chunk: RunnerChunk, startColumn: number): StreamedChunk {
@@ -77,7 +121,12 @@ function streamChunk(chunk: RunnerChunk, startColumn: number): StreamedChunk {
     occupancy: chunk.occupancy,
     hazards: Object.freeze(
       chunk.hazards.map((hazard) =>
-        Object.freeze({ propId: hazard.propId, worldColumn: startColumn + hazard.column }),
+        Object.freeze({
+          propId: hazard.propId,
+          worldColumn: startColumn + hazard.column,
+          anchor: hazard.anchor,
+          clearanceRows: hazard.clearanceRows,
+        }),
       ),
     ),
     pickups: Object.freeze(
@@ -96,14 +145,21 @@ function streamChunk(chunk: RunnerChunk, startColumn: number): StreamedChunk {
 export function streamAhead(
   stream: SegmentStream,
   catalog: readonly RunnerChunk[],
-  ceiling: number,
+  selection: ChunkSelection,
   rng: () => number,
   throughColumn: number,
 ): void {
+  const restEvery = selection.restEveryAppends ?? Number.POSITIVE_INFINITY;
   while (stream.nextColumn <= throughColumn) {
-    const chunk = catalog[selectChunkIndex(catalog, ceiling, rng)];
+    const resting = stream.appendsSinceRest + 1 >= restEvery;
+    const index = resting
+      ? selectRestIndex(catalog, rng, stream.lastChunkIndex)
+      : selectChunkIndex(catalog, selection, rng, stream.lastChunkIndex);
+    const chunk = catalog[index];
     stream.chunks.push(streamChunk(chunk, stream.nextColumn));
     stream.nextColumn += chunk.occupancy[0].length;
+    stream.lastChunkIndex = index;
+    stream.appendsSinceRest = resting ? 0 : stream.appendsSinceRest + 1;
   }
 }
 
@@ -164,15 +220,20 @@ export function streamedPickups(stream: SegmentStream): readonly StreamedPickup[
 export function createSegmentsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/segments",
-    contractVersion: "segments-system-v1",
+    contractVersion: "segments-system-v2",
     reads: ["difficulty", "avatar"],
     writes: ["segments"],
     update(world) {
+      const profile = rampProfile(world.config.rampProfile);
       const ahead = Math.ceil(world.avatar.distanceColumns) + world.config.streamAheadColumns;
       streamAhead(
         world.segments,
         world.config.chunks,
-        world.difficulty.ceiling,
+        {
+          ceiling: world.difficulty.ceiling,
+          floor: world.difficulty.floor,
+          restEveryAppends: profile.restEveryAppends,
+        },
         world.run.rng,
         ahead,
       );

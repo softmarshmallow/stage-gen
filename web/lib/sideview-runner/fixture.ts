@@ -29,9 +29,47 @@ export function runnerMotionFixture(state: string, playback: string): Record<str
   };
 }
 
+export function runnerAudioFixture(): Record<string, unknown> {
+  const definitions = [
+    ["takeoff_whistle", "Takeoff Whistle", "triangle", 330, 660, 120, 0.16, 0],
+    ["air_jump_whistle", "Air Jump Whistle", "triangle", 440, 990, 120, 0.16, 0],
+    ["soft_landing", "Soft Landing", "sine", 220, 160, 80, 0.12, 0],
+    ["leaf_slide", "Leaf Slide", "sawtooth", 200, 120, 160, 0.07, 0],
+    ["clear_sparkle", "Clear Sparkle", "sine", 520, 780, 100, 0.1, 0],
+    ["token_chime", "Token Chime", "sine", 660, 880, 90, 0.12, 1],
+    ["run_ended", "Run Ended", "square", 220, 55, 450, 0.14, 0],
+  ] as const;
+  return {
+    bindings: {
+      takeoff: "takeoff_whistle",
+      air_jump: "air_jump_whistle",
+      land: "soft_landing",
+      slide: "leaf_slide",
+      hazard_cleared: "clear_sparkle",
+      collect: "token_chime",
+      death: "run_ended",
+    },
+    effects: definitions.map(
+      ([effect_id, display_name, waveform, start_frequency_hz, end_frequency_hz, duration_milliseconds, gain, strength_pitch_multiplier]) => ({
+        effect_id,
+        display_name,
+        realization: {
+          kind: "oscillator_sweep_v1",
+          waveform,
+          start_frequency_hz,
+          end_frequency_hz,
+          duration_milliseconds,
+          gain,
+          strength_pitch_multiplier,
+        },
+      }),
+    ),
+  };
+}
+
 export function runnerManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 1,
+    schema_version: 3,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",
@@ -47,11 +85,20 @@ export function runnerManifestFixture(): Record<string, unknown> {
     scale: { player_height_tiles: 2.4, tile_px: 64 },
     gameplay: {
       speed_profile: "steady_runner_v1",
-      jump_profile: "single_arc_v1",
+      jump_profile: "double_arc_v1",
       collision_policy: "end_run_v1",
+      duck_profile: "slide_v1",
       ramp_profile: "gentle_ramp_v1",
       max_clear_gap_columns: 3,
       max_rise_tiles: 2,
+      jump_peak_margin_tiles: 0.75,
+      airtime_headroom: 1.15,
+      base_speed_columns_per_second: 6,
+      max_speed_multiplier: 1.5,
+      avatar_half_width_columns: 0.3,
+      hazard_column_inset: 0.15,
+      ducked_height_fraction: 0.5,
+      min_overhead_clearance_rows: 0.25,
     },
     ground: {
       atlas: "world/ground.png",
@@ -96,7 +143,7 @@ export function runnerManifestFixture(): Record<string, unknown> {
             "111111111111",
             "111111111111",
           ],
-          hazards: [{ prop_id: "toppled_cart", column: 6 }],
+          hazards: [{ prop_id: "toppled_cart", column: 6, anchor: "surface", clearance_rows: null }],
           pickups: [{ item_id: "sunleaf_token", column: 6, row: 2 }],
         },
       ],
@@ -109,6 +156,7 @@ export function runnerManifestFixture(): Record<string, unknown> {
       motions: [
         runnerMotionFixture("run", "loop"),
         runnerMotionFixture("jump", "once"),
+        runnerMotionFixture("slide", "once"),
         runnerMotionFixture("death", "once"),
       ],
     },
@@ -128,6 +176,7 @@ export function runnerManifestFixture(): Record<string, unknown> {
         calibration: runnerCalibrationFixture(),
       },
     ],
+    audio: runnerAudioFixture(),
     soundtrack: null,
   };
 }

@@ -9,11 +9,7 @@
 import type { RunnerRuntimeManifest, RunnerChunk, RunnerMotionState } from "./contract";
 import type { GameSystem } from "./systems";
 import type { DifficultyState } from "./difficulty";
-import {
-  BASE_SPEED_COLUMNS_PER_SECOND,
-  rampProfile,
-  type RampProfileName,
-} from "./difficulty";
+import { rampProfile, type RampProfileName } from "./difficulty";
 import type { RunnerIntent } from "./intent";
 import { NEUTRAL_RUNNER_INTENT } from "./intent";
 import {
@@ -50,6 +46,13 @@ export interface AvatarState {
   /** Vertical speed in rows per second; positive is downward. */
   vy: number;
   grounded: boolean;
+  /** Air jumps spent since the last grounding; the profile caps them. */
+  airJumpsUsed: number;
+  /** Held low while grounded and the duck profile allows it. */
+  sliding: boolean;
+  /** Total jump launches this run - the presentation replays the strip on the
+   * impulse, not the state change, so a second hop re-animates. */
+  jumpImpulses: number;
   motion: RunnerMotionState;
   /** A death the avatar itself detected this frame; run-loop folds it into the phase. */
   deathCause: Extract<DeathCause, "pit" | "step"> | null;
@@ -58,10 +61,14 @@ export interface AvatarState {
 export interface ObstaclesState {
   /** Instance keys of pickups already collected, so they never re-score. */
   collected: Set<string>;
+  /** Instance keys of pickups that scrolled past uncollected: each is missed once. */
+  missed: Set<string>;
   /** True while the avatar overlaps a hazard this frame. */
   hazardContact: boolean;
   /** Pickups first collected this frame, for scoring and despawn effects. */
   collectedThisFrame: StreamedPickup[];
+  /** Pickups newly missed this frame; the run-loop breaks the chain on them. */
+  missedThisFrame: number;
 }
 
 export interface RunState {
@@ -69,12 +76,28 @@ export interface RunState {
   seed: number;
   rng: Rng;
   score: number;
+  /** Consecutive pickups collected without a miss; the multiplier's input. */
+  chain: number;
+  /** Score multiplier earned by the current chain; 1 with no chain. */
+  multiplier: number;
   cause: DeathCause;
 }
 
 export interface CameraState {
   /** Horizontal world scroll in screen pixels at parallax 1. */
   scrollX: number;
+}
+
+/** The published arc arithmetic, read from the manifest rather than asserted
+ * locally: the runtime flies exactly the arc admission proved. */
+export interface RunnerArithmetic {
+  readonly baseSpeedColumnsPerSecond: number;
+  /** The multiplier every spacing proof was run at; the ramp never exceeds it. */
+  readonly maxSpeedMultiplier: number;
+  readonly jumpPeakMarginTiles: number;
+  readonly airtimeHeadroom: number;
+  readonly avatarHalfWidthColumns: number;
+  readonly hazardColumnInset: number;
 }
 
 /** Everything static a system needs, derived once from the manifest. */
@@ -85,6 +108,11 @@ export interface RunnerWorldConfig {
   readonly playerHeightTiles: number;
   readonly maxClearGapColumns: number;
   readonly maxRiseTiles: number;
+  readonly jumpProfile: "single_arc_v1" | "double_arc_v1";
+  readonly duckProfile: "slide_v1" | null;
+  /** The slide's proved height fraction; null exactly when duckProfile is. */
+  readonly duckedHeightFraction: number | null;
+  readonly arithmetic: RunnerArithmetic;
   readonly rampProfile: RampProfileName;
   readonly chunks: readonly RunnerChunk[];
   /** Declared prop magnitudes in player-height units, for hazard collision boxes. */
@@ -126,6 +154,17 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
     playerHeightTiles: manifest.scale.playerHeightTiles,
     maxClearGapColumns: manifest.gameplay.maxClearGapColumns,
     maxRiseTiles: manifest.gameplay.maxRiseTiles,
+    jumpProfile: manifest.gameplay.jumpProfile,
+    duckProfile: manifest.gameplay.duckProfile,
+    duckedHeightFraction: manifest.gameplay.duckedHeightFraction,
+    arithmetic: Object.freeze({
+      baseSpeedColumnsPerSecond: manifest.gameplay.baseSpeedColumnsPerSecond,
+      maxSpeedMultiplier: manifest.gameplay.maxSpeedMultiplier,
+      jumpPeakMarginTiles: manifest.gameplay.jumpPeakMarginTiles,
+      airtimeHeadroom: manifest.gameplay.airtimeHeadroom,
+      avatarHalfWidthColumns: manifest.gameplay.avatarHalfWidthColumns,
+      hazardColumnInset: manifest.gameplay.hazardColumnInset,
+    }),
     rampProfile: manifest.gameplay.rampProfile,
     chunks: manifest.segments.chunks,
     propHeightUnits: new Map(
@@ -186,25 +225,35 @@ export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
   world.intent = NEUTRAL_RUNNER_INTENT;
   world.difficulty = {
     ceiling: 1,
+    floor: 1,
     speedMultiplier: 1,
-    speedColumnsPerSecond: BASE_SPEED_COLUMNS_PER_SECOND,
+    speedColumnsPerSecond: world.config.arithmetic.baseSpeedColumnsPerSecond,
   };
   world.avatar = {
     distanceColumns: 2,
     y: world.config.walkSurfaceRow,
     vy: 0,
     grounded: true,
+    airJumpsUsed: 0,
+    sliding: false,
+    jumpImpulses: 0,
     motion: "run",
     deathCause: null,
   };
   world.segments = createSegmentStream(world.config.rows, world.config.walkSurfaceRow);
-  world.obstacles = { collected: new Set(), hazardContact: false, collectedThisFrame: [] };
-  world.run = { phase: "running", seed, rng, score: 0, cause: null };
+  world.obstacles = {
+    collected: new Set(),
+    missed: new Set(),
+    hazardContact: false,
+    collectedThisFrame: [],
+    missedThisFrame: 0,
+  };
+  world.run = { phase: "running", seed, rng, score: 0, chain: 0, multiplier: 1, cause: null };
   world.camera = { scrollX: cameraScrollX(world.avatar.distanceColumns, world.config) };
   streamAhead(
     world.segments,
     world.config.chunks,
-    world.difficulty.ceiling,
+    { ceiling: world.difficulty.ceiling, floor: world.difficulty.floor },
     rng,
     Math.ceil(world.avatar.distanceColumns) + world.config.streamAheadColumns,
   );
@@ -218,20 +267,38 @@ export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number)
     intent: NEUTRAL_RUNNER_INTENT,
     difficulty: {
       ceiling: 1,
+      floor: 1,
       speedMultiplier: 1,
-      speedColumnsPerSecond: BASE_SPEED_COLUMNS_PER_SECOND,
+      speedColumnsPerSecond: config.arithmetic.baseSpeedColumnsPerSecond,
     },
     avatar: {
       distanceColumns: 0,
       y: 0,
       vy: 0,
       grounded: true,
+      airJumpsUsed: 0,
+      sliding: false,
+      jumpImpulses: 0,
       motion: "run",
       deathCause: null,
     },
     segments: createSegmentStream(config.rows, config.walkSurfaceRow),
-    obstacles: { collected: new Set(), hazardContact: false, collectedThisFrame: [] },
-    run: { phase: "running", seed, rng: mulberry32(seed), score: 0, cause: null },
+    obstacles: {
+      collected: new Set(),
+      missed: new Set(),
+      hazardContact: false,
+      collectedThisFrame: [],
+      missedThisFrame: 0,
+    },
+    run: {
+      phase: "running",
+      seed,
+      rng: mulberry32(seed),
+      score: 0,
+      chain: 0,
+      multiplier: 1,
+      cause: null,
+    },
     camera: { scrollX: 0 },
     config,
   };

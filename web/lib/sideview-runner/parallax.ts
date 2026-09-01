@@ -146,7 +146,9 @@ export function buildParallaxStage(
   let windowSignature = "";
 
   const syncGround = (world: RunnerWorld): void => {
-    const signature = `${world.segments.chunks[0]?.startColumn ?? 0}:${world.segments.nextColumn}`;
+    // The seed is part of the signature: a restart replays the same world
+    // columns with different chunks, and stale tiles must not survive it.
+    const signature = `${world.run.seed}:${world.segments.chunks[0]?.startColumn ?? 0}:${world.segments.nextColumn}`;
     if (signature === windowSignature) return;
     windowSignature = signature;
     const { startColumn, grid } = windowOccupancyGrid(world.segments);

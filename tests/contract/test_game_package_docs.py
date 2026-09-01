@@ -13,6 +13,7 @@ from stage_gen.components.platformer_content import (
 )
 from stage_gen.components.platformer_gameplay import GAMEPLAY_CONTRACT_SCHEMA_VERSION
 from stage_gen.components.platformer_map import PREPARED_GAME_MAP_SCHEMA_VERSION
+from stage_gen.components.runner_audio import RUNNER_AUDIO_SCHEMA_VERSION
 from stage_gen.components.scenario import (
     SCENARIO_CATALOG_SCHEMA_VERSION,
     SCENARIO_SCHEMA_VERSION,
@@ -42,6 +43,7 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
         f"gameplay-contract-v{GAMEPLAY_CONTRACT_SCHEMA_VERSION}",
         f"game-map-v{PREPARED_GAME_MAP_SCHEMA_VERSION}",
         f"game-soundtrack-v{GAME_SOUNDTRACK_SCHEMA_VERSION}",
+        f"runner-audio-v{RUNNER_AUDIO_SCHEMA_VERSION}",
         f"game-ui-v{GAME_UI_SCHEMA_VERSION}",
         f"player-content-v{PLAYER_CONTENT_SCHEMA_VERSION}",
         f"mob-content-v{GAME_CONTENT_SCHEMA_VERSION}",

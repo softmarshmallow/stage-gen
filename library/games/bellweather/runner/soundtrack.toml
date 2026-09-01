@@ -1,0 +1,30 @@
+schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "bellweather"
+revision = 1
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "sunpetal_sprint"
+display_name = "Sunpetal Sprint"
+creative_brief = "An original bright fantasy runner instrumental with nimble pizzicato strings, wooden flute, hand percussion, warm brass bells, and buoyant forward motion; playful and energetic without quoting any recognizable melody or becoming frantic."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "orchard_rush"
+display_name = "Orchard Rush"
+creative_brief = "An original cheerful orchard-run instrumental with plucked strings, light frame drum, airy flute, soft accordion, and sparkling handbells; lively, warm, and loop-friendly with clear momentum and no recognizable melody."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90

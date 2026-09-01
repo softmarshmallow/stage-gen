@@ -29,6 +29,12 @@ export function formatScore(score: number): string {
   return `✦ ${Math.max(0, Math.floor(score))}`;
 }
 
+/** The chain readout: silent until a chain exists, loud about the multiplier. */
+export function formatCombo(chain: number, multiplier: number): string {
+  if (chain <= 0) return "";
+  return multiplier > 1 ? `×${multiplier} · ${chain} chain` : `${chain} chain`;
+}
+
 /** The readout band across the top-left of the canvas. */
 export function hudReadoutRect(viewWidth: number = RUNNER_VIEW_WIDTH): Rect {
   return { x: 24, y: 18, width: Math.min(420, viewWidth - 48), height: 44 };
@@ -57,7 +63,7 @@ export interface HudView {
 export function createHudSystem(view: HudView): GameSystem<RunnerWorld> {
   return {
     id: "runner/hud",
-    contractVersion: "hud-system-v1",
+    contractVersion: "hud-system-v2",
     reads: ["run", "avatar", "camera"],
     writes: [],
     after: ["runner/parallax"],
@@ -94,6 +100,14 @@ export function buildHud(scene: Phaser.Scene, tilePx: number): HudView {
     })
     .setDepth(RUNNER_DEPTHS.hud)
     .setScrollFactor(0);
+  const comboText = scene.add
+    .text(readout.x, readout.y + 56, "", {
+      ...READOUT_STYLE,
+      fontSize: "18px",
+      color: "#9fe3a8",
+    })
+    .setDepth(RUNNER_DEPTHS.hud)
+    .setScrollFactor(0);
 
   const panel = deathPanelRect();
   const dim = scene.add.graphics().setDepth(RUNNER_DEPTHS.hud + 1);
@@ -127,6 +141,7 @@ export function buildHud(scene: Phaser.Scene, tilePx: number): HudView {
     sync(world: RunnerWorld): void {
       distanceText.setText(formatRunDistance(world.avatar.distanceColumns, tilePx));
       scoreText.setText(formatScore(world.run.score));
+      comboText.setText(formatCombo(world.run.chain, world.run.multiplier));
       const dead = world.run.phase === "dead";
       if (dead) {
         summary.setText(

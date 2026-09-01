@@ -1,25 +1,34 @@
-// Auto-run physics: constant ramped forward speed, one jump arc, hard falls.
+// Auto-run physics: constant ramped forward speed, the jump family, the
+// slide, and hard falls.
 //
-// The arc is not authored — it is derived from the manifest's admission
-// arithmetic. Track admission proved every chunk against `single_arc_v1`'s
-// `max_clear_gap_columns` and `max_rise_tiles` before art was paid for, so
-// the runtime's obligation is exact: produce an arc that clears that gap at
-// the slowest admitted speed and lands that rise. The closed forms below do
-// so by construction, and the tests hold them to it.
+// The arc is not authored — it is derived from the manifest's published
+// admission arithmetic. Track admission proved every chunk against the
+// declared jump name's `max_clear_gap_columns` and `max_rise_tiles` using
+// exactly these closed forms, so the arc the player flies IS the arc the
+// proof flew, not a convention. The hop count is deliberately NOT part of
+// that arithmetic: `double_arc_v1`'s second hop is recovery, never reach —
+// no refusal depends on it, so it lives here, in the consumer's feel table.
 //
 // Coordinates follow the occupancy grid: y grows downward in row units, the
 // avatar's feet sit at y, and gravity is positive.
 
-import { BASE_SPEED_COLUMNS_PER_SECOND } from "./difficulty";
 import { surfaceRowAt } from "./segments";
 import type { GameSystem } from "./systems";
 import type { RunnerWorld } from "./world";
 
-/** How far above `max_rise_tiles` the arc peaks, so a maximal step still lands. */
+/** The consumer's own defaults, equal to the SDK's published values; runtime
+ * code passes the manifest's arithmetic instead of relying on these. */
 export const JUMP_PEAK_MARGIN_TILES = 0.75;
-
-/** Airtime headroom over the bare gap crossing, so clearing is not frame-exact. */
 export const AIRTIME_HEADROOM = 1.15;
+export const DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND = 6;
+
+/** Air jumps per jump name: pure feel, no refusal reads it. */
+export const JUMP_FEEL_PROFILES: Readonly<
+  Record<"single_arc_v1" | "double_arc_v1", { readonly airJumps: number }>
+> = Object.freeze({
+  single_arc_v1: Object.freeze({ airJumps: 0 }),
+  double_arc_v1: Object.freeze({ airJumps: 1 }),
+});
 
 export interface JumpArc {
   /** Upward launch speed, rows per second. */
@@ -32,8 +41,14 @@ export interface JumpArc {
   readonly airtimeSeconds: number;
 }
 
+export interface JumpArcArithmetic {
+  readonly baseSpeedColumnsPerSecond?: number;
+  readonly jumpPeakMarginTiles?: number;
+  readonly airtimeHeadroom?: number;
+}
+
 /**
- * Derive the single jump arc from the admission arithmetic.
+ * Derive the jump arc from the admission arithmetic.
  *
  * A pit of `maxClearGapColumns` needs the takeoff column plus the gap crossed
  * before landing, so flat-ground airtime is `(gap + 1) / speed` at the
@@ -44,20 +59,31 @@ export interface JumpArc {
 export function jumpArcFor(
   maxRiseTiles: number,
   maxClearGapColumns: number,
-  minSpeedColumnsPerSecond: number = BASE_SPEED_COLUMNS_PER_SECOND,
+  arithmetic: JumpArcArithmetic = {},
 ): JumpArc {
-  if (minSpeedColumnsPerSecond <= 0) {
+  const minSpeed =
+    arithmetic.baseSpeedColumnsPerSecond ?? DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND;
+  if (minSpeed <= 0) {
     throw new Error("jump arc requires a positive minimum speed");
   }
-  const peakRows = maxRiseTiles + JUMP_PEAK_MARGIN_TILES;
+  const peakRows = maxRiseTiles + (arithmetic.jumpPeakMarginTiles ?? JUMP_PEAK_MARGIN_TILES);
   const airtimeSeconds =
-    ((maxClearGapColumns + 1) / minSpeedColumnsPerSecond) * AIRTIME_HEADROOM;
+    ((maxClearGapColumns + 1) / minSpeed) * (arithmetic.airtimeHeadroom ?? AIRTIME_HEADROOM);
   return Object.freeze({
     initialSpeedRowsPerSecond: (4 * peakRows) / airtimeSeconds,
     gravityRowsPerSecondSquared: (8 * peakRows) / (airtimeSeconds * airtimeSeconds),
     peakRows,
     airtimeSeconds,
   });
+}
+
+function launch(world: RunnerWorld, arc: JumpArc): void {
+  const avatar = world.avatar;
+  avatar.vy = -arc.initialSpeedRowsPerSecond;
+  avatar.grounded = false;
+  avatar.sliding = false;
+  avatar.motion = "jump";
+  avatar.jumpImpulses += 1;
 }
 
 /**
@@ -75,20 +101,34 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     return;
   }
 
-  const arc = jumpArcFor(world.config.maxRiseTiles, world.config.maxClearGapColumns);
+  const arc = jumpArcFor(
+    world.config.maxRiseTiles,
+    world.config.maxClearGapColumns,
+    world.config.arithmetic,
+  );
   avatar.distanceColumns += world.difficulty.speedColumnsPerSecond * dt;
   const support = surfaceRowAt(world.segments, Math.floor(avatar.distanceColumns));
 
-  if (avatar.grounded && world.intent.jump) {
-    avatar.vy = -arc.initialSpeedRowsPerSecond;
-    avatar.grounded = false;
-    avatar.motion = "jump";
+  if (world.intent.jump) {
+    if (avatar.grounded) {
+      launch(world, arc);
+    } else if (avatar.airJumpsUsed < JUMP_FEEL_PROFILES[world.config.jumpProfile].airJumps) {
+      // The air jump: a full relaunch from wherever the mistake happened.
+      // Recovery, never reach — admission's arithmetic is single-hop, so no
+      // admitted chunk ever demands this press.
+      avatar.airJumpsUsed += 1;
+      launch(world, arc);
+    }
   }
 
   if (avatar.grounded) {
+    // The slide is held state: low while duck is held, back up when released.
+    avatar.sliding = world.config.duckProfile !== null && world.intent.duck;
+    avatar.motion = avatar.sliding ? "slide" : "run";
     if (support === null || support > avatar.y) {
       // Ran off a ledge or over a pit: start falling from the current height.
       avatar.grounded = false;
+      avatar.sliding = false;
       avatar.motion = "jump";
     } else if (support < avatar.y) {
       // The ground face rose into the avatar: an unjumped step is a collision,
@@ -109,7 +149,9 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
         avatar.y = support;
         avatar.vy = 0;
         avatar.grounded = true;
-        avatar.motion = "run";
+        avatar.airJumpsUsed = 0;
+        avatar.sliding = world.config.duckProfile !== null && world.intent.duck;
+        avatar.motion = avatar.sliding ? "slide" : "run";
       } else {
         // Buried without crossing from above — ascending into a step's face,
         // or carried into a pit wall while already below its rim. Either way
@@ -128,7 +170,7 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
 export function createAvatarSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/avatar",
-    contractVersion: "avatar-system-v1",
+    contractVersion: "avatar-system-v2",
     reads: ["intent", "difficulty"],
     writes: ["avatar"],
     update(world, step) {

@@ -91,6 +91,12 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
     direction = {
         "run": "four sequential phases of one seamless full-speed run cycle",
         "jump": "four sequential key poses of one forward jump arc: takeoff, rise, apex, fall",
+        "slide": (
+            "four sequential key poses of one fast forward baseball-style slide under a low "
+            "obstacle: dropping from the run into the slide, then gliding low with the legs "
+            "leading forward, the torso laid far back, and the head tucked so the whole "
+            "figure stays below half its standing height, then beginning to rise back up"
+        ),
         "death": (
             "four sequential key poses of the run ending: a stumble, a collapse forward, and a "
             "final rest, without gore or injury detail"

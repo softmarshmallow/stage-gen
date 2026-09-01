@@ -40,6 +40,15 @@ from gnode import (
 from stage_gen.canonical import content_sha256
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
+from stage_gen.components.runner_audio import RunnerAudioContract
+from stage_gen.components.runner_content import declared_motion_states
+from stage_gen.components.runner_gameplay import (
+    COLLISION_PROFILES,
+    DUCK_PROFILES,
+    JUMP_PROFILES,
+    SPEED_PROFILES,
+    RunnerGameplayContract,
+)
 from stage_gen.components.sideview_actor.asset_unit import (
     calibrate_subject,
     measure_subject_extent,
@@ -83,7 +92,6 @@ from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.sideview_runner.runner_graph import (
     RUNNER_CACHE_NAMESPACE,
     RUNNER_CACHE_RECORD_KIND,
-    RUNNER_MOTION_STATES,
     RunnerOperationKind,
     SideviewRunnerGraph,
 )
@@ -217,6 +225,53 @@ def _validate_motion_source(data: bytes) -> dict[str, object]:
     if any(value < 0.005 for value in coverage):
         raise ValueError("motion atlas is missing a required visible cell")
     return {**facts, "cell_visible_fractions": [round(value, 6) for value in coverage]}
+
+
+def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
+    """The manifest's published gameplay block, one key per refusal-bearing number.
+
+    Module-level and pure so the writer's exact key set is pinned by an
+    offline test; the TS parser refuses a document missing any of these, and
+    the two suites hold the same list from both sides.
+    """
+
+    jump = JUMP_PROFILES[gameplay.run.jump_profile]
+    speed = SPEED_PROFILES[gameplay.run.speed_profile]
+    collision = COLLISION_PROFILES[gameplay.run.collision_policy]
+    duck = None if gameplay.run.duck_profile is None else DUCK_PROFILES[gameplay.run.duck_profile]
+    return {
+        "speed_profile": gameplay.run.speed_profile,
+        "jump_profile": gameplay.run.jump_profile,
+        "collision_policy": gameplay.run.collision_policy,
+        "duck_profile": gameplay.run.duck_profile,
+        "ramp_profile": gameplay.ramp.profile,
+        "max_clear_gap_columns": jump.max_clear_gap_columns,
+        "max_rise_tiles": jump.max_rise_tiles,
+        "jump_peak_margin_tiles": jump.peak_margin_tiles,
+        "airtime_headroom": jump.airtime_headroom,
+        "base_speed_columns_per_second": speed.base_speed_columns_per_second,
+        "max_speed_multiplier": speed.max_speed_multiplier,
+        "avatar_half_width_columns": collision.avatar_half_width_columns,
+        "hazard_column_inset": collision.hazard_column_inset,
+        "ducked_height_fraction": (None if duck is None else duck.ducked_height_fraction),
+        "min_overhead_clearance_rows": (None if duck is None else duck.min_overhead_clearance_rows),
+    }
+
+
+def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
+    """Project the authored event/effect closure without consumer defaults."""
+
+    return {
+        "bindings": audio.bindings.model_dump(mode="json"),
+        "effects": [
+            {
+                "effect_id": effect.effect_id,
+                "display_name": effect.display_name,
+                "realization": effect.realization.model_dump(mode="json"),
+            }
+            for effect in audio.effects
+        ],
+    }
 
 
 class SideviewRunnerNodeHandler:
@@ -670,7 +725,7 @@ class SideviewRunnerNodeHandler:
     def _state_frames(self, node: Node) -> dict[str, tuple[bytes, ...]]:
         frames_by_state: dict[str, tuple[bytes, ...]] = {}
         geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-        for state in RUNNER_MOTION_STATES:
+        for state in declared_motion_states(self._runner.avatar.avatar):
             atlas_ref = f"avatar/{state}.png"
             frames_by_state[state] = split_atlas_columns(
                 (self._run_dir / atlas_ref).read_bytes(), geometry.columns, geometry.rows
@@ -679,7 +734,7 @@ class SideviewRunnerNodeHandler:
 
     async def _rebase_judge(self, node: Node) -> NodeExecutionResult:
         avatar = self._runner.avatar.avatar
-        states = list(RUNNER_MOTION_STATES)
+        states = list(declared_motion_states(avatar))
         frames_by_state = self._state_frames(node)
         plate = build_motion_rebase_plate(frames_by_state, baseline_state=RUNNER_BASELINE_STATE)
         plate_output = self._run_dir / node.port("plate").artifact_ref
@@ -738,7 +793,7 @@ class SideviewRunnerNodeHandler:
 
     async def _rebase_verify(self, node: Node) -> NodeExecutionResult:
         avatar = self._runner.avatar.avatar
-        states = list(RUNNER_MOTION_STATES)
+        states = list(declared_motion_states(avatar))
         frames_by_state = self._state_frames(node)
         plate = build_motion_rebase_plate(frames_by_state, baseline_state=RUNNER_BASELINE_STATE)
         first_pass = admit_first_pass_record(
@@ -1027,7 +1082,7 @@ class SideviewRunnerNodeHandler:
             )
 
         manifest = {
-            "schema_version": 1,
+            "schema_version": 3,
             "kind": MANIFEST_KIND,
             "game_id": self._package.game.game_id,
             "display_name": self._package.game.display_name,
@@ -1040,14 +1095,10 @@ class SideviewRunnerNodeHandler:
                 "player_height_tiles": scale.player_height_tiles,
                 "tile_px": RUNTIME_TILE_PX,
             },
-            "gameplay": {
-                "speed_profile": runner.gameplay.run.speed_profile,
-                "jump_profile": runner.gameplay.run.jump_profile,
-                "collision_policy": runner.gameplay.run.collision_policy,
-                "ramp_profile": runner.gameplay.ramp.profile,
-                "max_clear_gap_columns": runner.gameplay.jump_profile().max_clear_gap_columns,
-                "max_rise_tiles": runner.gameplay.jump_profile().max_rise_tiles,
-            },
+            # The published arithmetic: every number an offline refusal depends
+            # on rides here, so the arc the runtime flies and the arc admission
+            # proved are the same closed forms rather than a convention.
+            "gameplay": manifest_gameplay(runner.gameplay),
             "ground": {
                 "atlas": "world/ground.png",
                 "mode": track.ground.mode,
@@ -1063,7 +1114,12 @@ class SideviewRunnerNodeHandler:
                         "difficulty": chunk.difficulty,
                         "occupancy": chunk.occupancy,
                         "hazards": [
-                            {"prop_id": hazard.prop_id, "column": hazard.column}
+                            {
+                                "prop_id": hazard.prop_id,
+                                "column": hazard.column,
+                                "anchor": hazard.anchor,
+                                "clearance_rows": hazard.clearance_rows,
+                            }
                             for hazard in chunk.hazards
                         ],
                         "pickups": [
@@ -1089,6 +1145,7 @@ class SideviewRunnerNodeHandler:
             },
             "props": props,
             "items": items,
+            "audio": manifest_audio(runner.audio),
             "soundtrack": (
                 None
                 if runner.soundtrack is None
@@ -1105,4 +1162,10 @@ class SideviewRunnerNodeHandler:
         return self._result(node)
 
 
-__all__ = ["RUNNER_BASELINE_STATE", "RUNTIME_TILE_PX", "SideviewRunnerNodeHandler"]
+__all__ = [
+    "RUNNER_BASELINE_STATE",
+    "RUNTIME_TILE_PX",
+    "SideviewRunnerNodeHandler",
+    "manifest_audio",
+    "manifest_gameplay",
+]

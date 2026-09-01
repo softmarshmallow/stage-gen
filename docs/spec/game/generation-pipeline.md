@@ -165,7 +165,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact captured Bellweather closure, the content-sensitive execution-plan identity is
-`graph_sha256 = d8f8c77de21953fc6eba0f87d5345bd85abb0a67dc6108b8a2aecdb4dda697c3`.
+`graph_sha256 = e9d00e67e346cc36035f2a07bf5e791b9a0704ddd2eabf73c689c7f1cb379cb5`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 

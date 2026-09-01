@@ -2,7 +2,7 @@
 
 > **Contract maturity: exact-current prepared-package root.**
 >
-> This document specifies `game-contract-v8`, the root `game.toml` accepted by
+> This document specifies `game-contract-v9`, the root `game.toml` accepted by
 > prepared-package ingest. The complete package closure and transport rules live
 > in [Canonical prepared game package](../../game-package.md); execution order
 > and provider fan-out live in the [Canonical generation pipeline](generation-pipeline.md).
@@ -23,7 +23,7 @@ The canonical path is:
 library/games/<game_id>/game.toml
 ```
 
-Only `schema_version = 8` and `kind = "game-contract-v8"` are accepted. The
+Only `schema_version = 9` and `kind = "game-contract-v9"` are accepted. The
 resolver does not translate another document shape.
 
 ## Root shape
@@ -31,8 +31,8 @@ resolver does not translate another document shape.
 The exact fields are:
 
 ```toml
-schema_version = 8
-kind = "game-contract-v8"
+schema_version = 9
+kind = "game-contract-v9"
 game_id = "example-game"
 revision = 1
 display_name = "Example Game"
@@ -116,6 +116,44 @@ source = "content/projectiles.toml"
 [genres.scenarios]
 index_source = "scenarios/index.toml"
 
+# A runner member owns its own fixed runner/ closure. Audio is required so no
+# consumer invents SFX; soundtrack remains optional.
+[[genres]]
+genre = "runner"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
+avatar_id = "player_one_runner"
+
+[genres.gameplay]
+source = "runner/gameplay.toml"
+
+[genres.track]
+source = "runner/track.toml"
+
+[genres.content.avatar]
+source = "runner/content/avatar.toml"
+
+[genres.content.props]
+source = "runner/content/props.toml"
+
+[genres.content.items]
+source = "runner/content/items.toml"
+
+[genres.audio]
+source = "runner/audio.toml"
+
+[genres.soundtrack]
+source = "runner/soundtrack.toml"
+
 [evidence.cover]
 artifact_source = "references/cover.png"
 artifact_sha256 = "<sha256>"
@@ -133,8 +171,8 @@ basis = ["Original authored package direction."]
 
 - `game_id` is a portable game identifier and agrees with the selected package
   identity; `revision` is at least one and `display_name` is trimmed text.
-- `genres` declares one to eight members, each a distinct genre. The platformer
-  member is the only member model today; contract members are exclusively owned
+- `genres` declares one to eight members, each a distinct genre. Platformer and
+  runner have distinct member models; contract members are exclusively owned
   by one genre, while digest-locked reference images may be shared across
   members.
 - A member's presentation is currently exactly `side_view_2d` in `side_plane` gameplay
@@ -154,7 +192,7 @@ basis = ["Original authored package direction."]
 - Player, mob, and NPC IDs are unique `lower_snake_case` identifiers. Cast IDs
   must resolve to their respective content catalogs. `content.projectiles` is
   optional; when declared it must resolve to `content/projectiles.toml`.
-- The universe, gameplay, UI, soundtrack, content, and sequence-catalog paths
+- The universe, gameplay, UI, soundtrack, runner audio, content, and sequence-catalog paths
   have fixed package-relative locations.
 - Every map source is exactly `maps/<map_id>.toml`; map IDs and sources are
   unique.
@@ -178,6 +216,7 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 | `maps/<map_id>.toml` | Visual/static map composition, terrain occupancy, ladder placement, and portal presentation/anchors |
 | Content catalogs | Player, mob, NPC, prop, item, and projectile identities, visual references, motion presentation, the player's drawn equipment, and NPC catalog-wide world orientation |
 | `soundtrack.toml` | Track identities, creative briefs, and playback policy |
+| `runner/audio.toml` | Runner event-to-effect bindings and portable sound-effect realizations |
 | Sequence catalog and sources | Dialogue/cutscene graph and outcomes |
 
 In particular, a map owns ladder and portal composition per map, while
@@ -199,8 +238,9 @@ Membership stays exact: a member named here but absent is rejected as
 `orphan_package_file`. Resolution then digests the exact captured closure of
 every member path, digest, and byte size as `closure_sha256`, which appears in
 the resolved package identity and in the `game-package-validation-v5` report.
-The scrolling DAG consumes this resolved package and integration emits only
-`prepared-game-runtime-v10`.
+The selected genre DAG consumes this resolved package. Platformer integration
+emits `prepared-game-runtime-v10`; runner integration emits
+`sideview-runner-runtime-v3`.
 
 Validate the canonical package with:
 

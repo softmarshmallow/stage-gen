@@ -44,7 +44,7 @@ SOUNDTRACK_RAW_KIND = "soundtrack-track-raw-v1"
 SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
 SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v1"
-MANIFEST_KIND = "sideview-runner-runtime-v1"
+MANIFEST_KIND = "sideview-runner-runtime-v3"
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -197,7 +197,11 @@ MANIFEST_ASSEMBLE = NodeType(
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    contract_version="runner-manifest-assemble-v1",
+    # v3: publishes authored runner audio bindings and effect realizations.
+    # The version bump is also the cache re-key - the node cache ignores port
+    # kinds, so without it a regenerated run would replay the old manifest
+    # byte-identically and still be refused by the v2 parser.
+    contract_version="runner-manifest-assemble-v3",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (

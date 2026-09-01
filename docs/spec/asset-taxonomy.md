@@ -129,7 +129,7 @@ later:
    side-view RPGs both consume it).
 2. **Runner vs jumper**: the asset-facing difference is the loop axis —
    horizontal for a runner, vertical for an infinite jumper. The horizontal
-   runner now exists at its reserved home: `runner` is a `game-contract-v8`
+   runner now exists at its reserved home: `runner` is a `game-contract-v9`
    genre member (`docs/spec/game/runner.md`) over the shared `2d/sideview`
    modules. Loop admission is still single-axis, so an infinite-jumper demo
    remains impossible until `2d/sideview/loop_y` has a caller.

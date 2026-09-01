@@ -4,11 +4,11 @@
 # follow any chunk and the track is infinite by construction. Pits are legal
 # here - and provably clearable against the gameplay contract's jump profile.
 
-schema_version = 1
-kind = "runner-track-v1"
+schema_version = 2
+kind = "runner-track-v2"
 game_id = "bellweather"
 track_id = "sunpetal-sprint"
-revision = 1
+revision = 2
 display_name = "Sunpetal Sprint"
 
 [view]
@@ -70,88 +70,809 @@ vertical_fit = "floor_to_screen_bottom"
 prompt = "Create Sunpetal Sprint's stable terrain material from the selected scene: warm cream paving, moss-softened stone edges, restrained grass and tiny flowers at the surface, and darker compacted soil or masonry beneath. Match the clean digital-gouache-like finish and preserve broad quiet areas around a crisp readable footing line."
 
 [segments]
-rows = 8
-walk_surface_row = 5
+rows = 11
+walk_surface_row = 8
 
 [[segments.chunks]]
 segment_id = "meadow_flat"
 difficulty = 1
 occupancy = [
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "111111111111",
-  "111111111111",
-  "111111111111",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
 ]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 6
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 7
+
+[[segments.chunks]]
+segment_id = "token_arch"
+difficulty = 1
+occupancy = [
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
+]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 19
+row = 7
 
 [[segments.chunks]]
 segment_id = "cart_lane"
 difficulty = 2
 occupancy = [
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "000000000000",
-  "111111111111",
-  "111111111111",
-  "111111111111",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
 ]
 
 [[segments.chunks.hazards]]
 prop_id = "toppled_cart"
-column = 6
+column = 11
+anchor = "surface"
 
 [[segments.chunks.pickups]]
 item_id = "sunleaf_token"
-column = 6
-row = 2
+column = 7
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 6
 
 [[segments.chunks]]
 segment_id = "brook_gap"
 difficulty = 3
 occupancy = [
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "1111110001111111",
-  "1111110001111111",
-  "1111110001111111",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111000111111111111",
+  "1111111111111000111111111111",
+  "1111111111111000111111111111",
 ]
 
 [[segments.chunks.pickups]]
 item_id = "sunleaf_token"
-column = 7
-row = 3
+column = 10
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 19
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 20
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 21
+row = 7
 
 [[segments.chunks]]
 segment_id = "hay_run"
-difficulty = 3
+difficulty = 4
 occupancy = [
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "0000000000000000",
-  "1111111111111111",
-  "1111111111111111",
-  "1111111111111111",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
 ]
 
 [[segments.chunks.hazards]]
 prop_id = "hay_bundle"
-column = 4
+column = 9
+anchor = "surface"
 
 [[segments.chunks.hazards]]
 prop_id = "hay_bundle"
+column = 17
+anchor = "surface"
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 5
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 6
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
 column = 11
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 19
+row = 6
+
+[[segments.chunks]]
+segment_id = "garland_walk"
+difficulty = 4
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+]
+
+[[segments.chunks.hazards]]
+prop_id = "festival_garland"
+column = 13
+anchor = "overhead"
+clearance_rows = 1.6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 7
+
+[[segments.chunks]]
+segment_id = "bank_rise"
+difficulty = 5
+occupancy = [
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000111111110000000000",
+  "000000000000111111110000000000",
+  "111111111111111111111111111111",
+  "111111111111111111111111111111",
+  "111111111111111111111111111111",
+]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 5
+
+[[segments.chunks]]
+segment_id = "skyline_run"
+difficulty = 5
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 6
+row = 7
 
 [[segments.chunks.pickups]]
 item_id = "sunleaf_token"
 column = 7
-row = 3
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 2
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 14
+row = 2
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 2
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 2
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 20
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 21
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 22
+row = 7
+
+[[segments.chunks]]
+segment_id = "gap_chain"
+difficulty = 6
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111110011111111001111111111",
+  "11111111110011111111001111111111",
+  "11111111110011111111001111111111",
+]
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 20
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 21
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 22
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 23
+row = 6
+
+[[segments.chunks]]
+segment_id = "cart_and_brook"
+difficulty = 7
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111111111111100011111111111",
+  "11111111111111111100011111111111",
+  "11111111111111111100011111111111",
+]
+
+[[segments.chunks.hazards]]
+prop_id = "toppled_cart"
+column = 9
+anchor = "surface"
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 5
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 6
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 15
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 16
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 19
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 20
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 21
+row = 6
+
+[[segments.chunks]]
+segment_id = "bough_gauntlet"
+difficulty = 8
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
+]
+
+[[segments.chunks.hazards]]
+prop_id = "orchard_bough"
+column = 10
+anchor = "overhead"
+clearance_rows = 1.6
+
+[[segments.chunks.hazards]]
+prop_id = "hay_bundle"
+column = 18
+anchor = "surface"
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 7
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 8
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 9
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 10
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 11
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 12
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 13
+row = 7
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 17
+row = 6
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 18
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 19
+row = 5
+
+[[segments.chunks.pickups]]
+item_id = "sunleaf_token"
+column = 20
+row = 6

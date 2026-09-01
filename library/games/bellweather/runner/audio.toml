@@ -1,0 +1,104 @@
+schema_version = 1
+kind = "runner-audio-v1"
+game_id = "bellweather"
+revision = 1
+
+[bindings]
+takeoff = "takeoff_whistle"
+air_jump = "air_jump_whistle"
+land = "soft_landing"
+slide = "leaf_slide"
+hazard_cleared = "clear_sparkle"
+collect = "token_chime"
+death = "run_ended"
+
+[[effects]]
+effect_id = "takeoff_whistle"
+display_name = "Takeoff Whistle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 330
+end_frequency_hz = 660
+duration_milliseconds = 120
+gain = 0.16
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "air_jump_whistle"
+display_name = "Air Jump Whistle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 440
+end_frequency_hz = 990
+duration_milliseconds = 120
+gain = 0.16
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "soft_landing"
+display_name = "Soft Landing"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 220
+end_frequency_hz = 160
+duration_milliseconds = 80
+gain = 0.12
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "leaf_slide"
+display_name = "Leaf Slide"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sawtooth"
+start_frequency_hz = 200
+end_frequency_hz = 120
+duration_milliseconds = 160
+gain = 0.07
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "clear_sparkle"
+display_name = "Clear Sparkle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 520
+end_frequency_hz = 780
+duration_milliseconds = 100
+gain = 0.10
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "token_chime"
+display_name = "Token Chime"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 660
+end_frequency_hz = 880
+duration_milliseconds = 90
+gain = 0.12
+strength_pitch_multiplier = 1.0
+
+[[effects]]
+effect_id = "run_ended"
+display_name = "Run Ended"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "square"
+start_frequency_hz = 220
+end_frequency_hz = 55
+duration_milliseconds = 450
+gain = 0.14
+strength_pitch_multiplier = 0.0

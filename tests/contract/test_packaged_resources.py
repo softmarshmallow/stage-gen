@@ -154,7 +154,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The runner genre pass adds six wheel modules: the shared canonical
         # digests and the sideview_runner recipe's request, types, graph,
         # handler, view, and executor (measured 205).
-        assert len(wheel_entries) <= 205
+        # Explicit runner audio adds the two-file runner_audio component:
+        # its public surface and persisted contract model (measured 207).
+        assert len(wheel_entries) <= 207
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -212,13 +214,17 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # digests, the camera-scoped sideview components, the runner family
         # contracts, and the sideview_runner recipe with its tests arrive, while
         # the orphaned game-contract-v3 stack leaves (measured 411).
-        assert len(sdist_entries) <= 411
+        # Explicit runner audio adds its component, focused test, and canonical
+        # audio/soundtrack sources to the source distribution (measured 415).
+        assert len(sdist_entries) <= 415
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
-        # archive about 1KB past the previous line. The archive is still bounded well under the
-        # packaging budget; this guards against a stray directory, not against the project growing.
-        assert sum(sdist_entries.values()) < 5_200_000
+        # archive about 1KB past the previous line, and again for the CookieRun adoption pass,
+        # whose placement admission, re-authored track, and refusal tests crossed it by about 3KB.
+        # The archive is still bounded well under the packaging budget; this guards against a
+        # stray directory, not against the project growing.
+        assert sum(sdist_entries.values()) < 5_300_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

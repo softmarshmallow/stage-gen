@@ -28,6 +28,10 @@ from gnode import (
     PortRef,
     seal_graph,
 )
+from stage_gen.components.runner_content import (
+    RUNNER_MOTION_ORDER,
+    declared_motion_states,
+)
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
@@ -95,7 +99,9 @@ RUNNER_CACHE_NAMESPACE = "sideview-runner-nodes-v1"
 RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
 
 #: The one canonical motion-state order: deterministic node ids and plate bands.
-RUNNER_MOTION_STATES: tuple[str, ...] = ("run", "jump", "death")
+#: Re-exported from the contract component so the vocabulary that validates,
+#: the tuple that fans out nodes, and the runtime's copy cannot drift apart.
+RUNNER_MOTION_STATES: tuple[str, ...] = RUNNER_MOTION_ORDER
 
 
 class RunnerOperationKind(StrEnum):
@@ -396,8 +402,13 @@ def build_runner_execution_graph(
         ),
     )
     motion_validations: list[str] = []
+    motions_by_state = {entry.state: entry for entry in avatar.motions}
     with builder.within_template("avatar-motion-pipeline@v1"):
-        for state in RUNNER_MOTION_STATES:
+        # Fan out over what the avatar actually declares, in the canonical
+        # order: the required set is a function of the member (a track with no
+        # overhead hazards buys no slide strip), and admission already proved
+        # the declaration matches the track's demands.
+        for state in declared_motion_states(avatar):
             prompt = avatar_motion_prompt(resolved, avatar, state)
             generate_id = f"avatar-{state}-generate"
             generated = builder.add(
@@ -427,7 +438,11 @@ def build_runner_execution_graph(
                 description=f"repack the {state} strip into canonical cells",
                 params={"state": state},
                 depends_on=(generated.node_id,),
-                input_digests=(package.closure_sha256,),
+                # Identity is what the repack actually reads - the strip via
+                # lineage plus the authored anchor - not the whole closure:
+                # this node feeds the paid rebase judges, and an unrelated
+                # authored edit must not re-bill them through it.
+                input_digests=(_text_digest(motions_by_state[state].anchor),),
                 ports=(
                     _artifact("image", f"avatar/{state}.png", MOTION_ATLAS_KIND),
                     _record(
@@ -443,7 +458,10 @@ def build_runner_execution_graph(
         domain="avatar",
         description="judge every motion atlas against the run baseline on one plate",
         depends_on=tuple(motion_validations),
-        input_digests=(package.closure_sha256,),
+        # The judge reads the motion atlases (carried by lineage) and names the
+        # avatar in its prompt; keying it on the closure re-billed both
+        # structured operations for every unrelated authored edit.
+        input_digests=(_text_digest(avatar.display_name),),
         ports=(
             _artifact("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
             _record("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
@@ -456,7 +474,7 @@ def build_runner_execution_graph(
         domain="avatar",
         description="judge the residual on a plate composed with the first reading applied",
         depends_on=(rebase_judge.node_id,),
-        input_digests=(package.closure_sha256,),
+        input_digests=(_text_digest(avatar.display_name),),
         ports=(
             _artifact("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
             _record("verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND),

@@ -28,15 +28,64 @@ def test_the_plan_states_the_exact_graph_the_member_implies(tmp_path: Path) -> N
     assert graph.track_id == "meadow-dash"
     assert graph.terminal_node_id == "manifest-assemble"
     operations = Counter(node.operation for node in graph.nodes)
-    # 1 ground + 1 layer + 1 concept + 3 motion strips + 2 catalog assets = 8
-    # images; the two rebase judges are the only structured calls; no design
-    # node exists - segments are authored; no soundtrack member is declared.
-    assert operations == {"local": 10, "image_generation": 8, "structured_generation": 2}
+    # 1 ground + 1 layer + 1 concept + 4 motion strips (the declared duck
+    # profile obligates a slide) + 2 catalog assets = 9 images; the two rebase
+    # judges are the only structured calls; no design node exists - segments
+    # are authored. The canonical fixture declares two BGM tracks.
+    assert operations == {
+        "local": 13,
+        "image_generation": 9,
+        "structured_generation": 2,
+        "music_generation": 2,
+    }
     # The package node is a barrier: provider roots order behind it without
     # carrying it in cache lineage.
     for node in graph.nodes:
         if node.operation == "image_generation" and "package-resolve" in node.depends_on:
             assert "package-resolve" in node.barrier_only
+
+
+def test_the_motion_vocabulary_is_declared_exactly_once() -> None:
+    """The states that validate, the tuple that fans out nodes, and the plate
+    band order are all one declaration; editing one without the others emits
+    strips no contract admits, or refuses avatars no node serves."""
+
+    from stage_gen.components.runner_content import (
+        RUNNER_AVATAR_BASE_MOTION_STATES,
+        RUNNER_AVATAR_MOTION_STATES,
+        RUNNER_MOTION_ORDER,
+    )
+    from stage_gen.recipes.sideview_runner.runner_graph import RUNNER_MOTION_STATES
+
+    assert RUNNER_MOTION_STATES is RUNNER_MOTION_ORDER
+    assert frozenset(RUNNER_MOTION_ORDER) == RUNNER_AVATAR_MOTION_STATES
+    assert RUNNER_AVATAR_BASE_MOTION_STATES < RUNNER_AVATAR_MOTION_STATES
+    # The runtime's copy (web/lib/sideview-runner/contract.ts) pins the same
+    # order in its own suite; a drift there fails the web gate.
+    assert RUNNER_MOTION_ORDER == ("run", "jump", "slide", "death")
+
+
+def test_a_slide_free_avatar_fans_out_no_slide_nodes(tmp_path: Path) -> None:
+    """The node census is a function of what the member declares."""
+
+    from ..._runner_fixture import (
+        RUNNER_AVATAR_NO_SLIDE,
+        RUNNER_GAMEPLAY_NO_DUCK,
+        WIDE_FLAT_ROWS,
+        chunk_toml,
+    )
+
+    package = two_genre_package(
+        tmp_path,
+        chunks=chunk_toml("warmup_flat", WIDE_FLAT_ROWS),
+        gameplay=RUNNER_GAMEPLAY_NO_DUCK,
+        avatar=RUNNER_AVATAR_NO_SLIDE,
+    )
+    plan = _executor().plan(package)
+    node_ids = {node.node_id for node in plan.graph.nodes}
+    assert "avatar-run-generate" in node_ids
+    assert "avatar-slide-generate" not in node_ids
+    assert "avatar-slide-validate" not in node_ids
 
 
 def test_every_generation_node_states_its_full_prompt_on_its_card(tmp_path: Path) -> None:

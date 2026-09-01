@@ -299,7 +299,7 @@ progressing after twenty seconds" into "the track becomes an empty flat treadmil
 four minutes of the speed ramp" - strictly worse than today, and no gate catches it, because the web
 suites use their own fixtures and the Python gate never touches runtime selection.
 
-- [ ] **Admission hardening I - the seam apron, hazard spacing, and the rise that skips across
+- [x] **Admission hardening I - the seam apron, hazard spacing, and the rise that skips across
       pits.** Two proven holes ship unwinnable moments today. First the seam: a chunk ending a
       3-column pit at columns W-4..W-2 with W-1 supported passes every check (`max_pit_run()` is
       exactly `max_clear_gap_columns`, both seam columns sit at `walk_surface_row`), and any chunk
@@ -331,7 +331,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       hazard-over-pit refusal is already there and must not be re-added). Offline, zero provider
       operations, no authorization.
 
-- [ ] **Re-author the bellweather track: depth, width, jelly arcs, the ground line, and a real
+- [x] **Re-author the bellweather track: depth, width, jelly arcs, the ground line, and a real
       difficulty spread.** The design payload, and the answer to "how are obstacles placed". Every
       edit is inside today's contract bounds. Depth: `rows` 8 -> 11 and `walk_surface_row` 5 -> 8
       (the contract allows 6-32; at `tile_px` 64 against 720px, 11.25 rows are visible). Today's 5
@@ -365,7 +365,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       gate needs a credentialed live run** (`runner_executor.py:121-124` raises without both keys
       before any cache lookup) - it is cheap, but it is not offline.
 
-- [ ] **Chunk selection grammar: a sliding band, anti-repeat, and a forced rest cadence.** Ships
+- [x] **Chunk selection grammar: a sliding band, anti-repeat, and a forced rest cadence.** Ships
       *after* the re-authoring, for the reason in the preamble. Difficulty progression in the
       shipped game is over in twenty seconds: `difficultyCeiling = min(10, 1 + floor(distance/60))`
       reaches 3 at column 120, after which the pool is fully open and never changes again for the
@@ -386,7 +386,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       changes, so any seed recorded before this lands reproduces a different track. Contract-free,
       zero provider operations.
 
-- [ ] **Complete the declared arithmetic: move the five arc constants into the SDK and publish
+- [x] **Complete the declared arithmetic: move the five arc constants into the SDK and publish
       them.** The precondition for the clearance proof and a latent defect on its own. Admission
       proves gaps and rises from two integers, but the arc the player actually flies is shaped by
       five numbers the SDK has never seen: `JUMP_PEAK_MARGIN_TILES` 0.75 and `AIRTIME_HEADROOM` 1.15
@@ -415,7 +415,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       operations once the contract_version moves it off cache, or two structured if package bytes
       also change.
 
-- [ ] **Admission hardening II: prove hazards are jumpable, and make the telegraph a refusal.**
+- [x] **Admission hardening II: prove hazards are jumpable, and make the telegraph a refusal.**
       Terrain is proved offline and props are not. `_validate_runner_member` never reads
       `height_units`, which `platformer_content/models.py` bounds only at 0.05..32.0, so a hazard's
       height has never been checked against the arc that must clear it. From the now-published
@@ -445,7 +445,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       `props.toml` edit re-bills the two structured judges, and its play-QA gate needs credentials
       like the re-authoring above.
 
-- [ ] **Double jump as `double_arc_v1`: a second name whose second hop is recovery, never reach.**
+- [x] **Double jump as `double_arc_v1`: a second name whose second hop is recovery, never reach.**
       The best ratio available. Our design condition is content the player cannot memorise, 1.67s of
       lookahead fully ramped, and one-hit death - precisely the condition where forgiveness beats
       precision. A mistimed first jump is currently terminal at the moment of takeoff; one air jump
@@ -477,7 +477,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       `toBeGreaterThan`. Zero image operations if the second hop reuses the existing `jump` atlas,
       which it should - CookieRun's distinct spin for hop two is cosmetic.
 
-- [ ] **Crouch: the slide motion state, overhead hazards, and the proof that a ducked avatar fits.**
+- [x] **Crouch: the slide motion state, overhead hazards, and the proof that a ducked avatar fits.**
       The only paid increment, and the only one needing explicit authorization. **Yes on crouch**:
       with one verb there is exactly one question per obstacle ("when?"), one sentence in the
       collectible language, and two difficulty dials. No amount of admission hardening raises that
@@ -522,7 +522,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       or we pay for a generic crouch. Semantic review of the slide strip and both props by someone
       other than their producer.
 
-- [ ] **Rhythm is refused, and the refusal belongs in `docs/spec/game/runner.md` so it is not
+- [x] **Rhythm is refused, and the refusal belongs in `docs/spec/game/runner.md` so it is not
       re-litigated.** Not on cost - it would still be no with unlimited budget. The seam rule and
       beat sync are mutually exclusive: both references that actually sync map a *through-composed*
       song onto a *fixed* level, and our defining property is that any chunk may follow any chunk,
@@ -544,7 +544,7 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       per-event audio one-shots folded into the re-authoring above are the cheap 80%: that is
       BIT.TRIP's actual trick, at zero provider cost.
 
-- [ ] **Take the rebase judges off the whole-package digest.** `avatar-rebase-judge` and
+- [x] **Take the rebase judges off the whole-package digest.** `avatar-rebase-judge` and
       `avatar-rebase-verify` declare `input_digests=(package.closure_sha256,)`
       (`runner_graph.py:446,:459`), so **any** authored edit anywhere in the package re-bills two
       structured operations - editing a track chunk, moving a pickup, or bumping a prop's
@@ -558,6 +558,28 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       `cache_depends_on=()`; the three `avatar-{state}-generate` and two layer loop-paint nodes
       carry lineage from their parents, so a change to the avatar concept prompt re-bills four image
       operations, not one.
+
+- [x] **Move runner audio authorship into the package and add BGM.** The seven semantic runtime
+      events remain the stable trigger vocabulary, but `runner/audio.toml` now binds each event to
+      a named effect and owns every `oscillator_sweep_v1` parameter the web consumer previously
+      hard-coded. The realization boundary is explicit so generated-file SFX can extend it later
+      without remapping gameplay events. Bellweather also declares two original loop-ready tracks
+      in `runner/soundtrack.toml`; this activates the existing runner music graph and adds two music
+      operations. The exact-current cutover is `game-contract-v9` and
+      `sideview-runner-runtime-v3`, with the manifest assembly cache re-keyed at v3. No provider
+      operation is part of this authored/implementation change; producing and listening-reviewing
+      the two BGM files is a separate live gate.
+
+- [ ] **The adoption's open tail: the user's eyes and one measurement.** Everything above landed
+      2026-09-01 in one working-tree change (contracts at runner v2/root v9, admission live, track
+      re-authored, grammar/combo/authored-audio/double-jump/slide in the runtime, graph at 35 nodes).
+      Still open, and not
+      mine to close: semantic review of the three newly generated visuals (the slide strip and the
+      `festival_garland` / `orchard_bough` overhead props) by someone other than their producer;
+      the ground-token measurement (does an ~84%-of-a-jump chain forfeiture visibly change how
+      often a good player is airborne?), which decides whether overhead hazards get authored
+      generously or adversarially in the next track pass; and the known `hedgerow_band` backdrop
+      defect from the first run, unchanged by this pass.
 
 ## Future genres
 

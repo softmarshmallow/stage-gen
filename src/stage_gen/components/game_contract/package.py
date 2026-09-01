@@ -1,4 +1,4 @@
-"""Exact-current prepared-package root contract (``game-contract-v8``).
+"""Exact-current prepared-package root contract (``game-contract-v9``).
 
 The root is a genre-neutral container: one game states its identity, its
 universe, the look every asset in it must hold (style, proportion, scale),
@@ -37,7 +37,7 @@ from stage_gen.components._game_input import (
     unique_values,
 )
 
-PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 8
+PREPARED_GAME_CONTRACT_SCHEMA_VERSION = 9
 
 
 class PackageSource(PersistedContractModel):
@@ -360,8 +360,9 @@ class RunnerGenreMember(PersistedContractModel):
 
     The member table is minimal on purpose: gameplay (named profiles), one
     track of authored tiled segments, one avatar, obstacle props, and pickup
-    items. Soundtrack is optional; there is no UI member (the runtime draws
-    its distance/score HUD itself) and no scenario member in v1. The family
+    items, and explicit event-to-effect audio. Soundtrack is optional; there is
+    no UI member (the runtime draws its distance/score HUD itself) and no
+    scenario member in v1. The family
     claims the fixed `runner/` prefix so its members can never collide with a
     sibling genre's.
     """
@@ -372,6 +373,7 @@ class RunnerGenreMember(PersistedContractModel):
     gameplay: PackageSource
     track: PackageSource
     content: RunnerContentSources
+    audio: PackageSource
     soundtrack: PackageSource | None = None
 
     @model_validator(mode="after")
@@ -382,6 +384,7 @@ class RunnerGenreMember(PersistedContractModel):
             "content.avatar": (self.content.avatar.source, "runner/content/avatar.toml"),
             "content.props": (self.content.props.source, "runner/content/props.toml"),
             "content.items": (self.content.items.source, "runner/content/items.toml"),
+            "audio": (self.audio.source, "runner/audio.toml"),
             **(
                 {}
                 if self.soundtrack is None
@@ -402,6 +405,7 @@ class RunnerGenreMember(PersistedContractModel):
             self.content.avatar.source,
             self.content.props.source,
             self.content.items.source,
+            self.audio.source,
             *([] if self.soundtrack is None else [self.soundtrack.source]),
         ]
 
@@ -417,8 +421,8 @@ GenreMember = Annotated[
 class PreparedGameContract(PersistedContractModel):
     """One prepared game's genre-neutral container, named by exact source path."""
 
-    schema_version: Literal[8]
-    kind: Literal["game-contract-v8"]
+    schema_version: Literal[9]
+    kind: Literal["game-contract-v9"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     display_name: str

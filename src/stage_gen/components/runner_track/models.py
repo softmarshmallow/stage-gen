@@ -42,7 +42,7 @@ from stage_gen.components.platformer_map import (
     bottom_contiguous_surface_row,
 )
 
-RUNNER_TRACK_SCHEMA_VERSION = 1
+RUNNER_TRACK_SCHEMA_VERSION = 2
 
 MIN_SEGMENT_COLUMNS = 8
 MAX_SEGMENT_COLUMNS = 64
@@ -55,10 +55,28 @@ class RunnerCamera(PersistedContractModel):
 
 
 class RunnerHazard(PersistedContractModel):
-    """One authored obstacle standing on a supported column of its chunk."""
+    """One authored obstacle anchored to a supported column of its chunk.
+
+    A `surface` hazard stands on the column's ground and is cleared by a jump;
+    an `overhead` hazard hangs above it with `clearance_rows` of open air
+    beneath its underside, measured up from the same surface, and is cleared
+    by a slide. Both anchors demand support: an obstacle over a pit answers
+    to no verb. The anchor carries no default on purpose - every placement
+    states which half of the vertical axis it occupies.
+    """
 
     prop_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     column: int = Field(ge=0, le=MAX_SEGMENT_COLUMNS - 1)
+    anchor: Literal["surface", "overhead"]
+    clearance_rows: float | None = Field(default=None, ge=0.5, le=16.0)
+
+    @model_validator(mode="after")
+    def validate_anchor(self) -> RunnerHazard:
+        if self.anchor == "overhead" and self.clearance_rows is None:
+            raise ValueError(f"overhead hazard {self.prop_id} must declare clearance_rows")
+        if self.anchor == "surface" and self.clearance_rows is not None:
+            raise ValueError(f"surface hazard {self.prop_id} must not declare clearance_rows")
+        return self
 
 
 class RunnerPickup(PersistedContractModel):
@@ -112,6 +130,15 @@ class RunnerSegmentChunk(PersistedContractModel):
                 raise ValueError(
                     f"segment {self.segment_id} places hazard {hazard.prop_id} over a pit"
                 )
+            if hazard.anchor == "overhead":
+                surface = bottom_contiguous_surface_row(self.occupancy, hazard.column)
+                assert surface is not None  # refused above
+                clearance = hazard.clearance_rows
+                assert clearance is not None  # refused by the hazard model
+                if surface - clearance < 0:
+                    raise ValueError(
+                        f"segment {self.segment_id} hangs {hazard.prop_id} above the grid"
+                    )
         for pickup in self.pickups:
             if pickup.column >= width or pickup.row >= len(self.occupancy):
                 raise ValueError(
@@ -166,8 +193,8 @@ class RunnerSegments(PersistedContractModel):
 
 
 class RunnerTrack(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["runner-track-v1"]
+    schema_version: Literal[2]
+    kind: Literal["runner-track-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     track_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)

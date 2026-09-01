@@ -14,6 +14,11 @@ cache key moved, because the card is not part of one — but every card now
 carries the field, so the document digest moves with it. This recipe declares
 no authored inputs yet; wiring its reference images through the new field is a
 deliberate later change that will move this digest again.
+
+Re-pinned 2026-09-01 after the shared Bellweather container gained the required
+runner audio member and optional runner soundtrack. Platformer topology and
+operation count remain unchanged; the plan document binds the package closure,
+so its graph digest moves with those newly captured authored members.
 """
 
 from __future__ import annotations
@@ -30,7 +35,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 221
-BELLWEATHER_GRAPH_SHA256 = "d8f8c77de21953fc6eba0f87d5345bd85abb0a67dc6108b8a2aecdb4dda697c3"
+BELLWEATHER_GRAPH_SHA256 = "b4d9788abc1d69e5da4191a03bf6138a3111299bfcf745fe88279c010db17a56"
 BELLWEATHER_TOPOLOGY_SHA256 = "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d"
 
 

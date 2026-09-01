@@ -2,7 +2,8 @@
 
 > **Contract maturity: exact-current prepared-package contract.**
 
-The root `soundtrack.toml` is the game-global catalog of music identities,
+The platformer root `soundtrack.toml`, or a runner member's
+`runner/soundtrack.toml`, is that genre member's catalog of music identities,
 creative briefs, generation intent, and playback policy. Its exact identity is
 `game-soundtrack-v1`. The package root names it by exact source path; gameplay
 references its tracks by `track_id`; the prepared scrolling DAG generates and
@@ -64,9 +65,11 @@ duration from 15 through 600 seconds.
 
 ## Package and execution
 
-The fixed package path is `soundtrack.toml`, selected by the `[soundtrack]`
+The platformer package path is `soundtrack.toml`; a runner uses
+`runner/soundtrack.toml`. Each is selected by its genre member's `[soundtrack]`
 entry in `game.toml`. Prepared-package resolution validates the catalog, every
-gameplay track reference, and the complete closure before paid work.
+gameplay track reference where that family has one, and the complete closure
+before paid work.
 
 For each track, the scrolling execution graph contains:
 

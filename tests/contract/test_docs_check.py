@@ -133,7 +133,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "stage-gen package plan",
         "library/games/<game_id>/game.toml",
         "game-package-v4",
-        "game-contract-v8",
+        "game-contract-v9",
         "prepared-game-runtime-v10",
     ):
         assert any(required in document for document in discoverable_docs)

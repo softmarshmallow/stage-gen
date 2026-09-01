@@ -1,16 +1,18 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v1`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v3`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone.
+ * is deep-frozen. The runtime plays a track from this document alone. v2
+ * publishes the arc arithmetic every offline refusal depends on, the duck
+ * profile, per-hazard vertical anchors, and authored audio realizations.
  */
 
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v1";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 1;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v3";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 3;
 
 export const RUNNER_REFUSAL =
   "unsupported sideview-runner manifest; regenerate this track with a current stage-gen " +
@@ -23,10 +25,25 @@ const MAX_SEGMENT_ROWS = 32;
 const MIN_SEGMENT_COLUMNS = 8;
 const MAX_SEGMENT_COLUMNS = 64;
 
-export type RunnerMotionState = "run" | "jump" | "death";
+export type RunnerMotionState = "run" | "jump" | "slide" | "death";
 
-/** Every motion the avatar plays, and the mode each one is authored to play in. */
-export const RUNNER_MOTION_STATES: readonly RunnerMotionState[] = ["run", "jump", "death"];
+/**
+ * The canonical motion order, mirroring the generator's RUNNER_MOTION_ORDER.
+ * `run`, `jump`, and `death` are owed by every avatar; `slide` is owed
+ * exactly when the manifest declares a duck profile.
+ */
+export const RUNNER_MOTION_STATES: readonly RunnerMotionState[] = [
+  "run",
+  "jump",
+  "slide",
+  "death",
+];
+
+export const RUNNER_BASE_MOTION_STATES: readonly RunnerMotionState[] = [
+  "run",
+  "jump",
+  "death",
+];
 
 export interface RunnerCalibration {
   readonly heightUnits: number;
@@ -82,6 +99,10 @@ export interface RunnerLayer {
 export interface RunnerHazardPlacement {
   readonly propId: string;
   readonly column: number;
+  /** `surface` stands on the ground and answers to the jump; `overhead` hangs. */
+  readonly anchor: "surface" | "overhead";
+  /** Open rows beneath an overhead hazard's underside; null for surface. */
+  readonly clearanceRows: number | null;
 }
 
 export interface RunnerPickupPlacement {
@@ -116,6 +137,39 @@ export interface RunnerSoundtrack {
   readonly tracks: readonly RunnerSoundtrackTrack[];
 }
 
+export const RUNNER_AUDIO_EVENTS = [
+  "takeoff",
+  "air_jump",
+  "land",
+  "slide",
+  "hazard_cleared",
+  "collect",
+  "death",
+] as const;
+
+export type RunnerAudioEvent = (typeof RUNNER_AUDIO_EVENTS)[number];
+
+export interface RunnerOscillatorSweep {
+  readonly kind: "oscillator_sweep_v1";
+  readonly waveform: OscillatorType;
+  readonly startFrequencyHz: number;
+  readonly endFrequencyHz: number;
+  readonly durationMilliseconds: number;
+  readonly gain: number;
+  readonly strengthPitchMultiplier: number;
+}
+
+export interface RunnerSoundEffect {
+  readonly effectId: string;
+  readonly displayName: string;
+  readonly realization: RunnerOscillatorSweep;
+}
+
+export interface RunnerAudio {
+  readonly bindings: Readonly<Record<RunnerAudioEvent, string>>;
+  readonly effects: readonly RunnerSoundEffect[];
+}
+
 export interface RunnerRuntimeManifest {
   readonly gameId: string;
   readonly displayName: string;
@@ -135,11 +189,24 @@ export interface RunnerRuntimeManifest {
   readonly scale: { readonly playerHeightTiles: number; readonly tilePx: number };
   readonly gameplay: {
     readonly speedProfile: "steady_runner_v1";
-    readonly jumpProfile: "single_arc_v1";
+    readonly jumpProfile: "single_arc_v1" | "double_arc_v1";
     readonly collisionPolicy: "end_run_v1";
+    readonly duckProfile: "slide_v1" | null;
     readonly rampProfile: "gentle_ramp_v1";
     readonly maxClearGapColumns: number;
     readonly maxRiseTiles: number;
+    /** The published arc arithmetic: the same closed forms admission proved. */
+    readonly jumpPeakMarginTiles: number;
+    readonly airtimeHeadroom: number;
+    readonly baseSpeedColumnsPerSecond: number;
+    /** The ramp's hard ceiling: spacing proofs were run at this multiplier. */
+    readonly maxSpeedMultiplier: number;
+    readonly avatarHalfWidthColumns: number;
+    readonly hazardColumnInset: number;
+    /** The slide's height fraction; null exactly when duckProfile is null. */
+    readonly duckedHeightFraction: number | null;
+    /** The overhead fit proof's daylight margin; null exactly when duckProfile is. */
+    readonly minOverheadClearanceRows: number | null;
   };
   readonly ground: {
     readonly atlas: string;
@@ -151,6 +218,7 @@ export interface RunnerRuntimeManifest {
   readonly avatar: RunnerAvatar;
   readonly props: readonly RunnerCatalogEntry[];
   readonly items: readonly RunnerCatalogEntry[];
+  readonly audio: RunnerAudio;
   readonly soundtrack: RunnerSoundtrack | null;
 }
 
@@ -189,6 +257,12 @@ function positive(value: unknown, label: string): number {
 function unit(value: unknown, label: string): number {
   const parsed = finite(value, label);
   if (parsed < 0 || parsed > 1) throw new Error(`${label} must be a number in [0, 1]`);
+  return parsed;
+}
+
+function positiveUnit(value: unknown, label: string): number {
+  const parsed = positive(value, label);
+  if (parsed > 1) throw new Error(`${label} must be a number in (0, 1]`);
   return parsed;
 }
 
@@ -369,7 +443,20 @@ function chunk(
     if (bottomContiguousSurfaceRow(occupancy, column) === null) {
       throw new Error(`${label}.hazards[${index}] places ${propId} over a pit`);
     }
-    return Object.freeze({ propId, column });
+    const anchor = literal(hazard.anchor, `${label}.hazards[${index}].anchor`, [
+      "surface",
+      "overhead",
+    ]);
+    let clearanceRows: number | null = null;
+    if (anchor === "overhead") {
+      clearanceRows = positive(
+        hazard.clearance_rows,
+        `${label}.hazards[${index}].clearance_rows`,
+      );
+    } else if (hazard.clearance_rows !== null && hazard.clearance_rows !== undefined) {
+      throw new Error(`${label}.hazards[${index}] is surface-anchored yet declares clearance`);
+    }
+    return Object.freeze({ propId, column, anchor, clearanceRows });
   });
   uniqueIds(
     hazards.map((entry) => String(entry.column)),
@@ -418,9 +505,9 @@ function catalogEntry(
 function motion(value: unknown, label: string): RunnerMotion {
   const raw = record(value, label);
   const state = literal(raw.state, `${label}.state`, RUNNER_MOTION_STATES);
-  // The runner's three states all play a timeline, so frames_per_second is
-  // mandatory here even though the wider authored vocabulary lets a held pose
-  // omit it.
+  // The runner's states all play a timeline - all four of them, slide
+  // included - so frames_per_second is mandatory here even though the wider
+  // authored vocabulary lets a held pose omit it.
   const frames = array(raw.canonical_frame_indices, `${label}.canonical_frame_indices`).map(
     (entry, index) =>
       boundedInteger(entry, `${label}.canonical_frame_indices[${index}]`, 0, 63),
@@ -452,6 +539,86 @@ function motion(value: unknown, label: string): RunnerMotion {
     columns,
     rebaseMultiplier: positive(raw.rebase_multiplier, `${label}.rebase_multiplier`),
   });
+}
+
+function runnerAudio(value: unknown): RunnerAudio {
+  const raw = record(value, "audio");
+  const rawBindings = record(raw.bindings, "audio.bindings");
+  const bindings = Object.freeze(
+    Object.fromEntries(
+      RUNNER_AUDIO_EVENTS.map((event) => [
+        event,
+        text(rawBindings[event], `audio.bindings.${event}`),
+      ]),
+    ) as Record<RunnerAudioEvent, string>,
+  );
+  const effects = array(raw.effects, "audio.effects").map((entry, index) => {
+    const effect = record(entry, `audio.effects[${index}]`);
+    const realization = record(effect.realization, `audio.effects[${index}].realization`);
+    const startFrequencyHz = positive(
+      realization.start_frequency_hz,
+      `audio.effects[${index}].realization.start_frequency_hz`,
+    );
+    const endFrequencyHz = positive(
+      realization.end_frequency_hz,
+      `audio.effects[${index}].realization.end_frequency_hz`,
+    );
+    if (startFrequencyHz < 20 || startFrequencyHz > 20_000) {
+      throw new Error(`audio.effects[${index}].realization.start_frequency_hz is out of range`);
+    }
+    if (endFrequencyHz < 20 || endFrequencyHz > 20_000) {
+      throw new Error(`audio.effects[${index}].realization.end_frequency_hz is out of range`);
+    }
+    return Object.freeze({
+      effectId: text(effect.effect_id, `audio.effects[${index}].effect_id`),
+      displayName: text(effect.display_name, `audio.effects[${index}].display_name`),
+      realization: Object.freeze({
+        kind: literal(realization.kind, `audio.effects[${index}].realization.kind`, [
+          "oscillator_sweep_v1",
+        ]),
+        waveform: literal(realization.waveform, `audio.effects[${index}].realization.waveform`, [
+          "sine",
+          "square",
+          "sawtooth",
+          "triangle",
+        ]),
+        startFrequencyHz,
+        endFrequencyHz,
+        durationMilliseconds: boundedInteger(
+          realization.duration_milliseconds,
+          `audio.effects[${index}].realization.duration_milliseconds`,
+          20,
+          2_000,
+        ),
+        gain: positiveUnit(realization.gain, `audio.effects[${index}].realization.gain`),
+        strengthPitchMultiplier: finite(
+          realization.strength_pitch_multiplier,
+          `audio.effects[${index}].realization.strength_pitch_multiplier`,
+        ),
+      }),
+    });
+  });
+  if (effects.length === 0) throw new Error("audio.effects must not be empty");
+  if (effects.length > 32) throw new Error("audio.effects must contain at most 32 effects");
+  uniqueIds(effects.map((effect) => effect.effectId), "audio effect ids");
+  const effectIds = new Set(effects.map((effect) => effect.effectId));
+  for (const event of RUNNER_AUDIO_EVENTS) {
+    if (!effectIds.has(bindings[event])) {
+      throw new Error(`audio.bindings.${event} references unknown effect ${bindings[event]}`);
+    }
+  }
+  for (const effectId of effectIds) {
+    if (!RUNNER_AUDIO_EVENTS.some((event) => bindings[event] === effectId)) {
+      throw new Error(`audio effect ${effectId} is not bound to an event`);
+    }
+  }
+  for (const effect of effects) {
+    const multiplier = effect.realization.strengthPitchMultiplier;
+    if (multiplier < 0 || multiplier > 2) {
+      throw new Error("audio realization strength_pitch_multiplier must be within [0, 2]");
+    }
+  }
+  return Object.freeze({ bindings, effects: Object.freeze(effects) });
 }
 
 export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifest {
@@ -512,10 +679,21 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   );
   const motionStates = motions.map((entry) => entry.state);
   uniqueIds(motionStates, "avatar motion states");
-  for (const required of RUNNER_MOTION_STATES) {
+  const declaresDuck =
+    rawGameplay.duck_profile !== null && rawGameplay.duck_profile !== undefined;
+  const requiredStates: readonly RunnerMotionState[] = declaresDuck
+    ? [...RUNNER_BASE_MOTION_STATES, "slide"]
+    : RUNNER_BASE_MOTION_STATES;
+  for (const required of requiredStates) {
     if (!motionStates.includes(required)) {
       throw new Error(`avatar.motions is missing the ${required} state`);
     }
+  }
+  const declaresOverhead = chunks.some((entry) =>
+    entry.hazards.some((hazard) => hazard.anchor === "overhead"),
+  );
+  if (declaresOverhead && !declaresDuck) {
+    throw new Error("segments hang overhead hazards but gameplay declares no duck_profile");
   }
 
   const layers = array(raw.layers, "layers").map((entry, index) =>
@@ -572,10 +750,17 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
       speedProfile: literal(rawGameplay.speed_profile, "gameplay.speed_profile", [
         "steady_runner_v1",
       ]),
-      jumpProfile: literal(rawGameplay.jump_profile, "gameplay.jump_profile", ["single_arc_v1"]),
+      jumpProfile: literal(rawGameplay.jump_profile, "gameplay.jump_profile", [
+        "single_arc_v1",
+        "double_arc_v1",
+      ]),
       collisionPolicy: literal(rawGameplay.collision_policy, "gameplay.collision_policy", [
         "end_run_v1",
       ]),
+      duckProfile:
+        rawGameplay.duck_profile === null || rawGameplay.duck_profile === undefined
+          ? null
+          : literal(rawGameplay.duck_profile, "gameplay.duck_profile", ["slide_v1"]),
       rampProfile: literal(rawGameplay.ramp_profile, "gameplay.ramp_profile", ["gentle_ramp_v1"]),
       maxClearGapColumns: boundedInteger(
         rawGameplay.max_clear_gap_columns,
@@ -589,6 +774,38 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
         1,
         MAX_SEGMENT_ROWS,
       ),
+      jumpPeakMarginTiles: positive(
+        rawGameplay.jump_peak_margin_tiles,
+        "gameplay.jump_peak_margin_tiles",
+      ),
+      airtimeHeadroom: positive(rawGameplay.airtime_headroom, "gameplay.airtime_headroom"),
+      baseSpeedColumnsPerSecond: positive(
+        rawGameplay.base_speed_columns_per_second,
+        "gameplay.base_speed_columns_per_second",
+      ),
+      maxSpeedMultiplier: positive(
+        rawGameplay.max_speed_multiplier,
+        "gameplay.max_speed_multiplier",
+      ),
+      avatarHalfWidthColumns: positive(
+        rawGameplay.avatar_half_width_columns,
+        "gameplay.avatar_half_width_columns",
+      ),
+      hazardColumnInset: positive(
+        rawGameplay.hazard_column_inset,
+        "gameplay.hazard_column_inset",
+      ),
+      duckedHeightFraction:
+        rawGameplay.duck_profile === null || rawGameplay.duck_profile === undefined
+          ? null
+          : unit(rawGameplay.ducked_height_fraction, "gameplay.ducked_height_fraction"),
+      minOverheadClearanceRows:
+        rawGameplay.duck_profile === null || rawGameplay.duck_profile === undefined
+          ? null
+          : positive(
+              rawGameplay.min_overhead_clearance_rows,
+              "gameplay.min_overhead_clearance_rows",
+            ),
     }),
     ground: Object.freeze({
       atlas: text(rawGround.atlas, "ground.atlas"),
@@ -608,6 +825,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     }),
     props: Object.freeze(props),
     items: Object.freeze(items),
+    audio: runnerAudio(raw.audio),
     soundtrack,
   };
   return Object.freeze(manifest);

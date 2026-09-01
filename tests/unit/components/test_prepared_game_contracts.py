@@ -69,8 +69,8 @@ def test_prepared_root_rejects_unknown_fields() -> None:
 
 def test_prepared_root_rejects_the_retired_digest_pinning_identity() -> None:
     source = _bytes("game.toml").replace(
+        b'schema_version = 9\nkind = "game-contract-v9"',
         b'schema_version = 8\nkind = "game-contract-v8"',
-        b'schema_version = 7\nkind = "game-contract-v7"',
         1,
     )
 

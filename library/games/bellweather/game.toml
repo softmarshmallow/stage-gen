@@ -1,7 +1,7 @@
-schema_version = 8
-kind = "game-contract-v8"
+schema_version = 9
+kind = "game-contract-v9"
 game_id = "bellweather"
-revision = 22
+revision = 23
 display_name = "Bellweather"
 
 [universe]
@@ -148,6 +148,12 @@ source = "runner/content/props.toml"
 
 [genres.content.items]
 source = "runner/content/items.toml"
+
+[genres.audio]
+source = "runner/audio.toml"
+
+[genres.soundtrack]
+source = "runner/soundtrack.toml"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

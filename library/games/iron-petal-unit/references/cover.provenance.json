@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "regenerated_game_concept_cover_v2",
+  "state": "unreviewed",
+  "artifact": {
+    "path": "references/cover.png",
+    "media_type": "image/png",
+    "width": 1672,
+    "height": 941,
+    "bytes": 3024843,
+    "sha256": "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
+  },
+  "generation": {
+    "tool": "codex/image_gen",
+    "provider": "not_exposed_by_builtin_tool",
+    "model": "not_exposed_by_builtin_tool",
+    "quality": "built-in-default",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "text_only": true,
+    "input_references": [],
+    "prompt_contract": "young-operator-cover-v2",
+    "prompt_sections": [
+      "Generate an entirely new 16:9 Iron Petal Unit game cover from text only. A young girl visibly rides and pilots a compact rescue robot while it sprints and leaps through a vast orbital greenhouse; this replaces the older adult-looking pilot.",
+      "Show a gigantic glass botanical station in orbit, warm greenhouse sunlight, deep navy space, a small blue planet, broken lateral catwalks, root-choked service decks, irrigation hoops, hanging vines, maintenance machinery, luminous seed capsules, and a monumental closed life-support flower. Keep the route readable as a side-view runner world.",
+      "The robot is one compact two-legged coral-red, cream, navy, and mint rescue machine moving left to right in a joyful profile leap, with oversized tool forearms, clear mechanical joints, and a glowing flower-shaped chest reactor.",
+      "Its unmistakable visible rider is one original white preteen girl mechanic-pilot, approximately eleven years old, with fair pink-toned skin, freckles, large blue-gray eyes, a small soft oval face, a tousled chin-length dark-brown bob, one longer side lock, and one coral-and-mint sprout barrette.",
+      "She wears an oversized cream utility flight jacket with coral lining over a navy mechanic coverall, mint fasteners, practical gloves, and a secure child-sized harness. Her warm adventurous smile carries a hint of crooked mischievous confidence. Her age, face, bob, and jacket remain legible; she never reads as an adult or teenager.",
+      "Luminous seed capsules arc toward the giant flower, two small maintenance drones accompany the run, and loose parts and leaves kick up while the robot and rider remain one clean dominant silhouette.",
+      "Render original brand-neutral premium colorful 2D cel-painterly mechanical anime illustration: bold clean outer contours, compact super-deformed machinery, clear digital color blocks, two-band cel shadows, restrained brushed-metal highlights, fine facial lines, and painterly botanical depth. It must look hand-illustrated in 2D, not like a 3D render.",
+      "Use dynamic orthographic-like side-on staging. Keep the robot large in the left-center foreground so the girl's face and outfit read clearly, and use the seed arc to lead toward the flower on the right. Preserve negative-space separation and distinct lateral background planes with readable ground and overhead hazard shapes.",
+      "Exactly one robot and one girl rider. No title, typography, pseudo-text, logos, signatures, watermark, interface, readable labels, franchise or protected-character resemblance, copied costume, school uniform, candy or princess theme, firearms, gore, photorealism, 3D materials, extra people, duplicate robot, extra limbs, malformed hands, or canopy obscuring the pilot."
+    ]
+  },
+  "visual_review": {
+    "status": "pending",
+    "result": "pending",
+    "independent": false,
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "artifact_sha256": "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e",
+    "artifact_bytes": 3024843,
+    "verification_report": "references/cover.visual-review.md",
+    "verification_report_sha256": "807cf871a051795824e00c36bb51b723ef83f97c182bc9317c361eddb261097e"
+  },
+  "rights": {
+    "status": "unreviewed",
+    "reviewed_at": null,
+    "basis": [
+      "Original brand-neutral text-only prompt with no third-party image input.",
+      "The cover was regenerated from scratch with the selected young operator identity written directly into the prompt.",
+      "Independent task-owner semantic acceptance of the exact digest-bound PNG is pending."
+    ]
+  }
+}

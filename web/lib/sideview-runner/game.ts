@@ -20,6 +20,7 @@ import {
 } from "@/lib/sideview/assets";
 import { installMotionPlayback } from "@/lib/sideview/motion-playback";
 import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presentation";
+import { createAudioSystem, createWebAudioSink, type RunnerAudioSink } from "./audio";
 import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
@@ -41,6 +42,10 @@ import {
 } from "./parallax";
 import { createRunLoopSystem } from "./run-loop";
 import {
+  createRunnerSoundtrackPlayback,
+  type RunnerSoundtrackPlayback,
+} from "./soundtrack";
+import {
   streamedHazards,
   streamedPickups,
   surfaceRowAt,
@@ -60,7 +65,6 @@ import {
 
 const TRANSPARENCY_POLICY: PreviewTransparencyPolicy = "canonical-alpha";
 const GROUND_TEXTURE_KEY = "runner:ground";
-const SOUNDTRACK_VOLUME = 0.34;
 
 /**
  * The full system roster, in registration order. The sealed order does not
@@ -71,6 +75,7 @@ export function assembleRunnerSystems(
   latch: RunnerIntentLatch,
   stage: ParallaxStageView,
   hud: HudView,
+  audio: RunnerAudioSink,
 ): readonly GameSystem<RunnerWorld>[] {
   return [
     createIntentSystem(latch),
@@ -82,6 +87,7 @@ export function assembleRunnerSystems(
     createCameraSystem(),
     createParallaxSystem(stage),
     createHudSystem(hud),
+    createAudioSystem(audio),
   ];
 }
 
@@ -99,8 +105,7 @@ class RunnerScene extends Phaser.Scene {
   private readonly accumulator = createFixedStepAccumulator();
   private readonly latch = createIntentLatch();
   private readonly disposers: (() => void)[] = [];
-  private audio?: HTMLAudioElement;
-  private audioUnlocked = false;
+  private soundtrack?: RunnerSoundtrackPlayback;
 
   constructor(
     private readonly tag: string,
@@ -222,16 +227,26 @@ class RunnerScene extends Phaser.Scene {
 
     this.disposers.push(attachKeyboardIntentSource(this.latch, window));
     this.disposers.push(attachPointerIntentSource(this.latch, this.game.canvas));
-    const unlock = () => this.unlockAudio();
+    const unlock = () => this.soundtrack?.unlock();
     window.addEventListener("keydown", unlock);
     this.game.canvas.addEventListener("pointerdown", unlock);
     this.disposers.push(() => {
       window.removeEventListener("keydown", unlock);
       this.game.canvas.removeEventListener("pointerdown", unlock);
     });
-    this.startSoundtrack();
+    if (manifest.soundtrack) {
+      this.soundtrack = createRunnerSoundtrackPlayback(manifest.soundtrack, (path) =>
+        this.url(path),
+      );
+      this.disposers.push(() => {
+        this.soundtrack?.dispose();
+        this.soundtrack = undefined;
+      });
+    }
 
-    this.sealed = sealSystems(assembleRunnerSystems(this.latch, stage, hud));
+    this.sealed = sealSystems(
+      assembleRunnerSystems(this.latch, stage, hud, createWebAudioSink(manifest.audio)),
+    );
     this.world = world;
     this.children.getByName("loading-label")?.destroy();
   }
@@ -249,6 +264,7 @@ class RunnerScene extends Phaser.Scene {
       .sprite(config.avatarScreenX, rowToScreenY(world.avatar.y, config), avatarTextureKey("run"), 0)
       .setDepth(RUNNER_DEPTHS.avatar);
     let wornState: RunnerMotionState | null = null;
+    let wornImpulses = 0;
 
     const shadow = this.add.graphics().setDepth(RUNNER_DEPTHS.shadow);
     const shadows = manifest.presentation.contactShadows;
@@ -264,17 +280,33 @@ class RunnerScene extends Phaser.Scene {
       manifest.items.map((item) => [item.id, spriteScale(item.calibration.sourcePxPerUnit)]),
     );
 
+    let wornSeed = world.run.seed;
     return {
       sync: (current) => {
-        // Avatar: state decides texture, animation, scale, and anchor.
+        // A restart replays the same world columns with different chunks;
+        // sprites cached by (worldColumn, id) would alias stale geometry
+        // across it, so the whole mirror resets with the seed.
+        if (current.run.seed !== wornSeed) {
+          wornSeed = current.run.seed;
+          for (const sprite of hazardSprites.values()) sprite.destroy();
+          hazardSprites.clear();
+          for (const sprite of pickupSprites.values()) sprite.destroy();
+          pickupSprites.clear();
+        }
+        // Avatar: state decides texture, animation, scale, and anchor. The
+        // animation replays on the jump IMPULSE, not only the state change:
+        // an air jump inside the same `jump` state must restart the strip or
+        // the second hop reads as having no animation at all.
         const state = current.avatar.motion;
-        if (state !== wornState) {
+        const impulses = current.avatar.jumpImpulses;
+        if (state !== wornState || impulses !== wornImpulses) {
           wornState = state;
+          wornImpulses = impulses;
           const motion = motionByState.get(state);
           if (motion) {
             avatar.setScale(avatarBaseScale * motion.rebaseMultiplier);
             avatar.setOrigin(0.5, motion.anchor === "bottom" ? 1 : 0);
-            avatar.play(avatarAnimationKey(state), true);
+            avatar.play(avatarAnimationKey(state));
           }
         }
         avatar.setY(rowToScreenY(current.avatar.y, config));
@@ -307,10 +339,16 @@ class RunnerScene extends Phaser.Scene {
           if (!hazardSprites.has(key)) {
             const support = surfaceRowAt(current.segments, hazard.worldColumn);
             if (support === null) continue;
+            // An overhead hazard hangs with its underside at the clearance
+            // line; a surface one stands on its ground.
+            const baseRow =
+              hazard.anchor === "overhead"
+                ? support - (hazard.clearanceRows ?? 0)
+                : support;
             const sprite = this.add
               .image(
                 (hazard.worldColumn + 0.5) * config.tilePx,
-                rowToScreenY(support, config),
+                rowToScreenY(baseRow, config),
                 `runner:prop:${hazard.propId}`,
               )
               .setOrigin(0.5, 1)
@@ -355,34 +393,6 @@ class RunnerScene extends Phaser.Scene {
         pickupContainer.x = -current.camera.scrollX;
       },
     };
-  }
-
-  private unlockAudio(): void {
-    if (this.audioUnlocked) return;
-    this.audioUnlocked = true;
-    void this.audio?.play().catch(() => undefined);
-  }
-
-  /** Shuffle through the declared tracks; playback starts on the first gesture. */
-  private startSoundtrack(): void {
-    const soundtrack = this.manifest.soundtrack;
-    if (!soundtrack) return;
-    const queue = [...soundtrack.tracks].sort(() => Math.random() - 0.5);
-    let index = 0;
-    const playNext = () => {
-      const track = queue[index % queue.length];
-      index += 1;
-      const audio = new Audio(this.url(track.audio));
-      audio.volume = SOUNDTRACK_VOLUME;
-      audio.addEventListener("ended", playNext);
-      this.audio = audio;
-      if (this.audioUnlocked) void audio.play().catch(() => undefined);
-    };
-    playNext();
-    this.disposers.push(() => {
-      this.audio?.pause();
-      this.audio = undefined;
-    });
   }
 
   override update(_time: number, delta: number): void {

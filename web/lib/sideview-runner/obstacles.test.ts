@@ -31,23 +31,45 @@ describe("boxesOverlap", () => {
   });
 });
 
+const BOX_CONFIG = {
+  playerHeightTiles: 2.4,
+  arithmetic: {
+    baseSpeedColumnsPerSecond: 6,
+    maxSpeedMultiplier: 1.5,
+    jumpPeakMarginTiles: 0.75,
+    airtimeHeadroom: 1.15,
+    avatarHalfWidthColumns: 0.3,
+    hazardColumnInset: 0.15,
+  },
+  duckedHeightFraction: 0.5,
+} as const;
+
 describe("box shapes", () => {
   test("the avatar box hangs its height above the feet", () => {
-    const box = avatarBox(
-      { distanceColumns: 10, y: 5, vy: 0, grounded: true, motion: "run", deathCause: null },
-      2.4,
-    );
+    const box = avatarBox({ distanceColumns: 10, y: 5, sliding: false }, BOX_CONFIG);
     expect(box.bottom).toBe(5);
     expect(box.top).toBeCloseTo(2.6, 10);
     expect(box.right - box.left).toBeCloseTo(0.6, 10);
   });
 
+  test("the ducked box stands the published fraction of full height", () => {
+    const box = avatarBox({ distanceColumns: 10, y: 5, sliding: true }, BOX_CONFIG);
+    expect(box.bottom).toBe(5);
+    expect(box.top).toBeCloseTo(5 - 2.4 * 0.5, 10);
+  });
+
   test("a hazard stands on its surface, inset inside its column", () => {
-    const box = hazardBox(6, 5, 2.4);
+    const box = hazardBox({ anchor: "surface", clearanceRows: null }, 6, 5, 2.4, 0.15);
     expect(box.bottom).toBe(5);
     expect(box.top).toBeCloseTo(2.6, 10);
     expect(box.left).toBeGreaterThan(6);
     expect(box.right).toBeLessThan(7);
+  });
+
+  test("an overhead hazard hangs above its declared clearance", () => {
+    const box = hazardBox({ anchor: "overhead", clearanceRows: 1.6 }, 6, 5, 1.2, 0.15);
+    expect(box.bottom).toBeCloseTo(3.4, 10);
+    expect(box.top).toBeCloseTo(2.2, 10);
   });
 
   test("a pickup occupies the middle of its cell", () => {
@@ -100,5 +122,49 @@ describe("createObstaclesSystem", () => {
     world.run.phase = "dead";
     system.update(world, STEP);
     expect(world.obstacles.hazardContact).toBe(false);
+  });
+});
+
+describe("missed pickups", () => {
+  test("a passed pickup is missed exactly once", () => {
+    const world = worldAt(9.0);
+    const system = createObstaclesSystem();
+    // The chunk's token sits at column 6; at distance 9 it is fully behind.
+    system.update(world, STEP);
+    expect(world.obstacles.missedThisFrame).toBe(1);
+    system.update(world, STEP);
+    expect(world.obstacles.missedThisFrame).toBe(0);
+    expect(world.obstacles.missed.size).toBe(1);
+  });
+
+  test("a collected pickup is never counted missed", () => {
+    const world = worldAt(6.5);
+    const system = createObstaclesSystem();
+    system.update(world, STEP);
+    expect(world.obstacles.collectedThisFrame).toHaveLength(1);
+    world.avatar.distanceColumns = 9.0;
+    system.update(world, STEP);
+    expect(world.obstacles.missedThisFrame).toBe(0);
+  });
+
+  test("a slide under an overhead hazard survives where a run dies", () => {
+    const document = runnerManifestFixture();
+    const segments = document.segments as { chunks: Record<string, unknown>[] };
+    segments.chunks[0].hazards = [
+      { prop_id: "toppled_cart", column: 6, anchor: "overhead", clearance_rows: 1.6 },
+    ];
+    const overhead = parseRunnerRuntimeManifest(document);
+    const system = createObstaclesSystem();
+
+    const standing = createRunnerWorld(overhead, 1);
+    standing.avatar.distanceColumns = 6.5;
+    system.update(standing, STEP);
+    expect(standing.obstacles.hazardContact).toBe(true);
+
+    const sliding = createRunnerWorld(overhead, 1);
+    sliding.avatar.distanceColumns = 6.5;
+    sliding.avatar.sliding = true;
+    system.update(sliding, STEP);
+    expect(sliding.obstacles.hazardContact).toBe(false);
   });
 });

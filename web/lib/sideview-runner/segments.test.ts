@@ -59,10 +59,10 @@ describe("selectChunkIndex", () => {
   test("picks only chunks at or under the ceiling", () => {
     const rng = mulberry32(7);
     for (let i = 0; i < 50; i += 1) {
-      expect(selectChunkIndex(catalog, 1, rng)).toBe(0);
+      expect(selectChunkIndex(catalog, { ceiling: 1 }, rng)).toBe(0);
     }
     const seen = new Set<number>();
-    for (let i = 0; i < 200; i += 1) seen.add(selectChunkIndex(catalog, 5, rng));
+    for (let i = 0; i < 200; i += 1) seen.add(selectChunkIndex(catalog, { ceiling: 5 }, rng));
     expect([...seen].sort()).toEqual([0, 1]);
   });
 
@@ -73,14 +73,14 @@ describe("selectChunkIndex", () => {
     ];
     const rng = mulberry32(3);
     for (let i = 0; i < 20; i += 1) {
-      expect(selectChunkIndex(steep, 1, rng)).toBe(0);
+      expect(selectChunkIndex(steep, { ceiling: 1 }, rng)).toBe(0);
     }
   });
 
   test("is reproducible from its seed", () => {
     const picks = (seed: number) => {
       const rng = mulberry32(seed);
-      return Array.from({ length: 20 }, () => selectChunkIndex(catalog, 10, rng));
+      return Array.from({ length: 20 }, () => selectChunkIndex(catalog, { ceiling: 10 }, rng));
     };
     expect(picks(42)).toEqual(picks(42));
     expect(picks(42)).not.toEqual(picks(43));
@@ -90,7 +90,7 @@ describe("selectChunkIndex", () => {
 describe("streamAhead / dropBehind", () => {
   test("appends contiguous chunks through the requested column", () => {
     const stream = createSegmentStream(8, 5);
-    streamAhead(stream, [chunkFixture()], 1, mulberry32(1), 20);
+    streamAhead(stream, [chunkFixture()], { ceiling: 1 }, mulberry32(1), 20);
     expect(stream.chunks).toHaveLength(3);
     expect(stream.chunks.map((chunk) => chunk.startColumn)).toEqual([0, 8, 16]);
     expect(stream.nextColumn).toBe(24);
@@ -98,7 +98,7 @@ describe("streamAhead / dropBehind", () => {
 
   test("drops chunks fully behind the keep line and keeps the rest", () => {
     const stream = createSegmentStream(8, 5);
-    streamAhead(stream, [chunkFixture()], 1, mulberry32(1), 30);
+    streamAhead(stream, [chunkFixture()], { ceiling: 1 }, mulberry32(1), 30);
     dropBehind(stream, 17);
     expect(stream.chunks[0].startColumn).toBe(16);
     expect(chunkAt(stream, 0)).toBeNull();
@@ -108,11 +108,12 @@ describe("streamAhead / dropBehind", () => {
   test("maps hazards and pickups into world columns", () => {
     const stream = createSegmentStream(8, 5);
     const chunk = chunkFixture({
-      hazards: [{ propId: "cart", column: 3 }],
+      hazards: [{ propId: "cart", column: 3, anchor: "surface" as const, clearanceRows: null }],
       pickups: [{ itemId: "token", column: 4, row: 2 }],
     });
-    streamAhead(stream, [chunk], 1, mulberry32(1), 10);
+    streamAhead(stream, [chunk], { ceiling: 1 }, mulberry32(1), 10);
     expect(streamedHazards(stream).map((entry) => entry.worldColumn)).toEqual([3, 11]);
+    expect(streamedHazards(stream)[0].anchor).toBe("surface");
     expect(streamedPickups(stream)[1]).toEqual({ itemId: "token", worldColumn: 12, row: 2 });
   });
 });
@@ -120,7 +121,7 @@ describe("streamAhead / dropBehind", () => {
 describe("surfaceRowAt", () => {
   test("answers the walk surface over ground and null over a pit", () => {
     const stream = createSegmentStream(8, 5);
-    streamAhead(stream, [PIT_CHUNK], 10, mulberry32(1), 6);
+    streamAhead(stream, [PIT_CHUNK], { ceiling: 10 }, mulberry32(1), 6);
     expect(surfaceRowAt(stream, 0)).toBe(5);
     expect(surfaceRowAt(stream, 3)).toBeNull();
     expect(surfaceRowAt(stream, 4)).toBeNull();
@@ -129,7 +130,7 @@ describe("surfaceRowAt", () => {
 
   test("refuses a column outside the streamed window", () => {
     const stream = createSegmentStream(8, 5);
-    streamAhead(stream, [chunkFixture()], 1, mulberry32(1), 6);
+    streamAhead(stream, [chunkFixture()], { ceiling: 1 }, mulberry32(1), 6);
     expect(() => surfaceRowAt(stream, 99)).toThrow("outside the streamed window");
   });
 });
@@ -137,7 +138,7 @@ describe("surfaceRowAt", () => {
 describe("windowOccupancyGrid", () => {
   test("stitches the retained chunks into one row-major grid", () => {
     const stream = createSegmentStream(8, 5);
-    streamAhead(stream, [PIT_CHUNK], 10, mulberry32(1), 10);
+    streamAhead(stream, [PIT_CHUNK], { ceiling: 10 }, mulberry32(1), 10);
     dropBehind(stream, 9);
     const { startColumn, grid } = windowOccupancyGrid(stream);
     expect(startColumn).toBe(8);
@@ -160,8 +161,78 @@ describe("streaming from the parsed manifest", () => {
       manifest.segments.rows,
       manifest.segments.walkSurfaceRow,
     );
-    streamAhead(stream, manifest.segments.chunks, 1, mulberry32(11), 30);
+    streamAhead(stream, manifest.segments.chunks, { ceiling: 1 }, mulberry32(11), 30);
     expect(surfaceRowAt(stream, 15)).toBe(manifest.segments.walkSurfaceRow);
     expect(streamedHazards(stream).length).toBeGreaterThan(0);
+  });
+});
+
+describe("the selection grammar", () => {
+  const catalog = [
+    chunkFixture({ segmentId: "easy", difficulty: 1 }),
+    chunkFixture({ segmentId: "mid", difficulty: 4 }),
+    chunkFixture({ segmentId: "hard", difficulty: 6 }),
+  ];
+
+  test("the floor ages easy chunks out of the band", () => {
+    const rng = mulberry32(5);
+    const seen = new Set<number>();
+    for (let i = 0; i < 200; i += 1) {
+      seen.add(selectChunkIndex(catalog, { ceiling: 6, floor: 4 }, rng));
+    }
+    expect([...seen].sort()).toEqual([1, 2]);
+  });
+
+  test("an empty band widens to the ceiling pool rather than refusing", () => {
+    const rng = mulberry32(5);
+    for (let i = 0; i < 20; i += 1) {
+      expect(selectChunkIndex(catalog, { ceiling: 1, floor: 3 }, rng)).toBe(0);
+    }
+  });
+
+  test("the previous chunk is excluded while anything else is eligible", () => {
+    const rng = mulberry32(9);
+    for (let i = 0; i < 100; i += 1) {
+      const previous = i % catalog.length;
+      expect(selectChunkIndex(catalog, { ceiling: 10 }, rng, previous)).not.toBe(previous);
+    }
+  });
+
+  test("streamAhead never repeats a chunk back to back given alternatives", () => {
+    const stream = createSegmentStream(8, 5);
+    streamAhead(stream, catalog, { ceiling: 10 }, mulberry32(2), 400);
+    for (let i = 1; i < stream.chunks.length; i += 1) {
+      expect(stream.chunks[i].segmentId).not.toBe(stream.chunks[i - 1].segmentId);
+    }
+  });
+
+  test("the rest cadence forces a catalog-easiest breather on the beat", () => {
+    const stream = createSegmentStream(8, 5);
+    streamAhead(
+      stream,
+      catalog,
+      { ceiling: 10, floor: 4, restEveryAppends: 3 },
+      mulberry32(4),
+      400,
+    );
+    for (let i = 2; i < stream.chunks.length; i += 3) {
+      expect(stream.chunks[i].difficulty).toBe(1);
+    }
+  });
+
+  test("consumption is reproducible from the seed with the grammar on", () => {
+    const run = (seed: number) => {
+      const stream = createSegmentStream(8, 5);
+      streamAhead(
+        stream,
+        catalog,
+        { ceiling: 10, floor: 2, restEveryAppends: 4 },
+        mulberry32(seed),
+        300,
+      );
+      return stream.chunks.map((chunk) => chunk.segmentId);
+    };
+    expect(run(7)).toEqual(run(7));
+    expect(run(7)).not.toEqual(run(8));
   });
 });

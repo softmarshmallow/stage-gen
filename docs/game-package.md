@@ -26,6 +26,8 @@ library/games/main.toml
     ├── scenarios/index.toml
     ├── scenarios/<scenario_id>.toml
     ├── scenarios/<scenario_id>.scenario
+    ├── runner/{gameplay,track,audio,soundtrack}.toml
+    ├── runner/content/{avatar,props,items}.toml
     └── references/*
 ```
 
@@ -42,10 +44,11 @@ Only these prepared-package identities are accepted by the resolver:
 | Boundary | Current identity |
 | --- | --- |
 | Repository selector | `game-package-v4` |
-| Package root | `game-contract-v8` |
-| Runner gameplay | `runner-gameplay-v1` |
-| Runner track | `runner-track-v1` |
-| Runner avatar catalog | `runner-avatar-v1` |
+| Package root | `game-contract-v9` |
+| Runner gameplay | `runner-gameplay-v2` |
+| Runner track | `runner-track-v2` |
+| Runner avatar catalog | `runner-avatar-v2` |
+| Runner audio | `runner-audio-v1` |
 | Gameplay | `gameplay-contract-v1` |
 | Map generation | `game-map-v9` |
 | Soundtrack | `game-soundtrack-v1` |
@@ -59,7 +62,9 @@ Only these prepared-package identities are accepted by the resolver:
 | Scenario catalog | `scenario-catalog-v1` |
 | Scenario | `scenario-v1` |
 
-Successful provider-free integration emits only `prepared-game-runtime-v10`.
+Successful provider-free integration of the platformer member emits
+`prepared-game-runtime-v10`; a runner member's run emits
+`sideview-runner-runtime-v3` from its own local manifest assembly.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In

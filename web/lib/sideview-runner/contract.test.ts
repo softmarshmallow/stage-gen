@@ -20,13 +20,23 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(manifest.segments.chunks[0].hazards[0]).toEqual({
       propId: "toppled_cart",
       column: 6,
+      anchor: "surface",
+      clearanceRows: null,
     });
+    expect(manifest.gameplay.jumpProfile).toBe("double_arc_v1");
+    expect(manifest.gameplay.duckProfile).toBe("slide_v1");
+    expect(manifest.gameplay.baseSpeedColumnsPerSecond).toBe(6);
+    expect(manifest.gameplay.duckedHeightFraction).toBe(0.5);
     expect(manifest.avatar.motions.map((entry) => entry.state)).toEqual([
       "run",
       "jump",
+      "slide",
       "death",
     ]);
     expect(manifest.soundtrack).toBeNull();
+    expect(manifest.audio.bindings.collect).toBe("token_chime");
+    expect(manifest.audio.effects.find((effect) => effect.effectId === "token_chime")?.realization)
+      .toMatchObject({ waveform: "sine", strengthPitchMultiplier: 1 });
     expect(Object.isFrozen(manifest)).toBe(true);
     expect(Object.isFrozen(manifest.segments.chunks[0])).toBe(true);
   });
@@ -59,10 +69,42 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(() => parseRunnerRuntimeManifest(null)).toThrow("must be an object");
   });
 
+  test("refuses missing, unresolved, or unused authored audio", () => {
+    const missing = validRunnerManifest();
+    delete missing.audio;
+    expect(() => parseRunnerRuntimeManifest(missing)).toThrow("audio must be an object");
+
+    const unresolved = validRunnerManifest();
+    const unresolvedAudio = unresolved.audio as { bindings: Record<string, unknown> };
+    unresolvedAudio.bindings.takeoff = "missing_effect";
+    expect(() => parseRunnerRuntimeManifest(unresolved)).toThrow(
+      "audio.bindings.takeoff references unknown effect missing_effect",
+    );
+
+    const unused = validRunnerManifest();
+    const unusedAudio = unused.audio as { effects: Record<string, unknown>[] };
+    unusedAudio.effects.push({
+      effect_id: "unused_effect",
+      display_name: "Unused Effect",
+      realization: {
+        kind: "oscillator_sweep_v1",
+        waveform: "sine",
+        start_frequency_hz: 220,
+        end_frequency_hz: 220,
+        duration_milliseconds: 100,
+        gain: 0.1,
+        strength_pitch_multiplier: 0,
+      },
+    });
+    expect(() => parseRunnerRuntimeManifest(unused)).toThrow(
+      "audio effect unused_effect is not bound to an event",
+    );
+  });
+
   test("refuses a hazard naming an unknown prop or standing over a pit", () => {
     const unknown = validRunnerManifest();
     const segments = unknown.segments as { chunks: Record<string, unknown>[] };
-    segments.chunks[0].hazards = [{ prop_id: "phantom", column: 6 }];
+    segments.chunks[0].hazards = [{ prop_id: "phantom", column: 6, anchor: "surface" }];
     expect(() => parseRunnerRuntimeManifest(unknown)).toThrow("unknown prop phantom");
 
     const pit = validRunnerManifest();
@@ -121,7 +163,12 @@ describe("parseRunnerRuntimeManifest", () => {
 
     const looped = validRunnerManifest();
     const loopedAvatar = looped.avatar as { motions: Record<string, unknown>[] };
-    loopedAvatar.motions = [motion("run", "loop"), motion("jump", "loop"), motion("death", "once")];
+    loopedAvatar.motions = [
+      motion("run", "loop"),
+      motion("jump", "loop"),
+      motion("slide", "once"),
+      motion("death", "once"),
+    ];
     expect(() => parseRunnerRuntimeManifest(looped)).toThrow("state jump must play once");
   });
 
@@ -166,5 +213,55 @@ describe("bottomContiguousSurfaceRow", () => {
     // Column 2 has a floating "1" at row 2 above a solid bottom: contiguity
     // starts at the bottom, so the stack is rows 2..3.
     expect(bottomContiguousSurfaceRow(occupancy, 2)).toBe(2);
+  });
+});
+
+describe("the verb obligations", () => {
+  test("a duck profile obligates a slide strip", () => {
+    const document = validRunnerManifest();
+    const avatar = document.avatar as { motions: Record<string, unknown>[] };
+    avatar.motions = avatar.motions.filter((entry) => entry.state !== "slide");
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("missing the slide state");
+  });
+
+  test("a duckless manifest owes no slide", () => {
+    const document = validRunnerManifest();
+    (document.gameplay as Record<string, unknown>).duck_profile = null;
+    (document.gameplay as Record<string, unknown>).ducked_height_fraction = null;
+    const avatar = document.avatar as { motions: Record<string, unknown>[] };
+    avatar.motions = avatar.motions.filter((entry) => entry.state !== "slide");
+    const manifest = parseRunnerRuntimeManifest(document);
+    expect(manifest.gameplay.duckProfile).toBeNull();
+    expect(manifest.gameplay.duckedHeightFraction).toBeNull();
+  });
+
+  test("an overhead hazard without a duck profile is refused", () => {
+    const document = validRunnerManifest();
+    (document.gameplay as Record<string, unknown>).duck_profile = null;
+    (document.gameplay as Record<string, unknown>).ducked_height_fraction = null;
+    const segments = document.segments as { chunks: Record<string, unknown>[] };
+    segments.chunks[0].hazards = [
+      { prop_id: "toppled_cart", column: 6, anchor: "overhead", clearance_rows: 1.6 },
+    ];
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("no duck_profile");
+  });
+
+  test("an overhead hazard needs clearance and a surface one refuses it", () => {
+    const missing = validRunnerManifest();
+    const segments = missing.segments as { chunks: Record<string, unknown>[] };
+    segments.chunks[0].hazards = [{ prop_id: "toppled_cart", column: 6, anchor: "overhead" }];
+    expect(() => parseRunnerRuntimeManifest(missing)).toThrow("clearance_rows");
+
+    const surface = validRunnerManifest();
+    const surfaceSegments = surface.segments as { chunks: Record<string, unknown>[] };
+    surfaceSegments.chunks[0].hazards = [
+      { prop_id: "toppled_cart", column: 6, anchor: "surface", clearance_rows: 1.6 },
+    ];
+    expect(() => parseRunnerRuntimeManifest(surface)).toThrow("declares clearance");
+  });
+
+  test("the runtime's motion order mirrors the generator's declaration", async () => {
+    const { RUNNER_MOTION_STATES } = await import("./contract");
+    expect(RUNNER_MOTION_STATES).toEqual(["run", "jump", "slide", "death"]);
   });
 });

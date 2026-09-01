@@ -18,6 +18,7 @@ CURRENT_GAME_DOC_PATHS = (
     "docs/spec/scene-gameplay-components.md",
     "docs/spec/game/dialogue-and-cutscene-sequences.md",
     "docs/spec/game/pointclick-room.md",
+    "docs/spec/game/runner.md",
 )
 
 RETIRED_PREPARED_IDENTITIES = (
@@ -29,6 +30,7 @@ RETIRED_PREPARED_IDENTITIES = (
     "game-contract-v4",
     "game-contract-v6",
     "game-contract-v7",
+    "game-contract-v8",
     "game-map-v1",
     "game-map-v2",
     "game-map-v3",
@@ -56,6 +58,13 @@ RETIRED_PREPARED_IDENTITIES = (
     # Retired when the cover became an authored package member: a room is a
     # directory of room.toml plus the references its art is drawn against.
     "pointclick-room-v1",
+    # Retired by the CookieRun adoption pass: the runner family gained the
+    # duck verb, hazard anchors, and the published arc arithmetic in one bump.
+    "runner-gameplay-v1",
+    "runner-track-v1",
+    "runner-avatar-v1",
+    "sideview-runner-runtime-v1",
+    "sideview-runner-runtime-v2",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -92,7 +101,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     game_contract = documents["docs/game-contract.md"]
     for identity in (
         "`game-package-v4`",
-        "`game-contract-v8`",
+        "`game-contract-v9`",
         "`gameplay-contract-v1`",
         "`game-ui-v1`",
         "`game-map-v9`",
@@ -120,9 +129,10 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "is no map index" in maps
 
     schema = documents["docs/spec/game/authored-contract-schema.md"]
-    assert 'Only `schema_version = 8` and `kind = "game-contract-v8"` are accepted' in schema
+    assert 'Only `schema_version = 9` and `kind = "game-contract-v9"` are accepted' in schema
     assert 'source = "ui.toml"' in schema
     assert "gameplay.toml` owns climb permission and portal destinations" in schema
+    assert 'source = "runner/audio.toml"' in schema
 
     map_contract = documents["docs/spec/game/map-generation-contract.md"]
     assert "exact-current authored, generation, manifest, and consumer contract" in map_contract
@@ -157,6 +167,10 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "exact identity is\n`game-soundtrack-v1`" in soundtrack
     assert "Provider-free integration" in soundtrack
     assert "`prepared-game-runtime-v10`" in soundtrack
+
+    runner = documents["docs/spec/game/runner.md"]
+    assert "`runner-audio-v1`" in runner
+    assert "`sideview-runner-runtime-v3`" in documents["docs/game-package.md"]
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue
