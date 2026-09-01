@@ -1,10 +1,10 @@
-# Universe ontology and visual explanation taxonomy
+# Universe ontology and entity concept taxonomy
 
 > **Contract maturity: ratified V0 target, documentation-only.**
 >
 > This document defines the first semantic contract for universe-oriented
 > generation in `stage-gen`: the minimal storyworld ontology, relationships,
-> identity markers, narrative roles, explanatory asset obligations, and
+> identity markers, narrative roles, entity concept obligations, and
 > ratification rules from which a future universe recipe may be built.
 >
 > V0 deliberately starts with an agnostic core. It is not the permanent ceiling
@@ -23,10 +23,10 @@
 ## Purpose
 
 A universe-oriented package exists to make a storyworld understandable and
-engaging through art, diagrams, structured relationships, and narrative entry
-points. It is not a game package with gameplay removed. A universe may be
-organized around a continent, galaxy, city, building, vehicle, institution,
-historical rupture, ecological cycle, or another coherent subject.
+engaging through entity concept art, structured text, relationships, and
+narrative entry points. It is not a game package with gameplay removed. A
+universe may be organized around a continent, galaxy, city, building, vehicle,
+institution, historical rupture, ecological cycle, or another coherent subject.
 
 Franchise-specific browsing categories are useful presentation choices, but
 they are not stable ontology roots. A science-fiction universe may expose
@@ -35,13 +35,15 @@ they are not stable ontology roots. A science-fiction universe may expose
 may expose `sectors`, `departments`, and `anomalous objects`. The authored core
 MUST remain valid when any one of those collections is absent.
 
-V0 therefore separates four concerns:
+V0 therefore separates five concerns:
 
 1. **entities** state what exists;
 2. **relationships and roles** state how subjects participate in the world;
-3. **explanatory assets** state what an audience needs to see or understand;
-4. **engagement projections** arrange those assets for a particular genre and
-   audience experience.
+3. **entity concept assets** establish what each entity looks and feels like;
+4. **text explanations** state exact facts, relationships, chronology, systems,
+   uncertainty, and rationale; and
+5. **engagement projections** arrange those records for a particular genre and
+   audience experience without becoming canonical universe media.
 
 ## Conceptual source inputs
 
@@ -107,15 +109,26 @@ four connected output roles:
 
 1. an **expanded universe document** containing the premise, viewpoints,
    present state, canonical entities, and the facts needed to explain them;
-2. a **relational graph** containing stable entity identities and typed,
-   scoped relationships, including perspective or temporal qualification when
-   needed;
-3. an **explanatory asset set** whose records bind each asset to its purpose,
-   canonical subjects, applicable relationships, and expressed world facts;
+2. a **structured relational graph record** containing stable entity identities
+   and typed, scoped relationships, including perspective or temporal
+   qualification when needed; this role is text or structured data, never a
+   rendered graph image;
+3. an **entity concept asset set** containing one concept image for each
+   canonical entity, with each image bound to that entity and to the limited
+   facts it can honestly make visible;
    and
 4. a **ratification record** exposing source lineage, generated extensions,
    unresolved questions, validation findings, coverage decisions, and
    revision identity.
+
+The physical canonical package is a closed inventory. Its complete visual set
+MUST be the enumerated entity concept image references: exactly one raster image
+for every admitted entity and no other raster, vector, PDF, video, or rendered
+visual artifact. Every other canonical artifact MUST be text or structured
+data. A concrete projection MUST enumerate the exact allowed image references;
+the current `the_weight_of_air` projection enumerates exactly 28. Its approved
+source poster and any visual review proxies are generation inputs or review
+instruments outside the canonical package, never additional package images.
 
 Output cardinality is intentionally irregular. A universe MAY contain no
 vehicles, many rooms, one central event, several overlapping place layers, or
@@ -123,10 +136,11 @@ hundreds of actor-to-collective relationships. Neither generation nor a
 generic consumer may require empty franchise-shaped categories to make the
 package look regular.
 
-The relational graph is a semantic storyworld graph and MAY contain cycles.
-It is not the acyclic execution graph used to schedule generation work. An
-asset record is connected to the graph through stable subject and relationship
-identities; a file path or gallery position is not semantic identity.
+The structured relational graph record is semantic storyworld text or data and
+MAY contain cycles. It is not a rendered diagram and is not the acyclic
+execution graph used to schedule generation work. An asset record is connected
+to the graph through stable subject and relationship identities; a file path or
+gallery position is not semantic identity.
 
 "Ratified" means admitted as coherent authored meaning. It does not mean that
 generated media has passed semantic review, been accepted for publication, or
@@ -143,10 +157,11 @@ added to the currently selected prepared-game closure. The current
 `game.toml`-rooted validator, selector, and runtime manifest continue to own
 prepared games until a separate executable universe contract is implemented.
 
-The universe contract will own semantic subjects and visual-explanation
-requirements. A future consumer will own browsing, layout, interaction, and
-presentation. Generic `gnode` machinery will own execution mechanics only; it
-MUST NOT acquire storyworld, genre, or universe-taxonomy semantics.
+The universe contract will own semantic subjects, entity concept images, and
+text-explanation requirements. A future consumer will own browsing, layout,
+interaction, and presentation. Generic `gnode` machinery will own execution
+mechanics only; it MUST NOT acquire storyworld, genre, or universe-taxonomy
+semantics.
 
 This storyworld taxonomy is also distinct from the existing
 [asset taxonomy](../asset-taxonomy.md), which names executable module and node
@@ -185,7 +200,7 @@ universe
 │   └── symbolic
 ├── identity markers
 ├── narrative roles
-├── explanatory assets
+├── entity concept assets
 └── engagement projections
 ```
 
@@ -341,9 +356,10 @@ The initial universal spatial relationships are:
 | `mirrors` | One place structurally or symbolically corresponds to another |
 | `replaces` | One place occupies the role or extent of another across time or state |
 
-An orientation asset MUST project the actual topology. It MUST NOT force a
-geographical world map onto a building, train, dimension stack, social network,
-or other incompatible universe.
+Canonical text MUST describe the actual topology through typed spatial
+relationships. A consumer MAY project those relationships as a map, building
+view, route, or another topology-appropriate interaction, but that projection
+is not a canonical universe image artifact.
 
 ## Universal relationship families
 
@@ -445,14 +461,13 @@ An identity marker remains attached visual identity when it only identifies a
 subject. It MUST also become a canonical `thing` when it has independent
 history, ownership, power, physical custody, or conflict.
 
-The standard visual set for a major collective's marker is:
-
-1. primary mark;
-2. construction and variant sheet;
-3. color and material usage;
-4. at least one culturally correct applied use;
-5. comparison against visually adjacent collectives; and
-6. meaning and historical origin when the world assigns either one.
+The baseline marker contract is a text record for one recognizable mark, its
+materials, culturally correct applied use, meaning, limits, and historical
+origin when the world assigns one. A marker that is not independently
+significant enough to be an entity MAY appear only as a secondary diegetic
+detail in its owning entity's continuous concept scene. It receives no
+standalone symbol image. Construction sheets, variant atlases, comparison
+boards, and brand kits are not canonical universe assets.
 
 ## Culture is composition
 
@@ -536,53 +551,55 @@ The same place MAY be home to one actor and occupied territory to another. The
 role therefore belongs to the applicable perspective or relationship, not to
 the place in isolation.
 
-## Explanatory asset purposes
+## Entity concept asset purposes
 
-An explanatory asset is required because it answers an audience question, not
-because its media format is attractive or common in a reference franchise.
+An entity concept image is required because it gives one canonical entity a
+recognizable visual identity, not because a media format is attractive or
+common in a reference franchise. It MUST NOT be asked to prove exact counts,
+topology, chronology, causality, system logic, or relationship structure; those
+obligations belong to text and structured records.
 
 | Purpose | Audience question |
 | --- | --- |
 | `orient` | Where is it, and how can subjects be reached? |
 | `identify` | How do I recognize it? |
 | `differentiate` | How is it unlike related subjects? |
-| `explain` | How does it work? |
+| `manifest` | What observable form makes it physically legible? |
 | `connect` | What does it affect, use, oppose, or depend on? |
 | `historicize` | Why is it like this now? |
 | `humanize` | How is it experienced in ordinary life? |
 | `immerse` | What does it feel like to encounter or inhabit? |
 | `invite` | What question should make the audience continue? |
 
-Every required public asset MUST declare one primary purpose, one or more
-canonical subjects, and the world facts it is responsible for expressing. A
-beautiful image that answers no contracted question is promotional art, not
-required universe coverage.
+Every required concept image MUST declare one primary purpose, exactly one
+primary canonical entity, and the small set of world facts it can honestly make
+visible. It MUST set `explanatory_visual` to false and `standalone_symbol` to
+false. Context MAY establish scale, use, or habitation, but it MUST NOT turn the
+image into a diagram, map, timeline, graph, atlas, sheet, kit, blueprint,
+infographic, montage, labeled panel, or rationale board. A beautiful image that
+answers no contracted question is promotional art, not required universe
+coverage.
 
-## Standard visual modules by entity class
+## Standard concept mode by entity class
 
-These modules are default candidates, not unconditional fan-out. Ratification
-selects them according to entity salience, facets, relationships, viewpoint,
-genre profile, and identified explanatory gaps.
+Every canonical entity receives one coherent concept image. The primary class
+selects the default mode; facets add context without adding panels or views.
 
-| Subject | Minimum explanatory coverage | Conditional modules |
+| Subject | Baseline concept mode | Text-owned explanation |
 | --- | --- | --- |
-| Actor | Identity portrait; character-in-world scene | Role pose, signature-thing interaction, relationship tableau, historical or status variant |
-| Collective | Identity marker; representative members; public manifestation | Uniform kit, structure diagram, territory, internal groups, rival comparison |
-| Place | Orientation representation; establishing view; inhabited view | Floor plan, cutaway, route, material plate, historical reconstruction |
-| Thing | Clear hero view; in-use context | Scale sheet, exploded diagram, variants, provenance, ownership history |
-| Kind | Representative specimen; comparison or scale plate | Variants, lifecycle, habitat, anatomy, behavior |
-| System | Causal explanation; visible manifestation | Inputs and outputs, exception, failure state, social consequence |
-| Event | Key-moment tableau; participants and place | Before and after, timeline position, causes, consequences, disputed account |
-| Idea | Symbolic expression; practiced or contested scene | Competing interpretation, ritual, propaganda, prohibition |
+| Actor | Environmental identity portrait or one in-world action | Relationships, obligations, history, capabilities, and change |
+| Collective | One representative public or working manifestation | Membership, authority, internal structure, politics, and rivals |
+| Place | One establishing or inhabited environment | Topology, routes, containment, scale, and history |
+| Thing | One hero or in-use study | Exact construction, variants, provenance, ownership, and mechanics |
+| Kind | One representative specimen in context | Taxonomy, lifecycle, variants, anatomy, and behavior |
+| System | One visible instance of the system in practice | Inputs, outputs, rules, exceptions, dependencies, and consequences |
+| Event | One witnessed moment | Sequence, causes, participants, consequences, and disputed accounts |
+| Idea | One practiced or contested manifestation | Meaning, competing interpretations, enforcement, and history |
 
-The universe as a whole MUST receive:
-
-- one entry artwork or equivalent visual invitation;
-- at least one topology-appropriate orientation experience;
-- at least one relationship overview;
-- a present-state or historical overview;
-- a visual identity grammar; and
-- at least one narrative gateway into deeper material.
+The image MUST remain exactly one continuous scene, one panel, and one primary
+entity. It MUST contain no typography, labels, arrows, legends, UI,
+explanatory panels, turnarounds, variant grids, exact-count burden, standalone
+symbol, or embedded rationale.
 
 ## Character world profile and pose derivation
 
@@ -615,35 +632,47 @@ actor role
 → contextual actor artwork
 ```
 
-A neutral turnaround MAY be generated for consistency control, but it does not
-replace an audience-facing character-in-world explanation.
+No turnaround may be generated as a canonical artifact or visual production
+control. Character continuity instructions MUST remain text-only production
+records outside the canonical package.
 
-## Public assets and production-control assets
+## Canonical package and production-control records
 
 Audience-facing universe assets and internal generation controls are distinct
 contracts.
 
-Public assets explain subjects through maps, vistas, scenes, diagrams,
-portraits, dossiers, timelines, symbols, stories, and other presentations.
+Canonical universe image assets are entity concept images only. Facts,
+relationships, chronology, systems, viewpoints, conflicts, unresolved
+questions, marker specifications, and ratification rationale are canonical
+text or structured data. Maps, diagrams, graphs, timelines, blueprints,
+atlases, dossiers, sheets, kits, and montages are consumer-owned views, not
+baseline universe artifacts.
 
-Production-control assets keep generation coherent and MAY include:
+Production-control records keep generation coherent. They MUST be text or
+structured data only, MUST live outside the canonical package, and MAY
+describe:
 
 - world visual grammar;
-- scale chart;
+- relative scale constraints;
 - regional palette and material language;
 - architecture grammar;
 - costume grammar;
-- symbol and heraldry lexicon;
+- marker and heraldry rules;
 - technology or magic design rules; and
-- actor-to-environment compatibility boards.
+- actor-to-environment compatibility constraints.
 
-An internal control asset MUST NOT be presented as sufficient public universe
-coverage merely because it is visually complete.
+Visual production-control artifacts are forbidden: no turnaround, scale chart,
+style sheet, brand board, compatibility board, rationale atlas, or other
+rendered control may enter either the production-control record set or the
+canonical package. Review proxies are the sole visual review instruments; they
+MUST remain outside the canonical package and MUST NOT be treated as production
+controls or universe assets.
 
 ## Engagement projections
 
-Engagement projections compose canonical entities, relationships, and assets
-without becoming ontology classes. Initial projection families include:
+Engagement projections compose canonical entities, relationships, text, and
+concept images without becoming ontology classes or canonical media. Initial
+projection families include:
 
 - atlas or spatial explorer;
 - field guide;
@@ -659,9 +688,15 @@ without becoming ontology classes. Initial projection families include:
 - actor journey; and
 - culture, era, or faction comparison.
 
-A map and a comic are therefore not peer ontology categories. A map primarily
-orients; a comic is an engagement projection that composes actors, places,
-things, events, and ideas.
+A map and a comic are therefore not peer ontology categories. Both are
+consumer-owned presentations that MAY be rendered later from the canonical
+package; neither is a baseline universe artifact.
+
+Every rendered engagement projection MUST live in a separate consumer-owned
+output root. A consumer MAY reference canonical text and entity concept images,
+but it MUST NOT copy, promote, or bind its rendered maps, diagrams, timelines,
+graphs, atlases, dossiers, blueprints, comics, or other views back into the
+canonical package.
 
 ## V1 generic consumer baseline
 
@@ -671,7 +706,8 @@ It is a package reader, not a second universe generator.
 
 The graph explorer MUST:
 
-- read canonical entities and relationships rather than execution nodes;
+- read canonical entities and structured relationship data rather than
+  execution nodes or a pre-rendered graph artifact;
 - support cyclic semantic relationships;
 - filter by core class, declared narrower kind, and relationship family;
 - expose the selected subject's facts, lineage, neighbors, and bound assets;
@@ -681,8 +717,8 @@ The graph explorer MUST:
 
 The gallery MUST:
 
-- index every explanatory asset record without assuming a fixed asset census;
-- filter by explanatory purpose, subject, core class, narrower kind, and media
+- index every entity concept asset record without assuming a fixed asset census;
+- filter by concept purpose, subject, core class, narrower kind, and media
   kind;
 - cross-link selections back to their canonical subjects and relationships;
 - expose metadata and a safe open or download path when it cannot present a
@@ -693,11 +729,12 @@ The gallery MUST:
 The existing `/universe/demo` illustrated-map route remains a specialized map
 spike. It demonstrates a possible image-space orientation projection, but its
 current manifest does not carry the universe subject, relationship, fact,
-review, and publication bindings required of a conforming explanatory asset.
+review, and publication bindings required of a conforming consumer projection.
 A future binding or adapter MAY connect it to the canonical package; the map
 manifest is not the root universe contract and MUST NOT be widened into one.
 Atlas, timeline, blueprint, dossier, investigation, and other refined
-experiences MAY later consume the same canonical package.
+experiences MAY later consume the same canonical package from their separate
+consumer-owned output roots.
 
 ## V0 ratification rules
 
@@ -709,24 +746,37 @@ following:
 3. Every major entity has meaningful relationships.
 4. Every major actor is connected to a place and to at least one collective,
    thing, system, event, or idea.
-5. Every major place has both orientation and experiential coverage.
+5. Every entity has exactly one concept-image brief and an authoritative text
+   record.
 6. Every major collective has a culturally appropriate identity marker and an
    applied manifestation.
 7. Every major system has a visible consequence for another entity.
 8. Every major event changes the state or interpretation of another entity.
 9. No empty franchise-shaped category is required.
 10. No public asset is required solely because a reference universe had one.
-11. Every required artwork states the audience question it answers.
-12. No major entity is explained only through prose when its defining
-    properties are visual or spatial.
+11. Every required concept image states the audience question it answers and
+    the limited facts it may visibly express.
+12. Exact counts, topology, chronology, causality, systems, and relationships
+    remain authoritative text even when a concept image evokes them.
 13. Every accepted world claim records its source or generated-extension
     lineage.
 14. The result satisfies the expansion direction without presenting that
     direction as a world fact.
 15. Source conflicts and deliberate reinterpretations remain visible for
     review.
-16. The semantic graph passes ontology, relationship, identity, and coverage
-    admission before paid visual fan-out begins.
+16. The semantic relationship data passes ontology, relationship, identity, and
+    coverage admission before paid visual fan-out begins.
+17. Every concept contract enforces one primary entity, one continuous scene,
+    one panel, `explanatory_visual = false`, `standalone_symbol = false`, and
+    every forbidden-form flag.
+18. The physical package inventory contains exactly the enumerated entity image
+    references and no other visual file; the current `the_weight_of_air`
+    projection requires exactly 28 PNG references.
+19. Every other package artifact is text or structured data, including the
+    relational graph, facts, chronology, systems, viewpoints, conflicts,
+    unresolved questions, markers, and review rationale.
+20. Source posters, visual review proxies, and text-only production controls
+    remain outside the canonical package.
 
 Ratification MUST reject or return for revision:
 
@@ -737,8 +787,14 @@ Ratification MUST reject or return for revision:
 - places without inhabitants, activity, or an explicit reason for emptiness;
 - actors whose appearance has no world-derived cause;
 - identity markers with no cultural or institutional basis;
-- things disconnected from economy, occupation, history, system, or plot; and
-- concept art that communicates mood but no contracted world fact.
+- things disconnected from economy, occupation, history, system, or plot;
+- concept art that communicates mood but no contracted world fact;
+- a concept with more than one primary entity, scene, or panel;
+- a standalone marker or symbol image;
+- any explanatory visual, diagram, map, timeline, graph, atlas, sheet, kit,
+  blueprint, infographic, or montage in the canonical package; and
+- any unenumerated raster, vector, PDF, or video artifact in the physical
+  package inventory.
 
 Ratification is semantic admission, not provider retry. A failed world model
 must be revised or regenerated as authored meaning before paid visual fan-out.
@@ -767,8 +823,9 @@ building, historical, or magical universe.
 ## Genre-profile widening
 
 V0 is the required semantic substrate. A future genre profile MAY widen it
-with standard subject classes, subtypes, relationships, fields, asset modules,
-and coverage rules when the genre makes those additions consistently useful.
+with standard subject classes, subtypes, relationships, fields, entity-concept
+specializations, consumer-owned projection modules, and coverage rules when the
+genre makes those additions consistently useful.
 
 A valid extension MUST declare:
 
@@ -777,7 +834,7 @@ A valid extension MUST declare:
 3. the V0 class or facet each addition refines;
 4. whether each addition is required, conditionally required, or optional;
 5. the relationships and explanatory questions it enables;
-6. the visual modules it adds or specializes; and
+6. the entity-concept modes or consumer-owned projections it specializes; and
 7. why an open authored kind is insufficient.
 
 For example, a future science-fiction profile could promote `planet` to a
@@ -788,7 +845,9 @@ profile, not to V0.
 
 Genre profiles MUST NOT redefine the meaning of an existing V0 class, make
 their vocabulary mandatory outside their declared scope, or push genre
-semantics into generic `gnode` rings.
+semantics into generic `gnode` rings. They MUST NOT add canonical non-entity
+visuals or relax the closed physical package boundary; rendered genre views
+remain in separate consumer-owned output roots.
 
 ## Versioning and next authority
 
@@ -799,8 +858,8 @@ databanks, and archaeology-led fantasy.
 
 That comparison should determine:
 
-- which visual modules are universal requirements;
-- which are conditionally required by entity or relationship;
+- which entity-concept modes are universal requirements;
+- which are conditionally specialized by entity or relationship;
 - which belong to genre profiles;
 - which engagement projections deserve first-party support; and
 - where V0 is too agnostic to produce a useful authored discipline.
