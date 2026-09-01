@@ -255,6 +255,387 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       would yield 133px of slack with no regeneration, at the cost of an 18 percent change in
       apparent scale and therefore a fresh semantic review of every map layer.
 
+## Runner gameplay: the CookieRun adoption
+
+The reference is **CookieRun: OvenBreak**, adopted for its level *language* and explicitly refused
+for its level *architecture*. Canabalt is the closer structural mirror - procedural, un-memorisable,
+one verb - and its famous rule, that the maximum gap is a live function of current speed so the
+world cannot lie to you, is the runtime-heuristic version of a proof we already run offline and
+earlier: `JUMP_PROFILES["single_arc_v1"]`
+(`src/stage_gen/components/runner_gameplay/models.py:50-52`) is consumed by
+`_validate_runner_member` (`src/stage_gen/orchestration/game_package.py:789-864`) before any
+provider node exists. Picking Canabalt would mostly teach us we are already right. CookieRun is the
+reference for what we genuinely lack: a level language whose vocabulary matches the verb set. Its
+four obstacle classes key one-to-one to inputs, and its Jelly trail writes each class as a distinct
+shape - a rising arc means jump, a low ground-hugging band under an overhang means slide. The trail
+is routing, not decoration, and because the collectible is also the score, greed and survival point
+the same way: the player is never asked to learn the level, only to be greedy, and being greedy
+walks them down the safe line.
+
+That device is the only teaching channel that survives our architecture, and it is the compensating
+mechanism rather than a nicety. `selectChunkIndex` (`web/lib/sideview-runner/segments.ts:54-69`)
+draws uniformly from every eligible chunk, so the chunk that teaches and the chunk that tests cannot
+be ordered and every telegraph must work on first sight. At `tile_px` 64 against a 1280px viewport
+with the avatar pinned at column 5, lookahead is 15 columns - 2.50s at base speed, 1.67s fully
+ramped - against `collision_policy = "end_run_v1"`. Enough to react, not enough to plan. Rayman's
+contextual verbs need non-local state the seam rule forbids by construction; BIT.TRIP's trail
+arrives welded to a beat contract; Jetpack Joyride's to a flight verb that discards our terrain
+contract. CookieRun hands us the device with nothing bolted to it, and `RunnerPickup` is already
+`{item_id, column, row}` (`src/stage_gen/components/runner_track/models.py:64-69`), capped at 32 per
+chunk, streamed and scored. **The whole trail mechanic is expressible today at zero contract cost
+and zero art cost, and the committed fixture spends its pickups on three decorative dots.**
+
+What is refused from the reference, so the adoption is not mistaken for wholesale: CookieRun
+hand-builds 25-stage episodes whose fairness guarantee is a human seeing the next 40 columns. Ours
+is an offline admission proof run credential-free before a cent is spent, which turns an unclearable
+gap into an authoring error rather than a playtest discovery. That is strictly the better property
+and is not for trade. Also refused is their per-stage economy tuning, because every one of those
+dials is an *authored number* and this contract's docstring says it has none.
+
+Sequencing note, learned the hard way in review: the selection grammar must NOT ship before the
+catalog is re-authored. Simulated against the shipped `{meadow_flat 1, cart_lane 2, brook_gap 3,
+hay_run 3}`, a sliding difficulty band has nowhere to slide to and converts "difficulty stops
+progressing after twenty seconds" into "the track becomes an empty flat treadmill for the remaining
+four minutes of the speed ramp" - strictly worse than today, and no gate catches it, because the web
+suites use their own fixtures and the Python gate never touches runtime selection.
+
+- [ ] **Admission hardening I - the seam apron, hazard spacing, and the rise that skips across
+      pits.** Two proven holes ship unwinnable moments today. First the seam: a chunk ending a
+      3-column pit at columns W-4..W-2 with W-1 supported passes every check (`max_pit_run()` is
+      exactly `max_clear_gap_columns`, both seam columns sit at `walk_surface_row`), and any chunk
+      with a hazard at column 0 may follow it - `cart_lane` already places one at column 6 and
+      column 0 is equally legal. The avatar lands on the seam and meets the hazard one column later:
+      0.167s at base speed against 0.767s of airtime and a ~200ms human reaction. No surviving
+      launch frame exists. Per-chunk admission structurally cannot see it because the loop at
+      `game_package.py:829` never touches a neighbour - which is the seam rule's whole purpose, so
+      the apron is the price of keeping it, not an argument against it. Second the rise:
+      `game_package.py:857` guards on `right_column == left_column + 1` and the `supported` list
+      omits pit columns, so a pit followed by a bank four tiles higher than `max_rise_tiles`
+      resolves clean against an arc peaking at 2.75 rows. `docs/spec/game/runner.md` already
+      *claims* interior rises stay within the profile; this makes the claim true. Add a frozen
+      `PlacementProfile` beside `JumpProfile` carrying `apron_headroom`,
+      `min_hazard_separation_columns`, `min_landing_clear_columns`, `min_hazard_clear_seconds` and
+      `telegraph`, selected by a module constant `RUNNER_PLACEMENT_PROFILE = "reaction_fair_v1"`. Do
+      NOT hang these on `JumpProfile`: that conflates traversal capability with placement
+      discipline, forces every future jump name to re-declare the whole discipline, and is the half
+      that will not transpose to a jumper. Do NOT persist a `placement_profile` field yet - a
+      one-member vocabulary nobody can choose between is a constant; add the field in one bump the
+      moment a second discipline exists. **Derive the spacing rather than asserting it**: a single
+      jump spans 4.6 columns at base speed, so `min_hazard_separation_columns` is >= 6 with a
+      reaction margin, not the 4 first proposed, and the clearance rule must be stated over hazard
+      *sets* within one arc span rather than per hazard. **The apron alone closes only the
+      cross-chunk case** - add `min_landing_clear_columns` measured forward from every pit's landing
+      column and every interior rise's landing column, or the same counterexample survives verbatim
+      one column inside a chunk boundary. Five refusal tests already exist in
+      `tests/unit/orchestration/test_runner_member.py` (six tests total, not four - the
+      hazard-over-pit refusal is already there and must not be re-added). Offline, zero provider
+      operations, no authorization.
+
+- [ ] **Re-author the bellweather track: depth, width, jelly arcs, the ground line, and a real
+      difficulty spread.** The design payload, and the answer to "how are obstacles placed". Every
+      edit is inside today's contract bounds. Depth: `rows` 8 -> 11 and `walk_surface_row` 5 -> 8
+      (the contract allows 6-32; at `tile_px` 64 against 720px, 11.25 rows are visible). Today's 5
+      rows of air leave 2.6 above a 2.4-tall avatar, which makes the overhead half of the obstacle
+      space un-prototypable later - free now, expensive to retrofit once the catalog grows. Width:
+      12/12/16/16 -> 24-32 columns (`MAX_SEGMENT_COLUMNS` is already 64). A 12-column chunk is 2.0s
+      at base speed, too short to hold a setup-then-payoff motif, and too short to afford the apron:
+      at headroom 1.15 the apron is 5 columns at each end, which leaves a 12-column chunk two
+      authorable columns and refuses `hay_run` at both ends. Widen first, then raise
+      `apron_headroom` in the same commit. The trail: every pit and hazard gets a 5-9 token arc
+      sampled from the real parabola - `jumpArcFor(2, 3)` peaks 2.75 rows over 4.6 columns - leaving
+      the ground two columns *before* takeoff so the player is committed to the ascent when the
+      hazard arrives, which is the takeoff cue expressed as geometry rather than a warning icon.
+      `brook_gap`'s single token at (7,3) over a three-column pit becomes a seven-token arc. Safe
+      stretches get the ground line: tokens one row above the surface, overlapping only while the
+      feet sit within 0.8 rows, so a jump forfeits 0.646s of a 0.767s airtime - about 84% of a
+      jump's worth of tokens. That is the crouch gate. The spread: author rank-1 chunks that teach
+      one motif with a full trail and no death pressure and rank-5..8 chunks that interleave two,
+      because the sliding band below is worthless over `{1,2,3,3}`. **Fold in the pickup chain
+      multiplier**, which the first pass dropped without refusing it: `collectedThisFrame` is
+      already published every frame (`web/lib/sideview-runner/obstacles.ts:84-112`) and `run.score`
+      has a single writer, so a combo that breaks on a missed ground token is free - and it is the
+      missing *instrument* for the crouch gate, because a flat 10-points-per-token score makes an
+      84% forfeiture nearly invisible while a breaking multiplier makes it legible to the player and
+      measurable by us. Fold in the per-event audio one-shots here too: short synthesised Web Audio
+      cues on takeoff, hazard-cleared, land and collect, through the existing `ParallaxStageView` /
+      `HudView` injection seams so the headless suites keep passing. That is BIT.TRIP's real trick -
+      the cue is specific to *how* you avoided the obstacle - at zero provider cost. Zero image
+      operations; the arcs reuse the generated `sunleaf_token`. Authored bytes change, so the next
+      run re-bills exactly two structured operations, and **reaching this increment's own play-QA
+      gate needs a credentialed live run** (`runner_executor.py:121-124` raises without both keys
+      before any cache lookup) - it is cheap, but it is not offline.
+
+- [ ] **Chunk selection grammar: a sliding band, anti-repeat, and a forced rest cadence.** Ships
+      *after* the re-authoring, for the reason in the preamble. Difficulty progression in the
+      shipped game is over in twenty seconds: `difficultyCeiling = min(10, 1 + floor(distance/60))`
+      reaches 3 at column 120, after which the pool is fully open and never changes again for the
+      remaining 1800 columns of the speed ramp, a difficulty-1 flat chunk stays exactly as likely as
+      the hardest one forever, the same `segment_id` can be drawn five times running, and there is
+      no guaranteed breather after a crisis. Every reference generator surveyed has at least three
+      of {weighting, anti-repeat, rest cadence, placement grammar, connector classes}; we have zero
+      of five, and the seam rule makes the last two structurally unavailable, which makes the first
+      three the whole budget. The fix is entirely consumer numbers inside the existing closed name
+      `gentle_ramp_v1` - the other half of the experience_curve idiom. `RampProfile` gains
+      `minCeilingLag` so the pool is a sliding band rather than a growing set; `selectChunkIndex`
+      takes the previously drawn index and excludes it unless the pool would otherwise be empty;
+      `streamAhead` forces a floor-difficulty chunk every K appends on one new `SegmentStream` field
+      written only by `runner/segments`, which is already its sole writer. No new `GameSystem`, so
+      no `reads`/`writes`/`after` moves and the `DOCUMENTED_ORDER` pin in
+      `web/lib/sideview-runner/game.test.ts:18-41` does not move. Determinism survives -
+      `streamAhead` already takes the rng off the single `world.run.rng` - but rng *consumption*
+      changes, so any seed recorded before this lands reproduces a different track. Contract-free,
+      zero provider operations.
+
+- [ ] **Complete the declared arithmetic: move the five arc constants into the SDK and publish
+      them.** The precondition for the clearance proof and a latent defect on its own. Admission
+      proves gaps and rises from two integers, but the arc the player actually flies is shaped by
+      five numbers the SDK has never seen: `JUMP_PEAK_MARGIN_TILES` 0.75 and `AIRTIME_HEADROOM` 1.15
+      (`web/lib/sideview-runner/avatar.ts:19,:22`), `BASE_SPEED_COLUMNS_PER_SECOND` 6
+      (`difficulty.ts:40`), `AVATAR_HALF_WIDTH_COLUMNS` 0.3 and `HAZARD_COLUMN_INSET` 0.15
+      (`obstacles.ts:32,:35`). The offline proof and the runtime arc agree only by convention:
+      `avatar.test.ts:63-79` asserts `jumpArcFor(2,3)` against hard-coded literals, never against
+      the manifest's published `max_clear_gap_columns`. Retune `AIRTIME_HEADROOM` to 1.0 for
+      game-feel and every "provably clearable" claim in the repo becomes silently false with no gate
+      catching it. Tolerable while admission compares integers; not tolerable once a refusal is
+      *computed from* those numbers. The rule worth writing down, because it settles this for every
+      genre that follows: **a number belongs in the SDK constant table iff a REFUSAL depends on it;
+      it stays consumer-owned iff only the FEEL depends on it.** That correctly leaves the ramp
+      numbers in `difficulty.ts` and moves the five above. Published values equal today's constants
+      exactly, so the increment is observation-neutral by construction - a large diff with nil
+      behaviour delta, which makes it trivially reviewable. **Two traps found in review.** The
+      manifest bump `sideview-runner-runtime-v1 -> -v2` DOES move `topology_sha256`, because
+      `src/gnode/graph.py:319-352` hashes each node's ports including `port.kind` - so
+      `scripts/write_pipeline_graph_contract.py --write` and the embedded block in
+      `docs/spec/game/runner.md` move in the same change or
+      `tests/contract/test_generation_pipeline_docs.py` fails inside `scripts/check.py`. And the
+      node cache key (`src/gnode/build.py:165-174`) does NOT include ports, so regenerating the
+      dropped run is a cache hit that replays the old v1 manifest byte-identically and is still
+      refused by the v2 parser: **the manifest NodeType's `contract_version` must be bumped too**,
+      or purge that one cache entry. Zero image operations; the regeneration bills zero provider
+      operations once the contract_version moves it off cache, or two structured if package bytes
+      also change.
+
+- [ ] **Admission hardening II: prove hazards are jumpable, and make the telegraph a refusal.**
+      Terrain is proved offline and props are not. `_validate_runner_member` never reads
+      `height_units`, which `platformer_content/models.py` bounds only at 0.05..32.0, so a hazard's
+      height has never been checked against the arc that must clear it. From the now-published
+      arithmetic: `v0 = 14.348 rows/s`, `g = 37.426 rows/s^2`, a hazard box is `height_units x 2.40`
+      rows, and the x-overlap between the 0.6-column avatar box and the 0.7-column hazard box spans
+      1.3 columns, crossed in 0.2167s at base speed (base is the worst case - airtime is fixed by
+      construction, so ramping only shortens the crossing). The results are stark. **`toppled_cart`
+      at `height_units = 1.00` clears for 0.2736s against a 0.2167s crossing - a 3.4-frame press
+      window at 60Hz, in the run that is playable right now.** `hay_bundle` at 0.75 gives 14.0
+      frames and is comfortable. Anything above 1.146 exceeds the 2.75-row arc peak and is
+      physically unjumpable, admitted silently. Add the proof against `min_hazard_clear_seconds =
+      0.15` (9 frames) and recalibrate `toppled_cart` to 0.85, which yields 10.4 frames. Write the
+      designer's rule into `docs/spec/game/runner.md` in the same change, because the first time a
+      beautiful prop fails admission someone will quietly edit the threshold: **if the silhouette is
+      wanted at full height, the correct fix is a taller jump profile, not a lowered threshold.**
+      The recalibration is free on the art side - `height_units` is absent from the catalog image
+      node's `input_digests` (`runner_graph.py:494-499`), so the generated cart PNG stays a cache
+      hit and needs no new semantic review. Then harden the telegraph: when `telegraph ==
+      "pickup_arc_v1"`, every chunk carrying a pit or interior rise must place at least three
+      pickups on cells the declared arc passes through, using the same closed-form sampling the
+      clearance proof uses - one piece of arithmetic serving both, which is the point. New refusals
+      `segment_hazard_unclearable` and `segment_untelegraphed`. Deliberately one increment after the
+      authoring: the authoring tells us what the predicate should be, and an unenforced authoring
+      habit rots. The escape hatch is `telegraph = "none_v1"` on a different placement name, so a
+      deliberately unsignposted chunk is a declared intent rather than a violation - CookieRun's own
+      introduce-safely-then-weaponise discipline needs that door. Zero image operations; the
+      `props.toml` edit re-bills the two structured judges, and its play-QA gate needs credentials
+      like the re-authoring above.
+
+- [ ] **Double jump as `double_arc_v1`: a second name whose second hop is recovery, never reach.**
+      The best ratio available. Our design condition is content the player cannot memorise, 1.67s of
+      lookahead fully ramped, and one-hit death - precisely the condition where forgiveness beats
+      precision. A mistimed first jump is currently terminal at the moment of takeoff; one air jump
+      makes the same configurations recoverable, which is what lets a designer place tight patterns
+      without being cruel. It also gives the trail a second altitude band for free: a high flat
+      token line is uncollectable with a single hop, so the collectible teaches the input by being
+      unreachable otherwise. The encoding is where the standing objections dissolve and is not
+      optional: `double_arc_v1` declares `max_clear_gap_columns = 3` and `max_rise_tiles = 2`, the
+      single-hop worst case unchanged. The second hop is pure forgiveness and never reach, so
+      admission stays a one-dimensional existential over launch columns rather than a search over
+      `(launch, air-jump)` sequences - the road to a reachability solver is the one property not for
+      trade. No authored chunk ever demands both hops, so a player who spends the air jump early is
+      never stranded, and soundness is preserved by construction because strictly more capability
+      keeps every admitted chunk clearable. **The hop count does not go on `JumpProfile`**: by this
+      plan's own rule a number belongs in the SDK table iff a refusal depends on it, and admission
+      reads this one for nothing - the closed NAME is the entire contract surface and the count
+      belongs in the runtime profile table beside `columnsPerCeilingStep`. Runtime: `AvatarState`
+      gains `airJumpsUsed`, reset at the landing branch and in `resetRunnerWorld`; the gate at
+      `avatar.ts:82` widens. `runner/avatar` is already the sole writer of `avatar` and already
+      reads `intent`, so no declaration moves. **Fix the animation bug in the same change**:
+      `game.ts:271` swaps texture and animation only when `state !== wornState` and
+      `contract.ts:442-443` pins the jump strip to `once`, so a second hop inside the same `jump`
+      state finds the atlas already finished and holding its last frame - the second jump would read
+      as having no animation at all. Replay on the impulse, not the state change, and make the
+      state-to-animation rule table-driven here since the slide wants the same eleven lines.
+      **`avatar.test.ts:179-188` breaks and must be rewritten** - it does not model a held key (the
+      latch would have consumed the edge) but re-applies one latched object across two steps, and
+      under the widened gate step 2 relaunches to exactly `risingVy`, failing a strict
+      `toBeGreaterThan`. Zero image operations if the second hop reuses the existing `jump` atlas,
+      which it should - CookieRun's distinct spin for hop two is cosmetic.
+
+- [ ] **Crouch: the slide motion state, overhead hazards, and the proof that a ducked avatar fits.**
+      The only paid increment, and the only one needing explicit authorization. **Yes on crouch**:
+      with one verb there is exactly one question per obstacle ("when?"), one sentence in the
+      collectible language, and two difficulty dials. No amount of admission hardening raises that
+      ceiling. Slide is the only verb in the entire reference set that *punishes a jump* - a hanging
+      obstacle is unreachable by any jump-family verb, which is what stops "be airborne as much as
+      possible" from being dominant - and it is the first thing that makes hazard artwork
+      load-bearing on the vertical axis, since today every hazard has one correct answer and the
+      player never has to look at the sprite. **Three entry conditions:** the increments above
+      shipped; the ground-token measurement taken; and the legibility question answered at zero cost
+      by drawing an existing prop sprite at the overhead anchor in a scratch build - a 1.6-row band
+      is ~102px at `tile_px` 64 with a ducked avatar at ~77px under a standing 154px, which is
+      geometrically fine and might be visually mush. Do not spend an image operation to answer a
+      layout question. **Buy the avatar state and the hazard vertical anchor as ONE change, never
+      two**: `RunnerHazard` is `{prop_id, column}` and `validate_placements` actively refuses a
+      hazard whose column is unsupported, so "a thing at head height with clearance beneath it" is
+      literally unsayable, and an overhead prop with nothing to duck under is one image op of dead
+      art. Three contracts move together with no aliases: `runner-track-v1 -> v2` (`RunnerHazard`
+      gains a required `anchor: "surface" | "overhead"` with no default, plus `clearance_rows`),
+      `runner-gameplay-v1 -> v2` (a closed `duck_profile = "slide_v1"` whose `DuckProfile` declares
+      `ducked_height_fraction` and `min_overhead_clearance_rows` as SDK constants, so the overhead
+      proof is increment 5's ground proof with the anchor flipped - which is exactly why that one
+      had to come first), and `runner-avatar-v1 -> v2`. While bumping the avatar contract, **fix the
+      shape rather than extending it**: make the required motion set a FUNCTION of what the track
+      declares ("this track declares an overhead hazard, therefore the avatar must declare slide")
+      rather than a universally required frozenset, or every future runner pays +1 image op forever
+      including games with no overhead hazards, and the jumper inherits a set that is simply wrong
+      for it. **The motion-state vocabulary is declared in three independent places with no test
+      tying them** - `runner_content/models.py:39` (the frozenset that validates),
+      `runner_graph.py:98` (the tuple that drives node fan-out and the rebase plate bands), and
+      `web/lib/sideview-runner/contract.ts` (the runtime's own copy). Edit only the first and every
+      `avatar.toml` is refused while no slide node is emitted; edit only the second and a strip is
+      generated the contract will not admit. All three move in one commit, and a test tying them is
+      worth adding while the reason is fresh. **Cost, corrected by rebuilding the graph rather than
+      counting by hand: node census 25 -> 31** (one motion state and two overhead props each add a
+      generate plus a validate node), `image_generation` 12 -> 15, `local` 11 -> 14,
+      `structured_generation` stays 2 but both execute, and `topology_sha256` moves. Nominal
+      $0.13-$0.76 at the binding table's declared rates; all-attempts-exhausted ceiling $4.56.
+      Budget 4-6 image ops realistically - a crouch is exactly the pose that reads as a stumble or
+      breaks the established proportion on first pass, and a semantic rejection is a regeneration,
+      not a provider retry. `runner_prompts.py:89-106` falls through to a weak generic line for
+      unlisted states, so **a dedicated slide direction sentence must be written before any spend**
+      or we pay for a generic crouch. Semantic review of the slide strip and both props by someone
+      other than their producer.
+
+- [ ] **Rhythm is refused, and the refusal belongs in `docs/spec/game/runner.md` so it is not
+      re-litigated.** Not on cost - it would still be no with unlimited budget. The seam rule and
+      beat sync are mutually exclusive: both references that actually sync map a *through-composed*
+      song onto a *fixed* level, and our defining property is that any chunk may follow any chunk,
+      drawn uniformly at runtime. You cannot through-compose against a random permutation. **The
+      exact property that makes the runner infinite is the property that forbids the rhythm model.**
+      It is independently disqualified by the ramp: `speedMultiplier` is continuous in distance, so
+      the column-crossing period slides from 167ms to 111ms across one run and a column has no fixed
+      beat phase at any point; the only compatible model is a loop grid with constant tempo and
+      integer columns-per-bar, which forfeits the difficulty ramp entirely - a different genre, not
+      a feature. The producer does not exist either: `MusicGenerationRequest` has no tempo in or
+      out, `AudioProbe` returns only duration/format/bit-rate, and the dependency set has no onset
+      or tempo-estimation stack, so a beat grid needs a new artifact kind, a new node type with a
+      retry owner, and a new analysis dependency before one unit of design value lands - against a
+      provider whose BPM adherence nothing here tests, where a missed tempo is a *semantic
+      regeneration* rather than a retry. That is the worst risk profile in the whole survey:
+      unbounded cost against unmeasured capability. **Do not let a tempo field into
+      `game-soundtrack-v1`** - it is the one member already shared across genres, and neither a
+      jumper nor a cinematic platformer has a tempo. If "feels musical" is the real want, the
+      per-event audio one-shots folded into the re-authoring above are the cheap 80%: that is
+      BIT.TRIP's actual trick, at zero provider cost.
+
+- [ ] **Take the rebase judges off the whole-package digest.** `avatar-rebase-judge` and
+      `avatar-rebase-verify` declare `input_digests=(package.closure_sha256,)`
+      (`runner_graph.py:446,:459`), so **any** authored edit anywhere in the package re-bills two
+      structured operations - editing a track chunk, moving a pickup, or bumping a prop's
+      `height_units` all re-run a judge that never looks at the track. Several increments above are
+      pure authoring and each pays this toll. The rebase pass reads the motion atlases and nothing
+      else, so its identity should be the motion-validate lineage it already depends on, not the
+      closure. This is the same over-broad-digest defect as the open
+      `PLACEMENT_ONLY_CLIMBABLE_FIELDS` item under platformer map design, one recipe further along,
+      and it must move the graph contract and its cache-identity assertions in the same change.
+      Related and worth noting while here: only 7 of the 12 image nodes are barrier-cut with
+      `cache_depends_on=()`; the three `avatar-{state}-generate` and two layer loop-paint nodes
+      carry lineage from their parents, so a change to the avatar concept prompt re-bills four image
+      operations, not one.
+
+## Future genres
+
+Two families worth reserving now so they cannot drift, and one of them needs a name badly enough
+that naming it is the deliverable.
+
+- [ ] **`2d/sideview/jumper` - the vertical endless jumper (Doodle Jump). Its own genre member
+      family, not a camera mode inside the runner.** The temptation is to add a `ratchet_y_v1` name
+      to `RunnerCamera` and call it done. Three of `runner-track-v1`'s load-bearing invariants are
+      horizontal by construction rather than by parameter, and the mode flag makes each
+      conditionally meaningless: `walk_surface_row` is the seam datum the whole validator is built
+      around and a jumper has no continuous contact surface at all; `bottom_contiguous_surface_row`
+      is a bottom-up column scan every hazard, pickup and pit-run check calls; and
+      `max_clear_gap_columns` measures a quantity a bounce does not have. One contract with two
+      mutually exclusive readings selected by a mode flag is exactly the compat-reader shape this
+      repo forbids. The verb set inverts too - the runner's one verb is an edge-triggered jump, the
+      jumper's is a held continuous steering axis with no jump at all, which the `RunnerIntent`
+      latch's consume-on-sample semantics actively corrupts. The precedent is the runner itself,
+      which reused the shared `2d/sideview/*` modules rather than extending the platformer. Build
+      the Doodle Jump variant, not Icy Tower: auto-bounce plus screen wrap collapses reachability to
+      a single one-dimensional condition on delta-y - screen wrap means no horizontal distance is
+      ever unreachable - which is the cleanest offline proof in the repo, whereas Icy Tower's
+      landing-momentum jump height makes reachability a function of prior traversal and is not
+      provable ahead of time. The seam rule's replacement is a **landing band**: each band declares
+      an entry and an exit datum row, its lowest platform sits within `max_rise_rows` of the entry
+      datum, and its topmost platform *is* the exit datum - restoring exactly the property the
+      runner bought. What transfers free is substantial: the authored rectangular occupancy reads
+      the same rotated 90 degrees, `difficulty` ranks and ceiling selection transpose verbatim,
+      `terrain-atlas-3x3-minimal-v1` is a general autotile so an isolated one-row ledge is already
+      an expressible mask, the prop and item contracts come over unchanged, and
+      `PreparedMapCamera.follow_axes` already admits `["y"]` with a docstring naming a climbing
+      tower. What does not: `PreparedMapContinuity.seamless_axis` is `Literal["x"]` and
+      `src/stage_gen/media/loop_construction.py` is column-native end to end, so the reflection tier
+      transposes for free while the interior and anchored tiers need their conditioning masks
+      re-derived on rows. **`2d/sideview/loop_y` is the one genuine asset-side blocker, and
+      `docs/spec/asset-taxonomy.md:130-135` already reserved it and already says an infinite-jumper
+      demo is impossible until it has a caller.** The avatar art does not transfer - `run` is wrong
+      for a game whose avatar never runs, and one `jump` strip cannot serve both halves of a bounce
+      since an arc read left-to-right reads as a stall at apex; the closed set is `{rise, fall,
+      death}`. A first jumper run mirrors the runner's census almost exactly: 12 image operations
+      plus the 2 structured rebase, with +3 if the avatar needs two-way authored rather than
+      mirrored coverage. Layer paintings must be regenerated even to get the same picture, because a
+      y-loop repeat unit is a different artifact than an x-loop one.
+
+- [ ] **The Limbo / Badland / Ori family: these are three genres, not one, and the first thing to
+      refuse is the premise that they share a name.** "Atmospheric side-view adventure" names the
+      art direction, not the gameplay composition, and our taxonomy defines the `genre` slot as the
+      gameplay composition profile the module assumes, so mood-words are structurally disqualified
+      as segments. The decomposition: **Limbo / Inside -> cinematic platformer**, subtype
+      puzzle-platformer, with Playdead's own term "trial and death" for the failure mode - realistic
+      proportions, momentum-carrying movement that takes time to reach speed and time to stop, a
+      vulnerable ordinary protagonist, environmental puzzles, no HUD, no score, no combat. **Badland
+      -> `2d/sideview/one_touch_flier`**, a one-touch physics side-scroller whose avatar is a rigid
+      body never grounded by design, where standing on terrain is a failure state rather than the
+      base case; it is closer to our runner than to Limbo and is not a platformer at all. It
+      *consumes* `2d/sideview/painted_terrain` rather than being homed there - conflating a genre
+      with a module it uses is the exact confusion the taxonomy exists to prevent. **Ori ->
+      metroidvania / action-platformer**: ability-gated connected world, combat, HP, player-placed
+      saves, backtracking. **Build Limbo/Inside first and name it
+      `2d/sideview/cinematic_platformer`**, bound to the same `lateral_orthographic_side_plane_v1`
+      profile as `platformer` and `runner`, with members under a matching `cinematic_platformer/`
+      package prefix so the segment and the prefix are identical and the name is greppable once.
+      Ruling out the alternatives, since specificity means ruling things out: `adventure` names
+      nothing checkable and is precisely the label worth rejecting; `puzzle_platformer` over-claims,
+      because the word promises a solvability proof and Limbo's puzzles are physics contraptions
+      whose solvability is not decidable offline - putting a claim in the contract name that no
+      validator can honour is the opposite of what `single_arc_v1` does; `metroidvania` is a
+      different game; `atmospheric` and any mood word are style facets the visual taxonomy already
+      owns, and a genre segment must not duplicate a style facet; bare `cinematic` collides with
+      `game_cutscene_*`, which the namespace table already assigns to shots and blocking. The
+      compound disambiguates, is the established term in the literature anyway, and two-word
+      segments are already precedented. The word `cinematic` does **not** commit us to a rotoscoped
+      animation budget - the taxonomy separates genre from the `motion_treatment` style facet, so
+      the animation claim lives there and stays honest. Why this one first, decisively: it is the
+      only one of the three whose new requirement is **authoring vocabulary** rather than a new
+      simulation substrate. It needs a finite non-looping level with an authored end - a gap
+      `docs/spec/asset-taxonomy.md` validation case 3 already reserved.
+
 ## Git reconciliation
 
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare
