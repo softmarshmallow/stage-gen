@@ -23,6 +23,7 @@ from stage_gen.capabilities import (
     remove_background,
 )
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
+from stage_gen.components.case import ResolvedCase, read_case_catalog, resolve_case
 from stage_gen.components.character_profile import (
     ResolvedCharacterProfile,
     resolve_character_profile_binding,
@@ -51,6 +52,7 @@ from stage_gen.config import (
     load_config,
     parse_transparency_mode,
 )
+from stage_gen.orchestration.case_binding import BoundCase, bind_case
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.game_package import resolve_prepared_package
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
@@ -65,6 +67,9 @@ from stage_gen.recipes.sideview_platformer.view_annotations import (
 )
 from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 from stage_gen.recipes.sideview_runner.runner_view import build_sideview_runner_view
+from stage_gen.recipes.universe import gallery_page as universe_gallery_page
+from stage_gen.recipes.universe.universe_executor import UniverseExecutor
+from stage_gen.recipes.universe.universe_view import build_universe_view
 
 
 class CliUsageError(ValueError):
@@ -215,6 +220,70 @@ def build_parser() -> argparse.ArgumentParser:
         "--failure-node", dest="failure_node", help="inject one dry-run node failure"
     )
 
+    universe_parser = commands.add_parser(
+        "universe",
+        description="Expand one authored universe package and draw its concept gallery",
+    )
+    universe_commands = universe_parser.add_subparsers(dest="universe_command", required=True)
+    universe_semantic_parser = universe_commands.add_parser(
+        "semantic",
+        help="propose, plan, evaluate, review, and admit one universe as text",
+    )
+    universe_semantic_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored universe package directory (universe.toml plus references/)",
+    )
+    universe_semantic_parser.add_argument("--output", required=True, dest="output_path")
+    universe_semantic_parser.add_argument("--cache-dir", dest="cache_dir")
+    universe_semantic_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    universe_semantic_parser.add_argument("--invocation-id")
+    universe_semantic_parser.add_argument(
+        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
+    )
+    universe_gallery_parser = universe_commands.add_parser(
+        "gallery",
+        help="draw one concept image per admitted entity and close the package",
+    )
+    universe_gallery_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="the same authored universe package the semantic run was planned from",
+    )
+    universe_gallery_parser.add_argument(
+        "--semantic-run",
+        required=True,
+        dest="semantic_run",
+        help="an admitted semantic run directory",
+    )
+    universe_gallery_parser.add_argument("--output", required=True, dest="output_path")
+    universe_gallery_parser.add_argument("--cache-dir", dest="cache_dir")
+    universe_gallery_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    universe_gallery_parser.add_argument("--invocation-id")
+    universe_gallery_parser.add_argument(
+        "--reroll",
+        action="append",
+        default=None,
+        dest="rerolls",
+        metavar="ENTITY_ID",
+        help="redraw one entity's concept image; repeatable, everything else is a cache hit",
+    )
+    universe_gallery_parser.add_argument(
+        "--sample-ledger",
+        dest="sample_ledger",
+        help="carry a prior run's sample-ledger.json forward before applying --reroll",
+    )
+    universe_gallery_parser.add_argument(
+        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
+    )
+    universe_page_parser = universe_commands.add_parser(
+        "page",
+        help="re-render the consumer page from a finished gallery run, provider-free",
+    )
+    universe_page_parser.add_argument("--run", required=True, dest="run_dir")
+
     scenario_parser = commands.add_parser(
         "scenario",
         description="Admit one authored scenario: parse the script, compile it, and prove it",
@@ -240,6 +309,40 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         dest="write_digest",
         help="rewrite script_sha256 in each scenario document to match its script",
+    )
+
+    case_parser = commands.add_parser(
+        "case",
+        description=(
+            "Admit one authored case: prove the beat graph, then bind every beat to "
+            "the scenario or room it plays"
+        ),
+    )
+    case_commands = case_parser.add_subparsers(dest="case_command", required=True)
+    case_check_parser = case_commands.add_parser(
+        "check",
+        help="prove one authored case playable end to end, offline and before any spend",
+    )
+    case_check_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored package directory holding cases/index.toml",
+    )
+    case_check_parser.add_argument(
+        "--case",
+        default=None,
+        dest="case_id",
+        help="one case_id from the catalog; omit to check every case the game holds",
+    )
+    case_check_parser.add_argument(
+        "--structure-only",
+        action="store_true",
+        dest="structure_only",
+        help=(
+            "prove the beat graph and the fact discipline without resolving the leaves; "
+            "for authoring a case before every scenario and room it names exists"
+        ),
     )
 
     export_view_parser = commands.add_parser(
@@ -399,6 +502,8 @@ def _build_run_view_for(run_dir: Path) -> RunView:
         )
     if declared == "sideview-runner-execution-graph-v1":
         return build_sideview_runner_view(run_dir)
+    if declared == "universe-execution-graph-v1":
+        return build_universe_view(run_dir)
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
         "stage-gen"
@@ -517,6 +622,14 @@ def _dispatch(
             report = {"valid": True, **resolved.identity()}
             stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
+    if command == "universe" and args.universe_command == "page":
+        # Re-rendering a finished gallery reads the run and nothing else: no
+        # config, no provider, no event loop.
+        page_path = universe_gallery_page.render(Path(args.run_dir))
+        stdout.write(
+            f"{json.dumps({'page': page_path}, sort_keys=True, separators=(',', ':'))}\n"
+        )
+        return 0
     if command == "export-view":
         run_dir = Path(args.run_dir)
         view = _build_run_view_for(run_dir)
@@ -629,7 +742,74 @@ def _dispatch(
         return 0
     if command == "scenario":
         return _dispatch_scenario(args, stdout=stdout)
+    if command == "case":
+        return _dispatch_case(args, stdout=stdout)
     return asyncio.run(_dispatch_async(args, runtime=runtime, stdout=stdout))
+
+
+def _dispatch_case(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    """Admission with no event loop, no config, and no provider - it never needs one."""
+
+    root = Path(args.input_path)
+    catalog = read_case_catalog(root)
+    if args.case_id is not None and args.case_id not in catalog.case_ids:
+        raise ValueError(f"case `{args.case_id}` is not in {root}/cases/index.toml")
+    ids = catalog.case_ids if args.case_id is None else (args.case_id,)
+    report = {
+        "game_id": catalog.game_id,
+        "cases": [
+            _case_report(root, case_id, structure_only=bool(args.structure_only))
+            for case_id in ids
+        ],
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0
+
+
+def _case_report(root: Path, case_id: str, *, structure_only: bool) -> dict[str, object]:
+    if structure_only:
+        return _case_structure_report(resolve_case(root, case_id))
+    return _bound_case_report(bind_case(root, case_id))
+
+
+def _case_structure_report(resolved: ResolvedCase) -> dict[str, object]:
+    admission = resolved.admission
+    return {
+        "admitted": admission.admitted,
+        "case_id": admission.case_id,
+        "beats": admission.beat_count,
+        "bound": False,
+        "case_sha256": resolved.case_sha256,
+        "reachable_beats": list(admission.reachable_beats),
+        "terminals": {
+            witness.beat_id: list(witness.path) for witness in admission.witnesses
+        },
+        "facts": {
+            entry.fact_id: {
+                "establishment": entry.establishment,
+                "exported_by": list(entry.exported_by),
+                "read_by": list(entry.read_by),
+            }
+            for entry in admission.facts
+        },
+    }
+
+
+def _bound_case_report(bound: BoundCase) -> dict[str, object]:
+    report = _case_structure_report(bound.resolved)
+    report["bound"] = True
+    report["leaves"] = {
+        beat.beat_id: {
+            "kind": beat.kind,
+            "member": beat.member,
+            "outcomes": list(beat.outcomes),
+            "exports": list(beat.exports),
+            "imports": list(beat.imports),
+            "reachable_states": beat.reachable_states,
+        }
+        for beat in bound.beats
+    }
+    return report
 
 
 def _dispatch_scenario(args: argparse.Namespace, *, stdout: TextIO) -> int:
@@ -789,6 +969,79 @@ async def _dispatch_pointclick_room(
     return 0 if run.summary.ok else 1
 
 
+async def _dispatch_universe(
+    args: argparse.Namespace,
+    *,
+    config: StageGenConfig,
+    stdout: TextIO,
+) -> int:
+    executor = UniverseExecutor(config)
+    input_path = Path(args.input_path)
+    output_path = Path(args.output_path)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".universe-cache"
+    phase = str(args.universe_command)
+    invocation_id = args.invocation_id or f"universe-{phase}-{uuid.uuid4().hex}"
+    if not args.dry_run and args.failure_node is not None:
+        raise ValueError("--failure-node is available only with --dry-run")
+    if phase == "semantic":
+        if args.dry_run:
+            run = await executor.dry_run_semantic(
+                input_path,
+                run_dir=output_path,
+                cache_dir=cache_dir,
+                invocation_id=invocation_id,
+                failure_node_id=args.failure_node,
+            )
+        else:
+            run = await executor.run_semantic(
+                input_path,
+                run_dir=output_path,
+                cache_dir=cache_dir,
+                invocation_id=invocation_id,
+            )
+    else:
+        semantic_run = Path(args.semantic_run)
+        rerolls = tuple(args.rerolls or ())
+        sample_ledger = Path(args.sample_ledger) if args.sample_ledger else None
+        if args.dry_run:
+            run = await executor.dry_run_gallery(
+                input_path,
+                semantic_run=semantic_run,
+                run_dir=output_path,
+                cache_dir=cache_dir,
+                invocation_id=invocation_id,
+                rerolls=rerolls,
+                sample_ledger=sample_ledger,
+                failure_node_id=args.failure_node,
+            )
+        else:
+            run = await executor.run_gallery(
+                input_path,
+                semantic_run=semantic_run,
+                run_dir=output_path,
+                cache_dir=cache_dir,
+                invocation_id=invocation_id,
+                rerolls=rerolls,
+                sample_ledger=sample_ledger,
+            )
+    report: dict[str, object] = {
+        "ok": run.summary.ok,
+        "recipe": "universe",
+        "phase": phase,
+        "universe_id": run.plan.resolved.universe_id,
+        "run_dir": str(output_path),
+        "graph_sha256": run.plan.graph.graph_sha256,
+        "topology_sha256": run.plan.graph.topology_sha256,
+        "node_count": len(run.plan.graph.nodes),
+        "provider_operation_counts": run.summary.provider_operation_counts,
+        "duration_ms": run.summary.duration_ms,
+    }
+    if run.manifest is not None:
+        report["counts"] = run.manifest["counts"]
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0 if run.summary.ok else 1
+
+
 async def _dispatch_async(
     args: argparse.Namespace,
     *,
@@ -800,6 +1053,8 @@ async def _dispatch_async(
         return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
     if args.command == "pointclick-room":
         return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
+    if args.command == "universe":
+        return await _dispatch_universe(args, config=config, stdout=stdout)
     if args.command == "generate":
         if args.output_path is None:
             raise ValueError("generate requires --output")

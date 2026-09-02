@@ -1,0 +1,35 @@
+# Source package for the universe recipe's committed fixture world. Small on
+# purpose: the contracts are exercised end to end, so the world has to be cheap
+# to hold in the head and free of anything a reviewer would have to judge.
+schema_version = 1
+kind = "universe-source-v1"
+universe_id = "lantern_ferry"
+display_name = "The Lantern Ferry"
+revision = 1
+medium = "anime_2d"
+
+[poster]
+source = "references/poster.png"
+source_sha256 = "326b31d28fca53cf7d5b1403b1c572f00e60859a367259a73c7d3966feb0775d"
+role = "visual_evidence_and_art_grammar_only"
+rights_status = "unreviewed"
+rights_basis = [
+  "Drawn deterministically by scripts/author_universe_fixture_poster.py from fixed constants in this repository, with no provider call and no third-party input.",
+]
+
+[synopsis]
+source = "synopsis.md"
+
+[expansion_direction]
+source = "expansion-direction.md"
+
+[census]
+min_entities = 6
+max_entities = 10
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original brand-neutral fixture world authored in this repository for the universe recipe's contract tests.",
+]
+publication_authorized = false

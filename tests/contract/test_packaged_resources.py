@@ -168,7 +168,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The tool-loop agent (2026-09-03) adds four: the gnode tool_loop
         # modality (package, models, service) and its OpenRouter adapter
         # (measured 228 with the screen-FX family in between).
-        assert len(wheel_entries) <= 228
+        # The universe recipe (2026-09-03) adds fourteen: its own package plus
+        # ontology, medium, models, schema, prompts, types, request, graph,
+        # handler, manifest, consumer page, executor, and view. It is the first
+        # recipe whose output is a package to read rather than to play, so it
+        # shares no module with the four that came before (measured 242).
+        assert len(wheel_entries) <= 242
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -257,7 +262,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # two handlers had quietly kept reading the avatar's catalog (469). It
         # adds no wheel module - the boss and its projectiles reuse contracts
         # and pipelines that already shipped.
-        assert len(sdist_entries) <= 469
+        # The universe recipe (2026-09-03) adds its fourteen modules, five test
+        # modules, the fixture poster script and its test, and the four members
+        # of the committed Lantern Ferry package (measured 492).
+        assert len(sdist_entries) <= 492
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
