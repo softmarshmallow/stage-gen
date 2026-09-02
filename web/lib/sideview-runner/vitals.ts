@@ -16,6 +16,7 @@
 // rest is tunable here without regenerating a single image.
 
 import { drain, isRefractory, refractoryBlinkAlpha, type Gauge } from "@/lib/game-systems/gauge";
+import type { FxEvent } from "@/lib/fx/moment-system";
 import type { RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/game-systems/systems";
 import { surfaceRowAt } from "./segments";
@@ -96,7 +97,9 @@ export type RunnerEvent =
   /** A consequence arrived while immune, or against a package that cannot spend. */
   | { readonly type: "absorbed"; readonly source: RunnerDamageSource }
   /** The run is over, by this source. */
-  | { readonly type: "run-ended"; readonly source: RunnerDamageSource };
+  | { readonly type: "run-ended"; readonly source: RunnerDamageSource }
+  /** A screen-FX moment released the simulation, or finished. */
+  | FxEvent;
 
 /**
  * The first solid surface at or after a column, or null within the lookahead.

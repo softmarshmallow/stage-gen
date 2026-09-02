@@ -47,6 +47,26 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_fx.cut_in import (
+    draw_procedural_frame,
+    validate_frame_plate,
+    validate_portrait_plate,
+)
+from stage_gen.components.game_fx.nodes import (
+    FX_CUT_IN_DRAW,
+    FX_CUT_IN_GENERATE,
+    FX_CUT_IN_RAW_KIND,
+    FX_CUT_IN_REVIEW,
+    FX_CUT_IN_VALIDATE,
+    FX_CUT_IN_VALIDATION_KIND,
+    FxCutInHost,
+    cut_in_generate_request,
+    cut_in_review_request,
+    derive_cut_in_validation,
+    fx_manifest_block,
+    write_cut_in_draw,
+    write_cut_in_validation,
+)
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
 from stage_gen.components.runner_audio import RunnerAudioContract
@@ -1238,6 +1258,8 @@ class SideviewRunnerNodeHandler:
                 metadata={"family": family, "entity_id": str(node.params["entity_id"])},
                 validate=lambda artifact: _validate_catalog_candidate(artifact.data, family=family),
             )
+        if node.type_id == FX_CUT_IN_GENERATE.type_id:
+            return cut_in_generate_request(self._fx_host(), node)
         raise ValueError(f"runner node has no image request builder: {node.type_id}")
 
     def _music_generation_request(self, node: Node) -> MusicGenerationRequest:
@@ -1366,6 +1388,34 @@ class SideviewRunnerNodeHandler:
                 **caller,
             }
             component = IMAGE_GENERATION_COMPONENT
+            seed = None
+            rights = None
+        elif node.type_id == FX_CUT_IN_REVIEW.type_id:
+            # The shared family's request builder is the identity: the same
+            # function the handler sends, re-run over the restored run.
+            review_request = cut_in_review_request(
+                self._fx_host(), self._graph, node, read=self._read_run_artifact
+            )
+            refs, inputs = self._reference_identity(review_request.references)
+            review_system = review_request.system or ""
+            params = {
+                "schema_name": review_request.schema.name,
+                "schema_description": review_request.schema.description,
+                "schema": dict(review_request.schema.json_schema),
+                "strict": review_request.schema.strict,
+                "require_parameters": True,
+                "system": review_system,
+                "system_sha256": content_sha256(review_system.encode("utf-8")),
+                "max_tokens": review_request.max_tokens,
+                "metadata": dict(review_request.metadata),
+            }
+            self._strict_json_object(artifact_data, label=f"{node.node_id} structured artifact")
+            validation = {
+                "output_nonempty": True,
+                "json": "parsed",
+                "schema": "caller-validated",
+            }
+            component = STRUCTURED_GENERATION_COMPONENT
             seed = None
             rights = None
         elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
@@ -1573,6 +1623,12 @@ class SideviewRunnerNodeHandler:
         if node.type_id == SOUND_EFFECT_GENERATE.type_id:
             assert_audio_signature(data, "audio/mpeg")
             admit_sound_effect_bytes_sync(data)
+            return
+        if node.type_id == FX_CUT_IN_GENERATE.type_id:
+            if str(node.params["plate"]) == "frame":
+                validate_frame_plate(data)
+            else:
+                validate_portrait_plate(data)
             return
         raise ValueError(f"runner cache has no provider admission for {node.type_id}")
 
@@ -1993,6 +2049,26 @@ class SideviewRunnerNodeHandler:
             }
             self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
             return
+        if node.type_id == FX_CUT_IN_DRAW.type_id:
+            self._require_equal(
+                bundle[node.port("image").artifact_ref],
+                draw_procedural_frame(),
+                label="procedural cut-in frame",
+            )
+            return
+        if node.type_id == FX_CUT_IN_VALIDATE.type_id:
+            raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
+            frame_record: dict[str, object] | None = None
+            if str(node.params["plate"]) == "portrait":
+                record_ref = self._dependency_artifact(node, kind=FX_CUT_IN_VALIDATION_KIND)
+                frame_record = self._strict_json_object(
+                    (self._run_dir / record_ref).read_bytes(), label=record_ref
+                )
+            canonical, record, _facts = derive_cut_in_validation(
+                (self._run_dir / raw_ref).read_bytes(), node, frame_record=frame_record
+            )
+            self._admit_local_image_and_record(node, bundle, image=canonical, validation=record)
+            return
         if node.type_id in {
             SOUNDTRACK_VALIDATE.type_id,
             SOUND_EFFECT_VALIDATE.type_id,
@@ -2056,6 +2132,10 @@ class SideviewRunnerNodeHandler:
         registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
         registry.register(SOUND_EFFECT_GENERATE, self._bind(self._generate_sound_effect))
         registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
+        registry.register(FX_CUT_IN_GENERATE, self._bind(self._generate_fx_plate))
+        registry.register(FX_CUT_IN_DRAW, self._bind(self._draw_fx_frame))
+        registry.register(FX_CUT_IN_VALIDATE, self._bind(self._validate_fx_plate))
+        registry.register(FX_CUT_IN_REVIEW, self._bind(self._review_fx_plate))
         registry.register(MANIFEST_ASSEMBLE, self._bind(self._assemble_manifest))
         return registry
 
@@ -2128,7 +2208,9 @@ class SideviewRunnerNodeHandler:
             )
         elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
             preferred = (
-                "verification"
+                "verdict"
+                if any(port.port_id == "verdict" for port in node.ports)
+                else "verification"
                 if any(port.port_id == "verification" for port in node.ports)
                 else "reading"
             )
@@ -2923,6 +3005,50 @@ class SideviewRunnerNodeHandler:
 
     # ---------------------------------------------------------------- manifest
 
+    # ------------------------------------------------------------------- fx
+
+    def _fx_host(self) -> FxCutInHost:
+        fx = self._runner.fx
+        if fx is None:
+            raise ValueError("runner package declares no fx member")
+        return FxCutInHost(
+            fx=fx,
+            run_dir=self._run_dir,
+            package_id=self._package.game.game_id,
+            file=self._package.file,
+            component=_COMPONENT,
+            tool=STAGE_GEN_TOOL,
+        )
+
+    def _read_run_artifact(self, ref: str) -> bytes:
+        return (self._run_dir / ref).read_bytes()
+
+    async def _generate_fx_plate(self, node: Node) -> NodeExecutionResult:
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _draw_fx_frame(self, node: Node) -> NodeExecutionResult:
+        await write_cut_in_draw(self._fx_host(), node)
+        return self._result(node)
+
+    async def _validate_fx_plate(self, node: Node) -> NodeExecutionResult:
+        await write_cut_in_validation(
+            self._fx_host(), self._graph, node, read=self._read_run_artifact
+        )
+        return self._result(node)
+
+    async def _review_fx_plate(self, node: Node) -> NodeExecutionResult:
+        request = cut_in_review_request(
+            self._fx_host(), self._graph, node, read=self._read_run_artifact
+        )
+        result = await self._execute_provider_operation(
+            node, lambda: self._structured.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
     async def _assemble_manifest(self, node: Node) -> NodeExecutionResult:
         runner = self._runner
         track = runner.track
@@ -3181,6 +3307,11 @@ class SideviewRunnerNodeHandler:
                         for track_id in runner.soundtrack.track_ids
                     ],
                 }
+            ),
+            "fx": (
+                None
+                if runner.fx is None
+                else fx_manifest_block(runner.fx, read_validation=self._read_run_artifact)
             ),
         }
         atomic_write_json(self._run_dir / node.port("manifest").artifact_ref, manifest)

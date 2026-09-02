@@ -70,6 +70,8 @@ import {
   createSegmentsSystem,
 } from "./segments";
 import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/game-systems/systems";
+import { buildCutInView, HIDDEN_FX_VIEW } from "@/lib/fx/cut-in-view";
+import { createFxSystem, type FxView } from "@/lib/fx/moment-system";
 import {
   createCameraSystem,
   createRunnerWorld,
@@ -95,9 +97,15 @@ export function assembleRunnerSystems(
   hud: HudView,
   audio: RunnerAudioSink,
   music: RunnerMusicSink = SILENT_MUSIC_SINK,
+  fx: FxView = HIDDEN_FX_VIEW,
 ): readonly GameSystem<RunnerWorld>[] {
   return [
     createIntentSystem(latch),
+    // Always sealed, even with nothing to play: the run-loop consumes its
+    // release, and one topology is easier to reason about than two. Pinned
+    // behind vitals so it sits directly before the run-loop that consumes it,
+    // whatever the registration order.
+    createFxSystem<RunnerWorld>(fx, { after: ["runner/vitals"] }),
     createDifficultySystem(),
     createAvatarSystem(),
     createSegmentsSystem(),
@@ -295,7 +303,10 @@ class RunnerScene extends Phaser.Scene {
       });
     }
 
-    const world = createRunnerWorld(manifest, (Math.random() * 0x100000000) >>> 0);
+    const fxView = await this.buildFxView(manifest);
+    const world = createRunnerWorld(manifest, (Math.random() * 0x100000000) >>> 0, {
+      intro: fxView !== null,
+    });
     const groundLine = groundLineY(world.config);
     const bands = buildParallaxStage(
       this,
@@ -341,6 +352,7 @@ class RunnerScene extends Phaser.Scene {
         hud,
         createWebAudioSink(manifest.audio, (path) => this.url(path)),
         this.soundtrack ?? SILENT_MUSIC_SINK,
+        fxView ?? HIDDEN_FX_VIEW,
       ),
       { events: (current) => current.events },
     );
@@ -603,6 +615,37 @@ class RunnerScene extends Phaser.Scene {
         pickupContainer.x = -current.camera.scrollX;
       },
     };
+  }
+
+  /**
+   * The stage-start cut-in, when the package binds one: both plates loaded
+   * under the canonical alpha policy, the view built over the HUD. A package
+   * with no binding gets null, and the world is born running.
+   */
+  private async buildFxView(manifest: RunnerRuntimeManifest): Promise<FxView | null> {
+    const moment = manifest.fx?.moments.find((entry) => entry.moment === "stage_start");
+    const cutIn = manifest.fx?.cutIn;
+    if (!moment || !cutIn) return null;
+    const portrait = cutIn.portraits.find((entry) => entry.portraitId === moment.portraitId);
+    if (!portrait) return null;
+    const frameKey = "runner:fx:cut_in:frame";
+    const portraitKey = `runner:fx:cut_in:portrait:${portrait.portraitId}`;
+    await loadTransparentSprite(this.url(cutIn.frame.asset), frameKey, this.textures, TRANSPARENCY_POLICY);
+    await loadTransparentSprite(this.url(portrait.asset), portraitKey, this.textures, TRANSPARENCY_POLICY);
+    const view = buildCutInView(this, {
+      viewWidth: RUNNER_VIEW_WIDTH,
+      viewHeight: RUNNER_VIEW_HEIGHT,
+      depth: RUNNER_DEPTHS.fx,
+      frame: cutIn.frame,
+      portrait,
+      frameTextureKey: frameKey,
+      portraitTextureKey: portraitKey,
+      title: manifest.trackDisplayName,
+      subtitle: manifest.displayName,
+    });
+    view.hide();
+    this.disposers.push(() => view.destroy());
+    return view;
   }
 
   override update(_time: number, delta: number): void {

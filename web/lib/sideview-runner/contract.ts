@@ -1,20 +1,22 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v7`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v8`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone. v6
- * keeps everything v5 proved - the arc and duck arithmetic, the separate
+ * is deep-frozen. The runtime plays a track from this document alone. v8
+ * keeps everything v7 proved - the arc and duck arithmetic, the separate
  * `collision_box` / `consequences` / `vitals` trio, the closed ground
- * presentation - and lets an authored audio effect be realized as a generated
- * clip the run published, beside the provider-free oscillator sweep.
+ * presentation, generated audio clips, the authored music transitions - and
+ * adds the optional `fx` block: the screen-FX plates and moment bindings a
+ * stage start plays before the run begins.
  */
 
+import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v7";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 7;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v8";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 8;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -340,6 +342,8 @@ export interface RunnerRuntimeManifest {
   readonly items: readonly RunnerCatalogEntry[];
   readonly audio: RunnerAudio;
   readonly soundtrack: RunnerSoundtrack | null;
+  /** Screen-FX plates and moment bindings; null exactly when the package authors none. */
+  readonly fx: FxBlock | null;
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -1093,6 +1097,8 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     });
   }
 
+  const fx = raw.fx === null || raw.fx === undefined ? null : parseFxBlock(raw.fx, "fx");
+
   const manifest: RunnerRuntimeManifest = {
     gameId: text(raw.game_id, "game_id"),
     displayName: text(raw.display_name, "display_name"),
@@ -1199,6 +1205,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     items: Object.freeze(items),
     audio: runnerAudio(raw.audio),
     soundtrack,
+    fx,
   };
   return Object.freeze(manifest);
 }

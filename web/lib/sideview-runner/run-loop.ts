@@ -40,9 +40,15 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
     contractVersion: "run-loop-system-v3",
     reads: ["intent", "avatar", "obstacles"],
     writes: ["run"],
-    consumes: ["run-ended"],
+    consumes: ["run-ended", "fx-released"],
     update(world) {
       const run = world.run;
+      if (run.phase === "intro") {
+        // The overlay owns the clock: the run begins the frame the rip starts
+        // tearing away, which is what `fx-released` says.
+        if (world.events.ofType("fx-released").length > 0) run.phase = "running";
+        return;
+      }
       if (run.phase === "running") {
         // A miss breaks the chain before this frame's collections extend it,
         // so a frame carrying both starts the new chain at its collections.
@@ -68,7 +74,7 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
       // that caused the death was consumed by its own frame, so this is
       // always a new, deliberate press.
       if (world.intent.action || world.intent.jump) {
-        resetRunnerWorld(world, nextRunSeed(run.rng));
+        resetRunnerWorld(world, nextRunSeed(run.rng), { intro: false });
       }
     },
   };

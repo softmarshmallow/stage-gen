@@ -101,6 +101,8 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     avatar.motion = "death";
     return;
   }
+  // The intro holds the avatar where the reset put it: no physics, no intent.
+  if (world.run.phase === "intro") return;
   // A forgiven fall, decided last frame: applied before anything else moves,
   // so the recovered avatar starts this step standing rather than still in
   // the hole it was pulled out of.

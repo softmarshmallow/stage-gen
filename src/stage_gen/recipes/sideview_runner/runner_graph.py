@@ -30,6 +30,7 @@ from gnode import (
     seal_graph,
 )
 from gnode.providers.openai import supports_openai_native_alpha_model
+from stage_gen.components.game_fx.nodes import add_cut_in_nodes
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
@@ -53,6 +54,7 @@ from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
     catalog_asset_prompt,
+    fx_plate_prompt,
     ground_prompt,
     layer_loop_prompt,
     layer_prompt,
@@ -905,6 +907,22 @@ def build_runner_execution_graph(
                 )
                 sound_effect_validations.append(validated.node_id)
 
+    # -------------------------------------------------------------------- fx
+    # The screen-FX plates are the shared family's nodes, hosted here: the
+    # runner supplies its art direction and its ledger port and nothing else.
+    fx_terminals: list[str] = []
+    fx_sources: dict[str, str] = {}
+    if runner.fx is not None:
+        fx_sources = {entry.reference_id: entry.source for entry in runner.fx.references}
+        fx_terminals = add_cut_in_nodes(
+            builder,
+            root="package-resolve",
+            fx=runner.fx,
+            style_prompt=lambda task: fx_plate_prompt(resolved, task),
+            direction_digests=(direction_digest,),
+            attempts_port=_attempts,
+        )
+
     # ---------------------------------------------------------------- manifest
     # Reference IDs are catalog-local. Two legal IDs in different members may
     # bind the same source path, which is one published artifact rather than
@@ -916,6 +934,7 @@ def build_runner_execution_graph(
             *avatar_sources.values(),
             *prop_sources.values(),
             *item_sources.values(),
+            *fx_sources.values(),
         }
     )
     builder.add(
@@ -931,6 +950,7 @@ def build_runner_execution_graph(
             *catalog_validations,
             *soundtrack_validations,
             *sound_effect_validations,
+            *fx_terminals,
         ),
         input_digests=(package.closure_sha256,),
         ports=(

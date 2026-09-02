@@ -32,6 +32,8 @@ export const RUNNER_DEPTHS = Object.freeze({
   avatar: 30,
   foreground: 40, // + layer order
   hud: 100,
+  /** Screen-FX overlays paint over the HUD; a cut-in uses this and the next few rungs. */
+  fx: 120,
 });
 
 export interface LayerBandPlacement {

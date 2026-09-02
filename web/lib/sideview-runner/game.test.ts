@@ -23,6 +23,8 @@ const DOCUMENTED_ORDER = [
   "runner/segments",
   "runner/obstacles",
   "runner/vitals",
+  // The screen-FX moment seals directly before the run-loop that consumes its release.
+  "fx/moment",
   "runner/run-loop",
   "runner/camera",
   "runner/parallax",

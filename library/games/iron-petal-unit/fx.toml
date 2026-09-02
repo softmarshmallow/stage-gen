@@ -1,0 +1,38 @@
+schema_version = 1
+kind = "game-fx-v1"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "operator_primary"
+source = "references/operator-primary.png"
+source_sha256 = "ad115bd04ea9a98938269400910f7fa7aaa1571027e83df61a29a763ced1cec1"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated operator identity approved for redistribution by the authenticated task owner."]
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated Iron Petal Unit cover approved for redistribution by the authenticated task owner."]
+
+[cut_in.frame]
+mode = "generated_v1"
+layout = "cut_in_frame_1536x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A torn strip in the cover's print-poster register: flat white paper with a bold hand-inked black rim, torn rough and quick like a rescue notice ripped off a greenhouse wall."
+
+[[cut_in.portraits]]
+portrait_id = "stage_start"
+layout = "cut_in_portrait_1536x1024_v1"
+alpha_policy = "transparent_exterior_v1"
+reference_ids = ["operator_primary"]
+prompt = "Mira at the instant the rescue line opens: wide blue-gray eyes locked on the viewer with fierce, determined excitement, freckles, the crooked confident grin, the coral-and-mint sprout barrette in her tousled dark-brown bob, a hint of the cream utility jacket collar."
+
+[[moments]]
+moment = "stage_start"
+effect = "cut_in"
+portrait_id = "stage_start"
+choreography = "tear_reveal_v1"

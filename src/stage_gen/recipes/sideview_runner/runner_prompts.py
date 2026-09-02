@@ -52,6 +52,12 @@ def _style_clause(resolved: ResolvedRunnerPackage) -> str:
     return clause
 
 
+def fx_plate_prompt(resolved: ResolvedRunnerPackage, task: str) -> str:
+    """One screen-FX plate task under the container's art direction."""
+
+    return f"{task}\n\n{_style_clause(resolved)}"
+
+
 def _avatar_contract_clause(
     avatar: RunnerAvatar,
     *,
@@ -246,6 +252,7 @@ def soundtrack_direction() -> str:
 
 __all__ = [
     "avatar_concept_prompt",
+    "fx_plate_prompt",
     "avatar_motion_prompt",
     "catalog_asset_prompt",
     "ground_prompt",

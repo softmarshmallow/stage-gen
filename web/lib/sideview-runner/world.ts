@@ -12,6 +12,8 @@ import type {
   RunnerConsequences,
   RunnerMotionState,
 } from "./contract";
+import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
+import type { FxMoment } from "@/lib/manifest/fx";
 import { createEventQueue, type EventQueue } from "@/lib/game-systems/events";
 import { createGauge } from "@/lib/game-systems/gauge";
 import type { GameSystem } from "@/lib/game-systems/systems";
@@ -41,7 +43,11 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
-export type RunPhase = "running" | "dead";
+/**
+ * `intro` holds the simulation while a screen-FX moment plays over it; the
+ * run-loop leaves it on `fx-released`. Born once per boot, never on restart.
+ */
+export type RunPhase = "intro" | "running" | "dead";
 
 /**
  * Why the run ended, when it has.
@@ -145,6 +151,8 @@ export interface RunnerWorldConfig {
   readonly keepBehindColumns: number;
   /** Screen x the avatar is pinned to, in pixels. */
   readonly avatarScreenX: number;
+  /** The stage-start binding the package plays before the run, if any. */
+  readonly introMoment: FxMoment | null;
 }
 
 export interface RunnerWorld {
@@ -156,6 +164,8 @@ export interface RunnerWorld {
   vitals: VitalsState;
   run: RunState;
   camera: CameraState;
+  /** The screen-FX moment in flight, driven by the generic fx system; null when none. */
+  fx: FxState | null;
   /** This frame's occurrences. Cleared by the sealed tick, not by any system. */
   readonly events: EventQueue<RunnerEvent>;
   readonly config: RunnerWorldConfig;
@@ -204,6 +214,8 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
     streamAheadColumns: viewportColumns + STREAM_MARGIN_COLUMNS,
     keepBehindColumns: STREAM_MARGIN_COLUMNS,
     avatarScreenX: Math.round(RUNNER_VIEW_WIDTH * AVATAR_SCREEN_ANCHOR_FRACTION),
+    introMoment:
+      manifest.fx?.moments.find((entry) => entry.moment === "stage_start") ?? null,
   });
 }
 
@@ -251,8 +263,16 @@ export function createCameraSystem(): GameSystem<RunnerWorld> {
  * a dead one. The initial window is primed here so the avatar's feedback read
  * of the stream is valid from the very first tick.
  */
-export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
+export function resetRunnerWorld(
+  world: RunnerWorld,
+  seed: number,
+  options: { readonly intro?: boolean } = {},
+): void {
   const rng = mulberry32(seed);
+  // The intro plays once per boot: a restart after a death goes straight to
+  // running, because a two-second overlay on every death is the wrong feel
+  // for a runner. The boot passes `intro: true`; the run-loop passes false.
+  const intro = (options.intro ?? false) && world.config.introMoment !== null;
   world.intent = NEUTRAL_RUNNER_INTENT;
   world.difficulty = {
     ceiling: 1,
@@ -286,7 +306,19 @@ export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
     hurtThisFrame: false,
     depletedThisFrame: false,
   };
-  world.run = { phase: "running", seed, rng, score: 0, chain: 0, multiplier: 1, cause: null };
+  world.run = {
+    phase: intro ? "intro" : "running",
+    seed,
+    rng,
+    score: 0,
+    chain: 0,
+    multiplier: 1,
+    cause: null,
+  };
+  world.fx = null;
+  if (intro && world.config.introMoment !== null) {
+    beginFxMoment(world, world.config.introMoment.moment, world.config.introMoment.choreography);
+  }
   world.camera = { scrollX: cameraScrollX(world.avatar.distanceColumns, world.config) };
   streamAhead(
     world.segments,
@@ -297,7 +329,11 @@ export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
   );
 }
 
-export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number): RunnerWorld {
+export function createRunnerWorld(
+  manifest: RunnerRuntimeManifest,
+  seed: number,
+  options: { readonly intro?: boolean } = { intro: true },
+): RunnerWorld {
   const config = runnerWorldConfig(manifest);
   // The reset fills every dynamic field; the placeholders exist only to give
   // it a complete object to work on.
@@ -345,10 +381,11 @@ export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number)
       cause: null,
     },
     camera: { scrollX: 0 },
+    fx: null,
     events: createEventQueue<RunnerEvent>(),
     config,
   };
-  resetRunnerWorld(world, seed);
+  resetRunnerWorld(world, seed, options);
   // Sanity-check the ramp profile eagerly so a bad name fails at boot.
   rampProfile(config.rampProfile);
   return world;

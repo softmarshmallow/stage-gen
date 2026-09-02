@@ -118,7 +118,7 @@ See [side-view platformer asset contracts](asset-contracts.md) and the
 The `sideview-runner` sibling resolves the same prepared-package container but
 owns reaction-fair authored segment admission, structural-ground or atlas
 presentation, a combined avatar state machine, auto-run difficulty, pickups,
-hazards, and runner audio. It emits `sideview-runner-runtime-v7`; the fixed-step
+hazards, and runner audio. It emits `sideview-runner-runtime-v8`; the fixed-step
 consumer under `web/lib/sideview-runner/` owns camera, collision, streaming,
 and play presentation. Its [runner specification](game/runner.md) owns the
 exact contracts and machine-checked graph snapshot.

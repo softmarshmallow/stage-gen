@@ -39,6 +39,7 @@ from stage_gen.components.game_contract import (
     load_prepared_game_contract_bytes,
 )
 from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
+from stage_gen.components.game_fx import GameFx, load_game_fx_bytes
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.components.platformer_content import (
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
@@ -165,6 +166,8 @@ class ResolvedRunnerMember:
     items: ItemContentCatalog
     audio: RunnerAudioContract
     soundtrack: GameSoundtrack | None
+    #: The screen-FX document, when the game authors one for this genre.
+    fx: GameFx | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -885,6 +888,23 @@ def _resolve_runner_member(
             "invalid_soundtrack_contract",
         )
     )
+    fx = (
+        None
+        if runner_member.fx is None
+        else _load_locked(
+            member(runner_member.fx.source),
+            load_game_fx_bytes,
+            "invalid_game_fx_contract",
+        )
+    )
+    if fx is not None:
+        for fx_reference in fx.references:
+            data = locked(
+                fx_reference.source,
+                fx_reference.source_sha256,
+                f"fx reference {fx_reference.reference_id}",
+            )
+            _validate_image(data, fx_reference.source)
     track_reference_bytes: dict[str, bytes] = {}
     for track_reference in track.references:
         data = locked(
@@ -921,7 +941,13 @@ def _resolve_runner_member(
         items=items,
         audio=audio,
         soundtrack=soundtrack,
+        fx=fx,
     )
+
+
+#: The moments the runner runtime emits. A bound moment outside this set is paid
+#: generation the runtime would never play, so it is refused here, offline.
+RUNNER_FX_MOMENTS: frozenset[str] = frozenset({"stage_start"})
 
 
 def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunnerMember) -> None:
@@ -941,11 +967,19 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
         runner.items.game_id,
         runner.audio.game_id,
         *(() if runner.soundtrack is None else (runner.soundtrack.game_id,)),
+        *(() if runner.fx is None else (runner.fx.game_id,)),
     ]
     if any(game_id != game.game_id for game_id in owned):
         raise GamePackageValidationError(
             "cross_game_identity", "every package contract must share game.toml game_id"
         )
+    if runner.fx is not None:
+        unplayed = sorted(set(runner.fx.moment_names()) - RUNNER_FX_MOMENTS)
+        if unplayed:
+            raise GamePackageValidationError(
+                "invalid_game_fx_contract",
+                "the runner runtime emits no such moment: " + ", ".join(unplayed),
+            )
     if runner.member.cast.avatar_id != runner.avatar.avatar.avatar_id:
         raise GamePackageValidationError(
             "unresolved_cross_reference",

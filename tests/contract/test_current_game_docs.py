@@ -20,6 +20,7 @@ CURRENT_GAME_DOC_PATHS = (
     "docs/spec/game/dialogue-and-cutscene-sequences.md",
     "docs/spec/game/pointclick-room.md",
     "docs/spec/game/runner.md",
+    "docs/spec/game/fx.md",
 )
 
 RETIRED_PREPARED_IDENTITIES = (
@@ -85,6 +86,9 @@ RETIRED_PREPARED_IDENTITIES = (
     "sideview-runner-runtime-v5",
     "runner-audio-v2",
     "sideview-runner-runtime-v6",
+    # Retired when the runtime manifest gained the optional screen-FX block:
+    # the cut-in plates and the moment bindings a stage start plays.
+    "sideview-runner-runtime-v7",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -201,7 +205,11 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v7`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v8`" in documents["docs/game-package.md"]
+    fx = documents["docs/spec/game/fx.md"]
+    assert "exact current identity is `game-fx-v1`" in fx
+    assert "`cut_in_frame_1536x1024_v1`" in fx
+    assert "`tear_reveal_v1`" in fx
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue

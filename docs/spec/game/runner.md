@@ -34,9 +34,12 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
 | `runner/audio.toml` | `runner-audio-v3` | Required event bindings, sound-effect realizations (oscillator sweeps or generated clips), and the soundtrack's transitions at the run's edges |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
+| `fx.toml` | `game-fx-v1` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start` |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
-scenario member yet; both are additive later. The member's cast is one
+scenario member yet; both are additive later. The screen-FX document is the
+first root sibling the genre consumes: it is game-global, and the runner is
+only the first genre to emit one of its moments. The member's cast is one
 `avatar_id`; character identity is shared with a sibling genre by binding the
 same digest-locked reference bytes, never by a container-level cast join.
 
@@ -360,7 +363,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v7`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v8`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -394,6 +397,18 @@ the avatar. A package whose every consequence is terminal draws no bar, because
 a bar that can only read full is a promise about mistakes the player does not
 have.
 
+A package that binds the `stage_start` moment is born in an `intro` phase: the
+world is built, the avatar stands at its start, and nothing moves while the
+generic `fx/moment` system plays the bound cut-in over the HUD — the frame
+plate sweeps in, the portrait slides in behind the published mask polygon, the
+stripes drift, the lettering (the track's and the game's display names) lands,
+hold, tear away. The run-loop leaves `intro` on the system's `fx-released`
+event, which the choreography raises as the tear-away begins, so the run starts
+under the rip rather than after it. The intro plays once per boot; a restart
+after a death goes straight to `running`, because a two-second overlay on every
+death is the wrong feel for a runner. A package with no `fx.toml` is born
+`running`, exactly as before.
+
 Keyboard play uses Space or Arrow Up to jump and holds Arrow Down to slide.
 Pointer play divides the canvas into stable zones: the upper 68% jumps (and
 restarts after death), while holding the lower 32% holds the slide until every
@@ -424,13 +439,13 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "87d1af38c26c8a2183403196319415a05b61df7dd5ef1c5d7da1a8e12ef0f10c",
-  "node_count": 76,
+  "topology_sha256": "13d550836916b280cf73699bb6496e081a003775ce217cf2cadb82f999f37ec8",
+  "node_count": 82,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 42,
-    "image_generation": 27,
-    "structured_generation": 2,
+    "local": 44,
+    "image_generation": 29,
+    "structured_generation": 4,
     "music_generation": 2,
     "sound_effect_generation": 3
   },
@@ -470,7 +485,7 @@ rather than only the atlas branch. Regenerate with
 ```
 <!-- pipeline-graph-contract:end -->
 
-For the exact Iron Petal Unit fixture, the normal graph contains 31 first-pass
+For the exact Iron Petal Unit fixture, the normal graph contains 35 first-pass
 provider operations. Provider transport retries and later semantic
 regenerations are reported by their owning node and are not extra graph nodes.
 Every provider node also publishes one attempt-ledger artifact that binds the exact graph-visible
@@ -487,8 +502,9 @@ lineage.
 | Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 0 | 5 |
 | Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 2 | 0 | 2 |
 | Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 3 | 3 |
+| Screen FX | One cut-in frame plate and one `stage_start` portrait plate, each generated, admitted (mask polygon traced), and reviewed | 2 | 2 | 0 | 0 | 2 |
 | Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **76 nodes** | **27** | **2** | **2** | **3** | **42** |
+| **Total** | **82 nodes** | **29** | **4** | **2** | **3** | **44** |
 
 ## Resolution and admission
 

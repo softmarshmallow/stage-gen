@@ -148,3 +148,35 @@ describe("the pickup chain", () => {
     expect(formatCombo(17, 3)).toBe("\u00d73 \u00b7 17 chain");
   });
 });
+
+describe("the intro phase", () => {
+  test("holds the run until the fx moment releases it, then never replays on restart", async () => {
+    const { fxBlockFixture } = await import("@/lib/manifest/fx");
+    const document = runnerManifestFixture();
+    document.fx = fxBlockFixture();
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(document), 1);
+    expect(world.run.phase).toBe("intro");
+    expect(world.fx?.moment).toBe("stage_start");
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("intro");
+    world.events.emit({ type: "fx-released", moment: "stage_start" });
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("running");
+
+    world.events.beginFrame();
+    world.events.emit({ type: "run-ended", source: "pit" });
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("dead");
+    world.events.beginFrame();
+    world.intent = runnerIntent({ jump: true });
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("running");
+    expect(world.fx).toBeNull();
+  });
+
+  test("a package with no fx block is born running", () => {
+    const world = createRunnerWorld(manifest, 1);
+    expect(world.run.phase).toBe("running");
+    expect(world.fx).toBeNull();
+  });
+});

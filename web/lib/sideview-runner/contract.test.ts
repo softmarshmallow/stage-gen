@@ -613,3 +613,31 @@ describe("the hurt obligation", () => {
     expect(parsed.avatar.motions.map((entry) => entry.state)).toContain("hurt");
   });
 });
+
+describe("the fx block", () => {
+  test("is absent by default and parsed when published", async () => {
+    const { fxBlockFixture } = await import("@/lib/manifest/fx");
+    expect(parseRunnerRuntimeManifest(validRunnerManifest()).fx).toBeNull();
+    const document = validRunnerManifest();
+    document.fx = fxBlockFixture();
+    const manifest = parseRunnerRuntimeManifest(document);
+    expect(manifest.fx?.cutIn?.frame.asset).toBe("fx/cut_in/frame.png");
+    expect(manifest.fx?.moments[0]?.moment).toBe("stage_start");
+  });
+
+  test("a broken fx block refuses the whole manifest", async () => {
+    const { fxBlockFixture } = await import("@/lib/manifest/fx");
+    const document = validRunnerManifest();
+    const fx = fxBlockFixture();
+    (fx.moments as Record<string, unknown>[])[0].choreography = "slam_v1";
+    document.fx = fx;
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("choreography must be one of");
+  });
+
+  test("the previous runtime identity is refused", () => {
+    const document = validRunnerManifest();
+    document.kind = "sideview-runner-runtime-v7";
+    document.schema_version = 7;
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(RUNNER_REFUSAL);
+  });
+});

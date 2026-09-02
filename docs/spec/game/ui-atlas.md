@@ -82,7 +82,7 @@ generated art, **code** is engine primitives, **none** is absent.
 | | `cooldown_sweep` | runtime mask, no art | – | none | not art |
 | Icons | see below | `fixed` cell grid | – | none | on demand |
 | Feedback | `toast_plate` | `three_slice_h` | – | code, frameless stat log | |
-| | `damage_vignette` | `fixed` full frame | – | none | |
+| | `damage_vignette` | `fixed` full frame | – | none; full-frame overlays belong to the [screen FX](fx.md) family, where `vignette` is a reserved effect kind | |
 | | `hit_flash` | runtime tint, no art | – | none | not art |
 | Composites | title, pause, settings, results, level complete, loading, shop, quest log, dialogue box | layout | – | code, death and end cards | not art |
 

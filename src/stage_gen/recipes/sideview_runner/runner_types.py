@@ -10,6 +10,7 @@ judges - every other review stays an operator decision.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.game_fx.nodes import FX_CUT_IN_NODE_TYPES
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -55,9 +56,9 @@ SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v7"
+MANIFEST_KIND = "sideview-runner-runtime-v8"
 #: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 7
+MANIFEST_SCHEMA_VERSION = 8
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -262,10 +263,9 @@ MANIFEST_ASSEMBLE = NodeType(
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    # v8: the audio block gained the authored music transitions (what the
-    # soundtrack does on death, restart, and hurt), so the runtime document
-    # moved to v7 with it.
-    contract_version="runner-manifest-assemble-v8",
+    # v9: the manifest gained the optional ``fx`` block (cut-in plates and
+    # moment bindings), so the runtime document moved to v8 with it.
+    contract_version="runner-manifest-assemble-v9",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
@@ -291,6 +291,7 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     SOUNDTRACK_VALIDATE,
     SOUND_EFFECT_GENERATE,
     SOUND_EFFECT_VALIDATE,
+    *FX_CUT_IN_NODE_TYPES,
     MANIFEST_ASSEMBLE,
 )
 

@@ -102,8 +102,8 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
       obstacles.collectedThisFrame = [];
       obstacles.missedThisFrame = 0;
       // Feedback read of last frame's phase: a dead avatar collides with
-      // nothing and collects nothing.
-      if (world.run.phase === "dead") return;
+      // nothing and collects nothing, and a held one has not started.
+      if (world.run.phase !== "running") return;
 
       const avatar = avatarBox(world.avatar, world.config);
       for (const hazard of streamedHazards(world.segments)) {

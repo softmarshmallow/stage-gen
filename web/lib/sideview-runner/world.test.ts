@@ -92,3 +92,32 @@ describe("world geometry", () => {
     expect(config.propHeightUnits.get("toppled_cart")).toBe(1);
   });
 });
+
+describe("the intro moment", () => {
+  test("is read off the fx block's stage_start binding and born once per boot", async () => {
+    const { fxBlockFixture } = await import("@/lib/manifest/fx");
+    const document = runnerManifestFixture();
+    document.fx = fxBlockFixture();
+    const withFx = parseRunnerRuntimeManifest(document);
+    expect(runnerWorldConfig(withFx).introMoment?.portraitId).toBe("stage_start");
+    const world = createRunnerWorld(withFx, 7);
+    expect(world.run.phase).toBe("intro");
+    expect(world.fx?.startedAt).toBeNull();
+    resetRunnerWorld(world, 8, { intro: false });
+    expect(world.run.phase).toBe("running");
+    expect(world.fx).toBeNull();
+    const silent = createRunnerWorld(withFx, 7, { intro: false });
+    expect(silent.run.phase).toBe("running");
+  });
+
+  test("the avatar and obstacles hold during the intro", async () => {
+    const { fxBlockFixture } = await import("@/lib/manifest/fx");
+    const { stepAvatar } = await import("./avatar");
+    const document = runnerManifestFixture();
+    document.fx = fxBlockFixture();
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(document), 7);
+    const before = world.avatar.distanceColumns;
+    stepAvatar(world, 1 / 60);
+    expect(world.avatar.distanceColumns).toBe(before);
+  });
+});

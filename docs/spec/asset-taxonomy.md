@@ -75,6 +75,7 @@ the old names.
 | `components/game_sequence` | `components/dialogue_sequence` | `2d/frontview/vn/sequence` | b with a front-view lock |
 | `components/game_contract` | unchanged — the container | declares the profile; not itself camera-scoped | container |
 | `components/game_ui` | unchanged | `2d/ui` | b — screen-space |
+| `components/game_fx` | new in the cut-in pass | `2d/fx` | b — screen-space transitions and overlays; `cut_in.*` today, the reserved home for the deferred world-space effect sprites (`sprite.*`) |
 | `components/game_soundtrack` | unchanged | `soundtrack` | b |
 | `components/character_profile` | unchanged | `character_profile` | a/b |
 | `components/image_repeat` | unchanged | `2d/image_repeat` | a by declaration, c in practice — repair prompts assume a gravity-bearing horizon; documented, ungated |

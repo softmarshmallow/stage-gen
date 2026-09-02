@@ -360,9 +360,10 @@ class RunnerGenreMember(PersistedContractModel):
 
     The member table is minimal on purpose: gameplay (named profiles), one
     track of authored tiled segments, one avatar, obstacle props, and pickup
-    items, and explicit event-to-effect audio. Soundtrack is optional; there is
-    no UI member (the runtime draws its distance/score HUD itself) and no
-    scenario member in v1. The family
+    items, and explicit event-to-effect audio. Soundtrack is optional, and so
+    is the screen-FX document (``fx.toml``, a root sibling the genre consumes at
+    its stage start); there is no UI member (the runtime draws its
+    distance/score HUD itself) and no scenario member in v1. The family
     claims the fixed `runner/` prefix so its members can never collide with a
     sibling genre's.
     """
@@ -375,6 +376,7 @@ class RunnerGenreMember(PersistedContractModel):
     content: RunnerContentSources
     audio: PackageSource
     soundtrack: PackageSource | None = None
+    fx: PackageSource | None = None
 
     @model_validator(mode="after")
     def validate_member_sources(self) -> RunnerGenreMember:
@@ -390,6 +392,7 @@ class RunnerGenreMember(PersistedContractModel):
                 if self.soundtrack is None
                 else {"soundtrack": (self.soundtrack.source, "runner/soundtrack.toml")}
             ),
+            **({} if self.fx is None else {"fx": (self.fx.source, "fx.toml")}),
         }
         for label, (actual, expected) in exact_sources.items():
             if actual != expected:
@@ -407,6 +410,7 @@ class RunnerGenreMember(PersistedContractModel):
             self.content.items.source,
             self.audio.source,
             *([] if self.soundtrack is None else [self.soundtrack.source]),
+            *([] if self.fx is None else [self.fx.source]),
         ]
 
 
