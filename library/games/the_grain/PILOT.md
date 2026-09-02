@@ -1216,6 +1216,30 @@ display name. No state, no lifecycle, no toggle — the leaf simply covers it wh
 something to draw, so there is nothing to get wrong and nothing to leave stuck on screen.
 `tsc` clean, 1379 tests still passing.
 
+### 07:36 — Everything is committed, and it nearly was not
+
+A sweep of the working tree found **49 uncommitted files** — the whole contract stack and
+the whole scene recipe, plus the consumer's `/case/<tag>` route, which was *untracked*. Both
+engineering lanes had ended their reports with "nothing committed", correctly, because the
+lead had taken commits off the lanes at 05:52 so that five agents would not be committing
+concurrently. The lead then committed the pilot's own package a dozen times and did not
+commit theirs.
+
+Caught at T+1:52 with four hours to spare. Had it been caught at the freeze it would have
+been a scramble, and had it not been caught the pilot would have reported a playable episode
+whose contracts existed only in one machine's working tree.
+
+Committed as three coherent changes rather than one heap: the consumer's routes, the
+contract stack (`scenario-v2`, `case-v1`, liveness, the flag cap, `case bundle`), and the
+scene recipe (`dialogue-scene-v4` and `v5`). `next-env.d.ts` was reverted rather than
+committed — it is Next's own generated churn.
+
+*The decision that caused it was still right.* Concentrating commits in the lead avoided
+five agents racing in one tree, and a second agent unrelated to this pilot was committing to
+the same branch throughout. What it needed, and did not have, was a step in the lead's own
+loop: **when a lane reports done, commit its work before answering it.** That belongs in the
+next brief.
+
 ---
 
 ## 3. Ledger
