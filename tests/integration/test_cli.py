@@ -649,7 +649,9 @@ def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
     gallery_report = _gallery(gallery_out, "cli-gallery")
     assert gallery_report["phase"] == "gallery"
     assert gallery_report["node_count"] == 42
-    assert sum(gallery_report["counts"].values()) == 8
+    counts = gallery_report["counts"]
+    assert isinstance(counts, dict)
+    assert sum(counts.values()) == 8
 
     # A reroll advances the ledger the first run left behind, rather than
     # quietly starting a new one and restoring every other rejected picture.
