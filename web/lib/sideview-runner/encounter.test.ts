@@ -163,6 +163,39 @@ describe("arming the encounter", () => {
     expect(world.events.ofType("encounter-started")[0]?.index).toBe(0);
   });
 
+  test("announces itself exactly once, however long it waits for the overlay", () => {
+    const world = encounterWorld();
+    standOnArena(world);
+    world.avatar.distanceColumns = CONFIG.intervalColumns;
+    world.events.beginFrame();
+    stepEncounter(world, DT, DT);
+    world.avatar.distanceColumns = 4;
+    // The stage-start cut-in is still on screen for several frames.
+    world.fx = {
+      moment: "stage_start",
+      choreography: "tear_reveal_v1",
+      startedAt: 0,
+      released: false,
+    };
+    let announcements = 0;
+    let clock = DT;
+    for (let tick = 0; tick < 30; tick += 1) {
+      world.events.beginFrame();
+      clock += DT;
+      stepEncounter(world, clock, DT);
+      announcements += world.events.ofType("encounter-started").length;
+    }
+    expect(announcements).toBe(0);
+
+    world.fx = null;
+    world.events.beginFrame();
+    clock += DT;
+    stepEncounter(world, clock, DT);
+    announcements += world.events.ofType("encounter-started").length;
+
+    expect(announcements).toBe(1);
+  });
+
   test("never clobbers a moment already playing", () => {
     const world = encounterWorld();
     standOnArena(world);

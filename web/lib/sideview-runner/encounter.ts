@@ -256,15 +256,16 @@ export function stepEncounter(world: RunnerWorld, now: number, dt: number): void
       // with the avatar in a pit.
       const standing = chunkAt(world.segments, Math.floor(world.avatar.distanceColumns));
       if (standing?.role !== "arena") return;
-      world.events.emit({ type: "encounter-started", index: state.encounterIndex });
       const moment = world.config.encounterMoment;
+      // Never clobber a moment already in flight; the stage-start cut-in gets
+      // to finish. Announced only once the encounter actually leaves this
+      // phase, because waiting here is a frame that repeats.
+      if (moment !== null && world.fx !== null) return;
+      world.events.emit({ type: "encounter-started", index: state.encounterIndex });
       if (moment === null) {
         beginBattle(world, state, now);
         return;
       }
-      // Never clobber a moment already in flight; the stage-start cut-in gets
-      // to finish.
-      if (world.fx !== null) return;
       beginFxMoment(world, moment.moment, moment.choreography);
       enterPhase(state, "cut_in", now);
       return;
