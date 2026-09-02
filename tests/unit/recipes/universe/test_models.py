@@ -153,7 +153,7 @@ def test_direction_warnings_flag_medium_and_register_drift() -> None:
 def test_image_review_verdict_must_agree_with_its_grades() -> None:
     with pytest.raises(ValidationError):
         models.ImageReview(
-            review_id="review_e00",
+            review_id="universe_independent_image_review",
             entity_id="e00",
             artifact_sha256="0" * 64,
             entity_identity="fail",

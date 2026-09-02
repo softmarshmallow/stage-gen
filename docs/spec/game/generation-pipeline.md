@@ -8,7 +8,10 @@
 > [runner](runner.md), dialogue-scene, and
 > [point-and-click room](pointclick-room.md) recipes each declare their own graph
 > document kind and checked graph contract; their node tables are not folded
-> into the platformer snapshot below. The typed package graph is
+> into the platformer snapshot below. So does
+> [universe](../universe/generation-v1.md), which is not a game at all: it
+> builds a storyworld package to read rather than a package to play, and seals
+> two graphs because the size of its gallery is a result of its first phase. The typed package graph is
 > the machine authority, and the compact graph contract embedded below is checked against the
 > Bellweather fixture. Text-only prompt planning, `WorldSpec`, `VillageSpec`, map books, and the
 > former Wave A/Wave B stage barriers are not inputs to this pipeline.

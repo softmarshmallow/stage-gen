@@ -336,7 +336,7 @@ class ReviewCheck(ContractModel):
 
 
 class SemanticReview(ContractModel):
-    review_id: Literal["universe_v1_independent_semantic_review"]
+    review_id: Literal["universe_independent_semantic_review"]
     reviewer_role: Literal["independent_semantic_reviewer"]
     proposal_sha256: Sha256
     plan_sha256: Sha256
@@ -357,7 +357,7 @@ class SemanticReview(ContractModel):
 
 
 class ImageReview(ContractModel):
-    review_id: Literal["universe_v1_independent_image_review"]
+    review_id: Literal["universe_independent_image_review"]
     entity_id: StableId
     artifact_sha256: Sha256
     verdict: Literal["admit", "reject"]
