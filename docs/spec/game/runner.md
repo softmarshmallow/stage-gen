@@ -259,20 +259,27 @@ cause - the base is for a cell nobody painted, never for the rim of one
 somebody did - so the painting is laid down twice, its grown solid core under
 its own true-alpha edge.
 
-**Lean consistency.** The diagonal edge family's lean, sampled by horizontal
-thirds of the authored body, must fit inside one arc of orientation: two
-opposite receding families in one tile are two projection systems. The lean is
-the magnitude-weighted circular mean of the doubled edge angles, and the spread
-is the smallest arc covering the thirds, because orientation is circular modulo
-180 degrees and +87 against -87 is six degrees of disagreement rather than 174.
+**Lean consistency.** Two receding families that disagree, in one tile, are two
+projection systems. Sampled by horizontal thirds of the authored body: each
+third's lean is the magnitude-weighted circular mean of its doubled diagonal
+edge angles, and the spread is the smallest arc covering the thirds, because
+orientation is circular modulo 180 degrees and +87 against -87 is six degrees
+of disagreement rather than 174.
 
-The claim is deliberately narrow. Iron Petal's twelve shipped tiles spread 7.2
-to 59.6 degrees across their thirds while being visibly correct front
-elevations, because honest greenhouse detail - a pipe bend against a bracket
-chamfer against a hanging vine - moves the measured lean that far on its own;
-the same tiles hatched into an opposite-leaning splay spread 76.0 to 84.6, and
-the tolerance sits in that gap. Refusing a single receding top face would need a
-detector local to the surface run rather than a whole-tile edge statistic.
+A third only speaks when its diagonal energy is concentrated enough to *be* a
+family. That qualifier is what makes the rest of the sentence enforceable.
+Without it the reported lean is the circular mean of scattered detail - a pipe
+bend against a bracket chamfer against a hanging vine - which wanders freely,
+and the tolerance has to be opened until it admits that wandering: at 68
+degrees a correct tile cleared it by a tenth of a degree. Measured per third,
+correct Iron Petal art concentrates at 0.016 to 0.339 and never reaches the
+floor, so every shipped tile abstains and refuses nothing, while the same tiles
+hatched into an opposite-leaning splay reach 0.581 at the median and spread
+73.2 to 84.9 degrees.
+
+The claim stays narrow either way. Refusing a *single* receding top face would
+need a detector local to the surface run rather than a whole-tile edge
+statistic.
 
 `oblique_v1` is the reserved second member. It would carry a receding angle and
 a depth ratio (cabinet is 0.5, cavalier 1.0), and it is not merely unbuilt: the

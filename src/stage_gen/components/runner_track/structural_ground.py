@@ -106,21 +106,20 @@ _MAX_GUIDE_RESIDUE_DISTANCE: Final = 10
 _MAX_GUIDE_RESIDUE_SHARE: Final = 0.06
 
 #: Under a parallel projection every receding edge runs the same way, so one
-#: tile must not carry two opposite families - the `\|/` splay this check was
-#: opened for. Calibrated against real art with an instrument that resolves
-#: angles at all: Iron Petal's twelve shipped tiles spread 7.2 to 59.6 degrees
-#: across their thirds, and those same tiles hatched into an opposite-leaning
-#: splay spread 76.0 to 84.6. The tolerance sits in the gap.
+#: tile must not carry two receding families that disagree. Both halves of that
+#: sentence are now enforceable, because a third only speaks when it has a
+#: family at all: measured per third, correct Iron Petal art concentrates its
+#: diagonal energy at 0.016 to 0.339 and never reaches the floor below, while
+#: the same tiles hatched into an opposite-leaning splay reach 0.581 at the
+#: median. So every shipped tile is silent here and refuses nothing, and every
+#: splay speaks with a spread of 73.2 to 84.9 degrees.
 #:
-#: That is a weaker claim than this file's opening paragraph might suggest, and
-#: it is stated weakly on purpose. Legitimate greenhouse detail - a pipe bend
-#: against a bracket chamfer against a hanging vine - already moves the measured
-#: lean sixty degrees between thirds of a tile that is visibly a correct front
-#: elevation, so no threshold on this statistic can see subtler drift. Refusing
-#: one receding top face needs a detector local to the surface run rather than a
-#: whole-tile edge statistic, and the earlier 14-degree tolerance only looked
-#: tighter because the instrument under it could return exactly one number.
-_MAX_PROJECTION_LEAN_SPREAD_DEGREES: Final = 68.0
+#: The first version of this constant sat at 68, in a gap between correct art
+#: and the controls, because the lean was read from thirds that had no family
+#: and were reporting the mean of noise: `raised_bed` cleared it by a tenth of
+#: a degree. A statistic that has to be given that much room is measuring the
+#: wrong thing, and this one now abstains instead.
+_MAX_PROJECTION_LEAN_SPREAD_DEGREES: Final = 30.0
 
 #: Leans below this are read as horizontal detail rather than a receding edge,
 #: and leans this close to vertical are structural uprights. Both are excluded
@@ -134,6 +133,12 @@ _MIN_PROJECTION_EDGE_MAGNITUDE: Final = 24
 #: Below this many qualifying edge pixels a third has nothing to say, and a
 #: flat material is not a projection failure.
 _MIN_PROJECTION_EDGE_SAMPLES: Final = 64
+
+#: How concentrated a third's diagonal energy must be before it counts as a
+#: receding FAMILY rather than scattered detail. Without it the reported lean is
+#: the circular mean of noise, which wanders freely and makes any tolerance
+#: above it arbitrary.
+_MIN_PROJECTION_FAMILY_CONCENTRATION: Final = 0.40
 
 
 #: How the lean estimator reads gradients. Pillow's kernel filter clamps its
@@ -1093,7 +1098,10 @@ def diagonal_family_lean_degrees(region: Image.Image) -> float | None:
 
     A mean rather than the modal bin, because the mode jumps between unrelated
     bins on legitimate art - a pipe bend one moment, a bracket chamfer the next
-    - while the mean moves as the picture does.
+    - while the mean moves as the picture does. And None unless that mean is
+    concentrated enough to be a family: the mean of scattered detail is the mean
+    of noise, and a region with no receding family has nothing to say about the
+    projection rather than an opinion worth comparing.
 
     Pure Pillow on purpose: this project depends on exactly httpx, pillow and
     pydantic, and one check does not justify adding numpy to that.
@@ -1118,6 +1126,7 @@ def diagonal_family_lean_degrees(region: Image.Image) -> float | None:
     gradients_y = cast(Sequence[int], vertical.crop(inner).get_flattened_data())
     sum_x = 0.0
     sum_y = 0.0
+    weight = 0.0
     samples = 0
     for raw_x, raw_y in zip(gradients_x, gradients_y, strict=True):
         gradient_x = raw_x - offset
@@ -1134,8 +1143,11 @@ def diagonal_family_lean_degrees(region: Image.Image) -> float | None:
         doubled = math.radians(angle * 2.0)
         sum_x += magnitude * math.cos(doubled)
         sum_y += magnitude * math.sin(doubled)
+        weight += magnitude
         samples += 1
-    if samples < _MIN_PROJECTION_EDGE_SAMPLES:
+    if samples < _MIN_PROJECTION_EDGE_SAMPLES or weight <= 0:
+        return None
+    if math.hypot(sum_x, sum_y) / weight < _MIN_PROJECTION_FAMILY_CONCENTRATION:
         return None
     return math.degrees(math.atan2(sum_y, sum_x)) / 2.0
 
