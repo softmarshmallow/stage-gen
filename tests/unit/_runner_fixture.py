@@ -1,5 +1,12 @@
-"""A synthetic two-genre bellweather: the committed platformer package plus a
-runner member authored in tmp, sharing the cover reference by digest.
+"""A synthetic two-genre package: the committed bellweather platformer plus a
+runner member authored entirely in tmp, sharing the cover reference by digest.
+
+Every runner member here is fixture-authored. Bellweather carried a committed
+runner member while the genre was being built, and it was retired once Iron
+Petal became the canonical runner game - so these tests no longer mirror a
+committed closure, they construct the one they mean to test. That is the
+better arrangement anyway: a refusal test that depends on a real package's
+authoring choices fails for two reasons at once.
 
 The default chunks are compliant with the full `reaction_fair_v1` placement
 discipline - apron, separations, landing clearance, press windows, telegraph
@@ -270,6 +277,144 @@ reference_ids = ["cover_style"]
 prompt = "A tiny warm-brass coin with one pressed petal and no text; clean collectible icon."
 """
 
+RUNNER_AUDIO = """schema_version = 1
+kind = "runner-audio-v1"
+game_id = "bellweather"
+revision = 1
+
+[bindings]
+takeoff = "takeoff_whistle"
+air_jump = "air_jump_whistle"
+land = "soft_landing"
+slide = "leaf_slide"
+hazard_cleared = "clear_sparkle"
+collect = "token_chime"
+death = "run_ended"
+
+[[effects]]
+effect_id = "takeoff_whistle"
+display_name = "Takeoff Whistle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 330
+end_frequency_hz = 660
+duration_milliseconds = 120
+gain = 0.16
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "air_jump_whistle"
+display_name = "Air Jump Whistle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 440
+end_frequency_hz = 990
+duration_milliseconds = 120
+gain = 0.16
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "soft_landing"
+display_name = "Soft Landing"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 220
+end_frequency_hz = 160
+duration_milliseconds = 80
+gain = 0.12
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "leaf_slide"
+display_name = "Leaf Slide"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sawtooth"
+start_frequency_hz = 200
+end_frequency_hz = 120
+duration_milliseconds = 160
+gain = 0.07
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "clear_sparkle"
+display_name = "Clear Sparkle"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 520
+end_frequency_hz = 780
+duration_milliseconds = 100
+gain = 0.10
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "token_chime"
+display_name = "Token Chime"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 660
+end_frequency_hz = 880
+duration_milliseconds = 90
+gain = 0.12
+strength_pitch_multiplier = 1.0
+
+[[effects]]
+effect_id = "run_ended"
+display_name = "Run Ended"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "square"
+start_frequency_hz = 220
+end_frequency_hz = 55
+duration_milliseconds = 450
+gain = 0.14
+strength_pitch_multiplier = 0.0
+"""
+
+RUNNER_SOUNDTRACK = """schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "bellweather"
+revision = 1
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "sunpetal_sprint"
+display_name = "Sunpetal Sprint"
+creative_brief = "An original bright fantasy runner instrumental, playful and quick."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "orchard_rush"
+display_name = "Orchard Rush"
+creative_brief = "An original cheerful orchard-run instrumental, warm and lively."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+"""
+
 DEFAULT_CHUNKS = "\n".join(
     [
         chunk_toml("warmup_flat", WIDE_FLAT_ROWS),
@@ -286,6 +431,48 @@ DEFAULT_CHUNKS = "\n".join(
 )
 
 
+#: The runner member appended to the committed platformer container. A TOML
+#: array-of-tables entry is position-independent, so appending it declares a
+#: second genre without rewriting the container the platformer tests share.
+RUNNER_MEMBER = """
+[[genres]]
+genre = "runner"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
+avatar_id = "wayfarer_sprinter"
+
+[genres.gameplay]
+source = "runner/gameplay.toml"
+
+[genres.track]
+source = "runner/track.toml"
+
+[genres.content.avatar]
+source = "runner/content/avatar.toml"
+
+[genres.content.props]
+source = "runner/content/props.toml"
+
+[genres.content.items]
+source = "runner/content/items.toml"
+
+[genres.audio]
+source = "runner/audio.toml"
+
+[genres.soundtrack]
+source = "runner/soundtrack.toml"
+"""
+
+
 def two_genre_package(
     tmp_path: Path,
     *,
@@ -294,13 +481,18 @@ def two_genre_package(
     avatar: str = RUNNER_AVATAR,
     props: str = RUNNER_PROPS,
 ) -> Path:
-    """Copy the committed two-genre bellweather and swap in this fixture's
-    authored runner gameplay and track, so tests control the chunks under
-    admission while every other member stays the canonical one."""
+    """Copy the committed platformer bellweather and author a runner member on
+    top of it, so tests control every chunk under admission while the
+    platformer-owned members stay the canonical ones."""
 
     package = tmp_path / "bellweather"
     shutil.copytree(SOURCE_PACKAGE, package)
     runner = package / "runner"
+    (runner / "content").mkdir(parents=True)
+    (runner / "audio.toml").write_text(RUNNER_AUDIO, encoding="utf-8")
+    (runner / "soundtrack.toml").write_text(RUNNER_SOUNDTRACK, encoding="utf-8")
+    with (package / "game.toml").open("a", encoding="utf-8") as container:
+        container.write(RUNNER_MEMBER)
     (runner / "gameplay.toml").write_text(gameplay, encoding="utf-8")
     (runner / "track.toml").write_text(runner_track_toml(chunks), encoding="utf-8")
     (runner / "content" / "avatar.toml").write_text(avatar, encoding="utf-8")

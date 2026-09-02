@@ -30,6 +30,14 @@ gauge arrived, and the container's own revision moved with it - and the plan doc
 whole package closure, so the platformer's graph digest moves with a sibling member it does not
 read. Topology, node count, and operation counts are all unchanged, which is the same shape as
 the 2026-09-01 re-pin above.
+
+Re-pinned once more the same day when that runner member was retired outright. It was the
+vehicle the runner genre was built against before Iron Petal existed - a sprinting restyle of
+the platformer's own Wayfarer, reusing the same cover, referenced by no scenario, map, or
+gameplay member on the platformer side. Iron Petal is the canonical runner game now, so
+bellweather is a platformer package again and its closure shrinks by the whole ``runner/``
+prefix. Platformer topology and operation counts are still untouched; only the closure the
+document binds is smaller.
 """
 
 from __future__ import annotations
@@ -46,7 +54,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 221
-BELLWEATHER_GRAPH_SHA256 = "d2d550ccbfa695c8dcd3f8d3bee72a669653c0842cd035e836afa4e085c543e4"
+BELLWEATHER_GRAPH_SHA256 = "4498bb40ecb4e0f0bf57a1ae9452c071cc63955ca74c4fbb909d8fdfe78da1b9"
 BELLWEATHER_TOPOLOGY_SHA256 = "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d"
 
 

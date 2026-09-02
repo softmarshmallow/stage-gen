@@ -43,8 +43,8 @@ uv run python scripts/check.py
 This checks Ruff formatting and lint, strict mypy across `src`, `tests`, and
 `scripts`, all tests not marked `live`, documentation and publication policy,
 sdist/wheel construction, packaged resources, every recipe's CLI surface, and
-offline plans of the committed Bellweather platformer/runner members plus the
-selected Iron Petal runner — so a route the binding table cannot serve fails
+offline plans of the committed Bellweather platformer member plus the selected
+Iron Petal runner — so a route the binding table cannot serve fails
 here rather than against a provider.
 The script removes `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, and `FAL_KEY` from
 every child process.

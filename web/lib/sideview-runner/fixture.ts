@@ -1,6 +1,12 @@
 // A minimal but fully valid runner manifest, shaped exactly like the document
 // prepared_runner.py assembles. Tests mutate copies of it to probe one refusal
 // at a time, so it stays the single place the happy path is spelled out.
+//
+// Its ids are fiction and stay that way deliberately. They read as bellweather
+// because this fixture was written while bellweather carried the runner member
+// the genre was built against; that member has since been retired in favour of
+// Iron Petal, and nothing here mirrors a committed package. A fixture that
+// tracked a real one would fail for the package's reasons as well as its own.
 
 import { RUNNER_RUNTIME_KIND } from "./contract";
 

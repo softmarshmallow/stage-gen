@@ -47,15 +47,6 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
         "package",
         "plan",
         "--input",
-        "library/games/bellweather",
-        "--genre",
-        "runner",
-    ) in commands
-    assert (
-        "stage-gen",
-        "package",
-        "plan",
-        "--input",
         "library/games/iron-petal-unit",
         "--genre",
         "runner",

@@ -1,7 +1,7 @@
 schema_version = 9
 kind = "game-contract-v9"
 game_id = "bellweather"
-revision = 25
+revision = 26
 display_name = "Bellweather"
 
 [universe]
@@ -118,42 +118,6 @@ source = "content/projectiles.toml"
 
 [genres.scenarios]
 index_source = "scenarios/index.toml"
-
-[[genres]]
-genre = "runner"
-
-[genres.presentation]
-view_profile = "side_view_2d"
-gameplay_space = "side_plane"
-
-[genres.presentation.contact_shadows]
-enabled = true
-opacity = 0.18
-softness_screen_pixels = 6.0
-
-[genres.cast]
-avatar_id = "wayfarer_sprinter"
-
-[genres.gameplay]
-source = "runner/gameplay.toml"
-
-[genres.track]
-source = "runner/track.toml"
-
-[genres.content.avatar]
-source = "runner/content/avatar.toml"
-
-[genres.content.props]
-source = "runner/content/props.toml"
-
-[genres.content.items]
-source = "runner/content/items.toml"
-
-[genres.audio]
-source = "runner/audio.toml"
-
-[genres.soundtrack]
-source = "runner/soundtrack.toml"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

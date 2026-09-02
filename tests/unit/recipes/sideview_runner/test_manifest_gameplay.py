@@ -14,7 +14,7 @@ from stage_gen.components.runner_audio import load_runner_audio_bytes
 from stage_gen.components.runner_gameplay import load_runner_gameplay_bytes
 from stage_gen.recipes.sideview_runner.prepared_runner import manifest_audio, manifest_gameplay
 
-from ..._runner_fixture import SOURCE_PACKAGE
+from ..._runner_fixture import RUNNER_AUDIO
 
 GAMEPLAY = b"""schema_version = 3
 kind = "runner-gameplay-v3"
@@ -97,8 +97,10 @@ def test_a_duckless_gameplay_publishes_null_duck_arithmetic() -> None:
 
 
 def test_the_published_audio_block_is_exactly_the_authored_contract() -> None:
-    source = (SOURCE_PACKAGE / "runner/audio.toml").read_bytes()
-    block = manifest_audio(load_runner_audio_bytes(source))
+    # The fixture owns these bytes now: bellweather's runner member was retired
+    # when Iron Petal became the canonical runner game, so the authored contract
+    # under test is the one the fixture authors rather than a committed file.
+    block = manifest_audio(load_runner_audio_bytes(RUNNER_AUDIO.encode()))
 
     assert block["bindings"] == {
         "takeoff": "takeoff_whistle",
