@@ -84,7 +84,7 @@ describe("the encounter's own state", () => {
   });
 
   test("the boss arrives at full health wearing its hover", () => {
-    const boss = createBossState(CONFIG, 24);
+    const boss = createBossState(CONFIG, 24, 9);
 
     expect(boss.offsetColumns).toBe(24);
     expect(boss.motion).toBe("hover");
@@ -229,7 +229,7 @@ describe("shots in the air", () => {
   });
 
   test("the boss's box hangs from its feet row", () => {
-    const boss = createBossState(CONFIG, 10);
+    const boss = createBossState(CONFIG, 10, 9);
     boss.y = 7;
 
     const box = bossBox(boss, CONFIG);

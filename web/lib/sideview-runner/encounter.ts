@@ -28,7 +28,6 @@ import {
   advanceShot,
   bossApproach,
   bossBox,
-  bossHoverFeetRow,
   bossRetreat,
   boxesOverlap,
   createBossState,
@@ -132,8 +131,7 @@ function beginBattle(world: RunnerWorld, state: EncounterState, now: number): vo
   const config = world.config.encounter;
   if (config === null) return;
   world.locomotion = "thrust";
-  state.boss = createBossState(config, bossEntryOffset(world));
-  state.boss.y = bossHoverFeetRow(config, world.config.walkSurfaceRow);
+  state.boss = createBossState(config, bossEntryOffset(world), world.config.walkSurfaceRow);
   state.laneSeed = laneSeedFor(world.run.seed, state.encounterIndex);
   state.salvosFired = 0;
   state.nextSalvoAt = now + config.salvoPeriodSeconds;

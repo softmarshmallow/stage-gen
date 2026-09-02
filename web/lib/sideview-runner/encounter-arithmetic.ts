@@ -157,10 +157,14 @@ export function encounterStreamsArena(phase: EncounterPhase): boolean {
     phase === "retreat";
 }
 
-export function createBossState(config: EncounterConfig, entryOffsetColumns: number): BossState {
+export function createBossState(
+  config: EncounterConfig,
+  entryOffsetColumns: number,
+  walkSurfaceRow: number,
+): BossState {
   return {
     offsetColumns: entryOffsetColumns,
-    y: bossHoverFeetRow(config),
+    y: bossHoverFeetRow(config, walkSurfaceRow),
     hp: createGauge(config.hitsToDefeat),
     motion: "hover",
     attackImpulses: 0,
@@ -177,10 +181,9 @@ export function createBossState(config: EncounterConfig, entryOffsetColumns: num
  * boss shorter than the band floats to the middle of it, which is what a
  * hovering machine should do; one exactly as tall stands on the floor.
  */
-export function bossHoverFeetRow(config: EncounterConfig, walkSurfaceRow?: number): number {
-  const surface = walkSurfaceRow ?? config.bossHeightRows;
-  const slack = Math.max(0, surface - config.bossHeightRows);
-  return surface - slack / 2;
+export function bossHoverFeetRow(config: EncounterConfig, walkSurfaceRow: number): number {
+  const slack = Math.max(0, walkSurfaceRow - config.bossHeightRows);
+  return walkSurfaceRow - slack / 2;
 }
 
 /**
