@@ -106,6 +106,11 @@ export default function CasePlayer({
   const [backlogOpen, setBacklogOpen] = useState(false);
   const [pending, setPending] = useState<PendingOutcome | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
+  // Which beat has produced its first moment. The loading layer is shown until it
+  // has, because a leaf's canvas is TRANSPARENT and therefore never covers
+  // anything — an earlier version of this assumed it would, and the label sat in
+  // the middle of every painted stage for the whole beat.
+  const [drawn, setDrawn] = useState<string | null>(null);
 
   // Mirrors, because the leaf's callbacks fire from inside a Phaser render and
   // must read the current beat rather than the one captured when they were made.
@@ -174,6 +179,7 @@ export default function CasePlayer({
   const onMoment = useCallback(
     (moment: DialogueSceneMoment) => {
       const at = progressRef.current;
+      setDrawn(at.beatId);
       const carried = remember(
         scenarioLineKey(at.beatId, moment.statementId),
         moment.line === null ? null : { speaker: moment.line.speaker, text: moment.line.text },
@@ -192,6 +198,7 @@ export default function CasePlayer({
   const onRoomChange = useCallback(
     (state: RoomPlayState) => {
       const at = progressRef.current;
+      setDrawn(at.beatId);
       const carried = remember(roomLineKey(at.beatId, state.fired, state.narration), {
         speaker: null,
         text: state.narration,
@@ -291,12 +298,14 @@ export default function CasePlayer({
         {/*
           A beat's art is decoded before its canvas draws anything, and on the supper —
           a stage plus five full-height plates — that is several seconds of black with
-          nothing to say it is working. This layer sits underneath the canvas rather
-          than being toggled by it: no state, no lifecycle, and the leaf simply covers
-          it when it has something to show. It says the beat's own name, so the wait
-          reads as the story arriving rather than as a hang.
+          nothing to say it is working. This layer names the beat while that happens,
+          so the wait reads as the story arriving rather than as a hang.
+
+          It is hidden on the beat's first moment rather than by being drawn over: the
+          leaf's canvas is transparent, so it covers nothing, and a label left under a
+          painted stage sits in the middle of the picture for the whole beat.
         */}
-        {phase === "playing" && beat !== null ? (
+        {phase === "playing" && beat !== null && drawn !== beat.beatId ? (
           <div
             data-shell-loading
             aria-hidden
