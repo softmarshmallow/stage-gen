@@ -4,11 +4,11 @@
 # follow any chunk and the track is infinite by construction. Pits are legal
 # here - and provably clearable against the gameplay contract's jump profile.
 
-schema_version = 2
-kind = "runner-track-v2"
+schema_version = 3
+kind = "runner-track-v3"
 game_id = "bellweather"
 track_id = "sunpetal-sprint"
-revision = 2
+revision = 3
 display_name = "Sunpetal Sprint"
 
 [view]

@@ -1,0 +1,14 @@
+schema_version = 2
+kind = "runner-gameplay-v2"
+game_id = "iron-petal-unit"
+revision = 1
+track_id = "halcyon-rescue-line"
+
+[run]
+speed_profile = "steady_runner_v1"
+jump_profile = "double_arc_v1"
+collision_policy = "end_run_v1"
+duck_profile = "slide_v1"
+
+[ramp]
+profile = "gentle_ramp_v1"

@@ -12,7 +12,7 @@ import type { RunnerWorld } from "./world";
 export type RunnerIntent = Readonly<{
   /** Edge-triggered. One jump request; a held key does not repeat it. */
   jump: boolean;
-  /** Held. Reserved by the intent contract; the v1 gameplay ignores it. */
+  /** Held. Keeps the grounded avatar in its admitted slide profile. */
   duck: boolean;
   /** Edge-triggered. The restart request (R on the keyboard). */
   action: boolean;
@@ -95,14 +95,61 @@ export function attachKeyboardIntentSource(
   };
 }
 
-/** Pointer source: a tap is a jump. The run-loop reads a jump as restart when dead. */
+const POINTER_DUCK_ZONE_START = 0.68;
+
+type PointerIntentTarget = Pick<
+  HTMLElement,
+  | "addEventListener"
+  | "removeEventListener"
+  | "getBoundingClientRect"
+  | "setPointerCapture"
+>;
+
+/**
+ * Pointer source with two stable screen-space controls.
+ *
+ * The upper 68% jumps (and therefore restarts after death); holding the lower
+ * 32% ducks until every lower-zone pointer is released. Pointer capture keeps
+ * the release observable when a sliding finger leaves the canvas.
+ */
 export function attachPointerIntentSource(
   latch: RunnerIntentLatch,
-  target: Pick<HTMLElement, "addEventListener" | "removeEventListener">,
+  target: PointerIntentTarget,
 ): () => void {
-  const onPointerDown = () => latch.requestJump();
+  const duckPointers = new Set<number>();
+  const onPointerDown = (event: PointerEvent) => {
+    event.preventDefault();
+    const bounds = target.getBoundingClientRect();
+    const duckBoundary = bounds.top + bounds.height * POINTER_DUCK_ZONE_START;
+    if (event.clientY < duckBoundary) {
+      latch.requestJump();
+      return;
+    }
+    duckPointers.add(event.pointerId);
+    latch.setDuck(true);
+    try {
+      target.setPointerCapture(event.pointerId);
+    } catch {
+      // A synthetic event or an already-cancelled pointer may be uncapturable;
+      // pointerup/cancel still releases it when delivered.
+    }
+  };
+  const releaseDuck = (event: PointerEvent) => {
+    if (!duckPointers.delete(event.pointerId)) return;
+    latch.setDuck(duckPointers.size > 0);
+  };
   target.addEventListener("pointerdown", onPointerDown);
-  return () => target.removeEventListener("pointerdown", onPointerDown);
+  target.addEventListener("pointerup", releaseDuck);
+  target.addEventListener("pointercancel", releaseDuck);
+  target.addEventListener("lostpointercapture", releaseDuck);
+  return () => {
+    target.removeEventListener("pointerdown", onPointerDown);
+    target.removeEventListener("pointerup", releaseDuck);
+    target.removeEventListener("pointercancel", releaseDuck);
+    target.removeEventListener("lostpointercapture", releaseDuck);
+    duckPointers.clear();
+    latch.setDuck(false);
+  };
 }
 
 /** The intent system: publish this frame's sampled intent as world data. */

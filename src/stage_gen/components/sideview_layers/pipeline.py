@@ -38,6 +38,9 @@ if TYPE_CHECKING:
     from stage_gen.media import LoopConstruction
 
 
+PROVIDER_VISIBLE_ALPHA_MIN = 16
+
+
 def loop_conditioning(construction: LoopConstruction, data: bytes) -> SeamConditioning:
     """Lay out the provider canvas the selected construction needs.
 
@@ -108,18 +111,56 @@ def layer_repeat_policies(
 
 
 def validate_provider_image(
-    data: bytes, *, width: int, height: int, transparent: bool
+    data: bytes,
+    *,
+    width: int,
+    height: int,
+    transparent: bool,
+    minimum_transparent_fraction: float = 0.0,
+    minimum_visible_fraction: float = 0.0,
+    minimum_transparent_edge_fraction: float = 0.0,
 ) -> dict[str, object]:
     with Image.open(io.BytesIO(data)) as opened:
         image = opened.convert("RGBA")
     if image.size != (width, height):
         raise ValueError(f"provider image must be exactly {width}x{height}")
     extrema = cast("tuple[int, int]", image.getchannel("A").getextrema())
-    if transparent and not (extrema[0] == 0 and extrema[1] > 0):
-        raise ValueError("transparent map output must contain both transparent and visible pixels")
+    if transparent and not (extrema[0] == 0 and extrema[1] >= PROVIDER_VISIBLE_ALPHA_MIN):
+        raise ValueError(
+            "transparent map output must contain transparent pixels and meaningful alpha"
+        )
     if not transparent and extrema != (255, 255):
         raise ValueError("opaque map output must be fully opaque")
-    return {"width": width, "height": height, "alpha_min": extrema[0], "alpha_max": extrema[1]}
+    alpha = image.getchannel("A")
+    alpha_bytes = alpha.tobytes()
+    pixel_count = image.width * image.height
+    transparent_fraction = alpha_bytes.count(0) / pixel_count
+    visible_fraction = sum(alpha.histogram()[PROVIDER_VISIBLE_ALPHA_MIN:]) / pixel_count
+    edge_bytes = b"".join(
+        (
+            alpha.crop((0, 0, image.width, 1)).tobytes(),
+            alpha.crop((0, image.height - 1, image.width, image.height)).tobytes(),
+            alpha.crop((0, 1, 1, image.height - 1)).tobytes(),
+            alpha.crop((image.width - 1, 1, image.width, image.height - 1)).tobytes(),
+        )
+    )
+    transparent_edge_fraction = edge_bytes.count(0) / len(edge_bytes)
+    if transparent and transparent_fraction < minimum_transparent_fraction:
+        raise ValueError("transparent map output lacks meaningful transparent negative space")
+    if transparent and visible_fraction < minimum_visible_fraction:
+        raise ValueError("transparent map output lacks meaningful visible coverage")
+    if transparent and transparent_edge_fraction < minimum_transparent_edge_fraction:
+        raise ValueError("transparent map output lacks meaningful transparent edge separation")
+    return {
+        "width": width,
+        "height": height,
+        "alpha_min": extrema[0],
+        "alpha_max": extrema[1],
+        "visible_alpha_min": PROVIDER_VISIBLE_ALPHA_MIN if transparent else 255,
+        "transparent_fraction": round(transparent_fraction, 9),
+        "visible_fraction": round(visible_fraction, 9),
+        "transparent_edge_fraction": round(transparent_edge_fraction, 9),
+    }
 
 
 __all__ = [

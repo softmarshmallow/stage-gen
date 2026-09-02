@@ -217,6 +217,8 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 | Content catalogs | Player, mob, NPC, prop, item, and projectile identities, visual references, motion presentation, the player's drawn equipment, and NPC catalog-wide world orientation |
 | `soundtrack.toml` | Track identities, creative briefs, and playback policy |
 | `runner/audio.toml` | Runner event-to-effect bindings and portable sound-effect realizations |
+| `runner/track.toml` | Authored runner occupancy, hazards, pickups, parallax layers, and the closed atlas/structural-ground presentation mode |
+| `runner/content/avatar.toml` | One runner actor, its chronological visible-person age, single-character or visible-rider-machine silhouette basis, references, and motion playback |
 | Sequence catalog and sources | Dialogue/cutscene graph and outcomes |
 
 In particular, a map owns ladder and portal composition per map, while
@@ -233,14 +235,18 @@ combination the vocabularies do not admit as `player_equipment_mismatch`.
 Prepared-package resolution captures the selected directory or ZIP once,
 computes every member digest at capture, validates all cross-contract
 identities locally, and rejects malformed input before a provider operation.
+The common resolver accepts runner-only and platformer-containing roots;
+platformer execution uses an explicit platformer-required narrowing rather
+than making that genre an accidental prerequisite of every package.
 Membership stays exact: a member named here but absent is rejected as
 `missing_package_file`, and a captured file no contract names is rejected as
 `orphan_package_file`. Resolution then digests the exact captured closure of
 every member path, digest, and byte size as `closure_sha256`, which appears in
-the resolved package identity and in the `game-package-validation-v5` report.
+the `resolved-game-package-v6` identity and in the
+`game-package-validation-v6` report.
 The selected genre DAG consumes this resolved package. Platformer integration
 emits `prepared-game-runtime-v10`; runner integration emits
-`sideview-runner-runtime-v3`.
+`sideview-runner-runtime-v4`.
 
 Validate the canonical package with:
 

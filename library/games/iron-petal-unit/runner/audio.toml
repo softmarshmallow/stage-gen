@@ -1,0 +1,104 @@
+schema_version = 1
+kind = "runner-audio-v1"
+game_id = "iron-petal-unit"
+revision = 1
+
+[bindings]
+takeoff = "servo_takeoff"
+air_jump = "reactor_air_step"
+land = "ceramic_landing"
+slide = "rail_slide"
+hazard_cleared = "rescue_clear"
+collect = "seed_chime"
+death = "unit_stalled"
+
+[[effects]]
+effect_id = "servo_takeoff"
+display_name = "Servo Takeoff"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 260
+end_frequency_hz = 620
+duration_milliseconds = 130
+gain = 0.15
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "reactor_air_step"
+display_name = "Reactor Air Step"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 520
+end_frequency_hz = 1040
+duration_milliseconds = 110
+gain = 0.14
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "ceramic_landing"
+display_name = "Ceramic Landing"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 210
+end_frequency_hz = 130
+duration_milliseconds = 90
+gain = 0.12
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "rail_slide"
+display_name = "Rail Slide"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sawtooth"
+start_frequency_hz = 190
+end_frequency_hz = 95
+duration_milliseconds = 170
+gain = 0.07
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "rescue_clear"
+display_name = "Rescue Clear"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "sine"
+start_frequency_hz = 560
+end_frequency_hz = 820
+duration_milliseconds = 105
+gain = 0.10
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "seed_chime"
+display_name = "Seed Chime"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "triangle"
+start_frequency_hz = 700
+end_frequency_hz = 1120
+duration_milliseconds = 100
+gain = 0.12
+strength_pitch_multiplier = 1.0
+
+[[effects]]
+effect_id = "unit_stalled"
+display_name = "Unit Stalled"
+
+[effects.realization]
+kind = "oscillator_sweep_v1"
+waveform = "square"
+start_frequency_hz = 180
+end_frequency_hz = 48
+duration_milliseconds = 480
+gain = 0.12
+strength_pitch_multiplier = 0.0

@@ -10,16 +10,20 @@ recipe's node wiring.
 from __future__ import annotations
 
 import base64
-import hashlib
+import inspect
 import io
 import json
-from typing import TYPE_CHECKING, Any, cast
+import math
+from collections.abc import Mapping as MappingABC
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from PIL import Image
 
 from gnode import (
+    ArtifactProvenance,
     BinaryArtifact,
     CacheDisposition,
+    CancellationError,
     ImageGenerationRequest,
     ImageReference,
     InputProvenance,
@@ -33,8 +37,12 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
+    assert_audio_signature,
+    assert_image_signature,
     atomic_write_json,
     dependency_port,
+    hash_input_reference,
+    sanitize_reference,
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
@@ -48,6 +56,21 @@ from stage_gen.components.runner_gameplay import (
     JUMP_PROFILES,
     SPEED_PROFILES,
     RunnerGameplayContract,
+)
+from stage_gen.components.runner_track import (
+    STRUCTURAL_GROUND_CANONICALIZER_ID,
+    STRUCTURAL_GROUND_CELL_PX,
+    STRUCTURAL_GROUND_GUIDE_HEIGHT,
+    STRUCTURAL_GROUND_GUIDE_WIDTH,
+    STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID,
+    RunnerStructuralGround,
+    build_structural_ground_guide,
+    canonicalize_structural_ground,
+    canonicalize_structural_ground_seam_bridge,
+    structural_ground_material_identity,
+    validate_structural_ground_canonical,
+    validate_structural_ground_seam_bridge,
+    validate_structural_ground_source,
 )
 from stage_gen.components.sideview_actor.asset_unit import (
     calibrate_subject,
@@ -81,6 +104,12 @@ from stage_gen.components.sideview_terrain import (
     assemble_terrain_atlas,
     require_terrain_atlas_source,
 )
+from stage_gen.identity import (
+    IMAGE_GENERATION_COMPONENT,
+    MUSIC_GENERATION_COMPONENT,
+    STAGE_GEN_TOOL,
+    STRUCTURED_GENERATION_COMPONENT,
+)
 from stage_gen.media import RegistrationError, probe_audio, validate_music_payload
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 from stage_gen.media.sprite_sheets import (
@@ -95,7 +124,12 @@ from stage_gen.recipes.sideview_runner.runner_graph import (
     RunnerOperationKind,
     SideviewRunnerGraph,
 )
+from stage_gen.recipes.sideview_runner.runner_prompts import (
+    layer_loop_prompt,
+    visual_direction_digest,
+)
 from stage_gen.recipes.sideview_runner.runner_types import (
+    ATTEMPT_LEDGER_KIND,
     AVATAR_CONCEPT_GENERATE,
     AVATAR_MOTION_GENERATE,
     AVATAR_MOTION_VALIDATE,
@@ -119,8 +153,15 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
+    STRUCTURAL_GROUND_GUIDE_KIND,
+    STRUCTURAL_GROUND_RAW_KIND,
+    STRUCTURAL_GROUND_SEAM_BRIDGE_KIND,
     TRACK_GROUND_GENERATE,
     TRACK_GROUND_VALIDATE,
+    TRACK_STRUCTURAL_GROUND_GENERATE,
+    TRACK_STRUCTURAL_GROUND_GUIDE,
+    TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
+    TRACK_STRUCTURAL_GROUND_VALIDATE,
 )
 from stage_gen.resources import (
     terrain_atlas_template_path,
@@ -140,7 +181,7 @@ if TYPE_CHECKING:
         StructuredGenerationService,
     )
     from stage_gen.components.platformer_map import PreparedMapLayer
-    from stage_gen.components.runner_track import RunnerTrack
+    from stage_gen.components.runner_track import RunnerSegmentChunk, RunnerTrack
     from stage_gen.media import LoopConstruction
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
 
@@ -149,12 +190,53 @@ RUNNER_BASELINE_STATE = "run"
 #: The one place the unit meets pixels in this recipe, matching the platformer's
 #: projection so a shared avatar reads at the same magnitude in both genres.
 RUNTIME_TILE_PX = 64
+RUNNER_CATALOG_SPARSE_TAIL_TRIM_VERSION = "runner-catalog-sparse-tail-trim-v1"
+RUNNER_MOTION_SOURCE_VISIBLE_ALPHA_MIN = 128
+RUNNER_SPRITE_VISIBLE_ALPHA_MIN = 16
+RUNNER_CUTOUT_MIN_TRANSPARENT_FRACTION = 0.10
+RUNNER_CUTOUT_MIN_VISIBLE_FRACTION = 0.005
+RUNNER_CUTOUT_MIN_TRANSPARENT_EDGE_FRACTION = 0.10
+RUNNER_LAYER_MIN_TRANSPARENT_FRACTION = 0.05
+RUNNER_LAYER_MIN_VISIBLE_FRACTION = 0.005
+RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION = 0.05
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/sideview-runner", version=RUNNER_HANDLER_VERSION)
 
 
 def _data_url(data: bytes, media_type: str) -> str:
     return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def _json_normalize_provider_identity(value: dict[str, object]) -> dict[str, object]:
+    """Return the exact JSON value a persisted provenance sidecar can represent."""
+
+    try:
+        normalized = json.loads(
+            json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+        )
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("runner provider identity is not standards-compliant JSON") from error
+    if not isinstance(normalized, dict):
+        raise ValueError("runner provider identity must normalize to an object")
+    return cast("dict[str, object]", normalized)
+
+
+def _image_media_type(data: bytes) -> str:
+    with Image.open(io.BytesIO(data)) as opened:
+        image_format = opened.format
+    media_type = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}.get(
+        image_format or ""
+    )
+    if media_type is None:
+        raise ValueError(f"runner image input has unsupported format {image_format!r}")
+    return media_type
+
+
+def _input_media_type(ref: str, data: bytes) -> str:
+    clean_ref = ref.split("#", 1)[0]
+    if clean_ref.endswith(".json"):
+        return "application/json"
+    return _image_media_type(data)
 
 
 async def _write_local_image(
@@ -166,9 +248,10 @@ async def _write_local_image(
     validation: Mapping[str, object],
     model: str = "sideview-runner-local-v1",
 ) -> Path:
+    media_type = _image_media_type(data)
     return await write_artifact_with_provenance_async(
         path,
-        BinaryArtifact(data=data, media_type="image/png"),
+        BinaryArtifact(data=data, media_type=media_type),
         ProvenanceInput(
             provider="local",
             model=model,
@@ -180,7 +263,7 @@ async def _write_local_image(
                     sha256=content_sha256(payload),
                     source="content",
                     bytes=len(payload),
-                    media_type="image/png",
+                    media_type=_input_media_type(ref, payload),
                 )
                 for ref, payload in inputs
             ],
@@ -197,13 +280,158 @@ def _validate_transparent_sprite(data: bytes) -> dict[str, object]:
     with Image.open(io.BytesIO(data)) as opened:
         image = opened.convert("RGBA")
     extrema = cast("tuple[int, int]", image.getchannel("A").getextrema())
-    if not (extrema[0] == 0 and extrema[1] > 0):
-        raise ValueError("sprite output must contain both transparent and visible pixels")
+    if not (extrema[0] == 0 and extrema[1] >= RUNNER_SPRITE_VISIBLE_ALPHA_MIN):
+        raise ValueError(
+            "sprite output must contain transparent pixels and meaningful visible alpha"
+        )
+    alpha = image.getchannel("A")
+    alpha_bytes = alpha.tobytes()
+    pixel_count = image.width * image.height
+    transparent_fraction = alpha_bytes.count(0) / pixel_count
+    visible_fraction = sum(alpha.histogram()[RUNNER_SPRITE_VISIBLE_ALPHA_MIN:]) / pixel_count
+    edge_bytes = b"".join(
+        (
+            alpha.crop((0, 0, image.width, 1)).tobytes(),
+            alpha.crop((0, image.height - 1, image.width, image.height)).tobytes(),
+            alpha.crop((0, 1, 1, image.height - 1)).tobytes(),
+            alpha.crop((image.width - 1, 1, image.width, image.height - 1)).tobytes(),
+        )
+    )
+    transparent_edge_fraction = edge_bytes.count(0) / len(edge_bytes)
+    if transparent_fraction < RUNNER_CUTOUT_MIN_TRANSPARENT_FRACTION:
+        raise ValueError("sprite output lacks meaningful transparent negative space")
+    if visible_fraction < RUNNER_CUTOUT_MIN_VISIBLE_FRACTION:
+        raise ValueError("sprite output lacks meaningful visible alpha coverage")
+    if transparent_edge_fraction < RUNNER_CUTOUT_MIN_TRANSPARENT_EDGE_FRACTION:
+        raise ValueError("sprite output lacks meaningful transparent edge separation")
     return {
         "width": image.width,
         "height": image.height,
         "alpha_min": extrema[0],
         "alpha_max": extrema[1],
+        "visible_alpha_min": RUNNER_SPRITE_VISIBLE_ALPHA_MIN,
+        "transparent_fraction": round(transparent_fraction, 9),
+        "visible_fraction": round(visible_fraction, 9),
+        "transparent_edge_fraction": round(transparent_edge_fraction, 9),
+    }
+
+
+def _validate_layer_candidate(data: bytes, *, transparent: bool) -> dict[str, object]:
+    return validate_provider_image(
+        data,
+        width=1536,
+        height=1024,
+        transparent=transparent,
+        minimum_transparent_fraction=(
+            RUNNER_LAYER_MIN_TRANSPARENT_FRACTION if transparent else 0.0
+        ),
+        minimum_visible_fraction=(RUNNER_LAYER_MIN_VISIBLE_FRACTION if transparent else 0.0),
+        minimum_transparent_edge_fraction=(
+            RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION if transparent else 0.0
+        ),
+    )
+
+
+def canonicalize_runner_catalog_sprite(
+    data: bytes, *, family: str
+) -> tuple[bytes, dict[str, object], dict[str, object]]:
+    """Trim transparent framing and a proven short sparse tail from runner props.
+
+    A generated prop may carry a decorative leaf or glow a few rows below the broad hardware or
+    foot that gameplay must register. We trim only a narrow, low-area terminal tail: the median
+    meaningful-alpha column bottom must sit 2-8% above the alpha box, its row must span at least a
+    quarter of the painted width, and pixels below it must be at most 1% of painted pixels. Long
+    cables, roots, legs, and other meaningful narrow silhouettes therefore remain untouched.
+    """
+
+    published, vertical_trim = trim_layer_to_alpha_box(data)
+    tail_report: dict[str, object] = {
+        "schema_version": 1,
+        "kind": RUNNER_CATALOG_SPARSE_TAIL_TRIM_VERSION,
+        "painted_alpha_threshold": 64,
+        "minimum_tail_height_fraction": 0.02,
+        "maximum_tail_height_fraction": 0.08,
+        "minimum_contact_row_coverage": 0.25,
+        "maximum_tail_painted_fraction": 0.01,
+        "applied": False,
+        "reason": "family_is_not_prop" if family != "prop" else "tail_not_proven_sparse",
+    }
+    if family != "prop":
+        return published, vertical_trim, tail_report
+
+    bounds = cast("dict[str, object]", vertical_trim["bounds"])
+    median_raw = bounds.get("column_bottom_median")
+    if not isinstance(median_raw, int) or isinstance(median_raw, bool):
+        tail_report["reason"] = "missing_column_bottom_median"
+        return published, vertical_trim, tail_report
+    trimmed_top = cast("int", vertical_trim["trimmed_top"])
+    trimmed_height = cast("int", vertical_trim["trimmed_height"])
+    contact_row = median_raw - trimmed_top
+    if not 0 <= contact_row < trimmed_height:
+        raise ValueError("runner catalog median contact row lies outside the alpha trim")
+
+    with Image.open(io.BytesIO(published)) as opened:
+        image = opened.convert("RGBA")
+    alpha = image.getchannel("A")
+    painted = alpha.point(lambda value: 255 if value > 64 else 0)
+    painted_box = painted.getbbox()
+    if painted_box is None:
+        raise ValueError("runner catalog sprite has no pixels above painted alpha threshold")
+    painted_bytes = painted.tobytes()
+    painted_count = painted_bytes.count(255)
+    painted_width = painted_box[2] - painted_box[0]
+    contact_start = contact_row * image.width
+    contact_count = painted_bytes[contact_start : contact_start + image.width].count(255)
+    tail_start = (contact_row + 1) * image.width
+    tail_count = painted_bytes[tail_start:].count(255)
+    tail_rows = image.height - contact_row - 1
+    tail_height_fraction = tail_rows / image.height
+    contact_row_coverage = contact_count / painted_width
+    tail_painted_fraction = tail_count / painted_count
+    tail_report.update(
+        {
+            "candidate_contact_row": contact_row,
+            "candidate_output_height": contact_row + 1,
+            "tail_rows": tail_rows,
+            "tail_height_fraction": round(tail_height_fraction, 6),
+            "contact_row_coverage": round(contact_row_coverage, 6),
+            "tail_painted_fraction": round(tail_painted_fraction, 6),
+        }
+    )
+    admitted = (
+        0.02 <= tail_height_fraction <= 0.08
+        and contact_row_coverage >= 0.25
+        and tail_painted_fraction <= 0.01
+    )
+    if not admitted:
+        return published, vertical_trim, tail_report
+
+    cropped = image.crop((0, 0, image.width, contact_row + 1))
+    stream = io.BytesIO()
+    cropped.save(stream, format="PNG", optimize=False)
+    tail_report.update(
+        {
+            "applied": True,
+            "reason": "short_sparse_terminal_tail",
+            "source_height": image.height,
+            "output_height": cropped.height,
+            "removed_rows": image.height - cropped.height,
+        }
+    )
+    return stream.getvalue(), vertical_trim, tail_report
+
+
+def _validate_catalog_candidate(data: bytes, *, family: str) -> dict[str, object]:
+    """Keep meaningful-alpha trimming inside the catalog provider retry owner."""
+
+    source = _validate_transparent_sprite(data)
+    published, trim, sparse_tail_trim = canonicalize_runner_catalog_sprite(data, family=family)
+    extent = measure_subject_extent(published, subject=f"runner {family}")
+    return {
+        "source": source,
+        "trim": trim,
+        "sparse_tail_trim": sparse_tail_trim,
+        "painted_extent_px": extent,
     }
 
 
@@ -220,11 +448,37 @@ def _validate_motion_source(data: bytes) -> dict[str, object]:
         left = round(index * cell_width)
         right = round((index + 1) * cell_width)
         cell = alpha.crop((left, 0, right, alpha.height))
-        visible = sum(cell.histogram()[1:]) / (cell.width * cell.height)
+        visible = sum(cell.histogram()[RUNNER_MOTION_SOURCE_VISIBLE_ALPHA_MIN:]) / (
+            cell.width * cell.height
+        )
         coverage.append(visible)
     if any(value < 0.005 for value in coverage):
         raise ValueError("motion atlas is missing a required visible cell")
-    return {**facts, "cell_visible_fractions": [round(value, 6) for value in coverage]}
+    return {
+        **facts,
+        "cell_coverage_alpha_min": RUNNER_MOTION_SOURCE_VISIBLE_ALPHA_MIN,
+        "cell_visible_fractions": [round(value, 6) for value in coverage],
+    }
+
+
+def _validate_motion_candidate(
+    data: bytes, *, anchor: Literal["center", "bottom", "top"]
+) -> dict[str, object]:
+    """Keep decisive deterministic repacking inside the provider retry owner."""
+
+    geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
+    source = _validate_motion_source(data)
+    _canonical, repack = repack_alpha_components(
+        data,
+        AlphaComponentRepackContract(
+            rows=geometry.rows,
+            columns=geometry.columns,
+            required_cells=geometry.required_cells,
+            anchor=anchor,
+            source_slot_policy="exact_required_slots",
+        ),
+    )
+    return {"source": source, "repack": repack}
 
 
 def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
@@ -274,6 +528,60 @@ def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
     }
 
 
+def manifest_ground(track: RunnerTrack) -> dict[str, object]:
+    """Project the closed atlas/structural ground union into runtime shape."""
+
+    if isinstance(track.ground, RunnerStructuralGround):
+        return {
+            "mode": track.ground.mode,
+            "vertical_fit": track.ground.vertical_fit,
+            "cell_px": STRUCTURAL_GROUND_CELL_PX,
+            "chunks": [
+                {
+                    "segment_id": chunk.segment_id,
+                    "image": f"world/ground/{chunk.segment_id}.png",
+                    "columns": len(chunk.occupancy[0]),
+                    "rows": len(chunk.occupancy),
+                }
+                for chunk in track.segments.chunks
+            ],
+        }
+    return {
+        "atlas": "world/ground.png",
+        "mode": track.ground.mode,
+        "vertical_fit": track.ground.vertical_fit,
+    }
+
+
+def manifest_rebase_multipliers(
+    record: dict[str, object], *, published_states: tuple[str, ...]
+) -> dict[str, float]:
+    """Read the admitted verification shape exactly and fail closed on drift."""
+
+    raw = record.get("states")
+    if not isinstance(raw, dict):
+        raise ValueError("motion rebase verification must publish a states object")
+    expected = set(published_states)
+    actual = set(raw)
+    if actual != expected:
+        raise ValueError(
+            "motion rebase verification states differ from published motions: "
+            f"expected {sorted(expected)}, got {sorted(actual)}"
+        )
+    multipliers: dict[str, float] = {}
+    for state in published_states:
+        value = raw[state]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or value <= 0
+        ):
+            raise ValueError(f"motion rebase verification multiplier for {state} must be positive")
+        multipliers[state] = float(value)
+    return multipliers
+
+
 class SideviewRunnerNodeHandler:
     """Dispatch runner nodes while provider operations stay component-owned."""
 
@@ -304,27 +612,1255 @@ class SideviewRunnerNodeHandler:
             cache_dir=cache_dir,
             namespace=RUNNER_CACHE_NAMESPACE,
             record_kind=RUNNER_CACHE_RECORD_KIND,
+            admit=self._admit_cached_bundle,
         )
         self._registry = self._build_registry()
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._cache.read(node, context)
         if cached is not None:
+            # The cached attempt ledger is provenance for the bytes being
+            # restored. Preserve it byte-for-byte; cache disposition belongs
+            # to the execution trace/result and must not perturb child lineage.
             return cached
         try:
             result = await self._registry(node, context)
-        except NodeExecutionError:
+        except CancellationError as error:
+            # The retry owner records how many operations had actually started
+            # before cancellation. Preserve that count without turning the
+            # cancellation into an ordinary node failure.
+            raw_operations = getattr(error, "provider_operations", 0)
+            provider_operations = (
+                raw_operations
+                if isinstance(raw_operations, int)
+                and not isinstance(raw_operations, bool)
+                and 0 <= raw_operations <= node.max_attempts
+                else 0
+            )
+            if node.operation != RunnerOperationKind.LOCAL:
+                self._write_failed_attempt_ledger(node, provider_operations=provider_operations)
+            raise
+        except NodeExecutionError as error:
+            self._write_failed_attempt_ledger(node, provider_operations=error.provider_operations)
             raise
         except Exception as error:
             external = node.operation != RunnerOperationKind.LOCAL
-            attempts = int(getattr(error, "attempts", 1))
+            if external:
+                # Reaching this branch means request construction or another
+                # pre-component step failed.  Only the component boundary
+                # below may turn retry-owner evidence into provider spend.
+                self._write_failed_attempt_ledger(node, provider_operations=0)
             raise NodeExecutionError(
                 str(error),
-                attempts=attempts,
-                provider_operations=attempts if external else 0,
+                attempts=1,
+                provider_operations=0,
             ) from error
         self._cache.write(node, context, result)
         return result
+
+    async def _execute_provider_operation(
+        self,
+        node: Node,
+        operation: Callable[[], Awaitable[Any]],
+    ) -> Any:
+        """Execute a built request and retain only authoritative spend evidence."""
+
+        try:
+            return await operation()
+        except CancellationError:
+            raise
+        except NodeExecutionError:
+            raise
+        except Exception as error:
+            raw_attempts = getattr(
+                error,
+                "provider_operations",
+                getattr(error, "attempts", 0),
+            )
+            provider_operations = (
+                raw_attempts
+                if type(raw_attempts) is int and 0 <= raw_attempts <= node.max_attempts
+                else 0
+            )
+            raise NodeExecutionError(
+                str(error),
+                attempts=max(1, provider_operations),
+                provider_operations=provider_operations,
+            ) from error
+
+    # ---------------------------------------------------------- cache admission
+
+    def _admit_cached_bundle(self, node: Node, payloads: tuple[bytes, ...]) -> bool:
+        """Re-admit restored bytes against today's runner contract.
+
+        A cache record proves only that its own bytes and lineage are internally
+        consistent.  It is not an authority for media semantics or provenance:
+        an attacker (or an old buggy writer) can rewrite a payload, its digest,
+        its sidecar, and the cache record together.  Keep every refusal local to
+        the cache tier so an invalid bundle becomes a miss and the normal node
+        implementation remains the sole retry owner.
+        """
+
+        try:
+            self._admit_cached_bundle_or_raise(node, payloads)
+        except Exception:
+            return False
+        return True
+
+    def _admit_cached_bundle_or_raise(self, node: Node, payloads: tuple[bytes, ...]) -> None:
+        refs = tuple(
+            ref
+            for port in node.ports
+            for ref in (
+                (port.artifact_ref, port.sidecar_ref)
+                if port.sidecar_ref is not None
+                else (port.artifact_ref,)
+            )
+        )
+        if len(refs) != len(payloads):
+            raise ValueError("runner cache payload count differs from declared outputs")
+        bundle = dict(zip(refs, payloads, strict=True))
+
+        provider_operations = 0
+        output_selection = "local_output"
+        if node.operation != RunnerOperationKind.LOCAL:
+            provider_operations, output_selection = self._admit_attempt_ledger(node, bundle)
+
+        provider_ref = (
+            self._provider_output_ref(node) if node.operation != RunnerOperationKind.LOCAL else None
+        )
+        for port in node.ports:
+            if port.sidecar_ref is None:
+                continue
+            provider_owned = provider_operations > 0 and port.artifact_ref == provider_ref
+            self._admit_provenance_pair(
+                node,
+                artifact_ref=port.artifact_ref,
+                artifact_data=bundle[port.artifact_ref],
+                sidecar_data=bundle[port.sidecar_ref],
+                bundle=bundle,
+                provider_owned=provider_owned,
+                provider_operations=provider_operations,
+            )
+
+        if node.type_id == LAYER_LOOP_PAINT.type_id:
+            self._admit_loop_bundle(
+                node,
+                bundle,
+                provider_operations=provider_operations,
+                output_selection=output_selection,
+            )
+            return
+        if node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
+            self._admit_structured_bundle(node, bundle)
+            return
+        if node.operation != RunnerOperationKind.LOCAL:
+            if output_selection != "provider_output":
+                raise ValueError("ordinary provider cache output was not provider-selected")
+            self._admit_provider_artifact(node, bundle[self._provider_output_ref(node)])
+            return
+        self._admit_local_bundle(node, bundle)
+
+    @staticmethod
+    def _strict_json_object(data: bytes, *, label: str) -> dict[str, Any]:
+        def reject_constant(value: str) -> None:
+            raise ValueError(f"{label} contains non-finite JSON value {value}")
+
+        try:
+            value = json.loads(data, parse_constant=reject_constant)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{label} is not strict JSON") from error
+        if not isinstance(value, dict):
+            raise ValueError(f"{label} must be a JSON object")
+        return cast("dict[str, Any]", value)
+
+    @staticmethod
+    def _require_equal(actual: object, expected: object, *, label: str) -> None:
+        if actual != expected:
+            raise ValueError(f"cached {label} differs from the current contract")
+
+    @staticmethod
+    def _artifact_media_type(ref: str) -> str:
+        if ref.endswith(".png"):
+            return "image/png"
+        if ref.endswith(".mp3"):
+            return "audio/mpeg"
+        if ref.endswith(".json"):
+            return "application/json"
+        raise ValueError(f"runner cache artifact has unknown media type: {ref}")
+
+    def _admit_provenance_pair(
+        self,
+        node: Node,
+        *,
+        artifact_ref: str,
+        artifact_data: bytes,
+        sidecar_data: bytes,
+        bundle: Mapping[str, bytes],
+        provider_owned: bool,
+        provider_operations: int,
+    ) -> None:
+        raw = self._strict_json_object(sidecar_data, label=f"{artifact_ref} provenance")
+        provenance = ArtifactProvenance.model_validate(raw)
+        media_type = self._artifact_media_type(artifact_ref)
+        expected_artifact = {
+            "sha256": content_sha256(artifact_data),
+            "bytes": len(artifact_data),
+            "media_type": media_type,
+        }
+        actual_artifact = (
+            None if provenance.artifact is None else provenance.artifact.model_dump(mode="json")
+        )
+        self._require_equal(
+            actual_artifact,
+            expected_artifact,
+            label=f"{artifact_ref} provenance artifact binding",
+        )
+        self._require_equal(
+            provenance.prompt_sha256,
+            content_sha256(provenance.prompt.encode("utf-8")),
+            label=f"{artifact_ref} provenance prompt digest",
+        )
+        if media_type == "image/png":
+            assert_image_signature(artifact_data, media_type)
+            with Image.open(io.BytesIO(artifact_data)) as opened:
+                opened.load()
+                if opened.format != "PNG":
+                    raise ValueError(f"{artifact_ref} is not a decodable PNG")
+        elif media_type == "audio/mpeg":
+            assert_audio_signature(artifact_data, media_type)
+        else:
+            self._strict_json_object(artifact_data, label=artifact_ref)
+
+        if provider_owned:
+            expected = self.expected_provider_provenance_identity(
+                node,
+                artifact_data,
+                bundle=bundle,
+                provider_response=provenance.response,
+            )
+            actual = {
+                "schema_version": provenance.schema_version,
+                "provider": provenance.provider,
+                "model": provenance.model,
+                "seed": provenance.seed,
+                "prompt": provenance.prompt,
+                "prompt_sha256": provenance.prompt_sha256,
+                "references": provenance.references,
+                "refs": provenance.refs,
+                "inputs": [
+                    item.model_dump(mode="json", exclude_none=True) for item in provenance.inputs
+                ],
+                "params": provenance.params,
+                "validation": provenance.validation,
+                "component": provenance.component.model_dump(mode="json"),
+                "tool": provenance.tool.model_dump(mode="json"),
+                "rights": (
+                    None if provenance.rights is None else provenance.rights.model_dump(mode="json")
+                ),
+            }
+            self._require_equal(actual, expected, label=f"{artifact_ref} provider identity")
+            self._require_equal(
+                provenance.attempts,
+                provider_operations,
+                label=f"{artifact_ref} provider attempts",
+            )
+        else:
+            self._require_equal(
+                provenance.provider, "local", label=f"{artifact_ref} local provider"
+            )
+            self._require_equal(
+                provenance.component,
+                _COMPONENT,
+                label=f"{artifact_ref} local component identity",
+            )
+
+    def _admit_attempt_ledger(self, node: Node, bundle: Mapping[str, bytes]) -> tuple[int, str]:
+        attempt_ref = self._attempt_port_ref(node)
+        if attempt_ref is None or attempt_ref not in bundle:
+            raise ValueError("provider cache bundle has no attempt ledger")
+        ledger = self._strict_json_object(bundle[attempt_ref], label=f"{node.node_id} ledger")
+        expected_fields = {
+            "schema_version",
+            "kind",
+            "node_id",
+            "cache_hit",
+            "provider_operations",
+            "output_selection",
+            "prompt_sha256",
+            "attempts",
+        }
+        self._require_equal(set(ledger), expected_fields, label=f"{node.node_id} ledger fields")
+        self._require_equal(ledger["schema_version"], 2, label=f"{node.node_id} ledger schema")
+        self._require_equal(
+            ledger["kind"],
+            "sideview-runner-attempt-ledger-v2",
+            label=f"{node.node_id} ledger kind",
+        )
+        self._require_equal(ledger["node_id"], node.node_id, label=f"{node.node_id} ledger node")
+        # A stored ledger describes the miss that authored these bytes. Cache
+        # reads preserve it byte-for-byte and never write a cache_hit=true form.
+        self._require_equal(ledger["cache_hit"], False, label=f"{node.node_id} ledger cache flag")
+        operations = ledger["provider_operations"]
+        if type(operations) is not int or not 0 <= operations <= node.max_attempts:
+            raise ValueError(f"{node.node_id} ledger provider_operations is invalid")
+        prompt_sha256 = content_sha256(self._provider_prompt(node).encode("utf-8"))
+        self._require_equal(
+            ledger["prompt_sha256"], prompt_sha256, label=f"{node.node_id} ledger prompt"
+        )
+        attempts = ledger["attempts"]
+        if not isinstance(attempts, list) or len(attempts) != operations:
+            raise ValueError(f"{node.node_id} ledger attempt count is invalid")
+        selection = ledger["output_selection"]
+        if selection not in {"provider_output", "fallback_output", "local_output"}:
+            raise ValueError(f"{node.node_id} ledger output selection is invalid")
+        if selection == "provider_output" and operations < 1:
+            raise ValueError("provider-selected ledger records no provider operation")
+        if selection == "fallback_output" and (
+            operations < 1 or node.type_id != LAYER_LOOP_PAINT.type_id
+        ):
+            raise ValueError("fallback ledger is not a paid generative-loop fallback")
+        if selection == "local_output" and (
+            operations != 0 or node.type_id != LAYER_LOOP_PAINT.type_id
+        ):
+            raise ValueError("local-output ledger is not a skipped generative loop")
+
+        selected_ref = self._provider_output_ref(node)
+        for ordinal, entry in enumerate(attempts, start=1):
+            if not isinstance(entry, dict):
+                raise ValueError(f"{node.node_id} ledger attempt is not an object")
+            selected = selection == "provider_output" and ordinal == operations
+            expected_entry_fields = (
+                {"attempt", "outcome", "artifact_ref", "artifact_sha256", "prompt_sha256"}
+                if selected
+                else {"attempt", "outcome", "prompt_sha256", "reason"}
+            )
+            self._require_equal(
+                set(entry), expected_entry_fields, label=f"{node.node_id} attempt fields"
+            )
+            self._require_equal(entry["attempt"], ordinal, label=f"{node.node_id} attempt ordinal")
+            self._require_equal(
+                entry["prompt_sha256"], prompt_sha256, label=f"{node.node_id} attempt prompt"
+            )
+            if selected:
+                self._require_equal(
+                    entry["outcome"], "selected", label=f"{node.node_id} selected outcome"
+                )
+                self._require_equal(
+                    entry["artifact_ref"], selected_ref, label=f"{node.node_id} selected ref"
+                )
+                self._require_equal(
+                    entry["artifact_sha256"],
+                    content_sha256(bundle[selected_ref]),
+                    label=f"{node.node_id} selected digest",
+                )
+            else:
+                self._require_equal(
+                    entry["outcome"],
+                    "not_selected",
+                    label=f"{node.node_id} unselected outcome",
+                )
+                self._require_equal(
+                    entry["reason"],
+                    "provider attempt did not produce the selected output",
+                    label=f"{node.node_id} unselected reason",
+                )
+        return operations, cast("str", selection)
+
+    def _image_generation_request(self, node: Node) -> ImageGenerationRequest:
+        """Build the one current OpenAI request for an image provider node."""
+
+        output = self._run_dir / self._provider_output_ref(node)
+        if node.type_id == TRACK_GROUND_GENERATE.type_id:
+            template = terrain_atlas_template_path().read_bytes()
+            topology = terrain_atlas_topology_reference_path().read_bytes()
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=(
+                    ImageReference(
+                        _data_url(template, "image/png"),
+                        (
+                            "resource://image_gen_templates/terrain_atlas_12x4_template.png"
+                            f"#sha256={content_sha256(template)}"
+                        ),
+                    ),
+                    ImageReference(
+                        _data_url(topology, "image/png"),
+                        (
+                            "resource://image_gen_templates/"
+                            "terrain_atlas_godot_topology_reference.png"
+                            f"#sha256={content_sha256(topology)}"
+                        ),
+                    ),
+                    *self._authored_references(node),
+                ),
+                quality="high",
+                background="opaque",
+                output_format="png",
+                size="auto",
+                timeout_seconds=600,
+                metadata={"track_id": self._track().track_id, "operation": "ground_atlas"},
+                validate=lambda artifact: require_terrain_atlas_source(
+                    artifact.data, template=template
+                ),
+            )
+        if node.type_id == TRACK_STRUCTURAL_GROUND_GENERATE.type_id:
+            chunk = self._segment(node)
+            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+            guide = (self._run_dir / guide_ref).read_bytes()
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=(
+                    ImageReference(
+                        _data_url(guide, "image/png"),
+                        f"run://{guide_ref}#sha256={content_sha256(guide)}",
+                    ),
+                    *self._authored_references(node),
+                ),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size=f"{STRUCTURAL_GROUND_GUIDE_WIDTH}x{STRUCTURAL_GROUND_GUIDE_HEIGHT}",
+                timeout_seconds=600,
+                metadata={
+                    "track_id": self._track().track_id,
+                    "segment_id": chunk.segment_id,
+                    "operation": "structural_ground",
+                    "native_alpha": True,
+                },
+                validate=lambda artifact: validate_structural_ground_source(
+                    artifact.data,
+                    occupancy=chunk.occupancy,
+                    walk_surface_row=self._track().segments.walk_surface_row,
+                    guide=guide,
+                ),
+            )
+        if node.type_id == LAYER_GENERATE.type_id:
+            layer = self._layer(node)
+            transparent = layer.alpha_mode == "transparent"
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=self._authored_references(node),
+                quality="high",
+                background="transparent" if transparent else "opaque",
+                output_format="png",
+                size="1536x1024",
+                timeout_seconds=600,
+                metadata={"track_id": self._track().track_id, "layer_id": layer.layer_id},
+                validate=lambda artifact: _validate_layer_candidate(
+                    artifact.data, transparent=transparent
+                ),
+            )
+        if node.type_id == LAYER_LOOP_PAINT.type_id:
+            layer = self._layer(node)
+            construction = cast("LoopConstruction", node.params["construction"])
+            source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
+            source = (self._run_dir / source_ref).read_bytes()
+            conditioning = loop_conditioning(construction, source)
+            return ImageGenerationRequest(
+                prompt=self._provider_prompt(node),
+                artifact_path=output,
+                input_references=(
+                    ImageReference(
+                        _data_url(conditioning.conditioning_png, "image/png"),
+                        "loop-conditioning",
+                    ),
+                ),
+                mask_reference=ImageReference(
+                    _data_url(conditioning.mask_png, "image/png"), "loop-mask"
+                ),
+                quality="high",
+                background=("transparent" if layer.alpha_mode == "transparent" else "opaque"),
+                output_format="png",
+                size=f"{conditioning.width}x{conditioning.height}",
+                timeout_seconds=600,
+                metadata={
+                    "track_id": self._track().track_id,
+                    "layer_id": layer.layer_id,
+                    "operation": f"loop_{construction}",
+                },
+            )
+        if node.type_id == AVATAR_CONCEPT_GENERATE.type_id:
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=self._authored_references(node),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size="1024x1536",
+                timeout_seconds=600,
+                metadata={"avatar_id": self._runner.avatar.avatar.avatar_id},
+                validate=lambda artifact: _validate_transparent_sprite(artifact.data),
+            )
+        if node.type_id == AVATAR_MOTION_GENERATE.type_id:
+            geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
+            state = str(node.params["state"])
+            motion = next(
+                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
+            )
+            concept_ref = self._dependency_artifact(node, kind="avatar-concept-v1")
+            concept = (self._run_dir / concept_ref).read_bytes()
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=(
+                    ImageReference(_data_url(concept, "image/png"), "identity-concept"),
+                ),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size=geometry.provider_size,
+                timeout_seconds=600,
+                metadata={"avatar_id": self._runner.avatar.avatar.avatar_id, "state": state},
+                validate=lambda artifact: _validate_motion_candidate(
+                    artifact.data, anchor=motion.anchor
+                ),
+            )
+        if node.type_id == CATALOG_ASSET_GENERATE.type_id:
+            family = str(node.params["family"])
+            return ImageGenerationRequest(
+                prompt=self._card_prompt(node),
+                artifact_path=output,
+                input_references=self._authored_references(node),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size="1024x1024",
+                timeout_seconds=600,
+                metadata={"family": family, "entity_id": str(node.params["entity_id"])},
+                validate=lambda artifact: _validate_catalog_candidate(artifact.data, family=family),
+            )
+        raise ValueError(f"runner node has no image request builder: {node.type_id}")
+
+    def _music_generation_request(self, node: Node) -> MusicGenerationRequest:
+        soundtrack = self._runner.soundtrack
+        if soundtrack is None:
+            raise ValueError("runner package declares no soundtrack member")
+        track = soundtrack.track(str(node.params["track_id"]))
+        return MusicGenerationRequest(
+            prompt=self._provider_prompt(node),
+            artifact_path=self._run_dir / node.port("audio").artifact_ref,
+            output_format="mp3",
+            timeout_seconds=900,
+            metadata={
+                "track_id": track.track_id,
+                "target_duration_seconds": track.generation.target_duration_seconds,
+                "seamless_loop": track.generation.seamless_loop,
+            },
+            validate=lambda artifact: validate_music_payload(artifact.data),
+        )
+
+    @staticmethod
+    def _sync_artifact_validation(
+        validator: Callable[[BinaryArtifact], object] | None,
+        artifact: BinaryArtifact,
+    ) -> dict[str, object]:
+        if validator is None:
+            return {}
+        result = validator(artifact)
+        if inspect.isawaitable(result):
+            raise ValueError("runner provider cache validation must be synchronous")
+        if result is None:
+            return {}
+        if not isinstance(result, MappingABC):
+            raise ValueError("runner provider validator returned a non-mapping")
+        return dict(result)
+
+    @staticmethod
+    def _reference_identity(
+        references: Sequence[ImageReference | StructuredReference],
+    ) -> tuple[list[str], list[dict[str, object]]]:
+        refs = [
+            reference.provenance_ref or sanitize_reference(reference.url)
+            for reference in references
+        ]
+        inputs = [
+            hash_input_reference(reference.url, reference.provenance_ref).model_dump(
+                mode="json", exclude_none=True
+            )
+            for reference in references
+        ]
+        return refs, inputs
+
+    def expected_provider_provenance_identity(
+        self,
+        node: Node,
+        artifact_data: bytes,
+        *,
+        bundle: Mapping[str, bytes] | None = None,
+        provider_response: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Return the exact current request identity a provider sidecar must carry.
+
+        Replay migration uses this same helper after staging current dependencies,
+        so cache admission and sidecar migration cannot drift on ordered inputs,
+        mask lineage, provider params, or caller-validation facts.
+        """
+
+        if node.operation == RunnerOperationKind.IMAGE_GENERATION:
+            image_request = self._image_generation_request(node)
+            references = (
+                image_request.input_references
+                if image_request.mask_reference is None
+                else (*image_request.input_references, image_request.mask_reference)
+            )
+            refs, inputs = self._reference_identity(references)
+            params: dict[str, object] = {
+                "n": 1,
+                "validated": image_request.validate is not None,
+                "operation": "edit" if image_request.input_references else "generation",
+                "output_format": image_request.output_format or "png",
+            }
+            for key in ("size", "quality", "background"):
+                value = getattr(image_request, key)
+                if value is not None:
+                    params[key] = value
+            if image_request.moderation is not None and not image_request.input_references:
+                params["moderation"] = image_request.moderation
+            if image_request.output_compression is not None:
+                params["output_compression"] = image_request.output_compression
+            if image_request.metadata:
+                params["metadata"] = dict(image_request.metadata)
+            caller = self._sync_artifact_validation(
+                image_request.validate,
+                BinaryArtifact(data=artifact_data, media_type="image/png"),
+            )
+            validation: dict[str, object] = {
+                "output_nonempty": True,
+                "base64": "strict",
+                "media_type": "image/png",
+                "signature": "matched",
+                "caller": image_request.validate is not None,
+                **caller,
+            }
+            component = IMAGE_GENERATION_COMPONENT
+            seed = None
+            rights = None
+        elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
+            plate_data = (
+                bundle[node.port("plate").artifact_ref]
+                if bundle is not None
+                else (self._run_dir / node.port("plate").artifact_ref).read_bytes()
+            )
+            plate_ref = f"run://{node.port('plate').artifact_ref}"
+            reference = StructuredReference(_data_url(plate_data, "image/png"), plate_ref)
+            refs, inputs = self._reference_identity((reference,))
+            states = list(declared_motion_states(self._runner.avatar.avatar))
+            schema_description = (
+                "Per-state draw-scale multipliers against an actor's baseline"
+                if node.type_id == MOTION_REBASE_JUDGE.type_id
+                else "Residual per-state multipliers on the rebased plate"
+            )
+            schema = StructuredOutputSchema(
+                name=MOTION_REBASE_SCHEMA_NAME,
+                description=schema_description,
+                json_schema=motion_rebase_json_schema(),
+                strict=True,
+            )
+            system = "You are a sprite-sheet scale judge. Return only the strict structured object."
+            kind = (
+                "avatar-motion-rebase"
+                if node.type_id == MOTION_REBASE_JUDGE.type_id
+                else "avatar-motion-rebase-verify"
+            )
+            params = {
+                "schema_name": schema.name,
+                "schema_description": schema.description,
+                "schema": dict(schema.json_schema),
+                "strict": schema.strict,
+                "require_parameters": True,
+                "system": system,
+                "system_sha256": content_sha256(system.encode("utf-8")),
+                "metadata": {
+                    "kind": kind,
+                    "entity_id": self._runner.avatar.avatar.avatar_id,
+                    "states": states,
+                    "plate_sha256": content_sha256(plate_data),
+                },
+                "artifact_value": "caller-canonicalized",
+                "validated": True,
+            }
+            canonical = self._strict_json_object(
+                artifact_data, label=f"{node.node_id} structured artifact"
+            )
+            validation = {
+                "output_nonempty": True,
+                "json": "parsed",
+                "schema": "caller-validated",
+                **canonical,
+            }
+            component = STRUCTURED_GENERATION_COMPONENT
+            seed = None
+            rights = None
+        elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
+            music_request = self._music_generation_request(node)
+            refs, inputs = [], []
+            params = {
+                "output_format": music_request.output_format,
+                "modalities": ["text", "audio"],
+                "stream": True,
+                "validated": music_request.validate is not None,
+            }
+            if music_request.metadata:
+                params["metadata"] = dict(music_request.metadata)
+            caller = self._sync_artifact_validation(
+                music_request.validate,
+                BinaryArtifact(data=artifact_data, media_type="audio/mpeg"),
+            )
+            response_shape = (
+                None if provider_response is None else provider_response.get("source_shape")
+            )
+            if response_shape not in {"sse", "json"}:
+                raise ValueError("music provenance has no valid provider response shape")
+            validation = {
+                "output_nonempty": True,
+                "base64": "strict",
+                "media_type": "audio/mpeg",
+                "signature": "matched",
+                "source_shape": response_shape,
+                "caller": music_request.validate is not None,
+                **caller,
+            }
+            component = MUSIC_GENERATION_COMPONENT
+            seed = music_request.seed
+            rights = (
+                None
+                if music_request.rights is None
+                else music_request.rights.model_dump(mode="json")
+            )
+        else:
+            raise ValueError(f"node {node.node_id} is not provider-backed")
+
+        prompt = self._provider_prompt(node)
+        return _json_normalize_provider_identity(
+            {
+                "schema_version": 2,
+                "provider": node.provider,
+                "model": node.model,
+                "seed": seed,
+                "prompt": prompt,
+                "prompt_sha256": content_sha256(prompt.encode("utf-8")),
+                "references": refs,
+                "refs": refs,
+                "inputs": inputs,
+                "params": params,
+                "validation": validation,
+                "component": component.model_dump(mode="json"),
+                "tool": STAGE_GEN_TOOL.model_dump(mode="json"),
+                "rights": rights,
+            }
+        )
+
+    def _admit_provider_artifact(self, node: Node, data: bytes) -> None:
+        """Run the same refusal-bearing check the provider retry owner runs."""
+
+        if node.type_id == TRACK_GROUND_GENERATE.type_id:
+            require_terrain_atlas_source(data, template=terrain_atlas_template_path().read_bytes())
+            return
+        if node.type_id == TRACK_STRUCTURAL_GROUND_GENERATE.type_id:
+            chunk = self._segment(node)
+            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+            validate_structural_ground_source(
+                data,
+                occupancy=chunk.occupancy,
+                walk_surface_row=self._track().segments.walk_surface_row,
+                guide=(self._run_dir / guide_ref).read_bytes(),
+            )
+            return
+        if node.type_id == LAYER_GENERATE.type_id:
+            layer = self._layer(node)
+            _validate_layer_candidate(data, transparent=layer.alpha_mode == "transparent")
+            return
+        if node.type_id == AVATAR_CONCEPT_GENERATE.type_id:
+            facts = _validate_transparent_sprite(data)
+            self._require_equal(
+                (facts["width"], facts["height"]),
+                (1024, 1536),
+                label="avatar concept dimensions",
+            )
+            return
+        if node.type_id == AVATAR_MOTION_GENERATE.type_id:
+            state = str(node.params["state"])
+            motion = next(
+                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
+            )
+            _validate_motion_candidate(data, anchor=motion.anchor)
+            return
+        if node.type_id == CATALOG_ASSET_GENERATE.type_id:
+            facts = _validate_catalog_candidate(data, family=str(node.params["family"]))
+            source = cast("dict[str, object]", facts["source"])
+            self._require_equal(
+                (source["width"], source["height"]),
+                (1024, 1024),
+                label="catalog source dimensions",
+            )
+            return
+        if node.type_id == SOUNDTRACK_GENERATE.type_id:
+            validate_music_payload(data)
+            return
+        raise ValueError(f"runner cache has no provider admission for {node.type_id}")
+
+    def _repeat_report(self, node: Node, data: bytes) -> Any:
+        layer = self._layer(node)
+        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
+        return validate_image_repeat(
+            data,
+            axis="x",
+            alpha_policy=alpha_policy,
+            coverage_policy=coverage,
+            validation_policy=ImageRepeatValidationPolicy(),
+        )
+
+    def _admit_loop_bundle(
+        self,
+        node: Node,
+        bundle: Mapping[str, bytes],
+        *,
+        provider_operations: int,
+        output_selection: str,
+    ) -> None:
+        source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
+        source = (self._run_dir / source_ref).read_bytes()
+        looped = bundle[node.port("loop_image").artifact_ref]
+        report = self._strict_json_object(
+            bundle[node.port("loop_report").artifact_ref], label=f"{node.node_id} loop report"
+        )
+        repeat = self._repeat_report(node, looped)
+        if repeat.verdict != "pass":
+            raise ValueError(f"{node.node_id} cached loop fails current x-repeat admission")
+
+        construction = cast("LoopConstruction", node.params["construction"])
+        from stage_gen.media import LOOP_METHODS
+
+        generative = LOOP_METHODS[construction].is_generative
+        if not generative:
+            if provider_operations or output_selection != "local_output":
+                raise ValueError("deterministic loop has provider provenance")
+            source_admission = self._repeat_report(node, source)
+            if source_admission.verdict == "pass":
+                expected_image = source
+                expected: dict[str, object] = {
+                    "schema_version": 1,
+                    "kind": "direct-loop-admission-v1",
+                    "construction": "none",
+                    "skipped_construction": construction,
+                    "provider_operations": 0,
+                }
+            else:
+                expected_image, expected = construct_deterministic(construction, source)
+                expected["construction"] = construction
+            expected["repeat"] = self._repeat_report(node, expected_image).model_dump(mode="json")
+            self._require_equal(looped, expected_image, label=f"{node.node_id} loop bytes")
+            self._require_equal(report, expected, label=f"{node.node_id} loop report")
+            return
+
+        edit = bundle[node.port("edit_image").artifact_ref]
+        if self._repeat_report(node, source).verdict == "pass":
+            if provider_operations or output_selection != "local_output":
+                raise ValueError("directly admitted loop claims a provider operation")
+            expected = {
+                "schema_version": 1,
+                "kind": "direct-loop-admission-v1",
+                "construction": "none",
+                "skipped_construction": construction,
+                "provider_operations": 0,
+                "repeat": repeat.model_dump(mode="json"),
+            }
+            self._require_equal(looped, source, label=f"{node.node_id} direct loop bytes")
+            self._require_equal(edit, source, label=f"{node.node_id} skipped edit bytes")
+            self._require_equal(report, expected, label=f"{node.node_id} direct loop report")
+            return
+
+        if provider_operations < 1:
+            raise ValueError("generative loop needing construction records no provider operation")
+        conditioning = loop_conditioning(construction, source)
+        layer = self._layer(node)
+        validate_provider_image(
+            edit,
+            width=conditioning.width,
+            height=conditioning.height,
+            transparent=layer.alpha_mode == "transparent",
+        )
+        try:
+            candidate, candidate_record = assemble_loop(
+                construction, source, edit, conditioning=conditioning
+            )
+        except RegistrationError as error:
+            candidate = None
+            candidate_record = None
+            rejection = str(error)
+            rejected_repeat = None
+        else:
+            candidate_repeat = self._repeat_report(node, cast("bytes", candidate))
+            rejection = "constructed loop failed x-repeat admission"
+            rejected_repeat = candidate_repeat.model_dump(mode="json")
+
+        if output_selection == "provider_output":
+            if candidate is None or candidate_record is None:
+                raise ValueError("selected provider loop fails current registration")
+            candidate_repeat = self._repeat_report(node, candidate)
+            if candidate_repeat.verdict != "pass":
+                raise ValueError("selected provider loop fails current repeat admission")
+            expected = dict(candidate_record)
+            expected["construction"] = construction
+            expected["provider_operations"] = provider_operations
+            expected["repeat"] = candidate_repeat.model_dump(mode="json")
+            self._require_equal(looped, candidate, label=f"{node.node_id} selected loop bytes")
+            self._require_equal(report, expected, label=f"{node.node_id} selected loop report")
+            return
+
+        if output_selection != "fallback_output":
+            raise ValueError("constructed loop has unsupported output selection")
+        if candidate is not None and rejected_repeat is not None:
+            candidate_repeat = self._repeat_report(node, candidate)
+            if candidate_repeat.verdict == "pass":
+                raise ValueError("fallback ledger rejected a currently admissible provider loop")
+        fallback = self._track().continuity.loop_fallback
+        fallback_image, fallback_record = construct_deterministic(fallback, source)
+        expected = dict(fallback_record)
+        expected["construction"] = fallback
+        expected["rejected_construction"] = construction
+        expected["rejection"] = rejection
+        if rejected_repeat is not None:
+            expected["rejected_repeat"] = rejected_repeat
+        expected["provider_operations"] = provider_operations
+        expected["repeat"] = self._repeat_report(node, fallback_image).model_dump(mode="json")
+        self._require_equal(looped, fallback_image, label=f"{node.node_id} fallback loop bytes")
+        self._require_equal(report, expected, label=f"{node.node_id} fallback loop report")
+
+    @staticmethod
+    def _admit_evidence(record: Mapping[str, object], states: Sequence[str]) -> None:
+        evidence = record.get("evidence")
+        if not isinstance(evidence, dict) or set(evidence) != set(states):
+            raise ValueError("motion-rebase evidence does not cover current states")
+        if any(
+            not isinstance(value, str) or not value.strip() or len(value) > 300
+            for value in evidence.values()
+        ):
+            raise ValueError("motion-rebase evidence is malformed")
+
+    @staticmethod
+    def _numeric_state_map(
+        value: object,
+        states: Sequence[str],
+        *,
+        label: str,
+    ) -> dict[str, float]:
+        if not isinstance(value, dict) or set(value) != set(states):
+            raise ValueError(f"{label} does not cover current states")
+        result: dict[str, float] = {}
+        for state, raw in value.items():
+            if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+                raise ValueError(f"{label} contains a non-number")
+            number = float(raw)
+            if not math.isfinite(number):
+                raise ValueError(f"{label} contains a non-finite number")
+            result[cast("str", state)] = number
+        return result
+
+    def _admit_structured_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
+        avatar = self._runner.avatar.avatar
+        states = list(declared_motion_states(avatar))
+        frames = self._state_frames(node)
+        plate = build_motion_rebase_plate(frames, baseline_state=RUNNER_BASELINE_STATE)
+        plate_data = bundle[node.port("plate").artifact_ref]
+        record_ref = self._provider_output_ref(node)
+        record = self._strict_json_object(bundle[record_ref], label=record_ref)
+        if node.type_id == MOTION_REBASE_JUDGE.type_id:
+            self._require_equal(
+                plate_data, plate.png, label=f"{node.node_id} current comparison plate"
+            )
+            self._require_equal(
+                set(record),
+                {"baseline_state", "states", "plate_sha256", "evidence"},
+                label=f"{node.node_id} reading fields",
+            )
+            admit_first_pass_record(
+                record,
+                published_states=states,
+                plate=plate,
+                baseline_state=RUNNER_BASELINE_STATE,
+            )
+            self._admit_evidence(record, states)
+            return
+        if node.type_id != MOTION_REBASE_VERIFY.type_id:
+            raise ValueError(f"unknown runner structured cache node {node.type_id}")
+
+        first_ref = self._dependency_artifact(node, kind=REBASE_READING_KIND, port_id="reading")
+        first_record = self._strict_json_object(
+            (self._run_dir / first_ref).read_bytes(), label=first_ref
+        )
+        first_pass = admit_first_pass_record(
+            first_record,
+            published_states=states,
+            plate=plate,
+            baseline_state=RUNNER_BASELINE_STATE,
+        )
+        verification_plate = build_motion_rebase_verification_plate(
+            frames, first_pass, baseline_state=RUNNER_BASELINE_STATE
+        )
+        self._require_equal(
+            plate_data,
+            verification_plate.png,
+            label=f"{node.node_id} current verification plate",
+        )
+        self._require_equal(
+            set(record),
+            {
+                "baseline_state",
+                "states",
+                "first_pass",
+                "correction",
+                "plate_sha256",
+                "verification_plate_sha256",
+                "evidence",
+            },
+            label=f"{node.node_id} verification fields",
+        )
+        self._require_equal(
+            record["baseline_state"],
+            RUNNER_BASELINE_STATE,
+            label=f"{node.node_id} verification baseline",
+        )
+        self._require_equal(
+            record["plate_sha256"], plate.sha256, label=f"{node.node_id} plate digest"
+        )
+        self._require_equal(
+            record["verification_plate_sha256"],
+            verification_plate.sha256,
+            label=f"{node.node_id} verification plate digest",
+        )
+        recorded_first = self._numeric_state_map(
+            record["first_pass"], states, label="verification first pass"
+        )
+        self._require_equal(
+            recorded_first,
+            {state: round(first_pass[state], 2) for state in states},
+            label=f"{node.node_id} first-pass binding",
+        )
+        corrections = self._numeric_state_map(
+            record["correction"], states, label="verification corrections"
+        )
+        if corrections[RUNNER_BASELINE_STATE] != 1.0 or any(
+            not 0.5 <= value <= 2.0 for value in corrections.values()
+        ):
+            raise ValueError("verification corrections lie outside the admitted residual band")
+        expected_states = {
+            state: (
+                1.0
+                if state == RUNNER_BASELINE_STATE
+                else round(first_pass[state] * corrections[state], 2)
+            )
+            for state in states
+        }
+        self._require_equal(
+            self._numeric_state_map(record["states"], states, label="verification states"),
+            expected_states,
+            label=f"{node.node_id} composed verification",
+        )
+        self._admit_evidence(record, states)
+
+    def _admit_local_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
+        """Re-derive deterministic local cache outputs from admitted dependencies."""
+
+        if node.type_id == PACKAGE_RESOLVE.type_id:
+            actual = self._strict_json_object(
+                bundle[node.port("package").artifact_ref], label="runner package identity"
+            )
+            self._require_equal(actual, self._resolved.identity(), label="runner package identity")
+            return
+        if node.type_id == TRACK_GROUND_VALIDATE.type_id:
+            source_ref = self._dependency_artifact(node, kind=GROUND_RAW_KIND)
+            canonical, validation = assemble_terrain_atlas(
+                (self._run_dir / source_ref).read_bytes()
+            )
+            if validation["classification"] != "direct_pass":
+                raise ValueError("cached terrain source no longer directly passes")
+            self._admit_local_image_and_record(node, bundle, image=canonical, validation=validation)
+            return
+        if node.type_id == TRACK_STRUCTURAL_GROUND_GUIDE.type_id:
+            chunk = self._segment(node)
+            inputs = self._structural_material_inputs()
+            guide, report = build_structural_ground_guide(
+                chunk.occupancy,
+                walk_surface_row=self._track().segments.walk_surface_row,
+                material_identity=self._structural_material_identity(),
+                material_references=[data for _ref, data in inputs],
+            )
+            self._admit_local_image_and_record(
+                node,
+                bundle,
+                image=guide,
+                validation={**report, "segment_id": chunk.segment_id},
+            )
+            return
+        if node.type_id == TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE.type_id:
+            chunk = self._segment(node)
+            raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
+            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+            inputs = self._structural_material_inputs()
+            bridge, report = canonicalize_structural_ground_seam_bridge(
+                (self._run_dir / raw_ref).read_bytes(),
+                occupancy=chunk.occupancy,
+                walk_surface_row=self._track().segments.walk_surface_row,
+                material_identity=self._structural_material_identity(),
+                material_references=[data for _ref, data in inputs],
+                guide=(self._run_dir / guide_ref).read_bytes(),
+            )
+            validate_structural_ground_seam_bridge(
+                bridge,
+                rows=len(chunk.occupancy),
+                walk_surface_row=self._track().segments.walk_surface_row,
+            )
+            self._admit_local_image_and_record(
+                node,
+                bundle,
+                image=bridge,
+                validation={**report, "source_segment_id": chunk.segment_id},
+            )
+            return
+        if node.type_id == TRACK_STRUCTURAL_GROUND_VALIDATE.type_id:
+            chunk = self._segment(node)
+            raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
+            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+            bridge_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_SEAM_BRIDGE_KIND)
+            bridge = (self._run_dir / bridge_ref).read_bytes()
+            inputs = self._structural_material_inputs()
+            canonical, report = canonicalize_structural_ground(
+                (self._run_dir / raw_ref).read_bytes(),
+                occupancy=chunk.occupancy,
+                walk_surface_row=self._track().segments.walk_surface_row,
+                material_identity=self._structural_material_identity(),
+                material_references=[data for _ref, data in inputs],
+                guide=(self._run_dir / guide_ref).read_bytes(),
+                seam_bridge=bridge,
+            )
+            validate_structural_ground_canonical(
+                canonical,
+                occupancy=chunk.occupancy,
+                walk_surface_row=self._track().segments.walk_surface_row,
+                seam_bridge=bridge,
+            )
+            self._admit_local_image_and_record(
+                node,
+                bundle,
+                image=canonical,
+                validation={
+                    **report,
+                    "segment_id": chunk.segment_id,
+                    "seam_bridge_ref": bridge_ref,
+                },
+            )
+            return
+        if node.type_id == LAYER_LOOP_CONSTRUCT.type_id:
+            self._admit_loop_bundle(
+                node,
+                bundle,
+                provider_operations=0,
+                output_selection="local_output",
+            )
+            return
+        if node.type_id == LAYER_VALIDATE.type_id:
+            layer = self._layer(node)
+            source_ref = self._dependency_artifact(node, kind=LAYER_LOOP_KIND)
+            looped = (self._run_dir / source_ref).read_bytes()
+            if layer.alpha_mode == "transparent":
+                published, trim = trim_layer_to_alpha_box(looped)
+            else:
+                published, trim = looped, {"trimmed": False}
+            with Image.open(io.BytesIO(published)) as opened:
+                width, height = opened.size
+            validation = {
+                "schema_version": 1,
+                "kind": "sideview-runner-layer-validation-v1",
+                "layer_id": layer.layer_id,
+                "alpha_mode": layer.alpha_mode,
+                "vertical_anchor": layer.vertical_anchor,
+                "width": width,
+                "height": height,
+                "trim": trim,
+            }
+            self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
+            return
+        if node.type_id == AVATAR_MOTION_VALIDATE.type_id:
+            state = str(node.params["state"])
+            geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
+            source_ref = self._dependency_artifact(node, kind=MOTION_RAW_KIND)
+            source = (self._run_dir / source_ref).read_bytes()
+            source_facts = _validate_motion_source(source)
+            motion = next(
+                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
+            )
+            canonical, repack = repack_alpha_components(
+                source,
+                AlphaComponentRepackContract(
+                    rows=geometry.rows,
+                    columns=geometry.columns,
+                    required_cells=geometry.required_cells,
+                    anchor=motion.anchor,
+                    source_slot_policy="exact_required_slots",
+                ),
+            )
+            validation = {
+                "schema_version": 2,
+                "kind": "sideview-runner-motion-validation-v2",
+                "state": state,
+                "columns": geometry.columns,
+                "rows": geometry.rows,
+                "frames": geometry.required_cells,
+                "runtime_horizontal_mirroring": True,
+                "source_validation": source_facts,
+                "repack": repack,
+            }
+            self._admit_local_image_and_record(node, bundle, image=canonical, validation=validation)
+            return
+        if node.type_id == CATALOG_ASSET_VALIDATE.type_id:
+            source_ref = self._dependency_artifact(node, kind=CATALOG_RAW_KIND)
+            source = (self._run_dir / source_ref).read_bytes()
+            family = str(node.params["family"])
+            published, trim, sparse_tail_trim = canonicalize_runner_catalog_sprite(
+                source, family=family
+            )
+            validation = {
+                "schema_version": 3,
+                "kind": "sideview-runner-catalog-validation-v3",
+                "family": family,
+                "entity_id": node.params["entity_id"],
+                "source_validation": _validate_transparent_sprite(source),
+                "trim": trim,
+                "sparse_tail_trim": sparse_tail_trim,
+            }
+            self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
+            return
+        if node.type_id in {SOUNDTRACK_VALIDATE.type_id, MANIFEST_ASSEMBLE.type_id}:
+            # These are cheap local publication gates. Soundtrack validation
+            # needs an actual ffprobe and manifest assembly closes over every
+            # admitted output, so rerun them instead of trusting a serialized
+            # verdict that cannot be decisively checked in this synchronous
+            # cache callback.
+            raise ValueError(f"{node.node_id} is always refreshed locally")
+        raise ValueError(f"runner cache has no local admission for {node.type_id}")
+
+    def _admit_local_image_and_record(
+        self,
+        node: Node,
+        bundle: Mapping[str, bytes],
+        *,
+        image: bytes,
+        validation: Mapping[str, object],
+    ) -> None:
+        image_ref = node.port("image").artifact_ref
+        validation_ref = node.port("validation").artifact_ref
+        self._require_equal(bundle[image_ref], image, label=f"{node.node_id} local image")
+        self._require_equal(
+            self._strict_json_object(bundle[validation_ref], label=validation_ref),
+            dict(validation),
+            label=f"{node.node_id} local validation",
+        )
 
     # ---------------------------------------------------------------- dispatch
 
@@ -333,6 +1869,17 @@ class SideviewRunnerNodeHandler:
         registry.register(PACKAGE_RESOLVE, self._bind(self._write_package))
         registry.register(TRACK_GROUND_GENERATE, self._bind(self._generate_ground))
         registry.register(TRACK_GROUND_VALIDATE, self._bind(self._validate_ground))
+        registry.register(TRACK_STRUCTURAL_GROUND_GUIDE, self._bind(self._guide_structural_ground))
+        registry.register(
+            TRACK_STRUCTURAL_GROUND_GENERATE, self._bind(self._generate_structural_ground)
+        )
+        registry.register(
+            TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
+            self._bind(self._build_structural_ground_seam_bridge),
+        )
+        registry.register(
+            TRACK_STRUCTURAL_GROUND_VALIDATE, self._bind(self._validate_structural_ground)
+        )
         registry.register(LAYER_GENERATE, self._bind(self._generate_layer))
         registry.register(LAYER_LOOP_CONSTRUCT, self._bind(self._layer_loop))
         registry.register(LAYER_LOOP_PAINT, self._bind(self._layer_loop))
@@ -356,13 +1903,44 @@ class SideviewRunnerNodeHandler:
         return handler
 
     def _result(
-        self, node: Node, *, attempts: int = 1, provider_operations: int = 0
+        self,
+        node: Node,
+        *,
+        attempts: int = 1,
+        provider_operations: int = 0,
+        provider_output_selected: bool = True,
     ) -> NodeExecutionResult:
+        if node.operation != RunnerOperationKind.LOCAL:
+            output_selection: Literal[
+                "provider_output", "fallback_output", "local_output", "none"
+            ] = (
+                "provider_output"
+                if provider_operations and provider_output_selected
+                else "fallback_output"
+                if provider_operations
+                else "local_output"
+            )
+            self._write_attempt_ledger(
+                node,
+                provider_operations=provider_operations,
+                selected_ref=(
+                    self._provider_output_ref(node)
+                    if provider_operations and provider_output_selected
+                    else None
+                ),
+                output_selection=output_selection,
+                cache_hit=False,
+            )
         refs: list[str] = []
         for port in node.ports:
             refs.append(port.artifact_ref)
             if port.sidecar_ref is not None:
                 refs.append(port.sidecar_ref)
+        missing = [ref for ref in refs if not (self._run_dir / ref).is_file()]
+        if missing:
+            raise ValueError(
+                f"node {node.node_id} did not publish declared artifacts: {', '.join(missing)}"
+            )
         artifacts = tuple(
             NodeArtifact(
                 artifact_ref=ref,
@@ -370,7 +1948,6 @@ class SideviewRunnerNodeHandler:
                 bytes=(self._run_dir / ref).stat().st_size,
             )
             for ref in refs
-            if (self._run_dir / ref).is_file()
         )
         return NodeExecutionResult(
             cache=CacheDisposition.MISS,
@@ -378,6 +1955,92 @@ class SideviewRunnerNodeHandler:
             provider_operations=provider_operations,
             artifacts=artifacts,
         )
+
+    def _provider_output_ref(self, node: Node) -> str:
+        if node.operation == RunnerOperationKind.IMAGE_GENERATION:
+            preferred = (
+                "edit_image"
+                if any(port.port_id == "edit_image" for port in node.ports)
+                else "image"
+            )
+        elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
+            preferred = (
+                "verification"
+                if any(port.port_id == "verification" for port in node.ports)
+                else "reading"
+            )
+        elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
+            preferred = "audio"
+        else:
+            raise ValueError(f"node {node.node_id} is not a provider operation")
+        return node.port(preferred).artifact_ref
+
+    def _attempt_port_ref(self, node: Node) -> str | None:
+        return next(
+            (port.artifact_ref for port in node.ports if port.kind == ATTEMPT_LEDGER_KIND),
+            None,
+        )
+
+    def _write_attempt_ledger(
+        self,
+        node: Node,
+        *,
+        provider_operations: int,
+        selected_ref: str | None,
+        output_selection: Literal["provider_output", "fallback_output", "local_output", "none"],
+        cache_hit: bool,
+    ) -> Path | None:
+        attempt_ref = self._attempt_port_ref(node)
+        if attempt_ref is None:
+            return None
+        prompt = self._provider_prompt(node)
+        prompt_sha256 = content_sha256(prompt.encode("utf-8"))
+        not_selected = (
+            provider_operations if selected_ref is None else max(0, provider_operations - 1)
+        )
+        records: list[dict[str, object]] = [
+            {
+                "attempt": ordinal,
+                "outcome": "not_selected",
+                "prompt_sha256": prompt_sha256,
+                "reason": "provider attempt did not produce the selected output",
+            }
+            for ordinal in range(1, not_selected + 1)
+        ]
+        if selected_ref is not None:
+            selected_path = self._run_dir / selected_ref
+            records.append(
+                {
+                    "attempt": provider_operations,
+                    "outcome": "selected",
+                    "artifact_ref": selected_ref,
+                    "artifact_sha256": content_sha256(selected_path.read_bytes()),
+                    "prompt_sha256": prompt_sha256,
+                }
+            )
+        ledger = {
+            "schema_version": 2,
+            "kind": "sideview-runner-attempt-ledger-v2",
+            "node_id": node.node_id,
+            "cache_hit": cache_hit,
+            "provider_operations": provider_operations,
+            "output_selection": output_selection,
+            "prompt_sha256": prompt_sha256,
+            "attempts": records,
+        }
+        path = self._run_dir / attempt_ref
+        atomic_write_json(path, ledger)
+        return path
+
+    def _write_failed_attempt_ledger(self, node: Node, *, provider_operations: int) -> None:
+        if node.operation != RunnerOperationKind.LOCAL:
+            self._write_attempt_ledger(
+                node,
+                provider_operations=provider_operations,
+                selected_ref=None,
+                output_selection="none",
+                cache_hit=False,
+            )
 
     # ------------------------------------------------------------------ shared
 
@@ -387,6 +2050,33 @@ class SideviewRunnerNodeHandler:
             raise ValueError(f"node {node.node_id} carries no card prompt")
         return card.prompt
 
+    def _provider_prompt(self, node: Node) -> str:
+        """Return the exact prompt sent by every provider-backed node."""
+
+        if node.card is not None and node.card.prompt is not None:
+            return node.card.prompt
+        if node.type_id == LAYER_LOOP_PAINT.type_id:
+            return layer_loop_prompt(self._layer(node).prompt)
+        avatar = self._runner.avatar.avatar
+        states = list(declared_motion_states(avatar))
+        if node.type_id == MOTION_REBASE_JUDGE.type_id:
+            return motion_rebase_prompt(avatar.display_name, states)
+        if node.type_id == MOTION_REBASE_VERIFY.type_id:
+            return motion_rebase_verification_prompt(avatar.display_name, states)
+        if node.type_id == SOUNDTRACK_GENERATE.type_id:
+            soundtrack = self._runner.soundtrack
+            if soundtrack is None:
+                raise ValueError("runner package declares no soundtrack member")
+            track = soundtrack.track(str(node.params["track_id"]))
+            return music_track_prompt(
+                medium="a 2D game",
+                game_id=self._package.game.game_id,
+                track_id=track.track_id,
+                creative_brief=track.creative_brief,
+                generation=track.generation,
+            )
+        raise ValueError(f"provider node {node.node_id} carries no executable prompt")
+
     def _authored_references(self, node: Node) -> tuple[ImageReference, ...]:
         card = node.card
         if card is None:
@@ -394,7 +2084,15 @@ class SideviewRunnerNodeHandler:
         references = []
         for authored in card.authored_inputs:
             data = self._package.file(authored.ref).data
-            references.append(ImageReference(_data_url(data, "image/png"), authored.label))
+            references.append(
+                ImageReference(
+                    _data_url(data, _image_media_type(data)),
+                    (
+                        f"package://{self._package.game.game_id}/{authored.ref}"
+                        f"#sha256={authored.sha256}"
+                    ),
+                )
+            )
         return tuple(references)
 
     def _dependency_artifact(self, node: Node, *, kind: str, port_id: str | None = None) -> str:
@@ -411,6 +2109,38 @@ class SideviewRunnerNodeHandler:
                 return layer
         raise KeyError(layer_id)
 
+    def _structural_ground(self) -> RunnerStructuralGround:
+        ground = self._track().ground
+        if not isinstance(ground, RunnerStructuralGround):
+            raise ValueError("runner track does not declare structural ground")
+        return ground
+
+    def _segment(self, node: Node) -> RunnerSegmentChunk:
+        segment_id = str(node.params["segment_id"])
+        for chunk in self._track().segments.chunks:
+            if chunk.segment_id == segment_id:
+                return chunk
+        raise KeyError(segment_id)
+
+    def _structural_material_inputs(self) -> list[tuple[str, bytes]]:
+        ground = self._structural_ground()
+        sources = {
+            reference.reference_id: reference.source for reference in self._track().references
+        }
+        return [
+            (sources[reference_id], self._package.file(sources[reference_id]).data)
+            for reference_id in ground.reference_ids
+        ]
+
+    def _structural_material_identity(self) -> str:
+        ground = self._structural_ground()
+        inputs = self._structural_material_inputs()
+        return structural_ground_material_identity(
+            prompt=ground.prompt,
+            visual_direction_sha256=visual_direction_digest(self._resolved),
+            reference_sha256=[content_sha256(data) for _source, data in inputs],
+        )
+
     # ------------------------------------------------------------------- nodes
 
     async def _write_package(self, node: Node) -> NodeExecutionResult:
@@ -420,45 +2150,9 @@ class SideviewRunnerNodeHandler:
         return self._result(node)
 
     async def _generate_ground(self, node: Node) -> NodeExecutionResult:
-        output = self._run_dir / node.port("image").artifact_ref
-        # The model paints over the locked 12x4 lattice template; without it in
-        # the references there is no lattice to preserve and the paintover can
-        # never slice.
-        template = terrain_atlas_template_path().read_bytes()
-        topology_reference = terrain_atlas_topology_reference_path().read_bytes()
-        references = (
-            ImageReference(
-                url=_data_url(template, "image/png"),
-                provenance_ref=(
-                    "resource://image_gen_templates/terrain_atlas_12x4_template.png"
-                    f"#sha256={hashlib.sha256(template).hexdigest()}"
-                ),
-            ),
-            ImageReference(
-                url=_data_url(topology_reference, "image/png"),
-                provenance_ref=(
-                    "resource://image_gen_templates/"
-                    "terrain_atlas_godot_topology_reference.png"
-                    f"#sha256={hashlib.sha256(topology_reference).hexdigest()}"
-                ),
-            ),
-            *self._authored_references(node),
-        )
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=references,
-                quality="high",
-                background="opaque",
-                output_format="png",
-                size="auto",
-                timeout_seconds=600,
-                metadata={"track_id": self._track().track_id, "operation": "ground_atlas"},
-                validate=lambda artifact: require_terrain_atlas_source(
-                    artifact.data, template=template
-                ),
-            )
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -482,25 +2176,138 @@ class SideviewRunnerNodeHandler:
         atomic_write_json(self._run_dir / node.port("validation").artifact_ref, validation)
         return self._result(node)
 
-    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
-        layer = self._layer(node)
-        transparent = layer.alpha_mode == "transparent"
-        output = self._run_dir / node.port("image").artifact_ref
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=self._authored_references(node),
-                quality="high",
-                background="transparent" if transparent else "opaque",
-                output_format="png",
-                size="1536x1024",
-                timeout_seconds=600,
-                metadata={"track_id": self._track().track_id, "layer_id": layer.layer_id},
-                validate=lambda artifact: validate_provider_image(
-                    artifact.data, width=1536, height=1024, transparent=transparent
+    async def _guide_structural_ground(self, node: Node) -> NodeExecutionResult:
+        chunk = self._segment(node)
+        material_inputs = self._structural_material_inputs()
+        guide, base_report = build_structural_ground_guide(
+            chunk.occupancy,
+            walk_surface_row=self._track().segments.walk_surface_row,
+            material_identity=self._structural_material_identity(),
+            material_references=[data for _source, data in material_inputs],
+        )
+        report = {**base_report, "segment_id": chunk.segment_id}
+        await _write_local_image(
+            self._run_dir / node.port("image").artifact_ref,
+            guide,
+            prompt=(
+                f"Compose the exact authored occupancy guide for {chunk.segment_id}, with two "
+                "deterministic common-material apron columns at each seam."
+            ),
+            inputs=[
+                (
+                    f"package://{self._package.game.game_id}/{source}"
+                    f"#sha256={content_sha256(data)}",
+                    data,
+                )
+                for source, data in material_inputs
+            ],
+            validation=report,
+            model="sideview-runner-structural-ground-guide-v1",
+        )
+        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, report)
+        return self._result(node)
+
+    async def _generate_structural_ground(self, node: Node) -> NodeExecutionResult:
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _build_structural_ground_seam_bridge(self, node: Node) -> NodeExecutionResult:
+        chunk = self._segment(node)
+        raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
+        guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+        raw = (self._run_dir / raw_ref).read_bytes()
+        guide = (self._run_dir / guide_ref).read_bytes()
+        material_inputs = self._structural_material_inputs()
+        bridge, base_report = canonicalize_structural_ground_seam_bridge(
+            raw,
+            occupancy=chunk.occupancy,
+            walk_surface_row=self._track().segments.walk_surface_row,
+            material_identity=self._structural_material_identity(),
+            material_references=[data for _source, data in material_inputs],
+            guide=guide,
+        )
+        report = {**base_report, "source_segment_id": chunk.segment_id}
+        await _write_local_image(
+            self._run_dir / node.port("image").artifact_ref,
+            bridge,
+            prompt=(
+                f"Canonicalize the generated right two-column apron from {chunk.segment_id} "
+                "as the shared structural-ground seam bridge."
+            ),
+            inputs=[
+                (raw_ref, raw),
+                (guide_ref, guide),
+                *(
+                    (
+                        f"package://{self._package.game.game_id}/{source}"
+                        f"#sha256={content_sha256(data)}",
+                        data,
+                    )
+                    for source, data in material_inputs
                 ),
-            )
+            ],
+            validation=report,
+            model=STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID,
+        )
+        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, report)
+        return self._result(node)
+
+    async def _validate_structural_ground(self, node: Node) -> NodeExecutionResult:
+        chunk = self._segment(node)
+        raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
+        guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
+        bridge_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_SEAM_BRIDGE_KIND)
+        raw = (self._run_dir / raw_ref).read_bytes()
+        guide = (self._run_dir / guide_ref).read_bytes()
+        bridge = (self._run_dir / bridge_ref).read_bytes()
+        material_inputs = self._structural_material_inputs()
+        canonical, base_report = canonicalize_structural_ground(
+            raw,
+            occupancy=chunk.occupancy,
+            walk_surface_row=self._track().segments.walk_surface_row,
+            material_identity=self._structural_material_identity(),
+            material_references=[data for _source, data in material_inputs],
+            guide=guide,
+            seam_bridge=bridge,
+        )
+        report = {
+            **base_report,
+            "segment_id": chunk.segment_id,
+            "seam_bridge_ref": bridge_ref,
+        }
+        await _write_local_image(
+            self._run_dir / node.port("image").artifact_ref,
+            canonical,
+            prompt=(
+                f"Mask the {chunk.segment_id} painting to authored occupancy, install shared "
+                "bridge column 1 at the left edge, and bridge column 0 at the right edge."
+            ),
+            inputs=[
+                (raw_ref, raw),
+                (guide_ref, guide),
+                (bridge_ref, bridge),
+                *(
+                    (
+                        f"package://{self._package.game.game_id}/{source}"
+                        f"#sha256={content_sha256(data)}",
+                        data,
+                    )
+                    for source, data in material_inputs
+                ),
+            ],
+            validation=report,
+            model=STRUCTURAL_GROUND_CANONICALIZER_ID,
+        )
+        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, report)
+        return self._result(node)
+
+    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -525,6 +2332,10 @@ class SideviewRunnerNodeHandler:
         admission = admit(raw_data)
         provider_operations = 0
         fallback = self._track().continuity.loop_fallback
+        generative = LOOP_METHODS[construction].is_generative
+        edit_ref = node.port("edit_image").artifact_ref if generative else None
+        edit_path = self._run_dir / edit_ref if edit_ref is not None else None
+        edit_data: bytes | None = None
         if admission.verdict == "pass":
             looped = raw_data
             record: dict[str, object] = {
@@ -534,47 +2345,31 @@ class SideviewRunnerNodeHandler:
                 "skipped_construction": construction,
                 "provider_operations": 0,
             }
-        elif not LOOP_METHODS[construction].is_generative:
+            if edit_path is not None and edit_ref is not None:
+                edit_data = raw_data
+                await _write_local_image(
+                    edit_path,
+                    edit_data,
+                    prompt=f"Record the skipped {layer.layer_id} loop edit without provider use.",
+                    inputs=[(source_ref, raw_data)],
+                    validation={"construction": "none", "provider_skipped": True},
+                    model="sideview-runner-loop-edit-bypass-v1",
+                )
+        elif not generative:
             looped, record = construct_deterministic(construction, raw_data)
             record["construction"] = construction
         else:
             conditioning = loop_conditioning(construction, raw_data)
-            edit_path = self._run_dir / node.port("edit_image").artifact_ref
-            transparent = layer.alpha_mode == "transparent"
-            generation = await self._images.generate(
-                ImageGenerationRequest(
-                    prompt=(
-                        f"{layer.prompt}\nContinue this artwork seamlessly across the masked "
-                        "span so the far left and far right edges of the original image join "
-                        "perfectly. Match the existing palette, lighting, and level of detail "
-                        "exactly. Paint only inside the masked span."
-                    ),
-                    artifact_path=edit_path,
-                    input_references=(
-                        ImageReference(
-                            _data_url(conditioning.conditioning_png, "image/png"),
-                            "loop-conditioning",
-                        ),
-                    ),
-                    mask_reference=ImageReference(
-                        _data_url(conditioning.mask_png, "image/png"), "loop-mask"
-                    ),
-                    quality="high",
-                    background="transparent" if transparent else "opaque",
-                    output_format="png",
-                    size=f"{conditioning.width}x{conditioning.height}",
-                    timeout_seconds=600,
-                    metadata={
-                        "track_id": self._track().track_id,
-                        "layer_id": layer.layer_id,
-                        "operation": f"loop_{construction}",
-                    },
-                )
+            assert edit_path is not None
+            request = self._image_generation_request(node)
+            generation = await self._execute_provider_operation(
+                node, lambda: self._images.generate(request)
             )
             provider_operations = generation.attempts
+            edit_data = edit_path.read_bytes()
             try:
                 looped, record = assemble_loop(
-                    construction, raw_data, edit_path.read_bytes(), conditioning=conditioning
+                    construction, raw_data, edit_data, conditioning=conditioning
                 )
                 record["construction"] = construction
             except RegistrationError as error:
@@ -584,7 +2379,7 @@ class SideviewRunnerNodeHandler:
                 record["rejection"] = str(error)
             record["provider_operations"] = provider_operations
         report = admit(looped)
-        if report.verdict != "pass" and LOOP_METHODS[construction].is_generative:
+        if report.verdict != "pass" and generative:
             rejected_report = report.model_dump(mode="json")
             looped, record = construct_deterministic(fallback, raw_data)
             record["construction"] = fallback
@@ -599,16 +2394,28 @@ class SideviewRunnerNodeHandler:
                 "x-repeat admission"
             )
         record["repeat"] = report.model_dump(mode="json")
+        loop_inputs = [(source_ref, raw_data)]
+        if (
+            record["construction"] == construction
+            and edit_ref is not None
+            and edit_data is not None
+        ):
+            loop_inputs.append((edit_ref, edit_data))
         await _write_local_image(
             self._run_dir / node.port("loop_image").artifact_ref,
             looped,
             prompt=f"Loop the {layer.layer_id} layer by {record['construction']}.",
-            inputs=[(source_ref, raw_data)],
+            inputs=loop_inputs,
             validation={"construction": record["construction"]},
         )
         atomic_write_json(self._run_dir / node.port("loop_report").artifact_ref, record)
         return self._result(
-            node, attempts=max(1, provider_operations), provider_operations=provider_operations
+            node,
+            attempts=max(1, provider_operations),
+            provider_operations=provider_operations,
+            provider_output_selected=(
+                provider_operations > 0 and record["construction"] == construction
+            ),
         )
 
     async def _validate_layer(self, node: Node) -> NodeExecutionResult:
@@ -642,46 +2449,16 @@ class SideviewRunnerNodeHandler:
         return self._result(node)
 
     async def _generate_concept(self, node: Node) -> NodeExecutionResult:
-        output = self._run_dir / node.port("image").artifact_ref
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=self._authored_references(node),
-                quality="high",
-                background="transparent",
-                output_format="png",
-                size="1024x1536",
-                timeout_seconds=600,
-                metadata={"avatar_id": self._runner.avatar.avatar.avatar_id},
-                validate=lambda artifact: _validate_transparent_sprite(artifact.data),
-            )
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _generate_motion(self, node: Node) -> NodeExecutionResult:
-        geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-        concept_ref = self._dependency_artifact(node, kind="avatar-concept-v1")
-        concept_data = (self._run_dir / concept_ref).read_bytes()
-        output = self._run_dir / node.port("image").artifact_ref
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=(
-                    ImageReference(_data_url(concept_data, "image/png"), "identity-concept"),
-                ),
-                quality="high",
-                background="transparent",
-                output_format="png",
-                size=geometry.provider_size,
-                timeout_seconds=600,
-                metadata={
-                    "avatar_id": self._runner.avatar.avatar.avatar_id,
-                    "state": str(node.params["state"]),
-                },
-                validate=lambda artifact: _validate_motion_source(artifact.data),
-            )
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -699,11 +2476,12 @@ class SideviewRunnerNodeHandler:
                 columns=geometry.columns,
                 required_cells=geometry.required_cells,
                 anchor=motion.anchor,
+                source_slot_policy="exact_required_slots",
             ),
         )
         validation = {
-            "schema_version": 1,
-            "kind": "sideview-runner-motion-validation-v1",
+            "schema_version": 2,
+            "kind": "sideview-runner-motion-validation-v2",
             "state": state,
             "columns": geometry.columns,
             "rows": geometry.rows,
@@ -763,31 +2541,32 @@ class SideviewRunnerNodeHandler:
                 baseline_state=RUNNER_BASELINE_STATE,
             )
 
-        result = await self._structured.generate(
-            StructuredGenerationRequest(
-                prompt=motion_rebase_prompt(avatar.display_name, states),
-                system=(
-                    "You are a sprite-sheet scale judge. Return only the strict structured object."
-                ),
-                artifact_path=self._run_dir / node.port("reading").artifact_ref,
-                schema=StructuredOutputSchema(
-                    name=MOTION_REBASE_SCHEMA_NAME,
-                    description="Per-state draw-scale multipliers against an actor's baseline",
-                    json_schema=motion_rebase_json_schema(),
-                    strict=True,
-                ),
-                parse=parse_motion_rebase,
-                references=(self._structured_reference(plate_output),),
-                artifact_value=admit,
-                validate=admit,
-                timeout_seconds=600,
-                metadata={
-                    "kind": "avatar-motion-rebase",
-                    "entity_id": avatar.avatar_id,
-                    "states": states,
-                    "plate_sha256": plate.sha256,
-                },
-            )
+        request = StructuredGenerationRequest(
+            prompt=self._provider_prompt(node),
+            system=(
+                "You are a sprite-sheet scale judge. Return only the strict structured object."
+            ),
+            artifact_path=self._run_dir / node.port("reading").artifact_ref,
+            schema=StructuredOutputSchema(
+                name=MOTION_REBASE_SCHEMA_NAME,
+                description="Per-state draw-scale multipliers against an actor's baseline",
+                json_schema=motion_rebase_json_schema(),
+                strict=True,
+            ),
+            parse=parse_motion_rebase,
+            references=(self._structured_reference(plate_output),),
+            artifact_value=admit,
+            validate=admit,
+            timeout_seconds=600,
+            metadata={
+                "kind": "avatar-motion-rebase",
+                "entity_id": avatar.avatar_id,
+                "states": states,
+                "plate_sha256": plate.sha256,
+            },
+        )
+        result = await self._execute_provider_operation(
+            node, lambda: self._structured.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -796,13 +2575,12 @@ class SideviewRunnerNodeHandler:
         states = list(declared_motion_states(avatar))
         frames_by_state = self._state_frames(node)
         plate = build_motion_rebase_plate(frames_by_state, baseline_state=RUNNER_BASELINE_STATE)
+        first_pass_ref = self._dependency_artifact(
+            node, kind=REBASE_READING_KIND, port_id="reading"
+        )
+        first_pass_data = (self._run_dir / first_pass_ref).read_bytes()
         first_pass = admit_first_pass_record(
-            json.loads(
-                (
-                    self._run_dir
-                    / self._dependency_artifact(node, kind=REBASE_READING_KIND, port_id="reading")
-                ).read_bytes()
-            ),
+            json.loads(first_pass_data),
             published_states=states,
             plate=plate,
             baseline_state=RUNNER_BASELINE_STATE,
@@ -821,8 +2599,12 @@ class SideviewRunnerNodeHandler:
             inputs=[
                 (f"avatar/{state}.png", (self._run_dir / f"avatar/{state}.png").read_bytes())
                 for state in states
-            ],
-            validation={"baseline_state": RUNNER_BASELINE_STATE},
+            ]
+            + [(first_pass_ref, first_pass_data)],
+            validation={
+                "baseline_state": RUNNER_BASELINE_STATE,
+                "first_pass_sha256": content_sha256(first_pass_data),
+            },
             model="sideview-runner-rebase-plate-v1",
         )
 
@@ -838,31 +2620,32 @@ class SideviewRunnerNodeHandler:
                 baseline_state=RUNNER_BASELINE_STATE,
             )
 
-        result = await self._structured.generate(
-            StructuredGenerationRequest(
-                prompt=motion_rebase_verification_prompt(avatar.display_name, states),
-                system=(
-                    "You are a sprite-sheet scale judge. Return only the strict structured object."
-                ),
-                artifact_path=self._run_dir / node.port("verification").artifact_ref,
-                schema=StructuredOutputSchema(
-                    name=MOTION_REBASE_SCHEMA_NAME,
-                    description="Residual per-state multipliers on the rebased plate",
-                    json_schema=motion_rebase_json_schema(),
-                    strict=True,
-                ),
-                parse=parse_motion_rebase,
-                references=(self._structured_reference(plate_output),),
-                artifact_value=admit,
-                validate=admit,
-                timeout_seconds=600,
-                metadata={
-                    "kind": "avatar-motion-rebase-verify",
-                    "entity_id": avatar.avatar_id,
-                    "states": states,
-                    "plate_sha256": verification_plate.sha256,
-                },
-            )
+        request = StructuredGenerationRequest(
+            prompt=self._provider_prompt(node),
+            system=(
+                "You are a sprite-sheet scale judge. Return only the strict structured object."
+            ),
+            artifact_path=self._run_dir / node.port("verification").artifact_ref,
+            schema=StructuredOutputSchema(
+                name=MOTION_REBASE_SCHEMA_NAME,
+                description="Residual per-state multipliers on the rebased plate",
+                json_schema=motion_rebase_json_schema(),
+                strict=True,
+            ),
+            parse=parse_motion_rebase,
+            references=(self._structured_reference(plate_output),),
+            artifact_value=admit,
+            validate=admit,
+            timeout_seconds=600,
+            metadata={
+                "kind": "avatar-motion-rebase-verify",
+                "entity_id": avatar.avatar_id,
+                "states": states,
+                "plate_sha256": verification_plate.sha256,
+            },
+        )
+        result = await self._execute_provider_operation(
+            node, lambda: self._structured.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -873,23 +2656,9 @@ class SideviewRunnerNodeHandler:
         )
 
     async def _generate_catalog(self, node: Node) -> NodeExecutionResult:
-        output = self._run_dir / node.port("image").artifact_ref
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=self._authored_references(node),
-                quality="high",
-                background="transparent",
-                output_format="png",
-                size="1024x1024",
-                timeout_seconds=600,
-                metadata={
-                    "family": str(node.params["family"]),
-                    "entity_id": str(node.params["entity_id"]),
-                },
-                validate=lambda artifact: _validate_transparent_sprite(artifact.data),
-            )
+        request = self._image_generation_request(node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -897,14 +2666,18 @@ class SideviewRunnerNodeHandler:
         source_ref = self._dependency_artifact(node, kind=CATALOG_RAW_KIND)
         source_data = (self._run_dir / source_ref).read_bytes()
         facts = _validate_transparent_sprite(source_data)
-        published, trim = trim_layer_to_alpha_box(source_data)
+        family = str(node.params["family"])
+        published, trim, sparse_tail_trim = canonicalize_runner_catalog_sprite(
+            source_data, family=family
+        )
         validation = {
-            "schema_version": 1,
-            "kind": "sideview-runner-catalog-validation-v1",
-            "family": node.params["family"],
+            "schema_version": 3,
+            "kind": "sideview-runner-catalog-validation-v3",
+            "family": family,
             "entity_id": node.params["entity_id"],
             "source_validation": facts,
             "trim": trim,
+            "sparse_tail_trim": sparse_tail_trim,
         }
         await _write_local_image(
             self._run_dir / node.port("image").artifact_ref,
@@ -912,37 +2685,17 @@ class SideviewRunnerNodeHandler:
             prompt=f"Publish the trimmed {node.params['entity_id']} catalog asset.",
             inputs=[(source_ref, source_data)],
             validation=validation,
+            model="sideview-runner-catalog-canonicalization-v2",
         )
         atomic_write_json(self._run_dir / node.port("validation").artifact_ref, validation)
         return self._result(node)
 
     async def _generate_track(self, node: Node) -> NodeExecutionResult:
-        if self._music is None:
+        music = self._music
+        if music is None:
             raise ValueError("runner soundtrack execution requires a music service")
-        soundtrack = self._runner.soundtrack
-        if soundtrack is None:
-            raise ValueError("runner package declares no soundtrack member")
-        track = soundtrack.track(str(node.params["track_id"]))
-        result = await self._music.generate(
-            MusicGenerationRequest(
-                prompt=music_track_prompt(
-                    medium="a 2D game",
-                    game_id=self._package.game.game_id,
-                    track_id=track.track_id,
-                    creative_brief=track.creative_brief,
-                    generation=track.generation,
-                ),
-                artifact_path=self._run_dir / node.port("audio").artifact_ref,
-                output_format="mp3",
-                timeout_seconds=900,
-                metadata={
-                    "track_id": track.track_id,
-                    "target_duration_seconds": track.generation.target_duration_seconds,
-                    "seamless_loop": track.generation.seamless_loop,
-                },
-                validate=lambda artifact: validate_music_payload(artifact.data),
-            )
-        )
+        request = self._music_generation_request(node)
+        result = await self._execute_provider_operation(node, lambda: music.generate(request))
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _validate_track(self, node: Node) -> NodeExecutionResult:
@@ -980,11 +2733,15 @@ class SideviewRunnerNodeHandler:
             if port.kind != "runner-reference-v1":
                 continue
             data = self._package.file(port.artifact_ref).data
+            package_ref = (
+                f"package://{self._package.game.game_id}/{port.artifact_ref}"
+                f"#sha256={content_sha256(data)}"
+            )
             await _write_local_image(
                 self._run_dir / port.artifact_ref,
                 data,
                 prompt="Republish the authored reference into the run.",
-                inputs=[(f"package://{port.artifact_ref}", data)],
+                inputs=[(package_ref, data)],
                 validation={"republished": True},
             )
 
@@ -992,7 +2749,9 @@ class SideviewRunnerNodeHandler:
             return cast("dict[str, object]", json.loads((self._run_dir / ref).read_bytes()))
 
         rebase = read_json("avatar/rebase-verification.json")
-        multipliers = cast("dict[str, float]", rebase.get("multipliers_by_state", {}))
+        multipliers = manifest_rebase_multipliers(
+            rebase, published_states=declared_motion_states(self._runner.avatar.avatar)
+        )
 
         def calibration(
             data: bytes, *, height_units_declared: float | None, subject: str, player: bool
@@ -1025,7 +2784,7 @@ class SideviewRunnerNodeHandler:
                     "anchor": motion_entry.anchor,
                     "atlas": f"avatar/{motion_entry.state}.png",
                     "columns": DEFAULT_MOTION_ATLAS_GEOMETRY.columns,
-                    "rebase_multiplier": multipliers.get(motion_entry.state, 1.0),
+                    "rebase_multiplier": multipliers[motion_entry.state],
                 }
             )
 
@@ -1081,8 +2840,77 @@ class SideviewRunnerNodeHandler:
                 }
             )
 
+        if isinstance(track.ground, RunnerStructuralGround):
+            ground_chunks: list[dict[str, object]] = []
+            bridge_ref = "world/ground/shared-seam-bridge.png"
+            bridge_data = (self._run_dir / bridge_ref).read_bytes()
+            bridge_facts = validate_structural_ground_seam_bridge(
+                bridge_data,
+                rows=track.segments.rows,
+                walk_surface_row=track.segments.walk_surface_row,
+            )
+            bridge_validation = read_json("world/ground/shared-seam-bridge.validation.json")
+            if bridge_validation.get("canonical") != bridge_facts:
+                raise ValueError("structural ground seam bridge validation is stale")
+            bridge_sha256: set[str] = set()
+            left_role_sha256: set[str] = set()
+            right_role_sha256: set[str] = set()
+            bridge_lineage: set[str] = set()
+            material_identities: set[str] = set()
+            for chunk in track.segments.chunks:
+                image_ref = f"world/ground/{chunk.segment_id}.png"
+                facts = validate_structural_ground_canonical(
+                    (self._run_dir / image_ref).read_bytes(),
+                    occupancy=chunk.occupancy,
+                    walk_surface_row=track.segments.walk_surface_row,
+                    seam_bridge=bridge_data,
+                )
+                validation = read_json(f"world/ground/{chunk.segment_id}.validation.json")
+                if validation.get("segment_id") != chunk.segment_id:
+                    raise ValueError(
+                        f"structural ground validation identity drifted for {chunk.segment_id}"
+                    )
+                if validation.get("canonical") != facts:
+                    raise ValueError(
+                        f"structural ground validation is stale for {chunk.segment_id}"
+                    )
+                seam = cast("dict[str, object]", facts["seam"])
+                left_role = cast("dict[str, object]", seam["left"])
+                right_role = cast("dict[str, object]", seam["right"])
+                bridge_sha256.add(str(seam["bridge_sha256"]))
+                left_role_sha256.add(str(left_role["sha256"]))
+                right_role_sha256.add(str(right_role["sha256"]))
+                bridge_lineage.add(str(validation.get("seam_bridge_ref")))
+                material_identities.add(str(validation["material_identity"]))
+                ground_chunks.append(
+                    {
+                        "segment_id": chunk.segment_id,
+                        "image": image_ref,
+                        "columns": len(chunk.occupancy[0]),
+                        "rows": len(chunk.occupancy),
+                    }
+                )
+            if bridge_sha256 != {str(bridge_facts["sha256"])}:
+                raise ValueError("structural ground chunks do not share one seam bridge")
+            bridge_roles = cast("dict[str, object]", bridge_facts["roles"])
+            expected_left = cast("dict[str, object]", bridge_roles["left"])
+            expected_right = cast("dict[str, object]", bridge_roles["right"])
+            if left_role_sha256 != {str(expected_left["sha256"])}:
+                raise ValueError("structural ground chunks do not share the left bridge role")
+            if right_role_sha256 != {str(expected_right["sha256"])}:
+                raise ValueError("structural ground chunks do not share the right bridge role")
+            if bridge_lineage != {bridge_ref}:
+                raise ValueError("structural ground chunks do not share bridge lineage")
+            if material_identities != {self._structural_material_identity()}:
+                raise ValueError("structural ground chunks do not share the authored material")
+            ground_manifest = manifest_ground(track)
+            if ground_manifest["chunks"] != ground_chunks:
+                raise ValueError("structural ground manifest projection drifted from validation")
+        else:
+            ground_manifest = manifest_ground(track)
+
         manifest = {
-            "schema_version": 3,
+            "schema_version": 4,
             "kind": MANIFEST_KIND,
             "game_id": self._package.game.game_id,
             "display_name": self._package.game.display_name,
@@ -1099,11 +2927,7 @@ class SideviewRunnerNodeHandler:
             # on rides here, so the arc the runtime flies and the arc admission
             # proved are the same closed forms rather than a convention.
             "gameplay": manifest_gameplay(runner.gameplay),
-            "ground": {
-                "atlas": "world/ground.png",
-                "mode": track.ground.mode,
-                "vertical_fit": track.ground.vertical_fit,
-            },
+            "ground": ground_manifest,
             "layers": layers,
             "segments": {
                 "rows": track.segments.rows,
@@ -1163,9 +2987,13 @@ class SideviewRunnerNodeHandler:
 
 
 __all__ = [
+    "RUNNER_CATALOG_SPARSE_TAIL_TRIM_VERSION",
     "RUNNER_BASELINE_STATE",
     "RUNTIME_TILE_PX",
     "SideviewRunnerNodeHandler",
+    "canonicalize_runner_catalog_sprite",
     "manifest_audio",
     "manifest_gameplay",
+    "manifest_ground",
+    "manifest_rebase_multipliers",
 ]

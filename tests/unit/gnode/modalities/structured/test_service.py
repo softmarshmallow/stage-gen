@@ -46,6 +46,7 @@ async def test_structured_payload_preserves_model_temperature_capabilities(
                 artifact_path="unused.json",
                 schema=StructuredOutputSchema(
                     name="ok",
+                    description="Whether the requested condition is true",
                     json_schema={"type": "object", "required": ["ok"]},
                 ),
                 parse=lambda value: value,
@@ -60,6 +61,7 @@ async def test_structured_payload_preserves_model_temperature_capabilities(
         "type": "json_schema",
         "json_schema": {
             "name": "ok",
+            "description": "Whether the requested condition is true",
             "strict": True,
             "schema": {"type": "object", "required": ["ok"]},
         },
@@ -104,6 +106,7 @@ async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -
                 references=(StructuredReference("data:image/png;base64,AAAA", "reference.png"),),
                 schema=StructuredOutputSchema(
                     name="count",
+                    description="One strictly structured count",
                     json_schema={
                         "type": "object",
                         "properties": {
@@ -149,6 +152,7 @@ async def test_structured_retries_envelope_and_schema_failures(tmp_path: Path) -
     sidecar = json.loads((tmp_path / "value.json.meta.json").read_text())
     assert sidecar["seed"] == 731
     assert sidecar["params"]["schema"] == sent_schema
+    assert sidecar["params"]["schema_description"] == "One strictly structured count"
     assert sidecar["validation"]["schema"] == "caller-validated"
 
 

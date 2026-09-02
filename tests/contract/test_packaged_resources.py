@@ -156,7 +156,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # handler, view, and executor (measured 205).
         # Explicit runner audio adds the two-file runner_audio component:
         # its public surface and persisted contract model (measured 207).
-        assert len(wheel_entries) <= 207
+        # Structural runner ground adds its provider-neutral guide and exact
+        # occupancy canonicalizer as one focused module (measured 208). The
+        # provider-free runner cache replay adds one auditable migration module
+        # without adding provider dependencies (measured 209).
+        assert len(wheel_entries) <= 209
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -216,15 +220,22 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # the orphaned game-contract-v3 stack leaves (measured 411).
         # Explicit runner audio adds its component, focused test, and canonical
         # audio/soundtrack sources to the source distribution (measured 415).
-        assert len(sdist_entries) <= 415
+        # Structural runner ground plus its focused component, recipe, and
+        # current-game contract coverage adds six deliberate entries (measured 421).
+        # The provider-free replay adds its migration module, operator script,
+        # and focused adversarial test module (measured 424).
+        assert len(sdist_entries) <= 424
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
         # archive about 1KB past the previous line, and again for the CookieRun adoption pass,
         # whose placement admission, re-authored track, and refusal tests crossed it by about 3KB.
-        # The archive is still bounded well under the packaging budget; this guards against a
-        # stray directory, not against the project growing.
-        assert sum(sdist_entries.values()) < 5_300_000
+        # Structural runner ground, native-alpha seam bridging, and the focused runner package
+        # proofs brought the unpacked source closure to 5.37 MB. The fail-closed replay migration
+        # and its adversarial tests bring the measured closure to 5.62 MB. The compressed archive
+        # remains below its separate 4 MB cap; this 5.75 MB ceiling still catches a swept directory
+        # without treating the reviewed recovery boundary as accidental bloat.
+        assert sum(sdist_entries.values()) < 5_750_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

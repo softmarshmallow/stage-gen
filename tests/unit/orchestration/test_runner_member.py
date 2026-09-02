@@ -7,14 +7,25 @@ test violates exactly one rule.
 
 from __future__ import annotations
 
+import json
+import shutil
+import zipfile
+from hashlib import sha256
+from io import BytesIO, StringIO
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
+from stage_gen.interfaces.cli import main
 from stage_gen.orchestration.game_package import (
     GamePackageValidationError,
+    ResolvedRunnerOnlyPackage,
     resolve_game_package,
+    resolve_prepared_package,
+    validate_game_package,
 )
+from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_package
 
 from .._runner_fixture import (
     ARC_PICKUPS,
@@ -22,9 +33,11 @@ from .._runner_fixture import (
     FLAT_ROWS,
     GAP28_ROWS,
     GAP_ROWS,
+    RUNNER_AVATAR,
     RUNNER_AVATAR_NO_SLIDE,
     RUNNER_GAMEPLAY_NO_DUCK,
     WIDE_FLAT_ROWS,
+    runner_only_package,
 )
 from .._runner_fixture import (
     chunk_toml as _chunk,
@@ -73,6 +86,137 @@ def test_a_two_genre_package_resolves_both_members(tmp_path: Path) -> None:
     assert package.file("references/cover.png").sha256 == COVER_SHA256
 
 
+def test_a_runner_only_package_resolves_without_inventing_a_platformer(tmp_path: Path) -> None:
+    source = runner_only_package(tmp_path)
+
+    package = resolve_prepared_package(source)
+
+    assert isinstance(package, ResolvedRunnerOnlyPackage)
+    assert [entry.genre for entry in package.game.genres] == ["runner"]
+    assert package.runner.track.track_id == "meadow-dash"
+    identity = package.identity()
+    assert identity["schema_version"] == 6
+    assert identity["kind"] == "resolved-game-package-v6"
+    genres = identity["genres"]
+    assert isinstance(genres, dict)
+    assert list(genres) == ["runner"]
+    assert genres["runner"] == {
+        "track_id": "meadow-dash",
+        "avatar_id": "wayfarer_sprinter",
+        "segment_ids": ["warmup_flat", "first_gap"],
+        "prop_ids": ["toppled_cart"],
+        "item_ids": ["meadow_penny"],
+        "effect_ids": [
+            "air_jump_whistle",
+            "clear_sparkle",
+            "leaf_slide",
+            "run_ended",
+            "soft_landing",
+            "takeoff_whistle",
+            "token_chime",
+        ],
+        "track_ids": ["orchard_rush", "sunpetal_sprint"],
+    }
+    assert resolve_runner_package(source).package is not None
+
+
+def test_the_platformer_compatibility_resolver_still_requires_its_member(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(runner_only_package(tmp_path))
+
+    assert error.value.code == "missing_genre_member"
+    assert "platformer" in str(error.value)
+
+
+def test_runner_only_directory_and_zip_have_the_same_closure(tmp_path: Path) -> None:
+    source = runner_only_package(tmp_path)
+    archive = tmp_path / "runner-only.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                output.write(path, Path("runner-only", path.relative_to(source)).as_posix())
+
+    directory = resolve_prepared_package(source)
+    zipped = resolve_prepared_package(archive)
+
+    assert isinstance(directory, ResolvedRunnerOnlyPackage)
+    assert isinstance(zipped, ResolvedRunnerOnlyPackage)
+    assert zipped.source_kind == "zip"
+    assert zipped.closure_sha256 == directory.closure_sha256
+
+
+def test_repository_package_validation_accepts_a_runner_only_selection(tmp_path: Path) -> None:
+    authored = runner_only_package(tmp_path / "authored")
+    workspace = tmp_path / "workspace"
+    package = workspace / "library" / "games" / "bellweather"
+    package.parent.mkdir(parents=True)
+    shutil.copytree(authored, package)
+    (package.parent / "main.toml").write_text(
+        """schema_version = 4
+kind = "game-package-v4"
+game_id = "bellweather"
+package_ref = "library/games/bellweather/game.toml"
+""",
+        encoding="utf-8",
+    )
+
+    report = validate_game_package(workspace)
+
+    assert report["valid"] is True
+    assert report["schema_version"] == 6
+    assert report["kind"] == "game-package-validation-v6"
+    assert report["genres"] == resolve_prepared_package(package).identity()["genres"]
+
+
+def test_package_cli_validates_digests_and_selects_the_only_runner(tmp_path: Path) -> None:
+    package = runner_only_package(tmp_path)
+    validate_output = StringIO()
+
+    assert main(["package", "validate", "--input", str(package)], stdout=validate_output) == 0
+    report = json.loads(validate_output.getvalue())
+    assert report["valid"] is True
+    assert list(report["genres"]) == ["runner"]
+
+    digest_output = StringIO()
+    assert main(["package", "digest", "--input", str(package)], stdout=digest_output) == 0
+    assert digest_output.getvalue() == f"{report['closure_sha256']}\n"
+
+    plan_output = StringIO()
+    assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0
+    plan = json.loads(plan_output.getvalue())
+    assert plan["genre"] == "runner"
+    assert plan["graph"]["nodes"][0]["node_id"] == "package-resolve"
+
+
+def test_combined_avatar_requires_a_package_level_visible_rider_head_override(
+    tmp_path: Path,
+) -> None:
+    combined = RUNNER_AVATAR.replace(
+        '''body_kind = "human"
+age = 19
+silhouette_mode = "single_character_v1"
+proportion_basis = "character_head_v1"''',
+        '''body_kind = "piloted_machine"
+age = 11
+silhouette_mode = "visible_rider_machine_v1"
+proportion_basis = "visible_rider_head_v1"''',
+    )
+    without_override = runner_only_package(tmp_path / "without", avatar=combined)
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_prepared_package(without_override)
+    assert error.value.code == "invalid_runner_avatar"
+    assert "visible rider heads" in str(error.value)
+
+    admitted = resolve_prepared_package(
+        runner_only_package(tmp_path / "with", avatar=combined, piloted_heads_tall=4.5)
+    )
+    assert isinstance(admitted, ResolvedRunnerOnlyPackage)
+    assert admitted.runner.avatar.avatar.age == 11
+    assert admitted.game.proportion.heads_for("piloted_machine") == 4.5
+
+
 def test_an_unclearable_gap_is_refused_before_any_spend(tmp_path: Path) -> None:
     wide_gap = [
         "000000000000",
@@ -108,6 +252,52 @@ def test_a_chunk_whose_seam_breaks_the_shared_surface_is_refused(tmp_path: Path)
         "111111111111",
     ]
     _refused(tmp_path, "segment_seam_mismatch", chunks=_chunk("raised_edge", raised_edge))
+
+
+def test_a_floating_solid_above_an_otherwise_valid_seam_is_refused(tmp_path: Path) -> None:
+    floating_edge = [
+        "000000000000",
+        "000000000000",
+        "000000000000",
+        "100000000000",
+        "000000000000",
+        "111111111111",
+        "111111111111",
+        "111111111111",
+    ]
+    _refused(tmp_path, "segment_seam_mismatch", chunks=_chunk("floating_edge", floating_edge))
+
+
+def test_structural_ground_rejects_transparent_material_references_before_planning(
+    tmp_path: Path,
+) -> None:
+    from .._runner_fixture import COVER_SHA256, runner_only_package
+
+    package = runner_only_package(tmp_path)
+    track_path = package / "runner/track.toml"
+    track_path.write_text(
+        track_path.read_text(encoding="utf-8").replace(
+            'mode = "terrain-atlas-3x3-minimal-v1"',
+            'mode = "runner-structural-ground-v1"',
+        ),
+        encoding="utf-8",
+    )
+    stream = BytesIO()
+    Image.new("RGBA", (32, 32), (80, 70, 60, 0)).save(stream, format="PNG")
+    transparent = stream.getvalue()
+    replacement_sha256 = sha256(transparent).hexdigest()
+    (package / "references/cover.png").write_bytes(transparent)
+    contract_paths = [package / "game.toml", *sorted((package / "runner").rglob("*.toml"))]
+    for path in contract_paths:
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(COVER_SHA256, replacement_sha256),
+            encoding="utf-8",
+        )
+
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+    assert error.value.code == "invalid_reference_image"
+    assert "structural-ground references are unusable" in str(error.value)
 
 
 def test_a_pit_stays_illegal_in_the_platformer_family() -> None:

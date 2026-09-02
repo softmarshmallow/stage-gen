@@ -4,9 +4,11 @@
 >
 > This is the canonical human overview of prepared-game generation — the
 > side-view platformer recipe's pipeline (`2d/sideview/platformer` in the
-> [asset taxonomy](../asset-taxonomy.md)). The sibling dialogue-scene and
+> [asset taxonomy](../asset-taxonomy.md)). The sibling
+> [runner](runner.md), dialogue-scene, and
 > [point-and-click room](pointclick-room.md) recipes each declare their own graph
-> document kind and are not covered here. The typed package graph is
+> document kind and checked graph contract; their node tables are not folded
+> into the platformer snapshot below. The typed package graph is
 > the machine authority, and the compact graph contract embedded below is checked against the
 > Bellweather fixture. Text-only prompt planning, `WorldSpec`, `VillageSpec`, map books, and the
 > former Wave A/Wave B stage barriers are not inputs to this pipeline.
@@ -42,15 +44,38 @@ The side-view platformer executor is deliberately thin. It resolves one director
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
 game, hide asset fan-outs inside a coarse stage, or implement provider retry loops.
 
-`stage-gen generate` now requires `--input` pointing to a prepared directory or ZIP whose root
-contains `game.toml`. There is no bare-prompt fallback. `--checkpoint world` executes only the
-map-review targets and their complete dependency closure. `--checkpoint content` independently
-executes cast, catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure.
-Neither paid bounded checkpoint can assemble a manifest. `--checkpoint integration` is a
-provider-free terminal operation over accepted artifact roots. It validates the complete
-package-derived runtime closure, applies caller-ordered corrective-run precedence, atomically
-publishes one run whose tag is immutable by default, and emits `prepared-game-runtime-v10`. The
-`--dry-run` path still exercises the complete graph with deterministic fake operations.
+The runner uses the same genre-neutral captured-package boundary, including for
+a runner-only root, and then builds `sideview-runner-execution-graph-v1`.
+`runner-track-v3` has a closed ground union. The atlas branch retains its one
+paintover plus local canonicalization. The `runner-structural-ground-v1` branch
+fans each authored segment into local occupancy-guide composition, one native-
+alpha GPT Image 2 paintover, and local exact-occupancy canonicalization. One
+additional local node extracts the first segment's generated right two-column
+apron as a canonical shared seam bridge. Every segment canonicalizer consumes
+that same bridge: its right edge receives bridge column 0 and its left edge
+receives bridge column 1, so every A-to-B join reconstructs the original
+continuous two-column generated material. Each published segment remains
+`columns * 64` by `rows * 64`, while authored occupancy remains collision
+authority. Its terminal node emits `sideview-runner-runtime-v4`. The exact
+fixture fan-out and provider-operation counts are machine-checked in
+[`runner.md`](runner.md); changing that fan-out requires regenerating its
+embedded contract in this same change.
+
+Runner planning refuses an image model outside the verified GPT Image 2 native-alpha model
+family before graph execution. Its generative loop node additionally requires the route's
+`masked_edit` capability; a binding that only advertises reference images cannot plan that node.
+
+`stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
+contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
+its live call executes the complete selected member and assembles `sideview-runner-runtime-v4`.
+The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
+targets and their complete dependency closure. `--checkpoint content` independently executes cast,
+catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure. Neither paid
+bounded checkpoint can assemble a manifest. `--checkpoint integration` is a provider-free terminal
+operation over accepted artifact roots. It validates the complete package-derived runtime closure,
+applies caller-ordered corrective-run precedence, atomically publishes one run whose tag is
+immutable by default, and emits `prepared-game-runtime-v10`. The `--dry-run` path exercises the
+selected complete graph with deterministic fake operations.
 
 ## Current boundary graph
 
@@ -315,16 +340,23 @@ runtime manifest publishes the resolved V1 geometry and alpha policy with the ar
 
 Every actor motion-state provider output is retained as a native-alpha 4-column by 1-row
 `*.source.png`. Before runtime publication, its local validation node runs
-`alpha-component-repack-v1`: threshold native alpha at greater than 16, find 8-connected
+`alpha-component-repack-v3`: threshold native alpha at greater than 16, find 8-connected
 components, retain candidates whose area is at least 2% of thresholded visible area (with a
 32-pixel floor), select the largest required count, order them by source row and horizontal
 centroid, and translate them without rescaling into equal canonical cells with 12-pixel transparent
-gutters. The resulting `*.png`, not the provider source, is the runtime artifact.
+gutters. If weak-alpha contact fuses the base pass below the required count, the local processor
+progressively finds exactly the required number of stronger-alpha cores, requires one core in each
+expected source lattice slot and coverage of every base principal component, and deterministically
+partitions the original base support among them by multi-source 8-neighbor geodesic flood. This
+preserves meaningful antialiasing and bridge pixels while assigning each to one frame. Sources that
+already pass the base extraction keep their v1 canonical PNG bytes exactly. The resulting `*.png`,
+not the provider source, is the runtime artifact.
 
 This deliberately simple default is stronger than equal-XY slicing but is not semantic instance
 ownership. It can drop detached weapons, projectiles, magic, debris, or other components below the
 selection boundary. When more candidates exist than required, it retains the largest required
-count and records a warning; when fewer principal components exist than required, it fails closed.
+count and records a warning; when neither the base pass nor the constrained high-alpha fallback
+proves the required ownership, it fails closed.
 The validation record binds source/output digests, placements, rejected-component facts, retained
 alpha, and this caveat. Smarter component attachment or segmentation is not silently invoked.
 
@@ -407,6 +439,12 @@ it does not align the transparent canvas edge or infer contact independently.
 wrap it in another retry loop. A semantic regeneration is a new provider operation and must
 increase `provider_operations`; it is not disguised as a transport retry. The base projection
 counts one successful provider operation per provider node.
+Runner provider nodes also publish a versioned attempt-ledger artifact containing the exact prompt
+digest, neutral `not_selected` ordinals for attempts whose failure stage is not known at this
+boundary, the selected provider output digest when one exists, and whether the installed output is
+provider, fallback, local, or absent. Cache replay preserves this original generation provenance
+byte-for-byte. Cache hit/miss state remains execution telemetry instead of rewriting the dependency
+artifact and invalidating child lineage.
 
 ## Persisted execution evidence
 

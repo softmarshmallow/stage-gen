@@ -153,11 +153,32 @@ uv run stage-gen generate \
   --output /tmp/bellweather-dry-run
 ```
 
-Provider-backed package handlers are not connected at the current execution-truth checkpoint;
-calling package generation without `--dry-run` fails before provider construction. Once enabled,
-the prepared package graph uses direct OpenAI native alpha for its transparent image nodes.
-Compatibility background removal remains an explicit standalone capability and never silently
-replaces failed native generation.
+The runner genre is connected as one single-shot prepared-game execution. A live runner run uses
+direct OpenAI GPT Image 2 generation for its image nodes, including native transparent output for
+structural ground, transparent layers, avatar sheets, props, and items; OpenRouter owns its
+structured rebase and optional music nodes. The platformer retains its separately bounded
+checkpoint workflow. Compatibility background removal remains an explicit standalone capability
+and never silently replaces failed native generation.
+
+## Accepted-run provider-free cache replay
+
+`scripts/revalidate_runner_provider_cache.py` is an exceptional migration tool for an already
+accepted runner run whose cache or validator contract tightened after generation. It constructs no
+provider adapter and fails closed unless every current provider request matches the recorded
+provider/model, prompt and structured system/schema, route capabilities, parameters, ordered input
+bytes and media types, and current node contract. It then runs current validators and mixed local
+assembly, seeds complete current cache bundles, and performs a second current-graph run with denial
+services that raise on any cache miss.
+
+The replay preserves historical provider artifact bytes exactly. It migrates each provenance
+sidecar onto the exact current request identity before cache admission, while retaining the
+historical response, attempt count, timestamp, rights, and artifact digest. The portable audit
+hash-binds both sidecar versions and must disclose any non-provider-transmitted reference-label
+normalization or reconstruction of historically omitted deterministic mask lineage. Source plans,
+artifacts, and sidecars are descriptor-read as confined regular non-symlink files. The final trace
+must report every provider node as a cache hit and zero provider operations. This mechanism does
+not create a new semantic candidate and does not replace independent visual review, listening
+review, rights review, or ordinary live-generation provenance.
 
 Primary sources:
 

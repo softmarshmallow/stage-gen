@@ -106,9 +106,14 @@ class ImageGenerationService:
             timeout_s=request.timeout_seconds,
             cancellation=request.cancellation,
         )
+        provenance_references = (
+            request.input_references
+            if request.mask_reference is None
+            else (*request.input_references, request.mask_reference)
+        )
         references = [
             reference.provenance_ref or sanitize_reference(reference.url)
-            for reference in request.input_references
+            for reference in provenance_references
         ]
         metadata = generated.response_metadata
         response: dict[str, object] = {
@@ -158,7 +163,7 @@ class ImageGenerationService:
                 refs=references,
                 inputs=[
                     hash_input_reference(reference.url, reference.provenance_ref)
-                    for reference in request.input_references
+                    for reference in provenance_references
                 ],
                 params=params,
                 validation={

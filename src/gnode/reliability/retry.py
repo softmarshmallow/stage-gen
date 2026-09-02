@@ -125,7 +125,11 @@ async def retry_with_backoff[T](
     failure_history: list[RetryFailureRecord] = []
 
     for attempt in range(1, active_policy.max_attempts + 1):
-        _raise_if_cancelled(cancellation, secrets)
+        _raise_if_cancelled(
+            cancellation,
+            secrets,
+            provider_operations=attempt - 1,
+        )
         context = RetryContext(
             attempt=attempt,
             retry=attempt - 1,
@@ -143,7 +147,10 @@ async def retry_with_backoff[T](
         except asyncio.CancelledError:
             raise
         except CancellationError as error:
-            raise AbortError(redact_secrets(str(error), secrets)) from None
+            raise AbortError(
+                redact_secrets(str(error), secrets),
+                provider_operations=attempt,
+            ) from None
         except Exception as error:
             safe_message = redact_secrets(str(error), secrets)
             failure_history.append(
@@ -162,7 +169,10 @@ async def retry_with_backoff[T](
             try:
                 await _sleep_with_cancellation(sleep, next_delay_s, cancellation)
             except CancellationError as error:
-                raise AbortError(redact_secrets(str(error), secrets)) from None
+                raise AbortError(
+                    redact_secrets(str(error), secrets),
+                    provider_operations=attempt,
+                ) from None
         delay_s = min(delay_s * active_policy.backoff_factor, active_policy.max_delay_s)
 
     exhausted = RetryExhaustedError(
@@ -279,10 +289,18 @@ def _validate_timing(value: object, label: str, *, allow_zero: bool) -> None:
         raise ValueError(f"{label} must be a {qualifier} finite number")
 
 
-def _raise_if_cancelled(cancellation: CancellationToken | None, secrets: Sequence[str]) -> None:
+def _raise_if_cancelled(
+    cancellation: CancellationToken | None,
+    secrets: Sequence[str],
+    *,
+    provider_operations: int,
+) -> None:
     if cancellation is None:
         return
     try:
         cancellation.raise_if_cancelled()
     except CancellationError as error:
-        raise AbortError(redact_secrets(str(error), secrets)) from None
+        raise AbortError(
+            redact_secrets(str(error), secrets),
+            provider_operations=provider_operations,
+        ) from None

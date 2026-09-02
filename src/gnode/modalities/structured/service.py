@@ -96,6 +96,7 @@ class StructuredGenerationService[T]:
         ]
         params: dict[str, object] = {
             "schema_name": request.schema.name,
+            "schema_description": request.schema.description,
             "schema": dict(request.schema.json_schema),
             "strict": request.schema.strict,
             "require_parameters": True,

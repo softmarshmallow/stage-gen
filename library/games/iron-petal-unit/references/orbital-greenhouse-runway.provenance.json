@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_environment_only_runner_reference_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/orbital-greenhouse-runway.png",
+    "media_type": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2697206,
+    "sha256": "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+  },
+  "generation": {
+    "tool": "codex/image_gen",
+    "provider": "not_exposed_by_builtin_tool",
+    "model": "not_exposed_by_builtin_tool",
+    "quality": "built-in-default",
+    "attempt_count": 2,
+    "retry_count": 0,
+    "semantic_regeneration_count": 1,
+    "selected_attempt": 2,
+    "n": 1,
+    "input_references": [
+      {
+        "role": "environment_exploration",
+        "sha256": "e9e9c304e478566c1c4010f3800b8317ff586ca22cd6363c6edfc5d54e8054aa",
+        "redistribution_status": "not_selected_not_published"
+      },
+      {
+        "role": "approved_world_and_style_reference",
+        "path": "references/cover.png",
+        "sha256": "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e",
+        "redistribution_status": "redistribution-approved"
+      }
+    ],
+    "prompt_contract": "iron-petal-environment-only-loop-reference-v1",
+    "prompt_sections": [
+      "Revise reference image 1 into the accepted environment-only production reference. Reference image 2 is style/world guidance only.",
+      "Keep the beautiful cream/coral orbital greenhouse lane, crisp horizontal footing, exposed structural depth, botanical terraces, curved glazing, clean controlled contours, digital-gouache/cel-painted finish, and optimistic repair-garden mood.",
+      "Use one consistent pale-blue orbital daylight illumination from the left edge through the right edge; no day-to-night split.",
+      "Make the leftmost and rightmost 15% calm and closely compatible in horizon, glazing rhythm, floor datum, color, brightness, foliage density, and structural motif.",
+      "Remove the dominant center support column and any centerpiece; replace it with a distributed, low-contrast rhythm of slender distant greenhouse ribs.",
+      "Keep the full running lane unobstructed and laterally readable across the entire frame.",
+      "Preserve a crisp walk-surface edge around the lower-quarter datum and rich but subordinate machinery below it.",
+      "Keep upper trusses and hanging foliage sparse enough not to block silhouettes.",
+      "One tiny distant moon may remain high in the sky, away from both edges.",
+      "Output one wide 3:2 landscape image, full bleed, no frame or panels.",
+      "Strict exclusions: no people, children, pilots, characters, robots, drones, creatures, vehicles, silhouettes, faces, statues, mannequins, hazards, obstacles, pickups, coins, collectible trails, HUD, UI, signage, typography, letters, numbers, logos, signatures, watermarks, franchise imagery, platform gaps, or perspective road vanishing into depth."
+    ]
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "Codex subagent environment_reviewer, not the image producer",
+    "reviewed_at": "2026-09-02",
+    "artifact_sha256": "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022",
+    "artifact_bytes": 2697206,
+    "verification_report": "references/orbital-greenhouse-runway.visual-review.md",
+    "verification_report_sha256": "eabf623d79ba99a32693ff87ba1da0e4c1d10ff07a7f4ec2f912f3b2eba580e7"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-09-02",
+    "basis": [
+      "The selected artifact was generated for this task from an original brand-neutral prompt.",
+      "Its visual inputs are a task-local generated environment exploration and the exact redistribution-approved Iron Petal Unit cover; no third-party reference input was used.",
+      "Independent inspection of the exact digest-bound PNG found no text, logo, signature, watermark, protected-character, franchise, branded-product, or copied-costume resemblance.",
+      "Codex subagent environment_reviewer independently approved the exact digest-bound PNG for prepared-reference redistribution on 2026-09-02."
+    ]
+  }
+}

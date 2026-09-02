@@ -65,6 +65,11 @@ RETIRED_PREPARED_IDENTITIES = (
     "runner-avatar-v1",
     "sideview-runner-runtime-v1",
     "sideview-runner-runtime-v2",
+    # Retired when runner packages gained per-segment structural ground and
+    # honest visible-rider-machine actor semantics.
+    "runner-track-v2",
+    "runner-avatar-v2",
+    "sideview-runner-runtime-v3",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -170,7 +175,11 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     runner = documents["docs/spec/game/runner.md"]
     assert "`runner-audio-v1`" in runner
-    assert "`sideview-runner-runtime-v3`" in documents["docs/game-package.md"]
+    assert "`runner-track-v3`" in runner
+    assert "`runner-avatar-v3`" in runner
+    assert "`runner-structural-ground-v1`" in runner
+    assert "native-alpha GPT Image 2" in runner
+    assert "`sideview-runner-runtime-v4`" in documents["docs/game-package.md"]
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue

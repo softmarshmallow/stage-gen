@@ -1,7 +1,7 @@
-schema_version = 2
-kind = "runner-avatar-v2"
+schema_version = 3
+kind = "runner-avatar-v3"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [[references]]
 reference_id = "cover_style"
@@ -15,6 +15,8 @@ avatar_id = "wayfarer_sprinter"
 display_name = "The Wayfarer, Running"
 body_kind = "human"
 age = 19
+silhouette_mode = "single_character_v1"
+proportion_basis = "character_head_v1"
 reference_ids = ["cover_style"]
 prompt = "The same small cheerful adventurer from the cover, travel satchel strapped tight against her back, sprinting flat out with a determined grin; her whole figure reads as one compact silhouette with nothing trailing past her own outline."
 

@@ -15,6 +15,7 @@ from gnode import (
     RetryExhaustedError,
     RetryPolicy,
 )
+from gnode.providers.openai import OpenAIImageBackend
 from gnode.providers.openrouter import OpenRouterImageBackend
 from stage_gen.identity import IMAGE_GENERATION_COMPONENT, STAGE_GEN_TOOL
 
@@ -84,6 +85,42 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
     assert "image-secret" not in sidecar_text
     assert request_bodies[-1]["resolution"] == "2K"
     assert request_bodies[-1]["input_references"][0]["type"] == "image_url"
+
+
+@pytest.mark.asyncio
+async def test_image_provenance_binds_the_edit_mask_as_a_direct_input(tmp_path: Path) -> None:
+    image = png_bytes()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(image).decode()}]},
+        )
+
+    encoded = "data:image/png;base64," + base64.b64encode(image).decode()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = ImageGenerationService(
+            OpenAIImageBackend(api_key="secret", client=client),
+            component=IMAGE_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
+            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
+        )
+        output = tmp_path / "masked.png"
+        await service.generate(
+            ImageGenerationRequest(
+                prompt="fill only the declared mask",
+                artifact_path=output,
+                input_references=(ImageReference(encoded, "conditioning.png"),),
+                mask_reference=ImageReference(encoded, "mask.png"),
+            )
+        )
+
+    sidecar = json.loads((tmp_path / "masked.png.meta.json").read_text())
+    assert sidecar["refs"] == ["conditioning.png", "mask.png"]
+    assert [entry["ref"] for entry in sidecar["inputs"]] == [
+        "conditioning.png",
+        "mask.png",
+    ]
 
 
 @pytest.mark.parametrize("resolution", ["512", "1K", "2K", "4K"])

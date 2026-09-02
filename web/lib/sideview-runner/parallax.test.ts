@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  atlasGroundTileKey,
   bandTilePositionX,
   layerBandDepth,
   RUNNER_DEPTHS,
+  runnerLayerFrameHeight,
   runnerLayerPlacement,
+  structuralGroundPlacement,
+  structuralGroundSourceSize,
 } from "./parallax";
 
 const VIEW_H = 720;
@@ -54,6 +58,53 @@ describe("runnerLayerPlacement", () => {
     expect(nudged.topY).toBeGreaterThan(placement.topY);
   });
 
+  test("a trimmed band keeps the shared cover-frame scale instead of filling the screen", () => {
+    const cover = {
+      width: 1536,
+      height: 1024,
+      alphaMode: "opaque" as const,
+      verticalAnchor: "canvas_cover" as const,
+    };
+    const foreground = {
+      width: 1536,
+      height: 240,
+      alphaMode: "transparent" as const,
+      verticalAnchor: "screen_bottom" as const,
+      verticalOffset: null,
+    };
+    const frameHeight = runnerLayerFrameHeight(foreground, [cover, foreground]);
+    expect(frameHeight).toBe(1024);
+    const placement = runnerLayerPlacement(foreground, VIEW_H, GROUND_LINE, frameHeight);
+    expect(placement.renderedHeight).toBeCloseTo((240 * VIEW_H) / 1024, 10);
+    expect(placement.topY + placement.renderedHeight).toBeCloseTo(VIEW_H, 10);
+  });
+
+  test("keeps cover-frame scale when generated repeat bridges have different widths", () => {
+    const layer = {
+      width: 1200,
+      height: 300,
+      alphaMode: "transparent" as const,
+      verticalAnchor: "screen_bottom" as const,
+    };
+    const cover = {
+      width: 1536,
+      height: 1024,
+      alphaMode: "opaque" as const,
+      verticalAnchor: "canvas_cover" as const,
+    };
+    expect(runnerLayerFrameHeight(layer, [cover, layer])).toBe(1024);
+  });
+
+  test("falls back to a transparent layer's own height without an opaque cover", () => {
+    const layer = {
+      width: 1200,
+      height: 300,
+      alphaMode: "transparent" as const,
+      verticalAnchor: "screen_bottom" as const,
+    };
+    expect(runnerLayerFrameHeight(layer, [layer])).toBe(300);
+  });
+
   test("refuses degenerate heights", () => {
     expect(() =>
       runnerLayerPlacement(
@@ -62,6 +113,33 @@ describe("runnerLayerPlacement", () => {
         GROUND_LINE,
       ),
     ).toThrow("positive heights");
+  });
+});
+
+describe("structural ground placement", () => {
+  test("projects a full segment raster through the occupancy grid", () => {
+    expect(structuralGroundSourceSize(12, 8, 64)).toEqual({ width: 768, height: 512 });
+    expect(structuralGroundPlacement(24, 12, 8, 48)).toEqual({
+      leftX: 1152,
+      topY: 336,
+      width: 576,
+      height: 384,
+    });
+  });
+
+  test("refuses degenerate raster grids", () => {
+    expect(() => structuralGroundSourceSize(0, 8, 64)).toThrow("valid grid");
+    expect(() => structuralGroundPlacement(0, 12, 8, 0)).toThrow("valid grid");
+  });
+});
+
+describe("atlas ground tile identity", () => {
+  test("replaces a coordinate when its boundary frame changes", () => {
+    const before = atlasGroundTileKey(12, 5, "mask_001");
+    const after = atlasGroundTileKey(12, 5, "mask_101");
+
+    expect(after).not.toBe(before);
+    expect(atlasGroundTileKey(12, 5, "mask_101")).toBe(after);
   });
 });
 

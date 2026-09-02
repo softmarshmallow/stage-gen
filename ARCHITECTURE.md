@@ -109,11 +109,11 @@ uv run stage-gen <args>
 ```
 
 The CLI is the only automation surface: there is no HTTP service, and no
-process outside it starts a run. Three recipes compile onto the one engine —
-`sideview-platformer` builds a prepared game from a `game.toml` package,
-`dialogue-scene` builds a scene bundle from an authored request document, and
-`pointclick-room` builds a fixed painted puzzle room from an authored package
-whose puzzle is proven finishable before generation is scheduled
+process outside it starts a run. Four recipes compile onto the one engine —
+`sideview-platformer` and `sideview-runner` build distinct prepared-game
+members from a `game.toml` package, `dialogue-scene` builds a scene bundle from
+an authored request document, and `pointclick-room` builds a fixed painted
+puzzle room from an authored package whose puzzle is proven finishable before generation is scheduled
 (`stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>`). Each declares its own graph document kind, so no recipe
 can read another's plan.
@@ -132,16 +132,18 @@ sidecars so consumers load canonical outputs without guessing from colour.
 
 ## Optional preview
 
-The current `web/` application is an optional consumer with five committed
+The current `web/` application is an optional consumer with six committed
 integration surfaces, none of which can start a run. The side-view platformer
 preview boots one published `prepared-game-runtime-v10` package; its horizontal
 camera, parallax, terrain, movement, combat, and interaction rules are local
-consumer decisions. The asset explorer projects that same manifest's closure.
-The deterministic dialogue-scene showcase consumes a committed browser fixture
-and schema. The room player at `/room/<tag>` replays one published
-`pointclick-room-runtime-v1` manifest through a pure reducer. The run viewer
-consumes a run's derived `execution-view.json` and renders it read-only. No
-surface owns generation or defines reusable component contracts.
+consumer decisions. The runner at `/runner/<tag>` plays one published
+`sideview-runner-runtime-v4` run with its own fixed-step simulation. The asset
+explorer projects the platformer manifest's closure. The deterministic
+dialogue-scene showcase consumes a committed browser fixture and schema. The
+room player at `/room/<tag>` replays one published `pointclick-room-runtime-v2`
+manifest through a pure reducer. The run viewer consumes a run's derived
+`execution-view.json` and renders it read-only. No surface owns generation or
+defines reusable component contracts.
 
 No production gameplay engine has been selected. A dedicated 2D engine,
 including Godot or another suitable candidate, may be evaluated later. The

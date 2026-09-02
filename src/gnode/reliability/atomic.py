@@ -34,6 +34,19 @@ from .redaction import redact_secrets, sanitize_for_persistence
 class AtomicWriteError(OSError):
     """An atomic commit or its rollback failed."""
 
+    def __init__(self, message: str, *, provider_operations: int | None = None) -> None:
+        super().__init__(message)
+        if provider_operations is None:
+            return
+        if (
+            isinstance(provider_operations, bool)
+            or not isinstance(provider_operations, int)
+            or provider_operations < 0
+        ):
+            raise ValueError("provider_operations must be a non-negative integer")
+        self.attempts = max(1, provider_operations)
+        self.provider_operations = provider_operations
+
 
 @dataclass(frozen=True, slots=True)
 class AtomicBundleFile:
@@ -285,15 +298,26 @@ async def write_artifact_with_provenance_async(
     now: datetime | None = None,
     operations: FileOperations | None = None,
 ) -> Path:
-    return await asyncio.to_thread(
-        write_artifact_with_provenance,
-        artifact_path,
-        artifact,
-        provenance,
-        secrets=secrets,
-        now=now,
-        operations=operations,
-    )
+    try:
+        return await asyncio.to_thread(
+            write_artifact_with_provenance,
+            artifact_path,
+            artifact,
+            provenance,
+            secrets=secrets,
+            now=now,
+            operations=operations,
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception as error:
+        # The provider result already exists when a modality enters artifact
+        # persistence. Preserve that completed spend even when provenance
+        # serialization, publication, or rollback fails afterward.
+        raise AtomicWriteError(
+            redact_secrets(str(error).strip() or type(error).__name__, secrets),
+            provider_operations=provenance.attempts,
+        ) from None
 
 
 def atomic_write_bundle(

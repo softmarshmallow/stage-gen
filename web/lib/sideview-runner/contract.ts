@@ -1,18 +1,19 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v3`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v4`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone. v2
- * publishes the arc arithmetic every offline refusal depends on, the duck
- * profile, per-hazard vertical anchors, and authored audio realizations.
+ * is deep-frozen. The runtime plays a track from this document alone. v4
+ * retains the proved arc and duck arithmetic plus authored audio, and closes
+ * ground presentation over the atlas and structural-segment alternatives.
  */
 
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v3";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 3;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v4";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 4;
+export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 export const RUNNER_REFUSAL =
   "unsupported sideview-runner manifest; regenerate this track with a current stage-gen " +
@@ -127,6 +128,36 @@ export interface RunnerSegments {
   readonly chunks: readonly RunnerChunk[];
 }
 
+/** The legacy 47-mask presentation. Occupancy still owns every collision. */
+export interface RunnerTerrainAtlasGround {
+  readonly mode: "terrain-atlas-3x3-minimal-v1";
+  readonly verticalFit: "floor_to_screen_bottom";
+  readonly atlas: string;
+}
+
+/** One canonical full-grid raster for one authored segment definition. */
+export interface RunnerStructuralGroundChunk {
+  readonly segmentId: string;
+  readonly image: string;
+  readonly columns: number;
+  readonly rows: number;
+}
+
+/**
+ * Structural ground is presentation only. Its ordered records are locked
+ * one-for-one to `segments.chunks`; the occupancy grids remain the sole
+ * support, pit, collision, and streaming authority.
+ */
+export interface RunnerStructuralGround {
+  readonly mode: "runner-structural-ground-v1";
+  readonly verticalFit: "floor_to_screen_bottom";
+  /** Source pixels per occupancy cell in every canonical segment raster. */
+  readonly cellPx: number;
+  readonly chunks: readonly RunnerStructuralGroundChunk[];
+}
+
+export type RunnerGround = RunnerTerrainAtlasGround | RunnerStructuralGround;
+
 export interface RunnerSoundtrackTrack {
   readonly trackId: string;
   readonly audio: string;
@@ -208,11 +239,7 @@ export interface RunnerRuntimeManifest {
     /** The overhead fit proof's daylight margin; null exactly when duckProfile is. */
     readonly minOverheadClearanceRows: number | null;
   };
-  readonly ground: {
-    readonly atlas: string;
-    readonly mode: "terrain-atlas-3x3-minimal-v1";
-    readonly verticalFit: "floor_to_screen_bottom";
-  };
+  readonly ground: RunnerGround;
   readonly layers: readonly RunnerLayer[];
   readonly segments: RunnerSegments;
   readonly avatar: RunnerAvatar;
@@ -488,6 +515,89 @@ function chunk(
   });
 }
 
+function runnerGround(
+  raw: Record<string, unknown>,
+  chunks: readonly RunnerChunk[],
+  rows: number,
+): RunnerGround {
+  const mode = literal(raw.mode, "ground.mode", [
+    "terrain-atlas-3x3-minimal-v1",
+    "runner-structural-ground-v1",
+  ]);
+  const verticalFit = literal(raw.vertical_fit, "ground.vertical_fit", [
+    "floor_to_screen_bottom",
+  ]);
+  if (mode === "terrain-atlas-3x3-minimal-v1") {
+    if (raw.cell_px !== undefined || raw.chunks !== undefined) {
+      throw new Error("terrain-atlas ground must not declare structural cell_px or chunks");
+    }
+    return Object.freeze({
+      mode,
+      verticalFit,
+      atlas: text(raw.atlas, "ground.atlas"),
+    });
+  }
+
+  if (raw.atlas !== undefined) {
+    throw new Error("runner-structural-ground-v1 must not declare ground.atlas");
+  }
+  const cellPx = boundedInteger(raw.cell_px, "ground.cell_px", 1, 512);
+  if (cellPx !== RUNNER_STRUCTURAL_GROUND_CELL_PX) {
+    throw new Error(
+      `ground.cell_px must be exactly ${RUNNER_STRUCTURAL_GROUND_CELL_PX}`,
+    );
+  }
+  const groundChunks = array(raw.chunks, "ground.chunks").map((entry, index) => {
+    const rawChunk = record(entry, `ground.chunks[${index}]`);
+    const segmentId = text(rawChunk.segment_id, `ground.chunks[${index}].segment_id`);
+    const columns = boundedInteger(
+      rawChunk.columns,
+      `ground.chunks[${index}].columns`,
+      MIN_SEGMENT_COLUMNS,
+      MAX_SEGMENT_COLUMNS,
+    );
+    const chunk = chunks[index];
+    if (!chunk) {
+      throw new Error("ground.chunks must correspond one-for-one with segments.chunks");
+    }
+    if (segmentId !== chunk.segmentId) {
+      throw new Error(
+        `ground.chunks[${index}].segment_id must match segments.chunks[${index}].segment_id`,
+      );
+    }
+    if (columns !== chunk.occupancy[0].length) {
+      throw new Error(
+        `ground.chunks[${index}].columns must match its occupancy width`,
+      );
+    }
+    const imageRows = boundedInteger(
+      rawChunk.rows,
+      `ground.chunks[${index}].rows`,
+      MIN_SEGMENT_ROWS,
+      MAX_SEGMENT_ROWS,
+    );
+    if (imageRows !== rows) {
+      throw new Error(`ground.chunks[${index}].rows must match segments.rows`);
+    }
+    return Object.freeze({
+      segmentId,
+      image: text(rawChunk.image, `ground.chunks[${index}].image`),
+      columns,
+      rows: imageRows,
+    });
+  });
+  if (groundChunks.length !== chunks.length) {
+    throw new Error("ground.chunks must correspond one-for-one with segments.chunks");
+  }
+  uniqueIds(groundChunks.map((entry) => entry.segmentId), "ground chunk segment ids");
+  return Object.freeze({
+    mode,
+    verticalFit,
+    cellPx,
+    chunks: Object.freeze(groundChunks),
+  });
+}
+
 function catalogEntry(
   value: unknown,
   label: string,
@@ -701,6 +811,22 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   );
   if (layers.length === 0) throw new Error("layers must not be empty");
   uniqueIds(layers.map((entry) => entry.layerId), "layer ids");
+  for (const [index, entry] of layers.entries()) {
+    const opaque = entry.alphaMode === "opaque";
+    const canvasCover = entry.verticalAnchor === "canvas_cover";
+    if (opaque !== canvasCover) {
+      throw new Error(
+        `layers[${index}] must pair alpha_mode opaque with vertical_anchor canvas_cover`,
+      );
+    }
+  }
+  if (
+    layers.filter(
+      (entry) => entry.alphaMode === "opaque" && entry.verticalAnchor === "canvas_cover",
+    ).length !== 1
+  ) {
+    throw new Error("layers must declare exactly one opaque canvas_cover");
+  }
 
   let soundtrack: RunnerSoundtrack | null = null;
   if (raw.soundtrack !== null && raw.soundtrack !== undefined) {
@@ -807,13 +933,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
               "gameplay.min_overhead_clearance_rows",
             ),
     }),
-    ground: Object.freeze({
-      atlas: text(rawGround.atlas, "ground.atlas"),
-      mode: literal(rawGround.mode, "ground.mode", ["terrain-atlas-3x3-minimal-v1"]),
-      verticalFit: literal(rawGround.vertical_fit, "ground.vertical_fit", [
-        "floor_to_screen_bottom",
-      ]),
-    }),
+    ground: runnerGround(rawGround, chunks, rows),
     layers: Object.freeze(layers),
     segments: Object.freeze({ rows, walkSurfaceRow, chunks: Object.freeze(chunks) }),
     avatar: Object.freeze({

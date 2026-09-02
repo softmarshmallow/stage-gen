@@ -1,4 +1,4 @@
-"""The runner genre's avatar catalog (`runner-avatar-v2`)."""
+"""The runner genre's avatar catalog (`runner-avatar-v3`)."""
 
 from .models import (
     RUNNER_AVATAR_BASE_MOTION_STATES,

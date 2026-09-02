@@ -30,10 +30,11 @@ def commands(python: str = sys.executable) -> tuple[tuple[str, ...], ...]:
         (python, "scripts/check_docs.py"),
         (python, "-m", "build", "--no-isolation"),
         ("stage-gen", "--help"),
-        # The installed entry point plans both of Bellweather's genre members offline:
-        # a route the binding table cannot serve, or an authored input the resolver
-        # refuses, fails here rather than against a provider. The room and scene
-        # recipes have no committed package, so only their CLI surface is exercised.
+        # The installed entry point plans both of Bellweather's reference members and
+        # the selected Iron Petal runner offline: a route the binding table cannot
+        # serve, or an authored input the resolver refuses, fails here rather than
+        # against a provider. The room and scene recipes have no committed package,
+        # so only their CLI surface is exercised.
         (
             "stage-gen",
             "package",
@@ -49,6 +50,15 @@ def commands(python: str = sys.executable) -> tuple[tuple[str, ...], ...]:
             "plan",
             "--input",
             "library/games/bellweather",
+            "--genre",
+            "runner",
+        ),
+        (
+            "stage-gen",
+            "package",
+            "plan",
+            "--input",
+            "library/games/iron-petal-unit",
             "--genre",
             "runner",
         ),

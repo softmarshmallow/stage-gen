@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 
 from stage_gen.orchestration.game_package import (
     GamePackageValidationError,
-    ResolvedGamePackage,
+    ResolvedPreparedPackage,
     ResolvedRunnerMember,
-    resolve_game_package,
+    resolve_prepared_package,
 )
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class ResolvedRunnerPackage:
     """The container package plus its resolved runner member."""
 
-    package: ResolvedGamePackage
+    package: ResolvedPreparedPackage
     runner: ResolvedRunnerMember
 
     def identity(self) -> dict[str, object]:
@@ -41,12 +41,13 @@ class ResolvedRunnerPackage:
 
 
 def resolve_runner_package(input_path: Path) -> ResolvedRunnerPackage:
-    package = resolve_game_package(input_path)
-    if package.runner is None:
+    package = resolve_prepared_package(input_path)
+    runner = package.runner
+    if runner is None:
         raise GamePackageValidationError(
             "missing_genre_member", "prepared package declares no runner genre member"
         )
-    return ResolvedRunnerPackage(package=package, runner=package.runner)
+    return ResolvedRunnerPackage(package=package, runner=runner)
 
 
 __all__ = ["ResolvedRunnerPackage", "resolve_runner_package"]

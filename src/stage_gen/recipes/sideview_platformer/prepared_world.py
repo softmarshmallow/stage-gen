@@ -369,6 +369,10 @@ class PreparedWorldNodeHandler:
         # untouched, which is both free and strictly better than constructing over it.
         admission = admit(raw_data)
         provider_operations = 0
+        generative = LOOP_METHODS[construction].is_generative
+        edit_ref = node.port("edit_image").artifact_ref if generative else None
+        edit_path = self._run_dir / edit_ref if edit_ref is not None else None
+        edit_data: bytes | None = None
         if admission.verdict == "pass":  # type: ignore[attr-defined]
             looped = raw_data
             record: dict[str, object] = {
@@ -378,12 +382,23 @@ class PreparedWorldNodeHandler:
                 "skipped_construction": construction,
                 "provider_operations": 0,
             }
-        elif not LOOP_METHODS[construction].is_generative:
+            if edit_path is not None and edit_ref is not None:
+                edit_data = raw_data
+                await _write_local_image(
+                    edit_path,
+                    edit_data,
+                    model="prepared-map-loop-edit-bypass-v1",
+                    prompt="Record a provider-free bypass for an already seamless layer.",
+                    source_ref=source_port.artifact_ref,
+                    source_data=raw_data,
+                    validation={"construction": "none", "provider_skipped": True},
+                )
+        elif not generative:
             looped, record = construct_deterministic(construction, raw_data)
             record["construction"] = construction
         else:
             conditioning = loop_conditioning(construction, raw_data)
-            edit_path = self._run_dir / node.port("edit_image").artifact_ref
+            assert edit_path is not None
             transparent = layer.alpha_mode == "transparent"
             generation = await self._images.generate(
                 ImageGenerationRequest(
@@ -412,9 +427,10 @@ class PreparedWorldNodeHandler:
                 )
             )
             provider_operations = generation.attempts
+            edit_data = edit_path.read_bytes()
             try:
                 looped, record = assemble_loop(
-                    construction, raw_data, edit_path.read_bytes(), conditioning=conditioning
+                    construction, raw_data, edit_data, conditioning=conditioning
                 )
                 record["construction"] = construction
             except RegistrationError as error:
@@ -430,7 +446,7 @@ class PreparedWorldNodeHandler:
         report = admit(looped)
         if (
             report.verdict != "pass"  # type: ignore[attr-defined]
-            and LOOP_METHODS[construction].is_generative
+            and generative
         ):
             # A generative construction can return art that lands correctly and still fails
             # admission, which is exactly the case `loop_fallback` exists for; falling back only on
@@ -450,13 +466,19 @@ class PreparedWorldNodeHandler:
                 f"constructed loop for {game_map.map_id}/{layer.layer_id} failed x-repeat admission"
             )
         record["repeat"] = report.model_dump(mode="json")  # type: ignore[attr-defined]
-        await _write_local_image(
+        inputs = [(source_port.artifact_ref, raw_data)]
+        if (
+            record["construction"] == construction
+            and edit_ref is not None
+            and edit_data is not None
+        ):
+            inputs.append((edit_ref, edit_data))
+        await _write_local_image_multi(
             output,
             looped,
             model=record["kind"],  # type: ignore[arg-type]
             prompt="Admit or construct the layer's horizontal loop unit.",
-            source_ref=source_port.artifact_ref,
-            source_data=raw_data,
+            inputs=inputs,
             validation=record,
         )
         atomic_write_json(record_path, record)
@@ -748,7 +770,7 @@ class PreparedWorldNodeHandler:
         await _write_local_image(
             output,
             canonical,
-            model=f"prepared-map-{asset}-alpha-component-repack-v1",
+            model=f"prepared-map-{asset}-alpha-component-repack-v3",
             prompt=f"Isolate and repack the map-local {asset} presentation.",
             source_ref=source_port.artifact_ref,
             source_data=raw,

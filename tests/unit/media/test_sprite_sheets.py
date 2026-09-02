@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from hashlib import sha256
 
 import pytest
 from PIL import Image, ImageDraw
@@ -64,7 +65,14 @@ def test_alpha_components_repack_crossing_poses_without_xy_slicing() -> None:
     with Image.open(io.BytesIO(output_data)) as opened:
         output = opened.convert("RGBA")
     assert output.width % 4 == 0
+    # v2's fused-support recovery is a fallback. Sources already admitted by the v1 base path
+    # retain the exact same canonical PNG bytes.
+    assert sha256(output_data).hexdigest() == (
+        "22ae0d7a3a6a2142e6a6f76bdff48392d3a2e2e3ad65f77b5c75e7199f5f6bde"
+    )
     assert report["selected_component_count"] == 4
+    assert report["recovery_mode"] == "base_alpha_components"
+    assert report["core_alpha_threshold"] is None
     assert report["boundaries_isolated"] is True
     assert report["warnings"] == []
     placements = report["placements"]
@@ -118,11 +126,84 @@ def test_alpha_components_keep_largest_required_candidates_when_count_is_high() 
     assert "principal_component_count_exceeded_required_cells" in warnings
 
 
+def test_exact_source_slots_refuse_a_meaningful_disconnected_subject_part() -> None:
+    source = Image.new("RGBA", (400, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    for index in range(4):
+        left = index * 100 + 30
+        draw.rectangle((left, 45, left + 50, 105), fill=(80, 140, 220, 255))
+        draw.rectangle((left + 17, 15, left + 27, 35), fill=(240, 180, 90, 255))
+
+    with pytest.raises(ValueError, match="refuses unassigned meaningful alpha components"):
+        repack_alpha_components(
+            _png(source),
+            AlphaComponentRepackContract(
+                rows=1,
+                columns=4,
+                required_cells=4,
+                source_slot_policy="exact_required_slots",
+            ),
+        )
+
+
 def test_alpha_components_fail_when_principal_frames_are_fused() -> None:
     source = Image.new("RGBA", (400, 120), (0, 0, 0, 0))
     ImageDraw.Draw(source).rectangle((20, 20, 380, 105), fill=(80, 140, 220, 255))
 
     with pytest.raises(ValueError, match="1 principal components for 4 required cells"):
+        repack_alpha_components(
+            _png(source),
+            AlphaComponentRepackContract(rows=1, columns=4, required_cells=4),
+        )
+
+
+def test_alpha_components_partition_low_alpha_fused_support_from_stronger_cores() -> None:
+    source = Image.new("RGBA", (400, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    bounds = ((10, 25, 85, 105), (105, 25, 180, 105), (205, 25, 280, 105), (300, 25, 375, 105))
+    for bbox in bounds:
+        draw.rectangle(bbox, fill=(80, 140, 220, 255))
+    # A meaningful but weaker antialiased bridge fuses frames three and four at the base
+    # threshold. It disappears at alpha > 80, exposing the four high-confidence cores.
+    draw.rectangle((281, 72, 299, 75), fill=(80, 140, 220, 80))
+    source_data = _png(source)
+
+    output_data, report = repack_alpha_components(
+        source_data,
+        AlphaComponentRepackContract(rows=1, columns=4, required_cells=4),
+    )
+    repeated_output, repeated_report = repack_alpha_components(
+        source_data,
+        AlphaComponentRepackContract(rows=1, columns=4, required_cells=4),
+    )
+
+    assert output_data == repeated_output
+    assert report == repeated_report
+    assert report["processor_version"] == "alpha-component-repack-v3"
+    assert report["kind"] == "alpha-component-sprite-repack-v3"
+    assert report["principal_candidate_count"] == 3
+    assert report["selected_component_count"] == 4
+    assert report["recovery_mode"] == "high_alpha_core_partition"
+    assert report["core_alpha_threshold"] == 80
+    assert report["core_principal_candidate_count"] == 4
+    assert report["core_source_slots"] == (0, 1, 2, 3)
+    assert report["retained_alpha_fraction"] == 1.0
+    assert report["warnings"] == ["fused_components_recovered_from_high_alpha_cores"]
+    with Image.open(io.BytesIO(output_data)) as opened:
+        output_alpha_mass = sum(opened.convert("RGBA").getchannel("A").tobytes())
+    assert output_alpha_mass == sum(source.getchannel("A").tobytes())
+
+
+def test_alpha_components_reject_high_alpha_cores_clustered_in_one_source_cell() -> None:
+    source = Image.new("RGBA", (400, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    # One weak support component makes every intended quarter technically
+    # visible, while all four convincing cores sit in the first quarter.
+    draw.rectangle((5, 40, 394, 70), fill=(80, 140, 220, 17))
+    for left in (10, 32, 54, 76):
+        draw.rectangle((left, 45, left + 12, 64), fill=(80, 140, 220, 255))
+
+    with pytest.raises(ValueError, match="principal components for 4 required cells"):
         repack_alpha_components(
             _png(source),
             AlphaComponentRepackContract(rows=1, columns=4, required_cells=4),

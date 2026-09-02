@@ -51,7 +51,7 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.env_import import import_provider_env
-from stage_gen.orchestration.game_package import resolve_game_package
+from stage_gen.orchestration.game_package import resolve_prepared_package
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
@@ -520,7 +520,7 @@ def _dispatch(
         stdout.write(f"{json.dumps(view_report, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "package":
-        resolved_package = resolve_game_package(Path(args.input_path))
+        resolved_package = resolve_prepared_package(Path(args.input_path))
         if args.package_command == "digest":
             stdout.write(f"{resolved_package.closure_sha256}\n")
         elif args.package_command == "plan":
@@ -791,7 +791,7 @@ async def _dispatch_async(
     if args.command == "generate":
         if args.output_path is None:
             raise ValueError("generate requires --output")
-        generate_package = resolve_game_package(Path(args.input_path))
+        generate_package = resolve_prepared_package(Path(args.input_path))
         declared_genres = [entry.genre for entry in generate_package.game.genres]
         genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
         output_path = Path(args.output_path)

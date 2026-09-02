@@ -30,8 +30,8 @@ def test_canonical_game_package_document_matches_current_prepared_contracts() ->
     assert selector == {
         "schema_version": GAME_PACKAGE_SELECTOR_SCHEMA_VERSION,
         "kind": f"game-package-v{GAME_PACKAGE_SELECTOR_SCHEMA_VERSION}",
-        "game_id": "bellweather",
-        "package_ref": "library/games/bellweather/game.toml",
+        "game_id": "iron-petal-unit",
+        "package_ref": "library/games/iron-petal-unit/game.toml",
     }
     assert selector["package_ref"] in document
     assert "library/games/main.toml" in document

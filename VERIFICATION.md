@@ -42,10 +42,12 @@ uv run python scripts/check.py
 
 This checks Ruff formatting and lint, strict mypy across `src`, `tests`, and
 `scripts`, all tests not marked `live`, documentation and publication policy,
-sdist/wheel construction, packaged resources, CLI help, and an offline plan of
-all three recipes — so a route the binding table cannot serve fails here rather
-than against a provider.
-The script removes `OPENROUTER_API_KEY` and `FAL_KEY` from every child process.
+sdist/wheel construction, packaged resources, every recipe's CLI surface, and
+offline plans of the committed Bellweather platformer/runner members plus the
+selected Iron Petal runner — so a route the binding table cannot serve fails
+here rather than against a provider.
+The script removes `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, and `FAL_KEY` from
+every child process.
 It also disables cwd `.env` credential loading for those children, so it must
 pass without network access or provider credentials.
 
@@ -66,6 +68,15 @@ Python changes still require the locked credential-free gate above before
 handoff. Live tests remain outside that gate and cannot be inferred from a build
 or documentation task. Generated output accepted as live evidence remains
 subject to the semantic and audio acceptance rules above.
+
+When an accepted runner run must be admitted under a newer cache or validator
+contract without creating another semantic candidate, use the audited
+provider-free replay procedure in
+[Provider operations](docs/providers.md#accepted-run-provider-free-cache-replay).
+Its current-graph trace must prove provider cache hits and zero provider
+operations; its audit must bind the preserved provider bytes, complete request
+identities, current validators, attempt ledgers, and any content-addressed
+transfer of an independent listening verdict.
 
 ## Evidence format
 

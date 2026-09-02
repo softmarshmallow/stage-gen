@@ -41,7 +41,7 @@ MAP_LAYER_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="map-layer-v1",
+    contract_version="map-layer-v2",
 )
 
 MAP_LAYER_LOOP_PAINT = NodeType(
@@ -51,7 +51,7 @@ MAP_LAYER_LOOP_PAINT = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="map-layer-loop-v1",
+    contract_version="map-layer-loop-v2",
 )
 
 MAP_LAYER_LOOP_CONSTRUCT = NodeType(

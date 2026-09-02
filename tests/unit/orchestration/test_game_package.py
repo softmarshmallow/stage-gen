@@ -42,7 +42,10 @@ def _write_zip(package: Path, output: Path, *, wrapped: bool = True) -> None:
 
 def test_resolve_bellweather_directory_captures_complete_exact_current_package() -> None:
     package = resolve_game_package(SOURCE_PACKAGE)
+    identity = package.identity()
 
+    assert identity["schema_version"] == 6
+    assert identity["kind"] == "resolved-game-package-v6"
     assert package.game.game_id == "bellweather"
     assert package.package_sha256 == _sha256(SOURCE_PACKAGE / "game.toml")
     assert len(package.files) == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
@@ -76,14 +79,16 @@ def test_directory_and_zip_resolve_to_the_same_canonical_identity(
     ]
 
 
-def test_validate_repository_selector_resolves_bellweather() -> None:
+def test_validate_repository_selector_resolves_iron_petal_unit() -> None:
     report = validate_game_package(REPOSITORY_ROOT)
 
     assert report["valid"] is True
-    assert report["kind"] == "game-package-validation-v5"
-    assert report["game_id"] == "bellweather"
+    assert report["schema_version"] == 6
+    assert report["kind"] == "game-package-validation-v6"
+    assert report["game_id"] == "iron-petal-unit"
     assert report["generated_status"] == "not_checked"
-    assert report["file_count"] == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
+    selected = REPOSITORY_ROOT / "library" / "games" / "iron-petal-unit"
+    assert report["file_count"] == sum(1 for path in selected.rglob("*") if path.is_file())
 
 
 def test_rejects_the_retired_digest_pinning_selector(tmp_path: Path) -> None:
@@ -142,9 +147,13 @@ def test_editing_a_member_needs_no_bookkeeping_anywhere_else(tmp_path: Path) -> 
     package = workspace / "library" / "games" / "bellweather"
     package.parent.mkdir(parents=True)
     shutil.copytree(SOURCE_PACKAGE, package)
-    shutil.copy2(
-        REPOSITORY_ROOT / "library" / "games" / "main.toml",
-        workspace / "library" / "games" / "main.toml",
+    (workspace / "library" / "games" / "main.toml").write_text(
+        """schema_version = 4
+kind = "game-package-v4"
+game_id = "bellweather"
+package_ref = "library/games/bellweather/game.toml"
+""",
+        encoding="utf-8",
     )
     gameplay = package / "gameplay.toml"
     original = resolve_game_package(package).closure_sha256

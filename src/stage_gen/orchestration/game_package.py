@@ -94,8 +94,10 @@ from stage_gen.components.runner_track import (
     RunnerHazard,
     RunnerSegmentChunk,
     RunnerSegments,
+    RunnerStructuralGround,
     RunnerTrack,
     load_runner_track_bytes,
+    validate_structural_ground_material_references,
 )
 from stage_gen.components.scenario import (
     ResolvedScenario,
@@ -105,7 +107,7 @@ from stage_gen.components.scenario import (
 )
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
-GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 5
+GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 6
 GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 4
 
 _MAX_PACKAGE_FILES = 512
@@ -166,8 +168,27 @@ class ResolvedRunnerMember:
 
 
 @dataclass(frozen=True, slots=True)
-class ResolvedGamePackage:
-    """Fully captured and cross-validated prepared input."""
+class _ResolvedPlatformerMember:
+    """The platformer member's resolved contracts before variant construction."""
+
+    member: PlatformerGenreMember
+    gameplay: GameplayContract
+    ui: GameUi
+    soundtrack: GameSoundtrack
+    maps: tuple[PreparedGameMap, ...]
+    player: PlayerContentCatalog
+    mobs: MobContentCatalog
+    npcs: NpcContentCatalog
+    props: PropContentCatalog
+    items: ItemContentCatalog
+    projectiles: ProjectileContentCatalog | None
+    scenario_catalog: ScenarioCatalog
+    scenarios: tuple[ResolvedScenario, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedPreparedPackage:
+    """Genre-neutral captured closure shared by every resolved package variant."""
 
     source_kind: Literal["directory", "zip"]
     package_name: str
@@ -175,11 +196,61 @@ class ResolvedGamePackage:
     canonical_game_sha256: str
     closure_sha256: str
     game: PreparedGameContract
-    #: The resolved platformer genre member: the camera, cast, and member table
-    #: this family's recipe reads.
-    platformer: PlatformerGenreMember
     #: The runner genre member, resolved when the game declares one.
     runner: ResolvedRunnerMember | None
+    files: tuple[ResolvedPackageFile, ...]
+
+    def file(self, path: str) -> ResolvedPackageFile:
+        for entry in self.files:
+            if entry.path == path:
+                return entry
+        raise KeyError(path)
+
+    def identity(self) -> dict[str, object]:
+        genres: dict[str, object] = {}
+        platformer_identity = self._platformer_identity()
+        if platformer_identity is not None:
+            genres["platformer"] = platformer_identity
+        if self.runner is not None:
+            genres["runner"] = {
+                "track_id": self.runner.track.track_id,
+                "avatar_id": self.runner.avatar.avatar.avatar_id,
+                "segment_ids": [entry.segment_id for entry in self.runner.track.segments.chunks],
+                "prop_ids": [entry.prop_id for entry in self.runner.props.props],
+                "item_ids": [entry.item_id for entry in self.runner.items.items],
+                "effect_ids": [entry.effect_id for entry in self.runner.audio.effects],
+                "track_ids": (
+                    [] if self.runner.soundtrack is None else list(self.runner.soundtrack.track_ids)
+                ),
+            }
+        return {
+            "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
+            "kind": "resolved-game-package-v6",
+            "game_id": self.game.game_id,
+            "revision": self.game.revision,
+            "package_sha256": self.package_sha256,
+            "canonical_game_sha256": self.canonical_game_sha256,
+            "closure_sha256": self.closure_sha256,
+            "source_kind": self.source_kind,
+            "file_count": len(self.files),
+            "genres": genres,
+        }
+
+    def _platformer_identity(self) -> dict[str, object] | None:
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedGamePackage(ResolvedPreparedPackage):
+    """A fully captured package narrowed to its required platformer member.
+
+    This compatibility variant preserves the platformer recipe's established
+    non-optional fields. Use :func:`resolve_prepared_package` at genre-neutral
+    boundaries and :func:`resolve_game_package` where platformer membership is
+    an actual precondition.
+    """
+
+    platformer: PlatformerGenreMember
     gameplay: GameplayContract
     ui: GameUi
     soundtrack: GameSoundtrack
@@ -193,68 +264,34 @@ class ResolvedGamePackage:
     projectiles: ProjectileContentCatalog | None
     scenario_catalog: ScenarioCatalog
     scenarios: tuple[ResolvedScenario, ...]
-    files: tuple[ResolvedPackageFile, ...]
 
-    def file(self, path: str) -> ResolvedPackageFile:
-        for entry in self.files:
-            if entry.path == path:
-                return entry
-        raise KeyError(path)
-
-    def identity(self) -> dict[str, object]:
+    def _platformer_identity(self) -> dict[str, object]:
         return {
-            "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-            "kind": "resolved-game-package-v5",
-            "game_id": self.game.game_id,
-            "revision": self.game.revision,
-            "package_sha256": self.package_sha256,
-            "canonical_game_sha256": self.canonical_game_sha256,
-            "closure_sha256": self.closure_sha256,
-            "source_kind": self.source_kind,
-            "file_count": len(self.files),
-            "genres": {
-                "platformer": {
-                    "map_ids": [entry.map_id for entry in self.maps],
-                    "player_ids": [entry.player_id for entry in self.player.players],
-                    "mob_ids": [entry.mob_id for entry in self.mobs.mobs],
-                    "npc_ids": [entry.npc_id for entry in self.npcs.npcs],
-                    "prop_ids": [entry.prop_id for entry in self.props.props],
-                    "item_ids": [entry.item_id for entry in self.items.items],
-                    "projectile_ids": (
-                        []
-                        if self.projectiles is None
-                        else [entry.projectile_id for entry in self.projectiles.projectiles]
-                    ),
-                    "scenario_ids": [entry.declarations.scenario_id for entry in self.scenarios],
-                    "track_ids": list(self.soundtrack.track_ids),
-                },
-                **(
-                    {}
-                    if self.runner is None
-                    else {
-                        "runner": {
-                            "track_id": self.runner.track.track_id,
-                            "avatar_id": self.runner.avatar.avatar.avatar_id,
-                            "segment_ids": [
-                                entry.segment_id for entry in self.runner.track.segments.chunks
-                            ],
-                            "prop_ids": [entry.prop_id for entry in self.runner.props.props],
-                            "item_ids": [entry.item_id for entry in self.runner.items.items],
-                            "effect_ids": [entry.effect_id for entry in self.runner.audio.effects],
-                            "track_ids": (
-                                []
-                                if self.runner.soundtrack is None
-                                else list(self.runner.soundtrack.track_ids)
-                            ),
-                        }
-                    }
-                ),
-            },
+            "map_ids": [entry.map_id for entry in self.maps],
+            "player_ids": [entry.player_id for entry in self.player.players],
+            "mob_ids": [entry.mob_id for entry in self.mobs.mobs],
+            "npc_ids": [entry.npc_id for entry in self.npcs.npcs],
+            "prop_ids": [entry.prop_id for entry in self.props.props],
+            "item_ids": [entry.item_id for entry in self.items.items],
+            "projectile_ids": (
+                []
+                if self.projectiles is None
+                else [entry.projectile_id for entry in self.projectiles.projectiles]
+            ),
+            "scenario_ids": [entry.declarations.scenario_id for entry in self.scenarios],
+            "track_ids": list(self.soundtrack.track_ids),
         }
 
 
-def resolve_game_package(input_path: str | Path) -> ResolvedGamePackage:
-    """Resolve a prepared directory or ZIP with identical closure semantics."""
+@dataclass(frozen=True, slots=True)
+class ResolvedRunnerOnlyPackage(ResolvedPreparedPackage):
+    """A truthful package variant with a runner member and no platformer member."""
+
+    runner: ResolvedRunnerMember
+
+
+def resolve_prepared_package(input_path: str | Path) -> ResolvedPreparedPackage:
+    """Resolve any declared prepared-package genre variant with identical closure semantics."""
 
     source = Path(input_path).absolute()
     try:
@@ -273,6 +310,17 @@ def resolve_game_package(input_path: str | Path) -> ResolvedGamePackage:
         raise
     except (AuthoredContractLoadError, SecurePathError, OSError, ValueError) as error:
         raise GamePackageValidationError("invalid_package", str(error)) from error
+
+
+def resolve_game_package(input_path: str | Path) -> ResolvedGamePackage:
+    """Resolve a package and require the platformer member expected by existing callers."""
+
+    package = resolve_prepared_package(input_path)
+    if not isinstance(package, ResolvedGamePackage):
+        raise GamePackageValidationError(
+            "missing_genre_member", "prepared package declares no platformer genre member"
+        )
+    return package
 
 
 def validate_game_package(
@@ -300,7 +348,7 @@ def validate_game_package(
         raise GamePackageValidationError("invalid_selector", str(error)) from error
 
     package_root = root.joinpath(*PurePosixPath(selector.package_ref).parts).parent
-    resolved = resolve_game_package(package_root)
+    resolved = resolve_prepared_package(package_root)
     if resolved.game.game_id != selector.game_id:
         raise GamePackageValidationError(
             "cross_game_identity", "selector game_id does not match prepared package"
@@ -319,7 +367,7 @@ def validate_game_package(
     return {
         **resolved.identity(),
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v5",
+        "kind": "game-package-validation-v6",
         "valid": True,
         "source_status": "current",
         "generated_status": "not_checked",
@@ -348,7 +396,7 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
     )
     return {
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v5",
+        "kind": "game-package-validation-v6",
         "valid": False,
         "source_status": "current" if source_is_current else "invalid",
         "generated_status": "not_checked",
@@ -505,17 +553,13 @@ def _resolve_captured_package(
     *,
     package_name: str,
     source_kind: Literal["directory", "zip"],
-) -> ResolvedGamePackage:
+) -> ResolvedPreparedPackage:
     game_bytes = _required_file(files, "game.toml")
     try:
         game = load_prepared_game_contract_bytes(game_bytes)
     except AuthoredContractLoadError as error:
         raise GamePackageValidationError("invalid_game_contract", str(error)) from error
     platformer = game.platformer_member()
-    if platformer is None:
-        raise GamePackageValidationError(
-            "missing_genre_member", "prepared package declares no platformer genre member"
-        )
     expected: dict[str, str] = {"game.toml": sha256_bytes(game_bytes)}
 
     def member(source: str) -> bytes:
@@ -542,6 +586,161 @@ def _resolve_captured_package(
 
     universe_bytes = member(game.universe.source)
     _validate_utf8_text(universe_bytes, "universe source")
+
+    resolved_platformer = (
+        None if platformer is None else _resolve_platformer_member(member, platformer=platformer)
+    )
+
+    runner_member = game.member("runner")
+    runner: ResolvedRunnerMember | None = None
+    if runner_member is not None:
+        if not isinstance(runner_member, RunnerGenreMember):  # pragma: no cover - union guard
+            raise GamePackageValidationError(
+                "invalid_game_contract", "runner genre member has an unexpected shape"
+            )
+        runner = _resolve_runner_member(member, locked, runner_member=runner_member)
+
+    for evidence_id, evidence in game.evidence.items():
+        artifact = locked(
+            evidence.artifact_source,
+            evidence.artifact_sha256,
+            f"evidence {evidence_id} artifact",
+        )
+        _validate_image(artifact, evidence.artifact_source)
+        provenance = locked(
+            evidence.provenance_source,
+            evidence.provenance_sha256,
+            f"evidence {evidence_id} provenance",
+        )
+        _validate_json_object(provenance, f"evidence {evidence_id} provenance")
+        review = locked(
+            evidence.review_source,
+            evidence.review_sha256,
+            f"evidence {evidence_id} review",
+        )
+        _validate_utf8_text(review, f"evidence {evidence_id} review")
+
+    if resolved_platformer is not None:
+        for game_map in resolved_platformer.maps:
+            for map_reference in game_map.references:
+                data = locked(
+                    map_reference.source,
+                    map_reference.source_sha256,
+                    f"map {game_map.map_id} reference {map_reference.reference_id}",
+                )
+                _validate_image(data, map_reference.source)
+        for label, catalog in (
+            ("player", resolved_platformer.player),
+            ("mob", resolved_platformer.mobs),
+            ("NPC", resolved_platformer.npcs),
+            ("prop", resolved_platformer.props),
+            ("item", resolved_platformer.items),
+            *(
+                ()
+                if resolved_platformer.projectiles is None
+                else (("projectile", resolved_platformer.projectiles),)
+            ),
+        ):
+            for content_reference in catalog.references:
+                data = locked(
+                    content_reference.source,
+                    content_reference.source_sha256,
+                    f"{label} reference {content_reference.reference_id}",
+                )
+                _validate_image(data, content_reference.source)
+        for ui_reference in resolved_platformer.ui.references:
+            data = locked(
+                ui_reference.source,
+                ui_reference.source_sha256,
+                f"UI reference {ui_reference.reference_id}",
+            )
+            _validate_image(data, ui_reference.source)
+
+        _validate_cross_contracts(
+            game=game,
+            platformer=resolved_platformer.member,
+            gameplay=resolved_platformer.gameplay,
+            soundtrack=resolved_platformer.soundtrack,
+            maps=resolved_platformer.maps,
+            player=resolved_platformer.player,
+            mobs=resolved_platformer.mobs,
+            npcs=resolved_platformer.npcs,
+            props=resolved_platformer.props,
+            items=resolved_platformer.items,
+            projectiles=resolved_platformer.projectiles,
+            ui=resolved_platformer.ui,
+            scenario_catalog=resolved_platformer.scenario_catalog,
+            scenarios=resolved_platformer.scenarios,
+        )
+    if runner is not None:
+        _validate_runner_member(game=game, runner=runner)
+
+    actual_paths = set(files)
+    expected_paths = set(expected)
+    missing = sorted(expected_paths - actual_paths)
+    if missing:
+        raise GamePackageValidationError(
+            "missing_package_file", "package is missing files: " + ", ".join(missing)
+        )
+    orphaned = sorted(actual_paths - expected_paths)
+    if orphaned:
+        raise GamePackageValidationError(
+            "orphan_package_file", "package contains unreferenced files: " + ", ".join(orphaned)
+        )
+
+    resolved_files = tuple(
+        ResolvedPackageFile(path=path, sha256=sha256_bytes(files[path]), data=files[path])
+        for path in sorted(expected_paths)
+    )
+    package_sha256 = sha256_bytes(game_bytes)
+    canonical_game_sha256 = sha256_bytes(canonical_prepared_game_contract_json(game))
+    closure_sha256 = _closure_sha256(resolved_files)
+    if resolved_platformer is None:
+        if runner is None:  # pragma: no cover - game-contract union and min_length prove this
+            raise GamePackageValidationError(
+                "missing_genre_member", "prepared package declares no supported genre member"
+            )
+        return ResolvedRunnerOnlyPackage(
+            source_kind=source_kind,
+            package_name=package_name,
+            package_sha256=package_sha256,
+            canonical_game_sha256=canonical_game_sha256,
+            closure_sha256=closure_sha256,
+            game=game,
+            runner=runner,
+            files=resolved_files,
+        )
+    return ResolvedGamePackage(
+        source_kind=source_kind,
+        package_name=package_name,
+        package_sha256=package_sha256,
+        canonical_game_sha256=canonical_game_sha256,
+        closure_sha256=closure_sha256,
+        game=game,
+        runner=runner,
+        files=resolved_files,
+        platformer=resolved_platformer.member,
+        gameplay=resolved_platformer.gameplay,
+        ui=resolved_platformer.ui,
+        soundtrack=resolved_platformer.soundtrack,
+        maps=resolved_platformer.maps,
+        player=resolved_platformer.player,
+        mobs=resolved_platformer.mobs,
+        npcs=resolved_platformer.npcs,
+        props=resolved_platformer.props,
+        items=resolved_platformer.items,
+        projectiles=resolved_platformer.projectiles,
+        scenario_catalog=resolved_platformer.scenario_catalog,
+        scenarios=resolved_platformer.scenarios,
+    )
+
+
+def _resolve_platformer_member(
+    member: Callable[[str], bytes],
+    *,
+    platformer: PlatformerGenreMember,
+) -> _ResolvedPlatformerMember:
+    """Resolve the platformer-owned contracts without making the container require them."""
 
     gameplay = _load_locked(
         member(platformer.gameplay.source),
@@ -609,112 +808,8 @@ def _resolve_captured_package(
         _resolve_scenario_member(member, scenario_id)
         for scenario_id in scenario_catalog.scenario_ids
     )
-
-    runner_member = game.member("runner")
-    runner: ResolvedRunnerMember | None = None
-    if runner_member is not None:
-        if not isinstance(runner_member, RunnerGenreMember):  # pragma: no cover - union guard
-            raise GamePackageValidationError(
-                "invalid_game_contract", "runner genre member has an unexpected shape"
-            )
-        runner = _resolve_runner_member(member, locked, runner_member=runner_member)
-
-    for evidence_id, evidence in game.evidence.items():
-        artifact = locked(
-            evidence.artifact_source,
-            evidence.artifact_sha256,
-            f"evidence {evidence_id} artifact",
-        )
-        _validate_image(artifact, evidence.artifact_source)
-        provenance = locked(
-            evidence.provenance_source,
-            evidence.provenance_sha256,
-            f"evidence {evidence_id} provenance",
-        )
-        _validate_json_object(provenance, f"evidence {evidence_id} provenance")
-        review = locked(
-            evidence.review_source,
-            evidence.review_sha256,
-            f"evidence {evidence_id} review",
-        )
-        _validate_utf8_text(review, f"evidence {evidence_id} review")
-
-    for game_map in maps:
-        for map_reference in game_map.references:
-            data = locked(
-                map_reference.source,
-                map_reference.source_sha256,
-                f"map {game_map.map_id} reference {map_reference.reference_id}",
-            )
-            _validate_image(data, map_reference.source)
-    for label, catalog in (
-        ("player", player),
-        ("mob", mobs),
-        ("NPC", npcs),
-        ("prop", props),
-        ("item", items),
-        *(() if projectiles is None else (("projectile", projectiles),)),
-    ):
-        for content_reference in catalog.references:
-            data = locked(
-                content_reference.source,
-                content_reference.source_sha256,
-                f"{label} reference {content_reference.reference_id}",
-            )
-            _validate_image(data, content_reference.source)
-    for ui_reference in ui.references:
-        data = locked(
-            ui_reference.source,
-            ui_reference.source_sha256,
-            f"UI reference {ui_reference.reference_id}",
-        )
-        _validate_image(data, ui_reference.source)
-
-    _validate_cross_contracts(
-        game=game,
-        platformer=platformer,
-        gameplay=gameplay,
-        soundtrack=soundtrack,
-        maps=maps,
-        player=player,
-        mobs=mobs,
-        npcs=npcs,
-        props=props,
-        items=items,
-        projectiles=projectiles,
-        ui=ui,
-        scenario_catalog=scenario_catalog,
-        scenarios=scenarios,
-    )
-    if runner is not None:
-        _validate_runner_member(game=game, runner=runner)
-
-    actual_paths = set(files)
-    expected_paths = set(expected)
-    missing = sorted(expected_paths - actual_paths)
-    if missing:
-        raise GamePackageValidationError(
-            "missing_package_file", "package is missing files: " + ", ".join(missing)
-        )
-    orphaned = sorted(actual_paths - expected_paths)
-    if orphaned:
-        raise GamePackageValidationError(
-            "orphan_package_file", "package contains unreferenced files: " + ", ".join(orphaned)
-        )
-
-    resolved_files = tuple(
-        ResolvedPackageFile(path=path, sha256=sha256_bytes(files[path]), data=files[path])
-        for path in sorted(expected_paths)
-    )
-    return ResolvedGamePackage(
-        source_kind=source_kind,
-        package_name=package_name,
-        package_sha256=sha256_bytes(game_bytes),
-        canonical_game_sha256=sha256_bytes(canonical_prepared_game_contract_json(game)),
-        closure_sha256=_closure_sha256(resolved_files),
-        game=game,
-        platformer=platformer,
-        runner=runner,
+    return _ResolvedPlatformerMember(
+        member=platformer,
         gameplay=gameplay,
         ui=ui,
         soundtrack=soundtrack,
@@ -727,7 +822,6 @@ def _resolve_captured_package(
         projectiles=projectiles,
         scenario_catalog=scenario_catalog,
         scenarios=scenarios,
-        files=resolved_files,
     )
 
 
@@ -791,6 +885,7 @@ def _resolve_runner_member(
             "invalid_soundtrack_contract",
         )
     )
+    track_reference_bytes: dict[str, bytes] = {}
     for track_reference in track.references:
         data = locked(
             track_reference.source,
@@ -798,6 +893,17 @@ def _resolve_runner_member(
             f"track {track.track_id} reference {track_reference.reference_id}",
         )
         _validate_image(data, track_reference.source)
+        track_reference_bytes[track_reference.reference_id] = data
+    if isinstance(track.ground, RunnerStructuralGround):
+        try:
+            validate_structural_ground_material_references(
+                [track_reference_bytes[reference_id] for reference_id in track.ground.reference_ids]
+            )
+        except ValueError as error:
+            raise GamePackageValidationError(
+                "invalid_reference_image",
+                f"track {track.track_id} structural-ground references are unusable: {error}",
+            ) from error
     for label, catalog in (("avatar", avatar), ("prop", props), ("item", items)):
         for content_reference in catalog.references:
             data = locked(
@@ -844,6 +950,16 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
         raise GamePackageValidationError(
             "unresolved_cross_reference",
             "runner cast avatar_id must equal the avatar catalog's avatar",
+        )
+    avatar = runner.avatar.avatar
+    if (
+        avatar.silhouette_mode == "visible_rider_machine_v1"
+        and avatar.body_kind not in game.proportion.by_body_kind
+    ):
+        raise GamePackageValidationError(
+            "invalid_runner_avatar",
+            "a visible rider-and-machine avatar requires an explicit "
+            f"proportion.by_body_kind.{avatar.body_kind} override measured in visible rider heads",
         )
     if runner.gameplay.track_id != runner.track.track_id:
         raise GamePackageValidationError(
@@ -942,14 +1058,21 @@ def _validate_runner_chunk(
     heights = [bottom_contiguous_surface_row(chunk.occupancy, column) for column in range(width)]
 
     # The seam rule: any chunk may follow any chunk, so both seam columns must
-    # present the shared walk surface. Checked before the gap rule because an
-    # unsupported seam column would read as a pit against it.
+    # be exactly empty above the shared walk surface and solid from that row
+    # down. Looking only at the bottom-connected stack would admit a detached
+    # floating solid above an otherwise valid edge; structural-ground guide
+    # construction would then reject it after provider nodes had fanned out.
+    # Keep the stricter proof here, offline, before any spend.
+    expected_seam = [
+        "0" if row < segments.walk_surface_row else "1" for row in range(len(chunk.occupancy))
+    ]
     for label, column in (("first", 0), ("last", width - 1)):
-        if heights[column] != segments.walk_surface_row:
+        actual_seam = [row[column] for row in chunk.occupancy]
+        if actual_seam != expected_seam:
             raise GamePackageValidationError(
                 "segment_seam_mismatch",
-                f"segment {chunk.segment_id} {label} column must be supported with its "
-                f"surface at walk_surface_row {segments.walk_surface_row}",
+                f"segment {chunk.segment_id} {label} column must be empty above and solid "
+                f"from walk_surface_row {segments.walk_surface_row} down",
             )
 
     widest = chunk.max_pit_run()
@@ -1684,9 +1807,12 @@ __all__ = [
     "GamePackageSelector",
     "GamePackageValidationError",
     "ResolvedGamePackage",
-    "ResolvedRunnerMember",
     "ResolvedPackageFile",
+    "ResolvedPreparedPackage",
+    "ResolvedRunnerMember",
+    "ResolvedRunnerOnlyPackage",
     "invalid_game_package_report",
     "resolve_game_package",
+    "resolve_prepared_package",
     "validate_game_package",
 ]

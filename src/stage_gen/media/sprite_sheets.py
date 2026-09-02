@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+from array import array
+from collections import deque
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Literal
@@ -11,7 +13,7 @@ from PIL import Image, ImageChops
 
 from gnode import inspect_image
 
-ALPHA_COMPONENT_REPACK_VERSION = "alpha-component-repack-v1"
+ALPHA_COMPONENT_REPACK_VERSION = "alpha-component-repack-v3"
 ALPHA_GROUND_CONTACT_VERSION = "alpha-ground-contact-v1"
 
 
@@ -31,6 +33,10 @@ class AlphaComponentRepackContract:
     #: where the grip is stable and the feet move: bottom-anchoring such a pose pins the feet and
     #: throws the head up and down instead, which reads as bouncing.
     anchor: Literal["center", "bottom", "top"] = "bottom"
+    #: A strict atlas source may require one principal connected component in every authored
+    #: source slot and refuse every other meaningful component. This is appropriate when a
+    #: detached component could be part of the subject rather than a disposable effect.
+    source_slot_policy: Literal["largest_required", "exact_required_slots"] = "largest_required"
 
     def __post_init__(self) -> None:
         if self.rows <= 0 or self.columns <= 0:
@@ -45,6 +51,8 @@ class AlphaComponentRepackContract:
             raise ValueError("sprite repack component fraction must be in (0, 1]")
         if self.minimum_component_area <= 0:
             raise ValueError("sprite repack minimum component area must be positive")
+        if self.source_slot_policy not in {"largest_required", "exact_required_slots"}:
+            raise ValueError("sprite repack source slot policy is unsupported")
 
 
 def measure_alpha_ground_contact(
@@ -117,6 +125,15 @@ class _Component:
     centroid: tuple[float, float]
 
 
+@dataclass(frozen=True, slots=True)
+class _FusedComponentRecovery:
+    components: tuple[_Component, ...]
+    runs: tuple[_Run, ...]
+    source_roots: frozenset[int]
+    core_alpha_threshold: int
+    core_source_slots: tuple[int, ...]
+
+
 @dataclass(slots=True)
 class _UnionFind:
     parent: list[int]
@@ -157,10 +174,12 @@ class _UnionFind:
 def repack_alpha_components(
     data: bytes, contract: AlphaComponentRepackContract
 ) -> tuple[bytes, dict[str, object]]:
-    """Repack the largest meaningful native-alpha components into canonical cells.
+    """Repack policy-admitted native-alpha components into canonical cells.
 
-    This v1 operation deliberately does not infer compound frame ownership. Detached effects and
-    small fragments may be dropped. That limitation is explicit in the returned report.
+    The v3 processor does not infer compound-frame ownership. Its permissive default may drop
+    detached effects and records that loss; ``exact_required_slots`` instead requires one
+    principal component per authored source slot and refuses every unassigned meaningful
+    component.
     """
 
     facts = inspect_image(data, expected_media_type="image/png")
@@ -170,7 +189,7 @@ def repack_alpha_components(
         source = opened.convert("RGBA")
     alpha = source.getchannel("A")
     alpha_bytes = alpha.tobytes()
-    components, runs = _connected_components(
+    components, base_runs = _connected_components(
         alpha_bytes,
         width=source.width,
         height=source.height,
@@ -182,25 +201,70 @@ def repack_alpha_components(
         round(visible_area * contract.minimum_component_fraction),
     )
     candidates = [component for component in components if component.area >= minimum_area]
+    recovery: _FusedComponentRecovery | None = None
     if len(candidates) < contract.required_cells:
-        raise ValueError(
-            "sprite component repack found "
-            f"{len(candidates)} principal components for {contract.required_cells} required cells"
+        recovery = _recover_fused_components(
+            alpha_bytes,
+            width=source.width,
+            height=source.height,
+            contract=contract,
+            base_runs=base_runs,
+            base_candidates=candidates,
         )
-
-    selected_by_area = sorted(candidates, key=lambda component: component.area, reverse=True)[
-        : contract.required_cells
+        if recovery is None:
+            raise ValueError(
+                "sprite component repack found "
+                f"{len(candidates)} principal components for "
+                f"{contract.required_cells} required cells"
+            )
+        selected = list(recovery.components)
+        selected_runs = recovery.runs
+        selected_source_roots = recovery.source_roots
+    else:
+        if contract.source_slot_policy == "exact_required_slots":
+            source_slots = tuple(
+                sorted(
+                    _component_source_slot(
+                        component,
+                        rows=contract.rows,
+                        columns=contract.columns,
+                        source_width=source.width,
+                        source_height=source.height,
+                    )
+                    for component in candidates
+                )
+            )
+            if source_slots != tuple(range(contract.required_cells)):
+                raise ValueError(
+                    "sprite component repack exact source-slot policy requires exactly one "
+                    "principal component in every required source slot"
+                )
+        selected_by_area = sorted(candidates, key=lambda component: component.area, reverse=True)[
+            : contract.required_cells
+        ]
+        selected = sorted(
+            selected_by_area,
+            key=lambda component: _component_order(
+                component,
+                rows=contract.rows,
+                source_height=source.height,
+            ),
+        )
+        selected_runs = tuple(base_runs)
+        selected_source_roots = frozenset(component.root for component in selected)
+    rejected = [
+        component
+        for component in components
+        if component.root not in selected_source_roots
+        and component.area >= contract.minimum_component_area
     ]
-    selected = sorted(
-        selected_by_area,
-        key=lambda component: _component_order(
-            component,
-            rows=contract.rows,
-            source_height=source.height,
-        ),
-    )
+    if contract.source_slot_policy == "exact_required_slots" and rejected:
+        raise ValueError(
+            "sprite component repack exact source-slot policy refuses unassigned meaningful "
+            "alpha components"
+        )
     runs_by_root: dict[int, list[_Run]] = {}
-    for run in runs:
+    for run in selected_runs:
         runs_by_root.setdefault(run.label, []).append(run)
     crops = [
         _component_crop(source, runs_by_root[component.root], component) for component in selected
@@ -239,17 +303,12 @@ def repack_alpha_components(
 
     _validate_repacked_output(output, contract, cell_width=cell_width, cell_height=cell_height)
     output_data = _png_bytes(output)
-    selected_roots = {component.root for component in selected}
-    component_stats = _component_alpha_stats(alpha_bytes, source.width, runs)
-    rejected = [
-        component
-        for component in components
-        if component.root not in selected_roots
-        and component.area >= contract.minimum_component_area
-    ]
+    component_stats = _component_alpha_stats(alpha_bytes, source.width, base_runs)
     source_alpha_mass = sum(alpha_bytes)
     retained_alpha_mass = sum(output.getchannel("A").tobytes())
     warnings: list[str] = []
+    if recovery is not None:
+        warnings.append("fused_components_recovered_from_high_alpha_cores")
     if len(candidates) > contract.required_cells:
         warnings.append("principal_component_count_exceeded_required_cells")
     if rejected:
@@ -257,8 +316,8 @@ def repack_alpha_components(
     if any(component_stats[component.root]["maximum_alpha"] >= 240 for component in rejected):
         warnings.append("opaque_unselected_components_were_dropped")
     report: dict[str, object] = {
-        "schema_version": 1,
-        "kind": "alpha-component-sprite-repack-v1",
+        "schema_version": 3,
+        "kind": "alpha-component-sprite-repack-v3",
         "processor_version": ALPHA_COMPONENT_REPACK_VERSION,
         "source_sha256": sha256(data).hexdigest(),
         "output_sha256": sha256(output_data).hexdigest(),
@@ -269,15 +328,33 @@ def repack_alpha_components(
         "rows": contract.rows,
         "columns": contract.columns,
         "required_cells": contract.required_cells,
+        "source_slot_policy": contract.source_slot_policy,
         "connectivity": 8,
         "alpha_predicate": f"alpha > {contract.alpha_threshold}",
         "minimum_component_fraction": contract.minimum_component_fraction,
         "minimum_component_area": minimum_area,
         "detected_component_count": len(components),
         "principal_candidate_count": len(candidates),
+        "recovery_mode": (
+            "high_alpha_core_partition" if recovery is not None else "base_alpha_components"
+        ),
+        "core_alpha_threshold": (recovery.core_alpha_threshold if recovery is not None else None),
+        "core_principal_candidate_count": (
+            len(recovery.components) if recovery is not None else None
+        ),
+        "core_source_slots": recovery.core_source_slots if recovery is not None else None,
         "selected_component_count": len(selected),
         "rejected_component_count": len(rejected),
-        "selection_policy": "largest_required_components_after_threshold",
+        "selection_policy": (
+            "high_alpha_cores_then_base_support_partition"
+            if recovery is not None
+            else "largest_required_components_after_threshold"
+        ),
+        "partition_policy": (
+            "deterministic_multi_source_8_neighbor_geodesic_nearest_core"
+            if recovery is not None
+            else None
+        ),
         "ordering": "source_row_then_centroid_x",
         "anchor": contract.anchor,
         "gutter_pixels": contract.gutter,
@@ -297,12 +374,209 @@ def repack_alpha_components(
         "warnings": warnings,
         "known_caveat": (
             "Detached effects and small fragments are not assigned to a principal frame and may "
-            "be dropped. Fused principal frames fail when fewer than the required components "
-            "remain."
+            "be dropped. Fused base-threshold frames recover only when exactly the required "
+            "number of higher-alpha principal cores occupy the expected source lattice slots "
+            "and cover every base principal component; otherwise repacking fails."
         ),
         "boundaries_isolated": True,
     }
     return output_data, report
+
+
+def _recover_fused_components(
+    alpha: bytes,
+    *,
+    width: int,
+    height: int,
+    contract: AlphaComponentRepackContract,
+    base_runs: list[_Run],
+    base_candidates: list[_Component],
+) -> _FusedComponentRecovery | None:
+    """Split low-alpha-fused support only when higher-alpha cores prove the frame count.
+
+    The ordinary base-threshold path is intentionally untouched. This fallback raises the alpha
+    threshold one value at a time until exactly the requested number of meaningful cores exists.
+    Those cores seed a deterministic multi-source flood over the original base-threshold support,
+    so antialiasing and other meaningful low-alpha pixels stay with one frame instead of being
+    discarded with the bridge.
+    """
+
+    if not base_candidates:
+        return None
+    for core_threshold in range(contract.alpha_threshold + 1, 255):
+        core_components, core_runs = _connected_components(
+            alpha,
+            width=width,
+            height=height,
+            threshold=core_threshold,
+        )
+        core_visible_area = sum(component.area for component in core_components)
+        core_minimum_area = max(
+            contract.minimum_component_area,
+            round(core_visible_area * contract.minimum_component_fraction),
+        )
+        core_candidates = [
+            component for component in core_components if component.area >= core_minimum_area
+        ]
+        if len(core_candidates) != contract.required_cells:
+            continue
+        ordered_cores = sorted(
+            core_candidates,
+            key=lambda component: _component_order(
+                component,
+                rows=contract.rows,
+                source_height=height,
+            ),
+        )
+        core_source_slots = tuple(
+            _component_source_slot(
+                component,
+                rows=contract.rows,
+                columns=contract.columns,
+                source_width=width,
+                source_height=height,
+            )
+            for component in ordered_cores
+        )
+        if core_source_slots != tuple(range(contract.required_cells)):
+            # Frame count alone is not identity. Four opaque fragments clustered
+            # inside one atlas cell cannot stand in for four authored poses even
+            # when low-alpha support extends across every cell.
+            continue
+        partition = _partition_support_from_cores(
+            width=width,
+            height=height,
+            base_runs=base_runs,
+            base_candidates=base_candidates,
+            core_runs=core_runs,
+            ordered_cores=ordered_cores,
+        )
+        if partition is None:
+            continue
+        recovered_components, recovered_runs, source_roots = partition
+        return _FusedComponentRecovery(
+            components=recovered_components,
+            runs=recovered_runs,
+            source_roots=source_roots,
+            core_alpha_threshold=core_threshold,
+            core_source_slots=core_source_slots,
+        )
+    return None
+
+
+def _partition_support_from_cores(
+    *,
+    width: int,
+    height: int,
+    base_runs: list[_Run],
+    base_candidates: list[_Component],
+    core_runs: list[_Run],
+    ordered_cores: list[_Component],
+) -> tuple[tuple[_Component, ...], tuple[_Run, ...], frozenset[int]] | None:
+    pixel_count = width * height
+    base_root_by_pixel = array("i", [-1]) * pixel_count
+    for run in base_runs:
+        offset = run.y * width
+        for index in range(offset + run.start, offset + run.end + 1):
+            base_root_by_pixel[index] = run.label
+
+    core_runs_by_root: dict[int, list[_Run]] = {}
+    for run in core_runs:
+        core_runs_by_root.setdefault(run.label, []).append(run)
+
+    candidate_roots = frozenset(component.root for component in base_candidates)
+    core_source_roots: set[int] = set()
+    owners = array("i", [-1]) * pixel_count
+    frontier: deque[int] = deque()
+    for owner, core in enumerate(ordered_cores):
+        mapped_roots: set[int] = set()
+        for run in core_runs_by_root[core.root]:
+            offset = run.y * width
+            for index in range(offset + run.start, offset + run.end + 1):
+                mapped_roots.add(base_root_by_pixel[index])
+                owners[index] = owner
+                frontier.append(index)
+        if len(mapped_roots) != 1 or -1 in mapped_roots:
+            return None
+        core_source_roots.update(mapped_roots)
+
+    # Every principal component observed at the base threshold must own at least one stronger
+    # core. Otherwise the higher threshold has replaced a legitimate faint frame with a fragment
+    # from another frame, which is not evidence for safe recovery.
+    if core_source_roots != candidate_roots:
+        return None
+
+    while frontier:
+        index = frontier.popleft()
+        owner = owners[index]
+        y, x = divmod(index, width)
+        for neighbor_y in range(max(0, y - 1), min(height, y + 2)):
+            row_offset = neighbor_y * width
+            for neighbor_x in range(max(0, x - 1), min(width, x + 2)):
+                neighbor = row_offset + neighbor_x
+                if neighbor == index:
+                    continue
+                if base_root_by_pixel[neighbor] < 0 or owners[neighbor] >= 0:
+                    continue
+                owners[neighbor] = owner
+                frontier.append(neighbor)
+
+    partition_runs: list[_Run] = []
+    for y in range(height):
+        offset = y * width
+        x = 0
+        while x < width:
+            owner = owners[offset + x]
+            if owner < 0:
+                x += 1
+                continue
+            start = x
+            while x + 1 < width and owners[offset + x + 1] == owner:
+                x += 1
+            partition_runs.append(_Run(y=y, start=start, end=x, label=owner))
+            x += 1
+
+    recovered_by_owner = {
+        component.root: component for component in _components_from_partition_runs(partition_runs)
+    }
+    if set(recovered_by_owner) != set(range(len(ordered_cores))):
+        return None
+    recovered = tuple(recovered_by_owner[index] for index in range(len(ordered_cores)))
+    return recovered, tuple(partition_runs), frozenset(core_source_roots)
+
+
+def _components_from_partition_runs(runs: list[_Run]) -> list[_Component]:
+    stats: dict[int, list[float]] = {}
+    for run in runs:
+        run_width = run.end - run.start + 1
+        record = stats.setdefault(
+            run.label,
+            [
+                0.0,
+                float(run.start),
+                float(run.y),
+                float(run.end + 1),
+                float(run.y + 1),
+                0.0,
+                0.0,
+            ],
+        )
+        record[0] += run_width
+        record[1] = min(record[1], run.start)
+        record[2] = min(record[2], run.y)
+        record[3] = max(record[3], run.end + 1)
+        record[4] = max(record[4], run.y + 1)
+        record[5] += (run.start + run.end) * run_width / 2
+        record[6] += run.y * run_width
+    return [
+        _Component(
+            root=root,
+            area=int(record[0]),
+            bbox=(int(record[1]), int(record[2]), int(record[3]), int(record[4])),
+            centroid=(record[5] / record[0], record[6] / record[0]),
+        )
+        for root, record in stats.items()
+    ]
 
 
 def _row_runs(alpha: bytes, *, offset: int, width: int, threshold: int) -> list[tuple[int, int]]:
@@ -391,6 +665,19 @@ def _component_order(component: _Component, *, rows: int, source_height: int) ->
         return 0, component.centroid[0]
     row = min(rows - 1, int(component.centroid[1] / (source_height / rows)))
     return row, component.centroid[0]
+
+
+def _component_source_slot(
+    component: _Component,
+    *,
+    rows: int,
+    columns: int,
+    source_width: int,
+    source_height: int,
+) -> int:
+    row = min(rows - 1, int(component.centroid[1] / (source_height / rows)))
+    column = min(columns - 1, int(component.centroid[0] / (source_width / columns)))
+    return row * columns + column
 
 
 def _component_crop(source: Image.Image, runs: list[_Run], component: _Component) -> Image.Image:

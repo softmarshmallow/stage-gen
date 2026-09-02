@@ -114,6 +114,8 @@ export interface RunnerWorldConfig {
   readonly duckedHeightFraction: number | null;
   readonly arithmetic: RunnerArithmetic;
   readonly rampProfile: RampProfileName;
+  /** Highest difficulty actually present in this package's nonempty chunk catalog. */
+  readonly maxAuthoredDifficulty: number;
   readonly chunks: readonly RunnerChunk[];
   /** Declared prop magnitudes in player-height units, for hazard collision boxes. */
   readonly propHeightUnits: ReadonlyMap<string, number>;
@@ -166,6 +168,9 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
       hazardColumnInset: manifest.gameplay.hazardColumnInset,
     }),
     rampProfile: manifest.gameplay.rampProfile,
+    maxAuthoredDifficulty: Math.max(
+      ...manifest.segments.chunks.map((chunk) => chunk.difficulty),
+    ),
     chunks: manifest.segments.chunks,
     propHeightUnits: new Map(
       manifest.props.map((prop) => [prop.id, prop.calibration.heightUnits]),

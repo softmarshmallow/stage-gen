@@ -101,7 +101,7 @@ CACHE_RECORD_KIND = "sideview-platformer-node-cache-v1"
 CONTENT_CONCEPT_CONTRACT_VERSION = "prepared-content-concept-v1"
 CONTENT_MOTION_CONTRACT_VERSION = "prepared-content-motion-atlas-v3"
 CONTENT_DIALOGUE_CONTRACT_VERSION = "prepared-content-dialogue-atlas-v1"
-CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v1"
+CONTENT_ALPHA_REPACK_CONTRACT_VERSION = "alpha-component-repack-v3"
 CONTENT_CATALOG_CONTRACT_VERSION = "prepared-content-isolated-catalog-v1"
 CONTENT_PROP_CONTACT_VALIDATION_VERSION = "prepared-content-prop-contact-v1"
 CONTENT_REVIEW_CONTRACT_VERSION = "prepared-content-review-v4"
@@ -530,6 +530,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 depends_on=(climbable.node_id,),
                 input_digests=(
                     _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
+                    _object_sha256({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
                     _object_sha256(game_map.climbable.model_dump(mode="json")),
                 ),
                 ports=(
@@ -578,6 +579,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 depends_on=(portal.node_id,),
                 input_digests=(
                     _object_sha256({"contract": MAP_PORTAL_CONTRACT_VERSION}),
+                    _object_sha256({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
                     _object_sha256(game_map.portal.model_dump(mode="json")),
                 ),
                 ports=(

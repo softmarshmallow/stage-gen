@@ -1,0 +1,39 @@
+schema_version = 2
+kind = "prop-content-v2"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "greenhouse_runway"
+source = "references/orbital-greenhouse-runway.png"
+source_sha256 = "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated environment reference independently reviewed and approved for this package."]
+
+[[props]]
+prop_id = "filter_stack"
+height_units = 0.68
+display_name = "Upright Filter Stack"
+reference_ids = ["greenhouse_runway"]
+prompt = "One narrow upright greenhouse air-filter stack on a small stable foot, cream ceramic housing with coral bands, vertical graphite vents, a mint status lens, and a few harmless leaves caught in its grille. It is a tall one-column jump obstacle: the visible artwork width must be no more than one third of its visible height, with no broad drum, sideways body, or horizontal spill. Strict side view, isolated on native transparent background, no floor, scenery, glow spill, text, logo, or watermark."
+
+[[props]]
+prop_id = "root_valve"
+height_units = 0.62
+display_name = "Root-Clogged Valve"
+reference_ids = ["greenhouse_runway"]
+prompt = "One narrow upright irrigation valve stalk with one compact root knot confined to its upper-middle coupling, cream and coral maintenance hardware with two small brass couplings, a vertical graphite hose socket, and restrained green leaves. It is a tall one-column jump obstacle: visible width no more than two fifths of visible height. No root strand may extend more than one quarter of the valve's height; never wrap a root around the full stalk, trail roots toward the base, add a sideways tank, or create horizontal spill. Strict side view, isolated on native transparent background, no floor, scenery, text, logo, or watermark."
+
+[[props]]
+prop_id = "mist_nozzle"
+height_units = 0.48
+display_name = "Low Mist Nozzle"
+reference_ids = ["greenhouse_runway"]
+prompt = "Exactly one narrow mechanically connected hanging greenhouse mist-nozzle assembly: one cream top coupling, one short coral pipe, and two compact graphite spray heads attached directly side by side to the same small bottom manifold, with one mint indicator bead and a few short trailing leaves. No second vertical unit, duplicate nozzle, floating head, or hardware joined only by water. The bottom-most painted pixels must form one flat hard contiguous metal nozzle lip. Emit no mist, stream, droplets, glow, or particles below it. It is a one-column overhead slide obstacle; the alpha-over-64 painted width must be no more than half of its painted height, with no arch, long crossbar, support legs, ceiling, scenery, or horizontal spill. Strict side view, one connected object, generous true zero-alpha exterior, no floor, text, logo, or watermark."
+
+[[props]]
+prop_id = "cable_tassel"
+height_units = 0.50
+display_name = "Cable Tassel"
+reference_ids = ["greenhouse_runway"]
+prompt = "One narrow vertical hanging cable tassel flowered with vines: three short dark graphite service cables gathered at one cream-and-coral top connector, mint indicator beads, restrained leaves, and one clear lowest cable end. It is a one-column overhead slide obstacle; visible width no more than half of visible height, with no shallow arc, crossbar, ceiling, or horizontal spill. Strict side view, one connected object, generous native transparent margins, no floor, scenery, text, logo, or watermark."

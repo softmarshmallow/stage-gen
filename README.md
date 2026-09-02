@@ -9,11 +9,11 @@ demonstrates what a consumer can build from those artifacts; the preview is a
 proof, never the product. Today's asset space is 2D; 3D is a deferred axis the
 [asset taxonomy](docs/spec/asset-taxonomy.md) already reserves a name for.
 
-![Bellweather key art: a bright storybook adventure world with its player and creatures](.github/assets/readme/bellweather-cover.webp)
+![Iron Petal Unit key art: a young mechanic-pilot riding a rescue robot through an orbital greenhouse](library/games/iron-petal-unit/references/cover.png)
 
-_Bellweather is the repository's canonical prepared game: one authored,
-digest-bound package that drives the generation graph, asset reviews, runtime
-composition, and gameplay preview._
+_Iron Petal Unit is the repository's canonical prepared game: one authored,
+digest-bound endless-runner package that drives structural terrain generation,
+asset reviews, runtime composition, and playable preview._
 
 ## From concept to playable world
 
@@ -24,12 +24,15 @@ into a portable prepared-game manifest.
 
 ![Bellweather Crowncrag gameplay showcase with generated map, player, mobs, and runtime HUD](.github/assets/readme/bellweather-gameplay.webp)
 
+_Bellweather remains the bundled side-view platformer reference and showcase._
+
 ## Game-ready systems, not loose images
 
 Generation produces assets with explicit runtime roles. Player actions remain
-transparent animation atlases. Ground material becomes a canonical 47-mask
-terrain vocabulary, then deterministic authored occupancy composes that
-vocabulary into playable platforms, steps, and pits.
+transparent animation atlases. A platformer may compose a canonical 47-mask
+terrain vocabulary; a runner may instead paint one native-alpha structural span
+per admitted segment. In both modes deterministic authored occupancy—not the
+image—owns platforms, steps, pits, and collision.
 
 ![Bellweather player animation and 47-mask terrain-system showcase](.github/assets/readme/bellweather-systems.webp)
 
@@ -65,27 +68,28 @@ The canonical game input is a directory or ZIP whose root contains `game.toml`. 
 validation, digesting, graph planning, and dry execution are provider-free:
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package digest --input library/games/bellweather
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package validate --input library/games/iron-petal-unit
+uv run stage-gen package digest --input library/games/iron-petal-unit
+uv run stage-gen package plan --input library/games/iron-petal-unit --genre runner
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input library/games/iron-petal-unit \
+  --genre runner \
   --dry-run \
-  --output /tmp/bellweather-dry-run
+  --output /tmp/iron-petal-unit-dry-run
 ```
 
-The plan expands Bellweather into the exact map, actor, catalog, soundtrack, validation, review,
-and manifest DAG. `--dry-run` executes the graph with deterministic fake operations and writes a
-sanitized trace. There is no bare-prompt fallback.
+The plan expands Iron Petal Unit into the exact 70-node structural-ground, layer, avatar,
+catalog, soundtrack, validation, review, and manifest DAG. `--dry-run` executes it with
+deterministic fake operations and writes a sanitized trace. There is no bare-prompt fallback.
+Without `--dry-run`, an invalid package or unsupported route fails before provider execution;
+only an admitted, explicitly selected graph can spend.
 
-A live run is bounded by exactly one checkpoint, requires provider credentials, and spends money.
-Calling `generate` without `--dry-run` and without `--checkpoint` fails before provider
-construction. `--checkpoint world` executes the map-review targets and their complete
-dependency closure; `--checkpoint content` independently executes the cast, catalog, UI,
-soundtrack, and stable-ID binding targets and theirs. Neither paid checkpoint assembles a
-manifest. `--checkpoint integration` is provider-free: it validates the package-derived runtime
-closure over accepted `--artifact-root` directories and atomically publishes one immutable
-`prepared-game-runtime-v10` run.
+A live runner call is single-shot, requires provider credentials, and may spend money; omitting
+`--dry-run` intentionally executes the selected runner graph and assembles one immutable
+`sideview-runner-runtime-v4` run. The platformer recipe remains checkpointed:
+`--checkpoint world` and `--checkpoint content` execute paid dependency closures, while
+`--checkpoint integration` is provider-free and assembles `prepared-game-runtime-v10` over
+accepted `--artifact-root` directories.
 
 GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
 background-removal command remains available:
@@ -104,17 +108,18 @@ resource limits, cache lineage, retry ownership, and operation counts. `stage-ge
 
 ## Generation cost
 
-Budget approximately **USD 22** for a complete first generation of a Bellweather-sized game. The
+Budget approximately **USD 7** for a complete first generation of Iron Petal Unit. The
 provider-free planner exposes the current estimate before any live request is made:
 
-| Bellweather reference package | Planned amount |
+| Iron Petal Unit runner | Planned amount |
 | --- | ---: |
-| Planned graph | 221 nodes |
-| Image generation | 93 operations |
-| Structured generation and review | 21 operations |
-| Music generation | 3 operations |
-| Estimated provider spend | **USD 4.13–22.68** |
-| Practical first-run budget | **About USD 21–23** |
+| Planned graph | 70 nodes |
+| Local validation and assembly | 39 operations |
+| GPT Image 2 generation | 27 operations |
+| Structured generation and review | 2 operations |
+| Music generation | 2 operations |
+| Estimated provider spend | **USD 1.19–6.56** |
+| Practical first-run budget | **About USD 6–7** |
 
 This is a conservative planning allowance, not a provider quote. Active model pricing, retries,
 and deliberate semantic regenerations can change the final charge. Valid cache hits do not repeat
@@ -146,11 +151,11 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Three recipes compiled onto that engine: `sideview-platformer` builds a prepared game
-  from a `game.toml` package, `dialogue-scene` builds an adult, non-explicit scene
-  bundle from an authored request, and `pointclick-room` builds a fixed painted puzzle
-  room from an authored room package. Each declares its own graph document kind, so no
-  recipe can read another's plan.
+- Four recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
+  build distinct prepared-game members from a `game.toml` package, `dialogue-scene`
+  builds an adult, non-explicit scene bundle from an authored request, and
+  `pointclick-room` builds a fixed painted puzzle room from an authored room package.
+  Each declares its own graph document kind, so no recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
   keys, an append-only trace, and the derived run view above.
@@ -165,8 +170,8 @@ its own records support, and the reader judges liveness from when the trace was 
   presentation, cast, motion, scenarios, gameplay, content catalogs, and consumer bindings,
   plus an executable [authored `game.toml` schema](docs/spec/game/authored-contract-schema.md).
 - A machine-checked [canonical game-generation pipeline](docs/spec/game/generation-pipeline.md)
-  covering the current side-view platformer DAG, typed nodes, operation contracts, internal
-  fan-out, and execution semantics.
+  covering the current side-view platformer and runner DAGs, typed nodes, operation contracts,
+  internal fan-out, and execution semantics.
 - A [point-and-click puzzle room recipe](docs/spec/game/pointclick-room.md) whose authored
   `pointclick-room-v2` package is proven finishable before any generation is paid for, and
   whose `pointclick-room-runtime-v2` manifest a browser consumer replays with the same state
@@ -185,11 +190,12 @@ its own records support, and the reader judges liveness from when the trace was 
 The stable product boundary is coherent **2D asset generation**. Genre,
 viewpoint and camera, composition rules, and validation harnesses belong to
 individual recipes. `sideview-platformer` is the side-view reference integration;
+`sideview-runner` is the reaction-fair auto-run integration;
 `dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe;
 `pointclick-room` is a fixed-room, cursor-driven puzzle recipe. No recipe may
 define another's assumptions or artifact layout.
 
-The point-and-click recipe (`2d/roomview/pointclick`) is the newest of the three.
+The point-and-click recipe (`2d/roomview/pointclick`) is one of the four.
 One room is one authored package under `library/games/<game_id>/`: a
 `pointclick-room-v2` `room.toml` — a backdrop brief, hotspots with normalized
 regions, items, and interactions written in a closed grammar of two verbs and four
@@ -264,10 +270,11 @@ current run's camera, style keywords, cast-wide build in heads, and supported
 role render profiles in `library/games/<game_id>/game.toml`. Authored libraries
 are excluded from wheel and sdist packages exactly as character profiles are.
 
-Music remains a sibling contract at `library/games/<game_id>/soundtrack.toml`.
-Maps are another sibling under `library/games/<game_id>/maps/`: the soundtrack
-owns tracks, each map owns references to an allowed track pool, and neither adds
-fields to the visual game contract. Only the exact current identities listed in
+Music remains a sibling contract: platformer members use root `soundtrack.toml`,
+while runner members use `runner/soundtrack.toml`. Platformer maps are another
+optional sibling under `library/games/<game_id>/maps/`: the soundtrack owns tracks,
+each map owns references to an allowed track pool, and neither adds fields to the
+visual game contract. Only the exact current identities listed in
 the [canonical package policy](docs/game-package.md#current-only-policy) are
 valid. See [Authored game soundtracks](docs/game-soundtrack.md),
 [Authored game maps](docs/game-maps.md), and the current-only
@@ -279,13 +286,14 @@ block from the current envelope; absence never asks a validator or consumer to
 interpret an old schema.
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package digest --input library/games/bellweather
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package validate --input library/games/iron-petal-unit
+uv run stage-gen package digest --input library/games/iron-petal-unit
+uv run stage-gen package plan --input library/games/iron-petal-unit --genre runner
 ```
 
-The package resolver validates the exact game, gameplay, map, content, sequence, soundtrack, and
-referenced-media closure before any provider operation.
+The package resolver validates the exact game and selected genre closure—including gameplay,
+content, soundtrack, and referenced media—before any provider operation. Optional platformer
+maps and sequences are admitted only when that member declares them.
 
 ## Architecture
 
@@ -305,7 +313,7 @@ src/gnode/              the engine: an asset graph and its scheduler
 src/stage_gen/          the application, consuming `gnode`
   components/          provider-neutral image, structured, removal, music,
                        and verified single-axis image-repeat operations
-  providers/           OpenRouter and FAL HTTP adapters
+  providers/           OpenAI, OpenRouter, and FAL HTTP adapters
   media/               deterministic image/audio inspection and normalization
   recipes/             application compositions and exported manifests
   orchestration/       package resolution, execution documents, composition
@@ -352,14 +360,15 @@ inspection. Verify the optional adapter with:
 cd web
 bun run check
 bun test
-bun run build
+bun run build --webpack
 ```
 
 `web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
-package, `/packages/<tag>` projects that manifest's closure, `/room/<tag>` replays
-one published `pointclick-room-runtime-v1` room, and `/runs` renders exported run
-views. Browser code never receives provider credentials, and the
-docs gate checks that nothing under `web/lib/shell` can spawn a process.
+package, `/packages/<tag>` projects that manifest's closure, `/runner/<tag>` plays a
+published `sideview-runner-runtime-v4` run, `/room/<tag>` replays one published
+`pointclick-room-runtime-v2` room, and `/runs` renders exported run views. Browser
+code never receives provider credentials, and the docs gate checks that nothing
+under `web/lib/shell` can spawn a process.
 
 ## Configuration and providers
 

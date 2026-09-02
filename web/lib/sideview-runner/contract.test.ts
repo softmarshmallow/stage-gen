@@ -16,6 +16,7 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(manifest.gameId).toBe("bellweather");
     expect(manifest.trackId).toBe("sunpetal-sprint");
     expect(manifest.scale.tilePx).toBe(64);
+    expect(manifest.ground.mode).toBe("terrain-atlas-3x3-minimal-v1");
     expect(manifest.gameplay.maxClearGapColumns).toBe(3);
     expect(manifest.segments.chunks[0].hazards[0]).toEqual({
       propId: "toppled_cart",
@@ -39,6 +40,165 @@ describe("parseRunnerRuntimeManifest", () => {
       .toMatchObject({ waveform: "sine", strengthPitchMultiplier: 1 });
     expect(Object.isFrozen(manifest)).toBe(true);
     expect(Object.isFrozen(manifest.segments.chunks[0])).toBe(true);
+  });
+
+  test("parses structural ground locked one-for-one to authored segment grids", () => {
+    const document = validRunnerManifest();
+    document.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 64,
+      chunks: [
+        {
+          segment_id: "meadow_flat",
+          image: "world/ground/meadow_flat.png",
+          columns: 12,
+          rows: 8,
+        },
+      ],
+    };
+    const manifest = parseRunnerRuntimeManifest(document);
+    expect(manifest.ground).toEqual({
+      mode: "runner-structural-ground-v1",
+      verticalFit: "floor_to_screen_bottom",
+      cellPx: 64,
+      chunks: [
+        {
+          segmentId: "meadow_flat",
+          image: "world/ground/meadow_flat.png",
+          columns: 12,
+          rows: 8,
+        },
+      ],
+    });
+    if (manifest.ground.mode !== "runner-structural-ground-v1") {
+      throw new Error("fixture did not parse as structural ground");
+    }
+    expect(Object.isFrozen(manifest.ground)).toBe(true);
+    expect(Object.isFrozen(manifest.ground.chunks)).toBe(true);
+  });
+
+  test("refuses structural ground that diverges from occupancy identity or dimensions", () => {
+    const mismatchedId = validRunnerManifest();
+    mismatchedId.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 64,
+      chunks: [
+        { segment_id: "other", image: "world/ground/other.png", columns: 12, rows: 8 },
+      ],
+    };
+    expect(() => parseRunnerRuntimeManifest(mismatchedId)).toThrow(
+      "segment_id must match segments.chunks[0].segment_id",
+    );
+
+    const wrongColumns = validRunnerManifest();
+    wrongColumns.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 64,
+      chunks: [
+        {
+          segment_id: "meadow_flat",
+          image: "world/ground/meadow_flat.png",
+          columns: 11,
+          rows: 8,
+        },
+      ],
+    };
+    expect(() => parseRunnerRuntimeManifest(wrongColumns)).toThrow(
+      "columns must match its occupancy width",
+    );
+
+    const missing = validRunnerManifest();
+    missing.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 64,
+      chunks: [],
+    };
+    expect(() => parseRunnerRuntimeManifest(missing)).toThrow("one-for-one");
+
+    const wrongCellSize = validRunnerManifest();
+    wrongCellSize.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 32,
+      chunks: [
+        {
+          segment_id: "meadow_flat",
+          image: "world/ground/meadow_flat.png",
+          columns: 12,
+          rows: 8,
+        },
+      ],
+    };
+    expect(() => parseRunnerRuntimeManifest(wrongCellSize)).toThrow(
+      "ground.cell_px must be exactly 64",
+    );
+  });
+
+  test("keeps the ground discriminants mutually exclusive", () => {
+    const atlasWithChunks = validRunnerManifest();
+    (atlasWithChunks.ground as Record<string, unknown>).chunks = [];
+    expect(() => parseRunnerRuntimeManifest(atlasWithChunks)).toThrow(
+      "terrain-atlas ground must not declare structural",
+    );
+
+    const structuralWithAtlas = validRunnerManifest();
+    structuralWithAtlas.ground = {
+      mode: "runner-structural-ground-v1",
+      vertical_fit: "floor_to_screen_bottom",
+      cell_px: 64,
+      atlas: "world/ground.png",
+      chunks: [
+        {
+          segment_id: "meadow_flat",
+          image: "world/ground/meadow_flat.png",
+          columns: 12,
+          rows: 8,
+        },
+      ],
+    };
+    expect(() => parseRunnerRuntimeManifest(structuralWithAtlas)).toThrow(
+      "must not declare ground.atlas",
+    );
+  });
+
+  test("requires exactly one correctly paired opaque canvas cover", () => {
+    const missing = validRunnerManifest();
+    const missingLayers = missing.layers as Record<string, unknown>[];
+    missingLayers[0] = {
+      ...missingLayers[0],
+      alpha_mode: "transparent",
+      vertical_anchor: "screen_top",
+    };
+    expect(() => parseRunnerRuntimeManifest(missing)).toThrow(
+      "exactly one opaque canvas_cover",
+    );
+
+    const duplicate = validRunnerManifest();
+    const duplicateLayers = duplicate.layers as Record<string, unknown>[];
+    duplicateLayers.push({
+      ...duplicateLayers[0],
+      layer_id: "second_cover",
+      order: 1,
+    });
+    expect(() => parseRunnerRuntimeManifest(duplicate)).toThrow(
+      "exactly one opaque canvas_cover",
+    );
+
+    const mismatched = validRunnerManifest();
+    const mismatchedLayers = mismatched.layers as Record<string, unknown>[];
+    mismatchedLayers.push({
+      ...mismatchedLayers[0],
+      layer_id: "transparent_cover",
+      order: 1,
+      alpha_mode: "transparent",
+    });
+    expect(() => parseRunnerRuntimeManifest(mismatched)).toThrow(
+      "must pair alpha_mode opaque with vertical_anchor canvas_cover",
+    );
   });
 
   test("accepts a soundtrack and optional calibration fields", () => {

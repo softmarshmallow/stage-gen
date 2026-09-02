@@ -128,10 +128,12 @@ The deterministic boundary pipeline is implemented in
 
 Prepared-package actor sheets take a separate current path through
 `src/stage_gen/media/sprite_sheets.py`. Their provider `*.source.png` is preserved, and the local
-validation node publishes an `alpha-component-repack-v1` canonical sheet. That operation selects
+validation node publishes an `alpha-component-repack-v3` canonical sheet. That operation selects
 large native-alpha components and repacks them with transparent gutters instead of slicing equal
-XY cells. It does not yet own detached-effect grouping and records possible component loss in its
-validation report.
+XY cells. Its fused-component fallback additionally requires one principal higher-alpha core in
+every expected source lattice slot, so clustered fragments cannot impersonate separate frames. It
+does not yet own detached-effect grouping and records possible component loss in its validation
+report.
 
 The recoverable/hard-fail split is already the healing system. It needs no vision model.
 

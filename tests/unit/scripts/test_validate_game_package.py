@@ -34,9 +34,10 @@ def test_validate_game_package_script_prints_the_machine_report(
     assert report["valid"] is True
     assert report["source_status"] == "current"
     assert report["generated_status"] == "not_checked"
-    assert report["game_id"] == "bellweather"
-    assert report["kind"] == "game-package-validation-v5"
-    package = REPOSITORY_ROOT / "library" / "games" / "bellweather"
+    assert report["game_id"] == "iron-petal-unit"
+    assert report["schema_version"] == 6
+    assert report["kind"] == "game-package-validation-v6"
+    package = REPOSITORY_ROOT / "library" / "games" / "iron-petal-unit"
     assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
 
 
@@ -48,8 +49,8 @@ def test_validate_game_package_script_rejects_an_invalid_root(
 
     captured = capsys.readouterr()
     report = json.loads(captured.out)
-    assert report["schema_version"] == 5
-    assert report["kind"] == "game-package-validation-v5"
+    assert report["schema_version"] == 6
+    assert report["kind"] == "game-package-validation-v6"
     assert report["valid"] is False
     assert report["source_status"] == "invalid"
     assert report["generated_status"] == "not_checked"
