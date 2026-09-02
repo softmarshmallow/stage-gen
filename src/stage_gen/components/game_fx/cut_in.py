@@ -44,11 +44,15 @@ FRAME_COVERAGE_RANGE = (0.15, 0.75)
 FRAME_SOFT_SHARE_MAX = 0.08
 FRAME_GLOW_SHARE_MAX = 0.02
 #: Topology is authored, not fixed: a rip may be one strip, two halves, a few shards,
-#: or a shape with holes punched through it. What the gate still refuses is debris and
-#: confetti — every piece must be big enough to be worth drawing, and there must be few
-#: enough of them to read as one graphic element.
-FRAME_COMPONENT_MIN_SHARE = 0.02
+#: or a shape with holes punched through it. What the gate still refuses is confetti —
+#: few enough pieces that the plate reads as one graphic element.
 FRAME_COMPONENTS_MAX = 8
+#: A piece this small is not a shape an author asked for, it is a speck the model left
+#: behind. Dust is *erased* in canonicalization and ignored by the gate, because
+#: refusing it would burn the whole retry budget over a few stray pixels. A spray of
+#: dust is still a defect: that is what the count refuses.
+FRAME_DUST_MAX_SHARE = 0.005
+FRAME_DUST_COUNT_MAX = 12
 FRAME_HOLES_MAX = 12
 FRAME_WIDTH_SPAN_MIN = 0.60
 FRAME_WHITE_SHARE_MIN = 0.55
@@ -173,26 +177,44 @@ def _downsampled_mask(
     ]
 
 
-def _component_sizes(mask: list[list[bool]]) -> list[int]:
+def _components(mask: list[list[bool]]) -> list[list[tuple[int, int]]]:
+    """Connected painted regions, largest first, as their cells — the gate needs to
+    know *which* cells a piece owns so canonicalization can erase the dust ones."""
+
     rows, cols = len(mask), len(mask[0])
     seen = [[False] * cols for _ in range(rows)]
-    sizes: list[int] = []
+    found: list[list[tuple[int, int]]] = []
     for r in range(rows):
         for c in range(cols):
             if not mask[r][c] or seen[r][c]:
                 continue
-            size = 0
+            cells: list[tuple[int, int]] = []
             queue: deque[tuple[int, int]] = deque([(r, c)])
             seen[r][c] = True
             while queue:
                 y, x = queue.popleft()
-                size += 1
+                cells.append((y, x))
                 for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
                     if 0 <= ny < rows and 0 <= nx < cols and mask[ny][nx] and not seen[ny][nx]:
                         seen[ny][nx] = True
                         queue.append((ny, nx))
-            sizes.append(size)
-    return sorted(sizes, reverse=True)
+            found.append(cells)
+    return sorted(found, key=len, reverse=True)
+
+
+def _component_sizes(mask: list[list[bool]]) -> list[int]:
+    return [len(cells) for cells in _components(mask)]
+
+
+def _split_dust(
+    components: list[list[tuple[int, int]]],
+) -> tuple[list[list[tuple[int, int]]], list[list[tuple[int, int]]]]:
+    """Drawn pieces and dust, by share of the painted silhouette."""
+
+    total = max(1, sum(len(cells) for cells in components))
+    pieces = [cells for cells in components if len(cells) / total >= FRAME_DUST_MAX_SHARE]
+    dust = [cells for cells in components if len(cells) / total < FRAME_DUST_MAX_SHARE]
+    return pieces, dust
 
 
 def _hole_count(mask: list[list[bool]]) -> int:
@@ -248,7 +270,9 @@ def _edge_cover(alpha: Image.Image) -> dict[str, float]:
 
 def validate_frame_plate(data: bytes) -> dict[str, Any]:
     """Admit one rip plate: a binary silhouette wide enough to read as a screen element,
-    made of few enough pieces and no debris, with a flat white fill and an inked rim.
+    made of few enough pieces, with a flat white fill and an inked rim. Specks below
+    ``FRAME_DUST_MAX_SHARE`` are dust: measured around, erased by canonicalization, and
+    refused only as a spray.
 
     The gate is deliberately topology-light. A rip's shape is authored
     (``cut_in.frame.shape``), and what a consumer clips with is the plate's own alpha, so
@@ -259,10 +283,16 @@ def validate_frame_plate(data: bytes) -> dict[str, Any]:
     alpha = image.getchannel("A")
     shares = _alpha_shares(alpha)
     mask = _downsampled_mask(alpha, factor=_COMPONENT_FACTOR)
-    sizes = _component_sizes(mask)
+    pieces, dust = _split_dust(_components(mask))
+    # Every measurement below reads the plate as it will be published: dust erased.
+    swept = [[False] * len(mask[0]) for _ in mask]
+    for cells in pieces:
+        for row, column in cells:
+            swept[row][column] = True
+    sizes = [len(cells) for cells in pieces]
     largest_share = sizes[0] / max(1, sum(sizes)) if sizes else 0.0
-    holes = _hole_count(mask)
-    columns_hit = [any(row[c] for row in mask) for c in range(len(mask[0]))]
+    holes = _hole_count(swept)
+    columns_hit = [any(row[c] for row in swept) for c in range(len(swept[0]))]
     width_span = sum(columns_hit) / len(columns_hit)
 
     luma = image.convert("L").tobytes()
@@ -284,7 +314,8 @@ def validate_frame_plate(data: bytes) -> dict[str, Any]:
 
     facts: dict[str, Any] = {
         **shares,
-        "components": len(sizes),
+        "components": len(pieces),
+        "dust": len(dust),
         "largest_component_share": round(largest_share, 4),
         "holes": holes,
         "width_span": round(width_span, 4),
@@ -300,11 +331,14 @@ def validate_frame_plate(data: bytes) -> dict[str, Any]:
         failures.append(f"frame alpha is not binary: soft share {shares['soft_share']}")
     if shares["glow_share"] > FRAME_GLOW_SHARE_MAX:
         failures.append(f"frame exterior carries a glow: share {shares['glow_share']}")
-    if len(sizes) > FRAME_COMPONENTS_MAX:
-        failures.append(f"frame is {len(sizes)} pieces, more than {FRAME_COMPONENTS_MAX}")
-    debris = [size for size in sizes if size / max(1, sum(sizes)) < FRAME_COMPONENT_MIN_SHARE]
-    if debris:
-        failures.append(f"frame carries {len(debris)} specks below {FRAME_COMPONENT_MIN_SHARE:g}")
+    if not pieces:
+        failures.append("frame is empty")
+    if len(pieces) > FRAME_COMPONENTS_MAX:
+        failures.append(f"frame is {len(pieces)} pieces, more than {FRAME_COMPONENTS_MAX}")
+    if len(dust) > FRAME_DUST_COUNT_MAX:
+        failures.append(
+            f"frame is sprayed with {len(dust)} specks, more than {FRAME_DUST_COUNT_MAX}"
+        )
     if holes > FRAME_HOLES_MAX:
         failures.append(f"frame silhouette has {holes} holes, more than {FRAME_HOLES_MAX}")
     if width_span < FRAME_WIDTH_SPAN_MIN:
@@ -573,6 +607,34 @@ def _clear_exterior(image: Image.Image) -> Image.Image:
     return canonical
 
 
+def _clear_dust(image: Image.Image) -> Image.Image:
+    """Erase the specks the gate measured around, so the published plate is the shape
+    that was authored and nothing else. Dust is cleared a component block at a time —
+    a block belongs to one component, and a real piece within a block's reach of a
+    speck would have been the same component."""
+
+    mask = _downsampled_mask(image.getchannel("A"), factor=_COMPONENT_FACTOR)
+    _, dust = _split_dust(_components(mask))
+    if not dust:
+        return image
+    alpha = image.getchannel("A")
+    draw = ImageDraw.Draw(alpha)
+    for cells in dust:
+        for row, column in cells:
+            draw.rectangle(
+                (
+                    column * _COMPONENT_FACTOR,
+                    row * _COMPONENT_FACTOR,
+                    (column + 1) * _COMPONENT_FACTOR - 1,
+                    (row + 1) * _COMPONENT_FACTOR - 1,
+                ),
+                fill=0,
+            )
+    canonical = image.copy()
+    canonical.putalpha(alpha)
+    return canonical
+
+
 def canonicalize_plate(
     data: bytes, plate: CutInPlate, *, placement: Mapping[str, object] | None = None
 ) -> tuple[bytes, dict[str, Any]]:
@@ -585,6 +647,8 @@ def canonicalize_plate(
     validate = validate_frame_plate if plate.role == "frame" else validate_portrait_plate
     source_facts = validate(data)
     image = _clear_exterior(_open_plate(data, plate))
+    if plate.role == "frame":
+        image = _clear_dust(image)
     stream = io.BytesIO()
     image.save(stream, format="PNG", optimize=False)
     canonical = stream.getvalue()
@@ -602,7 +666,11 @@ def canonicalize_plate(
     facts: dict[str, Any] = {
         "source": source_facts,
         "canonical": canonical_facts,
-        "pixel_rewrite": "alpha_exterior_clear_v1",
+        "pixel_rewrite": (
+            "alpha_exterior_and_dust_clear_v1"
+            if plate.role == "frame"
+            else "alpha_exterior_clear_v1"
+        ),
         "geometry": geometry,
     }
     return canonical, facts

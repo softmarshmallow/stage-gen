@@ -70,7 +70,7 @@ def frame_plate(
     if hole:
         draw.ellipse((width * 0.4, height * 0.45, width * 0.5, height * 0.55), fill=0)
     for index in range(specks):
-        left = width * (0.1 + index * 0.05)
+        left = width * (0.05 + index * 0.04)
         draw.ellipse((left, height * 0.1, left + 12, height * 0.1 + 12), fill=255)
     plate = Image.new("RGBA", CUT_IN_CANVAS, (0, 0, 0, 0))
     grown = fill.filter(
@@ -119,7 +119,7 @@ def test_a_clean_strip_and_the_procedural_frame_pass_the_same_gate() -> None:
     ("knob", "message"),
     [
         ({"span": 0.4}, "under 0.6"),
-        ({"specks": 6}, "specks"),
+        ({"specks": 20}, "sprayed"),
         ({"glow": True}, "glow"),
         ({"grey_fill": True}, "flat white"),
         ({"band": 0.9}, "coverage"),
@@ -129,6 +129,26 @@ def test_a_clean_strip_and_the_procedural_frame_pass_the_same_gate() -> None:
 def test_each_broken_frame_promise_is_named(knob: dict[str, object], message: str) -> None:
     with pytest.raises(CutInAdmissionError, match=message):
         validate_frame_plate(frame_plate(**knob))  # type: ignore[arg-type]
+
+
+def test_a_few_specks_are_dust_the_gate_measures_around_and_the_plate_drops() -> None:
+    # Every real generation leaves a stray pixel or two. Refusing them would burn the
+    # whole retry budget on an otherwise perfect shape, so they are erased instead.
+    data = frame_plate(specks=4)
+    facts = validate_frame_plate(data)
+    assert facts["components"] == 1
+    assert facts["dust"] == 4
+
+    width, height = CUT_IN_CANVAS
+    with Image.open(io.BytesIO(data)) as opened:
+        assert opened.convert("RGBA").getchannel("A").getpixel(
+            (int(width * 0.05) + 6, int(height * 0.1) + 6)
+        ) == 255
+    canonical, _canonical_facts = canonicalize_plate(data, CUT_IN_FRAME)
+    with Image.open(io.BytesIO(canonical)) as opened:
+        assert opened.convert("RGBA").getchannel("A").getpixel(
+            (int(width * 0.05) + 6, int(height * 0.1) + 6)
+        ) == 0
 
 
 def test_the_frame_gate_refuses_the_wrong_canvas() -> None:
@@ -196,12 +216,13 @@ def test_canonicalization_clears_only_the_exterior_and_publishes_geometry() -> N
     assert geometry["layout"] == "cut_in_frame_1536x1024_v1"
     assert geometry["mask_polygon"] is not None and len(geometry["mask_polygon"]) >= 4
     assert geometry["band_rect"]["width"] == CUT_IN_CANVAS[0]
-    assert facts["pixel_rewrite"] == "alpha_exterior_clear_v1"
+    assert facts["pixel_rewrite"] == "alpha_exterior_and_dust_clear_v1"
     json.dumps(facts)  # the record is plain JSON
 
     _portrait, portrait_facts = canonicalize_plate(
         portrait_plate(), CUT_IN_PORTRAIT, placement=_admitted()
     )
+    assert portrait_facts["pixel_rewrite"] == "alpha_exterior_clear_v1"
     assert portrait_facts["geometry"]["role"] == "portrait"
     assert "alpha_rect" in portrait_facts["geometry"]
     assert "mask_polygon" not in portrait_facts["geometry"]

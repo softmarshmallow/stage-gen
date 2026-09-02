@@ -113,20 +113,24 @@ Both plates are `1536 × 1024`, generated with native alpha.
 
 | Plate | Layout | Alpha policy | Gate |
 | --- | --- | --- | --- |
-| `frame` | `cut_in_frame_1536x1024_v1` | `transparent_exterior_opaque_body_v1` | coverage 0.15–0.75 of the canvas; binary alpha (soft share ≤ 8 %); exterior glow share ≤ 2 %; at most 8 pieces, none under 2 % of the silhouette; at most 12 holes; spans ≥ 60 % of the width; fill ≥ 55 % near-white; ink 3–45 % of the painted area |
+| `frame` | `cut_in_frame_1536x1024_v1` | `transparent_exterior_opaque_body_v1` | coverage 0.15–0.75 of the canvas; binary alpha (soft share ≤ 8 %); exterior glow share ≤ 2 %; at most 8 pieces above the dust floor (0.5 % of the silhouette) and at most 12 specks below it; at most 12 holes; spans ≥ 60 % of the width; fill ≥ 55 % near-white; ink 3–45 % of the painted area |
 | `portrait` | `cut_in_portrait_1536x1024_v1` | `transparent_exterior_v1` | coverage 0.30–0.95; exterior glow or wash share ≤ 3 %; one subject (largest shape ≥ 98 %) |
 
 Each gate runs inside the single provider retry owner, so a failing plate re-rolls within
 the six-attempt budget rather than failing the run. Where the portrait's head bleeds off the
 canvas is recorded as evidence, not refused, until repeats calibrate it. Canonicalization
-clears the already-transparent exterior to alpha 0 and nothing else; it never infers a
-silhouette.
+clears the already-transparent exterior to alpha 0, and on a frame also erases the dust the
+gate measured around, so the published plate is the authored shape and nothing else
+(`pixel_rewrite: alpha_exterior_and_dust_clear_v1`). It never infers a silhouette.
 
 The frame gate is deliberately topology-light, because **the rip's shape is authored**
 (below) and what a consumer clips with is the plate's own alpha. Shards, a hole, an edge
-that doubles back: those are shapes, not defects. What the gate still refuses is debris —
-specks and confetti that no one drew on purpose — and a silhouette too narrow to carry the
-screen. Whether the silhouette is the shape its author asked for is a judgement, and it
+that doubles back: those are shapes, not defects. What the gate still refuses is confetti —
+too many drawn pieces to read as one graphic element — and a silhouette too narrow to carry
+the screen. A speck below the dust floor is neither refused nor kept: every real generation
+leaves one or two, and killing a whole retry budget over three stray pixels would make the
+shape slot unauthorable in practice, so dust is measured around here and erased in
+canonicalization. A *spray* of dust is still a defect. Whether the silhouette is the shape its author asked for is a judgement, and it
 belongs to the reviewer, which is told the authored shape.
 
 The frame's validate step then traces the **mask polygon**: the silhouette at or above alpha
@@ -158,6 +162,13 @@ a transparent exterior, and enough width to read as a screen element. With no `s
 authored, the default is one slightly tilted ragged strip edge to edge — the genre's
 canonical form, and what every existing game gets. `procedural_v1` takes no prose at all and
 refuses a `shape`; it draws a band.
+
+Measured on real generations of Iron Petal's frame (`gpt-image-2`, the cover as the style
+reference, the same brief with only the shape sentence swapped): an angular slashed shard and
+a tapering diagonal both come back as one piece, and *"one wide tilted shard plus two thinner
+detached slivers, one above and one below"* comes back as exactly three pieces at 0.83 / 0.09
+/ 0.08 of the silhouette — a topology the family now carries end to end. Each of those
+generations also left one to three stray pixels behind, which is what the dust floor is for.
 
 ## Placement: the agent decides, the pipeline renders
 
@@ -265,7 +276,7 @@ and each is cheap to fix when a game actually wants it.
 | `tear_reveal_v1` sweeps a horizontal strip in and away | a shape that is not wide and roughly horizontal reveals correctly but animates oddly | a second choreography, which is a new identity either way |
 | the placement agent's instructions say *band* | prose slightly off for a shard cluster; the geometry it reads is already raster-true | reword the instructions — taste lives there, not in code |
 | `procedural_v1` always draws a band | the free mode ignores an authored shape and refuses one offline | parameterize the draw, or leave it as the shape-free fallback it is |
-| `mask_polygon` approximates within IoU 0.90 | a hole covering under ~10 % of the silhouette is smoothed over in the outline | publish a multi-ring outline, or drop the outline for consumers that can clip with alpha |
+| `mask_polygon` approximates within IoU 0.90 | a hole covering under ~10 % of the silhouette is smoothed over in the outline, and a sliver thinner than the 22 px erosion disappears from it entirely (the outline then describes the main piece, which is what it is checked against) | publish a multi-ring outline, or drop the outline for consumers that can clip with alpha |
 | the frame gate runs inside the six-attempt retry owner | a shape that fails a *material* check re-rolls up to six times before the run fails | split material checks (retry-worthy) from shape checks (author-worthy) if this ever costs real money |
 
 ## Growing the vocabulary

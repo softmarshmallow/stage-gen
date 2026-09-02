@@ -108,7 +108,7 @@ TOOL_LOOP_FEATURES = ("tool_use", "image_input")
 #: rekey the frame's review through lineage for nothing.
 FX_CUT_IN_CONTRACT_VERSION = "prepared-fx-cut-in-v1"
 FX_CUT_IN_DRAW_VERSION = "prepared-fx-cut-in-draw-v1"
-FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v2"
+FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v3"
 FX_CUT_IN_PORTRAIT_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v3"
 FX_CUT_IN_PLACE_VERSION = "prepared-fx-cut-in-place-v1"
 FX_CUT_IN_REVIEW_VERSION = "prepared-fx-cut-in-review-v2"
@@ -828,9 +828,7 @@ def cut_in_place_request(
             scale, x, y = placement_transform(arguments)
         except ValueError as exc:
             raise ToolInvocationError(str(exc)) from None
-        composed = compose_hold_frame(
-            frame_data, raw, placement={"scale": scale, "x": x, "y": y}
-        )
+        composed = compose_hold_frame(frame_data, raw, placement={"scale": scale, "x": x, "y": y})
         return ToolResult(
             text=f"Rendered the composition at scale={scale:g}, x={x:g}, y={y:g}.",
             images=(_render_data_url(composed),),
