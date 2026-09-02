@@ -1140,6 +1140,46 @@ worked is that a person noticed the game was in two media by *playing* it.
 question for the director's taste. It was not a taste question. It was a defect with a
 single cause, and it took playing the game to see it.
 
+### 07:20 — The window room ships on roll 3, and the reason is not the miss count
+
+Two candidate rolls, and the obvious comparison is the wrong one.
+
+A region that misses its object is **still clickable** — the rectangle does not care what is
+painted underneath. So on both rolls **every fact in the room remains obtainable**, and the
+count of misses is not a count of lost facts. It is a count of places where the player must
+click something they cannot see. What separates the two rolls is *which* interactions are
+the invisible ones.
+
+| | window-3 | window-4 |
+|---|---|---|
+| the body | **lands** | lands |
+| the stage door (gates six) | **lands** | blank pier |
+| Mr Bell | **lands** | lands |
+| the access door | **lands** | lands |
+| **the exit** | **lands** | an empty street |
+| the visible lift door | — | fires `access_door` instead |
+
+A player on roll 3 can find the room's spine — kneel by the body, open the stage door,
+question Bell, leave by the lift — and will miss detail. A player on roll 4 cannot find the
+way in or the way out, and the one door they can see lies to them. **Roll 3 ships.**
+
+**The sentence the director actually needs**, which the miss count does not carry: on the
+shipped roll, the interactions on blank wall are the neck, the torn paper, the carton, the
+marks under the lip, the scrape, the red button, the moon and the wired glass. That is
+**most of the forensic half of the board** — the part Ward's statement is built to read. A
+real player will plausibly leave that room holding `saw_body`, `stage_door_locked`,
+`access_door_unlocked` and Bell's three, and plausibly not holding `touched_neck`,
+`heading_int_bedroom`, `carton_on_gallery`, `marks_under_lip`, `scrape`, `red_button`,
+`window_changed` or `whiting_on_treads`.
+
+The episode still plays to its end and Ward still closes — but on a thin forensic board
+**because of a hit-area artifact, not because the player chose not to look.** That is a
+different thing from the design, and it is the honest description of what ships.
+
+*And the lineage defect in its most concrete form:* **we measured the right numbers for a
+picture we then destroyed by writing them down.** Applying the rectangles is what produced
+roll 4. There is no way to publish roll 3's plate with roll 4's rectangles.
+
 ---
 
 ## 3. Ledger

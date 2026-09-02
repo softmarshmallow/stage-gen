@@ -1031,3 +1031,58 @@ than the individual plates.
 
 In play, a player walks out of a photograph into a painting and back again, twice, and
 the cover the director opens the report with is the painting.
+
+---
+
+# The window room: which roll ships, and what a player will actually find
+
+The lead reverted `b_window` to `the-grain-window-3` rather than ship `window-4`. Having
+measured both, I agree, and the reasoning is worth stating precisely because a raw count
+of misses is misleading.
+
+**A region that misses its object is still clickable.** The rectangle does not care what
+is painted under it. So on both rolls every fact in the room remains obtainable; the
+miss count is not a count of lost facts, it is a count of places where the player must
+click something they cannot see. What separates the rolls is *which* interactions are
+the invisible ones.
+
+| | `window-3` (shipped) | `window-4` |
+|---|---|---|
+| the exit (`service_lift`) | lands on the lift | lands on an empty street |
+| `stage_door` (gates six) | lands on the door | lands on a blank pier |
+| the visible lift door | is the lift | fires `access_door` instead |
+| misses | 9 of 14 | 7 of 14 |
+
+A player on `window-3` can find the room's spine — kneel by the body, open the stage
+door, question Bell, leave by the lift — and will miss detail. A player on `window-4`
+cannot find the way in or the way out, and the one door they can see lies to them.
+
+## What a real player's board will hold
+
+On the shipped roll the interactions that land on their objects are the body, the stage
+door, Mr. Bell's three answers, the access door and the lift. The ones sitting on blank
+wall are the neck, the torn paper, the carton, the marks under the lip, the scrape, the
+red button, the moon and the wired glass.
+
+So a played board out of this room will plausibly hold `saw_body`, `stage_door_locked`,
+`access_door_unlocked`, `bell_key_path`, `bell_in_receiving` and
+`court_door_never_opened`, and plausibly **not** hold `touched_neck`,
+`heading_int_bedroom`, `carton_on_gallery`, `marks_under_lip`, `scrape`, `red_button`,
+`window_changed` or `whiting_on_treads`.
+
+That is most of the forensic half of the board — the part Ward's statement is built to
+read. The episode still plays to its end and Ward still closes, but on a thin forensic
+board **because of a hit-area artifact, not because the player chose not to look.** That
+distinction is the one the director needs; the miss count is not.
+
+## The lineage defect, in its most concrete form
+
+There is no way to ship `window-3`'s plate with `window-4`'s rectangles, because
+applying the rectangles is what produced `window-4`. Stated plainly:
+
+> We measured the right numbers for a picture, and writing them down destroyed the
+> picture.
+
+The two concrete fixes remain: derive the backdrop's cache identity from the fields that
+feed the image rather than from the whole document, and pin the image seed so a
+regions-only re-run reproduces the same picture.
