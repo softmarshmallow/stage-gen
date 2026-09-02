@@ -3,6 +3,7 @@ import {
   appendBacklog,
   BACKLOG_LIMIT,
   beatSave,
+  caseResultKey,
   caseSaveKey,
   clearCaseSave,
   parseCaseSave,
@@ -10,6 +11,8 @@ import {
   roomSave,
   scenarioSave,
   serializeCaseSave,
+  readCaseResult,
+  writeCaseResult,
   writeCaseSave,
   type BacklogLine,
   type SaveStorage,
@@ -182,5 +185,44 @@ describe("reading and writing", () => {
       }),
     );
     expect(readCaseSave(storage, "case_tag")?.backlog).toHaveLength(BACKLOG_LIMIT);
+  });
+});
+
+
+describe("the record a finished case leaves behind", () => {
+  test("survives the save being cleared, because it is the episode's output", () => {
+    const storage = memoryStorage();
+    writeCaseSave(storage, beatSave("the-grain-episode-one", "b_statements", ["saw_body"], []));
+    writeCaseResult(storage, {
+      runTag: "the-grain-episode-one",
+      outcome: "left_alone",
+      facts: ["ward_regard", "saw_body", "told_coffee"],
+      finishedAt: "2026-09-03T07:55:00.000Z",
+    });
+    clearCaseSave(storage, "the-grain-episode-one");
+
+    expect(storage.entries.has(caseSaveKey("the-grain-episode-one"))).toBe(false);
+    const result = readCaseResult(storage, "the-grain-episode-one");
+    expect(result).not.toBeNull();
+    expect(result?.outcome).toBe("left_alone");
+    // Sorted, so two runs holding the same board record it identically.
+    expect(result?.facts).toEqual(["saw_body", "told_coffee", "ward_regard"]);
+  });
+
+  test("a case that was never finished has no record", () => {
+    expect(readCaseResult(memoryStorage(), "the-grain-episode-one")).toBeNull();
+  });
+
+  test("a record this build cannot read is no record, never a throw", () => {
+    const storage = memoryStorage();
+    storage.setItem(caseResultKey("t"), "{ not json");
+    expect(readCaseResult(storage, "t")).toBeNull();
+    storage.setItem(caseResultKey("t"), JSON.stringify({ kind: "something_else" }));
+    expect(readCaseResult(storage, "t")).toBeNull();
+    storage.setItem(
+      caseResultKey("t"),
+      JSON.stringify({ kind: "case_result_v1", run_tag: "t", outcome: "x", facts: [1] }),
+    );
+    expect(readCaseResult(storage, "t")).toBeNull();
   });
 });

@@ -34,6 +34,7 @@ import {
   appendBacklog,
   beatSave,
   clearCaseSave,
+  writeCaseResult,
   readCaseSave,
   roomSave,
   scenarioSave,
@@ -106,6 +107,7 @@ export default function CasePlayer({
   const [backlogOpen, setBacklogOpen] = useState(false);
   const [pending, setPending] = useState<PendingOutcome | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
+  const [carried, setCarried] = useState<readonly string[]>([]);
   // Which beat has produced its first moment. The loading layer is shown until it
   // has, because a leaf's canvas is TRANSPARENT and therefore never covers
   // anything — an earlier version of this assumed it would, and the label sat in
@@ -220,8 +222,19 @@ export default function CasePlayer({
         // Terminal, or an outcome the case declares no edge for. Either way the
         // episode is over here; the facts are merged so the closing card can say
         // what the player finished holding.
-        mergeFacts(caseDocument, at.facts, flags);
+        const carried = mergeFacts(caseDocument, at.facts, flags);
+        // The in-progress save goes — there is nothing left to resume — but the
+        // board does not. What the player finished holding IS the episode's
+        // output: the next case opens on it. Clearing without recording this
+        // discarded the verdict at the moment it was computed.
+        writeCaseResult(window.localStorage, {
+          runTag: tag,
+          outcome,
+          facts: carried,
+          finishedAt: new Date().toISOString(),
+        });
         clearCaseSave(window.localStorage, tag);
+        setCarried(carried);
         setEnding(outcome);
         setPending(null);
         setPhase("finished");
@@ -356,6 +369,22 @@ export default function CasePlayer({
             <p className="text-sm text-dim">
               It ended through <span className="text-fg">{ending}</span>.
             </p>
+            {/*
+              What the player finished holding is the episode's output, not a
+              statistic: an episodic story opens its next case on this board.
+              Showing it is also the only way a player learns that what they
+              chose to watch is what they left with.
+            */}
+            {carried.length === 0 ? null : (
+              <div data-shell-carried className="max-w-2xl px-2 text-center">
+                <p className="text-[11px] uppercase tracking-widest text-dim">
+                  Carried out of the building · {carried.length}
+                </p>
+                <p className="mt-2 text-[11px] leading-relaxed text-dim">
+                  {[...carried].sort().join(" · ")}
+                </p>
+              </div>
+            )}
             <CurtainButton onClick={startOver}>Play it again</CurtainButton>
           </Curtain>
         ) : null}

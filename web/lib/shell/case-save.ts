@@ -26,9 +26,11 @@ import type { RoomPlayState } from "@/lib/pointclick/state";
 
 export const CASE_SAVE_KIND = "case_save_v1";
 export const CASE_SAVE_SCHEMA_VERSION = 1;
+export const CASE_RESULT_KIND = "case_result_v1";
 export const BACKLOG_LIMIT = 50;
 
 const SAVE_KEY_PREFIX = "stage_gen.case_save.";
+const RESULT_KEY_PREFIX = "stage_gen.case_result.";
 const TEXT_MAX = 600;
 
 /** One line the player has already been shown, as the backlog remembers it. */
@@ -48,6 +50,29 @@ export interface CaseSave {
   readonly room: RoomPlayState | null;
   readonly backlog: readonly BacklogLine[];
   readonly updatedAt: string;
+}
+
+/**
+ * What a finished case leaves behind.
+ *
+ * The in-progress save is cleared at the ending, correctly — there is nothing
+ * left to resume. But the facts a player finished holding ARE the episode's
+ * output: an episodic story opens the next case on the board the last one
+ * produced, and a player who reached an ending should be able to see what they
+ * carried. Clearing the save without writing this discarded the verdict at the
+ * exact moment it was computed.
+ *
+ * Kept under its own key so it survives replays of the same case being started
+ * again, and so nothing that reads a save can mistake a finished run for a
+ * resumable one.
+ */
+export interface CaseResult {
+  readonly runTag: string;
+  /** The `end <outcome>` the case terminated through. */
+  readonly outcome: string;
+  /** Every fact the player finished holding, sorted. */
+  readonly facts: readonly string[];
+  readonly finishedAt: string;
 }
 
 /** Only what this module needs of `localStorage`, so a test needs no browser. */
@@ -98,6 +123,59 @@ export function writeCaseSave(storage: SaveStorage, save: CaseSave): void {
   } catch {
     // A full or blocked store loses the save, not the session. A player who
     // cannot autosave should still be able to finish the case they are playing.
+  }
+}
+
+export function caseResultKey(tag: string): string {
+  return `${RESULT_KEY_PREFIX}${tag}`;
+}
+
+/** Record what a finished case produced. Never throws, for the same reason. */
+export function writeCaseResult(storage: SaveStorage, result: CaseResult): void {
+  try {
+    storage.setItem(
+      caseResultKey(result.runTag),
+      JSON.stringify({
+        schema_version: CASE_SAVE_SCHEMA_VERSION,
+        kind: CASE_RESULT_KIND,
+        run_tag: result.runTag,
+        outcome: result.outcome,
+        facts: [...result.facts].sort(),
+        finished_at: result.finishedAt,
+      }),
+    );
+  } catch {
+    // A full or blocked store loses the record, not the ending the player reached.
+  }
+}
+
+/** Read what a finished case produced, or null when it has not been finished. */
+export function readCaseResult(storage: SaveStorage, tag: string): CaseResult | null {
+  let raw: string | null;
+  try {
+    raw = storage.getItem(caseResultKey(tag));
+  } catch {
+    return null;
+  }
+  if (raw === null) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null) return null;
+    const record = value as Record<string, unknown>;
+    if (record.kind !== CASE_RESULT_KIND) return null;
+    const facts = record.facts;
+    if (typeof record.run_tag !== "string") return null;
+    if (typeof record.outcome !== "string") return null;
+    if (typeof record.finished_at !== "string") return null;
+    if (!Array.isArray(facts) || facts.some((f) => typeof f !== "string")) return null;
+    return Object.freeze({
+      runTag: record.run_tag,
+      outcome: record.outcome,
+      facts: Object.freeze([...(facts as string[])]),
+      finishedAt: record.finished_at,
+    });
+  } catch {
+    return null;
   }
 }
 
