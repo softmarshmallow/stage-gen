@@ -732,6 +732,63 @@ component-level omission. It is reported rather than patched: repairing a media-
 component at hour two, in a tree four lanes are writing to, is how a run breaks something
 quietly.
 
+### 06:45 — The whole episode's art in one graph, and eight nodes short of it
+
+`scene.toml` at `dialogue-scene-v5` plans **115 nodes: 47 image generations, 4 music
+generations, 12 structured, 0 background removals** — twelve stages, thirty-two cast plates,
+four tracks and the shared UI atlas, in one run, because the scene binds all six scenarios
+and unions their declarations.
+
+Four things had to be reconciled to get there, and three of them were caught by refusals the
+recipe lane added rather than by anyone noticing:
+
+- **`service_lift` was declared by two writers with two different briefs.** Same room, two
+  descriptions. Under the old first-wins union, `e1_way_in`'s would have silently won and
+  `e1_coffee`'s lift would have been drawn as somebody else's. Both now say one thing.
+- **`supper` had the same collision**, found by the art lane.
+- Five character descriptions ran past the scene's 280-character limit and were trimmed.
+- The game root had no `ui.toml`.
+
+**The run: 29 nodes finished, 8 failed, 56 skipped.** All twelve stages drew. All four music
+tracks generated. The style plate published. **Every cast plate failed**, on one error:
+
+```
+actor-ruth-composed  'actor-ruth-composed has no dependency port of kind expression-source-v1'
+```
+
+— the *first* (base) expression node of each of the eight drawn actors, each blocking its
+actor's other three plus a bundle node, which is exactly how 8 failures become 56 skips. The
+base plate is the one drawn from scratch against the style plate rather than edited from
+another expression; under the old fixed vocabulary `neutral` was special-cased by name, and
+with authored ids the special case appears not to have moved with it. Routed to the recipe
+lane as the pilot's stated failure condition, with the fallback named: ship stages without
+faces, decided at 09:00 rather than discovered at 11:30.
+
+### 06:47 — Two things about the drawn stages the director must decide, not the pilot
+
+**The office door carries letterforms.** The brief's rule is "no readable text or branding
+anywhere". Henry's frosted-glass door has two arced lines of painted lettering on it, seen
+from inside and therefore reversed. It is **not readable** — it resolves to no word at any
+magnification — and it is diegetically exact: the painted name is the subject of the scene's
+own exchange, *"Your name has gotten smaller." "The door was replaced." "Then my name got
+smaller."* Removing it would remove the thing two characters are talking about. The pilot
+ruled it acceptable as illegible letterform rather than text, and records it here explicitly
+because it sits on the edge of a hard rule and should be seen rather than buried.
+
+**The stages read photographic, not gouache.** This is the more serious one. The art
+direction is "painted illustration, gouache-like, visible brushwork, restrained detail. Not
+photoreal." The cover plate is unmistakably a painting. The twelve stages, drawn against
+that plate as their style reference, came back closer to rendered or photographed sets —
+beautiful, coherent with each other, period-correct, and a different medium from the plate
+they were held to.
+
+The pilot has **not** rerolled them, for two reasons. The cast plates do not exist yet, and
+whether the set is *internally* coherent matters more than whether it matches the cover; if
+the faces come back in the same register the game has one look, which is defensible even if
+it is not the briefed one. And this is a semantic judgement about accepted output, which
+neither the producer nor the lead may make on their own work. **It is the first item on the
+director's review list**, with the reroll priced at about twelve images.
+
 ---
 
 ## 3. Ledger

@@ -56,16 +56,19 @@ All six admit under `scenario check`: `e1_office` 8 states, `e1_way_in` 7,
 
 ## Fixed sentences — audit
 
+Line numbers refreshed after the fix round.
+
 | Sentence | Where | Verdict |
 |---|---|---|
 | "I remembered you were a liar." | `e1_office.scenario:27`, Ruth | exact |
 | "Watch my coffee." | `e1_coffee.scenario:412`, Ruth | exact |
 | "He said not to wait." | `e1_coffee.scenario:583`, Ruth → Nell | exact |
 | "He said he needed to think." | `e1_coffee.scenario:605`, Ruth → Henry | exact |
+| both of the above, quoted back to Ward | `e1_statements.scenario:500`, Henry | exact, both in one cue |
 | "Would you have come?" | `e1_table.scenario:429`, Lydia → Ruth | exact — the first counting |
-| "Would you have come?" | `e1_statements.scenario:845`, Lydia → Nell | exact — the second counting, with Nell's "You already used that excuse tonight." intact at `:849` |
+| "Would you have come?" | `e1_statements.scenario:891`, Lydia → Nell | exact — the second counting, with Nell's "You already used that excuse tonight." intact two lines later |
 | "I don't know." | `e1_statements.scenario:199`, Henry | exact, and the whole answer — nothing appended |
-| "It is what I saw." | `e1_statements.scenario:386`, Henry | exact |
+| "It is what I saw." | `e1_statements.scenario:422`, Henry | exact |
 | "That isn't what I asked." | `e1_statements.scenario:420`, Ward | exact, and now the only one |
 
 Two altered instances were found in the first audit and have since been cut — Ward's
@@ -636,3 +639,50 @@ block, against the brief's requirement that every generated image is labelled
 `publication_authorized: false`). Ruled by the lead as a gap the pilot surfaces and does
 not fix, on the grounds that repairing a media-rights component mid-run in a shared tree
 is how something breaks quietly.
+
+---
+
+# Expression / line audit (script half)
+
+The lead asked whether the expression a character wears matches the line they are given
+at that moment. That question has two halves. The **script half** — does the expression
+*named* on a cue suit the line it carries — can be answered without any plates, and is
+answered here. The **plate half** — does the drawn face match the name — waits on the
+cast run and is an observation only; neither the lead nor QA may semantically review
+what this run produced.
+
+Method: every `actor expression "line"` and every `show actor expression at slot` across
+all six scenarios, grouped by actor and expression, read against the cast bible's voice
+notes. Thirty-two actor/expression pairs, 320 uses.
+
+**No mismatches found.** The expression names are doing real work and are used where
+they belong. The ones worth recording because they are load-bearing:
+
+| Pair | Uses | Reads correctly because |
+|---|---|---|
+| `ruth/dry` | 18 | carries the epigrams — "I remembered you were a liar.", "At this hour?", "It's why you get paid." |
+| `ruth/exposed` | 9 | carries the ones that cost her — "With needing you.", "She intends to forgive me.", "Henry.", "You watched the cup." |
+| `ruth/shut` | 14 | carries the closures — "I remember what I said.", "Only to me.", "Not this one.", "No. Not tonight." |
+| `ruth/composed` | 36 | and it is `composed`, not `exposed`, that carries "Watch my coffee." — correct, and the point of the scene |
+| `marian/correcting` | 24 | every "You said…" line in the supper |
+| `marian/nothing_to_correct` | 1 | used once, on "I suppose I did." — the one moment she has nothing to correct |
+| `paul/stopped` | 9 | the stopping-mid-sentence tell — "It's from a page. It was in a—", "I don't know if I can.", "She tells it better." |
+| `nell/gone` | 2 | "He has already had a long while." and the motor court |
+| `ward/one_joke` | 1 | used once, on "Still in the same office?" — which is the joke |
+| `ward/closed_notebook` | 4 | "Keep doing that.", "You are one of them.", "I can see it." — every line said after the notebook shuts |
+| `edwin/no_keys` | 2 | shown only, never spoken, and only after his keys are taken in Sc10 |
+
+Two pairs are visual-only and never carry a line: `robert/water` (one use, the glass he
+brings Marian) and `robert/waiting` (three uses). That is legitimate — the art direction
+authorises four expressions per actor — but `robert/water` costs a generated plate for a
+single silent beat, which is worth knowing when the ledger is totalled.
+
+`ward/blunt` carries "Was she frightened?" at two line numbers; those are the two paths
+through the same beat, not a duplication.
+
+## What remains for the plates
+
+When the cast run lands, the only remaining question is whether each drawn plate reads
+as the word it is named for. The map of which lines each plate must carry is at
+`…/scratchpad/expression_lines.txt` — every actor/expression with its cues — so the
+plate pass is a lookup rather than a re-derivation.

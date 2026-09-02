@@ -65,8 +65,12 @@ reference_ids = ["cover_style"]
 # hand) are deliberately absent from this brief; each is composited into its
 # own clearance zone.
 [scene]
-brief = """The motor court of an original closed 1972 department store at night, \
-seen from beneath a stone canopy lit from below. Straight ahead, a tall display \
+brief = """OUTDOORS at night, in the open motor court of an original closed 1972 \
+department store, and unmistakably outdoors: a heavy stone porte-cochere canopy \
+overhead lit from beneath by small recessed lamps, wet dark paving underfoot \
+reflecting the window light, and the cold blue-black city street visible past the \
+canopy piers. Not a lobby, not an interior, no polished floor and no ceiling but \
+the canopy soffit. This is the same court as the establishing plate, seen closer. Straight ahead, a tall display \
 window glows amber against cold blue-black stone and empty street: inside it six \
 blank-faced mannequins in evening dress, four standing and two seated on low \
 plinths, are turned inward toward an empty seventh chair raised on a single \
@@ -79,7 +83,7 @@ rail has a short section left open, a black rectangle, with a small red push \
 button mounted beside it; a steel lip runs beneath the gallery and a long scrape \
 crosses the painted wall lower down. At the right of the glass, a narrow stage \
 door stands ajar beside a guard's booth, and an elderly guard in a gray uniform \
-with no cap stands a few feet from the glass. At the left, an open service door \
+with no cap stands close to the glass, only two or three paces from it. At the left, an open service door \
 shows a narrow vestibule holding a service lift and a plain flush door with a \
 small wired-glass pane. No readable text, lettering, numerals or branding \
 anywhere in the image."""
