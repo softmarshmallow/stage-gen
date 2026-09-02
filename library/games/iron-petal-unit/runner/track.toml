@@ -8,7 +8,7 @@ schema_version = 3
 kind = "runner-track-v3"
 game_id = "iron-petal-unit"
 track_id = "halcyon-rescue-line"
-revision = 2
+revision = 3
 display_name = "Halcyon Rescue Line"
 
 [view]
@@ -69,7 +69,8 @@ layer_id = "canopy_trusses"
 reference_ids = ["greenhouse_runway"]
 plane = "foreground"
 order = 0
-parallax = 0.72
+# Locked to the ground: the truss is the room's own ceiling, not a nearer plane.
+parallax = 1.0
 alpha_mode = "transparent"
 vertical_anchor = "screen_top"
 prompt = "A sparse upper-edge foreground strip of cream-and-coral greenhouse truss, thin graphite cables, and short hanging vines with a few small leaves and flowers. Keep all painted content inside the top third with a clean readable underside and native transparency below; never create an overhead gameplay obstacle, character, robot, pickup, sign, text, or dense curtain. Left and right edges must join with the same truss height and motif density."
@@ -78,8 +79,8 @@ prompt = "A sparse upper-edge foreground strip of cream-and-coral greenhouse tru
 contrast = 1.04
 saturation = 1.02
 atmosphere_color = "#b8dcf0"
-atmosphere_strength = 0.03
-detail_blur_screen_pixels = 0.15
+atmosphere_strength = 0.0
+detail_blur_screen_pixels = 0.0
 
 [ground]
 mode = "runner-structural-ground-v1"
