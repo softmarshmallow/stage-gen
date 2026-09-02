@@ -51,10 +51,10 @@ export interface CutInView extends FxView {
 
 export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): CutInView {
   const { viewWidth, viewHeight, depth } = options;
-  const groupWidth = viewWidth;
-  const groupHeight = Math.round(
-    (viewWidth * options.frame.canvas.height) / options.frame.canvas.width,
-  );
+  // Even dimensions: a dynamic texture rounds an odd side up, which would
+  // leave the eraser stretched a pixel short of the silhouette it erases.
+  const groupWidth = even(viewWidth);
+  const groupHeight = even((viewWidth * options.frame.canvas.height) / options.frame.canvas.width);
   const centreY = viewHeight / 2;
 
   const scrim = scene.add
@@ -149,6 +149,9 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
     stageTexture.fill(BACKDROP_COLOR, 1);
     stageTexture.draw([stripes, portrait]);
     stageTexture.erase(eraser);
+    // Phaser 4 only queues those four calls; nothing reaches the framebuffer
+    // until the buffer is rendered, and an unrendered buffer just grows.
+    stageTexture.render();
   }
 
   function drawBanner(x: number, y: number): void {
@@ -206,6 +209,11 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
       scene.textures.remove(eraserKey);
     },
   };
+}
+
+function even(value: number): number {
+  const rounded = Math.round(value);
+  return rounded % 2 === 0 ? rounded : rounded + 1;
 }
 
 /** White wherever the plate is transparent, transparent wherever it is painted. */

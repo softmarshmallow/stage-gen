@@ -2,8 +2,9 @@
 //
 // Every genre's manifest embeds this block identically, so every genre parses
 // it here. The mask polygon is geometry the validate node traced from the
-// plate's eroded alpha; a consumer draws it as a geometry mask and never reads
-// pixels to rediscover it.
+// plate's eroded alpha — the portable form of the silhouette, for a consumer
+// that clips by geometry rather than by the plate's own alpha. Either way the
+// consumer is handed the shape and never reads pixels to rediscover it.
 
 import { CUT_IN_CHOREOGRAPHY_NAMES, type CutInChoreographyName } from "@/lib/fx/cut-in";
 

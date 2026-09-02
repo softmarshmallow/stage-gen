@@ -141,9 +141,10 @@ fx = null | {
 ```
 
 The block is identical in every consumer's manifest, so every genre parses it with the one
-module `web/lib/manifest/fx.ts`. A consumer draws `mask_polygon` as a geometry mask
-positioned with the rip and never reads pixels to rediscover it. `asset` paths are run
-artifacts; the plates and their validation records are published like any other.
+module `web/lib/manifest/fx.ts`. `mask_polygon` is the portable form of the silhouette, for a
+consumer that clips by geometry; either way a consumer is handed the shape and never reads
+pixels to rediscover it. `asset` paths are run artifacts; the plates and their validation
+records are published like any other.
 
 ## Choreography
 
@@ -174,9 +175,12 @@ tick, evaluates the choreography, drives the view, and emits `fx-released` once 
 `fx-finished` at the end; it reads nothing else about the world. The genre's own loop decides
 what *held* means: the runner holds an `intro` phase and leaves it on `fx-released`; the
 platformer will hold its map-rebuild boundary. `buildCutInView(scene, …)` is the Phaser
-adapter: screen-space objects positioned from the frame's numbers each tick, the portrait,
-backdrop, and stripes clipped by a geometry mask built from `mask_polygon`, the plate drawn
-once more in multiply for the ink, and the lettering from the two strings the host passes.
+adapter: screen-space objects positioned from the frame's numbers each tick; the interior —
+backdrop, stripes, portrait — composed into one dynamic texture and clipped by erasing the
+frame plate's inverse alpha from it, because Phaser 4's WebGL renderer has no geometry mask;
+the plate drawn once more in multiply for the ink; and the lettering from the two strings the
+host passes. A dynamic texture buffers its draw calls, so the composite is rendered explicitly
+each tick — an unrendered buffer draws nothing and grows without bound.
 
 ## Growing the vocabulary
 
