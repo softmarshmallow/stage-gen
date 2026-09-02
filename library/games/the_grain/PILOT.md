@@ -13,18 +13,37 @@ This file is the director's first read. It is written as the run goes, not at th
 
 *(rewritten at the freeze)*
 
-At 06:08 — T+24 — the episode has a spine. `scenario-v2` (five slots, `origin` on flag
-declarations) and `case-v1` (beats, outcome edges, a fact dataflow) are landed and green.
-`cases/episode_one.toml` is authored and **admitted**: eight beats, 67 facts. Three of six
-scenarios admit. Nine character profiles and both room documents exist. The style plate is
-chosen and promoted. The music adapter is proven and the office track is generated.
+**Episode One of *The Grain* plays, start to finish, at one URL, on generated art.**
 
-Seven lanes are running: art (profiles → plates → stages → rooms → UI → three tracks),
-contract (liveness projection, flag cap), scene (`dialogue-scene-v4`), consumer (five
-slots, shell, case route), story A (the table), story B (the window, the court, the
-statements), QA (prose against the novel).
+```
+http://localhost:3000/case/the-grain-episode-one
+```
 
-Nothing plays end to end yet.
+Eight beats — six scenarios and two point-and-click rooms — chained by an authored `case-v1`
+container and played through its `case-runtime-v1` projection. Beat 1 opens on Calder
+Investigations in late afternoon: the blinds, the fan, the filing cabinet, the frosted-glass
+door with the painted name reversed on it, and Los Angeles out the window. Ruth arrives in
+the oxblood dress and the camel coat and says *"I remembered you were a liar."*
+
+From these run tags:
+
+| Beat | Run |
+|---|---|
+| `b_office`, `b_way_in`, `b_table`, `b_coffee`, `b_the_court`, `b_statements` | `the-grain-scene-4` |
+| `b_motor_court` | `the-grain-motor-court-3` |
+| `b_window` | `the-grain-window-3` |
+| the case projection | `the-grain-episode-one` |
+
+**What is in it.** 872 authored cues across six scenarios, of which 872 are lifted from the
+novel or written inside the outline's permitted list and **none is attributed to the wrong
+person**. Two inspect-only rooms, 20 hotspots, both proven solvable. Twelve stage backdrops,
+thirty-two cast plates at eight actors × four authored expressions, four music tracks, a
+shared UI atlas. Sixty-nine facts crossing beat boundaries, of which 48 are Wednesday's
+board handed to Thursday.
+
+**What is not in it.** No save slots, no skip-already-read, no preferences. The window
+room's scrape is narrated and not depicted. The art is photoreal where the brief asked for
+gouache. Nothing is reviewed.
 
 ---
 
@@ -1106,7 +1125,20 @@ hand arrested halfway to a bare head" rather than "startled". Catching this stop
 
 ## 4. Screenshots
 
-*(filled from the freeze backwards)*
+Held under `out/`. The director's visual review list, in the order it should be looked at:
+
+| What | Path |
+|---|---|
+| The style plate, chosen from six | `library/games/the_grain/references/cover.png` |
+| The five rejected candidates | `out/the-grain-cover/candidate-{2..6}.png` |
+| Twelve stage backdrops | `out/the-grain-scene-4/assets/stage-*.png` |
+| Thirty-two cast plates | `out/the-grain-scene-4/assets/<actor>-<expression>.png` |
+| Four music tracks | `out/the-grain-scene-4/assets/track-*.mp3` |
+| The motor court, before | `out/the-grain-motor-court-3/assets/backdrop.png` |
+| The window, after | `out/the-grain-window-3/assets/backdrop.png` |
+| Nine exploration plates, not shipped | `out/the-grain-cast/` + `EXPLORATION.md` |
+
+QA's play-through captures are the in-play evidence and are listed in section 5.
 
 ---
 
@@ -1123,6 +1155,20 @@ hand arrested halfway to a bare head" rather than "startled". Catching this stop
 - Rooms nested under one package rather than given a member type in the room contract.
 - The placeholder `scenarios/chapter_one.*` predated the narrative lock and was deleted at
   05:57 rather than bumped to the v2 identity.
+- **The window room's `scrape` is narrated and not depicted.** The fact stays obtainable
+  because it is one of the two the outline says step 6a of the argument needs; the plate
+  never drew a long scrape on the scenic wall. Fixing it means a brief change, which
+  re-imagines the composition and throws away all eleven measured hit-area rectangles.
+- **The man lies in front of the chair rather than partly behind it**, his shoulder about
+  30px clear of the steel column the novel puts it against. Third roll got the chair right
+  and not the contact.
+- **`six_figures` in the window room is a narrow hit area on the two left-hand figures**,
+  not a box spanning all six, because a wide box would sit first in the interaction list and
+  swallow every click meant for the moon, the chair, the body and the paper. A player
+  clicking the figures on the right gets one of those instead.
+- **Gate 4 as written in the brief was impossible** and was split; see the 05:52 decision.
+- Individual generated image sidecars under `out/` carry no rights block, though the run
+  bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false`.
 - The ledger enforces the 250 ceiling against an operation count and a rate, because the
   provenance sidecars carry no `usd` figure. Drift risk, not overrun risk; named, not hidden.
 
