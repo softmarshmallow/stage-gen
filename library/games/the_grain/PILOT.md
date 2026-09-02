@@ -1502,3 +1502,40 @@ exists, and the two things a person would notice first — that the supper reads
 standing figures, and that the murder scene's evidence sits on blank wall — were both found
 by playing rather than by proving. Everything this run is confident about, it is confident
 about because someone looked.
+
+---
+
+## 8. Gates
+
+The brief's eight, with what each actually returned.
+
+| # | Gate | Result |
+|---|---|---|
+| 1 | `scenario check` on every scenario, digests written | **pass** — all six admit: 8 / 7 / 42 / 41 / 40,727 / 14,565 reachable states |
+| 2 | Room proofs, `puzzle.validation.json` present | **pass** — both rooms solvable, zero unreachable interactions, real artifacts rather than dry-run stubs |
+| 3 | The case proof | **pass** — admitted **and bound**: 8 beats, 69 facts, every leaf resolved and every declaration checked against it in both directions |
+| 4 | `validate_game_package.py --root .` | **split, both halves pass.** The gate as written was impossible — it required the promoted closure to be ours while forbidding edits to `main.toml`. (a) the promoted closure still validates; (b) our package is proven by its leaf tools. See the 05:52 decision. |
+| 5 | `scripts/check.py`, credential-free | **pass** — `ruff format` 548 files, `ruff check` clean, `mypy --strict` clean over 421 source files, offline pytest green |
+| 6 | `cd web && bun run check && bun test` | **pass** — `tsc` clean, **1379 tests pass, 0 fail** |
+| 7 | Manifests and provenance; no absolute paths | **pass** — every run carries its manifest; zero absolute paths, temp paths or credential-shaped strings across all four shipped runs; the bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false` |
+| 8 | A full play-through with a reload and a Continue | **partly.** Resume is **proven** — a reload mid-episode into a fresh tab offered the save and Continue landed on the same line. The two full passes are QA's and are in section 5. |
+
+**Beat resolution**, checked directly rather than assumed — every one of the eight resolves
+to artifacts that exist:
+
+```
+b_office        the-grain-scene-5         bundle ✓  scenario e1_office ✓
+b_motor_court   the-grain-motor-court-3   manifest ✓ room ✓ proof ✓
+b_way_in        the-grain-scene-5         bundle ✓  scenario e1_way_in ✓
+b_table         the-grain-scene-5         bundle ✓  scenario e1_table ✓
+b_coffee        the-grain-scene-5         bundle ✓  scenario e1_coffee ✓
+b_window        the-grain-window-3        manifest ✓ room ✓ proof ✓
+b_the_court     the-grain-scene-5         bundle ✓  scenario e1_the_court ✓
+b_statements    the-grain-scene-5         bundle ✓  scenario e1_statements ✓
+```
+
+**What the gates did not catch**, and it is the pilot's sharpest lesson: a room whose only
+exit could not be clicked passed gate 2 with *solvable, 16 states, zero unreachable
+interactions*; an episode drawn in the wrong medium passed every gate there is. Both were
+found by a person looking at the output. **Every gate here is offline, exact, and blind to
+the picture.**
