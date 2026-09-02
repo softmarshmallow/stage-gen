@@ -154,6 +154,7 @@ def test_structural_graph_adds_one_shared_local_bridge_without_provider_fanout(
         "local": 18,
         "image_generation": 10,
         "structured_generation": 2,
+        "tool_loop": 0,
         "music_generation": 2,
         "sound_effect_generation": 1,
     }

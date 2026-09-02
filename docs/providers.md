@@ -249,6 +249,24 @@ Primary sources:
 - [OpenRouter audio output](https://openrouter.ai/docs/guides/overview/multimodal/audio)
 - [Provider-native music guide](https://ai.google.dev/gemini-api/docs/music-generation?hl=en)
 
+## Tool loops through OpenRouter
+
+The tool-loop modality (`docs/spec/gnode-rings.md`) drives a vision-capable chat
+model through OpenRouter's chat-completions endpoint with function tools:
+`tools=[{type: function, function: {name, description, parameters, strict}}]`,
+`tool_choice: "required"`, and `provider: {require_parameters: true}`, so a route
+that cannot honour strict tools is refused rather than silently degraded. Tool
+results go back as `role: tool` text; an image a tool rendered follows as one
+`role: user` message carrying it, because tool messages are text-only in that
+wire format. The model is `TEXT_MODEL` (the structured route's model); the
+route is declared as `openrouter-tool-loop` with the `tool_use` and
+`image_input` features. One episode is one provider operation in the attempt
+ledger; the provenance sidecar's `response.trace` lists every tool call with
+its arguments and outcome, and never an image.
+
+The first consumer is the cut-in placement agent (`docs/spec/game/fx.md`),
+bounded at six looks per portrait.
+
 ## Retry policy
 
 Each provider operation receives one initial attempt plus five blind retries

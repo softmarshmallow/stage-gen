@@ -17,7 +17,7 @@ the SDK grows above it.
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
 | 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, trace, run view, model bindings, reliability, provenance contracts | no — media-free by lint |
-| 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, music, background removal (`gnode/modalities/`) | yes — modality-generic only |
+| 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, background removal (`gnode/modalities/`) | yes — modality-generic only |
 | 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal` (`gnode/providers/`) | yes |
 | 3 | standard nodes | individually promoted, cross-domain node types | empty by policy (see below) |
 
@@ -49,6 +49,7 @@ protocol with a hard version in its name and a `spec_version` marker, replaced
 | --- | --- | --- |
 | `ImageModelV1` | image generation and masked edits | `generate_once` |
 | `StructuredModelV1` | schema-strict structured output | `generate_once` |
+| `ToolLoopModelV1` | one turn of a bounded tool-using episode | `step` |
 | `MusicModelV1` | instrumental music generation | `generate_once` |
 | `SoundEffectModelV1` | text-to-sound-effect generation | `generate_once` |
 | `BackgroundRemovalModelV1` | foreground matting | `remove_once` |
@@ -64,6 +65,21 @@ Each modality package owns three things and nothing else:
   backoff), caller validation, and rollback-safe atomic artifact-plus-sidecar
   persistence. Identity strings in provenance are supplied by the application;
   the engine ships no brand.
+
+**The tool loop is the one service that loops.** `ToolLoopService.run` owns an
+*episode*: the model is handed caller-supplied pure tools (JSON-schema'd, executed by
+the caller's handlers), a system prompt, instructions, references, and a budget, and
+must end by calling the reserved `submit` tool with a payload the caller parses and
+admits. The service seeds the transcript, calls the model one turn at a time through
+the ordinary retry owner (a step's transport is retried, the loop is not), executes
+each tool call and feeds its text — and any image it rendered — back, treats an
+admission failure as a tool error the model may correct, and stops on the first
+admitted submit or when the step or token budget is spent, in which case it refuses
+rather than guesses. The artifact is the admitted record; the sidecar's `response`
+carries the per-step trace (tool, arguments, outcome — never image bytes), and
+`attempts` counts episodes, which is one. The sandbox is exactly the tool list: no
+filesystem, no network, no path the caller did not hand over. Its first consumer is
+the cut-in placement agent (`docs/spec/game/fx.md`).
 
 `BackgroundRemovalModelV1` is the honest wart of the set: its request
 transcribes one vendor's matting surface rather than a neutral matting
@@ -92,11 +108,12 @@ and the versioned-spec naming. It diverges deliberately:
 
 A provider adapter belongs in the engine when it is **essential and actively
 dogfooded** — used in production by this repository's own application. The
-current set is OpenAI (direct image route), OpenRouter (image, structured,
-music), and fal (background removal). Adapters are one attempt by contract:
-retry, caller validation, and persistence live in the ring-1 service. Adapters
-never read the environment; every constructor takes its key explicitly, and
-credential loading stays with the application.
+current set is OpenAI (direct image route), OpenRouter (image, structured, tool
+loop, music), and fal (background removal). Adapters are one attempt by
+contract — for the tool loop, one *turn* — and retry, caller validation, and
+persistence live in the ring-1 service. Adapters never read the environment;
+every constructor takes its key explicitly, and credential loading stays with
+the application.
 
 An adapter for an application-owned component protocol (today: the masked
 image-repeat edit backend) stays in the application beside its protocol.

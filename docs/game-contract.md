@@ -335,7 +335,7 @@ does not by itself define a core game contract.
   `game-fx-v1` contracts.
   Provider-free
   integration emits `prepared-game-runtime-v10` for the platformer member
-  and `sideview-runner-runtime-v8` for the runner member.
+  and `sideview-runner-runtime-v9` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an

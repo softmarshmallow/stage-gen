@@ -1,26 +1,29 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v8`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v9`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone. v8
- * keeps everything v7 proved - the arc and duck arithmetic, the separate
+ * is deep-frozen. The runtime plays a track from this document alone. v9
+ * keeps everything v8 proved - the arc and duck arithmetic, the separate
  * `collision_box` / `consequences` / `vitals` trio, the closed ground
- * presentation, generated audio clips, the authored music transitions - and
- * adds the optional `fx` block: the screen-FX plates and moment bindings a
- * stage start plays before the run begins.
+ * presentation, generated audio clips, the authored music transitions, the
+ * optional `fx` block - and gives every cut-in portrait its judged
+ * `placement` inside the frame, so the runtime draws what the reviewer saw.
  */
 
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v8";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 8;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v9";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 9;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
-export const RUNNER_DAMAGE_SOURCES = ["hazard", "pit", "crush"] as const;
+/** The sources every run answers, whatever it authors. */
+export const RUNNER_TRACK_DAMAGE_SOURCES = ["hazard", "pit", "crush"] as const;
+/** Plus `shot`, which only an encounter can deliver and only it may answer. */
+export const RUNNER_DAMAGE_SOURCES = [...RUNNER_TRACK_DAMAGE_SOURCES, "shot"] as const;
 export type RunnerDamageSource = (typeof RUNNER_DAMAGE_SOURCES)[number];
 
 export const RUNNER_CONSEQUENCES = ["end_run_v1", "drain_v1", "drain_and_recover_v1"] as const;
@@ -32,7 +35,13 @@ export const RUNNER_DRAINING_CONSEQUENCES: ReadonlySet<RunnerConsequence> = new 
   "drain_and_recover_v1",
 ]);
 
-export type RunnerConsequences = Readonly<Record<RunnerDamageSource, RunnerConsequence>>;
+export type RunnerTrackDamageSource = (typeof RUNNER_TRACK_DAMAGE_SOURCES)[number];
+export type RunnerConsequences = Readonly<
+  Record<RunnerTrackDamageSource, RunnerConsequence> & {
+    /** Null exactly when the package declares no encounter. */
+    readonly shot: RunnerConsequence | null;
+  }
+>;
 
 export type RunnerVitals = Readonly<{
   profile: "single_point_v1" | "three_point_v1" | "five_point_v1";
@@ -57,21 +66,30 @@ const MAX_SEGMENT_ROWS = 32;
 const MIN_SEGMENT_COLUMNS = 8;
 const MAX_SEGMENT_COLUMNS = 64;
 
-export type RunnerMotionState = "run" | "jump" | "slide" | "hurt" | "death";
+export type RunnerMotionState = "run" | "jump" | "slide" | "fly" | "hurt" | "death";
 
 /**
  * The canonical motion order, mirroring the generator's RUNNER_MOTION_ORDER.
  * `run`, `jump`, and `death` are owed by every avatar; `slide` is owed
- * exactly when the manifest declares a duck profile, and `hurt` exactly when
- * it declares `hurt_representation = "drawn_v1"`.
+ * exactly when the manifest declares a duck profile, `fly` exactly when it
+ * declares an encounter, and `hurt` exactly when it declares
+ * `hurt_representation = "drawn_v1"`.
  */
 export const RUNNER_MOTION_STATES: readonly RunnerMotionState[] = [
   "run",
   "jump",
   "slide",
+  "fly",
   "hurt",
   "death",
 ];
+
+/**
+ * The states drawn as a cycle rather than a one-shot, mirroring the
+ * generator's RUNNER_LOOP_STATES: both are sustained conditions rather than
+ * events.
+ */
+export const RUNNER_LOOPING_MOTION_STATES: readonly RunnerMotionState[] = ["run", "fly"];
 
 export const RUNNER_BASE_MOTION_STATES: readonly RunnerMotionState[] = [
   "run",
@@ -154,6 +172,13 @@ export interface RunnerPickupPlacement {
 export interface RunnerChunk {
   readonly segmentId: string;
   readonly difficulty: number;
+  /**
+   * What the chunk is for. `arena` is the flat floor an encounter is fought
+   * over: never drawn by the difficulty band, streamed on demand while a boss
+   * is present. Optional on the wire so a package that fights nothing says
+   * nothing.
+   */
+  readonly role?: "run" | "arena";
   /** Row 0 is the top; a column is supported when its bottom row is "1". */
   readonly occupancy: readonly string[];
   readonly hazards: readonly RunnerHazardPlacement[];
@@ -610,9 +635,21 @@ function chunk(
     pickups.map((entry) => `${entry.column}:${entry.row}`),
     `${label} pickup cells`,
   );
+  const role =
+    raw.role === undefined || raw.role === null
+      ? "run"
+      : literal(raw.role, `${label}.role`, ["run", "arena"]);
+  if (role === "arena") {
+    // The generator proved the arena flat and empty offline; the runtime says
+    // so again because a manifest is a wire format, and a hazard reaching the
+    // fight would sit in the lane the salvo has to leave open.
+    if (hazards.length > 0) throw new Error(`${label} is an arena and carries no hazards`);
+    if (pickups.length > 0) throw new Error(`${label} is an arena and carries no pickups`);
+  }
   return Object.freeze({
     segmentId: text(raw.segment_id, `${label}.segment_id`),
     difficulty: boundedInteger(raw.difficulty, `${label}.difficulty`, 1, 10),
+    role,
     occupancy: Object.freeze(occupancy),
     hazards: Object.freeze(hazards),
     pickups: Object.freeze(pickups),
@@ -740,8 +777,9 @@ function motion(value: unknown, label: string): RunnerMotion {
     }
   }
   const playbackMode = literal(raw.playback_mode, `${label}.playback_mode`, ["loop", "once"]);
-  if ((state === "run") !== (playbackMode === "loop")) {
-    throw new Error(`${label} state ${state} must play ${state === "run" ? "loop" : "once"}`);
+  const loops = RUNNER_LOOPING_MOTION_STATES.includes(state);
+  if (loops !== (playbackMode === "loop")) {
+    throw new Error(`${label} state ${state} must play ${loops ? "loop" : "once"}`);
   }
   return Object.freeze({
     state,
@@ -958,19 +996,24 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   // documents the producer refuses, and reproducing that refusal here is what
   // keeps the two sides one contract rather than two hopeful ones.
   const rawConsequences = record(rawGameplay.consequences, "gameplay.consequences");
-  const consequences = Object.freeze(
-    Object.fromEntries(
-      RUNNER_DAMAGE_SOURCES.map((source) => [
+  const consequences = Object.freeze({
+    ...Object.fromEntries(
+      RUNNER_TRACK_DAMAGE_SOURCES.map((source) => [
         source,
         literal(rawConsequences[source], `gameplay.consequences.${source}`, [
           ...RUNNER_CONSEQUENCES,
         ]),
       ]),
     ),
-  ) as RunnerConsequences;
-  const drains = RUNNER_DAMAGE_SOURCES.some((source) =>
-    RUNNER_DRAINING_CONSEQUENCES.has(consequences[source]),
-  );
+    shot:
+      rawConsequences.shot === null || rawConsequences.shot === undefined
+        ? null
+        : literal(rawConsequences.shot, "gameplay.consequences.shot", [...RUNNER_CONSEQUENCES]),
+  }) as RunnerConsequences;
+  const drains = RUNNER_DAMAGE_SOURCES.some((source) => {
+    const consequence = consequences[source];
+    return consequence !== null && RUNNER_DRAINING_CONSEQUENCES.has(consequence);
+  });
   const rawVitals =
     rawGameplay.vitals === null || rawGameplay.vitals === undefined
       ? null

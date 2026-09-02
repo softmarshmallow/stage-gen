@@ -24,6 +24,7 @@ from gnode import (
     SoundEffectGenerationRequest,
     SoundEffectGenerationService,
     StructuredGenerationService,
+    ToolLoopService,
     inspect_image,
 )
 from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend
@@ -33,6 +34,7 @@ from gnode.providers.openrouter import (
     OpenRouterImageBackend,
     OpenRouterMusicBackend,
     OpenRouterStructuredBackend,
+    OpenRouterToolLoopBackend,
 )
 from stage_gen.components.audio_normalization import (
     AudioNormalizationRequest,
@@ -47,6 +49,7 @@ from stage_gen.identity import (
     SOUND_EFFECT_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
+    TOOL_LOOP_COMPONENT,
 )
 
 if TYPE_CHECKING:
@@ -107,6 +110,21 @@ def create_structured_service(
     return StructuredGenerationService(
         OpenRouterStructuredBackend(api_key=api_key, model=model, base_url=base_url),
         component=STRUCTURED_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
+        retry_policy=retry_policy,
+    )
+
+
+def create_tool_loop_service(
+    *,
+    api_key: str,
+    model: str,
+    base_url: str = "https://openrouter.ai/api/v1",
+    retry_policy: RetryPolicy | None = None,
+) -> ToolLoopService[dict[str, object]]:
+    return ToolLoopService(
+        OpenRouterToolLoopBackend(api_key=api_key, model=model, base_url=base_url),
+        component=TOOL_LOOP_COMPONENT,
         tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )

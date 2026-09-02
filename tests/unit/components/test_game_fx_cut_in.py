@@ -14,13 +14,26 @@ from stage_gen.components.game_fx import (
     CUT_IN_PORTRAIT,
     MASK_POLYGON_MAX_VERTICES,
     CutInAdmissionError,
+    admit_cut_in_placement,
+    band_span_at,
     canonicalize_plate,
+    compose_hold_frame,
     cut_in_evidence,
     draw_procedural_frame,
+    polygon_centroid,
     trace_band_polygon,
     validate_frame_plate,
     validate_portrait_plate,
 )
+
+_SHA = "a" * 64
+_PLACEMENT = {"scale": 0.45, "x": 0.5, "y": 0.52, "rationale": "Eyes in the upper band."}
+
+
+def _admitted(**overrides: object) -> dict[str, object]:
+    return admit_cut_in_placement(
+        {**_PLACEMENT, **overrides}, portrait_sha256=_SHA, frame_sha256=_SHA
+    )
 
 
 def _png(image: Image.Image) -> bytes:
@@ -169,26 +182,103 @@ def test_canonicalization_clears_only_the_exterior_and_publishes_geometry() -> N
     assert facts["pixel_rewrite"] == "alpha_exterior_clear_v1"
     json.dumps(facts)  # the record is plain JSON
 
-    _portrait, portrait_facts = canonicalize_plate(portrait_plate(), CUT_IN_PORTRAIT)
+    _portrait, portrait_facts = canonicalize_plate(
+        portrait_plate(), CUT_IN_PORTRAIT, placement=_admitted()
+    )
     assert portrait_facts["geometry"]["role"] == "portrait"
     assert "alpha_rect" in portrait_facts["geometry"]
     assert "mask_polygon" not in portrait_facts["geometry"]
+    # The placement a consumer reads is the three numbers, not the admission envelope.
+    assert portrait_facts["geometry"]["placement"] == {"scale": 0.45, "x": 0.5, "y": 0.52}
+    _bare, bare_facts = canonicalize_plate(portrait_plate(), CUT_IN_PORTRAIT)
+    assert "placement" not in bare_facts["geometry"]
 
 
-def test_evidence_composes_the_portrait_through_the_frames_polygon() -> None:
+def test_evidence_composes_the_portrait_at_its_placement_through_the_frames_polygon() -> None:
     frame, frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
-    portrait, portrait_facts = canonicalize_plate(portrait_plate(), CUT_IN_PORTRAIT)
+    # A small portrait parked at the right of the band: the left of the band shows
+    # the backdrop, the placed centre shows the portrait's skin colour.
+    placement = _admitted(scale=0.3, x=0.75, y=0.5)
+    portrait, portrait_facts = canonicalize_plate(
+        portrait_plate(), CUT_IN_PORTRAIT, placement=placement
+    )
     portrait_facts["frame_geometry"] = frame_facts["geometry"]
     evidence = cut_in_evidence(portrait, portrait_facts, frame_data=frame)
     with Image.open(io.BytesIO(evidence)) as opened:
         assert opened.width == 1280
-        # The composed half shows the backdrop through the mask beside the portrait:
-        # vermilion (or its stripe) at the band's centre near the left edge.
-        band_y = round((0.5 * 1024 - 40 * 0.08) * 640 / 1536)
-        pixel = opened.convert("RGB").getpixel((640 + round(120 * 640 / 1536), band_y))
-    assert isinstance(pixel, tuple)
-    r, _g, b = pixel[:3]
-    assert r > 180 and b < 120
+        rgb = opened.convert("RGB")
+        half = 640 / 1536
+        band_y = round((0.5 * 1024 - 40 * 0.08) * half)
+        left = rgb.getpixel((640 + round(120 * half), band_y))
+        centre = rgb.getpixel((640 + round(0.75 * 1536 * half), band_y))
+    assert isinstance(left, tuple) and isinstance(centre, tuple)
+    assert left[0] > 180 and left[2] < 120  # vermilion backdrop, or its stripe
+    assert abs(centre[0] - 210) < 25 and abs(centre[1] - 160) < 25  # the portrait's skin
     frame_only = cut_in_evidence(frame, frame_facts)
     with Image.open(io.BytesIO(frame_only)) as opened:
         assert opened.width == 1280
+
+
+def test_hold_frame_puts_the_portrait_centre_where_the_placement_says() -> None:
+    frame, frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
+    polygon = frame_facts["geometry"]["mask_polygon"]
+    small = compose_hold_frame(frame, portrait_plate(), polygon, placement=_admitted(scale=0.2))
+    large = compose_hold_frame(frame, portrait_plate(), polygon, placement=_admitted(scale=0.6))
+    # Same centre, the larger scale reaches further along the band's centre line.
+    probe_y = round(0.5 * 1024)
+    far_x = round((0.5 + 0.18) * 1536)
+    small_pixel = small.getpixel((far_x, probe_y))
+    large_pixel = large.getpixel((far_x, probe_y))
+    assert isinstance(small_pixel, tuple) and isinstance(large_pixel, tuple)
+    assert small_pixel[0] > 180 and small_pixel[2] < 120  # backdrop beyond a small portrait
+    assert abs(large_pixel[0] - 210) < 25 and abs(large_pixel[1] - 160) < 25
+    with pytest.raises(ValueError, match="needs a placement"):
+        compose_hold_frame(frame, portrait_plate(), polygon)
+
+
+def test_band_geometry_helpers_read_the_traced_polygon() -> None:
+    _frame, frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
+    polygon = frame_facts["geometry"]["mask_polygon"]
+    centre_x, centre_y = polygon_centroid(polygon)
+    assert 0.45 < centre_x < 0.55
+    assert 0.45 < centre_y < 0.55
+    top, bottom = band_span_at(polygon, 0.5)
+    assert 0.25 < top < 0.45 and 0.55 < bottom < 0.75
+    with pytest.raises(ValueError, match="no band"):
+        band_span_at([[0.0, 0.3], [0.5, 0.3], [0.5, 0.7], [0.0, 0.7]], 0.9)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"scale": 0.0}, "scale must be between"),
+        ({"scale": 3.0}, "scale must be between"),
+        ({"x": float("nan")}, "x must be a finite number"),
+        ({"y": 5}, "y must be between"),
+        ({"scale": "0.5"}, "scale must be a finite number"),
+        ({"rationale": "  "}, "must carry a rationale"),
+    ],
+)
+def test_each_broken_placement_promise_is_named(overrides: dict[str, object], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        _admitted(**overrides)
+
+
+def test_placement_admission_binds_the_plates_and_rounds_the_numbers() -> None:
+    record = admit_cut_in_placement(
+        {"scale": 0.44444444, "x": 0.5, "y": 0.52, "rationale": "  fits  the band "},
+        portrait_sha256="p" * 64,
+        frame_sha256="f" * 64,
+    )
+    assert record == {
+        "schema_version": 1,
+        "kind": "fx-cut-in-placement-v1",
+        "scale": 0.4444,
+        "x": 0.5,
+        "y": 0.52,
+        "rationale": "fits the band",
+        "portrait_sha256": "p" * 64,
+        "frame_sha256": "f" * 64,
+    }
+    with pytest.raises(ValueError, match="must be an object"):
+        admit_cut_in_placement([0.5], portrait_sha256=_SHA, frame_sha256=_SHA)

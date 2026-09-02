@@ -1,10 +1,10 @@
 # Screen FX: transitions and overlays
 
 > **Contract maturity: exact-current authored contract.** Executable authority:
-> `src/stage_gen/components/game_fx/` (contract, plate gates, and the recipe-neutral node set)
-> and `web/lib/fx/` (the pure choreography, the generic moment system, the Phaser view).
-> The runner is the first host (`docs/spec/game/runner.md`); every other genre adopts the
-> family through the two host contracts at the end of this page.
+> `src/stage_gen/components/game_fx/` (contract, plate gates, placement admission, and the
+> recipe-neutral node set) and `web/lib/fx/` (the pure choreography, the generic moment
+> system, the Phaser view). The runner is the first host (`docs/spec/game/runner.md`);
+> every other genre adopts the family through the two host contracts at the end of this page.
 
 `fx.toml` is the game-global source of truth for generated **screen FX**: the plates a game
 slams over its screen at a *moment*, and the binding from each moment to the effect that
@@ -66,6 +66,7 @@ fade. Separating it afterwards is a segmentation problem, not a transform.
 | `frame` — one torn strip, flat white fill, black ink rim | style-scoped, character-agnostic | binary | the image model, or a local procedural drawing |
 | `portrait` — one die-cut close-up | character-scoped, bound to the same digest-locked references the actor uses | soft edge admitted | the image model |
 | backdrop, stripes, lettering | runtime | — | the consumer |
+| placement — where the portrait sits inside the frame's band | judged once per portrait | — | the tool-loop agent (below) |
 | choreography | consumer | — | `web/lib/fx/cut-in.ts` |
 
 The frame plate does three jobs at runtime: its silhouette is the mask, drawn as-is it is
@@ -121,11 +122,37 @@ read as a top edge left to right and a bottom edge back, each simplified to at m
 64 vertices, normalized to the canvas. The procedural frame passes the same gate and
 publishes the same polygon, so a consumer never learns which producer it was handed.
 
+## Placement: the agent decides, the pipeline renders
+
+Where the portrait sits inside the band — its scale and its centre — is taste, not truth.
+No formula owns it. The family hands the job to a **tool-loop agent**, the engine's bounded
+micro agent (`docs/spec/gnode-rings.md`): a vision model given the portrait plate, the
+frame plate, a starting composition, the band's measured geometry, one tool
+(`render_with_placement`, which draws the hold frame exactly as the game will), and a
+budget of six looks. It renders, looks, adjusts, and ends by calling `submit`. What it
+submits is *data*, never pixels:
+
+```text
+placement = { scale, x, y }   # scale: portrait display height ÷ frame canvas height
+                              # (x, y): portrait canvas centre in frame-canvas units;
+                              #         may lie outside 0..1
+```
+
+Admission (`admit_cut_in_placement`) is pixel-blind on purpose — finite numbers inside the
+declared ranges, a rationale, and the sha256 of both plates the agent looked at — so a cache
+mirror re-admits a stored placement structurally and refuses one judged over other plates.
+A budget spent without an admitted submit is a refused node, not a guess. The agent's
+instructions carry the taste (eyes in the band's upper-middle, mouth inside, hair and
+shoulders may bleed); the two former runtime constants are gone, and so is the reviewer's
+job of policing them.
+
 One structured review per generated plate judges what the pixel gate cannot: style
 coherence with the references and a torn-edge reading for the frame; identity match with the
 references, the authored expression, and cropping for the portrait; text-freedom for both.
 The reviewer sees the plate over a checkerboard beside the composed hold frame drawn through
-the published polygon, which is exactly what the game shows.
+the published polygon with the portrait at its admitted placement, which is exactly what the
+game shows. A producer never accepts its own work: the placement agent and the reviewer are
+two calls with two jobs.
 
 ## Manifest projection
 
@@ -134,7 +161,8 @@ fx = null | {
   cut_in: null | {
     frame: { role, mode, layout, alpha_policy, canvas {width, height},
              mask_polygon [[x, y], ...], band_rect {x, y, width, height}, mask_erode_px, asset },
-    portraits: [ { portrait_id, role, layout, alpha_policy, canvas, alpha_rect, asset } ]
+    portraits: [ { portrait_id, role, layout, alpha_policy, canvas, alpha_rect,
+                   placement {scale, x, y}, asset } ]
   },
   moments: [ { moment, effect, portrait_id, choreography } ]
 }
@@ -161,8 +189,9 @@ gone.
 
 **Generation.** `add_cut_in_nodes(builder, root=…, fx=…, style_prompt=…, direction_digests=…,
 attempts_port=…)` adds the frame's producer (generate or draw), its validate and, for a
-generated frame, its review, then one generate → validate → review chain per portrait. A
-portrait's validate depends on the frame's, so its reviewer judges the real composition. The
+generated frame, its review, then one generate → place → validate → review chain per
+portrait. The place node is the tool-loop episode; the portrait's validate depends on the
+frame's and on the placement, so its reviewer judges the real composition. The
 host supplies a barrier root id, the document, a prompt wrapper for its art direction, its
 direction digests, an attempts-port factory where it keeps ledgers, and a `file(source)`
 accessor — the same shape the UI atlas asks for — and the runner hosts it in one call. The
@@ -176,11 +205,13 @@ tick, evaluates the choreography, drives the view, and emits `fx-released` once 
 what *held* means: the runner holds an `intro` phase and leaves it on `fx-released`; the
 platformer will hold its map-rebuild boundary. `buildCutInView(scene, …)` is the Phaser
 adapter: screen-space objects positioned from the frame's numbers each tick; the interior —
-backdrop, stripes, portrait — composed into one dynamic texture and clipped by erasing the
+backdrop, stripes, the portrait at its published `placement` with the choreography's slide
+and push-in riding on top — composed into one dynamic texture and clipped by erasing the
 frame plate's inverse alpha from it, because Phaser 4's WebGL renderer has no geometry mask;
 the plate drawn once more in multiply for the ink; and the lettering from the two strings the
 host passes. A dynamic texture buffers its draw calls, so the composite is rendered explicitly
-each tick — an unrendered buffer draws nothing and grows without bound.
+each tick — an unrendered buffer draws nothing and grows without bound. The portrait's
+arithmetic is the same in PIL and in Phaser: centre at `(x·W, y·H)`, height `scale·H`.
 
 ## Growing the vocabulary
 

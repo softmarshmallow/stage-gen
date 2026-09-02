@@ -16,6 +16,7 @@ from stage_gen.provider_env import load_provider_dotenv
 
 class CapabilityName(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
+    TOOL_LOOP = "tool_loop"
     IMAGE_GENERATION = "image_generation"
     NATIVE_IMAGE_GENERATION = "native_image_generation"
     BACKGROUND_REMOVAL = "background_removal"
@@ -158,6 +159,7 @@ def assert_capabilities(
             capability
             in {
                 CapabilityName.STRUCTURED_GENERATION,
+                CapabilityName.TOOL_LOOP,
                 CapabilityName.IMAGE_GENERATION,
                 CapabilityName.MUSIC_GENERATION,
             }

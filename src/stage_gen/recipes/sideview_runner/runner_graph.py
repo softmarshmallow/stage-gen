@@ -30,7 +30,7 @@ from gnode import (
     seal_graph,
 )
 from gnode.providers.openai import supports_openai_native_alpha_model
-from stage_gen.components.game_fx.nodes import add_cut_in_nodes
+from stage_gen.components.game_fx.nodes import TOOL_LOOP_FEATURES, add_cut_in_nodes
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
@@ -151,6 +151,7 @@ class RunnerOperationKind(StrEnum):
     LOCAL = "local"
     IMAGE_GENERATION = "image_generation"
     STRUCTURED_GENERATION = "structured_generation"
+    TOOL_LOOP = "tool_loop"
     MUSIC_GENERATION = "music_generation"
     SOUND_EFFECT_GENERATION = "sound_effect_generation"
 
@@ -217,6 +218,18 @@ def runner_graph_profile(config: StageGenConfig) -> BindingTable:
                 estimated_cost_low_usd=0.005,
                 estimated_cost_high_usd=0.08,
                 verified_on="2026-08-20",
+            ),
+            # One episode is bounded at six looks; the ceiling is a six-step
+            # transcript of images on a frontier vision model.
+            Binding(
+                operation=RunnerOperationKind.TOOL_LOOP,
+                model=ModelRef(model=config.text_model, provider="openrouter"),
+                features=frozenset(TOOL_LOOP_FEATURES),
+                resource_id="openrouter-tool-loop",
+                estimated_duration_seconds=120.0,
+                estimated_cost_low_usd=0.02,
+                estimated_cost_high_usd=0.60,
+                verified_on="2026-09-03",
             ),
             Binding(
                 operation=RunnerOperationKind.MUSIC_GENERATION,

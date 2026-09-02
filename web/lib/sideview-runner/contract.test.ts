@@ -523,8 +523,10 @@ describe("the verb obligations", () => {
   });
 
   test("the runtime's motion order mirrors the generator's declaration", async () => {
-    const { RUNNER_MOTION_STATES } = await import("./contract");
-    expect(RUNNER_MOTION_STATES).toEqual(["run", "jump", "slide", "hurt", "death"]);
+    const { RUNNER_MOTION_STATES, RUNNER_LOOPING_MOTION_STATES } = await import("./contract");
+    expect(RUNNER_MOTION_STATES).toEqual(["run", "jump", "slide", "fly", "hurt", "death"]);
+    // Both sustained conditions loop; every other state is an event.
+    expect(RUNNER_LOOPING_MOTION_STATES).toEqual(["run", "fly"]);
   });
 });
 
@@ -536,6 +538,8 @@ describe("the vitals and consequence contract", () => {
       hazard: "drain_v1",
       pit: "drain_and_recover_v1",
       crush: "end_run_v1",
+      // A package with no encounter has no shot to answer for.
+      shot: null,
     });
     expect(manifest.gameplay.vitals).toEqual({
       profile: "three_point_v1",
@@ -636,8 +640,8 @@ describe("the fx block", () => {
 
   test("the previous runtime identity is refused", () => {
     const document = validRunnerManifest();
-    document.kind = "sideview-runner-runtime-v7";
-    document.schema_version = 7;
+    document.kind = "sideview-runner-runtime-v8";
+    document.schema_version = 8;
     expect(() => parseRunnerRuntimeManifest(document)).toThrow(RUNNER_REFUSAL);
   });
 });

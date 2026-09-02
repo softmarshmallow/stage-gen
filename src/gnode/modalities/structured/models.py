@@ -1,46 +1,20 @@
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar, Literal, Protocol
 
 from gnode.modalities._types import (
+    REFERENCE_URL_RE,
     ProviderResponseMetadata,
+    canonicalize_strict_json_schema,
     validate_optional_number,
     validate_optional_timeout,
 )
 from gnode.reliability import CancellationToken
 
-_REFERENCE_RE = re.compile(r"^(?:https?://|data:image/[^;,]+;base64,)", re.IGNORECASE)
-
-# OpenAI-compatible strict structured-output transports accept a deliberately
-# small JSON Schema subset. Caller validation remains authoritative for these
-# assertion keywords after decoding.
-_UNSUPPORTED_STRICT_ASSERTIONS = frozenset(
-    {
-        "contains",
-        "format",
-        "maxContains",
-        "maxItems",
-        "maxLength",
-        "maxProperties",
-        "maximum",
-        "minContains",
-        "minItems",
-        "minLength",
-        "minProperties",
-        "minimum",
-        "multipleOf",
-        "pattern",
-        "patternProperties",
-        "propertyNames",
-        "unevaluatedItems",
-        "unevaluatedProperties",
-        "uniqueItems",
-    }
-)
+__all__ = ["canonicalize_strict_json_schema"]  # re-exported for the flat surface
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +25,7 @@ class StructuredReference:
     def __post_init__(self) -> None:
         if not self.url.strip():
             raise ValueError("structured reference url must be non-empty")
-        if not _REFERENCE_RE.match(self.url):
+        if not REFERENCE_URL_RE.match(self.url):
             raise ValueError("structured references must be HTTP(S) URLs or base64 image data URLs")
 
 
@@ -75,34 +49,6 @@ class StructuredOutputSchema:
                 "json_schema",
                 canonicalize_strict_json_schema(self.json_schema),
             )
-
-
-def canonicalize_strict_json_schema(value: Mapping[str, object]) -> dict[str, object]:
-    """Canonicalize the common strict-output subset before transport/provenance."""
-
-    normalized = _canonicalize_schema_value(value)
-    if not isinstance(normalized, dict):
-        raise TypeError("strict json_schema must normalize to an object")
-    return normalized
-
-
-def _canonicalize_schema_value(value: object) -> object:
-    if isinstance(value, list):
-        return [_canonicalize_schema_value(item) for item in value]
-    if not isinstance(value, Mapping):
-        return value
-    result: dict[str, object] = {}
-    for key, item in value.items():
-        if not isinstance(key, str):
-            raise ValueError("JSON Schema keys must be strings")
-        if key == "default" or key in _UNSUPPORTED_STRICT_ASSERTIONS:
-            continue
-        result[key] = _canonicalize_schema_value(item)
-    properties = result.get("properties")
-    if isinstance(properties, Mapping):
-        result["required"] = list(properties)
-        result["additionalProperties"] = False
-    return result
 
 
 @dataclass(frozen=True, slots=True)

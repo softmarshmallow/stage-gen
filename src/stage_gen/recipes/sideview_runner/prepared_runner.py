@@ -38,6 +38,8 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
+    ToolLoopReference,
+    ToolLoopService,
     assert_audio_signature,
     assert_image_signature,
     atomic_write_json,
@@ -48,6 +50,7 @@ from gnode import (
 )
 from stage_gen.canonical import content_sha256
 from stage_gen.components.game_fx.cut_in import (
+    admit_cut_in_placement,
     draw_procedural_frame,
     validate_frame_plate,
     validate_portrait_plate,
@@ -55,15 +58,20 @@ from stage_gen.components.game_fx.cut_in import (
 from stage_gen.components.game_fx.nodes import (
     FX_CUT_IN_DRAW,
     FX_CUT_IN_GENERATE,
+    FX_CUT_IN_PLACE,
+    FX_CUT_IN_PLACEMENT_KIND,
+    FX_CUT_IN_PLATE_KIND,
     FX_CUT_IN_RAW_KIND,
     FX_CUT_IN_REVIEW,
     FX_CUT_IN_VALIDATE,
     FX_CUT_IN_VALIDATION_KIND,
     FxCutInHost,
     cut_in_generate_request,
+    cut_in_place_request,
     cut_in_review_request,
     derive_cut_in_validation,
     fx_manifest_block,
+    parse_cut_in_review,
     write_cut_in_draw,
     write_cut_in_validation,
 )
@@ -139,6 +147,7 @@ from stage_gen.identity import (
     SOUND_EFFECT_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
+    TOOL_LOOP_COMPONENT,
 )
 from stage_gen.media import RegistrationError, probe_audio, validate_music_payload
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
@@ -711,6 +720,7 @@ class SideviewRunnerNodeHandler:
         cache_dir: Path,
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[Any],
+        tool_loop_service: ToolLoopService[dict[str, object]] | None = None,
         music_service: MusicGenerationService | None = None,
         sound_effect_service: SoundEffectGenerationService | None = None,
         capability_timeout_s: float | None = None,
@@ -722,6 +732,7 @@ class SideviewRunnerNodeHandler:
         self._run_dir = run_dir
         self._images = image_service
         self._structured = structured_service
+        self._tool_loop = tool_loop_service
         self._music = music_service
         self._sound_effects = sound_effect_service
         self._timeout = capability_timeout_s
@@ -872,6 +883,9 @@ class SideviewRunnerNodeHandler:
             return
         if node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
             self._admit_structured_bundle(node, bundle)
+            return
+        if node.operation == RunnerOperationKind.TOOL_LOOP:
+            self._admit_tool_loop_bundle(node, bundle)
             return
         if node.operation != RunnerOperationKind.LOCAL:
             if output_selection != "provider_output":
@@ -1322,7 +1336,7 @@ class SideviewRunnerNodeHandler:
 
     @staticmethod
     def _reference_identity(
-        references: Sequence[ImageReference | StructuredReference],
+        references: Sequence[ImageReference | StructuredReference | ToolLoopReference],
     ) -> tuple[list[str], list[dict[str, object]]]:
         refs = [
             reference.provenance_ref or sanitize_reference(reference.url)
@@ -1416,6 +1430,48 @@ class SideviewRunnerNodeHandler:
                 "schema": "caller-validated",
             }
             component = STRUCTURED_GENERATION_COMPONENT
+            seed = None
+            rights = None
+        elif node.type_id == FX_CUT_IN_PLACE.type_id:
+            # The episode's identity is what the agent was given, never the path
+            # it took: instructions, system, tools, budget, and the admitted
+            # record. Rebuilt from the restored plates by the shared builder.
+            place_request = cut_in_place_request(
+                self._fx_host(), self._graph, node, read=self._read_run_artifact
+            )
+            refs, inputs = self._reference_identity(place_request.references)
+            place_system = place_request.system or ""
+            params = {
+                "instructions_sha256": content_sha256(place_request.instructions.encode("utf-8")),
+                "tools": [
+                    {
+                        "name": spec.name,
+                        "description": spec.description,
+                        "parameters": dict(spec.parameters),
+                    }
+                    for spec in place_request.tool_specs
+                ],
+                "submit_schema": dict(place_request.submit_schema),
+                "strict": True,
+                "require_parameters": True,
+                "max_steps": place_request.max_steps,
+                "system": place_system,
+                "system_sha256": content_sha256(place_system.encode("utf-8")),
+                "max_total_tokens": place_request.max_total_tokens,
+                "metadata": dict(place_request.metadata),
+                "artifact_value": "caller-canonicalized",
+                "validated": True,
+            }
+            canonical_placement = self._strict_json_object(
+                artifact_data, label=f"{node.node_id} placement artifact"
+            )
+            validation = {
+                "submitted": True,
+                "json": "parsed",
+                "schema": "caller-validated",
+                **canonical_placement,
+            }
+            component = TOOL_LOOP_COMPONENT
             seed = None
             rights = None
         elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
@@ -1790,7 +1846,27 @@ class SideviewRunnerNodeHandler:
             result[cast("str", state)] = number
         return result
 
+    def _admit_tool_loop_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
+        if node.type_id != FX_CUT_IN_PLACE.type_id:
+            raise ValueError(f"unknown runner tool-loop cache node {node.type_id}")
+        record_ref = self._provider_output_ref(node)
+        record = self._strict_json_object(bundle[record_ref], label=record_ref)
+        raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
+        frame_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLATE_KIND)
+        expected = admit_cut_in_placement(
+            record,
+            portrait_sha256=content_sha256((self._run_dir / raw_ref).read_bytes()),
+            frame_sha256=content_sha256((self._run_dir / frame_ref).read_bytes()),
+        )
+        self._require_equal(record, expected, label=f"{node.node_id} admitted placement")
+
     def _admit_structured_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
+        if node.type_id == FX_CUT_IN_REVIEW.type_id:
+            # The shared family's verdict: a well-formed review is the whole
+            # admission, its identity is proved by the provenance pair.
+            verdict_ref = self._provider_output_ref(node)
+            parse_cut_in_review(self._strict_json_object(bundle[verdict_ref], label=verdict_ref))
+            return
         avatar = self._runner.avatar.avatar
         states = list(declared_motion_states(avatar))
         frames = self._state_frames(node)
@@ -2059,13 +2135,25 @@ class SideviewRunnerNodeHandler:
         if node.type_id == FX_CUT_IN_VALIDATE.type_id:
             raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
             frame_record: dict[str, object] | None = None
+            frame_data: bytes | None = None
+            placement_record: dict[str, object] | None = None
             if str(node.params["plate"]) == "portrait":
                 record_ref = self._dependency_artifact(node, kind=FX_CUT_IN_VALIDATION_KIND)
                 frame_record = self._strict_json_object(
                     (self._run_dir / record_ref).read_bytes(), label=record_ref
                 )
+                frame_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLATE_KIND)
+                frame_data = (self._run_dir / frame_ref).read_bytes()
+                placement_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLACEMENT_KIND)
+                placement_record = self._strict_json_object(
+                    (self._run_dir / placement_ref).read_bytes(), label=placement_ref
+                )
             canonical, record, _facts = derive_cut_in_validation(
-                (self._run_dir / raw_ref).read_bytes(), node, frame_record=frame_record
+                (self._run_dir / raw_ref).read_bytes(),
+                node,
+                frame_record=frame_record,
+                frame_data=frame_data,
+                placement_record=placement_record,
             )
             self._admit_local_image_and_record(node, bundle, image=canonical, validation=record)
             return
@@ -2134,6 +2222,7 @@ class SideviewRunnerNodeHandler:
         registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
         registry.register(FX_CUT_IN_GENERATE, self._bind(self._generate_fx_plate))
         registry.register(FX_CUT_IN_DRAW, self._bind(self._draw_fx_frame))
+        registry.register(FX_CUT_IN_PLACE, self._bind(self._place_fx_portrait))
         registry.register(FX_CUT_IN_VALIDATE, self._bind(self._validate_fx_plate))
         registry.register(FX_CUT_IN_REVIEW, self._bind(self._review_fx_plate))
         registry.register(MANIFEST_ASSEMBLE, self._bind(self._assemble_manifest))
@@ -2214,6 +2303,8 @@ class SideviewRunnerNodeHandler:
                 if any(port.port_id == "verification" for port in node.ports)
                 else "reading"
             )
+        elif node.operation == RunnerOperationKind.TOOL_LOOP:
+            preferred = "placement"
         elif node.operation in {
             RunnerOperationKind.MUSIC_GENERATION,
             RunnerOperationKind.SOUND_EFFECT_GENERATION,
@@ -3033,6 +3124,16 @@ class SideviewRunnerNodeHandler:
     async def _draw_fx_frame(self, node: Node) -> NodeExecutionResult:
         await write_cut_in_draw(self._fx_host(), node)
         return self._result(node)
+
+    async def _place_fx_portrait(self, node: Node) -> NodeExecutionResult:
+        if self._tool_loop is None:
+            raise ValueError("runner execution needs a tool-loop service to place a cut-in")
+        request = cut_in_place_request(
+            self._fx_host(), self._graph, node, read=self._read_run_artifact
+        )
+        tool_loop = self._tool_loop
+        result = await self._execute_provider_operation(node, lambda: tool_loop.run(request))
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _validate_fx_plate(self, node: Node) -> NodeExecutionResult:
         await write_cut_in_validation(

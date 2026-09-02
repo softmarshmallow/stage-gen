@@ -28,6 +28,7 @@ from stage_gen.orchestration.runtime import (
     create_openai_image_service,
     create_sound_effect_service,
     create_structured_service,
+    create_tool_loop_service,
 )
 from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
 from stage_gen.recipes.sideview_runner.runner_graph import (
@@ -142,6 +143,11 @@ class SideviewRunnerExecutor:
             model=self._config.text_model,
             base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
         )
+        tool_loop_service = create_tool_loop_service(
+            api_key=self._config.open_router_api_key,
+            model=self._config.text_model,
+            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
+        )
         music_service = (
             create_music_service(
                 api_key=self._config.open_router_api_key,
@@ -172,6 +178,7 @@ class SideviewRunnerExecutor:
             cache_dir=cache_dir,
             image_service=image_service,
             structured_service=structured_service,
+            tool_loop_service=tool_loop_service,
             music_service=music_service,
             sound_effect_service=sound_effect_service,
             capability_timeout_s=self._config.capability_timeout_s,
@@ -187,6 +194,7 @@ class SideviewRunnerExecutor:
             trace.close()
             await image_service.aclose()
             await structured_service.aclose()
+            await tool_loop_service.aclose()
             if music_service is not None:
                 await music_service.aclose()
             if sound_effect_service is not None:

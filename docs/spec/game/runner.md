@@ -363,7 +363,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v8`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v9`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -439,13 +439,14 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "13d550836916b280cf73699bb6496e081a003775ce217cf2cadb82f999f37ec8",
-  "node_count": 82,
+  "topology_sha256": "e77e5de18cbcd813ea0d9a98337173956bee616f38fae45df81fcd5681867f30",
+  "node_count": 83,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
     "local": 44,
     "image_generation": 29,
     "structured_generation": 4,
+    "tool_loop": 1,
     "music_generation": 2,
     "sound_effect_generation": 3
   },
@@ -469,6 +470,12 @@ rather than only the atlas branch. Regenerate with
       "rate_limit_owner": "none"
     },
     {
+      "resource_id": "openrouter-tool-loop",
+      "max_in_flight": null,
+      "requests_per_minute": null,
+      "rate_limit_owner": "none"
+    },
+    {
       "resource_id": "openrouter-music",
       "max_in_flight": null,
       "requests_per_minute": null,
@@ -485,9 +492,12 @@ rather than only the atlas branch. Regenerate with
 ```
 <!-- pipeline-graph-contract:end -->
 
-For the exact Iron Petal Unit fixture, the normal graph contains 35 first-pass
+For the exact Iron Petal Unit fixture, the normal graph contains 36 first-pass
 provider operations. Provider transport retries and later semantic
 regenerations are reported by their owning node and are not extra graph nodes.
+One of those operations is a *tool loop*: a bounded episode in which the
+placement agent renders, looks, and adjusts before it submits — many model
+turns, one operation, one attempt ledger.
 Every provider node also publishes one attempt-ledger artifact that binds the exact graph-visible
 prompt, records unsuccessful operations neutrally as `not_selected` when the failure stage is not
 known, and distinguishes provider, fallback, local, or absent output selection. A selected provider
@@ -495,16 +505,16 @@ artifact carries its digest. A cache hit restores that original generation ledge
 current hit/miss telemetry stays in the execution trace so it cannot perturb downstream cache
 lineage.
 
-| Domain | Concrete expansion | Image | Structured | Music | Sound | Local |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| World | 11 segments × (guide + structural paint + canonicalize), one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 17 | 0 | 0 | 0 | 26 |
-| Avatar | One combined rider-machine concept, 4 motion strips and validations, two whole-silhouette motion-rebase judgements | 5 | 2 | 0 | 0 | 4 |
-| Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 0 | 5 |
-| Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 2 | 0 | 2 |
-| Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 3 | 3 |
-| Screen FX | One cut-in frame plate and one `stage_start` portrait plate, each generated, admitted (mask polygon traced), and reviewed | 2 | 2 | 0 | 0 | 2 |
-| Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **82 nodes** | **29** | **4** | **2** | **3** | **44** |
+| Domain | Concrete expansion | Image | Structured | Tool loop | Music | Sound | Local |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| World | 11 segments × (guide + structural paint + canonicalize), one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 17 | 0 | 0 | 0 | 0 | 26 |
+| Avatar | One combined rider-machine concept, 4 motion strips and validations, two whole-silhouette motion-rebase judgements | 5 | 2 | 0 | 0 | 0 | 4 |
+| Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 0 | 0 | 5 |
+| Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
+| Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
+| Screen FX | One cut-in frame plate and one `stage_start` portrait plate, each generated, admitted (mask polygon traced), and reviewed; the portrait placed inside the frame by one tool-loop episode before admission | 2 | 2 | 1 | 0 | 0 | 2 |
+| Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
+| **Total** | **83 nodes** | **29** | **4** | **1** | **2** | **3** | **44** |
 
 ## Resolution and admission
 

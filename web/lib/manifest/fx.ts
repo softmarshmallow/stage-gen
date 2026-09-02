@@ -43,12 +43,24 @@ export interface FxCutInFrame {
   readonly asset: string;
 }
 
+/**
+ * Where the portrait sits inside the frame, as the placement agent judged it:
+ * the portrait canvas centre in frame-canvas units (may lie outside 0..1) and
+ * its display height as a fraction of the frame canvas height.
+ */
+export interface FxCutInPlacement {
+  readonly scale: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface FxCutInPortrait {
   readonly portraitId: string;
   readonly layout: typeof CUT_IN_PORTRAIT_LAYOUT;
   readonly alphaPolicy: typeof CUT_IN_PORTRAIT_ALPHA_POLICY;
   readonly canvas: FxCanvas;
   readonly alphaRect: FxRect;
+  readonly placement: FxCutInPlacement;
   readonly asset: string;
 }
 
@@ -99,6 +111,24 @@ function integer(value: unknown, label: string, minimum = 0): number {
     throw new Error(`${label} must be an integer of at least ${minimum}`);
   }
   return value;
+}
+
+function finite(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number`);
+  }
+  return value;
+}
+
+function placement(value: unknown, label: string): FxCutInPlacement {
+  const source = record(value, label);
+  const scale = finite(source.scale, `${label}.scale`);
+  if (scale <= 0) throw new Error(`${label}.scale must be positive`);
+  return Object.freeze({
+    scale,
+    x: finite(source.x, `${label}.x`),
+    y: finite(source.y, `${label}.y`),
+  });
 }
 
 function rect(value: unknown, label: string): FxRect {
@@ -172,6 +202,7 @@ export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
         ]),
         canvas: canvas(raw.canvas, `${portraitLabel}.canvas`),
         alphaRect: rect(raw.alpha_rect, `${portraitLabel}.alpha_rect`),
+        placement: placement(raw.placement, `${portraitLabel}.placement`),
         asset: text(raw.asset, `${portraitLabel}.asset`),
       });
     });
@@ -238,6 +269,7 @@ export function fxBlockFixture(): Record<string, unknown> {
           alpha_policy: CUT_IN_PORTRAIT_ALPHA_POLICY,
           canvas: { width: 1536, height: 1024 },
           alpha_rect: { x: 120, y: 0, width: 1300, height: 1024 },
+          placement: { scale: 0.44, x: 0.5, y: 0.53 },
           asset: "fx/cut_in/portrait.stage_start.png",
         },
       ],

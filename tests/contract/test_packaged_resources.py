@@ -165,7 +165,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # (package, models, service), the elevenlabs provider adapter (package,
         # backend), and the stage_gen sound_effect component (package, model,
         # admission) (measured 218).
-        assert len(wheel_entries) <= 223
+        # The tool-loop agent (2026-09-03) adds four: the gnode tool_loop
+        # modality (package, models, service) and its OpenRouter adapter
+        # (measured 228 with the screen-FX family in between).
+        assert len(wheel_entries) <= 228
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -246,7 +249,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # node set, and package init, the two focused test modules, the spec page,
         # and the recipe-neutral UI atlas node module extracted in the same
         # window (454).
-        assert len(sdist_entries) <= 454
+        # The tool-loop agent (2026-09-03) adds the modality and adapter above plus
+        # their unit tests and the runner-side placement tests (measured 468 beside
+        # the encounter pass that landed the same day).
+        assert len(sdist_entries) <= 468
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -263,7 +269,8 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # tests, and the authored contract page) measured 5.92 MB; the ceiling was 6.0 MB.
         # The screen-FX family (contract, plate gate with the polygon trace, node set,
         # focused tests, spec page) measured 6.11 MB; the ceiling is 6.2 MB.
-        assert sum(sdist_entries.values()) < 6_200_000
+        # The tool-loop agent (2026-09-03): measured 6.30 MB; the ceiling is 6.4 MB.
+        assert sum(sdist_entries.values()) < 6_400_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

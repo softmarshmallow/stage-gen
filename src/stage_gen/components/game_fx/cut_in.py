@@ -21,6 +21,7 @@ import io
 import math
 import random
 from collections import deque
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -63,6 +64,14 @@ MASK_ERODE_PX = 22
 MASK_POLYGON_MAX_VERTICES = 64
 _MASK_TRACE_FACTOR = 4
 _COMPONENT_FACTOR = 8
+
+#: The placement the agent submits: the portrait canvas centre in frame-canvas
+#: normalized units and its display height as a fraction of the frame height.
+#: Ranges are admission, not taste; taste lives in the agent's instructions.
+CUT_IN_PLACEMENT_KIND = "fx-cut-in-placement-v1"
+PLACEMENT_SCALE_RANGE = (0.10, 2.0)
+PLACEMENT_CENTRE_RANGE = (-1.0, 2.0)
+PLACEMENT_RATIONALE_MAX = 600
 
 PlateRole = Literal["frame", "portrait"]
 
@@ -405,6 +414,87 @@ def trace_band_polygon(
     ]
 
 
+# --- placement ---------------------------------------------------------------------------
+
+
+def polygon_centroid(polygon: list[list[float]]) -> tuple[float, float]:
+    """Area centroid of a closed polygon in normalized units (shoelace)."""
+
+    area = 0.0
+    cx = 0.0
+    cy = 0.0
+    for index, (x0, y0) in enumerate(polygon):
+        x1, y1 = polygon[(index + 1) % len(polygon)]
+        cross = x0 * y1 - x1 * y0
+        area += cross
+        cx += (x0 + x1) * cross
+        cy += (y0 + y1) * cross
+    if abs(area) < 1e-9:
+        raise ValueError("mask polygon encloses no area")
+    return cx / (3 * area), cy / (3 * area)
+
+
+def band_span_at(polygon: list[list[float]], x: float) -> tuple[float, float]:
+    """The polygon's lowest and highest y where the vertical line ``x`` crosses it."""
+
+    crossings: list[float] = []
+    for index, (x0, y0) in enumerate(polygon):
+        x1, y1 = polygon[(index + 1) % len(polygon)]
+        if min(x0, x1) <= x < max(x0, x1):
+            crossings.append(y0 + (x - x0) * (y1 - y0) / (x1 - x0))
+    if len(crossings) < 2:
+        raise ValueError(f"mask polygon has no band at x={x:.3f}")
+    return min(crossings), max(crossings)
+
+
+def admit_cut_in_placement(
+    value: object, *, portrait_sha256: str, frame_sha256: str
+) -> dict[str, object]:
+    """Admit the agent's submitted placement: finite, inside the declared ranges, bound to
+    the exact plates it looked at. Returns the canonical record a consumer reads."""
+
+    if not isinstance(value, Mapping):
+        raise ValueError("placement must be an object")
+    numbers: dict[str, float] = {}
+    for key, (low, high) in (
+        ("scale", PLACEMENT_SCALE_RANGE),
+        ("x", PLACEMENT_CENTRE_RANGE),
+        ("y", PLACEMENT_CENTRE_RANGE),
+    ):
+        raw = value.get(key)
+        if isinstance(raw, bool) or not isinstance(raw, int | float) or not math.isfinite(raw):
+            raise ValueError(f"placement {key} must be a finite number")
+        if not low <= raw <= high:
+            raise ValueError(f"placement {key} must be between {low:g} and {high:g}")
+        numbers[key] = round(float(raw), 4)
+    rationale = value.get("rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        raise ValueError("placement must carry a rationale")
+    return {
+        "schema_version": 1,
+        "kind": CUT_IN_PLACEMENT_KIND,
+        **numbers,
+        "rationale": " ".join(rationale.split())[:PLACEMENT_RATIONALE_MAX],
+        "portrait_sha256": portrait_sha256,
+        "frame_sha256": frame_sha256,
+    }
+
+
+def placement_transform(placement: Mapping[str, object]) -> tuple[float, float, float]:
+    """``(scale, x, y)`` off a placement record, refusing anything not admitted."""
+
+    values = []
+    for key in ("scale", "x", "y"):
+        raw = placement.get(key)
+        if isinstance(raw, bool) or not isinstance(raw, int | float) or not math.isfinite(raw):
+            raise ValueError(f"placement {key} must be a finite number")
+        values.append(float(raw))
+    scale, x, y = values
+    if not PLACEMENT_SCALE_RANGE[0] <= scale <= PLACEMENT_SCALE_RANGE[1]:
+        raise ValueError("placement scale lies outside the admitted range")
+    return scale, x, y
+
+
 # --- canonical form and projection -----------------------------------------------------
 
 
@@ -415,9 +505,12 @@ def _clear_exterior(image: Image.Image) -> Image.Image:
     return canonical
 
 
-def canonicalize_plate(data: bytes, plate: CutInPlate) -> tuple[bytes, dict[str, Any]]:
+def canonicalize_plate(
+    data: bytes, plate: CutInPlate, *, placement: Mapping[str, object] | None = None
+) -> tuple[bytes, dict[str, Any]]:
     """Validate, clear the already-transparent exterior to alpha 0, re-validate, and
-    measure the geometry a consumer needs. Never infers a silhouette."""
+    measure the geometry a consumer needs. Never infers a silhouette. A portrait's
+    geometry carries the admitted placement it was handed; a frame carries none."""
 
     validate = validate_frame_plate if plate.role == "frame" else validate_portrait_plate
     source_facts = validate(data)
@@ -432,6 +525,9 @@ def canonicalize_plate(data: bytes, plate: CutInPlate) -> tuple[bytes, dict[str,
         geometry["band_rect"] = canonical_facts["band_rect"]
     else:
         geometry["alpha_rect"] = canonical_facts["alpha_rect"]
+        if placement is not None:
+            scale, x, y = placement_transform(placement)
+            geometry["placement"] = {"scale": scale, "x": x, "y": y}
     facts: dict[str, Any] = {
         "source": source_facts,
         "canonical": canonical_facts,
@@ -515,12 +611,13 @@ def compose_hold_frame(
     portrait_data: bytes | None,
     mask_polygon: list[list[float]],
     *,
-    portrait_scale: float = 0.82,
-    portrait_dy: int = 10,
+    placement: Mapping[str, object] | None = None,
 ) -> Image.Image:
     """The cut-in at its hold beat, drawn exactly the way a runtime draws it: plate,
     then backdrop + stripes + portrait clipped by the published polygon, then the
-    plate's ink on top."""
+    plate's ink on top. The portrait sits where ``placement`` says — its canvas centre
+    at ``(x, y)`` in frame-canvas units, ``scale`` of the frame height tall — which is
+    the same arithmetic the runtime runs, so evidence and game agree."""
 
     with Image.open(io.BytesIO(frame_data)) as opened:
         plate = opened.convert("RGBA")
@@ -535,18 +632,23 @@ def compose_hold_frame(
             fill=_STRIPE,
         )
     if portrait_data is not None:
+        if placement is None:
+            raise ValueError("a portrait needs a placement to be composed")
+        scale, centre_x, centre_y = placement_transform(placement)
         with Image.open(io.BytesIO(portrait_data)) as opened:
             portrait = opened.convert("RGBA")
-        scale = portrait_scale * height / portrait.height
+        if abs(portrait.width / portrait.height - width / height) > 1e-3:
+            raise ValueError("portrait and frame canvases must share one aspect ratio")
+        factor = scale * height / portrait.height
         resized = portrait.resize(
-            (max(1, round(portrait.width * scale)), max(1, round(portrait.height * scale))),
+            (max(1, round(portrait.width * factor)), max(1, round(portrait.height * factor))),
             Image.Resampling.LANCZOS,
         )
         interior.alpha_composite(
             resized,
             (
-                round(width / 2 - resized.width / 2),
-                round(height / 2 - resized.height / 2 + portrait_dy),
+                round(centre_x * width - resized.width / 2),
+                round(centre_y * height - resized.height / 2),
             ),
         )
     composed = Image.new("RGBA", plate.size, (0, 0, 0, 0))
@@ -566,7 +668,6 @@ def cut_in_evidence(
     facts: dict[str, Any],
     *,
     frame_data: bytes | None = None,
-    portrait_data: bytes | None = None,
 ) -> bytes:
     """Reviewer evidence: the plate over a checkerboard on the left and, on the right,
     the composed hold frame drawn through the published polygon."""
@@ -576,13 +677,18 @@ def cut_in_evidence(
     geometry = cast(dict[str, Any], facts["geometry"])
     role = str(geometry["role"])
     if role == "frame":
-        composed = compose_hold_frame(plate_data, portrait_data, geometry["mask_polygon"])
+        composed = compose_hold_frame(plate_data, None, geometry["mask_polygon"])
     else:
         if frame_data is None:
             composed = None
         else:
             frame_facts = cast(dict[str, Any], facts["frame_geometry"])
-            composed = compose_hold_frame(frame_data, plate_data, frame_facts["mask_polygon"])
+            composed = compose_hold_frame(
+                frame_data,
+                plate_data,
+                frame_facts["mask_polygon"],
+                placement=cast(Mapping[str, object], geometry["placement"]),
+            )
     half = _EVIDENCE_WIDTH // 2
     left = plate.resize((half, round(plate.height * half / plate.width)), Image.Resampling.LANCZOS)
     canvas = _checkerboard((_EVIDENCE_WIDTH, left.height))
@@ -605,18 +711,25 @@ __all__ = [
     "CUT_IN_FRAME_LAYOUT",
     "CUT_IN_PLATES",
     "CUT_IN_PORTRAIT",
+    "CUT_IN_PLACEMENT_KIND",
     "CUT_IN_PORTRAIT_LAYOUT",
     "FRAME_ALPHA_POLICY",
     "MASK_ERODE_PX",
     "MASK_POLYGON_MAX_VERTICES",
+    "PLACEMENT_CENTRE_RANGE",
+    "PLACEMENT_SCALE_RANGE",
     "PORTRAIT_ALPHA_POLICY",
     "CutInAdmissionError",
     "CutInPlate",
+    "admit_cut_in_placement",
+    "band_span_at",
     "canonicalize_plate",
     "compose_hold_frame",
     "cut_in_evidence",
     "cut_in_plate_contract",
     "draw_procedural_frame",
+    "placement_transform",
+    "polygon_centroid",
     "trace_band_polygon",
     "validate_frame_plate",
     "validate_portrait_plate",

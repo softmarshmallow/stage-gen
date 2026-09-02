@@ -70,6 +70,7 @@ if TYPE_CHECKING:
         RunSummary,
         SoundEffectGenerationRequest,
         StructuredGenerationRequest,
+        ToolLoopRequest,
     )
 
 REPLAY_AUDIT_KIND = "sideview-runner-provider-cache-replay-audit-v1"
@@ -454,10 +455,14 @@ def _primary_provider_port(node: Node) -> tuple[str, str]:
         )
     elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
         port_id = (
-            "verification"
+            "verdict"
+            if any(port.port_id == "verdict" for port in node.ports)
+            else "verification"
             if any(port.port_id == "verification" for port in node.ports)
             else "reading"
         )
+    elif node.operation == RunnerOperationKind.TOOL_LOOP:
+        port_id = "placement"
     elif node.operation in {
         RunnerOperationKind.MUSIC_GENERATION,
         RunnerOperationKind.SOUND_EFFECT_GENERATION,
@@ -1572,6 +1577,17 @@ class _ReplayStructuredService:
         return await self._catalog.replay_structured(request)
 
 
+class _ReplayToolLoopService:
+    """Tool-loop episodes are not re-emitted from a recorded run yet: the transcript
+    is path-dependent and the family's replay contract is still to be written."""
+
+    async def run(self, request: ToolLoopRequest[Any]) -> object:
+        raise ProviderReplayMismatch(
+            f"tool-loop episode {Path(request.artifact_path).name} cannot be replayed; "
+            "re-run the placement live"
+        )
+
+
 class _ReplayMusicService:
     def __init__(self, catalog: _RecordedProviderCatalog) -> None:
         self._catalog = catalog
@@ -1597,6 +1613,9 @@ class _DenyProviderService:
     async def generate(self, _request: object) -> object:
         self.calls += 1
         raise ProviderReplayMismatch("cache-only verification attempted a provider operation")
+
+    async def run(self, _request: object) -> object:
+        return await self.generate(_request)
 
 
 class _ProviderSeedHandler:
@@ -1822,6 +1841,7 @@ async def revalidate_runner_provider_cache(
         cache_dir=scratch_cache,
         image_service=cast(Any, _ReplayImageService(catalog)),
         structured_service=cast(Any, _ReplayStructuredService(catalog)),
+        tool_loop_service=cast(Any, _ReplayToolLoopService()),
         music_service=cast(Any, _ReplayMusicService(catalog)),
         sound_effect_service=cast(Any, _ReplaySoundEffectService(catalog)),
         capability_timeout_s=config.capability_timeout_s,
@@ -1858,6 +1878,7 @@ async def revalidate_runner_provider_cache(
         cache_dir=scratch_cache,
         image_service=cast(Any, denied_image),
         structured_service=cast(Any, denied_structured),
+        tool_loop_service=cast(Any, _DenyProviderService()),
         music_service=cast(Any, denied_music),
         sound_effect_service=cast(Any, denied_sound_effect),
         capability_timeout_s=config.capability_timeout_s,

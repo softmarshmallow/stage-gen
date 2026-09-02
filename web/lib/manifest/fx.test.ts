@@ -47,6 +47,19 @@ describe("parseFxBlock", () => {
     expect(() => parseFxBlock(document)).toThrow("inside the unit canvas");
   });
 
+  test("refuses a portrait without a finite positive placement", () => {
+    const document = fxBlockFixture();
+    const cutIn = document.cut_in as Record<string, Record<string, unknown>[]>;
+    cutIn.portraits[0].placement = { scale: 0, x: 0.5, y: 0.5 };
+    expect(() => parseFxBlock(document)).toThrow("placement.scale must be positive");
+    cutIn.portraits[0].placement = { scale: 0.4, x: Number.NaN, y: 0.5 };
+    expect(() => parseFxBlock(document)).toThrow("placement.x must be a finite number");
+    delete cutIn.portraits[0].placement;
+    expect(() => parseFxBlock(document)).toThrow("placement must be an object");
+    const block = parseFxBlock(fxBlockFixture());
+    expect(block.cutIn?.portraits[0]?.placement).toEqual({ scale: 0.44, x: 0.5, y: 0.53 });
+  });
+
   test("refuses a layout or alpha policy the runtime does not draw", () => {
     const document = fxBlockFixture();
     const cutIn = document.cut_in as Record<string, Record<string, unknown>>;

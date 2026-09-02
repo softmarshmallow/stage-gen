@@ -29,10 +29,6 @@ export interface CutInViewOptions {
   readonly subtitle: string;
 }
 
-/** Portrait height as a fraction of the rip group's height, settled. */
-export const CUT_IN_PORTRAIT_HEIGHT_FRACTION = 0.82;
-/** Portrait vertical offset from the group centre, in group heights. */
-export const CUT_IN_PORTRAIT_DY_FRACTION = 0.01;
 /** Shadow offset under the rip, in group heights. */
 export const CUT_IN_SHADOW_OFFSET_FRACTION = 0.021;
 /** Stripe period, in group heights, and the stripe's slant. */
@@ -117,6 +113,10 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
   const objects = [scrim, shadow, plate, stage, ink, banner, title, subtitle];
 
   const portraitAspect = options.portrait.canvas.width / options.portrait.canvas.height;
+  // The placement agent judged this over the same composition the evidence shows:
+  // the portrait canvas centre in group units and its height as a fraction of the
+  // group height. The choreography's slide and push-in ride on top of it.
+  const { placement } = options.portrait;
 
   function drawStripes(phase: number): void {
     const period = CUT_IN_STRIPE_PERIOD_FRACTION * groupHeight;
@@ -138,12 +138,9 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
 
   function composeStage(frameState: CutInFrame): void {
     drawStripes(frameState.stripePhase);
-    const portraitHeight = CUT_IN_PORTRAIT_HEIGHT_FRACTION * groupHeight * frameState.bustScale;
+    const portraitHeight = placement.scale * groupHeight * frameState.bustScale;
     portrait
-      .setPosition(
-        groupWidth / 2 + frameState.bustDx * groupWidth,
-        groupHeight / 2 + CUT_IN_PORTRAIT_DY_FRACTION * groupHeight,
-      )
+      .setPosition((placement.x + frameState.bustDx) * groupWidth, placement.y * groupHeight)
       .setDisplaySize(portraitHeight * portraitAspect, portraitHeight);
     stageTexture.clear();
     stageTexture.fill(BACKDROP_COLOR, 1);

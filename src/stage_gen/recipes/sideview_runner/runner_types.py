@@ -56,9 +56,9 @@ SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v8"
+MANIFEST_KIND = "sideview-runner-runtime-v9"
 #: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 8
+MANIFEST_SCHEMA_VERSION = 9
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -263,9 +263,9 @@ MANIFEST_ASSEMBLE = NodeType(
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    # v9: the manifest gained the optional ``fx`` block (cut-in plates and
-    # moment bindings), so the runtime document moved to v8 with it.
-    contract_version="runner-manifest-assemble-v9",
+    # v10: every cut-in portrait publishes the placement the tool-loop agent
+    # judged inside the frame, so the runtime document moved to v9 with it.
+    contract_version="runner-manifest-assemble-v10",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (

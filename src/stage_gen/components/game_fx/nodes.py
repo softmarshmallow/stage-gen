@@ -11,21 +11,29 @@ an attempts-port factory where it keeps ledgers, and a ``file(source)`` accessor
 everything else. Nothing here reads a game, a genre, or a camera.
 
 Two seams are exported on purpose. The *request builders* (``cut_in_generate_request``,
-``cut_in_review_request``) and the *derivation* (``derive_cut_in_validation``) are what the
-handlers run, and they are also what a host with a strict cache mirror re-runs to prove a
-restored artifact is exactly what today's contract would produce. One function, two callers,
-no drift.
+``cut_in_place_request``, ``cut_in_review_request``) and the *derivation*
+(``derive_cut_in_validation``) are what the handlers run, and they are also what a host with a
+strict cache mirror re-runs to prove a restored artifact is exactly what today's contract would
+produce. One function, two callers, no drift.
+
+The portrait's *placement* inside the frame's band is taste, not truth, so no formula owns it:
+a bounded tool-loop agent renders the composition, looks, adjusts, and submits a placement
+record the pixel-level admission then binds to the exact plates it saw. The agent decides;
+the pipeline renders.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, cast
+
+from PIL import Image
 
 from gnode import (
     AuthoredInput,
@@ -51,6 +59,12 @@ from gnode import (
     StructuredGenerationService,
     StructuredOutputSchema,
     StructuredReference,
+    Tool,
+    ToolInvocationError,
+    ToolLoopReference,
+    ToolLoopRequest,
+    ToolLoopService,
+    ToolResult,
     ViewArchetype,
     atomic_write_json,
     dependency_port,
@@ -58,12 +72,20 @@ from gnode import (
 )
 from stage_gen.components.game_fx.cut_in import (
     CUT_IN_FRAME,
+    CUT_IN_PLACEMENT_KIND,
     CUT_IN_PORTRAIT,
+    PLACEMENT_CENTRE_RANGE,
+    PLACEMENT_SCALE_RANGE,
     CutInPlate,
+    admit_cut_in_placement,
+    band_span_at,
     canonicalize_plate,
+    compose_hold_frame,
     cut_in_evidence,
     cut_in_plate_contract,
     draw_procedural_frame,
+    placement_transform,
+    polygon_centroid,
     validate_frame_plate,
     validate_portrait_plate,
 )
@@ -78,22 +100,38 @@ _PROVIDER = NodePolicy(max_attempts=6)
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
+TOOL_LOOP_FEATURES = ("tool_use", "image_input")
 
 #: The generate node's cache contract: what the model is asked to paint. Bumping it
 #: re-bills every plate, so measured facts the local gate reads live under the
-#: validation version instead.
+#: validation version instead. The validation version is per role: the portrait's
+#: record gained its placement, the frame's did not, and one shared constant would
+#: rekey the frame's review through lineage for nothing.
 FX_CUT_IN_CONTRACT_VERSION = "prepared-fx-cut-in-v1"
 FX_CUT_IN_DRAW_VERSION = "prepared-fx-cut-in-draw-v1"
-FX_CUT_IN_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v1"
+FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v1"
+FX_CUT_IN_PORTRAIT_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v2"
+FX_CUT_IN_PLACE_VERSION = "prepared-fx-cut-in-place-v1"
 FX_CUT_IN_REVIEW_VERSION = "prepared-fx-cut-in-review-v1"
-FX_CUT_IN_EVIDENCE_VERSION = "prepared-fx-cut-in-evidence-v1"
+FX_CUT_IN_EVIDENCE_VERSION = "prepared-fx-cut-in-evidence-v2"
 FX_CUT_IN_REVIEW_SCHEMA_NAME = "prepared_fx_cut_in_review"
+FX_CUT_IN_PLACE_SCHEMA_NAME = "prepared_fx_cut_in_place"
 
 FX_CUT_IN_RAW_KIND = "fx-cut-in-raw-v1"
 FX_CUT_IN_PLATE_KIND = "fx-cut-in-plate-v1"
+FX_CUT_IN_PLACEMENT_KIND = CUT_IN_PLACEMENT_KIND
 FX_CUT_IN_VALIDATION_KIND = "fx-cut-in-validation-v1"
 FX_CUT_IN_EVIDENCE_KIND = "fx-cut-in-evidence-v1"
 FX_CUT_IN_VERDICT_KIND = "review-verdict-v1"
+
+#: The placement episode's budget. Six looks is what an art director needs to settle
+#: a scale and a centre; the token ceiling bounds a runaway transcript of images.
+FX_CUT_IN_PLACE_MAX_STEPS = 6
+FX_CUT_IN_PLACE_MAX_TOTAL_TOKENS = 300_000
+#: What the agent looks at: the composition at this width, JPEG, over the stage colour.
+_RENDER_WIDTH = 768
+_RENDER_STAGE = (28, 34, 48)
+_START_SCALE = 0.5
 
 FX_CUT_IN_GENERATE = NodeType(
     type_id=f"{_P}/cut_in.generate",
@@ -121,6 +159,16 @@ FX_CUT_IN_VALIDATE = NodeType(
     contract_version="fx-cut-in-validate-v1",
 )
 
+FX_CUT_IN_PLACE = NodeType(
+    type_id=f"{_P}/cut_in.place",
+    title="Cut-in portrait placement",
+    archetype=ViewArchetype.JUDGE,
+    operation="tool_loop",
+    features=TOOL_LOOP_FEATURES,
+    policy=_PROVIDER,
+    contract_version="fx-cut-in-place-v1",
+)
+
 FX_CUT_IN_REVIEW = NodeType(
     type_id=f"{_P}/cut_in.review",
     title="Cut-in plate review",
@@ -132,7 +180,13 @@ FX_CUT_IN_REVIEW = NodeType(
 )
 
 #: Every type this module owns, for a recipe's own type census and registry checks.
-FX_CUT_IN_NODE_TYPES = (FX_CUT_IN_GENERATE, FX_CUT_IN_DRAW, FX_CUT_IN_VALIDATE, FX_CUT_IN_REVIEW)
+FX_CUT_IN_NODE_TYPES = (
+    FX_CUT_IN_GENERATE,
+    FX_CUT_IN_DRAW,
+    FX_CUT_IN_PLACE,
+    FX_CUT_IN_VALIDATE,
+    FX_CUT_IN_REVIEW,
+)
 
 
 # ------------------------------------------------------------------ prompt
@@ -173,6 +227,27 @@ def portrait_content_task(direction: str) -> str:
     return f"{_PORTRAIT_TASK}\nExpression and mood: {direction}\n{_PLATE_COMMON}"
 
 
+_PLACE_TASK = (
+    "Place this character portrait inside the torn-strip cut-in frame so the composition "
+    "reads like a production cut-in. The face should fill the band: eyes in the band's "
+    "upper-middle, the mouth fully inside the band, the head neither floating in empty "
+    "backdrop nor so large that the eyes or mouth are cut by the torn edges. Hair, ears, "
+    "and shoulders may bleed past the edges; that is the look. Prefer the face over the "
+    "band's thickest stretch. Iterate: render a placement, look at it, adjust the scale "
+    "and the centre, and submit only a placement you have rendered and seen."
+)
+
+_PLACE_SYSTEM = (
+    "You are a 2D game presentation art director. You place a die-cut portrait plate "
+    "inside a torn-strip frame by trying placements with the render tool and judging the "
+    "result with your eyes. Every turn calls a tool; finish with submit."
+)
+
+
+def place_content_task(portrait_id: str, direction: str) -> str:
+    return f"{_PLACE_TASK}\nPortrait: {portrait_id}. Its authored mood: {direction}"
+
+
 def cut_in_review_prompt(plate: CutInPlate, direction: str) -> str:
     """What the judge is asked, given what the pixel gate has already proved."""
 
@@ -210,20 +285,27 @@ def plate_id_for(role: str, portrait_id: str | None = None) -> str:
     return "frame" if role == "frame" else f"portrait-{portrait_id}"
 
 
-def cut_in_node_ids(plate_id: str, *, prefix: str = "fx") -> tuple[str, str, str, str]:
-    """The generate/draw, validate and review ids one plate occupies in a host graph."""
+def cut_in_node_ids(plate_id: str, *, prefix: str = "fx") -> tuple[str, str, str, str, str]:
+    """The generate/draw, place, validate and review ids one plate occupies in a host graph."""
 
     base = f"{prefix}-cut_in-{plate_id}"
-    return (f"{base}-generate", f"{base}-draw", f"{base}-validate", f"{base}-review")
+    return (
+        f"{base}-generate",
+        f"{base}-draw",
+        f"{base}-place",
+        f"{base}-validate",
+        f"{base}-review",
+    )
 
 
-def cut_in_artifact_refs(plate_id: str) -> tuple[str, str, str, str, str]:
-    """Every path one plate writes: raw, canonical, validation, evidence, verdict."""
+def cut_in_artifact_refs(plate_id: str) -> tuple[str, str, str, str, str, str]:
+    """Every path one plate writes: raw, canonical, placement, validation, evidence, verdict."""
 
     name = plate_id.replace("portrait-", "portrait.", 1)
     return (
         f"fx/cut_in/{name}.raw.png",
         f"fx/cut_in/{name}.png",
+        f"fx/cut_in/{name}.placement.json",
         f"fx/cut_in/{name}.validation.json",
         f"fx/cut_in/{name}.evidence.png",
         f"fx/cut_in/{name}.review.json",
@@ -252,9 +334,10 @@ def add_cut_in_nodes(
     """Add the frame and every portrait the document declares.
 
     The frame is generated or drawn per its declared mode; either way it is validated
-    into the same plate kind and the same polygon record. A portrait's validation depends
-    on the frame's, so its reviewer sees the exact composition a runtime shows. Returns
-    the terminal ids a host adds to its own list.
+    into the same plate kind and the same polygon record. A portrait is placed inside the
+    frame's band by the tool-loop agent before it is validated, and its validation depends
+    on both, so its reviewer sees the exact composition a runtime shows. Returns the
+    terminal ids a host adds to its own list.
     """
 
     if fx.cut_in is None:
@@ -277,8 +360,12 @@ def add_cut_in_nodes(
     frame = fx.cut_in.frame
     frame_geometry = _object_sha256(CUT_IN_FRAME.geometry_record())
     frame_direction = _object_sha256(frame.model_dump(mode="json"))
-    generate_id, draw_id, validate_id, review_id = cut_in_node_ids("frame", prefix=prefix)
-    raw_ref, plate_ref, validation_ref, evidence_ref, verdict_ref = cut_in_artifact_refs("frame")
+    generate_id, draw_id, _place_id, validate_id, review_id = cut_in_node_ids(
+        "frame", prefix=prefix
+    )
+    raw_ref, plate_ref, _placement_ref, validation_ref, evidence_ref, verdict_ref = (
+        cut_in_artifact_refs("frame")
+    )
     params: dict[str, str] = {"plate": "frame"}
     if frame.mode == "generated_v1":
         authored = authored_for(frame.reference_ids)
@@ -331,7 +418,7 @@ def add_cut_in_nodes(
         depends_on=(producer.node_id,),
         params=params,
         input_digests=(
-            _object_sha256({"contract": FX_CUT_IN_VALIDATION_VERSION}),
+            _object_sha256({"contract": FX_CUT_IN_FRAME_VALIDATION_VERSION}),
             frame_geometry,
         ),
         ports=(
@@ -373,9 +460,11 @@ def add_cut_in_nodes(
     for portrait in fx.cut_in.portraits:
         plate_id = plate_id_for("portrait", portrait.portrait_id)
         direction_digest = _object_sha256(portrait.model_dump(mode="json"))
-        generate_id, _draw_id, validate_id, review_id = cut_in_node_ids(plate_id, prefix=prefix)
-        raw_ref, plate_ref, validation_ref, evidence_ref, verdict_ref = cut_in_artifact_refs(
-            plate_id
+        generate_id, _draw_id, place_id, validate_id, review_id = cut_in_node_ids(
+            plate_id, prefix=prefix
+        )
+        raw_ref, plate_ref, placement_ref, validation_ref, evidence_ref, verdict_ref = (
+            cut_in_artifact_refs(plate_id)
         )
         params = {"plate": "portrait", "portrait_id": portrait.portrait_id}
         authored = authored_for(portrait.reference_ids)
@@ -403,15 +492,40 @@ def add_cut_in_nodes(
                 authored_inputs=authored,
             ),
         )
+        place_ports = [_artifact("placement", placement_ref, FX_CUT_IN_PLACEMENT_KIND)]
+        if attempts_port is not None:
+            place_ports.append(attempts_port(place_id))
+        placed = builder.add(
+            FX_CUT_IN_PLACE,
+            place_id,
+            domain=domain,
+            description=f"place the {portrait.portrait_id} portrait inside the frame's band",
+            depends_on=(generated.node_id, frame_validated.node_id),
+            params=params,
+            input_digests=(
+                _object_sha256({"contract": FX_CUT_IN_PLACE_VERSION}),
+                portrait_geometry,
+                frame_geometry,
+            ),
+            ports=tuple(place_ports),
+            card=NodeCard(
+                prompt=place_content_task(portrait.portrait_id, portrait.prompt),
+                schema_name=FX_CUT_IN_PLACE_SCHEMA_NAME,
+                reference_inputs=(
+                    PortRef(node_id=generated.node_id, port_id="image"),
+                    PortRef(node_id=frame_validated.node_id, port_id="image"),
+                ),
+            ),
+        )
         validated = builder.add(
             FX_CUT_IN_VALIDATE,
             validate_id,
             domain=domain,
             description=f"admit the {portrait.portrait_id} portrait and compose it in the frame",
-            depends_on=(generated.node_id, frame_validated.node_id),
+            depends_on=(generated.node_id, frame_validated.node_id, placed.node_id),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_VALIDATION_VERSION}),
+                _object_sha256({"contract": FX_CUT_IN_PORTRAIT_VALIDATION_VERSION}),
                 portrait_geometry,
             ),
             ports=(
@@ -579,11 +693,186 @@ def cut_in_review_request(
         schema=StructuredOutputSchema(
             name=FX_CUT_IN_REVIEW_SCHEMA_NAME, json_schema=fx_cut_in_review_schema()
         ),
-        parse=_parse_review,
+        parse=parse_cut_in_review,
         references=tuple(references),
         max_tokens=1800,
         timeout_seconds=600,
         metadata={"checkpoint": "fx", "effect": "cut_in", "plate": str(node.params["plate"])},
+    )
+
+
+_PLACEMENT_PARAMETERS: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "scale": {
+            "type": "number",
+            "description": (
+                "Portrait display height as a fraction of the frame canvas height "
+                f"({PLACEMENT_SCALE_RANGE[0]:g} to {PLACEMENT_SCALE_RANGE[1]:g})."
+            ),
+        },
+        "x": {
+            "type": "number",
+            "description": (
+                "Portrait canvas centre x in frame-canvas units, 0 = left edge, 1 = right "
+                f"edge ({PLACEMENT_CENTRE_RANGE[0]:g} to {PLACEMENT_CENTRE_RANGE[1]:g})."
+            ),
+        },
+        "y": {
+            "type": "number",
+            "description": (
+                "Portrait canvas centre y in frame-canvas units, 0 = top edge, 1 = bottom "
+                f"edge ({PLACEMENT_CENTRE_RANGE[0]:g} to {PLACEMENT_CENTRE_RANGE[1]:g})."
+            ),
+        },
+    },
+}
+
+
+def fx_cut_in_place_schema() -> dict[str, object]:
+    """The submit payload: the placement plus the reason it is right."""
+
+    properties = dict(cast(Mapping[str, object], _PLACEMENT_PARAMETERS["properties"]))
+    properties["rationale"] = {
+        "type": "string",
+        "description": "One or two sentences on why this placement reads correctly.",
+    }
+    return {"type": "object", "properties": properties}
+
+
+def _parse_placement(value: object) -> dict[str, object]:
+    if not isinstance(value, dict) or not {"scale", "x", "y", "rationale"} <= set(value):
+        raise ValueError("placement must carry scale, x, y, and rationale")
+    return value
+
+
+def _band_facts(mask_polygon: list[list[float]]) -> str:
+    centre_x, centre_y = polygon_centroid(mask_polygon)
+    spans = []
+    for x in (0.1, 0.3, 0.5, 0.7, 0.9):
+        top, bottom = band_span_at(mask_polygon, x)
+        spans.append(f"x={x:.1f}: y {top:.2f}-{bottom:.2f} (thickness {bottom - top:.2f})")
+    return (
+        f"The frame's band (the region the portrait shows through) has its centroid at "
+        f"x={centre_x:.3f}, y={centre_y:.3f}. Its vertical extent, in frame-canvas units: "
+        + "; ".join(spans)
+        + "."
+    )
+
+
+def _render_data_url(composed: Image.Image) -> str:
+    stage = Image.new("RGBA", composed.size, (*_RENDER_STAGE, 255))
+    stage.alpha_composite(composed)
+    scaled = stage.convert("RGB").resize(
+        (_RENDER_WIDTH, round(composed.height * _RENDER_WIDTH / composed.width)),
+        Image.Resampling.LANCZOS,
+    )
+    stream = io.BytesIO()
+    scaled.save(stream, format="JPEG", quality=85, optimize=True)
+    return _data_url(stream.getvalue(), "image/jpeg")
+
+
+def cut_in_place_request(
+    host: FxCutInHost,
+    graph: Graph,
+    node: Node,
+    *,
+    read: Callable[[str], bytes],
+) -> ToolLoopRequest[dict[str, object]]:
+    """The exact tool-loop request one place node runs: what the agent sees, the tools
+    it holds, the budget it has, and the admission its submit must pass. ``read``
+    resolves a run-relative artifact ref to bytes, so a cache mirror can supply restored
+    payloads and rebuild the identical request."""
+
+    _plate, direction = cut_in_direction(host.fx, node)
+    if not isinstance(direction, CutInPortraitDirection):
+        raise ValueError(f"node {node.node_id} places a plate that is not a portrait")
+    _producer, raw_port = dependency_port(graph, node, kind=FX_CUT_IN_RAW_KIND)
+    _frame_node, frame_plate_port = dependency_port(graph, node, kind=FX_CUT_IN_PLATE_KIND)
+    _frame_node, frame_record_port = dependency_port(graph, node, kind=FX_CUT_IN_VALIDATION_KIND)
+    raw = read(raw_port.artifact_ref)
+    frame_data = read(frame_plate_port.artifact_ref)
+    frame_record = cast(dict[str, Any], json.loads(read(frame_record_port.artifact_ref)))
+    mask_polygon = cast(list[list[float]], frame_record["geometry"]["mask_polygon"])
+    portrait_sha256 = _sha(raw)
+    frame_sha256 = _sha(frame_data)
+    centre_x, centre_y = polygon_centroid(mask_polygon)
+    start = {"scale": _START_SCALE, "x": round(centre_x, 4), "y": round(centre_y, 4)}
+
+    def render(arguments: Mapping[str, object]) -> ToolResult:
+        try:
+            scale, x, y = placement_transform(arguments)
+        except ValueError as exc:
+            raise ToolInvocationError(str(exc)) from None
+        composed = compose_hold_frame(
+            frame_data, raw, mask_polygon, placement={"scale": scale, "x": x, "y": y}
+        )
+        return ToolResult(
+            text=f"Rendered the composition at scale={scale:g}, x={x:g}, y={y:g}.",
+            images=(_render_data_url(composed),),
+        )
+
+    def admit(value: object) -> dict[str, object]:
+        return admit_cut_in_placement(
+            value, portrait_sha256=portrait_sha256, frame_sha256=frame_sha256
+        )
+
+    starting = compose_hold_frame(frame_data, raw, mask_polygon, placement=start)
+    return ToolLoopRequest(
+        instructions=_card_prompt(node),
+        system=(
+            f"{_PLACE_SYSTEM} Image 1 is the portrait plate (its transparent exterior may "
+            "render as flat black or white). Image 2 is the frame plate. Image 3 is the "
+            f"composition at the starting placement scale={start['scale']:g}, "
+            f"x={start['x']:g}, y={start['y']:g}. Units: scale is the portrait's display "
+            "height as a fraction of the frame height; x and y are the portrait canvas "
+            "centre in frame-canvas units (0-1 inside the canvas; the centre may sit "
+            f"outside it). {_band_facts(mask_polygon)}"
+        ),
+        artifact_path=host.run_dir / node.port("placement").artifact_ref,
+        tools=(
+            Tool(
+                name="render_with_placement",
+                description=(
+                    "Render the cut-in hold frame with the portrait at the given placement "
+                    "and return the picture to look at."
+                ),
+                parameters=_PLACEMENT_PARAMETERS,
+                handler=render,
+            ),
+        ),
+        submit_schema=fx_cut_in_place_schema(),
+        submit_description="Submit the placement you rendered and judged correct.",
+        parse=_parse_placement,
+        artifact_value=admit,
+        validate=admit,
+        references=(
+            ToolLoopReference(
+                url=_data_url(raw, "image/png"), provenance_ref=f"run://{raw_port.artifact_ref}"
+            ),
+            ToolLoopReference(
+                url=_data_url(frame_data, "image/png"),
+                provenance_ref=f"run://{frame_plate_port.artifact_ref}",
+            ),
+            ToolLoopReference(url=_render_data_url(starting)),
+        ),
+        max_steps=FX_CUT_IN_PLACE_MAX_STEPS,
+        max_total_tokens=FX_CUT_IN_PLACE_MAX_TOTAL_TOKENS,
+        timeout_seconds=600,
+        metadata={
+            "checkpoint": "fx",
+            "effect": "cut_in",
+            "plate": "portrait",
+            "portrait_id": direction.portrait_id,
+        },
+    )
+
+
+def validation_version_for(role: str) -> str:
+    return (
+        FX_CUT_IN_FRAME_VALIDATION_VERSION
+        if role == "frame"
+        else FX_CUT_IN_PORTRAIT_VALIDATION_VERSION
     )
 
 
@@ -592,21 +881,37 @@ def derive_cut_in_validation(
     node: Node,
     *,
     frame_record: Mapping[str, object] | None = None,
+    frame_data: bytes | None = None,
+    placement_record: Mapping[str, object] | None = None,
 ) -> tuple[bytes, dict[str, object], dict[str, Any]]:
     """The deterministic half of a validate node: canonical plate, validation record, facts.
 
-    Pure over its inputs, so a host's cache mirror can re-derive and byte-compare.
+    Pure over its inputs, so a host's cache mirror can re-derive and byte-compare. A
+    portrait needs the frame's record and plate and its own admitted placement, and the
+    placement must name exactly these plates: a placement judged over other pixels is
+    refused, not reused.
     """
 
     plate = CUT_IN_PLATES_BY_ROLE[str(node.params["plate"])]
-    canonical, facts = canonicalize_plate(raw, plate)
+    placement: dict[str, object] | None = None
     if plate.role == "portrait":
-        if frame_record is None:
-            raise ValueError(f"node {node.node_id} needs the frame's validation record")
+        if frame_record is None or frame_data is None:
+            raise ValueError(f"node {node.node_id} needs the frame's validation record and plate")
+        if placement_record is None:
+            raise ValueError(f"node {node.node_id} needs the portrait's admitted placement")
+        placement = admit_cut_in_placement(
+            placement_record, portrait_sha256=_sha(raw), frame_sha256=_sha(frame_data)
+        )
+        for key in ("portrait_sha256", "frame_sha256"):
+            if placement_record.get(key) != placement[key]:
+                raise ValueError(f"node {node.node_id} placement was judged over other plates")
+    canonical, facts = canonicalize_plate(raw, plate, placement=placement)
+    if plate.role == "portrait":
+        assert frame_record is not None
         facts["frame_geometry"] = dict(cast(Mapping[str, object], frame_record["geometry"]))
     record: dict[str, object] = {
         "schema_version": 1,
-        "kind": FX_CUT_IN_VALIDATION_VERSION,
+        "kind": validation_version_for(plate.role),
         "plate": plate.role,
         "portrait_id": node.params.get("portrait_id"),
         "geometry": cut_in_plate_contract(facts),
@@ -633,14 +938,23 @@ async def write_cut_in_validation(
     raw = read(raw_port.artifact_ref)
     frame_record: dict[str, object] | None = None
     frame_data: bytes | None = None
+    placement_record: dict[str, object] | None = None
     if str(node.params["plate"]) == "portrait":
         _frame_node, frame_plate_port = dependency_port(graph, node, kind=FX_CUT_IN_PLATE_KIND)
         _frame_node, frame_record_port = dependency_port(
             graph, node, kind=FX_CUT_IN_VALIDATION_KIND
         )
+        _place_node, placement_port = dependency_port(graph, node, kind=FX_CUT_IN_PLACEMENT_KIND)
         frame_data = read(frame_plate_port.artifact_ref)
         frame_record = cast(dict[str, object], json.loads(read(frame_record_port.artifact_ref)))
-    canonical, record, facts = derive_cut_in_validation(raw, node, frame_record=frame_record)
+        placement_record = cast(dict[str, object], json.loads(read(placement_port.artifact_ref)))
+    canonical, record, facts = derive_cut_in_validation(
+        raw,
+        node,
+        frame_record=frame_record,
+        frame_data=frame_data,
+        placement_record=placement_record,
+    )
     plate_path = run_dir / node.port("image").artifact_ref
     await _write_local_image(
         host,
@@ -649,7 +963,7 @@ async def write_cut_in_validation(
         prompt="Clear the already-transparent exterior to alpha 0; nothing else is rewritten.",
         inputs=((raw_port.artifact_ref, raw),),
         validation=record,
-        model=FX_CUT_IN_VALIDATION_VERSION,
+        model=str(record["kind"]),
     )
     atomic_write_json(run_dir / node.port("validation").artifact_ref, record)
     evidence = cut_in_evidence(canonical, facts, frame_data=frame_data)
@@ -659,7 +973,8 @@ async def write_cut_in_validation(
         evidence,
         prompt=(
             "Composite the plate over a checkerboard and draw the cut-in's hold frame through "
-            "the published mask polygon for review evidence."
+            "the published mask polygon, the portrait at its admitted placement, for review "
+            "evidence."
         ),
         inputs=((node.port("image").artifact_ref, canonical),),
         validation={"source_validation": record["geometry"], "checkerboard_only": False},
@@ -699,12 +1014,14 @@ class FxCutInHandlers:
         graph: Graph,
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[object],
+        tool_loop_service: ToolLoopService[dict[str, object]],
         provider_call: ProviderCall | None = None,
     ) -> None:
         self._host = host
         self._graph = graph
         self._images = image_service
         self._structured = structured_service
+        self._tool_loop = tool_loop_service
         self._provider_call = provider_call
 
     async def generate(self, node: Node) -> NodeExecutionResult:
@@ -717,6 +1034,16 @@ class FxCutInHandlers:
     async def draw(self, node: Node) -> NodeExecutionResult:
         await write_cut_in_draw(self._host, node)
         return self._result(node, provider_operations=0)
+
+    async def place(self, node: Node) -> NodeExecutionResult:
+        request = cut_in_place_request(self._host, self._graph, node, read=self._read)
+        result = await self._call(
+            node,
+            str(node.params["plate"]),
+            request.instructions,
+            lambda: self._tool_loop.run(request),
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def validate(self, node: Node) -> NodeExecutionResult:
         await write_cut_in_validation(self._host, self._graph, node, read=self._read)
@@ -786,7 +1113,7 @@ def fx_cut_in_review_schema() -> dict[str, object]:
     }
 
 
-def _parse_review(value: object) -> dict[str, object]:
+def parse_cut_in_review(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or value.get("verdict") not in {
         "accept",
         "reject",
@@ -814,13 +1141,17 @@ def fx_manifest_block(fx: GameFx, *, read_validation: Callable[[str], bytes]) ->
         return block
 
     def plate_block(plate_id: str, expected_role: str) -> dict[str, object]:
-        _raw, plate_ref, validation_ref, _evidence, _verdict = cut_in_artifact_refs(plate_id)
+        _raw, plate_ref, _placement, validation_ref, _evidence, _verdict = cut_in_artifact_refs(
+            plate_id
+        )
         record = json.loads(read_validation(validation_ref))
         if not isinstance(record, dict) or record.get("plate") != expected_role:
             raise ValueError(f"cut-in {plate_id} validation names a different plate")
         geometry = record.get("geometry")
         if not isinstance(geometry, dict):
             raise ValueError(f"cut-in {plate_id} validation lacks traced geometry")
+        if expected_role == "portrait" and not isinstance(geometry.get("placement"), dict):
+            raise ValueError(f"cut-in {plate_id} validation carries no admitted placement")
         return {**geometry, "asset": plate_ref}
 
     frame_block = plate_block("frame", "frame")
@@ -908,19 +1239,27 @@ __all__ = [
     "FX_CUT_IN_DRAW_VERSION",
     "FX_CUT_IN_EVIDENCE_KIND",
     "FX_CUT_IN_EVIDENCE_VERSION",
+    "FX_CUT_IN_FRAME_VALIDATION_VERSION",
     "FX_CUT_IN_GENERATE",
     "FX_CUT_IN_NODE_TYPES",
+    "FX_CUT_IN_PLACE",
+    "FX_CUT_IN_PLACEMENT_KIND",
+    "FX_CUT_IN_PLACE_MAX_STEPS",
+    "FX_CUT_IN_PLACE_MAX_TOTAL_TOKENS",
+    "FX_CUT_IN_PLACE_SCHEMA_NAME",
+    "FX_CUT_IN_PLACE_VERSION",
     "FX_CUT_IN_PLATE_KIND",
+    "FX_CUT_IN_PORTRAIT_VALIDATION_VERSION",
     "FX_CUT_IN_RAW_KIND",
     "FX_CUT_IN_REVIEW",
     "FX_CUT_IN_REVIEW_SCHEMA_NAME",
     "FX_CUT_IN_REVIEW_VERSION",
     "FX_CUT_IN_VALIDATE",
     "FX_CUT_IN_VALIDATION_KIND",
-    "FX_CUT_IN_VALIDATION_VERSION",
     "FX_CUT_IN_VERDICT_KIND",
     "IMAGE_FEATURES",
     "STRUCTURED_FEATURES",
+    "TOOL_LOOP_FEATURES",
     "FxCutInHandlers",
     "FxCutInHost",
     "ProviderCall",
@@ -929,14 +1268,19 @@ __all__ = [
     "cut_in_direction",
     "cut_in_generate_request",
     "cut_in_node_ids",
+    "cut_in_place_request",
     "cut_in_review_prompt",
     "cut_in_review_request",
     "derive_cut_in_validation",
     "frame_content_task",
+    "fx_cut_in_place_schema",
     "fx_cut_in_review_schema",
     "fx_manifest_block",
+    "parse_cut_in_review",
+    "place_content_task",
     "plate_id_for",
     "portrait_content_task",
+    "validation_version_for",
     "write_cut_in_draw",
     "write_cut_in_validation",
 ]
