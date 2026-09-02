@@ -141,14 +141,20 @@ def test_a_few_specks_are_dust_the_gate_measures_around_and_the_plate_drops() ->
 
     width, height = CUT_IN_CANVAS
     with Image.open(io.BytesIO(data)) as opened:
-        assert opened.convert("RGBA").getchannel("A").getpixel(
-            (int(width * 0.05) + 6, int(height * 0.1) + 6)
-        ) == 255
+        assert (
+            opened.convert("RGBA")
+            .getchannel("A")
+            .getpixel((int(width * 0.05) + 6, int(height * 0.1) + 6))
+            == 255
+        )
     canonical, _canonical_facts = canonicalize_plate(data, CUT_IN_FRAME)
     with Image.open(io.BytesIO(canonical)) as opened:
-        assert opened.convert("RGBA").getchannel("A").getpixel(
-            (int(width * 0.05) + 6, int(height * 0.1) + 6)
-        ) == 0
+        assert (
+            opened.convert("RGBA")
+            .getchannel("A")
+            .getpixel((int(width * 0.05) + 6, int(height * 0.1) + 6))
+            == 0
+        )
 
 
 def test_the_frame_gate_refuses_the_wrong_canvas() -> None:
