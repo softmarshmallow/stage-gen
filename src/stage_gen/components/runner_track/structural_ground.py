@@ -67,15 +67,15 @@ _MIN_SOURCE_VISIBLE_ALPHA: Final = 128
 #: published raster - is measured directly below.
 _MIN_SOURCE_TOP_CELL_COVERAGE: Final = 0.85
 
-#: How much of any published row may still wear the guide's cap colour. The
+#: How much of any published row may still be untouched deterministic base. The
 #: defect this refuses is a line, so it is measured by row rather than over the
 #: raster: the hairline that shipped was four fifths of one scanline on a tile
-#: measuring 0.0075 overall. Across Iron Petal's twelve paintings,
-#: canonicalized offline, this reads 0.924 at worst before the rim was
-#: underlaid and 0.0017 after. Only the cap colour counts - the guide's fill is
-#: the material's own dark, which honest art wears legitimately, and counting
-#: both put a third of a correct row in breach.
-_MAX_PUBLISHED_CAP_ROW_SHARE: Final = 0.10
+#: measuring 0.0075 overall. Identity with the base rather than nearness to a
+#: guide colour, because proximity can only speak about the cap - the guide's
+#: fill is the material's own dark and honest art wears it - which left a
+#: fifteen-to-nineteen-pixel band of published base along the bottom edge of
+#: four tiles invisible to the check that caught the top.
+_MAX_PUBLISHED_BASE_ROW_SHARE: Final = 0.10
 
 #: How far the painting's own colour is grown under the bare rim it leaves.
 #: Six published pixels covers the four-to-five-pixel alpha ramp measured at the
@@ -327,9 +327,10 @@ def structural_ground_generation_prompt(
         "reads the footing instantly and two spans rejoined read as one surface. It is a band on "
         "the elevation, never a receding top face. Deeper cells read as coherent structural fill, "
         "with non-repeating local detail through the central columns.\n"
-        "- Paint each slab to its very top edge. The walking-surface band starts at the first "
-        "pixel of the cell, hard-edged and fully opaque, with no soft fade, no unpainted margin, "
-        "and no guide colour left showing above it.\n"
+        "- Paint every solid cell edge to edge. The walking-surface band starts at the very first "
+        "pixel of its cell and the lowest row of structure runs to the very last, hard-edged and "
+        "fully opaque, with no soft fade, no unpainted margin, and no guide colour showing at any "
+        "edge of the painted mass.\n"
         "- The two end aprons are the JOINT where one span is bolted to the next, and that joint "
         "is seen again at every junction in the finished track, seconds apart, so anything "
         "memorable in it reads as a repeat. Paint both aprons as plain structural slab: the "
@@ -531,11 +532,14 @@ def validate_structural_ground_source(
         palette=palette,
         material_identity=material_identity,
     )
-    published_cap_row = worst_published_cap_row(published, cap=palette[0])
-    if published_cap_row > _MAX_PUBLISHED_CAP_ROW_SHARE:
+    published_base_row = worst_published_base_row(
+        published,
+        _canonical_material_base(occupancy, palette=palette, material_identity=material_identity),
+    )
+    if published_base_row > _MAX_PUBLISHED_BASE_ROW_SHARE:
         raise ValueError(
-            f"structural ground source leaves a guide-coloured line in the published raster: "
-            f"{published_cap_row:.3f} of one row still wears the guide's cap"
+            f"structural ground source leaves a line of guide material in the published raster: "
+            f"{published_base_row:.3f} of one row is untouched deterministic base"
         )
 
     # One projection per tile. Parallel projection is the only projection
@@ -593,8 +597,8 @@ def validate_structural_ground_source(
         "minimum_required_solid_cell_coverage": _MIN_SOURCE_SOLID_CELL_COVERAGE,
         "minimum_top_cell_coverage": round(minimum_top_cell_coverage, 6),
         "minimum_required_top_cell_coverage": _MIN_SOURCE_TOP_CELL_COVERAGE,
-        "published_cap_row_share": round(published_cap_row, 6),
-        "maximum_published_cap_row_share": _MAX_PUBLISHED_CAP_ROW_SHARE,
+        "published_base_row_share": round(published_base_row, 6),
+        "maximum_published_base_row_share": _MAX_PUBLISHED_BASE_ROW_SHARE,
         "empty_leakage": round(empty_leakage, 6),
         "apron_coverage": round(apron_coverage, 6),
         "left_apron_coverage": round(left_apron_coverage, 6),
@@ -1033,22 +1037,29 @@ def guide_residue_share(
     return residue / considered
 
 
-def worst_published_cap_row(published: Image.Image, *, cap: RGB) -> float:
-    """The loudest single row of guide cap colour in a canonicalized raster.
+def worst_published_base_row(published: Image.Image, base: Image.Image) -> float:
+    """The loudest single row of untouched deterministic base in a raster.
 
-    By row, because the failure is a line along the walking surface and a share
-    over the whole raster cannot see one: the hairline that shipped measured
-    0.805 of its scanline while the tile it was on measured 0.0075.
+    Exact identity with the base rather than nearness to a guide colour. The
+    base is there for a cell nobody painted; anywhere it survives, the picture
+    is publishing the guide's own material as ground. Proximity was tried first
+    and can only speak about the cap: the guide's fill is the material's own
+    dark, which honest art wears legitimately, so counting it put a third of a
+    correct row in breach - while not counting it left the whole bottom edge
+    invisible to the check.
+
+    By row, because the failure is a line. The hairline that shipped measured
+    four fifths of one scanline on a tile measuring 0.0075 overall.
     """
 
-    channels = published.split()
-    within = None
-    for channel, value in zip(channels[:3], cap, strict=True):
-        near = channel.point(lambda level, target=value: 255 if abs(level - target) <= 10 else 0)
-        within = near if within is None else ImageChops.multiply(within, near)
-    assert within is not None
-    visible = channels[3].point(lambda value: 255 if value >= _MIN_SOURCE_VISIBLE_ALPHA else 0)
-    wearing = ImageChops.multiply(within, visible)
+    if published.size != base.size:
+        raise ValueError("published raster and material base differ in size")
+    difference = ImageChops.difference(published.convert("RGB"), base.convert("RGB"))
+    untouched = difference.convert("L").point(lambda value: 255 if value == 0 else 0)
+    visible = published.getchannel("A").point(
+        lambda value: 255 if value >= _MIN_SOURCE_VISIBLE_ALPHA else 0
+    )
+    wearing = ImageChops.multiply(untouched, visible)
     worst = 0.0
     for row in range(published.height):
         box = (0, row, published.width, row + 1)

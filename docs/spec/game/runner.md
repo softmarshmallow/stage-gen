@@ -239,16 +239,23 @@ pixel alpha ramp lands, so it refused correct paintings about half the time and
 spent one segment's whole retry budget. A coverage over a cell is a proxy for
 the thing that matters anyway.
 
-**Published guide colour.** So the thing that matters is measured directly, on
-the canonicalized result rather than on the source: no published row may wear
-the guide's cap colour above a small share. By row, because the failure is a
-line and a share over a raster cannot see one - the hairline that shipped
-measured 0.805 of its scanline on a tile measuring 0.0075 overall. Only the cap
-counts; the guide's fill colour is the material's own dark, which honest art
-wears legitimately. Across Iron Petal's twelve paintings the check reads 0.0000
-to 0.0017 and refuses exactly one: the arena chunk whose provider left a rim
-eight pixels bare, wider than publication can underlay with the cell's own
-colour.
+**Published base.** So the thing that matters is measured directly, on the
+canonicalized result rather than on the source: no published row may be
+untouched deterministic base above a small share. By row, because the failure
+is a line and a share over a raster cannot see one - the hairline that shipped
+measured 0.805 of its scanline on a tile measuring 0.0075 overall.
+
+Identity with the base, not nearness to a guide colour. Proximity can only
+speak about the cap, because the guide's fill is the material's own dark and
+honest art wears it legitimately - counting it put a third of a correct row in
+breach, and not counting it left a fifteen-to-nineteen-pixel band of published
+base along the *bottom* edge of four tiles invisible to the check that had just
+caught the top. The base is there for a cell nobody painted; anywhere it
+survives, the picture is publishing the guide's own material as ground.
+
+Across Iron Petal's paintings the check reads 0.0000 to 0.0021 and refuses the
+handful whose provider left a rim wider than publication can underlay with the
+cell's own colour.
 
 **Guide residue.** No guide-palette colour may survive above a small share of
 the painted region. This catches the other shape of the same failure, where a

@@ -682,7 +682,7 @@ def test_a_rim_wider_than_publication_can_underlay_is_refused() -> None:
     )
     stripped.putalpha(ImageChops.darker(alpha, bare))
 
-    with pytest.raises(ValueError, match="guide-coloured line in the published raster"):
+    with pytest.raises(ValueError, match="line of guide material in the published raster"):
         validate_structural_ground_source(
             _png(stripped),
             occupancy=PITTED_ROWS,
