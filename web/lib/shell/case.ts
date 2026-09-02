@@ -57,6 +57,15 @@ export interface CaseBeat {
    * the authored contract has to add.
    */
   readonly runTag: string;
+  /**
+   * Which scenario inside that run this beat plays, for a scenario beat.
+   *
+   * One `dialogue-scene` run publishes several scenarios — an episode is split
+   * so each one's admission proof stays under its ceiling — so the run tag alone
+   * does not locate a leaf. A room run publishes one room, so a room beat carries
+   * no id at all rather than a null one.
+   */
+  readonly scenarioId: string | null;
   readonly displayName: string;
   /** The authored package member, carried through for provenance; unused here. */
   readonly member: string | null;
@@ -244,12 +253,35 @@ export function caseBeatNumber(document: CaseDocument, beatId: string): number {
 
 // ------------------------------------------------------------------ members
 
+/**
+ * Which scenario inside a run a beat plays.
+ *
+ * A room beat must not carry one — a room run publishes exactly one room, so an
+ * id there is a projection that has confused itself, and it is refused rather
+ * than ignored. A scenario beat may omit it, and absent means "this run
+ * publishes exactly one scenario, play that": which is true of every
+ * single-scenario run and is what `/scene/<tag>` relies on. `case bundle`
+ * always writes the id, so the chained path never depends on the fallback.
+ */
+function scenarioIdFor(value: unknown, kind: CaseBeatKind, index: number): string | null {
+  if (kind === "room") {
+    if (value !== undefined) {
+      throw new Error(
+        `case beats[${index}].scenario_id is set on a room beat; a room run publishes one room`,
+      );
+    }
+    return null;
+  }
+  if (value === undefined) return null;
+  return snakeId(value, `case beats[${index}].scenario_id`);
+}
+
 function beat(value: unknown, index: number): CaseBeat {
   const record = strictRecord(
     value,
     ["beat_id", "kind", "run_tag", "display_name"],
     `case beats[${index}]`,
-    ["member", "reads", "writes", "terminal", "edges"],
+    ["member", "reads", "writes", "terminal", "edges", "scenario_id"],
   );
   const kind = record.kind;
   if (kind !== "scenario" && kind !== "room") {
@@ -272,6 +304,7 @@ function beat(value: unknown, index: number): CaseBeat {
     beatId: snakeId(record.beat_id, `case beats[${index}].beat_id`),
     kind,
     runTag: runTag(record.run_tag, `case beats[${index}].run_tag`),
+    scenarioId: scenarioIdFor(record.scenario_id, kind, index),
     displayName: text(record.display_name, `case beats[${index}].display_name`, 96),
     member:
       record.member === undefined || record.member === null

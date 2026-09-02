@@ -789,6 +789,29 @@ it is not the briefed one. And this is a semantic judgement about accepted outpu
 neither the producer nor the lead may make on their own work. **It is the first item on the
 director's review list**, with the reroll priced at about twelve images.
 
+### 06:52 — The episode loads at one URL
+
+`case bundle` published `out/the-grain-episode-one/case.json` — eight beats, six sharing the
+scene run tag with their `scenario_id` derived from the member, two rooms carrying a tag
+alone. `http://localhost:3000/case/the-grain-episode-one` then renders:
+
+> **Episode One — The Winter Room · Calder Investigations, late afternoon · beat 1 of 8**
+
+with the backlog control and the shell chrome around it. **The whole chain is proven** —
+authored case, structural proof, leaf binding, runtime projection, consumer parse, beat
+resolution, and the shell's own furniture. The only thing missing is the art: the beat body
+reads *"run the-grain-scene carries no scene bundle"*, because that run's cast half failed
+and it therefore published no bundle.
+
+One consumer fix was needed and it was the lead's own doing. `scenario_id` was added to the
+projection **after** the consumer lane had finished, at the lead's request, and the
+consumer's strict record parser refused the unexpected key. A scenario beat may now carry
+one, and **absent means "this run publishes exactly one scenario"** — which is what
+`/scene/<tag>` relies on and is true of every single-scenario run. A room beat carrying one
+is still refused, because a room run publishes exactly one room and an id there is a
+projection that has confused itself. `case bundle` always writes the id, so the chained path
+never depends on the fallback. `tsc` clean, **1379 tests pass**.
+
 ---
 
 ## 3. Ledger

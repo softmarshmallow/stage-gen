@@ -256,3 +256,18 @@ The de-duplication is the point and it is measured: the recipe lane reports a tw
 scene sharing both actors and one stage plans 37 nodes / 19 provider operations against
 71 nodes / 37 for the same two scenarios as separate scene packages, and binding the second
 scenario changed **zero** cache keys on the twenty-one shared art nodes.
+
+## 2026-09-03T06:43 KST — both rooms, reroll 1 (planned, by the LEAD)
+
+Cause: four fidelity defects found by QA against the delivered pixels, all traced to the
+briefs rather than the generator — the other windows briefed without the mannequins their
+narration promises; the seventh chair drawn with no steel base for "one shoulder against its
+steel base" to be true of; a cratered astronomical moon where Scene 9 needs paper that can
+split and sag; and the window room drawn as an interior lobby when Scene 9 is outdoors under
+the canopy. Both documents now carry one canonical description of that window.
+
+- Planned operations: motor court 8 (4 image, 4 structured), window 12 (6 image, 6 structured).
+- Estimated USD: ~5.00.
+- The first roll of each is retained as exploration; this is a semantic regeneration, which
+  is not a provider retry.
+- Reviewed: no.
