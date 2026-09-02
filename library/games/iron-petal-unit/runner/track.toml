@@ -1,0 +1,430 @@
+# Eleven admitted lateral spans form a 310-column authored course vocabulary.
+# Runtime selection remains endless, but every chunk has a calm seven-column
+# apron at both seams, and every jump demand is taught by the exact pickup arc
+# proved by reaction_fair_v1. Structural ground is painted once per segment;
+# occupancy remains the sole collision authority.
+
+schema_version = 3
+kind = "runner-track-v3"
+game_id = "iron-petal-unit"
+track_id = "halcyon-rescue-line"
+revision = 1
+display_name = "Halcyon Rescue Line"
+
+[view]
+profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[camera]
+mode = "auto_run_x_v1"
+
+[continuity]
+seamless_axis = "x"
+loop_construction = "generated_bridge"
+
+[[references]]
+reference_id = "greenhouse_runway"
+source = "references/orbital-greenhouse-runway.png"
+source_sha256 = "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+rights_status = "redistribution-approved"
+rights_basis = ["Original environment-only Iron Petal Unit runway reference independently reviewed and approved for redistribution."]
+
+[[layers]]
+layer_id = "orbital_glazing"
+reference_ids = ["greenhouse_runway"]
+plane = "background"
+order = 0
+parallax = 0.04
+alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
+prompt = "The reference's pale-blue orbital daylight, distant moon, enormous curved greenhouse glazing, and faint far ribs only. Keep the lower two thirds quiet and omit every near plant bed, service lane, machine, character, hazard, pickup, sign, and text. Both horizontal edges share the same horizon, light, and sparse rib rhythm."
+
+[layers.presentation]
+contrast = 0.88
+saturation = 0.86
+atmosphere_color = "#b8dcf0"
+atmosphere_strength = 0.18
+detail_blur_screen_pixels = 1.4
+
+[[layers]]
+layer_id = "botanical_terraces"
+reference_ids = ["greenhouse_runway"]
+plane = "background"
+order = 1
+parallax = 0.22
+alpha_mode = "transparent"
+vertical_anchor = "walk_surface"
+vertical_offset = 0.25
+prompt = "A sparse mid-distance lateral arrangement of the reference's greenhouse terraces: several clearly separated clusters of restrained planter rail, soft leaf masses, small coral flowers, slender cream support ribs, tiny contained water fittings, and short pipes. Paint only those discrete object silhouettes; all space behind and between them must be true zero-alpha transparency. HARD NEGATIVE-SPACE CONTRACT: across the lower two thirds and the runner-silhouette band, leave at least half of every broad horizontal region completely transparent with large connected open gaps. Never paint a full-width olive or green matte, colored rectangle, wall, glass panel, floor, atmospheric wash, haze, vignette, glow, shadow field, or water stream behind or between motifs. No sky fill, foreground lane, characters, robots, hazards, pickups, signs, or text. Keep only small compatible edge clusters for seamless joining."
+
+[layers.presentation]
+contrast = 0.92
+saturation = 0.92
+atmosphere_color = "#b8dcf0"
+atmosphere_strength = 0.14
+detail_blur_screen_pixels = 0.8
+
+[[layers]]
+layer_id = "canopy_trusses"
+reference_ids = ["greenhouse_runway"]
+plane = "foreground"
+order = 0
+parallax = 0.72
+alpha_mode = "transparent"
+vertical_anchor = "screen_top"
+prompt = "A sparse upper-edge foreground strip of cream-and-coral greenhouse truss, thin graphite cables, and short hanging vines with a few small leaves and flowers. Keep all painted content inside the top third with a clean readable underside and native transparency below; never create an overhead gameplay obstacle, character, robot, pickup, sign, text, or dense curtain. Left and right edges must join with the same truss height and motif density."
+
+[layers.presentation]
+contrast = 1.04
+saturation = 1.02
+atmosphere_color = "#b8dcf0"
+atmosphere_strength = 0.03
+detail_blur_screen_pixels = 0.15
+
+[ground]
+mode = "runner-structural-ground-v1"
+reference_ids = ["greenhouse_runway"]
+vertical_fit = "floor_to_screen_bottom"
+prompt = "Paint each authored Halcyon Rescue Line segment as one strict side-view structural span on native transparency. Preserve the supplied occupancy mask and the guide's exact registration; local canonicalization publishes the admitted painting at exactly 64 pixels per authored cell. Use cream ceramic service slabs and a crisp thin coral footing edge at every supported surface; beneath them, cream ribs, coral conduit, brass clamps, graphite machinery pockets, and sparse roots or leaves. Open cells and pits remain fully transparent. The first and last calm aprons share the same flat surface datum and quiet cream/coral connector design so any segment can follow any other. Keep hazards, pickups, characters, robots, drones, signs, letters, numbers, logos, and watermarks out of the ground painting."
+
+[segments]
+rows = 11
+walk_surface_row = 8
+
+[[segments.chunks]]
+segment_id = "rescue_calibration"
+difficulty = 1
+occupancy = [
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
+]
+pickups = [
+  { item_id = "lumen_seed", column = 6, row = 7 },
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 9, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 11, row = 7 },
+  { item_id = "lumen_seed", column = 12, row = 7 },
+  { item_id = "lumen_seed", column = 13, row = 7 },
+  { item_id = "lumen_seed", column = 14, row = 7 },
+  { item_id = "lumen_seed", column = 15, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 7 },
+  { item_id = "lumen_seed", column = 17, row = 7 },
+]
+
+[[segments.chunks]]
+segment_id = "seed_arch"
+difficulty = 1
+occupancy = [
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
+]
+pickups = [
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 6 },
+  { item_id = "lumen_seed", column = 11, row = 4 },
+  { item_id = "lumen_seed", column = 12, row = 4 },
+  { item_id = "lumen_seed", column = 13, row = 6 },
+  { item_id = "lumen_seed", column = 16, row = 7 },
+  { item_id = "lumen_seed", column = 17, row = 7 },
+  { item_id = "lumen_seed", column = 18, row = 7 },
+  { item_id = "lumen_seed", column = 19, row = 7 },
+]
+
+[[segments.chunks]]
+segment_id = "filter_hop"
+difficulty = 2
+occupancy = [
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "111111111111111111111111",
+  "111111111111111111111111",
+  "111111111111111111111111",
+]
+hazards = [{ prop_id = "filter_stack", column = 11, anchor = "surface" }]
+pickups = [
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 6 },
+  { item_id = "lumen_seed", column = 11, row = 5 },
+  { item_id = "lumen_seed", column = 12, row = 5 },
+  { item_id = "lumen_seed", column = 13, row = 6 },
+]
+
+[[segments.chunks]]
+segment_id = "coolant_gap"
+difficulty = 3
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111000111111111111",
+  "1111111111111000111111111111",
+  "1111111111111000111111111111",
+]
+pickups = [
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 11, row = 7 },
+  { item_id = "lumen_seed", column = 13, row = 6 },
+  { item_id = "lumen_seed", column = 14, row = 5 },
+  { item_id = "lumen_seed", column = 15, row = 5 },
+  { item_id = "lumen_seed", column = 16, row = 6 },
+  { item_id = "lumen_seed", column = 18, row = 7 },
+  { item_id = "lumen_seed", column = 19, row = 7 },
+  { item_id = "lumen_seed", column = 20, row = 7 },
+  { item_id = "lumen_seed", column = 21, row = 7 },
+]
+
+[[segments.chunks]]
+segment_id = "twin_canisters"
+difficulty = 4
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+]
+hazards = [
+  { prop_id = "root_valve", column = 9, anchor = "surface" },
+  { prop_id = "filter_stack", column = 17, anchor = "surface" },
+]
+pickups = [
+  { item_id = "lumen_seed", column = 5, row = 7 },
+  { item_id = "lumen_seed", column = 6, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 6 },
+  { item_id = "lumen_seed", column = 9, row = 5 },
+  { item_id = "lumen_seed", column = 10, row = 5 },
+  { item_id = "lumen_seed", column = 11, row = 6 },
+  { item_id = "lumen_seed", column = 13, row = 7 },
+  { item_id = "lumen_seed", column = 14, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 6 },
+  { item_id = "lumen_seed", column = 17, row = 5 },
+  { item_id = "lumen_seed", column = 18, row = 5 },
+  { item_id = "lumen_seed", column = 19, row = 6 },
+]
+
+[[segments.chunks]]
+segment_id = "irrigation_slide"
+difficulty = 4
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+]
+hazards = [{ prop_id = "mist_nozzle", column = 13, anchor = "overhead", clearance_rows = 1.8 }]
+pickups = [
+  { item_id = "lumen_seed", column = 9, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 11, row = 7 },
+  { item_id = "lumen_seed", column = 12, row = 7 },
+  { item_id = "lumen_seed", column = 13, row = 7 },
+  { item_id = "lumen_seed", column = 14, row = 7 },
+  { item_id = "lumen_seed", column = 15, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 7 },
+  { item_id = "lumen_seed", column = 17, row = 7 },
+]
+
+[[segments.chunks]]
+segment_id = "raised_bed"
+difficulty = 5
+occupancy = [
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000000000000000000000",
+  "000000000000111111110000000000",
+  "000000000000111111110000000000",
+  "111111111111111111111111111111",
+  "111111111111111111111111111111",
+  "111111111111111111111111111111",
+]
+pickups = [
+  { item_id = "lumen_seed", column = 9, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 12, row = 5 },
+  { item_id = "lumen_seed", column = 13, row = 5 },
+  { item_id = "lumen_seed", column = 14, row = 5 },
+  { item_id = "lumen_seed", column = 15, row = 5 },
+  { item_id = "lumen_seed", column = 16, row = 5 },
+  { item_id = "lumen_seed", column = 17, row = 5 },
+  { item_id = "lumen_seed", column = 18, row = 5 },
+]
+
+[[segments.chunks]]
+segment_id = "mixed_clearance"
+difficulty = 6
+occupancy = [
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "0000000000000000000000000000",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+  "1111111111111111111111111111",
+]
+hazards = [
+  { prop_id = "cable_tassel", column = 10, anchor = "overhead", clearance_rows = 1.8 },
+  { prop_id = "filter_stack", column = 18, anchor = "surface" },
+]
+pickups = [
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 9, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 11, row = 7 },
+  { item_id = "lumen_seed", column = 12, row = 7 },
+  { item_id = "lumen_seed", column = 13, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 6 },
+  { item_id = "lumen_seed", column = 17, row = 5 },
+  { item_id = "lumen_seed", column = 18, row = 5 },
+  { item_id = "lumen_seed", column = 19, row = 6 },
+]
+
+[[segments.chunks]]
+segment_id = "split_service_gap"
+difficulty = 6
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111110011111111001111111111",
+  "11111111110011111111001111111111",
+  "11111111110011111111001111111111",
+]
+pickups = [
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 6 },
+  { item_id = "lumen_seed", column = 11, row = 5 },
+  { item_id = "lumen_seed", column = 12, row = 5 },
+  { item_id = "lumen_seed", column = 13, row = 6 },
+  { item_id = "lumen_seed", column = 17, row = 7 },
+  { item_id = "lumen_seed", column = 18, row = 7 },
+  { item_id = "lumen_seed", column = 20, row = 6 },
+  { item_id = "lumen_seed", column = 21, row = 5 },
+  { item_id = "lumen_seed", column = 22, row = 5 },
+  { item_id = "lumen_seed", column = 23, row = 6 },
+]
+
+[[segments.chunks]]
+segment_id = "filter_then_gap"
+difficulty = 7
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111111111111100011111111111",
+  "11111111111111111100011111111111",
+  "11111111111111111100011111111111",
+]
+hazards = [{ prop_id = "root_valve", column = 9, anchor = "surface" }]
+pickups = [
+  { item_id = "lumen_seed", column = 5, row = 7 },
+  { item_id = "lumen_seed", column = 6, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 6 },
+  { item_id = "lumen_seed", column = 9, row = 5 },
+  { item_id = "lumen_seed", column = 10, row = 5 },
+  { item_id = "lumen_seed", column = 11, row = 6 },
+  { item_id = "lumen_seed", column = 15, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 7 },
+  { item_id = "lumen_seed", column = 18, row = 6 },
+  { item_id = "lumen_seed", column = 19, row = 5 },
+  { item_id = "lumen_seed", column = 20, row = 5 },
+  { item_id = "lumen_seed", column = 21, row = 6 },
+]
+
+[[segments.chunks]]
+segment_id = "canopy_gauntlet"
+difficulty = 8
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
+]
+hazards = [
+  { prop_id = "mist_nozzle", column = 10, anchor = "overhead", clearance_rows = 1.8 },
+  { prop_id = "root_valve", column = 18, anchor = "surface" },
+]
+pickups = [
+  { item_id = "lumen_seed", column = 7, row = 7 },
+  { item_id = "lumen_seed", column = 8, row = 7 },
+  { item_id = "lumen_seed", column = 9, row = 7 },
+  { item_id = "lumen_seed", column = 10, row = 7 },
+  { item_id = "lumen_seed", column = 11, row = 7 },
+  { item_id = "lumen_seed", column = 12, row = 7 },
+  { item_id = "lumen_seed", column = 13, row = 7 },
+  { item_id = "lumen_seed", column = 16, row = 6 },
+  { item_id = "lumen_seed", column = 17, row = 5 },
+  { item_id = "lumen_seed", column = 18, row = 5 },
+  { item_id = "lumen_seed", column = 19, row = 6 },
+]

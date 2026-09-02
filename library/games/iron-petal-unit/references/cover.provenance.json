@@ -2,7 +2,7 @@
   "schema_version": 1,
   "provenance_kind": "game_package_reference",
   "lineage_kind": "regenerated_game_concept_cover_v2",
-  "state": "unreviewed",
+  "state": "redistribution-approved",
   "artifact": {
     "path": "references/cover.png",
     "media_type": "image/png",
@@ -35,23 +35,25 @@
     ]
   },
   "visual_review": {
-    "status": "pending",
-    "result": "pending",
-    "independent": false,
-    "reviewed_by": null,
-    "reviewed_at": null,
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-09-02",
     "artifact_sha256": "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e",
     "artifact_bytes": 3024843,
     "verification_report": "references/cover.visual-review.md",
-    "verification_report_sha256": "807cf871a051795824e00c36bb51b723ef83f97c182bc9317c361eddb261097e"
+    "verification_report_sha256": "f8b3d921e166401641b6d384c4b9b197e4340816bab53ce395475c19b07e88fd"
   },
   "rights": {
-    "status": "unreviewed",
-    "reviewed_at": null,
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-09-02",
     "basis": [
       "Original brand-neutral text-only prompt with no third-party image input.",
       "The cover was regenerated from scratch with the selected young operator identity written directly into the prompt.",
-      "Independent task-owner semantic acceptance of the exact digest-bound PNG is pending."
+      "The authenticated task owner inspected and semantically approved the exact digest-bound PNG as the canonical Iron Petal Unit cover on 2026-09-02.",
+      "The authenticated task owner granted artifact-specific redistribution approval for the exact digest-bound PNG on 2026-09-02.",
+      "No protected character, copied costume, logo, signature, watermark, or readable text was observed."
     ]
   }
 }

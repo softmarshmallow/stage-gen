@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Check or rewrite the executable graph-contract block in the generation-pipeline document.
 
-`docs/spec/game/generation-pipeline.md` carries a JSON snapshot of the Bellweather execution
-graph, and `tests/contract/test_generation_pipeline_docs.py` asserts the document matches the
-graph the code actually builds. Any change to recipe stages, asset fan-out, or scheduling
-invalidates that snapshot.
+`docs/spec/game/generation-pipeline.md` carries a JSON snapshot of the Bellweather platformer
+execution graph, while `docs/spec/game/runner.md` snapshots the Iron Petal Unit structural-ground
+runner graph. `tests/contract/test_generation_pipeline_docs.py` asserts both documents match the
+graphs the code actually builds. Any change to recipe stages, asset fan-out, or scheduling
+invalidates the relevant snapshot.
 
 Regenerating it by hand means transcribing a sha256, a node count, an operation-count map, and
 the full resource list out of a pytest assertion diff. This owns that instead, so the snapshot is
@@ -44,6 +45,7 @@ CONTRACT_START = "<!-- pipeline-graph-contract:start -->"
 CONTRACT_END = "<!-- pipeline-graph-contract:end -->"
 CONTRACT_KIND = "prepared-game-execution-graph-contract-v1"
 FIXTURE_REF = "library/games/bellweather"
+RUNNER_FIXTURE_REF = "library/games/iron-petal-unit"
 RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
 RUNNER_CONTRACT_KIND = "sideview-runner-execution-graph-contract-v1"
 
@@ -76,11 +78,11 @@ def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
 def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     """Derive the runner member's contract from the graph the code builds."""
 
-    resolved = resolve_runner_package(repo / FIXTURE_REF)
+    resolved = resolve_runner_package(repo / RUNNER_FIXTURE_REF)
     graph = build_runner_execution_graph(resolved, profile=runner_graph_profile(StageGenConfig()))
     return {
         "kind": RUNNER_CONTRACT_KIND,
-        "fixture_ref": FIXTURE_REF,
+        "fixture_ref": RUNNER_FIXTURE_REF,
         "graph_schema_version": graph.schema_version,
         "topology_sha256": graph.topology_sha256,
         "node_count": len(graph.nodes),

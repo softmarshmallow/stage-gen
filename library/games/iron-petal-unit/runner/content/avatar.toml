@@ -1,0 +1,59 @@
+schema_version = 3
+kind = "runner-avatar-v3"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "operator_primary"
+source = "references/operator-primary.png"
+source_sha256 = "ad115bd04ea9a98938269400910f7fa7aaa1571027e83df61a29a763ced1cec1"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated operator identity approved for redistribution by the authenticated task owner."]
+
+[[references]]
+reference_id = "operator_personality"
+source = "references/operator-personality.png"
+source_sha256 = "70459f9437f31bcc92c167e959696f30d6ef1b596e8d5d3cc8f64a4f61da3649"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated operator personality reference approved for redistribution by the authenticated task owner."]
+
+[[references]]
+reference_id = "cover_pairing"
+source = "references/cover.png"
+source_sha256 = "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated Iron Petal Unit cover approved for redistribution by the authenticated task owner."]
+
+[avatar]
+avatar_id = "petal_unit_seven"
+display_name = "Mira and Petal Unit Seven"
+body_kind = "piloted_machine"
+age = 11
+silhouette_mode = "visible_rider_machine_v1"
+proportion_basis = "visible_rider_head_v1"
+reference_ids = ["operator_primary", "operator_personality", "cover_pairing"]
+prompt = "Identity authority is explicit: operator_primary alone controls Mira's exact freckled child face, blue-gray eyes, tousled chin-length dark-brown bob, coral-and-mint sprout barrette, oversized cream utility jacket, navy coverall, gloves, and child-sized harness. operator_personality contributes only the crooked confident grin, kinetic confidence, and hands-on mechanic attitude; never copy its ponytail, hazel-brown eyes, fitted suit, or different facial structure. cover_pairing controls the compact coral, cream, navy, and mint rescue robot and how the eleven-year-old white girl mechanic-pilot remains visibly and securely aboard it. Rider and machine form one connected side-view runtime silhouette and one actor: never draw a detached rider, empty robot, canopy, duplicate machine, companion drone, or separate character. Preserve the robot's flower-shaped mint reactor, oversized tool forearms, two sturdy legs, rounded friendly industrial proportions, clear joints, and left-to-right motion."
+
+[[avatar.motions]]
+state = "run"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[avatar.motions]]
+state = "jump"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 10
+
+[[avatar.motions]]
+state = "slide"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[avatar.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8

@@ -1,0 +1,19 @@
+schema_version = 2
+kind = "item-content-v2"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "cover_seed_cell"
+source = "references/cover.png"
+source_sha256 = "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated Iron Petal Unit cover approved for redistribution by the authenticated task owner."]
+
+[[items]]
+item_id = "lumen_seed"
+height_units = 0.28
+display_name = "Lumen Seed Cell"
+item_kind = "currency"
+reference_ids = ["cover_seed_cell"]
+prompt = "One original luminous greenhouse seed cell: a small mint-glowing oval capsule held by four cream-and-coral petal fins, one simple flower aperture and no face, text, number, emblem, logo, or watermark; clean high-contrast collectible icon, strict side view, isolated on native transparent background with generous margins."

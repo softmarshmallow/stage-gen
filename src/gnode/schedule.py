@@ -387,9 +387,18 @@ class Scheduler:
                 return trace, result
             except Exception as error:
                 ended = elapsed_ms(started)
-                attempts = error.attempts if isinstance(error, NodeExecutionError) else 1
+                raw_attempts = getattr(error, "attempts", 1)
+                attempts = (
+                    raw_attempts
+                    if isinstance(raw_attempts, int) and not isinstance(raw_attempts, bool)
+                    else 1
+                )
+                raw_provider_operations = getattr(error, "provider_operations", 0)
                 provider_operations = (
-                    error.provider_operations if isinstance(error, NodeExecutionError) else 0
+                    raw_provider_operations
+                    if isinstance(raw_provider_operations, int)
+                    and not isinstance(raw_provider_operations, bool)
+                    else 0
                 )
                 known_cost = error.known_cost_usd if isinstance(error, NodeExecutionError) else None
                 message = redact_secrets(str(error).strip() or type(error).__name__, self._secrets)

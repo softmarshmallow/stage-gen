@@ -11,6 +11,21 @@ import { createRunnerWorld } from "./world";
 
 const gentle = rampProfile("gentle_ramp_v1");
 
+function manifestWithDifficultyBand(): ReturnType<typeof parseRunnerRuntimeManifest> {
+  const document = runnerManifestFixture();
+  const segments = document.segments as { chunks: Array<Record<string, unknown>> };
+  const base = segments.chunks[0];
+  segments.chunks = [
+    base,
+    ...[5, 6, 7, 8].map((difficulty) => ({
+      ...base,
+      segment_id: `difficulty_${difficulty}`,
+      difficulty,
+    })),
+  ];
+  return parseRunnerRuntimeManifest(document);
+}
+
 describe("difficultyCeiling", () => {
   test("starts at 1 and climbs one step per configured span", () => {
     expect(difficultyCeiling(gentle, 0)).toBe(1);
@@ -49,11 +64,37 @@ describe("speedMultiplier", () => {
 
 describe("createDifficultySystem", () => {
   test("publishes the ramp for the distance the avatar last wrote", () => {
-    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    const world = createRunnerWorld(manifestWithDifficultyBand(), 1);
     const system = createDifficultySystem();
     world.avatar.distanceColumns = gentle.columnsPerCeilingStep * 2;
     system.update(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
     expect(world.difficulty.ceiling).toBe(3);
     expect(world.difficulty.speedMultiplier).toBeGreaterThan(1);
+  });
+
+  test("clamps the long-run selection band to the package's authored maximum", () => {
+    const world = createRunnerWorld(manifestWithDifficultyBand(), 1);
+    const system = createDifficultySystem();
+    world.avatar.distanceColumns = 1e9;
+    system.update(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
+
+    expect(world.config.maxAuthoredDifficulty).toBe(8);
+    expect(world.difficulty.ceiling).toBe(8);
+    expect(world.difficulty.floor).toBe(5);
+  });
+
+  test("keeps ramping speed to the published cap after selection difficulty is spent", () => {
+    const world = createRunnerWorld(manifestWithDifficultyBand(), 1);
+    const system = createDifficultySystem();
+    world.avatar.distanceColumns = 1e9;
+    system.update(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
+
+    expect(world.difficulty.speedMultiplier).toBe(
+      world.config.arithmetic.maxSpeedMultiplier,
+    );
+    expect(world.difficulty.speedColumnsPerSecond).toBe(
+      world.config.arithmetic.baseSpeedColumnsPerSecond *
+        world.config.arithmetic.maxSpeedMultiplier,
+    );
   });
 });

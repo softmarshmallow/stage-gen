@@ -16,6 +16,7 @@ import {
   loadParallaxLayer,
   loadTerrainAtlas,
   loadTrimmedSprite,
+  loadTransparentSprite,
   registerCanvas,
 } from "@/lib/sideview/assets";
 import { installMotionPlayback } from "@/lib/sideview/motion-playback";
@@ -37,10 +38,19 @@ import { createObstaclesSystem, pickupKey } from "./obstacles";
 import {
   buildParallaxStage,
   createParallaxSystem,
+  runnerLayerFrameHeight,
   RUNNER_DEPTHS,
+  structuralGroundSourceSize,
   type ParallaxStageView,
+  type RunnerGroundTextures,
 } from "./parallax";
 import { createRunLoopSystem } from "./run-loop";
+import {
+  collectiblePresentation,
+  hazardCueAlpha,
+  hazardVisualScale,
+  presentationPhase,
+} from "./presentation";
 import {
   createRunnerSoundtrackPlayback,
   type RunnerSoundtrackPlayback,
@@ -99,6 +109,29 @@ function avatarAnimationKey(state: RunnerMotionState): string {
   return `runner:anim:${state}`;
 }
 
+function structuralGroundTextureKey(segmentId: string): string {
+  return `runner:ground:segment:${segmentId}`;
+}
+
+interface RasterSize {
+  readonly width: number;
+  readonly height: number;
+}
+
+interface HazardView {
+  readonly sprite: Phaser.GameObjects.Image;
+  readonly shadow: Phaser.GameObjects.Ellipse;
+  readonly cue: Phaser.GameObjects.Ellipse;
+}
+
+interface PickupView {
+  readonly sprite: Phaser.GameObjects.Image;
+  readonly halo: Phaser.GameObjects.Ellipse;
+  readonly baseY: number;
+  readonly baseScale: number;
+  readonly phase: number;
+}
+
 class RunnerScene extends Phaser.Scene {
   private world?: RunnerWorld;
   private sealed?: SealedSystems<RunnerWorld>;
@@ -151,12 +184,45 @@ class RunnerScene extends Phaser.Scene {
 
   private async buildStage(): Promise<void> {
     const manifest = this.manifest;
-    await loadTerrainAtlas(
-      this.url(manifest.ground.atlas),
-      GROUND_TEXTURE_KEY,
-      this.textures,
-      TRANSPARENCY_POLICY,
-    );
+    let groundTextures: RunnerGroundTextures;
+    if (manifest.ground.mode === "terrain-atlas-3x3-minimal-v1") {
+      await loadTerrainAtlas(
+        this.url(manifest.ground.atlas),
+        GROUND_TEXTURE_KEY,
+        this.textures,
+        TRANSPARENCY_POLICY,
+      );
+      groundTextures = Object.freeze({
+        mode: "terrain-atlas-3x3-minimal-v1",
+        key: GROUND_TEXTURE_KEY,
+      });
+    } else {
+      const keys = new Map<string, string>();
+      for (const chunk of manifest.ground.chunks) {
+        const key = structuralGroundTextureKey(chunk.segmentId);
+        const canvas = await loadTransparentSprite(
+          this.url(chunk.image),
+          key,
+          this.textures,
+          TRANSPARENCY_POLICY,
+        );
+        const expected = structuralGroundSourceSize(
+          chunk.columns,
+          chunk.rows,
+          manifest.ground.cellPx,
+        );
+        if (canvas.width !== expected.width || canvas.height !== expected.height) {
+          throw new Error(
+            `structural ground ${chunk.segmentId} must be exactly ${expected.width}x${expected.height}`,
+          );
+        }
+        keys.set(chunk.segmentId, key);
+      }
+      groundTextures = Object.freeze({
+        mode: "runner-structural-ground-v1",
+        keys,
+      });
+    }
     for (const layer of manifest.layers) {
       const key = `runner:layer:${layer.layerId}`;
       // Loop-admitted layers repeat seamlessly, so no edge fade: fading would
@@ -172,7 +238,7 @@ class RunnerScene extends Phaser.Scene {
       presentPreparedLayerCanvas(
         loaded.canvas,
         layer.presentation,
-        layer.height / RUNNER_VIEW_HEIGHT,
+        runnerLayerFrameHeight(layer, manifest.layers) / RUNNER_VIEW_HEIGHT,
       );
       registerCanvas(this.textures, key, loaded.canvas);
     }
@@ -190,21 +256,31 @@ class RunnerScene extends Phaser.Scene {
         frames_per_second: motion.framesPerSecond,
       });
     }
+    const propRasterSizes = new Map<string, RasterSize>();
     for (const prop of manifest.props) {
-      await loadTrimmedSprite(
+      const loaded = await loadTrimmedSprite(
         this.url(prop.image),
         `runner:prop:${prop.id}`,
         this.textures,
         TRANSPARENCY_POLICY,
       );
+      propRasterSizes.set(prop.id, {
+        width: loaded.canvas.width,
+        height: loaded.canvas.height,
+      });
     }
+    const itemRasterSizes = new Map<string, RasterSize>();
     for (const item of manifest.items) {
-      await loadTrimmedSprite(
+      const loaded = await loadTrimmedSprite(
         this.url(item.image),
         `runner:item:${item.id}`,
         this.textures,
         TRANSPARENCY_POLICY,
       );
+      itemRasterSizes.set(item.id, {
+        width: loaded.canvas.width,
+        height: loaded.canvas.height,
+      });
     }
 
     const world = createRunnerWorld(manifest, (Math.random() * 0x100000000) >>> 0);
@@ -212,11 +288,11 @@ class RunnerScene extends Phaser.Scene {
     const bands = buildParallaxStage(
       this,
       manifest.layers.map((layer) => ({ layer, key: `runner:layer:${layer.layerId}` })),
-      GROUND_TEXTURE_KEY,
+      groundTextures,
       world.config.tilePx,
       groundLine,
     );
-    const actors = this.buildActorsView(world);
+    const actors = this.buildActorsView(world, propRasterSizes, itemRasterSizes);
     const stage: ParallaxStageView = {
       sync: (current) => {
         bands.sync(current);
@@ -252,7 +328,11 @@ class RunnerScene extends Phaser.Scene {
   }
 
   /** Avatar, hazard, pickup, and contact-shadow drawing, mirrored from world state. */
-  private buildActorsView(world: RunnerWorld): ParallaxStageView {
+  private buildActorsView(
+    world: RunnerWorld,
+    propRasterSizes: ReadonlyMap<string, RasterSize>,
+    itemRasterSizes: ReadonlyMap<string, RasterSize>,
+  ): ParallaxStageView {
     const manifest = this.manifest;
     const config = world.config;
     const spriteScale = (calibrationPxPerUnit: number): number =>
@@ -271,13 +351,34 @@ class RunnerScene extends Phaser.Scene {
 
     const hazardContainer = this.add.container(0, 0).setDepth(RUNNER_DEPTHS.hazard);
     const pickupContainer = this.add.container(0, 0).setDepth(RUNNER_DEPTHS.pickup);
-    const hazardSprites = new Map<string, Phaser.GameObjects.Image>();
-    const pickupSprites = new Map<string, Phaser.GameObjects.Image>();
+    const hazardViews = new Map<string, HazardView>();
+    const pickupViews = new Map<string, PickupView>();
+    const collisionWidthPixels =
+      config.tilePx * (1 - config.arithmetic.hazardColumnInset * 2);
     const propScale = new Map(
-      manifest.props.map((prop) => [prop.id, spriteScale(prop.calibration.sourcePxPerUnit)]),
+      manifest.props.map((prop) => {
+        const calibrated = spriteScale(prop.calibration.sourcePxPerUnit);
+        const raster = propRasterSizes.get(prop.id);
+        return [
+          prop.id,
+          hazardVisualScale(
+            calibrated,
+            raster?.width ?? collisionWidthPixels / calibrated,
+            collisionWidthPixels,
+          ),
+        ] as const;
+      }),
     );
     const itemScale = new Map(
-      manifest.items.map((item) => [item.id, spriteScale(item.calibration.sourcePxPerUnit)]),
+      manifest.items.map((item) => {
+        const calibrated = spriteScale(item.calibration.sourcePxPerUnit);
+        const raster = itemRasterSizes.get(item.id);
+        const readableCell = config.tilePx * 0.72;
+        const fitted = raster
+          ? Math.min(calibrated, readableCell / raster.width, readableCell / raster.height)
+          : calibrated;
+        return [item.id, fitted] as const;
+      }),
     );
 
     let wornSeed = world.run.seed;
@@ -288,10 +389,17 @@ class RunnerScene extends Phaser.Scene {
         // across it, so the whole mirror resets with the seed.
         if (current.run.seed !== wornSeed) {
           wornSeed = current.run.seed;
-          for (const sprite of hazardSprites.values()) sprite.destroy();
-          hazardSprites.clear();
-          for (const sprite of pickupSprites.values()) sprite.destroy();
-          pickupSprites.clear();
+          for (const view of hazardViews.values()) {
+            view.sprite.destroy();
+            view.shadow.destroy();
+            view.cue.destroy();
+          }
+          hazardViews.clear();
+          for (const view of pickupViews.values()) {
+            view.sprite.destroy();
+            view.halo.destroy();
+          }
+          pickupViews.clear();
         }
         // Avatar: state decides texture, animation, scale, and anchor. The
         // animation replays on the jump IMPULSE, not only the state change:
@@ -336,7 +444,8 @@ class RunnerScene extends Phaser.Scene {
         for (const hazard of streamedHazards(current.segments)) {
           const key = `${hazard.worldColumn}:${hazard.propId}`;
           wantedHazards.add(key);
-          if (!hazardSprites.has(key)) {
+          let view = hazardViews.get(key);
+          if (!view) {
             const support = surfaceRowAt(current.segments, hazard.worldColumn);
             if (support === null) continue;
             // An overhead hazard hangs with its underside at the clearance
@@ -345,47 +454,121 @@ class RunnerScene extends Phaser.Scene {
               hazard.anchor === "overhead"
                 ? support - (hazard.clearanceRows ?? 0)
                 : support;
+            const centerX = (hazard.worldColumn + 0.5) * config.tilePx;
+            const baseY = rowToScreenY(baseRow, config);
+            const heightRows =
+              (config.propHeightUnits.get(hazard.propId) ?? 1) * config.playerHeightTiles;
+            const visualScale = propScale.get(hazard.propId) ?? { scaleX: 1, scaleY: 1 };
+            // The quiet grounding shadow and approach rim make the visual
+            // footprint agree with the already-published collision box. They
+            // never alter that box or the authored placement.
+            const hazardShadow = this.add
+              .ellipse(
+                centerX,
+                baseY,
+                collisionWidthPixels,
+                config.tilePx * 0.16,
+                0x000000,
+                hazard.anchor === "surface" ? 0.24 : 0,
+              )
+              .setOrigin(0.5, 0.5);
+            const cue = this.add
+              .ellipse(
+                centerX,
+                baseY - (heightRows * config.tilePx) / 2,
+                collisionWidthPixels * 1.08,
+                heightRows * config.tilePx * 1.04,
+                0xffd166,
+                0,
+              )
+              .setStrokeStyle(2, 0xffd166, 1)
+              .setAlpha(0);
             const sprite = this.add
               .image(
-                (hazard.worldColumn + 0.5) * config.tilePx,
-                rowToScreenY(baseRow, config),
+                centerX,
+                baseY,
                 `runner:prop:${hazard.propId}`,
               )
               .setOrigin(0.5, 1)
-              .setScale(propScale.get(hazard.propId) ?? 1);
-            hazardContainer.add(sprite);
-            hazardSprites.set(key, sprite);
+              .setScale(visualScale.scaleX, visualScale.scaleY);
+            hazardContainer.add([hazardShadow, cue, sprite]);
+            view = { sprite, shadow: hazardShadow, cue };
+            hazardViews.set(key, view);
           }
+          if (!view) continue;
+          view.cue.setAlpha(
+            hazardCueAlpha(
+              hazard.worldColumn - current.avatar.distanceColumns,
+              this.time.now,
+            ),
+          );
         }
-        for (const [key, sprite] of hazardSprites) {
+        for (const [key, view] of hazardViews) {
           if (!wantedHazards.has(key)) {
-            sprite.destroy();
-            hazardSprites.delete(key);
+            view.sprite.destroy();
+            view.shadow.destroy();
+            view.cue.destroy();
+            hazardViews.delete(key);
           }
         }
         const wantedPickups = new Set<string>();
         for (const pickup of streamedPickups(current.segments)) {
           const key = pickupKey(pickup);
           wantedPickups.add(key);
-          let sprite = pickupSprites.get(key);
-          if (!sprite) {
-            sprite = this.add
+          let view = pickupViews.get(key);
+          if (!view) {
+            const baseY =
+              (pickup.row + 0.5) * config.tilePx + rowToScreenY(0, config);
+            const baseScale = itemScale.get(pickup.itemId) ?? 1;
+            const centerX = (pickup.worldColumn + 0.5) * config.tilePx;
+            const halo = this.add
+              .ellipse(
+                centerX,
+                baseY,
+                config.tilePx * 0.72,
+                config.tilePx * 0.72,
+                0xffe69a,
+                0.06,
+              )
+              .setStrokeStyle(2, 0xfff0ad, 0.8);
+            const sprite = this.add
               .image(
-                (pickup.worldColumn + 0.5) * config.tilePx,
-                (pickup.row + 0.5) * config.tilePx + rowToScreenY(0, config),
+                centerX,
+                baseY,
                 `runner:item:${pickup.itemId}`,
               )
-              .setOrigin(0.5, 0.5)
-              .setScale(itemScale.get(pickup.itemId) ?? 1);
-            pickupContainer.add(sprite);
-            pickupSprites.set(key, sprite);
+              .setOrigin(0.5, 0.5);
+            pickupContainer.add([halo, sprite]);
+            view = {
+              sprite,
+              halo,
+              baseY,
+              baseScale,
+              phase: presentationPhase(key),
+            };
+            pickupViews.set(key, view);
           }
-          sprite.setVisible(!current.obstacles.collected.has(key));
+          if (!view) continue;
+          const motion = collectiblePresentation(this.time.now, view.phase);
+          view.sprite
+            .setY(view.baseY + motion.bobRows * config.tilePx)
+            .setScale(
+              view.baseScale * motion.scaleXMultiplier,
+              view.baseScale * motion.scaleYMultiplier,
+            );
+          view.halo
+            .setY(view.baseY + motion.bobRows * config.tilePx)
+            .setScale(motion.haloScale)
+            .setAlpha(motion.haloAlpha);
+          const visible = !current.obstacles.collected.has(key);
+          view.sprite.setVisible(visible);
+          view.halo.setVisible(visible);
         }
-        for (const [key, sprite] of pickupSprites) {
+        for (const [key, view] of pickupViews) {
           if (!wantedPickups.has(key)) {
-            sprite.destroy();
-            pickupSprites.delete(key);
+            view.sprite.destroy();
+            view.halo.destroy();
+            pickupViews.delete(key);
           }
         }
 

@@ -33,6 +33,7 @@ CONTRACT_KIND = _writer.CONTRACT_KIND
 FIXTURE_REF = _writer.FIXTURE_REF
 RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
 RUNNER_CONTRACT_KIND = _writer.RUNNER_CONTRACT_KIND
+RUNNER_FIXTURE_REF = _writer.RUNNER_FIXTURE_REF
 build_graph_contract = _writer.build_graph_contract
 build_runner_graph_contract = _writer.build_runner_graph_contract
 document_contract = _writer.document_contract
@@ -68,7 +69,7 @@ def test_runner_pipeline_document_tracks_the_executable_stage_graph() -> None:
 def test_runner_pipeline_contract_declares_its_identity_and_fixture() -> None:
     contract = document_contract(RUNNER_PIPELINE_DOCUMENT)
     assert contract["kind"] == RUNNER_CONTRACT_KIND
-    assert contract["fixture_ref"] == FIXTURE_REF
+    assert contract["fixture_ref"] == RUNNER_FIXTURE_REF
     assert (REPOSITORY_ROOT / contract["fixture_ref"]).is_dir()
 
 

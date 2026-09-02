@@ -86,14 +86,17 @@ export function speedMultiplier(profile: RampProfile, distanceColumns: number): 
 export function createDifficultySystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/difficulty",
-    contractVersion: "difficulty-system-v2",
+    contractVersion: "difficulty-system-v3",
     reads: [],
     writes: ["difficulty"],
     after: ["runner/intent"],
     update(world) {
       const profile = rampProfile(world.config.rampProfile);
       const difficulty = world.difficulty;
-      difficulty.ceiling = difficultyCeiling(profile, world.avatar.distanceColumns);
+      difficulty.ceiling = Math.min(
+        world.config.maxAuthoredDifficulty,
+        difficultyCeiling(profile, world.avatar.distanceColumns),
+      );
       difficulty.floor = difficultyFloor(profile, difficulty.ceiling);
       // The ramp is feel, the cap is arithmetic: spacing proofs ran at the
       // published maximum, so the earned multiplier never exceeds it.

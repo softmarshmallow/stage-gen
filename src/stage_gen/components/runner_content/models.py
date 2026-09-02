@@ -1,11 +1,14 @@
-"""The runner's avatar catalog: exactly one drawn character, minimally obligated.
+"""The runner's avatar catalog: exactly one runtime actor, minimally obligated.
 
 `player-content-v3` is deliberately not reused despite already knowing "run":
 it requires `equipment` and `dialogue_art`, obligations of the platformer and
 dialogue families that a runner avatar owes nobody. This catalog carries the
 shared drawn-actor blocks (reference binding, motion playback) and the closed
-runner motion set, and nothing else. Obstacles and pickups reuse the
-platformer's `prop-content-v2` and `item-content-v2` verbatim.
+runner motion set, and nothing else. One actor may be either one visible
+character or one machine with its rider visibly aboard; in the latter case all
+silhouette, proportion, collision, duck, and motion-rebase facts describe the
+combined rider-and-machine figure. Obstacles and pickups reuse the platformer's
+`prop-content-v2` and `item-content-v2` verbatim.
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ from stage_gen.components.actor_content import (
 )
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 
-RUNNER_AVATAR_SCHEMA_VERSION = 2
+RUNNER_AVATAR_SCHEMA_VERSION = 3
 
 #: The one canonical motion-state order every runner surface derives from:
 #: node ids and rebase plate bands in the recipe, and the runtime's own copy,
@@ -59,10 +62,22 @@ def declared_motion_states(avatar: RunnerAvatar) -> tuple[str, ...]:
 
 
 class RunnerAvatar(PersistedContractModel):
+    """One visible runner actor and the basis used to measure its whole silhouette.
+
+    ``age`` is the chronological age of the visible person: the character for
+    ``single_character_v1`` and the rider for ``visible_rider_machine_v1``. It
+    is intentionally honest rather than an adult-content proxy. A piloted
+    machine remains one runtime actor, never a rider plus a separately spawned
+    machine; its ``body_kind`` selects the package-level proportion override
+    measured in visible rider heads.
+    """
+
     avatar_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
     body_kind: str
-    age: int = Field(ge=18, le=130)
+    age: int = Field(ge=0, le=130)
+    silhouette_mode: Literal["single_character_v1", "visible_rider_machine_v1"]
+    proportion_basis: Literal["character_head_v1", "visible_rider_head_v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
     motions: list[MotionPresentation] = Field(min_length=1)
@@ -85,6 +100,18 @@ class RunnerAvatar(PersistedContractModel):
 
     @model_validator(mode="after")
     def validate_motions(self) -> RunnerAvatar:
+        if self.silhouette_mode == "visible_rider_machine_v1":
+            if self.body_kind != "piloted_machine":
+                raise ValueError("visible_rider_machine_v1 requires body_kind piloted_machine")
+            if self.proportion_basis != "visible_rider_head_v1":
+                raise ValueError(
+                    "visible_rider_machine_v1 requires proportion_basis visible_rider_head_v1"
+                )
+        else:
+            if self.body_kind == "piloted_machine":
+                raise ValueError("single_character_v1 requires a non-piloted body_kind")
+            if self.proportion_basis != "character_head_v1":
+                raise ValueError("single_character_v1 requires proportion_basis character_head_v1")
         validate_motion_states(
             self.motions,
             allowed_states=set(RUNNER_AVATAR_MOTION_STATES),
@@ -120,8 +147,8 @@ class RunnerAvatar(PersistedContractModel):
 
 
 class RunnerAvatarCatalog(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["runner-avatar-v2"]
+    schema_version: Literal[3]
+    kind: Literal["runner-avatar-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ContentReference] = Field(min_length=1, max_length=16)

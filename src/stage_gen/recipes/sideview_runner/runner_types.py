@@ -15,6 +15,7 @@ _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
+IMAGE_EDIT_FEATURES = (*IMAGE_FEATURES, "masked_edit")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 MUSIC_FEATURES = ("instrumental_loop",)
 
@@ -24,6 +25,13 @@ REFERENCE_KIND = "runner-reference-v1"
 GROUND_RAW_KIND = "ground-atlas-raw-v1"
 GROUND_ATLAS_KIND = "ground-atlas-canonical-v1"
 GROUND_VALIDATION_KIND = "ground-atlas-validation-v1"
+STRUCTURAL_GROUND_GUIDE_KIND = "runner-structural-ground-guide-v1"
+STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND = "runner-structural-ground-guide-validation-v1"
+STRUCTURAL_GROUND_RAW_KIND = "runner-structural-ground-raw-v1"
+STRUCTURAL_GROUND_SEAM_BRIDGE_KIND = "runner-structural-ground-seam-bridge-v1"
+STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND = "runner-structural-ground-seam-bridge-validation-v2"
+STRUCTURAL_GROUND_KIND = "runner-structural-ground-v1"
+STRUCTURAL_GROUND_VALIDATION_KIND = "runner-structural-ground-validation-v3"
 LAYER_RAW_KIND = "track-layer-raw-v1"
 LAYER_LOOP_KIND = "track-layer-loop-v1"
 LAYER_LOOP_EDIT_KIND = "track-layer-loop-edit-v1"
@@ -32,19 +40,19 @@ LAYER_VALIDATION_KIND = "track-layer-validation-v1"
 AVATAR_CONCEPT_KIND = "avatar-concept-v1"
 MOTION_RAW_KIND = "avatar-motion-raw-v1"
 MOTION_ATLAS_KIND = "avatar-motion-atlas-v1"
-MOTION_VALIDATION_KIND = "avatar-motion-validation-v1"
+MOTION_VALIDATION_KIND = "avatar-motion-validation-v2"
 REBASE_PLATE_KIND = "rebase-plate-v1"
 REBASE_READING_KIND = "rebase-reading-v1"
 REBASE_VERIFICATION_KIND = "rebase-verification-v1"
 CATALOG_RAW_KIND = "catalog-asset-raw-v1"
 CATALOG_ASSET_KIND = "catalog-asset-v1"
-CATALOG_VALIDATION_KIND = "catalog-asset-validation-v1"
+CATALOG_VALIDATION_KIND = "catalog-asset-validation-v3"
 TRACK_KIND = "runner-track-runtime-track-v1"
 SOUNDTRACK_RAW_KIND = "soundtrack-track-raw-v1"
 SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
 SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
-ATTEMPT_LEDGER_KIND = "attempt-ledger-v1"
-MANIFEST_KIND = "sideview-runner-runtime-v3"
+ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
+MANIFEST_KIND = "sideview-runner-runtime-v4"
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -61,7 +69,7 @@ TRACK_GROUND_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-ground-atlas-v1",
+    contract_version="runner-ground-atlas-v3",
 )
 
 TRACK_GROUND_VALIDATE = NodeType(
@@ -69,7 +77,41 @@ TRACK_GROUND_VALIDATE = NodeType(
     title="Ground atlas admission",
     archetype=ViewArchetype.VALIDATE,
     operation="local",
-    contract_version="runner-ground-validate-v1",
+    contract_version="runner-ground-validate-v2",
+)
+
+TRACK_STRUCTURAL_GROUND_GUIDE = NodeType(
+    type_id=f"{_P}/structural_ground.guide",
+    title="Structural ground guide",
+    archetype=ViewArchetype.TRANSFORM,
+    operation="local",
+    contract_version="runner-structural-ground-guide-v1",
+)
+
+TRACK_STRUCTURAL_GROUND_GENERATE = NodeType(
+    type_id=f"{_P}/structural_ground.generate",
+    title="Structural ground painting",
+    archetype=ViewArchetype.IMAGE,
+    operation="image_generation",
+    features=IMAGE_FEATURES,
+    policy=_PROVIDER,
+    contract_version="runner-structural-ground-generate-v3",
+)
+
+TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE = NodeType(
+    type_id=f"{_P}/structural_ground.seam_bridge",
+    title="Shared structural ground seam bridge",
+    archetype=ViewArchetype.TRANSFORM,
+    operation="local",
+    contract_version="runner-structural-ground-seam-bridge-v2",
+)
+
+TRACK_STRUCTURAL_GROUND_VALIDATE = NodeType(
+    type_id=f"{_P}/structural_ground.validate",
+    title="Structural ground admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="runner-structural-ground-validate-v3",
 )
 
 LAYER_GENERATE = NodeType(
@@ -79,7 +121,7 @@ LAYER_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-layer-v1",
+    contract_version="runner-layer-v3",
 )
 
 LAYER_LOOP_CONSTRUCT = NodeType(
@@ -95,9 +137,9 @@ LAYER_LOOP_PAINT = NodeType(
     title="Layer loop repaint",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
-    features=IMAGE_FEATURES,
+    features=IMAGE_EDIT_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-layer-loop-v1",
+    contract_version="runner-layer-loop-v4",
 )
 
 LAYER_VALIDATE = NodeType(
@@ -115,7 +157,7 @@ AVATAR_CONCEPT_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-avatar-concept-v1",
+    contract_version="runner-avatar-concept-v4",
 )
 
 AVATAR_MOTION_GENERATE = NodeType(
@@ -125,7 +167,7 @@ AVATAR_MOTION_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-avatar-motion-v1",
+    contract_version="runner-avatar-motion-v4",
 )
 
 AVATAR_MOTION_VALIDATE = NodeType(
@@ -133,7 +175,7 @@ AVATAR_MOTION_VALIDATE = NodeType(
     title="Avatar motion admission",
     archetype=ViewArchetype.VALIDATE,
     operation="local",
-    contract_version="runner-avatar-motion-validate-v1",
+    contract_version="runner-avatar-motion-validate-v4",
 )
 
 MOTION_REBASE_JUDGE = NodeType(
@@ -143,7 +185,7 @@ MOTION_REBASE_JUDGE = NodeType(
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
     policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="runner-motion-rebase-v1",
+    contract_version="runner-motion-rebase-v3",
 )
 
 MOTION_REBASE_VERIFY = NodeType(
@@ -153,7 +195,7 @@ MOTION_REBASE_VERIFY = NodeType(
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
     policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="runner-motion-rebase-verify-v1",
+    contract_version="runner-motion-rebase-verify-v3",
 )
 
 CATALOG_ASSET_GENERATE = NodeType(
@@ -163,7 +205,7 @@ CATALOG_ASSET_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-catalog-asset-v1",
+    contract_version="runner-catalog-asset-v3",
 )
 
 CATALOG_ASSET_VALIDATE = NodeType(
@@ -171,7 +213,7 @@ CATALOG_ASSET_VALIDATE = NodeType(
     title="Catalog asset admission",
     archetype=ViewArchetype.VALIDATE,
     operation="local",
-    contract_version="runner-catalog-asset-validate-v1",
+    contract_version="runner-catalog-asset-validate-v3",
 )
 
 SOUNDTRACK_GENERATE = NodeType(
@@ -181,7 +223,7 @@ SOUNDTRACK_GENERATE = NodeType(
     operation="music_generation",
     features=MUSIC_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-soundtrack-track-v1",
+    contract_version="runner-soundtrack-track-v3",
 )
 
 SOUNDTRACK_VALIDATE = NodeType(
@@ -197,17 +239,20 @@ MANIFEST_ASSEMBLE = NodeType(
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    # v3: publishes authored runner audio bindings and effect realizations.
-    # The version bump is also the cache re-key - the node cache ignores port
-    # kinds, so without it a regenerated run would replay the old manifest
-    # byte-identically and still be refused by the v2 parser.
-    contract_version="runner-manifest-assemble-v3",
+    # v5: the manifest reads the admitted motion-rebase `states` shape exactly
+    # and fails closed instead of silently projecting identity multipliers.
+    # The runtime document remains v4 because its public shape is unchanged.
+    contract_version="runner-manifest-assemble-v6",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     PACKAGE_RESOLVE,
     TRACK_GROUND_GENERATE,
     TRACK_GROUND_VALIDATE,
+    TRACK_STRUCTURAL_GROUND_GUIDE,
+    TRACK_STRUCTURAL_GROUND_GENERATE,
+    TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
+    TRACK_STRUCTURAL_GROUND_VALIDATE,
     LAYER_GENERATE,
     LAYER_LOOP_CONSTRUCT,
     LAYER_LOOP_PAINT,
@@ -243,6 +288,7 @@ __all__ = [
     "GROUND_ATLAS_KIND",
     "GROUND_RAW_KIND",
     "GROUND_VALIDATION_KIND",
+    "IMAGE_EDIT_FEATURES",
     "IMAGE_FEATURES",
     "LAYER_GENERATE",
     "LAYER_LOOP_CONSTRUCT",
@@ -274,7 +320,18 @@ __all__ = [
     "SOUNDTRACK_VALIDATE",
     "SOUNDTRACK_VALIDATION_KIND",
     "STRUCTURED_FEATURES",
+    "STRUCTURAL_GROUND_GUIDE_KIND",
+    "STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND",
+    "STRUCTURAL_GROUND_KIND",
+    "STRUCTURAL_GROUND_RAW_KIND",
+    "STRUCTURAL_GROUND_SEAM_BRIDGE_KIND",
+    "STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND",
+    "STRUCTURAL_GROUND_VALIDATION_KIND",
     "TRACK_GROUND_GENERATE",
     "TRACK_GROUND_VALIDATE",
+    "TRACK_STRUCTURAL_GROUND_GENERATE",
+    "TRACK_STRUCTURAL_GROUND_GUIDE",
+    "TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE",
+    "TRACK_STRUCTURAL_GROUND_VALIDATE",
     "TRACK_KIND",
 ]

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   attachKeyboardIntentSource,
+  attachPointerIntentSource,
   createIntentLatch,
   createIntentSystem,
   NEUTRAL_RUNNER_INTENT,
@@ -96,6 +97,94 @@ describe("attachKeyboardIntentSource", () => {
     dispose();
     expect(target.count("keydown")).toBe(0);
     expect(target.count("keyup")).toBe(0);
+  });
+});
+
+type PointerListener = (event: PointerEvent) => void;
+
+function fakePointerTarget() {
+  const listeners = new Map<string, Set<PointerListener>>();
+  const captured: number[] = [];
+  let prevented = 0;
+  return {
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      const set = listeners.get(type) ?? new Set<PointerListener>();
+      set.add(listener as PointerListener);
+      listeners.set(type, set);
+    },
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      listeners.get(type)?.delete(listener as PointerListener);
+    },
+    getBoundingClientRect() {
+      return { top: 100, height: 500 } as DOMRect;
+    },
+    setPointerCapture(pointerId: number) {
+      captured.push(pointerId);
+    },
+    dispatch(type: string, event: Pick<PointerEvent, "clientY" | "pointerId">) {
+      for (const listener of listeners.get(type) ?? []) {
+        listener({
+          ...event,
+          preventDefault: () => {
+            prevented += 1;
+          },
+        } as PointerEvent);
+      }
+    },
+    count(type: string): number {
+      return listeners.get(type)?.size ?? 0;
+    },
+    get captured(): readonly number[] {
+      return captured;
+    },
+    get prevented(): number {
+      return prevented;
+    },
+  };
+}
+
+describe("attachPointerIntentSource", () => {
+  test("maps the upper zone to one immediate jump", () => {
+    const latch = createIntentLatch();
+    const target = fakePointerTarget();
+    attachPointerIntentSource(latch, target);
+
+    target.dispatch("pointerdown", { clientY: 200, pointerId: 1 });
+
+    expect(latch.sample().jump).toBe(true);
+    expect(latch.sample().jump).toBe(false);
+    expect(latch.sample().duck).toBe(false);
+    expect(target.prevented).toBe(1);
+  });
+
+  test("holds the lower zone as duck through capture until every pointer releases", () => {
+    const latch = createIntentLatch();
+    const target = fakePointerTarget();
+    attachPointerIntentSource(latch, target);
+
+    target.dispatch("pointerdown", { clientY: 500, pointerId: 7 });
+    target.dispatch("pointerdown", { clientY: 510, pointerId: 8 });
+    expect(latch.sample()).toEqual({ jump: false, duck: true, action: false });
+    expect(target.captured).toEqual([7, 8]);
+    target.dispatch("pointerup", { clientY: 700, pointerId: 7 });
+    expect(latch.sample().duck).toBe(true);
+    target.dispatch("pointercancel", { clientY: 700, pointerId: 8 });
+    expect(latch.sample().duck).toBe(false);
+  });
+
+  test("disposal removes every pointer listener and cannot leave duck held", () => {
+    const latch = createIntentLatch();
+    const target = fakePointerTarget();
+    const dispose = attachPointerIntentSource(latch, target);
+    target.dispatch("pointerdown", { clientY: 500, pointerId: 3 });
+    expect(latch.sample().duck).toBe(true);
+
+    dispose();
+
+    expect(latch.sample().duck).toBe(false);
+    for (const type of ["pointerdown", "pointerup", "pointercancel", "lostpointercapture"]) {
+      expect(target.count(type)).toBe(0);
+    }
   });
 });
 

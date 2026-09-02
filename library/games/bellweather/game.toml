@@ -1,7 +1,7 @@
 schema_version = 9
 kind = "game-contract-v9"
 game_id = "bellweather"
-revision = 23
+revision = 24
 display_name = "Bellweather"
 
 [universe]

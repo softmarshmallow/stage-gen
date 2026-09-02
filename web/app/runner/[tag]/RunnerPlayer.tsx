@@ -21,6 +21,12 @@ export default function RunnerPlayer({
   manifest: RunnerRuntimeManifest;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const supportsSlide =
+    manifest.gameplay.duckProfile !== null &&
+    manifest.avatar.motions.some((motion) => motion.state === "slide");
+  const controlsLabel = supportsSlide
+    ? "Tap the upper screen or press Space to jump. Hold the lower screen or Arrow Down to slide."
+    : "Tap the screen or press Space to jump.";
 
   useEffect(() => {
     let game: RunnerGameHandle | undefined;
@@ -37,11 +43,17 @@ export default function RunnerPlayer({
   }, [manifest, tag]);
 
   return (
-    <div
-      ref={ref}
-      data-testid="runner-stage"
-      aria-label={`${manifest.displayName} — infinite runner`}
-      className="h-full w-full touch-none select-none"
-    />
+    <div className="relative h-full w-full overflow-hidden">
+      <div
+        ref={ref}
+        data-testid="runner-stage"
+        aria-label={`${manifest.displayName} — infinite runner. ${controlsLabel}`}
+        className="h-full w-full touch-none select-none"
+      />
+      <div className="pointer-events-none absolute right-3 bottom-2 left-3 z-10 flex justify-between text-[10px] tracking-[0.12em] text-white/55 uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+        <span>Tap / Space · Jump</span>
+        {supportsSlide ? <span>Hold lower screen / ↓ · Slide</span> : null}
+      </div>
+    </div>
   );
 }

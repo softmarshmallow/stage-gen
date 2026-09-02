@@ -2,8 +2,8 @@
 
 > **Status: alpha-component instance recovery is implemented and is the prepared-game default;
 > broader geometry and ownership recovery remain planned.**
-> `src/stage_gen/media/sprite_sheets.py` implements the intentionally simple
-> `alpha-component-repack-v1` subset used by prepared-game actor assets. Uniform-grid and
+> `src/stage_gen/media/sprite_sheets.py` implements the deterministic
+> `alpha-component-repack-v3` subset used by prepared-game actor assets. Uniform-grid and
 > padding-derived geometry, normalized per-cell artifacts, and ambiguous-instance ownership below
 > remain the normative target rather than shipped behavior.
 
@@ -25,11 +25,11 @@ semantic cell identifiers; the processor owns deterministic pixel geometry.
 | What is generated? | One native-alpha source sheet containing a requested number of poses. |
 | Is the requested count trusted? | No. It is an intent that local validation must test against observed pixels. |
 | How are poses found? | Meaningful 8-connected alpha components are treated as candidate instances. |
-| How are extras handled? | Keep the largest requested number and report discarded components and alpha loss. |
-| How are missing instances handled? | Fail closed when fewer principal components than requested are found. |
+| How are extras handled? | The default keeps the largest requested number and reports loss; `exact_required_slots` fails when any meaningful component would be discarded. |
+| How are missing instances handled? | Try the deterministic higher-alpha-core partition only for low-alpha-fused support; otherwise fail closed. |
 | What does the runtime consume? | A deterministic equal-cell canonical sheet produced by the repacker. |
 | Is equal-X/Y slicing still the producer default? | No. It remains only the runtime decoding of an already canonical sheet. |
-| Are detached effects guaranteed to follow their actor? | No. This is the principal accepted caveat of v1. |
+| Are detached effects guaranteed to follow their actor? | No. The core cannot assign ownership; strict recipes fail instead of publishing lossy output. |
 
 ## The problem
 
@@ -62,18 +62,29 @@ model output.
 
 ## Shipped alpha-component baseline
 
-`alpha-component-repack-v1` is intentionally the simplest useful recovery strategy:
+`alpha-component-repack-v3` keeps the v1 base path byte-identical and strengthens one narrow
+fallback:
 
 1. Decode a native-alpha PNG and classify pixels with `alpha > 16` as occupied.
 2. Find 8-connected occupied components.
 3. Reject components smaller than the greater of 32 pixels or 2% of total thresholded visible
    area.
-4. If fewer than `n` candidates remain, fail without publishing a canonical sheet.
-5. If more than `n` remain, retain the `n` largest and report every rejected component.
-6. Recover source reading order using source-row bands and horizontal centroids.
-7. Translate each selected component without scaling into a canonical equal cell with a
+4. If fewer than `n` candidates remain, progressively raise the alpha threshold. Recovery is
+   eligible only when exactly `n` principal high-alpha cores exist, one occupies each expected
+   source lattice slot, and together they cover every principal base-threshold component.
+5. Seed those cores in source reading order, then deterministically partition the original
+   base-threshold 8-connected support by multi-source 8-neighbor geodesic flood. This preserves
+   the real alpha values of antialiasing, fringes, and the weak bridge while assigning every pixel
+   to exactly one core. Equal-distance ties go to the earlier source-ordered core.
+6. If no higher threshold proves that ownership, fail without publishing a canonical sheet.
+7. Under the default policy, if more than `n` base candidates remain, retain the `n` largest and
+   report every rejected component. Under `exact_required_slots`, require exactly one principal
+   component in every expected source slot and refuse any other unassigned component of at least
+   the 32-pixel meaningful-area floor.
+8. Recover source reading order using source-row bands and horizontal centroids.
+9. Translate each selected component without scaling into a canonical equal cell with a
    transparent gutter. Motion poses are bottom-centered; dialogue expressions are centered.
-8. Validate that every required output cell is nonempty and does not touch its cell boundary.
+10. Validate that every required output cell is nonempty and does not touch its cell boundary.
 
 The canonical motion repacker preserves a 12-pixel transparent isolation gutter below each
 bottom-anchored component. Runtime actor consumers register the visible component bottom, not the
@@ -86,11 +97,11 @@ and selected component counts, placements, alpha retention, warnings, and implem
 
 ## Known failure taxonomy
 
-| Failure | Observable condition | v1 behavior | Consequence |
+| Failure | Observable condition | v3 behavior | Consequence |
 | --- | --- | --- | --- |
-| Detached effect | Actor and effect form separate alpha components | A small effect may be rejected; a large one may compete with a pose | Visual effect loss or, in the worst case, wrong instance selection |
-| Touching poses | Two intended poses share an alpha-connected bridge | Candidate count may fall below `n` | Hard failure; no canonical sheet is published |
-| Fragmented pose | One pose contains multiple substantial disconnected regions | Largest-`n` selection has no semantic ownership | A limb, weapon, mount, or effect may be separated from its actor |
+| Detached effect | Actor and effect form separate alpha components | Default policy may drop it; `exact_required_slots` refuses every unassigned meaningful component | Permissive recipes retain the documented loss risk; strict recipes regenerate |
+| Touching poses | Two intended poses share an alpha-connected bridge | Exactly `n` stronger cores covering every principal base component are partitioned deterministically; all other cases fail | Weak bridges can be split without discarding their alpha; ambiguous fusion remains a hard failure |
+| Fragmented pose | One pose contains multiple substantial disconnected regions | Largest-`n` has no semantic ownership; `exact_required_slots` fails closed | A strict recipe cannot silently separate a limb, rider, weapon, mount, or effect |
 | Weak alpha | Important pixels remain at or below the threshold | Pixels are excluded from detection and retained-alpha accounting | Fine translucent detail may disappear from the selected bounds |
 | Ambiguous reading order | Unequal rows or displaced poses defeat row-band ordering | Deterministic centroid order is still applied | Semantic frame order can be wrong despite valid geometry |
 | Oversized pose | Recovered bounds cannot fit with the canonical gutter | Validation fails | Regeneration or a future explicit rescale policy is required |
@@ -120,12 +131,16 @@ chroma-to-alpha conversion, alpha composition, and native-alpha connected-compon
 under `src/stage_gen/media/`. Prepared-game actor generation retains each provider sheet, then its
 local validation node calls `repack_alpha_components` to publish the runtime-facing sheet.
 
-The shipped v1 repacker uses 8-connectivity, `alpha > 16`, a candidate area of at least 2% of
+The shipped v3 repacker uses 8-connectivity, `alpha > 16`, a candidate area of at least 2% of
 thresholded visible area with a 32-pixel floor, and the largest declared number of components. It
 orders those components row-major using source-row bands and horizontal centroids, then translates
 them without rescaling into equal cells with transparent gutters. It records all rejected
-components and retained alpha. It deliberately does not attach detached effects to a body; it can
-drop them. It fails when fewer principal components than required remain.
+components and retained alpha. When that base pass is short, it searches higher alpha thresholds
+for exactly the required number of strong cores, verifies that one core occupies every expected
+source lattice slot and every base principal component is represented, and floods the original
+support from those cores deterministically. It deliberately does not attach detached effects to a
+body; it can drop them. It fails when the high-alpha evidence does not prove the requested frame
+count, lattice distribution, and base-component coverage.
 
 The Python core does **not** currently implement:
 

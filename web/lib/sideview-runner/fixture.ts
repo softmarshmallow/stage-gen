@@ -69,7 +69,7 @@ export function runnerAudioFixture(): Record<string, unknown> {
 
 export function runnerManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 3,
+    schema_version: 4,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",

@@ -97,10 +97,10 @@ debugging and reproducibility; it is not an IP license.
 
 ## Recipes and preview
 
-Three recipes compile onto the one engine: `sideview-platformer`,
-`dialogue-scene`, and `pointclick-room`. Each declares its own graph document
-kind, so no recipe can read another's plan, and none may define another's
-assumptions or artifact layout.
+Four recipes compile onto the one engine: `sideview-platformer`,
+`sideview-runner`, `dialogue-scene`, and `pointclick-room`. Each declares its
+own graph document kind, so no recipe can read another's plan, and none may
+define another's assumptions or artifact layout.
 
 The existing detailed asset contracts describe the first of them, the side-view
 platformer recipe: a concept root, parallax layers, terrain tiles, character/mob
@@ -114,6 +114,14 @@ component results through a different manifest/adapter.
 
 See [side-view platformer asset contracts](asset-contracts.md) and the
 [web preview boundary](../web-preview.md).
+
+The `sideview-runner` sibling resolves the same prepared-package container but
+owns reaction-fair authored segment admission, structural-ground or atlas
+presentation, a combined avatar state machine, auto-run difficulty, pickups,
+hazards, and runner audio. It emits `sideview-runner-runtime-v4`; the fixed-step
+consumer under `web/lib/sideview-runner/` owns camera, collision, streaming,
+and play presentation. Its [runner specification](game/runner.md) owns the
+exact contracts and machine-checked graph snapshot.
 
 The `dialogue-scene` sibling recipe packages one caller-directed appearance
 concept, a finite set of static expression variants for that identity, and

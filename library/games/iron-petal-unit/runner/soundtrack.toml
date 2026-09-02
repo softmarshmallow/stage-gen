@@ -1,0 +1,30 @@
+schema_version = 1
+kind = "game-soundtrack-v1"
+game_id = "iron-petal-unit"
+revision = 1
+
+[playback]
+selection = "shuffle"
+no_immediate_repeat = true
+
+[[tracks]]
+track_id = "glasshouse_rescue"
+display_name = "Glasshouse Rescue"
+creative_brief = "An original optimistic orbital-greenhouse runner instrumental with nimble marimba, warm analog pulses, pizzicato strings, brushed hand percussion, airy woodwind, and a bright mint-like bell color; forward-moving and heroic without becoming aggressive, with no recognizable melody and no vocals."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+[[tracks]]
+track_id = "petal_reactor"
+display_name = "Petal Reactor"
+creative_brief = "An original playful mechanical-botanical runner instrumental: rounded synth bass, light ceramic percussion, plucked strings, soft brass swells, small sparkling chimes, and buoyant rescue-adventure momentum; colorful and never frantic, with no recognizable melody and no vocals. HARD LOOP CONTRACT: the first and last bars must share the same beat phase, bass energy, percussion pattern, musical density, and room tone so end-to-start playback is attention-free; no intro, outro, cadence, drum fill, riser, crash, held final chord, fade, or exposed reverb tail."
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90

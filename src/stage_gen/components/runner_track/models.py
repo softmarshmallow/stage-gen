@@ -1,10 +1,10 @@
 """The runner's track contract: authored tiled segments over the shared side-view stage.
 
-A track reuses the platformer map's generation vocabulary verbatim - the view,
-the continuity/loop block, digest-locked references, parallax layers, and the
-47-mask ground atlas request - and replaces the platformer's generated terrain
-with AUTHORED occupancy chunks. The camera is the runner's own: `auto_run_x_v1`
-advances on its own rather than following input.
+A track reuses the platformer map's view, continuity, digest-locked references,
+and parallax vocabulary, and selects a closed ground-presentation mode: the
+shared 47-mask atlas or one structural painting per segment. Both modes serve
+AUTHORED occupancy chunks; neither owns geometry. The camera is the runner's
+own: `auto_run_x_v1` advances on its own rather than following input.
 
 Segments are the genre fact. Every chunk shares one grid height and one
 `walk_surface_row`, and the SEAM RULE - every chunk's first and last columns
@@ -18,7 +18,7 @@ proved at package resolution against the gameplay contract's jump profile.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
@@ -42,7 +42,7 @@ from stage_gen.components.platformer_map import (
     bottom_contiguous_surface_row,
 )
 
-RUNNER_TRACK_SCHEMA_VERSION = 2
+RUNNER_TRACK_SCHEMA_VERSION = 3
 
 MIN_SEGMENT_COLUMNS = 8
 MAX_SEGMENT_COLUMNS = 64
@@ -192,9 +192,40 @@ class RunnerSegments(PersistedContractModel):
         return self
 
 
+class RunnerStructuralGround(PersistedContractModel):
+    """One bespoke transparent painting per authored runner segment.
+
+    The painting is presentation only. ``RunnerSegmentChunk.occupancy`` stays
+    the geometry authority, and the local canonicalizer masks every generated
+    raster back to that exact binary silhouette before publication.
+    """
+
+    mode: Literal["runner-structural-ground-v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    vertical_fit: Literal["floor_to_screen_bottom"]
+    prompt: str
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "runner structural ground reference_id")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "runner structural ground prompt", multiline=True)
+
+
+type RunnerGround = Annotated[
+    PreparedMapGround | RunnerStructuralGround,
+    Field(discriminator="mode"),
+]
+
+
 class RunnerTrack(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["runner-track-v2"]
+    schema_version: Literal[3]
+    kind: Literal["runner-track-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     track_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -204,7 +235,7 @@ class RunnerTrack(PersistedContractModel):
     continuity: PreparedMapContinuity
     references: list[PreparedMapReference] = Field(min_length=1, max_length=16)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
-    ground: PreparedMapGround
+    ground: RunnerGround
     segments: RunnerSegments
 
     @field_validator("display_name")
@@ -256,8 +287,10 @@ __all__ = [
     "RunnerCamera",
     "RunnerHazard",
     "RunnerPickup",
+    "RunnerGround",
     "RunnerSegmentChunk",
     "RunnerSegments",
+    "RunnerStructuralGround",
     "RunnerTrack",
     "canonical_runner_track_json",
     "load_runner_track_bytes",

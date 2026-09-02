@@ -17,6 +17,19 @@ class AbortError(CancellationError):
 
     name = "AbortError"
 
+    def __init__(self, message: str, *, provider_operations: int = 0) -> None:
+        if (
+            isinstance(provider_operations, bool)
+            or not isinstance(provider_operations, int)
+            or provider_operations < 0
+        ):
+            raise ValueError("provider_operations must be a non-negative integer")
+        super().__init__(message)
+        # A node was attempted even when cancellation arrived before its first
+        # provider operation. The separate operation count is the spend truth.
+        self.attempts = max(1, provider_operations)
+        self.provider_operations = provider_operations
+
 
 class CancellationToken:
     """Small asyncio-friendly cancellation primitive with a sanitized reason."""

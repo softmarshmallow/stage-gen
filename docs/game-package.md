@@ -4,8 +4,9 @@
 > provider-free integration, and prepared runtime consumption are implemented.
 >
 > Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
-> cross-contract validation, repository selection, the typed scrolling DAG, and
-> `prepared-game-runtime-v10` assembly are executable. Successful package validation
+> cross-contract validation, repository selection, both typed scrolling DAGs, and
+> `prepared-game-runtime-v10` / `sideview-runner-runtime-v4` assembly are executable.
+> Successful package validation
 > is still authored-input truth only; it does not prove that a live run completed,
 > passed semantic review, is playable, or is approved for publication.
 
@@ -16,16 +17,8 @@ or map-book index:
 
 ```text
 library/games/main.toml
-└── library/games/bellweather/game.toml
+└── library/games/iron-petal-unit/game.toml
     ├── universe.md
-    ├── gameplay.toml
-    ├── ui.toml
-    ├── soundtrack.toml
-    ├── maps/<map_id>.toml
-    ├── content/{player,mobs,npcs,props,items}.toml
-    ├── scenarios/index.toml
-    ├── scenarios/<scenario_id>.toml
-    ├── scenarios/<scenario_id>.scenario
     ├── runner/{gameplay,track,audio,soundtrack}.toml
     ├── runner/content/{avatar,props,items}.toml
     └── references/*
@@ -46,8 +39,8 @@ Only these prepared-package identities are accepted by the resolver:
 | Repository selector | `game-package-v4` |
 | Package root | `game-contract-v9` |
 | Runner gameplay | `runner-gameplay-v2` |
-| Runner track | `runner-track-v2` |
-| Runner avatar catalog | `runner-avatar-v2` |
+| Runner track | `runner-track-v3` |
+| Runner avatar catalog | `runner-avatar-v3` |
 | Runner audio | `runner-audio-v1` |
 | Gameplay | `gameplay-contract-v1` |
 | Map generation | `game-map-v9` |
@@ -64,7 +57,7 @@ Only these prepared-package identities are accepted by the resolver:
 
 Successful provider-free integration of the platformer member emits
 `prepared-game-runtime-v10`; a runner member's run emits
-`sideview-runner-runtime-v3` from its own local manifest assembly.
+`sideview-runner-runtime-v4` from its own local manifest assembly.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In
@@ -76,16 +69,16 @@ particular, package ingest does not reconstruct a prompt request, `WorldSpec`,
 A package may be supplied directly as a directory:
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package digest --input library/games/bellweather
+uv run stage-gen package validate --input library/games/iron-petal-unit
+uv run stage-gen package digest --input library/games/iron-petal-unit
 ```
 
 Or as a ZIP whose archive root is the package itself or one wrapper directory
 named for the game:
 
 ```sh
-uv run stage-gen package validate --input /path/to/bellweather.zip
-uv run stage-gen package digest --input /path/to/bellweather.zip
+uv run stage-gen package validate --input /path/to/iron-petal-unit.zip
+uv run stage-gen package digest --input /path/to/iron-petal-unit.zip
 ```
 
 Both forms capture every closure byte once and produce the same
@@ -127,6 +120,12 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 
 The resolver imports no provider, recipe, or composed runtime module. A
 malformed package therefore cannot perform a paid operation.
+
+`resolve_prepared_package` is the genre-neutral capture boundary and accepts a
+runner-only root or a platformer-containing root. `resolve_game_package` is the
+explicitly platformer-required narrowing used by that recipe. The runner recipe
+resolves its own member from the common captured package; it does not require or
+manufacture a dummy platformer member.
 
 ## Actor motion and playback ownership
 
@@ -180,7 +179,7 @@ to be tracked and equal to Git `HEAD`:
 uv run python scripts/validate_game_package.py --root . --require-committed
 ```
 
-The `game-package-validation-v5` report keeps authored, repository, and
+The `game-package-validation-v6` report keeps authored, repository, and
 generated truth separate:
 
 - `source_status = "current"` means the complete prepared closure validates;

@@ -11,6 +11,7 @@ from stage_gen.components.sideview_layers.pipeline import (
     assemble_loop,
     construct_deterministic,
     loop_conditioning,
+    validate_provider_image,
 )
 from stage_gen.media import LOOP_METHODS, LoopConstruction
 
@@ -51,3 +52,13 @@ def test_every_registered_construction_has_a_dispatcher(construction: LoopConstr
     assert record["kind"] == LOOP_METHODS[construction].version
     with Image.open(io.BytesIO(looped)) as opened:
         assert opened.width == record["period_width"]
+
+
+def test_transparent_provider_admission_requires_meaningful_alpha() -> None:
+    image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+    ImageDraw.Draw(image).rectangle((4, 4, 27, 27), fill=(80, 140, 220, 1))
+    stream = io.BytesIO()
+    image.save(stream, format="PNG")
+
+    with pytest.raises(ValueError, match="meaningful alpha"):
+        validate_provider_image(stream.getvalue(), width=32, height=32, transparent=True)

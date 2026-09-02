@@ -4,8 +4,10 @@
 // Bands are TileSprites because the track is endless: each authored layer is
 // one admitted horizontal repeat, and the band scrolls by `scrollX * parallax`
 // forever without ever running out of painting. The ground is different — it
-// is the streamed occupancy made visible, drawn cell by cell from the locked
-// 47-mask terrain atlas, appearing with the window and vanishing behind it.
+// is the streamed occupancy made visible. Atlas tracks draw cell by cell from
+// the locked 47-mask atlas; structural tracks draw one full canonical raster
+// per streamed segment instance. Both are presentation-only mirrors of the
+// same occupancy that physics reads.
 //
 // Only the placement math is exported for tests; the builders take a live
 // scene. Phaser enters as types alone so the module stays importable headless.
@@ -54,12 +56,17 @@ export function runnerLayerPlacement(
   layer: Pick<RunnerLayer, "height" | "verticalAnchor" | "verticalOffset">,
   viewHeight: number,
   groundLine: number,
+  sourceFrameHeight = layer.height,
 ): LayerBandPlacement {
-  if (viewHeight <= 0 || layer.height <= 0) {
+  if (viewHeight <= 0 || layer.height <= 0 || sourceFrameHeight <= 0) {
     throw new Error("layer placement requires positive heights");
   }
-  const scale = viewHeight / layer.height;
-  const renderedHeight = viewHeight;
+  // Transparent bands are vertically trimmed but keep the same authored
+  // 1536-wide frame as the opaque cover. When that cover is available its
+  // height remains the scale datum, so a low foreground strip stays a strip
+  // instead of being inflated to an entire screen.
+  const scale = viewHeight / sourceFrameHeight;
+  const renderedHeight = layer.height * scale;
   const offset = layer.verticalOffset ?? 0;
   let topY: number;
   switch (layer.verticalAnchor) {
@@ -77,6 +84,33 @@ export function runnerLayerPlacement(
       break;
   }
   return Object.freeze({ topY, renderedHeight, scale });
+}
+
+/**
+ * Recover the common painted-frame height from the opaque cover.
+ *
+ * Repeat admission may widen each layer by a different generated bridge, so
+ * final repeat width is not evidence of a different authored frame. Every
+ * layer in one runner track is painted against the same full-height canvas;
+ * the opaque canvas-cover layer preserves that scale datum after transparent
+ * bands are vertically trimmed.
+ */
+export function runnerLayerFrameHeight(
+  layer: Pick<RunnerLayer, "width" | "height" | "alphaMode" | "verticalAnchor">,
+  layers: readonly Pick<
+    RunnerLayer,
+    "width" | "height" | "alphaMode" | "verticalAnchor"
+  >[],
+): number {
+  if (layer.alphaMode === "opaque" || layer.verticalAnchor === "canvas_cover") {
+    return layer.height;
+  }
+  const cover = layers.find(
+    (candidate) =>
+      candidate.alphaMode === "opaque" &&
+      candidate.verticalAnchor === "canvas_cover",
+  );
+  return cover?.height ?? layer.height;
 }
 
 /** Depth of one band: plane decides the shelf, authored order stacks within it. */
@@ -120,16 +154,98 @@ export interface RunnerBandTexture {
   readonly key: string;
 }
 
+/**
+ * Atlas tile identity includes the selected frame, not only its world cell.
+ * Boundary masks can change when the stream grows or a new seed replaces the
+ * chunks at the same coordinates; the old image must then be retired.
+ */
+export function atlasGroundTileKey(column: number, row: number, frame: string): string {
+  return `${column}:${row}:${frame}`;
+}
+
+export type RunnerGroundTextures =
+  | Readonly<{
+      mode: "terrain-atlas-3x3-minimal-v1";
+      key: string;
+    }>
+  | Readonly<{
+      mode: "runner-structural-ground-v1";
+      keys: ReadonlyMap<string, string>;
+    }>;
+
+export interface StructuralGroundPlacement {
+  readonly leftX: number;
+  readonly topY: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export function structuralGroundSourceSize(
+  columns: number,
+  rows: number,
+  cellPx: number,
+): Readonly<{ width: number; height: number }> {
+  if (
+    !Number.isSafeInteger(columns) ||
+    columns <= 0 ||
+    !Number.isSafeInteger(rows) ||
+    rows <= 0 ||
+    !Number.isSafeInteger(cellPx) ||
+    cellPx <= 0
+  ) {
+    throw new Error("structural ground source size requires a valid grid and cell size");
+  }
+  return Object.freeze({ width: columns * cellPx, height: rows * cellPx });
+}
+
+/** Full-grid segment raster placement in the same row/column projection as occupancy. */
+export function structuralGroundPlacement(
+  startColumn: number,
+  columns: number,
+  rows: number,
+  tilePx: number,
+  viewHeight = RUNNER_VIEW_HEIGHT,
+): StructuralGroundPlacement {
+  if (
+    !Number.isSafeInteger(startColumn) ||
+    !Number.isSafeInteger(columns) ||
+    columns <= 0 ||
+    !Number.isSafeInteger(rows) ||
+    rows <= 0 ||
+    !Number.isSafeInteger(tilePx) ||
+    tilePx <= 0 ||
+    !Number.isFinite(viewHeight) ||
+    viewHeight <= 0
+  ) {
+    throw new Error("structural ground placement requires a valid grid and tile size");
+  }
+  return Object.freeze({
+    leftX: startColumn * tilePx,
+    topY: viewHeight - rows * tilePx,
+    width: columns * tilePx,
+    height: rows * tilePx,
+  });
+}
+
 /** Build the parallax bands and the streaming ground strip on a live scene. */
 export function buildParallaxStage(
   scene: Phaser.Scene,
   bands: readonly RunnerBandTexture[],
-  groundTextureKey: string,
+  groundTextures: RunnerGroundTextures,
   tilePx: number,
   groundLine: number,
 ): ParallaxStageView {
   const built = bands.map(({ layer, key }) => {
-    const placement = runnerLayerPlacement(layer, RUNNER_VIEW_HEIGHT, groundLine);
+    const sourceFrameHeight = runnerLayerFrameHeight(
+      layer,
+      bands.map((entry) => entry.layer),
+    );
+    const placement = runnerLayerPlacement(
+      layer,
+      RUNNER_VIEW_HEIGHT,
+      groundLine,
+      sourceFrameHeight,
+    );
     const band = scene.add
       .tileSprite(0, placement.topY, RUNNER_VIEW_WIDTH, placement.renderedHeight, key)
       .setOrigin(0, 0)
@@ -151,12 +267,37 @@ export function buildParallaxStage(
     const signature = `${world.run.seed}:${world.segments.chunks[0]?.startColumn ?? 0}:${world.segments.nextColumn}`;
     if (signature === windowSignature) return;
     windowSignature = signature;
-    const { startColumn, grid } = windowOccupancyGrid(world.segments);
-    const wanted = new Map<string, { column: number; row: number; frame: string }>();
-    if (grid.length > 0) {
-      for (const cell of terrainAtlasBoundaryOverscanPlan(grid)) {
-        const column = startColumn + cell.mapColumn;
-        wanted.set(`${column}:${cell.mapRow}`, { column, row: cell.mapRow, frame: cell.frame });
+    const wanted = new Map<
+      string,
+      | { mode: "atlas"; column: number; row: number; frame: string }
+      | {
+          mode: "structural";
+          segmentId: string;
+          startColumn: number;
+          columns: number;
+        }
+    >();
+    if (groundTextures.mode === "terrain-atlas-3x3-minimal-v1") {
+      const { startColumn, grid } = windowOccupancyGrid(world.segments);
+      if (grid.length > 0) {
+        for (const cell of terrainAtlasBoundaryOverscanPlan(grid)) {
+          const column = startColumn + cell.mapColumn;
+          wanted.set(atlasGroundTileKey(column, cell.mapRow, cell.frame), {
+            mode: "atlas",
+            column,
+            row: cell.mapRow,
+            frame: cell.frame,
+          });
+        }
+      }
+    } else {
+      for (const chunk of world.segments.chunks) {
+        wanted.set(`${chunk.startColumn}:${chunk.segmentId}`, {
+          mode: "structural",
+          segmentId: chunk.segmentId,
+          startColumn: chunk.startColumn,
+          columns: chunk.width,
+        });
       }
     }
     for (const [key, tile] of tiles) {
@@ -167,10 +308,39 @@ export function buildParallaxStage(
     }
     for (const [key, cell] of wanted) {
       if (tiles.has(key)) continue;
-      const tile = scene.add
-        .image(cell.column * tilePx, rowToScreenY(cell.row, world.config) - capInset, groundTextureKey, cell.frame)
-        .setOrigin(0, 0)
-        .setDisplaySize(tilePx, tilePx);
+      let tile: Phaser.GameObjects.Image;
+      if (cell.mode === "atlas") {
+        if (groundTextures.mode !== "terrain-atlas-3x3-minimal-v1") {
+          throw new Error("atlas draw plan requires an atlas texture");
+        }
+        tile = scene.add
+          .image(
+            cell.column * tilePx,
+            rowToScreenY(cell.row, world.config) - capInset,
+            groundTextures.key,
+            cell.frame,
+          )
+          .setOrigin(0, 0)
+          .setDisplaySize(tilePx, tilePx);
+      } else {
+        if (groundTextures.mode !== "runner-structural-ground-v1") {
+          throw new Error("structural draw plan requires structural textures");
+        }
+        const textureKey = groundTextures.keys.get(cell.segmentId);
+        if (!textureKey) {
+          throw new Error(`structural ground has no texture for ${cell.segmentId}`);
+        }
+        const placement = structuralGroundPlacement(
+          cell.startColumn,
+          cell.columns,
+          world.config.rows,
+          tilePx,
+        );
+        tile = scene.add
+          .image(placement.leftX, placement.topY, textureKey)
+          .setOrigin(0, 0)
+          .setDisplaySize(placement.width, placement.height);
+      }
       groundContainer.add(tile);
       tiles.set(key, tile);
     }

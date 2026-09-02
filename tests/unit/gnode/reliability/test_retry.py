@@ -175,6 +175,8 @@ async def test_caller_cancellation_aborts_active_attempt_without_retry() -> None
         await pending
     assert captured.value.name == "AbortError"
     assert isinstance(captured.value, CancellationError)
+    assert captured.value.attempts == 1
+    assert captured.value.provider_operations == 1
     assert calls == 1
     assert "private cancellation" not in str(captured.value)
 
@@ -271,9 +273,29 @@ async def test_cancellation_interrupts_backoff_before_another_attempt() -> None:
     pending = asyncio.create_task(retry_with_backoff(operation, cancellation=token, sleep=sleep))
     await sleeping.wait()
     token.cancel("stop")
-    with pytest.raises(CancellationError):
+    with pytest.raises(AbortError) as captured:
         await pending
     assert calls == 1
+    assert captured.value.attempts == 1
+    assert captured.value.provider_operations == 1
+
+
+@pytest.mark.asyncio
+async def test_cancellation_before_first_attempt_records_zero_provider_operations() -> None:
+    token = CancellationToken()
+    token.cancel("stop before provider")
+    calls = 0
+
+    async def operation(_context: object) -> None:
+        nonlocal calls
+        calls += 1
+
+    with pytest.raises(AbortError) as captured:
+        await retry_with_backoff(operation, cancellation=token)
+
+    assert calls == 0
+    assert captured.value.attempts == 1
+    assert captured.value.provider_operations == 0
 
 
 @pytest.mark.asyncio

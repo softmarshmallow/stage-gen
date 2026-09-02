@@ -28,16 +28,33 @@ from gnode import (
     PortRef,
     seal_graph,
 )
+from gnode.providers.openai import supports_openai_native_alpha_model
+from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
     declared_motion_states,
+)
+from stage_gen.components.runner_track import (
+    STRUCTURAL_GROUND_CANONICALIZER_ID,
+    STRUCTURAL_GROUND_GUIDE_ID,
+    STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID,
+    RunnerSegmentChunk,
+    RunnerStructuralGround,
+    structural_ground_material_identity,
+    structural_ground_occupancy_sha256,
+)
+from stage_gen.components.sideview_actor.motion_rebase import (
+    motion_rebase_prompt,
+    motion_rebase_verification_prompt,
 )
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
     catalog_asset_prompt,
     ground_prompt,
+    layer_loop_prompt,
     layer_prompt,
+    structural_ground_prompt,
     visual_direction_digest,
 )
 from stage_gen.recipes.sideview_runner.runner_types import (
@@ -80,10 +97,22 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
     SOUNDTRACK_VALIDATION_KIND,
+    STRUCTURAL_GROUND_GUIDE_KIND,
+    STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND,
+    STRUCTURAL_GROUND_KIND,
+    STRUCTURAL_GROUND_RAW_KIND,
+    STRUCTURAL_GROUND_SEAM_BRIDGE_KIND,
+    STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND,
+    STRUCTURAL_GROUND_VALIDATION_KIND,
     TRACK_GROUND_GENERATE,
     TRACK_GROUND_VALIDATE,
+    TRACK_STRUCTURAL_GROUND_GENERATE,
+    TRACK_STRUCTURAL_GROUND_GUIDE,
+    TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
+    TRACK_STRUCTURAL_GROUND_VALIDATE,
 )
 from stage_gen.resources import (
+    terrain_atlas_lookup_path,
     terrain_atlas_template_path,
     terrain_atlas_topology_reference_path,
 )
@@ -146,12 +175,18 @@ class SideviewRunnerGraph(Graph):
 def runner_graph_profile(config: StageGenConfig) -> BindingTable:
     """Declare the provider routes a runner plan may use, credentials untouched."""
 
+    if not supports_openai_native_alpha_model(config.openai_image_model):
+        raise ValueError(
+            "sideview-runner requires a verified GPT Image 2 OpenAI model with "
+            "native transparent-background support"
+        )
+
     return BindingTable(
         [
             Binding(
                 operation=RunnerOperationKind.IMAGE_GENERATION,
                 model=ModelRef(model=config.openai_image_model, provider="openai"),
-                features=frozenset(("transparent_background", "reference_images")),
+                features=frozenset(("transparent_background", "reference_images", "masked_edit")),
                 resource_id="openai-image",
                 estimated_duration_seconds=120.0,
                 estimated_cost_low_usd=0.04,
@@ -254,49 +289,214 @@ def build_runner_execution_graph(
 
     # ------------------------------------------------------------------ ground
     ground_references = reference_inputs(track.ground.reference_ids, track_sources)
-    terrain_template_sha256 = hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest()
-    terrain_topology_sha256 = hashlib.sha256(
-        terrain_atlas_topology_reference_path().read_bytes()
-    ).hexdigest()
-    ground_generate = builder.add(
-        TRACK_GROUND_GENERATE,
-        "track-ground-generate",
-        domain="world",
-        description="Paint the 47-mask ground atlas over the locked template",
-        depends_on=barrier,
-        cache_depends_on=(),
-        input_digests=(
-            direction_digest,
-            _text_digest(ground_prompt(resolved, track)),
-            terrain_template_sha256,
-            terrain_topology_sha256,
-            *(entry.sha256 for entry in ground_references),
-        ),
-        ports=(
-            _artifact("image", "world/ground.raw.png", GROUND_RAW_KIND),
-            _attempts("track-ground-generate"),
-        ),
-        card=NodeCard(
-            prompt=ground_prompt(resolved, track),
-            authored_inputs=ground_references,
-            template_ref="terrain_atlas_12x4_template_v1",
-        ),
-    )
-    ground_validate = builder.add(
-        TRACK_GROUND_VALIDATE,
-        "track-ground-validate",
-        domain="world",
-        description="Canonicalize the painted atlas against the locked topology",
-        depends_on=(ground_generate.node_id,),
-        input_digests=(package.closure_sha256, terrain_template_sha256),
-        ports=(
-            _artifact("image", "world/ground.png", GROUND_ATLAS_KIND),
-            _record("validation", "world/ground.validation.json", GROUND_VALIDATION_KIND),
-        ),
-        card=NodeCard(
-            reference_inputs=(PortRef(node_id=ground_generate.node_id, port_id="image"),)
-        ),
-    )
+    ground_validations: list[str] = []
+    if isinstance(track.ground, RunnerStructuralGround):
+        material_identity = structural_ground_material_identity(
+            prompt=track.ground.prompt,
+            visual_direction_sha256=direction_digest,
+            reference_sha256=[entry.sha256 for entry in ground_references],
+        )
+        with builder.within_template("structural-ground-segment-pipeline@v2"):
+            structural_sources: list[tuple[RunnerSegmentChunk, str, str, str]] = []
+            for chunk in track.segments.chunks:
+                segment_id = chunk.segment_id
+                occupancy_digest = structural_ground_occupancy_sha256(chunk.occupancy)
+                prompt = structural_ground_prompt(resolved, track, chunk)
+                guide_id = f"track-ground-{segment_id}-guide"
+                guide = builder.add(
+                    TRACK_STRUCTURAL_GROUND_GUIDE,
+                    guide_id,
+                    domain="world",
+                    description=f"compose the {segment_id} structural-ground guide and aprons",
+                    params={"segment_id": segment_id},
+                    depends_on=barrier,
+                    cache_depends_on=(),
+                    input_digests=(
+                        direction_digest,
+                        material_identity,
+                        occupancy_digest,
+                        _text_digest(str(track.segments.walk_surface_row)),
+                        _text_digest(STRUCTURAL_GROUND_GUIDE_ID),
+                        *(entry.sha256 for entry in ground_references),
+                    ),
+                    ports=(
+                        _artifact(
+                            "image",
+                            f"world/ground/{segment_id}.guide.png",
+                            STRUCTURAL_GROUND_GUIDE_KIND,
+                        ),
+                        _record(
+                            "validation",
+                            f"world/ground/{segment_id}.guide.json",
+                            STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND,
+                        ),
+                    ),
+                    card=NodeCard(authored_inputs=ground_references),
+                )
+                generate_id = f"track-ground-{segment_id}-generate"
+                generated = builder.add(
+                    TRACK_STRUCTURAL_GROUND_GENERATE,
+                    generate_id,
+                    domain="world",
+                    description=f"paint bespoke structural ground for {segment_id}",
+                    params={"segment_id": segment_id},
+                    depends_on=(guide.node_id,),
+                    input_digests=(
+                        _text_digest(track.track_id),
+                        direction_digest,
+                        material_identity,
+                        _text_digest(prompt),
+                        *(entry.sha256 for entry in ground_references),
+                    ),
+                    ports=(
+                        _artifact(
+                            "image",
+                            f"world/ground/{segment_id}.raw.png",
+                            STRUCTURAL_GROUND_RAW_KIND,
+                        ),
+                        _attempts(generate_id),
+                    ),
+                    card=NodeCard(
+                        prompt=prompt,
+                        reference_inputs=(PortRef(node_id=guide.node_id, port_id="image"),),
+                        authored_inputs=ground_references,
+                    ),
+                )
+                structural_sources.append(
+                    (chunk, occupancy_digest, guide.node_id, generated.node_id)
+                )
+
+            first_chunk, first_occupancy_digest, first_guide_id, first_generated_id = (
+                structural_sources[0]
+            )
+            seam_bridge = builder.add(
+                TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
+                "track-ground-shared-seam-bridge",
+                domain="world",
+                description=(
+                    "canonicalize the first generated right apron as the shared seam bridge"
+                ),
+                params={"segment_id": first_chunk.segment_id},
+                depends_on=(first_guide_id, first_generated_id),
+                input_digests=(
+                    material_identity,
+                    first_occupancy_digest,
+                    _text_digest(first_chunk.segment_id),
+                    _text_digest(str(track.segments.walk_surface_row)),
+                    _text_digest(STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID),
+                    *(entry.sha256 for entry in ground_references),
+                ),
+                ports=(
+                    _artifact(
+                        "image",
+                        "world/ground/shared-seam-bridge.png",
+                        STRUCTURAL_GROUND_SEAM_BRIDGE_KIND,
+                    ),
+                    _record(
+                        "validation",
+                        "world/ground/shared-seam-bridge.validation.json",
+                        STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND,
+                    ),
+                ),
+                card=NodeCard(
+                    reference_inputs=(
+                        PortRef(node_id=first_guide_id, port_id="image"),
+                        PortRef(node_id=first_generated_id, port_id="image"),
+                    ),
+                    authored_inputs=ground_references,
+                ),
+            )
+
+            for chunk, occupancy_digest, guide_id, generated_id in structural_sources:
+                segment_id = chunk.segment_id
+                validated = builder.add(
+                    TRACK_STRUCTURAL_GROUND_VALIDATE,
+                    f"track-ground-{segment_id}-validate",
+                    domain="world",
+                    description=(
+                        f"mask {segment_id} and install complementary shared-bridge roles"
+                    ),
+                    params={"segment_id": segment_id},
+                    depends_on=(guide_id, generated_id, seam_bridge.node_id),
+                    input_digests=(
+                        material_identity,
+                        occupancy_digest,
+                        _text_digest(STRUCTURAL_GROUND_CANONICALIZER_ID),
+                    ),
+                    ports=(
+                        _artifact(
+                            "image",
+                            f"world/ground/{segment_id}.png",
+                            STRUCTURAL_GROUND_KIND,
+                        ),
+                        _record(
+                            "validation",
+                            f"world/ground/{segment_id}.validation.json",
+                            STRUCTURAL_GROUND_VALIDATION_KIND,
+                        ),
+                    ),
+                    card=NodeCard(
+                        reference_inputs=(
+                            PortRef(node_id=guide_id, port_id="image"),
+                            PortRef(node_id=generated_id, port_id="image"),
+                            PortRef(node_id=seam_bridge.node_id, port_id="image"),
+                        ),
+                        authored_inputs=ground_references,
+                    ),
+                )
+                ground_validations.append(validated.node_id)
+    else:
+        terrain_template_sha256 = hashlib.sha256(
+            terrain_atlas_template_path().read_bytes()
+        ).hexdigest()
+        terrain_topology_sha256 = hashlib.sha256(
+            terrain_atlas_topology_reference_path().read_bytes()
+        ).hexdigest()
+        ground_generate = builder.add(
+            TRACK_GROUND_GENERATE,
+            "track-ground-generate",
+            domain="world",
+            description="Paint the 47-mask ground atlas over the locked template",
+            depends_on=barrier,
+            cache_depends_on=(),
+            input_digests=(
+                _text_digest(track.track_id),
+                direction_digest,
+                _text_digest(ground_prompt(resolved, track)),
+                terrain_template_sha256,
+                terrain_topology_sha256,
+                *(entry.sha256 for entry in ground_references),
+            ),
+            ports=(
+                _artifact("image", "world/ground.raw.png", GROUND_RAW_KIND),
+                _attempts("track-ground-generate"),
+            ),
+            card=NodeCard(
+                prompt=ground_prompt(resolved, track),
+                authored_inputs=ground_references,
+                template_ref="terrain_atlas_12x4_template_v1",
+            ),
+        )
+        ground_validate = builder.add(
+            TRACK_GROUND_VALIDATE,
+            "track-ground-validate",
+            domain="world",
+            description="Canonicalize the painted atlas against the locked topology",
+            depends_on=(ground_generate.node_id,),
+            input_digests=(
+                package.closure_sha256,
+                terrain_template_sha256,
+                hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
+            ),
+            ports=(
+                _artifact("image", "world/ground.png", GROUND_ATLAS_KIND),
+                _record("validation", "world/ground.validation.json", GROUND_VALIDATION_KIND),
+            ),
+            card=NodeCard(
+                reference_inputs=(PortRef(node_id=ground_generate.node_id, port_id="image"),)
+            ),
+        )
+        ground_validations.append(ground_validate.node_id)
 
     # ------------------------------------------------------------------ layers
     layer_validations: list[str] = []
@@ -315,6 +515,7 @@ def build_runner_execution_graph(
                 depends_on=barrier,
                 cache_depends_on=(),
                 input_digests=(
+                    _text_digest(track.track_id),
                     direction_digest,
                     _text_digest(prompt),
                     *(entry.sha256 for entry in layer_references),
@@ -356,8 +557,24 @@ def build_runner_execution_graph(
                 description=f"loop the {layer.layer_id} layer by {construction}",
                 params={"layer_id": layer.layer_id, "construction": construction},
                 depends_on=(generated.node_id,),
-                input_digests=(_text_digest(construction),),
+                input_digests=(
+                    _text_digest(track.track_id),
+                    _text_digest(construction),
+                    *(
+                        (
+                            _text_digest(track.continuity.loop_fallback),
+                            _text_digest(layer.prompt),
+                        )
+                        if LOOP_METHODS[construction].is_generative
+                        else ()
+                    ),
+                ),
                 ports=tuple(loop_ports),
+                card=(
+                    NodeCard(prompt=layer_loop_prompt(layer.prompt))
+                    if LOOP_METHODS[construction].is_generative
+                    else None
+                ),
             )
             validated = builder.add(
                 LAYER_VALIDATE,
@@ -389,6 +606,7 @@ def build_runner_execution_graph(
         depends_on=barrier,
         cache_depends_on=(),
         input_digests=(
+            _text_digest(avatar.avatar_id),
             direction_digest,
             _text_digest(avatar_concept_prompt(resolved, avatar)),
             *(entry.sha256 for entry in avatar_references),
@@ -419,6 +637,7 @@ def build_runner_execution_graph(
                 params={"state": state},
                 depends_on=(concept.node_id,),
                 input_digests=(
+                    _text_digest(avatar.avatar_id),
                     direction_digest,
                     _text_digest(prompt),
                 ),
@@ -461,11 +680,17 @@ def build_runner_execution_graph(
         # The judge reads the motion atlases (carried by lineage) and names the
         # avatar in its prompt; keying it on the closure re-billed both
         # structured operations for every unrelated authored edit.
-        input_digests=(_text_digest(avatar.display_name),),
+        input_digests=(
+            _text_digest(avatar.avatar_id),
+            _text_digest(avatar.display_name),
+        ),
         ports=(
             _artifact("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
-            _record("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
+            _artifact("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
             _attempts("avatar-rebase-judge"),
+        ),
+        card=NodeCard(
+            prompt=motion_rebase_prompt(avatar.display_name, list(declared_motion_states(avatar)))
         ),
     )
     rebase_verify = builder.add(
@@ -474,11 +699,19 @@ def build_runner_execution_graph(
         domain="avatar",
         description="judge the residual on a plate composed with the first reading applied",
         depends_on=(rebase_judge.node_id,),
-        input_digests=(_text_digest(avatar.display_name),),
+        input_digests=(
+            _text_digest(avatar.avatar_id),
+            _text_digest(avatar.display_name),
+        ),
         ports=(
             _artifact("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
-            _record("verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND),
+            _artifact("verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND),
             _attempts("avatar-rebase-verify"),
+        ),
+        card=NodeCard(
+            prompt=motion_rebase_verification_prompt(
+                avatar.display_name, list(declared_motion_states(avatar))
+            )
         ),
     )
 
@@ -549,6 +782,14 @@ def build_runner_execution_graph(
     if runner.soundtrack is not None:
         with builder.within_template("soundtrack-pipeline@v1"):
             for track_id in runner.soundtrack.track_ids:
+                audio_track = runner.soundtrack.track(track_id)
+                provider_prompt = music_track_prompt(
+                    medium="a 2D game",
+                    game_id=package.game.game_id,
+                    track_id=audio_track.track_id,
+                    creative_brief=audio_track.creative_brief,
+                    generation=audio_track.generation,
+                )
                 generate_id = f"soundtrack-{track_id}-generate"
                 generated = builder.add(
                     SOUNDTRACK_GENERATE,
@@ -558,11 +799,12 @@ def build_runner_execution_graph(
                     params={"track_id": track_id},
                     depends_on=barrier,
                     cache_depends_on=(),
-                    input_digests=(_text_digest(runner.soundtrack.track(track_id).creative_brief),),
+                    input_digests=(_text_digest(provider_prompt),),
                     ports=(
                         _artifact("audio", f"soundtrack/{track_id}.mp3", SOUNDTRACK_TRACK_KIND),
                         _attempts(generate_id),
                     ),
+                    card=NodeCard(prompt=provider_prompt),
                 )
                 validated = builder.add(
                     SOUNDTRACK_VALIDATE,
@@ -583,19 +825,25 @@ def build_runner_execution_graph(
                 soundtrack_validations.append(validated.node_id)
 
     # ---------------------------------------------------------------- manifest
-    republished = {
-        **track_sources,
-        **avatar_sources,
-        **prop_sources,
-        **item_sources,
-    }
+    # Reference IDs are catalog-local. Two legal IDs in different members may
+    # bind the same source path, which is one published artifact rather than
+    # two ports pointing at the same ref. Key ports on the path digest so the
+    # identity stays stable when another source sorts before it.
+    republished_sources = sorted(
+        {
+            *track_sources.values(),
+            *avatar_sources.values(),
+            *prop_sources.values(),
+            *item_sources.values(),
+        }
+    )
     builder.add(
         MANIFEST_ASSEMBLE,
         "manifest-assemble",
         domain="package",
         description="Assemble the playable runner runtime manifest",
         depends_on=(
-            ground_validate.node_id,
+            *ground_validations,
             *layer_validations,
             *motion_validations,
             rebase_verify.node_id,
@@ -605,8 +853,12 @@ def build_runner_execution_graph(
         input_digests=(package.closure_sha256,),
         ports=(
             *(
-                _artifact(f"reference_{reference_id}", source, REFERENCE_KIND)
-                for reference_id, source in sorted(republished.items())
+                _artifact(
+                    f"reference_{hashlib.sha256(source.encode('utf-8')).hexdigest()[:32]}",
+                    source,
+                    REFERENCE_KIND,
+                )
+                for source in republished_sources
             ),
             _record("manifest", "manifest.json", MANIFEST_KIND),
         ),

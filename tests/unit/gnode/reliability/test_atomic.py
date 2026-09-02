@@ -22,6 +22,7 @@ from gnode import (
     sha256_hex,
     write_artifact_bundle_with_provenance,
     write_artifact_with_provenance,
+    write_artifact_with_provenance_async,
 )
 
 
@@ -181,6 +182,26 @@ def test_pair_commit_failure_restores_old_pair_and_removes_staging(tmp_path: Pat
         "artifact.bin",
         "artifact.bin.meta.json",
     ]
+
+
+@pytest.mark.asyncio
+async def test_async_pair_failure_retains_completed_provider_operation_count(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "artifact.bin"
+    sidecar_path = Path(f"{artifact_path}.meta.json")
+    with pytest.raises(AtomicWriteError) as captured:
+        await write_artifact_with_provenance_async(
+            artifact_path,
+            BinaryArtifact(b"provider result", "application/octet-stream"),
+            provenance(attempts=4),
+            operations=FailMetaInstall(sidecar_path, "private-value"),
+            secrets=("private-value",),
+        )
+
+    assert captured.value.attempts == 4
+    assert captured.value.provider_operations == 4
+    assert "private-value" not in str(captured.value)
 
 
 def test_pair_rollback_retries_restore_and_recovers_both_old_outputs(tmp_path: Path) -> None:

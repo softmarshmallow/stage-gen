@@ -10,13 +10,20 @@ import pytest
 from PIL import Image
 
 from gnode import ImageGenerationRequest, ImageReference
-from gnode.providers.openai import OpenAIImageBackend
+from gnode.providers.openai import OpenAIImageBackend, supports_openai_native_alpha_model
 
 from .._helpers import png_bytes
 
 
 def test_openai_backend_declares_native_alpha_capability() -> None:
     assert OpenAIImageBackend.supports_native_alpha is True
+
+
+def test_openai_native_alpha_model_support_is_explicit() -> None:
+    assert supports_openai_native_alpha_model("gpt-image-2") is True
+    assert supports_openai_native_alpha_model("gpt-image-2-2026-04-21") is True
+    assert supports_openai_native_alpha_model("gpt-image-1") is False
+    assert supports_openai_native_alpha_model("unverified-image-model") is False
 
 
 @pytest.mark.asyncio

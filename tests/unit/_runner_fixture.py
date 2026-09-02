@@ -10,6 +10,7 @@ closed forms (launch surface 5, offsets 1..4 of the declared arc).
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from pathlib import Path
 
@@ -91,8 +92,8 @@ def occupancy_toml(rows: list[str]) -> str:
 
 
 def runner_track_toml(chunks: str) -> str:
-    return f"""schema_version = 2
-kind = "runner-track-v2"
+    return f"""schema_version = 3
+kind = "runner-track-v3"
 game_id = "bellweather"
 track_id = "meadow-dash"
 revision = 1
@@ -155,8 +156,8 @@ occupancy = {occupancy_toml(rows)}
 {extra}"""
 
 
-RUNNER_AVATAR = f"""schema_version = 2
-kind = "runner-avatar-v2"
+RUNNER_AVATAR = f"""schema_version = 3
+kind = "runner-avatar-v3"
 game_id = "bellweather"
 revision = 1
 
@@ -172,6 +173,8 @@ avatar_id = "wayfarer_sprinter"
 display_name = "The Wayfarer, Running"
 body_kind = "human"
 age = 19
+silhouette_mode = "single_character_v1"
+proportion_basis = "character_head_v1"
 reference_ids = ["cover_style"]
 prompt = "The same compact adventurer, satchel strapped tight, sprinting with nothing trailing."
 
@@ -297,6 +300,111 @@ def two_genre_package(
     return package
 
 
+def runner_only_package(
+    tmp_path: Path,
+    *,
+    avatar: str = RUNNER_AVATAR,
+    piloted_heads_tall: float | None = None,
+) -> Path:
+    """Build the same passing runner closure without any platformer-owned members."""
+
+    source = two_genre_package(tmp_path / "staged", avatar=avatar)
+    package = tmp_path / "runner-only"
+    package.mkdir()
+    shutil.copy2(source / "universe.md", package / "universe.md")
+    shutil.copytree(source / "runner", package / "runner")
+    references = package / "references"
+    references.mkdir()
+    for name in ("cover.png", "cover.provenance.json", "cover.visual-review.md"):
+        shutil.copy2(source / "references" / name, references / name)
+
+    provenance_sha256 = hashlib.sha256(
+        (references / "cover.provenance.json").read_bytes()
+    ).hexdigest()
+    review_sha256 = hashlib.sha256((references / "cover.visual-review.md").read_bytes()).hexdigest()
+    piloted_override = (
+        "" if piloted_heads_tall is None else f"piloted_machine = {piloted_heads_tall}\n"
+    )
+    (package / "game.toml").write_text(
+        f'''schema_version = 9
+kind = "game-contract-v9"
+game_id = "bellweather"
+revision = 1
+display_name = "Bellweather Runner"
+
+[universe]
+source = "universe.md"
+
+[style]
+label = "clean chibi storybook fantasy"
+keywords = ["high-resolution 2D digital game art", "clean saturated color fields"]
+avoid = ["text logos signatures or watermarks"]
+
+[proportion]
+heads_tall = 2.25
+
+[proportion.by_body_kind]
+human = 2.25
+{piloted_override}
+[scale]
+unit = "player_height"
+player_height_tiles = 2.40
+minimum = 0.25
+steps = [0.25, 0.5, 1.0]
+
+[[genres]]
+genre = "runner"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
+avatar_id = "wayfarer_sprinter"
+
+[genres.gameplay]
+source = "runner/gameplay.toml"
+
+[genres.track]
+source = "runner/track.toml"
+
+[genres.content.avatar]
+source = "runner/content/avatar.toml"
+
+[genres.content.props]
+source = "runner/content/props.toml"
+
+[genres.content.items]
+source = "runner/content/items.toml"
+
+[genres.audio]
+source = "runner/audio.toml"
+
+[genres.soundtrack]
+source = "runner/soundtrack.toml"
+
+[evidence.cover]
+artifact_source = "references/cover.png"
+artifact_sha256 = "{COVER_SHA256}"
+provenance_source = "references/cover.provenance.json"
+provenance_sha256 = "{provenance_sha256}"
+review_source = "references/cover.visual-review.md"
+review_sha256 = "{review_sha256}"
+
+[rights]
+status = "redistribution-approved"
+basis = ["Original package text and approved AI-generated reference evidence."]
+''',
+        encoding="utf-8",
+    )
+    return package
+
+
 __all__ = [
     "ARC_PICKUPS",
     "CART_ARC_PICKUPS",
@@ -311,6 +419,7 @@ __all__ = [
     "RUNNER_GAMEPLAY_NO_DUCK",
     "WIDE_FLAT_ROWS",
     "chunk_toml",
+    "runner_only_package",
     "runner_props_toml",
     "two_genre_package",
 ]

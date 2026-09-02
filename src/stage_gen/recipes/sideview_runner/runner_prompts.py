@@ -12,18 +12,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from stage_gen.canonical import canonical_sha256
+from stage_gen.components.runner_track import structural_ground_generation_prompt
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_terrain import terrain_atlas_generation_prompt
 
 if TYPE_CHECKING:
     from stage_gen.components.runner_content import RunnerAvatar
-    from stage_gen.components.runner_track import RunnerTrack
-    from stage_gen.orchestration.game_package import ResolvedGamePackage
+    from stage_gen.components.runner_track import RunnerSegmentChunk, RunnerTrack
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
 
 
 def visual_direction(resolved: ResolvedRunnerPackage) -> dict[str, object]:
-    package: ResolvedGamePackage = resolved.package
+    package = resolved.package
     return {
         "universe_sha256": package.file(package.game.universe.source).sha256,
         "style": package.game.style.model_dump(mode="json"),
@@ -49,6 +49,32 @@ def _style_clause(resolved: ResolvedRunnerPackage) -> str:
     return clause
 
 
+def _avatar_contract_clause(
+    avatar: RunnerAvatar,
+    *,
+    proportion_heads: float,
+) -> str:
+    facts = (
+        f"Contract facts: age {avatar.age}; body_kind {avatar.body_kind}; "
+        f"silhouette_mode {avatar.silhouette_mode}; "
+        f"proportion_basis {avatar.proportion_basis}; approximately "
+        f"{proportion_heads} declared-basis heads tall. "
+    )
+    if avatar.silhouette_mode == "visible_rider_machine_v1":
+        return facts + (
+            "The visible rider and machine are one connected runtime actor and one whole "
+            "silhouette, never two subjects. Measure proportion from the visible rider's head, "
+            "but frame and preserve the complete combined rider-and-machine silhouette. "
+            "Collision, duck clearance, draw scale, and motion rebase all apply to that whole "
+            "combined silhouette."
+        )
+    return facts + (
+        "Draw one single character and one whole connected character silhouette. Measure "
+        "proportion from that character's head; collision, duck clearance, draw scale, and "
+        "motion rebase all apply to the whole character silhouette."
+    )
+
+
 def ground_prompt(resolved: ResolvedRunnerPackage, track: RunnerTrack) -> str:
     # Style rides inside the material-direction slot so the atlas HARD CONTRACT
     # stays the prompt's final word; appended trailing style text measurably
@@ -58,6 +84,25 @@ def ground_prompt(resolved: ResolvedRunnerPackage, track: RunnerTrack) -> str:
         f"{track.ground.prompt.strip()} Target style: {style.label}; {', '.join(style.keywords)}."
     )
     return terrain_atlas_generation_prompt(material_direction)
+
+
+def structural_ground_prompt(
+    resolved: ResolvedRunnerPackage,
+    track: RunnerTrack,
+    chunk: RunnerSegmentChunk,
+) -> str:
+    """Bind one bespoke chunk painting to the shared material and style."""
+
+    style = resolved.package.game.style
+    material_direction = (
+        f"{track.ground.prompt.strip()} Target style: {style.label}; {', '.join(style.keywords)}."
+    )
+    return structural_ground_generation_prompt(
+        material_direction,
+        segment_id=chunk.segment_id,
+        columns=len(chunk.occupancy[0]),
+        rows=len(chunk.occupancy),
+    )
 
 
 def layer_prompt(
@@ -76,11 +121,22 @@ def layer_prompt(
     return prompt
 
 
+def layer_loop_prompt(layer_prompt_text: str) -> str:
+    """Compile the exact masked-edit instruction for a generative layer loop."""
+
+    return (
+        f"{layer_prompt_text}\nContinue this artwork seamlessly across the masked span so the "
+        "far left and far right edges of the original image join perfectly. Match the existing "
+        "palette, lighting, and level of detail exactly. Paint only inside the masked span."
+    )
+
+
 def avatar_concept_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar) -> str:
     proportion = resolved.package.game.proportion.heads_for(avatar.body_kind)
     return (
         f"A single full-body identity concept of {avatar.display_name}: {avatar.prompt}\n"
-        f"Drawn at approximately {proportion} heads tall, in strict side view facing right, "
+        f"{_avatar_contract_clause(avatar, proportion_heads=proportion)}\n"
+        "Draw in strict side view facing right, "
         "isolated on a fully transparent background with true alpha, no text or watermark.\n"
         + _style_clause(resolved)
     )
@@ -88,23 +144,56 @@ def avatar_concept_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar)
 
 def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, state: str) -> str:
     geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-    direction = {
-        "run": "four sequential phases of one seamless full-speed run cycle",
-        "jump": "four sequential key poses of one forward jump arc: takeoff, rise, apex, fall",
-        "slide": (
+    proportion = resolved.package.game.proportion.heads_for(avatar.body_kind)
+    if avatar.silhouette_mode == "visible_rider_machine_v1":
+        slide_direction = (
+            "four isolated right-facing cells of one fast low-clearance chassis slide, in this "
+            "exact order: drop, compress, fully-low undercarriage skid, fully-low held skid. "
+            "Never begin to rise in the fourth cell: it is the pose held indefinitely while "
+            "the player ducks. In cells three and four, keep every painted pixel of the complete "
+            "connected rider-and-machine silhouette below 45 percent of standing run height, "
+            "including antenna, backpack, rider hair, and arms. The machine's legs compress and "
+            "tuck beneath the chassis; the rider remains visibly secured in the harness, folds "
+            "safely with the chassis, and keeps both hands on the controls. Add no glow, shadow, "
+            "or effect outside the low envelope; never detach, eject, stretch, or contort the rider"
+        )
+        death_direction = (
+            "four fully disconnected right-facing cells whose height strictly descends: a "
+            "running stumble, knees buckling, a controlled forward kneel, and the lowest compact "
+            "powered-down failure pose. The fourth cell is held indefinitely: keep the chassis "
+            "collapsed or kneeling, the rider secured and visibly worried or exhausted with mouth "
+            "closed, and the flower reactor and headlamp visibly dark. Never recover, rise, reset, "
+            "smile, celebrate, or power back up. Center every complete figure inside its own "
+            "quarter with a wide band of completely empty zero-alpha pixels between neighbors; "
+            "add no glow, aura, dust, motion streak, cast shadow, lighting pool, or backdrop that "
+            "could bridge cells, and show no gore or injury detail"
+        )
+    else:
+        slide_direction = (
             "four sequential key poses of one fast forward baseball-style slide under a low "
             "obstacle: dropping from the run into the slide, then gliding low with the legs "
             "leading forward, the torso laid far back, and the head tucked so the whole "
             "figure stays below half its standing height, then beginning to rise back up"
-        ),
-        "death": (
-            "four sequential key poses of the run ending: a stumble, a collapse forward, and a "
-            "final rest, without gore or injury detail"
-        ),
+        )
+        death_direction = (
+            "four fully disconnected sequential key poses of the run ending: a stumble, knees "
+            "buckling, a controlled forward collapse, and the lowest motionless final rest, "
+            "without gore or injury detail. The fourth cell is held indefinitely: never recover, "
+            "rise, reset, smile, celebrate, or return to idle. Center every complete figure inside "
+            "its own quarter with a wide band of completely empty zero-alpha transparent pixels "
+            "between every neighboring pose. Add no glow, aura, dust, motion streak, cast shadow, "
+            "lighting pool, or backdrop that could bridge cells"
+        )
+    direction = {
+        "run": "four sequential phases of one seamless full-speed run cycle",
+        "jump": "four sequential key poses of one forward jump arc: takeoff, rise, apex, fall",
+        "slide": slide_direction,
+        "death": death_direction,
     }.get(state, f"four clear game-animation key poses that communicate {state}")
     return (
         f"A {geometry.columns}x{geometry.rows} sprite motion strip of {avatar.display_name}: "
         f"{avatar.prompt}\n"
+        f"{_avatar_contract_clause(avatar, proportion_heads=proportion)}\n"
         f"Exactly {geometry.frame_word} evenly spaced cells left to right, each one full-body "
         f"figure in strict side view facing right, showing {direction}. Every cell is one "
         "connected figure isolated on a fully transparent background with true alpha; nothing "
@@ -125,7 +214,9 @@ __all__ = [
     "avatar_motion_prompt",
     "catalog_asset_prompt",
     "ground_prompt",
+    "layer_loop_prompt",
     "layer_prompt",
+    "structural_ground_prompt",
     "visual_direction",
     "visual_direction_digest",
 ]

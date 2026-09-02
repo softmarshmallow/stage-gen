@@ -131,7 +131,12 @@ export function buildHud(scene: Phaser.Scene, tilePx: number): HudView {
     .setOrigin(0.5, 0)
     .setDepth(RUNNER_DEPTHS.hud + 3);
   const hint = scene.add
-    .text(panel.x + panel.width / 2, panel.y + 150, "press R or tap to run again", HINT_STYLE)
+    .text(
+      panel.x + panel.width / 2,
+      panel.y + 150,
+      "press R or tap the upper screen to run again",
+      HINT_STYLE,
+    )
     .setOrigin(0.5, 0)
     .setDepth(RUNNER_DEPTHS.hud + 3);
   const deathLayer = [dim, card, title, summary, hint];

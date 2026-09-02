@@ -369,7 +369,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
         (run_dir / "content/players/wayfarer/states/idle.validation.json").read_text()
     )
     assert idle_validation["kind"] == "prepared-motion-atlas-validation-v3"
-    assert idle_validation["repack"]["processor_version"] == "alpha-component-repack-v1"
+    assert idle_validation["repack"]["processor_version"] == "alpha-component-repack-v3"
     crouch_validation = json.loads(
         (run_dir / "content/players/wayfarer/states/crouch.validation.json").read_text()
     )

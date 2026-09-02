@@ -1,0 +1,132 @@
+schema_version = 9
+kind = "game-contract-v9"
+game_id = "iron-petal-unit"
+revision = 1
+display_name = "Iron Petal Unit"
+
+[universe]
+source = "universe.md"
+
+[style]
+label = "bright orbital botanical rescue anime"
+keywords = [
+  "premium high-resolution original 2D game art",
+  "clean controlled ink-like outer contours",
+  "two-to-three-band cel shading with digital gouache depth",
+  "compact rounded friendly industrial machinery",
+  "cream coral navy mint brass graphite and leaf-green palette",
+  "material-specific ceramic metal glass cable leaf and water texture",
+  "clear lateral silhouettes and distinct parallax planes",
+  "curved orbital greenhouse glazing and optimistic daylight",
+  "compact rescue machinery readable against broad quiet environment shapes",
+  "joyful urgent rescue-workshop mood",
+]
+avoid = [
+  "franchise characters mascots costumes landmarks or trade dress",
+  "logos signatures watermarks readable text or pseudo-text",
+  "photorealism or 3D-rendered materials",
+  "strict pixel-grid retro imitation",
+  "full-frame paper grain canvas texture or sepia cast",
+  "adult-looking teenage or sexualized pilot presentation",
+  "infant anatomy or ambiguous baby presentation",
+  "detached rider empty robot sealed canopy or duplicate actor",
+  "firearms gore grim violence or military insignia",
+  "busy scenery that hides the footing line hazards or pickup route",
+]
+
+[proportion]
+heads_tall = 3.8
+
+[proportion.by_body_kind]
+# The entire robot-feet-to-rider-top silhouette is measured in Mira's visible
+# head units. Rider and machine remain one runtime actor.
+piloted_machine = 4.2
+
+[scale]
+unit = "player_height"
+player_height_tiles = 2.80
+minimum = 0.20
+steps = [0.20, 0.28, 0.40, 0.50, 0.62, 0.68, 0.85, 1.0, 1.5, 2.0, 3.0]
+
+[scale.ranks]
+common = 0.50
+uncommon = 0.62
+elite = 0.85
+boss = 1.50
+
+[[genres]]
+genre = "runner"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.16
+softness_screen_pixels = 5.0
+
+[genres.cast]
+avatar_id = "petal_unit_seven"
+
+[genres.gameplay]
+source = "runner/gameplay.toml"
+
+[genres.track]
+source = "runner/track.toml"
+
+[genres.content.avatar]
+source = "runner/content/avatar.toml"
+
+[genres.content.props]
+source = "runner/content/props.toml"
+
+[genres.content.items]
+source = "runner/content/items.toml"
+
+[genres.audio]
+source = "runner/audio.toml"
+
+[genres.soundtrack]
+source = "runner/soundtrack.toml"
+
+[evidence.cover]
+artifact_source = "references/cover.png"
+artifact_sha256 = "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
+provenance_source = "references/cover.provenance.json"
+provenance_sha256 = "50d5b43e38f967e632acd8d25342b93d44dac96fd0f99fdaf5d744651ab9bca2"
+review_source = "references/cover.visual-review.md"
+review_sha256 = "f8b3d921e166401641b6d384c4b9b197e4340816bab53ce395475c19b07e88fd"
+
+[evidence.operator_primary]
+artifact_source = "references/operator-primary.png"
+artifact_sha256 = "ad115bd04ea9a98938269400910f7fa7aaa1571027e83df61a29a763ced1cec1"
+provenance_source = "references/operator-primary.provenance.json"
+provenance_sha256 = "38edc81a5396649d51b57c114e06f3ded98c2fbed35c2569bba00379f35ea393"
+review_source = "references/operator-primary.visual-review.md"
+review_sha256 = "961908a78ff3095ef2319dfd60ce5e7f9a147cdec6e1d64914a81c5ce309a919"
+
+[evidence.operator_personality]
+artifact_source = "references/operator-personality.png"
+artifact_sha256 = "70459f9437f31bcc92c167e959696f30d6ef1b596e8d5d3cc8f64a4f61da3649"
+provenance_source = "references/operator-personality.provenance.json"
+provenance_sha256 = "1e65d99712ef0f4e6c83dac08b66df5a0df8b3aab1de5bd5002bc735deeaf942"
+review_source = "references/operator-personality.visual-review.md"
+review_sha256 = "95a35d9deac81dbb4910dd23094959812d2490d282856a6f04f944c6f2ca9dcb"
+
+[evidence.orbital_greenhouse_runway]
+artifact_source = "references/orbital-greenhouse-runway.png"
+artifact_sha256 = "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+provenance_source = "references/orbital-greenhouse-runway.provenance.json"
+provenance_sha256 = "4de765097b7cd67cad5a0768fb13d799dde0b8dc5e9bd1f92c46730d18041985"
+review_source = "references/orbital-greenhouse-runway.visual-review.md"
+review_sha256 = "eabf623d79ba99a32693ff87ba1da0e4c1d10ff07a7f4ec2f912f3b2eba580e7"
+
+[rights]
+status = "redistribution-approved"
+basis = [
+  "All package prose, prompts, names, mechanics, and layouts are original and brand-neutral.",
+  "The exact cover and both operator references are AI-generated and carry digest-bound independent acceptance and redistribution records.",
+  "The environment-only orbital greenhouse runway is AI-generated from approved Iron Petal material and carries an independent visual and rights review.",
+  "No protected character, copied costume, logo, signature, watermark, readable text, or third-party redistributed source was admitted.",
+]

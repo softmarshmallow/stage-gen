@@ -53,6 +53,12 @@ _SIZE_BY_ASPECT_RATIO = {
 }
 
 
+def supports_openai_native_alpha_model(model: str) -> bool:
+    """Return whether ``model`` has a verified native-alpha GPT Image route."""
+
+    return bool(re.fullmatch(r"gpt-image-2(?:-\d{4}-\d{2}-\d{2})?", model.strip()))
+
+
 class OpenAIImageBackend:
     """Make exactly one direct OpenAI Image API request.
 
@@ -87,9 +93,7 @@ class OpenAIImageBackend:
         self._api_key = api_key
         self.secrets: tuple[str, ...] = (api_key,)
         self.model = model.strip()
-        self.supports_native_alpha = bool(
-            re.fullmatch(r"gpt-image-2(?:-\d{4}-\d{2}-\d{2})?", self.model)
-        )
+        self.supports_native_alpha = supports_openai_native_alpha_model(self.model)
         self._base_url = normalized_base_url(base_url, "OpenAI base_url")
         self._client = client or httpx.AsyncClient(timeout=None)
         self._owns_client = client is None

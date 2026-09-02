@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from gnode import (
+    AbortError,
     CacheDisposition,
     Graph,
     MemoryTraceSink,
@@ -58,6 +59,42 @@ def _graph() -> Graph:
     )
 
 
+def _provider_graph() -> Graph:
+    node = Node(
+        node_id="provider",
+        type_id="test/provider.run",
+        domain="test",
+        description="provider",
+        operation="image_generation",
+        resource_id="provider",
+        provider="example",
+        model="image-v1",
+        retry_owner=RetryOwner.COMPONENT,
+        max_attempts=6,
+        cache_key=build_node_cache_key(
+            node_id="provider",
+            type_id="test/provider.run",
+            operation="image_generation",
+            provider="example",
+            model="image-v1",
+            input_sha256=(),
+            dependency_cache_keys=(),
+            contract_version="test-v1",
+        ),
+        estimated_duration_seconds=0.0,
+        estimated_cost_low_usd=0.0,
+        estimated_cost_high_usd=0.0,
+    )
+    return seal_graph(
+        Graph,
+        resources=[Resource(resource_id="provider", max_in_flight=1, rate_limit_owner="none")],
+        nodes=[node],
+        terminal_node_id=node.node_id,
+        schema_version=1,
+        kind="test-provider-graph-v1",
+    )
+
+
 async def test_an_interrupted_run_records_that_it_was_canceled() -> None:
     """The scheduler is where an interrupt lands while the trace sink is open."""
 
@@ -105,3 +142,21 @@ async def test_a_completed_run_records_no_cancellation() -> None:
     assert summary.ok is True
     assert [event["event"] for event in sink.events][-1] == "run_finished"
     assert not any(event["event"] == "run_canceled" for event in sink.events)
+
+
+async def test_provider_cancellation_preserves_started_operation_count_in_trace() -> None:
+    graph = _provider_graph()
+
+    async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+        raise AbortError("cancelled during retry backoff", provider_operations=1)
+
+    summary = await Scheduler(graph.resources).run(
+        graph,
+        handler,
+        invocation_id="provider-cancel-fixture",
+    )
+
+    assert summary.ok is False
+    assert summary.provider_operation_counts == {"image_generation": 1}
+    assert summary.nodes[0].attempts == 1
+    assert summary.nodes[0].provider_operations == 1

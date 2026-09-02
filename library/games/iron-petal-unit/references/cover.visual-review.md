@@ -5,8 +5,9 @@
 - Byte size: `3024843`
 - Dimensions: `1672 x 941`
 - Generated: `2026-09-02`
-- Independent reviewer: pending authenticated task-owner verdict
-- Verdict: **pending independent semantic acceptance**
+- Review date: `2026-09-02`
+- Independent reviewer: authenticated task owner, not the image producer
+- Verdict: **approved as the canonical Iron Petal Unit cover**
 
 The newly generated cover replaces the superseded adult-pilot composition. It
 was generated from text only and depicts one white preteen girl visibly riding
@@ -23,6 +24,7 @@ girl and robot read as one dominant playable silhouette moving left to right.
 
 Producer inspection found no text, logo, signature, watermark, duplicate
 person, duplicate robot, obvious protected-character resemblance, or visible
-protected material. Repository policy still requires the authenticated task
-owner to accept these exact displayed bytes before the verdict can become
-approved or the image can be bound as canonical package evidence.
+protected material. The authenticated task owner inspected and approved these
+exact digest-bound bytes on 2026-09-02. This review approves the reference input
+only; it does not approve generated runtime assets, a playable build, or
+publication.

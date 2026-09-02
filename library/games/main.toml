@@ -1,4 +1,4 @@
 schema_version = 4
 kind = "game-package-v4"
-game_id = "bellweather"
-package_ref = "library/games/bellweather/game.toml"
+game_id = "iron-petal-unit"
+package_ref = "library/games/iron-petal-unit/game.toml"

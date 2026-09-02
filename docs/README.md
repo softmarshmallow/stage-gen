@@ -30,12 +30,13 @@ Start here for the headless, general-purpose system:
   implemented current `game-contract-v9` package-root fields, closed vocabulary,
   validation, binding, and manifest projection.
 - [Runner genre family](spec/game/runner.md) — the infinite-runner member of the
-  v9 container: named gameplay profiles, authored tiled segments with the seam
-  rule and clearable-gap admission, and the minimal member table.
+  v9 container: named gameplay profiles, authored segments with clearable-gap
+  admission, native-alpha structural ground, and the playable runtime contract.
 - [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the
-  machine-checked current side-view platformer DAG, typed nodes, stage and operation
-  contracts, internal fan-out, execution semantics, and explicitly separated target evolution.
-- [Point-and-click puzzle room](spec/game/pointclick-room.md) — the third recipe
+  machine-checked current side-view platformer and runner DAGs, typed nodes, stage
+  and operation contracts, internal fan-out, execution semantics, and explicitly
+  separated target evolution.
+- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of four recipes
   (`2d/roomview/pointclick`): the authored `pointclick-room-v2` room package, its
   solvability proof, the 14-node graph, and the `pointclick-room-runtime-v2` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
