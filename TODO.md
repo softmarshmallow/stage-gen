@@ -245,15 +245,15 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
 
 ## Camera
 
-- [ ] Retire the deleted scene's two orphaned camera helpers. `verticalCameraScrollY` in
-      `web/lib/runtime/vertical.ts` and `horizontalCameraScrollX` in
-      `web/lib/runtime/camera-follow.ts` both drove `scene.ts`, which `6853a3d` replaced with
-      `prepared-scene.ts`. The prepared scene uses Phaser's own dead-zone follow on both axes, so
-      neither helper has a caller and only their own tests reference them. Leaving them in place
-      reads as if they were the intended path. Delete them with their tests, keep
-      `VERTICAL_CAMERA_MIN_SCROLL_Y` only if the platform bound in `createVerticalWorld` still
-      wants it, and re-pin `GAMEPLAY_VERTICAL_CAMERA_CHECKPOINTS` in
-      `web/tests/gameplay/harness.ts`, whose exact scroll values date from that same deleted scene.
+- [x] Retire the deleted scene's two orphaned camera helpers. `verticalCameraScrollY` in
+      `web/lib/sideview-platformer/vertical.ts` and `horizontalCameraScrollX` in
+      `web/lib/sideview-platformer/camera-follow.ts` both drove `scene.ts`, which `6853a3d`
+      replaced with `prepared-scene.ts`. Done 2026-09-03, forced by a real failure rather than
+      tidiness: `VERTICAL_CAMERA_MIN_SCROLL_Y` was still the deck bound in `createVerticalWorld`,
+      so the first shelves road (decks to 21 tiles) threw on entry. The bound is now the grid top
+      (`topY` on `VerticalWorldInput`, the same edge `cameraWorldBounds` uses), both helpers and
+      their dead-zone constants are deleted with their tests, and the demo selector defaults its
+      top to the highest deck it places. The harness checkpoints the item named no longer exist.
 - [ ] Take `map_direction` out of the terrain node's identity. Terrain is geometry; the game's
       visual direction and `continuity` are art direction, and neither shapes a chunk sentence.
       Today an unrelated palette or loop-construction edit re-composes both maps. The camera and
@@ -334,34 +334,64 @@ before and after every authoring edit and confirm no image node's cache identity
       play. The two-species-per-stage shape already exists as two-entry `spawn_table`s per zone;
       the reference pairs species per *map*, which is authoring, not code. `surface` stays
       `Literal["terrain"]` for this thread.
-      - [ ] Step 1, authoring only: raise each zone's `initial_population`, `target_population`,
+      - [x] Step 1, authoring only: raise each zone's `initial_population`, `target_population`,
             and `population_cap` in `gameplay.toml` to about 8 / 10 / 12 and cut `respawn_delay_ms`
             to about 3000; `max_spawn_batch_per_update = 2` every 250 ms already sustains that rate.
-      - [ ] Step 2, consumer policy: `prepared-scene.ts` passes no overrides to
+      - [x] Step 2, consumer policy: `prepared-scene.ts` passes no overrides to
             `projectPreparedMobPopulation`, so `defaultPolicy` governs. Pass
             `spawn_visibility: "allow_onscreen"` with a D-style sampled pop-in and drop
             `minimum_spawn_separation_px` from 1.25 tiles to about 0.5; keep `min_player_distance_px`.
-      - [ ] Step 3, director: add `placement: "uniform" | "clustered"` to the zone shape in
+      - [x] Step 3, director: add `placement: "uniform" | "clustered"` to the zone shape in
             `spawn-director.ts` (a consumer-internal manifest, no package contract). In `tryReserve`,
             clustered picks a nucleus from the zone's alive actors or reservations with a join
             probability near 0.7, then a candidate within a cluster radius; otherwise a uniform pick
             starts a new clump. Eligibility rules still apply and the choice stays on `zone.rng`.
       - [ ] Step 4, deferred: promote `placement` to `SpawnZone` in the Python model as a defaulted
             field only once step 3 has proven itself in play.
-      - [ ] Tests: clustered-selection determinism and eligibility in `spawn-director.test.ts`;
+      - [x] Tests: clustered-selection determinism and eligibility in `spawn-director.test.ts`;
             policy overrides in `prepared-population.test.ts`.
-      - [ ] Traps: candidates are one per column, so a clump of three is three adjacent columns;
-            `is_spawnable_column` excludes every column under a floating platform, which shrinks the
-            spawnable set as decks multiply; thirty live mobs each carry a health bar and behaviour
-            nodes, so profile once.
-- [ ] **B. Mobs on every deck (medium).** Mobs only know the base heightmap: `heightAt` in
-      `prepared-scene.ts` reads the bottom-contiguous terrain, floating decks are one-way
-      `UpperPlatform`s for the player alone, and population candidates come from the same height
-      function. Ledge mobs need candidate columns on decks, a deck-bound walk lane in `mob.ts`
-      (`resolveWalk` clamps to the terrain lane today), and no cross-deck pathing - keep them
-      deck-bound like the reference, which leaves hunter navigation untouched. This is the one
-      thread that must touch the gameplay contract: `surface` is `Literal["terrain"]` in
-      `src/stage_gen/components/platformer_gameplay/models.py` and needs a second word.
+      - [x] Traps, all three settled by thread B: a candidate is now a column *and* the surface it
+            stands on, so a column under storeys offers one place per storey rather than one
+            place; the exclusion of every column under a floating platform is gone (see thread B
+            and the population fix above); thirty live mobs each carry a health bar and behaviour
+            nodes, so profile once - populations are capped per zone, and admitting decks moved
+            Crowncrag Road from 36 places to stand to 73 without raising a single cap.
+- [x] **B. Mobs on every deck (medium).** Landed 2026-09-03. The second word is
+      `terrain_and_decks`, and it is a *permission*: a zone says which surfaces its creatures may
+      stand on, the consumer decides where among them each body lands, and a zone naming decks on
+      a map that has none simply populates its floor. Three seams, one per layer.
+      **A candidate is a place to stand, not a column.** `SpawnCandidateColumn` gained an optional
+      `deck_id`, and the director's uniqueness key is the pair: a column under two storeys offers
+      three footings - the ground and one per deck - and rejecting the second as a duplicate
+      column would have silently discarded every deck above the first. The same pair is what the
+      occupancy rule compares, so a body on a ledge no longer blocks the ground beneath it. A
+      reservation reports the footing it *got* (`surface: "terrain" | "deck"` plus the deck),
+      because the zone's permission says nothing about which deck a body landed on, and a
+      candidate carrying `deck_id` into a zone that never asked for decks is refused rather than
+      stood in the air.
+      **A deck is a lane.** `MobLaneNode` is the interface the creature asks its questions of, and
+      `MobDeckLaneNode` is the second implementation: the deck's two edges bound patrol, pursuit,
+      and knockback alike, and its top is the whole height field. That last part is the one rule
+      that differs from terrain, and it is deliberate. A terrain mob shoved over a drop lands on
+      the shelf below and adopts it as home; a deck mob shoved off the end would land on nothing,
+      because it can neither jump nor climb back up. So the edge holds against the blow and
+      re-homing never happens - the deck-bound creature the reference has, with no cross-deck
+      pathing to reason about and hunter navigation untouched. A deck narrower than the body it
+      carries keeps its middle rather than becoming unusable.
+      **Nothing in mob behaviour learned about decks.** `Mob` holds a `MobLaneNode`, builds it
+      before it places the body, and takes the lane's own home as the spawn point; wander, chase,
+      return-home, facing, and knockback are unchanged, and `constrainMobStrikeToAttackLevel`
+      already refuses a strike across a level, so a ledge creature cannot hit the floor below it.
+      Authoring: Crowncrag Road's three zones name the new word at gameplay revision 6.
+      `stage-gen package plan` moves exactly three nodes - package resolve, gameplay validation,
+      manifest - and no provider node at all; reassembled provider-free as
+      `out/bellweather-hunt-v6`. Measured on that run: the road's zones went from 36 places to
+      stand to 73 (ground 11/15/10, decks 10/24/3) with every population cap unchanged, so the
+      same bodies now spread over the storeys instead of crowding the bank.
+      Left for later, both deliberate: loot dropped on a deck falls to the floor below, because
+      `items.ts` grounds a drop on terrain and only terrain, which reads as the ledge shedding its
+      loot to where the player will walk anyway; and step 4 of thread A (promoting `placement` to
+      the Python model) is still waiting on play, not on this.
 - [x] **C. Reach, multi-target, multi-hit, and number scale (easy to medium).** Landed
       2026-09-02. `melee_sweep_v1` in both vocabularies and the hand-weapon pairing;
       `hitsPerAction`/`hitIntervalMs` on every profile with `nextAttackHitTick` in
@@ -382,34 +412,34 @@ before and after every authoring edit and confirm no image node's cache identity
       `mobHealthForRank` in `prepared-scene.ts` gives common mobs 2 HP against 1 damage, and the
       reference is one-hit kills of large integers. The drawn swing is a short wooden sword, so a
       wide band reads wrong without D's procedural arc.
-      - [ ] New class `melee_sweep_v1` in `weapon-class.ts`: `basic_attack` pose, reach near 3
+      - [x] New class `melee_sweep_v1` in `weapon-class.ts`: `basic_attack` pose, reach near 3
             tiles, `maxTargetsPerAction` 6, a new `hitsPerAction` of 3 with `hitIntervalMs` near 45,
             stand-off band about 0 / 1.4 / 2.6 tiles. `melee_dps_v1` gains `hitsPerAction: 1` and
             stays pinned to its transcription by the existing tests.
-      - [ ] Multi-hit cadence in `attack-window.ts`: the window yields hit ticks at
+      - [x] Multi-hit cadence in `attack-window.ts`: the window yields hit ticks at
             `hitWindowFromMs + k * hitIntervalMs`; the controller's per-action latch becomes
             per-tick. Each tick re-runs `resolveInstantStrike` against living mobs, so a mob dying
             mid-combo frees a target slot.
-      - [ ] Stacking in `combat-text.ts`: a pure `stackOffset` that lifts a new entry above active
+      - [x] Stacking in `combat-text.ts`: a pure `stackOffset` that lifts a new entry above active
             entries within a radius and a 300 ms window, with x jitter from event id; raise the
             default active cap from 24 to 64.
-      - [ ] Number scale as a named profile: `number_scale` on `CombatPolicy` in
+      - [x] Number scale as a named profile: `number_scale` on `CombatPolicy` in
             `src/stage_gen/components/platformer_gameplay/models.py`, default `unit_v1`, and a
             consumer table where `arcade_v1` multiplies player damage and `mobHealthForRank` by one
             factor with about 12 percent per-hit variance from the blow seed. Balance is unchanged
             because both sides scale together. Decide field-versus-class in this thread; the field
             is recommended because scale is orthogonal to reach.
-      - [ ] Vocabulary widening on both sides: the `WeaponClass` Literal and
+      - [x] Vocabulary widening on both sides: the `WeaponClass` Literal and
             `WEAPON_CLASSES_BY_PLAYER_EQUIPMENT["hand_weapon_v1"]` in Python, the `WEAPON_CLASSES`
             tuple in TS, `tests/unit/components/test_prepared_game_contracts.py`, and the value list
             in `docs/spec/game/authored-contract-schema.md`.
-      - [ ] A procedural slash arc drawn from `reachTiles` at the hit window through D's system, so
+      - [x] A procedural slash arc drawn from `reachTiles` at the hit window through D's system, so
             the drawn short sword no longer contradicts the band.
-      - [ ] The developer kit picks the class up for free: `selectableDeveloperKits` iterates
+      - [x] The developer kit picks the class up for free: `selectableDeveloperKits` iterates
             `WEAPON_CLASSES` and the pose is published, so `K` cycles into it live.
-      - [ ] Check `bot-hunter.test.ts`, which derives an engage floor from the archetype table, and
+      - [x] Check `bot-hunter.test.ts`, which derives an engage floor from the archetype table, and
             `strike.test.ts` for multi-target ordering.
-      - [ ] Authoring: `weapon_class = "melee_sweep_v1"` and `number_scale = "arcade_v1"` in
+      - [x] Authoring: `weapon_class = "melee_sweep_v1"` and `number_scale = "arcade_v1"` in
             Bellweather's `gameplay.toml`, bump `revision`, re-pin digests.
 - [x] **D. Procedural hit feedback (easy).** Landed 2026-09-02 as `impact-presentation.ts`
       (flash, spark, burst, hitstop, kill shake, all sampled from `nowMs`) wired into
@@ -422,21 +452,21 @@ before and after every authoring edit and confirm no image node's cache identity
       `combat-text.ts` deliberately samples caller-supplied simulation time so fixed-step
       automation captures stay byte-stable, and every effect here must follow that pattern rather
       than reach for tweens or timers.
-      - [ ] New pure module `web/lib/sideview-platformer/impact-presentation.ts` with samplers: a
+      - [x] New pure module `web/lib/sideview-platformer/impact-presentation.ts` with samplers: a
             target flash near 60 ms, a hitstop window of 40-70 ms, a kill micro-shake as a decaying
             camera offset keyed by event id like `glyphShakeX`, a four-frame procedural spark, and a
             radial death burst with gravity and fade near 400 ms. Directions come from the seed
             `nextBlowSeed` already produces, so two captures of one run draw the same shards.
-      - [ ] An `ImpactSystem` class owning pooled Graphics objects, mirroring `CombatTextSystem`:
+      - [x] An `ImpactSystem` class owning pooled Graphics objects, mirroring `CombatTextSystem`:
             `showHit`, `update(nowMs)`, `clear`, `dispose`, `reducedMotion`, and a snapshot for tests.
-      - [ ] Wire it in `applyPlayerBlow` in `prepared-scene.ts` beside `combatText.showDamage`.
+      - [x] Wire it in `applyPlayerBlow` in `prepared-scene.ts` beside `combatText.showDamage`.
             Hitstop is a scene-level `hitstopUntilMs` that scales the delta passed to player and mobs
             to zero; it must not touch the director's `nowMs` or combat text.
-      - [ ] Kill shake is a scroll offset applied after camera follow, not `cameras.main.shake`,
+      - [x] Kill shake is a scroll offset applied after camera follow, not `cameras.main.shake`,
             which runs on its own clock.
-      - [ ] Drop pop in `items.ts`: horizontal velocity and one bounce with restitution near 0.35
+      - [x] Drop pop in `items.ts`: horizontal velocity and one bounce with restitution near 0.35
             before `settled`, direction seeded from the drop id.
-      - [ ] Tests: sampler tests in `impact-presentation.test.ts` in the style of
+      - [x] Tests: sampler tests in `impact-presentation.test.ts` in the style of
             `combat-text.test.ts`; `items.test.ts` for the arc landing on the same height function;
             re-run `web/app/preview/[tag]/page.test.tsx` and re-pin the automation frame constants
             if hitstop shifts death or drop frames.
@@ -453,22 +483,37 @@ before and after every authoring edit and confirm no image node's cache identity
       passive with contact damage, which `gameplay.toml` already enables. Add the archetype to the
       consumer table first; an optional `aggression` field on `mob-content-v2` is a content bump to
       take only if rank-mapping proves insufficient.
-      - [ ] Step 1, consumer table: add `passive` to `MobAggression` and `MOB_AGGRESSIONS` in
+      - [x] Step 1, consumer table: add `passive` to `MobAggression` and `MOB_AGGRESSIONS` in
             `combat.ts` with zero aggro radius, zero damage, and no flee, so `mobIntent` always
             holds. Contact damage already works - `prepared-scene.ts` applies it when
             `contact_damage` is enabled - so passive mobs still hurt on touch.
-      - [ ] Step 1 also changes the rank map in `prepared-scene.ts`: common to passive, uncommon to
+      - [x] Step 1 also changes the rank map in `prepared-scene.ts`: common to passive, uncommon to
             territorial, elite to hunting, boss to relentless.
-      - [ ] Step 2, authored: an optional `aggression` field on `[[mobs]]` in `mob-content-v2`,
+      - [x] Step 2, authored: an optional `aggression` field on `[[mobs]]` in `mob-content-v2`,
             projected through `prepared-manifest.ts` and read as `spec.aggression ?? rankDefault`.
             This makes the `progression.ts` comment about published archetypes true for the first
             time.
-      - [ ] Tests: `combat.test.ts` intent cases for passive, the rank-map cases in
+      - [x] Tests: `combat.test.ts` intent cases for passive, the rank-map cases in
             `prepared-gameplay.test.ts`, and the Python content-model literal.
       - [ ] Trap: the automation encounter fixture expects a mob to engage within its focus window,
             so the common mob it uses must keep an attacking archetype or the fixture must pick
             another rank.
-- [ ] **F. More world in view (medium).** Vertical zoom is the expensive half: layers are painted
+- [ ] **F. More world in view (medium).** Reshaped 2026-09-03 on the authoring side only:
+      Crowncrag Road's terrain request went from 96x16 (4.8 x 1.4 screens, aspect 6:1, with the
+      generated road using six rows above the floor) to 56x24 with walk surface row 21 (2.8 x
+      2.1 screens, aspect 2.3:1, a 21-tile walkable ceiling) and a brief that asks for storeys.
+      Only the terrain node, the local composite, and the map review moved; no image identity
+      did. The first regen exposed a gap in the design loop: the map contract rejects generated
+      terrain that leaves a declared climbable variant unplaced, but the designer's validator
+      did not know the rule, so a design it accepted failed the node afterwards with no
+      regeneration. `climbable_variants_each_placed` on `PlatformerProfile` now carries that rule
+      into `check` and the prompt, and the recipe sets it whenever a map declares an atlas. The
+      same regen also re-billed every map layer image, because `map-layer-v2` had bumped the
+      layer node's contract version since the cached world run; a plan diff against HEAD cannot
+      see that, only a diff against the cached run's own `execution-plan.json` can. The cold run
+      also exposed a topology hole: ground validation composes evidence over generated
+      occupancy but declared no edge to the terrain node, so it ran before `terrain.json`
+      existed; the edge is now declared. `out/bellweather-hunt-v2` carries the new geometry over the m3-world-v3, icons-v1, content-v3, and ui-v3 roots. That regen still shaped the ground itself into the level (a terrain staircase to seven tiles with one deck tier over it), which is not how the reference builds a hunting map: its ground is one nearly level lane and the level hangs above it as floating decks. The recipe now fences the floor to a one-tile relief around the walk-surface datum (`floor_depth_band` in `terrain_design.py`, `map-terrain-design-v2`), and the road's brief asks for tiers of decks fed by ladders with stepping lines between them. The grammar was the real gap: chunks were horizontal slots, so decks could not stack in the same columns except along a `hop_chain` diagonal. `shelves{tiers, platform_width, stagger, lean}` now stacks wide decks over one footprint, each tier one full jump above the last and shifted in alternation so the zig-zag is hopped deck to deck; the offline example reaches 19 tiles with 17 decks on a 56-column road. The first live design under it took the advisory schema minimum of four tiles for every deck, so `shelf_min_width_tiles` on `GeometryProfile` (recipe: six, read off the reference ledge) is now a validated rule the prompt states, `map-terrain-design-v3`. Regenerated 2026-09-03 as `out/bellweather-m4-world-v2` (five structured calls, no images): the road is a flat bank with two zig-zag stacks of seven-to-eight-wide decks, seven and nine storeys tall, reaching the 21-tile ceiling, with three ladder decks between them; `out/bellweather-hunt-v4` carries it over icons-v1, content-v3, ui-v3, and ui-atlas-v3. Entering that road threw `platform geometry is outside its world/source columns`: `createVerticalWorld` still bounded decks by `VERTICAL_CAMERA_MIN_SCROLL_Y`, the deleted demo scene's -512 clamp, which only allowed nineteen tiles over a 720 baseline, while the prepared camera box already reaches the grid top. The bound is now the grid's own `topY`, passed in by the terrain projection, and the two orphaned camera helpers are gone (Camera item below). Playing it then showed the other half of the problem: the map was too tall to read at 24 rows, and a shelves chunk was one narrow stack rather than a level. Both are fixed together (`map-terrain-design-v4`). A shelves tier is now a LANE -- `decks` decks of `platform_width` split by a `gap` the player hops -- so a storey is walkable end to end the way the floor is, and consecutive storeys are offset half a deck-and-gap period so one storey's gaps fall over the decks below. That offset is doing two jobs: it is the hole the player jumps up through, and it is the headroom to stand, because the figure (2.4 tiles) is taller than the tier spacing (2 tiles) and a deck directly overhead would clip it. When the gap is as wide as a deck the offset lands exactly on the deck width and consecutive storeys share no column at all, which is the shape the prompt now asks for. The lane's `gap` is bounded by `level_gap_tiles` rather than by the rise-to-the-next-tier reach, because hopping along a storey is a level crossing. Crowncrag Road went to 56x14 (walk surface row 11), which is about one and a quarter screens of height instead of two and a fifth, under an 11-tile ceiling. Regenerated 2026-09-03 as `out/bellweather-m4-world-v3` (four structured calls, no images, no design retry) and assembled as `out/bellweather-hunt-v5`: the road is a flat bank under three interlocking storeys at heights 5, 7 and 9, eleven decks in all, fed by three climbables. Entering the map then hit one more runtime rule that the storeys broke: the scene reserved every ground column a deck floats over, so all three of the road's spawn zones came back with no spawnable columns and the population projection rejected the map. That reservation dated from the demo selector, where decks were a rare set piece. Ground under a deck is still ground -- a hunting map is mobs on the floor beneath stacked ledges -- and decks are one-way, so a body below one never collides with it. The rule is now `reservedSpawnColumns` in `prepared-population.ts`, reserving only the map's two ends and the portal doorways, with the storey case pinned as a regression test. One thing this exposed and did NOT fix: the lowest storey sits two tiles over the bank, and a 32-pixel deck slab leaves 96 pixels of clearance, which is less than the 110-pixel mob body and well under the 154-pixel player. Nothing collides, so it is a drawing overlap rather than a block, but the first storey reads as low. Raising it is a design decision, and the only way up to a first storey higher than the jump is a climbable, which is the platform-footed-climbable item still open below. The map review still returns `reject`, and its complaints are the same pre-existing ones (mirror-repeat loop joins, reference fidelity, portal and climbable atlas presentation) with `playfield_readability` passing; shortening the grid did make the atlas complaint louder, because the same oversized ladder and portal art is now measured against a 427-pixel composite rather than a 731-pixel one. Note the map review node has returned `reject` since the 56x24 reshape (m3-world-v3 already did): the composite crops the floor and shows a cyan void above the painted layers, which is the vertical-zoom cost recorded below, plus atlas presentation complaints; the checkpoint treats the review as advisory. Still open: a ladder can only foot on terrain, so every ladder-fed deck sits at one height above the floor; platform-footed climbables (`bottom_surface` on the placement plus runtime support) would let ropes join the storeys the way the reference's do. Mobs on the decks are thread B. Vertical zoom is the expensive half: layers are painted
       1536x1024 and scaled to exactly one viewport tall, and the Camera section above already
       records that there is no vertical slack, so a consumer camera zoom below 1 exposes the sky
       plate beneath every layer and needs taller paintings or a width-fit with an 18 percent scale
@@ -926,12 +971,29 @@ means.
       strip and pay for it.
 - [ ] **Defeating a boss pays score and nothing else.** Once the healing vocabulary below exists, a
       defeated boss is the obvious first authored source of a restored point.
+- [ ] **A calibrated actor is measured by its alpha, not by its body.** `height_units` scales the
+      subject's whole alpha extent, so an actor drawn with something hanging off it - the pruner's
+      trailing roots - spends part of its declared height on the tail, and the machine a player
+      reads as "the boss" comes out visibly smaller than the number says. Iron Petal pays for this
+      by authoring 2.6 player heights to get a body that looms like two, which works but means the
+      number in the catalog is not the number on screen. The fix, when a second actor needs it, is
+      either a declared body extent beside the silhouette or a measurement that discounts a
+      trailing tail; both are contract changes, so neither is worth making for one boss.
 
 ### Still owed on the played run
 
 - [ ] Semantic visual review of `iron-petal-unit-live-20260902-v9` by someone other than its
       producer, and a separately recorded listening verdict on its two regenerated tracks. Every
       item above that regenerates art inherits this obligation.
+- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-big` by
+      someone other than its producer: the boss's three strips, redrawn at 2.6 player heights (does
+      the rig read as failed maintenance equipment rather than a creature, does it face left in
+      every cell, and does the extra size read as mass rather than as the same machine enlarged?),
+      the two projectiles (does the seeding pin read axial and the bramble knot directionless?), the
+      avatar's `fly` strip (does it read as sustained thrust rather than a jump?), and the
+      `encounter_start` portrait, which is now the pruner rather than the operator (is it
+      recognisably the same machine as the concept plate the run drew, and does it read as a face
+      at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).
 
 ## Future genres
 
@@ -1015,20 +1077,3 @@ that naming it is the deliverable.
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare
       them with the local theme/compiler equivalents, retain each change once, and run the full
       offline gates; do not pull or merge them blindly over local work.
-- [ ] **A calibrated actor is measured by its alpha, not by its body.** `height_units` scales the
-      subject's whole alpha extent, so an actor drawn with something hanging off it - the pruner's
-      trailing roots - spends part of its declared height on the tail, and the machine a player
-      reads as "the boss" comes out visibly smaller than the number says. Iron Petal pays for this
-      by authoring 2.6 player heights to get a body that looms like two, which works but means the
-      number in the catalog is not the number on screen. The fix, when a second actor needs it, is
-      either a declared body extent beside the silhouette or a measurement that discounts a
-      trailing tail; both are contract changes, so neither is worth making for one boss.
-- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-big` by
-      someone other than its producer: the boss's three strips, redrawn at 2.6 player heights (does
-      the rig read as failed maintenance equipment rather than a creature, does it face left in
-      every cell, and does the extra size read as mass rather than as the same machine enlarged?),
-      the two projectiles (does the seeding pin read axial and the bramble knot directionless?), the
-      avatar's `fly` strip (does it read as sustained thrust rather than a jump?), and the
-      `encounter_start` portrait, which is now the pruner rather than the operator (is it
-      recognisably the same machine as the concept plate the run drew, and does it read as a face
-      at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).

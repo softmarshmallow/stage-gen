@@ -104,6 +104,7 @@ export function projectPreparedTerrainWorld(
   const rows = occupancy.length;
   const columns = occupancy[0]!.length;
   const worldWidth = columns * tilePixels;
+  const topY = baselineY - rows * tilePixels;
   const heights = bottomContiguousHeights(occupancy);
   const platforms = floatingPlatforms(
     occupancy,
@@ -161,6 +162,7 @@ export function projectPreparedTerrainWorld(
     heights,
     tilePixels,
     baselineY,
+    topY,
     worldWidth,
   });
   return Object.freeze({
@@ -168,7 +170,7 @@ export function projectPreparedTerrainWorld(
     columns,
     rows,
     worldWidth,
-    topY: baselineY - rows * tilePixels,
+    topY,
     heights,
     verticalWorld,
   });

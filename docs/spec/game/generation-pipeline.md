@@ -155,13 +155,13 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "4ca19ad458b63c65f4108697f451501e90f8db22392716ddfd5c8c641dbfd40e",
-  "node_count": 227,
+  "topology_sha256": "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87",
+  "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 106,
-    "image_generation": 95,
-    "structured_generation": 23,
+    "local": 107,
+    "image_generation": 96,
+    "structured_generation": 24,
     "music_generation": 3
   },
   "resources": [
@@ -206,7 +206,7 @@ the value is not a universal model constant.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 121 provider operations. Provider transport retries and
+The normal first-pass graph contains 123 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
@@ -219,10 +219,10 @@ reported by the owning node.
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
 | Items | 5 isolated items, validations, one board, one review | 5 | 1 | 0 | 6 |
 | Projectiles | 1 isolated projectile, single-subject validation, one board, one review; the whole domain is absent for a package that declares no projectile catalog, and present whenever it declares one, whether or not a weapon currently fires it | 1 | 1 | 0 | 2 |
-| UI | one inventory panel plus two nine-slice atlas roles (`panel_frame`, four-state `button_rect`), deterministic layout/alpha and nine-slice validation, one review each | 3 | 3 | 0 | 3 |
+| UI | one inventory panel plus three shared sheet roles (`panel_frame`, four-state `button_rect`, the fixed-vocabulary `preview_icons` grid), deterministic layout/alpha, nine-slice or glyph-registration validation, one review each | 4 | 4 | 0 | 4 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **227 nodes** | **95** | **23** | **3** | **106** |
+| **Total** | **230 nodes** | **96** | **24** | **3** | **107** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -325,7 +325,7 @@ Placement geometry is still checked on every edit: bottom-supported terrain atta
 exposed upper deck exactly `rise_tiles` above it are enforced against the map's authored occupancy
 when the package resolves, ahead of any node.
 
-The live Content checkpoint is the exact 186-node closure rooted at every cast/catalog/UI review,
+The live Content checkpoint is the exact 189-node closure rooted at every cast/catalog/UI review,
 every soundtrack validation, and `gameplay-bindings-validate`: 78 image operations, 19 structured
 operations, three music operations, and 86 local nodes including package capture. It cannot schedule
 map or manifest nodes. Twenty-eight identity/catalog/UI images are initially independent; each actor's
@@ -432,7 +432,7 @@ The resource-aware Bellweather projection uses planning assumptions of 120 secon
 adapter-owned 150 image starts per minute, the projected terminal offset is **311.05 seconds
 (5m 11.05s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 4.215–23.24 budgetary allowance**: USD 0.04–0.20 per image,
+The graph carries a broad **USD 4.26–23.52 budgetary allowance**: USD 0.04–0.20 per image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.

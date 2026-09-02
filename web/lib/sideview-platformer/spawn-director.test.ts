@@ -7,6 +7,7 @@ import {
   parseMobPopulationManifest,
   type MobPopulationManifest,
   type MobSpawnZoneManifest,
+  type SpawnCandidateColumn,
   type SpawnUpdateContext,
   type ZoneCandidateColumns,
 } from "./spawn-director";
@@ -66,7 +67,7 @@ function makeManifest(
 }
 
 function makeCandidates(
-  columns: readonly { column: number; x_px: number; y_px: number }[] = [
+  columns: readonly SpawnCandidateColumn[] = [
     { column: 0, x_px: 0, y_px: 100 },
     { column: 1, x_px: 100, y_px: 100 },
     { column: 2, x_px: 200, y_px: 100 },
@@ -736,6 +737,76 @@ describe("clustered placement", () => {
       { seed: 3 },
     ).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
     expect(reservations).toHaveLength(2);
+  });
+});
+
+describe("deck footings", () => {
+  const STOREY = { zone_id: "lower-terrace", surface: "terrain_and_decks" } as const;
+
+  test("one column offers a place to stand per storey, and each is distinct", () => {
+    const manifest = makeManifest(STOREY);
+    const candidates = makeCandidates([
+      { column: 0, x_px: 32, y_px: 640 },
+      { column: 0, x_px: 32, y_px: 512, deck_id: "deck-lower" },
+      { column: 0, x_px: 32, y_px: 384, deck_id: "deck-upper" },
+    ]);
+
+    expect(() => new MobPopulationDirector(manifest, candidates)).not.toThrow();
+  });
+
+  test("the same deck twice in one column is still a duplicate", () => {
+    const candidates = makeCandidates([
+      { column: 0, x_px: 32, y_px: 512, deck_id: "deck-lower" },
+      { column: 0, x_px: 32, y_px: 512, deck_id: "deck-lower" },
+    ]);
+
+    expect(() => new MobPopulationDirector(makeManifest(STOREY), candidates)).toThrow(
+      ManifestValidationError,
+    );
+  });
+
+  test("a terrain zone refuses a deck footing rather than standing a body in the air", () => {
+    const candidates = makeCandidates([
+      { column: 0, x_px: 32, y_px: 640 },
+      { column: 0, x_px: 32, y_px: 512, deck_id: "deck-lower" },
+    ]);
+
+    expect(() => new MobPopulationDirector(makeManifest(), candidates)).toThrow(
+      "does not allow",
+    );
+  });
+
+  test("a reservation reports the footing it got, not the zone's permission", () => {
+    // The zone says decks are allowed; each body still has to say which surface it is standing
+    // on, because that is what binds it to a deck's span and height afterwards.
+    const director = new MobPopulationDirector(
+      makeManifest({
+        ...STOREY,
+        left_column: 0,
+        right_column_exclusive: 1,
+        initial_population: 2,
+        target_population: 2,
+        population_cap: 2,
+        spawn_batch_size: 2,
+        minimum_spawn_separation_px: 1,
+        spawn_table: [{ mob_slot: 0, weight: 1, min_alive: 0, max_alive: 2 }],
+      }),
+      makeCandidates([
+        { column: 0, x_px: 32, y_px: 640 },
+        { column: 0, x_px: 32, y_px: 512, deck_id: "deck-lower" },
+      ]),
+      { seed: 5 },
+    );
+
+    const reservations = director.update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+
+    expect(reservations).toHaveLength(2);
+    expect(reservations.map((entry) => entry.surface).sort()).toEqual(["deck", "terrain"]);
+    expect(reservations.map((entry) => entry.deck_id).sort()).toEqual([
+      "deck-lower",
+      undefined,
+    ]);
+    expect(reservations.every((entry) => entry.candidate_column === 0)).toBeTrue();
   });
 });
 

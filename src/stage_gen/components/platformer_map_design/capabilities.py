@@ -102,8 +102,15 @@ class GeometryProfile:
     max_walkable_height_tiles: int
     #: True when a floating platform must be exactly one tile thick.
     platforms_single_thickness: bool = True
+    #: Narrowest deck that counts as standing room rather than a stepping stone. Only the words
+    #: that promise room to stand and fight are held to it; a stepping-stone word is allowed to
+    #: be narrow on purpose. Schema minimums are advisory under strict output, so this is a
+    #: validated rule, not a hint.
+    shelf_min_width_tiles: int = 2
 
     def __post_init__(self) -> None:
+        if self.shelf_min_width_tiles < 1:
+            raise ValueError("a shelf needs at least one tile to stand on")
         low, high = self.ground_depth_tiles
         if low < 1:
             raise ValueError("every column needs at least one floor tile")
@@ -124,6 +131,11 @@ class PlatformerProfile:
     #: Named climbable kinds the consumer can draw. Empty disables climbables entirely.
     climbable_variants: tuple[str, ...] = ()
     climbable_count: tuple[int, int] = (0, 0)
+    #: True when a design must place every declared variant at least once. A consumer that draws
+    #: each declared variant into an atlas cell has no use for a variant the map never stands up,
+    #: and would reject the geometry after the fact; declaring it here lets the validator say so
+    #: while the design can still be re-composed.
+    climbable_variants_each_placed: bool = False
     #: Physics-neutral appearance tags the design may paint terrain with; empty disables the
     #: channel. The designer chooses the tag, exactly as it chooses a climbable variant by
     #: name; resolving a tag to actual art is the consumer's later step.
@@ -138,6 +150,8 @@ class PlatformerProfile:
             raise ValueError("tile role symbols must be unique")
         if not any(role.grounded for role in self.roles):
             raise ValueError("a profile needs one grounded role for the floor")
+        if self.climbable_variants_each_placed and not self.climbable_variants:
+            raise ValueError("a profile cannot require placing variants it does not declare")
 
     @property
     def empty_role(self) -> TileRole:

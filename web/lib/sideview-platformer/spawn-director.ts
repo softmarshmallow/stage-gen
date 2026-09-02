@@ -17,6 +17,27 @@ export type ReplacementPolicy = "reroll_spawn_table" | "same_archetype";
  */
 export type SpawnPlacement = "uniform" | "clustered";
 
+/**
+ * What a zone's creatures may stand on.
+ *
+ * `terrain` is the floor alone. `terrain_and_decks` also admits the floating decks stacked over
+ * that floor, which is what a hunting ground looks like once a map has storeys: bodies on every
+ * ledge the player can reach, not only on the lane beneath them. The word is a permission, and
+ * the candidate set decides what it actually amounts to on a given map -- a zone naming decks on
+ * a map that has none simply populates its floor.
+ */
+export const SPAWN_SURFACES = ["terrain", "terrain_and_decks"] as const;
+export type SpawnSurface = (typeof SPAWN_SURFACES)[number];
+
+/**
+ * What one body is standing on, as opposed to what its zone allowed.
+ *
+ * A reservation reports this rather than repeating the zone's permission, because the consumer
+ * has to bind the creature to the surface it actually landed on: a deck body walks the deck's
+ * span and stands at the deck's height, and nothing about the zone says which deck that was.
+ */
+export type SpawnFooting = "terrain" | "deck";
+
 /** How often a clustered spawn joins an existing group rather than founding a new one. */
 export const CLUSTER_JOIN_CHANCE = 0.7;
 
@@ -29,7 +50,7 @@ export interface MobSpawnTableEntry {
 
 export interface MobSpawnZoneManifest {
   readonly zone_id: string;
-  readonly surface: "terrain";
+  readonly surface: SpawnSurface;
   readonly left_column: number;
   readonly right_column_exclusive: number;
   readonly initial_population: number;
@@ -71,6 +92,8 @@ export interface SpawnCandidateColumn {
   column: number;
   x_px: number;
   y_px: number;
+  /** The deck this footing stands on; absent means the column's own ground. */
+  deck_id?: string;
 }
 
 export interface ZoneCandidateColumns {
@@ -107,8 +130,10 @@ export interface SpawnReservation {
   map_id: string;
   zone_id: string;
   mob_slot: number;
-  surface: "terrain";
+  surface: SpawnFooting;
   candidate_column: number;
+  /** Set when `surface` is `deck`: which deck the body was placed on. */
+  deck_id?: string;
   x_px: number;
   y_px: number;
   issued_at_ms: number;
@@ -368,7 +393,7 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
       }
       zoneIds.add(zoneId);
 
-      const surface = expectLiteral(zone.surface, "terrain", `${zonePath}.surface`);
+      const surface = expectEnum(zone.surface, SPAWN_SURFACES, `${zonePath}.surface`);
       const leftColumn = expectInteger(zone.left_column, `${zonePath}.left_column`);
       const rightColumnExclusive = expectInteger(
         zone.right_column_exclusive,
@@ -583,6 +608,7 @@ interface AliveMob {
   mobSlot: number;
   position: WorldPoint;
   candidateColumn?: number;
+  candidateDeckId?: string;
   issuedAtMs: number;
 }
 
@@ -676,12 +702,17 @@ function validateCandidateSets(
       throw new ManifestValidationError(`${path} duplicates candidate set ${mapId}/${zoneId}`);
     }
 
-    const usedColumns = new Set<number>();
+    // A footing is a column *and* the surface it stands on, which is why the uniqueness key is
+    // the pair. A column under a stack of decks offers one place to stand per storey plus the
+    // ground, and they are genuinely different places: they are tiles apart vertically, a body
+    // on one cannot reach a body on another, and rejecting the second as a duplicate column
+    // would silently discard every deck above the first.
+    const usedFootings = new Set<string>();
     const columns = expectArray(rawSet.candidate_columns, `${path}.candidate_columns`, true)
       .map((candidateValue, candidateIndex) => {
         const candidatePath = `${path}.candidate_columns[${candidateIndex}]`;
         const candidate = expectObject(candidateValue, candidatePath);
-        expectExactKeys(candidate, ["column", "x_px", "y_px"], candidatePath);
+        expectExactKeys(candidate, ["column", "x_px", "y_px"], candidatePath, ["deck_id"]);
         const column = expectInteger(candidate.column, `${candidatePath}.column`);
         if (column < definition.left_column || column >= definition.right_column_exclusive) {
           throw new ManifestValidationError(
@@ -689,17 +720,34 @@ function validateCandidateSets(
               `[${definition.left_column}, ${definition.right_column_exclusive})`,
           );
         }
-        if (usedColumns.has(column)) {
-          throw new ManifestValidationError(`${candidatePath}.column duplicates ${column}`);
+        const deckId =
+          candidate.deck_id === undefined
+            ? undefined
+            : expectString(candidate.deck_id, `${candidatePath}.deck_id`);
+        if (deckId !== undefined && definition.surface !== "terrain_and_decks") {
+          throw new ManifestValidationError(
+            `${candidatePath}.deck_id is a deck footing, which zone ` +
+              `${JSON.stringify(definition.zone_id)} does not allow with surface ` +
+              `${JSON.stringify(definition.surface)}`,
+          );
         }
-        usedColumns.add(column);
+        const footing = `${column}\u0000${deckId ?? ""}`;
+        if (usedFootings.has(footing)) {
+          throw new ManifestValidationError(
+            deckId === undefined
+              ? `${candidatePath}.column duplicates ${column}`
+              : `${candidatePath} duplicates column ${column} on deck ${JSON.stringify(deckId)}`,
+          );
+        }
+        usedFootings.add(footing);
         return {
           column,
           x_px: expectFiniteNumber(candidate.x_px, `${candidatePath}.x_px`, -Infinity),
           y_px: expectFiniteNumber(candidate.y_px, `${candidatePath}.y_px`, -Infinity),
+          ...(deckId === undefined ? {} : { deck_id: deckId }),
         } satisfies SpawnCandidateColumn;
       })
-      .sort((left, right) => left.column - right.column);
+      .sort((left, right) => left.column - right.column || left.y_px - right.y_px);
     result.set(key, columns);
   }
 
@@ -884,6 +932,7 @@ export class MobPopulationDirector {
       mobSlot: reservation.publicValue.mob_slot,
       position: { x_px: reservation.candidate.x_px, y_px: reservation.candidate.y_px },
       candidateColumn: reservation.candidate.column,
+      candidateDeckId: reservation.candidate.deck_id,
       issuedAtMs: reservation.publicValue.issued_at_ms,
     });
     this.instanceIndex.set(instanceId, zone);
@@ -950,6 +999,7 @@ export class MobPopulationDirector {
     const actor = zone.alive.get(instanceId)!;
     actor.position = { x_px: position.x_px, y_px: position.y_px };
     actor.candidateColumn = undefined;
+    actor.candidateDeckId = undefined;
     return true;
   }
 
@@ -1090,8 +1140,9 @@ export class MobPopulationDirector {
       map_id: zone.mapId,
       zone_id: zone.definition.zone_id,
       mob_slot: entry.mob_slot,
-      surface: zone.definition.surface,
+      surface: candidate.deck_id === undefined ? "terrain" : "deck",
       candidate_column: candidate.column,
+      ...(candidate.deck_id === undefined ? {} : { deck_id: candidate.deck_id }),
       x_px: candidate.x_px,
       y_px: candidate.y_px,
       issued_at_ms: nowMs,
@@ -1197,7 +1248,9 @@ export class MobPopulationDirector {
     const definition = zone.definition;
     const playerDistanceSquared = definition.min_player_distance_px ** 2;
     const separationSquared = definition.minimum_spawn_separation_px ** 2;
-    const occupied: Array<WorldPoint & { zoneId?: string; candidateColumn?: number }> = [
+    const occupied: Array<
+      WorldPoint & { zoneId?: string; candidateColumn?: number; candidateDeckId?: string }
+    > = [
       ...(context.occupied_points ?? []),
     ];
     for (const otherZone of map.zones) {
@@ -1206,6 +1259,7 @@ export class MobPopulationDirector {
           ...actor.position,
           zoneId: otherZone.definition.zone_id,
           candidateColumn: actor.candidateColumn,
+          candidateDeckId: actor.candidateDeckId,
         });
       }
       for (const reservation of otherZone.reservations.values()) {
@@ -1214,6 +1268,7 @@ export class MobPopulationDirector {
           y_px: reservation.candidate.y_px,
           zoneId: otherZone.definition.zone_id,
           candidateColumn: reservation.candidate.column,
+          candidateDeckId: reservation.candidate.deck_id,
         });
       }
     }
@@ -1230,7 +1285,8 @@ export class MobPopulationDirector {
         if (
           other.zoneId === definition.zone_id &&
           other.candidateColumn !== undefined &&
-          other.candidateColumn === candidate.column
+          other.candidateColumn === candidate.column &&
+          other.candidateDeckId === candidate.deck_id
         ) {
           return true;
         }

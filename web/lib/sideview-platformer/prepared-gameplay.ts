@@ -5,6 +5,7 @@
 import type { PreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
 import { DEFAULT_WEAPON_CLASS, WEAPON_CLASSES, type WeaponClass } from "./weapon-class";
 import { DEFAULT_NUMBER_SCALE, NUMBER_SCALES, type NumberScale } from "./number-scale";
+import { SPAWN_SURFACES, type SpawnSurface } from "./spawn-director";
 
 export const PREPARED_GAMEPLAY_MOVEMENTS = [
   "move_left",
@@ -116,7 +117,7 @@ export type PreparedGameplayContract = Readonly<{
       seed_salt: number;
       zones: readonly Readonly<{
         zone_id: string;
-        surface: "terrain";
+        surface: SpawnSurface;
         left_fraction: number;
         right_fraction: number;
         initial_population: number;
@@ -694,7 +695,7 @@ export function parsePreparedGameplayContract(
         unique(spawnTable.map((entry) => entry.mob_id), `${zonePath}.spawn_table.mob_id`);
         return Object.freeze({
           zone_id: snakeId(zone.zone_id, `${zonePath}.zone_id`),
-          surface: literal(zone.surface, "terrain", `${zonePath}.surface`),
+          surface: member(zone.surface, SPAWN_SURFACES, `${zonePath}.surface`),
           left_fraction: left,
           right_fraction: right,
           initial_population: initial,

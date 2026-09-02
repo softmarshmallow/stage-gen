@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "gameplay-contract-v1"
 game_id = "bellweather"
-revision = 5
+revision = 6
 entry_map_id = "sunpetal-crossing"
 entry_spawn_id = "village_west_gate"
 
@@ -94,7 +94,7 @@ seed_salt = 1705
 
 [[mob_population.maps.zones]]
 zone_id = "amberbell_edge"
-surface = "terrain"
+surface = "terrain_and_decks"
 left_fraction = 0.08
 right_fraction = 0.34
 initial_population = 8
@@ -112,7 +112,7 @@ weight = 3
 
 [[mob_population.maps.zones]]
 zone_id = "bellroot_glade"
-surface = "terrain"
+surface = "terrain_and_decks"
 left_fraction = 0.36
 right_fraction = 0.68
 initial_population = 8
@@ -130,7 +130,7 @@ weight = 3
 
 [[mob_population.maps.zones]]
 zone_id = "crowncrag_approach"
-surface = "terrain"
+surface = "terrain_and_decks"
 left_fraction = 0.70
 right_fraction = 0.94
 initial_population = 6

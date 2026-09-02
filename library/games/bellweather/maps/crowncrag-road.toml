@@ -2,7 +2,7 @@ schema_version = 9
 kind = "game-map-v9"
 game_id = "bellweather"
 map_id = "crowncrag-road"
-revision = 14
+revision = 17
 display_name = "Amberbell Forest"
 
 [view]
@@ -15,15 +15,18 @@ follow_axes = ["x", "y"]
 
 [terrain]
 mode = "platformer-chunk-map-v1"
-columns = 96
-rows = 16
-walk_surface_row = 13
+columns = 56
+rows = 14
+walk_surface_row = 11
 brief = """
-A pilgrim road that climbs in three acts. It leaves the river on a
-ladder-fed shelf, rises gently into a root gallery where a rope ladder hangs over a hollow,
-drops back toward the water, crosses a ravine on a rising line of stepping platforms, and
-finishes on two more climbs onto the crown approach. Every height change the player cannot
-walk should be a climbable rather than a wall, and every deck should stay in frame.
+A hunting ground built the way a hunting map is built: the river bank is one flat lane that
+runs the whole width, and the level is a set of storeys hung above it. Every storey is a
+walkable lane of its own -- a line of wide decks with only a hop between them, running across
+most of the map, so a hunter can work the second and third floors the way they work the
+ground. Offset each storey against the one below so its gaps open over the decks beneath and
+there is headroom to stand, and feed the storeys from the bank with the ladders and ropes.
+Keep the ground itself almost level, nothing beyond a shallow dip or a single step. Fill the
+grid's height with storeys rather than with one tall tower.
 """
 
 [continuity]

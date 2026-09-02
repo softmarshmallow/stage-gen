@@ -52,6 +52,24 @@ function mapGeometry(
 }
 
 describe("prepared terrain world projection", () => {
+  test("a deck on the top row of a tall grid is bounded by the grid, not a camera constant", () => {
+    // 24 rows over a 720 baseline put the top row at y = -816, past the -512 the demo camera
+    // once clamped to. The prepared camera box reaches the grid top, so the deck must project.
+    const rows = 24;
+    const occupancy = Array.from({ length: rows }, (_, row) => {
+      if (row === 0) return "1111111100";
+      if (row === rows - 5) return "0001111000";
+      if (row === rows - 1) return "1111111111";
+      return "0000000000";
+    });
+    const world = projectPreparedTerrainWorld(mapGeometry(occupancy), 64, 720);
+
+    expect(world.topY).toBe(-816);
+    const summit = world.verticalWorld.platforms.find((p) => p.id === "terrain-platform-r0-c0");
+    expect(summit?.deckY).toBe(-816);
+    expect(summit?.tier).toBe(24);
+  });
+
   test("derives width, bottom heightfield, floating collision, and ladder geometry", () => {
     const world = projectPreparedTerrainWorld(
       mapGeometry([

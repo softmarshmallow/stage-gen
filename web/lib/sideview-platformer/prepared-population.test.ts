@@ -4,6 +4,7 @@ import type { PreparedGameplayContract } from "./prepared-gameplay";
 import {
   PreparedPopulationProjectionError,
   projectPreparedMobPopulation,
+  reservedSpawnColumns,
 } from "./prepared-population";
 import { MobPopulationDirector } from "./spawn-director";
 
@@ -85,6 +86,147 @@ describe("population policy overrides", () => {
         placement: "clustered",
       }),
     ).toThrow("cluster_radius_px must be positive");
+  });
+});
+
+describe("ground a mob may not stand on", () => {
+  test("reserves both map ends and every portal doorway", () => {
+    const reserved = reservedSpawnColumns({
+      worldColumns: 56,
+      portalAnchorFractions: [0.05, 0.95],
+    });
+
+    expect([...reserved].sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 4, 5, 50, 51, 52, 53, 54, 55,
+    ]);
+  });
+
+  test("keeps a portal doorway inside the map when its anchor sits mid-span", () => {
+    const reserved = reservedSpawnColumns({ worldColumns: 56, portalAnchorFractions: [0.5] });
+
+    expect([...reserved].filter((column) => column > 5 && column < 50).sort((a, b) => a - b)).toEqual(
+      [26, 27, 28, 29, 30],
+    );
+  });
+
+  test("a map stacked with storeys still has ground to stand on", () => {
+    // The regression this rule exists for. Reserving every column a deck floats over covered
+    // Crowncrag Road's zones end to end once its storeys interlocked, and the projection then
+    // rejected the map for having nowhere to spawn. Ground under a deck is still ground: the
+    // decks below must change nothing about which columns come back.
+    const reserved = reservedSpawnColumns({ worldColumns: 56, portalAnchorFractions: [0.05, 0.95] });
+    const zone = { left: 20, rightExclusive: 38 };
+    const spawnable = [];
+    for (let column = zone.left; column < zone.rightExclusive; column += 1) {
+      if (!reserved.has(column)) spawnable.push(column);
+    }
+
+    expect(spawnable).toHaveLength(zone.rightExclusive - zone.left);
+  });
+});
+
+describe("decks as places to stand", () => {
+  const geometry = {
+    world_columns: 20,
+    tile_pixels: 64,
+    baseline_y: 674,
+    height_at_column: () => 1,
+    // Two storeys over the middle of the map, the interlocking shape a shelves chunk builds.
+    deck_footings_at_column: (column: number) =>
+      column >= 3 && column <= 5
+        ? [
+            { deck_id: `lower-${column}`, surface_y: 482 },
+            { deck_id: `upper-${column}`, surface_y: 354 },
+          ]
+        : [],
+  };
+
+  function deckZonePopulation(): Population {
+    const source = populationFixture();
+    return {
+      ...source,
+      maps: [
+        {
+          ...source.maps[0]!,
+          zones: source.maps[0]!.zones.map((zone) => ({
+            ...zone,
+            surface: "terrain_and_decks" as const,
+          })),
+        },
+      ],
+    };
+  }
+
+  test("a zone allowing decks offers the ground and every storey over it", () => {
+    const projection = projectPreparedMobPopulation(
+      deckZonePopulation(),
+      "crowncrag-road",
+      geometry,
+    )!;
+
+    expect(projection.candidates[0]!.candidate_columns).toEqual([
+      { column: 3, x_px: 224, y_px: 610 },
+      { column: 3, x_px: 224, y_px: 482, deck_id: "lower-3" },
+      { column: 3, x_px: 224, y_px: 354, deck_id: "upper-3" },
+      { column: 4, x_px: 288, y_px: 610 },
+      { column: 4, x_px: 288, y_px: 482, deck_id: "lower-4" },
+      { column: 4, x_px: 288, y_px: 354, deck_id: "upper-4" },
+      { column: 5, x_px: 352, y_px: 610 },
+      { column: 5, x_px: 352, y_px: 482, deck_id: "lower-5" },
+      { column: 5, x_px: 352, y_px: 354, deck_id: "upper-5" },
+    ]);
+  });
+
+  test("a terrain zone ignores the decks over it", () => {
+    // The permission is the zone's, not the map's: the same geometry, populated by a zone that
+    // never asked for decks, is the floor-only route every package shipped before storeys.
+    const projection = projectPreparedMobPopulation(
+      populationFixture(),
+      "crowncrag-road",
+      geometry,
+    )!;
+
+    expect(
+      projection.candidates[0]!.candidate_columns.every(
+        (candidate) => candidate.deck_id === undefined,
+      ),
+    ).toBeTrue();
+  });
+
+  test("the director accepts a footing per storey in one column", () => {
+    const projection = projectPreparedMobPopulation(
+      deckZonePopulation(),
+      "crowncrag-road",
+      geometry,
+    )!;
+
+    expect(
+      () => new MobPopulationDirector(projection.manifest, projection.candidates),
+    ).not.toThrow();
+  });
+
+  test("a map with no decks populates its ground either way", () => {
+    const withDecks = projectPreparedMobPopulation(deckZonePopulation(), "crowncrag-road", {
+      world_columns: 20,
+      tile_pixels: 64,
+      baseline_y: 674,
+      height_at_column: () => 1,
+    })!;
+
+    expect(withDecks.candidates[0]!.candidate_columns).toEqual([
+      { column: 3, x_px: 224, y_px: 610 },
+      { column: 4, x_px: 288, y_px: 610 },
+      { column: 5, x_px: 352, y_px: 610 },
+    ]);
+  });
+
+  test("an unnamed deck is refused rather than placed nowhere", () => {
+    expect(() =>
+      projectPreparedMobPopulation(deckZonePopulation(), "crowncrag-road", {
+        ...geometry,
+        deck_footings_at_column: () => [{ deck_id: "", surface_y: 482 }],
+      }),
+    ).toThrow("unnamed deck");
   });
 });
 

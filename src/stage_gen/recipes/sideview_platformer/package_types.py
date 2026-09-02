@@ -88,7 +88,15 @@ MAP_TERRAIN_DESIGN = NodeType(
     # transport budget: a rejected design is a new identity, not a retry.
     # Three matches the designer's own max_attempts default.
     policy=NodePolicy(max_attempts=6, semantic_attempts=3),
-    contract_version="map-terrain-design-v1",
+    # v2: the floor is fenced to a shallow relief around the walk-surface datum instead of a
+    # free 1..8 depth, and the grammar gained ``shelves``, the word that stacks decks over one
+    # column range. Neither lives in the authored terrain table, so a cached design composed
+    # under the old rule and vocabulary would otherwise be reused unexamined.
+    # v3: shelves are held to a validated standing-room width. The first v2 design took the
+    # advisory schema minimum of four tiles for every deck, which is a stepping stone.
+    # v4: a shelves tier is a lane of decks rather than a single deck, so a storey is walkable
+    # across the map the way the floor is. The v3 shape read as one narrow tower per chunk.
+    contract_version="map-terrain-design-v4",
 )
 
 MAP_GROUND_GENERATE = NodeType(

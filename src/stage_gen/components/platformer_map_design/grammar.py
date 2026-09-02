@@ -7,8 +7,11 @@ deterministic expander turns each into terrain, platforms, and climbables. Nothi
 absolute-positioned: every chunk advances a cursor, so the model composes purely in pacing.
 
 What this buys over a walk-the-map encoding:
-  - VERTICAL set-pieces are first-class words (tower, hop_chain), countering the measured
-    bias of walk-the-map encodings toward horizontal choreography.
+  - VERTICAL set-pieces are first-class words (tower, hop_chain, shelves), countering the
+    measured bias of walk-the-map encodings toward horizontal choreography. Shelves are the
+    one word that stacks decks over the SAME columns, and each of its tiers is a lane rather
+    than a single deck, which is what a hunting map's storeys are made of; every other chunk
+    owns its columns alone.
   - the vocabulary is PROFILE-FILTERED: a tower is only in the grammar when the profile lets
     climbables stand on platforms, so a game's grammar only contains what it can build.
   - validator feedback is TRANSLATED back into chunk vocabulary. A grid encoding loses maps
@@ -79,6 +82,12 @@ def _chains_climbables(profile: PlatformerProfile) -> bool:
     return _has_climbables(profile) and profile.movement.climbable_footing == "any"
 
 
+def _stacks_by_jumping(profile: PlatformerProfile) -> bool:
+    """Shelves stack one jump apart; a platform one tile up would sit on the floor, not float."""
+
+    return profile.movement.max_jumpable_rise >= 2
+
+
 def _run_properties(profile: PlatformerProfile) -> dict[str, object]:
     return {"len": {"type": "integer", "minimum": 2}}
 
@@ -127,6 +136,17 @@ def _hop_chain_properties(profile: PlatformerProfile) -> dict[str, object]:
         },
         "platform_width": {"type": "integer", "minimum": 2},
         "dir": {"type": "string", "enum": ["up", "down"]},
+    }
+
+
+def _shelves_properties(profile: PlatformerProfile) -> dict[str, object]:
+    movement = profile.movement
+    return {
+        "tiers": {"type": "integer", "minimum": 2, "maximum": 8},
+        "decks": {"type": "integer", "minimum": 2},
+        "platform_width": {"type": "integer", "minimum": profile.geometry.shelf_min_width_tiles},
+        "gap": {"type": "integer", "minimum": 1, "maximum": movement.level_gap_tiles},
+        "lean": {"type": "string", "enum": ["left", "right"]},
     }
 
 
@@ -184,6 +204,17 @@ _WORDS: tuple[_Word, ...] = (
         "  hop_chain{count, jump_rise, gap, platform_width, dir}  floating platforms in a "
         "rising or falling line, each a jump from the last",
         "count*platform_width + (count+1)*gap",
+    ),
+    _Word(
+        "shelves",
+        _stacks_by_jumping,
+        _shelves_properties,
+        "  shelves{tiers, decks, platform_width, gap, lean}  storeys over ONE stretch of "
+        "ground. Each tier is a LINE of `decks` decks split by a `gap` the player hops, so the "
+        "tier is a lane to walk and fight along, not a stepping stone. Each tier sits one jump "
+        "above the one below and is offset half a deck, so one tier's gaps open over the next "
+        "tier's decks and the player has headroom and a way up",
+        "decks*platform_width + (decks+1)*gap",
     ),
     _Word(
         "perch",
@@ -322,6 +353,22 @@ def build_chunk_prompt(profile: PlatformerProfile, columns: int) -> str:
     )
     rise_span = str(rises) if len(rises) > 1 else f"exactly {rises[0]}"
     tower_clause = " and towers" if "tower" in available else ""
+    shelves_clause = (
+        f"\n  - a shelves deck is at least {geometry.shelf_min_width_tiles} tiles wide: it is "
+        "standing room to fight on, and wider is better; narrow stepping stones are hop_chain's."
+        "\n  - a shelves tier is a storey. Give it enough decks to span the ground it covers, "
+        "and make the hop between decks about as wide as a deck: at that width the storey "
+        "above interlocks with the gaps of the one below, which is both the way up and the "
+        "headroom to stand. The map should read as several walkable levels over one floor."
+        if "shelves" in available
+        else ""
+    )
+    variants_clause = (
+        "\n  - place every declared climbable variant at least once: "
+        f"{', '.join(profile.climbable_variants)}."
+        if profile.climbable_variants_each_placed
+        else ""
+    )
     biomes = _biome_section(profile)
     return f"""You compose playable maps for a 2D side-scrolling game from a fixed vocabulary
 of set-pieces, like a level designer placing patterns on a strip. You never place absolute
@@ -342,8 +389,8 @@ THIS GAME'S MEASURED LIMITS:
     edge; stairs and hollows move it).
   - jump reach: {reach}. Higher rises are impossible at any gap.
   - a climbable rises {rise_span} tile(s).
-  - no walkable surface may sit above {geometry.max_walkable_height_tiles} tiles.
-  - use {low_count}..{high_count} climbables in total across perches{tower_clause}.
+  - no walkable surface may sit above {geometry.max_walkable_height_tiles} tiles.{shelves_clause}
+  - use {low_count}..{high_count} climbables in total across perches{tower_clause}.{variants_clause}
 
 {biomes}Compose with intent: alternate tension and rest, vary your pattern parameters, and let the
 map's silhouette have a shape. A sentence of identical chunks is a boring map."""
@@ -464,6 +511,49 @@ def expand_chunks(
                         )
                         break
                     platforms.append((hop_start + gap + step_index * (width + gap), width, height))
+            elif kind == "shelves":
+                tiers = _number(chunk, name, "tiers")
+                decks = _number(chunk, name, "decks")
+                width = _number(chunk, name, "platform_width")
+                gap = _number(chunk, name, "gap")
+                lean = _text(chunk, name, "lean")
+                # Tiers sit one full jump apart, which is as close as they can be and still be
+                # reached from below. The offset is half a deck-and-gap period rather than a
+                # free parameter: at half a period one tier's gaps fall over the tier below,
+                # which is both the standing headroom and the hole the player jumps up through.
+                rise = movement.max_jumpable_rise
+                if width < geometry.shelf_min_width_tiles:
+                    errors.append(
+                        f"{name}: platform_width {width} is narrower than this game's "
+                        f"{geometry.shelf_min_width_tiles}-tile standing room; a deck that "
+                        "narrow is a stepping stone, which is hop_chain's job"
+                    )
+                # The hop along a tier is a LEVEL crossing, so it is bounded by the level gap
+                # rather than by the rise-to-the-next-tier reach. Climbing a tier is the other
+                # jump, and the half-period offset is what keeps that one short.
+                if gap > movement.level_gap_tiles:
+                    errors.append(
+                        f"{name}: gap {gap} is wider than this game's level reach "
+                        f"{movement.level_gap_tiles}, so the storey cannot be walked across"
+                    )
+                period = width + gap
+                offset = period // 2
+                base = emit_flat(decks * width + (decks + 1) * gap)
+                for tier in range(tiers):
+                    height = level + rise * (tier + 1)
+                    if height > geometry.max_walkable_height_tiles:
+                        errors.append(
+                            f"{name} stacks to {height} tiles, above the "
+                            f"{geometry.max_walkable_height_tiles}-tile ceiling"
+                        )
+                        break
+                    shifted = (tier % 2 == 1) if lean == "right" else (tier % 2 == 0)
+                    # The offset lane hangs over the gaps of the aligned one, so it carries one
+                    # deck fewer and both lanes stay inside the chunk's own columns.
+                    count = decks - 1 if shifted else decks
+                    lane_start = base + gap + (offset if shifted else 0)
+                    for deck in range(count):
+                        platforms.append((lane_start + deck * period, width, height))
             elif kind in ("perch", "tower"):
                 width = _number(chunk, name, "platform_width")
                 rise = _number(chunk, name, "climb_rise")

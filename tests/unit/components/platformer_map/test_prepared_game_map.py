@@ -38,12 +38,12 @@ _ROAD_COLUMNS = (10, 30, 50)
 def _road_terrain(**overrides: object) -> PreparedMapTerrain:
     """Geometry the shipped road would accept: flat ground with an exposed deck per climbable."""
 
-    rows, columns = 16, 96
+    rows, columns = 14, 56
     grid = [["0"] * columns for _ in range(rows)]
-    for row in (13, 14, 15):
+    for row in (11, 12, 13):
         grid[row] = ["1"] * columns
     for column in _ROAD_COLUMNS:
-        grid[9][column] = "1"  # four tiles above the surface row, with row 8 left empty
+        grid[7][column] = "1"  # four tiles above the surface row, with row 6 left empty
     variants = ("bellroot_ladder", "shrine_rope_ladder", "bellrope_climb")
     placements = [
         {
@@ -57,7 +57,7 @@ def _road_terrain(**overrides: object) -> PreparedMapTerrain:
     ]
     fields: dict[str, object] = {
         "occupancy": ["".join(row) for row in grid],
-        "walk_surface_row": 13,
+        "walk_surface_row": 11,
         "climbable_placements": placements,
     }
     fields.update(overrides)
@@ -101,14 +101,14 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
 
     # The map asks for terrain; it does not carry any. Geometry arrives as a generated artifact.
     assert road.terrain.mode == "platformer-chunk-map-v1"
-    assert (road.terrain.rows, road.terrain.columns) == (16, 96)
+    assert (road.terrain.rows, road.terrain.columns) == (14, 56)
     assert road.terrain.brief.strip()
     assert not hasattr(road.ground, "occupancy")
 
     terrain = _road_terrain()
     validate_generated_terrain(road, terrain)
     for placement in terrain.climbable_placements:
-        column = normalized_terrain_column(placement.normalized_x, 96)
+        column = normalized_terrain_column(placement.normalized_x, 56)
         lower_surface = bottom_contiguous_surface_row(terrain.occupancy, column)
         assert lower_surface is not None
         assert terrain.occupancy[lower_surface - 4][column] == "1"
@@ -247,14 +247,14 @@ def test_map_ladder_must_resolve_between_real_occupancy_surfaces() -> None:
     road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
     # Move a climbable off its deck: column 10 has one, column 40 does not.
     placements = [dict(entry) for entry in _road_terrain().model_dump()["climbable_placements"]]
-    placements[0]["normalized_x"] = round(40.5 / 96, 6)
+    placements[0]["normalized_x"] = round(40.5 / 56, 6)
     with pytest.raises(ValueError, match="exposed upper deck"):
         validate_generated_terrain(road, _road_terrain(climbable_placements=placements))
 
     # Remove the deck the first climbable rises to.
     rows = _road_terrain().occupancy
     stripped = list(rows)
-    stripped[9] = "0" * 96
+    stripped[7] = "0" * 56
     with pytest.raises(ValueError, match="exposed upper deck"):
         validate_generated_terrain(road, _road_terrain(occupancy=stripped))
 

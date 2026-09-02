@@ -68,6 +68,40 @@ captures both, and lands or re-pins with that change.
 Re-pinned once more the same day when the mob content model gained its optional ``aggression``
 name and the manifest projection began carrying it. No authored byte moved, no operation moved;
 the plan document's package projection did.
+Re-pinned 2026-09-03 for ``game-ui-v4``: the preview icon set joins the UI domain as a third
+role of the same shared triplet — one image, one local admission, one structured review — so the
+node count rises by three and topology moves with the fan-out. The icon role is a fixed glyph grid
+the document may only restyle; the two nine-slice roles' cache identities are untouched, because a
+role's key hashes its own direction and geometry rather than the document as a whole.
+Re-pinned 2026-09-03 again when Crowncrag Road's terrain request went from 96x16 to 56x24 (walk
+surface row 21) with a brief that asks for storeys. The terrain table is the terrain node's own
+identity, so that node and the local composite and review behind it moved; no layer, ground,
+climbable, or portal image identity did, and the node count is unchanged.
+Re-pinned 2026-09-03 a third time for a topology fix the reshape exposed: ground validation
+composes its evidence over generated occupancy but declared no edge to the terrain node, so a
+cache-cold run scheduled it before terrain.json existed. The edge moves ground-validate's
+lineage and the topology digest; no provider node's identity moved.
+
+Re-pinned 2026-09-03 a fourth time for ``map-terrain-design-v2``: the recipe now fences the
+floor to a one-tile relief around the walk-surface datum instead of a free 1..8 depth, so the
+level's interest hangs above the ground as floating decks, and the grammar gained ``shelves``,
+the word that stacks decks over one column range. Neither lives in the authored terrain table,
+so a cached design composed under the old rule and vocabulary would otherwise be reused
+unexamined; the contract version is how both reach identity.
+Re-pinned 2026-09-03 a fifth time for ``map-terrain-design-v3``: shelves are held to a validated
+standing-room width, because the first v2 design took the advisory schema minimum of four
+tiles for every deck. Same two nodes move; topology and image identities hold.
+Re-pinned 2026-09-03 a sixth time for ``map-terrain-design-v4`` together with Crowncrag Road's
+own reshape from 56x24 to 56x14 (walk surface row 11). The v3 map was too tall to read and each
+shelves chunk was one narrow stack, so a shelves tier is now a lane of decks rather than a single
+deck and the grid was shortened to the storeys it actually needs. The map document and the
+contract version both feed the terrain node's key, so the same two nodes move.
+Only the two terrain nodes and their dependants move; topology and every image identity hold.
+Re-pinned 2026-09-03 a seventh time for authoring alone: the road's three spawn zones now name
+``terrain_and_decks``, so their creatures stand on the storeys over the bank as well as on it.
+That is a gameplay-document edit, so package resolve, gameplay validation, and the manifest move
+and nothing else does -- no terrain, layer, ground, climbable, or portal identity, and no
+provider node at all.
 """
 
 from __future__ import annotations
@@ -83,9 +117,9 @@ from stage_gen.recipes.sideview_platformer.package_types import platformer_type_
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
-BELLWEATHER_NODE_COUNT = 227
-BELLWEATHER_GRAPH_SHA256 = "8c7e1d5ef90abe538aa91b729fcf85903ee4d2f7faeb6a7ed8950ac636a327c3"
-BELLWEATHER_TOPOLOGY_SHA256 = "4ca19ad458b63c65f4108697f451501e90f8db22392716ddfd5c8c641dbfd40e"
+BELLWEATHER_NODE_COUNT = 230
+BELLWEATHER_GRAPH_SHA256 = "96f601880d7a455fcacb808af2bfaed8dfcbd2fbf18f83d92ce05461ef84722c"
+BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
 
 
 def _bellweather_graph() -> ExecutionGraph:

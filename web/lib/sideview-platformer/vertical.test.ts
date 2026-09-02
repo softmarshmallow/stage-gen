@@ -24,7 +24,6 @@ import {
   selectDemoVerticalWorld,
   simulatePlatformJump,
   platformDropRecoverySteps,
-  verticalCameraScrollY,
   verticalFeatureAfterAssetLoad,
   verticalObjectVisible,
   verticalSceneObjectVisible,
@@ -722,6 +721,7 @@ describe("vertical world contracts", () => {
         heights,
         tilePixels: 64,
         baselineY: 720,
+        topY: 0,
         worldWidth: 12_800,
       });
     const plainPlatform = {
@@ -742,6 +742,9 @@ describe("vertical world contracts", () => {
     };
     expect(() => make([{ ...plainPlatform, left: Number.NaN }], [])).toThrow();
     expect(() => make([{ ...plainPlatform, deckY: 336.5 }], [])).toThrow();
+    expect(() => make([{ ...plainPlatform, deckY: -64 }], [])).toThrow(
+      "outside its world",
+    );
     expect(() =>
       make([plainPlatform, { ...plainPlatform, id: "upper-copy" }], []),
     ).toThrow("overlap");
@@ -1101,24 +1104,6 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
       expect(Number.isFinite(landing.vy)).toBeTrue();
       expect(landing.support === "air" || landing.vy === 0).toBeTrue();
     }
-  });
-
-  test("uses a deterministic zoom-aware deadzone with exact demo limits", () => {
-    const scroll = (currentScrollY: number, footY: number, zoom: number) =>
-      verticalCameraScrollY({
-        currentScrollY,
-        footY,
-        zoom,
-        viewportHeight: 720,
-      });
-    expect(scroll(0, 592, 1)).toBe(0);
-    expect(scroll(0, 336, 1)).toBe(-84);
-    expect(scroll(-84, 336, 1)).toBe(-84);
-    expect(scroll(-84, 592, 1)).toBe(0);
-    expect(scroll(0, -1000, 1)).toBe(-512);
-    expect(scroll(0, 300, 2)).toBe(-90);
-    expect(scroll(-90, 330, 2)).toBe(-90);
-    expect(scroll(-90, 528, 2)).toBe(0);
   });
 
   test("culls by camera world view with one-tile overscan", () => {

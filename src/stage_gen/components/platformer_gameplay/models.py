@@ -26,6 +26,14 @@ WeaponClass = Literal["melee_dps_v1", "ranged_dps_v1", "melee_sweep_v1"]
 #: How big the numbers are. `unit_v1` is the identity every earlier package played at;
 #: `arcade_v1` is the same fight in hundreds. Named, not numbered, like everything else here.
 NumberScale = Literal["unit_v1", "arcade_v1"]
+#: What a zone's creatures may stand on. `terrain` is the floor alone, the only footing any
+#: package had before floating decks were stacked over one stretch of ground. `terrain_and_decks`
+#: adds the decks above that floor, which is the hunting-ground read: a route is populated on
+#: every ledge the player can reach, not only on the lane beneath them. It is a *permission*, not
+#: a placement -- where inside the zone a body ends up is the consumer's, the same way density and
+#: clustering already are -- and a zone that names it on a map with no decks simply populates the
+#: floor.
+SpawnSurface = Literal["terrain", "terrain_and_decks"]
 
 
 class NavigationPolicy(PersistedContractModel):
@@ -169,7 +177,7 @@ class SpawnTableEntry(PersistedContractModel):
 
 class SpawnZone(PersistedContractModel):
     zone_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
-    surface: Literal["terrain"]
+    surface: SpawnSurface
     left_fraction: float = Field(ge=0.0, lt=1.0)
     right_fraction: float = Field(gt=0.0, le=1.0)
     initial_population: int = Field(ge=0, le=10_000)
@@ -415,6 +423,7 @@ __all__ = [
     "Quest",
     "SetQuestStateEffect",
     "SpawnPoint",
+    "SpawnSurface",
     "SpawnTableEntry",
     "SpawnZone",
     "WeaponClass",

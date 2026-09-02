@@ -59,9 +59,6 @@ export const TERRAIN_WALL_CONTACT_GAP = 1 as const;
 export const PLATFORM_DROP_THROUGH_MS = 180 as const;
 export const PLATFORM_DROP_CLEARANCE = 16 as const;
 export const PLATFORM_DROP_SETTLE_FRAMES = 7 as const;
-export const VERTICAL_CAMERA_MIN_SCROLL_Y = -512 as const;
-export const VERTICAL_CAMERA_MAX_SCROLL_Y = 0 as const;
-export const VERTICAL_CAMERA_DEADZONE = Object.freeze({ top: 420, bottom: 528 });
 
 export type UpperPlatform = Readonly<{
   id: string;
@@ -266,6 +263,12 @@ export type VerticalWorldInput = Readonly<{
   heights: readonly number[];
   tilePixels: number;
   baselineY: number;
+  /**
+   * World y of the grid's top edge. A deck is bounded by the map it was authored in, not by
+   * how far a camera happens to scroll: the camera box is built from this same edge, so a deck
+   * that fits the grid is always reachable on screen.
+   */
+  topY: number;
   worldWidth: number;
 }>;
 
@@ -310,9 +313,13 @@ function deepFreeze<T>(value: T): T {
 export function createVerticalWorld(input: VerticalWorldInput): VerticalWorld {
   assertFiniteInteger(input.tilePixels, "tilePixels");
   assertFiniteInteger(input.baselineY, "baselineY");
+  assertFiniteInteger(input.topY, "topY");
   assertFiniteInteger(input.worldWidth, "worldWidth");
   if (input.tilePixels <= 0 || input.worldWidth <= 0 || input.heights.length === 0) {
     throw new Error("vertical world dimensions must be positive");
+  }
+  if (input.topY >= input.baselineY) {
+    throw new Error("vertical world top must sit above its baseline");
   }
   const ids = new Set<string>();
   const platforms = input.platforms.map((source) => {
@@ -333,7 +340,7 @@ export function createVerticalWorld(input: VerticalWorldInput): VerticalWorld {
       source.left < 0 ||
       source.right > input.worldWidth ||
       source.left >= source.right ||
-      source.deckY < VERTICAL_CAMERA_MIN_SCROLL_Y ||
+      source.deckY < input.topY ||
       source.deckY + UPPER_PLATFORM_THICKNESS > input.baselineY ||
       source.tier < 1 ||
       source.sourceColumns.start < 0 ||
@@ -873,6 +880,8 @@ export function selectDemoVerticalWorld(input: Readonly<{
   afterColumn?: number;
   maximumColumnExclusive?: number;
   layout?: DemoVerticalLayoutKind;
+  /** Grid top edge. The demo has no authored grid, so it defaults to the highest deck placed. */
+  topY?: number;
 }>): DemoVerticalSelection | null {
   const layout = DEMO_LAYOUTS[input.layout ?? "ascent"];
   const after = input.afterColumn ?? 8;
@@ -914,18 +923,19 @@ export function selectDemoVerticalWorld(input: Readonly<{
       input.baselineY,
     );
     try {
+      const platforms = layout.platforms.map((platform) => ({
+        id: platform.id,
+        left: (start + platform.start) * input.tilePixels,
+        right: (start + platform.end) * input.tilePixels,
+        deckY: lowerSurfaceY - input.tilePixels * platform.tiers,
+        tier: platform.tiers,
+        sourceColumns: {
+          start: start + platform.start,
+          end: start + platform.end,
+        },
+      }));
       const world = createVerticalWorld({
-        platforms: layout.platforms.map((platform) => ({
-          id: platform.id,
-          left: (start + platform.start) * input.tilePixels,
-          right: (start + platform.end) * input.tilePixels,
-          deckY: lowerSurfaceY - input.tilePixels * platform.tiers,
-          tier: platform.tiers,
-          sourceColumns: {
-            start: start + platform.start,
-            end: start + platform.end,
-          },
-        })),
+        platforms,
         climbables: layout.climbables.map((ladder) => {
           const platform = layout.platforms.find(
             (candidatePlatform) => candidatePlatform.id === ladder.platformId,
@@ -947,6 +957,8 @@ export function selectDemoVerticalWorld(input: Readonly<{
         heights: input.heights,
         tilePixels: input.tilePixels,
         baselineY: input.baselineY,
+        topY:
+          input.topY ?? Math.min(...platforms.map((platform) => platform.deckY)),
         worldWidth: input.worldWidth,
       });
       const routes = createDemoPlatformRoutes(
@@ -1339,42 +1351,6 @@ export function platformDropThroughActive(input: Readonly<{
     input.nowMs <= input.expiresAtMs ||
     input.footY <= input.deckY + PLATFORM_DROP_CLEARANCE
   );
-}
-
-export function verticalCameraScrollY(input: Readonly<{
-  currentScrollY: number;
-  footY: number;
-  zoom: number;
-  viewportHeight: number;
-}>): number {
-  for (const value of [
-    input.currentScrollY,
-    input.footY,
-    input.zoom,
-    input.viewportHeight,
-  ]) {
-    if (!Number.isFinite(value)) throw new Error("camera inputs must be finite");
-  }
-  if (input.zoom <= 0 || input.viewportHeight <= 0) {
-    throw new Error("camera zoom and viewport height must be positive");
-  }
-  const originY = input.viewportHeight / 2;
-  const projected =
-    originY +
-    (input.footY - input.currentScrollY - originY) * input.zoom;
-  let next = input.currentScrollY;
-  if (projected < VERTICAL_CAMERA_DEADZONE.top) {
-    next =
-      input.footY -
-      originY -
-      (VERTICAL_CAMERA_DEADZONE.top - originY) / input.zoom;
-  } else if (projected > VERTICAL_CAMERA_DEADZONE.bottom) {
-    next =
-      input.footY -
-      originY -
-      (VERTICAL_CAMERA_DEADZONE.bottom - originY) / input.zoom;
-  }
-  return Math.max(VERTICAL_CAMERA_MIN_SCROLL_Y, Math.min(VERTICAL_CAMERA_MAX_SCROLL_Y, next));
 }
 
 export function verticalObjectVisible(input: Readonly<{

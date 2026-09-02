@@ -54,7 +54,12 @@ import {
   MobPursuitTargetNode,
   MobReturnHomeNode,
 } from "./mob-behavior";
-import { MobNavigationPolicy, MobTerrainLaneNode } from "./mob-navigation";
+import {
+  MobDeckLaneNode,
+  MobNavigationPolicy,
+  MobTerrainLaneNode,
+  type MobLaneNode,
+} from "./mob-navigation";
 import type { TerrainWalkResolution } from "./vertical";
 
 export type MobAiState =
@@ -87,6 +92,19 @@ function mobHitResult(resolution: DamageResolution): MobHitResult {
   });
 }
 
+/**
+ * The floating deck a creature was placed on.
+ *
+ * Geometry only: where the slab starts, where it ends, and how high its top is. A body given one
+ * of these walks it end to end and turns at both edges; a body given none walks the floor.
+ */
+export type MobDeckFooting = Readonly<{
+  id: string;
+  leftX: number;
+  rightX: number;
+  surfaceY: number;
+}>;
+
 export interface MobOpts {
   scene: Phaser.Scene;
   ladderIndex: number;
@@ -97,6 +115,8 @@ export interface MobOpts {
   worldWidthPx: number;
   baselineY: number;
   heightFn: (col: number) => number;
+  /** Deck to stand on; absent stands the creature on the terrain lane under `spawnCol`. */
+  deck?: MobDeckFooting;
   speedPx?: number;
   spriteHeightPx: number;
   idleAnimKey: string;
@@ -133,7 +153,7 @@ export class Mob {
   private readonly profile: AggressionProfile;
   private readonly pursuitTarget: MobPursuitTargetNode;
   private readonly awareness: MobAwarenessNode;
-  private readonly navigation: MobTerrainLaneNode;
+  private readonly navigation: MobLaneNode;
   private readonly navigationPolicy: MobNavigationPolicy;
   private returnHome: MobReturnHomeNode;
   private readonly actionTiming: MobActionTimingNode;
@@ -214,20 +234,33 @@ export class Mob {
       worldWidth: opts.worldWidthPx,
       renderedHalfWidth: this.renderEnvelope.halfWidth,
     });
-    const spawnX = lane.spawnX;
+    // The lane comes before the body, because the lane is what decides where the body may stand:
+    // the world's edges bound a spawn on the floor, a deck's own edges bound one on a ledge, and
+    // in both cases the placed home is the answer rather than the requested column.
+    this.navigation = opts.deck
+      ? new MobDeckLaneNode({
+          deckId: opts.deck.id,
+          spawnX: lane.spawnX,
+          deckLeftX: opts.deck.leftX,
+          deckRightX: opts.deck.rightX,
+          deckSurfaceY: opts.deck.surfaceY,
+          renderedHalfWidth: this.renderEnvelope.halfWidth,
+          policy: navigationPolicy,
+        })
+      : new MobTerrainLaneNode({
+          spawnColumn: Math.floor(lane.spawnX / opts.tilePx),
+          spawnX: lane.spawnX,
+          tilePixels: opts.tilePx,
+          worldWidthPx: opts.worldWidthPx,
+          baselineY: opts.baselineY,
+          renderedHalfWidth: this.renderEnvelope.halfWidth,
+          heightAtColumn: opts.heightFn,
+          policy: navigationPolicy,
+        });
+    const spawnX = this.navigation.homeX;
     this.spawnX = spawnX;
     this.spawnColumn = Math.floor(spawnX / opts.tilePx);
     this.homeX = spawnX;
-    this.navigation = new MobTerrainLaneNode({
-      spawnColumn: this.spawnColumn,
-      spawnX,
-      tilePixels: opts.tilePx,
-      worldWidthPx: opts.worldWidthPx,
-      baselineY: opts.baselineY,
-      renderedHalfWidth: this.renderEnvelope.halfWidth,
-      heightAtColumn: opts.heightFn,
-      policy: navigationPolicy,
-    });
     this.returnHome = new MobReturnHomeNode(
       spawnX,
       navigationPolicy.returnHomeArrivalRadiusPx,

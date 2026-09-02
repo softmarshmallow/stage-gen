@@ -440,6 +440,32 @@ def test_ten_climbables_sit_inside_one_games_budget_and_overrun_the_others() -> 
     assert check(crowded, GROUND_FOOTED_PROFILE) == ["10 climbables, outside the profile's 3..8"]
 
 
+def test_a_game_that_draws_every_variant_rejects_a_design_that_skips_one() -> None:
+    """The rule is declared, not assumed: the same map passes the profile that does not ask."""
+
+    columns, rows = 40, 16
+    ladders_only = [
+        Climbable("c0", "root_ladder", 5, 4, 2),
+        Climbable("c1", "root_ladder", 12, 4, 2),
+        Climbable("c2", "shrine_rope_ladder", 19, 4, 2),
+    ]
+    designed = _build(
+        GROUND_FOOTED_PROFILE,
+        columns=columns,
+        rows=rows,
+        floor=[2] * columns,
+        platforms=[(4, 36, 6)],
+        climbables=ladders_only,
+    )
+    demanding = dataclasses.replace(GROUND_FOOTED_PROFILE, climbable_variants_each_placed=True)
+
+    assert check(designed, GROUND_FOOTED_PROFILE) == []
+    assert check(designed, demanding) == [
+        "declared climbable variant(s) never placed: rope_climb; this game draws every "
+        "declared variant, so the design must use each at least once"
+    ]
+
+
 def test_a_climbable_naming_a_variant_this_game_cannot_draw_is_rejected() -> None:
     """A variant the consumer cannot draw is a lie the designer would otherwise be free to tell."""
 

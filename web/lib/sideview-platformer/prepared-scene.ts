@@ -51,7 +51,7 @@ import {
 } from "@/lib/manifest/prepared-manifest";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
 import { Player } from "./player";
-import { Mob } from "./mob";
+import { Mob, type MobDeckFooting } from "./mob";
 import { ItemSystem } from "./items";
 import { InventoryHud } from "./inventory";
 import {
@@ -136,7 +136,11 @@ import {
   parsePreparedGameplayContract,
   type PreparedGameplayContract,
 } from "./prepared-gameplay";
-import { projectPreparedMobPopulation } from "./prepared-population";
+import {
+  projectPreparedMobPopulation,
+  reservedSpawnColumns,
+  type PreparedDeckFooting,
+} from "./prepared-population";
 import {
   anchorRepackedMotionFeet,
   applyMotionPlayback,
@@ -1384,6 +1388,35 @@ export class PreparedStageScene extends Phaser.Scene {
     return this.heights[index] ?? 1;
   }
 
+  /**
+   * The decks a body could stand on in one column, lowest first.
+   *
+   * A column is measured at its center, the same point a spawn is placed at and the same test
+   * `platformAtX` makes, so a deck counts here exactly when a creature placed in this column
+   * would land on it.
+   */
+  private deckFootingsAtColumn(column: number): readonly PreparedDeckFooting[] {
+    const centerX = column * TILE_PX + TILE_PX / 2;
+    return this.verticalWorld.platforms
+      .filter((platform) => centerX >= platform.left && centerX <= platform.right)
+      .map((platform) =>
+        Object.freeze({ deck_id: platform.id, surface_y: platform.deckY }),
+      )
+      .sort((left, right) => right.surface_y - left.surface_y);
+  }
+
+  /** Resolve a deck the spawn director named into the geometry a mob is bound by. */
+  private deckFooting(deckId: string): MobDeckFooting | null {
+    const platform = this.verticalWorld.platforms.find((entry) => entry.id === deckId);
+    if (!platform) return null;
+    return Object.freeze({
+      id: platform.id,
+      leftX: platform.left,
+      rightX: platform.right,
+      surfaceY: platform.deckY,
+    });
+  }
+
   private surfaceYAtX(x: number): number {
     return terrainSurfaceY(
       this.heightAt(x / TILE_PX),
@@ -1433,6 +1466,7 @@ export class PreparedStageScene extends Phaser.Scene {
     spawnColumn: number,
     behaviorSeed?: number,
     spawnedAtMs?: number,
+    deck?: MobDeckFooting,
   ): Mob | null {
     const spec = this.manifest?.mobs[mobSlot];
     if (!spec) return null;
@@ -1481,6 +1515,7 @@ export class PreparedStageScene extends Phaser.Scene {
       worldWidthPx: this.worldWidth,
       baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
+      deck,
       spriteHeightPx: spec.rank === "boss" ? MOB_HEIGHT * 1.45 : MOB_HEIGHT,
       idleAnimKey: idleKey,
       hurtTextureKey: this.textures.exists(hurtKey) ? hurtKey : idleKey,
@@ -1548,34 +1583,12 @@ export class PreparedStageScene extends Phaser.Scene {
     const gameplay = this.gameplay;
     const manifest = this.manifest;
     if (!gameplay || !manifest) return;
-    const reservedColumns = new Set<number>([0, 1, 2, 3, 4, 5]);
-    for (
-      let column = Math.max(0, this.heights.length - 6);
-      column < this.heights.length;
-      column += 1
-    ) {
-      reservedColumns.add(column);
-    }
-    for (const endpoint of map.portal?.endpoints ?? []) {
-      const anchorColumn = Math.floor(
-        endpoint.normalized_x * this.heights.length,
-      );
-      for (let offset = -2; offset <= 2; offset += 1) {
-        const column = anchorColumn + offset;
-        if (column >= 0 && column < this.heights.length) {
-          reservedColumns.add(column);
-        }
-      }
-    }
-    for (const platform of this.verticalWorld.platforms) {
-      for (
-        let column = platform.sourceColumns.start;
-        column < platform.sourceColumns.end;
-        column += 1
-      ) {
-        reservedColumns.add(column);
-      }
-    }
+    const reservedColumns = reservedSpawnColumns({
+      worldColumns: this.heights.length,
+      portalAnchorFractions: (map.portal?.endpoints ?? []).map(
+        (endpoint) => endpoint.normalized_x,
+      ),
+    });
     const projection = projectPreparedMobPopulation(
       gameplay.mob_population,
       map.map_id,
@@ -1586,6 +1599,7 @@ export class PreparedStageScene extends Phaser.Scene {
         height_at_column: (column) => this.heightAt(column),
         is_spawnable_column: (column) =>
           !reservedColumns.has(column) && this.heightAt(column) > 0,
+        deck_footings_at_column: (column) => this.deckFootingsAtColumn(column),
       },
       // The hunting-ground policy. Spawns may land in view - they fade in rather than appear -
       // stand half a tile apart rather than more than one, and usually join a group already
@@ -1676,11 +1690,21 @@ export class PreparedStageScene extends Phaser.Scene {
         director.reject(reservation.reservation_id, nowMs);
         return;
       }
+      const deck =
+        reservation.deck_id === undefined ? null : this.deckFooting(reservation.deck_id);
+      if (reservation.deck_id !== undefined && !deck) {
+        director.reject(reservation.reservation_id, nowMs);
+        this.recordDiagnostic(
+          `Mob reservation ${reservation.reservation_id} named unknown deck ${reservation.deck_id}`,
+        );
+        return;
+      }
       mob = this.createMobAtColumn(
         mobSlot,
         reservation.candidate_column,
         this.nextMobInstance,
         nowMs,
+        deck ?? undefined,
       );
       if (!mob) {
         director.reject(reservation.reservation_id, nowMs);

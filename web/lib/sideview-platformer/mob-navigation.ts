@@ -1,9 +1,9 @@
 import { terrainSurfaceY } from "./terrain";
 import { resolveTerrainWalk, type TerrainWalkResolution } from "./vertical";
 
-export type MobNavigationSurface = "terrain_lane";
+export type MobNavigationSurface = "terrain_lane" | "deck_lane";
 export type MobPatrolBoundary = "home_radius";
-export type MobPursuitBoundary = "home_territory_within_terrain_lane";
+export type MobPursuitBoundary = "home_territory_within_lane";
 
 /**
  * Immutable in-code policy for current mob navigation.
@@ -13,10 +13,8 @@ export type MobPursuitBoundary = "home_territory_within_terrain_lane";
  * pursuit may travel.
  */
 export class MobNavigationPolicy {
-  readonly navigationSurface: MobNavigationSurface = "terrain_lane";
   readonly patrolBoundary: MobPatrolBoundary = "home_radius";
-  readonly pursuitBoundary: MobPursuitBoundary =
-    "home_territory_within_terrain_lane";
+  readonly pursuitBoundary: MobPursuitBoundary = "home_territory_within_lane";
   readonly patrolHomeRadiusPx: number;
   readonly pursuitHomeRadiusPx: number;
   readonly returnHomeArrivalRadiusPx: number;
@@ -32,6 +30,30 @@ export class MobNavigationPolicy {
     this.returnHomeSpeedPx = Math.round(tilePixels * 0.85);
     Object.freeze(this);
   }
+}
+
+/**
+ * What one mob's navigation has to answer, whatever it is standing on.
+ *
+ * Two nodes implement it: the terrain lane, derived from the heightfield, and the deck lane,
+ * bound to one floating platform. The creature itself asks the same questions of both, which is
+ * the point - a mob on a ledge patrols, chases, and turns at an edge exactly as one on the floor
+ * does, and nothing in its behaviour needs to know which it is.
+ */
+export interface MobLaneNode {
+  readonly navigationSurface: MobNavigationSurface;
+  readonly homeX: number;
+  containsPatrolX(x: number): boolean;
+  containsPursuitX(x: number): boolean;
+  walk(
+    previousX: number,
+    nextX: number,
+    boundary: "patrol" | "pursuit" | "world",
+    allowDescents?: boolean,
+  ): TerrainWalkResolution;
+  surfaceYAt(x: number): number;
+  rehomeAfterForcedDisplacement(landingX: number): boolean;
+  restoreHome(spawnColumn: number, spawnX: number): void;
 }
 
 export type MobTerrainLaneNodeOptions = Readonly<{
@@ -53,7 +75,8 @@ export type MobTerrainLaneNodeOptions = Readonly<{
  * descent, pit, or world edge terminates it. Ladders are intentionally absent because they are a
  * player traversal mechanism, not terrain collision.
  */
-export class MobTerrainLaneNode {
+export class MobTerrainLaneNode implements MobLaneNode {
+  readonly navigationSurface: MobNavigationSurface = "terrain_lane";
   private _homeX = 0;
   private _patrolMinX = 0;
   private _patrolMaxX = 0;
@@ -246,6 +269,172 @@ export class MobTerrainLaneNode {
       this.opts.tilePixels,
       this.opts.baselineY,
     );
+  }
+}
+
+export type MobDeckLaneNodeOptions = Readonly<{
+  deckId: string;
+  spawnX: number;
+  /** World-space X of the deck's left and right edges. */
+  deckLeftX: number;
+  deckRightX: number;
+  /** World-space Y of the deck's top surface, where the feet rest. */
+  deckSurfaceY: number;
+  renderedHalfWidth: number;
+  policy: MobNavigationPolicy;
+}>;
+
+/**
+ * Navigation node for one mob standing on one floating deck.
+ *
+ * The deck *is* the lane: its two edges bound patrol, pursuit and every forced displacement
+ * alike, which is the one place this differs from terrain. A terrain mob knocked over a drop
+ * lands somewhere and adopts the shelf it landed on; a deck mob knocked off the edge would land
+ * nowhere, because the surface it stands on is a single slab with air on both sides and it can
+ * neither jump nor climb back up. So the edge holds against knockback too, and re-homing never
+ * happens - the deck-bound creature the reference has, with no cross-deck pathing to reason
+ * about.
+ *
+ * Height needs no lookup at all: a deck is level along its whole span.
+ */
+export class MobDeckLaneNode implements MobLaneNode {
+  readonly navigationSurface: MobNavigationSurface = "deck_lane";
+  readonly deckId: string;
+  private _homeX = 0;
+  private _patrolMinX = 0;
+  private _patrolMaxX = 0;
+  private readonly _laneMinX: number;
+  private readonly _laneMaxX: number;
+  private _pursuitMinX = 0;
+  private _pursuitMaxX = 0;
+  private readonly opts: MobDeckLaneNodeOptions;
+
+  constructor(opts: MobDeckLaneNodeOptions) {
+    for (const value of [
+      opts.spawnX,
+      opts.deckLeftX,
+      opts.deckRightX,
+      opts.deckSurfaceY,
+      opts.renderedHalfWidth,
+    ]) {
+      if (!Number.isFinite(value)) {
+        throw new Error("mob deck lane geometry must be finite");
+      }
+    }
+    if (opts.renderedHalfWidth < 0) {
+      throw new Error("mob deck lane geometry has invalid dimensions");
+    }
+    if (opts.deckRightX <= opts.deckLeftX) {
+      throw new Error("mob deck lane requires a deck with positive width");
+    }
+    if (opts.deckId.length === 0) {
+      throw new Error("mob deck lane requires the deck it stands on");
+    }
+    this.opts = opts;
+    this.deckId = opts.deckId;
+    // A deck narrower than the body it carries has one place to stand rather than none: the
+    // middle of it. Refusing the spawn instead would make a legal, reachable ledge unusable.
+    const inset = Math.min(opts.renderedHalfWidth, (opts.deckRightX - opts.deckLeftX) / 2);
+    this._laneMinX = opts.deckLeftX + inset;
+    this._laneMaxX = opts.deckRightX - inset;
+    this.setHome(opts.spawnX);
+  }
+
+  get homeX(): number {
+    return this._homeX;
+  }
+
+  get patrolMinX(): number {
+    return this._patrolMinX;
+  }
+
+  get patrolMaxX(): number {
+    return this._patrolMaxX;
+  }
+
+  get laneMinX(): number {
+    return this._laneMinX;
+  }
+
+  get laneMaxX(): number {
+    return this._laneMaxX;
+  }
+
+  get pursuitMinX(): number {
+    return this._pursuitMinX;
+  }
+
+  get pursuitMaxX(): number {
+    return this._pursuitMaxX;
+  }
+
+  /** Never: the deck's edges already hold, so nothing can carry a body off it to re-home on. */
+  rehomeAfterForcedDisplacement(landingX: number): boolean {
+    if (!Number.isFinite(landingX)) {
+      throw new Error("mob forced landing coordinate must be finite");
+    }
+    return false;
+  }
+
+  /** Restore the authored spawn territory for deterministic replay/reset. */
+  restoreHome(_spawnColumn: number, spawnX: number): void {
+    this.setHome(spawnX);
+  }
+
+  private setHome(spawnX: number): void {
+    if (!Number.isFinite(spawnX)) {
+      throw new Error("mob deck lane home coordinate must be finite");
+    }
+    const homeX = Math.min(this._laneMaxX, Math.max(this._laneMinX, spawnX));
+    this._homeX = homeX;
+    this._patrolMinX = Math.max(this._laneMinX, homeX - this.opts.policy.patrolHomeRadiusPx);
+    this._patrolMaxX = Math.min(this._laneMaxX, homeX + this.opts.policy.patrolHomeRadiusPx);
+    this._pursuitMinX = Math.max(this._laneMinX, homeX - this.opts.policy.pursuitHomeRadiusPx);
+    this._pursuitMaxX = Math.min(this._laneMaxX, homeX + this.opts.policy.pursuitHomeRadiusPx);
+  }
+
+  containsWorldX(x: number): boolean {
+    return Number.isFinite(x) && x >= this._laneMinX && x <= this._laneMaxX;
+  }
+
+  containsPatrolX(x: number): boolean {
+    return Number.isFinite(x) && x >= this._patrolMinX && x <= this._patrolMaxX;
+  }
+
+  containsPursuitX(x: number): boolean {
+    return Number.isFinite(x) && x >= this._pursuitMinX && x <= this._pursuitMaxX;
+  }
+
+  /**
+   * Move along the deck, stopped by whichever boundary applies.
+   *
+   * `allowDescents` is the terrain lane's question - whether this move may walk off a shelf -
+   * and a deck answers it the same way whoever asks: no. There is nothing below to descend to.
+   */
+  walk(
+    previousX: number,
+    nextX: number,
+    boundary: "patrol" | "pursuit" | "world",
+    _allowDescents = false,
+  ): TerrainWalkResolution {
+    const minimum =
+      boundary === "patrol"
+        ? this._patrolMinX
+        : boundary === "pursuit"
+          ? this._pursuitMinX
+          : this._laneMinX;
+    const maximum =
+      boundary === "patrol"
+        ? this._patrolMaxX
+        : boundary === "pursuit"
+          ? this._pursuitMaxX
+          : this._laneMaxX;
+    const step = resolveMobBoundaryStep(previousX, nextX, minimum, maximum);
+    return Object.freeze({ x: step.x, blocked: step.blocked, blockedColumn: null });
+  }
+
+  surfaceYAt(_x: number): number {
+    return this.opts.deckSurfaceY;
   }
 }
 

@@ -236,6 +236,14 @@ def check(designed: DesignedMap, profile: PlatformerProfile) -> list[str]:
             f"{len(designed.climbables)} climbables, outside the profile's "
             f"{low_count}..{high_count}"
         )
+    if profile.climbable_variants_each_placed:
+        placed = {climb.variant_id for climb in designed.climbables}
+        missing = [variant for variant in profile.climbable_variants if variant not in placed]
+        if missing:
+            problems.append(
+                f"declared climbable variant(s) never placed: {', '.join(missing)}; this game "
+                "draws every declared variant, so the design must use each at least once"
+            )
     # Two climbables collide only when they occupy the same column at the SAME height. Keying
     # on column alone is a ground-footed game's rule: where the profile allows platform footing,
     # stacking climbables in one column is how a shaft chains upward, not a mistake.

@@ -59,20 +59,11 @@ DEFAULT_LIBRARY_ROOT = REPOSITORY_ROOT / "library" / "games"
 #: A sentence that satisfies the shipped road's own rules, so every offline subcommand can be
 #: exercised with no external file.
 EXAMPLE_CHUNKS: list[dict[str, object]] = [
-    {"kind": "run", "len": 6},
-    {"kind": "perch", "platform_width": 6, "climb_rise": 4, "variant": "bellroot_ladder"},
-    {"kind": "slope", "rise": 2, "grade": "gentle", "dir": "up"},
-    {"kind": "run", "len": 4},
-    {"kind": "perch", "platform_width": 6, "climb_rise": 4, "variant": "shrine_rope_ladder"},
-    {"kind": "hollow", "width": 6, "depth": 2},
-    {"kind": "slope", "rise": 2, "grade": "gentle", "dir": "down"},
-    {"kind": "run", "len": 4},
-    {"kind": "hop_chain", "count": 3, "jump_rise": 1, "gap": 3, "platform_width": 4, "dir": "up"},
-    {"kind": "run", "len": 4},
-    {"kind": "perch", "platform_width": 6, "climb_rise": 4, "variant": "bellrope_climb"},
-    {"kind": "slope", "rise": 2, "grade": "gentle", "dir": "up"},
-    {"kind": "run", "len": 4},
-    {"kind": "perch", "platform_width": 6, "climb_rise": 4, "variant": "bellroot_ladder"},
+    {"kind": "perch", "platform_width": 4, "climb_rise": 4, "variant": "bellroot_ladder"},
+    {"kind": "shelves", "tiers": 4, "decks": 2, "platform_width": 6, "gap": 8, "lean": "right"},
+    {"kind": "perch", "platform_width": 4, "climb_rise": 4, "variant": "shrine_rope_ladder"},
+    {"kind": "hollow", "width": 2, "depth": 1},
+    {"kind": "perch", "platform_width": 4, "climb_rise": 4, "variant": "bellrope_climb"},
 ]
 
 

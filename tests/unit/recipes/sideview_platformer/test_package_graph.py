@@ -70,11 +70,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # every atlas against the baseline on a locally composited plate; the second applies that
     # reading and judges the residual on a plate composed with it. Two structured operations,
     # no image generation - both plates are assembled locally from shipped bytes.
-    assert len(graph.nodes) == 227
+    assert len(graph.nodes) == 230
     assert graph.operation_counts() == {
-        "local": 106,
-        "image_generation": 95,
-        "structured_generation": 23,
+        "local": 107,
+        "image_generation": 96,
+        "structured_generation": 24,
         "music_generation": 3,
     }
     assert graph.terminal_node_id == "manifest-assemble"
@@ -129,6 +129,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     )
     assert graph.node("map-crowncrag-road-climbable-validate").depends_on == (
         "map-crowncrag-road-climbable-generate",
+    )
+    # Ground validation composes evidence over generated occupancy, so it waits for terrain.
+    assert graph.node("map-crowncrag-road-ground-validate").depends_on == (
+        "map-crowncrag-road-ground-generate",
+        "map-crowncrag-road-terrain-generate",
     )
     assert _artifact_refs(graph.node("map-sunpetal-crossing-portal-validate")) == (
         "maps/sunpetal-crossing/portal.png",
@@ -463,8 +468,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.215
-    assert projection.estimated_cost_high_usd == 23.24
+    assert projection.estimated_cost_low_usd == 4.26
+    assert projection.estimated_cost_high_usd == 23.52
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

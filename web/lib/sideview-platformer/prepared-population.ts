@@ -10,6 +10,19 @@ import { terrainSurfaceY } from "./terrain";
 
 type PreparedMobPopulation = PreparedGameplayContract["mob_population"];
 
+/**
+ * One deck standing over a column, as a place to stand.
+ *
+ * The identity travels with it because a body placed here has to be bound to *this* deck
+ * afterwards: it walks that deck's span and turns at its edges, and a height alone would not say
+ * which of a stack it landed on.
+ */
+export type PreparedDeckFooting = Readonly<{
+  deck_id: string;
+  /** World-space Y of the deck's top surface, where a body's feet rest. */
+  surface_y: number;
+}>;
+
 export type PreparedPopulationGeometry = Readonly<{
   /** Number of whole terrain columns in the runtime world. */
   world_columns: number;
@@ -21,6 +34,11 @@ export type PreparedPopulationGeometry = Readonly<{
   height_at_column: (column: number) => number;
   /** Optional runtime exclusion gate for climbables, portals, or other reservations. */
   is_spawnable_column?: (column: number) => boolean;
+  /**
+   * Decks standing over one column, lowest first. Absent means the map has no floating decks,
+   * which is every map that predates them, so a zone allowing them simply populates its ground.
+   */
+  deck_footings_at_column?: (column: number) => readonly PreparedDeckFooting[];
 }>;
 
 export type PreparedPopulationProjectionPolicy = Readonly<{
@@ -50,6 +68,51 @@ export class PreparedPopulationProjectionError extends Error {
     super(message);
     this.name = "PreparedPopulationProjectionError";
   }
+}
+
+/** Columns kept clear at each end of a map, so nothing stands on the arrival edge. */
+export const SPAWN_EDGE_MARGIN_COLUMNS = 6 as const;
+/** Columns kept clear either side of a portal anchor, so nothing blocks the doorway. */
+export const SPAWN_PORTAL_MARGIN_COLUMNS = 2 as const;
+
+/**
+ * Ground a mob may not stand on, by column.
+ *
+ * Only two things reserve ground: the map's own ends and the portal anchors, both because a
+ * body there would meet the player at the instant they arrive. Decks are deliberately absent.
+ * Ground under a deck is still ground -- a hunting map is mobs on the floor beneath stacked
+ * ledges -- and decks are one-way, so a body below one never collides with it. Reserving every
+ * column a deck floats over was survivable only while decks were a rare set piece; once a map
+ * stacks storeys it covers whole zones, and the projection then fails the map for having
+ * nowhere to stand.
+ */
+export function reservedSpawnColumns(
+  input: Readonly<{ worldColumns: number; portalAnchorFractions: readonly number[] }>,
+): ReadonlySet<number> {
+  const columns = positiveSafeInteger(input.worldColumns, "worldColumns");
+  const reserved = new Set<number>();
+  for (let column = 0; column < Math.min(SPAWN_EDGE_MARGIN_COLUMNS, columns); column += 1) {
+    reserved.add(column);
+  }
+  for (
+    let column = Math.max(0, columns - SPAWN_EDGE_MARGIN_COLUMNS);
+    column < columns;
+    column += 1
+  ) {
+    reserved.add(column);
+  }
+  for (const fraction of input.portalAnchorFractions) {
+    const anchor = Math.floor(fraction * columns);
+    for (
+      let offset = -SPAWN_PORTAL_MARGIN_COLUMNS;
+      offset <= SPAWN_PORTAL_MARGIN_COLUMNS;
+      offset += 1
+    ) {
+      const column = anchor + offset;
+      if (column >= 0 && column < columns) reserved.add(column);
+    }
+  }
+  return reserved;
 }
 
 const UINT32_MAX = 0xffff_ffff;
@@ -248,6 +311,30 @@ export function projectPreparedMobPopulation(
             y_px: terrainSurfaceY(height, tilePixels, geometry.baseline_y),
           }),
         );
+        if (zone.surface !== "terrain_and_decks") continue;
+        // The ground under a deck stays a place to stand, so a storey adds footings rather than
+        // replacing the one below it. That is the hunting-ground shape the reference has: the
+        // floor is populated and so is every ledge over it.
+        for (const footing of geometry.deck_footings_at_column?.(column) ?? []) {
+          if (!Number.isFinite(footing.surface_y)) {
+            throw new PreparedPopulationProjectionError(
+              `geometry.deck_footings_at_column(${column}) returned a non-finite surface_y`,
+            );
+          }
+          if (footing.deck_id.length === 0) {
+            throw new PreparedPopulationProjectionError(
+              `geometry.deck_footings_at_column(${column}) returned an unnamed deck`,
+            );
+          }
+          candidateColumns.push(
+            Object.freeze({
+              column,
+              x_px: xPx,
+              y_px: footing.surface_y,
+              deck_id: footing.deck_id,
+            }),
+          );
+        }
       }
       if (candidateColumns.length === 0) {
         throw new PreparedPopulationProjectionError(

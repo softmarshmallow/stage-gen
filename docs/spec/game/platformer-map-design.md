@@ -28,7 +28,7 @@ fails at the counting rather than at the design.
 
 This module is the designer that sits in front of that matrix. It is LLM-backed, and its
 authoring surface is a **chunk grammar**: a map is a left-to-right *sentence* of parameterized
-set-pieces — `run`, `stairs`, `slope`, `hollow`, `hop_chain`, `perch`, `tower` — that a
+set-pieces — `run`, `stairs`, `slope`, `hollow`, `hop_chain`, `shelves`, `perch`, `tower` — that a
 deterministic expander compiles into terrain, platforms, and climbables. No chunk carries an
 absolute coordinate. Each one advances a cursor, so the model composes in pacing and the
 compiler owns arithmetic.
@@ -114,6 +114,7 @@ those two nested dataclasses, not fields of `PlatformerProfile` itself.
 | --- | --- |
 | `columns`, `rows` | The grid the consumer accepts. |
 | `ground_depth_tiles` | Inclusive floor-depth range under every column. The lower bound is what the consumer needs to render a floor at all; the upper bound stops the floor eating the playable space. |
+| `shelf_min_width_tiles` | Narrowest deck that counts as standing room. Only `shelves` is held to it, because a stepping-stone word is allowed to be narrow on purpose; schema minimums are advisory under strict output, so the expander reports a narrower deck and the prompt states the number. |
 | `max_walkable_height_tiles` | Highest walkable surface the consumer can keep framed. This is a camera budget, not a grid bound, and it normally sits well below `rows`. |
 | `platforms_single_thickness` | True when a floating platform must be exactly one tile thick, because only its top surface carries collision. |
 
@@ -124,6 +125,7 @@ those two nested dataclasses, not fields of `PlatformerProfile` itself.
 | `roles` | The declared tile alphabet, as `TileRole` records. A role states `symbol`, `name` and `description` — all three required — and then the optional `walkable` (default true) and `grounded` (default false). `STANDARD_TILE_ROLES` supplies the usual empty/ground/platform trio. |
 | `climbable_variants` | Named climbable kinds the consumer can draw. Empty disables climbables, and with them the `perch` and `tower` words. |
 | `climbable_count` | Inclusive bounds on how many climbables one map may carry. |
+| `climbable_variants_each_placed` | True when a design must place every declared variant at least once, for a consumer that draws each declared variant and would reject terrain leaving one unused. Default false. |
 | `biomes`, `biome_min_span_tiles` | The appearance channel; see below. Empty disables it. |
 
 The alphabet is declared rather than fixed because it is the one thing that must match the
@@ -148,8 +150,9 @@ the formula for the columns it consumes. `vocabulary`, the schema builder and th
 profile filter, so a word cannot reach the prompt without also reaching the schema, nor be
 offered without the arithmetic that budgets it, and adding a word is a single entry. Nothing in
 the prompt names a word in prose either: the biome instruction illustrates its landmarks by
-shape rather than by a word this game may not have. `perch` appears only where the profile
-declares climbable variants; `tower` appears only where it does *and* `climbable_footing` is
+shape rather than by a word this game may not have. `shelves` appears only where the jump
+table clears two tiles, because a deck one tile up is a step rather than a storey; `perch`
+appears only where the profile declares climbable variants; `tower` appears only where it does *and* `climbable_footing` is
 `any`. A game's grammar therefore contains exactly what that game can build, and an illegal
 set-piece is not something the model has to be told to avoid — it is not a word.
 
@@ -160,8 +163,27 @@ set-piece is not something the model has to be told to avoid — it is not a wor
 | `slope` | `rise`, `grade`, `dir` | `rise` steep, `rise * 2` gentle |
 | `hollow` | `width`, `depth` | `width` |
 | `hop_chain` | `count`, `jump_rise`, `gap`, `platform_width`, `dir` | `count * platform_width + (count + 1) * gap` |
+| `shelves` | `tiers`, `decks`, `platform_width`, `gap`, `lean` | `decks * platform_width + (decks + 1) * gap` |
 | `perch` | `platform_width`, `climb_rise`, `variant` | `platform_width + 2` |
 | `tower` | `storeys`, `platform_width`, `climb_rise`, `variant` | `platform_width + 2` |
+
+`shelves` is the one word whose platforms share columns. Every other chunk owns a strip of the
+map alone, which composes pacing well and storeys badly: a hunting map's stacked ledges are
+decks over the *same* stretch of ground. Shelves lay `tiers` storeys over one footprint, each
+one full jump (the profile's largest jumpable rise) above the last. A storey is a *lane*, not a
+deck: `decks` decks of `platform_width` separated by a `gap` the player hops, so a storey can be
+walked end to end the way the floor can. Consecutive storeys are offset by half a
+deck-and-gap period, leaning the way `lean` says, which puts one storey's gaps over the decks of
+the storey below. That offset is the load-bearing part. It is where the player jumps up, and it
+is the headroom they stand in — the figure is taller than the tier spacing, so a deck directly
+overhead would clip it. When the gap is as wide as a deck the offset lands exactly on the deck
+width and consecutive storeys share no column at all.
+
+Three of the numbers are read rather than assumed. The tier spacing comes from the jump table.
+The gap is bounded by `level_gap_tiles`, because hopping along a storey is a level crossing and
+not the rise to the next one. The deck width is held to the profile's `shelf_min_width_tiles`:
+left to an advisory schema minimum the designer was measured taking the narrowest deck allowed
+for every storey.
 
 The width column is not incidental. Chunk widths are derived quantities, and a model cannot fix
 arithmetic it cannot see: until the prompt stated these formulas *and* the overflow error handed
@@ -273,7 +295,7 @@ New words fall into three tiers by what they require.
 | Tier | Requirement | Worked example |
 | --- | --- | --- |
 | Composition sugar | Compiles into primitives the contract already carries. One file, no gates. | `slope` — a walkable incline, measured at 22 lines in one file: a schema shape, an expansion, a prompt line, and a width formula, with zero validator, profile, or contract changes. |
-| Profile-gated capability | The word exists only where the profile grants it. One file plus a profile flag. | `tower` requires `climbable_footing = "any"`; a `pit` would require a zero floor-depth bound. |
+| Profile-gated capability | The word exists only where the profile grants it. One file plus a profile flag. | `tower` requires `climbable_footing = "any"`; `shelves` requires a jump that clears two tiles; a `pit` would require a zero floor-depth bound. |
 | Contract-exceeding | The word needs geometry `DesignedMap` cannot say. Grow the output contract and the consumer **first**. | True sub-tile diagonal collision, curves. |
 
 The vocabulary can never outrun the contract. A word admitted in the third tier before its

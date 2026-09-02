@@ -59,6 +59,9 @@ def test_a_map_without_a_climbable_atlas_gets_no_climbable_words() -> None:
     road = SCRIPT.terrain_profile(_map("crowncrag-road"))
     assert "perch" in SCRIPT.vocabulary(road)
     assert road.climbable_variants
+    # The atlas draws each declared variant, so the road's designer must place every one.
+    assert road.climbable_variants_each_placed is True
+    assert village.climbable_variants_each_placed is False
 
 
 def test_the_profile_restates_the_consumers_own_traversal_constants() -> None:
@@ -75,16 +78,49 @@ def test_the_profile_restates_the_consumers_own_traversal_constants() -> None:
     # Boundary behaviour, not just the table: a retune of the runtime's player.ts
     # (web/lib/sideview-platformer) should fail
     # here rather than in a browser.
+    # Standing room is a consumer number too: the reference ledge, in this runtime's tiles.
+    assert profile.geometry.shelf_min_width_tiles == terrain_design.TERRAIN_SHELF_MIN_WIDTH_TILES
+    assert profile.geometry.shelf_min_width_tiles >= 4
     assert movement.reachable(1, 8) and not movement.reachable(1, 9)
     assert movement.reachable(2, 6) and not movement.reachable(2, 7)
     assert not movement.reachable(3, 0)
+
+
+def test_the_floor_band_is_a_shallow_relief_around_the_walk_surface_datum() -> None:
+    # The reference hunting map keeps its ground as one nearly level lane and hangs the level
+    # above it, so the floor is fenced to the datum the painted scenery meets rather than left
+    # free to climb the grid as terrain. Measured from the map's own declaration, not restated.
+    from stage_gen.recipes.sideview_platformer.terrain_design import (
+        TERRAIN_CLIMBABLE_RISE_TILES,
+        TERRAIN_FLOOR_RELIEF_TILES,
+        floor_depth_band,
+    )
+
+    for map_id in ("crowncrag-road", "sunpetal-crossing"):
+        game_map = _map(map_id)
+        request = game_map.terrain
+        datum = request.rows - request.walk_surface_row
+        low, high = SCRIPT.terrain_profile(game_map).geometry.ground_depth_tiles
+        assert (low, high) == floor_depth_band(request.rows, request.walk_surface_row)
+        assert low <= datum <= high
+        assert high - low == 2 * TERRAIN_FLOOR_RELIEF_TILES
+        # The relief is what keeps the floor from becoming the level: even the shallow village
+        # grid keeps at least one climbable's rise between the highest floor and the ceiling.
+        ceiling = SCRIPT.terrain_profile(game_map).geometry.max_walkable_height_tiles
+        assert ceiling >= high + min(TERRAIN_CLIMBABLE_RISE_TILES)
+    # A datum shallower than the relief never asks the consumer for a floor it cannot draw.
+    assert floor_depth_band(rows=8, walk_surface_row=7)[0] == 1
 
 
 def test_the_framing_ceiling_comes_from_the_declared_camera() -> None:
     # The one place the camera reaches into generation. A map whose camera cannot follow the
     # player upward may only build as high as the viewport can hold a standing figure; a map whose
     # camera can gets the whole authored grid, less the same headroom at the top.
-    from stage_gen.recipes.sideview_platformer.terrain_design import framing_ceiling
+    from stage_gen.recipes.sideview_platformer.terrain_design import (
+        TERRAIN_TILE_PX,
+        TERRAIN_VIEWPORT_HEIGHT_PX,
+        framing_ceiling,
+    )
 
     village = _map("sunpetal-crossing")
     road = _map("crowncrag-road")
@@ -97,8 +133,14 @@ def test_the_framing_ceiling_comes_from_the_declared_camera() -> None:
     assert SCRIPT.terrain_profile(road).geometry.max_walkable_height_tiles == framing_ceiling(
         road.terrain.rows, True
     )
-    # Declaring the axis is what buys the height: the same grid is worth five more tiles.
-    assert framing_ceiling(road.terrain.rows, True) - framing_ceiling(road.terrain.rows, False) == 5
+    # Declaring the axis is what buys the height: the same grid is worth every row above the
+    # viewport's own eleven, which for the road's 24-row grid is thirteen more tiles.
+    viewport_rows = TERRAIN_VIEWPORT_HEIGHT_PX // TERRAIN_TILE_PX
+    assert road.terrain.rows > viewport_rows
+    assert (
+        framing_ceiling(road.terrain.rows, True) - framing_ceiling(road.terrain.rows, False)
+        == road.terrain.rows - viewport_rows
+    )
 
 
 def test_a_fixed_camera_ceiling_keeps_a_standing_player_inside_the_viewport() -> None:

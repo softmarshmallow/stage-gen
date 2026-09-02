@@ -44,9 +44,20 @@ TERRAIN_CLIMBABLE_NEEDS_FLAT_FOOTING = True
 TERRAIN_VIEWPORT_HEIGHT_PX = 720
 TERRAIN_TILE_PX = 64
 TERRAIN_PLAYER_STANDING_HEIGHT_PX = 154
-#: Bounds on how deep the floor may be. One tile is the least that renders as ground at all; the
-#: upper bound stops the floor eating the playable space.
-TERRAIN_GROUND_DEPTH_TILES = (1, 8)
+#: How far the floor may leave the walk-surface datum, in tiles either way. The hunting-map
+#: reference this runtime targets keeps its ground as one nearly level lane and puts the level's
+#: interest in the platforms hung above it, so the floor is fenced to a shallow relief rather
+#: than left free to climb the grid as terrain. Everything above the band is the designer's to
+#: fill with decks, ladders, and stepping platforms.
+TERRAIN_FLOOR_RELIEF_TILES = 1
+#: Narrowest deck the designer may call standing room. Read off the reference hunting map: the
+#: ledge a figure fights on there is three to four figure-heights across, and a figure is 2.4
+#: tiles tall, so a deck under six tiles reads as a stepping stone rather than a place to stand.
+#: Left to the schema alone the designer picks the minimum every time, so this is validated.
+#: It also sets the hop between decks on one storey: at a hop this wide the storey above
+#: interlocks with the gaps of the one below, which is the headroom a 2.4-tile figure needs
+#: under decks the jump can only carry it two tiles above.
+TERRAIN_SHELF_MIN_WIDTH_TILES = 6
 #: How many climbables a map may place when it declares an atlas at all.
 TERRAIN_CLIMBABLE_COUNT = (1, 8)
 
@@ -55,6 +66,19 @@ def terrain_artifact_path(map_id: str) -> str:
     """Where a map's generated geometry lives inside a run, beside its generated images."""
 
     return f"maps/{map_id}/terrain.json"
+
+
+def floor_depth_band(rows: int, walk_surface_row: int) -> tuple[int, int]:
+    """Inclusive floor depths the designer may use, centred on the map's walk-surface datum.
+
+    The datum is where painted scenery meets the earth, so the floor is measured from it rather
+    than from an absolute bound: a map that pins its walk surface deeper gets a deeper floor, and
+    the same relief either side of it. The lower bound never drops below the single tile the
+    consumer needs to render ground at all.
+    """
+
+    datum = rows - walk_surface_row
+    return max(1, datum - TERRAIN_FLOOR_RELIEF_TILES), datum + TERRAIN_FLOOR_RELIEF_TILES
 
 
 def framing_ceiling(rows: int, follows_vertical: bool) -> int:
@@ -105,13 +129,18 @@ def terrain_profile(game_map: PreparedGameMap) -> PlatformerProfile:
         geometry=GeometryProfile(
             columns=request.columns,
             rows=request.rows,
-            ground_depth_tiles=TERRAIN_GROUND_DEPTH_TILES,
+            ground_depth_tiles=floor_depth_band(request.rows, request.walk_surface_row),
             max_walkable_height_tiles=ceiling,
             platforms_single_thickness=True,
+            shelf_min_width_tiles=TERRAIN_SHELF_MIN_WIDTH_TILES,
         ),
         roles=STANDARD_TILE_ROLES,
         climbable_variants=variants,
         climbable_count=TERRAIN_CLIMBABLE_COUNT if variants else (0, 0),
+        # The atlas draws every declared variant once, and the map contract rejects generated
+        # terrain that leaves one unplaced. Telling the designer so keeps that rejection inside
+        # its own regeneration loop instead of failing the node after the design was accepted.
+        climbable_variants_each_placed=bool(variants),
         notes=f"{game_map.display_name} terrain, generated from the authored brief.",
     )
 

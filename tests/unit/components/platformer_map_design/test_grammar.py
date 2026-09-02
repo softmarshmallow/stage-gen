@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+import itertools
 from collections.abc import Iterator, Mapping
 
 import pytest
@@ -80,6 +82,7 @@ def test_the_vocabulary_offers_no_tower_where_climbables_cannot_stand_on_platfor
         "slope",
         "hollow",
         "hop_chain",
+        "shelves",
         "perch",
     ]
     assert vocabulary(CHAINED_SHAFT_PROFILE)[-1] == "tower"
@@ -105,7 +108,14 @@ def test_a_game_that_declares_no_climbable_variant_gets_neither_perch_nor_tower(
 
     climbless = build_chunk_prompt(CLIMBLESS_PROFILE, 96)
 
-    assert vocabulary(CLIMBLESS_PROFILE) == ["run", "stairs", "slope", "hollow", "hop_chain"]
+    assert vocabulary(CLIMBLESS_PROFILE) == [
+        "run",
+        "stairs",
+        "slope",
+        "hollow",
+        "hop_chain",
+        "shelves",
+    ]
     assert set(_branches(build_chunk_schema(CLIMBLESS_PROFILE))) == set(
         vocabulary(CLIMBLESS_PROFILE)
     )
@@ -485,6 +495,194 @@ def test_a_tower_sentence_produces_chained_climbables_with_ascending_foot_height
     assert [climb.rise_tiles for climb in storeys] == [5, 5, 5]
 
 
+def test_a_shelves_tier_is_a_lane_of_decks_not_a_single_deck() -> None:
+    """The storey word: each tier is a walkable level, the way the floor below it is."""
+
+    def sentence_leaning(lean: str) -> dict[str, object]:
+        return {
+            "design_notes": f"three storeys leaning {lean}",
+            "start_height_tiles": 3,
+            "chunks": [
+                {
+                    "kind": "shelves",
+                    "tiers": 3,
+                    "decks": 2,
+                    "platform_width": 6,
+                    "gap": 6,
+                    "lean": lean,
+                }
+            ],
+        }
+
+    sentence = sentence_leaning("right")
+
+    designed, errors, spans = expand_chunks(sentence, GROUND_FOOTED_PROFILE, 32)
+
+    assert errors == []
+    assert spans[0].end - spans[0].start == 2 * 6 + 3 * 6
+    # A tier is a line of decks split by a hop, so the storey can be walked from end to end.
+    # The tier above is offset half a deck-and-gap period, which puts its decks over the gaps
+    # of the tier below: that is the hole the player jumps up through and the headroom they
+    # stand in. Each tier is one full jump (this game's two tiles) above the last.
+    deck, hop = "=" * 6, "." * 6
+    assert designed.grid[3 + 2 - 1][0:30] == hop + deck + hop + deck + hop
+    assert designed.grid[3 + 4 - 1][0:30] == hop + hop + deck + hop + hop
+    assert designed.grid[3 + 6 - 1][0:30] == hop + deck + hop + deck + hop
+    # The whole structure is reachable from the floor by hopping deck to deck.
+    assert check(designed, dataclasses.replace(GROUND_FOOTED_PROFILE, climbable_count=(0, 8))) == []
+
+    leaning_left, _, _ = expand_chunks(sentence_leaning("left"), GROUND_FOOTED_PROFILE, 32)
+    assert leaning_left.grid[3 + 2 - 1][0:30] == hop + hop + deck + hop + hop
+
+
+def test_storeys_whose_hop_is_a_deck_wide_share_no_column_with_the_storey_below() -> None:
+    """Standing room: the figure is taller than the jump, so a deck overhead would clip it.
+
+    A tier is offset half a period, so when the hop is as wide as a deck the offset lands
+    exactly on the deck width and consecutive storeys interlock without sharing a column.
+    Nothing forces that choice -- a narrower hop is still walkable -- but it is the shape the
+    prompt asks for, and it is the one where every square of every storey is open to the sky.
+    """
+
+    sentence: dict[str, object] = {
+        "design_notes": "interlocking storeys",
+        "start_height_tiles": 3,
+        "chunks": [
+            {
+                "kind": "shelves",
+                "tiers": 4,
+                "decks": 3,
+                "platform_width": 6,
+                "gap": 6,
+                "lean": "right",
+            }
+        ],
+    }
+
+    designed, errors, _ = expand_chunks(sentence, GROUND_FOOTED_PROFILE, 64)
+
+    assert errors == []
+    columns_by_height: dict[int, set[int]] = {}
+    for surface in designed.surfaces(GROUND_FOOTED_PROFILE):
+        if not surface.grounded:
+            columns_by_height.setdefault(surface.height_tiles, set()).update(
+                range(surface.start_column, surface.end_column)
+            )
+    heights = sorted(columns_by_height)
+    assert heights == [5, 7, 9, 11]
+    for lower, upper in itertools.pairwise(heights):
+        assert not columns_by_height[lower] & columns_by_height[upper]
+
+
+def test_shelves_take_their_tier_spacing_from_the_profile_not_a_constant() -> None:
+    # The climbless game jumps three tiles, so its storeys sit three apart and its zig-zag is
+    # still sound: the spacing is read from the jump table, never assumed to be two.
+    sentence: dict[str, object] = {
+        "design_notes": "storeys for a stronger jumper",
+        "start_height_tiles": 3,
+        "chunks": [
+            {
+                "kind": "shelves",
+                "tiers": 3,
+                "decks": 2,
+                "platform_width": 6,
+                "gap": 3,
+                "lean": "left",
+            }
+        ],
+    }
+
+    designed, errors, _ = expand_chunks(sentence, CLIMBLESS_PROFILE, 96)
+
+    assert errors == []
+    heights = sorted(
+        {s.height_tiles for s in designed.surfaces(CLIMBLESS_PROFILE) if not s.grounded}
+    )
+    assert heights == [3 + 3, 3 + 6, 3 + 9]
+    assert check(designed, CLIMBLESS_PROFILE) == []
+
+
+def test_shelves_stop_at_the_ceiling_and_say_so_in_chunk_vocabulary() -> None:
+    sentence: dict[str, object] = {
+        "design_notes": "too many storeys",
+        "start_height_tiles": 3,
+        "chunks": [
+            {
+                "kind": "shelves",
+                "tiers": 6,
+                "decks": 2,
+                "platform_width": 6,
+                "gap": 6,
+                "lean": "right",
+            }
+        ],
+    }
+
+    designed, errors, _ = expand_chunks(sentence, GROUND_FOOTED_PROFILE, 64)
+
+    assert errors == ["chunk #1 (shelves) stacks to 13 tiles, above the 12-tile ceiling"]
+    placed = [s for s in designed.surfaces(GROUND_FOOTED_PROFILE) if not s.grounded]
+    # Every tier under the ceiling is laid in full; only the sixth is dropped.
+    assert sorted({s.height_tiles for s in placed}) == [5, 7, 9, 11]
+
+
+def test_shelves_exist_only_where_a_jump_can_clear_two_tiles() -> None:
+    # A deck one tile above the floor is a step, not a storey. A game whose jump clears only
+    # one tile has no storeys to stack, so the word is not in its grammar at all.
+    assert "shelves" in vocabulary(GROUND_FOOTED_PROFILE)
+    assert "shelves" in vocabulary(CLIMBLESS_PROFILE)
+    low_jumper = dataclasses.replace(
+        GROUND_FOOTED_PROFILE,
+        movement=dataclasses.replace(GROUND_FOOTED_PROFILE.movement, jump_reach={1: 8}),
+    )
+    assert "shelves" not in vocabulary(low_jumper)
+    assert "shelves" not in build_chunk_prompt(low_jumper, 128)
+    assert "shelves" not in _branches(build_chunk_schema(low_jumper))
+
+
+def test_a_shelves_deck_narrower_than_this_games_standing_room_is_reported() -> None:
+    # Schema minimums are advisory under strict output, and left to them the designer takes the
+    # minimum every time. Standing room is therefore a validated rule the model is told about,
+    # read from the profile so a game with roomier ledges asks for more.
+    roomy = dataclasses.replace(
+        GROUND_FOOTED_PROFILE,
+        geometry=dataclasses.replace(GROUND_FOOTED_PROFILE.geometry, shelf_min_width_tiles=6),
+    )
+    sentence: dict[str, object] = {
+        "design_notes": "a thin stack",
+        "start_height_tiles": 3,
+        "chunks": [
+            {
+                "kind": "shelves",
+                "tiers": 2,
+                "decks": 2,
+                "platform_width": 4,
+                "gap": 4,
+                "lean": "right",
+            }
+        ],
+    }
+
+    _, errors, _ = expand_chunks(sentence, roomy, 32)
+    assert errors == [
+        "chunk #1 (shelves): platform_width 4 is narrower than this game's 6-tile standing "
+        "room; a deck that narrow is a stepping stone, which is hop_chain's job"
+    ]
+    # The same sentence is sound for a game whose profile asks for less.
+    _, errors, _ = expand_chunks(sentence, GROUND_FOOTED_PROFILE, 32)
+    assert errors == []
+
+    prompt = build_chunk_prompt(roomy, 128)
+    assert "a shelves deck is at least 6 tiles wide" in prompt
+    # The schema carries no such bound to assert on: strict canonicalization strips minimums,
+    # which is the whole reason the rule lives in the expander and the prompt instead.
+    # A game without the word is not told about its standing room either.
+    low_jumper = dataclasses.replace(
+        roomy, movement=dataclasses.replace(roomy.movement, jump_reach={1: 8})
+    )
+    assert "standing room" not in build_chunk_prompt(low_jumper, 128)
+
+
 def test_the_prompt_states_this_games_measured_limits_and_no_others() -> None:
     ground_footed = build_chunk_prompt(GROUND_FOOTED_PROFILE, 128)
     chained = build_chunk_prompt(CHAINED_SHAFT_PROFILE, 64)
@@ -501,6 +699,15 @@ def test_the_prompt_states_this_games_measured_limits_and_no_others() -> None:
     assert "a climbable rises [3, 4, 5, 6] tile(s)." in chained
     assert "use 3..8 climbables in total across perches." in ground_footed
     assert "use 4..12 climbables in total across perches and towers." in chained
+    # The every-variant rule is stated only by a profile that declares it.
+    assert "place every declared climbable variant" not in ground_footed
+    demanding = build_chunk_prompt(
+        dataclasses.replace(GROUND_FOOTED_PROFILE, climbable_variants_each_placed=True), 128
+    )
+    assert (
+        "place every declared climbable variant at least once: root_ladder, "
+        "shrine_rope_ladder, rope_climb." in demanding
+    )
     assert "meadow, root_forest, shrine_stone" in ground_footed
     assert "cavern, rust_works, glow_moss" in chained
     assert "meadow" not in chained
@@ -521,6 +728,7 @@ def test_the_width_accounting_block_budgets_this_games_vocabulary_and_nothing_el
         "slope": "rise (steep) or rise*2 (gentle)",
         "hollow": "width",
         "hop_chain": "count*platform_width + (count+1)*gap",
+        "shelves": "decks*platform_width + (decks+1)*gap",
         "perch": "platform_width + 2",
     }
     assert chained == {**ground_footed, "tower": "platform_width + 2"}
@@ -554,6 +762,14 @@ def test_a_stated_width_formula_is_the_width_the_expander_actually_emits() -> No
                 "climb_rise": 3,
                 "variant": "chain",
             },
+            {
+                "kind": "shelves",
+                "tiers": 2,
+                "decks": 2,
+                "platform_width": 5,
+                "gap": 3,
+                "lean": "right",
+            },
         ],
     }
 
@@ -570,6 +786,8 @@ def test_a_stated_width_formula_is_the_width_the_expander_actually_emits() -> No
     assert widths["hop_chain"] == 3 * 3 + 4 * 4  # count*platform_width + (count+1)*gap
     assert widths["perch"] == 6 + 2  # platform_width + 2
     assert widths["tower"] == 5 + 2  # platform_width + 2
+    # decks*platform_width + (decks+1)*gap
+    assert widths["shelves"] == 2 * 5 + 3 * 3
 
 
 def test_a_word_added_to_the_table_reaches_the_vocabulary_the_schema_and_the_widths_at_once(

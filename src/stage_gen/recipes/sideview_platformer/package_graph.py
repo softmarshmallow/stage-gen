@@ -465,7 +465,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             domain=f"map-{game_map.map_id}",
             description=f"validate the {game_map.ground.mode} ground contract",
             params={"map_id": game_map.map_id},
-            depends_on=(ground.node_id,),
+            # The validator composes its evidence plate over the generated occupancy, so the
+            # terrain node is a real input: without the edge the scheduler may run this before
+            # terrain.json exists, and a cached verdict would survive a reshaped level.
+            depends_on=(ground.node_id, terrain.node_id),
             input_digests=(
                 _object_sha256(ground_direction),
                 _object_sha256({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
