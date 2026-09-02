@@ -1,5 +1,5 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v6`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v7`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
@@ -13,8 +13,8 @@
 
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v6";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 6;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v7";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 7;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -246,9 +246,48 @@ export interface RunnerSoundEffect {
   readonly realization: RunnerEffectRealization;
 }
 
+/** The run edges the soundtrack answers. */
+export const RUNNER_MUSIC_EVENTS = ["death", "restart", "hurt"] as const;
+
+export type RunnerMusicEvent = (typeof RUNNER_MUSIC_EVENTS)[number];
+
+/** Fade shapes as Web Audio's ramps define them. */
+export const MUSIC_FADE_CURVES = ["linear", "exponential"] as const;
+
+export type MusicFadeCurve = (typeof MUSIC_FADE_CURVES)[number];
+
+export interface MusicDeathTransition {
+  readonly action: "stop" | "pause" | "continue";
+  readonly fadeSeconds: number;
+  readonly curve: MusicFadeCurve;
+}
+
+export interface MusicRestartTransition {
+  readonly action: "play" | "resume" | "continue";
+  readonly fadeSeconds: number;
+  readonly curve: MusicFadeCurve;
+}
+
+/** Auto-ducking: the music dips under the hurt stinger, holds, and recovers. */
+export interface MusicDuck {
+  readonly duckGain: number;
+  readonly fadeSeconds: number;
+  readonly holdSeconds: number;
+  readonly recoverySeconds: number;
+  readonly curve: MusicFadeCurve;
+}
+
+/** What the soundtrack does at the run's edges; the death stinger plays beside it. */
+export interface RunnerMusicTransitions {
+  readonly death: MusicDeathTransition;
+  readonly restart: MusicRestartTransition;
+  readonly hurt: MusicDuck | null;
+}
+
 export interface RunnerAudio {
   readonly bindings: Readonly<Record<RunnerAudioEvent, string>>;
   readonly effects: readonly RunnerSoundEffect[];
+  readonly music: RunnerMusicTransitions;
 }
 
 export interface RunnerRuntimeManifest {
@@ -712,6 +751,68 @@ function motion(value: unknown, label: string): RunnerMotion {
   });
 }
 
+const MUSIC_ACTION_PAIRS = {
+  stop: "play",
+  pause: "resume",
+  continue: "continue",
+} as const;
+
+const MAX_FADE_SECONDS = 10;
+
+function fadeSeconds(value: unknown, label: string): number {
+  const seconds = nonNegative(value, label);
+  if (seconds > MAX_FADE_SECONDS) throw new Error(`${label} must be at most 10 seconds`);
+  return seconds;
+}
+
+function runnerMusic(value: unknown): RunnerMusicTransitions {
+  const raw = record(value, "audio.music");
+  const death = record(raw.death, "audio.music.death");
+  const restart = record(raw.restart, "audio.music.restart");
+  const deathAction = literal(death.action, "audio.music.death.action", [
+    "stop",
+    "pause",
+    "continue",
+  ]);
+  const restartAction = literal(restart.action, "audio.music.restart.action", [
+    "play",
+    "resume",
+    "continue",
+  ]);
+  const expected = MUSIC_ACTION_PAIRS[deathAction];
+  if (restartAction !== expected) {
+    throw new Error(
+      `audio.music.restart.action must be ${expected} when audio.music.death.action is ${deathAction}`,
+    );
+  }
+  let hurt: MusicDuck | null = null;
+  if (raw.hurt !== null && raw.hurt !== undefined) {
+    const duck = record(raw.hurt, "audio.music.hurt");
+    const duckGain = positive(duck.duck_gain, "audio.music.hurt.duck_gain");
+    if (duckGain >= 1) throw new Error("audio.music.hurt.duck_gain must be below 1");
+    hurt = Object.freeze({
+      duckGain,
+      fadeSeconds: fadeSeconds(duck.fade_seconds, "audio.music.hurt.fade_seconds"),
+      holdSeconds: fadeSeconds(duck.hold_seconds, "audio.music.hurt.hold_seconds"),
+      recoverySeconds: fadeSeconds(duck.recovery_seconds, "audio.music.hurt.recovery_seconds"),
+      curve: literal(duck.curve, "audio.music.hurt.curve", MUSIC_FADE_CURVES),
+    });
+  }
+  return Object.freeze({
+    death: Object.freeze({
+      action: deathAction,
+      fadeSeconds: fadeSeconds(death.fade_seconds, "audio.music.death.fade_seconds"),
+      curve: literal(death.curve, "audio.music.death.curve", MUSIC_FADE_CURVES),
+    }),
+    restart: Object.freeze({
+      action: restartAction,
+      fadeSeconds: fadeSeconds(restart.fade_seconds, "audio.music.restart.fade_seconds"),
+      curve: literal(restart.curve, "audio.music.restart.curve", MUSIC_FADE_CURVES),
+    }),
+    hurt,
+  });
+}
+
 function runnerAudio(value: unknown): RunnerAudio {
   const raw = record(value, "audio");
   const rawBindings = record(raw.bindings, "audio.bindings");
@@ -818,7 +919,7 @@ function runnerAudio(value: unknown): RunnerAudio {
       throw new Error("audio realization strength_pitch_multiplier must be within [0, 2]");
     }
   }
-  return Object.freeze({ bindings, effects: Object.freeze(effects) });
+  return Object.freeze({ bindings, effects: Object.freeze(effects), music: runnerMusic(raw.music) });
 }
 
 export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifest {

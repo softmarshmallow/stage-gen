@@ -307,10 +307,27 @@ reference_ids = ["cover_style"]
 prompt = "A tiny warm-brass coin with one pressed petal and no text; clean collectible icon."
 """
 
-RUNNER_AUDIO = """schema_version = 2
-kind = "runner-audio-v2"
+RUNNER_AUDIO = """schema_version = 3
+kind = "runner-audio-v3"
 game_id = "bellweather"
 revision = 1
+
+[music.death]
+action = "pause"
+fade_seconds = 0.6
+curve = "exponential"
+
+[music.restart]
+action = "resume"
+fade_seconds = 0.3
+curve = "linear"
+
+[music.hurt]
+duck_gain = 0.5
+fade_seconds = 0.04
+hold_seconds = 0.15
+recovery_seconds = 0.5
+curve = "linear"
 
 [bindings]
 takeoff = "takeoff_whistle"

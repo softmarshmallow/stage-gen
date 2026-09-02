@@ -32,7 +32,7 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/avatar.toml` | `runner-avatar-v3` | Exactly one runtime actor: one character or one visible rider-and-machine silhouette |
 | `runner/content/props.toml` | `prop-content-v2` | Obstacles, reused verbatim |
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
-| `runner/audio.toml` | `runner-audio-v2` | Required event bindings and sound-effect realizations: oscillator sweeps or generated clips |
+| `runner/audio.toml` | `runner-audio-v3` | Required event bindings, sound-effect realizations (oscillator sweeps or generated clips), and the soundtrack's transitions at the run's edges |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
@@ -329,19 +329,32 @@ powering down with a metal clunk; `hull_clank` on a survivable hit, a hard hit
 on sheet metal; and `seed_chime` on collect, a half-second coin collect named
 by its game idiom, with the chain still lifting its playback rate.
 
+The same contract owns what the soundtrack does at the run's edges, in the
+vocabulary interactive-music middleware uses: an *action* on the music with a
+fade time and a fade curve, posted beside the *stinger* (the effect bound to
+the event), and an optional *duck* under a survivable hit. `[music.death]` is
+`stop`, `pause`, or `continue`; `[music.restart]` must pair with it as `play`
+(the next shuffled track from the top), `resume`, or `continue`; a zero fade is
+the arcade hard cut. `[music.hurt]` dips the music to a gain factor, holds, and
+recovers. Every value is consumer mixing outside every cache identity. Iron
+Petal stops with a 1.2 s exponential fade under the power-down stinger, starts
+the next track over 0.5 s on restart, and ducks to 0.4 for a fifth of a second
+under the clank. Beat-synced transitions are excluded by the seam rule above.
+
 Music remains the separate optional `runner/soundtrack.toml` catalog and uses
 the existing provider-neutral `game-soundtrack-v1` generation path. The runner
 recipe adds genre staging to the authored brief: the rhythmic engine begins on
 the first beat, short action cells and clear transients preserve forward
 motion, and exploration, town-theme, pastoral, cinematic, rubato, ambient, and
 long-form orchestral development are explicitly excluded. The runtime shuffles
-its declared loop-ready tracks after audio unlock. Do not let a tempo field into
+its declared loop-ready tracks after audio unlock and performs the authored
+transitions at the run's edges. Do not let a tempo field into
 `game-soundtrack-v1`: it is shared across genres, and the other genres have no
 tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v6`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v7`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -391,7 +404,9 @@ mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
 generated-clip effect changes the topology and therefore this checked
 snapshot. So does a binding-table route, because declared resources are part
 of the topology; the `elevenlabs-sound-effect` resource below serves Iron
-Petal's single generated clip. The checked runner fixture is
+Petal's generated clips. So does a node type's contract version: the manifest
+assembly moved to v8 when the audio block gained the music transitions, which
+re-keyed this snapshot with no new node. The checked runner fixture is
 Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
 rather than only the atlas branch. Regenerate with
 `uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
@@ -403,7 +418,7 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "826fa2d66a46822c41e7d56df65a4ba3a2782ba611e5608efa616607e06184f4",
+  "topology_sha256": "87d1af38c26c8a2183403196319415a05b61df7dd5ef1c5d7da1a8e12ef0f10c",
   "node_count": 76,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

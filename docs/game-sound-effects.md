@@ -2,9 +2,10 @@
 
 > **Contract maturity: exact-current prepared-package contract.**
 
-A genre's audio contract binds its semantic events to named effects and says
-how each effect is realized. Today the runner member owns one, `runner/audio.toml`
-with the exact identity `runner-audio-v2`. An effect is realized either as a
+A genre's audio contract binds its semantic events to named effects, says
+how each effect is realized, and says what the soundtrack does at the run's
+edges. Today the runner member owns one, `runner/audio.toml`
+with the exact identity `runner-audio-v3`. An effect is realized either as a
 provider-free `oscillator_sweep_v1` the consumer synthesizes, or as a
 `generated_clip_v1` the execution graph buys once from a text-to-sound-effect
 route and the consumer plays back. The event bindings are the same either way,
@@ -21,19 +22,36 @@ you write is the prompt it hears.
 
 | Owner | Owns |
 | --- | --- |
-| `runner/audio.toml` | Event-to-effect bindings, each effect's realization, and for a generated clip the prompt, exact duration, prompt influence, and playback mix |
+| `runner/audio.toml` | Event-to-effect bindings, each effect's realization, for a generated clip the prompt, exact duration, prompt influence, and playback mix, and the music transitions on death, restart, and hurt |
 | `game.toml` | Exact audio source path |
-| Runtime (web consumer) | When events fire, Web Audio lifecycle, decoding, and applying the authored gain and rate lift |
+| Runtime (web consumer) | When events fire, Web Audio lifecycle, decoding, applying the authored gain and rate lift, and performing the music transitions on the soundtrack element |
 | Recipe | Provider/model selection, one generate node and one admission node per clip, provenance, and cache identity |
 | Model doc | Which cues the route serves, how to word them, and why some are out of reach |
 
 ## Current source
 
 ```toml
-schema_version = 2
-kind = "runner-audio-v2"
+schema_version = 3
+kind = "runner-audio-v3"
 game_id = "example-game"
 revision = 1
+
+[music.death]
+action = "stop"
+fade_seconds = 1.2
+curve = "exponential"
+
+[music.restart]
+action = "play"
+fade_seconds = 0.5
+curve = "linear"
+
+[music.hurt]
+duck_gain = 0.4
+fade_seconds = 0.05
+hold_seconds = 0.2
+recovery_seconds = 0.8
+curve = "linear"
 
 [bindings]
 takeoff = "takeoff_whistle"
@@ -100,6 +118,41 @@ in the manifest and are **not** part of the clip's cache identity, so rebalancin
 a set after listening is a free re-plan, never a redraw. Anything under half a
 second stays an oscillator: the route cannot go shorter and trimming is
 post-processing.
+
+## Music transitions
+
+What the soundtrack does when the run ends is authored, not assumed, and it is
+authored in the vocabulary interactive-music middleware (Wwise, FMOD) already
+uses. Three things fire on one game event and are independent of each other:
+
+| Term | Meaning | In this contract |
+| --- | --- | --- |
+| Action | What the playing music does: stop, pause, resume, play, or nothing. Each carries a fade time and a fade curve; a zero fade is the arcade hard cut. | `[music.death]`, `[music.restart]` |
+| Stinger | A short one-shot layered *over* the music at the event, the game-over jingle. Posted beside the action, never instead of it. | The effect bound to `death` (and `hurt`) |
+| Ducking | The music dips under a sound effect, holds, and recovers. | `[music.hurt]`, optional |
+
+So a runner's game over is both at once: the death stinger plays immediately
+and the music fades out underneath it. The fields:
+
+| Table | Field | Range | Meaning |
+| --- | --- | --- | --- |
+| `music.death` | `action` | `stop`, `pause`, `continue` | `stop` ends the track; `pause` holds its position; `continue` leaves the music alone |
+| | `fade_seconds` | 0–10 | Time to reach silence. Zero applies at once. |
+| | `curve` | `linear`, `exponential` | As Web Audio defines them: `exponential` interpolates gain geometrically to a near-zero floor, the equal-loudness feel of a middleware exp/log curve |
+| `music.restart` | `action` | `play`, `resume`, `continue` | Must pair with death: `stop → play` (the next shuffled track from the top), `pause → resume`, `continue → continue`. Any other pair is refused at load. |
+| | `fade_seconds`, `curve` | as above | The fade-in |
+| `music.hurt` (optional) | `duck_gain` | (0, 1) | The music's gain factor while ducked |
+| | `fade_seconds`, `hold_seconds`, `recovery_seconds` | 0–10 each | Dip, hold, recover |
+| | `curve` | as above | Applied to the dip and the recovery |
+
+Every value here is consumer mixing, like `gain` on a clip: no cache identity
+includes it, so tuning after listening is a re-plan and never a redraw. The
+table is required and inert in a package with no soundtrack member. A
+transition arriving during another cancels it, so a restart pressed mid-fade
+starts the next track cleanly. Beat-synced transitions and transition segments
+are excluded: the runner's seam rule forbids beat sync. A tape-stop is not
+middleware vocabulary and the media element cannot ramp its rate to zero, so
+it is not offered either.
 
 ## What is checked, and what is not
 

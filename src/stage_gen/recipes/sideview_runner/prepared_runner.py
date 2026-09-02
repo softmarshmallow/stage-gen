@@ -156,6 +156,7 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     LAYER_VALIDATE,
     MANIFEST_ASSEMBLE,
     MANIFEST_KIND,
+    MANIFEST_SCHEMA_VERSION,
     MOTION_RAW_KIND,
     MOTION_REBASE_JUDGE,
     MOTION_REBASE_VERIFY,
@@ -591,7 +592,9 @@ def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
 
     A generated clip publishes what the consumer plays - the artifact path,
     its duration, and the playback mixing - and not what bought it: the
-    prompt and influence live in the artifact's provenance sidecar.
+    prompt and influence live in the artifact's provenance sidecar. The music
+    transitions are published as authored; they are consumer mixing and the
+    runtime is the only reader.
     """
 
     effects: list[dict[str, object]] = []
@@ -615,7 +618,11 @@ def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
                 "realization": projected,
             }
         )
-    return {"bindings": audio.bindings.model_dump(mode="json"), "effects": effects}
+    return {
+        "bindings": audio.bindings.model_dump(mode="json"),
+        "effects": effects,
+        "music": audio.music.model_dump(mode="json"),
+    }
 
 
 def manifest_ground(track: RunnerTrack) -> dict[str, object]:
@@ -3104,7 +3111,7 @@ class SideviewRunnerNodeHandler:
             ground_manifest = manifest_ground(track)
 
         manifest = {
-            "schema_version": 6,
+            "schema_version": MANIFEST_SCHEMA_VERSION,
             "kind": MANIFEST_KIND,
             "game_id": self._package.game.game_id,
             "display_name": self._package.game.display_name,

@@ -73,9 +73,10 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.
-- [Authored game sound effects](game-sound-effects.md) — the `runner-audio-v2`
+- [Authored game sound effects](game-sound-effects.md) — the `runner-audio-v3`
   event bindings, the oscillator and generated-clip realizations, the verbatim
-  prompt rule, the objective admission gates, and the audition command.
+  prompt rule, the objective admission gates, the audition command, and the
+  music transitions the soundtrack performs at the run's edges.
 - [Authored game maps](game-maps.md) — exact-current `game-map-v9` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.

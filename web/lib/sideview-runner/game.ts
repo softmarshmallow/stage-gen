@@ -22,7 +22,13 @@ import {
 } from "@/lib/sideview/assets";
 import { installMotionPlayback } from "@/lib/sideview/motion-playback";
 import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presentation";
-import { createAudioSystem, createWebAudioSink, type RunnerAudioSink } from "./audio";
+import {
+  createAudioSystem,
+  createWebAudioSink,
+  SILENT_MUSIC_SINK,
+  type RunnerAudioSink,
+  type RunnerMusicSink,
+} from "./audio";
 import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
@@ -88,6 +94,7 @@ export function assembleRunnerSystems(
   stage: ParallaxStageView,
   hud: HudView,
   audio: RunnerAudioSink,
+  music: RunnerMusicSink = SILENT_MUSIC_SINK,
 ): readonly GameSystem<RunnerWorld>[] {
   return [
     createIntentSystem(latch),
@@ -100,7 +107,7 @@ export function assembleRunnerSystems(
     createCameraSystem(),
     createParallaxSystem(stage),
     createHudSystem(hud),
-    createAudioSystem(audio),
+    createAudioSystem(audio, music),
   ];
 }
 
@@ -316,8 +323,10 @@ class RunnerScene extends Phaser.Scene {
       this.game.canvas.removeEventListener("pointerdown", unlock);
     });
     if (manifest.soundtrack) {
-      this.soundtrack = createRunnerSoundtrackPlayback(manifest.soundtrack, (path) =>
-        this.url(path),
+      this.soundtrack = createRunnerSoundtrackPlayback(
+        manifest.soundtrack,
+        (path) => this.url(path),
+        { music: manifest.audio.music },
       );
       this.disposers.push(() => {
         this.soundtrack?.dispose();
@@ -326,7 +335,13 @@ class RunnerScene extends Phaser.Scene {
     }
 
     this.sealed = sealSystems(
-      assembleRunnerSystems(this.latch, stage, hud, createWebAudioSink(manifest.audio, (path) => this.url(path))),
+      assembleRunnerSystems(
+        this.latch,
+        stage,
+        hud,
+        createWebAudioSink(manifest.audio, (path) => this.url(path)),
+        this.soundtrack ?? SILENT_MUSIC_SINK,
+      ),
       { events: (current) => current.events },
     );
     this.world = world;

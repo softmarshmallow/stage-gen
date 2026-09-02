@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createAudioSystem, strengthLift, type RunnerAudioCue } from "./audio";
-import { parseRunnerRuntimeManifest } from "./contract";
+import { parseRunnerRuntimeManifest, type RunnerMusicEvent } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createRunnerWorld } from "./world";
@@ -80,6 +80,30 @@ describe("createAudioSystem", () => {
     world.avatar.distanceColumns = 0.5;
     system.update(world, STEP);
     expect(sink.cues).toEqual(["death"]);
+  });
+});
+
+describe("createAudioSystem music sink", () => {
+  test("death, restart, and hurt reach the music sink beside their cues", () => {
+    const world = createRunnerWorld(manifest, 1);
+    const sink = recorder();
+    const edges: RunnerMusicEvent[] = [];
+    const system = createAudioSystem(sink, { transition: (event) => edges.push(event) });
+    system.update(world, STEP);
+    world.vitals.hurtThisFrame = true;
+    system.update(world, STEP);
+    world.vitals.hurtThisFrame = false;
+    world.run.phase = "dead";
+    system.update(world, STEP);
+    system.update(world, STEP);
+    expect(edges).toEqual(["hurt", "death"]);
+
+    world.run.phase = "running";
+    world.avatar.distanceColumns = 0.5;
+    system.update(world, STEP);
+    system.update(world, STEP);
+    expect(edges).toEqual(["hurt", "death", "restart"]);
+    expect(sink.cues).toEqual(["hurt", "death"]);
   });
 });
 

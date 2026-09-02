@@ -278,6 +278,47 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(() => parseRunnerRuntimeManifest(mutate((r) => (r.gain = 0)))).toThrow("gain");
   });
 
+  test("parses the music transitions and refuses an unpaired, unbounded, or alien one", () => {
+    const manifest = parseRunnerRuntimeManifest(validRunnerManifest());
+    expect(manifest.audio.music).toEqual({
+      death: { action: "pause", fadeSeconds: 0.6, curve: "exponential" },
+      restart: { action: "resume", fadeSeconds: 0.3, curve: "linear" },
+      hurt: {
+        duckGain: 0.5,
+        fadeSeconds: 0.04,
+        holdSeconds: 0.15,
+        recoverySeconds: 0.5,
+        curve: "linear",
+      },
+    });
+    expect(Object.isFrozen(manifest.audio.music.death)).toBe(true);
+
+    const music = (change: (music: Record<string, Record<string, unknown>>) => void) => {
+      const document = validRunnerManifest();
+      const audio = document.audio as { music: Record<string, Record<string, unknown>> };
+      change(audio.music);
+      return document;
+    };
+    expect(() => parseRunnerRuntimeManifest(music((m) => (m.restart.action = "play")))).toThrow(
+      "audio.music.restart.action must be resume when audio.music.death.action is pause",
+    );
+    expect(() =>
+      parseRunnerRuntimeManifest(music((m) => (m.death.fade_seconds = 11))),
+    ).toThrow("audio.music.death.fade_seconds must be at most 10 seconds");
+    expect(() => parseRunnerRuntimeManifest(music((m) => (m.death.curve = "s_curve")))).toThrow(
+      "audio.music.death.curve",
+    );
+    expect(() => parseRunnerRuntimeManifest(music((m) => (m.hurt.duck_gain = 1)))).toThrow(
+      "audio.music.hurt.duck_gain must be below 1",
+    );
+    const noDuck = validRunnerManifest();
+    (noDuck.audio as { music: Record<string, unknown> }).music.hurt = null;
+    expect(parseRunnerRuntimeManifest(noDuck).audio.music.hurt).toBeNull();
+    const noMusic = validRunnerManifest();
+    delete (noMusic.audio as Record<string, unknown>).music;
+    expect(() => parseRunnerRuntimeManifest(noMusic)).toThrow("audio.music must be an object");
+  });
+
   test("refuses missing, unresolved, or unused authored audio", () => {
     const missing = validRunnerManifest();
     delete missing.audio;

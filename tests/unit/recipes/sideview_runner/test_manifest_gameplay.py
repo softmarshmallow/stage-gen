@@ -124,3 +124,19 @@ def test_the_published_audio_block_is_exactly_the_authored_contract() -> None:
         "gain": 0.12,
         "strength_pitch_multiplier": 1.0,
     }
+
+
+def test_the_published_audio_block_carries_the_authored_music_transitions() -> None:
+    block = manifest_audio(load_runner_audio_bytes(RUNNER_AUDIO.encode()))
+
+    assert block["music"] == {
+        "death": {"action": "pause", "fade_seconds": 0.6, "curve": "exponential"},
+        "restart": {"action": "resume", "fade_seconds": 0.3, "curve": "linear"},
+        "hurt": {
+            "duck_gain": 0.5,
+            "fade_seconds": 0.04,
+            "hold_seconds": 0.15,
+            "recovery_seconds": 0.5,
+            "curve": "linear",
+        },
+    }

@@ -47,10 +47,20 @@ strength_pitch_multiplier = 1.0
     ]
     if reverse:
         effects.reverse()
-    return """schema_version = 2
-kind = "runner-audio-v2"
+    return """schema_version = 3
+kind = "runner-audio-v3"
 game_id = "test-game"
 revision = 1
+
+[music.death]
+action = "stop"
+fade_seconds = 1.2
+curve = "exponential"
+
+[music.restart]
+action = "play"
+fade_seconds = 0.5
+curve = "linear"
 
 [bindings]
 takeoff = "jump_tone"
@@ -180,6 +190,90 @@ def test_a_generated_clip_is_bounded_before_any_spend(mutation: tuple[str, str])
         _load(_mixed_source().replace(old, new, 1))
 
 
-def test_the_retired_v1_header_is_refused() -> None:
+def test_the_retired_headers_are_refused() -> None:
+    for retired in ("runner-audio-v1", "runner-audio-v2"):
+        with pytest.raises(AuthoredContractLoadError):
+            _load(_source().replace('kind = "runner-audio-v3"', f'kind = "{retired}"'))
+
+
+DUCK = """
+[music.hurt]
+duck_gain = 0.4
+fade_seconds = 0.05
+hold_seconds = 0.2
+recovery_seconds = 0.8
+curve = "linear"
+"""
+
+
+def _with_duck(source: str) -> str:
+    return source.replace("\n[bindings]", DUCK + "\n[bindings]", 1)
+
+
+def test_music_transitions_are_authored_in_the_interactive_music_vocabulary() -> None:
+    audio = _load(_source())
+
+    assert audio.music.death.action == "stop"
+    assert audio.music.death.fade_seconds == 1.2
+    assert audio.music.death.curve == "exponential"
+    assert audio.music.restart.action == "play"
+    assert audio.music.hurt is None
+    assert b'"music"' in canonical_runner_audio_json(audio)
+
+    ducked = _load(_with_duck(_source()))
+    assert ducked.music.hurt is not None
+    assert ducked.music.hurt.duck_gain == 0.4
+    assert ducked.music.hurt.recovery_seconds == 0.8
+    assert runner_audio_sha256(ducked) != runner_audio_sha256(audio)
+
+
+@pytest.mark.parametrize(
+    ("death", "restart"),
+    [("stop", "resume"), ("pause", "play"), ("continue", "play"), ("stop", "continue")],
+)
+def test_music_death_and_restart_actions_must_pair(death: str, restart: str) -> None:
+    source = _source().replace('action = "stop"', f'action = "{death}"', 1)
+    source = source.replace('action = "play"', f'action = "{restart}"', 1)
+    with pytest.raises(AuthoredContractLoadError, match="must be"):
+        _load(source)
+
+
+def test_music_pause_resumes_and_continue_continues() -> None:
+    paused = (
+        _source()
+        .replace('action = "stop"', 'action = "pause"')
+        .replace('action = "play"', 'action = "resume"')
+    )
+    assert _load(paused).music.restart.action == "resume"
+    untouched = (
+        _source()
+        .replace('action = "stop"', 'action = "continue"')
+        .replace('action = "play"', 'action = "continue"')
+    )
+    assert _load(untouched).music.death.action == "continue"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        ("fade_seconds = 1.2", "fade_seconds = -0.1"),
+        ("fade_seconds = 1.2", "fade_seconds = 11"),
+        ('curve = "exponential"', 'curve = "s_curve"'),
+        ('action = "stop"', 'action = "fade"'),
+        ("duck_gain = 0.4", "duck_gain = 1.0"),
+        ("duck_gain = 0.4", "duck_gain = 0"),
+        ("hold_seconds = 0.2", "hold_seconds = 12"),
+    ],
+)
+def test_music_transitions_are_bounded(mutation: tuple[str, str]) -> None:
+    old, new = mutation
     with pytest.raises(AuthoredContractLoadError):
-        _load(_source().replace('kind = "runner-audio-v2"', 'kind = "runner-audio-v1"'))
+        _load(_with_duck(_source()).replace(old, new, 1))
+
+
+def test_music_is_required() -> None:
+    source = _source()
+    start = source.index("[music.death]")
+    end = source.index("[bindings]")
+    with pytest.raises(AuthoredContractLoadError):
+        _load(source[:start] + source[end:])

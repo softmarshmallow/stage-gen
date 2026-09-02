@@ -1,7 +1,27 @@
-schema_version = 2
-kind = "runner-audio-v2"
+schema_version = 3
+kind = "runner-audio-v3"
 game_id = "iron-petal-unit"
-revision = 3
+revision = 4
+
+# What the soundtrack does at the run's edges. The death stinger is the effect
+# bound to `death` below; the music fades out under it, and a fresh run starts
+# the next shuffled track. A survivable hit ducks the music under its clank.
+[music.death]
+action = "stop"
+fade_seconds = 1.2
+curve = "exponential"
+
+[music.restart]
+action = "play"
+fade_seconds = 0.5
+curve = "linear"
+
+[music.hurt]
+duck_gain = 0.4
+fade_seconds = 0.05
+hold_seconds = 0.2
+recovery_seconds = 0.8
+curve = "linear"
 
 [bindings]
 takeoff = "servo_takeoff"

@@ -7,10 +7,12 @@
 // and reports them to an injected sink. The Web Audio sink plays the authored
 // manifest realization for the bound effect — synthesizing an oscillator
 // sweep, or decoding a clip the run generated once — with no hidden cue
-// table, while headless suites inject a recorder.
+// table, while headless suites inject a recorder. The run's edges also reach
+// a music sink: the stinger the effect binding owns and the authored action
+// on the soundtrack (a fade, a pause, a duck) are posted side by side.
 
 import type { GameSystem } from "@/lib/game-systems/systems";
-import type { RunnerAudio, RunnerAudioEvent } from "./contract";
+import type { RunnerAudio, RunnerAudioEvent, RunnerMusicEvent } from "./contract";
 import type { RunnerWorld } from "./world";
 
 export type RunnerAudioCue = RunnerAudioEvent;
@@ -24,13 +26,25 @@ export const SILENT_AUDIO_SINK: RunnerAudioSink = Object.freeze({
   play: () => undefined,
 });
 
+export interface RunnerMusicSink {
+  /** The soundtrack performs its authored action for this run edge. */
+  transition(event: RunnerMusicEvent): void;
+}
+
+export const SILENT_MUSIC_SINK: RunnerMusicSink = Object.freeze({
+  transition: () => undefined,
+});
+
 /**
  * The cue system: presentation, so it writes no world key. The explicit
  * edges pin it to the very end of the frame - after the run-loop that
  * settles the phase and score, and after the hud that closes the drawing
  * chain - so the sealed order stays unique regardless of registration order.
  */
-export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld> {
+export function createAudioSystem(
+  sink: RunnerAudioSink,
+  music: RunnerMusicSink = SILENT_MUSIC_SINK,
+): GameSystem<RunnerWorld> {
   let prevJumpImpulses = 0;
   let prevGrounded = true;
   let prevSliding = false;
@@ -38,8 +52,8 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
   let prevDistance = 0;
   return {
     id: "runner/audio",
-    // v2: reads vitals so a survivable hit has a cue of its own.
-    contractVersion: "audio-system-v2",
+    // v3: the run's edges also reach the music sink.
+    contractVersion: "audio-system-v3",
     reads: ["avatar", "obstacles", "run", "vitals"],
     writes: [],
     after: ["runner/run-loop", "runner/hud"],
@@ -48,6 +62,7 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
       const dead = world.run.phase === "dead";
       const restarted = avatar.distanceColumns < prevDistance;
       if (restarted) {
+        music.transition("restart");
         prevJumpImpulses = avatar.jumpImpulses;
         prevGrounded = avatar.grounded;
         prevSliding = avatar.sliding;
@@ -79,10 +94,12 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
         // that ends the run is death's to answer, not this cue's.
         if (world.vitals.hurtThisFrame) {
           sink.play("hurt", 1);
+          music.transition("hurt");
         }
       }
       if (dead && !prevDead) {
         sink.play("death", 1);
+        music.transition("death");
       }
 
       prevJumpImpulses = avatar.jumpImpulses;

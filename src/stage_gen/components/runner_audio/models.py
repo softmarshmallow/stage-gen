@@ -5,8 +5,11 @@ which named effect answers each event and how each effect is realized: either
 the provider-free oscillator sweep the web consumer synthesizes, or a generated
 clip the graph buys once and the consumer plays back. The event-to-effect
 bindings are the same either way, so a cue can change realization without
-remapping gameplay. Provider or model identifiers never belong in this
-authored contract.
+remapping gameplay. The contract also owns what the soundtrack does at the
+run's edges - the interactive-music vocabulary of an action, a fade time, and
+a fade curve on death and restart, and an optional duck under the hurt cue -
+while the soundtrack catalog itself stays a separate member. Provider or model
+identifiers never belong in this authored contract.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.components.sound_effect import GeneratedClipRealization
 
-RUNNER_AUDIO_SCHEMA_VERSION = 2
+RUNNER_AUDIO_SCHEMA_VERSION = 3
 
 RunnerAudioEvent = Literal[
     "takeoff",
@@ -85,6 +88,79 @@ RunnerEffectRealization = Annotated[
     Field(discriminator="kind"),
 ]
 
+#: The run edges the soundtrack answers. ``death`` and ``restart`` are the run
+#: phase edges; ``hurt`` is the survivable-hit frame, the same one the effect
+#: binding of that name cues.
+RunnerMusicEvent = Literal["death", "restart", "hurt"]
+
+#: Fade shapes as Web Audio defines them: ``linear`` interpolates gain;
+#: ``exponential`` interpolates geometrically to a near-zero floor, the
+#: equal-loudness feel middleware exp/log curves approximate.
+MusicFadeCurve = Literal["linear", "exponential"]
+
+_MAX_FADE_SECONDS = 10.0
+
+
+class MusicDeathTransition(PersistedContractModel):
+    """The soundtrack's action when the run ends.
+
+    The death stinger is the effect bound to ``death``; it plays over this
+    action, never instead of it. A zero fade is the arcade hard cut.
+    """
+
+    action: Literal["stop", "pause", "continue"]
+    fade_seconds: float = Field(ge=0.0, le=_MAX_FADE_SECONDS)
+    curve: MusicFadeCurve
+
+
+class MusicRestartTransition(PersistedContractModel):
+    """The soundtrack's action when a fresh run starts after death.
+
+    ``play`` starts the next shuffled track from the top; ``resume`` continues
+    the paused one. Which is legal follows from the death action.
+    """
+
+    action: Literal["play", "resume", "continue"]
+    fade_seconds: float = Field(ge=0.0, le=_MAX_FADE_SECONDS)
+    curve: MusicFadeCurve
+
+
+class MusicDuck(PersistedContractModel):
+    """Auto-ducking: the music dips under the hurt stinger and recovers."""
+
+    #: The music's gain factor while ducked, relative to its playing level.
+    duck_gain: float = Field(gt=0.0, lt=1.0)
+    fade_seconds: float = Field(ge=0.0, le=_MAX_FADE_SECONDS)
+    hold_seconds: float = Field(ge=0.0, le=_MAX_FADE_SECONDS)
+    recovery_seconds: float = Field(ge=0.0, le=_MAX_FADE_SECONDS)
+    curve: MusicFadeCurve
+
+
+_LEGAL_PAIRS = {"stop": "play", "pause": "resume", "continue": "continue"}
+
+
+class RunnerMusicTransitions(PersistedContractModel):
+    """What the soundtrack does at the run's edges.
+
+    Every value here is consumer mixing: no generation cache identity includes
+    it, so tuning after listening is a re-plan and never a redraw. The table is
+    inert when the package declares no soundtrack member.
+    """
+
+    death: MusicDeathTransition
+    restart: MusicRestartTransition
+    hurt: MusicDuck | None = None
+
+    @model_validator(mode="after")
+    def validate_pairing(self) -> RunnerMusicTransitions:
+        expected = _LEGAL_PAIRS[self.death.action]
+        if self.restart.action != expected:
+            raise ValueError(
+                f"runner audio music.restart.action must be {expected!r} when "
+                f"music.death.action is {self.death.action!r}, got {self.restart.action!r}"
+            )
+        return self
+
 
 class RunnerSoundEffect(PersistedContractModel):
     effect_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
@@ -98,12 +174,13 @@ class RunnerSoundEffect(PersistedContractModel):
 
 
 class RunnerAudioContract(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["runner-audio-v2"]
+    schema_version: Literal[3]
+    kind: Literal["runner-audio-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     bindings: RunnerAudioBindings
     effects: list[RunnerSoundEffect] = Field(min_length=1, max_length=32)
+    music: RunnerMusicTransitions
 
     @model_validator(mode="after")
     def validate_effect_closure(self) -> RunnerAudioContract:
@@ -152,11 +229,17 @@ def runner_audio_sha256(contract: RunnerAudioContract) -> str:
 __all__ = [
     "RUNNER_AUDIO_SCHEMA_VERSION",
     "GeneratedClipRealization",
+    "MusicDeathTransition",
+    "MusicDuck",
+    "MusicFadeCurve",
+    "MusicRestartTransition",
     "OscillatorSweepRealization",
     "RunnerAudioBindings",
     "RunnerAudioContract",
     "RunnerAudioEvent",
     "RunnerEffectRealization",
+    "RunnerMusicEvent",
+    "RunnerMusicTransitions",
     "RunnerSoundEffect",
     "canonical_runner_audio_json",
     "load_runner_audio_bytes",

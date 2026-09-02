@@ -1,13 +1,19 @@
-"""The runner genre's authored audio contract (``runner-audio-v2``)."""
+"""The runner genre's authored audio contract (``runner-audio-v3``)."""
 
 from .models import (
     RUNNER_AUDIO_SCHEMA_VERSION,
     GeneratedClipRealization,
+    MusicDeathTransition,
+    MusicDuck,
+    MusicFadeCurve,
+    MusicRestartTransition,
     OscillatorSweepRealization,
     RunnerAudioBindings,
     RunnerAudioContract,
     RunnerAudioEvent,
     RunnerEffectRealization,
+    RunnerMusicEvent,
+    RunnerMusicTransitions,
     RunnerSoundEffect,
     canonical_runner_audio_json,
     load_runner_audio_bytes,
@@ -17,11 +23,17 @@ from .models import (
 __all__ = [
     "RUNNER_AUDIO_SCHEMA_VERSION",
     "GeneratedClipRealization",
+    "MusicDeathTransition",
+    "MusicDuck",
+    "MusicFadeCurve",
+    "MusicRestartTransition",
     "OscillatorSweepRealization",
     "RunnerAudioBindings",
     "RunnerAudioContract",
     "RunnerAudioEvent",
     "RunnerEffectRealization",
+    "RunnerMusicEvent",
+    "RunnerMusicTransitions",
     "RunnerSoundEffect",
     "canonical_runner_audio_json",
     "load_runner_audio_bytes",

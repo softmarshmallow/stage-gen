@@ -83,6 +83,8 @@ RETIRED_PREPARED_IDENTITIES = (
     # moved with the contract.
     "runner-audio-v1",
     "sideview-runner-runtime-v5",
+    "runner-audio-v2",
+    "sideview-runner-runtime-v6",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -187,19 +189,19 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`prepared-game-runtime-v10`" in soundtrack
 
     sound_effects = documents["docs/game-sound-effects.md"]
-    assert "`runner-audio-v2`" in sound_effects
+    assert "`runner-audio-v3`" in sound_effects
     assert "`generated_clip_v1`" in sound_effects
     assert "No normalization, no trimming, no\nconcatenation" in sound_effects
     assert "spec/model-eleven-text-to-sound-v2.md" in sound_effects
 
     runner = documents["docs/spec/game/runner.md"]
-    assert "`runner-audio-v2`" in runner
+    assert "`runner-audio-v3`" in runner
     assert "`generated_clip_v1`" in runner
     assert "`runner-track-v3`" in runner
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v6`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v7`" in documents["docs/game-package.md"]
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue

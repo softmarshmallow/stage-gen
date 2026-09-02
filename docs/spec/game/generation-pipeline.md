@@ -56,7 +56,7 @@ that same bridge: its right edge receives bridge column 0 and its left edge
 receives bridge column 1, so every A-to-B join reconstructs the original
 continuous two-column generated material. Each published segment remains
 `columns * 64` by `rows * 64`, while authored occupancy remains collision
-authority. Its terminal node emits `sideview-runner-runtime-v6`. The exact
+authority. Its terminal node emits `sideview-runner-runtime-v7`. The exact
 fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
@@ -72,7 +72,7 @@ the same compiled direction, so this genre input is part of the provider node's 
 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
-its live call executes the complete selected member and assembles `sideview-runner-runtime-v6`.
+its live call executes the complete selected member and assembles `sideview-runner-runtime-v7`.
 The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
 targets and their complete dependency closure. `--checkpoint content` independently executes cast,
 catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure. Neither paid
@@ -155,7 +155,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "812919110d9edc8d36426974c321d2c004ff173c96080b12f3987413eb8fb8a1",
+  "topology_sha256": "4ca19ad458b63c65f4108697f451501e90f8db22392716ddfd5c8c641dbfd40e",
   "node_count": 227,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

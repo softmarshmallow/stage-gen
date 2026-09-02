@@ -18,6 +18,7 @@ validates one audio artifact per track.
 | `gameplay.toml` | Which maps, encounters, or bosses use which track IDs |
 | Recipe | Provider/model selection, generation, decoding, validation, provenance, and cache identity |
 | Consumer | Audio unlock, volume, playback lifecycle, map changes, and deterministic selection within authored policy |
+| Genre audio contract | What the music does at gameplay edges - the runner's `[music]` transitions in `runner/audio.toml`, see [game-sound-effects.md](game-sound-effects.md) |
 
 Maps do not embed soundtrack briefs or artifacts. A map is visual/static
 composition; gameplay owns its track usage.
@@ -88,6 +89,9 @@ display name, duration, artifact path, digest, and byte count into
 `prepared-game-runtime-v10`. The prepared consumer validates that exact closure,
 then plays the first track assigned to the current map and restarts selection
 when the map changes. Browser autoplay restrictions remain consumer behavior.
+The runner consumer additionally performs the fades, pauses, and ducks its
+genre's audio contract authors at death, restart, and hurt; this catalog says
+nothing about them.
 
 ## Validation
 

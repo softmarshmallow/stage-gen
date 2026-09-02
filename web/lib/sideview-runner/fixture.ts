@@ -45,6 +45,17 @@ export function runnerAudioFixture(): Record<string, unknown> {
     ["token_chime", "Token Chime", "sine", 660, 880, 90, 0.12, 1],
   ] as const;
   return {
+    music: {
+      death: { action: "pause", fade_seconds: 0.6, curve: "exponential" },
+      restart: { action: "resume", fade_seconds: 0.3, curve: "linear" },
+      hurt: {
+        duck_gain: 0.5,
+        fade_seconds: 0.04,
+        hold_seconds: 0.15,
+        recovery_seconds: 0.5,
+        curve: "linear",
+      },
+    },
     bindings: {
       takeoff: "takeoff_whistle",
       air_jump: "air_jump_whistle",
@@ -89,7 +100,7 @@ export function runnerAudioFixture(): Record<string, unknown> {
 
 export function runnerManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 6,
+    schema_version: 7,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",

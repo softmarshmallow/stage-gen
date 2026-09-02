@@ -331,10 +331,10 @@ does not by itself define a core game contract.
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v3`,
-  `runner-track-v3`, `runner-avatar-v3`, and `runner-audio-v2` contracts.
+  `runner-track-v3`, `runner-avatar-v3`, and `runner-audio-v3` contracts.
   Provider-free
   integration emits `prepared-game-runtime-v10` for the platformer member
-  and `sideview-runner-runtime-v6` for the runner member.
+  and `sideview-runner-runtime-v7` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an

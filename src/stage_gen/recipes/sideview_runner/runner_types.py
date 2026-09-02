@@ -55,7 +55,9 @@ SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v6"
+MANIFEST_KIND = "sideview-runner-runtime-v7"
+#: Moves with MANIFEST_KIND; the web parser pins both together.
+MANIFEST_SCHEMA_VERSION = 7
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -260,9 +262,10 @@ MANIFEST_ASSEMBLE = NodeType(
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    # v7: the audio block's realization union gained `generated_clip_v1`, which
-    # names a run artifact, so the runtime document moved to v6 with it.
-    contract_version="runner-manifest-assemble-v7",
+    # v8: the audio block gained the authored music transitions (what the
+    # soundtrack does on death, restart, and hurt), so the runtime document
+    # moved to v7 with it.
+    contract_version="runner-manifest-assemble-v8",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
@@ -323,6 +326,7 @@ __all__ = [
     "LAYER_VALIDATION_KIND",
     "MANIFEST_ASSEMBLE",
     "MANIFEST_KIND",
+    "MANIFEST_SCHEMA_VERSION",
     "MOTION_ATLAS_KIND",
     "MOTION_RAW_KIND",
     "MOTION_REBASE_JUDGE",
