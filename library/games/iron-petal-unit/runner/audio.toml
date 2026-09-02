@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "runner-audio-v1"
+schema_version = 2
+kind = "runner-audio-v2"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 3
 
 [bindings]
 takeoff = "servo_takeoff"
@@ -10,6 +10,7 @@ land = "ceramic_landing"
 slide = "rail_slide"
 hazard_cleared = "rescue_clear"
 collect = "seed_chime"
+hurt = "hull_clank"
 death = "unit_stalled"
 
 [[effects]]
@@ -82,12 +83,10 @@ effect_id = "seed_chime"
 display_name = "Seed Chime"
 
 [effects.realization]
-kind = "oscillator_sweep_v1"
-waveform = "triangle"
-start_frequency_hz = 700
-end_frequency_hz = 1120
-duration_milliseconds = 100
-gain = 0.12
+kind = "generated_clip_v1"
+prompt = "video game coin collect sound"
+duration_seconds = 0.5
+gain = 0.6
 strength_pitch_multiplier = 1.0
 
 [[effects]]
@@ -95,10 +94,19 @@ effect_id = "unit_stalled"
 display_name = "Unit Stalled"
 
 [effects.realization]
-kind = "oscillator_sweep_v1"
-waveform = "square"
-start_frequency_hz = 180
-end_frequency_hz = 48
-duration_milliseconds = 480
-gain = 0.12
+kind = "generated_clip_v1"
+prompt = "machine powering down with a metal clunk"
+duration_seconds = 1.0
+gain = 0.5
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "hull_clank"
+display_name = "Hull Clank"
+
+[effects.realization]
+kind = "generated_clip_v1"
+prompt = "hard hit on sheet metal"
+duration_seconds = 0.5
+gain = 0.8
 strength_pitch_multiplier = 0.0

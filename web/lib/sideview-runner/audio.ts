@@ -3,10 +3,11 @@
 // rule forbids beat sync, but nothing forbids the world answering each verb.
 //
 // The system detects edges (takeoff, the air jump, landing, the slide, a
-// cleared hazard, a collect, death) by comparing world state across frames
-// and reports them to an injected sink. The Web Audio sink synthesizes the
-// authored manifest realization for the bound effect — no hidden cue table,
-// no assets, no provider cost — while headless suites inject a recorder.
+// cleared hazard, a collect, a survivable hit, death) by comparing world state across frames
+// and reports them to an injected sink. The Web Audio sink plays the authored
+// manifest realization for the bound effect — synthesizing an oscillator
+// sweep, or decoding a clip the run generated once — with no hidden cue
+// table, while headless suites inject a recorder.
 
 import type { GameSystem } from "@/lib/game-systems/systems";
 import type { RunnerAudio, RunnerAudioEvent } from "./contract";
@@ -37,8 +38,9 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
   let prevDistance = 0;
   return {
     id: "runner/audio",
-    contractVersion: "audio-system-v1",
-    reads: ["avatar", "obstacles", "run"],
+    // v2: reads vitals so a survivable hit has a cue of its own.
+    contractVersion: "audio-system-v2",
+    reads: ["avatar", "obstacles", "run", "vitals"],
     writes: [],
     after: ["runner/run-loop", "runner/hud"],
     update(world) {
@@ -73,6 +75,11 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
         for (let i = 0; i < world.obstacles.collectedThisFrame.length; i += 1) {
           sink.play("collect", Math.min(1, world.run.chain / 30));
         }
+        // The vitals system sets this on the frame a drain connects; a hit
+        // that ends the run is death's to answer, not this cue's.
+        if (world.vitals.hurtThisFrame) {
+          sink.play("hurt", 1);
+        }
       }
       if (dead && !prevDead) {
         sink.play("death", 1);
@@ -87,14 +94,49 @@ export function createAudioSystem(sink: RunnerAudioSink): GameSystem<RunnerWorld
   };
 }
 
+/** The playback-rate lift a strength-graded cue applies to a realization. */
+export function strengthLift(strength: number, multiplier: number): number {
+  return 1 + Math.max(0, Math.min(1, strength)) * multiplier;
+}
+
 /**
  * The browser sink: a lazily created AudioContext (browsers demand a user
  * gesture before audio; the first post-gesture cue starts it) and the exact
- * authored realization reached through each event binding.
+ * authored realization reached through each event binding. Every generated
+ * clip is fetched as soon as the sink exists and decoded on the first cue
+ * that needs it; a cue that fires before its clip is ready is dropped rather
+ * than delayed, because a late cue is worse than a missing one.
  */
-export function createWebAudioSink(audio: RunnerAudio): RunnerAudioSink {
+export function createWebAudioSink(
+  audio: RunnerAudio,
+  resolveUrl: (path: string) => string,
+  fetchBytes: (url: string) => Promise<ArrayBuffer> = (url) =>
+    fetch(url).then((response) => response.arrayBuffer()),
+): RunnerAudioSink {
   let context: AudioContext | null = null;
   const effects = new Map(audio.effects.map((effect) => [effect.effectId, effect]));
+  const bytes = new Map<string, Promise<ArrayBuffer>>();
+  const buffers = new Map<string, AudioBuffer>();
+  const decoding = new Set<string>();
+  for (const effect of audio.effects) {
+    if (effect.realization.kind !== "generated_clip_v1") continue;
+    const clip = effect.realization.clip;
+    if (!bytes.has(clip)) bytes.set(clip, fetchBytes(resolveUrl(clip)));
+  }
+
+  const decodeClip = (ctx: AudioContext, clip: string) => {
+    const pending = bytes.get(clip);
+    if (!pending || decoding.has(clip)) return;
+    decoding.add(clip);
+    void pending
+      .then((data) => ctx.decodeAudioData(data.slice(0)))
+      .then((buffer) => {
+        buffers.set(clip, buffer);
+      })
+      .catch(() => undefined)
+      .finally(() => decoding.delete(clip));
+  };
+
   return {
     play(cue, strength) {
       try {
@@ -103,11 +145,25 @@ export function createWebAudioSink(audio: RunnerAudio): RunnerAudioSink {
         const effect = effects.get(audio.bindings[cue]);
         if (!effect) return;
         const voice = effect.realization;
-        const lift = 1 + Math.max(0, Math.min(1, strength)) * voice.strengthPitchMultiplier;
-        const seconds = voice.durationMilliseconds / 1_000;
+        const lift = strengthLift(strength, voice.strengthPitchMultiplier);
         const now = context.currentTime;
-        const oscillator = context.createOscillator();
         const gain = context.createGain();
+        if (voice.kind === "generated_clip_v1") {
+          const buffer = buffers.get(voice.clip);
+          if (!buffer) {
+            decodeClip(context, voice.clip);
+            return;
+          }
+          const source = context.createBufferSource();
+          source.buffer = buffer;
+          source.playbackRate.setValueAtTime(lift, now);
+          gain.gain.setValueAtTime(voice.gain, now);
+          source.connect(gain).connect(context.destination);
+          source.start(now);
+          return;
+        }
+        const seconds = voice.durationMilliseconds / 1_000;
+        const oscillator = context.createOscillator();
         oscillator.type = voice.waveform;
         oscillator.frequency.setValueAtTime(voice.startFrequencyHz * lift, now);
         oscillator.frequency.exponentialRampToValueAtTime(

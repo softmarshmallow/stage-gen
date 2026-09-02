@@ -1,18 +1,17 @@
-"""Authored runner audio: event bindings and portable effect realization.
+"""Authored runner audio: event bindings and portable effect realizations.
 
-The runner owns when its seven semantic audio events occur. This contract owns
-which named effect answers each event and how the current provider-free
-oscillator realization sounds. The web consumer translates that portable DSP
-shape into Web Audio; it does not invent cue voices.
-
-Future generated sound effects extend ``RunnerEffectRealization`` with another
-discriminated realization while preserving the event-to-effect bindings.
-Provider or model identifiers never belong in this authored contract.
+The runner owns when its eight semantic audio events occur. This contract owns
+which named effect answers each event and how each effect is realized: either
+the provider-free oscillator sweep the web consumer synthesizes, or a generated
+clip the graph buys once and the consumer plays back. The event-to-effect
+bindings are the same either way, so a cue can change realization without
+remapping gameplay. Provider or model identifiers never belong in this
+authored contract.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
@@ -25,8 +24,9 @@ from stage_gen.components._game_input import (
     parse_toml_contract,
     sha256_bytes,
 )
+from stage_gen.components.sound_effect import GeneratedClipRealization
 
-RUNNER_AUDIO_SCHEMA_VERSION = 1
+RUNNER_AUDIO_SCHEMA_VERSION = 2
 
 RunnerAudioEvent = Literal[
     "takeoff",
@@ -35,6 +35,7 @@ RunnerAudioEvent = Literal[
     "slide",
     "hazard_cleared",
     "collect",
+    "hurt",
     "death",
 ]
 
@@ -48,6 +49,9 @@ class RunnerAudioBindings(PersistedContractModel):
     slide: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     hazard_cleared: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     collect: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
+    #: A survivable hit: the frame a vitals drain connects. Silent in a
+    #: one-hit-kill package, where death answers the contact instead.
+    hurt: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     death: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
 
     def effect_ids(self) -> tuple[str, ...]:
@@ -58,6 +62,7 @@ class RunnerAudioBindings(PersistedContractModel):
             self.slide,
             self.hazard_cleared,
             self.collect,
+            self.hurt,
             self.death,
         )
 
@@ -75,9 +80,10 @@ class OscillatorSweepRealization(PersistedContractModel):
     strength_pitch_multiplier: float = Field(ge=0.0, le=2.0)
 
 
-# One realization is implemented today. Keep this alias as the explicit
-# extension seam for generated-file realizations in the next audio contract.
-RunnerEffectRealization = OscillatorSweepRealization
+RunnerEffectRealization = Annotated[
+    OscillatorSweepRealization | GeneratedClipRealization,
+    Field(discriminator="kind"),
+]
 
 
 class RunnerSoundEffect(PersistedContractModel):
@@ -92,8 +98,8 @@ class RunnerSoundEffect(PersistedContractModel):
 
 
 class RunnerAudioContract(PersistedContractModel):
-    schema_version: Literal[1]
-    kind: Literal["runner-audio-v1"]
+    schema_version: Literal[2]
+    kind: Literal["runner-audio-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     bindings: RunnerAudioBindings
@@ -121,6 +127,15 @@ class RunnerAudioContract(PersistedContractModel):
                 return effect
         raise ValueError(f"unknown runner audio effect_id: {effect_id}")
 
+    def generated_effects(self) -> tuple[RunnerSoundEffect, ...]:
+        """The effects that cost a provider operation, in canonical order."""
+
+        return tuple(
+            effect
+            for effect in self.effects
+            if isinstance(effect.realization, GeneratedClipRealization)
+        )
+
 
 def load_runner_audio_bytes(data: bytes) -> RunnerAudioContract:
     return parse_toml_contract(data, model=RunnerAudioContract, label="runner audio contract")
@@ -136,6 +151,7 @@ def runner_audio_sha256(contract: RunnerAudioContract) -> str:
 
 __all__ = [
     "RUNNER_AUDIO_SCHEMA_VERSION",
+    "GeneratedClipRealization",
     "OscillatorSweepRealization",
     "RunnerAudioBindings",
     "RunnerAudioContract",

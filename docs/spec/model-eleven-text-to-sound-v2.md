@@ -8,7 +8,9 @@ sizes are given because most of them are small.
 
 This page records the model-specific boundary. General provider procedure lives
 in [../providers.md](../providers.md); the component contract lives in
-[../component-contract.md](../component-contract.md).
+[../component-contract.md](../component-contract.md); the authored contract that
+consumes this route, and the gates it applies, is
+[../game-sound-effects.md](../game-sound-effects.md).
 
 ## Route
 
@@ -199,8 +201,8 @@ post-processing. Repairing a bad draw is forbidden even though the fix is trivia
 
 **The 0.5 second floor is a hard wall.** Cues shorter than half a second cannot
 be served, because reaching them would require trimming.
-`library/games/iron-petal-unit/runner/audio.toml` declares 90–480 ms envelopes;
-six of its seven cues are under the floor. Those cues stay synthesized. This is
+`library/games/iron-petal-unit/runner/audio.toml` declares 90–170 ms envelopes
+for its short cues, all under the floor. Those cues stay synthesized. This is
 not a temporary gap — a synthesized 90 ms servo sweep is both cheaper and more
 precise than anything this route could return, and it is a stylized cue besides,
 so the taxonomy above rejects it independently.

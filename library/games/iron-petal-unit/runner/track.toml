@@ -8,7 +8,7 @@ schema_version = 3
 kind = "runner-track-v3"
 game_id = "iron-petal-unit"
 track_id = "halcyon-rescue-line"
-revision = 1
+revision = 2
 display_name = "Halcyon Rescue Line"
 
 [view]
@@ -86,6 +86,12 @@ mode = "runner-structural-ground-v1"
 reference_ids = ["greenhouse_runway"]
 vertical_fit = "floor_to_screen_bottom"
 prompt = "Paint each authored Halcyon Rescue Line segment as one strict side-view structural span on native transparency. Preserve the supplied occupancy mask and the guide's exact registration; local canonicalization publishes the admitted painting at exactly 64 pixels per authored cell. Use cream ceramic service slabs and a crisp thin coral footing edge at every supported surface; beneath them, cream ribs, coral conduit, brass clamps, graphite machinery pockets, and sparse roots or leaves. Open cells and pits remain fully transparent. The first and last calm aprons share the same flat surface datum and quiet cream/coral connector design so any segment can follow any other. Keep hazards, pickups, characters, robots, drones, signs, letters, numbers, logos, and watermarks out of the ground painting."
+
+# Stated rather than inherited. A scrolling ground must be drawn in a parallel
+# projection, and orthographic - a flat front elevation with no top face - is
+# the truthful one for a strict side view.
+[ground.projection]
+mode = "orthographic_v1"
 
 [segments]
 rows = 11

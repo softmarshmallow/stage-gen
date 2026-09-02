@@ -16,6 +16,7 @@ from gnode import (
     StructuredGenerationRequest,
 )
 from stage_gen.components.game_ui import (
+    ATLAS_ROLES,
     INVENTORY_PANEL_HEIGHT,
     INVENTORY_PANEL_LEFT,
     INVENTORY_PANEL_TOP,
@@ -37,6 +38,7 @@ from stage_gen.recipes.sideview_platformer.prepared_content import (
     _validate_transparent_image,
     content_target_node_ids,
 )
+from tests.unit._ui_atlas_fixture import atlas_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
@@ -143,6 +145,8 @@ def _write_fake_image(request: ImageGenerationRequest) -> SimpleNamespace:
             right = round((column + 1) * cell_width - cell_width * 0.15)
             bottom = round((row + 1) * cell_height - cell_height * 0.15)
             draw.ellipse((left, top, right, bottom), fill=(100, 170, 230, 255))
+    elif request.metadata.get("role") in ATLAS_ROLES:
+        image = Image.open(io.BytesIO(atlas_sheet(ATLAS_ROLES[str(request.metadata["role"])])))
     elif request.metadata.get("role") == "inventory_panel":
         draw.rectangle(
             (
@@ -265,9 +269,9 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 180
-    assert images.calls == 76
-    assert structured.calls == 17
+    assert len(summary.nodes) == 186
+    assert images.calls == 78
+    assert structured.calls == 19
     assert music.calls == 3
     ui_request = next(
         request for request in images.requests if request.metadata.get("role") == "inventory_panel"
@@ -343,8 +347,8 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     # board-and-review pass. It was absent from both totals when the family was introduced, so a
     # package that fires a round under-reported exactly the family it fires.
     assert coverage["projectile_ids"] == ["paperwing_dart"]
-    assert coverage["required_image_operations"] == 76
-    assert coverage["required_structured_reviews"] == 15
+    assert coverage["required_image_operations"] == 78
+    assert coverage["required_structured_reviews"] == 17
     # The matrix demanded 76 while the closure it describes performed 75, because the content
     # checkpoint named no projectile terminal. The two agreeing is the point of both fixes.
     assert coverage["required_image_operations"] == images.calls
@@ -365,6 +369,35 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert (run_dir / "content/players/wayfarer/states/crouch.source.png").is_file()
     assert (run_dir / "content/players/wayfarer/states/crouch.png").is_file()
     assert (run_dir / "ui/inventory_panel.png").is_file()
+    atlas_request = next(
+        request for request in images.requests if request.metadata.get("role") == "button_rect"
+    )
+    assert atlas_request.background == "transparent"
+    assert atlas_request.size == "1024x1024"
+    assert len(atlas_request.input_references) == 2
+    template_ref = atlas_request.input_references[-1].provenance_ref
+    assert template_ref is not None
+    assert template_ref.startswith("geometry://nine_slice_button_sheet_4x1024_v1#sha256=")
+    assert "in this order: normal, hover, pressed, disabled" in atlas_request.prompt
+    assert "Nine-slice rule:" in atlas_request.prompt
+    for role in ("panel_frame", "button_rect"):
+        assert (run_dir / f"ui/{role}.png").is_file()
+        assert (run_dir / f"ui/{role}.evidence.png").is_file()
+        assert (run_dir / f"ui/{role}.review.json").is_file()
+        atlas_validation = json.loads((run_dir / f"ui/{role}.validation.json").read_text())
+        assert atlas_validation["kind"] == "prepared-ui-atlas-validation-v2"
+        assert (
+            atlas_validation["cells"][0]["safe_rect"]["width"]
+            <= (atlas_validation["cells"][0]["content_rect"]["width"])
+        )
+        assert atlas_validation["role"] == role
+        assert atlas_validation["band_fill"] == "stretch"
+        assert atlas_validation["facts"]["pixel_rewrite"] == "alpha_boundary_normalization_v1"
+    atlas_review = next(
+        request for request in structured.requests if request.metadata.get("role") == "button_rect"
+    )
+    assert "under stretch fill" in atlas_review.prompt
+    assert "normal, hover, pressed, disabled in that order" in atlas_review.prompt
     idle_validation = json.loads(
         (run_dir / "content/players/wayfarer/states/idle.validation.json").read_text()
     )

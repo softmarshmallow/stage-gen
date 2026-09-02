@@ -56,7 +56,7 @@ that same bridge: its right edge receives bridge column 0 and its left edge
 receives bridge column 1, so every A-to-B join reconstructs the original
 continuous two-column generated material. Each published segment remains
 `columns * 64` by `rows * 64`, while authored occupancy remains collision
-authority. Its terminal node emits `sideview-runner-runtime-v5`. The exact
+authority. Its terminal node emits `sideview-runner-runtime-v6`. The exact
 fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
@@ -72,7 +72,7 @@ the same compiled direction, so this genre input is part of the provider node's 
 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
-its live call executes the complete selected member and assembles `sideview-runner-runtime-v5`.
+its live call executes the complete selected member and assembles `sideview-runner-runtime-v6`.
 The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
 targets and their complete dependency closure. `--checkpoint content` independently executes cast,
 catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure. Neither paid
@@ -121,9 +121,9 @@ flowchart TD
     PI --> PIV["isolation validate[*]"]
     PIV --> PIR["catalog contact sheets + reviews"]
 
-    PR --> UI["inventory panel generate"]
-    UI --> UIV["layout + alpha validate"]
-    UIV --> UIR["inventory panel review"]
+    PR --> UI["inventory panel + atlas role generate[*]"]
+    UI --> UIV["layout / nine-slice validate[*]"]
+    UIV --> UIR["UI reviews[*]"]
 
     PR --> ST["soundtrack generate[*]"]
     ST --> STV["audio validate[*]"]
@@ -155,13 +155,13 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d",
-  "node_count": 221,
+  "topology_sha256": "812919110d9edc8d36426974c321d2c004ff173c96080b12f3987413eb8fb8a1",
+  "node_count": 227,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 104,
-    "image_generation": 93,
-    "structured_generation": 21,
+    "local": 106,
+    "image_generation": 95,
+    "structured_generation": 23,
     "music_generation": 3
   },
   "resources": [
@@ -206,7 +206,7 @@ the value is not a universal model constant.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 117 provider operations. Provider transport retries and
+The normal first-pass graph contains 121 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
@@ -219,10 +219,10 @@ reported by the owning node.
 | Props | 8 isolated props, validations, one board, one review | 8 | 1 | 0 | 9 |
 | Items | 5 isolated items, validations, one board, one review | 5 | 1 | 0 | 6 |
 | Projectiles | 1 isolated projectile, single-subject validation, one board, one review; the whole domain is absent for a package that declares no projectile catalog, and present whenever it declares one, whether or not a weapon currently fires it | 1 | 1 | 0 | 2 |
-| UI | one inventory panel, deterministic layout/alpha validation, one review | 1 | 1 | 0 | 1 |
+| UI | one inventory panel plus two nine-slice atlas roles (`panel_frame`, four-state `button_rect`), deterministic layout/alpha and nine-slice validation, one review each | 3 | 3 | 0 | 3 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **221 nodes** | **93** | **21** | **3** | **104** |
+| **Total** | **227 nodes** | **95** | **23** | **3** | **106** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -325,10 +325,10 @@ Placement geometry is still checked on every edit: bottom-supported terrain atta
 exposed upper deck exactly `rise_tiles` above it are enforced against the map's authored occupancy
 when the package resolves, ahead of any node.
 
-The live Content checkpoint is the exact 180-node closure rooted at every cast/catalog/UI review,
-every soundtrack validation, and `gameplay-bindings-validate`: 76 image operations, 17 structured
-operations, three music operations, and 84 local nodes including package capture. It cannot schedule
-map or manifest nodes. Twenty-six identity/catalog/UI images are initially independent; each actor's
+The live Content checkpoint is the exact 186-node closure rooted at every cast/catalog/UI review,
+every soundtrack validation, and `gameplay-bindings-validate`: 78 image operations, 19 structured
+operations, three music operations, and 86 local nodes including package capture. It cannot schedule
+map or manifest nodes. Twenty-eight identity/catalog/UI images are initially independent; each actor's
 state and dialogue descendants become ready immediately after that actor's concept succeeds.
 Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
 
@@ -342,6 +342,28 @@ the canvas, and requires the inset panel core and slot interiors at alpha 250 or
 normalizes only already-transparent pixels to alpha 0 and the core to alpha 255; it does not infer a
 silhouette or perform AI background removal. One independent structured review judges style and layout. The
 runtime manifest publishes the resolved V1 geometry and alpha policy with the artifact.
+
+The two UI atlas roles run as one generic typed triplet (`ui_atlas.generate` / `.validate` /
+`.review`) fanned out over the role parameter: `panel_frame` is one nine-slice body, `button_rect`
+is a four-body state sheet (normal, hover, pressed, disabled). Each generate node renders its
+geometry template from the role's declared record at run time and hands it to the provider after
+the authored references; the cache key hashes that record rather than template bytes, so a
+rasterizer change cannot re-bill an image while a geometry change must. Provider output is gated
+inside the single retry owner: the canvas border and at least 10% of the canvas at alpha 16 or
+below, exactly the declared number of opaque bodies detected from alpha and registered to the
+declared cells in reading order, every state sharing the normal body's silhouette (IoU at least
+0.97, size delta at most 4 px) while differing from it, a flat centre with text contrast, and
+a band fill the sheet passes: `stretch` when every edge band rebuilds from one 8-pixel strip
+within 6/255 mean error, else `tile` when each band's two ends meet within 8/255 over the band's
+own texture floor. Insets widen from the template guide to where the drawn corner ornament
+really ends, capped at twice the guide, and every body is measured with the sheet's widest
+insets because that is how a runtime slices it. The local validate node normalizes only the
+admitted alpha boundary, writes the detected cells, per-side insets, content rects, and
+admitted `band_fill` as the role's validation record, and composes review evidence that
+re-draws every body through the admitted nine-slice at a wider and a taller size. One
+structured review per role judges style coherence, ornament placement, state order, and the
+text-free rule. The manifest publishes each role's resolved geometry from that record beside
+the artifact; no consumer rediscovers it from pixels.
 
 Every actor motion-state provider output is retained as a native-alpha 4-column by 1-row
 `*.source.png`. Before runtime publication, its local validation node runs
@@ -410,7 +432,7 @@ The resource-aware Bellweather projection uses planning assumptions of 120 secon
 adapter-owned 150 image starts per minute, the projected terminal offset is **311.05 seconds
 (5m 11.05s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 4.125–22.68 budgetary allowance**: USD 0.04–0.20 per image,
+The graph carries a broad **USD 4.215–23.24 budgetary allowance**: USD 0.04–0.20 per image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.
@@ -486,6 +508,8 @@ kinds, so a reader never has to infer which recipe wrote a run directory.
 | `content/props/*.validation.json` | Deterministic alpha-component ground contact for each prop; tiny detached and low-alpha contamination is excluded |
 | `content/{props,items}/contact-sheet.png`, `review.json` | Deterministic catalog board and independent structured verdict |
 | `ui/inventory_panel.png` | Canonical inventory panel with validated layout and alpha contract |
+| `ui/{panel_frame,button_rect}.raw.png` | Retained native-alpha provider atlas sheet and provider provenance |
+| `ui/{panel_frame,button_rect}.png`, `*.validation.json`, `*.evidence.png` | Alpha-normalized nine-slice sheet, the detected cells / insets / content rects / admitted band fill, and the re-drawn review evidence |
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
@@ -502,8 +526,8 @@ and stated once, beside the path, in `runtime_artifact_closure`.
 
 | Role | Meaning | Members |
 | --- | --- | --- |
-| `asset` | Media this package publishes as its own content. Bound by name somewhere in the manifest, and a consumer enumerating what the game is made of must account for all of them. | Map layers, ground atlas, optional climbable and portal sheets, actor concepts, motion atlases, dialogue atlases, props, items, projectiles, inventory panel, soundtrack tracks |
-| `provenance` | Records and judged plates the run ships so it can be re-derived and audited. Their readable values are already inlined in the manifest, so nothing fetches them to present the game. | `maps/*/layers/*.validation.json`, `maps/*/climbable.validation.json`, `maps/*/terrain.json`, `content/players/*/motion-rebase*.json`, `content/players/*/motion-rebase*-plate.png` |
+| `asset` | Media this package publishes as its own content. Bound by name somewhere in the manifest, and a consumer enumerating what the game is made of must account for all of them. | Map layers, ground atlas, optional climbable and portal sheets, actor concepts, motion atlases, dialogue atlases, props, items, projectiles, inventory panel, nine-slice atlas roles, soundtrack tracks |
+| `provenance` | Records and judged plates the run ships so it can be re-derived and audited. Their readable values are already inlined in the manifest, so nothing fetches them to present the game. | `maps/*/layers/*.validation.json`, `maps/*/climbable.validation.json`, `maps/*/terrain.json`, `content/players/*/motion-rebase*.json`, `content/players/*/motion-rebase*-plate.png`, `ui/*.validation.json` |
 
 Nothing observable separates the two, which is why the role is declared rather than inferred: a
 judged comparison plate is a PNG under `content/` exactly like the artwork it was composed from,

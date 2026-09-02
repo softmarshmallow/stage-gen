@@ -6,6 +6,7 @@ import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.runner_audio import (
+    GeneratedClipRealization,
     RunnerAudioContract,
     canonical_runner_audio_json,
     load_runner_audio_bytes,
@@ -46,8 +47,8 @@ strength_pitch_multiplier = 1.0
     ]
     if reverse:
         effects.reverse()
-    return """schema_version = 1
-kind = "runner-audio-v1"
+    return """schema_version = 2
+kind = "runner-audio-v2"
 game_id = "test-game"
 revision = 1
 
@@ -58,6 +59,7 @@ land = "jump_tone"
 slide = "jump_tone"
 hazard_cleared = "collect_tone"
 collect = "collect_tone"
+hurt = "jump_tone"
 death = "jump_tone"
 
 """ + "\n".join(effects)
@@ -99,3 +101,85 @@ def test_audio_refuses_unknown_fields_and_out_of_range_realization_values() -> N
         _load(
             _source().replace("strength_pitch_multiplier = 1.0", "strength_pitch_multiplier = 3.0")
         )
+
+
+GENERATED_CLIP = """\
+[[effects]]
+effect_id = "collect_tone"
+display_name = "Collect Tone"
+
+[effects.realization]
+kind = "generated_clip_v1"
+prompt = "small brass coin dropping onto stone"
+duration_seconds = 0.6
+gain = 0.5
+strength_pitch_multiplier = 1.0
+"""
+
+
+def _mixed_source() -> str:
+    source = _source()
+    start = source.index('[[effects]]\neffect_id = "collect_tone"')
+    end = (
+        source.index("[[effects]]", start + 1)
+        if "[[effects]]" in source[start + 1 :]
+        else len(source)
+    )
+    return source[:start] + GENERATED_CLIP + source[end:]
+
+
+def test_a_generated_clip_realization_sits_beside_the_oscillator_in_one_binding_table() -> None:
+    audio = _load(_mixed_source())
+
+    clip = audio.effect("collect_tone").realization
+    assert clip.kind == "generated_clip_v1"
+    assert clip.prompt == "small brass coin dropping onto stone"
+    assert [effect.effect_id for effect in audio.generated_effects()] == ["collect_tone"]
+    assert audio.effect("jump_tone").realization.kind == "oscillator_sweep_v1"
+    serialized = canonical_runner_audio_json(audio)
+    assert b"provider" not in serialized
+    assert b"model" not in serialized
+
+
+def _clip(audio: RunnerAudioContract) -> GeneratedClipRealization:
+    realization = audio.effect("collect_tone").realization
+    assert isinstance(realization, GeneratedClipRealization)
+    return realization
+
+
+def test_a_generated_clip_keys_its_draw_on_the_request_and_not_the_mix() -> None:
+    audio = _load(_mixed_source())
+    louder = _load(_mixed_source().replace("gain = 0.5", "gain = 0.9"))
+    reworded = _load(_mixed_source().replace("coin dropping", "coin landing"))
+
+    identity = _clip(audio).generation_identity()
+    assert identity == {
+        "prompt": "small brass coin dropping onto stone",
+        "duration_seconds": 0.6,
+        "output_format": "mp3",
+    }
+    assert identity == _clip(louder).generation_identity()
+    assert identity != _clip(reworded).generation_identity()
+    assert runner_audio_sha256(audio) != runner_audio_sha256(louder)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        ("duration_seconds = 0.6", "duration_seconds = 0.4"),
+        ("duration_seconds = 0.6", "duration_seconds = 31"),
+        ("gain = 0.5", "gain = 0"),
+        ('prompt = "small brass coin dropping onto stone"', 'prompt = "   "'),
+        ('prompt = "small brass coin dropping onto stone"', 'prompt = " padded authoring "'),
+        ('kind = "generated_clip_v1"', 'kind = "generated_file_v1"'),
+    ],
+)
+def test_a_generated_clip_is_bounded_before_any_spend(mutation: tuple[str, str]) -> None:
+    old, new = mutation
+    with pytest.raises(AuthoredContractLoadError):
+        _load(_mixed_source().replace(old, new, 1))
+
+
+def test_the_retired_v1_header_is_refused() -> None:
+    with pytest.raises(AuthoredContractLoadError):
+        _load(_source().replace('kind = "runner-audio-v2"', 'kind = "runner-audio-v1"'))

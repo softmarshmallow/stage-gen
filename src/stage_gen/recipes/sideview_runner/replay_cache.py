@@ -68,6 +68,7 @@ if TYPE_CHECKING:
         Node,
         NodeExecutionContext,
         RunSummary,
+        SoundEffectGenerationRequest,
         StructuredGenerationRequest,
     )
 
@@ -457,7 +458,10 @@ def _primary_provider_port(node: Node) -> tuple[str, str]:
             if any(port.port_id == "verification" for port in node.ports)
             else "reading"
         )
-    elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
+    elif node.operation in {
+        RunnerOperationKind.MUSIC_GENERATION,
+        RunnerOperationKind.SOUND_EFFECT_GENERATION,
+    }:
         port_id = "audio"
     else:
         raise ProviderReplayMismatch(f"{node.node_id} is not a provider node")
@@ -1464,6 +1468,93 @@ class _RecordedProviderCatalog:
         self._provider_service_calls += 1
         return SimpleNamespace(attempts=1, provenance_path=str(self._run_dir / sidecar_ref))
 
+    async def replay_sound_effect(self, request: SoundEffectGenerationRequest) -> SimpleNamespace:
+        node = self._node_for_request(
+            request.artifact_path, RunnerOperationKind.SOUND_EFFECT_GENERATION
+        )
+        artifact_data, sidecar_data, sidecar, artifact_ref, sidecar_ref = self._recorded(node)
+        media_type = cast(str, sidecar["artifact"]["media_type"])
+        assert_audio_signature(artifact_data, media_type)
+        _require_equal(f"{node.node_id} prompt", request.prompt, sidecar.get("prompt"))
+        _require_equal(
+            f"{node.node_id} prompt sha256",
+            sha256(request.prompt.encode()).hexdigest(),
+            sidecar.get("prompt_sha256"),
+        )
+        _require_equal(f"{node.node_id} sound effect inputs", sidecar.get("inputs"), [])
+        _require_equal(f"{node.node_id} sound effect refs", sidecar.get("refs"), [])
+        expected_params: dict[str, object] = {
+            "output_format": request.output_format,
+            "loop": request.loop,
+            "validated": request.validate is not None,
+        }
+        if request.duration_seconds is not None:
+            expected_params["duration_seconds"] = request.duration_seconds
+        if request.prompt_influence is not None:
+            expected_params["prompt_influence"] = request.prompt_influence
+        if request.metadata:
+            expected_params["metadata"] = dict(request.metadata)
+        _require_equal(
+            f"{node.node_id} sound effect params", sidecar.get("params"), expected_params
+        )
+        current_validation = await run_validator(
+            request.validate, BinaryArtifact(data=artifact_data, media_type=media_type)
+        )
+        migrated_sidecar_data, expected_identity, sidecar_migration = (
+            self._migrate_recorded_sidecar(
+                node,
+                artifact_data=artifact_data,
+                historical_sidecar_data=sidecar_data,
+                historical_sidecar=sidecar,
+                sidecar_ref=sidecar_ref,
+                equivalent_ref_label_normalizations=[],
+                historical_loop_mask_omission_reconstruction=None,
+            )
+        )
+        _require_equal(
+            f"{node.node_id} current sound effect sidecar params",
+            expected_identity.get("params"),
+            expected_params,
+        )
+        expected_current_validation = _json_value(
+            {
+                "output_nonempty": True,
+                "media_type": media_type,
+                "signature": "matched",
+                "source_shape": cast(dict[str, Any], sidecar["response"])["source_shape"],
+                "caller": request.validate is not None,
+                **current_validation,
+            },
+            f"{node.node_id} current sound effect validation",
+        )
+        _require_equal(
+            f"{node.node_id} current sound effect sidecar validation",
+            expected_identity.get("validation"),
+            expected_current_validation,
+        )
+        request_identity: dict[str, object] = {
+            "prompt_sha256": sha256(request.prompt.encode()).hexdigest(),
+            "params": expected_params,
+            "ordered_inputs": [],
+        }
+        self._entries[node.node_id] = self._base_request_entry(
+            node,
+            sidecar,
+            artifact_ref=artifact_ref,
+            sidecar_ref=sidecar_ref,
+            artifact_data=artifact_data,
+            historical_sidecar_data=sidecar_data,
+            migrated_sidecar_data=migrated_sidecar_data,
+            sidecar_migration=sidecar_migration,
+            request_identity=request_identity,
+            current_validation=cast("Mapping[str, object]", expected_identity["validation"]),
+        )
+        atomic_write_bytes(Path(request.artifact_path), artifact_data)
+        atomic_write_bytes(self._run_dir / sidecar_ref, migrated_sidecar_data)
+        self._completed.add(node.node_id)
+        self._provider_service_calls += 1
+        return SimpleNamespace(attempts=1, provenance_path=str(self._run_dir / sidecar_ref))
+
 
 class _ReplayImageService:
     def __init__(self, catalog: _RecordedProviderCatalog) -> None:
@@ -1487,6 +1578,14 @@ class _ReplayMusicService:
 
     async def generate(self, request: MusicGenerationRequest) -> SimpleNamespace:
         return await self._catalog.replay_music(request)
+
+
+class _ReplaySoundEffectService:
+    def __init__(self, catalog: _RecordedProviderCatalog) -> None:
+        self._catalog = catalog
+
+    async def generate(self, request: SoundEffectGenerationRequest) -> SimpleNamespace:
+        return await self._catalog.replay_sound_effect(request)
 
 
 class _DenyProviderService:
@@ -1724,6 +1823,7 @@ async def revalidate_runner_provider_cache(
         image_service=cast(Any, _ReplayImageService(catalog)),
         structured_service=cast(Any, _ReplayStructuredService(catalog)),
         music_service=cast(Any, _ReplayMusicService(catalog)),
+        sound_effect_service=cast(Any, _ReplaySoundEffectService(catalog)),
         capability_timeout_s=config.capability_timeout_s,
     )
     catalog.bind_current_handler(replay_handler)
@@ -1750,6 +1850,7 @@ async def revalidate_runner_provider_cache(
     denied_image = _DenyProviderService()
     denied_structured = _DenyProviderService()
     denied_music = _DenyProviderService()
+    denied_sound_effect = _DenyProviderService()
     output_handler = SideviewRunnerNodeHandler(
         plan.graph,
         plan.resolved,
@@ -1758,6 +1859,7 @@ async def revalidate_runner_provider_cache(
         image_service=cast(Any, denied_image),
         structured_service=cast(Any, denied_structured),
         music_service=cast(Any, denied_music),
+        sound_effect_service=cast(Any, denied_sound_effect),
         capability_timeout_s=config.capability_timeout_s,
     )
     output_summary = await _schedule(
@@ -1769,7 +1871,10 @@ async def revalidate_runner_provider_cache(
     )
     _require_equal(
         "cache-only provider service calls",
-        denied_image.calls + denied_structured.calls + denied_music.calls,
+        denied_image.calls
+        + denied_structured.calls
+        + denied_music.calls
+        + denied_sound_effect.calls,
         0,
     )
     provider_ids = {node.node_id for node in plan.graph.nodes if not node.is_local}

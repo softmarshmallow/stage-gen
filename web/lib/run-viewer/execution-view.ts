@@ -149,6 +149,7 @@ export type ViewArchetype =
   | "structured"
   | "judge"
   | "music"
+  | "sound"
   | "matte"
   | "transform"
   | "validate"
@@ -161,6 +162,7 @@ export const VIEW_ARCHETYPES: readonly ViewArchetype[] = [
   "structured",
   "judge",
   "music",
+  "sound",
   "matte",
   "transform",
   "validate",

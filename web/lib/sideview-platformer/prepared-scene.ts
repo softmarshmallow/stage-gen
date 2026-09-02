@@ -120,6 +120,9 @@ import {
   registerPresentationFallback,
   type PresentationFallbackKind,
 } from "./presentation-fallback";
+import { UI_ATLAS_SHEETS } from "./defeat-panel";
+import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+import { DEFAULT_DIALOGUE_BOX_KNOBS, dialogueBoxLayout } from "./dialogue-box-layout";
 import {
   assertPreparedGameplayManifestClosure,
   parsePreparedGameplayContract,
@@ -175,7 +178,6 @@ const TILE_PX = 64;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
 const NPC_HEIGHT = 150;
-const DIALOGUE_PORTRAIT_HEIGHT = 190;
 const DIALOGUE_PANEL_CENTER_Y = VIEW_H - 128;
 const DIALOGUE_PANEL_HEIGHT = 210;
 const DIALOGUE_CHOICE_KEYCODES = [
@@ -188,8 +190,6 @@ const DIALOGUE_CHOICE_KEYCODES = [
   Phaser.Input.Keyboard.KeyCodes.SEVEN,
   Phaser.Input.Keyboard.KeyCodes.EIGHT,
 ] as const;
-const DIALOGUE_PANEL_BOTTOM_Y =
-  DIALOGUE_PANEL_CENTER_Y + DIALOGUE_PANEL_HEIGHT / 2;
 
 
 type NpcActor = {
@@ -332,10 +332,11 @@ export class PreparedStageScene extends Phaser.Scene {
   private questStates = new Map<string, string>();
   private debugOverlay?: DebugOverlay;
   private mapLabel?: Phaser.GameObjects.Text;
-  private dialoguePanel?: Phaser.GameObjects.Rectangle;
+  private dialoguePanel?: NineSliceWidget;
   private dialogueText?: Phaser.GameObjects.Text;
   private dialogueName?: Phaser.GameObjects.Text;
   private dialoguePortrait?: Phaser.GameObjects.Sprite;
+  private dialoguePortraitHeight = 0;
   private activeScenario?: {
     program: ScenarioProgram;
     state: ScenarioState;
@@ -496,7 +497,7 @@ export class PreparedStageScene extends Phaser.Scene {
       openingSpawn?.normalized_x ?? 0.08,
       false,
     );
-    this.createInterface();
+    this.createInterface(manifest);
     this.children.getByName("loading-label")?.destroy();
     this.ready = true;
     if (typeof window !== "undefined") {
@@ -699,6 +700,20 @@ export class PreparedStageScene extends Phaser.Scene {
       "inventory",
       "inventory_panel",
     );
+    await Promise.all(
+      UI_ATLAS_SHEETS.map(([role, key, kind]) =>
+        this.loadPresentationOrFallback(
+          loadTransparentSprite(
+            this.url(manifest.ui[role].asset.path),
+            key,
+            this.textures,
+            this.transparencyPolicy,
+          ),
+          key,
+          kind,
+        ),
+      ),
+    );
   }
 
   private async loadMapTextures(manifest: PreparedRuntimeManifest): Promise<void> {
@@ -824,6 +839,11 @@ export class PreparedStageScene extends Phaser.Scene {
         "inventory_panel",
         report,
       );
+    }
+    for (const [, key, kind] of UI_ATLAS_SHEETS) {
+      if (!this.textures.exists(key)) {
+        registerPresentationFallback(this.textures, key, kind, report);
+      }
     }
     // Sheet scale is no longer reconstructed from frame bounds here. A whole-frame extent
     // is exactly what cannot separate a short pose from a small drawing, so the producer
@@ -2008,7 +2028,7 @@ export class PreparedStageScene extends Phaser.Scene {
     );
     this.dialoguePortrait?.setTexture(texture, `expression_${Math.max(0, expressionIndex)}`);
     if (this.dialoguePortrait) {
-      scaleSpriteFrameToHeight(this.dialoguePortrait, DIALOGUE_PORTRAIT_HEIGHT);
+      scaleSpriteFrameToHeight(this.dialoguePortrait, this.dialoguePortraitHeight);
     }
     this.dialoguePortrait?.setVisible(true);
   }
@@ -2031,31 +2051,47 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private ensureDialogueUi(): void {
     if (this.dialoguePanel) {
-      this.dialoguePanel.setVisible(true);
+      this.dialoguePanel.image.setVisible(true);
       this.dialogueText?.setVisible(true);
       this.dialogueName?.setVisible(true);
       return;
     }
-    this.dialoguePanel = this.add.rectangle(VIEW_W / 2, DIALOGUE_PANEL_CENTER_Y, VIEW_W - 80, DIALOGUE_PANEL_HEIGHT, 0x182a3a, 0.94).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue);
-    this.dialoguePanel.setStrokeStyle(4, 0xf1d69a, 1);
-    this.dialogueName = this.add.text(300, VIEW_H - 205, "", { fontFamily: "Georgia, serif", fontSize: "25px", color: "#ffe6a9", fontStyle: "bold" }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
-    this.dialogueText = this.add.text(300, VIEW_H - 160, "", { fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#ffffff", wordWrap: { width: 870 }, lineSpacing: 7 }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
-    this.dialoguePortrait = this.add.sprite(175, DIALOGUE_PANEL_BOTTOM_Y, "prepared_player_dialogue", "expression_0").setOrigin(0.5, 1).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
-    scaleSpriteFrameToHeight(this.dialoguePortrait, DIALOGUE_PORTRAIT_HEIGHT);
+    const manifest = this.manifest;
+    if (!manifest) throw new Error("dialogue opened before the manifest loaded");
+    // The conversation box is the package's own panel frame, the same sheet the defeat panel
+    // draws from, so every framed surface in the game shares one generated vocabulary.
+    this.dialoguePanel = new NineSliceWidget({
+      scene: this,
+      sheetKey: "ui_panel_frame",
+      layout: manifest.ui.panel_frame,
+      width: VIEW_W - 80,
+      height: DIALOGUE_PANEL_HEIGHT,
+      x: VIEW_W / 2,
+      y: DIALOGUE_PANEL_CENTER_Y,
+      depth: SCENE_CONTENT_DEPTH.dialogue,
+    });
+    // Name, line, and portrait are placed from the frame's measured safe rect, so a corner cap
+    // that curls inward moves them rather than sitting on top of them.
+    const layout = dialogueBoxLayout(this.dialoguePanel.safeRect(), DEFAULT_DIALOGUE_BOX_KNOBS);
+    this.dialogueName = this.add.text(layout.name.x, layout.name.y, "", { fontFamily: "Georgia, serif", fontSize: "25px", color: "#ffe6a9", fontStyle: "bold" }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    this.dialogueText = this.add.text(layout.text.x, layout.text.y, "", { fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#ffffff", wordWrap: { width: layout.text.wrapWidth }, lineSpacing: 7 }).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    this.dialoguePortrait = this.add.sprite(layout.portrait.centerX, layout.portrait.bottomY, "prepared_player_dialogue", "expression_0").setOrigin(0.5, 1).setScrollFactor(0).setDepth(SCENE_CONTENT_DEPTH.dialogue + 1);
+    this.dialoguePortraitHeight = layout.portrait.height;
+    scaleSpriteFrameToHeight(this.dialoguePortrait, this.dialoguePortraitHeight);
   }
 
   private closeDialogue(): void {
     this.activeScenario = undefined;
     this.lastSpeakerId = null;
-    this.dialoguePanel?.setVisible(false);
+    this.dialoguePanel?.image.setVisible(false);
     this.dialogueText?.setVisible(false);
     this.dialogueName?.setVisible(false);
     this.dialoguePortrait?.setVisible(false);
   }
 
-  private createInterface(): void {
+  private createInterface(manifest: PreparedRuntimeManifest): void {
     this.debugOverlay = new DebugOverlay(this);
-    this.defeatPanel = new DefeatPanel({ scene: this });
+    this.defeatPanel = new DefeatPanel({ scene: this, ui: manifest.ui });
     this.mapLabel = this.add.text(VIEW_W / 2, 20, this.currentMap?.display_name ?? "", { fontFamily: "Georgia, serif", fontSize: "22px", color: "#fff3cc", stroke: "#1a3342", strokeThickness: 5 }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(850);
     this.updateDebugOverlay();
   }

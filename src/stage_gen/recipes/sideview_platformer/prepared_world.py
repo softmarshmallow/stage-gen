@@ -52,6 +52,7 @@ from stage_gen.components.platformer_map.prepared import (
 from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
 from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
+    resolve_layer_placement,
 )
 from stage_gen.components.sideview_layers.pipeline import (
     assemble_loop,
@@ -73,9 +74,7 @@ from stage_gen.media import (
     LoopConstruction,
     RegistrationError,
     SeamConditioning,
-    content_bottom_offset_fraction,
     repack_alpha_components,
-    seal_offset_fraction,
     trim_layer_to_alpha_box,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -1221,53 +1220,17 @@ def _composite_layer_top(
 
 
 def _resolve_layer_placement(layer: PreparedMapLayer, trim: dict[str, object]) -> dict[str, object]:
-    """Resolve one layer's vertical placement from its declared anchor and measured raster.
+    """Resolve one layer's vertical placement through the resolver every recipe shares.
 
-    The author declares intent from a closed vocabulary; the fraction is measured here, because an
-    authored fraction would be a prediction about pixels that did not exist when it was written. An
-    explicit override is honoured, but a bottom-registered override that cannot reach the
-    full-coverage line is rejected against the exact measured minimum rather than silently leaving
-    a gap the runtime would fill with whatever sits behind the layer.
+    The rule used to live here. It moved to the shared layer component when the runner gained
+    the same measured placement, so one anchor name cannot mean two things in two genres; the
+    thin wrapper keeps this recipe's call sites and error prefix unchanged.
     """
 
-    minimum: float | None = None
-    if layer.vertical_anchor == "screen_bottom":
-        # Sealing the frame edge is the one case that needs every column covered: a gap between
-        # content shows whatever sits behind the layer, which at the screen edge is the sky plate.
-        minimum = seal_offset_fraction(trim)
-        if minimum is None:
-            raise ValueError(
-                f"map layer {layer.layer_id} anchors to screen_bottom but no row is spanned by "
-                "every column, so it can never seal"
-            )
-    elif layer.vertical_anchor == "walk_surface":
-        # Meeting the ground is a different question. A midground layer is legitimately sparse —
-        # a village has sky between its buildings — so it registers on the row its content rests
-        # on rather than on a full-coverage row it may not have.
-        minimum = content_bottom_offset_fraction(trim)
-    resolved = minimum if minimum is not None else 0.0
-    source = "measured"
-    if layer.vertical_offset is not None:
-        if minimum is not None and layer.vertical_offset < minimum:
-            raise ValueError(
-                f"map layer {layer.layer_id} declares vertical_offset "
-                f"{layer.vertical_offset} but sealing requires at least {minimum}"
-            )
-        resolved = layer.vertical_offset
-        source = "authored"
-    return {
-        "schema_version": 1,
-        "kind": LAYER_PLACEMENT_CANONICALIZER,
-        "vertical_anchor": layer.vertical_anchor,
-        "vertical_offset": resolved,
-        "vertical_offset_source": source,
-        "minimum_seal_offset": minimum,
-        "source_height": trim["source_height"],
-        "trimmed_height": trim["trimmed_height"],
-        "trimmed_top": trim["trimmed_top"],
-        "trimmed_bottom": trim["trimmed_bottom"],
-        "bounds": trim["bounds"],
-    }
+    try:
+        return resolve_layer_placement(layer, trim)
+    except ValueError as error:
+        raise ValueError(f"map {error}") from error
 
 
 def _canonicalize_x_wrap(

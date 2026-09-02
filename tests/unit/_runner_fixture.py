@@ -19,7 +19,37 @@ from __future__ import annotations
 
 import hashlib
 import shutil
+from io import BytesIO
 from pathlib import Path
+
+from PIL import Image
+
+
+def painted_over_guide(guide: bytes) -> bytes:
+    """Repaint every opaque guide cell, the way an admitted painting must.
+
+    A structural-ground guide's colours are registration, never artwork, so a
+    provider result still wearing them is refused as a painting that went
+    around the guide rather than over it. Fixtures standing in for a provider
+    have to paint, not echo. Banding is horizontal on purpose: a synthetic
+    material should not assert a projection the test is not about.
+    """
+
+    with Image.open(BytesIO(guide)) as opened:
+        painted = opened.convert("RGBA")
+    alpha = painted.getchannel("A").tobytes()
+    body = bytearray(painted.tobytes())
+    for index in range(painted.width * painted.height):
+        if alpha[index] < 128:
+            continue
+        band = 30 + (index // painted.width // 7 % 3) * 9
+        base = index * 4
+        body[base : base + 4] = bytes((18 + band, 96 + band, 120 + band, 255))
+    painted = Image.frombytes("RGBA", painted.size, bytes(body))
+    output = BytesIO()
+    painted.save(output, format="PNG")
+    return output.getvalue()
+
 
 SOURCE_PACKAGE = Path(__file__).resolve().parents[2] / "library" / "games" / "bellweather"
 
@@ -277,8 +307,8 @@ reference_ids = ["cover_style"]
 prompt = "A tiny warm-brass coin with one pressed petal and no text; clean collectible icon."
 """
 
-RUNNER_AUDIO = """schema_version = 1
-kind = "runner-audio-v1"
+RUNNER_AUDIO = """schema_version = 2
+kind = "runner-audio-v2"
 game_id = "bellweather"
 revision = 1
 
@@ -289,6 +319,7 @@ land = "soft_landing"
 slide = "leaf_slide"
 hazard_cleared = "clear_sparkle"
 collect = "token_chime"
+hurt = "soft_landing"
 death = "run_ended"
 
 [[effects]]
@@ -374,12 +405,10 @@ effect_id = "run_ended"
 display_name = "Run Ended"
 
 [effects.realization]
-kind = "oscillator_sweep_v1"
-waveform = "square"
-start_frequency_hz = 220
-end_frequency_hz = 55
-duration_milliseconds = 450
-gain = 0.14
+kind = "generated_clip_v1"
+prompt = "heavy wooden cart toppling onto gravel"
+duration_seconds = 1.0
+gain = 0.5
 strength_pitch_multiplier = 0.0
 """
 
@@ -620,6 +649,7 @@ __all__ = [
     "RUNNER_GAMEPLAY_NO_DUCK",
     "WIDE_FLAT_ROWS",
     "chunk_toml",
+    "painted_over_guide",
     "runner_only_package",
     "runner_props_toml",
     "two_genre_package",

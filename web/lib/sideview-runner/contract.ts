@@ -1,21 +1,20 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v5`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v6`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone. v5
- * retains the proved arc and duck arithmetic, authored audio, and the closed
- * ground presentation, and replaces v4's `collision_policy` with the two
- * separate things it had conflated: `collision_box` is the torso geometry
- * admission proves, while `consequences` says what each way of coming to
- * grief actually costs and `vitals` declares the gauge it is spent from.
+ * is deep-frozen. The runtime plays a track from this document alone. v6
+ * keeps everything v5 proved - the arc and duck arithmetic, the separate
+ * `collision_box` / `consequences` / `vitals` trio, the closed ground
+ * presentation - and lets an authored audio effect be realized as a generated
+ * clip the run published, beside the provider-free oscillator sweep.
  */
 
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v5";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 5;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v6";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 6;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -123,6 +122,12 @@ export interface RunnerLayer {
   readonly alphaMode: "opaque" | "transparent";
   readonly verticalAnchor: "canvas_cover" | "screen_top" | "screen_bottom" | "walk_surface";
   readonly verticalOffset: number | null;
+  /**
+   * Whether the offset was measured from the raster or authored as an override.
+   * The producer resolves every transparent layer's offset from the pixels it
+   * actually received, so an absent source only occurs on the opaque cover.
+   */
+  readonly verticalOffsetSource: "measured" | "authored" | null;
   readonly image: string;
   readonly width: number;
   readonly height: number;
@@ -207,6 +212,7 @@ export const RUNNER_AUDIO_EVENTS = [
   "slide",
   "hazard_cleared",
   "collect",
+  "hurt",
   "death",
 ] as const;
 
@@ -222,10 +228,22 @@ export interface RunnerOscillatorSweep {
   readonly strengthPitchMultiplier: number;
 }
 
+/** A clip the run generated once; the consumer only plays it and mixes it. */
+export interface RunnerGeneratedClip {
+  readonly kind: "generated_clip_v1";
+  /** Run-relative artifact path, always under `audio/`. */
+  readonly clip: string;
+  readonly durationSeconds: number;
+  readonly gain: number;
+  readonly strengthPitchMultiplier: number;
+}
+
+export type RunnerEffectRealization = RunnerOscillatorSweep | RunnerGeneratedClip;
+
 export interface RunnerSoundEffect {
   readonly effectId: string;
   readonly displayName: string;
-  readonly realization: RunnerOscillatorSweep;
+  readonly realization: RunnerEffectRealization;
 }
 
 export interface RunnerAudio {
@@ -446,6 +464,13 @@ function layer(value: unknown, label: string): RunnerLayer {
       "walk_surface",
     ]),
     verticalOffset: offset,
+    verticalOffsetSource:
+      raw.vertical_offset_source === null || raw.vertical_offset_source === undefined
+        ? null
+        : literal(raw.vertical_offset_source, `${label}.vertical_offset_source`, [
+            "measured",
+            "authored",
+          ]),
     image: text(raw.image, `${label}.image`),
     width: boundedInteger(raw.width, `${label}.width`, 1, Number.MAX_SAFE_INTEGER),
     height: boundedInteger(raw.height, `${label}.height`, 1, Number.MAX_SAFE_INTEGER),
@@ -701,6 +726,37 @@ function runnerAudio(value: unknown): RunnerAudio {
   const effects = array(raw.effects, "audio.effects").map((entry, index) => {
     const effect = record(entry, `audio.effects[${index}]`);
     const realization = record(effect.realization, `audio.effects[${index}].realization`);
+    const kind = literal(realization.kind, `audio.effects[${index}].realization.kind`, [
+      "oscillator_sweep_v1",
+      "generated_clip_v1",
+    ]);
+    if (kind === "generated_clip_v1") {
+      const clip = text(realization.clip, `audio.effects[${index}].realization.clip`);
+      if (!/^audio\/[a-z][a-z0-9_]*\.mp3$/.test(clip)) {
+        throw new Error(`audio.effects[${index}].realization.clip must be a run-relative audio/*.mp3`);
+      }
+      const durationSeconds = positive(
+        realization.duration_seconds,
+        `audio.effects[${index}].realization.duration_seconds`,
+      );
+      if (durationSeconds < 0.5 || durationSeconds > 30) {
+        throw new Error(`audio.effects[${index}].realization.duration_seconds is out of range`);
+      }
+      return Object.freeze({
+        effectId: text(effect.effect_id, `audio.effects[${index}].effect_id`),
+        displayName: text(effect.display_name, `audio.effects[${index}].display_name`),
+        realization: Object.freeze({
+          kind,
+          clip,
+          durationSeconds,
+          gain: positiveUnit(realization.gain, `audio.effects[${index}].realization.gain`),
+          strengthPitchMultiplier: finite(
+            realization.strength_pitch_multiplier,
+            `audio.effects[${index}].realization.strength_pitch_multiplier`,
+          ),
+        }),
+      });
+    }
     const startFrequencyHz = positive(
       realization.start_frequency_hz,
       `audio.effects[${index}].realization.start_frequency_hz`,
@@ -719,9 +775,7 @@ function runnerAudio(value: unknown): RunnerAudio {
       effectId: text(effect.effect_id, `audio.effects[${index}].effect_id`),
       displayName: text(effect.display_name, `audio.effects[${index}].display_name`),
       realization: Object.freeze({
-        kind: literal(realization.kind, `audio.effects[${index}].realization.kind`, [
-          "oscillator_sweep_v1",
-        ]),
+        kind,
         waveform: literal(realization.waveform, `audio.effects[${index}].realization.waveform`, [
           "sine",
           "square",

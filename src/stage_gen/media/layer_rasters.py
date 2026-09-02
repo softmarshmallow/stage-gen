@@ -216,3 +216,30 @@ def seal_offset_fraction(record: dict[str, object]) -> float | None:
     if trimmed_height <= 0:
         raise ValueError("layer trim record must carry a positive trimmed height")
     return (trimmed_bottom - coverage) / trimmed_height
+
+
+def top_seal_offset_fraction(record: dict[str, object]) -> float | None:
+    """Fraction of the trimmed height that must sit past a top anchor to leave no gap.
+
+    The mirror of ``seal_offset_fraction``. A layer hung from the screen top has a ragged lower
+    edge by design, but its *upper* edge is ragged too: vine tips and leaf points reach above the
+    bar they hang from, and registering the alpha box's top row puts that sparse fringe against
+    the screen edge with sky showing through it. The seal is the first row every column spans,
+    and the fraction is negative because the sign convention pushes a layer down for positive
+    values — sealing the top means lifting the fringe above the edge. Returns ``None`` when no
+    row is spanned by every column: a vine-only canopy has no bar to seal and is meant to show
+    the sky, so that is an answer rather than a failure.
+    """
+
+    bounds = record["bounds"]
+    if not isinstance(bounds, dict):
+        raise ValueError("layer trim record must carry its measured bounds")
+    coverage_top = bounds.get("full_coverage_top")
+    if coverage_top is None:
+        return None
+    coverage = _require_int(coverage_top, "full_coverage_top")
+    trimmed_height = _require_int(record["trimmed_height"], "trimmed_height")
+    trimmed_top = _require_int(record["trimmed_top"], "trimmed_top")
+    if trimmed_height <= 0:
+        raise ValueError("layer trim record must carry a positive trimmed height")
+    return -(coverage - trimmed_top) / trimmed_height

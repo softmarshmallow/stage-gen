@@ -20,6 +20,7 @@ class CapabilityName(StrEnum):
     NATIVE_IMAGE_GENERATION = "native_image_generation"
     BACKGROUND_REMOVAL = "background_removal"
     MUSIC_GENERATION = "music_generation"
+    SOUND_EFFECT_GENERATION = "sound_effect_generation"
 
 
 class TransparencyMode(StrEnum):
@@ -47,6 +48,7 @@ class StageGenConfig(ContractModel):
     image_model: str = "openai/gpt-image-2"
     text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
+    sound_effect_model: str = "eleven_text_to_sound_v2"
     background_removal_model: str = "fal-ai/birefnet/v2"
     transparency_mode: TransparencyMode = DEFAULT_TRANSPARENCY_MODE
     stage_timeout_ms: int = Field(default=1_800_000, gt=0)
@@ -57,6 +59,7 @@ class StageGenConfig(ContractModel):
         "image_model",
         "text_model",
         "music_model",
+        "sound_effect_model",
         "background_removal_model",
     )
     @classmethod
@@ -110,6 +113,8 @@ def load_config(
         text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.6-sol",
         music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
         or "google/lyria-3-pro-preview",
+        sound_effect_model=_first(values, "STAGE_GEN_SOUND_EFFECT_MODEL", "SOUND_EFFECT_MODEL")
+        or "eleven_text_to_sound_v2",
         background_removal_model=_first(
             values, "STAGE_GEN_BACKGROUND_REMOVAL_MODEL", "BACKGROUND_REMOVAL_MODEL"
         )
@@ -163,6 +168,8 @@ def assert_capabilities(
             missing.append("FAL_KEY")
         if capability is CapabilityName.NATIVE_IMAGE_GENERATION and not config.openai_api_key:
             missing.append("OPENAI_API_KEY")
+        if capability is CapabilityName.SOUND_EFFECT_GENERATION and not config.elevenlabs_api_key:
+            missing.append("ELEVENLABS_API_KEY")
     if missing:
         raise ConfigError(missing)
 

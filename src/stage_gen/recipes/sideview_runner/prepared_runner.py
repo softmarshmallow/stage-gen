@@ -34,6 +34,7 @@ from gnode import (
     NodeTypeRegistry,
     ProvenanceInput,
     SoftwareIdentity,
+    SoundEffectGenerationRequest,
     StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
@@ -94,6 +95,7 @@ from stage_gen.components.sideview_actor.motion_rebase import (
     motion_rebase_verification_prompt,
     parse_motion_rebase,
 )
+from stage_gen.components.sideview_layers.contract import resolve_layer_placement
 from stage_gen.components.sideview_layers.pipeline import (
     assemble_loop,
     construct_deterministic,
@@ -105,9 +107,16 @@ from stage_gen.components.sideview_terrain import (
     assemble_terrain_atlas,
     require_terrain_atlas_source,
 )
+from stage_gen.components.sound_effect import (
+    DURATION_TOLERANCE_SECONDS,
+    GeneratedClipRealization,
+    admit_sound_effect_bytes,
+    admit_sound_effect_bytes_sync,
+)
 from stage_gen.identity import (
     IMAGE_GENERATION_COMPONENT,
     MUSIC_GENERATION_COMPONENT,
+    SOUND_EFFECT_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
 )
@@ -152,6 +161,9 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     MOTION_REBASE_VERIFY,
     PACKAGE_RESOLVE,
     REBASE_READING_KIND,
+    SOUND_EFFECT_CLIP_KIND,
+    SOUND_EFFECT_GENERATE,
+    SOUND_EFFECT_VALIDATE,
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
@@ -180,6 +192,7 @@ if TYPE_CHECKING:
         Node,
         NodeExecutionContext,
         NodeHandler,
+        SoundEffectGenerationService,
         StructuredGenerationService,
     )
     from stage_gen.components.platformer_map import PreparedMapLayer
@@ -316,6 +329,54 @@ def _validate_transparent_sprite(data: bytes) -> dict[str, object]:
         "visible_fraction": round(visible_fraction, 9),
         "transparent_edge_fraction": round(transparent_edge_fraction, 9),
     }
+
+
+def _publish_runner_layer(
+    layer: PreparedMapLayer, looped: bytes
+) -> tuple[bytes, dict[str, object]]:
+    """Trim a looped layer and resolve its placement, once, for the node and its cache mirror.
+
+    Module-level and pure so the live validate node and the byte-exact cache admission cannot
+    drift: they must produce identical records or every cached run becomes a permanent miss. A
+    transparent layer's offset is resolved from the raster it actually received, through the
+    resolver the platformer shares; the opaque cover is placed by its anchor alone.
+    """
+
+    if layer.alpha_mode == "transparent":
+        published, trim = trim_layer_to_alpha_box(looped)
+        placement: dict[str, object] | None = resolve_layer_placement(layer, trim)
+    else:
+        published, trim, placement = looped, {"trimmed": False}, None
+    with Image.open(io.BytesIO(published)) as opened:
+        width, height = opened.size
+    validation: dict[str, object] = {
+        "schema_version": 2,
+        "kind": "sideview-runner-layer-validation-v2",
+        "layer_id": layer.layer_id,
+        "alpha_mode": layer.alpha_mode,
+        "vertical_anchor": layer.vertical_anchor,
+        "width": width,
+        "height": height,
+        "trim": trim,
+        "placement": placement,
+    }
+    return published, validation
+
+
+def _published_layer_offset(validation: dict[str, object]) -> float | None:
+    """The producer-resolved offset, or None for the opaque cover that has no placement."""
+
+    placement = validation.get("placement")
+    if not isinstance(placement, dict):
+        return None
+    return cast("float", placement["vertical_offset"])
+
+
+def _published_layer_offset_source(validation: dict[str, object]) -> str | None:
+    placement = validation.get("placement")
+    if not isinstance(placement, dict):
+        return None
+    return cast("str", placement["vertical_offset_source"])
 
 
 def _validate_layer_candidate(data: bytes, *, transparent: bool) -> dict[str, object]:
@@ -526,19 +587,35 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
 
 
 def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
-    """Project the authored event/effect closure without consumer defaults."""
+    """Project the authored event/effect closure without consumer defaults.
 
-    return {
-        "bindings": audio.bindings.model_dump(mode="json"),
-        "effects": [
+    A generated clip publishes what the consumer plays - the artifact path,
+    its duration, and the playback mixing - and not what bought it: the
+    prompt and influence live in the artifact's provenance sidecar.
+    """
+
+    effects: list[dict[str, object]] = []
+    for effect in audio.effects:
+        realization = effect.realization
+        projected: dict[str, object]
+        if isinstance(realization, GeneratedClipRealization):
+            projected = {
+                "kind": realization.kind,
+                "clip": f"audio/{effect.effect_id}.mp3",
+                "duration_seconds": realization.duration_seconds,
+                "gain": realization.gain,
+                "strength_pitch_multiplier": realization.strength_pitch_multiplier,
+            }
+        else:
+            projected = realization.model_dump(mode="json")
+        effects.append(
             {
                 "effect_id": effect.effect_id,
                 "display_name": effect.display_name,
-                "realization": effect.realization.model_dump(mode="json"),
+                "realization": projected,
             }
-            for effect in audio.effects
-        ],
-    }
+        )
+    return {"bindings": audio.bindings.model_dump(mode="json"), "effects": effects}
 
 
 def manifest_ground(track: RunnerTrack) -> dict[str, object]:
@@ -608,6 +685,7 @@ class SideviewRunnerNodeHandler:
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[Any],
         music_service: MusicGenerationService | None = None,
+        sound_effect_service: SoundEffectGenerationService | None = None,
         capability_timeout_s: float | None = None,
     ) -> None:
         self._graph = graph
@@ -618,6 +696,7 @@ class SideviewRunnerNodeHandler:
         self._images = image_service
         self._structured = structured_service
         self._music = music_service
+        self._sound_effects = sound_effect_service
         self._timeout = capability_timeout_s
         self._cache = NodeArtifactCache(
             graph,
@@ -1048,6 +1127,11 @@ class SideviewRunnerNodeHandler:
                     occupancy=chunk.occupancy,
                     walk_surface_row=self._track().segments.walk_surface_row,
                     guide=guide,
+                    material_identity=self._structural_material_identity(),
+                    material_references=[
+                        data for _source, data in self._structural_material_inputs()
+                    ],
+                    projection=self._structural_projection(),
                 ),
             )
         if node.type_id == LAYER_GENERATE.type_id:
@@ -1165,6 +1249,30 @@ class SideviewRunnerNodeHandler:
                 "seamless_loop": track.generation.seamless_loop,
             },
             validate=lambda artifact: validate_music_payload(artifact.data),
+        )
+
+    def _generated_clip(self, node: Node) -> tuple[str, GeneratedClipRealization]:
+        effect = self._runner.audio.effect(str(node.params["effect_id"]))
+        realization = effect.realization
+        if not isinstance(realization, GeneratedClipRealization):
+            raise ValueError(f"runner effect {effect.effect_id} is not a generated clip")
+        return effect.effect_id, realization
+
+    def _sound_effect_request(self, node: Node) -> SoundEffectGenerationRequest:
+        effect_id, realization = self._generated_clip(node)
+        return SoundEffectGenerationRequest(
+            prompt=self._provider_prompt(node),
+            artifact_path=self._run_dir / node.port("audio").artifact_ref,
+            duration_seconds=realization.duration_seconds,
+            prompt_influence=realization.prompt_influence,
+            loop=False,
+            output_format="mp3",
+            timeout_seconds=120,
+            metadata={
+                "effect_id": effect_id,
+                "duration_seconds": realization.duration_seconds,
+            },
+            validate=lambda artifact: admit_sound_effect_bytes(artifact.data),
         )
 
     @staticmethod
@@ -1345,6 +1453,43 @@ class SideviewRunnerNodeHandler:
                 if music_request.rights is None
                 else music_request.rights.model_dump(mode="json")
             )
+        elif node.operation == RunnerOperationKind.SOUND_EFFECT_GENERATION:
+            sound_request = self._sound_effect_request(node)
+            refs, inputs = [], []
+            params = {
+                "output_format": sound_request.output_format,
+                "loop": sound_request.loop,
+                "validated": sound_request.validate is not None,
+            }
+            if sound_request.duration_seconds is not None:
+                params["duration_seconds"] = sound_request.duration_seconds
+            if sound_request.prompt_influence is not None:
+                params["prompt_influence"] = sound_request.prompt_influence
+            if sound_request.metadata:
+                params["metadata"] = dict(sound_request.metadata)
+            # The live validator decodes asynchronously; the cache path must
+            # restate the same facts synchronously, so it measures again here.
+            caller = admit_sound_effect_bytes_sync(artifact_data)
+            response_shape = (
+                None if provider_response is None else provider_response.get("source_shape")
+            )
+            if response_shape != "binary":
+                raise ValueError("sound effect provenance has no valid provider response shape")
+            validation = {
+                "output_nonempty": True,
+                "media_type": "audio/mpeg",
+                "signature": "matched",
+                "source_shape": response_shape,
+                "caller": True,
+                **caller,
+            }
+            component = SOUND_EFFECT_GENERATION_COMPONENT
+            seed = None
+            rights = (
+                None
+                if sound_request.rights is None
+                else sound_request.rights.model_dump(mode="json")
+            )
         else:
             raise ValueError(f"node {node.node_id} is not provider-backed")
 
@@ -1382,6 +1527,9 @@ class SideviewRunnerNodeHandler:
                 occupancy=chunk.occupancy,
                 walk_surface_row=self._track().segments.walk_surface_row,
                 guide=(self._run_dir / guide_ref).read_bytes(),
+                material_identity=self._structural_material_identity(),
+                material_references=[data for _source, data in self._structural_material_inputs()],
+                projection=self._structural_projection(),
             )
             return
         if node.type_id == LAYER_GENERATE.type_id:
@@ -1414,6 +1562,10 @@ class SideviewRunnerNodeHandler:
             return
         if node.type_id == SOUNDTRACK_GENERATE.type_id:
             validate_music_payload(data)
+            return
+        if node.type_id == SOUND_EFFECT_GENERATE.type_id:
+            assert_audio_signature(data, "audio/mpeg")
+            admit_sound_effect_bytes_sync(data)
             return
         raise ValueError(f"runner cache has no provider admission for {node.type_id}")
 
@@ -1781,22 +1933,7 @@ class SideviewRunnerNodeHandler:
             layer = self._layer(node)
             source_ref = self._dependency_artifact(node, kind=LAYER_LOOP_KIND)
             looped = (self._run_dir / source_ref).read_bytes()
-            if layer.alpha_mode == "transparent":
-                published, trim = trim_layer_to_alpha_box(looped)
-            else:
-                published, trim = looped, {"trimmed": False}
-            with Image.open(io.BytesIO(published)) as opened:
-                width, height = opened.size
-            validation = {
-                "schema_version": 1,
-                "kind": "sideview-runner-layer-validation-v1",
-                "layer_id": layer.layer_id,
-                "alpha_mode": layer.alpha_mode,
-                "vertical_anchor": layer.vertical_anchor,
-                "width": width,
-                "height": height,
-                "trim": trim,
-            }
+            published, validation = _publish_runner_layer(layer, looped)
             self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
             return
         if node.type_id == AVATAR_MOTION_VALIDATE.type_id:
@@ -1849,9 +1986,13 @@ class SideviewRunnerNodeHandler:
             }
             self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
             return
-        if node.type_id in {SOUNDTRACK_VALIDATE.type_id, MANIFEST_ASSEMBLE.type_id}:
-            # These are cheap local publication gates. Soundtrack validation
-            # needs an actual ffprobe and manifest assembly closes over every
+        if node.type_id in {
+            SOUNDTRACK_VALIDATE.type_id,
+            SOUND_EFFECT_VALIDATE.type_id,
+            MANIFEST_ASSEMBLE.type_id,
+        }:
+            # These are cheap local publication gates. Audio validation needs
+            # an actual ffprobe and manifest assembly closes over every
             # admitted output, so rerun them instead of trusting a serialized
             # verdict that cannot be decisively checked in this synchronous
             # cache callback.
@@ -1906,6 +2047,8 @@ class SideviewRunnerNodeHandler:
         registry.register(CATALOG_ASSET_VALIDATE, self._bind(self._validate_catalog))
         registry.register(SOUNDTRACK_GENERATE, self._bind(self._generate_track))
         registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
+        registry.register(SOUND_EFFECT_GENERATE, self._bind(self._generate_sound_effect))
+        registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
         registry.register(MANIFEST_ASSEMBLE, self._bind(self._assemble_manifest))
         return registry
 
@@ -1982,7 +2125,10 @@ class SideviewRunnerNodeHandler:
                 if any(port.port_id == "verification" for port in node.ports)
                 else "reading"
             )
-        elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
+        elif node.operation in {
+            RunnerOperationKind.MUSIC_GENERATION,
+            RunnerOperationKind.SOUND_EFFECT_GENERATION,
+        }:
             preferred = "audio"
         else:
             raise ValueError(f"node {node.node_id} is not a provider operation")
@@ -2089,6 +2235,9 @@ class SideviewRunnerNodeHandler:
                 generation=track.generation,
                 direction=soundtrack_direction(),
             )
+        if node.type_id == SOUND_EFFECT_GENERATE.type_id:
+            # Verbatim: the authored text is the entire prompt.
+            return self._generated_clip(node)[1].prompt
         raise ValueError(f"provider node {node.node_id} carries no executable prompt")
 
     def _authored_references(self, node: Node) -> tuple[ImageReference, ...]:
@@ -2153,7 +2302,13 @@ class SideviewRunnerNodeHandler:
             prompt=ground.prompt,
             visual_direction_sha256=visual_direction_digest(self._resolved),
             reference_sha256=[content_sha256(data) for _source, data in inputs],
+            projection=ground.projection_mode(),
         )
+
+    def _structural_projection(self) -> str:
+        """The declared ground projection, or the default an absent block means."""
+
+        return self._structural_ground().projection_mode()
 
     # ------------------------------------------------------------------- nodes
 
@@ -2436,22 +2591,7 @@ class SideviewRunnerNodeHandler:
         layer = self._layer(node)
         source_ref = self._dependency_artifact(node, kind=LAYER_LOOP_KIND)
         looped = (self._run_dir / source_ref).read_bytes()
-        if layer.alpha_mode == "transparent":
-            published, trim = trim_layer_to_alpha_box(looped)
-        else:
-            published, trim = looped, {"trimmed": False}
-        with Image.open(io.BytesIO(published)) as opened:
-            width, height = opened.size
-        validation = {
-            "schema_version": 1,
-            "kind": "sideview-runner-layer-validation-v1",
-            "layer_id": layer.layer_id,
-            "alpha_mode": layer.alpha_mode,
-            "vertical_anchor": layer.vertical_anchor,
-            "width": width,
-            "height": height,
-            "trim": trim,
-        }
+        published, validation = _publish_runner_layer(layer, looped)
         await _write_local_image(
             self._run_dir / node.port("image").artifact_ref,
             published,
@@ -2735,6 +2875,45 @@ class SideviewRunnerNodeHandler:
         )
         return self._result(node)
 
+    # ----------------------------------------------------------- sound effects
+
+    async def _generate_sound_effect(self, node: Node) -> NodeExecutionResult:
+        service = self._sound_effects
+        if service is None:
+            raise ValueError("runner sound-effect execution requires a sound effect service")
+        request = self._sound_effect_request(node)
+        result = await self._execute_provider_operation(node, lambda: service.generate(request))
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _validate_sound_effect(self, node: Node) -> NodeExecutionResult:
+        effect_id, realization = self._generated_clip(node)
+        source = self._run_dir / self._dependency_artifact(node, kind=SOUND_EFFECT_CLIP_KIND)
+        probe = await probe_audio(source, timeout_seconds=120)
+        delta = probe.duration_seconds - realization.duration_seconds
+        if abs(delta) > DURATION_TOLERANCE_SECONDS:
+            raise ValueError(
+                f"generated clip {effect_id} runs {probe.duration_seconds:.3f}s against an "
+                f"authored {realization.duration_seconds:.3f}s"
+            )
+        level = await admit_sound_effect_bytes(source.read_bytes())
+        atomic_write_json(
+            self._run_dir / node.port("validation").artifact_ref,
+            {
+                "schema_version": 1,
+                "kind": "sideview-runner-sound-effect-validation-v1",
+                "effect_id": effect_id,
+                "format_name": probe.format_name,
+                "duration_seconds": round(probe.duration_seconds, 3),
+                "authored_duration_seconds": realization.duration_seconds,
+                "duration_delta_seconds": round(delta, 3),
+                "peak_dbfs": level["peak_dbfs"],
+                "clipped": level["clipped"],
+                "container_valid": True,
+                "listening_verdict": "not_performed",
+            },
+        )
+        return self._result(node)
+
     # ---------------------------------------------------------------- manifest
 
     async def _assemble_manifest(self, node: Node) -> NodeExecutionResult:
@@ -2846,7 +3025,8 @@ class SideviewRunnerNodeHandler:
                     "parallax": layer.parallax,
                     "alpha_mode": layer.alpha_mode,
                     "vertical_anchor": layer.vertical_anchor,
-                    "vertical_offset": layer.vertical_offset,
+                    "vertical_offset": _published_layer_offset(validation),
+                    "vertical_offset_source": _published_layer_offset_source(validation),
                     "image": f"world/layers/{layer.layer_id}.png",
                     "width": validation["width"],
                     "height": validation["height"],
@@ -2924,7 +3104,7 @@ class SideviewRunnerNodeHandler:
             ground_manifest = manifest_ground(track)
 
         manifest = {
-            "schema_version": 5,
+            "schema_version": 6,
             "kind": MANIFEST_KIND,
             "game_id": self._package.game.game_id,
             "display_name": self._package.game.display_name,

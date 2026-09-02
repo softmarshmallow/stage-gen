@@ -7,6 +7,7 @@ from stage_gen.orchestration.runtime import (
     create_image_service,
     create_music_service,
     create_openai_image_service,
+    create_sound_effect_service,
     create_structured_service,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "create_headless_runtime",
     "create_image_service",
     "create_music_service",
+    "create_sound_effect_service",
     "create_openai_image_service",
     "create_structured_service",
 ]

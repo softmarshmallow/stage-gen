@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from stage_gen.components.game_ui import ATLAS_ROLES, atlas_role_contract, validate_atlas_image
 from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
 from stage_gen.recipes.sideview_platformer.prepared_manifest import (
     PREPARED_RUNTIME_MANIFEST_KIND,
@@ -19,6 +20,7 @@ from stage_gen.recipes.sideview_platformer.prepared_manifest import (
     runtime_artifact_paths,
     verify_prepared_runtime,
 )
+from tests.unit._ui_atlas_fixture import atlas_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
@@ -114,6 +116,14 @@ def _write_artifact(root: Path, relative_path: str, *, color: int = 40) -> None:
                     ],
                 }
             ),
+            encoding="utf-8",
+        )
+        return
+    if relative_path.startswith("ui/") and relative_path.endswith(".validation.json"):
+        role = ATLAS_ROLES[relative_path[len("ui/") : -len(".validation.json")]]
+        facts = validate_atlas_image(atlas_sheet(role), role)
+        target.write_text(
+            json.dumps({"schema_version": 1, "kind": "x", **atlas_role_contract(facts)}),
             encoding="utf-8",
         )
         return
@@ -316,6 +326,16 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
     assert ui["inventory_panel"]["layout"] == "inventory_grid_4x2_v1"
     assert ui["inventory_panel"]["alpha_policy"] == ("transparent_exterior_opaque_panel_v1")
     assert len(ui["inventory_panel"]["slots"]) == 8
+    for role, cells in (("panel_frame", 1), ("button_rect", 4)):
+        atlas = ui[role]
+        assert atlas["role"] == role
+        assert atlas["scale_mode"] == "nine_slice"
+        assert atlas["alpha_policy"] == "transparent_exterior_opaque_body_v1"
+        assert atlas["band_fill"] == "stretch"
+        assert len(atlas["cells"]) == cells
+        assert set(atlas["insets"]) == {"left", "top", "right", "bottom"}
+        assert atlas["asset"]["path"] == f"ui/{role}.png"
+        assert "facts" not in atlas
     corrected = output / corrected_path
     assert (
         hashlib.sha256(corrected.read_bytes()).hexdigest()

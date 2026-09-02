@@ -187,7 +187,7 @@ describe("verdictPort", () => {
 
 describe("isPrompted", () => {
   test("only the archetypes a prompt actually defines", () => {
-    const prompted: readonly ViewArchetype[] = ["image", "matte", "music", "structured", "judge"];
+    const prompted: readonly ViewArchetype[] = ["image", "matte", "music", "sound", "structured", "judge"];
     const local: readonly ViewArchetype[] = [
       "source",
       "transform",

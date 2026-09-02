@@ -50,6 +50,17 @@ class HeadlessRuntime(Protocol):
         metadata: Mapping[str, object] | None = None,
     ) -> CapabilityArtifactResult: ...
 
+    async def generate_sound_effect(
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        duration_seconds: float,
+        prompt_influence: float | None = None,
+        loop: bool = False,
+        metadata: Mapping[str, object] | None = None,
+    ) -> CapabilityArtifactResult: ...
+
 
 async def generate_image_artifact(
     *,
@@ -128,6 +139,41 @@ async def generate_music(
             prompt=prompt,
             output_path=output_path,
             output_format=output_format,
+            metadata=metadata,
+        )
+    finally:
+        if owned is not None:
+            await owned.aclose()
+
+
+async def generate_sound_effect(
+    *,
+    prompt: str,
+    output_path: str,
+    duration_seconds: float,
+    config: StageGenConfig,
+    prompt_influence: float | None = None,
+    loop: bool = False,
+    runtime: HeadlessRuntime | None = None,
+    metadata: Mapping[str, object] | None = None,
+) -> CapabilityArtifactResult:
+    assert_capabilities(config, ("sound_effect_generation",))
+    if not output_path.lower().endswith(".mp3"):
+        raise ValueError("generate-sound-effect output must use a .mp3 extension")
+    owned = None
+    if runtime is None:
+        from stage_gen.orchestration.runtime import create_headless_runtime
+
+        owned = create_headless_runtime(config)
+    active = runtime or owned
+    assert active is not None
+    try:
+        return await active.generate_sound_effect(
+            prompt=prompt,
+            output_path=output_path,
+            duration_seconds=duration_seconds,
+            prompt_influence=prompt_influence,
+            loop=loop,
             metadata=metadata,
         )
     finally:

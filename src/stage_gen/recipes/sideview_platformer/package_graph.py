@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, Port, PortRef
+from stage_gen.components.game_ui import BUTTON_RECT, PANEL_FRAME, AtlasRole
 from stage_gen.components.platformer_content import (
     DEFAULT_MOTION_ANCHOR,
     ContentReference,
@@ -78,6 +79,9 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_VALIDATE,
     STRUCTURED_FEATURES,
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
     UI_INVENTORY_GENERATE,
     UI_INVENTORY_REVIEW,
     UI_INVENTORY_VALIDATE,
@@ -114,6 +118,11 @@ CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
 UI_INVENTORY_PANEL_CONTRACT_VERSION = "prepared-ui-inventory-panel-v2"
 UI_INVENTORY_PANEL_REVIEW_VERSION = "prepared-ui-inventory-panel-review-v1"
+UI_ATLAS_CONTRACT_VERSION = "prepared-ui-atlas-v1"
+#: The validate node's own identity, so a richer record (a new measured fact) can re-run the
+#: local gate over cached sheets without re-billing the image whose key is the contract above.
+UI_ATLAS_VALIDATION_VERSION = "prepared-ui-atlas-validation-v2"
+UI_ATLAS_REVIEW_VERSION = "prepared-ui-atlas-review-v1"
 MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
 MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
@@ -205,7 +214,7 @@ def build_package_execution_graph(
     projectiles = _add_projectile_nodes(builder, package_root)
     if projectiles is not None:
         terminal_nodes.append(projectiles)
-    terminal_nodes.append(_add_ui_nodes(builder, package_root))
+    terminal_nodes.extend(_add_ui_nodes(builder, package_root))
     terminal_nodes.extend(_add_soundtrack_nodes(builder, package_root))
 
     binding = builder.add(
@@ -1327,7 +1336,83 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
     return terminals
 
 
-def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> str:
+def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
+    terminals = [_add_inventory_panel_nodes(builder, package_root)]
+    for role in (PANEL_FRAME, BUTTON_RECT):
+        terminals.append(_add_ui_atlas_nodes(builder, package_root, role))
+    return terminals
+
+
+def _add_ui_atlas_nodes(builder: _GraphBuilder, package_root: str, role: AtlasRole) -> str:
+    """One generic nine-slice triplet, fanned out over the role as a parameter.
+
+    The template is rendered from the role's geometry record at run time, so the record is
+    what the cache key hashes: a rasterizer change that draws the same guides differently
+    must not re-bill the image, and a geometry change must.
+    """
+
+    direction = getattr(builder.package.ui, role.role)
+    references = {entry.reference_id: entry for entry in builder.package.ui.references}
+    direction_digest = _object_sha256(direction.model_dump(mode="json"))
+    geometry_digest = _object_sha256(role.geometry_record())
+    generated = builder.add(
+        UI_ATLAS_GENERATE,
+        f"ui-{role.role}-generate",
+        domain="ui",
+        description=f"generate the authored {role.role} nine-slice atlas",
+        depends_on=(package_root,),
+        cache_depends_on=(),
+        params={"role": role.role},
+        input_digests=(
+            _visual_direction_digest(builder.package),
+            _object_sha256({"contract": UI_ATLAS_CONTRACT_VERSION}),
+            direction_digest,
+            *(references[reference_id].source_sha256 for reference_id in direction.reference_ids),
+            geometry_digest,
+        ),
+        ports=(_artifact("image", f"ui/{role.role}.raw.png", "ui-atlas-raw-v1"),),
+        card=NodeCard(template_ref=f"{role.layout}_template"),
+    )
+    validated = builder.add(
+        UI_ATLAS_VALIDATE,
+        f"ui-{role.role}-validate",
+        domain="ui",
+        description="detect bodies, admit a band fill, and normalize the alpha boundary",
+        depends_on=(generated.node_id,),
+        params={"role": role.role},
+        input_digests=(
+            _object_sha256({"contract": UI_ATLAS_VALIDATION_VERSION}),
+            direction_digest,
+            geometry_digest,
+        ),
+        ports=(
+            _artifact("image", f"ui/{role.role}.png", "ui-atlas-v1"),
+            _record("validation", f"ui/{role.role}.validation.json", "ui-atlas-validation-v1"),
+            _artifact("evidence", f"ui/{role.role}.evidence.png", "ui-atlas-evidence-v1"),
+        ),
+        card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
+        duration_seconds=1.5,
+    )
+    return builder.add(
+        UI_ATLAS_REVIEW,
+        f"ui-{role.role}-review",
+        domain="ui",
+        description=f"review {role.role} style, ornament placement, and state order",
+        depends_on=(validated.node_id,),
+        params={"role": role.role},
+        input_digests=(
+            _object_sha256({"contract": UI_ATLAS_REVIEW_VERSION}),
+            direction_digest,
+        ),
+        ports=(_artifact("verdict", f"ui/{role.role}.review.json", "review-verdict-v1"),),
+        card=NodeCard(
+            schema_name="prepared_ui_atlas_review",
+            reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
+        ),
+    ).node_id
+
+
+def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str:
     panel = builder.package.ui.inventory_panel
     references = {entry.reference_id: entry for entry in builder.package.ui.references}
     generated = builder.add(

@@ -31,14 +31,21 @@ OpenRouter; `ai` additionally requires `FAL_KEY`, while `chroma` keys locally.
 Missing credentials or failed native alpha never cause an automatic strategy
 change.
 
-`ELEVENLABS_API_KEY` is loaded but not yet consumed by any node. It exists so a
-scoped sound-effect spike can authenticate against ElevenLabs before any
-adapter, binding-table route, or recipe node depends on it. No capability
-requires it, so `doctor` reports it without gating readiness on it. Binding it
-to a route means declaring that route in the binding table and documenting the
-operation here in the same change. The measured model boundary — what this
-route can and cannot be asked for — is recorded in
-[spec/model-eleven-text-to-sound-v2.md](spec/model-eleven-text-to-sound-v2.md).
+`ELEVENLABS_API_KEY` authenticates the `sound_effect_generation` operation:
+`POST https://api.elevenlabs.io/v1/sound-generation` with the `xi-api-key`
+header, model `eleven_text_to_sound_v2` (`STAGE_GEN_SOUND_EFFECT_MODEL`),
+verified against the published reference on 2026-09-02. The runner binding
+table declares it against `elevenlabs` with the `exact_duration` feature and
+the `elevenlabs-sound-effect` resource; the adapter is
+`gnode.providers.elevenlabs`. The capability `sound_effect_generation` requires
+the key, and a runner package that realizes any effect as a generated clip is
+refused before spend without it; a package with only oscillator effects needs
+nothing from this provider, so `doctor` reports the key without gating overall
+readiness on it. The route bills in characters and reports the charge in a
+`character-cost` header, recorded as `usage.character_cost` in provenance. The
+measured model boundary — what this route can and cannot be asked for — is
+recorded in [spec/model-eleven-text-to-sound-v2.md](spec/model-eleven-text-to-sound-v2.md);
+the authoring contract that consumes it is [game-sound-effects.md](game-sound-effects.md).
 
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.

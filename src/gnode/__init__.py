@@ -117,6 +117,14 @@ from gnode.modalities.signatures import (
     normalize_audio_media_type,
     normalize_media_type,
 )
+from gnode.modalities.sound_effect import (
+    ProviderSoundEffect,
+    SoundEffectGenerationRequest,
+    SoundEffectGenerationResult,
+    SoundEffectGenerationService,
+    SoundEffectModelV1,
+    SoundEffectOutputFormat,
+)
 from gnode.modalities.structured import (
     ProviderStructuredOutput,
     StructuredGenerationRequest,
@@ -331,6 +339,7 @@ __all__ = [
     "ProviderImage",
     "ProviderMusic",
     "ProviderResponseMetadata",
+    "ProviderSoundEffect",
     "ProviderStructuredOutput",
     "record_artifact_rights",
     "record_artifact_rights_async",
@@ -363,6 +372,11 @@ __all__ = [
     "sha256_hex",
     "SHA256_PATTERN",
     "SoftwareIdentity",
+    "SoundEffectGenerationRequest",
+    "SoundEffectGenerationResult",
+    "SoundEffectGenerationService",
+    "SoundEffectModelV1",
+    "SoundEffectOutputFormat",
     "StructuredGenerationRequest",
     "StructuredGenerationResult",
     "StructuredGenerationService",

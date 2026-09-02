@@ -9,6 +9,7 @@ from stage_gen.media import (
     LayerRasterBoundsContract,
     measure_layer_raster_bounds,
     seal_offset_fraction,
+    top_seal_offset_fraction,
     trim_layer_to_alpha_box,
 )
 
@@ -116,3 +117,43 @@ def test_fully_transparent_raster_is_rejected() -> None:
 def test_opaque_threshold_must_exceed_the_meaningful_alpha_threshold() -> None:
     with pytest.raises(ValueError, match="must exceed"):
         LayerRasterBoundsContract(alpha_threshold=240, opaque_threshold=240)
+
+
+def _hanging_canopy() -> Image.Image:
+    """A strip hung from the top whose upper edge is ragged, like vine tips above a pipe."""
+
+    source = Image.new("RGBA", (40, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    # Tips that reach higher in only some columns.
+    for x in range(0, 40, 8):
+        draw.rectangle((x, 10, x + 3, 19), fill=(40, 120, 60, 255))
+    # The bar every column spans, then foliage hanging below it.
+    draw.rectangle((0, 20, 39, 39), fill=(40, 120, 60, 255))
+    for x in range(4, 40, 8):
+        draw.rectangle((x, 40, x + 3, 69), fill=(40, 120, 60, 255))
+    return source
+
+
+def test_top_seal_offset_lifts_the_fringe_above_the_edge() -> None:
+    _trimmed, record = trim_layer_to_alpha_box(_png(_hanging_canopy()))
+
+    # Trimmed rows 10..69; the bar begins at 20, so ten of sixty rows must sit above the edge.
+    assert top_seal_offset_fraction(record) == pytest.approx(-10 / 60)
+
+
+def test_a_bar_that_reaches_the_alpha_box_top_needs_no_lift() -> None:
+    bar = Image.new("RGBA", (40, 100), (0, 0, 0, 0))
+    ImageDraw.Draw(bar).rectangle((0, 20, 39, 39), fill=(40, 120, 60, 255))
+
+    _trimmed, record = trim_layer_to_alpha_box(_png(bar))
+
+    assert top_seal_offset_fraction(record) == 0.0
+
+
+def test_a_fringe_with_no_bar_reports_no_seal_rather_than_failing() -> None:
+    source = Image.new("RGBA", (40, 100), (0, 0, 0, 0))
+    ImageDraw.Draw(source).rectangle((0, 20, 19, 39), fill=(40, 120, 60, 255))
+
+    _trimmed, record = trim_layer_to_alpha_box(_png(source))
+
+    assert top_seal_offset_fraction(record) is None

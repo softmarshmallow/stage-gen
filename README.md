@@ -86,7 +86,7 @@ only an admitted, explicitly selected graph can spend.
 
 A live runner call is single-shot, requires provider credentials, and may spend money; omitting
 `--dry-run` intentionally executes the selected runner graph and assembles one immutable
-`sideview-runner-runtime-v5` run. The platformer recipe remains checkpointed:
+`sideview-runner-runtime-v6` run. The platformer recipe remains checkpointed:
 `--checkpoint world` and `--checkpoint content` execute paid dependency closures, while
 `--checkpoint integration` is provider-free and assembles `prepared-game-runtime-v10` over
 accepted `--artifact-root` directories.
@@ -354,7 +354,7 @@ bun run dev
 ```
 
 `ffmpeg` and `ffprobe` must be on `PATH` for generated-music normalization and
-inspection. Verify the optional adapter with:
+inspection, and for generated sound-effect level admission. Verify the optional adapter with:
 
 ```sh
 cd web
@@ -365,7 +365,7 @@ bun run build --webpack
 
 `web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
 package, `/packages/<tag>` projects that manifest's closure, `/runner/<tag>` plays a
-published `sideview-runner-runtime-v5` run, `/room/<tag>` replays one published
+published `sideview-runner-runtime-v6` run, `/room/<tag>` replays one published
 `pointclick-room-runtime-v2` room, and `/runs` renders exported run views. Browser
 code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.

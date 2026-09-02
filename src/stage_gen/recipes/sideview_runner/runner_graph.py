@@ -10,6 +10,7 @@ the whole generative graph on purpose.
 from __future__ import annotations
 
 import hashlib
+import json
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, Literal
 
@@ -47,6 +48,7 @@ from stage_gen.components.sideview_actor.motion_rebase import (
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
 )
+from stage_gen.components.sound_effect import GeneratedClipRealization
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
@@ -94,6 +96,11 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     REBASE_READING_KIND,
     REBASE_VERIFICATION_KIND,
     REFERENCE_KIND,
+    SOUND_EFFECT_CLIP_KIND,
+    SOUND_EFFECT_FEATURES,
+    SOUND_EFFECT_GENERATE,
+    SOUND_EFFECT_VALIDATE,
+    SOUND_EFFECT_VALIDATION_KIND,
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
@@ -127,6 +134,8 @@ RUNNER_GRAPH_SCHEMA_VERSION = 1
 RUNNER_TRACE_SCHEMA_VERSION = 1
 RUNNER_CACHE_NAMESPACE = "sideview-runner-nodes-v1"
 RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
+#: The generate node's identity contract: bump when what a clip request means changes.
+SOUND_EFFECT_CONTRACT_VERSION = "runner-sound-effect-v1"
 
 #: The one canonical motion-state order: deterministic node ids and plate bands.
 #: Re-exported from the contract component so the vocabulary that validates,
@@ -141,6 +150,7 @@ class RunnerOperationKind(StrEnum):
     IMAGE_GENERATION = "image_generation"
     STRUCTURED_GENERATION = "structured_generation"
     MUSIC_GENERATION = "music_generation"
+    SOUND_EFFECT_GENERATION = "sound_effect_generation"
 
 
 class SideviewRunnerGraph(Graph):
@@ -216,6 +226,18 @@ def runner_graph_profile(config: StageGenConfig) -> BindingTable:
                 estimated_cost_high_usd=0.50,
                 verified_on="2026-08-20",
             ),
+            # Measured in the sound-effect spike: about two seconds of wall
+            # clock per call and roughly eleven credits per generated second.
+            Binding(
+                operation=RunnerOperationKind.SOUND_EFFECT_GENERATION,
+                model=ModelRef(model=config.sound_effect_model, provider="elevenlabs"),
+                features=frozenset(SOUND_EFFECT_FEATURES),
+                resource_id="elevenlabs-sound-effect",
+                estimated_duration_seconds=10.0,
+                estimated_cost_low_usd=0.001,
+                estimated_cost_high_usd=0.10,
+                verified_on="2026-09-02",
+            ),
         ]
     )
 
@@ -236,6 +258,10 @@ def _attempts(node_id: str) -> Port:
 
 def _text_digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _object_sha256(value: object) -> str:
+    return _text_digest(json.dumps(value, sort_keys=True, separators=(",", ":")))
 
 
 def effective_loop_construction(resolved: ResolvedRunnerPackage, layer_id: str) -> LoopConstruction:
@@ -296,6 +322,7 @@ def build_runner_execution_graph(
             prompt=track.ground.prompt,
             visual_direction_sha256=direction_digest,
             reference_sha256=[entry.sha256 for entry in ground_references],
+            projection=track.ground.projection_mode(),
         )
         with builder.within_template("structural-ground-segment-pipeline@v2"):
             structural_sources: list[tuple[RunnerSegmentChunk, str, str, str]] = []
@@ -826,6 +853,58 @@ def build_runner_execution_graph(
                 )
                 soundtrack_validations.append(validated.node_id)
 
+    # ------------------------------------------------------------ sound effects
+    # The prompt is the authored text, verbatim: the recipe compiles nothing
+    # onto it, and playback gain stays out of the identity so a rebalance
+    # after listening is never a redraw.
+    sound_effect_validations: list[str] = []
+    generated_effects = runner.audio.generated_effects()
+    if generated_effects:
+        with builder.within_template("sound-effect-pipeline@v1"):
+            for effect in generated_effects:
+                realization = effect.realization
+                assert isinstance(realization, GeneratedClipRealization)
+                generate_id = f"sound-effect-{effect.effect_id}-generate"
+                generated = builder.add(
+                    SOUND_EFFECT_GENERATE,
+                    generate_id,
+                    domain="audio",
+                    description=f"generate the {effect.effect_id} clip",
+                    params={"effect_id": effect.effect_id},
+                    depends_on=barrier,
+                    cache_depends_on=(),
+                    input_digests=(
+                        _object_sha256(
+                            {
+                                "contract": SOUND_EFFECT_CONTRACT_VERSION,
+                                **realization.generation_identity(),
+                            }
+                        ),
+                    ),
+                    ports=(
+                        _artifact("audio", f"audio/{effect.effect_id}.mp3", SOUND_EFFECT_CLIP_KIND),
+                        _attempts(generate_id),
+                    ),
+                    card=NodeCard(prompt=realization.prompt),
+                )
+                validated = builder.add(
+                    SOUND_EFFECT_VALIDATE,
+                    f"sound-effect-{effect.effect_id}-validate",
+                    domain="audio",
+                    description=f"admit the {effect.effect_id} container, duration, and level",
+                    params={"effect_id": effect.effect_id},
+                    depends_on=(generated.node_id,),
+                    input_digests=(package.closure_sha256,),
+                    ports=(
+                        _record(
+                            "validation",
+                            f"audio/{effect.effect_id}.validation.json",
+                            SOUND_EFFECT_VALIDATION_KIND,
+                        ),
+                    ),
+                )
+                sound_effect_validations.append(validated.node_id)
+
     # ---------------------------------------------------------------- manifest
     # Reference IDs are catalog-local. Two legal IDs in different members may
     # bind the same source path, which is one published artifact rather than
@@ -851,6 +930,7 @@ def build_runner_execution_graph(
             rebase_verify.node_id,
             *catalog_validations,
             *soundtrack_validations,
+            *sound_effect_validations,
         ),
         input_digests=(package.closure_sha256,),
         ports=(

@@ -29,6 +29,14 @@ class OpenAILiveSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class ElevenLabsLiveSettings:
+    api_key: str = field(repr=False)
+    base_url: str
+    model: str
+    timeout_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
 class FalLiveSettings:
     api_key: str = field(repr=False)
     base_url: str
@@ -85,5 +93,18 @@ def fal_settings(live_config: StageGenConfig) -> FalLiveSettings:
         api_key=api_key,
         base_url=live_config.fal_base_url or "https://fal.run",
         model=live_config.background_removal_model,
+        timeout_seconds=live_config.capability_timeout_s,
+    )
+
+
+@pytest.fixture(scope="session")
+def elevenlabs_settings(live_config: StageGenConfig) -> ElevenLabsLiveSettings:
+    api_key = live_config.elevenlabs_api_key
+    if api_key is None:
+        pytest.skip("ELEVENLABS_API_KEY is required for this live smoke test")
+    return ElevenLabsLiveSettings(
+        api_key=api_key,
+        base_url=live_config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
+        model=live_config.sound_effect_model,
         timeout_seconds=live_config.capability_timeout_s,
     )

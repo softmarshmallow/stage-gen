@@ -4,14 +4,16 @@
 sibling of `gameplay.toml`: UI owns appearance, while gameplay owns inventory capacity, contents,
 pickup/use rules, input, and visibility state.
 
-The exact current identity is `game-ui-v1`. The V1 contract contains one generated role,
-`inventory_panel`, and deliberately does not define a general widget toolkit or nine-slice format.
+The exact current identity is `game-ui-v2`. The V2 contract contains three generated roles: the
+fixed-layout `inventory_panel`, and two nine-slice atlas roles, `panel_frame` and `button_rect`,
+which are the executable slice of the [game UI atlas taxonomy](ui-atlas.md). Every role names a
+layout identity, an alpha policy, its references, and one prompt; no role authors geometry.
 
 ```toml
-schema_version = 1
-kind = "game-ui-v1"
+schema_version = 2
+kind = "game-ui-v2"
 game_id = "bellweather"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_style"
@@ -25,9 +27,21 @@ layout = "inventory_grid_4x2_v1"
 alpha_policy = "transparent_exterior_opaque_panel_v1"
 reference_ids = ["cover_style"]
 prompt = "A compact storybook adventurer inventory panel with eight quiet readable slots."
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A warm carved-wood frame with a quiet, evenly lit inner surface that titles can sit on."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact carved-wood button with a quiet linen face, warm and inviting when at rest."
 ```
 
-## V1 layout
+## Inventory panel layout
 
 `inventory_grid_4x2_v1` resolves to one 1536 by 1024 canvas. The outer panel occupies
 `x=128, y=160, width=1280, height=704`. Eight 256-by-256 slots begin at `x=208, y=240`, use a
@@ -41,7 +55,7 @@ output contract: transparent exterior and a fully opaque panel rectangle, includ
 interior. The authored `prompt` describes the panel's game-specific appearance and must not carry
 inventory capacity or item behavior.
 
-## Alpha contract
+### Inventory alpha contract
 
 `transparent_exterior_opaque_panel_v1` means:
 
@@ -60,6 +74,81 @@ translucent styling. The local canonicalizer clears already-transparent pixels t
 clamps the already-opaque core to alpha 255. It never infers a silhouette or performs AI background
 removal.
 
+## Atlas roles
+
+The two atlas roles share one geometry discipline, `nine_slice`: a body is its four corners plus
+five repeatable regions, and a runtime draws it at any size from the corners and the edge bands.
+Both live on a 1024 by 1024 canvas.
+
+| Role | Layout | Bodies | States (in reading order) | Template guide insets |
+| --- | --- | ---: | --- | ---: |
+| `panel_frame` | `nine_slice_panel_1024_v1` | 1 | `default` | 96 px |
+| `button_rect` | `nine_slice_button_sheet_4x1024_v1` | 4, stacked | `normal`, `hover`, `pressed`, `disabled` | 40 px |
+
+The layout id is the whole authored geometry. The producer renders the geometry template from the
+role's declared record at run time and hands it to the provider after the authored references,
+with the same magenta / yellow / cyan language as the inventory template: magenta marks each opaque
+body, yellow its outer edge, cyan the nine regions. The prompt states the nine-slice rule (ornament
+in the corners, uniform edge bands, a flat centre text can sit on) and the text-free rule. The
+cache key hashes the geometry record rather than the template bytes, so a rasterizer change cannot
+re-bill an image while a geometry change must.
+
+### Atlas alpha contract
+
+`transparent_exterior_opaque_body_v1` means the canvas border and at least 10% of the canvas are at
+alpha 16 or below, every declared body is fully opaque, and nothing outside the bodies carries glow,
+shadow, or backdrop. Opaque is measured twice: every content rect at alpha 250 or above, and every
+edge band strip at alpha 224 or above, because a painterly medium leaves grain strokes a little
+short of full opacity (carved wood measured 242 and 248) without ever approaching a hole.
+Canonicalization clears already-transparent pixels to alpha 0, clamps each admitted content rect
+to alpha 255, and clamps admitted band pixels inside the border line to 255. It never infers a
+silhouette; corners and the outer edge keep their chamfer and antialiasing.
+
+### Admission
+
+The model keeps a sheet's body count and reading order but not exact placement, so admission
+detects bodies from alpha and registers them to the declared cells in order rather than trusting
+template coordinates. Every fact below is measured; a failure is a retry inside the single
+provider retry owner, exactly like the inventory panel.
+
+| Check | Gate |
+| --- | --- |
+| body count and order | exactly the declared cells, top to bottom |
+| effective insets | widened from the guide to where the drawn corner ornament ends, capped at twice the guide; the sheet's widest insets are used for every body, because a runtime slices a whole sheet with one inset set |
+| band fill, `stretch` | every edge band rebuilds from one 8-pixel strip with mean error at most 6/255 |
+| band fill, `tile` | each edge band's two ends meet with seam error at most 8/255 above the band's own neighbouring-patch floor |
+| content | luma standard deviation at most 12 inside the content rect; contrast at least 4.5 against white or black text |
+| states | every state's alpha silhouette matches `normal` (IoU at least 0.97, size delta at most 4 px) and differs from it in colour (mean error at least 3) |
+
+`band_fill` is admitted, not authored: `stretch` is preferred and `tile` is recorded when only
+tiling passes, which is what textured mediums such as wood grain or linen need. A sheet that passes
+neither fill is rejected. One structured review per role then judges style coherence with the
+references, that ornament lives in the corners while bands stay plain, that the centre is a quiet
+surface, the state order, and the absence of text, icons, items, logos, or scenery.
+
+### Manifest projection
+
+The manifest publishes, per role, the resolved geometry the validate node detected, beside the
+SHA-bound artifact:
+
+```text
+role, layout, scale_mode = "nine_slice", alpha_policy, band_fill, draw_scale,
+canvas {width, height}, insets {left, top, right, bottom},
+cells[ {state, cell {x, y, width, height}, content_rect {...}, safe_rect {...}} ],
+asset
+```
+
+A consumer slices the published `cell` with the published `insets` under the published
+`band_fill`, and places text inside `safe_rect`: the largest measured rectangle inside
+`content_rect` whose border carries no ornament, because a corner cap may curl past the band
+even when the band itself is plain. `content_rect` is the geometric interior; `safe_rect` is
+where text is safe. Both are sheet pixels, scaled by `draw_scale` on screen. `draw_scale` is sheet pixels per screen
+pixel: the 1024 canvas is authored at twice the density a HUD draws at, so a consumer lays the
+slices out at `draw_scale` times its target size and scales the result down, which puts corners
+at half their sheet size and shrinks tile seams with them. It is a projection hint, not
+geometry, and stays out of the generation cache key. Nothing rediscovers geometry from pixels or
+file names.
+
 ## Pipeline and consumer contract
 
 The UI branch is independent after package resolution:
@@ -67,30 +156,36 @@ The UI branch is independent after package resolution:
 ```text
 game.toml -> ui.toml + references
                     |
-                    v
-       inventory-panel generate (OpenAI image)
-                    |
-                    v
-       decoded alpha/layout validation (local)
-                    |
-                    v
-       inventory-panel review (structured)
-                    |
-                    v
-       manifest ui.inventory_panel binding
+        +-----------+-----------------------------+
+        v                                         v
+inventory-panel generate (image)     ui-{role} generate (image), role in {panel_frame, button_rect}
+        |                                         |
+        v                                         v
+layout/alpha validate (local)        detect bodies, admit band fill, normalize alpha (local)
+        |                                         |
+        v                                         v
+inventory-panel review (structured)  ui-{role} review (structured)
+        |                                         |
+        v                                         v
+manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect
 ```
 
-The manifest publishes the semantic role, exact layout, alpha policy, and SHA-bound artifact. The
-prepared asset explorer shows it in a dedicated UI group. The prepared web scene loads it into the
-existing `InventoryHud`; gameplay state and item placement remain unchanged.
+The atlas triplet is one generic typed node set (`ui_atlas.generate` / `.validate` / `.review`)
+fanned out over the role parameter; adding a role is a fan-out change, not a new node type. The
+prepared asset explorer lists all three artifacts in its UI group. The prepared web scene loads the
+inventory panel into the existing `InventoryHud`, and draws the platformer's defeat panel, its
+return button, and the NPC conversation box through the agnostic nine-slice widget from the two
+atlas sheets: the button's hover and pressed looks are the producer's pixels for those states, not
+a tint, and the conversation box and the defeat panel share the one `panel_frame` sheet. Gameplay
+state and item placement remain unchanged.
 
-If the artifact is absent or cannot be loaded, the preview records a diagnostic and installs the
-existing conspicuous magenta panel. Missing presentation therefore remains visible to verification
-without preventing game boot or inventory interaction.
+If an artifact is absent or cannot be loaded, the preview records a diagnostic and installs the
+existing conspicuous magenta stand-in under the same texture key, so the widget still draws.
+Missing presentation therefore remains visible to verification without preventing game boot or
+interaction.
 
-## Future nine-slice evolution
+## Growing the vocabulary
 
-A future nine-slice sheet is a new layout identity and schema revision. It may add named border,
-corner, fill, slot, and ornament regions, but it must preserve the ownership boundary above:
-`ui.toml` describes presentation; `gameplay.toml` continues to own inventory semantics. V1 does not
-reserve ambiguous optional fields for that future shape.
+Meters, slots, icons, chips, and every other role in the [atlas taxonomy](ui-atlas.md) are a new
+identity and a dropped run set, never optional fields on the roles above. `ui.toml` continues to
+describe presentation only; `gameplay.toml` owns inventory semantics.

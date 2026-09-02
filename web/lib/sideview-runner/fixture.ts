@@ -43,7 +43,6 @@ export function runnerAudioFixture(): Record<string, unknown> {
     ["leaf_slide", "Leaf Slide", "sawtooth", 200, 120, 160, 0.07, 0],
     ["clear_sparkle", "Clear Sparkle", "sine", 520, 780, 100, 0.1, 0],
     ["token_chime", "Token Chime", "sine", 660, 880, 90, 0.12, 1],
-    ["run_ended", "Run Ended", "square", 220, 55, 450, 0.14, 0],
   ] as const;
   return {
     bindings: {
@@ -53,29 +52,44 @@ export function runnerAudioFixture(): Record<string, unknown> {
       slide: "leaf_slide",
       hazard_cleared: "clear_sparkle",
       collect: "token_chime",
+      hurt: "soft_landing",
       death: "run_ended",
     },
-    effects: definitions.map(
-      ([effect_id, display_name, waveform, start_frequency_hz, end_frequency_hz, duration_milliseconds, gain, strength_pitch_multiplier]) => ({
-        effect_id,
-        display_name,
+    effects: [
+      ...definitions.map(
+        ([effect_id, display_name, waveform, start_frequency_hz, end_frequency_hz, duration_milliseconds, gain, strength_pitch_multiplier]) => ({
+          effect_id,
+          display_name,
+          realization: {
+            kind: "oscillator_sweep_v1",
+            waveform,
+            start_frequency_hz,
+            end_frequency_hz,
+            duration_milliseconds,
+            gain,
+            strength_pitch_multiplier,
+          },
+        }),
+      ),
+      // One effect realized as a generated clip, so the union is exercised.
+      {
+        effect_id: "run_ended",
+        display_name: "Run Ended",
         realization: {
-          kind: "oscillator_sweep_v1",
-          waveform,
-          start_frequency_hz,
-          end_frequency_hz,
-          duration_milliseconds,
-          gain,
-          strength_pitch_multiplier,
+          kind: "generated_clip_v1",
+          clip: "audio/run_ended.mp3",
+          duration_seconds: 1,
+          gain: 0.5,
+          strength_pitch_multiplier: 0,
         },
-      }),
-    ),
+      },
+    ],
   };
 }
 
 export function runnerManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 5,
+    schema_version: 6,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",

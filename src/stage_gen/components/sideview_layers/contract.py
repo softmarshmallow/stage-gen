@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Protocol
 
 from stage_gen.media import (
     LOOP_METHODS,
     SEAM_REGISTRATION_VERSION,
     LoopConstruction,
+    content_bottom_offset_fraction,
+    seal_offset_fraction,
+    top_seal_offset_fraction,
 )
 
 LAYER_PLACEMENT_CANONICALIZER = "prepared-map-layer-placement-v1"
@@ -19,6 +22,14 @@ LayerVerticalAnchor = Literal["canvas_cover", "screen_top", "screen_bottom", "wa
 #: spans, while `walk_surface` meets the ground and registers on the row the content rests on,
 #: because a midground layer is legitimately sparse between its subjects.
 BOTTOM_REGISTERED_ANCHORS: frozenset[str] = frozenset({"screen_bottom", "walk_surface"})
+
+#: The top edge is measured by the mirror of the bottom seal. A canopy hung from the screen top
+#: has a ragged upper edge too - vine tips reach above the bar they hang from - and registering
+#: the alpha box puts that sparse fringe against the edge with sky showing through it. The seal is
+#: the first row every column spans, lifted above the edge. A layer with no such row is a fringe
+#: rather than a ceiling and keeps its alpha-box registration: sky through hanging vines is the
+#: picture, not a gap.
+TOP_REGISTERED_ANCHORS: frozenset[str] = frozenset({"screen_top"})
 
 #: Fields that describe where or how a generated layer is consumed rather than what the image
 #: model should paint. They are excluded from generation cache identity so adjusting placement or
@@ -111,3 +122,77 @@ def loop_method_identity(
         identity["window_span"] = LOOP_REPAINT_WINDOW_PX
         identity["repaint_span"] = LOOP_REPAINT_SPAN_PX
     return identity
+
+
+class PlacedLayer(Protocol):
+    """The three authored facts placement resolution reads, whichever genre owns the layer."""
+
+    @property
+    def layer_id(self) -> str: ...
+
+    @property
+    def vertical_anchor(self) -> str: ...
+
+    @property
+    def vertical_offset(self) -> float | None: ...
+
+
+def resolve_layer_placement(layer: PlacedLayer, trim: dict[str, object]) -> dict[str, object]:
+    """Resolve one layer's vertical placement from its declared anchor and measured raster.
+
+    The author declares intent from a closed vocabulary; the fraction is measured here, because an
+    authored fraction would be a prediction about pixels that did not exist when it was written. An
+    explicit override is honoured, but one that cannot reach the seal line is rejected against the
+    exact measured value rather than silently leaving a gap the runtime would fill with whatever
+    sits behind the layer. Shared by every recipe that places a layer, so the runner and the
+    platformer cannot drift into two meanings of one anchor name.
+    """
+
+    seal: float | None = None
+    if layer.vertical_anchor == "screen_bottom":
+        # Sealing the frame edge is the one case that needs every column covered: a gap between
+        # content shows whatever sits behind the layer, which at the screen edge is the sky plate.
+        seal = seal_offset_fraction(trim)
+        if seal is None:
+            raise ValueError(
+                f"layer {layer.layer_id} anchors to screen_bottom but no row is spanned by "
+                "every column, so it can never seal"
+            )
+    elif layer.vertical_anchor == "walk_surface":
+        # Meeting the ground is a different question. A midground layer is legitimately sparse -
+        # a village has sky between its buildings - so it registers on the row its content rests
+        # on rather than on a full-coverage row it may not have.
+        seal = content_bottom_offset_fraction(trim)
+    elif layer.vertical_anchor == "screen_top":
+        # The mirror: lift the sparse upper fringe above the edge so the first row every column
+        # spans meets it. A fringe with no such row is left at its alpha box on purpose.
+        seal = top_seal_offset_fraction(trim)
+    resolved = seal if seal is not None else 0.0
+    source = "measured"
+    if layer.vertical_offset is not None:
+        if seal is not None and layer.vertical_anchor in BOTTOM_REGISTERED_ANCHORS:
+            if layer.vertical_offset < seal:
+                raise ValueError(
+                    f"layer {layer.layer_id} declares vertical_offset "
+                    f"{layer.vertical_offset} but sealing requires at least {seal}"
+                )
+        elif seal is not None and layer.vertical_offset > seal:
+            raise ValueError(
+                f"layer {layer.layer_id} declares vertical_offset {layer.vertical_offset} "
+                f"but sealing the top edge requires at most {seal}"
+            )
+        resolved = layer.vertical_offset
+        source = "authored"
+    return {
+        "schema_version": 1,
+        "kind": LAYER_PLACEMENT_CANONICALIZER,
+        "vertical_anchor": layer.vertical_anchor,
+        "vertical_offset": resolved,
+        "vertical_offset_source": source,
+        "minimum_seal_offset": seal,
+        "source_height": trim["source_height"],
+        "trimmed_height": trim["trimmed_height"],
+        "trimmed_top": trim["trimmed_top"],
+        "trimmed_bottom": trim["trimmed_bottom"],
+        "bounds": trim["bounds"],
+    }

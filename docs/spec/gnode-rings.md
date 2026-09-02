@@ -50,6 +50,7 @@ protocol with a hard version in its name and a `spec_version` marker, replaced
 | `ImageModelV1` | image generation and masked edits | `generate_once` |
 | `StructuredModelV1` | schema-strict structured output | `generate_once` |
 | `MusicModelV1` | instrumental music generation | `generate_once` |
+| `SoundEffectModelV1` | text-to-sound-effect generation | `generate_once` |
 | `BackgroundRemovalModelV1` | foreground matting | `remove_once` |
 
 Each modality package owns three things and nothing else:

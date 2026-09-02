@@ -29,7 +29,7 @@ from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
 from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 
-from ..._runner_fixture import two_genre_package
+from ..._runner_fixture import painted_over_guide, two_genre_package
 
 
 def _provider_sidecar(*, request: ImageGenerationRequest, data: bytes) -> dict[str, object]:
@@ -151,21 +151,29 @@ def test_structural_graph_adds_one_shared_local_bridge_without_provider_fanout(
     ]
     assert all(bridge.node_id in node.depends_on for node in validations)
     assert graph.operation_counts() == {
-        "local": 17,
+        "local": 18,
         "image_generation": 10,
         "structured_generation": 2,
         "music_generation": 2,
+        "sound_effect_generation": 1,
     }
 
 
-class _GuideEchoImages:
+class _GuidePaintoverImages:
+    """A provider that paints over its guide, which is the only admitted answer.
+
+    It used to echo the conditioning image back verbatim. That is now refused:
+    the guide's colours are registration rather than artwork, so a result still
+    wearing them is a painting that went around the guide instead of over it.
+    """
+
     def __init__(self) -> None:
         self.requests: list[ImageGenerationRequest] = []
 
     async def generate(self, request: ImageGenerationRequest) -> SimpleNamespace:
         self.requests.append(request)
         encoded = request.input_references[0].url.split(",", 1)[1]
-        data = base64.b64decode(encoded)
+        data = painted_over_guide(base64.b64decode(encoded))
         assert request.validate is not None
         assert request.validate(BinaryArtifact(data=data, media_type="image/png"))
         output = Path(request.artifact_path)
@@ -269,7 +277,7 @@ async def test_guide_generate_validate_chain_uses_native_alpha_and_exact_provena
     plan = SideviewRunnerExecutor(StageGenConfig()).plan(package)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    images = _GuideEchoImages()
+    images = _GuidePaintoverImages()
     handler = SideviewRunnerNodeHandler(
         plan.graph,
         plan.resolved,
@@ -360,7 +368,7 @@ async def test_provider_cache_hit_preserves_the_generation_attempt_ledger(tmp_pa
     plan = SideviewRunnerExecutor(StageGenConfig()).plan(package)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    images = _GuideEchoImages()
+    images = _GuidePaintoverImages()
     handler = SideviewRunnerNodeHandler(
         plan.graph,
         plan.resolved,
@@ -404,7 +412,7 @@ async def _seed_structural_provider_cache(tmp_path: Path) -> dict[str, Any]:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     cache_dir = tmp_path / "cache"
-    images = _GuideEchoImages()
+    images = _GuidePaintoverImages()
     handler = SideviewRunnerNodeHandler(
         plan.graph,
         plan.resolved,
@@ -734,7 +742,7 @@ async def test_structural_request_failure_before_service_call_records_zero_opera
     plan = SideviewRunnerExecutor(StageGenConfig()).plan(package)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    images = _GuideEchoImages()
+    images = _GuidePaintoverImages()
     handler = SideviewRunnerNodeHandler(
         plan.graph,
         plan.resolved,

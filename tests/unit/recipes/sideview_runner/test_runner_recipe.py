@@ -240,12 +240,15 @@ def test_the_plan_states_the_exact_graph_the_member_implies(tmp_path: Path) -> N
     # 1 ground + 1 layer + 1 concept + 4 motion strips (the declared duck
     # profile obligates a slide) + 2 catalog assets = 9 images; the two rebase
     # judges are the only structured calls; no design node exists - segments
-    # are authored. The canonical fixture declares two BGM tracks.
+    # are authored. The canonical fixture declares two BGM tracks and realizes
+    # one audio effect as a generated clip, which is one sound-effect draw
+    # plus its local admission.
     assert operations == {
-        "local": 13,
+        "local": 14,
         "image_generation": 9,
         "structured_generation": 2,
         "music_generation": 2,
+        "sound_effect_generation": 1,
     }
     # The package node is a barrier: provider roots order behind it without
     # carrying it in cache lineage.

@@ -326,7 +326,7 @@ class RunnerScene extends Phaser.Scene {
     }
 
     this.sealed = sealSystems(
-      assembleRunnerSystems(this.latch, stage, hud, createWebAudioSink(manifest.audio)),
+      assembleRunnerSystems(this.latch, stage, hud, createWebAudioSink(manifest.audio, (path) => this.url(path))),
       { events: (current) => current.events },
     );
     this.world = world;

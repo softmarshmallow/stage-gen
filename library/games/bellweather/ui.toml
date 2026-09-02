@@ -1,7 +1,7 @@
-schema_version = 1
-kind = "game-ui-v1"
+schema_version = 2
+kind = "game-ui-v2"
 game_id = "bellweather"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_style"
@@ -17,3 +17,15 @@ layout = "inventory_grid_4x2_v1"
 alpha_policy = "transparent_exterior_opaque_panel_v1"
 reference_ids = ["cover_style"]
 prompt = "A compact cheerful adventurer's satchel panel in Bellweather's painted storybook style, using warm carved wood, moss-turquoise cloth, small brass corners, and restrained leaf curls. Keep all eight empty slot wells plainly readable and visually quiet so colorful item icons remain dominant."
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A warm carved-wood frame in Bellweather's painted storybook style with small brass corner caps and a quiet, evenly lit moss-turquoise cloth inner surface that dialogue and titles can sit on."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact carved-wood button in Bellweather's painted storybook style with small brass corner caps and a quiet linen-toned face, warm and inviting in its normal state."

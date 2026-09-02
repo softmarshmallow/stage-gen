@@ -38,6 +38,17 @@ gameplay member on the platformer side. Iron Petal is the canonical runner game 
 bellweather is a platformer package again and its closure shrinks by the whole ``runner/``
 prefix. Platformer topology and operation counts are still untouched; only the closure the
 document binds is smaller.
+
+Re-pinned 2026-09-02 for ``game-ui-v2``. Two nine-slice atlas roles (``panel_frame`` and a
+four-state ``button_rect`` sheet) join the UI domain as one generic typed triplet fanned out over
+the role: six nodes, two image and two structured operations, two local admissions. Topology,
+node count, and the UI cache identities all changed by design; the atlas image key hashes the
+role's geometry record rather than template bytes, so a rasterizer change cannot re-bill it.
+
+Re-pinned once more the same day for ``prepared-ui-atlas-validation-v2``: the atlas validate node
+gained its own identity so a richer record (the measured ornament-free ``safe_rect``) re-runs the
+local gate over cached sheets without touching the image key. Topology unchanged; the graph digest
+moves with the two validate cache identities.
 """
 
 from __future__ import annotations
@@ -53,9 +64,9 @@ from stage_gen.recipes.sideview_platformer.package_types import platformer_type_
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
-BELLWEATHER_NODE_COUNT = 221
-BELLWEATHER_GRAPH_SHA256 = "4498bb40ecb4e0f0bf57a1ae9452c071cc63955ca74c4fbb909d8fdfe78da1b9"
-BELLWEATHER_TOPOLOGY_SHA256 = "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d"
+BELLWEATHER_NODE_COUNT = 227
+BELLWEATHER_GRAPH_SHA256 = "df542858e258d1fc0a1c8aae65d71ba9c25108020e466a9e04b53f4559a4b542"
+BELLWEATHER_TOPOLOGY_SHA256 = "812919110d9edc8d36426974c321d2c004ff173c96080b12f3987413eb8fb8a1"
 
 
 def _bellweather_graph() -> ExecutionGraph:

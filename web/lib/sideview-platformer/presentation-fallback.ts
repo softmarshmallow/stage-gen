@@ -12,7 +12,9 @@ export type PresentationFallbackKind =
   | "sprite"
   | "four_frame_strip"
   | "portal_sheet"
-  | "inventory_panel";
+  | "inventory_panel"
+  | "panel_frame"
+  | "button_sheet";
 
 export type PresentationFallbackDiagnostic = (message: string) => void;
 
@@ -20,6 +22,9 @@ const CELL_PX = 64;
 const PORTAL_HEIGHT_PX = 96;
 const PANEL_WIDTH_PX = 384;
 const PANEL_HEIGHT_PX = 256;
+// Atlas sheets are sliced by the cell rects the manifest publishes, so the stand-in has to be
+// the whole declared canvas for any published cell to fall inside it.
+const ATLAS_CANVAS_PX = 1024;
 const MAX_DIAGNOSTIC_LENGTH = 256;
 const MAX_KEY_LENGTH = 96;
 
@@ -50,6 +55,10 @@ function fallbackLayout(kind: PresentationFallbackKind): FallbackLayout {
         columns: 4,
         rows: 2,
       };
+    case "panel_frame":
+      return { width: ATLAS_CANVAS_PX, height: ATLAS_CANVAS_PX, columns: 1, rows: 1 };
+    case "button_sheet":
+      return { width: ATLAS_CANVAS_PX, height: ATLAS_CANVAS_PX, columns: 1, rows: 4 };
   }
 }
 

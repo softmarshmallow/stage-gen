@@ -11,9 +11,12 @@ from PIL import Image, ImageDraw
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.runner_track import (
+    DEFAULT_GROUND_PROJECTION,
     STRUCTURAL_GROUND_CELL_PX,
     STRUCTURAL_GROUND_GUIDE_HEIGHT,
     STRUCTURAL_GROUND_GUIDE_WIDTH,
+    GroundProjection,
+    RunnerStructuralGround,
     build_structural_ground_guide,
     canonicalize_structural_ground,
     canonicalize_structural_ground_seam_bridge,
@@ -25,7 +28,12 @@ from stage_gen.components.runner_track import (
     validate_structural_ground_source,
 )
 
-from ..._runner_fixture import WIDE_FLAT_ROWS, chunk_toml, runner_track_toml
+from ..._runner_fixture import (
+    WIDE_FLAT_ROWS,
+    chunk_toml,
+    painted_over_guide,
+    runner_track_toml,
+)
 
 
 def _png(image: Image.Image) -> bytes:
@@ -78,7 +86,7 @@ def _source_with_distinct_right_apron(
     report: dict[str, object],
 ) -> bytes:
     layout = cast(dict[str, int], report["layout"])
-    with Image.open(BytesIO(guide)) as opened:
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
         source = opened.convert("RGBA")
     draw = ImageDraw.Draw(source)
     right_apron_left = (
@@ -145,13 +153,17 @@ def test_guide_and_canonicalization_are_deterministic_and_geometry_exact() -> No
         )
         assert left_apron.tobytes() == right_apron.tobytes()
 
-    # The unmodified deterministic guide is itself a valid native-alpha
-    # paintover source, which keeps the focused test provider-free.
+    # A painted-over guide keeps this focused test provider-free. The guide
+    # itself no longer qualifies, and that reversal is the point: its colours
+    # are registration, so a source still wearing them is a painting that went
+    # around the guide rather than over it.
     source = validate_structural_ground_source(
-        first_guide,
+        painted_over_guide(first_guide),
         occupancy=PITTED_ROWS,
         walk_surface_row=5,
         guide=first_guide,
+        material_identity=MATERIAL_IDENTITY,
+        material_references=[REFERENCE],
     )
     assert source["alpha_min"] == 0
     assert source["alpha_max"] == 255
@@ -211,7 +223,7 @@ def test_every_pair_reconstructs_one_shared_generated_two_column_bridge() -> Non
     )
     second_guide, _ = _guide(WIDE_FLAT_ROWS)
     second, second_report = canonicalize_structural_ground(
-        second_guide,
+        painted_over_guide(second_guide),
         occupancy=WIDE_FLAT_ROWS,
         walk_surface_row=5,
         material_identity=MATERIAL_IDENTITY,
@@ -280,12 +292,14 @@ def test_source_admission_requires_real_native_transparency() -> None:
             occupancy=PITTED_ROWS,
             walk_surface_row=5,
             guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
         )
 
 
 def test_source_admission_rejects_effectively_invisible_provider_paint() -> None:
     guide, _ = _guide()
-    with Image.open(BytesIO(guide)) as opened:
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
         nearly_invisible = opened.convert("RGBA")
     alpha = nearly_invisible.getchannel("A").point(lambda value: 1 if value else 0)
     nearly_invisible.putalpha(alpha)
@@ -296,13 +310,15 @@ def test_source_admission_rejects_effectively_invisible_provider_paint() -> None
             occupancy=PITTED_ROWS,
             walk_surface_row=5,
             guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
         )
 
 
 def test_source_admission_requires_each_common_apron_independently() -> None:
     guide, report = _guide()
     layout = cast(dict[str, int], report["layout"])
-    with Image.open(BytesIO(guide)) as opened:
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
         missing_right = opened.convert("RGBA")
     right_apron_left = (
         layout["left"] + (layout["apron_columns"] + layout["columns"]) * layout["cell_px"]
@@ -323,13 +339,15 @@ def test_source_admission_requires_each_common_apron_independently() -> None:
             occupancy=PITTED_ROWS,
             walk_surface_row=5,
             guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
         )
 
 
 def test_source_admission_requires_every_authored_solid_cell_to_be_painted() -> None:
     guide, report = _guide()
     layout = cast(dict[str, int], report["layout"])
-    with Image.open(BytesIO(guide)) as opened:
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
         missing_cell = opened.convert("RGBA")
     column = 2
     row = 5
@@ -352,6 +370,8 @@ def test_source_admission_requires_every_authored_solid_cell_to_be_painted() -> 
             occupancy=PITTED_ROWS,
             walk_surface_row=5,
             guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
         )
 
 
@@ -459,3 +479,145 @@ def test_track_v3_closes_over_atlas_and_structural_modes_and_retires_v2() -> Non
     )
     with pytest.raises(AuthoredContractLoadError, match="Input should be 3"):
         load_runner_track_bytes(retired)
+
+
+def test_an_absent_projection_block_means_orthographic() -> None:
+    """Field presence is not identity: a track written before the block still means something."""
+
+    ground = RunnerStructuralGround(
+        mode="runner-structural-ground-v1",
+        reference_ids=["material"],
+        vertical_fit="floor_to_screen_bottom",
+        prompt="Pale mineral cap over dark greenhouse loam.",
+    )
+    assert ground.projection is None
+    assert ground.projection_mode() == DEFAULT_GROUND_PROJECTION
+
+    declared = ground.model_copy(update={"projection": GroundProjection(mode="orthographic_v1")})
+    assert declared.projection_mode() == DEFAULT_GROUND_PROJECTION
+
+
+def test_the_default_projection_does_not_move_material_identity() -> None:
+    """An orthographic package must keep the guides and paintings it already paid for."""
+
+    prompt = "Pale mineral cap over dark greenhouse loam."
+    assert structural_ground_material_identity(
+        prompt=prompt,
+        visual_direction_sha256=DIRECTION_SHA256,
+        reference_sha256=[REFERENCE_SHA256],
+    ) == structural_ground_material_identity(
+        prompt=prompt,
+        visual_direction_sha256=DIRECTION_SHA256,
+        reference_sha256=[REFERENCE_SHA256],
+        projection=DEFAULT_GROUND_PROJECTION,
+    )
+
+
+def test_source_admission_refuses_guide_paint_left_on_the_walk_surface() -> None:
+    """The defect that shipped: the guide's cap band surviving as artwork.
+
+    Every coverage check passes here, because guide pixels are opaque and the
+    cell is fully covered. Only an authorship check can see it.
+    """
+
+    guide, report = _guide()
+    layout = cast(dict[str, int], report["layout"])
+    palette = cast(dict[str, list[int]], report["palette"])
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
+        residual = opened.convert("RGBA")
+    draw = ImageDraw.Draw(residual)
+    cap = tuple(palette["cap_rgb"])
+    for column in range(layout["apron_columns"] * 2 + layout["columns"]):
+        left = layout["left"] + column * layout["cell_px"]
+        top = layout["top"] + 5 * layout["cell_px"]
+        draw.rectangle(
+            (left, top, left + layout["cell_px"] - 1, top + layout["cell_px"] // 4),
+            fill=(*cap, 255),
+        )
+
+    with pytest.raises(ValueError, match="guide colour visible"):
+        validate_structural_ground_source(
+            _png(residual),
+            occupancy=PITTED_ROWS,
+            walk_surface_row=5,
+            guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
+        )
+
+
+def test_source_admission_refuses_a_tile_that_mixes_projections() -> None:
+    """Receding edges that lean opposite ways are two projection systems in one tile."""
+
+    guide, report = _guide()
+    layout = cast(dict[str, int], report["layout"])
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
+        splayed = opened.convert("RGBA")
+    body_left = layout["left"] + layout["apron_columns"] * layout["cell_px"]
+    body_right = body_left + layout["columns"] * layout["cell_px"]
+    body_top = layout["top"] + 5 * layout["cell_px"]
+    body_bottom = layout["top"] + layout["rows"] * layout["cell_px"]
+    middle = (body_left + body_right) // 2
+    height = body_bottom - body_top
+
+    def _hatch(descending_right: bool) -> Image.Image:
+        layer = Image.new("RGBA", splayed.size, (0, 0, 0, 0))
+        pen = ImageDraw.Draw(layer)
+        for offset in range(-height * 2, (body_right - body_left) + height * 2, 24):
+            near = body_left + offset
+            far = near + height
+            ends = (near, body_top, far, body_bottom)
+            pen.line(
+                ends if descending_right else (far, body_top, near, body_bottom),
+                fill=(240, 236, 220, 255),
+                width=5,
+            )
+        return layer
+
+    # Each half carries one lean, so the thirds disagree: the `\|/` splay.
+    for layer, span in (
+        (_hatch(True), (body_left, body_top, middle, body_bottom)),
+        (_hatch(False), (middle, body_top, body_right, body_bottom)),
+    ):
+        patch = layer.crop(span)
+        splayed.paste(patch, (span[0], span[1]), patch)
+
+    with pytest.raises(ValueError, match="mixes projections"):
+        validate_structural_ground_source(
+            _png(splayed),
+            occupancy=PITTED_ROWS,
+            walk_surface_row=5,
+            guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
+        )
+
+
+def test_source_admission_refuses_a_part_painted_walking_surface() -> None:
+    """The defect that shipped, at its real cause: an under-painted top row.
+
+    The provider left the top of the walk-surface row transparent, and the
+    canonicalizer's deterministic fallback filled it - with the guide's own cap
+    and fill colours, so unpainted ground published AS guide material. The old
+    0.20 per-cell floor admitted a cell four fifths made of fallback.
+    """
+
+    guide, report = _guide()
+    layout = cast(dict[str, int], report["layout"])
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
+        thin = opened.convert("RGBA")
+    alpha = thin.getchannel("A")
+    clear = Image.new("L", (thin.width, layout["cell_px"] // 3), 0)
+    # Erase the top third of the walking surface, as the measured run did.
+    alpha.paste(clear, (0, layout["top"] + 5 * layout["cell_px"]))
+    thin.putalpha(alpha)
+
+    with pytest.raises(ValueError, match="walking surface part-painted"):
+        validate_structural_ground_source(
+            _png(thin),
+            occupancy=PITTED_ROWS,
+            walk_surface_row=5,
+            guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
+        )

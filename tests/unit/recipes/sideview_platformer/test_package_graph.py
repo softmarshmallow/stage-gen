@@ -70,11 +70,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # every atlas against the baseline on a locally composited plate; the second applies that
     # reading and judges the residual on a plate composed with it. Two structured operations,
     # no image generation - both plates are assembled locally from shipped bytes.
-    assert len(graph.nodes) == 221
+    assert len(graph.nodes) == 227
     assert graph.operation_counts() == {
-        "local": 104,
-        "image_generation": 93,
-        "structured_generation": 21,
+        "local": 106,
+        "image_generation": 95,
+        "structured_generation": 23,
         "music_generation": 3,
     }
     assert graph.terminal_node_id == "manifest-assemble"
@@ -114,6 +114,17 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
         )
     assert graph.node("ui-inventory-panel-generate").depends_on == ("package-resolve",)
     assert graph.node("ui-inventory-panel-review").depends_on == ("ui-inventory-panel-validate",)
+    # The atlas triplet is one generic type fanned out over the role, not one type per role.
+    atlas_generated = graph.node("ui-panel_frame-generate")
+    assert atlas_generated.type_id == "2d/sideview/platformer/ui_atlas.generate"
+    assert atlas_generated.params == {"role": "panel_frame"}
+    assert atlas_generated.depends_on == ("package-resolve",)
+    assert graph.node("ui-button_rect-review").depends_on == ("ui-button_rect-validate",)
+    assert _artifact_refs(graph.node("ui-button_rect-validate")) == (
+        "ui/button_rect.png",
+        "ui/button_rect.validation.json",
+        "ui/button_rect.evidence.png",
+    )
     assert graph.node("map-crowncrag-road-climbable-validate").depends_on == (
         "map-crowncrag-road-climbable-generate",
     )
@@ -450,8 +461,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.125
-    assert projection.estimated_cost_high_usd == 22.68
+    assert projection.estimated_cost_low_usd == 4.215
+    assert projection.estimated_cost_high_usd == 23.24
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

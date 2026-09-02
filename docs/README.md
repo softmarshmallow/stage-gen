@@ -52,6 +52,10 @@ Start here for the headless, general-purpose system:
   tiers, and the platformer-scoped boundary.
 - [Authored game UI contract](spec/game/ui.md) — current root `ui.toml`, inventory-panel layout,
   opaque slot-interior alpha rule, generation/review branch, manifest binding, and runtime fallback.
+- [Game UI atlas taxonomy](spec/game/ui-atlas.md) — proposed TO-BE role vocabulary for the
+  game-generic interface module: tiers, per-role scale mode and states, on-demand icons with a
+  library-or-generated source axis, the axes every role declares, the provable pixel gates, genre
+  packs, and the deliberately small v0 slice.
 - [Game visual reference and vocabulary](game-visual-reference.md) — global
   research anchors, neutral style facets, prompt boundaries, and candidate
   vocabulary governance for 2D-game art.
@@ -69,6 +73,9 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.
+- [Authored game sound effects](game-sound-effects.md) — the `runner-audio-v2`
+  event bindings, the oscillator and generated-clip realizations, the verbatim
+  prompt rule, the objective admission gates, and the audition command.
 - [Authored game maps](game-maps.md) — exact-current `game-map-v9` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.

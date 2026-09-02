@@ -17,8 +17,13 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
+from stage_gen.components.game_ui.atlas import (
+    ATLAS_ALPHA_POLICY,
+    BUTTON_RECT_LAYOUT,
+    PANEL_FRAME_LAYOUT,
+)
 
-GAME_UI_SCHEMA_VERSION = 1
+GAME_UI_SCHEMA_VERSION = 2
 
 INVENTORY_PANEL_LAYOUT = "inventory_grid_4x2_v1"
 INVENTORY_PANEL_ALPHA_POLICY = "transparent_exterior_opaque_panel_v1"
@@ -83,25 +88,71 @@ class InventoryPanelDirection(PersistedContractModel):
         return normalized_text(value, "inventory_panel.prompt", multiline=True)
 
 
+class AtlasRoleDirection(PersistedContractModel):
+    """Presentation inputs for one nine-slice atlas role.
+
+    The layout id is the whole geometry contract: a role never authors cell rectangles or
+    insets, because the producer renders its template from the declared geometry and the
+    validate node publishes the *detected* geometry beside the artifact.
+    """
+
+    layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    alpha_policy: Literal["transparent_exterior_opaque_body_v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "atlas role reference_ids")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "atlas role prompt", multiline=True)
+
+
+ATLAS_ROLE_LAYOUTS: dict[str, str] = {
+    "panel_frame": PANEL_FRAME_LAYOUT,
+    "button_rect": BUTTON_RECT_LAYOUT,
+}
+
+
 class GameUi(PersistedContractModel):
     """One root UI document, deliberately separate from gameplay rules."""
 
-    schema_version: Literal[1]
-    kind: Literal["game-ui-v1"]
+    schema_version: Literal[2]
+    kind: Literal["game-ui-v2"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[UiReference] = Field(min_length=1, max_length=32)
     inventory_panel: InventoryPanelDirection
+    panel_frame: AtlasRoleDirection
+    button_rect: AtlasRoleDirection
+
+    @model_validator(mode="after")
+    def validate_atlas_layouts(self) -> GameUi:
+        for role, expected in ATLAS_ROLE_LAYOUTS.items():
+            direction: AtlasRoleDirection = getattr(self, role)
+            if direction.layout != expected:
+                raise ValueError(f"{role}.layout must be {expected!r}, got {direction.layout!r}")
+            if direction.alpha_policy != ATLAS_ALPHA_POLICY:
+                raise ValueError(f"{role}.alpha_policy must be {ATLAS_ALPHA_POLICY!r}")
+        return self
 
     @model_validator(mode="after")
     def validate_reference_closure(self) -> GameUi:
         unique_values((entry.reference_id for entry in self.references), "UI reference_id")
         unique_values((entry.source for entry in self.references), "UI reference source")
         declared = {entry.reference_id for entry in self.references}
-        selected = set(self.inventory_panel.reference_ids)
-        unknown = sorted(selected - declared)
-        if unknown:
-            raise ValueError("inventory panel references unknown IDs: " + ", ".join(unknown))
+        selected: set[str] = set()
+        for role in ("inventory_panel", *ATLAS_ROLE_LAYOUTS):
+            direction = getattr(self, role)
+            unknown = sorted(set(direction.reference_ids) - declared)
+            if unknown:
+                raise ValueError(f"{role} references unknown IDs: " + ", ".join(unknown))
+            selected.update(direction.reference_ids)
         unused = sorted(declared - selected)
         if unused:
             raise ValueError("UI declares unused reference IDs: " + ", ".join(unused))
@@ -143,6 +194,7 @@ def load_game_ui_bytes(data: bytes) -> GameUi:
 
 
 __all__ = [
+    "ATLAS_ROLE_LAYOUTS",
     "GAME_UI_SCHEMA_VERSION",
     "INVENTORY_CANVAS_HEIGHT",
     "INVENTORY_CANVAS_WIDTH",
@@ -158,6 +210,7 @@ __all__ = [
     "INVENTORY_SLOT_ROWS",
     "INVENTORY_SLOT_SIZE",
     "INVENTORY_SLOT_TOP",
+    "AtlasRoleDirection",
     "GameUi",
     "InventoryPanelDirection",
     "UiReference",

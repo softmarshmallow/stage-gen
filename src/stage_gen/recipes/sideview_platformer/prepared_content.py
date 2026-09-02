@@ -41,6 +41,8 @@ from gnode import (
 )
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_ui import (
+    ATLAS_ALPHA_POLICY,
+    ATLAS_ROLES,
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
     INVENTORY_PANEL_HEIGHT,
@@ -53,8 +55,15 @@ from stage_gen.components.game_ui import (
     INVENTORY_SLOT_ROWS,
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
+    AtlasRole,
+    AtlasRoleDirection,
     UiReference,
+    atlas_evidence,
+    atlas_role_contract,
+    canonicalize_atlas_image,
     inventory_panel_layout_contract,
+    render_atlas_template,
+    validate_atlas_image,
 )
 from stage_gen.components.platformer_content import (
     ContentReference,
@@ -109,6 +118,7 @@ from stage_gen.recipes.sideview_platformer.motion_contract import (
 from stage_gen.recipes.sideview_platformer.package_graph import (
     CACHE_RECORD_KIND,
     CONTENT_CACHE_NAMESPACE,
+    UI_ATLAS_VALIDATION_VERSION,
 )
 from stage_gen.recipes.sideview_platformer.package_types import (
     ACTOR_CONCEPT_GENERATE,
@@ -128,6 +138,9 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     PACKAGE_RESOLVE,
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_VALIDATE,
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
     UI_INVENTORY_GENERATE,
     UI_INVENTORY_REVIEW,
     UI_INVENTORY_VALIDATE,
@@ -239,6 +252,9 @@ class PreparedContentNodeHandler:
         registry.register(UI_INVENTORY_GENERATE, self._bind(self._generate_inventory_panel))
         registry.register(UI_INVENTORY_VALIDATE, self._bind(self._validate_inventory_panel))
         registry.register(UI_INVENTORY_REVIEW, self._bind(self._review_inventory_panel))
+        registry.register(UI_ATLAS_GENERATE, self._bind(self._generate_ui_atlas))
+        registry.register(UI_ATLAS_VALIDATE, self._bind(self._validate_ui_atlas))
+        registry.register(UI_ATLAS_REVIEW, self._bind(self._review_ui_atlas))
         return registry
 
     def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
@@ -484,6 +500,134 @@ class PreparedContentNodeHandler:
             ),
             references=references,
             metadata={"checkpoint": "ui", "role": "inventory_panel"},
+        )
+
+    def _atlas_role(self, node: Node) -> tuple[AtlasRole, AtlasRoleDirection]:
+        role = ATLAS_ROLES[str(node.params["role"])]
+        direction = getattr(self._package.ui, role.role)
+        if not isinstance(direction, AtlasRoleDirection):
+            raise ValueError(f"node {node.node_id} names a UI role without an atlas direction")
+        return role, direction
+
+    async def _generate_ui_atlas(self, node: Node) -> NodeExecutionResult:
+        role, direction = self._atlas_role(node)
+        output = self._run_dir / node.port("image").artifact_ref
+        template_data = render_atlas_template(role)
+        prompt = self._visual_prompt(_atlas_prompt(role, direction.prompt))
+        references = (
+            *self._image_references(self._package.ui.references, direction.reference_ids),
+            ImageReference(
+                url=_data_url(template_data, "image/png"),
+                provenance_ref=f"geometry://{role.layout}#sha256={_sha(template_data)}",
+            ),
+        )
+        result = await self._images.generate(
+            ImageGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                input_references=references,
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size=f"{role.canvas[0]}x{role.canvas[1]}",
+                timeout_seconds=600,
+                metadata={
+                    "checkpoint": "ui",
+                    "role": role.role,
+                    "layout": role.layout,
+                    "alpha_policy": ATLAS_ALPHA_POLICY,
+                },
+                validate=lambda artifact: validate_atlas_image(artifact.data, role),
+            )
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _validate_ui_atlas(self, node: Node) -> NodeExecutionResult:
+        role, _direction = self._atlas_role(node)
+        source = self._run_dir / self._dependency_artifact(node, kind="ui-atlas-raw-v1")
+        data = source.read_bytes()
+        canonical_data, facts = canonicalize_atlas_image(data, role)
+        canonical_facts = cast(dict[str, object], facts["canonical"])
+        contract = atlas_role_contract(canonical_facts)
+        canonical = self._run_dir / node.port("image").artifact_ref
+        validation = self._run_dir / node.port("validation").artifact_ref
+        evidence = self._run_dir / node.port("evidence").artifact_ref
+        await _write_local_image(
+            canonical,
+            canonical_data,
+            prompt=(
+                "Normalize only the admitted alpha boundary: clear the already-transparent "
+                "exterior and clamp every admitted content rect to alpha 255."
+            ),
+            inputs=((source.relative_to(self._run_dir).as_posix(), data),),
+            validation=facts,
+            model=UI_ATLAS_VALIDATION_KIND,
+        )
+        atomic_write_json(
+            validation,
+            {
+                "schema_version": 1,
+                "kind": UI_ATLAS_VALIDATION_KIND,
+                **contract,
+                "facts": facts,
+            },
+        )
+        evidence_data = atlas_evidence(canonical_data, canonical_facts)
+        await _write_local_image(
+            evidence,
+            evidence_data,
+            prompt=(
+                "Composite the atlas sheet over a checkerboard and re-draw every cell through "
+                "the admitted nine-slice at a wider and a taller size for review evidence."
+            ),
+            inputs=((canonical.relative_to(self._run_dir).as_posix(), canonical_data),),
+            validation={"source_validation": contract, "checkerboard_only": False},
+            model="prepared-ui-atlas-evidence-v1",
+        )
+        return self._result(node, provider_operations=0)
+
+    async def _review_ui_atlas(self, node: Node) -> NodeExecutionResult:
+        role, direction = self._atlas_role(node)
+        evidence = self._run_dir / self._dependency_artifact(node, kind="ui-atlas-evidence-v1")
+        validation = self._run_dir / self._dependency_artifact(node, kind="ui-atlas-validation-v1")
+        contract = json.loads(validation.read_bytes())
+        band_fill = contract.get("band_fill")
+        references = [self._run_structured_reference(evidence)]
+        references.extend(
+            self._package_structured_reference(reference)
+            for reference in self._package.ui.references
+            if reference.reference_id in set(direction.reference_ids)
+        )
+        bodies = len(role.cells)
+        states_clause = (
+            ""
+            if bodies == 1
+            else (
+                f"that the {bodies} bodies read as the states {', '.join(role.states)} in "
+                "that order from top to bottom, "
+            )
+        )
+        return await self._run_review(
+            node,
+            prompt=(
+                f"Review the generated {role.role} nine-slice sheet against its authored "
+                "direction. Image 1 shows the sheet over a checkerboard on the left and, on the "
+                "right, every body re-drawn through the admitted nine-slice at a wider and a "
+                "taller size, which is exactly what the game will show; remaining images are "
+                "authored visual references. Deterministic pixel validation has already proved "
+                f"a transparent exterior, {bodies} fully opaque "
+                f"{'body' if bodies == 1 else 'bodies in order'}, repeatable edge bands under "
+                f"{band_fill} fill, a flat readable centre, and one silhouette across states. "
+                "Do not mistake the checkerboard for artwork. Judge style coherence with the "
+                "references, that ornament lives in the corners while the edge bands stay "
+                "plain, that the centre is a quiet surface text can sit on, "
+                f"{states_clause}"
+                "and the absence of text, pseudo-text, labels, icons, items, logos, or "
+                f"scenery. Authored direction: {direction.prompt} Uncertainty must not be "
+                "called accept."
+            ),
+            references=references,
+            metadata={"checkpoint": "ui", "role": role.role},
         )
 
     async def _generate_track(self, node: Node) -> NodeExecutionResult:
@@ -1589,6 +1733,8 @@ class PreparedContentNodeHandler:
                     _validate_transparent_image(data, width=1024, height=1024)
             elif node.type_id == UI_INVENTORY_GENERATE.type_id:
                 _validate_inventory_panel_image(data)
+            elif node.type_id == UI_ATLAS_GENERATE.type_id:
+                validate_atlas_image(data, ATLAS_ROLES[str(node.params["role"])])
             else:
                 return False
         except (OSError, ValueError):
@@ -1621,6 +1767,7 @@ CONTENT_TARGET_TYPE_IDS: frozenset[str] = frozenset(
         CATALOG_REVIEW,
         SOUNDTRACK_VALIDATE,
         UI_INVENTORY_REVIEW,
+        UI_ATLAS_REVIEW,
         GAMEPLAY_BINDINGS_VALIDATE,
     )
 )
@@ -1699,14 +1846,17 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
             + len(package.items.items)
             + len(projectile_ids)
             + 1
+            + len(ATLAS_ROLES)
         ),
-        # One board-and-review pass per catalog family (props, items, UI), plus one per actor, plus
-        # one for the projectile catalog when the package declares it.
+        # One board-and-review pass per catalog family (props, items, inventory panel), one per
+        # nine-slice atlas role, plus one per actor, plus one for the projectile catalog when the
+        # package declares it.
         "required_structured_reviews": (
             len(package.player.players)
             + len(package.mobs.mobs)
             + len(package.npcs.npcs)
             + 3
+            + len(ATLAS_ROLES)
             + (1 if package.projectiles is not None else 0)
         ),
         "required_music_operations": len(package.soundtrack.tracks),
@@ -1971,6 +2121,61 @@ def _canonicalize_inventory_panel_image(data: bytes) -> tuple[bytes, dict[str, o
         "pixel_rewrite_performed": True,
         "pixel_rewrite": "alpha_boundary_normalization_v1",
     }
+
+
+UI_ATLAS_VALIDATION_KIND = UI_ATLAS_VALIDATION_VERSION
+
+_ATLAS_GEOMETRY_COMMON = (
+    "Use the supplied layout template as the exact geometry authority. It is layout guidance, "
+    "not the requested visual style: do not draw its magenta, yellow, or cyan. Magenta marks "
+    "where the opaque body goes, the yellow outline is the body's outer edge, and the cyan lines "
+    "divide each body into nine regions. Keep the canvas exterior transparent alpha 0 with no "
+    "glow, drop shadow, colour wash, backdrop, or scenery; every body must be fully opaque. "
+    "No text, numbers, labels, icons, items, characters, logo, signature, or watermark."
+)
+
+_ATLAS_NINE_SLICE_RULE = (
+    "Nine-slice rule: the four corner regions may carry ornament. The four edge regions must "
+    "each be one straight, uniform band that repeats identically along its whole length, with "
+    "no motif, emblem, medallion, knot, notch, or break anywhere in the band. The centre region "
+    "must be one flat, even, unornamented surface that text can sit on, with no vignette, "
+    "gradient, hotspot, texture cluster, or pattern. Nothing crosses from a corner into an edge "
+    "band except the continuous border itself."
+)
+
+_ATLAS_STATE_LOOKS = {
+    "hover": "Hover is slightly brighter with a gentle highlight.",
+    "pressed": "Pressed is darker with an inset, pushed-in look.",
+    "disabled": "Disabled is desaturated and dimmer.",
+}
+
+
+def _atlas_prompt(role: AtlasRole, direction: str) -> str:
+    """The content task for one atlas role, read off its geometry rather than its name."""
+
+    width, height = role.canvas
+    if len(role.cells) == 1:
+        body = (
+            "Create one nine-slice panel frame for the game's screen-fixed interface.\n"
+            f"Authored direction: {direction}\n"
+            f"One {width} by {height} canvas holding one rectangular panel body at the "
+            "template's magenta rectangle. "
+        )
+    else:
+        looks = " ".join(
+            _ATLAS_STATE_LOOKS[state] for state in role.states if state in _ATLAS_STATE_LOOKS
+        )
+        body = (
+            f"Create one {role.role.replace('_', ' ')} state sheet for the game's screen-fixed "
+            "interface.\n"
+            f"Authored direction: {direction}\n"
+            f"One {width} by {height} canvas holding {len(role.cells)} identical rectangular "
+            "bodies stacked top to bottom at the template's magenta rectangles, in this order: "
+            f"{', '.join(role.states)}. All share exactly the same outer silhouette, size, "
+            "corner shape, border and ornament; only lighting, value, and hue change between "
+            f"states. {looks} Each body is itself a nine-slice. "
+        )
+    return f"{body}{_ATLAS_NINE_SLICE_RULE} {_ATLAS_GEOMETRY_COMMON}"
 
 
 def _inventory_panel_evidence(data: bytes) -> bytes:

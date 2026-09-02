@@ -161,7 +161,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # occupancy canonicalizer as one focused module (measured 208). The
         # provider-free runner cache replay adds one auditable migration module
         # without adding provider dependencies (measured 209).
-        assert len(wheel_entries) <= 209
+        # The sound-effect node adds eight: the gnode sound_effect modality
+        # (package, models, service), the elevenlabs provider adapter (package,
+        # backend), and the stage_gen sound_effect component (package, model,
+        # admission) (measured 218).
+        assert len(wheel_entries) <= 218
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -231,7 +235,14 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The sound-effect model adapter contract adds one specification page,
         # recording the measured ElevenLabs boundary the same way the image model
         # page records its own (427).
-        assert len(sdist_entries) <= 427
+        # The nine-slice UI atlas (`game-ui-v2`) adds its component module, its
+        # taxonomy page, the synthetic-sheet test fixture, and the gate's focused
+        # test module (431).
+        # The agnostic sound-effect node adds fifteen: the eight wheel modules
+        # above, their six focused test modules (the gnode service and adapter,
+        # the component, the runner handler, the live smoke, and one test
+        # package __init__), and the authored sound-effects contract page (446).
+        assert len(sdist_entries) <= 446
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -241,8 +252,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # proofs brought the unpacked source closure to 5.37 MB. The fail-closed replay migration
         # and its adversarial tests bring the measured closure to 5.62 MB. The compressed archive
         # remains below its separate 4 MB cap; this 5.75 MB ceiling still catches a swept directory
-        # without treating the reviewed recovery boundary as accidental bloat.
-        assert sum(sdist_entries.values()) < 5_750_000
+        # without treating the reviewed recovery boundary as accidental bloat. The nine-slice UI
+        # atlas (`game-ui-v2`: gate module, taxonomy page, synthetic-sheet fixture, focused tests)
+        # measured 5.81 MB, so the ceiling moved to 5.9 MB by the same reasoning. The
+        # agnostic sound-effect node (modality, adapter, component, runner wiring, their
+        # tests, and the authored contract page) measured 5.92 MB; the ceiling is 6.0 MB.
+        assert sum(sdist_entries.values()) < 6_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

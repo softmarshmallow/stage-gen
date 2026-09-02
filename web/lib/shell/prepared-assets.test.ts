@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parsePreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
 import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
+import { UI_ATLAS_FIXTURE_ROLES } from "./prepared-runtime.fixture";
 import { projectPreparedRuntimeAssets } from "./prepared-assets";
 
 const DIGEST = "a".repeat(64);
@@ -57,6 +58,8 @@ function preparedManifestFixture() {
     projectile: image("content/projectiles/pebble.png"),
     track: audio("soundtrack/meadow.mp3"),
     inventoryPanel: image("ui/inventory_panel.png"),
+    panelFrame: image("ui/panel_frame.png"),
+    buttonSheet: image("ui/button_rect.png"),
   };
   // Published by the run and bound by nothing: the closure is wider than the bindings, which is
   // the shape a real package has and the one this projection has to survive.
@@ -354,6 +357,8 @@ function preparedManifestFixture() {
         ...INVENTORY_GRID_4X2_V1,
         asset: assets.inventoryPanel,
       },
+      panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: assets.panelFrame },
+      button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: assets.buttonSheet },
     },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },

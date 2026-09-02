@@ -1,5 +1,21 @@
 """Authored game user-interface presentation contracts."""
 
+from stage_gen.components.game_ui.atlas import (
+    ATLAS_ALPHA_POLICY,
+    ATLAS_ROLES,
+    ATLAS_SCALE_MODE,
+    BUTTON_RECT,
+    BUTTON_RECT_LAYOUT,
+    PANEL_FRAME,
+    PANEL_FRAME_LAYOUT,
+    AtlasAdmissionError,
+    AtlasRole,
+    atlas_evidence,
+    atlas_role_contract,
+    canonicalize_atlas_image,
+    render_atlas_template,
+    validate_atlas_image,
+)
 from stage_gen.components.game_ui.models import (
     GAME_UI_SCHEMA_VERSION,
     INVENTORY_CANVAS_HEIGHT,
@@ -16,6 +32,7 @@ from stage_gen.components.game_ui.models import (
     INVENTORY_SLOT_ROWS,
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
+    AtlasRoleDirection,
     GameUi,
     InventoryPanelDirection,
     UiReference,
@@ -24,6 +41,11 @@ from stage_gen.components.game_ui.models import (
 )
 
 __all__ = [
+    "ATLAS_ALPHA_POLICY",
+    "ATLAS_ROLES",
+    "ATLAS_SCALE_MODE",
+    "BUTTON_RECT",
+    "BUTTON_RECT_LAYOUT",
     "GAME_UI_SCHEMA_VERSION",
     "INVENTORY_CANVAS_HEIGHT",
     "INVENTORY_CANVAS_WIDTH",
@@ -39,9 +61,19 @@ __all__ = [
     "INVENTORY_SLOT_ROWS",
     "INVENTORY_SLOT_SIZE",
     "INVENTORY_SLOT_TOP",
+    "PANEL_FRAME",
+    "PANEL_FRAME_LAYOUT",
+    "AtlasAdmissionError",
+    "AtlasRole",
+    "AtlasRoleDirection",
     "GameUi",
     "InventoryPanelDirection",
     "UiReference",
+    "atlas_evidence",
+    "atlas_role_contract",
+    "canonicalize_atlas_image",
     "inventory_panel_layout_contract",
     "load_game_ui_bytes",
+    "render_atlas_template",
+    "validate_atlas_image",
 ]

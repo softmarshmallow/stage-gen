@@ -45,6 +45,7 @@ class ViewArchetype(StrEnum):
     STRUCTURED = "structured"  # schema-strict structured output
     JUDGE = "judge"  # recognition verdict on composed evidence
     MUSIC = "music"  # instrumental music generation
+    SOUND = "sound"  # text-to-sound-effect generation
     MATTE = "matte"  # background removal / foreground matting
     TRANSFORM = "transform"  # deterministic local processing
     VALIDATE = "validate"  # blocking local contract gate

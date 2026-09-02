@@ -351,6 +351,7 @@ registers and the datum it registers against:
 | `screen_top` | The trimmed raster's top edge | The viewport top |
 | `screen_bottom` | The layer's full-coverage line | The viewport bottom |
 | `walk_surface` | The layer's full-coverage line | The authored `walk_surface_row` |
+| `screen_top` | The layer's *upper* full-coverage line, when it has one | The viewport top |
 
 The two bottom-registered anchors deliberately register the **full-coverage
 line** rather than the alpha box's bottom edge. A ragged near-camera silhouette
@@ -358,6 +359,15 @@ reaches lower in some columns than others; registering its deepest tip leaves
 the gaps between tips uncovered, which is what shows the sky plate through a
 foreground frame. The full-coverage line is the lowest row every column still
 spans, so registering it is what makes the seal a guarantee.
+
+`screen_top` is the mirror. A canopy hung from the top edge has a ragged upper
+edge too: vine tips and leaf points reach above the bar they hang from, and
+registering the alpha box's top row puts that sparse fringe against the screen
+edge with sky showing through it. The producer lifts the layer so the *first*
+row every column spans meets the edge, which resolves to a negative offset. A
+top layer with no such row is a fringe rather than a ceiling, and keeps its
+alpha-box registration: sky seen through hanging vines is the picture, not a
+gap, so it is not refused the way an unsealable `screen_bottom` layer is.
 
 ### Measured, not authored
 
@@ -378,8 +388,11 @@ reliably reach `alpha == 255`, so a literal opacity test finds nothing.
 path. Omit it and the producer resolves the fraction from the raster it
 actually received, because a fraction written before generation is a prediction
 about pixels that do not exist yet and goes stale on the next regeneration. An
-override that is too small to seal a bottom-registered layer is rejected against
-the exact measured minimum rather than silently leaving a gap.
+override that is too small to seal a bottom-registered layer, or too large to
+seal a top-registered one, is rejected against the exact measured value rather
+than silently leaving a gap. One resolver, `resolve_layer_placement` in the
+shared `sideview_layers` component, serves every recipe that places a layer, so
+the platformer and the runner cannot drift into two meanings of one anchor.
 
 Each canonical layer is trimmed to its alpha box vertically. Horizontal extent
 is never trimmed: a looping layer's width is its repeat period, already owned by

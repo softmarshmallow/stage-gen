@@ -18,6 +18,7 @@ IMAGE_FEATURES = ("transparent_background", "reference_images")
 IMAGE_EDIT_FEATURES = (*IMAGE_FEATURES, "masked_edit")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 MUSIC_FEATURES = ("instrumental_loop",)
+SOUND_EFFECT_FEATURES = ("exact_duration",)
 
 #: Payload kinds (persisted vocabulary).
 PACKAGE_KIND = "runner-package-v1"
@@ -51,8 +52,10 @@ TRACK_KIND = "runner-track-runtime-track-v1"
 SOUNDTRACK_RAW_KIND = "soundtrack-track-raw-v1"
 SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
 SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
+SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
+SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v5"
+MANIFEST_KIND = "sideview-runner-runtime-v6"
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -234,15 +237,32 @@ SOUNDTRACK_VALIDATE = NodeType(
     contract_version="runner-soundtrack-validate-v1",
 )
 
+SOUND_EFFECT_GENERATE = NodeType(
+    type_id=f"{_P}/sound_effect.generate",
+    title="Sound effect clip",
+    archetype=ViewArchetype.SOUND,
+    operation="sound_effect_generation",
+    features=SOUND_EFFECT_FEATURES,
+    policy=_PROVIDER,
+    contract_version="runner-sound-effect-clip-v1",
+)
+
+SOUND_EFFECT_VALIDATE = NodeType(
+    type_id=f"{_P}/sound_effect.validate",
+    title="Clip admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="runner-sound-effect-validate-v1",
+)
+
 MANIFEST_ASSEMBLE = NodeType(
     type_id=f"{_P}/manifest.assemble",
     title="Runtime manifest assembly",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    # v5: the manifest reads the admitted motion-rebase `states` shape exactly
-    # and fails closed instead of silently projecting identity multipliers.
-    # The runtime document remains v4 because its public shape is unchanged.
-    contract_version="runner-manifest-assemble-v6",
+    # v7: the audio block's realization union gained `generated_clip_v1`, which
+    # names a run artifact, so the runtime document moved to v6 with it.
+    contract_version="runner-manifest-assemble-v7",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
@@ -266,6 +286,8 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     CATALOG_ASSET_VALIDATE,
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_VALIDATE,
+    SOUND_EFFECT_GENERATE,
+    SOUND_EFFECT_VALIDATE,
     MANIFEST_ASSEMBLE,
 )
 

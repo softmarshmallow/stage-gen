@@ -3,12 +3,15 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
 from stage_gen.media import (
+    AudioProcessResult,
     assert_audio_signature,
     normalize_audio_media_type,
     parse_loudnorm_json,
@@ -125,3 +128,74 @@ async def test_audio_subprocess_outer_cancellation_kills_and_reaps_child(
         await pending
     with pytest.raises(ProcessLookupError):
         os.kill(int(pid_path.read_text()), 0)
+
+
+def test_peak_parser_reads_the_last_volumedetect_line_and_refuses_its_absence() -> None:
+    from stage_gen.media import parse_peak_dbfs
+
+    stderr = (
+        "[Parsed_volumedetect_0 @ 0x1] n_samples: 44100\n"
+        "[Parsed_volumedetect_0 @ 0x1] mean_volume: -21.3 dB\n"
+        "[Parsed_volumedetect_0 @ 0x1] max_volume: -6.7 dB\n"
+    )
+    assert parse_peak_dbfs(stderr) == -6.7
+    assert parse_peak_dbfs(stderr + "[x] max_volume: 0.0 dB\n") == 0.0
+    with pytest.raises(ValueError, match="max_volume"):
+        parse_peak_dbfs("nothing measured")
+
+
+@pytest.mark.asyncio
+async def test_peak_measurement_feeds_the_payload_on_stdin() -> None:
+    from stage_gen.media import measure_peak_dbfs, peak_measurement_args, run_process
+
+    seen: dict[str, object] = {}
+
+    async def runner(command: str, args: Sequence[str], limit: float) -> AudioProcessResult:
+        seen["command"] = command
+        seen["args"] = list(args)
+        return AudioProcessResult(stdout="", stderr="max_volume: -3.2 dB")
+
+    assert await measure_peak_dbfs(b"payload", runner=runner) == -3.2
+    assert seen["command"] == "ffmpeg"
+    assert seen["args"] == peak_measurement_args()
+    assert "pipe:0" in peak_measurement_args()
+
+    # And the real runner hands stdin to the process rather than closing it.
+    echoed = await run_process(
+        sys.executable,
+        ["-c", "import sys; sys.stdout.write(sys.stdin.read())"],
+        timeout_seconds=5,
+        input_bytes=b"fed on stdin",
+    )
+    assert echoed.stdout == "fed on stdin"
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg is not on PATH")
+@pytest.mark.asyncio
+async def test_peak_measurement_agrees_between_the_live_and_sync_paths(tmp_path: Path) -> None:
+    from stage_gen.media import measure_peak_dbfs, measure_peak_dbfs_sync
+
+    clip = tmp_path / "tone.mp3"
+    await run_process(
+        "ffmpeg",
+        [
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.6",
+            "-af",
+            "volume=-12dB",
+            "-c:a",
+            "libmp3lame",
+            "-b:a",
+            "192k",
+            str(clip),
+        ],
+        timeout_seconds=60,
+    )
+    data = clip.read_bytes()
+    live = await measure_peak_dbfs(data)
+    assert live == measure_peak_dbfs_sync(data)
+    assert -34.0 < live < -26.0

@@ -12,7 +12,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from stage_gen.canonical import canonical_sha256
-from stage_gen.components.runner_track import structural_ground_generation_prompt
+from stage_gen.components.runner_track import (
+    RunnerStructuralGround,
+    structural_ground_generation_prompt,
+)
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_terrain import terrain_atlas_generation_prompt
 
@@ -93,6 +96,8 @@ def structural_ground_prompt(
 ) -> str:
     """Bind one bespoke chunk painting to the shared material and style."""
 
+    if not isinstance(track.ground, RunnerStructuralGround):
+        raise ValueError("structural ground prompts require the structural ground mode")
     style = resolved.package.game.style
     material_direction = (
         f"{track.ground.prompt.strip()} Target style: {style.label}; {', '.join(style.keywords)}."
@@ -102,6 +107,7 @@ def structural_ground_prompt(
         segment_id=chunk.segment_id,
         columns=len(chunk.occupancy[0]),
         rows=len(chunk.occupancy),
+        projection=track.ground.projection_mode(),
     )
 
 

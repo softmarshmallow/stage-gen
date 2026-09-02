@@ -339,6 +339,34 @@ UI_INVENTORY_REVIEW = NodeType(
     contract_version="ui-inventory-review-v1",
 )
 
+UI_ATLAS_GENERATE = NodeType(
+    type_id=f"{_P}/ui_atlas.generate",
+    title="UI atlas role",
+    archetype=ViewArchetype.IMAGE,
+    operation="image_generation",
+    features=IMAGE_FEATURES,
+    policy=_PROVIDER,
+    contract_version="ui-atlas-v1",
+)
+
+UI_ATLAS_VALIDATE = NodeType(
+    type_id=f"{_P}/ui_atlas.validate",
+    title="UI atlas admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="ui-atlas-validate-v1",
+)
+
+UI_ATLAS_REVIEW = NodeType(
+    type_id=f"{_P}/ui_atlas.review",
+    title="UI atlas review",
+    archetype=ViewArchetype.JUDGE,
+    operation="structured_generation",
+    features=STRUCTURED_FEATURES,
+    policy=_PROVIDER,
+    contract_version="ui-atlas-review-v1",
+)
+
 GAMEPLAY_BINDINGS_VALIDATE = NodeType(
     type_id=f"{_P}/gameplay_bindings.validate",
     title="Gameplay binding validation",
@@ -390,6 +418,9 @@ PLATFORMER_NODE_TYPES: tuple[NodeType, ...] = (
     UI_INVENTORY_GENERATE,
     UI_INVENTORY_VALIDATE,
     UI_INVENTORY_REVIEW,
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_VALIDATE,
+    UI_ATLAS_REVIEW,
     GAMEPLAY_BINDINGS_VALIDATE,
     MANIFEST_ASSEMBLE,
 )
@@ -435,6 +466,9 @@ __all__ = [
     "SOUNDTRACK_GENERATE",
     "SOUNDTRACK_VALIDATE",
     "STRUCTURED_FEATURES",
+    "UI_ATLAS_GENERATE",
+    "UI_ATLAS_REVIEW",
+    "UI_ATLAS_VALIDATE",
     "UI_INVENTORY_GENERATE",
     "UI_INVENTORY_REVIEW",
     "UI_INVENTORY_VALIDATE",

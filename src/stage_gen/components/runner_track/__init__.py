@@ -1,9 +1,12 @@
 """Runner track contracts and structural-ground raster canonicalization."""
 
 from .models import (
+    DEFAULT_GROUND_PROJECTION,
     MAX_SEGMENT_COLUMNS,
     MIN_SEGMENT_COLUMNS,
     RUNNER_TRACK_SCHEMA_VERSION,
+    GroundProjection,
+    GroundProjectionMode,
     RunnerGround,
     RunnerHazard,
     RunnerPickup,
@@ -42,6 +45,7 @@ from .structural_ground import (
 )
 
 __all__ = [
+    "DEFAULT_GROUND_PROJECTION",
     "MAX_SEGMENT_COLUMNS",
     "MIN_SEGMENT_COLUMNS",
     "RUNNER_TRACK_SCHEMA_VERSION",
@@ -57,6 +61,8 @@ __all__ = [
     "STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_ID",
     "STRUCTURAL_GROUND_SOURCE_ID",
     "STRUCTURAL_GROUND_VALIDATION_ID",
+    "GroundProjection",
+    "GroundProjectionMode",
     "RunnerGround",
     "RunnerHazard",
     "RunnerPickup",

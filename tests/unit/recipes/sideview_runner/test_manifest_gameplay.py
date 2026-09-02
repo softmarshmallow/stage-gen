@@ -104,6 +104,7 @@ def test_the_published_audio_block_is_exactly_the_authored_contract() -> None:
 
     assert block["bindings"] == {
         "takeoff": "takeoff_whistle",
+        "hurt": "soft_landing",
         "air_jump": "air_jump_whistle",
         "land": "soft_landing",
         "slide": "leaf_slide",

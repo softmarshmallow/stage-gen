@@ -3,8 +3,71 @@ import type {
   RuntimeArtifactRole,
 } from "@/lib/manifest/prepared-manifest";
 import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
+import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 
 const HASH = "a".repeat(64);
+
+type Insets = UiAtlasRoleLayout["insets"];
+type CellRect = UiAtlasRoleLayout["cells"][number]["cell"];
+
+function atlasCell(state: string, insets: Insets, cell: CellRect, curl = 0) {
+  const content = {
+    x: cell.x + insets.left,
+    y: cell.y + insets.top,
+    width: cell.width - insets.left - insets.right,
+    height: cell.height - insets.top - insets.bottom,
+  };
+  // The measured safe rect: ornament curled `curl` px past the corners on every side.
+  const safe_rect = {
+    x: content.x + curl,
+    y: content.y + curl,
+    width: content.width - 2 * curl,
+    height: content.height - 2 * curl,
+  };
+  return { state, cell, content_rect: content, safe_rect };
+}
+
+/**
+ * Real admitted geometry from the painterly spike round: a wood panel whose ornament stayed
+ * inside the guide, and a wood button sheet whose caps pushed the side insets past it. Both
+ * were admitted under `tile`, so the fixture exercises the fill the runtime has to tile.
+ */
+export const UI_ATLAS_FIXTURE_ROLES: Readonly<{
+  panel_frame: UiAtlasRoleLayout;
+  button_rect: UiAtlasRoleLayout;
+}> = (() => {
+  const panelInsets = { left: 96, top: 96, right: 96, bottom: 96 };
+  const buttonInsets = { left: 72, top: 50, right: 80, bottom: 56 };
+  return {
+    panel_frame: {
+      role: "panel_frame",
+      layout: "nine_slice_panel_1024_v1",
+      scale_mode: "nine_slice",
+      alpha_policy: "transparent_exterior_opaque_body_v1",
+      band_fill: "tile",
+      draw_scale: 2,
+      canvas: { width: 1024, height: 1024 },
+      insets: panelInsets,
+      cells: [atlasCell("default", panelInsets, { x: 33, y: 164, width: 959, height: 664 }, 12)],
+    },
+    button_rect: {
+      role: "button_rect",
+      layout: "nine_slice_button_sheet_4x1024_v1",
+      scale_mode: "nine_slice",
+      alpha_policy: "transparent_exterior_opaque_body_v1",
+      band_fill: "tile",
+      draw_scale: 2,
+      canvas: { width: 1024, height: 1024 },
+      insets: buttonInsets,
+      cells: [
+        atlasCell("normal", buttonInsets, { x: 152, y: 132, width: 721, height: 156 }),
+        atlasCell("hover", buttonInsets, { x: 152, y: 326, width: 721, height: 154 }),
+        atlasCell("pressed", buttonInsets, { x: 152, y: 517, width: 720, height: 154 }),
+        atlasCell("disabled", buttonInsets, { x: 151, y: 708, width: 722, height: 155 }),
+      ],
+    },
+  };
+})();
 
 function artifact(
   path: string,
@@ -31,6 +94,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   const playerCrouch = artifact("content/player/states/crouch.png");
   const playerDialogue = artifact("content/player/dialogue.png");
   const inventoryPanel = artifact("ui/inventory_panel.png");
+  const panelFrame = artifact("ui/panel_frame.png");
+  const buttonSheet = artifact("ui/button_rect.png");
   // Published beside the assets and bound by nothing, exactly as a real run ships it.
   const terrainRecord = artifact(
     "maps/village/terrain.json",
@@ -46,6 +111,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
     playerCrouch,
     playerDialogue,
     inventoryPanel,
+    panelFrame,
+    buttonSheet,
     terrainRecord,
   ];
 
@@ -185,6 +252,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
         ...INVENTORY_GRID_4X2_V1,
         asset: inventoryPanel,
       },
+      panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: panelFrame },
+      button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: buttonSheet },
     },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },

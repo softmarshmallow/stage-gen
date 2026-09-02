@@ -32,7 +32,7 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/avatar.toml` | `runner-avatar-v3` | Exactly one runtime actor: one character or one visible rider-and-machine silhouette |
 | `runner/content/props.toml` | `prop-content-v2` | Obstacles, reused verbatim |
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
-| `runner/audio.toml` | `runner-audio-v1` | Required event bindings and sound-effect realizations |
+| `runner/audio.toml` | `runner-audio-v2` | Required event bindings and sound-effect realizations: oscillator sweeps or generated clips |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
@@ -181,6 +181,43 @@ presentation a closed union:
   occupied canonical cells are alpha 255. The image is presentation only and
   can never change collision.
 
+Ground is drawn in a declared **projection**, and `[ground.projection]` states it:
+`orthographic_v1` is the only served member and what an absent block means. This
+is a correctness rule rather than art direction. **Parallel projection is the
+only projection invariant under horizontal translation**: a vanishing point
+encodes a fixed camera position, while `auto_run_x_v1` scrolls the ground past
+the camera and chunks repeat in arbitrary order, so a converging tile has its
+vanishing point slide along with it and has no repeat unit at all. Orthographic
+and oblique are both parallel; orthographic - a flat front elevation showing no
+top face - is the truthful default for a strict side view.
+
+Three admission checks hold the ground honest, all inside the provider's own
+retry attempt so a bad painting re-rolls rather than ending the run.
+
+**Walking-surface coverage.** A top-exposed cell must be painted nearly whole.
+Where a solid cell is left transparent the canonicalizer's deterministic
+material fallback fills it, and that fallback is built from the guide's own cap
+and fill colours - so unpainted ground publishes *as guide material*. This is
+the check that catches a part-painted walk surface, which the coverage floor
+below it could not: a cell four fifths made of fallback passed the old one.
+
+**Guide residue.** No guide-palette colour may survive above a small share of
+the painted region. This catches the other shape of the same failure, where a
+provider returns its conditioning image rather than a painting. Alpha checks
+cannot see that at all, because every guide pixel is opaque - they measure
+alpha rather than authorship.
+
+**Lean consistency.** The dominant non-horizontal edge lean, sampled by
+horizontal thirds of the authored body, must stay inside a spread tolerance,
+which one projection system does and two do not.
+
+`oblique_v1` is the reserved second member. It would carry a receding angle and
+a depth ratio (cabinet is 0.5, cavalier 1.0), and it is not merely unbuilt: the
+canonical raster's alpha must match authored occupancy exactly, cell by cell,
+and oblique depth spills into neighbouring cells. Serving it needs a
+projection-aware expected mask and a canvas margin past `columns * 64` first, so
+the vocabulary admits only what the pipeline can prove.
+
 Transparent generated layers use quantitative native-alpha admission before
 looping; opaque layers remain required to be fully opaque. This gate is
 independent of seam-repeat admission, which still proves the installed loop
@@ -271,12 +308,26 @@ disqualified by the ramp: speed is continuous in distance, so a column has no
 fixed beat phase at any point in a run. The compatible fraction ships instead:
 per-event audio one-shots, specific to *how* the obstacle was avoided.
 `runner/audio.toml` explicitly binds takeoff, air jump, landing, slide, hazard
-clear, collect, and death events to named effects. Its current
-`oscillator_sweep_v1` realization authors waveform, start/end frequency,
+clear, collect, hurt (a survivable vitals drain), and death events to named
+effects. An effect is realized one of
+two ways. `oscillator_sweep_v1` authors waveform, start/end frequency,
 duration, gain, and optional strength-driven pitch response at zero provider
-cost; the consumer translates those values and owns only Web Audio lifecycle.
-A future generated-file realization extends the effect side without changing
-the stable event bindings.
+cost; the consumer synthesizes it and owns only Web Audio lifecycle.
+`generated_clip_v1` authors a verbatim prompt, an exact duration of at least
+half a second, optional prompt influence, and the same playback gain and pitch
+response; the graph buys it once as `audio/<effect_id>.mp3` through the
+`sound_effect_generation` route, admits it on container, duration, and level,
+and the consumer decodes and plays it. The bindings are the same either way, so
+a cue changes realization without remapping gameplay. The authoring contract
+and its gates are in [game-sound-effects.md](../../game-sound-effects.md); the
+route's measured boundary is in
+[model-eleven-text-to-sound-v2.md](../model-eleven-text-to-sound-v2.md). Iron
+Petal keeps five short cues on oscillators, including the jump, where nothing the
+route returned was judged usable, and realizes three as generated clips chosen
+by ear from auditioned draws: `unit_stalled` on death, a one-second machine
+powering down with a metal clunk; `hull_clank` on a survivable hit, a hard hit
+on sheet metal; and `seed_chime` on collect, a half-second coin collect named
+by its game idiom, with the chain still lifting its playback rate.
 
 Music remains the separate optional `runner/soundtrack.toml` catalog and uses
 the existing provider-neutral `game-soundtrack-v1` generation path. The runner
@@ -290,7 +341,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v5`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v6`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -301,7 +352,12 @@ continues to read occupancy.
 Layer placement preserves the source cover-frame scale after transparent rows
 are trimmed, so a sparse upper truss does not expand merely because its empty
 lower canvas was removed or because a generated seam bridge changed its repeat
-width. Collectibles keep their authored collision cell while
+width. Each transparent layer's `vertical_offset` is resolved by the producer
+from the raster it received, through the same `resolve_layer_placement` the
+platformer uses: a `screen_top` canopy is lifted so the first row every column
+spans meets the edge, rather than its sparse vine fringe, and the manifest
+publishes the measured fraction with `vertical_offset_source = "measured"`. An
+authored override is honoured only when it still seals. Collectibles keep their authored collision cell while
 presentation applies per-instance bob, horizontal flip, and a short glint.
 Hazards preserve authored height, clamp visible width to the published collision
 span, register surface obstacles to the footing line, and receive only a local
@@ -331,8 +387,11 @@ pointer capture preserves release when a finger leaves the canvas.
 The embedded contract is content-insensitive where content does not change
 topology: a changed prompt or reference re-keys node cache identities and
 `graph_sha256`, not `topology_sha256`. Adding a segment in structural-ground
-mode, a layer, a motion state, a catalog entry, or a soundtrack member changes
-the topology and therefore this checked snapshot. The checked runner fixture is
+mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
+generated-clip effect changes the topology and therefore this checked
+snapshot. So does a binding-table route, because declared resources are part
+of the topology; the `elevenlabs-sound-effect` resource below serves Iron
+Petal's single generated clip. The checked runner fixture is
 Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
 rather than only the atlas branch. Regenerate with
 `uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
@@ -344,14 +403,15 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "8f85a104265149e59eeb62f82a705b548e9a3f0c147f4f56ea8612ec254911c3",
-  "node_count": 70,
+  "topology_sha256": "826fa2d66a46822c41e7d56df65a4ba3a2782ba611e5608efa616607e06184f4",
+  "node_count": 76,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 39,
+    "local": 42,
     "image_generation": 27,
     "structured_generation": 2,
-    "music_generation": 2
+    "music_generation": 2,
+    "sound_effect_generation": 3
   },
   "resources": [
     {
@@ -377,6 +437,12 @@ rather than only the atlas branch. Regenerate with
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "elevenlabs-sound-effect",
+      "max_in_flight": null,
+      "requests_per_minute": null,
+      "rate_limit_owner": "none"
     }
   ]
 }
@@ -393,14 +459,15 @@ artifact carries its digest. A cache hit restores that original generation ledge
 current hit/miss telemetry stays in the execution trace so it cannot perturb downstream cache
 lineage.
 
-| Domain | Concrete expansion | Image | Structured | Music | Local |
-| --- | --- | ---: | ---: | ---: | ---: |
-| World | 11 segments × (guide + structural paint + canonicalize), one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 17 | 0 | 0 | 26 |
-| Avatar | One combined rider-machine concept, 4 motion strips and validations, two whole-silhouette motion-rebase judgements | 5 | 2 | 0 | 4 |
-| Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 5 |
-| Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 2 | 2 |
-| Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 2 |
-| **Total** | **70 nodes** | **27** | **2** | **2** | **39** |
+| Domain | Concrete expansion | Image | Structured | Music | Sound | Local |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| World | 11 segments × (guide + structural paint + canonicalize), one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 17 | 0 | 0 | 0 | 26 |
+| Avatar | One combined rider-machine concept, 4 motion strips and validations, two whole-silhouette motion-rebase judgements | 5 | 2 | 0 | 0 | 4 |
+| Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 0 | 5 |
+| Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 2 | 0 | 2 |
+| Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 3 | 3 |
+| Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 2 |
+| **Total** | **76 nodes** | **27** | **2** | **2** | **3** | **42** |
 
 ## Resolution and admission
 
@@ -410,7 +477,7 @@ alongside siblings, registers its files into the same exact closure
 
 - identity: every runner contract shares the container's `game_id`
   (`cross_game_identity`);
-- audio: all seven semantic events bind to declared effects, every effect is
+- audio: all eight semantic events bind to declared effects, every effect is
   used, and each realization is bounded before execution
   (`invalid_runner_audio`);
 - bindings: cast avatar, gameplay `track_id`, hazard `prop_id`, and pickup

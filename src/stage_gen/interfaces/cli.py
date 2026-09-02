@@ -19,6 +19,7 @@ from stage_gen.capabilities import (
     HeadlessRuntime,
     generate_image_artifact,
     generate_music,
+    generate_sound_effect,
     remove_background,
 )
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
@@ -356,6 +357,15 @@ def build_parser() -> argparse.ArgumentParser:
     music_parser.add_argument("--format", choices=("mp3", "wav"), default="mp3")
     music_parser.add_argument("prompt", nargs="+")
 
+    sound_effect_parser = commands.add_parser("generate-sound-effect")
+    sound_effect_parser.add_argument("--output", required=True)
+    sound_effect_parser.add_argument("--duration", required=True, type=float, dest="duration")
+    sound_effect_parser.add_argument(
+        "--prompt-influence", type=float, default=None, dest="prompt_influence"
+    )
+    sound_effect_parser.add_argument("--loop", action="store_true")
+    sound_effect_parser.add_argument("prompt", nargs="+")
+
     env_parser = commands.add_parser("import-env")
     env_parser.add_argument("--source", required=True)
     env_parser.add_argument("--destination", required=True)
@@ -425,6 +435,7 @@ def create_doctor_report(
             "image": config.image_model,
             "text": config.text_model,
             "music": config.music_model,
+            "soundEffect": config.sound_effect_model,
             "backgroundRemoval": config.background_removal_model,
         },
         "outDir": str(config.out_dir),
@@ -978,6 +989,16 @@ async def _dispatch_async(
             prompt=" ".join(args.prompt).strip(),
             output_path=args.output,
             output_format=args.format,
+            config=config,
+            runtime=runtime,
+        )
+    elif args.command == "generate-sound-effect":
+        result = await generate_sound_effect(
+            prompt=" ".join(args.prompt).strip(),
+            output_path=args.output,
+            duration_seconds=args.duration,
+            prompt_influence=args.prompt_influence,
+            loop=args.loop,
             config=config,
             runtime=runtime,
         )

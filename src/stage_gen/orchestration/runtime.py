@@ -21,9 +21,12 @@ from gnode import (
     MusicGenerationService,
     MusicOutputFormat,
     RetryPolicy,
+    SoundEffectGenerationRequest,
+    SoundEffectGenerationService,
     StructuredGenerationService,
     inspect_image,
 )
+from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend
 from gnode.providers.fal import FalBackgroundRemovalBackend
 from gnode.providers.openai import OpenAIImageBackend
 from gnode.providers.openrouter import (
@@ -35,11 +38,13 @@ from stage_gen.components.audio_normalization import (
     AudioNormalizationRequest,
     FfmpegAudioNormalizer,
 )
+from stage_gen.components.sound_effect import admit_sound_effect_bytes
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.identity import (
     BACKGROUND_REMOVAL_COMPONENT,
     IMAGE_GENERATION_COMPONENT,
     MUSIC_GENERATION_COMPONENT,
+    SOUND_EFFECT_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
 )
@@ -137,6 +142,21 @@ def create_music_service(
     )
 
 
+def create_sound_effect_service(
+    *,
+    api_key: str,
+    model: str = "eleven_text_to_sound_v2",
+    base_url: str = "https://api.elevenlabs.io/v1",
+    retry_policy: RetryPolicy | None = None,
+) -> SoundEffectGenerationService:
+    return SoundEffectGenerationService(
+        ElevenLabsSoundEffectBackend(api_key=api_key, model=model, base_url=base_url),
+        component=SOUND_EFFECT_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
+        retry_policy=retry_policy,
+    )
+
+
 class DefaultHeadlessRuntime:
     """Compose generic standalone operations; recipes supply their own executor."""
 
@@ -147,6 +167,7 @@ class DefaultHeadlessRuntime:
         image_service: ImageGenerationService | None = None,
         background_service: BackgroundRemovalService | None = None,
         music_service: MusicGenerationService | None = None,
+        sound_effect_service: SoundEffectGenerationService | None = None,
     ) -> None:
         self._config = config
         openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
@@ -158,6 +179,15 @@ class DefaultHeadlessRuntime:
                 base_url=openrouter_url,
             )
             if config.open_router_api_key
+            else None
+        )
+        self._sound_effect = sound_effect_service or (
+            create_sound_effect_service(
+                api_key=config.elevenlabs_api_key,
+                model=config.sound_effect_model,
+                base_url=config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
+            )
+            if config.elevenlabs_api_key
             else None
         )
         self._background = background_service or (
@@ -184,7 +214,7 @@ class DefaultHeadlessRuntime:
         await self.aclose()
 
     async def aclose(self) -> None:
-        services = (self._image, self._background, self._music)
+        services = (self._image, self._background, self._music, self._sound_effect)
         closed: set[int] = set()
         first_error: BaseException | None = None
         for service in services:
@@ -351,6 +381,46 @@ class DefaultHeadlessRuntime:
             await asyncio.to_thread(raw.unlink, missing_ok=True)
             await asyncio.to_thread(Path(f"{raw}.meta.json").unlink, missing_ok=True)
 
+    async def generate_sound_effect(
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        duration_seconds: float,
+        prompt_influence: float | None = None,
+        loop: bool = False,
+        metadata: Mapping[str, object] | None = None,
+    ) -> CapabilityArtifactResult:
+        """One verbatim-prompt draw, admitted on level and never post-processed."""
+
+        service = self._sound_effect or _missing("ELEVENLABS_API_KEY")
+        output = await asyncio.to_thread(Path(output_path).resolve)
+        if output.suffix.lower() != ".mp3":
+            raise ValueError("generate-sound-effect output must use a .mp3 extension")
+        generated = await service.generate(
+            SoundEffectGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                duration_seconds=duration_seconds,
+                prompt_influence=prompt_influence,
+                loop=loop,
+                output_format="mp3",
+                timeout_seconds=self._config.capability_timeout_ms / 1000,
+                metadata=dict(metadata)
+                if metadata is not None
+                else {"source": "stage-gen-headless"},
+                rights=_unreviewed_generated_music_rights(),
+                validate=lambda artifact: admit_sound_effect_bytes(artifact.data),
+            )
+        )
+        return _result(
+            str(output),
+            generated.provenance_path,
+            generated.media_type,
+            len(generated.data),
+            generated.attempts,
+        )
+
 
 def create_headless_runtime(
     config: StageGenConfig,
@@ -358,12 +428,14 @@ def create_headless_runtime(
     image_service: ImageGenerationService | None = None,
     background_service: BackgroundRemovalService | None = None,
     music_service: MusicGenerationService | None = None,
+    sound_effect_service: SoundEffectGenerationService | None = None,
 ) -> DefaultHeadlessRuntime:
     return DefaultHeadlessRuntime(
         config,
         image_service=image_service,
         background_service=background_service,
         music_service=music_service,
+        sound_effect_service=sound_effect_service,
     )
 
 

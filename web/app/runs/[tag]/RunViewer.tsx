@@ -54,6 +54,7 @@ const STATE_CHIP: Record<ExecutionNodeState, string> = {
 const ARCHETYPE_ACCENT: Record<ViewArchetype, string> = {
   image: "border-l-2 border-l-fg",
   music: "border-l-2 border-l-fg",
+  sound: "border-l-2 border-l-fg",
   matte: "border-l-2 border-l-fg",
   structured: "border-l-2 border-l-dim",
   judge: "border-l-2 border-l-dim",

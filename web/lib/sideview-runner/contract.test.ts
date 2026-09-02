@@ -244,6 +244,40 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(() => parseRunnerRuntimeManifest(null)).toThrow("must be an object");
   });
 
+  test("parses a generated clip beside the oscillator and refuses a stray one", () => {
+    const manifest = parseRunnerRuntimeManifest(validRunnerManifest());
+    const clip = manifest.audio.effects.find((effect) => effect.effectId === "run_ended");
+    expect(clip?.realization).toEqual({
+      kind: "generated_clip_v1",
+      clip: "audio/run_ended.mp3",
+      durationSeconds: 1,
+      gain: 0.5,
+      strengthPitchMultiplier: 0,
+    });
+    expect(Object.isFrozen(clip?.realization)).toBe(true);
+
+    const mutate = (change: (realization: Record<string, unknown>) => void) => {
+      const document = validRunnerManifest();
+      const audio = document.audio as { effects: Record<string, unknown>[] };
+      const effect = audio.effects.find((entry) => entry.effect_id === "run_ended");
+      change(effect!.realization as Record<string, unknown>);
+      return document;
+    };
+    expect(() =>
+      parseRunnerRuntimeManifest(mutate((r) => (r.kind = "generated_file_v1"))),
+    ).toThrow("realization.kind");
+    expect(() =>
+      parseRunnerRuntimeManifest(mutate((r) => (r.clip = "soundtrack/run_ended.mp3"))),
+    ).toThrow("run-relative audio/*.mp3");
+    expect(() =>
+      parseRunnerRuntimeManifest(mutate((r) => (r.clip = "audio/../run_ended.mp3"))),
+    ).toThrow("run-relative audio/*.mp3");
+    expect(() => parseRunnerRuntimeManifest(mutate((r) => (r.duration_seconds = 0.2)))).toThrow(
+      "duration_seconds is out of range",
+    );
+    expect(() => parseRunnerRuntimeManifest(mutate((r) => (r.gain = 0)))).toThrow("gain");
+  });
+
   test("refuses missing, unresolved, or unused authored audio", () => {
     const missing = validRunnerManifest();
     delete missing.audio;

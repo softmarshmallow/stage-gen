@@ -192,6 +192,44 @@ class RunnerSegments(PersistedContractModel):
         return self
 
 
+GroundProjectionMode = Literal["orthographic_v1"]
+
+
+class GroundProjection(PersistedContractModel):
+    """How the ground's form is flattened onto the picture plane.
+
+    A side-scroller's ground must be drawn in a PARALLEL projection - one whose
+    receding edges never converge, so it has no vanishing point. That is a
+    correctness rule rather than art direction: a vanishing point encodes a
+    fixed camera position, and `auto_run_x_v1` scrolls the ground past the
+    camera while chunks repeat in arbitrary order. Parallel projection is the
+    only projection invariant under horizontal translation, so a converging
+    tile has its vanishing point slide along with it and has no repeat unit at
+    all.
+
+    Orthographic and oblique are both parallel, and which one a package uses is
+    the author's taste. `orthographic_v1` - a pure front elevation showing no
+    top face - is the truthful default for a strict side view and the only
+    member served today.
+
+    `oblique_v1` is the reserved second member. It would carry
+    `receding_angle_degrees` and `depth_ratio` (cabinet is 0.5, cavalier 1.0),
+    and it is not merely unimplemented: `_validate_alpha_geometry` requires
+    every published cell to be exactly opaque or exactly transparent against
+    the authored occupancy, and oblique depth spills into neighbouring cells.
+    Serving it means a projection-aware expected mask and a canvas margin
+    beyond `columns x 64` first.
+    """
+
+    mode: GroundProjectionMode
+
+
+#: What an absent `[ground.projection]` block means. Field presence is not
+#: identity, so a package written before this block existed declares nothing
+#: and means exactly this.
+DEFAULT_GROUND_PROJECTION: GroundProjectionMode = "orthographic_v1"
+
+
 class RunnerStructuralGround(PersistedContractModel):
     """One bespoke transparent painting per authored runner segment.
 
@@ -203,7 +241,17 @@ class RunnerStructuralGround(PersistedContractModel):
     mode: Literal["runner-structural-ground-v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     vertical_fit: Literal["floor_to_screen_bottom"]
+    #: Absent means `orthographic_v1`. Declaring it is how an author states a
+    #: projection deliberately rather than inheriting one.
+    projection: GroundProjection | None = None
     prompt: str
+
+    def projection_mode(self) -> GroundProjectionMode:
+        """The declared projection, or the default an absent block means."""
+
+        if self.projection is None:
+            return DEFAULT_GROUND_PROJECTION
+        return self.projection.mode
 
     @field_validator("reference_ids")
     @classmethod
@@ -281,12 +329,15 @@ def runner_track_sha256(contract: RunnerTrack) -> str:
 
 
 __all__ = [
+    "DEFAULT_GROUND_PROJECTION",
     "MAX_SEGMENT_COLUMNS",
     "MIN_SEGMENT_COLUMNS",
     "RUNNER_TRACK_SCHEMA_VERSION",
     "RunnerCamera",
     "RunnerHazard",
     "RunnerPickup",
+    "GroundProjection",
+    "GroundProjectionMode",
     "RunnerGround",
     "RunnerSegmentChunk",
     "RunnerSegments",

@@ -4,6 +4,11 @@ import {
   parseInventoryPanelLayout,
   type InventoryPanelLayout,
 } from "./inventory-layout";
+import {
+  parseUiAtlasRoleLayout,
+  type UiAtlasRoleLayout,
+  type UiAtlasRoleName,
+} from "./ui-atlas-layout";
 
 /**
  * What the producer says one published byte set is for.
@@ -168,6 +173,9 @@ export type DialogueBinding = Readonly<{
 export type PreparedInventoryPanel = InventoryPanelLayout &
   Readonly<{ asset: RuntimeArtifact }>;
 
+/** One nine-slice atlas role: the geometry the producer detected, bound to its sheet. */
+export type PreparedUiAtlasRole = UiAtlasRoleLayout & Readonly<{ asset: RuntimeArtifact }>;
+
 /**
  * How every one of an actor's states is brought onto its baseline's scale.
  *
@@ -249,7 +257,11 @@ export type PreparedRuntimeManifest = Readonly<{
     asset: RuntimeArtifact;
     calibration: SubjectCalibration;
   }>[];
-  ui: Readonly<{ inventory_panel: PreparedInventoryPanel }>;
+  ui: Readonly<{
+    inventory_panel: PreparedInventoryPanel;
+    panel_frame: PreparedUiAtlasRole;
+    button_rect: PreparedUiAtlasRole;
+  }>;
   soundtrack: Readonly<{
     playback: Readonly<{ selection: "shuffle"; no_immediate_repeat: true }>;
     tracks: readonly Readonly<{
@@ -1043,6 +1055,15 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     ...inventoryPanelLayout,
     asset: artifact(rawInventoryPanel.asset, "ui.inventory_panel.asset"),
   });
+  const uiAtlasRole = (role: UiAtlasRoleName): PreparedUiAtlasRole => {
+    const raw = object(ui[role], `ui.${role}`);
+    return Object.freeze({
+      ...parseUiAtlasRoleLayout(raw, role),
+      asset: artifact(raw.asset, `ui.${role}.asset`),
+    });
+  };
+  const panelFrame = uiAtlasRole("panel_frame");
+  const buttonRect = uiAtlasRole("button_rect");
   const soundtrack = object(root.soundtrack, "soundtrack");
   const playback = object(soundtrack.playback, "soundtrack.playback");
   if (playback.selection !== "shuffle" || playback.no_immediate_repeat !== true) {
@@ -1080,7 +1101,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     props: Object.freeze(props),
     items: Object.freeze(items),
     projectiles: Object.freeze(projectiles),
-    ui: Object.freeze({ inventory_panel: inventoryPanel }),
+    ui: Object.freeze({ inventory_panel: inventoryPanel, panel_frame: panelFrame, button_rect: buttonRect }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),
     scenarios: Object.freeze(array(root.scenarios, "scenarios").map(parseScenarioProgram)),

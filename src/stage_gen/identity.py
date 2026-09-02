@@ -13,6 +13,9 @@ STRUCTURED_GENERATION_COMPONENT = SoftwareIdentity(
     name="@stage-gen/structured-generation", version="0.0.0"
 )
 MUSIC_GENERATION_COMPONENT = SoftwareIdentity(name="@stage-gen/music-generation", version="0.0.0")
+SOUND_EFFECT_GENERATION_COMPONENT = SoftwareIdentity(
+    name="@stage-gen/sound-effect-generation", version="0.0.0"
+)
 BACKGROUND_REMOVAL_COMPONENT = SoftwareIdentity(
     name="@stage-gen/background-removal", version="0.0.0"
 )

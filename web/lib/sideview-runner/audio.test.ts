@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createAudioSystem, type RunnerAudioCue } from "./audio";
+import { createAudioSystem, strengthLift, type RunnerAudioCue } from "./audio";
 import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
@@ -49,6 +49,23 @@ describe("createAudioSystem", () => {
     expect(sink.cues).toEqual(["slide"]);
   });
 
+  test("a survivable hit cues on the frame the drain connects, and not once dead", () => {
+    const world = createRunnerWorld(manifest, 1);
+    const sink = recorder();
+    const system = createAudioSystem(sink);
+    system.update(world, STEP);
+    world.vitals.hurtThisFrame = true;
+    system.update(world, STEP);
+    world.vitals.hurtThisFrame = false;
+    system.update(world, STEP);
+    expect(sink.cues).toEqual(["hurt"]);
+
+    world.vitals.hurtThisFrame = true;
+    world.run.phase = "dead";
+    system.update(world, STEP);
+    expect(sink.cues).toEqual(["hurt", "death"]);
+  });
+
   test("death cues once and a restart resets the edges quietly", () => {
     const world = createRunnerWorld(manifest, 1);
     const sink = recorder();
@@ -63,5 +80,15 @@ describe("createAudioSystem", () => {
     world.avatar.distanceColumns = 0.5;
     system.update(world, STEP);
     expect(sink.cues).toEqual(["death"]);
+  });
+});
+
+describe("strengthLift", () => {
+  test("scales playback rate by the clamped strength and the authored multiplier", () => {
+    expect(strengthLift(0, 1)).toBe(1);
+    expect(strengthLift(0.5, 1)).toBe(1.5);
+    expect(strengthLift(2, 0.25)).toBe(1.25);
+    expect(strengthLift(-1, 2)).toBe(1);
+    expect(strengthLift(1, 0)).toBe(1);
   });
 });

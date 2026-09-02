@@ -252,6 +252,7 @@ def test_ring_one_stays_provider_free() -> None:
 
 DECLARED_ENGINE_SURFACES = (
     "gnode",
+    "gnode.providers.elevenlabs",
     "gnode.providers.fal",
     "gnode.providers.openai",
     "gnode.providers.openrouter",

@@ -7,6 +7,7 @@ import pytest
 from stage_gen.config import (
     CapabilityName,
     ConfigError,
+    StageGenConfig,
     TransparencyMode,
     assert_capabilities,
     load_config,
@@ -204,3 +205,27 @@ def test_config_rejects_unsafe_allowlisted_dotenv_entries(
 
     with pytest.raises(ValueError, match=message):
         load_config()
+
+
+def test_sound_effect_generation_is_gated_on_its_own_credential() -> None:
+    config = load_config(env={"OPENROUTER_API_KEY": "secret-value", "OPENAI_API_KEY": "x"})
+    with pytest.raises(ConfigError) as captured:
+        assert_capabilities(config, [CapabilityName.SOUND_EFFECT_GENERATION])
+    assert str(captured.value).endswith("ELEVENLABS_API_KEY")
+    assert "secret-value" not in str(captured.value)
+    assert_capabilities(
+        load_config(env={"ELEVENLABS_API_KEY": "eleven"}),
+        [CapabilityName.SOUND_EFFECT_GENERATION],
+    )
+
+
+def test_sound_effect_model_defaults_to_the_documented_route_and_is_overridable() -> None:
+    assert load_config(env={}).sound_effect_model == "eleven_text_to_sound_v2"
+    assert (
+        load_config(
+            env={"STAGE_GEN_SOUND_EFFECT_MODEL": "eleven_text_to_sound_v3"}
+        ).sound_effect_model
+        == "eleven_text_to_sound_v3"
+    )
+    with pytest.raises(ValueError, match="non-empty"):
+        StageGenConfig(sound_effect_model=" ")

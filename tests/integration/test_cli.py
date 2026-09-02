@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from stage_gen.capabilities import CapabilityArtifactResult
 from stage_gen.interfaces.cli import build_parser, main
 
 
@@ -69,11 +70,11 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
         == 0
     )
     plan = json.loads(plan_output.getvalue())
-    assert len(plan["graph"]["nodes"]) == 221
+    assert len(plan["graph"]["nodes"]) == 227
     assert plan["projection"]["operation_counts"] == {
-        "local": 104,
-        "image_generation": 93,
-        "structured_generation": 21,
+        "local": 106,
+        "image_generation": 95,
+        "structured_generation": 23,
         "music_generation": 3,
     }
 
@@ -109,10 +110,10 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     )
     report = json.loads(output.getvalue())
     assert report["ok"] is True
-    assert report["node_count"] == 221
+    assert report["node_count"] == 227
     assert report["provider_operation_counts"] == {
-        "image_generation": 93,
-        "structured_generation": 21,
+        "image_generation": 95,
+        "structured_generation": 23,
         "music_generation": 3,
     }
     assert (tmp_path / "run/execution-plan.json").is_file()
@@ -122,8 +123,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     assert main(["export-view", "--run", str(tmp_path / "run")], stdout=view_output) == 0
     view_report = json.loads(view_output.getvalue())
     assert view_report["run_state"] == "succeeded"
-    assert view_report["nodes"] == 221
-    assert view_report["states"]["succeeded"] == 221
+    assert view_report["nodes"] == 227
+    assert view_report["states"]["succeeded"] == 227
     view_path = tmp_path / "run/execution-view.json"
     assert view_path.is_file()
     view_document = json.loads(view_path.read_text(encoding="utf-8"))
@@ -428,10 +429,89 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
         "fal": True,
         "elevenlabs": True,
     }
+    assert report["models"]["soundEffect"] == "eleven_text_to_sound_v2"
     assert "doctor-openai" not in rendered
     assert "doctor-openrouter" not in rendered
     assert "doctor-fal" not in rendered
     assert "doctor-elevenlabs" not in rendered
+
+
+def test_generate_sound_effect_passes_the_verbatim_prompt_and_route_parameters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven")
+    calls: list[dict[str, object]] = []
+
+    class _Runtime:
+        async def generate_sound_effect(self, **kwargs: object) -> CapabilityArtifactResult:
+            calls.append(kwargs)
+            output = str(kwargs["output_path"])
+            return CapabilityArtifactResult(
+                artifact_path=output,
+                provenance_path=f"{output}.meta.json",
+                media_type="audio/mpeg",
+                bytes=12_000,
+                attempts=1,
+            )
+
+    output = StringIO()
+    assert (
+        main(
+            [
+                "generate-sound-effect",
+                "--output",
+                str(tmp_path / "hatch.mp3"),
+                "--duration",
+                "0.6",
+                "--prompt-influence",
+                "0.3",
+                "metal",
+                "hatch",
+                "latch release",
+            ],
+            runtime=_Runtime(),  # type: ignore[arg-type]
+            stdout=output,
+        )
+        == 0
+    )
+    assert calls == [
+        {
+            "prompt": "metal hatch latch release",
+            "output_path": str(tmp_path / "hatch.mp3"),
+            "duration_seconds": 0.6,
+            "prompt_influence": 0.3,
+            "loop": False,
+            "metadata": None,
+        }
+    ]
+    assert json.loads(output.getvalue())["mediaType"] == "audio/mpeg"
+    assert "generate-sound-effect" in build_parser().format_help()
+
+
+def test_generate_sound_effect_refuses_a_non_mp3_output_before_any_runtime(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven")
+    errors = StringIO()
+    assert (
+        main(
+            [
+                "generate-sound-effect",
+                "--output",
+                str(tmp_path / "x.wav"),
+                "--duration",
+                "1",
+                "hit",
+            ],
+            runtime=object(),  # type: ignore[arg-type]
+            stdout=StringIO(),
+            stderr=errors,
+        )
+        != 0
+    )
+    assert ".mp3" in errors.getvalue()
 
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:

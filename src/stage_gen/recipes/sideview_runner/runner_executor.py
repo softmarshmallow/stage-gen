@@ -26,6 +26,7 @@ from gnode import (
 from stage_gen.orchestration.runtime import (
     create_music_service,
     create_openai_image_service,
+    create_sound_effect_service,
     create_structured_service,
 )
 from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
@@ -124,6 +125,11 @@ class SideviewRunnerExecutor:
         if self._config.open_router_api_key is None:
             raise ValueError("sideview-runner execution requires OPENROUTER_API_KEY")
         plan = await self._open_run(input_path, run_dir=run_dir)
+        needs_sound_effects = bool(plan.resolved.runner.audio.generated_effects())
+        if needs_sound_effects and self._config.elevenlabs_api_key is None:
+            raise ValueError(
+                "sideview-runner execution requires ELEVENLABS_API_KEY for generated clips"
+            )
         trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
         image_service = create_openai_image_service(
             api_key=self._config.openai_api_key,
@@ -145,6 +151,15 @@ class SideviewRunnerExecutor:
             if plan.resolved.runner.soundtrack is not None
             else None
         )
+        sound_effect_service = (
+            create_sound_effect_service(
+                api_key=self._config.elevenlabs_api_key,
+                model=self._config.sound_effect_model,
+                base_url=self._config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
+            )
+            if needs_sound_effects and self._config.elevenlabs_api_key is not None
+            else None
+        )
         scheduler = Scheduler(
             plan.graph.resources,
             node_timeout_seconds=max(self._config.stage_timeout_s, 900),
@@ -158,6 +173,7 @@ class SideviewRunnerExecutor:
             image_service=image_service,
             structured_service=structured_service,
             music_service=music_service,
+            sound_effect_service=sound_effect_service,
             capability_timeout_s=self._config.capability_timeout_s,
         )
         try:
@@ -173,6 +189,8 @@ class SideviewRunnerExecutor:
             await structured_service.aclose()
             if music_service is not None:
                 await music_service.aclose()
+            if sound_effect_service is not None:
+                await sound_effect_service.aclose()
         write_run_summary(run_dir / "execution-summary.json", summary)
         return SideviewRunnerRun(plan=plan, summary=summary, run_dir=run_dir)
 

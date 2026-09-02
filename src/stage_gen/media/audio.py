@@ -6,6 +6,8 @@ import asyncio
 import contextlib
 import json
 import math
+import re
+import subprocess
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,7 +50,15 @@ async def run_process(
     timeout_seconds: float = DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
     *,
     secrets: Sequence[str] = (),
+    input_bytes: bytes | None = None,
 ) -> AudioProcessResult:
+    """Run one bounded inspection process.
+
+    ``input_bytes``, when given, is fed to the process on stdin so a payload
+    can be inspected before any artifact exists - the retry owner validates a
+    provider response in memory. Without it stdin is closed.
+    """
+
     if not command.strip():
         raise ValueError("audio process command must be non-empty")
     if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
@@ -56,7 +66,7 @@ async def run_process(
     process = await asyncio.create_subprocess_exec(
         command,
         *args,
-        stdin=asyncio.subprocess.DEVNULL,
+        stdin=asyncio.subprocess.DEVNULL if input_bytes is None else asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -64,6 +74,13 @@ async def run_process(
         process.kill()
         await process.wait()
         raise RuntimeError("audio process pipes were not created")
+    feed_task: asyncio.Task[None] | None = None
+    if input_bytes is not None:
+        if process.stdin is None:  # pragma: no cover - PIPE invariant
+            process.kill()
+            await process.wait()
+            raise RuntimeError("audio process stdin pipe was not created")
+        feed_task = asyncio.create_task(_feed_stdin(process.stdin, input_bytes))
 
     stdout = bytearray()
     stderr = bytearray()
@@ -119,6 +136,10 @@ async def run_process(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*pump_tasks, wait_task, exceeded_task, return_exceptions=True)
+        if feed_task is not None:
+            if not feed_task.done():
+                feed_task.cancel()
+            await asyncio.gather(feed_task, return_exceptions=True)
 
     stdout_text = stdout.decode("utf-8", errors="replace")
     stderr_text = stderr.decode("utf-8", errors="replace")
@@ -128,6 +149,19 @@ async def run_process(
         safe_command = redact_secrets(command, secrets)
         raise RuntimeError(f"{safe_command} exited with {process.returncode}{suffix}")
     return AudioProcessResult(stdout=stdout_text, stderr=stderr_text)
+
+
+async def _feed_stdin(stream: asyncio.StreamWriter, payload: bytes) -> None:
+    """Write the payload and close stdin; a consumer that exits early is not an error here."""
+
+    try:
+        stream.write(payload)
+        await stream.drain()
+    except (BrokenPipeError, ConnectionResetError):
+        return
+    finally:
+        with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+            stream.close()
 
 
 async def _read_bounded_output(
@@ -252,3 +286,86 @@ def validate_music_payload(data: bytes) -> dict[str, object]:
     if len(data) < MINIMUM_MUSIC_PAYLOAD_BYTES:
         raise ValueError("generated music payload is too small")
     return {"minimum_bytes": MINIMUM_MUSIC_PAYLOAD_BYTES, "bytes": len(data)}
+
+
+#: A generated sound-effect response below this is a truncated container, not a
+#: short clip: half a second of 192 kbps mp3 is about twelve kilobytes.
+MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES = 2 * 1024
+
+_PEAK_LINE = re.compile(r"max_volume:\s*(-?\d+(?:\.\d+)?)\s*dB")
+
+
+def validate_sound_effect_payload(data: bytes) -> dict[str, object]:
+    """Refuse a truncated sound-effect payload; bytes only, like its music twin."""
+
+    if len(data) < MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES:
+        raise ValueError("generated sound effect payload is too small")
+    return {"minimum_bytes": MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES, "bytes": len(data)}
+
+
+def peak_measurement_args() -> list[str]:
+    """The ffmpeg invocation that reports a stream's sample peak from stdin."""
+
+    return ["-v", "info", "-nostdin", "-i", "pipe:0", "-af", "volumedetect", "-f", "null", "-"]
+
+
+def parse_peak_dbfs(stderr: str) -> float:
+    """Read ``volumedetect``'s ``max_volume`` line; refuse when it is absent."""
+
+    matches = _PEAK_LINE.findall(stderr)
+    if not matches:
+        raise ValueError("ffmpeg volumedetect reported no max_volume")
+    return _finite(matches[-1], "volumedetect max_volume")
+
+
+async def measure_peak_dbfs(
+    data: bytes,
+    *,
+    runner: AudioProcessRunner | None = None,
+    ffmpeg: str = "ffmpeg",
+    timeout_seconds: float = DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
+) -> float:
+    """Measure a payload's sample peak in dBFS without writing it to disk.
+
+    Measurement only: the bytes are never altered. This is the objective half
+    of sound-effect admission - a dead draw and a clipped draw are both facts
+    a decoder can state, and both are refused rather than repaired.
+    """
+
+    if runner is None:
+        result = await run_process(
+            ffmpeg, peak_measurement_args(), timeout_seconds, input_bytes=data
+        )
+    else:
+        result = await runner(ffmpeg, peak_measurement_args(), timeout_seconds)
+    return parse_peak_dbfs(result.stderr)
+
+
+def measure_peak_dbfs_sync(
+    data: bytes,
+    *,
+    ffmpeg: str = "ffmpeg",
+    timeout_seconds: float = DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
+) -> float:
+    """The blocking twin of ``measure_peak_dbfs`` for synchronous cache admission.
+
+    A runner's provider-cache callback reconstructs provenance synchronously, so
+    the same facts the live validator recorded must be recomputable there.
+    Decoding a sub-second clip takes tens of milliseconds, which is why blocking
+    is acceptable at that one site and nowhere else.
+    """
+
+    try:
+        completed = subprocess.run(
+            [ffmpeg, *peak_measurement_args()],
+            input=data,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"{ffmpeg} timed out after {timeout_seconds:g}s") from exc
+    stderr = completed.stderr.decode("utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(f"{ffmpeg} exited with {completed.returncode}: {stderr.strip()[-800:]}")
+    return parse_peak_dbfs(stderr)

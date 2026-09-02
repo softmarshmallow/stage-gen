@@ -7,8 +7,11 @@ from PIL import Image
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_ui import (
+    ATLAS_ALPHA_POLICY,
+    BUTTON_RECT_LAYOUT,
     INVENTORY_PANEL_ALPHA_POLICY,
     INVENTORY_PANEL_LAYOUT,
+    PANEL_FRAME_LAYOUT,
     inventory_panel_layout_contract,
     load_game_ui_bytes,
 )
@@ -29,6 +32,23 @@ def test_canonical_ui_contract_separates_presentation_from_gameplay() -> None:
     slots = layout["slots"]
     assert isinstance(slots, list)
     assert len(slots) == 8
+
+
+def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
+    source = (PACKAGE / "ui.toml").read_bytes()
+    contract = load_game_ui_bytes(source)
+
+    assert contract.kind == "game-ui-v2"
+    assert contract.panel_frame.layout == PANEL_FRAME_LAYOUT
+    assert contract.button_rect.layout == BUTTON_RECT_LAYOUT
+    assert contract.panel_frame.alpha_policy == ATLAS_ALPHA_POLICY
+    assert contract.button_rect.reference_ids == ["cover_style"]
+
+    swapped = source.replace(BUTTON_RECT_LAYOUT.encode(), PANEL_FRAME_LAYOUT.encode())
+    with pytest.raises(AuthoredContractLoadError, match=r"button_rect\.layout must be"):
+        load_game_ui_bytes(swapped)
+    with pytest.raises(AuthoredContractLoadError, match="game-ui-v2"):
+        load_game_ui_bytes(source.replace(b'kind = "game-ui-v2"', b'kind = "game-ui-v1"'))
 
 
 def test_ui_contract_rejects_unknown_and_unused_references() -> None:
