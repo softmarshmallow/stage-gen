@@ -29,4 +29,19 @@ describe("RunnerPlayer control copy", () => {
     expect(jumpingMarkup).not.toContain("Arrow Down");
     expect(jumpingMarkup).not.toContain("Slide");
   });
+
+  test("advertises the fly hold only when the package fights something", () => {
+    const plain = parseRunnerRuntimeManifest(runnerManifestFixture());
+    expect(renderToStaticMarkup(<RunnerPlayer tag="plain" manifest={plain} />)).not.toContain(
+      "Hold to fly",
+    );
+
+    const fighting = parseRunnerRuntimeManifest(runnerManifestFixture({ encounter: true }));
+    const markup = renderToStaticMarkup(<RunnerPlayer tag="fighting" manifest={fighting} />);
+
+    expect(markup).toContain("Hold to fly");
+    // The jump copy survives: it is the same control wearing a second verb,
+    // not a replacement for the first.
+    expect(markup).toContain("press Space to jump");
+  });
 });

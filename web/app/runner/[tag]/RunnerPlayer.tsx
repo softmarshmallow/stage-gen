@@ -24,9 +24,18 @@ export default function RunnerPlayer({
   const supportsSlide =
     manifest.gameplay.duckProfile !== null &&
     manifest.avatar.motions.some((motion) => motion.state === "slide");
-  const controlsLabel = supportsSlide
-    ? "Tap the upper screen or press Space to jump. Hold the lower screen or Arrow Down to slide."
-    : "Tap the screen or press Space to jump.";
+  // The same control, stated once per verb it wears: press to jump while
+  // running, hold to climb while a boss is on the line.
+  const controlsLabel = [
+    supportsSlide
+      ? "Tap the upper screen or press Space to jump. Hold the lower screen or Arrow Down to slide."
+      : "Tap the screen or press Space to jump.",
+    manifest.gameplay.encounter === null
+      ? null
+      : "Hold to fly when a boss blocks the way.",
+  ]
+    .filter((line) => line !== null)
+    .join(" ");
 
   useEffect(() => {
     let game: RunnerGameHandle | undefined;
