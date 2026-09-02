@@ -228,12 +228,22 @@ and fill colours - so unpainted ground publishes *as guide material*. This is
 the check that catches a part-painted walk surface, which the coverage floor
 below it could not: a cell four fifths made of fallback passed the old one.
 
-The floor is not a taste number. Publication grows the painting's own solid
-colour a few pixels outward to sit under the rim its alpha feathers away, and
-the floor is that same distance read as a coverage, so a cell is admitted
-exactly when what it leaves bare is a feathered edge the canonicalizer can
-cover rather than an unpainted cell it cannot. The two are written once and
-derived from each other.
+That floor stays a gross one. Deriving it from how far publication can reach
+was tried and put it at 0.90625, which is exactly where a normal four-to-five
+pixel alpha ramp lands, so it refused correct paintings about half the time and
+spent one segment's whole retry budget. A coverage over a cell is a proxy for
+the thing that matters anyway.
+
+**Published guide colour.** So the thing that matters is measured directly, on
+the canonicalized result rather than on the source: no published row may wear
+the guide's cap colour above a small share. By row, because the failure is a
+line and a share over a raster cannot see one - the hairline that shipped
+measured 0.805 of its scanline on a tile measuring 0.0075 overall. Only the cap
+counts; the guide's fill colour is the material's own dark, which honest art
+wears legitimately. Across Iron Petal's twelve paintings the check reads 0.0000
+to 0.0017 and refuses exactly one: the arena chunk whose provider left a rim
+eight pixels bare, wider than publication can underlay with the cell's own
+colour.
 
 **Guide residue.** No guide-palette colour may survive above a small share of
 the painted region. This catches the other shape of the same failure, where a

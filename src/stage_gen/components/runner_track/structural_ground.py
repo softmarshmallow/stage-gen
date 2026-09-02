@@ -70,14 +70,25 @@ _MIN_INCIDENT_SATURATION: Final = 90
 #: which is this number, read the other way round - refuses it instead.
 _PAINT_EDGE_EXTENSION_PX: Final = 6
 
-#: The floor is the rim the canonicalizer can underlay, read as a coverage:
-#: a cell bare over more than `_PAINT_EDGE_EXTENSION_PX` of its 64 published
-#: pixels is not a feathered edge, and nothing downstream can cover it with
-#: the cell's own material. The two numbers are the same statement, so they
-#: are written once. At 0.85 this admitted the arena chunk at 0.875, whose
-#: eight bare pixels published as a lilac band along the row the avatar
-#: stands on through the whole boss fight.
-_MIN_SOURCE_TOP_CELL_COVERAGE: Final = 1.0 - _PAINT_EDGE_EXTENSION_PX / STRUCTURAL_GROUND_CELL_PX
+#: A gross floor only. Deriving this from the underlay reach was tried and put
+#: it at 0.90625, which is exactly where a normal four-to-five-pixel alpha ramp
+#: lands: it refused correct paintings about half the time and burned a
+#: segment's whole retry budget. A coverage is a proxy anyway. What the rule
+#: actually cares about is whether guide colour survives INTO THE PUBLISHED
+#: RASTER, and that is now measured directly, below, on the canonicalized
+#: result rather than guessed at from the source's alpha.
+_MIN_SOURCE_TOP_CELL_COVERAGE: Final = 0.85
+
+#: How much of any published row may still wear the guide's cap colour. The
+#: defect this refuses is a line, so it is measured by row rather than over the
+#: raster: a hairline is a fifth of a percent of the tile and four fifths of one
+#: scanline. Measured over Iron Petal's twelve tiles, canonicalized offline:
+#: 0.924 at worst before the rim was underlaid and 0.003 after, so the threshold
+#: has two orders of margin on one side and thirty times on the other. Only the
+#: cap colour counts. The fill colour is the material's own dark, which honest
+#: art wears legitimately - measuring both put a third of a correct row in
+#: breach.
+_MAX_PUBLISHED_CAP_ROW_SHARE: Final = 0.10
 _MAX_SOURCE_EMPTY_LEAKAGE: Final = 0.35
 _MIN_SOURCE_VISIBLE_ALPHA: Final = 128
 
@@ -506,6 +517,27 @@ def validate_structural_ground_source(
             "structural ground source left guide colour visible instead of painting over it"
         )
 
+    # The defect where it appears. A painting's alpha ramps to opaque over four
+    # or five pixels along the top of every slab; publication underlays that rim
+    # with the painting's own colour, and this proves it worked on THIS painting
+    # rather than trusting a coverage proxy on the source. Anything the underlay
+    # cannot reach still shows the guide's cap, and shows it as a line.
+    published = _canonicalize_painting(
+        image.crop(layout.central_box).resize(
+            (columns * STRUCTURAL_GROUND_CELL_PX, len(occupancy) * STRUCTURAL_GROUND_CELL_PX),
+            Image.Resampling.LANCZOS,
+        ),
+        occupancy=occupancy,
+        palette=palette,
+        material_identity=material_identity,
+    )
+    published_cap_row = worst_published_cap_row(published, cap=palette[0])
+    if published_cap_row > _MAX_PUBLISHED_CAP_ROW_SHARE:
+        raise ValueError(
+            f"structural ground source leaves a guide-coloured line in the published raster: "
+            f"{published_cap_row:.3f} of one row still wears the guide's cap"
+        )
+
     # One projection per tile. Parallel projection is the only projection
     # invariant under horizontal translation, and this ground scrolls past a
     # camera while chunks repeat in arbitrary order.
@@ -561,6 +593,8 @@ def validate_structural_ground_source(
         "minimum_required_solid_cell_coverage": _MIN_SOURCE_SOLID_CELL_COVERAGE,
         "minimum_top_cell_coverage": round(minimum_top_cell_coverage, 6),
         "minimum_required_top_cell_coverage": _MIN_SOURCE_TOP_CELL_COVERAGE,
+        "published_cap_row_share": round(published_cap_row, 6),
+        "maximum_published_cap_row_share": _MAX_PUBLISHED_CAP_ROW_SHARE,
         "empty_leakage": round(empty_leakage, 6),
         "apron_coverage": round(apron_coverage, 6),
         "left_apron_coverage": round(left_apron_coverage, 6),
@@ -972,6 +1006,32 @@ def guide_residue_share(
     if considered == 0:
         return 0.0
     return residue / considered
+
+
+def worst_published_cap_row(published: Image.Image, *, cap: RGB) -> float:
+    """The loudest single row of guide cap colour in a canonicalized raster.
+
+    By row, because the failure is a line along the walking surface and a share
+    over the whole raster cannot see one: the hairline that shipped measured
+    0.805 of its scanline while the tile it was on measured 0.0075.
+    """
+
+    channels = published.split()
+    within = None
+    for channel, value in zip(channels[:3], cap, strict=True):
+        near = channel.point(lambda level, target=value: 255 if abs(level - target) <= 10 else 0)
+        within = near if within is None else ImageChops.multiply(within, near)
+    assert within is not None
+    visible = channels[3].point(lambda value: 255 if value >= _MIN_SOURCE_VISIBLE_ALPHA else 0)
+    wearing = ImageChops.multiply(within, visible)
+    worst = 0.0
+    for row in range(published.height):
+        box = (0, row, published.width, row + 1)
+        seen = sum(visible.crop(box).histogram()[128:])
+        if seen == 0:
+            continue
+        worst = max(worst, sum(wearing.crop(box).histogram()[128:]) / seen)
+    return worst
 
 
 def colour_incident_share(region: Image.Image) -> float:

@@ -650,6 +650,46 @@ def test_a_feathered_edge_publishes_material_rather_than_the_guide_palette() -> 
     assert not wearing_the_guide, f"{len(wearing_the_guide)} of {len(opaque)} still wear the cap"
 
 
+def test_a_rim_wider_than_publication_can_underlay_is_refused() -> None:
+    """The other side of the same rule, and the reason it is measured published.
+
+    A feathered edge is covered by growing the painting's own colour under it.
+    A rim wider than that reach is not a feathered edge, and no amount of
+    reach fixes it: the nearest paint at a slab's top is its dark ink contour,
+    so widening only trades a lilac band for a dark one. It has to be refused,
+    and refused on what the raster would publish rather than on a coverage
+    proxy over the source.
+    """
+
+    bridge, _bridge_report, painted_source, guide = _bridge(PITTED_ROWS)
+    _guide_bytes, guide_report = _guide()
+    layout = cast(dict[str, int], guide_report["layout"])
+    with Image.open(BytesIO(painted_source)) as opened:
+        stripped = opened.convert("RGBA")
+    alpha = stripped.getchannel("A")
+    surface_top = layout["top"] + 5 * layout["cell_px"]
+    # Twelve per cent of a cell: past the six published pixels publication can
+    # underlay, and still inside the gross coverage floor, so this refusal is
+    # the published-raster one rather than the coverage one.
+    bare = Image.new("L", stripped.size, 255)
+    ImageDraw.Draw(bare).rectangle(
+        (0, surface_top, stripped.width, surface_top + int(layout["cell_px"] * 0.12)),
+        fill=0,
+    )
+    stripped.putalpha(ImageChops.darker(alpha, bare))
+
+    with pytest.raises(ValueError, match="guide-coloured line in the published raster"):
+        validate_structural_ground_source(
+            _png(stripped),
+            occupancy=PITTED_ROWS,
+            walk_surface_row=5,
+            guide=guide,
+            material_identity=MATERIAL_IDENTITY,
+            material_references=[REFERENCE],
+        )
+    assert bridge
+
+
 def test_the_lean_estimator_resolves_the_angle_it_is_given() -> None:
     """The instrument the projection check reads used to answer 45 to everything.
 
