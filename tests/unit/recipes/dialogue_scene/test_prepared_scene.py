@@ -63,11 +63,11 @@ async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: P
     )
 
     assert summary.ok
-    # Three structured calls (one style anchor, one plan per actor) and nine
-    # images: one backdrop per stage, plus four expressions for each of two
-    # actors. The style plate is authored, so nothing buys it.
-    assert len(structured.calls) == 3
-    assert len(images.requests) == 9
+    # Five structured calls (one style anchor, one plan per actor, one judge per interface
+    # role) and eleven images: one backdrop per stage, four expressions for each of two
+    # actors, and the two nine-slice sheets. The style plate is authored, so nothing buys it.
+    assert len(structured.calls) == 5
+    assert len(images.requests) == 11
     bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
     assert bundle.style_reference_source == "references/cover.png"
     assert bundle.style_reference.sha256 == content_sha256(
@@ -81,6 +81,7 @@ async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: P
         "style",
         "background",
         "expression",
+        "ui",
     }
     # Every actor carries the whole locked taxonomy, in order.
     assert [actor.actor_id for actor in bundle.actors] == ["mio", "ren"]
@@ -119,6 +120,11 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
         "actor-ren-plan.json",
         "scene-style-select.json",
         "stage-lounge.json",
+        # The shared interface triplet keeps a ledger like every other provider node.
+        "ui-button_rect-generate.json",
+        "ui-button_rect-review.json",
+        "ui-panel_frame-generate.json",
+        "ui-panel_frame-review.json",
     ]
     ledger = AttemptLedger.model_validate_json((tmp_path / "run/attempts.json").read_bytes())
     # Merged in graph order, so the ledger reads as the run happened.
@@ -135,6 +141,10 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
         "actor-ren-delighted",
         "actor-ren-flustered",
         "actor-ren-concerned",
+        "ui-panel_frame-generate",
+        "ui-panel_frame-review",
+        "ui-button_rect-generate",
+        "ui-button_rect-review",
     ]
     assert all(record.outcome == "selected" for record in ledger.attempts)
 

@@ -72,3 +72,34 @@ export function stepAttackWindow(input: {
       attacking && elapsed >= profile.hitWindowFromMs && elapsed <= profile.hitWindowToMs,
   });
 }
+
+/**
+ * The index of the blow due now, or null when none is.
+ *
+ * A single-blow class is the degenerate case: tick zero is due the moment the window opens and
+ * nothing follows it, which is exactly the once-per-action latch the controller kept before
+ * multi-hit existed. A multi-hit class spaces its later ticks `hitIntervalMs` apart from the window
+ * opening; a tick that would fall after the window closes is never due, so a class authored with
+ * more blows than its window holds simply lands fewer rather than landing during recovery.
+ *
+ * At most one tick per call. A long frame - or a held hitstop, during which the clock still runs -
+ * therefore spreads a combo over frames rather than collapsing it into one, which is what keeps
+ * the numbers readable as separate blows.
+ */
+export function nextAttackHitTick(input: {
+  profile: WeaponClassProfile;
+  state: AttackWindowState;
+  nowMs: number;
+  ticksFired: number;
+}): number | null {
+  const { profile, state, nowMs, ticksFired } = input;
+  if (!state.attackActive) return null;
+  if (!Number.isSafeInteger(ticksFired) || ticksFired < 0) {
+    throw new Error("attack hit ticks fired must be a nonnegative integer");
+  }
+  if (ticksFired >= profile.hitsPerAction) return null;
+  const elapsed = nowMs - state.attackStarted;
+  const dueAt = profile.hitWindowFromMs + ticksFired * profile.hitIntervalMs;
+  if (elapsed < dueAt || elapsed > profile.hitWindowToMs) return null;
+  return ticksFired;
+}

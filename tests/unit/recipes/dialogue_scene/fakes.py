@@ -22,6 +22,8 @@ from gnode import (
     StructuredGenerationResult,
     write_artifact_with_provenance,
 )
+from stage_gen.components.game_ui import ATLAS_ROLES
+from tests.unit._ui_atlas_fixture import atlas_sheet
 
 
 def chroma_png() -> bytes:
@@ -60,7 +62,9 @@ class FakeImages:
             raise RetryExhaustedError("fake image", ValueError("bad media"), 6)
         role = request.metadata.get("role")
         data = (
-            removed_png()
+            atlas_sheet(ATLAS_ROLES[str(role)])
+            if role in ATLAS_ROLES
+            else removed_png()
             if request.background == "transparent"
             else chroma_png()
             if role != "background"
@@ -118,6 +122,14 @@ class FakeStructured:
                 "style_mode": "cel_shaded_anime_2d",
             }
             if request.schema.name == "image_style_selection_v1"
+            else {
+                "verdict": "accept",
+                "confidence": 0.9,
+                "checks": {"style_coherence": True, "text_free": True},
+                "issues": [],
+                "evidence": "fake atlas review",
+            }
+            if request.schema.name == "prepared_ui_atlas_review"
             else {
                 "shared_locks": self.plan_shared_locks
                 or {

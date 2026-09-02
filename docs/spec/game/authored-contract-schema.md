@@ -225,7 +225,9 @@ In particular, a map owns ladder and portal composition per map, while
 `gameplay.toml` owns climb permission and portal destinations. Gameplay
 `crouch` authorizes the posture; the player catalog supplies its motion frames
 and playback contract. Gameplay `[combat] weapon_class` says how the character
-fights; the player catalog's `equipment` says what they are drawn carrying.
+fights (`melee_dps_v1`, `melee_sweep_v1`, or `ranged_dps_v1`) and
+`[combat] number_scale` how large the numbers read (`unit_v1` or `arcade_v1`);
+the player catalog's `equipment` says what they are drawn carrying.
 Both are closed names, so unlike the pairings above this one is enforced rather
 than merely owned: for a combat-enabled package, resolution rejects a
 combination the vocabularies do not admit as `player_equipment_mismatch`.

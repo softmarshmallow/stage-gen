@@ -1,3 +1,4 @@
+import { UI_ATLAS_FIXTURE_ROLES } from "@/lib/shell/prepared-runtime.fixture";
 import { describe, expect, test } from "bun:test";
 
 import { ferryProgramDocument } from "@/lib/scenario/program.fixture";
@@ -23,6 +24,16 @@ function fixture(): Record<string, unknown> {
     sceneLabel: "Two travellers wait for the last ferry",
     presentation: { framingZoom: 70, sourceFramingZoom: 70 },
     styleSrc: runSrc("style-plate"),
+    ui: {
+      panelFrame: {
+        layout: UI_ATLAS_FIXTURE_ROLES.panel_frame,
+        src: "/api/assets/harborlight/ui/panel_frame.png",
+      },
+      buttonRect: {
+        layout: UI_ATLAS_FIXTURE_ROLES.button_rect,
+        src: "/api/assets/harborlight/ui/button_rect.png",
+      },
+    },
     stages: program.stages.map((stage) => ({
       stageId: stage.stageId,
       id: stage.stageId.replace(/_/g, "-"),

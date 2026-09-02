@@ -1,5 +1,5 @@
 /**
- * The point-and-click room runtime contract: `pointclick-room-runtime-v2`.
+ * The point-and-click room runtime contract: `pointclick-room-runtime-v3`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
@@ -7,7 +7,10 @@
  * from this document alone.
  */
 
-export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v2";
+import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
+import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+
+export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v3";
 export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 1;
 
 export const POINTCLICK_REFUSAL =
@@ -58,6 +61,23 @@ export interface RoomInteraction {
   readonly narration: string;
 }
 
+/** One generated nine-slice role: the geometry the gate measured, plus its sheet. */
+export interface RoomUiRole {
+  readonly layout: UiAtlasRoleLayout;
+  /** Run-relative path of the sheet this role is drawn from. */
+  readonly asset: string;
+}
+
+export interface RoomUi {
+  readonly panelFrame: RoomUiRole;
+  readonly buttonRect: RoomUiRole;
+}
+
+/** One role's published block, by the producer's own role name. */
+export function roomUiRole(ui: RoomUi, role: UiAtlasRoleName): RoomUiRole {
+  return role === "panel_frame" ? ui.panelFrame : ui.buttonRect;
+}
+
 export interface RoomManifest {
   readonly roomId: string;
   readonly displayName: string;
@@ -70,6 +90,8 @@ export interface RoomManifest {
   readonly items: readonly RoomItem[];
   readonly interactions: readonly RoomInteraction[];
   readonly win: { readonly requires: readonly string[]; readonly narration: string };
+  /** The screen-fixed interface art every panel and control is drawn from. */
+  readonly ui: RoomUi;
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -219,6 +241,14 @@ export function parseRoomManifest(value: unknown): RoomManifest {
     };
   });
   const win = record(raw.win, "win");
+  const ui = record(raw.ui, "ui");
+  const uiRole = (role: UiAtlasRoleName): RoomUiRole => {
+    const source = record(ui[role], `ui.${role}`);
+    return {
+      layout: parseUiAtlasRoleLayout(source, role),
+      asset: text(source.asset, `ui.${role}.asset`),
+    };
+  };
   const manifest: RoomManifest = {
     roomId: text(raw.room_id, "room_id"),
     displayName: text(raw.display_name, "display_name"),
@@ -233,6 +263,7 @@ export function parseRoomManifest(value: unknown): RoomManifest {
     hotspots,
     items,
     interactions,
+    ui: { panelFrame: uiRole("panel_frame"), buttonRect: uiRole("button_rect") },
     win: {
       requires: ids(win.requires, "win.requires"),
       narration: text(win.narration, "win.narration"),

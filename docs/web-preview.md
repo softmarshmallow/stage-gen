@@ -167,9 +167,39 @@ further than an ordinary one. Reduced motion still flattens the movement for bot
 strip over a band a little under a tile and a half wide; `ranged_dps_v1` throws on the
 `secondary_action` strip. Both deal the same damage — distance is what the throwing class buys, and
 a character that kills from five tiles never walks into contact and never pays the contact-damage
-tax. Neither costs an extra generated image: both attack poses are already drawn for every
-combat-enabled package. A package that names no class swings, which is what every run published
-before the field did.
+tax. `melee_sweep_v1` is the hunting-ground kit: the same `basic_action` strip over a band a little
+over three tiles wide, striking up to six creatures and landing three blows a few frames apart
+inside one swing, each blow rolling its own critical and stacking its own number above the last.
+It is deliberately not a balanced peer of the swing. None of the three costs an extra generated
+image: both attack poses are already drawn for every combat-enabled package. A package that names
+no class swings, which is what every run published before the field did.
+
+`[combat] number_scale` names how big the numbers are. `unit_v1`, the default and what every
+earlier package played at, shows the fight as authored: a common creature has two hit points and a
+blow removes one. `arcade_v1` shows the same fight in hundreds, with a little per-blow variance so
+a column of numbers is a column of different numbers. It multiplies the player's blows and the
+creatures' pools by one factor, so balance is unchanged; the creatures' blows and the player's own
+pool are the aggression table's and progression's and are not touched.
+
+A mob's archetype - `passive`, `skittish`, `territorial`, `hunting`, or `relentless` - may be
+named on its `[[mobs]]` entry as `aggression`. A package that names nothing gets one from the
+creature's rank: common creatures are `passive` prey that wander and hurt only on contact, and the
+ladder climbs through `territorial`, `hunting`, and `relentless` with the rank. Every archetype's
+reach, speed, cadence, and damage are consumer numbers in `combat.ts`; the package only names it.
+
+Population placement is a consumer policy as well. The preview lets creatures spawn in view - they
+fade in over a few frames rather than appearing - stands them half a tile apart rather than more
+than one, and places most fresh spawns beside a creature already standing in the zone, so a route
+reads as groups of two and three rather than an even spread. The package still owns which species
+a zone holds, how many, and how fast they return.
+
+A connected blow is also presented procedurally, with no generated effect asset: the creature
+flashes white for a few frames, a spark fans out from the point of contact, the simulation holds
+for a few frames so the blow has weight, and a kill scatters a burst of shards, nudges the camera,
+and pops loot away from the striker in an arc that bounces once before it settles. The swing itself
+draws its band as a passing arc whether or not it connected. Every one of these samples the
+simulation clock the way floating combat text does, so a fixed-frame capture draws the same frame
+twice, and reduced motion keeps only the flash.
 
 The class is not free to pick, though, because the character has to be drawn able to use it. The
 player catalog declares `equipment` — `hand_weapon_v1`, `unarmed_v1`, `thrown_kit_v1`, or

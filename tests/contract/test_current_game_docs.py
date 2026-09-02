@@ -127,7 +127,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-package-v4`",
         "`game-contract-v9`",
         "`gameplay-contract-v1`",
-        "`game-ui-v2`",
+        "`game-ui-v3`",
         "`game-map-v9`",
         "`prepared-game-runtime-v10`",
     ):
@@ -184,7 +184,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "Dispatch is a registry lookup over `type_id`" in pipeline
 
     ui = documents["docs/spec/game/ui.md"]
-    assert "exact current identity is `game-ui-v2`" in ui
+    assert "exact current identity is `game-ui-v3`" in ui
     assert "every slot interior" in ui
 
     soundtrack = documents["docs/game-soundtrack.md"]
@@ -229,7 +229,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     for identity in (
         "`pointclick-room-v2`",
         "`pointclick-room-execution-graph-v1`",
-        "`pointclick-room-runtime-v2`",
+        "`pointclick-room-runtime-v3`",
         "`pointclick-solvability-v1`",
     ):
         assert identity in room

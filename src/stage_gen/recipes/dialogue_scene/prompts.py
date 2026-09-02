@@ -91,6 +91,23 @@ def plan_prompt(
     )
 
 
+def ui_atlas_prompt(task: str) -> str:
+    """One screen-fixed interface task, drawn against the scene's own style plate.
+
+    This recipe holds its art direction as pixels rather than adjectives, so there is no
+    keyword list to splice in: the plate is attached to the call and the clause below says
+    what it is for. Nobody is depicted, so no identity clause applies.
+    """
+
+    return (
+        f"{task}\n"
+        "One attached reference is this scene's authored style plate. It is the art direction "
+        "of record: match its rendering medium, palette, line quality and light exactly. Draw "
+        "no person, no scenery, and nothing else copied from it. Where it disagrees with the "
+        "instructions above, the instructions win."
+    )
+
+
 def background_prompt(brief: str) -> str:
     """One backdrop, from the stage's own authored brief.
 

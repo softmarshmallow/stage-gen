@@ -31,7 +31,7 @@ import {
   isPlayerInvulnerable,
   playerInvulnerabilityBlinkAlpha,
 } from "./combat";
-import { stepAttackWindow } from "./attack-window";
+import { nextAttackHitTick, stepAttackWindow } from "./attack-window";
 import { type PlayerIntent, playerIntent } from "./player-intent";
 import {
   PLAYER_ATTACK_STATES,
@@ -336,7 +336,8 @@ export class Player {
   };
   private attackUntil = 0;
   private attackStarted = 0;
-  private attackHitConsumed = false;
+  /** Blows already landed by the running action; reset when a fresh action commits. */
+  private attackHitTicksFired = 0;
   /** Deadline for the authored hurt presentation; it does not lock player control. */
   private hurtUntil = 0;
   private activeClimbable?: ClimbableZone;
@@ -810,7 +811,7 @@ export class Player {
     this.attackUntil = window.attackUntil;
     this.attackStarted = window.attackStarted;
     this.attackActive = window.attackActive;
-    if (window.committed) this.attackHitConsumed = false;
+    if (window.committed) this.attackHitTicksFired = 0;
     const attacking = window.attacking;
 
     // Vertical motion + one-way platform/terrain resolution.
@@ -1139,7 +1140,7 @@ export class Player {
   private clearAttack(): void {
     this.attackUntil = 0;
     this.attackStarted = 0;
-    this.attackHitConsumed = false;
+    this.attackHitTicksFired = 0;
     this.attackActive = false;
   }
 
@@ -1352,13 +1353,26 @@ export class Player {
     return this.weaponProfile();
   }
 
-  /** Whether the attack hit window is open AND has not consumed a hit. */
-  consumeAttackHit(): boolean {
-    if (this.attackActive && !this.attackHitConsumed) {
-      this.attackHitConsumed = true;
-      return true;
-    }
-    return false;
+  /**
+   * The index of the blow the running action lands this frame, or null.
+   *
+   * Zero on the first blow of any action, which is what a single-blow class only ever returns;
+   * a multi-hit class returns its later ticks as they come due. Each index is handed out once.
+   */
+  consumeAttackHit(nowMs: number): number | null {
+    const tick = nextAttackHitTick({
+      profile: this.weaponProfile(),
+      state: {
+        attackUntil: this.attackUntil,
+        attackStarted: this.attackStarted,
+        attackActive: this.attackActive,
+      },
+      nowMs,
+      ticksFired: this.attackHitTicksFired,
+    });
+    if (tick === null) return null;
+    this.attackHitTicksFired = tick + 1;
+    return tick;
   }
 
   snapshot(nowMs?: number): PlayerStateSnapshot {

@@ -196,11 +196,10 @@ def _as_ranged(source: bytes) -> bytes:
     one game's art direction and broke them when it changed.
     """
 
+    assert b'weapon_class = "melee_sweep_v1"\n' in source
     return source.replace(
-        b'critical_profile = "standard_v1"\n',
-        b'critical_profile = "standard_v1"\n'
-        b'weapon_class = "ranged_dps_v1"\n'
-        b'projectile_id = "paperwing_dart"\n',
+        b'weapon_class = "melee_sweep_v1"\n',
+        b'weapon_class = "ranged_dps_v1"\nprojectile_id = "paperwing_dart"\n',
         1,
     )
 
@@ -222,7 +221,9 @@ def test_a_package_that_never_names_the_weapon_class_parses_as_melee() -> None:
     # The field arrived after packages had already shipped, and the shipped package is one that
     # omits it. A contract that never names it means the class every one of those was played with,
     # not an invalid contract.
-    gameplay = load_gameplay_contract_bytes(_bytes("gameplay.toml"))
+    gameplay = load_gameplay_contract_bytes(
+        _bytes("gameplay.toml").replace(b'weapon_class = "melee_sweep_v1"\n', b"", 1)
+    )
 
     assert gameplay.combat.weapon_class == "melee_dps_v1"
     assert gameplay.combat.projectile_id is None
@@ -235,6 +236,60 @@ def test_combat_rejects_a_weapon_class_outside_the_taxonomy() -> None:
 
     with pytest.raises(AuthoredContractLoadError, match="literal_error"):
         load_gameplay_contract_bytes(source)
+
+
+def test_a_mob_may_name_its_aggression_and_leaves_it_to_rank_otherwise() -> None:
+    source = _bytes("content/mobs.toml")
+    catalog = load_mob_content_bytes(source)
+    assert all(mob.aggression is None for mob in catalog.mobs)
+
+    named = load_mob_content_bytes(
+        source.replace(
+            b'mob_id = "thimblejay"\n', b'mob_id = "thimblejay"\naggression = "skittish"\n', 1
+        )
+    )
+    assert {mob.mob_id: mob.aggression for mob in named.mobs}["thimblejay"] == "skittish"
+
+    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+        load_mob_content_bytes(
+            source.replace(
+                b'mob_id = "thimblejay"\n', b'mob_id = "thimblejay"\naggression = "ferocious"\n', 1
+            )
+        )
+
+
+def test_the_sweep_is_a_swinging_class_and_names_nothing_to_throw() -> None:
+    source = _bytes("gameplay.toml")
+    assert b'weapon_class = "melee_sweep_v1"' in source
+    gameplay = load_gameplay_contract_bytes(source)
+
+    assert gameplay.combat.weapon_class == "melee_sweep_v1"
+    assert gameplay.combat.projectile_id is None
+
+    with pytest.raises(
+        AuthoredContractLoadError, match="projectile_id requires a throwing weapon_class"
+    ):
+        load_gameplay_contract_bytes(
+            source.replace(
+                b'weapon_class = "melee_sweep_v1"\n',
+                b'weapon_class = "melee_sweep_v1"\nprojectile_id = "paperwing_dart"\n',
+                1,
+            )
+        )
+
+
+def test_the_number_scale_defaults_to_unit_and_is_read_when_named() -> None:
+    source = _bytes("gameplay.toml")
+    assert b'number_scale = "arcade_v1"' in source
+    assert load_gameplay_contract_bytes(source).combat.number_scale == "arcade_v1"
+
+    unnamed = source.replace(b'number_scale = "arcade_v1"\n', b"", 1)
+    assert load_gameplay_contract_bytes(unnamed).combat.number_scale == "unit_v1"
+
+    with pytest.raises(AuthoredContractLoadError, match="literal_error"):
+        load_gameplay_contract_bytes(
+            source.replace(b'number_scale = "arcade_v1"', b'number_scale = "huge_v1"', 1)
+        )
 
 
 def test_a_throwing_class_must_name_what_it_throws() -> None:

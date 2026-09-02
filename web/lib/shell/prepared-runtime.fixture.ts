@@ -69,6 +69,14 @@ export const UI_ATLAS_FIXTURE_ROLES: Readonly<{
   };
 })();
 
+/** The same geometry as a raw manifest block, for a consumer whose fixture is JSON. */
+export function uiAtlasFixtureBlock(prefix = "ui"): Record<string, unknown> {
+  return {
+    panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: `${prefix}/panel_frame.png` },
+    button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: `${prefix}/button_rect.png` },
+  };
+}
+
 function artifact(
   path: string,
   mediaType = "image/png",

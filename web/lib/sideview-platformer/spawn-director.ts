@@ -5,6 +5,21 @@ export type SpawnVisibility =
 
 export type ReplacementPolicy = "reroll_spawn_table" | "same_archetype";
 
+/**
+ * How a zone places a fresh spawn among its eligible columns.
+ *
+ * `uniform` is the established behaviour: every eligible column is equally likely, which spreads
+ * a population evenly along the zone and is what the separation rule was written for.
+ * `clustered` is the hunting-ground read: a fresh spawn usually joins a creature already standing
+ * in the zone, landing within `cluster_radius_px` of it, and only sometimes starts a new group of
+ * its own. Eligibility - player distance, separation, occupancy, camera - is unchanged; clustering
+ * only chooses *among* the columns that rule already admitted.
+ */
+export type SpawnPlacement = "uniform" | "clustered";
+
+/** How often a clustered spawn joins an existing group rather than founding a new one. */
+export const CLUSTER_JOIN_CHANCE = 0.7;
+
 export interface MobSpawnTableEntry {
   readonly mob_slot: number;
   readonly weight: number;
@@ -31,6 +46,10 @@ export interface MobSpawnZoneManifest {
   readonly minimum_spawn_separation_px: number;
   readonly wander_radius_px: number;
   readonly replacement_policy: ReplacementPolicy;
+  /** Absent means `uniform`, so every manifest written before the field reads as it did. */
+  readonly placement?: SpawnPlacement;
+  /** How far from a nucleus a clustered spawn may land; ignored for uniform placement. */
+  readonly cluster_radius_px?: number;
   readonly spawn_table: readonly MobSpawnTableEntry[];
 }
 
@@ -211,6 +230,9 @@ const ZONE_KEYS = [
   "spawn_table",
 ] as const;
 
+/** Keys a zone may carry but need not: each reads as its established default when absent. */
+const ZONE_OPTIONAL_KEYS = ["placement", "cluster_radius_px"] as const;
+
 const SPAWN_TABLE_KEYS = ["mob_slot", "weight", "min_alive", "max_alive"] as const;
 const KEBAB_CASE_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const UINT32_MAX = 0xffff_ffff;
@@ -226,8 +248,9 @@ function expectExactKeys(
   value: UnknownRecord,
   allowed: readonly string[],
   path: string,
+  optional: readonly string[] = [],
 ): void {
-  const allowedSet = new Set(allowed);
+  const allowedSet = new Set([...allowed, ...optional]);
   for (const key of Object.keys(value)) {
     if (!allowedSet.has(key)) {
       throw new ManifestValidationError(`${path}.${key} is not a supported key`);
@@ -335,7 +358,7 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
     const zones = expectArray(map.zones, `${mapPath}.zones`).map((zoneValue, zoneIndex) => {
       const zonePath = `${mapPath}.zones[${zoneIndex}]`;
       const zone = expectObject(zoneValue, zonePath);
-      expectExactKeys(zone, ZONE_KEYS, zonePath);
+      expectExactKeys(zone, ZONE_KEYS, zonePath, ZONE_OPTIONAL_KEYS);
 
       const zoneId = expectKebabCaseId(zone.zone_id, `${zonePath}.zone_id`);
       if (zoneIds.has(zoneId)) {
@@ -422,6 +445,19 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
         zone.wander_radius_px,
         `${zonePath}.wander_radius_px`,
       );
+      const placement: SpawnPlacement =
+        zone.placement === undefined
+          ? "uniform"
+          : expectEnum(zone.placement, ["uniform", "clustered"] as const, `${zonePath}.placement`);
+      const clusterRadiusPx =
+        zone.cluster_radius_px === undefined
+          ? 0
+          : expectInteger(zone.cluster_radius_px, `${zonePath}.cluster_radius_px`);
+      if (placement === "clustered" && clusterRadiusPx <= 0) {
+        throw new ManifestValidationError(
+          `${zonePath}.cluster_radius_px must be positive for clustered placement`,
+        );
+      }
       const replacementPolicy = expectEnum(
         zone.replacement_policy,
         ["reroll_spawn_table", "same_archetype"] as const,
@@ -495,6 +531,8 @@ export function parseMobPopulationManifest(input: unknown): MobPopulationManifes
         minimum_spawn_separation_px: minimumSpawnSeparationPx,
         wander_radius_px: wanderRadiusPx,
         replacement_policy: replacementPolicy,
+        placement,
+        cluster_radius_px: clusterRadiusPx,
         spawn_table: spawnTable,
       } satisfies MobSpawnZoneManifest;
     });
@@ -1045,7 +1083,7 @@ export class MobPopulationDirector {
     if (!entry) return undefined;
     const candidates = this.eligibleCandidates(map, zone, context);
     if (candidates.length === 0) return undefined;
-    const candidate = candidates[Math.floor(zone.rng.next() * candidates.length)]!;
+    const candidate = this.chooseCandidate(zone, candidates);
     const sequence = this.nextReservationSequence++;
     const publicValue: SpawnReservation = Object.freeze({
       reservation_id: `${zone.mapId}/${zone.definition.zone_id}/reservation/${sequence}`,
@@ -1060,6 +1098,43 @@ export class MobPopulationDirector {
       ticket_reason: ticket.reason,
     });
     return { publicValue, ticket, candidate };
+  }
+
+  /**
+   * Pick one column from those eligibility admitted.
+   *
+   * Uniform placement draws once. Clustered placement draws a join roll first; on a join it picks
+   * a nucleus among the zone's live creatures and pending reservations, then draws uniformly among
+   * the eligible columns within the cluster radius of it. An empty zone, a losing roll, or a
+   * nucleus with no room beside it all fall through to the uniform draw, so a clustered zone still
+   * fills when nothing can be joined. Every draw is on the zone's own stream, so a replay clusters
+   * the same way twice.
+   */
+  private chooseCandidate(
+    zone: ZoneState,
+    candidates: readonly SpawnCandidateColumn[],
+  ): SpawnCandidateColumn {
+    const definition = zone.definition;
+    if (definition.placement === "clustered") {
+      const nuclei: WorldPoint[] = [
+        ...[...zone.alive.values()].map((actor) => actor.position),
+        ...[...zone.reservations.values()].map((reservation) => ({
+          x_px: reservation.candidate.x_px,
+          y_px: reservation.candidate.y_px,
+        })),
+      ];
+      if (nuclei.length > 0 && zone.rng.next() < CLUSTER_JOIN_CHANCE) {
+        const nucleus = nuclei[Math.floor(zone.rng.next() * nuclei.length)]!;
+        const radiusSquared = (definition.cluster_radius_px ?? 0) ** 2;
+        const near = candidates.filter(
+          (candidate) =>
+            squaredDistance({ x_px: candidate.x_px, y_px: candidate.y_px }, nucleus) <=
+            radiusSquared,
+        );
+        if (near.length > 0) return near[Math.floor(zone.rng.next() * near.length)]!;
+      }
+    }
+    return candidates[Math.floor(zone.rng.next() * candidates.length)]!;
   }
 
   private selectMobEntry(

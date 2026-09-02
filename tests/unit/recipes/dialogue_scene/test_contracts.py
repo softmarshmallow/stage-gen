@@ -217,6 +217,10 @@ def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
             for actor in ("mio", "ren")
             for state in ("neutral", "delighted", "flustered", "concerned")
         ),
+        # The shared nine-slice interface is a terminal like any other: the bundle cannot be
+        # written until the panel and the button have been drawn, gated, and judged.
+        "ui-panel_frame-review",
+        "ui-button_rect-review",
     )
 
 
@@ -238,9 +242,9 @@ def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
     assert authored["cover"].ref == "references/cover.png"
     assert authored["cover"].sha256 == resolved.style_reference.sha256
 
-    # One backdrop plus four expressions for each of two actors.
+    # One backdrop, four expressions for each of two actors, and the two UI atlas sheets.
     image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
-    assert len(image_nodes) == 9
+    assert len(image_nodes) == 11
     for node in image_nodes:
         assert resolved.style_reference.sha256 in node.input_sha256, node.node_id
 
@@ -271,6 +275,33 @@ def test_each_derived_expression_is_its_own_node_off_the_neutral_source(tmp_path
             )
 
 
+def _ui_role_value(role: str, cell_count: int) -> dict[str, Any]:
+    """One published atlas role, shaped exactly as the producer's gate emits it."""
+
+    states = ["default"] if cell_count == 1 else ["normal", "hover", "pressed", "disabled"]
+    layout = "nine_slice_panel_1024_v1" if cell_count == 1 else "nine_slice_button_sheet_4x1024_v1"
+    return {
+        "role": role,
+        "layout": layout,
+        "scale_mode": "nine_slice",
+        "alpha_policy": "transparent_exterior_opaque_body_v1",
+        "band_fill": "tile",
+        "draw_scale": 2,
+        "canvas": {"width": 1024, "height": 1024},
+        "insets": {"left": 96, "top": 96, "right": 96, "bottom": 96},
+        "cells": [
+            {
+                "state": state,
+                "cell": {"x": 160, "y": 32 + index * 240, "width": 704, "height": 224},
+                "content_rect": {"x": 256, "y": 128 + index * 240, "width": 512, "height": 32},
+                "safe_rect": {"x": 256, "y": 128 + index * 240, "width": 512, "height": 32},
+            }
+            for index, state in enumerate(states)
+        ],
+        "asset_id": f"ui-{role.replace('_', '-')}",
+    }
+
+
 def _bundle_value(root: Path) -> dict[str, Any]:
     """A structurally valid bundle for the fixture package, built from its own scene.
 
@@ -296,6 +327,7 @@ def _bundle_value(root: Path) -> dict[str, Any]:
         "style": {"width": 1024, "height": 1536, "alpha": False},
         "background": {"width": 1672, "height": 941, "alpha": False},
         "expression": {"width": 1024, "height": 1536, "alpha": True},
+        "ui": {"width": 1024, "height": 1024, "alpha": True},
     }
 
     def artifact(
@@ -316,8 +348,8 @@ def _bundle_value(root: Path) -> dict[str, Any]:
         }
 
     return {
-        "schema_version": 6,
-        "kind": "dialogue-scene-bundle-v6",
+        "schema_version": 7,
+        "kind": "dialogue-scene-bundle-v7",
         "recipe": "dialogue-scene",
         "recipe_version": "dialogue-scene-v7",
         "tag": "seminar-hall",
@@ -373,6 +405,10 @@ def _bundle_value(root: Path) -> dict[str, Any]:
                 for actor in actors
                 for state in states
             ],
+            *[
+                artifact(f"ui-{role.replace('_', '-')}", "ui", f"ui/{role}.png", None, None)
+                for role in ("panel_frame", "button_rect")
+            ],
         ],
         "attempt_ledger": {"path": "attempts.json", "sha256": "1" * 64},
         "scene_data": {
@@ -380,6 +416,10 @@ def _bundle_value(root: Path) -> dict[str, Any]:
             "title": "After the Seminar",
             "scene_label": "A student stays behind",
             "style_asset_id": "style-plate",
+            "ui": {
+                role: _ui_role_value(role, states_count)
+                for role, states_count in (("panel_frame", 1), ("button_rect", 4))
+            },
             "stages": [
                 {
                     "stage_id": stage["stage_id"],

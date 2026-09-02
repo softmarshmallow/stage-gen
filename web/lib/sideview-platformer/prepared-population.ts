@@ -2,6 +2,7 @@ import type { PreparedGameplayContract } from "./prepared-gameplay";
 import {
   parseMobPopulationManifest,
   type MobPopulationManifest,
+  type SpawnPlacement,
   type SpawnVisibility,
   type ZoneCandidateColumns,
 } from "./spawn-director";
@@ -31,6 +32,8 @@ export type PreparedPopulationProjectionPolicy = Readonly<{
   min_player_distance_px: number;
   minimum_spawn_separation_px: number;
   wander_radius_px: number;
+  placement: SpawnPlacement;
+  cluster_radius_px: number;
 }>;
 
 export type PreparedPopulationProjection = Readonly<{
@@ -89,6 +92,8 @@ function defaultPolicy(
     min_player_distance_px: Math.round(tilePixels * 2.5),
     minimum_spawn_separation_px: Math.round(tilePixels * 1.25),
     wander_radius_px: Math.round(tilePixels * 1.5),
+    placement: "uniform",
+    cluster_radius_px: 0,
   });
 }
 
@@ -108,6 +113,12 @@ function resolvePolicy(
     "policy.minimum_spawn_separation_px",
   );
   nonnegativeSafeInteger(policy.wander_radius_px, "policy.wander_radius_px");
+  nonnegativeSafeInteger(policy.cluster_radius_px, "policy.cluster_radius_px");
+  if (policy.placement === "clustered" && policy.cluster_radius_px <= 0) {
+    throw new PreparedPopulationProjectionError(
+      "policy.cluster_radius_px must be positive for clustered placement",
+    );
+  }
   return Object.freeze(policy);
 }
 
@@ -195,6 +206,8 @@ export function projectPreparedMobPopulation(
       minimum_spawn_separation_px: policy.minimum_spawn_separation_px,
       wander_radius_px: policy.wander_radius_px,
       replacement_policy: "reroll_spawn_table" as const,
+      placement: policy.placement,
+      cluster_radius_px: policy.cluster_radius_px,
       spawn_table: sourceZone.spawn_table.map((entry) => ({
         mob_slot: slotByMobId.get(entry.mob_id)!,
         weight: entry.weight,

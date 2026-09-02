@@ -27,6 +27,10 @@ export interface DroppedItem {
   settled: boolean;
   /** Vertical velocity (px/s) while falling. */
   vy: number;
+  /** Horizontal pop velocity (px/s), halved by the landing bounce and gone once settled. */
+  vx: number;
+  /** Bounces taken so far; the arc allows exactly one before the drop settles. */
+  bounces: number;
 }
 
 export interface ItemSystemOpts {
@@ -38,9 +42,54 @@ export interface ItemSystemOpts {
   itemFrameKey?: (kindIndex: number) => string | number | undefined;
   itemTextureKey: string | ((kindIndex: number) => string);
   itemHeightPx?: number;
+  /** World width, so a pop never carries a drop off the edge of the map. */
+  worldWidthPx?: number;
 }
 
 const GRAVITY_PX = 1500;
+
+// A drop *pops*: it leaves the corpse with an upward and sideways velocity, bounces once, and only
+// then settles into its bob. Before this it fell straight down from a tile above the kill, which
+// read as an item appearing rather than as something being knocked loose. The velocities are seeded
+// from the drop's own sequence number, so the same kill in the same run pops the same way twice,
+// which is what a fixed-frame capture needs and what a tween never provides.
+export const DROP_POP_VX_MIN_PX = 60;
+export const DROP_POP_VX_SPAN_PX = 80;
+export const DROP_POP_VY_MIN_PX = 260;
+export const DROP_POP_VY_SPAN_PX = 120;
+export const DROP_BOUNCE_RESTITUTION = 0.35;
+/** A landing slower than this settles outright; bouncing a crawl reads as jitter. */
+export const DROP_BOUNCE_MIN_VY_PX = 120;
+export const DROP_BOUNCE_VX_RETAINED = 0.5;
+
+export type DropDirection = 1 | -1 | 0;
+
+function dropUnitNoise(sequence: number, channel: number): number {
+  let hash = (Math.imul(sequence ^ channel, 0x9e3779b1) ^ (sequence >>> 15)) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 13), 0x85ebca6b) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 16), 0xc2b2ae35) >>> 0;
+  return hash / 4294967296;
+}
+
+/**
+ * The launch velocity for one drop, in pixels per second.
+ *
+ * `dirSign` is the direction the blow travelled, so loot flies away from the striker as the mob
+ * does; zero alternates by sequence, for callers that have no blow to report.
+ */
+export function dropPopVelocity(
+  sequence: number,
+  dirSign: DropDirection,
+): Readonly<{ vx: number; vy: number }> {
+  if (!Number.isSafeInteger(sequence) || sequence < 0) {
+    throw new Error("drop pop velocity requires a nonnegative sequence");
+  }
+  const direction = dirSign === 0 ? (sequence % 2 === 0 ? 1 : -1) : dirSign;
+  return Object.freeze({
+    vx: direction * (DROP_POP_VX_MIN_PX + dropUnitNoise(sequence, 0x11) * DROP_POP_VX_SPAN_PX),
+    vy: -(DROP_POP_VY_MIN_PX + dropUnitNoise(sequence, 0x22) * DROP_POP_VY_SPAN_PX),
+  });
+}
 
 export class ItemSystem {
   readonly items: DroppedItem[] = [];
@@ -52,10 +101,10 @@ export class ItemSystem {
   }
 
   /**
-   * Drop a single item at world coords (x, y). The item falls under gravity
-   * until it lands on the heightmap surface for that column.
+   * Drop a single item at world coords (x, y). The item pops away from the blow, bounces once,
+   * and settles on the heightmap surface for whichever column it lands in.
    */
-  drop(x: number, y: number, kindIndex: number): DroppedItem | null {
+  drop(x: number, y: number, kindIndex: number, dirSign: DropDirection = 0): DroppedItem | null {
     const tex =
       typeof this.opts.itemTextureKey === "function"
         ? this.opts.itemTextureKey(kindIndex)
@@ -71,12 +120,15 @@ export class ItemSystem {
       (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
     sprite.setDisplaySize(targetH * aspect, targetH);
     sprite.setDepth(SCENE_CONTENT_DEPTH.item);
+    const launch = dropPopVelocity(this.nextDropId, dirSign);
     const item: DroppedItem = {
       id: `drop_${this.nextDropId}`,
       kindIndex,
       sprite,
       settled: false,
-      vy: 0,
+      vy: launch.vy,
+      vx: launch.vx,
+      bounces: 0,
     };
     this.nextDropId += 1;
     this.items.push(item);
@@ -94,6 +146,12 @@ export class ItemSystem {
       }
       it.vy += GRAVITY_PX * dt;
       it.sprite.y += it.vy * dt;
+      it.sprite.x += it.vx * dt;
+      const worldWidth = this.opts.worldWidthPx;
+      if (worldWidth !== undefined) {
+        const margin = this.opts.tilePx / 2;
+        it.sprite.x = Math.max(margin, Math.min(worldWidth - margin, it.sprite.x));
+      }
       const col = Math.floor(it.sprite.x / this.opts.tilePx);
       const colH = this.opts.heightFn(col);
       const surfaceY = terrainSurfaceY(
@@ -103,8 +161,15 @@ export class ItemSystem {
       );
       if (it.sprite.y >= surfaceY) {
         it.sprite.y = surfaceY;
+        if (it.bounces < 1 && it.vy > DROP_BOUNCE_MIN_VY_PX) {
+          it.vy = -it.vy * DROP_BOUNCE_RESTITUTION;
+          it.vx *= DROP_BOUNCE_VX_RETAINED;
+          it.bounces += 1;
+          continue;
+        }
         it.settled = true;
         it.vy = 0;
+        it.vx = 0;
         it.sprite.setData("groundY", surfaceY);
       }
     }

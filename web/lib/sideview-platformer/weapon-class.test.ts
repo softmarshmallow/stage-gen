@@ -24,6 +24,8 @@ describe("the melee record is a transcription, not a redesign", () => {
     expect(melee.hitWindowFromMs).toBe(80);
     expect(melee.hitWindowToMs).toBe(250);
     expect(melee.maxTargetsPerAction).toBe(1);
+    expect(melee.hitsPerAction).toBe(1);
+    expect(melee.hitIntervalMs).toBe(0);
     expect(melee.delivery).toEqual({ kind: "instant", reachTiles: 1.4 });
     expect(melee.verticalReach).toEqual({
       kind: "foot_band",
@@ -88,6 +90,43 @@ describe("the ranged record", () => {
     expect(targetingToleranceUnits(weaponClassProfile("ranged_dps_v1"), TILE)).toBeGreaterThanOrEqual(
       TILE,
     );
+  });
+});
+
+describe("the sweep record", () => {
+  test("it swings the same drawn strip at the same cadence, so the animation still fits", () => {
+    const melee = weaponClassProfile("melee_dps_v1");
+    const sweep = weaponClassProfile("melee_sweep_v1");
+    expect(sweep.motionState).toBe(melee.motionState);
+    expect(sweep.actionDurationMs).toBe(melee.actionDurationMs);
+    expect(sweep.hitWindowFromMs).toBe(melee.hitWindowFromMs);
+    expect(sweep.hitWindowToMs).toBe(melee.hitWindowToMs);
+    expect(sweep.ammoKind).toBeNull();
+  });
+
+  test("its band is wide enough that a clump is one target, and it takes several", () => {
+    const sweep = weaponClassProfile("melee_sweep_v1");
+    expect(sweep.delivery).toEqual({ kind: "instant", reachTiles: 3 });
+    expect(sweep.maxTargetsPerAction).toBeGreaterThanOrEqual(6);
+  });
+
+  test("every blow of the combo lands inside the hit window, never during recovery", () => {
+    const sweep = weaponClassProfile("melee_sweep_v1");
+    expect(sweep.hitsPerAction).toBe(3);
+    const last = sweep.hitWindowFromMs + (sweep.hitsPerAction - 1) * sweep.hitIntervalMs;
+    expect(last).toBeLessThanOrEqual(sweep.hitWindowToMs);
+  });
+
+  test("its stand-off band grows with the reach so a policy swings from where it connects", () => {
+    const sweep = weaponClassProfile("melee_sweep_v1");
+    const melee = weaponClassProfile("melee_dps_v1");
+    expect(sweep.standOffTiles.maximum).toBeGreaterThan(melee.standOffTiles.maximum);
+    expect(sweep.standOffTiles.maximum).toBeLessThan(sweep.delivery.kind === "instant" ? sweep.delivery.reachTiles : 0);
+    expect(sweep.standOffTiles.minimum).toBe(0);
+  });
+
+  test("a thrown class lands once, because the object in the air lands once", () => {
+    expect(weaponClassProfile("ranged_dps_v1").hitsPerAction).toBe(1);
   });
 });
 

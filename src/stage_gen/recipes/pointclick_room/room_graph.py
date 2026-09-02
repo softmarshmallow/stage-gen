@@ -26,12 +26,15 @@ from gnode import (
     PortRef,
     seal_graph,
 )
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
     hotspot_sprite_prompt,
     item_icon_prompt,
     narration_ids,
     narration_prompt,
+    style_clause,
+    ui_atlas_prompt,
 )
 from stage_gen.recipes.pointclick_room.room_types import (
     ATTEMPT_LEDGER_KIND,
@@ -107,7 +110,10 @@ class PointClickRoomGraph(Graph):
 
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
-STRUCTURED_FEATURES = ("structured_output",)
+#: What the bound route can do, which is not the same as what any one node asks of it:
+#: narration needs only structured output, while the UI atlas judge is handed the evidence
+#: sheet and so needs image input from the same model.
+STRUCTURED_FEATURES = ("structured_output", "image_input")
 
 
 def room_graph_profile(config: StageGenConfig) -> BindingTable:
@@ -369,6 +375,19 @@ def build_pointclick_room_graph(
         ),
     )
 
+    # Panels and buttons are the one thing every genre draws the same way, so the room
+    # plans the shared nine-slice triplet rather than a fourth private copy of it. Its
+    # identity is the room's own art direction: repaint the look and the interface
+    # re-bills with everything else it has to sit beside.
+    ui_terminals = add_ui_atlas_nodes(
+        builder,
+        root="room-resolve",
+        ui=resolved.ui,
+        style_prompt=lambda task: ui_atlas_prompt(room, task),
+        direction_digests=(_text_digest(style_clause(room)),),
+        attempts_port=_attempts,
+    )
+
     builder.add(
         ROOM_BUNDLE,
         "room-bundle",
@@ -380,6 +399,7 @@ def build_pointclick_room_graph(
             *item_validations,
             *narration_nodes,
             "room-puzzle-validate",
+            *ui_terminals,
         ),
         input_digests=(resolved.room_sha256,),
         ports=(

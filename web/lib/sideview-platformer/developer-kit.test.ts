@@ -36,6 +36,7 @@ describe("what one run can be played as", () => {
       "melee_dps_v1",
       "ranged_dps_v1:paperwing_dart",
       "ranged_dps_v1:sonar_pulse",
+      "melee_sweep_v1",
     ]);
   });
 
@@ -43,14 +44,18 @@ describe("what one run can be played as", () => {
     // The decisive case: every run generated before the projectile catalog existed is this one.
     // Offering ranged here would have the runtime invent a `projectile_id` the contract never
     // named, which is the runtime authoring a package fact.
-    expect(kitsFor({ projectileCatalog: [] }).map(developerKitToken)).toEqual(["melee_dps_v1"]);
+    expect(kitsFor({ projectileCatalog: [] }).map(developerKitToken)).toEqual([
+      "melee_dps_v1",
+      "melee_sweep_v1",
+    ]);
   });
 
   test("a kit whose pose the package never published is not offered", () => {
     // Same rule `resolveWeaponClassProfile` enforces at load, applied before it is ever offered:
     // a class with nothing to draw is not a choice, it is a broken frame.
     const kits = kitsFor({ publishedMotionStates: { basic_attack: {}, idle: {} } });
-    expect(kits.map(developerKitToken)).toEqual(["melee_dps_v1"]);
+    // The sweep shares the swing's strip, so it survives; the throw's strip is the one missing.
+    expect(kits.map(developerKitToken)).toEqual(["melee_dps_v1", "melee_sweep_v1"]);
   });
 
   test("the authored kit is not duplicated when the vocabulary offers it again", () => {
@@ -61,6 +66,7 @@ describe("what one run can be played as", () => {
     expect(kits.map(developerKitToken)).toEqual([
       "ranged_dps_v1:paperwing_dart",
       "melee_dps_v1",
+      "melee_sweep_v1",
     ]);
   });
 });
@@ -70,17 +76,22 @@ describe("cycling", () => {
     const kits = kitsFor();
     const second = nextDeveloperKit(null, kits);
     expect(developerKitToken(second!)).toBe("ranged_dps_v1:paperwing_dart");
-    expect(developerKitToken(nextDeveloperKit(second, kits)!)).toBe("melee_dps_v1");
+    const third = nextDeveloperKit(second, kits);
+    expect(developerKitToken(third!)).toBe("melee_sweep_v1");
+    expect(developerKitToken(nextDeveloperKit(third, kits)!)).toBe("melee_dps_v1");
   });
 
   test("a single-kit run cycles to itself rather than to nothing", () => {
-    const kits = kitsFor({ projectileCatalog: [] });
+    // Nothing to throw and no swing strip beyond what the published kit itself needs: the
+    // authored kit is always offered, and every alternative is refused.
+    const kits = kitsFor({ projectileCatalog: [], publishedMotionStates: { idle: {} } });
+    expect(kits).toHaveLength(1);
     expect(nextDeveloperKit(null, kits)).toEqual(kits[0]);
     expect(nextDeveloperKit(kits[0], kits)).toEqual(kits[0]);
   });
 
   test("an override no longer offered advances to the first kit rather than sticking", () => {
-    const kits = kitsFor({ projectileCatalog: [] });
+    const kits = kitsFor({ projectileCatalog: [], publishedMotionStates: { idle: {} } });
     const stale: DeveloperKit = { weaponClass: "ranged_dps_v1", projectileId: "gone" };
     expect(nextDeveloperKit(stale, kits)).toEqual(kits[0]);
   });

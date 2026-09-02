@@ -195,3 +195,50 @@ export function choiceAt(
   );
   return index === -1 ? null : index;
 }
+
+/**
+ * Where a dialogue box's contents sit inside a generated panel.
+ *
+ * The box is drawn art now, so its usable interior is measured on the artwork rather than
+ * guessed from a fixed inset: the producer publishes the ornament-free rectangle and this
+ * turns it into a name row, a wrapped body, and a bottom-right progress anchor. The knobs
+ * are the scene's to tune; nothing about a specific game's border is baked in here.
+ */
+export type VisualNovelBoxKnobs = Readonly<{
+  paddingX: number;
+  paddingY: number;
+  nameRowHeight: number;
+  bodyGap: number;
+  progressRowHeight: number;
+}>;
+
+export const DEFAULT_VISUAL_NOVEL_BOX_KNOBS: VisualNovelBoxKnobs = Object.freeze({
+  paddingX: 10,
+  paddingY: 6,
+  nameRowHeight: 30,
+  bodyGap: 6,
+  progressRowHeight: 20,
+});
+
+export type VisualNovelBoxLayout = Readonly<{
+  name: { readonly x: number; readonly y: number };
+  body: { readonly x: number; readonly y: number };
+  bodyWrapWidth: number;
+  progress: { readonly x: number; readonly y: number };
+}>;
+
+export function visualNovelBoxLayout(
+  safe: Rect,
+  knobs: VisualNovelBoxKnobs = DEFAULT_VISUAL_NOVEL_BOX_KNOBS,
+): VisualNovelBoxLayout {
+  const left = safe.x + knobs.paddingX;
+  const top = safe.y + knobs.paddingY;
+  const right = safe.x + safe.width - knobs.paddingX;
+  const bottom = safe.y + safe.height - knobs.paddingY;
+  return Object.freeze({
+    name: Object.freeze({ x: left, y: top }),
+    body: Object.freeze({ x: left, y: top + knobs.nameRowHeight + knobs.bodyGap }),
+    bodyWrapWidth: Math.max(1, right - left),
+    progress: Object.freeze({ x: right, y: bottom }),
+  });
+}

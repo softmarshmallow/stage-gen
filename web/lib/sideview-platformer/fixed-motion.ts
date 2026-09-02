@@ -1,4 +1,22 @@
 export const MOB_KNOCKBACK_MS = 220;
+/** How long a freshly placed creature takes to fade in, so a spawn in view reads as arriving. */
+export const MOB_SPAWN_FADE_MS = 240;
+
+/**
+ * The alpha of a creature `nowMs` after it was placed, and whether the fade is over.
+ *
+ * Sampled from simulation time like everything else here, because a creature can now be placed
+ * on screen: the population policy prefers off-screen columns, but a crowded zone falls back to
+ * whatever is free, and a body that simply appears at full opacity reads as a glitch.
+ */
+export function sampleMobSpawnFade(
+  spawnedAtMs: number,
+  nowMs: number,
+): Readonly<{ alpha: number; complete: boolean }> {
+  const elapsedMs = Math.max(0, nowMs - spawnedAtMs);
+  const alpha = Math.min(1, elapsedMs / MOB_SPAWN_FADE_MS);
+  return Object.freeze({ alpha, complete: alpha >= 1 });
+}
 export const MOB_DEATH_FADE_MS = 280;
 
 export type FixedMobHitMotion = Readonly<{

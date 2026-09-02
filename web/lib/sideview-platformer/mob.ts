@@ -15,6 +15,7 @@ import {
   MOB_DEATH_FADE_MS,
   MOB_KNOCKBACK_MS,
   sampleFixedMobHit,
+  sampleMobSpawnFade,
   type FixedMobHitMotion,
 } from "./fixed-motion";
 import {
@@ -112,6 +113,8 @@ export interface MobOpts {
   fixedStepMotion?: boolean;
   /** Stable per-instance seed for bounded movement variation. */
   behaviorSeed?: number;
+  /** When the creature was placed, for the fade-in; absent places it at full opacity. */
+  spawnedAtMs?: number;
 }
 
 const DEFAULT_SPEED = 36;
@@ -152,6 +155,7 @@ export class Mob {
   private homeX: number;
   private patrolDirection: 1 | -1;
   private hurtUntil = 0;
+  private spawnFadeFrom: number | null;
   private idleAnim: string;
   private hurtAnim: string;
   private fixedHitMotion?: FixedMobHitMotion;
@@ -168,6 +172,7 @@ export class Mob {
     this.maxHp = maxHp;
     this.hp = maxHp;
     this.profile = aggressionProfile(opts.aggression);
+    this.spawnFadeFrom = opts.spawnedAtMs ?? null;
     this.awareness = new MobAwarenessNode(this.profile);
     const behaviorSeed =
       opts.behaviorSeed ??
@@ -329,6 +334,11 @@ export class Mob {
   }
 
   private step(dtMs: number, nowMs: number) {
+    if (this.spawnFadeFrom !== null) {
+      const fade = sampleMobSpawnFade(this.spawnFadeFrom, nowMs);
+      this.sprite.alpha = fade.alpha;
+      if (fade.complete) this.spawnFadeFrom = null;
+    }
     if (this.fixedHitMotion) {
       const sample = sampleFixedMobHit(this.fixedHitMotion, nowMs);
       this.sprite.x = sample.x;
@@ -611,6 +621,7 @@ export class Mob {
     knockbackDir: 1 | -1 = 1,
     amount = 1,
     critical = false,
+    knockbackScale = 1,
   ): MobHitResult {
     if (this.state === "dead") {
       return mobHitResult(resolveDamage(this.hp, amount, true, critical));
@@ -621,8 +632,10 @@ export class Mob {
     // Knockback is the one movement allowed to cross a descending shelf edge. It remains clamped
     // to the patrol lane and cannot push a creature up a raised face; when pushed into a pit the
     // hurt interval carries the horizontal reaction before normal terrain snapping resumes.
+    // The scale is the caller's: the later blows of a multi-hit pass zero, so a combo shoves
+    // once rather than three times and the creature stays inside the band that is hitting it.
     const targetX = this.resolveWalk(
-      this.sprite.x + knockbackDir * KNOCKBACK_PX,
+      this.sprite.x + knockbackDir * KNOCKBACK_PX * knockbackScale,
       "world",
       true,
     ).x;
@@ -702,6 +715,19 @@ export class Mob {
 
   isAlive(): boolean {
     return this.state !== "dead";
+  }
+
+  /**
+   * Fill the body white, or restore it.
+   *
+   * The impact presentation decides *when* from simulation time; this only knows *how*, which in
+   * Phaser 4 is a colour plus a separate tint mode. Clearing the tint resets the mode as well, so
+   * the off branch needs no second call. A retired sprite is left alone rather than touched.
+   */
+  setFlash(on: boolean): void {
+    if (!this.sprite.active) return;
+    if (on) this.sprite.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+    else this.sprite.clearTint();
   }
 
   /** Show or hide the whole actor - body and readout - as one thing. */

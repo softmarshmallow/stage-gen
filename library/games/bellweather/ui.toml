@@ -1,7 +1,7 @@
-schema_version = 2
-kind = "game-ui-v2"
+schema_version = 3
+kind = "game-ui-v3"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [[references]]
 reference_id = "cover_style"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
 from gnode import (
@@ -16,6 +16,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.components import CharacterProfile, character_profile_sha256
+from stage_gen.components.game_ui.nodes import ui_atlas_manifest_block
 from stage_gen.components.scenario import (
     CastMember as ScenarioCastMember,
 )
@@ -139,6 +140,13 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             **style_binding,
         }
     )
+    # The interface geometry is read from the gate's own record, so the bundle publishes
+    # what was measured on the artwork rather than what the template declared.
+    ui_roles = ui_atlas_manifest_block(
+        read_validation=lambda path: _read(run_dir, path),
+        publish=_ui_asset_id,
+        publish_provenance=lambda _path: None,
+    )
     assets = [
         _asset(run_dir, ledger, "style-plate", "style", "assets/style-plate.png", None, None),
         *[
@@ -167,10 +175,14 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             for state in EXPRESSION_STATES
         ],
         *[await _track_asset(run_dir, ledger, track.track_id) for track in scenario_program.tracks],
+        *[
+            _asset(run_dir, ledger, _ui_asset_id(role), "ui", f"ui/{role}.png", None, None)
+            for role in ui_roles
+        ],
     ]
     bundle = DialogueBundle(
-        schema_version=6,
-        kind="dialogue-scene-bundle-v6",
+        schema_version=7,
+        kind="dialogue-scene-bundle-v7",
         recipe="dialogue-scene",
         recipe_version="dialogue-scene-v7",
         tag=tag,
@@ -208,7 +220,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         attempt_ledger=AttemptLedgerBinding(
             path="attempts.json", sha256=content_sha256(ledger_bytes)
         ),
-        scene_data=_scene_data(request, resolved_actors, style_anchor, scenario_program),
+        scene_data=_scene_data(request, resolved_actors, style_anchor, scenario_program, ui_roles),
         review=ReviewState(status="pending", path=None, sha256=None),
         rights=RightsState(aggregate="unreviewed", publication_authorized=False),
     )
@@ -346,11 +358,18 @@ def _slug(value: str) -> str:
     return value.replace("_", "-")
 
 
+def _ui_asset_id(relative_path: str) -> str:
+    """The bundle asset id for one atlas role's sheet, from its published path."""
+
+    return f"ui-{PurePosixPath(relative_path).stem.replace('_', '-')}"
+
+
 def _scene_data(
     request: DialogueSceneDocument,
     actors: list[_ResolvedActorFiles],
     style_anchor: CanonicalStyleAnchor,
     scenario: ScenarioProgram,
+    ui_roles: dict[str, object],
 ) -> SceneData:
     return SceneData.model_validate(
         {
@@ -403,6 +422,19 @@ def _scene_data(
                 "source_framing_zoom": request.presentation.source_framing_zoom,
             },
             "available_states": list(EXPRESSION_STATES),
+            # The shared projection names the sheet by path; a bundle names everything by
+            # asset id instead, so the path is replaced rather than carried beside it.
+            "ui": {
+                role: {
+                    **{
+                        key: value
+                        for key, value in cast(dict[str, object], layout).items()
+                        if key != "asset"
+                    },
+                    "asset_id": _ui_asset_id(f"{role}.png"),
+                }
+                for role, layout in ui_roles.items()
+            },
             "scenario": scenario,
         }
     )

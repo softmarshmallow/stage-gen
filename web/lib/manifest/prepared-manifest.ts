@@ -221,6 +221,8 @@ export type PreparedRuntimeManifest = Readonly<{
     mob_id: string;
     display_name: string;
     rank: string;
+    /** The archetype the package named, or null when it left that to the rank. */
+    aggression: string | null;
     concept: RuntimeArtifact;
     states: Readonly<Record<string, MotionBinding>>;
     calibration: SubjectCalibration;
@@ -995,6 +997,12 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       mob_id: id(mob.mob_id, "mob_id"),
       display_name: text(mob.display_name, "mob display_name"),
       rank: text(mob.rank, "mob rank"),
+      // Absent and null read the same: every run published before the field left it to the
+      // rank, and a package that names nothing means exactly that.
+      aggression:
+        mob.aggression === undefined || mob.aggression === null
+          ? null
+          : text(mob.aggression, "mob aggression"),
       concept: artifact(mob.concept, `mobs[${index}].concept`),
       states: motionStates(mob.states, `mobs[${index}].states`),
       calibration: subjectCalibration(mob.calibration, `mobs[${index}].calibration`),

@@ -22,17 +22,17 @@ import {
 } from "./framing";
 import { ScenarioAudio, htmlAudioTransport } from "./scene-audio";
 import {
-  bodyTextPoint,
-  bodyTextWrapWidth,
-  choiceAt,
   choiceRects,
   completeCardRect,
   DIALOGUE_STAGE,
   dialoguePanelRect,
-  progressPoint,
   slotFrame,
-  speakerChipRect,
+  visualNovelBoxLayout,
+  type VisualNovelBoxLayout,
 } from "./scene-hud";
+import { AtlasButton } from "@/lib/ui-atlas/button";
+import { uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
+import { NineSliceWidget } from "@/lib/ui-atlas/widget";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import {
@@ -113,8 +113,8 @@ class DialogueScene extends Phaser.Scene {
   private backdrop!: Phaser.GameObjects.Image;
   /** One sprite per drawable actor, shown or hidden as the scenario stages them. */
   private readonly cast = new Map<string, Phaser.GameObjects.Image>();
-  private panel!: Phaser.GameObjects.Graphics;
-  private chip!: Phaser.GameObjects.Graphics;
+  private panel!: NineSliceWidget;
+  private box!: VisualNovelBoxLayout;
   private speaker!: Phaser.GameObjects.Text;
   private body!: Phaser.GameObjects.Text;
   private progress!: Phaser.GameObjects.Text;
@@ -137,6 +137,11 @@ class DialogueScene extends Phaser.Scene {
         this.load.image(plateKey(actor.actorId, variant.state), variant.src);
       }
     }
+    // The interface is generated art like the cast and the rooms. The sheets are published
+    // with a canonical alpha boundary, so the plain loader is enough; one that does not
+    // arrive is replaced in `create` by the loud stand-in under the same key.
+    this.load.image(uiAtlasSheetKey("panel_frame"), this.fixture.ui.panelFrame.src);
+    this.load.image(uiAtlasSheetKey("button_rect"), this.fixture.ui.buttonRect.src);
   }
 
   create(): void {
@@ -170,14 +175,10 @@ class DialogueScene extends Phaser.Scene {
     // option instead: the whole frame no longer means one thing.
     this.input.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer) => {
       const view = scenarioView(this.fixture.scenario, this.playback);
-      if (view?.kind === "choice") {
-        const option = choiceAt(DIALOGUE_STAGE, view.options.length, {
-          x: pointer.worldX,
-          y: pointer.worldY,
-        });
-        if (option !== null) this.act({ kind: "choose", option });
-        return;
-      }
+      // A choice is up: the buttons own the pointer now, so a tap that missed them all
+      // must not advance the scene past the decision it was asking for.
+      if (view?.kind === "choice") return;
+      void pointer;
       this.act({ kind: "advance" });
     });
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
@@ -200,26 +201,35 @@ class DialogueScene extends Phaser.Scene {
 
   private createPanel(): void {
     const panel = dialoguePanelRect(DIALOGUE_STAGE);
-    this.panel = this.add.graphics().setDepth(DEPTH.panel);
-    this.panel.fillStyle(PANEL_FILL, PANEL_ALPHA);
-    this.panel.fillRoundedRect(panel.x, panel.y, panel.width, panel.height, CORNER);
-    this.panel.lineStyle(2, PANEL_STROKE, 0.7);
-    this.panel.strokeRoundedRect(panel.x, panel.y, panel.width, panel.height, CORNER);
+    this.panel = new NineSliceWidget({
+      scene: this,
+      sheetKey: uiAtlasSheetKey("panel_frame"),
+      layout: this.fixture.ui.panelFrame.layout,
+      width: panel.width,
+      height: panel.height,
+      x: panel.x + panel.width / 2,
+      y: panel.y + panel.height / 2,
+      depth: DEPTH.panel,
+    });
 
-    this.chip = this.add.graphics().setDepth(DEPTH.panel + 1);
-    this.speaker = this.add.text(0, 0, "", SPEAKER_STYLE).setDepth(DEPTH.panel + 2);
+    // Where the words go is measured on the drawn frame, not guessed: the producer publishes
+    // the ornament-free interior and the layout turns it into a name row, a wrapped body, and
+    // a bottom-right progress anchor.
+    this.box = visualNovelBoxLayout(this.panel.safeRect());
+    this.speaker = this.add
+      .text(this.box.name.x, this.box.name.y, "", SPEAKER_STYLE)
+      .setOrigin(0, 0)
+      .setDepth(DEPTH.panel + 2);
 
-    const body = bodyTextPoint(panel);
     this.body = this.add
-      .text(body.x, body.y, "", {
+      .text(this.box.body.x, this.box.body.y, "", {
         ...BODY_STYLE,
-        wordWrap: { width: bodyTextWrapWidth(panel) },
+        wordWrap: { width: this.box.bodyWrapWidth },
       })
       .setDepth(DEPTH.panel + 1);
 
-    const progress = progressPoint(panel);
     this.progress = this.add
-      .text(progress.x, progress.y, "", META_STYLE)
+      .text(this.box.progress.x, this.box.progress.y, "", META_STYLE)
       .setOrigin(1, 1)
       .setDepth(DEPTH.panel + 1);
   }
@@ -228,13 +238,28 @@ class DialogueScene extends Phaser.Scene {
     this.choiceLayer = this.add.container(0, 0).setDepth(DEPTH.choice).setVisible(false);
   }
 
+  private readonly choiceButtons: AtlasButton[] = [];
+
+  /** Park the pool: hidden and not answering a pointer, but never destroyed. */
+  private hideChoices(): void {
+    for (const button of this.choiceButtons) {
+      button.setVisible(false);
+      button.setLive(false);
+    }
+  }
+
   private createCompleteCard(): void {
     const card = completeCardRect(DIALOGUE_STAGE);
-    const frame = this.add.graphics();
-    frame.fillStyle(0x0b1024, 0.95);
-    frame.fillRoundedRect(card.x, card.y, card.width, card.height, CORNER);
-    frame.lineStyle(2, CHIP_FILL, 0.85);
-    frame.strokeRoundedRect(card.x, card.y, card.width, card.height, CORNER);
+    const frame = new NineSliceWidget({
+      scene: this,
+      sheetKey: uiAtlasSheetKey("panel_frame"),
+      layout: this.fixture.ui.panelFrame.layout,
+      width: card.width,
+      height: card.height,
+      x: card.x + card.width / 2,
+      y: card.y + card.height / 2,
+      depth: DEPTH.complete,
+    });
     this.completeTitle = this.add
       .text(card.x + card.width / 2, card.y + card.height / 2 - 26, "", {
         ...BODY_STYLE,
@@ -250,7 +275,7 @@ class DialogueScene extends Phaser.Scene {
       )
       .setOrigin(0.5, 0.5);
     this.completeLayer = this.add
-      .container(0, 0, [frame, this.completeTitle, hint])
+      .container(0, 0, [frame.image, this.completeTitle, hint])
       .setDepth(DEPTH.complete)
       .setVisible(false);
   }
@@ -288,8 +313,7 @@ class DialogueScene extends Phaser.Scene {
     const showingChoice = view?.kind === "choice";
     // Exactly one of the three surfaces is on screen at a time; a panel repeating
     // the end card underneath it would say the same thing twice.
-    this.panel.setVisible(showingLine);
-    this.chip.setVisible(showingLine);
+    this.panel.image.setVisible(showingLine);
     this.speaker.setVisible(showingLine);
     this.body.setVisible(showingLine);
     this.progress.setVisible(showingLine);
@@ -298,14 +322,14 @@ class DialogueScene extends Phaser.Scene {
 
     if (view?.kind === "end") {
       this.completeTitle.setText(view.label);
-      this.choiceLayer.removeAll(true);
+      this.hideChoices();
       return;
     }
     if (showingChoice) {
       this.renderChoices(view.options.map((option) => option.text));
       return;
     }
-    this.choiceLayer.removeAll(true);
+    this.hideChoices();
     if (!showingLine) return;
     this.body.setText(view.text);
     const progress = scenarioProgress(this.fixture.scenario, this.playback);
@@ -313,23 +337,41 @@ class DialogueScene extends Phaser.Scene {
     this.renderSpeaker(view.speakerLabel ?? "");
   }
 
+  /**
+   * Draw the current choice as a pool of generated buttons.
+   *
+   * The options used to be rebuilt from scratch on every render, with the first one painted
+   * in a highlight colour that never moved: a hover look that no pointer could reach. They
+   * are buttons now, so hovering and pressing show the producer's own art for those states,
+   * and the pool is reused rather than destroyed, because destroying the object that is
+   * dispatching the press that caused the render is how a menu becomes unclickable.
+   */
   private renderChoices(labels: readonly string[]): void {
-    this.choiceLayer.removeAll(true);
     const rects = choiceRects(DIALOGUE_STAGE, labels.length);
-    rects.forEach((rect, index) => {
-      const box = this.add.graphics();
-      box.fillStyle(index === 0 ? CHOICE_HOVER : CHOICE_FILL, 0.94);
-      box.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
-      box.lineStyle(2, PANEL_STROKE, 0.8);
-      box.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
-      const label = this.add
-        .text(rect.x + rect.width / 2, rect.y + rect.height / 2, labels[index] ?? "", {
-          ...CHOICE_STYLE,
-          wordWrap: { width: rect.width - 48 },
-          align: "center",
-        })
-        .setOrigin(0.5, 0.5);
-      this.choiceLayer.add([box, label]);
+    while (this.choiceButtons.length < rects.length) {
+      const index = this.choiceButtons.length;
+      const button = new AtlasButton({
+        scene: this,
+        sheetKey: uiAtlasSheetKey("button_rect"),
+        layout: this.fixture.ui.buttonRect.layout,
+        rect: rects[index]!,
+        depth: DEPTH.choice,
+        label: "",
+        style: { ...CHOICE_STYLE, align: "center" },
+        onPress: () => this.act({ kind: "choose", option: index }),
+      });
+      this.choiceButtons.push(button);
+      this.choiceLayer.add([...button.parts]);
+    }
+    this.choiceButtons.forEach((button, index) => {
+      const rect = rects[index];
+      const shown = rect !== undefined;
+      button.setVisible(shown);
+      button.setLive(shown);
+      if (!shown || rect === undefined) return;
+      button.setRect(rect);
+      button.setLabel(labels[index] ?? "");
+      button.text.setStyle({ wordWrap: { width: Math.max(1, rect.width - 48) } });
     });
   }
 
@@ -393,16 +435,10 @@ class DialogueScene extends Phaser.Scene {
   }
 
   private renderSpeaker(label: string): void {
-    this.speaker.setText(label);
-    const chip: Rect = speakerChipRect(
-      dialoguePanelRect(DIALOGUE_STAGE),
-      this.speaker.width,
-    );
-    this.chip.clear();
-    if (label === "") return;
-    this.chip.fillStyle(CHIP_FILL, 1);
-    this.chip.fillRoundedRect(chip.x, chip.y, chip.width, chip.height, chip.height / 2);
-    this.speaker.setPosition(chip.x + chip.width / 2, chip.y + chip.height / 2).setOrigin(0.5, 0.5);
+    // The name sits on the panel's own safe interior rather than on a pill straddling its
+    // top edge: the frame is drawn art now, and a plate laid across its border would cover
+    // the ornament the producer was asked to keep in the corners.
+    this.speaker.setText(label).setVisible(label !== "");
   }
 }
 

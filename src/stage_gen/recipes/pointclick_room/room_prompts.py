@@ -39,7 +39,7 @@ def _region_span(hotspot: Hotspot) -> str:
     return f"x {region.x:.2f}-{region.x + region.w:.2f}, y {region.y:.2f}-{region.y + region.h:.2f}"
 
 
-def _style_clause(room: PointClickRoom) -> str:
+def style_clause(room: PointClickRoom) -> str:
     keywords = ", ".join(room.style.keywords)
     avoid = ", ".join(room.style.avoid)
     clause = f"Art direction: {room.style.label}."
@@ -48,6 +48,18 @@ def _style_clause(room: PointClickRoom) -> str:
     if avoid:
         clause += f" Avoid: {avoid}."
     return clause
+
+
+def ui_atlas_prompt(room: PointClickRoom, task: str) -> str:
+    """The room's art direction wrapped around one screen-fixed interface task.
+
+    The interface is drawn against the same authored reference as the room itself, so
+    a panel and the wall behind it cannot drift apart; the reference clause is the one
+    already used for cut-out objects, because a panel is no more part of the room's
+    composition than an item icon is.
+    """
+
+    return f"{style_clause(room)}\n\n{task}\n\n{STYLE_REFERENCE_CLAUSE}"
 
 
 def backdrop_prompt(room: PointClickRoom) -> str:
@@ -77,7 +89,7 @@ def backdrop_prompt(room: PointClickRoom) -> str:
         )
     return (
         "Paint one complete point-and-click adventure room interior as a single full-frame "
-        f"scene. {room.scene.brief} {_style_clause(room)} No text, no watermarks, no UI, "
+        f"scene. {room.scene.brief} {style_clause(room)} No text, no watermarks, no UI, "
         "no people unless the scene brief names them."
         f"{scenery_clause}{clearance_clause} {BACKDROP_REFERENCE_CLAUSE}"
     )
@@ -86,7 +98,7 @@ def backdrop_prompt(room: PointClickRoom) -> str:
 def hotspot_sprite_prompt(room: PointClickRoom, hotspot: Hotspot) -> str:
     return (
         f"One isolated object on a fully transparent background: {hotspot.label}. "
-        f"{hotspot.brief} {_style_clause(room)} The object belongs in this scene: "
+        f"{hotspot.brief} {style_clause(room)} The object belongs in this scene: "
         f"{room.scene.brief} Single subject, complete silhouette, no ground shadow, "
         f"no text, nothing else in frame. {STYLE_REFERENCE_CLAUSE}"
     )
@@ -95,7 +107,7 @@ def hotspot_sprite_prompt(room: PointClickRoom, hotspot: Hotspot) -> str:
 def item_icon_prompt(room: PointClickRoom, item: Item) -> str:
     return (
         f"One isolated inventory item icon on a fully transparent background: {item.label}. "
-        f"{item.brief} {_style_clause(room)} Single centered object, complete silhouette, "
+        f"{item.brief} {style_clause(room)} Single centered object, complete silhouette, "
         f"readable at small size, no ground shadow, no text, nothing else in frame. "
         f"{STYLE_REFERENCE_CLAUSE}"
     )
@@ -134,7 +146,7 @@ def narration_prompt(room: PointClickRoom) -> str:
         "Write one short narration line (1-2 sentences, second person, present tense) for each "
         "listed moment of a point-and-click puzzle room. Match the room's tone. Never invent "
         "puzzle information, items, or mechanics beyond what is listed.\n"
-        f"Room: {room.display_name}. Scene: {room.scene.brief} {_style_clause(room)}\n"
+        f"Room: {room.display_name}. Scene: {room.scene.brief} {style_clause(room)}\n"
         f"Hotspots: {hotspots}\nItems: {items}\n"
         f"Write exactly these lines:\n{lines}"
     )

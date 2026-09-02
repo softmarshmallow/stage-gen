@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { IDLE_ATTACK_WINDOW, stepAttackWindow, type AttackWindowState } from "./attack-window";
+import {
+  IDLE_ATTACK_WINDOW,
+  nextAttackHitTick,
+  stepAttackWindow,
+  type AttackWindowState,
+} from "./attack-window";
 import { weaponClassProfile } from "./weapon-class";
 
 const MELEE = weaponClassProfile("melee_dps_v1");
@@ -82,6 +87,61 @@ describe("what a second request during an action does", () => {
     const live = at(MELEE, started, 1_100);
     expect(live.attackActive).toBe(true);
     expect(at(MELEE, live, 1_100, true).committed).toBe(false);
+  });
+});
+
+describe("which blow is due", () => {
+  const SWEEP = weaponClassProfile("melee_sweep_v1");
+
+  function tick(profile: typeof MELEE, state: AttackWindowState, nowMs: number, fired: number) {
+    return nextAttackHitTick({ profile, state: at(profile, state, nowMs), nowMs, ticksFired: fired });
+  }
+
+  test("a single-blow class is due exactly once, when its window opens", () => {
+    const started = commit(MELEE, 1_000);
+    expect(tick(MELEE, started, 1_079, 0)).toBeNull();
+    expect(tick(MELEE, started, 1_080, 0)).toBe(0);
+    expect(tick(MELEE, started, 1_200, 0)).toBe(0);
+    expect(tick(MELEE, started, 1_200, 1)).toBeNull();
+    expect(tick(MELEE, started, 1_251, 0)).toBeNull();
+  });
+
+  test("a multi-hit class spaces its blows from the window opening", () => {
+    const started = commit(SWEEP, 1_000);
+    expect(tick(SWEEP, started, 1_080, 0)).toBe(0);
+    expect(tick(SWEEP, started, 1_124, 1)).toBeNull();
+    expect(tick(SWEEP, started, 1_125, 1)).toBe(1);
+    expect(tick(SWEEP, started, 1_170, 2)).toBe(2);
+    expect(tick(SWEEP, started, 1_200, 3)).toBeNull();
+  });
+
+  test("a long frame yields one blow per call, so a combo spreads across frames", () => {
+    const started = commit(SWEEP, 1_000);
+    let fired = 0;
+    const landed: number[] = [];
+    for (const nowMs of [1_240, 1_241, 1_242, 1_243]) {
+      const due = tick(SWEEP, started, nowMs, fired);
+      if (due !== null) {
+        landed.push(due);
+        fired = due + 1;
+      }
+    }
+    expect(landed).toEqual([0, 1, 2]);
+  });
+
+  test("a blow that would fall after the window closes is never due", () => {
+    const crowded = { ...SWEEP, hitsPerAction: 10, hitIntervalMs: 40 };
+    const started = commit(crowded, 1_000);
+    // Tick 4 is due at 240 ms, tick 5 at 280 ms, past the 250 ms close.
+    expect(tick(crowded, started, 1_249, 4)).toBe(4);
+    expect(tick(crowded, started, 1_249, 5)).toBeNull();
+    expect(tick(crowded, started, 1_280, 5)).toBeNull();
+  });
+
+  test("a negative or fractional fired count is refused", () => {
+    const started = commit(SWEEP, 1_000);
+    expect(() => tick(SWEEP, started, 1_100, -1)).toThrow("ticks fired");
+    expect(() => tick(SWEEP, started, 1_100, 0.5)).toThrow("ticks fired");
   });
 });
 

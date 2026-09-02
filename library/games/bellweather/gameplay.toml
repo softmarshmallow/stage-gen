@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "gameplay-contract-v1"
 game_id = "bellweather"
-revision = 4
+revision = 5
 entry_map_id = "sunpetal-crossing"
 entry_spawn_id = "village_west_gate"
 
@@ -32,6 +32,8 @@ basic_action = "basic_attack"
 secondary_action = "skill_cast"
 contact_damage = true
 critical_profile = "standard_v1"
+weapon_class = "melee_sweep_v1"
+number_scale = "arcade_v1"
 lethal_presentation = false
 defeat_presentation = "story_beast_disperses_into_page_light"
 
@@ -95,10 +97,10 @@ zone_id = "amberbell_edge"
 surface = "terrain"
 left_fraction = 0.08
 right_fraction = 0.34
-initial_population = 4
-target_population = 5
-population_cap = 6
-respawn_delay_ms = 6500
+initial_population = 8
+target_population = 10
+population_cap = 12
+respawn_delay_ms = 3000
 
 [[mob_population.maps.zones.spawn_table]]
 mob_id = "petal_puff"
@@ -113,10 +115,10 @@ zone_id = "bellroot_glade"
 surface = "terrain"
 left_fraction = 0.36
 right_fraction = 0.68
-initial_population = 4
-target_population = 5
-population_cap = 6
-respawn_delay_ms = 6000
+initial_population = 8
+target_population = 10
+population_cap = 12
+respawn_delay_ms = 3000
 
 [[mob_population.maps.zones.spawn_table]]
 mob_id = "thimblejay"
@@ -131,10 +133,10 @@ zone_id = "crowncrag_approach"
 surface = "terrain"
 left_fraction = 0.70
 right_fraction = 0.94
-initial_population = 3
-target_population = 4
-population_cap = 5
-respawn_delay_ms = 8000
+initial_population = 6
+target_population = 8
+population_cap = 10
+respawn_delay_ms = 4000
 
 [[mob_population.maps.zones.spawn_table]]
 mob_id = "bramblehart"

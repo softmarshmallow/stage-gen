@@ -38,8 +38,8 @@ from stage_gen.components.game_contract import (
     canonical_prepared_game_contract_json,
     load_prepared_game_contract_bytes,
 )
-from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
 from stage_gen.components.game_fx import GameFx, load_game_fx_bytes
+from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.components.platformer_content import (
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
@@ -755,6 +755,12 @@ def _resolve_platformer_member(
         load_game_ui_bytes,
         "invalid_game_ui_contract",
     )
+    if ui.inventory_panel is None:
+        # The panel is optional in the contract because other genres never draw one; this
+        # runtime does, so the requirement is stated here rather than imposed on everyone.
+        raise GamePackageValidationError(
+            "invalid_game_ui_contract", "the platformer UI contract requires an inventory panel"
+        )
     soundtrack = _load_locked(
         member(platformer.soundtrack.source),
         lambda data: load_game_soundtrack_bytes(data, source_suffix=".toml"),

@@ -35,7 +35,16 @@ export const COMBAT_TEXT_FADE_START_MS = 360;
 export const COMBAT_TEXT_SHAKE_MS = 72;
 export const COMBAT_TEXT_RISE_PX = 32;
 export const COMBAT_TEXT_SHAKE_PX = 2;
-export const COMBAT_TEXT_DEFAULT_ACTIVE_CAP = 24;
+/** Six targets times three blows, twice over, before the oldest number is recycled. */
+export const COMBAT_TEXT_DEFAULT_ACTIVE_CAP = 64;
+
+// Numbers that land on the same creature within a few frames stack upward instead of drawing on
+// top of each other, which is the column read of a multi-hit. The offset is decided once when the
+// number is shown and folded into its anchor, so the rise and fade above never have to know.
+export const COMBAT_TEXT_STACK_WINDOW_MS = 300;
+export const COMBAT_TEXT_STACK_RADIUS_PX = 48;
+export const COMBAT_TEXT_STACK_STEP_PX = 26;
+export const COMBAT_TEXT_STACK_JITTER_PX = 6;
 
 const PUNCH_START_SCALE = 0.78;
 const PUNCH_PEAK_SCALE = 1.14;
@@ -201,6 +210,39 @@ export function sampleCombatText(
 }
 
 /** Stable decimal formatting; current combat is integer-valued but the contract need not be. */
+export type CombatTextStackPeer = Readonly<{
+  baseX: number;
+  baseY: number;
+  startedAtMs: number;
+}>;
+
+/**
+ * Where a new number goes relative to where it was asked for, given the numbers already up.
+ *
+ * Counts the live peers shown within the stack window at nearly the same place - measured at
+ * their *unstacked* anchors, so a column does not drift as it grows - and lifts the new one by a
+ * step per peer, with a small sideways jitter from its own id so a straight column still reads as
+ * separate blows. Pure, so the stack a capture shows is the stack the test computed.
+ */
+export function combatTextStackOffset(
+  peers: readonly CombatTextStackPeer[],
+  input: Readonly<{ eventId: number; x: number; y: number; nowMs: number }>,
+): Readonly<{ x: number; y: number }> {
+  let count = 0;
+  for (const peer of peers) {
+    if (input.nowMs - peer.startedAtMs > COMBAT_TEXT_STACK_WINDOW_MS) continue;
+    if (Math.abs(peer.baseX - input.x) > COMBAT_TEXT_STACK_RADIUS_PX) continue;
+    if (Math.abs(peer.baseY - input.y) > COMBAT_TEXT_STACK_RADIUS_PX) continue;
+    count += 1;
+  }
+  if (count === 0) return Object.freeze({ x: 0, y: 0 });
+  const jitter = ((Math.abs(Math.trunc(input.eventId)) * 7) % 3) - 1;
+  return Object.freeze({
+    x: jitter * COMBAT_TEXT_STACK_JITTER_PX,
+    y: -COMBAT_TEXT_STACK_STEP_PX * count,
+  });
+}
+
 export function formatCombatTextAmount(amount: number): string {
   if (!Number.isFinite(amount) || amount <= 0) return "";
   return String(Number(amount.toFixed(2)));
@@ -251,6 +293,9 @@ type ActiveCombatText = {
   critical: boolean;
   amount: number;
   text: string;
+  /** The anchor as asked for, before stacking, which is what later numbers stack against. */
+  baseX: number;
+  baseY: number;
   motion: CombatTextMotion;
   sample: CombatTextSample;
   glyph: Phaser.GameObjects.Text;
@@ -340,11 +385,24 @@ export class CombatTextSystem {
     const text = critical
       ? `${formatCombatTextAmount(amount)}!`
       : formatCombatTextAmount(amount);
+    const stack = combatTextStackOffset(
+      this.active.map((peer) => ({
+        baseX: peer.baseX,
+        baseY: peer.baseY,
+        startedAtMs: peer.motion.startedAtMs,
+      })),
+      {
+        eventId,
+        x: input.x,
+        y: input.y,
+        nowMs: input.nowMs,
+      },
+    );
     const motion: CombatTextMotion = Object.freeze({
       eventId,
       startedAtMs: input.nowMs,
-      anchorX: input.x,
-      anchorY: input.y,
+      anchorX: input.x + stack.x,
+      anchorY: input.y + stack.y,
       reducedMotion: this.reducedMotion,
       critical,
     });
@@ -356,6 +414,8 @@ export class CombatTextSystem {
       critical,
       amount,
       text,
+      baseX: input.x,
+      baseY: input.y,
       motion,
       sample,
       glyph,

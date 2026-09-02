@@ -3,7 +3,9 @@ import { GAMEPLAY_AUTOMATION_FRAME_MS } from "./automation";
 import {
   MOB_DEATH_FADE_MS,
   MOB_KNOCKBACK_MS,
+  MOB_SPAWN_FADE_MS,
   sampleFixedMobHit,
+  sampleMobSpawnFade,
   type FixedMobHitMotion,
 } from "./fixed-motion";
 
@@ -48,6 +50,16 @@ describe("fixed-clock mob hit motion", () => {
       hidden: true,
       complete: true,
     });
+  });
+
+  test("a placed creature fades in from simulation time and then stops sampling", () => {
+    expect(sampleMobSpawnFade(1_000, 1_000)).toEqual({ alpha: 0, complete: false });
+    expect(sampleMobSpawnFade(1_000, 1_000 + MOB_SPAWN_FADE_MS / 2).alpha).toBeCloseTo(0.5, 12);
+    expect(sampleMobSpawnFade(1_000, 1_000 + MOB_SPAWN_FADE_MS)).toEqual({
+      alpha: 1,
+      complete: true,
+    });
+    expect(sampleMobSpawnFade(1_000, 0)).toEqual({ alpha: 0, complete: false });
   });
 
 });

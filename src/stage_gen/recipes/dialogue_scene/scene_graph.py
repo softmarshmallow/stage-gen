@@ -34,9 +34,15 @@ from gnode import (
     PortRef,
     seal_graph,
 )
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
 from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
-from stage_gen.recipes.dialogue_scene.prompts import background_prompt, plan_prompt, track_prompt
+from stage_gen.recipes.dialogue_scene.prompts import (
+    background_prompt,
+    plan_prompt,
+    track_prompt,
+    ui_atlas_prompt,
+)
 from stage_gen.recipes.dialogue_scene.scene_types import (
     ATTEMPT_LEDGER_KIND,
     BACKDROP_GENERATE,
@@ -126,7 +132,10 @@ class DialogueSceneGraph(Graph):
 
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
-STRUCTURED_FEATURES = ("structured_output",)
+#: What the bound route can do, which is not the same as what any one node asks of it:
+#: the plan compiler needs only structured output, while the UI atlas judge is handed the
+#: evidence sheet and so needs image input from the same model.
+STRUCTURED_FEATURES = ("structured_output", "image_input")
 BACKGROUND_REMOVAL_FEATURES = ("alpha_matte",)
 MUSIC_FEATURES = ("instrumental_loop",)
 
@@ -536,6 +545,21 @@ def build_dialogue_scene_graph(
             ),
             card=NodeCard(prompt=track_prompt(request.game_id, track)),
         )
+
+    # Panels and buttons are the one thing every genre draws the same way, so the scene
+    # plans the shared nine-slice triplet rather than a fourth private copy of it. Its
+    # identity is the style plate: re-plate the scene and the interface re-bills with
+    # every other image drawn against it.
+    terminal_ids.extend(
+        add_ui_atlas_nodes(
+            builder,
+            root="scene-style-plate",
+            ui=scene.ui,
+            style_prompt=ui_atlas_prompt,
+            direction_digests=(scene.style_reference.sha256,),
+            attempts_port=_attempts,
+        )
+    )
 
     builder.add(
         BUNDLE_PACKAGE,

@@ -185,7 +185,40 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
         **overrides,
     )
     (root / "scene.toml").write_text(_to_toml(document), encoding="utf-8")
+    (root / "ui.toml").write_text(
+        ui_toml(cover_sha256=hashlib.sha256(cover).hexdigest()), encoding="utf-8"
+    )
     return root
+
+
+def ui_toml(*, cover_sha256: str) -> str:
+    """The scene's screen-fixed interface contract, drawn against the same plate."""
+
+    return f"""\
+schema_version = 3
+kind = "game-ui-v3"
+game_id = "seminar_hall"
+revision = 1
+
+[[references]]
+reference_id = "cover"
+source = "references/cover.png"
+source_sha256 = "{cover_sha256}"
+rights_status = "unreviewed"
+rights_basis = ["Original brand-neutral test fixture."]
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover"]
+prompt = "A calm dialogue-box frame in the plate's palette with a slim even border."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover"]
+prompt = "A calm rounded choice button in the plate's palette with a slim even border."
+"""
 
 
 def scene_value(

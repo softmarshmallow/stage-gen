@@ -16,6 +16,10 @@ from pydantic import BaseModel, ValidationError
 GAME_ID_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 KEBAB_ID_PATTERN = GAME_ID_PATTERN
 SNAKE_ID_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+#: A package id in either house shape. Game contracts name themselves in kebab and
+#: rooms in snake, and a document shared by both — the UI contract is the first —
+#: must be able to state which package it belongs to without renaming either.
+PACKAGE_ID_PATTERN = r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 SHA256_PATTERN = r"^[a-f0-9]{64}$"
 
 
@@ -121,6 +125,7 @@ __all__ = [
     "AuthoredContractLoadError",
     "GAME_ID_PATTERN",
     "KEBAB_ID_PATTERN",
+    "PACKAGE_ID_PATTERN",
     "SHA256_PATTERN",
     "SNAKE_ID_PATTERN",
     "assert_pattern",

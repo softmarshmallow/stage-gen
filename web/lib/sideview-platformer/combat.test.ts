@@ -56,6 +56,14 @@ describe("aggression archetypes", () => {
     expect(seen.size).toBe(MOB_AGGRESSIONS.length);
   });
 
+  test("passive is the prey archetype: it never reacts, and it is the only one that does not", () => {
+    const p = aggressionProfile("passive");
+    expect(p.hostile).toBe(false);
+    expect(p.damage).toBe(0);
+    expect(p.flees).toBe(false);
+    expect(MOB_AGGRESSIONS.filter((a) => !aggressionProfile(a).hostile)).toEqual(["passive"]);
+  });
+
   test("aggression rises monotonically with reach, speed and pressure", () => {
     // The ordering is the whole meaning of the vocabulary: a player must be able to learn what a
     // word implies and have that hold for every creature carrying it.
@@ -266,6 +274,13 @@ describe("mob intent", () => {
       ...base, profile, distancePx: 0, attackReadyAtMs: base.nowMs + 1,
     });
     expect(cooling).toBe("attack_recovery");
+  });
+
+  test("passive holds at every distance, however close and however ready", () => {
+    const profile = aggressionProfile("passive");
+    expect(mobIntent({ ...base, profile, distancePx: 0 })).toBe("hold");
+    expect(mobIntent({ ...base, profile, distancePx: profile.aggroRadiusPx - 1 })).toBe("hold");
+    expect(mobIntent({ ...base, profile, distancePx: profile.aggroRadiusPx + 1 })).toBe("hold");
   });
 
   test("skittish flees at every distance inside its radius", () => {

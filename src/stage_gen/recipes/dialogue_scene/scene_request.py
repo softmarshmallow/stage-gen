@@ -30,6 +30,7 @@ from stage_gen.components.character_profile import (
     CharacterProfileBinding,
     resolve_character_profile_binding,
 )
+from stage_gen.components.game_ui import GameUi, UiReference, load_game_ui_bytes
 from stage_gen.components.scenario import (
     ResolvedScenario,
     resolve_scenario,
@@ -61,6 +62,7 @@ from stage_gen.recipes.dialogue_scene.prompts import (
 SCENE_ID_MAX_LENGTH = 48
 #: The authored root every scene package is read from.
 SCENE_DOCUMENT_NAME = "scene.toml"
+UI_DOCUMENT_NAME = "ui.toml"
 _MEDIA_TYPES = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -144,6 +146,13 @@ class ResolvedDialogueScene:
     #: generated image, actor plates included.
     style_reference: ResolvedSceneReference
     scenario: ResolvedScenario
+    #: The scene's screen-fixed interface art direction. Separate from the narrative on
+    #: purpose: the dialogue box knows nothing about what is said inside it, and the
+    #: nine-slice roles it names are the same ones every other genre draws.
+    ui: GameUi
+    ui_sha256: str
+    #: Every reference the UI roles select, by its declared source path.
+    ui_references: dict[str, ResolvedSceneReference]
 
     def actor(self, actor_id: str) -> ResolvedSceneActor:
         return next(actor for actor in self.actors if actor.actor_id == actor_id)
@@ -183,7 +192,35 @@ class ResolvedDialogueScene:
             "scenario_ref": self.request.scenario.ref,
             "scenario_source_sha256": self.request.scenario.source_sha256,
             "scenario_program_sha256": self.scenario.program_sha256,
+            "ui_sha256": self.ui_sha256,
         }
+
+
+def _read_ui_document(root: Path) -> bytes:
+    """Read the scene's UI contract, following no symlink, as its own document."""
+
+    path = (root / UI_DOCUMENT_NAME).resolve()
+    return read_absolute_regular_file(path, label="scene UI document")
+
+
+def _read_ui_reference(root: Path, reference: UiReference) -> ResolvedSceneReference:
+    """One UI reference, read under the same confinement and digest binding as the scene's."""
+
+    data = read_digest_bound_member(
+        root,
+        reference.source,
+        expected_sha256=reference.source_sha256,
+        label="scene UI reference",
+    )
+    return ResolvedSceneReference(
+        reference_id=reference.reference_id,
+        source=reference.source,
+        sha256=reference.source_sha256,
+        media_type=_MEDIA_TYPES[PurePosixPath(reference.source).suffix.lower()],
+        data=data,
+        rights_status=reference.rights_status,
+        rights_basis=tuple(reference.rights_basis),
+    )
 
 
 def read_scene_document(root: Path) -> dict[str, object]:
@@ -225,6 +262,9 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
     style_reference = _read_reference(root, request.style_reference())
     actors = _resolve_actors(request, scenario, root=root)
     resources = load_image_style_resources()
+    ui = load_game_ui_bytes(_read_ui_document(root))
+    if ui.game_id != request.game_id:
+        raise ValueError(f"scene {request.game_id} declares a UI contract for {ui.game_id}")
     return ResolvedDialogueScene(
         request=request,
         request_bytes=request_bytes,
@@ -241,6 +281,9 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
         actors=actors,
         style_reference=style_reference,
         scenario=scenario,
+        ui=ui,
+        ui_sha256=canonical_sha256(ui.model_dump(mode="json")),
+        ui_references={entry.source: _read_ui_reference(root, entry) for entry in ui.references},
     )
 
 
@@ -478,6 +521,7 @@ def _scene_id(request: DialogueRequest) -> str:
 
 __all__ = [
     "SCENE_DOCUMENT_NAME",
+    "UI_DOCUMENT_NAME",
     "SCENE_ID_MAX_LENGTH",
     "ResolvedDialogueScene",
     "ResolvedSceneActor",

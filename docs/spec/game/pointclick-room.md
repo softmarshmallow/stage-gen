@@ -60,13 +60,25 @@ persisted into the run as `puzzle.validation.json`
 
 `stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 14 nodes: `room.resolve` → `style_anchor.select` → the
+the shipped room is 20 nodes: `room.resolve` → `style_anchor.select` → the
 backdrop, one generate+validate pair per sprite hotspot
 (`hotspot-pipeline@v1` template instances) and per item icon
 (`item-icon-pipeline@v1`), one `narration.compile` structured call covering
 every authored narration gap under a closed-id strict schema (omitted
-entirely when the author wrote every line), the local `puzzle.validate`
+entirely when the author wrote every line), the shared nine-slice UI atlas
+triplet for each of the two interface roles, the local `puzzle.validate`
 proof, and the terminal `room.bundle`.
+
+**The interface is generated, and the nodes that generate it are not this
+recipe's.** Panels and buttons are the one thing every genre draws the same
+way, so the room plans the shared `2d/ui/atlas.*` triplet declared beside the
+[UI contract](ui.md) rather than a private copy of it, reading its own
+`ui.toml` beside `room.toml`. The HUD bar, the narration plate and the win
+card are one `panel_frame` sheet stretched to three sizes; the verb bar is one
+`button_rect` sheet read at four states, with the chosen verb shown in the
+pressed cell because a four-state sheet publishes no selected one. Where the
+narration text sits is measured on the drawn frame — the producer publishes
+the ornament-free interior — rather than guessed from a fixed inset.
 
 **The cover is the art direction of record, and the author supplies it.**
 Every image the room generates — backdrop, hotspot sprites, item icons — is
@@ -91,13 +103,14 @@ so the file that will be attached to the call is legible in the plan and in
 the viewer rather than hiding inside a cache key, the way a derived input is
 legible through its upstream port.
 
-## Runtime manifest — `pointclick-room-runtime-v2`
+## Runtime manifest — `pointclick-room-runtime-v3`
 
 The terminal bundle writes `manifest.json` into the run directory: the cover
 ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
-generated one), the win condition, and a digest-bound closure of every
-published artifact — the republished cover included.
+generated one), the win condition, the two interface roles with the geometry
+the gate measured on each sheet, and a digest-bound closure of every
+published artifact — the republished cover and both sheets included.
 
 The web consumer (`web/lib/pointclick/`, route `/room/<tag>`) plays the room
 from this document alone, on the same Phaser engine as the platformer: one

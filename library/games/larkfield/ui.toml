@@ -1,0 +1,43 @@
+# The scene's screen-fixed interface art, kept separate from the story it frames.
+#
+# Nothing here knows what a line of dialogue is. Two nine-slice roles cover every
+# surface the runtime draws: the dialogue box and the end card are one panel frame
+# stretched to two sizes, and the choice list is one button sheet read at four
+# states. The layout ids are the whole geometry contract — a role never authors cell
+# rectangles or insets, because the generator renders the template from the declared
+# geometry and publishes the geometry it actually detected beside the art.
+#
+# This scene holds its art direction as pixels rather than adjectives, so the roles
+# bind the same style plate every actor and backdrop is drawn against.
+
+schema_version = 3
+kind = "game-ui-v3"
+game_id = "larkfield"
+revision = 1
+
+[[references]]
+reference_id = "cover"
+source = "references/cover.png"
+source_sha256 = "228cf2c677da07f924c15696538bb738c82e1533f251fcacd37a0c7674fcf091"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this scene document and its character profile.",
+    "First-party AI-generated plate selected by the task owner from a six-candidate sheet on 2026-08-31.",
+    "Drawn against concept-studio/gallery/the-sky-remembers/images/cover.webp as a style reference only, for medium, palette and light; no subject, composition, or wardrobe was copied from it.",
+    "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
+]
+
+# There is no inventory panel here. A visual novel has no inventory, and authoring
+# a panel it never shows would be describing a screen that does not exist.
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover"]
+prompt = "A soft dialogue-box frame in the plate's late-summer classroom palette: a deep dusk-blue field held by a slim, evenly weighted border in the plate's warm accent, with a small quiet corner flourish no heavier than a thin drawn bracket. Gentle painted edges, nothing glossy or metallic. The inner field must stay one calm, even surface so speaker names and several lines of dialogue read cleanly on top of it."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover"]
+prompt = "A soft rounded choice button in the plate's late-summer classroom palette: one calm field inside a slim evenly weighted border in the plate's warm accent, no ornament beyond that border. Gentle painted edges, nothing glossy or metallic. The face must stay one calm, even surface so a full sentence of choice text reads cleanly on top of it, and the four states must differ only in value and hue."

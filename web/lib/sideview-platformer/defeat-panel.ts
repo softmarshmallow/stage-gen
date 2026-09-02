@@ -24,7 +24,7 @@ import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import { NineSliceWidget, minimumSliceSize } from "@/lib/ui-atlas/widget";
 import { DEFAULT_DEFEAT_PANEL_KNOBS, defeatPanelLayout } from "./defeat-panel-layout";
 import { SCENE_CONTENT_DEPTH } from "./depths";
-import type { PresentationFallbackKind } from "./presentation-fallback";
+import type { PresentationFallbackKind } from "@/lib/ui-atlas/fallback";
 import { defeatPromptState } from "./respawn";
 
 const VIEW_W = 1280;

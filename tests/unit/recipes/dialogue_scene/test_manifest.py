@@ -3,12 +3,18 @@ from __future__ import annotations
 import json
 from io import BytesIO
 from pathlib import Path
+from typing import cast
 
 import pytest
 from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.components import canonical_character_profile_json
+from stage_gen.components.game_ui import (
+    ATLAS_ROLES,
+    atlas_role_contract,
+    canonicalize_atlas_image,
+)
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -23,6 +29,7 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     read_scene_document,
     resolve_dialogue_scene,
 )
+from tests.unit._ui_atlas_fixture import atlas_sheet
 
 from .package import write_scene_package
 
@@ -116,6 +123,24 @@ def _write_inputs(root: Path) -> str:
         '{"schema_version":2,"kind":"dialogue-attempt-ledger-v2","attempts":[]}\n',
         encoding="utf-8",
     )
+    # The interface sheets and the records the gate wrote beside them, exactly as a real run
+    # leaves them: the bundle reads the measured geometry rather than the declared template.
+    ui = root / "ui"
+    ui.mkdir()
+    for role in ATLAS_ROLES.values():
+        sheet = atlas_sheet(role)
+        canonical, facts = canonicalize_atlas_image(sheet, role)
+        _write_image(ui / f"{role.role}.png", canonical)
+        (ui / f"{role.role}.validation.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "prepared-ui-atlas-validation-v2",
+                    **atlas_role_contract(cast(dict[str, object], facts["canonical"])),
+                }
+            ),
+            encoding="utf-8",
+        )
     assets = root / "assets"
     assets.mkdir()
     files = {
@@ -131,21 +156,24 @@ def _write_inputs(root: Path) -> str:
         },
     }
     for name, data in files.items():
-        path = assets / name
-        write_artifact_with_provenance(
-            path,
-            BinaryArtifact(data=data, media_type="image/png"),
-            ProvenanceInput(
-                component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
-                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
-                schema_version=2,
-                provider="local",
-                model="fixture",
-                prompt="Create test media.",
-                attempts=1,
-            ),
-        )
+        _write_image(assets / name, data)
     return "manifest-test-chroma"
+
+
+def _write_image(path: Path, data: bytes) -> None:
+    write_artifact_with_provenance(
+        path,
+        BinaryArtifact(data=data, media_type="image/png"),
+        ProvenanceInput(
+            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
+            schema_version=2,
+            provider="local",
+            model="fixture",
+            prompt="Create test media.",
+            attempts=1,
+        ),
+    )
 
 
 def _write_json_pair(path: Path, data: bytes) -> None:
@@ -171,8 +199,8 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     tag = _write_inputs(tmp_path)
     await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 6
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v6"
+    assert bundle_raw["schema_version"] == 7
+    assert bundle_raw["kind"] == "dialogue-scene-bundle-v7"
     assert "sceneData" not in bundle_raw
     assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
     bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))

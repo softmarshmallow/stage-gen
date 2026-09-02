@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  CLUSTER_JOIN_CHANCE,
   ManifestValidationError,
   MobPopulationDirector,
   parseMobPopulationManifest,
@@ -627,6 +628,114 @@ describe("placement policy", () => {
 
     expect(reservations).toHaveLength(2);
     expect(new Set(reservations.map((reservation) => reservation.candidate_column)).size).toBe(2);
+  });
+});
+
+describe("clustered placement", () => {
+  const WIDE_COLUMNS = Array.from({ length: 40 }, (_, column) => ({
+    column,
+    x_px: column * 64 + 32,
+    y_px: 100,
+  }));
+
+  function clusteredManifest(overrides: Partial<MobSpawnZoneManifest> = {}) {
+    return makeManifest(
+      {
+        right_column_exclusive: 40,
+        initial_population: 9,
+        target_population: 9,
+        population_cap: 9,
+        spawn_batch_size: 9,
+        minimum_spawn_separation_px: 1,
+        placement: "clustered",
+        cluster_radius_px: 160,
+        spawn_table: [{ mob_slot: 1, weight: 1, min_alive: 0, max_alive: 9 }],
+        ...overrides,
+      },
+      { max_spawn_batch_per_update: 9 },
+    );
+  }
+
+  function spread(reservations: readonly { x_px: number }[]): number {
+    // The mean distance from each body to its nearest neighbour: small for clumps, large for an
+    // even spread. Nine bodies over forty columns spread evenly stand about four columns apart.
+    const xs = reservations.map((reservation) => reservation.x_px);
+    let total = 0;
+    for (const x of xs) {
+      let nearest = Number.POSITIVE_INFINITY;
+      for (const other of xs) if (other !== x) nearest = Math.min(nearest, Math.abs(other - x));
+      total += nearest;
+    }
+    return total / xs.length;
+  }
+
+  test("absent placement reads as uniform and the zone shape is unchanged", () => {
+    const parsed = parseMobPopulationManifest(makeManifest());
+    const zone = parsed.maps[0]!.zones[0]!;
+    expect(zone.placement).toBe("uniform");
+    expect(zone.cluster_radius_px).toBe(0);
+    expect(() =>
+      parseMobPopulationManifest(makeManifest({ placement: "clustered", cluster_radius_px: 0 })),
+    ).toThrow("cluster_radius_px must be positive");
+    expect(() =>
+      parseMobPopulationManifest(makeManifest({ placement: "huddled" as "uniform" })),
+    ).toThrow("placement");
+  });
+
+  test("clustered bodies stand closer to their nearest neighbour than uniform ones", () => {
+    const clustered = new MobPopulationDirector(
+      clusteredManifest(),
+      makeCandidates(WIDE_COLUMNS),
+      { seed: 7 },
+    ).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+    const uniform = new MobPopulationDirector(
+      clusteredManifest({ placement: "uniform", cluster_radius_px: 0 }),
+      makeCandidates(WIDE_COLUMNS),
+      { seed: 7 },
+    ).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+    expect(clustered).toHaveLength(9);
+    expect(uniform).toHaveLength(9);
+    expect(spread(clustered)).toBeLessThan(spread(uniform));
+    // Every joined body is within the radius of at least one other body.
+    let joined = 0;
+    for (const body of clustered) {
+      if (clustered.some((other) => other !== body && Math.abs(other.x_px - body.x_px) <= 160)) {
+        joined += 1;
+      }
+    }
+    expect(joined).toBeGreaterThanOrEqual(Math.floor(9 * CLUSTER_JOIN_CHANCE));
+  });
+
+  test("clustering never places two bodies on one column and replays with the seed", () => {
+    const first = new MobPopulationDirector(clusteredManifest(), makeCandidates(WIDE_COLUMNS), {
+      seed: 21,
+    }).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+    const second = new MobPopulationDirector(clusteredManifest(), makeCandidates(WIDE_COLUMNS), {
+      seed: 21,
+    }).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+    expect(first.map((r) => r.candidate_column)).toEqual(second.map((r) => r.candidate_column));
+    expect(new Set(first.map((r) => r.candidate_column)).size).toBe(first.length);
+  });
+
+  test("a clump with no free column beside it falls back to a uniform draw", () => {
+    // Two columns only, far apart: the second body cannot join the first, so it must still land.
+    const manifest = clusteredManifest({
+      right_column_exclusive: 8,
+      initial_population: 2,
+      target_population: 2,
+      population_cap: 2,
+      spawn_batch_size: 2,
+      spawn_table: [{ mob_slot: 1, weight: 1, min_alive: 0, max_alive: 2 }],
+    });
+    const reservations = new MobPopulationDirector(
+      manifest,
+      makeCandidates([
+        { column: 0, x_px: 0, y_px: 100 },
+        { column: 7, x_px: 700, y_px: 100 },
+      ]),
+      { seed: 3 },
+    ).update(HUNTING_MAP, 0, EMPTY_CONTEXT);
+    expect(reservations).toHaveLength(2);
   });
 });
 

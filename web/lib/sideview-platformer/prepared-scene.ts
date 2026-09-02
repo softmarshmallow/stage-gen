@@ -64,6 +64,7 @@ import {
 } from "./health-bar";
 import {
   aggressionProfile,
+  parseAggression,
   attackFootLevelsOverlap,
   healingRestoreAmount,
   resolveCriticalDamage,
@@ -88,6 +89,13 @@ import {
 } from "./consumables";
 import { ProjectileSystem } from "./projectiles";
 import { resolveInstantStrike } from "./strike";
+import { ImpactSystem } from "./impact-presentation";
+import {
+  numberScaleProfile,
+  scaleMobHealth,
+  scaleOutgoingDamage,
+  type NumberScaleProfile,
+} from "./number-scale";
 import {
   resolveWeaponClassProfile,
   weaponClassProfile,
@@ -119,7 +127,7 @@ import {
   registerGridPresentationFallback,
   registerPresentationFallback,
   type PresentationFallbackKind,
-} from "./presentation-fallback";
+} from "@/lib/ui-atlas/fallback";
 import { UI_ATLAS_SHEETS } from "./defeat-panel";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
 import { DEFAULT_DIALOGUE_BOX_KNOBS, dialogueBoxLayout } from "./dialogue-box-layout";
@@ -318,6 +326,9 @@ export class PreparedStageScene extends Phaser.Scene {
   private blowSequence = 0;
   private portal?: PortalSystem;
   private combatText?: CombatTextSystem;
+  private impact?: ImpactSystem;
+  /** The camera nudge applied last frame, subtracted before this frame's is added. */
+  private appliedShake: Readonly<{ x: number; y: number }> = Object.freeze({ x: 0, y: 0 });
   private healthBar?: FloatingHealthBar;
   private verticalWorld: VerticalWorld = Object.freeze({
     platforms: Object.freeze([]),
@@ -410,13 +421,19 @@ export class PreparedStageScene extends Phaser.Scene {
       return;
     }
     this.statLog?.update(now);
-    this.updatePlayer(delta, now);
-    this.updateMobs(delta, now);
+    // Hitstop holds the simulation, not the clock: actors receive no elapsed time for a few
+    // frames after a blow lands while every presentation keeps sampling `now`, so the number
+    // still punches and the flash still ends on time over a world that has briefly stopped.
+    const simulationDelta = this.impact?.hitstopActive(now) ? 0 : delta;
+    this.updatePlayer(simulationDelta, now);
+    this.updateMobs(simulationDelta, now);
     // Between the two on purpose: the mobs have already moved this frame, so a shot collides
     // against where they actually are, and a kill still lands in this frame's drop collection
     // rather than the next one's.
-    this.updateProjectiles(delta, now);
-    this.collectDrops(delta, now);
+    this.updateProjectiles(simulationDelta, now);
+    this.collectDrops(simulationDelta, now);
+    this.impact?.update(now);
+    this.applyImpactShake(now);
     this.updateInteractionPrompt();
     this.updateContactShadows();
     for (const layer of this.layerSprites) {
@@ -464,6 +481,10 @@ export class PreparedStageScene extends Phaser.Scene {
     this.combatText = new CombatTextSystem({
       scene: this,
       enabled: this.gameplay.combat_text.enabled,
+    });
+    this.impact = new ImpactSystem({
+      scene: this,
+      enabled: this.gameplay.combat.enabled,
     });
     this.progressionPolicy = Object.freeze({
       enabled: this.gameplay.progression.enabled,
@@ -1110,6 +1131,7 @@ export class PreparedStageScene extends Phaser.Scene {
       baselineY: this.groundBaselineY,
       heightFn: (column) => this.heightAt(column),
       itemTextureKey: (index) => preparedItemTextureKey(manifest, index),
+      worldWidthPx: this.worldWidth,
     });
     this.installProjectiles(manifest);
     this.installPortals(map);
@@ -1176,6 +1198,8 @@ export class PreparedStageScene extends Phaser.Scene {
     this.projectiles?.clearAll();
     this.projectiles = undefined;
     this.combatText?.clear();
+    this.applyImpactShake(null);
+    this.impact?.clear();
     this.statLog?.clear();
     this.portal?.destroy();
     this.portal = undefined;
@@ -1408,6 +1432,7 @@ export class PreparedStageScene extends Phaser.Scene {
     mobSlot: number,
     spawnColumn: number,
     behaviorSeed?: number,
+    spawnedAtMs?: number,
   ): Mob | null {
     const spec = this.manifest?.mobs[mobSlot];
     if (!spec) return null;
@@ -1435,16 +1460,22 @@ export class PreparedStageScene extends Phaser.Scene {
     });
     const attackKey = `prepared_mob_${spec.mob_id}_attack`;
     const deathKey = `prepared_mob_${spec.mob_id}_death`;
+    // The package may name the archetype; a rank maps to one otherwise. Common creatures are
+    // prey - the hunting-ground read, where most of what stands on the route is there to be
+    // hunted and hurts only on contact - and the threat ladder climbs with the rank.
     const aggression =
-      spec.rank === "boss" || spec.rank === "elite"
+      parseAggression(spec.aggression) ??
+      (spec.rank === "boss"
         ? "relentless"
-        : spec.rank === "uncommon"
+        : spec.rank === "elite"
           ? "hunting"
-          : "territorial";
+          : spec.rank === "uncommon"
+            ? "territorial"
+            : "passive");
     const mob = new Mob({
       scene: this,
       ladderIndex: mobSlot,
-      startingHealth: mobHealthForRank(spec.rank),
+      startingHealth: scaleMobHealth(mobHealthForRank(spec.rank), this.numberScale),
       spawnCol: spawnColumn,
       tilePx: TILE_PX,
       worldWidthPx: this.worldWidth,
@@ -1458,6 +1489,7 @@ export class PreparedStageScene extends Phaser.Scene {
       attackTextureKey: this.textures.exists(attackKey) ? attackKey : undefined,
       deathTextureKey: this.textures.exists(deathKey) ? deathKey : undefined,
       behaviorSeed,
+      spawnedAtMs,
     });
     this.addContactShadow(mob.sprite);
     // Identity for anything that has to follow one mob across frames. The director's own instance
@@ -1555,6 +1587,17 @@ export class PreparedStageScene extends Phaser.Scene {
         is_spawnable_column: (column) =>
           !reservedColumns.has(column) && this.heightAt(column) > 0,
       },
+      // The hunting-ground policy. Spawns may land in view - they fade in rather than appear -
+      // stand half a tile apart rather than more than one, and usually join a group already
+      // standing rather than spreading evenly along the zone. Consumer numbers, deliberately: the
+      // package names populations and species, and how those bodies are arranged is how the
+      // route feels, which this scene owns.
+      {
+        spawn_visibility: "allow_onscreen",
+        minimum_spawn_separation_px: Math.round(TILE_PX * 0.5),
+        placement: "clustered",
+        cluster_radius_px: Math.round(TILE_PX * 2.5),
+      },
     );
     if (projection) {
       this.mobIdByPopulationSlot = projection.mob_id_by_slot;
@@ -1637,6 +1680,7 @@ export class PreparedStageScene extends Phaser.Scene {
         mobSlot,
         reservation.candidate_column,
         this.nextMobInstance,
+        nowMs,
       );
       if (!mob) {
         director.reject(reservation.reservation_id, nowMs);
@@ -1714,9 +1758,25 @@ export class PreparedStageScene extends Phaser.Scene {
       for (const mob of this.mobs) mob.observePlayer(null, null, health.defeated);
     }
 
-    if (gameplay.combat.enabled && player.consumeAttackHit()) {
+    const hitTick = gameplay.combat.enabled ? player.consumeAttackHit(now) : null;
+    if (hitTick !== null) {
       const facing: 1 | -1 = player.facing === "left" ? -1 : 1;
       if (this.weapon.delivery.kind === "instant") {
+        // The arc is drawn on the first blow whether or not it connects: it is the band made
+        // visible, and a swing that whiffs still swung. Its radius is the band's reach, so the
+        // shape on screen and the rule in `strike.ts` cannot disagree.
+        if (hitTick === 0) {
+          this.impact?.showSwing({
+            x: player.sprite.x,
+            y: player.sprite.y - PLAYER_HEIGHT * 0.55,
+            dirSign: facing,
+            radiusPx: TILE_PX * this.weapon.delivery.reachTiles * 0.9,
+            nowMs: now,
+          });
+        }
+        // Re-resolved on every blow rather than once per action, so a creature killed by the
+        // second blow frees its slot for the third, and one that wandered into the band mid-swing
+        // is struck by the blows that remain.
         const living = this.mobs.filter((mob) => mob.isAlive());
         for (const index of resolveInstantStrike({
           profile: this.weapon,
@@ -1726,9 +1786,9 @@ export class PreparedStageScene extends Phaser.Scene {
           tilePixels: TILE_PX,
           targets: living.map((mob) => ({ x: mob.sprite.x, footY: mob.sprite.y })),
         })) {
-          this.applyPlayerBlow(living[index], player.sprite.x, facing, now);
+          this.applyPlayerBlow(living[index], player.sprite.x, facing, now, hitTick === 0);
         }
-      } else if (this.throwOne(player.sprite.x, player.sprite.y, facing)) {
+      } else if (hitTick === 0 && this.throwOne(player.sprite.x, player.sprite.y, facing)) {
         // The shot is the effect, so the round is spent only once one is actually in the air —
         // the inverse of drinking, where the bag opens only if the heal connected.
         if (this.ammoItemId) this.consumeInventory(this.ammoItemId, 1);
@@ -1791,25 +1851,42 @@ export class PreparedStageScene extends Phaser.Scene {
     seedX: number,
     dirSign: 1 | -1,
     nowMs: number,
+    knockback = true,
   ): void {
     const gameplay = this.gameplay;
     if (!gameplay) return;
+    const blowSeed = this.nextBlowSeed(seedX, mob.ladderIndex);
     const blow = resolveCriticalDamage(
-      this.weapon.damage,
+      scaleOutgoingDamage(this.weapon.damage, this.numberScale, blowSeed),
       gameplay.combat.critical_profile,
-      this.nextBlowSeed(seedX, mob.ladderIndex),
+      blowSeed,
     );
-    const result = mob.takeHit(nowMs, dirSign, blow.amount, blow.critical);
+    const result = mob.takeHit(nowMs, dirSign, blow.amount, blow.critical, knockback ? 1 : 0);
+    const bounds = mob.sprite.getBounds();
     this.combatText?.showDamage({
       resolution: result,
       direction: "outgoing",
       x: mob.sprite.x,
-      y: mob.sprite.getBounds().top - 18,
+      y: bounds.top - 18,
       nowMs,
     });
+    if (result.connected) {
+      // Seeded from the same roll as the critical, so the spark a capture shows is the one the
+      // damage number belongs to.
+      this.impact?.showHit({
+        x: mob.sprite.x,
+        y: bounds.centerY,
+        dirSign,
+        critical: result.critical,
+        died: result.died,
+        seed: blowSeed,
+        nowMs,
+        target: mob,
+      });
+    }
     if (result.died) {
       this.recordManagedMobDeath(mob, nowMs);
-      this.dropLoot(mob);
+      this.dropLoot(mob, dirSign);
       this.awardExperience(mob, nowMs);
     }
   }
@@ -1869,7 +1946,33 @@ export class PreparedStageScene extends Phaser.Scene {
     this.mobInstanceIds.delete(mob);
   }
 
-  private dropLoot(mob: Mob): void {
+  /**
+   * Nudge the camera by this frame's kill shake.
+   *
+   * Written as a scroll offset rather than `cameras.main.shake`, whose direction comes from
+   * `Math.random` and would differ between two captures of the same run. Last frame's nudge is
+   * removed before this frame's is added, so the offsets never accumulate; the follow lerp that
+   * runs before render pulls a fraction of each nudge back toward the target, which is what
+   * makes the shake settle rather than what makes it move. `null` removes the nudge outright,
+   * for a world about to be torn down.
+   */
+  private applyImpactShake(nowMs: number | null): void {
+    const camera = this.cameras.main;
+    camera.scrollX -= this.appliedShake.x;
+    camera.scrollY -= this.appliedShake.y;
+    const offset =
+      nowMs === null ? Object.freeze({ x: 0, y: 0 }) : (this.impact?.shakeOffset(nowMs) ?? Object.freeze({ x: 0, y: 0 }));
+    camera.scrollX += offset.x;
+    camera.scrollY += offset.y;
+    this.appliedShake = offset;
+  }
+
+  /** The scale the package named, resolved through the table on every read like the weapon. */
+  private get numberScale(): NumberScaleProfile {
+    return numberScaleProfile(this.gameplay?.combat.number_scale);
+  }
+
+  private dropLoot(mob: Mob, dirSign: 1 | -1 = 1): void {
     const manifest = this.manifest;
     const gameplay = this.gameplay;
     const items = this.items;
@@ -1889,6 +1992,7 @@ export class PreparedStageScene extends Phaser.Scene {
           mob.sprite.x + (index - (quantity - 1) / 2) * 28,
           mob.sprite.y - TILE_PX,
           itemIndex,
+          dirSign,
         );
       }
     }

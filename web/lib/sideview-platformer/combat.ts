@@ -17,12 +17,14 @@
 
 /** Aggression archetypes, mirroring the closed vocabulary the generator draws from. */
 export type MobAggression =
+  | "passive"
   | "skittish"
   | "territorial"
   | "hunting"
   | "relentless";
 
 export const MOB_AGGRESSIONS: readonly MobAggression[] = Object.freeze([
+  "passive",
   "skittish",
   "territorial",
   "hunting",
@@ -78,6 +80,14 @@ export type AggressionProfile = Readonly<{
   damage: number;
   /** True when the archetype retreats instead of closing. */
   flees: boolean;
+  /**
+   * False for a creature that never reacts to the player at all: it wanders, it can be struck,
+   * and it hurts only on contact. The hunting-ground read, where most of what stands on the route
+   * is prey rather than a threat. A hostile flag rather than a zero aggro radius, because the
+   * radius still says how far away the creature *notices* you for presentation, and a radius of
+   * zero would say it never does.
+   */
+  hostile: boolean;
   /** Horizontal half-width patrolled around a player the mob cannot reach vertically. */
   inaccessibleSweepHalfWidthPx: number;
   /** Endpoint tolerance for that patrol, preventing sub-pixel turn jitter. */
@@ -99,6 +109,21 @@ export type AggressionProfile = Readonly<{
  */
 const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
   Object.freeze({
+    passive: Object.freeze({
+      aggroRadiusPx: 64,
+      chaseSpeedPx: 48,
+      strikeRangePx: 0,
+      windupMs: 0,
+      cooldownMs: 0,
+      damage: 0,
+      flees: false,
+      hostile: false,
+      inaccessibleSweepHalfWidthPx: 96,
+      pursuitArrivalRadiusPx: 12,
+      movementSpeedVarianceRatio: 0.1,
+      pursuitSweepVarianceRatio: 0.2,
+      actionTimingVarianceRatio: 0,
+    }),
     skittish: Object.freeze({
       aggroRadiusPx: 192,
       chaseSpeedPx: 96,
@@ -107,6 +132,7 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 0,
       damage: 0,
       flees: true,
+      hostile: true,
       inaccessibleSweepHalfWidthPx: 96,
       pursuitArrivalRadiusPx: 12,
       movementSpeedVarianceRatio: 0.1,
@@ -121,6 +147,7 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 1400,
       damage: 1,
       flees: false,
+      hostile: true,
       inaccessibleSweepHalfWidthPx: 96,
       pursuitArrivalRadiusPx: 12,
       movementSpeedVarianceRatio: 0.1,
@@ -135,6 +162,7 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 1100,
       damage: 1,
       flees: false,
+      hostile: true,
       inaccessibleSweepHalfWidthPx: 112,
       pursuitArrivalRadiusPx: 12,
       movementSpeedVarianceRatio: 0.12,
@@ -149,6 +177,7 @@ const PROFILES: Readonly<Record<MobAggression, AggressionProfile>> =
       cooldownMs: 900,
       damage: 2,
       flees: false,
+      hostile: true,
       inaccessibleSweepHalfWidthPx: 128,
       pursuitArrivalRadiusPx: 12,
       movementSpeedVarianceRatio: 0.14,
@@ -577,6 +606,7 @@ export function mobIntent(input: {
   playerDefeated: boolean;
 }): MobIntent {
   const { profile, distancePx, nowMs, attackReadyAtMs, playerDefeated } = input;
+  if (!profile.hostile) return "hold";
   if (playerDefeated || distancePx > profile.aggroRadiusPx) return "hold";
   if (profile.flees) return "flee";
   if (distancePx <= profile.strikeRangePx) {

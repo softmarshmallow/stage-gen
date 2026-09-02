@@ -14,7 +14,12 @@ import {
   COMBAT_TEXT_RISE_MS,
   COMBAT_TEXT_RISE_PX,
   COMBAT_TEXT_SHAKE_PX,
+  COMBAT_TEXT_STACK_JITTER_PX,
+  COMBAT_TEXT_STACK_RADIUS_PX,
+  COMBAT_TEXT_STACK_STEP_PX,
+  COMBAT_TEXT_STACK_WINDOW_MS,
   CombatTextSystem,
+  combatTextStackOffset,
   combatTextVisualStyle,
   formatCombatTextAmount,
   sampleCombatText,
@@ -231,6 +236,56 @@ function fakeScene(): Readonly<{
   } as unknown as Phaser.Scene;
   return Object.freeze({ scene, glyphs });
 }
+
+describe("stacking numbers that land together", () => {
+  const peer = (baseX: number, baseY: number, startedAtMs: number) => ({ baseX, baseY, startedAtMs });
+
+  test("a lone number is not offset at all", () => {
+    expect(combatTextStackOffset([], { eventId: 1, x: 100, y: 50, nowMs: 0 })).toEqual({ x: 0, y: 0 });
+  });
+
+  test("each live peer at nearly the same place lifts the next number by one step", () => {
+    const peers = [peer(100, 50, 0), peer(104, 52, 45), peer(97, 48, 90)];
+    const offset = combatTextStackOffset(peers, { eventId: 9, x: 100, y: 50, nowMs: 135 });
+    expect(offset.y).toBe(-COMBAT_TEXT_STACK_STEP_PX * 3);
+    expect(Math.abs(offset.x)).toBeLessThanOrEqual(COMBAT_TEXT_STACK_JITTER_PX);
+  });
+
+  test("peers outside the window or the radius do not count", () => {
+    const stale = peer(100, 50, 0);
+    const far = peer(100 + COMBAT_TEXT_STACK_RADIUS_PX + 1, 50, 100);
+    const high = peer(100, 50 - COMBAT_TEXT_STACK_RADIUS_PX - 1, 100);
+    const nowMs = COMBAT_TEXT_STACK_WINDOW_MS + 1;
+    expect(
+      combatTextStackOffset([stale, far, high], { eventId: 2, x: 100, y: 50, nowMs }),
+    ).toEqual({ x: 0, y: 0 });
+  });
+
+  test("the jitter is a function of the event id alone", () => {
+    const peers = [peer(0, 0, 0)];
+    const a = combatTextStackOffset(peers, { eventId: 4, x: 0, y: 0, nowMs: 1 });
+    const b = combatTextStackOffset(peers, { eventId: 4, x: 0, y: 0, nowMs: 1 });
+    expect(b).toEqual(a);
+  });
+
+  test("the system stacks against unstacked anchors, so a column does not drift", () => {
+    const fake = fakeScene();
+    const system = new CombatTextSystem({ scene: fake.scene });
+    const hit = resolveDamage(100, 1);
+    for (let index = 0; index < 3; index += 1) {
+      system.showDamage({ resolution: hit, direction: "outgoing", x: 300, y: 200, nowMs: index * 45 });
+    }
+    const entries = system.snapshot().entries;
+    expect(entries.map((entry) => entry.anchorY)).toEqual([
+      200,
+      200 - COMBAT_TEXT_STACK_STEP_PX,
+      200 - COMBAT_TEXT_STACK_STEP_PX * 2,
+    ]);
+    for (const entry of entries) {
+      expect(Math.abs(entry.anchorX - 300)).toBeLessThanOrEqual(COMBAT_TEXT_STACK_JITTER_PX);
+    }
+  });
+});
 
 describe("bounded CombatTextSystem lifecycle", () => {
   const hit = resolveDamage(10, 1);

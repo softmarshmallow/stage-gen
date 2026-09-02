@@ -189,3 +189,29 @@ export function inventoryCapacity(room: Size): number {
   const available = controls.act.x - HUD_GAP - HUD_MARGIN;
   return Math.max(0, Math.floor((available + INVENTORY_SLOT_GAP) / (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GAP)));
 }
+
+/**
+ * Where narration text sits inside a generated panel.
+ *
+ * The panel is drawn art now, so its usable interior is measured on the artwork rather than
+ * guessed from a fixed inset: the producer publishes the ornament-free rectangle and this
+ * turns it into a text origin and a wrap width. The knobs are the room's to tune; nothing
+ * about a specific game's border is baked in here.
+ */
+export type RoomTextKnobs = Readonly<{ paddingX: number; paddingY: number }>;
+
+export const DEFAULT_ROOM_TEXT_KNOBS: RoomTextKnobs = Object.freeze({
+  paddingX: 6,
+  paddingY: 4,
+});
+
+export function roomTextLayout(
+  safe: Rect,
+  knobs: RoomTextKnobs = DEFAULT_ROOM_TEXT_KNOBS,
+): Readonly<{ x: number; y: number; wrapWidth: number }> {
+  return Object.freeze({
+    x: safe.x + knobs.paddingX,
+    y: safe.y + knobs.paddingY,
+    wrapWidth: Math.max(1, safe.width - knobs.paddingX * 2),
+  });
+}

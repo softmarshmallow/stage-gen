@@ -17,15 +17,20 @@ import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { containRect, type Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
+import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
+import { AtlasButton } from "@/lib/ui-atlas/button";
+import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
+import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+import { roomUiRole } from "./contract";
 import type { RoomHotspot, RoomManifest } from "./contract";
 import {
   hotspotRect,
   hudBarRect,
   canvasSize,
-  hudLabelPoint,
   inventoryCapacity,
   inventorySlotRects,
   narrationRect,
+  roomTextLayout,
   resolveVerb,
   verbButtonRects,
   winPanelRect,
@@ -94,8 +99,8 @@ class RoomScene extends Phaser.Scene {
   private readonly slotIcons: Phaser.GameObjects.Image[] = [];
   private readonly slotRects: Rect[] = [];
   private holdingLabel!: Phaser.GameObjects.Text;
-  private modeButtons = new Map<VerbMode, Phaser.GameObjects.Graphics>();
-  private hintButton!: Phaser.GameObjects.Graphics;
+  private modeButtons = new Map<VerbMode, AtlasButton>();
+  private hintButton!: AtlasButton;
   private winLayer!: Phaser.GameObjects.Container;
 
   constructor(
@@ -119,6 +124,12 @@ class RoomScene extends Phaser.Scene {
     }
     for (const item of this.manifest.items) {
       this.load.image(spriteKey(item.icon), preparedAssetUrl(this.tag, item.icon));
+    }
+    // The interface is generated art like everything else here. The sheets are published with
+    // a canonical alpha boundary already, so the plain loader is enough; a sheet that does not
+    // arrive is replaced in `create` by the loud stand-in under the same key.
+    for (const [role, key] of UI_ATLAS_SHEETS) {
+      this.load.image(key, preparedAssetUrl(this.tag, roomUiRole(this.manifest.ui, role).asset));
     }
   }
 
@@ -147,6 +158,10 @@ class RoomScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.marker + 1)
       .setVisible(false);
+
+    for (const [, key, kind] of UI_ATLAS_SHEETS) {
+      if (!this.textures.exists(key)) registerPresentationFallback(this.textures, key, kind);
+    }
 
     this.createHud();
     this.createWinCard();
@@ -221,20 +236,27 @@ class RoomScene extends Phaser.Scene {
     const bar = hudBarRect(stage);
     const panel = narrationRect(stage);
 
-    this.panel(bar, { fill: 0x05070a, alpha: 0.92, stroke: false }).setDepth(DEPTH.hud);
-    this.panel(panel).setDepth(DEPTH.hud);
+    const barPanel = this.panel(bar, DEPTH.hud);
+    const narrationPanel = this.panel(panel, DEPTH.hud);
 
     // No room-name line here: the reducer opens on the room's name and the page
     // chrome carries it too, so a header would say it a third time and steal the
     // height that long narration lines need.
+    // Where the words go is measured on the drawn frame, not guessed: the producer publishes
+    // the ornament-free interior and the layout turns it into an origin and a wrap width, so
+    // a heavier border in a future run moves the text instead of running under it.
+    const text = roomTextLayout(narrationPanel.safeRect());
     this.narration = this.add
-      .text(panel.x + 28, panel.y + 18, "", {
+      .text(text.x, text.y, "", {
         ...NARRATION_STYLE,
-        wordWrap: { width: panel.width - 56 },
+        wordWrap: { width: text.wrapWidth },
       })
       .setDepth(DEPTH.hud + 1);
 
-    const label = hudLabelPoint(stage);
+    // The control hint used to start six pixels below the bar's top edge, which was empty
+    // canvas when the bar was a rectangle and is the drawn frame's border now. It starts at
+    // the bar's own measured interior instead, so the words never run under the art.
+    const label = roomTextLayout(barPanel.safeRect());
     this.holdingLabel = this.add
       .text(label.x, label.y, "", { ...CONTROL_STYLE, fontSize: "18px", color: DIM_TEXT })
       .setDepth(DEPTH.hud + 1);
@@ -286,44 +308,44 @@ class RoomScene extends Phaser.Scene {
     });
   }
 
-  private panel(
-    rect: Rect,
-    options: { fill?: number; alpha?: number; stroke?: boolean } = {},
-  ): Phaser.GameObjects.Graphics {
-    const graphics = this.add.graphics();
-    graphics.fillStyle(options.fill ?? PANEL_FILL, options.alpha ?? PANEL_ALPHA);
-    graphics.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
-    if (options.stroke !== false) {
-      graphics.lineStyle(2, PANEL_STROKE, 0.5);
-      graphics.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, CORNER);
-    }
-    return graphics;
+  /**
+   * One drawn panel at any size, from the single generated frame.
+   *
+   * The bar, the narration plate and the win card were three rounded rectangles with three
+   * sets of colours; they are one sheet stretched to three sizes now, so the room's panels
+   * agree with its art by construction rather than by someone picking matching hex values.
+   */
+  private panel(rect: Rect, depth: number): NineSliceWidget {
+    return new NineSliceWidget({
+      scene: this,
+      sheetKey: uiAtlasSheetKey("panel_frame"),
+      layout: this.manifest.ui.panelFrame.layout,
+      width: rect.width,
+      height: rect.height,
+      x: rect.x + rect.width / 2,
+      y: rect.y + rect.height / 2,
+      depth,
+    });
   }
 
-  /** A button is a graphic plus its label, and the graphic is redrawn to show state. */
-  private controlButton(rect: Rect, label: string, onPress: () => void): Phaser.GameObjects.Graphics {
-    const graphics = this.add.graphics().setDepth(DEPTH.hud + 1);
-    this.add
-      .text(rect.x + rect.width / 2, rect.y + rect.height / 2, label, CONTROL_STYLE)
-      .setOrigin(0.5)
-      .setDepth(DEPTH.hud + 2);
-    const zone = this.add
-      .zone(rect.x, rect.y, rect.width, rect.height)
-      .setOrigin(0, 0)
-      .setDepth(DEPTH.hud + 3)
-      .setInteractive({ useHandCursor: true });
-    zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, onPress);
-    graphics.setData("rect", rect);
-    return graphics;
-  }
-
-  private paintButton(graphics: Phaser.GameObjects.Graphics, active: boolean): void {
-    const rect = graphics.getData("rect") as Rect;
-    graphics.clear();
-    graphics.fillStyle(active ? ACCENT : 0x1a1f26, active ? 0.9 : 0.85);
-    graphics.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, 8);
-    graphics.lineStyle(2, active ? ACCENT : PANEL_STROKE, active ? 1 : 0.6);
-    graphics.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, 8);
+  /**
+   * A verb control, drawn from the generated button sheet.
+   *
+   * The bar is a toggle, and the sheet publishes `normal, hover, pressed, disabled` rather
+   * than a selected cell, so the chosen verb is shown with the pressed art. That is the
+   * honest reading of a four-state sheet: a selected cell is a separate role promotion.
+   */
+  private controlButton(rect: Rect, label: string, onPress: () => void): AtlasButton {
+    return new AtlasButton({
+      scene: this,
+      sheetKey: uiAtlasSheetKey("button_rect"),
+      layout: this.manifest.ui.buttonRect.layout,
+      rect,
+      depth: DEPTH.hud + 1,
+      label,
+      style: CONTROL_STYLE,
+      onPress,
+    });
   }
 
   private setMode(mode: VerbMode): void {
@@ -389,8 +411,8 @@ class RoomScene extends Phaser.Scene {
     this.narration.setText(this.state.narration);
     this.renderInventory();
 
-    for (const [mode, graphics] of this.modeButtons) this.paintButton(graphics, this.mode === mode);
-    this.paintButton(this.hintButton, this.hintsVisible);
+    for (const [mode, button] of this.modeButtons) button.setSelected(this.mode === mode);
+    this.hintButton.setSelected(this.hintsVisible);
 
     this.winLayer.setVisible(this.state.solved);
   }

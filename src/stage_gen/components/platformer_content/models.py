@@ -71,7 +71,7 @@ PlayerEquipment = Literal[
 #: darts does not swing. That disagreement was previously unrepresentable: the equipment lived in
 #: free prose in this catalog and the kit in `gameplay.toml`, two files describing one fact.
 WEAPON_CLASSES_BY_PLAYER_EQUIPMENT: dict[PlayerEquipment, frozenset[str]] = {
-    "hand_weapon_v1": frozenset({"melee_dps_v1"}),
+    "hand_weapon_v1": frozenset({"melee_dps_v1", "melee_sweep_v1"}),
     "unarmed_v1": frozenset({"melee_dps_v1"}),
     "thrown_kit_v1": frozenset({"ranged_dps_v1"}),
     "focus_implement_v1": frozenset({"ranged_dps_v1"}),
@@ -185,11 +185,21 @@ class PlayerContentCatalog(PersistedContractModel):
         return self
 
 
+#: How a creature behaves toward the player, named rather than numbered exactly as the weapon
+#: class is: `passive` wanders and hurts only on contact, `skittish` retreats, and the other three
+#: close and strike with rising reach and pressure. What each costs in pixels and milliseconds is
+#: the consumer's table.
+MobAggression = Literal["passive", "skittish", "territorial", "hunting", "relentless"]
+
+
 class MobContent(PersistedContractModel):
     mob_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
     body_kind: str
     rank: Literal["common", "uncommon", "elite", "boss"]
+    #: Optional. Absent, the consumer derives an archetype from `rank`, which is what every
+    #: package published before the field was played with; named, this wins.
+    aggression: MobAggression | None = None
     #: Silhouette shape within this mob's rank tier. `rank` remains the magnitude authority,
     #: so a declaration here adjusts the drawn shape and never reorders the threat ladder.
     height_units: float | None = None

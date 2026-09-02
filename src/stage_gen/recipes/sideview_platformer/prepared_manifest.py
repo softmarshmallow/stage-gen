@@ -15,10 +15,10 @@ from PIL import Image
 
 from gnode import atomic_write_json
 from stage_gen.components.game_contract.package import PreparedScale
-from stage_gen.components.game_ui import (
-    ATLAS_ROLES,
-    atlas_role_contract,
-    inventory_panel_layout_contract,
+from stage_gen.components.game_ui import inventory_panel_layout_contract
+from stage_gen.components.game_ui.nodes import (
+    DEFAULT_ATLAS_ROLES,
+    ui_atlas_manifest_block,
 )
 from stage_gen.components.platformer_content import MotionPresentation, PropContent
 from stage_gen.components.platformer_map import PreparedMapLayer
@@ -465,6 +465,7 @@ def _assemble_prepared_runtime(
             "display_name": mob.display_name,
             "body_kind": mob.body_kind,
             "rank": mob.rank,
+            "aggression": mob.aggression,
             "concept": publish(f"content/mobs/{mob.mob_id}/concept.png"),
             "states": {
                 motion.state: _motion_binding(
@@ -566,28 +567,21 @@ def _assemble_prepared_runtime(
         for track in package.soundtrack.tracks
     ]
 
-    def atlas_role_manifest(role: str) -> dict[str, object]:
-        # The validate node is the only place the detected geometry exists, so the manifest
-        # reads the resolved contract from its record rather than from the declared template.
-        validation_path = f"ui/{role}.validation.json"
-        publish_provenance(validation_path)
-        record = json.loads(_safe_output_path(output_dir, validation_path).read_bytes())
-        if not isinstance(record, dict) or record.get("role") != role:
-            raise PreparedManifestError(f"UI atlas {role} validation names a different role")
-        try:
-            contract = atlas_role_contract(record)
-        except (KeyError, TypeError) as error:
-            raise PreparedManifestError(
-                f"UI atlas {role} validation lacks resolved geometry: {error}"
-            ) from error
-        return {**contract, "asset": publish(f"ui/{role}.png")}
+    try:
+        atlas_block = ui_atlas_manifest_block(
+            read_validation=lambda path: _safe_output_path(output_dir, path).read_bytes(),
+            publish=publish,
+            publish_provenance=publish_provenance,
+        )
+    except ValueError as error:
+        raise PreparedManifestError(str(error)) from error
 
     ui: dict[str, object] = {
         "inventory_panel": {
             **inventory_panel_layout_contract(),
             "asset": publish("ui/inventory_panel.png"),
         },
-        **{role: atlas_role_manifest(role) for role in ATLAS_ROLES},
+        **atlas_block,
     }
 
     artifact_records = [artifacts[path] for path in sorted(artifacts)]
@@ -982,9 +976,9 @@ def runtime_artifact_closure(
             for entry in package.projectiles.projectiles
         )
     closure.append(("ui/inventory_panel.png", "asset"))
-    for role in ATLAS_ROLES:
-        closure.append((f"ui/{role}.png", "asset"))
-        closure.append((f"ui/{role}.validation.json", "provenance"))
+    for role in DEFAULT_ATLAS_ROLES:
+        closure.append((f"ui/{role.role}.png", "asset"))
+        closure.append((f"ui/{role.role}.validation.json", "provenance"))
     closure.extend(
         (f"soundtrack/{track.track_id}.mp3", "asset") for track in package.soundtrack.tracks
     )

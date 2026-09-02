@@ -9,7 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
-    GAME_ID_PATTERN,
+    PACKAGE_ID_PATTERN,
     SHA256_PATTERN,
     SNAKE_ID_PATTERN,
     normalized_text,
@@ -23,7 +23,7 @@ from stage_gen.components.game_ui.atlas import (
     PANEL_FRAME_LAYOUT,
 )
 
-GAME_UI_SCHEMA_VERSION = 2
+GAME_UI_SCHEMA_VERSION = 3
 
 INVENTORY_PANEL_LAYOUT = "inventory_grid_4x2_v1"
 INVENTORY_PANEL_ALPHA_POLICY = "transparent_exterior_opaque_panel_v1"
@@ -120,16 +120,30 @@ ATLAS_ROLE_LAYOUTS: dict[str, str] = {
 
 
 class GameUi(PersistedContractModel):
-    """One root UI document, deliberately separate from gameplay rules."""
+    """One root UI document, deliberately separate from gameplay rules.
 
-    schema_version: Literal[2]
-    kind: Literal["game-ui-v2"]
-    game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
+    Every genre draws panels and buttons, so the two atlas roles are required of any
+    game that has a UI document at all. The inventory panel is not: it is one genre's
+    fixed eight-slot furniture, and a visual novel or a puzzle room that declares it
+    would be authoring a screen it never draws. A recipe whose runtime needs the panel
+    refuses a document without one at resolve time, where the requirement belongs.
+    """
+
+    schema_version: Literal[3]
+    kind: Literal["game-ui-v3"]
+    game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[UiReference] = Field(min_length=1, max_length=32)
-    inventory_panel: InventoryPanelDirection
+    inventory_panel: InventoryPanelDirection | None = None
     panel_frame: AtlasRoleDirection
     button_rect: AtlasRoleDirection
+
+    def required_inventory_panel(self) -> InventoryPanelDirection:
+        """The panel, for a recipe whose runtime draws it and cannot proceed without it."""
+
+        if self.inventory_panel is None:
+            raise ValueError("this UI document declares no inventory panel")
+        return self.inventory_panel
 
     @model_validator(mode="after")
     def validate_atlas_layouts(self) -> GameUi:
@@ -149,6 +163,8 @@ class GameUi(PersistedContractModel):
         selected: set[str] = set()
         for role in ("inventory_panel", *ATLAS_ROLE_LAYOUTS):
             direction = getattr(self, role)
+            if direction is None:
+                continue
             unknown = sorted(set(direction.reference_ids) - declared)
             if unknown:
                 raise ValueError(f"{role} references unknown IDs: " + ", ".join(unknown))

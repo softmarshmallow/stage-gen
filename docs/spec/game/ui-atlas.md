@@ -193,7 +193,7 @@ Packs are on-demand role lists assembled from the tiers, never new tiers.
 - A successor to `game-ui-v1` is a new identity and a dropped run set, not
   optional fields on the inventory role.
 
-## Executable slice v0 (promoted as `game-ui-v2`)
+## Executable slice v0 (promoted as `game-ui-v3`)
 
 The first slice is intentionally two roles, because those two exercise every
 hard part of the contract: insets, content rect, state consistency, and the
@@ -205,7 +205,7 @@ text-free rule.
 | `button_rect` | `nine_slice` | normal, hover, pressed, disabled | can it hold one silhouette across states and move only value and hue |
 
 The slice was proven in an untracked spike (two mediums, two takes, sixteen
-cells) and promoted on 2026-09-02 as the exact-current `game-ui-v2` contract
+cells) and promoted on 2026-09-02 as the exact-current `game-ui-v3` contract
 in [ui.md](ui.md). Three facts the spike settled travelled into the gate:
 `band_fill` is *admitted per sheet* rather than authored (a flat medium
 stretches, a painterly one tiles, and neither is a prompt failure); cells are

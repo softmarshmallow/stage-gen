@@ -1,6 +1,6 @@
 // Read one run's `bundle.json` and project it into the fixture a scene plays.
 //
-// This is the whole consumer side of `dialogue-scene-bundle-v6`. It replaces the
+// This is the whole consumer side of `dialogue-scene-bundle-v7`. It replaces the
 // bundle reader that used to live inside the theme installer: that module existed
 // to copy a reviewed bundle into a public directory for a DOM preview route, and
 // both the route and the directory are gone. What survives is the part that was
@@ -14,15 +14,17 @@ import {
   validateDialogueSceneFixture,
   type DialogueSceneFixture,
 } from "./schema";
+import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
+import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import { serializeScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 import { parseScenarioProgram } from "@/lib/scenario/program";
 
-export const DIALOGUE_SCENE_BUNDLE_KIND = "dialogue-scene-bundle-v6" as const;
+export const DIALOGUE_SCENE_BUNDLE_KIND = "dialogue-scene-bundle-v7" as const;
 export const DIALOGUE_SCENE_RECIPE_VERSION = "dialogue-scene-v7" as const;
 
 export interface DialogueSceneBundleAsset {
   readonly id: string;
-  readonly role: "style" | "background" | "expression" | "track";
+  readonly role: "style" | "background" | "expression" | "track" | "ui";
   readonly actorId: string | null;
   readonly state: string | null;
   readonly trackId: string | null;
@@ -35,6 +37,11 @@ export interface DialogueSceneBundle {
   readonly gameId: string;
   readonly assets: readonly DialogueSceneBundleAsset[];
   readonly sceneData: SceneData;
+}
+
+/** One generated nine-slice role the scene draws its panels and buttons from. */
+interface SceneUiRole extends UiAtlasRoleLayout {
+  readonly asset_id: string;
 }
 
 interface SceneStage {
@@ -83,20 +90,39 @@ interface SceneData {
     readonly framing_zoom: number;
     readonly source_framing_zoom: number;
   };
+  /** The screen-fixed interface: measured geometry per role, and the sheet it is drawn from. */
+  readonly ui: Readonly<Record<UiAtlasRoleName, SceneUiRole>>;
   readonly scenario: ScenarioProgram;
+}
+
+function uiRoles(source: Record<string, unknown>): Readonly<Record<UiAtlasRoleName, SceneUiRole>> {
+  const role = (name: UiAtlasRoleName): SceneUiRole => {
+    const raw = record(source[name], `scene_data.ui.${name}`);
+    return Object.freeze({
+      ...parseUiAtlasRoleLayout(raw, name, `scene_data.ui.${name}`),
+      asset_id: text(raw.asset_id, `scene_data.ui.${name}.asset_id`),
+    });
+  };
+  return Object.freeze({ panel_frame: role("panel_frame"), button_rect: role("button_rect") });
 }
 
 export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
   const root = record(value, "bundle");
   exact(root.kind, DIALOGUE_SCENE_BUNDLE_KIND, "bundle.kind");
-  exact(root.schema_version, 6, "bundle.schema_version");
+  exact(root.schema_version, 7, "bundle.schema_version");
   exact(root.recipe, "dialogue-scene", "bundle.recipe");
   exact(root.recipe_version, DIALOGUE_SCENE_RECIPE_VERSION, "bundle.recipe_version");
 
   const assets = array(root.assets, "bundle.assets").map((entry, index) => {
     const asset = record(entry, `bundle.assets[${index}]`);
     const role = asset.role;
-    if (role !== "style" && role !== "background" && role !== "expression" && role !== "track") {
+    if (
+      role !== "style" &&
+      role !== "background" &&
+      role !== "expression" &&
+      role !== "track" &&
+      role !== "ui"
+    ) {
       throw new Error(`bundle.assets[${index}].role is not a known role`);
     }
     return Object.freeze({
@@ -175,6 +201,7 @@ export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
         "placement.source_framing_zoom",
       ),
     }),
+    ui: uiRoles(record(sceneRaw.ui, "scene_data.ui")),
     scenario: parseScenarioProgram(sceneRaw.scenario),
   };
 
@@ -247,6 +274,16 @@ export function projectDialogueSceneFixture(
         description: variant.description,
       })),
     })),
+    ui: {
+      panelFrame: {
+        layout: scene.ui.panel_frame,
+        src: assetUrl(require(scene.ui.panel_frame.asset_id)),
+      },
+      buttonRect: {
+        layout: scene.ui.button_rect,
+        src: assetUrl(require(scene.ui.button_rect.asset_id)),
+      },
+    },
     scenario: serializeScenarioProgram(scene.scenario),
   });
 }

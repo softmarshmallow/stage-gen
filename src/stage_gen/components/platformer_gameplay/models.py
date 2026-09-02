@@ -22,7 +22,10 @@ GAMEPLAY_CONTRACT_SCHEMA_VERSION = 1
 NavigationMovement = Literal["move_left", "move_right", "jump", "crouch", "climb"]
 #: How a character fights. Named here so the player catalog's equipment vocabulary can be
 #: gated against exactly this tuple rather than against a copy of it.
-WeaponClass = Literal["melee_dps_v1", "ranged_dps_v1"]
+WeaponClass = Literal["melee_dps_v1", "ranged_dps_v1", "melee_sweep_v1"]
+#: How big the numbers are. `unit_v1` is the identity every earlier package played at;
+#: `arcade_v1` is the same fight in hundreds. Named, not numbered, like everything else here.
+NumberScale = Literal["unit_v1", "arcade_v1"]
 
 
 class NavigationPolicy(PersistedContractModel):
@@ -82,10 +85,15 @@ class CombatPolicy(PersistedContractModel):
     #: consumer owns. The generator reads this only to know which artwork the package owes and
     #: which catalog object must resolve; it branches on the name nowhere else.
     #:
-    #: Both members are drawn today with no extra generation: `melee_dps_v1` swings the
-    #: `basic_action` strip and `ranged_dps_v1` throws on the `secondary_action` strip, and a
-    #: combat-enabled package already owes both.
+    #: Every member is drawn today with no extra generation: `melee_dps_v1` and `melee_sweep_v1`
+    #: swing the `basic_action` strip - the sweep over a far wider band, landing several blows -
+    #: and `ranged_dps_v1` throws on the `secondary_action` strip, and a combat-enabled package
+    #: already owes both strips.
     weapon_class: WeaponClass = "melee_dps_v1"
+    #: Which scale the player's blows and the creatures' pools are shown at. Feel, not rules: the
+    #: consumer multiplies both sides by one factor, so balance is unchanged and only the digits
+    #: move. Defaulted so every package published before the field reads as it always did.
+    number_scale: NumberScale = "unit_v1"
     #: The projectile a throw puts in the air, or None for a class that throws nothing.
     #:
     #: Identity only, in the shape `inventory.currency_item_id` already uses: one catalog entry

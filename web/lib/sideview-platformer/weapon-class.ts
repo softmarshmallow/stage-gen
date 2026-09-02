@@ -20,7 +20,11 @@
  * array, so the manifest reader can validate against this list directly instead of restating it.
  * A second copy of a closed vocabulary is a copy that will eventually disagree.
  */
-export const WEAPON_CLASSES = Object.freeze(["melee_dps_v1", "ranged_dps_v1"] as const);
+export const WEAPON_CLASSES = Object.freeze([
+  "melee_dps_v1",
+  "ranged_dps_v1",
+  "melee_sweep_v1",
+] as const);
 
 export type WeaponClass = (typeof WEAPON_CLASSES)[number];
 
@@ -112,6 +116,17 @@ export type WeaponClassProfile = Readonly<{
    * the projectile's business and comes from its impact profile.
    */
   maxTargetsPerAction: number;
+  /**
+   * How many separate blows one action lands on everything it reaches.
+   *
+   * One for a swing that connects once. More than one is a multi-hit: the same targets are struck
+   * again every `hitIntervalMs` inside the hit window, each blow rolling its own critical and
+   * drawing its own number, which is the stacked-numbers read of an action-RPG sweep. A thrown
+   * class is always one, because the object in the air lands once.
+   */
+  hitsPerAction: number;
+  /** Milliseconds between consecutive blows of a multi-hit action; zero for a single blow. */
+  hitIntervalMs: number;
   /** The catalog role one action spends, or null when the class costs nothing to use. */
   ammoKind: string | null;
   standOffTiles: StandOffBand;
@@ -147,6 +162,8 @@ const PROFILES: Readonly<Record<WeaponClass, WeaponClassProfile>> = Object.freez
       targetingToleranceTiles: 1,
     } as const),
     maxTargetsPerAction: 1,
+    hitsPerAction: 1,
+    hitIntervalMs: 0,
     ammoKind: null,
     // The shipped hunter numbers, in the table's own unit: 1.3125 tiles is 84 units and 0.65625 is
     // 42, which is what the behaviour has always engaged and closed at. Deliberately shorter than
@@ -180,6 +197,8 @@ const PROFILES: Readonly<Record<WeaponClass, WeaponClassProfile>> = Object.freez
       targetingToleranceTiles: 1.2,
     } as const),
     maxTargetsPerAction: 1,
+    hitsPerAction: 1,
+    hitIntervalMs: 0,
     // Null in this revision. The selector, the spend and the automated decline are all built and
     // tested, but arming them needs a package whose loot rules actually sustain a throw; see the
     // ammunition note in the runtime README.
@@ -190,6 +209,37 @@ const PROFILES: Readonly<Record<WeaponClass, WeaponClassProfile>> = Object.freez
     // `approach` equals `maximum` on purpose: a throw does not improve by walking closer, so a
     // target anywhere in the band is attacked from where the character already stands.
     standOffTiles: Object.freeze({ minimum: 2.5, approach: 5.5, maximum: 5.5 }),
+  }),
+  /**
+   * The hunting-ground kit: a wide sweep that lands three blows on everything in front of it.
+   *
+   * Not a balanced peer of the melee record and not meant to be. It exists so a package can ask
+   * for the crowd-clearing read of a side-view action RPG - one swing, several creatures, a
+   * column of numbers - with the same drawn `basic_attack` strip and no new art. Same cadence as
+   * the swing, so the animation still fits; a band a little over three tiles so a clump is one
+   * target; three blows spaced a few frames apart inside the same hit window, so the last one
+   * lands before the recovery frames. The stand-off band is wider in step with the reach, so an
+   * automated policy swings from where the band actually connects rather than walking into
+   * contact first.
+   */
+  melee_sweep_v1: Object.freeze({
+    weaponClass: "melee_sweep_v1",
+    motionState: "basic_attack",
+    damage: 1,
+    actionDurationMs: 333,
+    hitWindowFromMs: 80,
+    hitWindowToMs: 250,
+    delivery: Object.freeze({ kind: "instant", reachTiles: 3.0 } as const),
+    verticalReach: Object.freeze({
+      kind: "foot_band",
+      tiles: 1,
+      targetingToleranceTiles: 1,
+    } as const),
+    maxTargetsPerAction: 6,
+    hitsPerAction: 3,
+    hitIntervalMs: 45,
+    ammoKind: null,
+    standOffTiles: Object.freeze({ minimum: 0, approach: 1.4, maximum: 2.6 }),
   }),
 });
 

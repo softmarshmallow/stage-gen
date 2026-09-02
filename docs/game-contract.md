@@ -327,7 +327,7 @@ does not by itself define a core game contract.
   schema version and kind. Validators reject every other identity rather than
   upgrading or translating it.
 - The current prepared closure uses repository selector `game-package-v4`, root
-  `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v2`, `game-map-v9`,
+  `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v3`, `game-map-v9`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v3`,

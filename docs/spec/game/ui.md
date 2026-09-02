@@ -4,16 +4,26 @@
 sibling of `gameplay.toml`: UI owns appearance, while gameplay owns inventory capacity, contents,
 pickup/use rules, input, and visibility state.
 
-The exact current identity is `game-ui-v2`. The V2 contract contains three generated roles: the
+The exact current identity is `game-ui-v3`. The V3 contract contains three generated roles: the
 fixed-layout `inventory_panel`, and two nine-slice atlas roles, `panel_frame` and `button_rect`,
 which are the executable slice of the [game UI atlas taxonomy](ui-atlas.md). Every role names a
 layout identity, an alpha policy, its references, and one prompt; no role authors geometry.
 
+The two atlas roles are required of any game that has a UI document at all, because every genre
+draws panels and buttons. The inventory panel is optional, because it is one genre's fixed
+eight-slot furniture: a visual novel or a puzzle room that declared it would be describing a
+screen it never draws. A recipe whose runtime needs the panel refuses a document without one at
+resolve time, which is where a runtime requirement belongs.
+
+`game_id` names the package the document belongs to, in whichever shape that package names
+itself: game contracts are kebab-case and rooms are snake_case, and the one document shared by
+both must be able to say which package it belongs to without renaming either.
+
 ```toml
-schema_version = 2
-kind = "game-ui-v2"
+schema_version = 3
+kind = "game-ui-v3"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [[references]]
 reference_id = "cover_style"
@@ -170,14 +180,33 @@ inventory-panel review (structured)  ui-{role} review (structured)
 manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect
 ```
 
-The atlas triplet is one generic typed node set (`ui_atlas.generate` / `.validate` / `.review`)
-fanned out over the role parameter; adding a role is a fan-out change, not a new node type. The
-prepared asset explorer lists all three artifacts in its UI group. The prepared web scene loads the
-inventory panel into the existing `InventoryHud`, and draws the platformer's defeat panel, its
-return button, and the NPC conversation box through the agnostic nine-slice widget from the two
-atlas sheets: the button's hover and pressed looks are the producer's pixels for those states, not
-a tint, and the conversation box and the defeat panel share the one `panel_frame` sheet. Gameplay
-state and item placement remain unchanged.
+The atlas triplet is one generic typed node set fanned out over the role parameter; adding a role
+is a fan-out change, not a new node type. It belongs to no genre, so it lives beside the contract
+it serves rather than inside a recipe: the types carry the component's own taxonomy path
+(`2d/ui/atlas.generate` / `.validate` / `.review`), and every recipe that wants panels and buttons
+plans the same three nodes. A host supplies only what it alone knows — its authored `ui` document,
+the art direction that wraps the prompt, the digest that re-bills a sheet when the look changes,
+and, where it keeps attempt ledgers, its own provider-call wrapper.
+
+The prompt is composed at plan time and carried on the node card, so a reader sees the exact
+instruction the provider will be given without running anything, and a recipe that gates on full
+static prompts admits these nodes like any other.
+
+Four consumers draw from the two sheets today:
+
+| Game | `panel_frame` | `button_rect` |
+| --- | --- | --- |
+| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button |
+| Larkfield, visual novel | dialogue box, end card | choice list |
+| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar |
+| Iron Petal Unit, runner | not yet wired | not yet wired |
+
+The prepared asset explorer lists all three platformer artifacts in its UI group. The prepared web
+scene loads the inventory panel into the existing `InventoryHud`; every other surface above is drawn
+through the agnostic nine-slice widget. The button's hover and pressed looks are the producer's
+pixels for those states, not a tint. A toggle — the room's verb bar — shows the pressed cell as its
+selected look, which is the honest reading of a four-state sheet; a `selected` cell is its own role
+promotion. Gameplay state and item placement remain unchanged in every genre.
 
 If an artifact is absent or cannot be loaded, the preview records a diagnostic and installs the
 existing conspicuous magenta stand-in under the same texture key, so the widget still draws.

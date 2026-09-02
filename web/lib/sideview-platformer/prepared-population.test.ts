@@ -49,6 +49,45 @@ function populationFixture(): Population {
   };
 }
 
+describe("population policy overrides", () => {
+  const geometry = {
+    world_columns: 20,
+    tile_pixels: 64,
+    baseline_y: 674,
+    height_at_column: () => 1,
+  };
+
+  test("the defaults are the established uniform, off-screen-preferred policy", () => {
+    const zone = projectPreparedMobPopulation(populationFixture(), "crowncrag-road", geometry)!
+      .manifest.maps[0]!.zones[0]!;
+    expect(zone.placement).toBe("uniform");
+    expect(zone.cluster_radius_px).toBe(0);
+    expect(zone.spawn_visibility).toBe("offscreen_preferred");
+    expect(zone.minimum_spawn_separation_px).toBe(80);
+  });
+
+  test("a consumer may ask for clustered, on-screen, tighter placement", () => {
+    const zone = projectPreparedMobPopulation(populationFixture(), "crowncrag-road", geometry, {
+      spawn_visibility: "allow_onscreen",
+      minimum_spawn_separation_px: 32,
+      placement: "clustered",
+      cluster_radius_px: 160,
+    })!.manifest.maps[0]!.zones[0]!;
+    expect(zone.placement).toBe("clustered");
+    expect(zone.cluster_radius_px).toBe(160);
+    expect(zone.spawn_visibility).toBe("allow_onscreen");
+    expect(zone.minimum_spawn_separation_px).toBe(32);
+  });
+
+  test("clustered placement without a radius is refused at projection", () => {
+    expect(() =>
+      projectPreparedMobPopulation(populationFixture(), "crowncrag-road", geometry, {
+        placement: "clustered",
+      }),
+    ).toThrow("cluster_radius_px must be positive");
+  });
+});
+
 describe("prepared mob population projection", () => {
   test("projects fractional authored zones into a valid mature director contract", () => {
     const projection = projectPreparedMobPopulation(

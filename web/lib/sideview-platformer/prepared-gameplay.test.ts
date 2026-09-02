@@ -534,6 +534,29 @@ describe("a manifest published before a defaulted field existed", () => {
     expect(gameplay.combat.critical_profile).toBe("none");
     expect(gameplay.combat.weapon_class).toBe("melee_dps_v1");
     expect(gameplay.combat.projectile_id).toBeNull();
+    expect(gameplay.combat.number_scale).toBe("unit_v1");
+  });
+
+  test("the number scale is read when named and refused outside its vocabulary", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), number_scale: "arcade_v1" };
+    expect(parsePreparedGameplayContract(root).combat.number_scale).toBe("arcade_v1");
+
+    root.combat = { ...(root.combat as object), number_scale: "huge_v1" };
+    expect(() => parsePreparedGameplayContract(root)).toThrow("number_scale");
+  });
+
+  test("the sweep is a swinging class, so it names nothing to throw", () => {
+    const root = gameplayFixture();
+    root.combat = { ...(root.combat as object), weapon_class: "melee_sweep_v1" };
+    expect(parsePreparedGameplayContract(root).combat.weapon_class).toBe("melee_sweep_v1");
+
+    root.combat = {
+      ...(root.combat as object),
+      weapon_class: "melee_sweep_v1",
+      projectile_id: "paperwing_dart",
+    };
+    expect(() => parsePreparedGameplayContract(root)).toThrow("projectile_id");
   });
 
   test("a key that is present is still validated exactly as strictly", () => {

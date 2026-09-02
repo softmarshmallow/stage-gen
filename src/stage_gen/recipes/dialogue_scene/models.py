@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from stage_gen.components.character_profile import CharacterProfileBinding
+from stage_gen.components.game_ui.nodes import AtlasRoleLayout
 from stage_gen.components.scenario import ScenarioProgram
 
 
@@ -388,7 +389,7 @@ class AudioFacts(PersistedContractModel):
 
 class BundleArtifact(PersistedContractModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
-    role: Literal["style", "background", "expression", "track"]
+    role: Literal["style", "background", "expression", "track", "ui"]
     #: Which actor an expression belongs to; None for a style plate or backdrop.
     actor_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
     #: Which scenario track an audio artifact carries; None for every image role.
@@ -438,7 +439,15 @@ class BundleArtifact(PersistedContractModel):
         if not isinstance(self.media, MediaFacts):
             raise ValueError(f"{self.role} asset requires image media facts")
         expected = (1672, 941, False) if self.role == "background" else (1024, 1536, False)
-        if self.role == "expression":
+        if self.role == "ui":
+            # A nine-slice sheet is a square canvas with a transparent exterior; the cells
+            # inside it are detected rather than fixed, so scene_data carries their geometry.
+            expected = (1024, 1024, True)
+            if self.actor_id is not None:
+                raise ValueError("a UI asset belongs to no actor")
+            if self.state is not None:
+                raise ValueError("only expression assets may name a state")
+        elif self.role == "expression":
             expected = (1024, 1536, True)
             if self.state is None:
                 raise ValueError("expression asset requires a state")
@@ -614,6 +623,12 @@ class SceneActor(PersistedContractModel):
         return self
 
 
+class SceneUiRole(AtlasRoleLayout):
+    """One published atlas role plus the bundle asset its sheet is."""
+
+    asset_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+
+
 class SceneData(PersistedContractModel):
     scene_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     title: str = Field(min_length=1, max_length=96)
@@ -625,6 +640,10 @@ class SceneData(PersistedContractModel):
     actors: list[SceneActor] = Field(min_length=1, max_length=16)
     placement: ScenePlacement
     available_states: list[ExpressionState]
+    #: The screen-fixed interface, as the geometry the producer's gate detected plus the
+    #: asset each role is drawn from. A consumer slices the published cell with the
+    #: published insets; nothing here is derived from the layout id.
+    ui: dict[str, SceneUiRole] = Field(min_length=1, max_length=8)
     #: The compiled narrative, embedded rather than referenced.
     #:
     #: `scene_data` is the consumer's projection of the run, and the narrative is
@@ -680,8 +699,8 @@ class SceneData(PersistedContractModel):
 
 
 class DialogueBundle(PersistedContractModel):
-    schema_version: Literal[6]
-    kind: Literal["dialogue-scene-bundle-v6"]
+    schema_version: Literal[7]
+    kind: Literal["dialogue-scene-bundle-v7"]
     recipe: Literal["dialogue-scene"]
     recipe_version: Literal["dialogue-scene-v7"]
     tag: str = Field(min_length=1)
@@ -730,11 +749,18 @@ class DialogueBundle(PersistedContractModel):
         tracks = sum(artifact.role == "track" for artifact in self.assets)
         if tracks != len(self.scene_data.tracks):
             raise ValueError("bundle must contain one track per declared track")
+        ui_sheets = sum(artifact.role == "ui" for artifact in self.assets)
+        if ui_sheets != len(self.scene_data.ui):
+            raise ValueError("bundle must contain one sheet per declared interface role")
+        for name, role in self.scene_data.ui.items():
+            if role.role != name:
+                raise ValueError(f"scene_data ui role {name} names itself {role.role}")
         asset_ids = {artifact.id for artifact in self.assets}
         scene_asset_ids = {
             self.scene_data.style_asset_id,
             *(stage.asset_id for stage in self.scene_data.stages),
             *(track.asset_id for track in self.scene_data.tracks),
+            *(role.asset_id for role in self.scene_data.ui.values()),
             *(
                 variant.asset_id
                 for actor in self.scene_data.actors

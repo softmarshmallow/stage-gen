@@ -281,6 +281,224 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       device ratio, or power-of-two padding plus `render.mipmapFilter`. Higher source resolution
       makes it worse, not better.
 
+## Platformer hunting ground: the MapleStory-shaped reference
+
+The reference is a **MapleStory** hunting map, adopted for its play *feel* and explicitly refused
+for its interface and skill systems: this is not an apples-to-apples comparison and the goal is a
+version of that feel without the UI, not a port of its systems. The goal statement is "make it
+look more like this, while keeping the system agnostic, and evolve the system until it can
+generate this". Decomposed without UI or skills, the reference is six ingredients, and Bellweather
+today measures against them as follows:
+
+| Axis | Bellweather now | Reference |
+| --- | --- | --- |
+| Player height vs frame | 154 px of 720 (~21%) | ~12% |
+| Visible columns | 20 of 96 | wider |
+| Mobs per zone cap | 5-6 over ~25 columns | ~12 on screen, in clumps of 2-3 per deck |
+| Mob surfaces | base terrain only | every deck |
+| Reach / targets / hits per swing | 1.4 tiles / 1 / 1 | ~3 tiles / many / 3-5 stacked numbers |
+| Common mob HP vs player damage | 2 vs 1 | one-hit, six-digit numbers |
+| Feedback per hit | hurt strip, knockback tween, bar, text | spark, flinch, death burst, coin pop |
+| Terrain silhouette | 47-mask tile grid | organic painted rock masses |
+
+Already present and worth putting in the demo rather than rebuilding: the auto-hunt bot in
+`web/lib/sideview-platformer/bot-hunter.ts` is the reference's "Full Auto"; floating mob HP bars,
+critical text with punch, loot drops, the EXP stat log, death strips, contact shadows, and
+two-species spawn tables per zone all exist. Each item below is one dedicated thread. The
+suggested order is D, C, A, E first - each consumer-only, visible on the existing
+`out/bellweather-m2` run, and free of provider spend - then B and F, then G as the art-only
+interim, then H as its own spec-first thread. I stays deferred.
+
+The four consumer-side threads (D, C, A, E) share three constraints. Every new motion is a pure
+sampler over `nowMs` in the shape of `sampleCombatText` and `sampleFixedMobHit` - no
+`scene.tweens`, no `time.delayedCall`, no particle emitters - because the fixed-frame automation
+in `automation.ts` pins frame counts such as `deathDelayFrames` and `dropDelayFrames` and those
+captures must stay byte-stable. Any new package-facing knob is a closed vocabulary word with a
+default, never a number. Editing `gameplay.toml` moves the closure digest pinned by
+`tests/unit/orchestration/test_game_package.py` and
+`tests/unit/recipes/sideview_platformer/test_package_graph.py`, so run `stage-gen package plan`
+before and after every authoring edit and confirm no image node's cache identity moved.
+
+- [x] **A. Density, on-screen spawn, and clumps (easy).** Landed 2026-09-02 through step 3; step
+      4 stays deferred. `gameplay.toml` zones now author 8/10/12, 8/10/12, and 6/8/10 with 3-4 s
+      respawns; the scene passes `allow_onscreen`, a half-tile separation, and `clustered`
+      placement with a 2.5-tile radius into the projection; `spawn-director.ts` gained the optional
+      `placement` and `cluster_radius_px` zone keys with a seeded join-a-nucleus draw; a placed
+      creature fades in over `MOB_SPAWN_FADE_MS`. Clumps are currently *prevented* on
+      purpose: `spawn-director.ts` picks uniformly among eligible candidate columns, enforces a
+      1.25-tile `minimum_spawn_separation_px`, and prefers off-screen spawns, and all three sit in
+      `defaultPolicy` in `prepared-population.ts` rather than in TOML. Raising `population_cap`,
+      `initial_population`, and `target_population` in `gameplay.toml` is an authoring edit today;
+      a `clustered` placement that picks a nucleus column and fills a radius is a director change,
+      with an optional zone knob promoted to the contract only once the policy has proven itself in
+      play. The two-species-per-stage shape already exists as two-entry `spawn_table`s per zone;
+      the reference pairs species per *map*, which is authoring, not code. `surface` stays
+      `Literal["terrain"]` for this thread.
+      - [ ] Step 1, authoring only: raise each zone's `initial_population`, `target_population`,
+            and `population_cap` in `gameplay.toml` to about 8 / 10 / 12 and cut `respawn_delay_ms`
+            to about 3000; `max_spawn_batch_per_update = 2` every 250 ms already sustains that rate.
+      - [ ] Step 2, consumer policy: `prepared-scene.ts` passes no overrides to
+            `projectPreparedMobPopulation`, so `defaultPolicy` governs. Pass
+            `spawn_visibility: "allow_onscreen"` with a D-style sampled pop-in and drop
+            `minimum_spawn_separation_px` from 1.25 tiles to about 0.5; keep `min_player_distance_px`.
+      - [ ] Step 3, director: add `placement: "uniform" | "clustered"` to the zone shape in
+            `spawn-director.ts` (a consumer-internal manifest, no package contract). In `tryReserve`,
+            clustered picks a nucleus from the zone's alive actors or reservations with a join
+            probability near 0.7, then a candidate within a cluster radius; otherwise a uniform pick
+            starts a new clump. Eligibility rules still apply and the choice stays on `zone.rng`.
+      - [ ] Step 4, deferred: promote `placement` to `SpawnZone` in the Python model as a defaulted
+            field only once step 3 has proven itself in play.
+      - [ ] Tests: clustered-selection determinism and eligibility in `spawn-director.test.ts`;
+            policy overrides in `prepared-population.test.ts`.
+      - [ ] Traps: candidates are one per column, so a clump of three is three adjacent columns;
+            `is_spawnable_column` excludes every column under a floating platform, which shrinks the
+            spawnable set as decks multiply; thirty live mobs each carry a health bar and behaviour
+            nodes, so profile once.
+- [ ] **B. Mobs on every deck (medium).** Mobs only know the base heightmap: `heightAt` in
+      `prepared-scene.ts` reads the bottom-contiguous terrain, floating decks are one-way
+      `UpperPlatform`s for the player alone, and population candidates come from the same height
+      function. Ledge mobs need candidate columns on decks, a deck-bound walk lane in `mob.ts`
+      (`resolveWalk` clamps to the terrain lane today), and no cross-deck pathing - keep them
+      deck-bound like the reference, which leaves hunter navigation untouched. This is the one
+      thread that must touch the gameplay contract: `surface` is `Literal["terrain"]` in
+      `src/stage_gen/components/platformer_gameplay/models.py` and needs a second word.
+- [x] **C. Reach, multi-target, multi-hit, and number scale (easy to medium).** Landed
+      2026-09-02. `melee_sweep_v1` in both vocabularies and the hand-weapon pairing;
+      `hitsPerAction`/`hitIntervalMs` on every profile with `nextAttackHitTick` in
+      `attack-window.ts` and a per-tick latch on the player; stacked numbers in `combat-text.ts`;
+      `number_scale` on `CombatPolicy` with `number-scale.ts` (`unit_v1`/`arcade_v1`); the swing
+      arc through the impact system; Bellweather authored to the sweep and arcade scale at
+      gameplay revision 5, with `out/bellweather-hunt-v1` assembled offline over the m2 world,
+      m2 content, and ui-v3/ui-atlas-v3 roots. The reach knob is a
+      *name*, not a number: the repo's rule is that Python publishes a class name and the consumer
+      owns the numbers (`weapon-class.ts` header, AGENTS.md), so today's TOML value is
+      `[combat] weapon_class`. The fastest honest path is a new class - a sweep with a ~3-tile
+      band, several `maxTargetsPerAction`, and a new hits-per-action field spaced a few frames
+      apart - added to the table in `weapon-class.ts` and the Python validator list, exactly as
+      `ranged_dps_v1` was. A numeric `[combat]` tuning block in `gameplay.toml` is a
+      `gameplay-contract-v2` conversation; decide it in this thread, do not smuggle it in.
+      Multi-hit also needs stacked combat text in `combat-text.ts` (it rises one number at a time
+      today) and a named damage-scale profile so numbers read large without faking the resolution:
+      `mobHealthForRank` in `prepared-scene.ts` gives common mobs 2 HP against 1 damage, and the
+      reference is one-hit kills of large integers. The drawn swing is a short wooden sword, so a
+      wide band reads wrong without D's procedural arc.
+      - [ ] New class `melee_sweep_v1` in `weapon-class.ts`: `basic_attack` pose, reach near 3
+            tiles, `maxTargetsPerAction` 6, a new `hitsPerAction` of 3 with `hitIntervalMs` near 45,
+            stand-off band about 0 / 1.4 / 2.6 tiles. `melee_dps_v1` gains `hitsPerAction: 1` and
+            stays pinned to its transcription by the existing tests.
+      - [ ] Multi-hit cadence in `attack-window.ts`: the window yields hit ticks at
+            `hitWindowFromMs + k * hitIntervalMs`; the controller's per-action latch becomes
+            per-tick. Each tick re-runs `resolveInstantStrike` against living mobs, so a mob dying
+            mid-combo frees a target slot.
+      - [ ] Stacking in `combat-text.ts`: a pure `stackOffset` that lifts a new entry above active
+            entries within a radius and a 300 ms window, with x jitter from event id; raise the
+            default active cap from 24 to 64.
+      - [ ] Number scale as a named profile: `number_scale` on `CombatPolicy` in
+            `src/stage_gen/components/platformer_gameplay/models.py`, default `unit_v1`, and a
+            consumer table where `arcade_v1` multiplies player damage and `mobHealthForRank` by one
+            factor with about 12 percent per-hit variance from the blow seed. Balance is unchanged
+            because both sides scale together. Decide field-versus-class in this thread; the field
+            is recommended because scale is orthogonal to reach.
+      - [ ] Vocabulary widening on both sides: the `WeaponClass` Literal and
+            `WEAPON_CLASSES_BY_PLAYER_EQUIPMENT["hand_weapon_v1"]` in Python, the `WEAPON_CLASSES`
+            tuple in TS, `tests/unit/components/test_prepared_game_contracts.py`, and the value list
+            in `docs/spec/game/authored-contract-schema.md`.
+      - [ ] A procedural slash arc drawn from `reachTiles` at the hit window through D's system, so
+            the drawn short sword no longer contradicts the band.
+      - [ ] The developer kit picks the class up for free: `selectableDeveloperKits` iterates
+            `WEAPON_CLASSES` and the pose is published, so `K` cycles into it live.
+      - [ ] Check `bot-hunter.test.ts`, which derives an engage floor from the archetype table, and
+            `strike.test.ts` for multi-target ordering.
+      - [ ] Authoring: `weapon_class = "melee_sweep_v1"` and `number_scale = "arcade_v1"` in
+            Bellweather's `gameplay.toml`, bump `revision`, re-pin digests.
+- [x] **D. Procedural hit feedback (easy).** Landed 2026-09-02 as `impact-presentation.ts`
+      (flash, spark, burst, hitstop, kill shake, all sampled from `nowMs`) wired into
+      `applyPlayerBlow`, a drop pop-arc with one bounce in `items.ts`, and `Mob.setFlash` over
+      Phaser 4's tint mode. Verified live on `out/bellweather-hunt-v1`: no console errors, a
+      white-filled creature under a `99` at arcade scale. Hitstop of a few frames, a white tint flash on the
+      target, a micro-shake on kill, a hit spark, a death burst, and a coin pop-arc - `items.ts`
+      drops fall straight down under `GRAVITY_PX` today. All consumer, no assets, Phaser 4
+      particles and graphics. The constraint that makes this a design and not a sprinkle:
+      `combat-text.ts` deliberately samples caller-supplied simulation time so fixed-step
+      automation captures stay byte-stable, and every effect here must follow that pattern rather
+      than reach for tweens or timers.
+      - [ ] New pure module `web/lib/sideview-platformer/impact-presentation.ts` with samplers: a
+            target flash near 60 ms, a hitstop window of 40-70 ms, a kill micro-shake as a decaying
+            camera offset keyed by event id like `glyphShakeX`, a four-frame procedural spark, and a
+            radial death burst with gravity and fade near 400 ms. Directions come from the seed
+            `nextBlowSeed` already produces, so two captures of one run draw the same shards.
+      - [ ] An `ImpactSystem` class owning pooled Graphics objects, mirroring `CombatTextSystem`:
+            `showHit`, `update(nowMs)`, `clear`, `dispose`, `reducedMotion`, and a snapshot for tests.
+      - [ ] Wire it in `applyPlayerBlow` in `prepared-scene.ts` beside `combatText.showDamage`.
+            Hitstop is a scene-level `hitstopUntilMs` that scales the delta passed to player and mobs
+            to zero; it must not touch the director's `nowMs` or combat text.
+      - [ ] Kill shake is a scroll offset applied after camera follow, not `cameras.main.shake`,
+            which runs on its own clock.
+      - [ ] Drop pop in `items.ts`: horizontal velocity and one bounce with restitution near 0.35
+            before `settled`, direction seeded from the drop id.
+      - [ ] Tests: sampler tests in `impact-presentation.test.ts` in the style of
+            `combat-text.test.ts`; `items.test.ts` for the arc landing on the same height function;
+            re-run `web/app/preview/[tag]/page.test.tsx` and re-pin the automation frame constants
+            if hitstop shifts death or drop frames.
+      - [ ] Acceptance: play Crowncrag Road on `out/bellweather-m2` and record a short capture for a
+            non-producer review.
+- [x] **E. A passive archetype and authored aggression (easy).** Landed 2026-09-02: `passive`
+      with a `hostile` flag on every profile in `combat.ts` and an early `hold` in `mobIntent`;
+      the rank map is now common→passive, uncommon→territorial, elite→hunting, boss→relentless;
+      `MobContent.aggression` is an optional closed name projected through both manifests and
+      read as `spec.aggression ?? rankDefault`. Bellweather names none, so its play is the rank
+      map. Aggression is not authored: it is
+      derived from `rank` in `prepared-scene.ts`, and no archetype in `combat.ts` wanders without
+      either fleeing (`skittish`) or attacking (`territorial`). Reference low-level mobs are mostly
+      passive with contact damage, which `gameplay.toml` already enables. Add the archetype to the
+      consumer table first; an optional `aggression` field on `mob-content-v2` is a content bump to
+      take only if rank-mapping proves insufficient.
+      - [ ] Step 1, consumer table: add `passive` to `MobAggression` and `MOB_AGGRESSIONS` in
+            `combat.ts` with zero aggro radius, zero damage, and no flee, so `mobIntent` always
+            holds. Contact damage already works - `prepared-scene.ts` applies it when
+            `contact_damage` is enabled - so passive mobs still hurt on touch.
+      - [ ] Step 1 also changes the rank map in `prepared-scene.ts`: common to passive, uncommon to
+            territorial, elite to hunting, boss to relentless.
+      - [ ] Step 2, authored: an optional `aggression` field on `[[mobs]]` in `mob-content-v2`,
+            projected through `prepared-manifest.ts` and read as `spec.aggression ?? rankDefault`.
+            This makes the `progression.ts` comment about published archetypes true for the first
+            time.
+      - [ ] Tests: `combat.test.ts` intent cases for passive, the rank-map cases in
+            `prepared-gameplay.test.ts`, and the Python content-model literal.
+      - [ ] Trap: the automation encounter fixture expects a mob to engage within its focus window,
+            so the common mob it uses must keep an attacking archetype or the fixture must pick
+            another rank.
+- [ ] **F. More world in view (medium).** Vertical zoom is the expensive half: layers are painted
+      1536x1024 and scaled to exactly one viewport tall, and the Camera section above already
+      records that there is no vertical slack, so a consumer camera zoom below 1 exposes the sky
+      plate beneath every layer and needs taller paintings or a width-fit with an 18 percent scale
+      change and a fresh semantic review. Widening `VIEW_W` in `prepared-scene.ts` is free because
+      layers loop on x, at the cost of re-pinning automation captures. `player_height_tiles` in
+      `game.toml` is the other lever, but it rescales every tile-relative rule (rise tolerance,
+      reach bands, climbable rise) and is the wrong tool for a camera problem.
+- [ ] **G. Organic silhouettes via edge props (easy interim).** Props are an existing content
+      family with `prop_placements`; large non-colliding rock and root props snapped to deck edges
+      break the tile-grid read at zero contract cost while H is designed. Authoring plus art, no
+      code beyond what the village already uses.
+- [ ] **H. Painted terrain as a platformer ground mode (hard, new).** The literal suggestion -
+      one large painted sprite with ground geometry traced afterwards - conflicts with doctrine:
+      authored occupancy, not the image, owns collision, and `scripts/author_terrain.py` proves
+      rise tolerance, deck exposure, and camera range offline from that occupancy. Paint-first,
+      trace-after would discard those proofs. The doctrine-compatible version already ships for the
+      runner: `runner-structural-ground-v1` turns authored occupancy into a guide, paints it with a
+      native-alpha edit, and masks the result back to exact occupancy with seam bridges
+      (`docs/spec/game/runner.md`). The taxonomy reserves the home as `2d/sideview/painted_terrain`
+      (`docs/spec/asset-taxonomy.md`, validation case 1). Porting it needs a new mode under
+      `[ground]` with producer, validation, manifest, and consumer paths - what the map contract
+      demands of every ground mode - plus relaxed admission, because runner admission forbids any
+      solid above `walk_surface_row` and a platformer map is mostly floating decks. Segment the
+      96-column map at the runner's segment width and reuse its seam bridge. Spec first, then
+      spend.
+- [ ] **I. Generated VFX sprites (new, deferred).** No effect or VFX asset family exists in the
+      taxonomy. D covers the demo procedurally; a generated slash, spark, or burst family is a new
+      taxonomy entry with its own contract, review, and cache identity, and has no caller until D
+      has shown what shapes are worth drawing.
+
 ## Runner gameplay: the CookieRun adoption
 
 The reference is **CookieRun: OvenBreak**, adopted for its level *language* and explicitly refused

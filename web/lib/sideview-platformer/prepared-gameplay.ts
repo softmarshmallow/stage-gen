@@ -4,6 +4,7 @@
 
 import type { PreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
 import { DEFAULT_WEAPON_CLASS, WEAPON_CLASSES, type WeaponClass } from "./weapon-class";
+import { DEFAULT_NUMBER_SCALE, NUMBER_SCALES, type NumberScale } from "./number-scale";
 
 export const PREPARED_GAMEPLAY_MOVEMENTS = [
   "move_left",
@@ -82,6 +83,8 @@ export type PreparedGameplayContract = Readonly<{
     weapon_class: WeaponClass;
     /** The projectile a throw puts in the air, or null for a class that throws nothing. */
     projectile_id: string | null;
+    /** How big the numbers are; `unit_v1` for every run published before the field. */
+    number_scale: NumberScale;
     lethal_presentation: false;
     defeat_presentation: "story_beast_disperses_into_page_light";
   }>;
@@ -484,6 +487,7 @@ export function parsePreparedGameplayContract(
       "critical_profile",
       "weapon_class",
       "projectile_id",
+      "number_scale",
       "lethal_presentation",
       "defeat_presentation",
     ],
@@ -491,7 +495,7 @@ export function parsePreparedGameplayContract(
     // Every one of these is a field the contract added with a default after packages had already
     // been published. A run from before the field is older, not invalid, and the reader knows what
     // the package meant because the default is the behaviour that shipped.
-    ["critical_profile", "weapon_class", "projectile_id"],
+    ["critical_profile", "weapon_class", "projectile_id", "number_scale"],
   );
   const combat = Object.freeze({
     enabled: boolean(rawCombat.enabled, `${path}.combat.enabled`),
@@ -520,6 +524,10 @@ export function parsePreparedGameplayContract(
       rawCombat.projectile_id === undefined || rawCombat.projectile_id === null
         ? null
         : snakeId(rawCombat.projectile_id, `${path}.combat.projectile_id`),
+    number_scale:
+      rawCombat.number_scale === undefined
+        ? DEFAULT_NUMBER_SCALE
+        : member(rawCombat.number_scale, NUMBER_SCALES, `${path}.combat.number_scale`),
     lethal_presentation: literal(
       rawCombat.lethal_presentation,
       false,

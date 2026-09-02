@@ -9,6 +9,8 @@
 // what is left is a list of actors, a list of stages, and the compiled scenario
 // that decides which of them is on screen at any moment.
 
+import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
+import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 
 export const DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION = 1 as const;
@@ -78,15 +80,27 @@ export interface DialogueSceneFixture {
   /** Empty when the scenario declares no music; a silent scene is valid. */
   readonly tracks: readonly DialogueSceneTrack[];
   readonly actors: readonly DialogueSceneActor[];
+  /** The generated interface: the geometry each role publishes and the sheet it is drawn from. */
+  readonly ui: DialogueSceneUi;
   /** The compiled narrative this scene plays; see `lib/scenario`. */
   readonly scenario: ScenarioProgram;
+}
+
+export interface DialogueSceneUiRole {
+  readonly layout: UiAtlasRoleLayout;
+  readonly src: string;
+}
+
+export interface DialogueSceneUi {
+  readonly panelFrame: DialogueSceneUiRole;
+  readonly buttonRect: DialogueSceneUiRole;
 }
 
 // A run played in place, streamed from out/<tag>/ through the per-tag asset API,
 // or a reviewed bundle installed as a theme. Both are digest-addressed; nothing
 // else may reach the canvas.
 const RUN_ASSET_PATH =
-  /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/;
+  /^\/api\/assets\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/(?:assets|ui)\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/;
 const INSTALLED_THEME_ASSET_PATH =
   /^\/dialogue-scene\/themes\/([a-f0-9]{64})\/assets\/[a-f0-9]{64}\.png$/;
 // Audio is confined exactly as art is, in its own pair rather than by loosening
@@ -106,6 +120,21 @@ const SNAKE_ID = /^[a-z][a-z0-9_]{0,63}$/;
  * by a player mid-scene rather than by the validator that had every fact needed
  * to refuse it.
  */
+function uiRoles(value: unknown): DialogueSceneUi {
+  const raw = strictRecord(value, ["panelFrame", "buttonRect"], "ui");
+  const role = (key: "panelFrame" | "buttonRect", name: UiAtlasRoleName): DialogueSceneUiRole => {
+    const source = strictRecord(raw[key], ["layout", "src"], `ui.${key}`);
+    return Object.freeze({
+      layout: parseUiAtlasRoleLayout(source.layout, name, `ui.${key}.layout`),
+      src: assetPath(source.src, `ui.${key}.src`),
+    });
+  };
+  return Object.freeze({
+    panelFrame: role("panelFrame", "panel_frame"),
+    buttonRect: role("buttonRect", "button_rect"),
+  });
+}
+
 export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixture {
   const root = strictRecord(
     value,
@@ -119,6 +148,7 @@ export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixtu
       "stages",
       "tracks",
       "actors",
+      "ui",
       "scenario",
     ],
     "dialogue-scene fixture",
@@ -182,6 +212,7 @@ export function validateDialogueSceneFixture(value: unknown): DialogueSceneFixtu
     stages,
     tracks,
     actors,
+    ui: uiRoles(root.ui),
     scenario,
   });
 

@@ -393,10 +393,8 @@ def _rearm_as_ranged(package: Path, *, projectile_id: str, equipment: str) -> No
     gameplay = package / "gameplay.toml"
     gameplay.write_text(
         gameplay.read_text(encoding="utf-8").replace(
-            'critical_profile = "standard_v1"\n',
-            'critical_profile = "standard_v1"\n'
-            'weapon_class = "ranged_dps_v1"\n'
-            f'projectile_id = "{projectile_id}"\n',
+            'weapon_class = "melee_sweep_v1"\n',
+            f'weapon_class = "ranged_dps_v1"\nprojectile_id = "{projectile_id}"\n',
             1,
         ),
         encoding="utf-8",
@@ -494,9 +492,10 @@ def test_accepts_a_character_whose_drawn_kit_matches_how_they_fight(tmp_path: Pa
 
 def test_a_swinging_package_names_no_projectile_and_still_resolves() -> None:
     # The shipped package is exactly this case, so it is asserted in place rather than composed:
-    # a melee character who names no round, with a projectile catalog still in the package.
+    # a sweeping character who names no round, with a projectile catalog still in the package.
+    # The sweep is a swinging class like the plain swing, drawn with the same hand weapon.
     resolved = resolve_game_package(SOURCE_PACKAGE)
 
-    assert resolved.gameplay.combat.weapon_class == "melee_dps_v1"
+    assert resolved.gameplay.combat.weapon_class == "melee_sweep_v1"
     assert resolved.gameplay.combat.projectile_id is None
     assert resolved.player.players[0].equipment == "hand_weapon_v1"

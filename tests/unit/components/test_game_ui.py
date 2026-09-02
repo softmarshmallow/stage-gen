@@ -38,7 +38,7 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     source = (PACKAGE / "ui.toml").read_bytes()
     contract = load_game_ui_bytes(source)
 
-    assert contract.kind == "game-ui-v2"
+    assert contract.kind == "game-ui-v3"
     assert contract.panel_frame.layout == PANEL_FRAME_LAYOUT
     assert contract.button_rect.layout == BUTTON_RECT_LAYOUT
     assert contract.panel_frame.alpha_policy == ATLAS_ALPHA_POLICY
@@ -47,8 +47,8 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     swapped = source.replace(BUTTON_RECT_LAYOUT.encode(), PANEL_FRAME_LAYOUT.encode())
     with pytest.raises(AuthoredContractLoadError, match=r"button_rect\.layout must be"):
         load_game_ui_bytes(swapped)
-    with pytest.raises(AuthoredContractLoadError, match="game-ui-v2"):
-        load_game_ui_bytes(source.replace(b'kind = "game-ui-v2"', b'kind = "game-ui-v1"'))
+    with pytest.raises(AuthoredContractLoadError, match="game-ui-v3"):
+        load_game_ui_bytes(source.replace(b'kind = "game-ui-v3"', b'kind = "game-ui-v1"'))
 
 
 def test_ui_contract_rejects_unknown_and_unused_references() -> None:

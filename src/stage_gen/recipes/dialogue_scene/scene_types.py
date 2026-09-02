@@ -14,6 +14,7 @@ author supplied is a different kind of work from asking a provider for them.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.game_ui.nodes import UI_ATLAS_NODE_TYPES
 
 _PROVIDER_POLICY = NodePolicy(max_attempts=6)
 
@@ -169,6 +170,9 @@ DIALOGUE_NODE_TYPES: tuple[NodeType, ...] = (
     SPRITE_CANONICALIZE,
     TRACK_GENERATE,
     BUNDLE_PACKAGE,
+    # The census names the types this recipe plans, including the ones it does not own:
+    # the nine-slice UI atlas triplet is shared with every other genre.
+    *UI_ATLAS_NODE_TYPES,
 )
 
 

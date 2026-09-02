@@ -49,6 +49,25 @@ Re-pinned once more the same day for ``prepared-ui-atlas-validation-v2``: the at
 gained its own identity so a richer record (the measured ornament-free ``safe_rect``) re-runs the
 local gate over cached sheets without touching the image key. Topology unchanged; the graph digest
 moves with the two validate cache identities.
+
+Re-pinned 2026-09-02 when the atlas triplet moved to its own home. Three other genres wanted the
+same two roles, so the nodes now carry the component's taxonomy path (``2d/ui/atlas.*``) instead
+of this recipe's, and the prompt they send is composed at plan time onto the card rather than in
+the handler. A cache key hashes the type id, so the six UI atlas keys move and Bellweather re-bills
+its two sheets exactly once; the topology digest moves with the renamed types, and every other
+node in the plan is untouched.
+
+Re-pinned 2026-09-02 for Bellweather's gameplay member at revision 5: the package now names the
+``melee_sweep_v1`` weapon class and the ``arcade_v1`` number scale, both closed names the consumer
+turns into numbers, and roughly doubles each hunting zone's population with a shorter respawn, so
+no image or structured operation moves and topology is unchanged. The plan
+document binds the whole closure, so the graph digest moves with the authored bytes. The working
+tree this was pinned against also carried the ``game-ui-v3`` bump to ``ui.toml``; the digest
+captures both, and lands or re-pins with that change.
+
+Re-pinned once more the same day when the mob content model gained its optional ``aggression``
+name and the manifest projection began carrying it. No authored byte moved, no operation moved;
+the plan document's package projection did.
 """
 
 from __future__ import annotations
@@ -65,8 +84,8 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 227
-BELLWEATHER_GRAPH_SHA256 = "df542858e258d1fc0a1c8aae65d71ba9c25108020e466a9e04b53f4559a4b542"
-BELLWEATHER_TOPOLOGY_SHA256 = "812919110d9edc8d36426974c321d2c004ff173c96080b12f3987413eb8fb8a1"
+BELLWEATHER_GRAPH_SHA256 = "8c7e1d5ef90abe538aa91b729fcf85903ee4d2f7faeb6a7ed8950ac636a327c3"
+BELLWEATHER_TOPOLOGY_SHA256 = "4ca19ad458b63c65f4108697f451501e90f8db22392716ddfd5c8c641dbfd40e"
 
 
 def _bellweather_graph() -> ExecutionGraph:

@@ -1,9 +1,11 @@
+import { uiAtlasFixtureBlock } from "@/lib/shell/prepared-runtime.fixture";
+
 /** One deliberately small, solvable room manifest for the pure tests. */
 
 export function roomManifestFixture(): Record<string, unknown> {
   return {
     schema_version: 1,
-    kind: "pointclick-room-runtime-v2",
+    kind: "pointclick-room-runtime-v3",
     room_id: "test_room",
     display_name: "Test Room",
     revision: 1,
@@ -64,5 +66,6 @@ export function roomManifestFixture(): Record<string, unknown> {
       },
     ],
     win: { requires: ["prize_taken"], narration: "The room is finished." },
+    ui: uiAtlasFixtureBlock(),
   };
 }

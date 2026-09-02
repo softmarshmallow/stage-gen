@@ -1,0 +1,41 @@
+# The room's screen-fixed interface art, kept separate from the puzzle it frames.
+#
+# Nothing here knows what a hotspot is. Two nine-slice roles cover every panel and
+# every control the runtime draws: the HUD bar, the narration plate and the win card
+# are one panel frame stretched to three sizes, and the verb bar is one button sheet
+# read at four states. The layout ids are the whole geometry contract — a role never
+# authors cell rectangles or insets, because the generator renders the template from
+# the declared geometry and publishes the geometry it actually detected beside the art.
+
+schema_version = 3
+kind = "game-ui-v3"
+game_id = "clockmakers_attic"
+revision = 1
+
+# The same art direction of record the room's own images are drawn against, bound by
+# the same digest: replacing the file is a new look and re-bills the interface too.
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "12cb908d31c047ae021b9e3f95e48c5c167d1240ed1bae614a8591a5931db405"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this room document, with no third-party image input.",
+    "First-party AI-generated concept selected by the task owner from a ten-candidate style sheet on 2026-08-31.",
+    "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
+]
+
+# There is no inventory panel here. The room draws its own slot strip from code, and
+# authoring a panel it never shows would be describing a screen that does not exist.
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A flat graphic poster-art panel in the attic's warm lamp-lit palette: one solid dusk-blue field inside a plain, slightly lighter border of even width, with a single small square corner accent in the room's one warm accent colour. Absolutely flat colour, no gradient, no texture, no grain. The inner field must stay one uninterrupted quiet colour so narration lines and a result title read cleanly on top of it."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact flat graphic poster-art control in the attic's warm lamp-lit palette: one solid rounded-square field with a plain even border and no ornament beyond a thin edge line. Absolutely flat colour, no gradient, no texture. The face must stay one uninterrupted quiet colour so a short verb word reads cleanly on top of it, and the four states must differ only in value and hue."

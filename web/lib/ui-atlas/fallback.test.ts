@@ -4,7 +4,7 @@ import {
   registerGridPresentationFallback,
   registerPresentationFallback,
   type PresentationFallbackKind,
-} from "./presentation-fallback";
+} from "./fallback";
 
 type FrameCall = readonly [string | number, number, number, number, number, number];
 

@@ -114,9 +114,11 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
         )
     assert graph.node("ui-inventory-panel-generate").depends_on == ("package-resolve",)
     assert graph.node("ui-inventory-panel-review").depends_on == ("ui-inventory-panel-validate",)
-    # The atlas triplet is one generic type fanned out over the role, not one type per role.
+    # The atlas triplet is one generic type fanned out over the role, not one type per role,
+    # and it belongs to no genre: the type carries the component's own taxonomy path, which is
+    # what lets a visual novel and a runner plan the identical node.
     atlas_generated = graph.node("ui-panel_frame-generate")
-    assert atlas_generated.type_id == "2d/sideview/platformer/ui_atlas.generate"
+    assert atlas_generated.type_id == "2d/ui/atlas.generate"
     assert atlas_generated.params == {"role": "panel_frame"}
     assert atlas_generated.depends_on == ("package-resolve",)
     assert graph.node("ui-button_rect-review").depends_on == ("ui-button_rect-validate",)

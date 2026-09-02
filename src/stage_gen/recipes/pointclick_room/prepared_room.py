@@ -37,6 +37,14 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_ui.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+    ui_atlas_manifest_block,
+)
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.image_style import (
@@ -125,6 +133,20 @@ class PointClickRoomNodeHandler:
             namespace=POINTCLICK_CACHE_NAMESPACE,
             record_kind=POINTCLICK_CACHE_RECORD_KIND,
         )
+        self._atlas = UiAtlasHandlers(
+            UiAtlasHost(
+                ui=resolved.ui,
+                run_dir=run_dir,
+                package_id=resolved.room.room_id,
+                file=lambda source: resolved.ui_references[source],
+                component=_COMPONENT,
+                tool=STAGE_GEN_TOOL,
+            ),
+            graph=graph,
+            image_service=image_service,
+            structured_service=structured_service,
+            provider_call=self._provider_call,
+        )
         self._registry = self._build_registry()
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
@@ -160,6 +182,9 @@ class PointClickRoomNodeHandler:
         registry.register(NARRATION_COMPILE, self._bind(self._narration))
         registry.register(PUZZLE_VALIDATE, self._bind(self._puzzle))
         registry.register(ROOM_BUNDLE, self._bind(self._bundle))
+        registry.register(UI_ATLAS_GENERATE, self._bind(self._atlas.generate))
+        registry.register(UI_ATLAS_VALIDATE, self._bind(self._atlas.validate))
+        registry.register(UI_ATLAS_REVIEW, self._bind(self._atlas.review))
         return registry
 
     def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
@@ -391,6 +416,20 @@ class PointClickRoomNodeHandler:
             }
             for index, interaction in enumerate(room.interactions)
         ]
+
+        # The screen-fixed interface is published exactly as every other consumer sees it:
+        # the geometry the gate detected, not the geometry the template declared. Both the
+        # sheet and the record it was read from join the closure, so the manifest never
+        # names bytes the run does not carry.
+        def publish_ui(relative_path: str) -> object:
+            artifacts.append(relative_path)
+            return relative_path
+
+        ui = ui_atlas_manifest_block(
+            read_validation=self._read,
+            publish=publish_ui,
+            publish_provenance=artifacts.append,
+        )
         digests = {ref: content_sha256(self._read(ref)) for ref in artifacts}
         manifest = {
             "schema_version": 1,
@@ -410,6 +449,7 @@ class PointClickRoomNodeHandler:
             "hotspots": hotspots,
             "items": items,
             "interactions": interactions,
+            "ui": ui,
             "win": {
                 "requires": list(room.win.requires),
                 "narration": resolved_line(room.win.narration, "win"),

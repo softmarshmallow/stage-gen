@@ -45,6 +45,13 @@ from gnode import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
+from stage_gen.components.game_ui.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+)
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.image_style import (
@@ -180,6 +187,20 @@ class DialogueSceneNodeHandler:
             namespace=DIALOGUE_CACHE_NAMESPACE,
             record_kind=DIALOGUE_CACHE_RECORD_KIND,
         )
+        self._atlas = UiAtlasHandlers(
+            UiAtlasHost(
+                ui=scene.ui,
+                run_dir=run_dir,
+                package_id=scene.request.game_id,
+                file=lambda source: scene.ui_references[source],
+                component=_COMPONENT,
+                tool=STAGE_GEN_TOOL,
+            ),
+            graph=graph,
+            image_service=image_service,
+            structured_service=structured_service,
+            provider_call=self._atlas_provider_call,
+        )
         self._registry = self._build_registry()
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
@@ -220,6 +241,9 @@ class DialogueSceneNodeHandler:
         registry.register(SPRITE_CANONICALIZE, self._bind(self._canonicalize_local))
         registry.register(TRACK_GENERATE, self._bind(self._track_generate))
         registry.register(BUNDLE_PACKAGE, self._bind(self._bundle))
+        registry.register(UI_ATLAS_GENERATE, self._bind(self._atlas.generate))
+        registry.register(UI_ATLAS_VALIDATE, self._bind(self._atlas.validate))
+        registry.register(UI_ATLAS_REVIEW, self._bind(self._atlas.review))
         return registry
 
     def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
@@ -804,6 +828,28 @@ class DialogueSceneNodeHandler:
             [data for data, _path in references],
             lambda: self._images.generate(request),
             output,
+        )
+
+    async def _atlas_provider_call(
+        self,
+        node: Node,
+        role: str,
+        prompt: str,
+        call: Callable[[], Awaitable[Any]],
+    ) -> Any:
+        """Give the shared atlas triplet this recipe's attempt ledger.
+
+        The sheet is drawn against the style plate, which every other image here is drawn
+        against too, so the ledger records the same reference digest for it.
+        """
+
+        return await self._provider_call(
+            node,
+            role,
+            prompt,
+            [self._scene.style_reference.data],
+            call,
+            node.ports[0].artifact_ref,
         )
 
     async def _provider_call(

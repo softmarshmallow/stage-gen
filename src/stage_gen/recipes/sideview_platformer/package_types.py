@@ -7,7 +7,10 @@ the graph-level contract constant, the twelve dispatch regexes, and the
 path-convention display guesses with one table.
 
 ``type_id`` values are persisted taxonomy paths (docs/spec/asset-taxonomy.md):
-``2d/sideview/platformer/<module>.<step>``.
+``2d/sideview/platformer/<module>.<step>``. The census also names the types this
+recipe does not own: the nine-slice UI atlas triplet is shared with every other
+genre and carries the component's own path (``2d/ui/atlas.*``), so the type census
+stays complete while the declaration lives beside the contract it serves.
 
 Policy honesty: only the two motion-rebase judges gate admission today —
 every other review is advisory by design (an operator decision, not a node
@@ -18,6 +21,11 @@ accidental.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.game_ui.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+)
 
 _P = "2d/sideview/platformer"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -337,34 +345,6 @@ UI_INVENTORY_REVIEW = NodeType(
     features=STRUCTURED_FEATURES,
     policy=_PROVIDER,
     contract_version="ui-inventory-review-v1",
-)
-
-UI_ATLAS_GENERATE = NodeType(
-    type_id=f"{_P}/ui_atlas.generate",
-    title="UI atlas role",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-atlas-v1",
-)
-
-UI_ATLAS_VALIDATE = NodeType(
-    type_id=f"{_P}/ui_atlas.validate",
-    title="UI atlas admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="ui-atlas-validate-v1",
-)
-
-UI_ATLAS_REVIEW = NodeType(
-    type_id=f"{_P}/ui_atlas.review",
-    title="UI atlas review",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-atlas-review-v1",
 )
 
 GAMEPLAY_BINDINGS_VALIDATE = NodeType(

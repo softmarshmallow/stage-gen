@@ -130,7 +130,7 @@ Start here for the headless, general-purpose system:
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
   (`dialogue-scene-v3`) produced by recipe `dialogue-scene-v7` into
-  `dialogue-scene-bundle-v6`, read by the scene consumer at `/scene/<tag>`.
+  `dialogue-scene-bundle-v7`, read by the scene consumer at `/scene/<tag>`.
 - [Dialogue-scene framing control](dialogue-scene-framing.md) — implemented
   deterministic consumer mapping and prompt research.
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred
