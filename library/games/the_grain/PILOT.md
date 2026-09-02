@@ -250,6 +250,42 @@ whole planned art programme is roughly 67 operations, and the run is not close t
 ceiling; the risk this creates is one of drift, not of overrun, and it is named here rather
 than smoothed over.
 
+### 06:05 — The multi-scenario scene work is reassigned, not abandoned
+
+The contract lane returned a NO-GO on `dialogue-scene-v4` and it was the right call for
+them: with liveness projection ranked above it, taking the scene work as well would have
+produced three half-landed contracts. But the fallback — six scene packages — would have
+put **the scenario and script files themselves** in the tree six times, which is a second
+source of truth for the words, and this repository does not do that.
+
+The file sets were checked before deciding: the scene work lives in
+`src/stage_gen/recipes/dialogue_scene/` and `library/games/larkfield/scene.toml`; the
+contract lane's remaining work is in `src/stage_gen/components/scenario/` and
+`components/case/`. Disjoint. So a **sixth lane** was spawned to take item (3) alone, with a
+09:00 deadline and an instruction to say NO early. Both lanes were told explicitly to stay
+out of the other's directories, and to report immediately if they find each other there.
+
+*Displaced:* the lead's own hour of fallback authoring, which is now held in reserve rather
+than spent.
+
+### 06:07 — The case is authored and admitted
+
+`cases/index.toml` and `cases/episode_one.toml`, written by the lead against the contract
+the lane had just landed. Eight beats — `b_office`, `b_motor_court` (room), `b_way_in`,
+`b_table`, `b_coffee`, `b_window` (room), `b_the_court`, `b_statements` (terminal) — and
+**67 facts**.
+
+`case check --structure-only` **admits it**: every beat reachable from the entry, a
+terminal reachable from every reachable beat, every fact exported by some beat, and every
+fact a beat reads established on every route into it.
+
+The judgement that took the longest was `establishment`. A fact is `required` only where
+the night says the thing out loud and Henry cannot be elsewhere — the two exit conditions,
+the key handed back in front of him, the envelope, Ruth's two accounts of what Paul said.
+Everything a player must **choose** to look at is `defaults_false`, because the player who
+never looked is a player for whom the fact is simply false. That is not a weaker claim; it
+is the episode's design. A thin board is a legitimate way to have played.
+
 ### 06:08 — The statement is two beats, not one
 
 Writer B measured `e1_statements` against the contract and it failed three ways at once:
@@ -299,6 +335,23 @@ of them", stop.
 A scenario that is correct and refused can be fixed in the proof; a line quietly cut has to
 be noticed.
 
+### 06:08 — QA starts on prose, not pixels
+
+The condition set at 05:52 was met — three scenarios admit (`e1_office` 8 blocks/8 states,
+`e1_way_in` 7/7, `e1_coffee` 23 blocks/41 states, all far under the ceiling) — so QA is
+live. Its **first** job is not the browser. It is to diff every lifted line against the
+novel for attribution and verbatim accuracy, check the fixed sentences, check that the
+deliberate discrepancies have not been smoothed (Ruth's "not to wait" / "needed to think" /
+"needed time"), check that no dialogue was invented outside the outline's permitted list,
+and check the Henry rule.
+
+The brief names wrong attribution as the worst defect this pilot can ship, and an
+unattended run is exactly where it happens unseen. Browser play-throughs are QA's second
+job, once the consumer lane lands.
+
+*Displaced:* half an hour of earlier browser QA against a consumer that was still being
+rebuilt underneath it.
+
 ### 06:10 — The plate is candidate 1, and the lead was talked out of candidate 6
 
 Six candidates, six genuinely different prompts, one operation each, all first-attempt.
@@ -338,58 +391,14 @@ near-black backdrop, because half this game is a dark motor court and a dark sto
 *Displaced:* candidate 6, and with it a plate that would have taught faces and a lit
 back-of-store. The other five stay in the run as exploration, labelled unreviewed.
 
-### 06:05 — The multi-scenario scene work is reassigned, not abandoned
+### 06:12 — The lead wrote the rooms' `ui.toml`, and the art lane still owns them
 
-The contract lane returned a NO-GO on `dialogue-scene-v4` and it was the right call for
-them: with liveness projection ranked above it, taking the scene work as well would have
-produced three half-landed contracts. But the fallback — six scene packages — would have
-put **the scenario and script files themselves** in the tree six times, which is a second
-source of truth for the words, and this repository does not do that.
-
-The file sets were checked before deciding: the scene work lives in
-`src/stage_gen/recipes/dialogue_scene/` and `library/games/larkfield/scene.toml`; the
-contract lane's remaining work is in `src/stage_gen/components/scenario/` and
-`components/case/`. Disjoint. So a **sixth lane** was spawned to take item (3) alone, with a
-09:00 deadline and an instruction to say NO early. Both lanes were told explicitly to stay
-out of the other's directories, and to report immediately if they find each other there.
-
-*Displaced:* the lead's own hour of fallback authoring, which is now held in reserve rather
-than spent.
-
-### 06:07 — The case is authored and admitted
-
-`cases/index.toml` and `cases/episode_one.toml`, written by the lead against the contract
-the lane had just landed. Eight beats — `b_office`, `b_motor_court` (room), `b_way_in`,
-`b_table`, `b_coffee`, `b_window` (room), `b_the_court`, `b_statements` (terminal) — and
-**67 facts**.
-
-`case check --structure-only` **admits it**: every beat reachable from the entry, a
-terminal reachable from every reachable beat, every fact exported by some beat, and every
-fact a beat reads established on every route into it.
-
-The judgement that took the longest was `establishment`. A fact is `required` only where
-the night says the thing out loud and Henry cannot be elsewhere — the two exit conditions,
-the key handed back in front of him, the envelope, Ruth's two accounts of what Paul said.
-Everything a player must **choose** to look at is `defaults_false`, because the player who
-never looked is a player for whom the fact is simply false. That is not a weaker claim; it
-is the episode's design. A thin board is a legitimate way to have played.
-
-### 06:08 — QA starts on prose, not pixels
-
-The condition set at 05:52 was met — three scenarios admit (`e1_office` 8 blocks/8 states,
-`e1_way_in` 7/7, `e1_coffee` 23 blocks/41 states, all far under the ceiling) — so QA is
-live. Its **first** job is not the browser. It is to diff every lifted line against the
-novel for attribution and verbatim accuracy, check the fixed sentences, check that the
-deliberate discrepancies have not been smoothed (Ruth's "not to wait" / "needed to think" /
-"needed time"), check that no dialogue was invented outside the outline's permitted list,
-and check the Henry rule.
-
-The brief names wrong attribution as the worst defect this pilot can ship, and an
-unattended run is exactly where it happens unseen. Browser play-throughs are QA's second
-job, once the consumer lane lands.
-
-*Displaced:* half an hour of earlier browser QA against a consumer that was still being
-rebuilt underneath it.
+The room pipeline was blocked on a file the art lane had not reached yet, so the lead wrote
+both room interface documents to unblock the dry run, and told the art lane they exist and
+may be rewritten. One constraint in them is not the art lane's to drop silently: the plate
+is a night picture, so the panel and the buttons must hold a full value step against
+near-black or the narration sits on the floor of the image and disappears. That is the cost
+of choosing candidate 1, paid where it lands.
 
 ### 06:13 — The nested rooms work, and both are proven solvable
 
@@ -424,15 +433,6 @@ most easily have skipped.
 *Note on dry runs:* a dry run stubs the proof node rather than writing a real
 `puzzle.validation.json`, so gate 2 is satisfied by the direct proof above and will be
 re-satisfied by the live run's artifact.
-
-### 06:12 — The lead wrote the rooms' `ui.toml`, and the art lane still owns them
-
-The room pipeline was blocked on a file the art lane had not reached yet, so the lead wrote
-both room interface documents to unblock the dry run, and told the art lane they exist and
-may be rewritten. One constraint in them is not the art lane's to drop silently: the plate
-is a night picture, so the panel and the buttons must hold a full value step against
-near-black or the narration sits on the floor of the image and disappears. That is the cost
-of choosing candidate 1, paid where it lands.
 
 ### 06:18 — Writer A finishes: 598 cues, 598 lifted, nothing invented
 
@@ -517,54 +517,6 @@ Also filed as **R-01**: the Korean glossary renders Ward's fixed sentence as "Th
 what I asked." where the novel has **"That isn't what I asked."** The novel is the
 authority and the pilot proceeds on it; the glossary is a translation aid, not a contract,
 and the director decides whether it wants correcting.
-
-### 06:35 — The consumer lane finishes, and names the last gap precisely
-
-`/case/demo` walks a three-beat case — scenario, then a point-and-click room, then a
-scenario — end to end at one URL, with real generated art. Five slots are in, and the outer
-pair is a **far rank** rather than merely two more positions: 16% smaller, standing lower,
-drawn behind, dimmer, so a table of eight reads as depth instead of a row. The inner three
-are one figure moved, not resized, and `center` still reproduces the old single-character
-framing exactly.
-
-Speaker emphasis is a pure, unit-tested module: the speaker goes full colour, ×1.045 about
-the feet, above every slot; listeners take alpha and a cool tint, cooler at the far rank;
-narration lights nobody.
-
-The shell minimum is done and proven live — after a reload the page offered *"A save is
-waiting at After, line `you_did_not#0`"* and Continue landed on that exact line with stage
-and cast intact. `/scene/<tag>` and `/room/<tag>` are now cases of one beat, so a leaf played
-alone gets the same shell.
-
-**One deliberate deviation, and it is right.** The brief said autosave the statement
-identity and the flags. The lane saves the runtime's whole drawn state instead, because a
-statement id says which line but not what the backdrop is or who is standing where — those
-are settled by having walked the invisible statements. Saving only the pair would resume the
-right sentence in an empty room.
-
-`bun run check` clean, `bun test` 1379 pass / 0 fail, up from 1328.
-
-**The last gap, now assigned.** The authored case names its leaves by package `member`; the
-consumer plays **runs**. Nothing turns one into the other. The consumer verified its reader
-against a hand-written instance and then deleted it, so what is missing is exactly one
-thing: `out/<tag>/case.json`, the authored case verbatim as JSON plus `run_tag` on each
-beat. The contract lane has it, ranked above everything except finishing liveness — because
-without it the pilot ends with proven contracts, generated art, and no way to play the
-episode, which is the worst place this run could stop.
-
-**A pre-existing finding worth the director's attention.** *Nothing currently in `out/`
-plays at all.* Every scenario bundle and room manifest on disk predates `ui.preview_icons`
-and 500s on parse; the home page reports "point-and-click rooms · 0, visual-novel scenes ·
-0". This was true before this pilot touched anything, and it is why the consumer built
-`/case/demo` as a hand-authored fixture. Our own runs are generated against the current
-recipe and are unaffected — but it means there is no older run to fall back on.
-
-### 06:38 — The first real art: the motor court
-
-Both room plans were taken as free dry runs first: `motor_court` 14 nodes (4 image, 4
-structured), `e1_window` 18 nodes (6 image, 4 structured). Ledgered, then the motor court
-started live — writer A has finished it, so its bytes are final. The window room waits for
-writer B's polish rather than being billed twice.
 
 ### 06:23 — The first real art, and the plate held
 
@@ -685,6 +637,47 @@ The consumer was hard-checking `kind === "case-v1"`. One constant changed;
 Six beats share one run tag, because one scene binds all six scenarios. `--beat-run` never
 enforced uniqueness on the tag, only on the beat id, so that mapping worked unchanged.
 
+### 06:35 — The consumer lane finishes, and names the last gap precisely
+
+`/case/demo` walks a three-beat case — scenario, then a point-and-click room, then a
+scenario — end to end at one URL, with real generated art. Five slots are in, and the outer
+pair is a **far rank** rather than merely two more positions: 16% smaller, standing lower,
+drawn behind, dimmer, so a table of eight reads as depth instead of a row. The inner three
+are one figure moved, not resized, and `center` still reproduces the old single-character
+framing exactly.
+
+Speaker emphasis is a pure, unit-tested module: the speaker goes full colour, ×1.045 about
+the feet, above every slot; listeners take alpha and a cool tint, cooler at the far rank;
+narration lights nobody.
+
+The shell minimum is done and proven live — after a reload the page offered *"A save is
+waiting at After, line `you_did_not#0`"* and Continue landed on that exact line with stage
+and cast intact. `/scene/<tag>` and `/room/<tag>` are now cases of one beat, so a leaf played
+alone gets the same shell.
+
+**One deliberate deviation, and it is right.** The brief said autosave the statement
+identity and the flags. The lane saves the runtime's whole drawn state instead, because a
+statement id says which line but not what the backdrop is or who is standing where — those
+are settled by having walked the invisible statements. Saving only the pair would resume the
+right sentence in an empty room.
+
+`bun run check` clean, `bun test` 1379 pass / 0 fail, up from 1328.
+
+**The last gap, now assigned.** The authored case names its leaves by package `member`; the
+consumer plays **runs**. Nothing turns one into the other. The consumer verified its reader
+against a hand-written instance and then deleted it, so what is missing is exactly one
+thing: `out/<tag>/case.json`, the authored case verbatim as JSON plus `run_tag` on each
+beat. The contract lane has it, ranked above everything except finishing liveness — because
+without it the pilot ends with proven contracts, generated art, and no way to play the
+episode, which is the worst place this run could stop.
+
+**A pre-existing finding worth the director's attention.** *Nothing currently in `out/`
+plays at all.* Every scenario bundle and room manifest on disk predates `ui.preview_icons`
+and 500s on parse; the home page reports "point-and-click rooms · 0, visual-novel scenes ·
+0". This was true before this pilot touched anything, and it is why the consumer built
+`/case/demo` as a hand-authored fixture. Our own runs are generated against the current
+recipe and are unaffected — but it means there is no older run to fall back on.
+
 ### 06:35 — The art lane refuses an order from the lead, correctly
 
 Told to generate the three remaining music tracks by hand, the art lane **declined**, on the
@@ -751,6 +744,13 @@ component-level omission. It is reported rather than patched: repairing a media-
 component at hour two, in a tree four lanes are writing to, is how a run breaks something
 quietly.
 
+### 06:38 — The first real art: the motor court
+
+Both room plans were taken as free dry runs first: `motor_court` 14 nodes (4 image, 4
+structured), `e1_window` 18 nodes (6 image, 4 structured). Ledgered, then the motor court
+started live — writer A has finished it, so its bytes are final. The window room waits for
+writer B's polish rather than being billed twice.
+
 ### 06:45 — The whole episode's art in one graph, and eight nodes short of it
 
 `scene.toml` at `dialogue-scene-v5` plans **115 nodes: 47 image generations, 4 music
@@ -810,54 +810,6 @@ it is not the briefed one. And this is a semantic judgement about accepted outpu
 neither the producer nor the lead may make on their own work. **It is the first item on the
 director's review list**, with the reroll priced at about twelve images.
 
-### 06:52 — The episode loads at one URL
-
-`case bundle` published `out/the-grain-episode-one/case.json` — eight beats, six sharing the
-scene run tag with their `scenario_id` derived from the member, two rooms carrying a tag
-alone. `http://localhost:3000/case/the-grain-episode-one` then renders:
-
-> **Episode One — The Winter Room · Calder Investigations, late afternoon · beat 1 of 8**
-
-with the backlog control and the shell chrome around it. **The whole chain is proven** —
-authored case, structural proof, leaf binding, runtime projection, consumer parse, beat
-resolution, and the shell's own furniture. The only thing missing is the art: the beat body
-reads *"run the-grain-scene carries no scene bundle"*, because that run's cast half failed
-and it therefore published no bundle.
-
-One consumer fix was needed and it was the lead's own doing. `scenario_id` was added to the
-projection **after** the consumer lane had finished, at the lead's request, and the
-consumer's strict record parser refused the unexpected key. A scenario beat may now carry
-one, and **absent means "this run publishes exactly one scenario"** — which is what
-`/scene/<tag>` relies on and is true of every single-scenario run. A room beat carrying one
-is still refused, because a room run publishes exactly one room and an id there is a
-projection that has confused itself. `case bundle` always writes the id, so the chained path
-never depends on the fallback. `tsc` clean, **1379 tests pass**.
-
-### 06:50 — Two hard-coded names, not one
-
-The recipe lane found and fixed **two** instances of the bug, and the second is the more
-instructive. `prepared_scene._expression` dispatched on `if state == "neutral"` — under the
-fixed vocabulary that happened to name the base plate, so with authored ids every base fell
-into the *edit* branch and asked for a source port a base node does not have. One line
-further on, `neutral_prompt` called `plan.direction_for("neutral")`, which would have raised
-on all eight actors thirty seconds after the first fix and surfaced as
-`coroutine raised StopIteration` rather than as anything readable.
-
-The fix is the right one rather than the quick one: it does **not** compare against the new
-base name, which would be the same mistake with a different string. The graph already
-decides which node is the base — it wires that one to the concept plate and the others to
-its output — so `EXPRESSION_GENERATE` and `EXPRESSION_DERIVE` now bind separate handlers and
-neither reads an expression name to know what it is.
-
-**Why no test caught it:** the fixture's base expression was literally named `neutral`, so
-every existing test agreed with the hard-coded string. The fixture's actors were renamed to
-authored vocabularies sharing nothing with the old four, and a whole-graph run through fake
-providers now exercises the exact path the eight nodes died on.
-
-*Recorded for the reroll policy:* expression directions live in the character profile, so
-the profile's digest covers them and editing **one** direction re-bills **all four** of that
-actor's plates. Get an actor's four right together or not at all.
-
 ### 06:47 — Both rooms rerolled, and the cache answers the region question
 
 The motor court reroll changed the scene brief, two hotspot briefs and three regions, and
@@ -886,6 +838,77 @@ seventh chair came back as a four-legged gilt side chair while the motor court's
 two plates disagree about the object the novel's fixed line depends on — *"one shoulder
 against its steel base."* The brief has been hardened to name a pedestal chair explicitly
 and to say what it is not, and the room is rolling again at a cost of about one operation.
+
+### 06:50 — Two hard-coded names, not one
+
+The recipe lane found and fixed **two** instances of the bug, and the second is the more
+instructive. `prepared_scene._expression` dispatched on `if state == "neutral"` — under the
+fixed vocabulary that happened to name the base plate, so with authored ids every base fell
+into the *edit* branch and asked for a source port a base node does not have. One line
+further on, `neutral_prompt` called `plan.direction_for("neutral")`, which would have raised
+on all eight actors thirty seconds after the first fix and surfaced as
+`coroutine raised StopIteration` rather than as anything readable.
+
+The fix is the right one rather than the quick one: it does **not** compare against the new
+base name, which would be the same mistake with a different string. The graph already
+decides which node is the base — it wires that one to the concept plate and the others to
+its output — so `EXPRESSION_GENERATE` and `EXPRESSION_DERIVE` now bind separate handlers and
+neither reads an expression name to know what it is.
+
+**Why no test caught it:** the fixture's base expression was literally named `neutral`, so
+every existing test agreed with the hard-coded string. The fixture's actors were renamed to
+authored vocabularies sharing nothing with the old four, and a whole-graph run through fake
+providers now exercises the exact path the eight nodes died on.
+
+*Recorded for the reroll policy:* expression directions live in the character profile, so
+the profile's digest covers them and editing **one** direction re-bills **all four** of that
+actor's plates. Get an actor's four right together or not at all.
+
+### 06:52 — The episode loads at one URL
+
+`case bundle` published `out/the-grain-episode-one/case.json` — eight beats, six sharing the
+scene run tag with their `scenario_id` derived from the member, two rooms carrying a tag
+alone. `http://localhost:3000/case/the-grain-episode-one` then renders:
+
+> **Episode One — The Winter Room · Calder Investigations, late afternoon · beat 1 of 8**
+
+with the backlog control and the shell chrome around it. **The whole chain is proven** —
+authored case, structural proof, leaf binding, runtime projection, consumer parse, beat
+resolution, and the shell's own furniture. The only thing missing is the art: the beat body
+reads *"run the-grain-scene carries no scene bundle"*, because that run's cast half failed
+and it therefore published no bundle.
+
+One consumer fix was needed and it was the lead's own doing. `scenario_id` was added to the
+projection **after** the consumer lane had finished, at the lead's request, and the
+consumer's strict record parser refused the unexpected key. A scenario beat may now carry
+one, and **absent means "this run publishes exactly one scenario"** — which is what
+`/scene/<tag>` relies on and is true of every single-scenario run. A room beat carrying one
+is still refused, because a room run publishes exactly one room and an id there is a
+projection that has confused itself. `case bundle` always writes the id, so the chained path
+never depends on the fallback. `tsc` clean, **1379 tests pass**.
+
+### 06:55 — Gate 5, with the attribution the brief asked for
+
+`uv run python scripts/check.py` is **red on exactly one error**, and it is not this pilot's:
+
+```
+ruff format --check .   548 files already formatted
+ruff check .            All checks passed!
+mypy --strict           tests/unit/components/runner_track/test_structural_ground.py:643:
+                        Value of type "float | tuple[int, ...]" is not indexable
+                        Found 1 error in 1 file (checked 421 source files)
+```
+
+That file belongs to the agent working outside this pilot, and it is **committed**, not a
+working-tree edit — `5db441e` and `61526db`, both theirs. The pilot did not touch
+`components/runner_track/` at any point.
+
+Measured against the pilot's own scope — `components/case`, `components/scenario`,
+`orchestration`, `recipes/dialogue_scene` — `mypy --strict` reports **no issues in 30 source
+files**. Formatting and lint are clean repository-wide.
+
+The earlier red reported by the lanes (collection errors across the CLI-importing test
+modules) has cleared: it was the mid-flight `EXPRESSION_STATES` window, not a defect.
 
 ### 06:56 — The room's hit areas and its backdrop cannot both be correct
 
@@ -964,6 +987,29 @@ spending most of itself on blank pier and overlapping the bell by seven pixels;
 `chalk_and_scissors` was a hotspot named for two objects that **contained neither of them**,
 sitting mostly on the masonry below the glass.
 
+### 06:56 — The bundle: a style plate that is not a portrait, and a slice that forgets to trim
+
+Two terminal-node refusals in a row, both after the art was drawn and paid for, and both
+worth recording because they share a shape: **a contract asserted at the end of a graph
+about inputs the beginning of the graph already accepted.**
+
+**One — the style plate must be portrait.** `(1024, 1536, False)`. Larkfield's plate is a
+portrait of one person; ours is a landscape establishing shot. All 47 image nodes drew
+against it without complaint. Fixed by the recipe lane within minutes of being asked, and
+the re-run then cost **zero provider operations against 114 cache hits** — which is also a
+clean demonstration that the cache identity survived the contract change.
+
+**Two — the manifest slices authored prose without trimming.** `stage.brief[:160]`,
+`description[:120]`. When the cut lands on a space the result carries trailing whitespace
+and the model refuses it for not being trimmed. The office stage brief happens to break at
+character 160 mid-phrase — *"…a painted name reversed on it, two client "* — and Ward's
+description breaks at 120 the same way.
+
+The second is the more instructive: it is invisible until the terminal node, it depends on
+nothing but the length of a sentence someone wrote, and it would bite any author whose prose
+happened to be the wrong length. Routed with a request to sweep the module for other bare
+slices on authored text rather than discovering them one run at a time.
+
 ### 06:58 — Thirty-two faces, and one node between them and the player
 
 `out/the-grain-scene-2/`: **114 of 115 nodes succeeded**, 55 provider operations, 376
@@ -1002,52 +1048,6 @@ looks like a constraint inherited from a plate that happened to be a character p
 alternative — cropping a wide establishing shot into portrait — re-bills all 47 images at
 about USD 23 **and** hands every downstream draw a worse reference. Paying to make the art
 worse is the wrong trade, and the pilot said so rather than taking the quick way.
-
-### 06:55 — Gate 5, with the attribution the brief asked for
-
-`uv run python scripts/check.py` is **red on exactly one error**, and it is not this pilot's:
-
-```
-ruff format --check .   548 files already formatted
-ruff check .            All checks passed!
-mypy --strict           tests/unit/components/runner_track/test_structural_ground.py:643:
-                        Value of type "float | tuple[int, ...]" is not indexable
-                        Found 1 error in 1 file (checked 421 source files)
-```
-
-That file belongs to the agent working outside this pilot, and it is **committed**, not a
-working-tree edit — `5db441e` and `61526db`, both theirs. The pilot did not touch
-`components/runner_track/` at any point.
-
-Measured against the pilot's own scope — `components/case`, `components/scenario`,
-`orchestration`, `recipes/dialogue_scene` — `mypy --strict` reports **no issues in 30 source
-files**. Formatting and lint are clean repository-wide.
-
-The earlier red reported by the lanes (collection errors across the CLI-importing test
-modules) has cleared: it was the mid-flight `EXPRESSION_STATES` window, not a defect.
-
-### 06:56 — The bundle: a style plate that is not a portrait, and a slice that forgets to trim
-
-Two terminal-node refusals in a row, both after the art was drawn and paid for, and both
-worth recording because they share a shape: **a contract asserted at the end of a graph
-about inputs the beginning of the graph already accepted.**
-
-**One — the style plate must be portrait.** `(1024, 1536, False)`. Larkfield's plate is a
-portrait of one person; ours is a landscape establishing shot. All 47 image nodes drew
-against it without complaint. Fixed by the recipe lane within minutes of being asked, and
-the re-run then cost **zero provider operations against 114 cache hits** — which is also a
-clean demonstration that the cache identity survived the contract change.
-
-**Two — the manifest slices authored prose without trimming.** `stage.brief[:160]`,
-`description[:120]`. When the cut lands on a space the result carries trailing whitespace
-and the model refuses it for not being trimmed. The office stage brief happens to break at
-character 160 mid-phrase — *"…a painted name reversed on it, two client "* — and Ward's
-description breaks at 120 the same way.
-
-The second is the more instructive: it is invisible until the terminal node, it depends on
-nothing but the length of a sentence someone wrote, and it would bite any author whose prose
-happened to be the wrong length. Routed with a request to sweep the module for other bare
-slices on authored text rather than discovering them one run at a time.
 
 ### 07:05 — It plays
 
