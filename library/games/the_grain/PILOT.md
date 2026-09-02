@@ -13,10 +13,18 @@ This file is the director's first read. It is written as the run goes, not at th
 
 *(rewritten at the freeze)*
 
-At 05:52 the tree holds the story snapshot and the fact ledger. Six lanes are running:
-art (cover candidates), contract (`scenario-v2` five slots, then `case-v1`), consumer
-(five slots, speaker highlight, shell, case route), story A (office → table), story B
-(coffee → statements). Nothing plays yet that did not play yesterday.
+At 06:08 — T+24 — the episode has a spine. `scenario-v2` (five slots, `origin` on flag
+declarations) and `case-v1` (beats, outcome edges, a fact dataflow) are landed and green.
+`cases/episode_one.toml` is authored and **admitted**: eight beats, 67 facts. Three of six
+scenarios admit. Nine character profiles and both room documents exist. The style plate is
+chosen and promoted. The music adapter is proven and the office track is generated.
+
+Seven lanes are running: art (profiles → plates → stages → rooms → UI → three tracks),
+contract (liveness projection, flag cap), scene (`dialogue-scene-v4`), consumer (five
+slots, shell, case route), story A (the table), story B (the window, the court, the
+statements), QA (prose against the novel).
+
+Nothing plays end to end yet.
 
 ---
 
@@ -297,6 +305,59 @@ near-black backdrop, because half this game is a dark motor court and a dark sto
 
 *Displaced:* candidate 6, and with it a plate that would have taught faces and a lit
 back-of-store. The other five stay in the run as exploration, labelled unreviewed.
+
+### 06:05 — The multi-scenario scene work is reassigned, not abandoned
+
+The contract lane returned a NO-GO on `dialogue-scene-v4` and it was the right call for
+them: with liveness projection ranked above it, taking the scene work as well would have
+produced three half-landed contracts. But the fallback — six scene packages — would have
+put **the scenario and script files themselves** in the tree six times, which is a second
+source of truth for the words, and this repository does not do that.
+
+The file sets were checked before deciding: the scene work lives in
+`src/stage_gen/recipes/dialogue_scene/` and `library/games/larkfield/scene.toml`; the
+contract lane's remaining work is in `src/stage_gen/components/scenario/` and
+`components/case/`. Disjoint. So a **sixth lane** was spawned to take item (3) alone, with a
+09:00 deadline and an instruction to say NO early. Both lanes were told explicitly to stay
+out of the other's directories, and to report immediately if they find each other there.
+
+*Displaced:* the lead's own hour of fallback authoring, which is now held in reserve rather
+than spent.
+
+### 06:07 — The case is authored and admitted
+
+`cases/index.toml` and `cases/episode_one.toml`, written by the lead against the contract
+the lane had just landed. Eight beats — `b_office`, `b_motor_court` (room), `b_way_in`,
+`b_table`, `b_coffee`, `b_window` (room), `b_the_court`, `b_statements` (terminal) — and
+**67 facts**.
+
+`case check --structure-only` **admits it**: every beat reachable from the entry, a
+terminal reachable from every reachable beat, every fact exported by some beat, and every
+fact a beat reads established on every route into it.
+
+The judgement that took the longest was `establishment`. A fact is `required` only where
+the night says the thing out loud and Henry cannot be elsewhere — the two exit conditions,
+the key handed back in front of him, the envelope, Ruth's two accounts of what Paul said.
+Everything a player must **choose** to look at is `defaults_false`, because the player who
+never looked is a player for whom the fact is simply false. That is not a weaker claim; it
+is the episode's design. A thin board is a legitimate way to have played.
+
+### 06:08 — QA starts on prose, not pixels
+
+The condition set at 05:52 was met — three scenarios admit (`e1_office` 8 blocks/8 states,
+`e1_way_in` 7/7, `e1_coffee` 23 blocks/41 states, all far under the ceiling) — so QA is
+live. Its **first** job is not the browser. It is to diff every lifted line against the
+novel for attribution and verbatim accuracy, check the fixed sentences, check that the
+deliberate discrepancies have not been smoothed (Ruth's "not to wait" / "needed to think" /
+"needed time"), check that no dialogue was invented outside the outline's permitted list,
+and check the Henry rule.
+
+The brief names wrong attribution as the worst defect this pilot can ship, and an
+unattended run is exactly where it happens unseen. Browser play-throughs are QA's second
+job, once the consumer lane lands.
+
+*Displaced:* half an hour of earlier browser QA against a consumer that was still being
+rebuilt underneath it.
 
 ---
 
