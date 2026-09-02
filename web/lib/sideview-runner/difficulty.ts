@@ -1,6 +1,6 @@
 // The ramp: distance into a difficulty band and speed, per named profile.
 //
-// The manifest names the feel ("gentle_ramp_v1"); this consumer owns the
+// The manifest names the feel (for example "gentle_ramp_v1"); this consumer owns the
 // numbers, the same division of labor the generation side uses for its
 // experience curve. Both curves are pure functions of distance so a replayed
 // seed meets exactly the chunks and speeds it met the first time.
@@ -14,7 +14,7 @@
 import type { GameSystem } from "./systems";
 import type { RunnerWorld } from "./world";
 
-export type RampProfileName = "gentle_ramp_v1";
+export type RampProfileName = "gentle_ramp_v1" | "brisk_ramp_v1";
 
 export interface RampProfile {
   /** Columns of running that raise the difficulty ceiling by one. */
@@ -42,6 +42,16 @@ const RAMP_PROFILES: Readonly<Record<RampProfileName, RampProfile>> = Object.fre
     restEveryAppends: 6,
     maxSpeedBonus: 0.5,
     speedRampColumns: 1800,
+  }),
+  // Brisk: preserve the proved 1.5x cap but earn it during the opening
+  // score-chase minute instead of after a several-minute survival run.
+  brisk_ramp_v1: Object.freeze({
+    columnsPerCeilingStep: 60,
+    maxCeiling: 10,
+    minCeilingLag: 3,
+    restEveryAppends: 6,
+    maxSpeedBonus: 0.5,
+    speedRampColumns: 720,
   }),
 });
 

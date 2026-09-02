@@ -1,7 +1,7 @@
 schema_version = 2
 kind = "item-content-v2"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover_seed_cell"
@@ -13,7 +13,7 @@ rights_basis = ["Original AI-generated Iron Petal Unit cover approved for redist
 [[items]]
 item_id = "lumen_seed"
 height_units = 0.28
-display_name = "Lumen Seed Cell"
+display_name = "Coin"
 item_kind = "currency"
 reference_ids = ["cover_seed_cell"]
-prompt = "One original luminous greenhouse seed cell: a small mint-glowing oval capsule held by four cream-and-coral petal fins, one simple flower aperture and no face, text, number, emblem, logo, or watermark; clean high-contrast collectible icon, strict side view, isolated on native transparent background with generous margins."
+prompt = "One regular round gold coin, immediately recognizable as ordinary video-game currency: a simple solid circular face, raised outer rim, and one subtle inset circle. No seed, flower, gem, capsule, character, symbol, text, number, logo, ornate motif, unusual silhouette, or invented object. Apply only the Iron Petal Unit art direction through warm cream-gold metal, restrained coral edge highlights, clean high-contrast ceramic-toy rendering, and slight three-quarter side view. Keep the conventional coin shape readable at 40-pixel gameplay size; one coin only, isolated on native transparent background with generous margins."

@@ -126,6 +126,7 @@ from stage_gen.recipes.sideview_runner.runner_graph import (
 )
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     layer_loop_prompt,
+    soundtrack_direction,
     visual_direction_digest,
 )
 from stage_gen.recipes.sideview_runner.runner_types import (
@@ -2074,6 +2075,7 @@ class SideviewRunnerNodeHandler:
                 track_id=track.track_id,
                 creative_brief=track.creative_brief,
                 generation=track.generation,
+                direction=soundtrack_direction(),
             )
         raise ValueError(f"provider node {node.node_id} carries no executable prompt")
 

@@ -10,6 +10,7 @@ import { runnerManifestFixture } from "./fixture";
 import { createRunnerWorld } from "./world";
 
 const gentle = rampProfile("gentle_ramp_v1");
+const brisk = rampProfile("brisk_ramp_v1");
 
 function manifestWithDifficultyBand(): ReturnType<typeof parseRunnerRuntimeManifest> {
   const document = runnerManifestFixture();
@@ -59,6 +60,14 @@ describe("speedMultiplier", () => {
       expect(value).toBeGreaterThanOrEqual(previous);
       previous = value;
     }
+  });
+
+  test("the brisk profile earns the same proved cap during an opening run", () => {
+    expect(brisk.maxSpeedBonus).toBe(gentle.maxSpeedBonus);
+    expect(brisk.speedRampColumns).toBe(720);
+    expect(brisk.speedRampColumns).toBeLessThan(gentle.speedRampColumns);
+    expect(speedMultiplier(brisk, 360)).toBeCloseTo(1.25, 10);
+    expect(speedMultiplier(brisk, 720)).toBeCloseTo(1.5, 10);
   });
 });
 

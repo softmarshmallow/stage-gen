@@ -35,11 +35,11 @@ from stage_gen.components._game_input import (
 
 RUNNER_GAMEPLAY_SCHEMA_VERSION = 2
 
-SpeedProfileName = Literal["steady_runner_v1"]
+SpeedProfileName = Literal["steady_runner_v1", "brisk_runner_v1"]
 JumpProfileName = Literal["single_arc_v1", "double_arc_v1"]
 CollisionPolicy = Literal["end_run_v1"]
 DuckProfileName = Literal["slide_v1"]
-RampProfile = Literal["gentle_ramp_v1"]
+RampProfile = Literal["gentle_ramp_v1", "brisk_ramp_v1"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +61,7 @@ class SpeedProfile:
 
 SPEED_PROFILES: Final[dict[str, SpeedProfile]] = {
     "steady_runner_v1": SpeedProfile(base_speed_columns_per_second=6.0, max_speed_multiplier=1.5),
+    "brisk_runner_v1": SpeedProfile(base_speed_columns_per_second=7.5, max_speed_multiplier=1.5),
 }
 
 

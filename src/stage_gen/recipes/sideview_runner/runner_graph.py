@@ -54,6 +54,7 @@ from stage_gen.recipes.sideview_runner.runner_prompts import (
     ground_prompt,
     layer_loop_prompt,
     layer_prompt,
+    soundtrack_direction,
     structural_ground_prompt,
     visual_direction_digest,
 )
@@ -789,6 +790,7 @@ def build_runner_execution_graph(
                     track_id=audio_track.track_id,
                     creative_brief=audio_track.creative_brief,
                     generation=audio_track.generation,
+                    direction=soundtrack_direction(),
                 )
                 generate_id = f"soundtrack-{track_id}-generate"
                 generated = builder.add(

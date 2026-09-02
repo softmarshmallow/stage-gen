@@ -55,6 +55,19 @@ def test_the_published_gameplay_block_is_exactly_the_parsers_contract() -> None:
     }
 
 
+def test_the_brisk_profiles_publish_their_proved_speed_and_runtime_ramp_names() -> None:
+    brisk = GAMEPLAY.replace(
+        b'speed_profile = "steady_runner_v1"', b'speed_profile = "brisk_runner_v1"'
+    ).replace(b'profile = "gentle_ramp_v1"', b'profile = "brisk_ramp_v1"')
+
+    block = manifest_gameplay(load_runner_gameplay_bytes(brisk))
+
+    assert block["speed_profile"] == "brisk_runner_v1"
+    assert block["ramp_profile"] == "brisk_ramp_v1"
+    assert block["base_speed_columns_per_second"] == 7.5
+    assert block["max_speed_multiplier"] == 1.5
+
+
 def test_a_duckless_gameplay_publishes_null_duck_arithmetic() -> None:
     duckless = GAMEPLAY.replace(b'duck_profile = "slide_v1"\n', b"")
     block = manifest_gameplay(load_runner_gameplay_bytes(duckless))

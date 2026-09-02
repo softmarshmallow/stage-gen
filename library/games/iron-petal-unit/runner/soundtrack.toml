@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "game-soundtrack-v1"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 
 [playback]
 selection = "shuffle"
@@ -10,7 +10,7 @@ no_immediate_repeat = true
 [[tracks]]
 track_id = "glasshouse_rescue"
 display_name = "Glasshouse Rescue"
-creative_brief = "An original optimistic orbital-greenhouse runner instrumental with nimble marimba, warm analog pulses, pizzicato strings, brushed hand percussion, airy woodwind, and a bright mint-like bell color; forward-moving and heroic without becoming aggressive, with no recognizable melody and no vocals."
+creative_brief = "A fast original orbital-greenhouse endless-runner instrumental at 156 BPM in steady 4/4: immediate syncopated electronic drums, crisp ceramic clicks, a driving rounded synth-bass ostinato, compact marimba-pluck figures, and short mint-bright bell responses. Sustain athletic forward propulsion for rapid jumps, slides, pickups, and score chasing from the first beat; use short loopable phrases and energetic transients without becoming harsh. Avoid pastoral woodwind, pizzicato quest music, orchestral adventure swells, town-theme warmth, cinematic exploration, rubato, ambient breakdowns, or long pads. No recognizable melody and no vocals."
 
 [tracks.generation]
 intent = "generate"
@@ -21,7 +21,7 @@ target_duration_seconds = 90
 [[tracks]]
 track_id = "petal_reactor"
 display_name = "Petal Reactor"
-creative_brief = "An original playful mechanical-botanical runner instrumental: rounded synth bass, light ceramic percussion, plucked strings, soft brass swells, small sparkling chimes, and buoyant rescue-adventure momentum; colorful and never frantic, with no recognizable melody and no vocals. HARD LOOP CONTRACT: the first and last bars must share the same beat phase, bass energy, percussion pattern, musical density, and room tone so end-to-start playback is attention-free; no intro, outro, cadence, drum fill, riser, crash, held final chord, fade, or exposed reverb tail."
+creative_brief = "A high-energy original mechanical-botanical endless-runner instrumental at 164 BPM in steady 4/4: a punchy electronic breakbeat, crisp ceramic percussion, propulsive rounded synth bass, rapid muted pluck ostinatos, and tiny sparkling reactor-chime accents. Keep constant kinetic momentum for fast obstacle reactions and escalating score play, with compact two- and four-bar cells, strong downbeats, and no soft exploration passage. Avoid RPG quest scoring, orchestral brass swells, pastoral strings or woodwind, town-theme sentiment, cinematic development, rubato, ambient breakdowns, or long pads. No recognizable melody and no vocals. HARD LOOP CONTRACT: the first and last bars must share the same beat phase, bass energy, percussion pattern, musical density, and room tone so end-to-start playback is attention-free; no intro, outro, cadence, drum fill, riser, crash, held final chord, fade, or exposed reverb tail."
 
 [tracks.generation]
 intent = "generate"

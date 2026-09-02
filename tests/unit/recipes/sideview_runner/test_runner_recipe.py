@@ -192,6 +192,19 @@ def test_soundtrack_generation_keys_the_complete_provider_prompt(tmp_path: Path)
     assert first.cache_key != second.cache_key
 
 
+def test_soundtrack_generation_adds_runner_specific_kinetic_staging(tmp_path: Path) -> None:
+    node = (
+        _executor()
+        .plan(two_genre_package(tmp_path))
+        .graph.node("soundtrack-sunpetal_sprint-generate")
+    )
+
+    assert node.card is not None and node.card.prompt is not None
+    assert "Endless-runner staging" in node.card.prompt
+    assert "full rhythmic engine on the first beat" in node.card.prompt
+    assert "Do not drift into RPG exploration" in node.card.prompt
+
+
 def test_ground_validation_keys_the_topology_lookup_resource(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

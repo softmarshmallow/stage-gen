@@ -64,6 +64,11 @@ embedded contract in this same change.
 Runner planning refuses an image model outside the verified GPT Image 2 native-alpha model
 family before graph execution. Its generative loop node additionally requires the route's
 `masked_edit` capability; a binding that only advertises reference images cannot plan that node.
+Runner soundtrack nodes compile the shared soundtrack contract together with a recipe-owned
+`soundtrack_direction`: the first beat establishes the rhythmic engine, short action cells and
+clear transients sustain forward motion, and RPG exploration, town-theme, pastoral, cinematic,
+rubato, ambient, and long-form orchestral development are excluded. Planning and execution use
+the same compiled direction, so this genre input is part of the provider node's cache identity.
 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:

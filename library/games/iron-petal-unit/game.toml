@@ -1,7 +1,7 @@
 schema_version = 9
 kind = "game-contract-v9"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 display_name = "Iron Petal Unit"
 
 [universe]
