@@ -1316,11 +1316,21 @@ in the same store QA was playing in. No evidence it corrupted a pass, but it cou
 QA was told to discount anything that looks like it. The lead is out of the browser until
 pass 2 reports.
 
-*Open design question handed to QA rather than decided by the lead:* one result record per
-case, overwritten each completion — which matches "the board Episode Two opens on" — or one
-per completion, which keeps a history. Pass 2 will overwrite pass 1's under the current
-shape. The lead leans to one record, because Episode Two opens on the player's *last* play
-rather than on all of them.
+*The design question was handed to QA rather than decided by the lead, and their argument
+for one record is better than the lead's.* The lead's reason was that Episode Two opens on
+the player's last play. QA's is that the episode's own thesis requires it:
+
+> There is no fork and no better ending. The outline says so twice, and the board table says
+> a player who watches the Holts all night has a beautiful evening and a thin statement, and
+> both are true. A single record saying *this is what you carried* is that sentence made
+> into data. **A history of completions turns the ending into a scoreboard and invites
+> replaying to collect facts — which is the one reading of this episode the design spent its
+> whole length refusing.** It would quietly convert "what did you choose to watch" into "how
+> much did you get".
+
+Settled: **one record per case, overwritten.** `finished_at` is already in it, so if a later
+episode ever wants history the change is a key suffix and nothing else moves — cheap to
+extend, not built before it is needed.
 
 **And an honest limit on the fix, which the director should not have to infer.** The record
 lives in `localStorage`. It is visible to the player on the closing card and readable by
