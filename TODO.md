@@ -1139,6 +1139,16 @@ defect it was written for. What is left open is written as what it would take, n
       `encounter_start` portrait, which is now the pruner rather than the operator (is it
       recognisably the same machine as the concept plate the run drew, and does it read as a face
       at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).
+- [ ] Semantic visual review of the ground and the middle-distance layer in the final
+      `iron-petal-unit-live-20260903-ground-*` run by someone other than its producer. Three
+      questions, in the order they were worked: does a chunk join read as a joint - a place where
+      two spans are bolted together - rather than as a panel of one segment's scenery inserted into
+      another, and does seeing the same joint every twenty-four columns read as infrastructure or as
+      a repeat? Does the top edge of every slab read as the material's own edge, now that the
+      guide-coloured hairline is gone and what covers the rim is the painting's own dark contour
+      stretched a few pixels? And does `botanical_terraces` read as objects carried by the
+      greenhouse, with every branch ending in a fitting? The producer measured all three and looked
+      at all three; none of that is the verdict.
 
 ## Future genres
 
