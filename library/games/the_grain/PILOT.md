@@ -1323,7 +1323,129 @@ QA's play-through captures are the in-play evidence and are listed in section 5.
 
 ## 7. For the director
 
-*(the semantic review list, the promotion question, returns filed, and the three things
-to change first — written at the freeze)*
+### The semantic review list
 
-`library/games/main.toml` is untouched and stays untouched.
+Every accepted artifact, with the words it was drawn against. **Nobody who produced
+one of these may review it**, which excludes the lead and every lane in this run.
+
+All of it is `unreviewed`; the run bundle carries `rights.aggregate: unreviewed` and
+`publication_authorized: false`.
+
+**`out/the-grain-scene-5/`** — 12 backdrops, 32 expression plates, 4 tracks, 3 UI sheets.
+
+| Stage | Drawn against |
+|---|---|
+| `calder_office_late_afternoon` | A one-room private investigator's office over a Los Angeles street in 1972, late afternoon: a frosted-glass door |
+| `tollands_motor_court` | The covered motor court of a large Los Angeles department store in 1972 after closing: heavy stone piers and a s |
+| `tollands_cosmetics_floor` | The unlit cosmetics floor of a 1972 department store after closing: glass counters, tall mirrors returning fragm |
+| `service_lift` | The interior of an original 1972 department-store service lift: a plain worn painted-steel car, a brass floor in |
+| `winter_room_evening` | A curved top-floor department-store dining room in 1972 beneath a shallow glass roof, evening: one round table a |
+| `winter_room_roof_panel` | An original top-floor glass-roofed dining room of a closed 1972 department store at night, one panel of the glas |
+| `service_bar` | An original service bar at the end of the same glass-roofed dining room, a percolator and a second pot dripping, |
+| `motor_court_police` | The motor court of an original closed 1972 department store at night under a stone canopy lit from beneath, two  |
+| `winter_room_after_police` | The same original top-floor glass-roofed dining room at night after the police have been through it, the round t |
+| `private_dining_room` | A small private dining room off a curved wall in an original 1972 department store, a square table for four, fou |
+| `passenger_elevators` | A lobby of dark passenger elevators in a closed 1972 department store after one in the morning, polished bronze  |
+| `motor_court_screened` | The motor court of an original closed 1972 department store very late at night, one unmarked sedan left under th |
+
+| Actor | Four expressions | Held to |
+|---|---|---|
+| `ruth` | `composed`, `dry`, `exposed`, `shut` | Woman of about forty, of average height and deliberately still. Warm matte skin, level dark eyes |
+| `edwin` | `formal`, `dry`, `grave`, `no-keys` | Narrow, upright man in his sixties, spare through the face and shoulders, with close-cut silver  |
+| `lydia` | `composed`, `work`, `cut-off`, `lowered` | Woman in her sixties, small and exact, with silver-grey hair pinned up close to the head. Warm m |
+| `nell` | `flat`, `hungry`, `hearing`, `gone` | Young woman of twenty-nine, slight and upright, with a plain unmade face, warm matte skin and cl |
+| `marian` | `correcting`, `warm`, `still`, `nothing-to-correct` | Woman in her middle fifties, tall and well kept, with carefully set dark hair going grey at the  |
+| `robert` | `rambling`, `sorry`, `water`, `waiting` | Heavy-set man in his late fifties, broad through the shoulders and thick through the neck, with  |
+| `paul` | `younger`, `pleased`, `stopped`, `all-right` | Man of thirty-six, lightly built and a little under average height, with dark brown hair worn sl |
+| `ward` | `blunt`, `writing`, `closed-notebook`, `one-joke` | Heavy-framed man in his early fifties with short iron-grey hair receding at the temples, a blunt |
+
+| Track | Brief |
+|---|---|
+| `office` | Sparse and unaccompanied, one instrument alone in a warm room at the end of an afternoon, patient, going nowhere |
+| `supper` | Warm and unhurried and a little hollow. One upright piano alone in a large room after hours, played sparsely and |
+| `window` | Almost nothing, and closer to a room tone than a cue. A low continuous electrical hum present throughout and nev |
+| `statements` | Dry and late, after one in the morning. One upright piano, sparse and a little dry, with long rests and single l |
+
+**`out/the-grain-motor-court-3/`** — the motor court before the bell, 1 backdrop + 3 UI sheets.
+**`out/the-grain-window-3/`** — the window after, 1 backdrop + 2 sprite hotspots + 3 UI sheets.
+**`library/games/the_grain/references/cover.png`** — the style plate, chosen from six;
+the other five are in `out/the-grain-cover/` as exploration.
+**`out/the-grain-cast/`** — nine hand-driven plates, **exploration, not shipped**; see its `EXPLORATION.md`.
+
+### The promotion question
+
+`library/games/main.toml` is **untouched** and still promotes `iron-petal-unit`. Nothing in
+this pilot was promoted, published, or activated, and `validate_game_package.py --root .`
+still passes on the closure it names.
+
+Whether The Grain becomes the promoted game is yours. Note before deciding: the brief's
+fourth gate assumed promotion and forbade editing `main.toml` in the same breath, so it was
+split — the promoted closure is proven intact, and the pilot's own package is proven by its
+leaf tools instead. See the 05:52 decision.
+
+### Returns filed
+
+Two, in `spikes/pointclick-murder-mystery-story/adaptation/returns.md`:
+
+- **R-01, open.** The Korean glossary renders Ward's fixed sentence as *"That's not what I
+  asked."*; the novel has *"That isn't what I asked."* The pilot proceeded on the novel. If
+  the glossary was recording a later revision the Fountain never received, this is a real
+  return rather than a typo.
+- **R-02, resolved and recorded for confirmation.** *"Would you have come?"* is spoken twice
+  inside Episode One, not once. The fact ledger gained `would_you_have_come_second`.
+
+### The three things I would change first
+
+**1. A scenario package cannot say what medium it is in.** This is the one that cost most
+and it is a contract gap, not a mistake. `room.toml` carries an authored `[style]` block —
+label, keywords, an avoid-list — and the rooms therefore came back painted. `scenario-v2`
+has cast, stages, tracks, flags and endings and nowhere to state a medium, so the anchor was
+inferred from `scene_brief`: eighty-two characters of plot with no visual content. **The
+model was asked to choose a medium from a plot summary, and chose photography.** The episode
+shipped in two media until someone played it. Give the scenario package the `[style]` block
+the room already has.
+
+**2. A room's hit areas and its backdrop cannot both be correct.** Hotspot regions are
+authored before the plate exists, so they are a guess at a composition the generator is not
+bound by — and correcting them re-bills the backdrop, because `room-resolve` sits upstream
+of every image and a rectangle invalidates it by lineage. The picture moves; the numbers you
+just measured are for a picture that no longer exists. **We measured the right numbers for a
+plate we destroyed by writing them down.** The fix is to derive the backdrop's cache
+identity from the fields that feed the image — scene brief, hotspot briefs, style plate,
+frame — and not from the document as a whole. Pinning a seed would help independently.
+
+**3. Nothing checks a picture against the proof that admits it.** `puzzle.validation.json`
+reported *solvable, 16 states, zero unreachable interactions* for a room whose only exit
+could not be clicked, because the graph does not know where the bell was painted. Two rooms,
+twenty hotspots, and the only thing that caught it was an agent measuring pixels. Every
+other gate in this repository is offline and exact; this one class of defect is invisible to
+all of them and reaches the player intact.
+
+### Two more worth your time
+
+- **The supper does not read as a supper.** Five slots work — the far rank is genuinely
+  smaller, dimmer and set back, and the speaker highlight tells you who is talking without
+  the name plate. But with five actors up, full-height plates fill the frame, heads touch
+  the top and feet go under the dialogue panel, and the Winter Room disappears behind them.
+  The table laid for eight — the thing the movement keeps talking about ceasing to be — is
+  invisible. The knob is composite scale and costs nothing. Related: everyone stands
+  throughout a seated supper, which is the sprite convention and not cheap to fix.
+- **The window room's looks are not discoverable in the shipped roll.** Most of the forensic
+  half of the board sits on blank wall. The episode plays to its end and Ward still closes,
+  but on a thin board because of a hit-area artifact rather than because the player chose not
+  to look. See the 07:20 decision for why this roll was still the right one to ship.
+
+### What this pilot proved and what it did not
+
+**Proved.** A locked screenplay can be adapted into a provable game without touching the
+novel. Eight beats chained by a container whose proof is a dataflow rather than a state
+search. 872 cues with no line attributed to the wrong person, verified mechanically and then
+by hand. Authored per-actor expressions that carry meaning — `ward/one_joke` used exactly
+once, on the joke; `marian/nothing_to_correct` used exactly once, on "I suppose I did."
+Art, a shell, a save that resumes to the right line, and one URL.
+
+**Not proved.** That any of it is good. No semantic review exists, no listening verdict
+exists, and the two things a person would notice first — that the supper reads as a row of
+standing figures, and that the murder scene's evidence sits on blank wall — were both found
+by playing rather than by proving. Everything this run is confident about, it is confident
+about because someone looked.
