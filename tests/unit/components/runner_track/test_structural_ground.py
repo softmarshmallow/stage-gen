@@ -640,7 +640,11 @@ def test_a_feathered_edge_publishes_material_rather_than_the_guide_palette() -> 
     row = 5 * STRUCTURAL_GROUND_CELL_PX
     pixels = published.load()
     assert pixels is not None
-    opaque = [pixels[x, row][:3] for x in range(published.width) if pixels[x, row][3] >= 128]
+    opaque = [
+        cast(tuple[int, int, int, int], pixels[x, row])
+        for x in range(published.width)
+        if cast(tuple[int, int, int, int], pixels[x, row])[3] >= 128
+    ]
     assert opaque
     wearing_the_guide = [
         colour
