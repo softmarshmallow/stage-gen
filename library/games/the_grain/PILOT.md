@@ -106,6 +106,110 @@ generator. QA is spawned when the first of our own scenarios admits.
 
 *Displaced:* half an hour of parallel QA, which had nothing of ours to test.
 
+### 05:52 — Gate 4 cannot mean what the brief says it means
+
+The brief's fourth gate is `validate_game_package.py --root .` passing "with the new
+`library/games/the_grain/game.toml` closure". That script validates the closure reachable
+from the selector `library/games/main.toml`, which today promotes `iron-petal-unit` — and
+editing `main.toml` is forbidden. The two halves of the instruction cannot both hold.
+
+Gate 4 is therefore **split**: (a) `validate_game_package.py --root .` must still pass,
+proving the pilot broke nothing in the promoted closure; and (b) our own package is proven
+by its leaf tools — `stage-gen scenario check` per scenario, the room proof in each room's
+dry-run plan, and the case proof. Promotion is a question for the director in section 7,
+not an action this run takes.
+
+*Displaced:* nothing that was achievable. The alternative was editing `main.toml`, which
+is a non-negotiable.
+
+### 05:52 — Six scenarios, one scene: asked for, with a fallback already priced
+
+`dialogue-scene-v3` binds exactly one scenario, and art generation runs through it. Six
+scenarios therefore means six scene packages, each carrying its own copy of the style
+plate and the character profiles — six copies of the cover in the tree, six runs, and cast
+plates that avoid re-billing only if a shared `--cache-dir` hits.
+
+The contract lane has been asked, as an item ranked strictly below its other two, to bump
+`dialogue-scene-v3` → `v4` so a scene may bind several scenarios and declare the union of
+their stages, cast and tracks — generating each distinct plate once. That is the change
+that makes `case-v1` pay for itself: one case, one scene, one art run.
+
+*Fallback, already priced:* six scene packages with copied plates and a shared cache dir,
+authored by the lead. It costs about an hour and must start before 09:00 if it is
+happening, so the contract lane was told to report which way it is going early rather than
+at the end.
+
+### 05:56 — The CLI is broken by work that is not ours, and we route around it rather than repair it
+
+`uv run stage-gen <anything>` dies with
+`ModuleNotFoundError: No module named 'stage_gen.recipes.universe.universe_prompts'`.
+A different agent, outside this pilot, is mid-refactor on the untracked directory
+`src/stage_gen/recipes/universe/` (files touched at 05:50 and 05:51 while this was being
+diagnosed), and `stage_gen.interfaces.cli` imports that recipe at module load — so a
+half-written universe package breaks every unrelated subcommand: `scenario check`,
+`generate-image`, `dialogue-scene generate`, `pointclick-room generate`, `generate-music`.
+Every gate in this pilot runs through that entrypoint.
+
+Verified that only the entrypoint is poisoned: `stage_gen.components.scenario`,
+`stage_gen.recipes.dialogue_scene`, `stage_gen.recipes.pointclick_room`,
+`stage_gen.orchestration.game_package` and `gnode` all import cleanly.
+
+**Repairing it was refused.** Writing the missing module would collide with live work that
+is not part of this run and is not ours to guess at. Instead a shim in the session
+scratchpad — `scratchpad/sg.py`, no repository file touched — inserts a permissive
+stand-in for that one module *only if it is genuinely absent*, then hands off to the real
+`entrypoint()` unchanged. Provider calls, outputs and provenance are the genuine article.
+All five lanes were told, in the same minute, to use the shim and **not** to touch
+`src/stage_gen/recipes/universe/`.
+
+*Consequence for the report:* `uv run python scripts/check.py` may fail for reasons that
+belong to the other agent. Gate 5 must therefore separate their failures from ours, and
+the lanes have been asked to report that split rather than fix someone else's breakage on
+our clock. If the refactor lands before the freeze the shim becomes a no-op and can simply
+be deleted.
+
+*Displaced:* nothing, at the cost of about twelve minutes of the lead's time and a
+mitigation that has to be explained in the report.
+
+### 05:57 — The pre-lock placeholder is deleted, not bumped
+
+`scenarios/chapter_one.scenario` and `chapter_one.toml` predate the 2026-09-03 narrative
+lock and are superseded by the six real beats. The contract lane flagged them as a stale
+`scenario-v1` identity in the tree. They are removed rather than bumped to v2; nothing
+carries a stale identity forward.
+
+### 06:03 — Music is proven before it is scheduled, and it holds
+
+Brief item 11 made music optional and experimental: the Lyria adapter's provider contract
+was last verified on 2026-08-14 and never against a live key. Rather than let the art lane
+discover that at 09:00 with the cover programme half-finished, the lead spent one operation
+on it at T+19.
+
+**It works.** `google/lyria-3-pro-preview` through OpenRouter, one attempt, no retries,
+34 seconds wall clock. `out/the-grain-music/office.mp3`, 70.53 s — inside the 60–90 s
+band — non-silent, -16.26 LUFS integrated, -4.54 dBTP true peak against a -1.0 ceiling.
+Every post-process gate passed on the first call.
+
+The music workstream is **GO**: three tracks remain (the supper, the window, the
+statements). The track is `unreviewed`; audio quality claims need a separate listening
+verdict, which an unattended run cannot produce, so the director decides.
+
+*Displaced:* nothing. It cost one operation and removed a whole category of late failure.
+
+### 06:04 — The ledger cannot report dollars, and says so
+
+The provenance sidecars for direct `generate-image` and `generate-music` calls record the
+provider, the model, the prompt digest, attempts, retries, the artifact hash and the
+validation gates — but **no `usd` figure**. Image sidecars carry token usage (5,650 output
+image tokens per candidate at `quality: high`, 2048x1152); the music sidecar carries none.
+
+So the ledger in this file records **operation counts as authoritative and dollars as
+estimated**, with the token counts kept as the audit trail. The 250 ceiling is therefore
+enforced against a count and a rate, not a meter. At the brief's own ~0.50 per image the
+whole planned art programme is roughly 67 operations, and the run is not close to the
+ceiling; the risk this creates is one of drift, not of overrun, and it is named here rather
+than smoothed over.
+
 ---
 
 ## 3. Ledger
@@ -114,11 +218,14 @@ Ceiling **USD 250**. Re-plan at 150. All generation stops at 240. Every graph is
 dry-run first and its planned operation count and projected cost recorded here before a
 cent is spent.
 
-| Time | Task | Ops planned | Ops run | USD est. | USD actual | Notes |
-|---|---|---|---|---|---|---|
-| 05:52 | Cover candidates | 6 | — | 3.00 | — | in flight; art lane logs to `ART-LEDGER.md` |
+Dollars are **estimated**; see the 06:04 decision. Operation counts are authoritative.
 
-**Spent so far: pending first trace.**
+| Time | Task | Ops planned | Ops run | USD est. | Notes |
+|---|---|---|---|---|---|
+| 05:52 | Cover candidates | 6 | 6 | 3.00 | art lane; `out/the-grain-cover/`, sidecars carry token usage |
+| 06:03 | Music smoke test | 1 | 1 | 2.50 | lead; PASSED, 70.53 s, all gates green |
+
+**Operations run so far: 7. Estimated spend: USD 5.50 of 250.**
 
 ---
 
