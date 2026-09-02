@@ -100,15 +100,15 @@ export function buildBossView(
         shot.owner === "boss" ? config.bossProjectileId : config.playerProjectileId;
       const image = scene.add.image(0, 0, options.projectileTextureKey(projectileId));
       const drawn = projectileById.get(projectileId);
+      // The declared length is along the travel axis, which is the drawn
+      // width; the height follows from the trimmed raster's own aspect, so a
+      // thick knot and a slim pin of the same declared length stay in
+      // proportion rather than both being squared off.
       const lengthPx =
-        (drawn?.lengthUnits ?? config.projectileHeightRows) * world.config.playerHeightTiles *
+        (drawn?.lengthUnits ?? config.projectileHeightRows) *
+        world.config.playerHeightTiles *
         world.config.tilePx;
-      const aspect =
-        drawn === undefined
-          ? 1
-          : drawn.calibration.subjectExtentPx > 0
-            ? image.height / image.width
-            : 1;
+      const aspect = image.width > 0 ? image.height / image.width : 1;
       image.setDisplaySize(lengthPx, lengthPx * aspect);
       // Every projectile is drawn pointing right, so only a leftward shot is
       // mirrored; a directionless silhouette reads the same either way and is
