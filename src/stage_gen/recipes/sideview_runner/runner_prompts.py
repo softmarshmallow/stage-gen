@@ -308,20 +308,36 @@ def boss_motion_prompt(resolved: ResolvedRunnerPackage, boss: RunnerBoss, state:
             "failing with a lurch, tipping nose-down, a slumping fall, and the lowest "
             "motionless final rest with its fans stopped. The fourth cell is held indefinitely: "
             "never recover, rise, or reset. This is equipment shutting down, never a creature "
-            "dying: no gore, no wound, no death throes. Center every complete figure inside its "
-            "own quarter with a wide band of completely empty zero-alpha transparent pixels "
-            "between every neighboring pose. Add no glow, aura, dust, motion streak, cast "
-            "shadow, lighting pool, or backdrop that could bridge cells"
+            "dying: no gore, no wound, no death throes. Add no glow, aura, dust, motion streak, "
+            "or lighting pool that could bridge one cell to the next"
         ),
     }.get(state, f"four clear game-animation key poses that communicate {state}")
+    # The separation clause LEADS, before the subject is even named.
+    #
+    # A boss is the one runner actor whose silhouette is defined by trailing
+    # growth, and the first pass proved the point: as a trailing sub-clause
+    # ("nothing trails outside its own cell") the roots bridged neighbouring
+    # cells anyway, merging four poses into three and failing the exact-slot
+    # repack. This recipe has already watched facing, isolated-view framing,
+    # and reach each fail as trailing sub-clauses and succeed as leading
+    # labelled ones; separation is the same shape of instruction.
+    separation = (
+        "SEPARATION, before anything else: this subject trails roots, vines and hoses, and every "
+        f"one of them must be gathered in close. Draw exactly {geometry.frame_word} cells left to "
+        "right, each holding ONE single connected island of pixels, with a wide vertical band of "
+        "completely empty zero-alpha transparent pixels between every neighbouring pair. No root, "
+        "vine, leaf, flower, hose, cable, water droplet, spark, glow, shadow or debris may cross "
+        "into a neighbouring cell or float free of the machine with empty space between it and "
+        "the body. Nothing dangles below the machine far enough to reach the bottom edge."
+    )
     return (
+        f"{separation}\n"
         f"A {geometry.columns}x{geometry.rows} sprite motion strip of {boss.display_name}: "
         f"{boss.prompt}\n"
         f"{_boss_contract_clause(resolved, boss)}\n"
-        f"Exactly {geometry.frame_word} evenly spaced cells left to right, each one complete "
-        f"machine in strict side view facing LEFT, showing {direction}. Every cell is one "
-        "connected subject isolated on a fully transparent background with true alpha; nothing "
-        "trails outside its own cell, no ground, no shadow, no text.\n" + _style_clause(resolved)
+        f"Each cell is one complete machine in strict side view facing LEFT, showing "
+        f"{direction}. Isolate every cell on a fully transparent background with true alpha; no "
+        "ground, no cast shadow, no backdrop, no text.\n" + _style_clause(resolved)
     )
 
 
