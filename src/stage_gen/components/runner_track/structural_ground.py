@@ -21,7 +21,7 @@ from io import BytesIO
 from itertools import pairwise
 from typing import Final, cast
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from stage_gen.components.runner_track.models import DEFAULT_GROUND_PROJECTION
 from stage_gen.media.guide_lattice import png_bytes
@@ -58,6 +58,9 @@ _MIN_SOURCE_SOLID_CELL_COVERAGE: Final = 0.50
 #: back 0.63 covered and the missing third shipped as a flat lilac band along
 #: the row the avatar stands on. The old 0.20 floor admitted a cell that was
 #: four fifths fallback.
+#: Saturation at which a pixel counts as a feature rather than base material.
+_MIN_INCIDENT_SATURATION: Final = 90
+
 #: How far the painting's own colour is grown under the bare rim it leaves.
 #: Six published pixels covers the four-to-five-pixel alpha ramp measured at the
 #: top of every Iron Petal slab. It is deliberately no wider: the nearest paint
@@ -307,10 +310,20 @@ def structural_ground_generation_prompt(
         "- Preserve pits, steps, ledges, and holes exactly where the guide places them.\n"
         "- The topmost solid row of each column is the walking surface: give it a distinct, "
         "flat, front-facing band so a player reads instantly where the footing is. It is a band "
-        "on the elevation, never a receding top face. Deeper cells read as coherent structural "
+        "on the elevation, never a receding top face. Keep that band the same depth and the same "
+        "colours from the left edge of the canvas to the right, so two spans cut apart and "
+        "rejoined read as one continuous surface. Deeper cells read as coherent structural "
         "fill. Use non-repeating local detail through the central segment.\n"
-        "- The two end aprons are common seam material. Preserve their silhouette and make the "
-        "central painting transition naturally into them.\n"
+        "- The two end aprons are the JOINT where one span of this line is bolted to the next, and "
+        "the joint painted here is the joint seen at every junction in the finished track, again "
+        "and again a few seconds apart. Anything memorable in it is recognised as a repeat almost "
+        "immediately, so paint both aprons as plain structural slab: the walking-surface band "
+        "running level and unbroken straight through, one quiet vertical seam line with a small "
+        "bolt plate or bracket, flat material below. No pipe, conduit, cable, vine, leaf, flower, "
+        "hatch, window, lit fitting, gauge, or lettering anywhere in either apron, and no "
+        "silhouette that catches the eye. Every bit of the segment's incident belongs in the "
+        "central columns, and the painting settles into that plain joint before it reaches "
+        "either apron.\n"
         "- Do not crop, rotate, mirror, relayout, label, or subdivide the guide.\n"
         "The authored occupancy is collision authority; this painting is presentation only."
     )
@@ -511,6 +524,28 @@ def validate_structural_ground_source(
             f"structural ground source mixes projections: dominant edge lean spreads "
             f"{lean_spread:.1f} degrees across the tile under {projection}"
         )
+    # The aprons are the joint, and one painting's aprons are republished at
+    # every junction in the finished track, so whatever they carry is seen again
+    # a few seconds later. How quiet a joint should be is art direction rather
+    # than a correctness rule, so the demand is carried by the prompt and this
+    # only records what came back - a number a regression is visible in. Iron
+    # Petal's aprons carried 1.02 to 1.30 times their own body's colour before
+    # the joint was asked for.
+    apron_span = layout.apron_columns * layout.cell_px
+    aprons = [
+        image.crop((layout.left, layout.top, layout.left + apron_span, layout.top + body.height)),
+        image.crop(
+            (
+                layout.central_box[2],
+                layout.top,
+                layout.central_box[2] + apron_span,
+                layout.top + body.height,
+            )
+        ),
+    ]
+    apron_colour = sum(colour_incident_share(apron) for apron in aprons) / len(aprons)
+    body_colour = colour_incident_share(image.crop(layout.central_box))
+    apron_incident = apron_colour / body_colour if body_colour > 0 else 0.0
     return {
         "schema_version": 4,
         "kind": STRUCTURAL_GROUND_SOURCE_ID,
@@ -536,6 +571,7 @@ def validate_structural_ground_source(
         "projection_lean_degrees": [None if value is None else round(value, 3) for value in leans],
         "projection_lean_spread_degrees": (None if lean_spread is None else round(lean_spread, 3)),
         "maximum_projection_lean_spread_degrees": _MAX_PROJECTION_LEAN_SPREAD_DEGREES,
+        "apron_incident_share": round(apron_incident, 6),
     }
 
 
@@ -936,6 +972,34 @@ def guide_residue_share(
     if considered == 0:
         return 0.0
     return residue / considered
+
+
+def colour_incident_share(region: Image.Image) -> float:
+    """The share of a region's visible pixels wearing a saturated colour.
+
+    A proxy for how memorable a region is, chosen because it matches what makes
+    this ground memorable: the base material is cream ceramic and graphite, and
+    every feature a player would recognise on seeing it again - coral conduit,
+    brass clamp, mint status lens, leaf, flower - is the saturated part.
+
+    Edge response was tried first and cannot tell the two apart: a plain bolted
+    plate has as much contour as a pipe run behind a vine, so it scored a
+    visibly quieter apron no quieter at all.
+    """
+
+    visible = region.getchannel("A").point(
+        lambda value: 255 if value >= _MIN_SOURCE_VISIBLE_ALPHA else 0
+    )
+    saturated = (
+        region.convert("RGB")
+        .convert("HSV")
+        .getchannel("S")
+        .point(lambda value: 255 if value >= _MIN_INCIDENT_SATURATION else 0)
+    )
+    seen = sum(visible.histogram()[128:])
+    if seen == 0:
+        return 0.0
+    return sum(ImageChops.multiply(visible, saturated).histogram()[128:]) / seen
 
 
 def diagonal_family_lean_degrees(region: Image.Image) -> float | None:

@@ -181,7 +181,23 @@ presentation a closed union:
   own result back to exact occupancy, installs shared bridge column 0 at its
   right edge and bridge column 1 at its left edge, and publishes `columns * 64`
   by `rows * 64` RGBA. Thus any A-to-B join reconstructs the original generated
-  two-column bridge rather than repeating a flat guide-palette tile. Every
+  two-column bridge rather than repeating a flat guide-palette tile.
+
+  Continuity by construction has a cost the contract cannot see: whatever those
+  two columns contain is republished at *every* junction in the finished track,
+  a few seconds apart. Iron Petal shipped a coral pipe run under a hanging vine
+  there, and it read as exactly what it was - one segment's scenery inserted
+  into every other segment, with two hard vertical edges 128 pixels apart at
+  every join. The fix is to ask for a joint rather than a slice of scenery: the
+  prompt now names the aprons as the bolted joint between two spans, demands
+  the walking-surface band run level and unbroken through them at the depth and
+  colour it holds across the rest of the canvas, and forbids pipe, conduit,
+  cable, vine, leaf, flower, hatch, lit fitting and lettering inside them.
+  How quiet a joint should be is art direction rather than a correctness rule,
+  so it is carried by the prompt and *recorded* rather than refused: source
+  admission publishes `apron_incident_share`, the aprons' share of saturated
+  colour against the span's own. Iron Petal's aprons measured 0.71 to 1.29
+  before the joint was asked for and 0.48 to 0.81 after. Every
   chunk report carries the same bridge, left-role, right-role, and lineage
   digests. Source admission counts painted coverage only at alpha 128 or
   greater, so a technically nonzero but effectively invisible provider result

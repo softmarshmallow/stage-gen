@@ -8,7 +8,7 @@ schema_version = 4
 kind = "runner-track-v4"
 game_id = "iron-petal-unit"
 track_id = "halcyon-rescue-line"
-revision = 5
+revision = 6
 display_name = "Halcyon Rescue Line"
 
 [view]
@@ -46,6 +46,11 @@ atmosphere_color = "#b8dcf0"
 atmosphere_strength = 0.18
 detail_blur_screen_pixels = 1.4
 
+# The mid-distance layer shipped as pipe runs ending in mid-air on open cut
+# faces, because nothing in the layer contract requires an object to be held up
+# by anything and the brief spent its whole length on negative space. Support is
+# stated first, and the sparseness it used to buy is bought instead by making
+# the carrying runs slender.
 [[layers]]
 layer_id = "botanical_terraces"
 reference_ids = ["greenhouse_runway"]
@@ -55,7 +60,7 @@ parallax = 0.22
 alpha_mode = "transparent"
 vertical_anchor = "walk_surface"
 vertical_offset = 0.25
-prompt = "A sparse mid-distance lateral arrangement of the reference's greenhouse terraces: several clearly separated clusters of restrained planter rail, soft leaf masses, small coral flowers, slender cream support ribs, tiny contained water fittings, and short pipes. Paint only those discrete object silhouettes; all space behind and between them must be true zero-alpha transparency. HARD NEGATIVE-SPACE CONTRACT: across the lower two thirds and the runner-silhouette band, leave at least half of every broad horizontal region completely transparent with large connected open gaps. Never paint a full-width olive or green matte, colored rectangle, wall, glass panel, floor, atmospheric wash, haze, vignette, glow, shadow field, or water stream behind or between motifs. No sky fill, foreground lane, characters, robots, hazards, pickups, signs, or text. Keep only small compatible edge clusters for seamless joining."
+prompt = "HARD SUPPORT CONTRACT, which outranks every other instruction here: nothing in this image floats. Paint two or three slender continuous service runs - pipe, planter rail, cable tray - each crossing the entire width from the left edge to the right edge at its own height, and carry every other element on one of them: leaf masses growing out of a planter clamped to a run, vines trailing down from a run, small coral flowers on those plants, a contained water fitting bolted to a run, a short branch pipe that leaves a run and ends in a capped elbow, flange or valve. No pipe, rail, bracket or tray may stop in mid-air on an open cut face, and no cluster may sit anywhere in the picture without a run reaching it. HARD NEGATIVE-SPACE CONTRACT: the runs are slender and everything else hangs off them, so across the lower two thirds and the runner-silhouette band at least half of every broad horizontal region is completely transparent with large connected open gaps. Paint only those object silhouettes; all space behind and between them is true zero-alpha transparency. Never paint a full-width olive or green matte, colored rectangle, wall, glass panel, floor, atmospheric wash, haze, vignette, glow, shadow field, or water stream behind or between motifs. No sky fill, foreground lane, characters, robots, hazards, pickups, signs, or text. Every run meets both edges at the same height and thickness so the strip joins itself seamlessly."
 
 [layers.presentation]
 contrast = 0.92
