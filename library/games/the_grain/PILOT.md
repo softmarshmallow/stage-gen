@@ -1412,9 +1412,9 @@ Held under `out/`. The director's visual review list, in the order it should be 
 |---|---|
 | The style plate, chosen from six | `library/games/the_grain/references/cover.png` |
 | The five rejected candidates | `out/the-grain-cover/candidate-{2..6}.png` |
-| Twelve stage backdrops | `out/the-grain-scene-4/assets/stage-*.png` |
-| Thirty-two cast plates | `out/the-grain-scene-4/assets/<actor>-<expression>.png` |
-| Four music tracks | `out/the-grain-scene-4/assets/track-*.mp3` |
+| Twelve stage backdrops | `out/the-grain-scene-5/assets/stage-*.png` |
+| Thirty-two cast plates | `out/the-grain-scene-5/assets/<actor>-<expression>.png` |
+| Four music tracks | `out/the-grain-scene-5/assets/track-*.mp3` |
 | The motor court, before | `out/the-grain-motor-court-3/assets/backdrop.png` |
 | The window, after | `out/the-grain-window-3/assets/backdrop.png` |
 | Nine exploration plates, not shipped | `out/the-grain-cast/` + `EXPLORATION.md` |
