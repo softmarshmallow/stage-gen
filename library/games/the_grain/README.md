@@ -1,64 +1,92 @@
 # The Grain
 
-Status: **story placeholder, not a prepared game package**.
+Status: **Episode One is authored, proven, generated and playable. Not promoted, not
+reviewed.**
 
-This directory gives the selected story a durable repository home while its
-writing continues. It intentionally has no `game.toml`, is not referenced by
-`library/games/main.toml`, and has not passed game-package validation. Nothing
-here should be described as playable or game-ready.
+*The Grain* is a dialogue-first murder mystery set in Los Angeles in September 1972: a
+farewell supper for eight on the closed top floor of a department store, and a man found in
+an unfinished display window. The screenplay was locked on 2026-09-03 and is not edited by
+this package — it is adapted by it.
 
-## Organization
+This directory was a story placeholder until Pilot 01. It now holds a complete, provable
+Episode One and the record of how it was made.
 
-- `story/foundation.md` contains the compact, ratified narrative foundation.
-- `scenarios/index.toml` catalogs ratified executable narrative.
-- Each scenario pairs a human-readable `.scenario` script with a `.toml`
-  declaration of its cast, stages, flags, tracks, ending, and exact script
-  digest. The pair uses the repository's implemented `scenario-v1` format.
-- Additional story documents belong under `story/` only after their status and
-  relationship to the foundation are explicit.
-- Future game contracts, maps, interactions, assets, and generated material do
-  not belong here until a separate game-preparation pass is authorized.
+## Read these first
 
-The scenario catalog does not make this a complete prepared game package. The
-directory still has no root `game.toml`, no complete package closure, and no
-canonical selector binding.
+| | |
+|---|---|
+| `PILOT.md` | **The production report.** The director's first read: what plays, every decision with its reason, the ledger, the gates, the debt, and the semantic review list. |
+| `QA-NOTES.md` | The line-by-line audit against the novel, the two art audits measured against delivered pixels, and the play-through notes. |
+| `FACTS.md` | The frozen fact ledger — every boolean that crosses a beat boundary, and what each one buys. |
+| `ART-LEDGER.md` | Every provider spend, planned before the call and reconciled after it. |
 
-## Ratifying story work
+## What is here
 
-1. Start from the exact story material supplied for ratification; do not assume
-   that brainstorming or provisional prose is approved.
-2. Add only director-selected story facts to `story/foundation.md`, or create a
-   clearly named human-readable story document when the material outgrows it.
-3. Preserve unresolved matters as explicit open questions. Do not fill narrative
-   blanks merely because a game field will eventually require a value.
-4. Keep the prose natural and implementation-neutral. The dialogue-first
-   screenplay remains the narrative source; engine data is a later translation.
-5. When a chapter is ratified as executable narrative, translate it into the
-   closed `.scenario` vocabulary without inventing branches, flags, or endings,
-   then update its digest and run the scenario admission proof.
+- **`story/snapshot-2026-09-03/`** — the source, copied in whole because the spike that
+  holds it is gitignored and a pilot must be reproducible from the tree. The `packet/`
+  (chronology, evidence ledger, knowledge map, cast bible, continuity) is the **bible** and
+  is inviolable. The `script/` is the **novel**: locked, read-only, and the quarry every
+  lifted line comes from. The `adaptation/` holds the outline and the production brief.
+  Nothing in this package edits any of it.
+- **`cases/episode_one.toml`** — the episode as an ordered graph of eight beats joined by
+  outcomes, declaring 69 facts. Six scenarios and two point-and-click rooms.
+- **`scenarios/`** — six `scenario-v2` movements. Each pairs a `.scenario` script with a
+  `.toml` declaring its cast, stages, flags, tracks and endings, bound by exact digest.
+- **`rooms/motor_court/`, `rooms/window/`** — two inspect-only `pointclick-room` packages,
+  the window before the bell and the window after.
+- **`characters/`** — nine `character-profile-v1` documents. Each carries four authored
+  expressions with the direction the image model is given, so a face is drawn from words a
+  person wrote rather than invented per scene. **Henry is never drawn**; he is the
+  protagonist and has no profile.
+- **`scene.toml`** — binds all six scenarios into one art run, so an actor appearing in four
+  of them is drawn once.
+- **`references/cover.png`** — the style plate, chosen by the production lead from six
+  candidates. Every generated image is drawn against it.
+- **`ui.toml`** — the interface art direction. Its one non-negotiable is recorded in the
+  file: the plate is a night picture, so the panel must hold a value step against near-black.
 
-## Preparing a game later
+## Proving it
 
-Treat game preparation as a separate conversion, not an edit to make the prose
-look like a contract. Follow `library/games/AGENTS.md` and the live package
-documentation, create an exact prepared closure with a root `game.toml`, and
-validate it from the repository root. Remove or relocate this procedural README
-if the exact-closure rules do not permit it.
+```bash
+uv run stage-gen scenario check --input library/games/the_grain
+uv run stage-gen case check --input library/games/the_grain
+```
 
-The conversion agent should proceed in this order:
+All six scenarios admit; the case is **admitted and bound** — every beat reachable, a
+terminal reachable from every beat, every fact a beat reads established on every route into
+it, and every beat's declaration checked against the leaf it names.
 
-1. Choose and record the exact ratified story snapshot being adapted.
-2. Inventory required game decisions and separate genuine narrative blanks from
-   implementation-owned choices.
-3. Return narrative blanks to the writing process; do not invent them inside a
-   contract.
-4. Translate the approved story into the current package structure in one
-   internally consistent closure.
-5. Validate the package and report authored validity separately from generated
-   assets, playability, and publication readiness.
-6. Request explicit promotion before changing the canonical selector.
+## Playing it
 
-Do not edit `library/games/main.toml` unless the user explicitly promotes this
-game as the repository's selected canonical package. Conversion may identify
-missing decisions and report them back to the story process; it must not silently
-rewrite characters, mystery truth, or dialogue to satisfy implementation.
+The package is authored data. Playing it needs a generated run and a runtime projection:
+
+```bash
+uv run stage-gen dialogue-scene generate --input library/games/the_grain --output out/<scene-tag>
+uv run stage-gen pointclick-room generate --input library/games/the_grain/rooms/motor_court --output out/<court-tag>
+uv run stage-gen pointclick-room generate --input library/games/the_grain/rooms/window --output out/<window-tag>
+uv run stage-gen case bundle --input library/games/the_grain --case episode_one \
+  --beat-run b_office=<scene-tag> --beat-run b_motor_court=<court-tag> ... \
+  --output out/<episode-tag>
+```
+
+Then `/case/<episode-tag>` in the web consumer. `PILOT.md` records the exact tags that ship.
+
+## What is not true of it
+
+- **Nothing here is reviewed.** Every generated image and track is `unreviewed`, and the run
+  bundle carries `publication_authorized: false`. Accepted visuals need a semantic review by
+  someone other than their producer; no such review exists. The list is in `PILOT.md`.
+- **It is not promoted.** There is no root `game.toml`, and `library/games/main.toml` is
+  untouched and still selects another game. Promotion is the director's decision and
+  requires explicit authorization.
+- **The window room's forensic looks are not discoverable in the shipped roll.** Most of
+  them sit on blank wall; see `PILOT.md`, 07:20.
+- **Episode One is one episode.** The board it produces is designed to open Episode Two, and
+  nothing yet carries it out of the player's browser.
+
+## Adapting the rest
+
+The topology this package follows is in `story/snapshot-2026-09-03/topology.md`: the bible
+is inviolable, the novel is locked, and the adaptation is free within them. A want the bible
+refuses is written to `adaptation/returns.md` for the director and routed around — it is not
+resolved inside a contract. Two returns are filed there from this pilot.
