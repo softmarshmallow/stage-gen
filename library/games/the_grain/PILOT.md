@@ -812,6 +812,60 @@ is still refused, because a room run publishes exactly one room and an id there 
 projection that has confused itself. `case bundle` always writes the id, so the chained path
 never depends on the fallback. `tsc` clean, **1379 tests pass**.
 
+### 06:50 — Two hard-coded names, not one
+
+The recipe lane found and fixed **two** instances of the bug, and the second is the more
+instructive. `prepared_scene._expression` dispatched on `if state == "neutral"` — under the
+fixed vocabulary that happened to name the base plate, so with authored ids every base fell
+into the *edit* branch and asked for a source port a base node does not have. One line
+further on, `neutral_prompt` called `plan.direction_for("neutral")`, which would have raised
+on all eight actors thirty seconds after the first fix and surfaced as
+`coroutine raised StopIteration` rather than as anything readable.
+
+The fix is the right one rather than the quick one: it does **not** compare against the new
+base name, which would be the same mistake with a different string. The graph already
+decides which node is the base — it wires that one to the concept plate and the others to
+its output — so `EXPRESSION_GENERATE` and `EXPRESSION_DERIVE` now bind separate handlers and
+neither reads an expression name to know what it is.
+
+**Why no test caught it:** the fixture's base expression was literally named `neutral`, so
+every existing test agreed with the hard-coded string. The fixture's actors were renamed to
+authored vocabularies sharing nothing with the old four, and a whole-graph run through fake
+providers now exercises the exact path the eight nodes died on.
+
+*Recorded for the reroll policy:* expression directions live in the character profile, so
+the profile's digest covers them and editing **one** direction re-bills **all four** of that
+actor's plates. Get an actor's four right together or not at all.
+
+### 06:47 — Both rooms rerolled, and the cache answers the region question
+
+The motor court reroll changed the scene brief, two hotspot briefs and three regions, and
+cost **one provider operation**. The style anchor, all three UI sheets and their reviews
+cache-hit; only the backdrop redrew. The window reroll cost four.
+
+**That settles the workflow question QA raised.** An image node's cache identity comes from
+its own inputs — brief, style plate, layout — and **not** from the room document's digest.
+So a hit-area-only correction, which touches no image input at all, should cost **zero**.
+The room contract's answer to "regions are authored before the plate exists" is therefore a
+*measure* step rather than better guessing, and it is nearly free. That is a better finding
+than the one the pilot was braced for.
+
+**The motor court now draws its own narration.** Figures in the other three windows — one at
+a laid dinner table, one on the painted staircase, one beside the trunks — which is the
+sentence the room reads aloud, drawn at last. A seventh chair on a steel column. A flat
+matte paper moon.
+
+**The window is now outdoors**, which it was not: wet paving, the canopy soffit and its
+lamps, the street and palms past the piers, the guard close to the glass with his back to
+us, the vestibule and lift at the left. The moon is split and sagged and unmistakably paper.
+The man lies with one hand palm down and a shoe extended into the light.
+
+**One defect survived the reroll**, and it is the one the reroll was for: the window's
+seventh chair came back as a four-legged gilt side chair while the motor court's obeyed. The
+two plates disagree about the object the novel's fixed line depends on — *"one shoulder
+against its steel base."* The brief has been hardened to name a pedestal chair explicitly
+and to say what it is not, and the room is rolling again at a cost of about one operation.
+
 ---
 
 ## 3. Ledger

@@ -73,10 +73,12 @@ canopy piers. Not a lobby, not an interior, no polished floor and no ceiling but
 the canopy soffit. This is the same court as the establishing plate, seen closer. Straight ahead, a tall display \
 window glows amber against cold blue-black stone and empty street: inside it six \
 blank-faced mannequins in evening dress, four standing and two seated on low \
-plinths, are turned inward toward an empty seventh chair raised on a single \
-slender steel column base, and behind the chair a large matte white paper moon, \
+plinths, are turned inward toward an empty seventh chair. That chair is a MODERN \
+PEDESTAL CHAIR: a plain upholstered seat carried on ONE polished steel column \
+rising from a single round steel foot. It has no four legs, no turned wood and \
+no gilt frame. The dead man's shoulder rests against that steel column, and behind the chair a large matte white paper moon, \
 flat and papery with no craters, has split across its middle and sagged inward. A man in a dark suit lies partly behind the chair on the display floor, \
-one shoulder against the chair's steel base, a shoe extended into the lamp \
+one shoulder against that steel column, a shoe extended into the lamp \
 light, one hand palm down; he is at rest and unmarked, painted plainly and \
 without injury. Above the window a scenic wall rises to a narrow gallery whose \
 rail has a short section left open, a black rectangle, with a small red push \
@@ -113,7 +115,7 @@ region = { x = 0.50, y = 0.16, w = 0.22, h = 0.20 }
 hotspot_id = "the_man"
 label = "The man beneath it"
 art = "scenery"
-brief = "a man in a dark suit lying partly behind the chair, one shoulder against the chair's slender steel column base, a shoe extended into the light"
+brief = "a man in a dark suit lying partly behind the pedestal chair with one shoulder resting against its single polished steel column, a shoe extended into the light"
 region = { x = 0.52, y = 0.62, w = 0.24, h = 0.16 }
 
 [[hotspots]]

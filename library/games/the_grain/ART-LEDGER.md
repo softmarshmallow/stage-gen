@@ -271,3 +271,33 @@ the canopy. Both documents now carry one canonical description of that window.
 - The first roll of each is retained as exploration; this is a semantic regeneration, which
   is not a provider retry.
 - Reviewed: no.
+
+### Actual — motor court reroll 1: ONE operation, not eight
+
+The reroll changed the `[scene]` brief, two hotspot briefs and three hotspot regions, and
+cost **1 provider operation**. The style-anchor selection, all three UI atlas sheets and
+their three reviews **cache-hit**; only the backdrop redrew. 86 seconds.
+
+**The finding this settles:** an image node's cache identity is derived from that node's own
+inputs — its brief, the style plate, the layout — and **not** from the room document's
+digest. So a hit-area-only correction, which touches no image input at all, should cost
+**zero** operations. The room contract's answer to "regions are authored before the plate
+exists" is therefore a *measure* step, not better guessing, and it is nearly free.
+
+All four fidelity defects are fixed in the delivered plate: figures in the other three
+windows, a seventh chair on a slender steel column base, a flat matte paper moon, and the
+six in evening dress four standing two seated.
+
+## 2026-09-03T06:50 KST — the scene, run 2: the cast (planned, by the LEAD)
+
+The recipe lane fixed two hard-coded `"neutral"` lookups that broke every actor's base plate
+under authored expression ids. Re-running the same 115-node graph.
+
+- Planned operations: 47 image, 4 music, 12 structured — but the twelve stages, the four
+  tracks and the style plate **cache-hit** from run 1, whose node ids and cache keys are
+  untouched by the fix. Expected new spend: **~32 cast plates**.
+- Estimated USD: ~16.00.
+- Caveat recorded for the reroll policy: the expression directions live in the character
+  profile, so a profile's digest covers them and editing **one** direction re-bills **all
+  four** of that actor's plates. Get an actor's four right together or not at all.
+- Reviewed: no.
