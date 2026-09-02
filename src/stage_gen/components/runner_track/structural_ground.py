@@ -47,50 +47,48 @@ STRUCTURAL_GROUND_SEAM_COLUMNS: Final = 1
 
 _MIN_SOURCE_SOLID_COVERAGE: Final = 0.45
 _MIN_SOURCE_SOLID_CELL_COVERAGE: Final = 0.50
+_MAX_SOURCE_EMPTY_LEAKAGE: Final = 0.35
+_MIN_SOURCE_VISIBLE_ALPHA: Final = 128
 
 #: A top-exposed cell is the walking surface, and it must be painted nearly
-#: whole.
+#: whole. Where the provider leaves a solid cell transparent, the
+#: canonicalizer's deterministic material fallback fills it - and that fallback
+#: is built from the guide's own cap and fill colours, so unpainted ground
+#: publishes AS guide material. Measured on the played v9 run,
+#: `rescue_calibration`'s top row came back 0.63 covered and the missing third
+#: shipped as a flat lilac band along the row the avatar stands on. The 0.20
+#: floor this replaced admitted a cell four fifths made of fallback.
 #:
-#: Where the provider leaves a solid cell transparent, the canonicalizer's
-#: deterministic material fallback fills it - and that fallback is built from
-#: the guide's own cap and fill colours, so unpainted ground publishes AS guide
-#: material. Measured on the played v9 run, `rescue_calibration`'s top row came
-#: back 0.63 covered and the missing third shipped as a flat lilac band along
-#: the row the avatar stands on. The old 0.20 floor admitted a cell that was
-#: four fifths fallback.
-#: Saturation at which a pixel counts as a feature rather than base material.
-_MIN_INCIDENT_SATURATION: Final = 90
-
-#: How far the painting's own colour is grown under the bare rim it leaves.
-#: Six published pixels covers the four-to-five-pixel alpha ramp measured at the
-#: top of every Iron Petal slab. It is deliberately no wider: the nearest paint
-#: at a slab's top edge is its dark ink contour, so six pixels reads as that
-#: contour while twelve reads as a smear. A cell left barer than this is not a
-#: feathered edge but an under-painted cell, and the top-cell coverage floor -
-#: which is this number, read the other way round - refuses it instead.
-_PAINT_EDGE_EXTENSION_PX: Final = 6
-
-#: A gross floor only. Deriving this from the underlay reach was tried and put
-#: it at 0.90625, which is exactly where a normal four-to-five-pixel alpha ramp
-#: lands: it refused correct paintings about half the time and burned a
-#: segment's whole retry budget. A coverage is a proxy anyway. What the rule
-#: actually cares about is whether guide colour survives INTO THE PUBLISHED
-#: RASTER, and that is now measured directly, below, on the canonicalized
-#: result rather than guessed at from the source's alpha.
+#: It stays a gross floor. Deriving it from how far publication can reach was
+#: tried and put it at 0.90625, exactly where a normal four-to-five-pixel alpha
+#: ramp lands: it refused correct paintings about half the time and burned a
+#: segment's whole retry budget. A coverage over a source cell is a proxy in any
+#: case, and what the rule cares about - whether guide colour reaches the
+#: published raster - is measured directly below.
 _MIN_SOURCE_TOP_CELL_COVERAGE: Final = 0.85
 
 #: How much of any published row may still wear the guide's cap colour. The
 #: defect this refuses is a line, so it is measured by row rather than over the
-#: raster: a hairline is a fifth of a percent of the tile and four fifths of one
-#: scanline. Measured over Iron Petal's twelve tiles, canonicalized offline:
-#: 0.924 at worst before the rim was underlaid and 0.003 after, so the threshold
-#: has two orders of margin on one side and thirty times on the other. Only the
-#: cap colour counts. The fill colour is the material's own dark, which honest
-#: art wears legitimately - measuring both put a third of a correct row in
-#: breach.
+#: raster: the hairline that shipped was four fifths of one scanline on a tile
+#: measuring 0.0075 overall. Across Iron Petal's twelve paintings,
+#: canonicalized offline, this reads 0.924 at worst before the rim was
+#: underlaid and 0.0017 after. Only the cap colour counts - the guide's fill is
+#: the material's own dark, which honest art wears legitimately, and counting
+#: both put a third of a correct row in breach.
 _MAX_PUBLISHED_CAP_ROW_SHARE: Final = 0.10
-_MAX_SOURCE_EMPTY_LEAKAGE: Final = 0.35
-_MIN_SOURCE_VISIBLE_ALPHA: Final = 128
+
+#: How far the painting's own colour is grown under the bare rim it leaves.
+#: Six published pixels covers the four-to-five-pixel alpha ramp measured at the
+#: top of every Iron Petal slab, and it is deliberately no wider: the nearest
+#: paint at a slab's top edge is its dark ink contour, so six pixels reads as
+#: that contour while twelve reads as a smear. A rim wider than this cannot be
+#: repaired here at any reach - widening only trades a lilac band for a dark one
+#: - which is why the published check above refuses it rather than this one
+#: stretching to cover it.
+_PAINT_EDGE_EXTENSION_PX: Final = 6
+
+#: Saturation at which a pixel counts as a feature rather than base material.
+_MIN_INCIDENT_SATURATION: Final = 90
 
 #: How close a painted pixel may sit to a guide colour before it counts as
 #: guide showing through, as a Chebyshev distance in RGB.
@@ -320,21 +318,20 @@ def structural_ground_generation_prompt(
         "colour may remain visible anywhere in the result.\n"
         "- Preserve pits, steps, ledges, and holes exactly where the guide places them.\n"
         "- The topmost solid row of each column is the walking surface: give it a distinct, "
-        "flat, front-facing band so a player reads instantly where the footing is. It is a band "
-        "on the elevation, never a receding top face. Keep that band the same depth and the same "
-        "colours from the left edge of the canvas to the right, so two spans cut apart and "
-        "rejoined read as one continuous surface. Deeper cells read as coherent structural "
-        "fill. Use non-repeating local detail through the central segment.\n"
-        "- The two end aprons are the JOINT where one span of this line is bolted to the next, and "
-        "the joint painted here is the joint seen at every junction in the finished track, again "
-        "and again a few seconds apart. Anything memorable in it is recognised as a repeat almost "
-        "immediately, so paint both aprons as plain structural slab: the walking-surface band "
-        "running level and unbroken straight through, one quiet vertical seam line with a small "
-        "bolt plate or bracket, flat material below. No pipe, conduit, cable, vine, leaf, flower, "
-        "hatch, window, lit fitting, gauge, or lettering anywhere in either apron, and no "
-        "silhouette that catches the eye. Every bit of the segment's incident belongs in the "
-        "central columns, and the painting settles into that plain joint before it reaches "
-        "either apron.\n"
+        "flat, front-facing band, the same depth and colours all the way across, so a player "
+        "reads the footing instantly and two spans rejoined read as one surface. It is a band on "
+        "the elevation, never a receding top face. Deeper cells read as coherent structural fill, "
+        "with non-repeating local detail through the central columns.\n"
+        "- Paint each slab to its very top edge. The walking-surface band starts at the first "
+        "pixel of the cell, hard-edged and fully opaque, with no soft fade, no unpainted margin, "
+        "and no guide colour left showing above it.\n"
+        "- The two end aprons are the JOINT where one span is bolted to the next, and that joint "
+        "is seen again at every junction in the finished track, seconds apart, so anything "
+        "memorable in it reads as a repeat. Paint both aprons as plain structural slab: the "
+        "walking-surface band running level straight through, one quiet vertical seam line with a "
+        "small bolt plate, flat material below. No pipe, conduit, cable, vine, leaf, flower, "
+        "hatch, lit fitting, or lettering in either apron. The segment's incident belongs in the "
+        "central columns.\n"
         "- Do not crop, rotate, mirror, relayout, label, or subdivide the guide.\n"
         "The authored occupancy is collision authority; this painting is presentation only."
     )
@@ -522,12 +519,10 @@ def validate_structural_ground_source(
     # with the painting's own colour, and this proves it worked on THIS painting
     # rather than trusting a coverage proxy on the source. Anything the underlay
     # cannot reach still shows the guide's cap, and shows it as a line.
-    published = _canonicalize_painting(
-        image.crop(layout.central_box).resize(
-            (columns * STRUCTURAL_GROUND_CELL_PX, len(occupancy) * STRUCTURAL_GROUND_CELL_PX),
-            Image.Resampling.LANCZOS,
-        ),
+    published = _published_painting(
+        image,
         occupancy=occupancy,
+        layout=layout,
         palette=palette,
         material_identity=material_identity,
     )
@@ -607,6 +602,35 @@ def validate_structural_ground_source(
         "maximum_projection_lean_spread_degrees": _MAX_PROJECTION_LEAN_SPREAD_DEGREES,
         "apron_incident_share": round(apron_incident, 6),
     }
+
+
+def _published_painting(
+    image: Image.Image,
+    *,
+    occupancy: Sequence[str],
+    layout: StructuralGroundGuideLayout,
+    palette: tuple[RGB, RGB],
+    material_identity: str,
+) -> Image.Image:
+    """The canonical raster a source publishes, before its seam roles go in.
+
+    Source admission and publication both need it - admission to prove no guide
+    colour reaches the finished raster, publication to write it - and a check
+    that ran on anything other than exactly what ships would be proving the
+    wrong picture, so it is built once.
+    """
+
+    rows, columns = _require_occupancy(occupancy)
+    crop = image.crop(layout.central_box).resize(
+        (columns * STRUCTURAL_GROUND_CELL_PX, rows * STRUCTURAL_GROUND_CELL_PX),
+        Image.Resampling.LANCZOS,
+    )
+    return _canonicalize_painting(
+        crop,
+        occupancy=occupancy,
+        palette=palette,
+        material_identity=material_identity,
+    )
 
 
 def canonicalize_structural_ground_seam_bridge(
@@ -793,14 +817,10 @@ def canonicalize_structural_ground(
     palette = _material_palette(material_references, material_identity)
     layout = structural_ground_guide_layout(occupancy)
     source_image = _decode_rgba(source, label="structural ground source")
-    crop = source_image.crop(layout.central_box).resize(
-        (columns * STRUCTURAL_GROUND_CELL_PX, rows * STRUCTURAL_GROUND_CELL_PX),
-        Image.Resampling.LANCZOS,
-    )
-
-    canonical = _canonicalize_painting(
-        crop,
+    canonical = _published_painting(
+        source_image,
         occupancy=occupancy,
+        layout=layout,
         palette=palette,
         material_identity=material_identity,
     )
