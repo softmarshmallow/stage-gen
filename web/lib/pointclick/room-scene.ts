@@ -109,6 +109,8 @@ class RoomScene extends Phaser.Scene {
   private readonly hotspotObjects = new Map<string, Phaser.GameObjects.GameObject>();
   private markers!: Phaser.GameObjects.Graphics;
   private narration!: Phaser.GameObjects.Text;
+  /** The drawn plate's own interior height, so long narration can be fitted to it. */
+  private narrationHeight = 0;
   private hoverLabel!: Phaser.GameObjects.Text;
   private slotFrames!: Phaser.GameObjects.Graphics;
   private readonly slotIcons: Phaser.GameObjects.Image[] = [];
@@ -261,7 +263,14 @@ class RoomScene extends Phaser.Scene {
     // Where the words go is measured on the drawn frame, not guessed: the producer publishes
     // the ornament-free interior and the layout turns it into an origin and a wrap width, so
     // a heavier border in a future run moves the text instead of running under it.
-    const text = roomTextLayout(narrationPanel.safeRect());
+    const narrationSafe = narrationPanel.safeRect();
+    const text = roomTextLayout(narrationSafe);
+    // The plate is a fixed height and the narration is authored prose, so a long
+    // line — or two narrations joining, which is what the window room's exit
+    // does — can run past the border and render on the backdrop. The interior is
+    // measured on the drawn frame, so the text is fitted to it rather than
+    // trusted to be short.
+    this.narrationHeight = Math.max(1, narrationSafe.height - (text.y - narrationSafe.y) * 2);
     this.narration = this.add
       .text(text.x, text.y, "", {
         ...NARRATION_STYLE,
@@ -443,13 +452,31 @@ class RoomScene extends Phaser.Scene {
       }
     }
 
-    this.narration.setText(this.state.narration);
+    this.setNarration(this.state.narration);
     this.renderInventory();
 
     for (const [mode, button] of this.modeButtons) button.setSelected(this.mode === mode);
     this.hintButton.setSelected(this.hintsVisible);
 
     this.winLayer.setVisible(this.state.solved);
+  }
+
+  /**
+   * Put the words on the plate, and keep them on it.
+   *
+   * Phaser wraps to a width and grows downward without limit, so the only way a
+   * fixed plate holds authored prose is to step the size down until it fits.
+   * Three steps and a floor: below that the words would be smaller than the
+   * control hints and unreadable, and losing a line is better than losing the
+   * paragraph, so the last step clamps rather than continuing.
+   */
+  private setNarration(value: string): void {
+    const sizes = [26, 23, 20, 18];
+    for (const size of sizes) {
+      this.narration.setFontSize(size);
+      this.narration.setText(value);
+      if (this.narration.height <= this.narrationHeight) return;
+    }
   }
 
   private renderInventory(): void {
