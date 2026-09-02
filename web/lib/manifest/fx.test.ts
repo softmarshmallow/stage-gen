@@ -47,6 +47,15 @@ describe("parseFxBlock", () => {
     expect(() => parseFxBlock(document)).toThrow("inside the unit canvas");
   });
 
+  test("accepts a frame that publishes no outline at all", () => {
+    // A shape no single outline describes publishes null rather than a polygon that
+    // lies; the runtime clips with the plate's alpha and never reads it.
+    const document = fxBlockFixture();
+    const cutIn = document.cut_in as Record<string, Record<string, unknown>>;
+    cutIn.frame.mask_polygon = null;
+    expect(parseFxBlock(document).cutIn?.frame.maskPolygon).toBeNull();
+  });
+
   test("refuses a portrait without a finite positive placement", () => {
     const document = fxBlockFixture();
     const cutIn = document.cut_in as Record<string, Record<string, unknown>[]>;

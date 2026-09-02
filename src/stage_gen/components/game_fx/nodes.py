@@ -78,14 +78,13 @@ from stage_gen.components.game_fx.cut_in import (
     PLACEMENT_SCALE_RANGE,
     CutInPlate,
     admit_cut_in_placement,
-    band_span_at,
     canonicalize_plate,
     compose_hold_frame,
     cut_in_evidence,
     cut_in_plate_contract,
     draw_procedural_frame,
+    mask_reveal_facts,
     placement_transform,
-    polygon_centroid,
     validate_frame_plate,
     validate_portrait_plate,
 )
@@ -109,11 +108,11 @@ TOOL_LOOP_FEATURES = ("tool_use", "image_input")
 #: rekey the frame's review through lineage for nothing.
 FX_CUT_IN_CONTRACT_VERSION = "prepared-fx-cut-in-v1"
 FX_CUT_IN_DRAW_VERSION = "prepared-fx-cut-in-draw-v1"
-FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v1"
-FX_CUT_IN_PORTRAIT_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v2"
+FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v2"
+FX_CUT_IN_PORTRAIT_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v3"
 FX_CUT_IN_PLACE_VERSION = "prepared-fx-cut-in-place-v1"
-FX_CUT_IN_REVIEW_VERSION = "prepared-fx-cut-in-review-v1"
-FX_CUT_IN_EVIDENCE_VERSION = "prepared-fx-cut-in-evidence-v2"
+FX_CUT_IN_REVIEW_VERSION = "prepared-fx-cut-in-review-v2"
+FX_CUT_IN_EVIDENCE_VERSION = "prepared-fx-cut-in-evidence-v3"
 FX_CUT_IN_REVIEW_SCHEMA_NAME = "prepared_fx_cut_in_review"
 FX_CUT_IN_PLACE_SCHEMA_NAME = "prepared_fx_cut_in_place"
 
@@ -198,13 +197,21 @@ _PLATE_COMMON = (
     "labels, logos, signatures, or watermarks anywhere."
 )
 
+#: The shape an unopinionated game gets. An authored ``cut_in.frame.shape`` replaces it
+#: outright rather than arguing with it, so the two can never contradict each other in
+#: one prompt; everything around the slot is the invariant a plate must hold whatever
+#: its silhouette is.
+_FRAME_SHAPE_DEFAULT = (
+    "One connected, wide, slightly tilted ragged strip that runs across the entire canvas "
+    "from the left edge to the right edge, cut off by both edges, occupying roughly half the "
+    "canvas height, with rough hand-torn jagged edges along its top and its bottom."
+)
+
 _FRAME_TASK = (
-    "Create one torn-paper rip silhouette to be used as a game cut-in frame. One connected, "
-    "wide, slightly tilted ragged strip that runs across the entire canvas from the left edge "
-    "to the right edge, cut off by both edges, occupying roughly half the canvas height, with "
-    "rough hand-torn jagged edges along its top and its bottom. Fill the strip with flat pure "
-    "white only, and draw a thick uneven black hand-inked outline hugging its torn edges. "
-    "Nothing at all inside the strip: no drawing, no character, no texture, no shadow, no "
+    "Create one torn-paper rip silhouette to be used as a game cut-in frame. {shape} It must "
+    "read as a single bold graphic element that carries the width of the screen. Fill it with "
+    "flat pure white only, and draw a thick uneven black hand-inked outline hugging its torn "
+    "edges. Nothing at all inside it: no drawing, no character, no texture, no shadow, no "
     "gradient, no colour. Flat graphic 2D, bold print-poster cut-out look."
 )
 
@@ -219,8 +226,9 @@ _PORTRAIT_TASK = (
 )
 
 
-def frame_content_task(direction: str) -> str:
-    return f"{_FRAME_TASK}\nAuthored direction: {direction}\n{_PLATE_COMMON}"
+def frame_content_task(direction: str, shape: str | None = None) -> str:
+    task = _FRAME_TASK.format(shape=shape or _FRAME_SHAPE_DEFAULT)
+    return f"{task}\nAuthored direction: {direction}\n{_PLATE_COMMON}"
 
 
 def portrait_content_task(direction: str) -> str:
@@ -248,8 +256,11 @@ def place_content_task(portrait_id: str, direction: str) -> str:
     return f"{_PLACE_TASK}\nPortrait: {portrait_id}. Its authored mood: {direction}"
 
 
-def cut_in_review_prompt(plate: CutInPlate, direction: str) -> str:
-    """What the judge is asked, given what the pixel gate has already proved."""
+def cut_in_review_prompt(plate: CutInPlate, direction: str, shape: str | None = None) -> str:
+    """What the judge is asked, given what the pixel gate has already proved.
+
+    The gate no longer fixes the rip's topology, so the frame's silhouette is judged
+    here, against the shape its author asked for."""
 
     if plate.role == "frame":
         return (
@@ -257,12 +268,15 @@ def cut_in_review_prompt(plate: CutInPlate, direction: str) -> str:
             "shows the plate over a checkerboard on the left and, on the right, the plate "
             "composed the way the game shows it: a flat backdrop with stripes revealed through "
             "the plate's silhouette. Remaining images are authored visual references. "
-            "Deterministic pixel validation has already proved a transparent exterior, one "
-            "connected edge-to-edge strip with no holes, a flat white fill, and an inked rim. "
-            "Do not mistake the checkerboard for artwork. Judge style coherence with the "
-            "references, that the strip reads as one torn edge rather than a drawn frame, that "
-            "the rim is ink and not a glow, and the absence of text, pseudo-text, characters, "
-            f"or scenery. Authored direction: {direction} Uncertainty must not be called accept."
+            "Deterministic pixel validation has already proved a transparent exterior with a "
+            "binary edge, few enough pieces and no debris, a flat white fill, and an inked "
+            "rim. It did not judge the silhouette; you do. Do not mistake the checkerboard "
+            "for artwork. Judge style coherence with the references, that the plate reads as "
+            "a torn cut-out rather than a drawn frame, that its silhouette is the authored "
+            "shape and carries the screen's width, that the rim is ink and not a glow, and "
+            "the absence of text, pseudo-text, characters, or scenery. Authored shape: "
+            f"{shape or _FRAME_SHAPE_DEFAULT} Authored direction: {direction} Uncertainty "
+            "must not be called accept."
         )
     return (
         "Review the generated cut-in portrait plate against its authored direction. Image 1 "
@@ -389,7 +403,7 @@ def add_cut_in_nodes(
             ),
             ports=tuple(ports),
             card=NodeCard(
-                prompt=style_prompt(frame_content_task(frame.prompt or "")),
+                prompt=style_prompt(frame_content_task(frame.prompt or "", frame.shape)),
                 authored_inputs=authored,
             ),
         )
@@ -414,7 +428,7 @@ def add_cut_in_nodes(
         FX_CUT_IN_VALIDATE,
         validate_id,
         domain=domain,
-        description="admit the frame plate, clear its exterior, and trace its mask polygon",
+        description="admit the frame plate, clear its exterior, and measure its mask",
         depends_on=(producer.node_id,),
         params=params,
         input_digests=(
@@ -446,7 +460,7 @@ def add_cut_in_nodes(
             ),
             ports=tuple(review_ports),
             card=NodeCard(
-                prompt=cut_in_review_prompt(CUT_IN_FRAME, frame.prompt or ""),
+                prompt=cut_in_review_prompt(CUT_IN_FRAME, frame.prompt or "", frame.shape),
                 schema_name=FX_CUT_IN_REVIEW_SCHEMA_NAME,
                 reference_inputs=(PortRef(node_id=frame_validated.node_id, port_id="image"),),
                 authored_inputs=authored_for(frame.reference_ids),
@@ -746,17 +760,28 @@ def _parse_placement(value: object) -> dict[str, object]:
     return value
 
 
-def _band_facts(mask_polygon: list[list[float]]) -> str:
-    centre_x, centre_y = polygon_centroid(mask_polygon)
+def _mask_facts(reveal: Mapping[str, Any]) -> str:
+    """The opening described to the agent in words, measured from the mask raster.
+
+    Raster, not the published outline: the numbers must stay true for a shape no single
+    polygon describes, and ``filled`` is what tells the agent one thick band from two
+    thin pieces stacked at the same x."""
+
+    centre_x, centre_y = cast(list[float], reveal["centroid"])
     spans = []
-    for x in (0.1, 0.3, 0.5, 0.7, 0.9):
-        top, bottom = band_span_at(mask_polygon, x)
-        spans.append(f"x={x:.1f}: y {top:.2f}-{bottom:.2f} (thickness {bottom - top:.2f})")
+    for column in cast(list[dict[str, float]], reveal["columns"]):
+        x = column["x"]
+        if "top" not in column:
+            spans.append(f"x={x:.1f}: closed")
+            continue
+        spans.append(
+            f"x={x:.1f}: y {column['top']:.2f}-{column['bottom']:.2f} "
+            f"({column['filled']:.2f} of the column open)"
+        )
     return (
-        f"The frame's band (the region the portrait shows through) has its centroid at "
-        f"x={centre_x:.3f}, y={centre_y:.3f}. Its vertical extent, in frame-canvas units: "
-        + "; ".join(spans)
-        + "."
+        "The frame's opening (the region the portrait shows through) has its centroid at "
+        f"x={centre_x:.3f}, y={centre_y:.3f} and covers {reveal['coverage']:.2f} of the "
+        "canvas. Where it lies, in frame-canvas units: " + "; ".join(spans) + "."
     )
 
 
@@ -789,14 +814,13 @@ def cut_in_place_request(
         raise ValueError(f"node {node.node_id} places a plate that is not a portrait")
     _producer, raw_port = dependency_port(graph, node, kind=FX_CUT_IN_RAW_KIND)
     _frame_node, frame_plate_port = dependency_port(graph, node, kind=FX_CUT_IN_PLATE_KIND)
-    _frame_node, frame_record_port = dependency_port(graph, node, kind=FX_CUT_IN_VALIDATION_KIND)
     raw = read(raw_port.artifact_ref)
     frame_data = read(frame_plate_port.artifact_ref)
-    frame_record = cast(dict[str, Any], json.loads(read(frame_record_port.artifact_ref)))
-    mask_polygon = cast(list[list[float]], frame_record["geometry"]["mask_polygon"])
     portrait_sha256 = _sha(raw)
     frame_sha256 = _sha(frame_data)
-    centre_x, centre_y = polygon_centroid(mask_polygon)
+    with Image.open(io.BytesIO(frame_data)) as opened:
+        reveal = mask_reveal_facts(opened.convert("RGBA").getchannel("A"))
+    centre_x, centre_y = cast(list[float], reveal["centroid"])
     start = {"scale": _START_SCALE, "x": round(centre_x, 4), "y": round(centre_y, 4)}
 
     def render(arguments: Mapping[str, object]) -> ToolResult:
@@ -805,7 +829,7 @@ def cut_in_place_request(
         except ValueError as exc:
             raise ToolInvocationError(str(exc)) from None
         composed = compose_hold_frame(
-            frame_data, raw, mask_polygon, placement={"scale": scale, "x": x, "y": y}
+            frame_data, raw, placement={"scale": scale, "x": x, "y": y}
         )
         return ToolResult(
             text=f"Rendered the composition at scale={scale:g}, x={x:g}, y={y:g}.",
@@ -817,7 +841,7 @@ def cut_in_place_request(
             value, portrait_sha256=portrait_sha256, frame_sha256=frame_sha256
         )
 
-    starting = compose_hold_frame(frame_data, raw, mask_polygon, placement=start)
+    starting = compose_hold_frame(frame_data, raw, placement=start)
     return ToolLoopRequest(
         instructions=_card_prompt(node),
         system=(
@@ -827,7 +851,7 @@ def cut_in_place_request(
             f"x={start['x']:g}, y={start['y']:g}. Units: scale is the portrait's display "
             "height as a fraction of the frame height; x and y are the portrait canvas "
             "centre in frame-canvas units (0-1 inside the canvas; the centre may sit "
-            f"outside it). {_band_facts(mask_polygon)}"
+            f"outside it). {_mask_facts(reveal)}"
         ),
         artifact_path=host.run_dir / node.port("placement").artifact_ref,
         tools=(
@@ -1126,16 +1150,34 @@ def parse_cut_in_review(value: object) -> dict[str, object]:
 # ---------------------------------------------------------------- manifest
 
 
-def fx_manifest_block(fx: GameFx, *, read_validation: Callable[[str], bytes]) -> dict[str, object]:
+def fx_manifest_block(
+    fx: GameFx,
+    *,
+    read_validation: Callable[[str], bytes],
+    lettering: Mapping[str, tuple[str, str]] | None = None,
+) -> dict[str, object]:
     """The published ``fx`` block, identical in every consumer's manifest.
 
     The validate node is the only place the traced geometry exists, so this reads each
     plate's record rather than the declared layout.
+
+    ``lettering`` gives each moment its title and subtitle. It is the host's to
+    supply because the words are display names the host already holds - a track
+    name, a boss name - and never a generated string: a cut-in that announced a
+    model's invention would be the one place in the package where the words on
+    screen answered to nobody.
     """
 
-    block: dict[str, object] = {
-        "moments": [entry.model_dump(mode="json") for entry in fx.moments],
-    }
+    moments: list[dict[str, object]] = []
+    for binding in fx.moments:
+        published: dict[str, object] = binding.model_dump(mode="json")
+        if lettering is not None:
+            words = lettering.get(binding.moment)
+            if words is None:
+                raise ValueError(f"no lettering was supplied for the {binding.moment} moment")
+            published["title"], published["subtitle"] = words
+        moments.append(published)
+    block: dict[str, object] = {"moments": moments}
     if fx.cut_in is None:
         block["cut_in"] = None
         return block

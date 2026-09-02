@@ -43,8 +43,14 @@ GLOW_LOW, GLOW_HIGH = TRANSPARENT_ADMISSION_MAX + 1, MASK_THRESHOLD - 1
 FRAME_COVERAGE_RANGE = (0.15, 0.75)
 FRAME_SOFT_SHARE_MAX = 0.08
 FRAME_GLOW_SHARE_MAX = 0.02
-FRAME_LARGEST_COMPONENT_MIN = 0.995
-FRAME_WIDTH_SPAN_MIN = 0.95
+#: Topology is authored, not fixed: a rip may be one strip, two halves, a few shards,
+#: or a shape with holes punched through it. What the gate still refuses is debris and
+#: confetti — every piece must be big enough to be worth drawing, and there must be few
+#: enough of them to read as one graphic element.
+FRAME_COMPONENT_MIN_SHARE = 0.02
+FRAME_COMPONENTS_MAX = 8
+FRAME_HOLES_MAX = 12
+FRAME_WIDTH_SPAN_MIN = 0.60
 FRAME_WHITE_SHARE_MIN = 0.55
 FRAME_INK_SHARE_RANGE = (0.03, 0.45)
 FRAME_INK_LUMA_MAX = 80
@@ -58,10 +64,16 @@ PORTRAIT_LARGEST_COMPONENT_MIN = 0.98
 PORTRAIT_BLEED_TOP_MIN = 0.35
 PORTRAIT_BLEED_BOTTOM_MIN = 0.50
 
-#: The published mask is the silhouette shrunk by this much, so the plate's ink rim
-#: stays on top of whatever the mask reveals.
+#: The published mask polygon is the silhouette shrunk by this much, so the plate's
+#: ink rim stays on top of whatever a polygon consumer reveals. The polygon is a
+#: portable convenience for a consumer with no texture to erase with; this repository's
+#: own renderers clip with the plate's alpha and never read it.
 MASK_ERODE_PX = 22
 MASK_POLYGON_MAX_VERTICES = 64
+#: A traced outline is published only when it actually agrees with the silhouette it
+#: claims to describe. A shape the band tracer cannot express (shards, holes, an edge
+#: that doubles back) publishes ``null`` rather than a polygon that quietly lies.
+MASK_POLYGON_MIN_IOU = 0.90
 _MASK_TRACE_FACTOR = 4
 _COMPONENT_FACTOR = 8
 
@@ -235,8 +247,13 @@ def _edge_cover(alpha: Image.Image) -> dict[str, float]:
 
 
 def validate_frame_plate(data: bytes) -> dict[str, Any]:
-    """Admit one rip plate: a single connected, hole-free, edge-to-edge strip with a
-    binary silhouette, a flat white fill, and an inked rim. Raises on any failure."""
+    """Admit one rip plate: a binary silhouette wide enough to read as a screen element,
+    made of few enough pieces and no debris, with a flat white fill and an inked rim.
+
+    The gate is deliberately topology-light. A rip's shape is authored
+    (``cut_in.frame.shape``), and what a consumer clips with is the plate's own alpha, so
+    shards and holes are shapes, not defects. Raises on any failure.
+    """
 
     image = _open_plate(data, CUT_IN_FRAME)
     alpha = image.getchannel("A")
@@ -283,12 +300,15 @@ def validate_frame_plate(data: bytes) -> dict[str, Any]:
         failures.append(f"frame alpha is not binary: soft share {shares['soft_share']}")
     if shares["glow_share"] > FRAME_GLOW_SHARE_MAX:
         failures.append(f"frame exterior carries a glow: share {shares['glow_share']}")
-    if len(sizes) != 1 and largest_share < FRAME_LARGEST_COMPONENT_MIN:
-        failures.append(f"frame is {len(sizes)} shapes, not one")
-    if holes:
-        failures.append(f"frame silhouette has {holes} holes")
+    if len(sizes) > FRAME_COMPONENTS_MAX:
+        failures.append(f"frame is {len(sizes)} pieces, more than {FRAME_COMPONENTS_MAX}")
+    debris = [size for size in sizes if size / max(1, sum(sizes)) < FRAME_COMPONENT_MIN_SHARE]
+    if debris:
+        failures.append(f"frame carries {len(debris)} specks below {FRAME_COMPONENT_MIN_SHARE:g}")
+    if holes > FRAME_HOLES_MAX:
+        failures.append(f"frame silhouette has {holes} holes, more than {FRAME_HOLES_MAX}")
     if width_span < FRAME_WIDTH_SPAN_MIN:
-        failures.append(f"frame spans {width_span:.3f} of the width, not edge to edge")
+        failures.append(f"frame spans {width_span:.3f} of the width, under {FRAME_WIDTH_SPAN_MIN}")
     if white_share < FRAME_WHITE_SHARE_MIN:
         failures.append(f"frame fill is not flat white: white share {white_share:.3f}")
     ink_low, ink_high = FRAME_INK_SHARE_RANGE
@@ -373,19 +393,11 @@ def _simplify(points: list[tuple[float, float]], max_points: int) -> list[tuple[
     return simplified
 
 
-def trace_band_polygon(
-    alpha: Image.Image,
-    *,
-    erode_px: int = MASK_ERODE_PX,
-    max_vertices: int = MASK_POLYGON_MAX_VERTICES,
-) -> list[tuple[float, float]]:
-    """The eroded silhouette of a band as one polygon, normalized to the canvas.
+def _eroded_mask(alpha: Image.Image, erode_px: int) -> Image.Image:
+    """The silhouette at quarter resolution, shrunk by ``erode_px``, hard-thresholded.
 
-    A band is single-valued per column (the gate proved one shape, no holes, edge to
-    edge), so its outline is the top edge read left to right and the bottom edge read
-    back, each simplified to at most half the vertex budget. Traced at quarter
-    resolution: a mask does not need sub-pixel edges, and the erosion kernel would be
-    ruinous at full size.
+    Quarter resolution because a mask does not need sub-pixel edges and the erosion
+    kernel would be ruinous at full size.
     """
 
     factor = _MASK_TRACE_FACTOR
@@ -393,7 +405,46 @@ def trace_band_polygon(
         (alpha.width // factor, alpha.height // factor), Image.Resampling.BOX
     ).point(lambda v: 255 if v >= MASK_THRESHOLD else 0)
     kernel = 2 * max(1, round(erode_px / factor)) + 1
-    eroded = small.filter(ImageFilter.MinFilter(kernel))
+    return small.filter(ImageFilter.MinFilter(kernel))
+
+
+def _polygon_agreement(polygon: list[tuple[float, float]], eroded: Image.Image) -> float:
+    """How much of the silhouette the traced outline actually covers (IoU, 0..1)."""
+
+    width, height = eroded.size
+    drawn = Image.new("L", eroded.size, 0)
+    ImageDraw.Draw(drawn).polygon([(x * width, y * height) for x, y in polygon], fill=255)
+    traced, truth = drawn.tobytes(), eroded.tobytes()
+    intersection = union = 0
+    for index in range(len(truth)):
+        in_traced = traced[index] >= MASK_THRESHOLD
+        in_truth = truth[index] >= MASK_THRESHOLD
+        if in_traced or in_truth:
+            union += 1
+            if in_traced and in_truth:
+                intersection += 1
+    return intersection / union if union else 0.0
+
+
+def trace_mask_polygon(
+    alpha: Image.Image,
+    *,
+    erode_px: int = MASK_ERODE_PX,
+    max_vertices: int = MASK_POLYGON_MAX_VERTICES,
+    min_iou: float = MASK_POLYGON_MIN_IOU,
+) -> list[tuple[float, float]] | None:
+    """The eroded silhouette as one polygon, normalized to the canvas, or ``None``.
+
+    The trace reads a shape that is single-valued per column: the top edge left to
+    right and the bottom edge back, each simplified to at most half the vertex budget.
+    Plenty of authored rips are not that — shards, a hole, an edge that doubles back —
+    so the result is checked against the silhouette it claims to describe and dropped
+    when the two disagree. A consumer clips with the plate's alpha; this outline is a
+    convenience, and a missing one is honest where a wrong one is not.
+    """
+
+    factor = _MASK_TRACE_FACTOR
+    eroded = _eroded_mask(alpha, erode_px)
     data = eroded.tobytes()
     width, height = eroded.size
     top: list[tuple[float, float]] = []
@@ -404,47 +455,64 @@ def trace_band_polygon(
             continue
         top.append((float(x), float(rows[0])))
         bottom.append((float(x), float(rows[-1] + 1)))
-    if len(top) < 2:
-        raise CutInAdmissionError(["frame silhouette vanishes under the mask erosion"])
+    if len(top) < 3:
+        return None
     half = max(2, max_vertices // 2)
     outline = _simplify(top, half) + list(reversed(_simplify(bottom, half)))
-    return [
+    polygon = [
         (round(x * factor / alpha.width, 4), round(y * factor / alpha.height, 4))
         for x, y in outline
     ]
+    return polygon if _polygon_agreement(polygon, eroded) >= min_iou else None
 
 
 # --- placement ---------------------------------------------------------------------------
 
 
-def polygon_centroid(polygon: list[list[float]]) -> tuple[float, float]:
-    """Area centroid of a closed polygon in normalized units (shoelace)."""
+def mask_reveal_facts(
+    alpha: Image.Image,
+    *,
+    columns: tuple[float, ...] = (0.1, 0.3, 0.5, 0.7, 0.9),
+    erode_px: int = MASK_ERODE_PX,
+) -> dict[str, Any]:
+    """What the portrait shows through, measured from the mask raster itself.
 
-    area = 0.0
-    cx = 0.0
-    cy = 0.0
-    for index, (x0, y0) in enumerate(polygon):
-        x1, y1 = polygon[(index + 1) % len(polygon)]
-        cross = x0 * y1 - x1 * y0
-        area += cross
-        cx += (x0 + x1) * cross
-        cy += (y0 + y1) * cross
-    if abs(area) < 1e-9:
-        raise ValueError("mask polygon encloses no area")
-    return cx / (3 * area), cy / (3 * area)
+    Read from the eroded silhouette rather than from the published outline, so the
+    numbers stay true for a shape no polygon describes. ``columns`` are sampled in
+    normalized x; a column the mask does not touch reports no span, and ``filled`` says
+    how much of that column is open — which is how a reader tells one thick band from
+    two thin shards stacked at the same x.
+    """
 
-
-def band_span_at(polygon: list[list[float]], x: float) -> tuple[float, float]:
-    """The polygon's lowest and highest y where the vertical line ``x`` crosses it."""
-
-    crossings: list[float] = []
-    for index, (x0, y0) in enumerate(polygon):
-        x1, y1 = polygon[(index + 1) % len(polygon)]
-        if min(x0, x1) <= x < max(x0, x1):
-            crossings.append(y0 + (x - x0) * (y1 - y0) / (x1 - x0))
-    if len(crossings) < 2:
-        raise ValueError(f"mask polygon has no band at x={x:.3f}")
-    return min(crossings), max(crossings)
+    eroded = _eroded_mask(alpha, erode_px)
+    width, height = eroded.size
+    data = eroded.tobytes()
+    total = 0
+    sum_x = sum_y = 0.0
+    for y in range(height):
+        row = y * width
+        for x in range(width):
+            if data[row + x] >= MASK_THRESHOLD:
+                total += 1
+                sum_x += x
+                sum_y += y
+    if not total:
+        raise CutInAdmissionError(["frame silhouette vanishes under the mask erosion"])
+    spans: list[dict[str, float]] = []
+    for column in columns:
+        index = min(width - 1, max(0, round(column * width)))
+        rows = [y for y in range(height) if data[y * width + index] >= MASK_THRESHOLD]
+        entry: dict[str, float] = {"x": column}
+        if rows:
+            entry["top"] = round(rows[0] / height, 4)
+            entry["bottom"] = round((rows[-1] + 1) / height, 4)
+            entry["filled"] = round(len(rows) / height, 4)
+        spans.append(entry)
+    return {
+        "centroid": [round(sum_x / total / width, 4), round(sum_y / total / height, 4)],
+        "coverage": round(total / (width * height), 4),
+        "columns": spans,
+    }
 
 
 def admit_cut_in_placement(
@@ -510,7 +578,9 @@ def canonicalize_plate(
 ) -> tuple[bytes, dict[str, Any]]:
     """Validate, clear the already-transparent exterior to alpha 0, re-validate, and
     measure the geometry a consumer needs. Never infers a silhouette. A portrait's
-    geometry carries the admitted placement it was handed; a frame carries none."""
+    geometry carries the admitted placement it was handed; a frame carries none, and
+    its ``mask_polygon`` is ``None`` when the authored shape is one no single outline
+    honestly describes."""
 
     validate = validate_frame_plate if plate.role == "frame" else validate_portrait_plate
     source_facts = validate(data)
@@ -521,7 +591,8 @@ def canonicalize_plate(
     canonical_facts = validate(canonical)
     geometry: dict[str, object] = {**plate.geometry_record()}
     if plate.role == "frame":
-        geometry["mask_polygon"] = [[x, y] for x, y in trace_band_polygon(image.getchannel("A"))]
+        traced = trace_mask_polygon(image.getchannel("A"))
+        geometry["mask_polygon"] = None if traced is None else [[x, y] for x, y in traced]
         geometry["band_rect"] = canonical_facts["band_rect"]
     else:
         geometry["alpha_rect"] = canonical_facts["alpha_rect"]
@@ -608,22 +679,24 @@ def _checkerboard(size: tuple[int, int]) -> Image.Image:
 
 def compose_hold_frame(
     frame_data: bytes,
-    portrait_data: bytes | None,
-    mask_polygon: list[list[float]],
+    portrait_data: bytes | None = None,
     *,
     placement: Mapping[str, object] | None = None,
 ) -> Image.Image:
     """The cut-in at its hold beat, drawn exactly the way a runtime draws it: plate,
-    then backdrop + stripes + portrait clipped by the published polygon, then the
+    then backdrop + stripes + portrait clipped by the plate's own alpha, then the
     plate's ink on top. The portrait sits where ``placement`` says — its canvas centre
     at ``(x, y)`` in frame-canvas units, ``scale`` of the frame height tall — which is
-    the same arithmetic the runtime runs, so evidence and game agree."""
+    the same arithmetic the runtime runs, so evidence and game agree.
+
+    The clip is the plate's alpha, not the published outline: whatever shape was
+    authored, this is the shape it reveals, and it is the same eraser the Phaser view
+    uses."""
 
     with Image.open(io.BytesIO(frame_data)) as opened:
         plate = opened.convert("RGBA")
     width, height = plate.size
-    mask = Image.new("L", plate.size, 0)
-    ImageDraw.Draw(mask).polygon([(x * width, y * height) for x, y in mask_polygon], fill=255)
+    mask = plate.getchannel("A")
     interior = Image.new("RGBA", plate.size, _BACKDROP)
     stripes = ImageDraw.Draw(interior)
     for x in range(-height - 200, width + 200, 96):
@@ -670,23 +743,21 @@ def cut_in_evidence(
     frame_data: bytes | None = None,
 ) -> bytes:
     """Reviewer evidence: the plate over a checkerboard on the left and, on the right,
-    the composed hold frame drawn through the published polygon."""
+    the composed hold frame drawn through the plate's own silhouette."""
 
     with Image.open(io.BytesIO(plate_data)) as opened:
         plate = opened.convert("RGBA")
     geometry = cast(dict[str, Any], facts["geometry"])
     role = str(geometry["role"])
     if role == "frame":
-        composed = compose_hold_frame(plate_data, None, geometry["mask_polygon"])
+        composed = compose_hold_frame(plate_data)
     else:
         if frame_data is None:
             composed = None
         else:
-            frame_facts = cast(dict[str, Any], facts["frame_geometry"])
             composed = compose_hold_frame(
                 frame_data,
                 plate_data,
-                frame_facts["mask_polygon"],
                 placement=cast(Mapping[str, object], geometry["placement"]),
             )
     half = _EVIDENCE_WIDTH // 2
@@ -722,15 +793,14 @@ __all__ = [
     "CutInAdmissionError",
     "CutInPlate",
     "admit_cut_in_placement",
-    "band_span_at",
     "canonicalize_plate",
     "compose_hold_frame",
     "cut_in_evidence",
     "cut_in_plate_contract",
     "draw_procedural_frame",
+    "mask_reveal_facts",
     "placement_transform",
-    "polygon_centroid",
-    "trace_band_polygon",
+    "trace_mask_polygon",
     "validate_frame_plate",
     "validate_portrait_plate",
 ]

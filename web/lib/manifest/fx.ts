@@ -44,8 +44,13 @@ export interface FxCutInFrame {
   readonly layout: typeof CUT_IN_FRAME_LAYOUT;
   readonly alphaPolicy: typeof CUT_IN_FRAME_ALPHA_POLICY;
   readonly canvas: FxCanvas;
-  /** The eroded silhouette, normalized to the canvas; the runtime's mask. */
-  readonly maskPolygon: readonly (readonly [number, number])[];
+  /**
+   * The eroded silhouette as one outline, normalized to the canvas — a portable
+   * convenience for a consumer with no texture to clip with, and `null` when the
+   * authored shape is one no single outline honestly describes. The runtime clips
+   * with the plate's own alpha and never reads this.
+   */
+  readonly maskPolygon: readonly (readonly [number, number])[] | null;
   readonly bandRect: FxRect;
   readonly maskErodePx: number;
   readonly asset: string;
@@ -157,7 +162,8 @@ function canvas(value: unknown, label: string): FxCanvas {
   });
 }
 
-function polygon(value: unknown, label: string): readonly (readonly [number, number])[] {
+function polygon(value: unknown, label: string): readonly (readonly [number, number])[] | null {
+  if (value === null || value === undefined) return null;
   if (!Array.isArray(value) || value.length < 3) {
     throw new Error(`${label} must hold at least three vertices`);
   }

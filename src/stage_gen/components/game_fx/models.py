@@ -36,26 +36,25 @@ from stage_gen.components.game_fx.cut_in import (
     PORTRAIT_ALPHA_POLICY,
 )
 
-GAME_FX_SCHEMA_VERSION = 1
-GAME_FX_KIND = "game-fx-v1"
+GAME_FX_SCHEMA_VERSION = 2
+GAME_FX_KIND = "game-fx-v2"
 
 #: The moments a package may bind today. Each is emitted by the genres named in
 #: ``docs/spec/game/fx.md``; a binding for a moment the hosting genre never emits is
 #: refused when that genre resolves.
-FX_MOMENTS: tuple[str, ...] = ("stage_start",)
+FX_MOMENTS: tuple[str, ...] = ("stage_start", "encounter_start")
 #: Reserved names, documented so the next caller does not invent a synonym.
 FX_RESERVED_MOMENTS: tuple[str, ...] = (
     "map_enter",
     "scene_enter",
     "fever_start",
     "run_ended",
-    "encounter_start",
 )
 #: The effect family. ``wipe`` and ``vignette`` are the reserved next members.
 FX_EFFECTS: tuple[str, ...] = ("cut_in",)
 CUT_IN_CHOREOGRAPHIES: tuple[str, ...] = ("tear_reveal_v1",)
 
-FxMomentName = Literal["stage_start"]
+FxMomentName = Literal["stage_start", "encounter_start"]
 FxEffectName = Literal["cut_in"]
 CutInChoreography = Literal["tear_reveal_v1"]
 CutInFrameMode = Literal["generated_v1", "procedural_v1"]
@@ -103,7 +102,11 @@ class CutInFrameDirection(PersistedContractModel):
 
     ``generated_v1`` paints it from references and a prompt; ``procedural_v1`` draws it
     locally with no spend and no authored art. Both pass the same gate and publish the
-    same mask polygon, so a consumer never learns which one it was handed.
+    same contract, so a consumer never learns which one it was handed.
+
+    ``prompt`` is the rip's register — paper, ink, how the tear reads. ``shape`` is its
+    silhouette, and it replaces the component's default one strip across the canvas;
+    only ``generated_v1`` can act on it, because the procedural draw takes no prose.
     """
 
     mode: CutInFrameMode
@@ -111,6 +114,7 @@ class CutInFrameDirection(PersistedContractModel):
     alpha_policy: Literal["transparent_exterior_opaque_body_v1"]
     reference_ids: list[str] = Field(default_factory=list, max_length=16)
     prompt: str | None = None
+    shape: str | None = None
 
     @field_validator("reference_ids")
     @classmethod
@@ -125,6 +129,13 @@ class CutInFrameDirection(PersistedContractModel):
             return None
         return normalized_text(value, "cut_in.frame.prompt", multiline=True)
 
+    @field_validator("shape")
+    @classmethod
+    def validate_shape(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalized_text(value, "cut_in.frame.shape", multiline=True)
+
     @model_validator(mode="after")
     def validate_mode_inputs(self) -> CutInFrameDirection:
         if self.mode == "generated_v1":
@@ -132,8 +143,10 @@ class CutInFrameDirection(PersistedContractModel):
                 raise ValueError(
                     "cut_in.frame mode generated_v1 requires reference_ids and a prompt"
                 )
-        elif self.reference_ids or self.prompt is not None:
-            raise ValueError("cut_in.frame mode procedural_v1 authors no references and no prompt")
+        elif self.reference_ids or self.prompt is not None or self.shape is not None:
+            raise ValueError(
+                "cut_in.frame mode procedural_v1 authors no references, prompt, or shape"
+            )
         return self
 
 
@@ -202,8 +215,8 @@ FxMoment = CutInMomentBinding
 class GameFx(PersistedContractModel):
     """One root FX document: plates per effect kind, and moment bindings."""
 
-    schema_version: Literal[1]
-    kind: Literal["game-fx-v1"]
+    schema_version: Literal[2]
+    kind: Literal["game-fx-v2"]
     game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[FxReference] = Field(min_length=1, max_length=32)

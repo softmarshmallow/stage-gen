@@ -124,6 +124,20 @@ def test_a_procedural_frame_authors_no_references_and_no_prompt() -> None:
     assert contract.cut_in.frame.prompt is None
 
 
+def test_an_authored_shape_belongs_to_the_generated_frame_alone() -> None:
+    source = _source()
+    shaped = source.replace(
+        b'reference_ids = ["cover_style"]\n',
+        b'reference_ids = ["cover_style"]\nshape = "Three overlapping torn shards."\n',
+        1,
+    )
+    contract = load_game_fx_bytes(shaped)
+    assert contract.cut_in is not None
+    assert contract.cut_in.frame.shape == "Three overlapping torn shards."
+    # A frame with no authored shape keeps the component's default one.
+    assert load_game_fx_bytes(source).cut_in.frame.shape is None  # type: ignore[union-attr]
+
+
 def test_a_portrait_prompt_never_states_an_age() -> None:
     source = _source()
     for phrase in (b"an eleven-year-old child", b"aged 11", b"a cheerful kid", b"12 yr old"):

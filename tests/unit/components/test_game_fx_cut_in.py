@@ -15,13 +15,12 @@ from stage_gen.components.game_fx import (
     MASK_POLYGON_MAX_VERTICES,
     CutInAdmissionError,
     admit_cut_in_placement,
-    band_span_at,
     canonicalize_plate,
     compose_hold_frame,
     cut_in_evidence,
     draw_procedural_frame,
-    polygon_centroid,
-    trace_band_polygon,
+    mask_reveal_facts,
+    trace_mask_polygon,
     validate_frame_plate,
     validate_portrait_plate,
 )
@@ -51,6 +50,7 @@ def frame_plate(
     span: float = 1.0,
     glow: bool = False,
     grey_fill: bool = False,
+    specks: int = 0,
 ) -> bytes:
     """A clean torn strip; each knob breaks one promise of the frame contract."""
 
@@ -69,6 +69,9 @@ def frame_plate(
         draw.polygon([(0, top), (x1, top - 40), (x1, bottom - 40), (0, bottom)], fill=255)
     if hole:
         draw.ellipse((width * 0.4, height * 0.45, width * 0.5, height * 0.55), fill=0)
+    for index in range(specks):
+        left = width * (0.1 + index * 0.05)
+        draw.ellipse((left, height * 0.1, left + 12, height * 0.1 + 12), fill=255)
     plate = Image.new("RGBA", CUT_IN_CANVAS, (0, 0, 0, 0))
     grown = fill.filter(
         __import__("PIL.ImageFilter", fromlist=["MaxFilter"]).MaxFilter(ink * 2 + 1)
@@ -115,9 +118,8 @@ def test_a_clean_strip_and_the_procedural_frame_pass_the_same_gate() -> None:
 @pytest.mark.parametrize(
     ("knob", "message"),
     [
-        ({"hole": True}, "holes"),
-        ({"split": True}, "shapes, not one"),
-        ({"span": 0.7}, "edge to edge"),
+        ({"span": 0.4}, "under 0.6"),
+        ({"specks": 6}, "specks"),
         ({"glow": True}, "glow"),
         ({"grey_fill": True}, "flat white"),
         ({"band": 0.9}, "coverage"),
@@ -158,7 +160,8 @@ def test_each_broken_portrait_promise_is_named(knob: dict[str, object], message:
 def test_the_mask_polygon_is_the_eroded_band_within_the_vertex_budget() -> None:
     with Image.open(io.BytesIO(frame_plate())) as opened:
         alpha = opened.convert("RGBA").getchannel("A")
-    polygon = trace_band_polygon(alpha)
+    polygon = trace_mask_polygon(alpha)
+    assert polygon is not None
     assert 4 <= len(polygon) <= MASK_POLYGON_MAX_VERTICES
     xs = [x for x, _ in polygon]
     ys = [y for _, y in polygon]
@@ -169,6 +172,20 @@ def test_the_mask_polygon_is_the_eroded_band_within_the_vertex_budget() -> None:
     assert 0.55 < max(ys) < 0.80
 
 
+def test_an_authored_shape_the_gate_now_allows_publishes_no_lying_outline() -> None:
+    # Two shards and a punched hole are shapes, not defects: the gate admits them and
+    # the runtime clips with the plate's alpha either way.
+    shards = validate_frame_plate(frame_plate(split=True))
+    assert shards["components"] == 2
+    assert validate_frame_plate(frame_plate(hole=True))["holes"] == 1
+    with Image.open(io.BytesIO(frame_plate(split=True))) as opened:
+        alpha = opened.convert("RGBA").getchannel("A")
+    # No single outline describes two shards, so none is published.
+    assert trace_mask_polygon(alpha) is None
+    _canonical, facts = canonicalize_plate(frame_plate(split=True), CUT_IN_FRAME)
+    assert facts["geometry"]["mask_polygon"] is None
+
+
 def test_canonicalization_clears_only_the_exterior_and_publishes_geometry() -> None:
     canonical, facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
     with Image.open(io.BytesIO(canonical)) as opened:
@@ -177,7 +194,7 @@ def test_canonicalization_clears_only_the_exterior_and_publishes_geometry() -> N
     geometry = facts["geometry"]
     assert geometry["role"] == "frame"
     assert geometry["layout"] == "cut_in_frame_1536x1024_v1"
-    assert len(geometry["mask_polygon"]) >= 4
+    assert geometry["mask_polygon"] is not None and len(geometry["mask_polygon"]) >= 4
     assert geometry["band_rect"]["width"] == CUT_IN_CANVAS[0]
     assert facts["pixel_rewrite"] == "alpha_exterior_clear_v1"
     json.dumps(facts)  # the record is plain JSON
@@ -220,10 +237,9 @@ def test_evidence_composes_the_portrait_at_its_placement_through_the_frames_poly
 
 
 def test_hold_frame_puts_the_portrait_centre_where_the_placement_says() -> None:
-    frame, frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
-    polygon = frame_facts["geometry"]["mask_polygon"]
-    small = compose_hold_frame(frame, portrait_plate(), polygon, placement=_admitted(scale=0.2))
-    large = compose_hold_frame(frame, portrait_plate(), polygon, placement=_admitted(scale=0.6))
+    frame, _frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
+    small = compose_hold_frame(frame, portrait_plate(), placement=_admitted(scale=0.2))
+    large = compose_hold_frame(frame, portrait_plate(), placement=_admitted(scale=0.6))
     # Same centre, the larger scale reaches further along the band's centre line.
     probe_y = round(0.5 * 1024)
     far_x = round((0.5 + 0.18) * 1536)
@@ -233,19 +249,27 @@ def test_hold_frame_puts_the_portrait_centre_where_the_placement_says() -> None:
     assert small_pixel[0] > 180 and small_pixel[2] < 120  # backdrop beyond a small portrait
     assert abs(large_pixel[0] - 210) < 25 and abs(large_pixel[1] - 160) < 25
     with pytest.raises(ValueError, match="needs a placement"):
-        compose_hold_frame(frame, portrait_plate(), polygon)
+        compose_hold_frame(frame, portrait_plate())
 
 
-def test_band_geometry_helpers_read_the_traced_polygon() -> None:
-    _frame, frame_facts = canonicalize_plate(frame_plate(), CUT_IN_FRAME)
-    polygon = frame_facts["geometry"]["mask_polygon"]
-    centre_x, centre_y = polygon_centroid(polygon)
+def test_the_agents_facts_are_read_from_the_mask_not_from_the_outline() -> None:
+    with Image.open(io.BytesIO(frame_plate())) as opened:
+        facts = mask_reveal_facts(opened.convert("RGBA").getchannel("A"))
+    centre_x, centre_y = facts["centroid"]
     assert 0.45 < centre_x < 0.55
     assert 0.45 < centre_y < 0.55
-    top, bottom = band_span_at(polygon, 0.5)
-    assert 0.25 < top < 0.45 and 0.55 < bottom < 0.75
-    with pytest.raises(ValueError, match="no band"):
-        band_span_at([[0.0, 0.3], [0.5, 0.3], [0.5, 0.7], [0.0, 0.7]], 0.9)
+    middle = facts["columns"][2]
+    assert middle["x"] == 0.5
+    assert 0.25 < middle["top"] < 0.45 and 0.55 < middle["bottom"] < 0.75
+
+    # A hole the traced outline smooths over still shows up as a column less open,
+    # and a column the shape does not reach reports no span at all.
+    with Image.open(io.BytesIO(frame_plate(hole=True))) as opened:
+        punched = mask_reveal_facts(opened.convert("RGBA").getchannel("A"))
+    assert punched["columns"][2]["filled"] < middle["filled"]
+    with Image.open(io.BytesIO(frame_plate(split=True))) as opened:
+        shards = mask_reveal_facts(opened.convert("RGBA").getchannel("A"))
+    assert "top" not in shards["columns"][2]
 
 
 @pytest.mark.parametrize(
