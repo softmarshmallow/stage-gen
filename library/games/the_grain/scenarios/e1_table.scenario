@@ -1,0 +1,1371 @@
+# The Grain, Episode One, Movement III — the table.
+#
+# Scenes 3, 4 and 5 of the novel: the arrivals, and three courses. Every line is
+# lifted from `story/snapshot-2026-09-03/script/`, chapters two and three. The
+# novel already wrote every place Henry might be, so the strands need no new
+# dialogue at all.
+#
+# Attention is per course, not per line. Each course offers the room doing more
+# than one thing at once and Henry follows one of them; what he watches he sees,
+# and what he sees he can later say. What he misses is gone for the night.
+#
+# Composition: Ruth sits at Henry's left and Lydia at his right, so they hold
+# `left` and `right` for the whole supper. Whoever the exchange is across the
+# table from him takes `center` — Paul once he is seated, Edwin or Robert before
+# that. Marian takes `far_left` and Nell `far_right`. Henry is never drawn.
+
+
+# --------------------------------------------------------------- the arrivals
+
+
+label arrivals_marian:
+    stage winter_room_evening
+    play supper
+
+    show lydia composed at right
+
+    "The elevator arrives. Its doors open on an empty vestibule."
+
+    "For a moment nobody enters."
+
+    show marian warm at far_left
+
+    "Then Marian Holt steps around the corner, pulling one glove loose finger by finger. She is a handsome woman in her middle fifties, dressed for a better restaurant than the one she remembers. When she sees Lydia, her face changes before she can decide what to change it into."
+
+    "Lydia crosses to her."
+
+    "They kiss once, lightly. Marian's ungloved hand remains on Lydia's arm. Lydia puts her hand over it. The gesture is old enough to occur without permission."
+
+    marian warm "You look well."
+
+    lydia composed "I am leaving in the morning."
+
+    marian "Those things can both be true."
+
+    lydia "That is why I invited you."
+
+    "Marian removes her hand."
+
+    show edwin formal at center
+
+    "Edwin comes forward for her coat."
+
+    marian "How is your knee?"
+
+    edwin dry "It remains mine."
+
+    marian correcting "You said that at Easter."
+
+    edwin formal "The situation has not changed."
+
+    "She smiles and gives him the coat. Henry does not yet know how they know one another."
+
+    hide edwin
+    jump arrivals_ruth
+
+
+label arrivals_ruth:
+    show ruth composed at left
+
+    "Marian sees Ruth."
+
+    marian "Ruth."
+
+    ruth "Hello, Marian."
+
+    "They embrace. Marian holds on a moment longer than Ruth expected. Ruth accepts the extra moment, then steps back."
+
+    marian warm "I wasn't sure you would come."
+
+    ruth "Neither was I."
+
+    marian "Did she write to you?"
+
+    ruth "She called."
+
+    "Marian looks at Lydia."
+
+    marian correcting "You called her."
+
+    lydia composed "She has a telephone."
+
+    marian correcting "You have had her address for six years."
+
+    ruth "Seven."
+
+    marian "Has it been?"
+
+    ruth shut "Only to me."
+
+    "Marian touches Ruth's sleeve. Ruth lets her."
+
+    jump arrivals_henry
+
+
+label arrivals_henry:
+    "Marian turns to Henry."
+
+    marian "You brought someone."
+
+    ruth "Henry Calder. Marian Holt."
+
+    henry "Mrs. Holt."
+
+    marian warm "Marian, please."
+
+    "Marian looks back to Henry."
+
+    marian "How do you know Ruth?"
+
+    ruth dry "He doesn't. Not properly."
+
+    henry "We met during a case."
+
+    marian "Are you a lawyer?"
+
+    ruth dry "No. He listens for money."
+
+    marian "That sounds worse."
+
+    henry "It often does."
+
+    "Lydia returns to the table. One place card lies at a slant from the others. She straightens it without looking down."
+
+    marian correcting "You said seven."
+
+    lydia "Ruth was permitted one person."
+
+    marian "By whom?"
+
+    show edwin formal at center
+
+    edwin formal "By me."
+
+    marian "All right."
+
+    hide edwin
+
+    "She walks to the windows. The city below is clear enough to resemble a promise. Edwin looks at his watch and goes out through the kitchen."
+
+    marian "Robert said he would meet me here."
+
+    lydia "Did he?"
+
+    marian "At breakfast."
+
+    lydia composed "He may still."
+
+    jump arrivals_robert
+
+
+label arrivals_robert:
+    hide ruth
+    show robert rambling at center
+
+    "Before Marian can ask again, Edwin comes through the kitchen door with Robert Holt. Robert is taking off his tie and explaining something about the entrance. He is broad through the shoulders and grayer than his wife."
+
+    robert rambling "—sent me back to Hill, but the Hill Street door was locked. I went around twice. Edwin found me arguing with the night guard."
+
+    marian correcting "You could have come with me."
+
+    robert "I meant to."
+
+    marian "You said you would meet me here."
+
+    robert "I am here."
+
+    marian correcting "Yes, Robert."
+
+    "He kisses Marian on the cheek. She permits the kiss but does not help him with it."
+
+    robert sorry "I'm sorry. I should have come with you."
+
+    marian "Yes."
+
+    show robert waiting at center
+
+    "Robert waits, having expected another sentence. Marian has none."
+
+    "He crosses to Lydia. She kisses his cheek and smooths the place where his tie had pressed into his collar."
+
+    robert rambling "There really is a train tomorrow?"
+
+    lydia "In the morning."
+
+    robert "I didn't know whether to believe the time."
+
+    lydia composed "Why would I invent a train time?"
+
+    robert "It made the story sound finished."
+
+    "Lydia looks at him, then turns to the table."
+
+    jump arrivals_still_leave
+
+
+label arrivals_still_leave:
+    hide marian
+    show ruth composed at left
+
+    "Ruth moves closer to Henry without appearing to."
+
+    ruth "You can still leave."
+
+    henry "Can you?"
+
+    ruth shut "That wasn't the offer."
+
+    show marian warm at far_left
+    show robert water at center
+
+    "Robert pours a drink. Before tasting it, he brings Marian a glass of water. She takes it without interrupting her conversation with Ruth."
+
+    "Lydia introduces Henry."
+
+    lydia "Robert Holt. Henry Calder came with Ruth."
+
+    "He offers Henry his hand."
+
+    robert rambling "How long have you known her?"
+
+    henry "Long enough to be invited. Not long enough to know why."
+
+    robert "That's most of us."
+
+    ruth composed "Robert has known Lydia thirty years."
+
+    robert "Twenty-eight."
+
+    marian correcting "Thirty. You met her before you met me."
+
+    robert "I knew of her."
+
+    marian "That counted when you were telling the story to my mother."
+
+    robert rambling "Your mother liked a complete story."
+
+    marian "She liked the end first."
+
+    "Lydia laughs. Marian tries not to, then does. Robert raises his glass to the absent woman."
+
+    jump arrivals_nell
+
+
+label arrivals_nell:
+    hide robert
+    hide ruth
+    show nell flat at far_right
+
+    "The elevator bell interrupts their laughter."
+
+    "Nell Avery enters with her coat folded over one arm. A faint line crosses her cheek where she had rested her hand."
+
+    nell flat "She did like the end first."
+
+    marian "You weren't there."
+
+    nell "I've heard it every Christmas since I was twelve."
+
+    show edwin formal at center
+
+    "Marian smiles. Edwin crosses to take Nell's coat."
+
+    nell "Hello, Edwin."
+
+    edwin formal "Miss Avery."
+
+    "She gives him her coat, then puts her arms around him. Edwin receives the embrace with grave surprise and returns it carefully."
+
+    nell "Thank you for tonight."
+
+    edwin grave "You may wait until it is over."
+
+    hide edwin
+    hide marian
+    jump arrivals_lydia_and_nell
+
+
+label arrivals_lydia_and_nell:
+    "Nell goes directly to Lydia. Lydia opens her arms, and Nell embraces her."
+
+    "Lydia closes her eyes."
+
+    nell hearing "You really are going."
+
+    lydia "Yes."
+
+    nell "All right."
+
+    lydia lowered "No, it isn't."
+
+    "They separate. Lydia touches the ends of Nell's hair."
+
+    lydia "You cut it."
+
+    nell "In June."
+
+    lydia lowered "I missed it."
+
+    nell flat "Yes."
+
+    "Nell fixes Lydia's collar."
+
+    nell "There."
+
+    lydia composed "Thank you."
+
+    jump arrivals_sit_down
+
+
+label arrivals_sit_down:
+    show marian warm at far_left
+
+    "Marian takes Nell's hand and squeezes it. Nell leans against her for a moment, then notices Henry."
+
+    nell "Who is this?"
+
+    show ruth composed at left
+
+    ruth "Henry. He came with me."
+
+    nell "Are you staying for dinner?"
+
+    henry "That was the arrangement."
+
+    nell "Good."
+
+    show robert waiting at center
+
+    "She gives him her hand, then turns to Robert."
+
+    robert "Did you eat anything today?"
+
+    nell "Breakfast."
+
+    robert rambling "Nell, it's after eight."
+
+    nell flat "I know what time it is."
+
+    marian "There are rolls."
+
+    nell hungry "Then let's sit down."
+
+    "Only then does Nell look at Ruth."
+
+    nell "Hello, Ruth."
+
+    ruth "Hello."
+
+    jump arrivals_the_tray
+
+
+# The one look of the arrivals. Seven names face outward and the eighth does not,
+# and whether Henry reads the cards himself decides, hours later, whether "Her
+# reaction said no" is a report or a guess.
+
+label arrivals_the_tray:
+    hide robert
+    hide ruth
+    show edwin formal at center
+
+    "Edwin brings a tray of small drinks from the service bar. Nobody has requested the same thing, yet each glass finds the person who expected it. Nell's is soda water with lime. She takes it, then looks at Lydia."
+
+    nell "Thank you."
+
+    hide edwin
+
+    "Lydia returns to the place cards."
+
+    lydia composed "We should sit."
+
+    marian correcting "Someone is missing."
+
+    lydia "Someone is always missing. It has never stopped dinner."
+
+    marian "There are eight places."
+
+    show ruth composed at left
+
+    ruth "Henry made eight."
+
+    menu:
+        "Read the place cards yourself.":
+            jump look_eighth_card
+        "Watch Nell.":
+            jump cards_unlooked
+
+
+label look_eighth_card:
+    "Nell looks at the cards. Seven names face outward. The eighth is turned toward Lydia."
+
+    set eighth_card
+
+    jump nell_asks
+
+
+label cards_unlooked:
+    "Nell looks at the cards."
+
+    jump nell_asks
+
+
+label nell_asks:
+    nell flat "Then why is there another card?"
+
+    "Nobody answers quickly enough."
+
+    "Ruth reaches for it. Lydia places two fingers on the card before Ruth can turn it."
+
+    ruth "Who else did you ask?"
+
+    lydia work "Someone who had not answered."
+
+    ruth "You didn't tell me."
+
+    lydia "No."
+
+    ruth "Why?"
+
+    lydia work "Would you have come?"
+
+    set would_you_have_come_first
+
+    "Ruth turns the card over."
+
+    "PAUL ELLERY."
+
+    jump paul_arrives
+
+
+label paul_arrives:
+    "The elevator bell sounds once."
+
+    "Nell puts down her drink. Robert looks at the floor."
+
+    "The elevator doors open."
+
+    show paul younger at center
+
+    "Paul Ellery remains in the vestibule. He is younger than Ruth by only a few years, but in the instant before he recognizes the room he looks much younger than that. Then he sees Ruth. Then Nell."
+
+    paul younger "You didn't say Ruth was coming."
+
+    lydia composed "I didn't tell Ruth you were coming."
+
+    ruth shut "Stop helping."
+
+    paul "You said you hadn't told anyone."
+
+    lydia "I hadn't. You called at six and said yes, and I wrote the card."
+
+    marian correcting "Lydia."
+
+    "Paul takes one step backward toward the elevator."
+
+    ruth exposed "Don't."
+
+    "The doors begin to close. Henry catches one with his hand. It opens again."
+
+    set hand_in_the_door
+
+    paul stopped "Who are you?"
+
+    henry "Dinner guest."
+
+    paul "This was a mistake."
+
+    ruth "Yes. Stay anyway."
+
+    hide marian
+
+    "Paul looks at Nell. Nell rests both hands on the table."
+
+    nell flat "Stay."
+
+    paul "Do you want me to?"
+
+    nell hungry "No. But if you leave, the rest of them will spend the evening deciding what it meant. I'm hungry."
+
+    "Paul looks at her. The corner of his mouth moves, then stops."
+
+    paul all_right "All right."
+
+    "Henry releases the elevator door. It closes behind Paul."
+
+    jump the_seats
+
+
+label the_seats:
+    hide paul
+    hide nell
+    hide ruth
+    show edwin formal at center
+
+    "Edwin takes Paul's coat, then gathers the place cards from the table."
+
+    lydia "Edwin."
+
+    edwin formal "The first course is ready."
+
+    lydia work "Those are the seats."
+
+    edwin dry "They were."
+
+    "He slips the cards into his jacket pocket."
+
+    "Nell chooses the chair across from Paul. Marian sits beside Nell. Robert sits beside Marian after a moment's hesitation. Ruth takes Henry's left side, and Lydia takes his right. Edwin remains standing nearest the kitchen."
+
+    jump first_course
+
+
+# ------------------------------------------------------------ the first course
+
+
+label first_course:
+    hide lydia
+    show marian correcting at far_left
+    show robert rambling at far_right
+
+    "The retained waiter enters from the kitchen with eight bowls. He reads the room well enough not to ask what has happened. Edwin helps him serve, then sends him back through the swinging door with a quiet word."
+
+    "The soup is pale and gives off almost no steam."
+
+    robert "Is it meant to be cold?"
+
+    edwin formal "Yes."
+
+    robert rambling "I wanted to ask before Marian did."
+
+    marian "I wasn't going to ask."
+
+    robert "You looked at it."
+
+    marian correcting "It's soup. I looked."
+
+    hide robert
+    show nell hungry at far_right
+
+    "Nell has already eaten several spoonfuls."
+
+    nell "What is it?"
+
+    edwin "Cucumber."
+
+    nell hungry "It's good."
+
+    "Robert tastes it and nods. Edwin sits at last."
+
+    "For several moments they eat."
+
+    jump the_toast
+
+
+label the_toast:
+    hide nell
+    show lydia composed at right
+
+    "Edwin puts down his spoon and lifts his glass."
+
+    edwin formal "Miss Shaw requested no speeches. This is a toast."
+
+    lydia composed "Briefly."
+
+    "He waits until the glasses rise."
+
+    edwin formal "Lydia has worked in this building for twenty-six years. That is not why we are here. We are here because she asked us. Tomorrow she says she is leaving. Tonight she is not."
+
+    "He looks at Lydia."
+
+    edwin grave "To tonight."
+
+    marian warm "To tonight."
+
+    "The others repeat it. Henry does too."
+
+    show lydia lowered at right
+
+    "Lydia drinks. Her eyes shine briefly, but she does not lower them."
+
+    jump portland
+
+
+# The first course is the room doing three things at once. Whichever Henry
+# follows, the toast has been drunk and Ruth closes the course.
+
+label portland:
+    hide edwin
+    show robert rambling at center
+    show nell flat at far_right
+
+    robert "And Portland."
+
+    lydia composed "Portland does not need encouragement."
+
+    nell "Have you been there?"
+
+    lydia "No."
+
+    nell "Do you know anyone there?"
+
+    lydia "No."
+
+    marian "Do you have somewhere to live?"
+
+    lydia "Yes."
+
+    robert "Is there furniture?"
+
+    lydia cut_off "Robert."
+
+    robert rambling "It matters after the first night."
+
+    lydia composed "There is furniture."
+
+    menu:
+        "Watch the Holts.":
+            jump first_course_holts
+        "Watch Ruth and Paul.":
+            jump first_course_ruth_paul
+        "Watch Nell and Lydia.":
+            jump first_course_nell_lydia
+
+
+label first_course_holts:
+    "Marian takes the dish of salt, uses none, and sets it beside Robert before he asks."
+
+    set marian_salt
+
+    marian correcting "Photographs."
+
+    robert rambling "We rented a room from photographs."
+
+    marian "You rented it. I told you not to."
+
+    robert "You came."
+
+    marian correcting "I had married you."
+
+    robert "There were two windows in the picture."
+
+    nell flat "One was painted on the wall."
+
+    "Robert looks at her."
+
+    robert "You've heard this."
+
+    nell "Every Christmas since I was twelve."
+
+    paul "The painted one had the better view."
+
+    lydia composed "I lent them thirty dollars for curtains."
+
+    robert rambling "The real window faced a brick wall."
+
+    marian correcting "In Burbank."
+
+    robert "Pasadena."
+
+    nell "Burbank."
+
+    robert "The Pasadena end of Burbank."
+
+    "Marian laughs first. Lydia joins her. Then Nell and Paul, who have heard the story far too many times."
+
+    "Ruth laughs because Robert is still trying to move the room."
+
+    hide marian
+    hide robert
+    hide lydia
+    hide nell
+    jump first_course_close
+
+
+label first_course_ruth_paul:
+    hide marian
+    hide robert
+    hide lydia
+    hide nell
+    show ruth composed at left
+    show paul younger at center
+
+    "Ruth tears a roll in half and places one piece on Paul's bread plate. She realizes what she has done only after her hand is empty."
+
+    show paul stopped at center
+
+    "Paul notices and says nothing."
+
+    set ruth_roll
+
+    hide ruth
+    hide paul
+    jump first_course_close
+
+
+label first_course_nell_lydia:
+    hide robert
+    show paul younger at center
+
+    "Nell eats quickly. Lydia watches her, then deliberately looks away."
+
+    paul "What color is the front door?"
+
+    "Everyone looks at him."
+
+    paul younger "If we're establishing the place exists."
+
+    "Lydia considers."
+
+    lydia composed "Blue."
+
+    paul "Dark or light?"
+
+    lydia "Dark."
+
+    paul "House or apartment?"
+
+    lydia "House."
+
+    paul "Whose house?"
+
+    "The room stills without becoming silent."
+
+    "Lydia smiles at him."
+
+    lydia work "Mine, beginning Thursday."
+
+    set dark_blue_door
+
+    show marian still at far_left
+
+    "Marian leans back."
+
+    nell flat "You bought a house."
+
+    lydia "I rented one."
+
+    nell "Without seeing it."
+
+    lydia composed "The agent sent photographs."
+
+    "Nell reaches for the bread and finds the basket empty. Paul has the last roll on his plate. He looks at it, then places it in the basket and passes it across the table."
+
+    "Nell breaks it in half and sends one half back."
+
+    "Paul takes it."
+
+    hide marian
+    hide lydia
+    hide nell
+    hide paul
+    jump first_course_close
+
+
+label first_course_close:
+    show ruth composed at left
+
+    "For the next few minutes the soup is good, the room is warm, and the city below belongs to other people."
+
+    "Henry looks at Ruth. She is laughing too."
+
+    "She catches him looking."
+
+    ruth "What?"
+
+    henry "Nothing."
+
+    ruth dry "That is what you say when something has become your business."
+
+    henry "I'm eating soup."
+
+    ruth composed "Then try to look less employed."
+
+    "Henry takes another spoonful."
+
+    "For a little while, he does."
+
+    jump main_course
+
+
+# ------------------------------------------------------------- the main course
+
+
+label main_course:
+    hide ruth
+    show edwin formal at center
+    show lydia composed at right
+
+    "The waiter clears the soup. Edwin rises to help him."
+
+    lydia "Sit down."
+
+    edwin formal "In a moment."
+
+    "He carries four bowls through the kitchen door and returns with four plates. The waiter follows with four more. On each is a white paper parcel folded into a long oval and tied with string."
+
+    show robert rambling at far_right
+
+    robert "What is it?"
+
+    edwin "Sole."
+
+    robert "Inside the paper."
+
+    edwin dry "Still sole."
+
+    "Edwin cuts Lydia's string, opens the fold, and releases lemon-scented steam. He hands the scissors to Marian."
+
+    jump the_knot
+
+
+# Henry's one object and his one act. If he lends it he sees how the man handles
+# a small thing; if he does not, the knot gets smaller and nothing is learned.
+
+label the_knot:
+    hide edwin
+    hide robert
+    hide lydia
+    show marian correcting at far_left
+    show nell hungry at far_right
+    show paul younger at center
+
+    "Marian opens hers neatly. Nell breaks the string with her fingers. Paul pulls at one end until the knot becomes smaller."
+
+    show ruth composed at left
+
+    ruth "Here."
+
+    paul stopped "I can do it."
+
+    menu:
+        "Offer the pocketknife.":
+            jump knife_offered
+        "Let him work at it.":
+            jump knife_kept
+
+
+label knife_offered:
+    "Henry offers his pocketknife. Paul takes it."
+
+    paul "Thank you."
+
+    "He cuts the string."
+
+    set pocketknife_lent
+
+    jump roberts_steam
+
+
+label knife_kept:
+    "He pulls again."
+
+    jump roberts_steam
+
+
+label roberts_steam:
+    hide nell
+    hide ruth
+    show robert rambling at far_right
+    show lydia composed at right
+
+    "Robert has torn his parcel open from the side. A gust of steam rises into his face."
+
+    marian correcting "Robert."
+
+    "Marian pulls his plate away as Lydia reaches across with her napkin. They do it together, quickly and without collision."
+
+    "Robert blinks."
+
+    robert sorry "I'm all right."
+
+    marian "Wait before you lean over it."
+
+    lydia composed "Use this."
+
+    "She gives him the napkin. Nell laughs. Paul does too."
+
+    robert rambling "I opened it."
+
+    marian correcting "You certainly did."
+
+    if pocketknife_lent:
+        jump knife_returned
+
+    jump the_scissors_round
+
+
+label knife_returned:
+    "Paul closes the knife and returns it to Henry."
+
+    jump the_scissors_round
+
+
+label the_scissors_round:
+    "Marian passes the dining scissors to Robert. They continue around the table until Edwin places them on the service cart."
+
+    "Edwin sits at last."
+
+    "For a while, they eat. There is enough butter in the fish and too much salt in the potatoes. Robert eats both without complaint."
+
+    jump the_capers
+
+
+label the_capers:
+    hide robert
+    hide marian
+    hide lydia
+    show ruth composed at left
+    show nell hungry at far_right
+
+    "Paul moves three capers to the edge of his paper. Ruth reaches toward his plate with her fork, catches herself, and returns to her own fish."
+
+    paul "I can remove them."
+
+    ruth dry "I saw."
+
+    nell flat "He ate them when he lived with me."
+
+    paul stopped "I had somewhere to put them."
+
+    "Nell holds out her plate. Paul transfers the capers to it."
+
+    show marian correcting at far_left
+
+    marian "You like capers?"
+
+    nell "No."
+
+    paul "This was the arrangement."
+
+    nell "You had several."
+
+    paul "That one lasted."
+
+    "Nell eats one of the capers anyway."
+
+    jump mostly_husbands
+
+
+label mostly_husbands:
+    hide marian
+    hide nell
+    show robert rambling at far_right
+
+    "Paul turns to Henry."
+
+    paul "What do you do?"
+
+    henry "Private investigations."
+
+    paul "People?"
+
+    henry "Mostly husbands."
+
+    robert "Do you find them?"
+
+    henry "They tend to be where they said they weren't."
+
+    "Robert nods as if this confirms something modest about the world."
+
+    paul "Is that how you know Ruth?"
+
+    ruth shut "No husband."
+
+    paul "I knew that part."
+
+    ruth "Then you know enough."
+
+    "Henry returns to his fish. Paul waits, then lets him."
+
+    jump the_blanket
+
+
+label the_blanket:
+    hide robert
+    hide ruth
+    hide paul
+    show nell flat at far_right
+    show lydia composed at right
+
+    nell "Did you pack the green blanket?"
+
+    lydia "No."
+
+    nell "Good."
+
+    lydia lowered "I gave it away."
+
+    nell "To whom?"
+
+    lydia "A woman on the fourth floor."
+
+    nell "Which woman?"
+
+    lydia "You don't know her."
+
+    nell flat "Even better."
+
+    show paul younger at center
+
+    paul "Was there something wrong with it?"
+
+    nell "It follows you home."
+
+    show marian warm at far_left
+
+    marian "It was a good blanket."
+
+    nell flat "That was the problem. Lydia gave it to my mother when I was born. My mother gave it back when I left for school. Lydia gave it to me when Paul and I moved in together."
+
+    paul "I liked it."
+
+    nell "When Paul left, I returned it before Lydia could give it to me again."
+
+    lydia lowered "It was wool."
+
+    nell "It was an assignment."
+
+    lydia "It kept you warm."
+
+    nell flat "Those things can both be true."
+
+    "Marian looks at Lydia. Lydia recognizes her own earlier sentence and gives Nell a small, unwilling smile."
+
+    lydia cut_off "The woman on the fourth floor has six children."
+
+    nell "It will have plenty to do."
+
+    "The room is quiet for a few bites."
+
+    jump the_burned_chicken
+
+
+label the_burned_chicken:
+    hide lydia
+    hide nell
+    show robert rambling at far_right
+
+    paul "The first time I had dinner with all of you, June burned the chicken."
+
+    marian correcting "It wasn't burned."
+
+    robert "It was black."
+
+    show lydia composed at right
+
+    lydia "Only outside."
+
+    robert "That is the part we saw."
+
+    nell "You ate two pieces."
+
+    robert sorry "I was a guest."
+
+    paul "We opened every window. Marian put the chicken on the table. Lydia took it off. June put it back."
+
+    "He looks at Ruth."
+
+    jump eat_the_middle
+
+
+label eat_the_middle:
+    hide marian
+    hide robert
+    hide lydia
+    show ruth composed at left
+    show nell flat at far_right
+
+    ruth shut "I wasn't there."
+
+    paul "I've told you."
+
+    ruth "That is not the same thing."
+
+    "He waits."
+
+    "Ruth continues eating."
+
+    paul stopped "What did she say?"
+
+    ruth "Eat the middle."
+
+    "Paul points at her with his fork."
+
+    paul pleased "Exactly."
+
+    nell flat "You still do that."
+
+    paul "Do what?"
+
+    nell "Stop before the sentence and wait for Ruth."
+
+    paul stopped "She tells it better."
+
+    ruth shut "That isn't what you ask me for."
+
+    "Paul puts down his fork."
+
+    paul "No."
+
+    "Nell looks from one of them to the other."
+
+    jump the_middle_is_chicken
+
+
+# The main course's cost. Lydia is telling it and Ruth is holding a knife, and
+# Henry cannot have both. Without the knife he has no reason to say "You've heard
+# it," and June's sentence never opens at coffee.
+
+label the_middle_is_chicken:
+    hide paul
+    hide ruth
+    show marian correcting at far_left
+    show robert rambling at center
+    show lydia composed at right
+
+    nell "My mother said the middle was still chicken."
+
+    marian correcting "She said both."
+
+    lydia "She said, “The middle is still chicken. Eat the middle.”"
+
+    robert rambling "That sounds right."
+
+    marian "You were in the yard with the pan."
+
+    robert "I came back."
+
+    edwin "Why was the pan in the yard?"
+
+    robert "It was smoking."
+
+    nell flat "So was she."
+
+    "Marian smiles."
+
+    marian warm "She was furious with us for laughing."
+
+    nell "She was laughing too."
+
+    marian "Later."
+
+    nell "At the table."
+
+    "Marian thinks about it."
+
+    menu:
+        "Watch Lydia say it.":
+            jump sentence_lydia
+        "Watch Ruth.":
+            jump sentence_ruth
+
+
+label sentence_lydia:
+    hide marian
+    hide robert
+    hide nell
+    show paul younger at center
+    show ruth composed at left
+
+    lydia composed "Nell is right. June laughed at the table. Then she told us not to improve it just because it was over."
+
+    ruth "What did she say?"
+
+    lydia work "Don't improve it just because it's over."
+
+    "Ruth looks at Paul. He folds a corner of his napkin inward."
+
+    jump the_envelope
+
+
+label sentence_ruth:
+    hide marian
+    hide robert
+    hide nell
+    show paul younger at center
+    show ruth composed at left
+
+    lydia composed "Nell is right. June laughed at the table. Then she told us not to improve it just because it was over."
+
+    show ruth dry at left
+
+    "Ruth's knife touches her plate."
+
+    "The sound is slight. Paul hears it. Lydia does too."
+
+    set ruth_knife_on_plate
+
+    ruth composed "What did she say?"
+
+    lydia work "Don't improve it just because it's over."
+
+    "Ruth looks at Paul. He folds a corner of his napkin inward."
+
+    henry "You've heard it."
+
+    ruth shut "Something like it."
+
+    jump the_envelope
+
+
+label the_envelope:
+    "The waiter comes for their plates. Chairs move back to let him pass. The moment does not disappear, but the room goes on without it."
+
+    hide ruth
+    hide lydia
+    show nell hearing at far_right
+
+    "Paul takes a cream envelope from his inside pocket. He lays it beside his plate, looks at Nell, and puts his hand over it."
+
+    "Nell reads her name upside down."
+
+    nell "Is that for me?"
+
+    paul "Yes."
+
+    nell flat "Then give it to me."
+
+    paul stopped "After dinner."
+
+    nell "We're sitting here now."
+
+    paul "I know."
+
+    nell hearing "Do you want me to read it or hear it?"
+
+    "Paul considers this longer than he should."
+
+    paul "Hear it."
+
+    nell "Then put the letter away."
+
+    "He does."
+
+    nell flat "After dinner. Alone. You begin."
+
+    paul all_right "All right."
+
+    nell "Don't say all right if you mean later."
+
+    paul "After dinner."
+
+    "Nell nods once."
+
+    set envelope_hear_it
+
+    jump the_tart
+
+
+# ----------------------------------------------------------------- the dessert
+# The tin goes one way around the table and Edwin goes the other. Henry follows
+# one of them, and only one of them puts a brass key beside Paul's fork.
+
+
+label the_tart:
+    hide paul
+    hide nell
+    show edwin formal at center
+    show marian correcting at far_left
+    show lydia composed at right
+
+    "Edwin brings in a long apple tart. The waiter follows with coffee cups and leaves them empty."
+
+    marian correcting "Not enough cinnamon."
+
+    lydia "You haven't tasted it."
+
+    marian "I can see."
+
+    "Lydia reaches into her handbag and places a small silver tin between them."
+
+    "Marian looks at it, then laughs. Lydia opens the tin. Marian dusts her piece and passes it to Robert, who uses too much."
+
+    "The tin travels around the table."
+
+    menu:
+        "Follow the tin.":
+            jump dessert_tin
+        "Watch Edwin's round.":
+            jump dessert_edwin
+
+
+label dessert_edwin:
+    hide marian
+    hide lydia
+    hide edwin
+    show edwin formal at far_left
+    show paul younger at center
+
+    "Paul waits until Edwin is beside him."
+
+    paul "I left a carton with Mr. Bell downstairs."
+
+    edwin formal "He told me."
+
+    paul "May I collect it before the motor court closes?"
+
+    edwin "After dessert."
+
+    "He takes a brass key from his jacket and places it beside Paul's fork."
+
+    edwin formal "The service lift. Bring it back when you're done."
+
+    paul "Thank you."
+
+    set brass_key_after_dessert
+
+    "Edwin continues around the table."
+
+    hide edwin
+    hide paul
+    jump dessert_close
+
+
+label dessert_tin:
+    hide edwin
+    hide marian
+
+    "When the cinnamon reaches Henry, he takes a little."
+
+    lydia composed "You don't have to agree with us."
+
+    henry "I like cinnamon."
+
+    lydia work "That is how it begins."
+
+    show ruth composed at left
+    show paul younger at center
+
+    "Henry passes the tin to Ruth. Paul nudges it toward her when she does not notice."
+
+    paul pleased "You're with them now."
+
+    ruth "I came with him."
+
+    henry "That is how it begins."
+
+    "Ruth looks at Henry. She laughs."
+
+    hide lydia
+    hide ruth
+    hide paul
+    jump dessert_close
+
+
+label dessert_close:
+    show robert rambling at center
+    show edwin formal at far_left
+
+    "Robert takes another bite of tart."
+
+    robert rambling "There was more cinnamon in the first one."
+
+    edwin dry "There was not."
+
+    robert "Then I am getting used to it."
+
+    "They keep eating."
+
+    hide robert
+    hide edwin
+    stop supper
+    end coffee

@@ -1,0 +1,170 @@
+# Episode One, Movement IV — Coffee. The declarative half.
+#
+# Source: The Grain, Chapter Four (Scenes 6-7) and Chapter Five (Scene 8).
+# Every name the script may use is here; every line a person reads is in
+# e1_coffee.scenario. Facts carried out of this movement are the ones
+# FACTS.md assigns to Sc6, Sc7 and Sc8.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_coffee"
+display_name = "Coffee"
+revision = 1
+
+script = "scenarios/e1_coffee.scenario"
+script_sha256 = "1a61061acc7f688d4aedb0161028b80c28c0352769fc39f6adf768651a71019b"
+entry = "coffee_opens"
+
+# ------------------------------------------------------------------- the cast
+#
+# Henry is never drawn. He is the protagonist convention: he speaks, he is
+# never staged, and he declares no expressions, so no plate is generated for
+# him. Everyone else at the supper is drawn, and the expression names are the
+# person's rather than a generic emotional wheel.
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
+
+[[cast]]
+actor_id = "nell"
+display_name = "Nell"
+expressions = ["flat", "hungry", "hearing", "gone"]
+
+[[cast]]
+actor_id = "lydia"
+display_name = "Lydia"
+expressions = ["composed", "work", "cut_off", "lowered"]
+
+[[cast]]
+actor_id = "marian"
+display_name = "Marian"
+expressions = ["correcting", "warm", "still", "nothing_to_correct"]
+
+[[cast]]
+actor_id = "robert"
+display_name = "Robert"
+expressions = ["rambling", "sorry", "water", "waiting"]
+
+[[cast]]
+actor_id = "edwin"
+display_name = "Edwin"
+expressions = ["formal", "dry", "grave", "no_keys"]
+
+[[cast]]
+actor_id = "paul"
+display_name = "Paul"
+expressions = ["younger", "pleased", "stopped", "all_right"]
+
+# ----------------------------------------------------------------- the stages
+#
+# Three backdrops, none with a person in it: the cast is composited over them.
+# 1972 Los Angeles in the fixtures and the wardrobe of the room, and no
+# readable text or branding anywhere.
+
+[[stages]]
+stage_id = "winter_room_roof_panel"
+brief = "An original top-floor glass-roofed dining room of a closed 1972 department store at night, one panel of the glass roof cranked open to the dark, a cleared round table for eight with coffee cups and dessert plates left where people stood up, low amber lamps, the city a field of cold lights beyond the glass, no people, no readable text or signage"
+
+[[stages]]
+stage_id = "service_bar"
+brief = "An original service bar at the end of the same glass-roofed dining room, a percolator and a second pot dripping, a stack of saucers, small stiff place cards fanned beside them, cups in warm lamplight against cold blue-black glass, no people, no readable text or signage"
+
+[[stages]]
+stage_id = "service_lift"
+brief = "The interior of an original 1972 department-store service lift, a wired-glass panel in its door with a dark sales floor sliding past beyond it, brass floor indicator, worn painted steel, one dim ceiling bulb, no people, no readable text or signage"
+
+# ------------------------------------------------------------------ the audio
+
+[[tracks]]
+track_id = "supper"
+brief = "Warm and unhurried and a little hollow, a small late-night room heard from inside it, brushed drums under a muted trumpet with a piano that keeps stopping to listen, 1972, nothing that resolves"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+# ------------------------------------------------------------------ the flags
+#
+# Fifteen facts this movement establishes and one it is handed. The ids are
+# FACTS.md's, frozen; the case declares each of them once and the consumer's
+# autosave keys on them.
+#
+# `ruth_knife_on_plate` is imported: e1_table sets it when Henry watches Ruth
+# rather than Lydia at the main course, and it is the only thing that opens the
+# June's-sentence conversation at the bar. A Henry who watched Lydia tell the
+# story instead never has a reason to say "June's sentence." here.
+
+[[flags]]
+flag_id = "ruth_knife_on_plate"
+origin = "imported"
+
+# The five places. Exactly one of these is set: the movement is occlusion, and
+# what Henry did not stand next to he did not see.
+
+[[flags]]
+flag_id = "bar_said_it_badly"
+
+[[flags]]
+flag_id = "paul_cup_for_edwin"
+
+[[flags]]
+flag_id = "roof_panel_i_heard"
+
+[[flags]]
+flag_id = "saucers_crossed_out"
+
+[[flags]]
+flag_id = "lydia_alone_pile"
+
+# The one act of the movement, and the looks around Paul's leaving.
+
+[[flags]]
+flag_id = "asked_paul_sentence"
+
+[[flags]]
+flag_id = "ruth_two_fingers"
+
+[[flags]]
+flag_id = "indicator_at_three"
+
+[[flags]]
+flag_id = "lift_rising_seen"
+
+# Ruth's return. Not occluded: all three looks are on the table at once, and
+# the night's whole argument is built out of them.
+
+[[flags]]
+flag_id = "handbag_under_arm"
+
+[[flags]]
+flag_id = "smear_on_shoe"
+
+[[flags]]
+flag_id = "coffee_not_drunk"
+
+[[flags]]
+flag_id = "key_returned_to_edwin"
+
+# Heard by everyone still in the room, one minute apart, and they do not fit
+# each other. Henry carries both whether he wants them or not.
+
+[[flags]]
+flag_id = "paul_not_to_wait"
+
+[[flags]]
+flag_id = "paul_needed_to_think"
+
+# ---------------------------------------------------------------- the endings
+
+[[endings]]
+outcome_id = "the_call"
+label = "Slowly, Mr. Bell"

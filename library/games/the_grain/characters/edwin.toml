@@ -1,0 +1,32 @@
+# Edwin Price. Cast bible: narrow, silver-haired, a knee that "remains mine"; believes
+# seven is an accusation and eight a dinner party. The novel, Scene 2: "Edwin Price is
+# narrow, silver-haired, and dressed with the severity of a man whose dining room has
+# survived several owners."
+#
+# He is the keys and the doors. The brass key leaves his jacket three times in the
+# episode and must be somewhere a viewer can believe it came from.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "edwin-price"
+revision = 1
+display_name = "Edwin"
+age_years = 66
+description = "The man who keeps the store's private dining room, and has done for twenty-six years. Formal to the point of comedy and entirely precise. He holds the keys, the doors and the bolts of a closed building, and has written four things for the head of alterations in twenty-six years, none of which left the building until the fourth."
+visual_identity = "Narrow, upright man in his sixties, spare through the face and shoulders, with close-cut silver hair and clean-shaven hollow cheeks. Warm matte skin, pale attentive eyes, and a very slight favouring of one knee when he stands."
+wardrobe = "A severely plain black dinner jacket and trousers over a stiff white shirt and a black tie, worn with the exactness of a man who has outlasted several owners; a folded white cloth over one forearm when he is working; a small brass key kept in an inside jacket pocket."
+invariants = [
+  "Close-cut silver hair and a spare, narrow, clean-shaven face",
+  "A severely plain black dinner jacket, stiff white shirt and black tie",
+  "A folded white cloth over one forearm when working",
+  "A slight favouring of one knee when standing",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The dress is authored for this production from the source's description of severity and the room he keeps.",
+  "No external character, likeness, or media reference of any kind.",
+]

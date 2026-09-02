@@ -1,0 +1,34 @@
+# Lydia Shaw. Cast bible: sixties (inferred, a contemporary of Marian or a little
+# older); alterations at Tolland's, twenty-six years; green ink; pin marks on her
+# fingers; "a dress in which nothing is accidental." The novel, Scene 2: "Lydia Shaw
+# sits alone, writing place cards in green ink. She is dressed simply, but nothing
+# about the dress appears accidental."
+#
+# The two invariants the brief names for her are the green-ink stain and the pin
+# marks, and both must survive at sprite scale: the stain on the writing hand, the
+# pin marks on the fingertips.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "lydia-shaw"
+revision = 1
+display_name = "Lydia"
+age_years = 62
+description = "The head of alterations at a downtown department store for twenty-six years, in her sixties, who kept continuity and wardrobe on a picture in 1958 and its archive in her workroom for fourteen years afterwards. She is leaving for a rented house in Portland with a dark blue door, and means to finish the story before she goes."
+visual_identity = "Woman in her sixties, small and exact, with silver-grey hair pinned up close to the head. Warm matte skin, deep-set attentive eyes, and a seamstress's hands: pin marks on the fingertips and a stain of green ink on the side of the writing finger."
+wardrobe = "A simply cut dark bottle-green dress with a plain collar, fitted with obvious skill and no ornament; a slim wristwatch; low black shoes. Nothing about the dress appears accidental."
+invariants = [
+  "Silver-grey hair pinned up close to the head",
+  "A green-ink stain on the side of the writing finger",
+  "Pin marks on the fingertips of both hands",
+  "A plainly cut dark bottle-green dress, expertly fitted and unornamented",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The dress is authored for this production; the source states only that it is simple and that nothing about it appears accidental.",
+  "No external character, likeness, or media reference of any kind.",
+]

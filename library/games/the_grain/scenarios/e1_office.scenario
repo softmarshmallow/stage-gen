@@ -1,0 +1,237 @@
+# The Grain, Episode One, Movement I — The office.
+#
+# Scene 1 of the novel, played straight. No choices: the movement exists to put
+# the read on screen before the game asks anything of the player. Every line is
+# lifted from `story/snapshot-2026-09-03/script/chapter-01-one-person-there.fountain`.
+#
+# Henry is never drawn. Ruth holds `center` for the whole scene, because there is
+# nobody else in the room and the office is two people and two cups.
+
+
+label office_closed:
+    stage calder_office_late_afternoon
+    play office
+
+    "At five thirty-seven, Henry Calder turns the card in the frosted-glass door from OPEN to CLOSED. It has said CLOSED for most of the afternoon. Turning it is less an announcement than a ritual."
+
+    "Ruth Ellery knocks directly beneath his painted name."
+
+    henry "It's open."
+
+    show ruth composed at center
+
+    ruth "It says closed."
+
+    henry "Then why did you knock?"
+
+    ruth dry "I remembered you were a liar."
+
+    "Henry opens the door. Ruth looks first at him, then at the room: two client chairs, one filing cabinet, a telephone, a fan moving warm air from one side of the office to the other."
+
+    ruth "Your name has gotten smaller."
+
+    henry "The door was replaced."
+
+    ruth "I remember the door."
+
+    henry "Then my name got smaller."
+
+    "She takes the chair that does not face the window. Henry notices this and sits behind neither chair nor desk. He rests against the filing cabinet."
+
+    jump the_coffee
+
+
+label the_coffee:
+    henry "Coffee?"
+
+    ruth dry "At this hour?"
+
+    henry "It's the same coffee as this morning."
+
+    ruth "That wasn't my concern."
+
+    henry "Good."
+
+    "He pours one cup. Ruth accepts it despite herself, smells it, and sets it on the floor."
+
+    henry "You came all this way to insult the office."
+
+    ruth composed "No. I need you for dinner."
+
+    henry "That's not how people usually phrase it."
+
+    ruth "I'm out of practice."
+
+    henry "With dinner?"
+
+    ruth exposed "With needing you."
+
+    "Henry waits. Ruth had prepared for a question. His silence makes her discard the answer."
+
+    jump the_invitation
+
+
+label the_invitation:
+    ruth composed "Tolland's. The Winter Room. Eight o'clock."
+
+    henry "The department store?"
+
+    ruth "After closing."
+
+    henry "Is it a robbery?"
+
+    ruth "It's a goodbye."
+
+    henry "Whose?"
+
+    ruth "Lydia Shaw is leaving Los Angeles tomorrow morning."
+
+    henry "For where?"
+
+    ruth "She says Portland."
+
+    henry "You don't believe her."
+
+    ruth "I believe she's leaving. We disagree about what that means."
+
+    henry "What does she do?"
+
+    ruth dry "She alters things."
+
+    henry "Clothes?"
+
+    ruth "Mostly people. Clothes when they're watching."
+
+    "Henry drinks the office coffee. It has declined during the conversation."
+
+    jump who_is_edwin
+
+
+label who_is_edwin:
+    henry "Who invited me?"
+
+    ruth "I did."
+
+    henry "Who invited you to invite me?"
+
+    ruth "Edwin said I could bring one person."
+
+    henry "Who is Edwin?"
+
+    ruth composed "He runs the Winter Room. He believes seven is an accusation and eight is a dinner party."
+
+    henry "Did you tell him what I do?"
+
+    ruth "I told him you listen."
+
+    henry "That's not what I do."
+
+    ruth dry "It's why you get paid."
+
+    henry "This is a job."
+
+    ruth "No."
+
+    henry "You came to my office."
+
+    ruth "You never gave me your home address."
+
+    henry "You never asked."
+
+    ruth exposed "I am asking you to dinner, Henry. Don't make both requests humiliating."
+
+    "It is the first time she has used his given name. He lets the fact pass without pretending not to notice it."
+
+    jump one_person_there
+
+
+label one_person_there:
+    henry "Why me?"
+
+    ruth composed "I need one person there who will not perform for them."
+
+    henry "People perform for me."
+
+    ruth "Not twice."
+
+    henry "Who is “them”?"
+
+    ruth "People who love Lydia in incompatible ways."
+
+    henry "And you?"
+
+    ruth dry "I'm compatible with everyone until they ask."
+
+    henry "What do you think will happen?"
+
+    ruth "A woman will leave Los Angeles."
+
+    henry "That happens every day."
+
+    ruth "Not when six people have built their lives around her staying."
+
+    "Henry sets his coffee down beside hers. The two cups look like evidence from a meeting neither intends to admit occurred."
+
+    jump what_she_is_afraid_of
+
+
+label what_she_is_afraid_of:
+    henry "What are you afraid of?"
+
+    ruth exposed "She intends to forgive me."
+
+    henry "For what?"
+
+    ruth "She hasn't told me."
+
+    henry "Have you apologized?"
+
+    ruth shut "That's what makes it unpleasant."
+
+    henry "Decline."
+
+    ruth "If I don't go, she'll forgive me in writing."
+
+    "A traffic signal changes outside. Red light passes across the frosted glass, then is gone."
+
+    jump the_old_case
+
+
+label the_old_case:
+    henry "Last time we were in a room together, you told the truth and hated me for hearing it."
+
+    ruth composed "I hated everyone else for making it necessary."
+
+    henry "I was included."
+
+    ruth dry "You usually are. You just stand far enough away to make it look accidental."
+
+    henry "You said you would rather I heard it from you than found it."
+
+    ruth shut "I remember what I said."
+
+    henry "Does Frances still send you a card?"
+
+    ruth "At Christmas. To the old address."
+
+    "Henry takes his coat from the hook."
+
+    jump change_the_shirt
+
+
+label change_the_shirt:
+    henry "Is there food at this dinner?"
+
+    ruth dry "Edwin would consider the question actionable."
+
+    henry "I'll change my shirt."
+
+    ruth composed "That is the closest thing to friendship you've ever said to me."
+
+    henry "Don't make me reconsider it."
+
+    "Ruth picks up both coffee cups and carries them to the sink."
+
+    hide ruth
+    stop office
+    end to_tollands

@@ -1,0 +1,356 @@
+# Episode One, Movement V — The window.
+#
+# The Grain, Chapter Five, Scene 9. Wednesday 27 September 1972, about half
+# past nine. Henry has come down the service lift with Edwin and is standing in
+# the motor court of a closed department store, looking into an unfinished
+# display window with a man inside it.
+#
+# `inspect` only. There is nothing to use and nothing to carry: the pocketknife
+# is a fact, not an item, and no inventory crosses a beat boundary. Every look
+# is optional and exports one fact, except the man, whom the exit requires.
+# Every narration line is authored from the novel — nothing here is a gap for
+# the pipeline to fill.
+#
+# The one place the player's Henry may exceed the novel's Henry is the torn
+# piece of paper. The novel's Henry does not pull it free. Ours may, and it
+# costs him: it sets `touched_more_than_said`, and the uniformed officer's
+# "What did you touch?" is then a different exchange with a longer answer.
+
+schema_version = 1
+kind = "pointclick-room-v2"
+room_id = "e1_window"
+display_name = "The Window"
+revision = 1
+
+# The art direction of record, as pixels. This is the same plate the whole
+# pilot is drawn against, and it is a picture of this very window on the way
+# in — the moon whole, the rail already open. Drawing the "after" against the
+# "before" is the point: a player who looked at the window at a quarter to
+# eight should recognise the frame and see exactly what has changed in it.
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this production's art direction, with no third-party image input.",
+    "First-party AI-generated plate selected by the production lead from a six-candidate style sheet on 2026-09-03.",
+    "No independent semantic review of the exact committed bytes is recorded; the image is unreviewed and unpublished.",
+]
+
+[style]
+label = "painted illustration, gouache-like, 1972 Los Angeles at night"
+keywords = [
+    "visible brushwork, restrained detail",
+    "warm amber interior against cold blue-black glass and street",
+    "muted ochre, bottle green, oxblood, cream",
+    "low practical lamps, light from beneath a stone canopy",
+    "1972 fixtures and wardrobe",
+]
+avoid = [
+    "photorealism",
+    "anime",
+    "comic ink",
+    "gloss or neon",
+    "readable text or branding",
+    "blood or injury",
+    "horror lighting",
+]
+reference_ids = ["cover_style"]
+
+# One painting holds the whole of Scene 9, because Scene 9 is one place seen
+# from one standing position: the motor court, the window, and — through the
+# open service door on the left — the narrow vestibule the lift came down to.
+# The two sprite objects (the carton on the gallery, the torn piece under his
+# hand) are deliberately absent from this brief; each is composited into its
+# own clearance zone.
+[scene]
+brief = """The motor court of an original closed 1972 department store at night, \
+seen from beneath a stone canopy lit from below. Straight ahead, a tall display \
+window glows amber against cold blue-black stone and empty street: inside it six \
+blank-faced mannequins in coats stand facing an empty seventh chair, and behind \
+the chair a large white paper moon has split across its middle and sagged \
+inward. A man in a dark suit lies partly behind the chair on the display floor, \
+one shoulder against the chair's steel base, a shoe extended into the lamp \
+light, one hand palm down; he is at rest and unmarked, painted plainly and \
+without injury. Above the window a scenic wall rises to a narrow gallery whose \
+rail has a short section left open, a black rectangle, with a small red push \
+button mounted beside it; a steel lip runs beneath the gallery and a long scrape \
+crosses the painted wall lower down. At the right of the glass, a narrow stage \
+door stands ajar beside a guard's booth, and an elderly guard in a gray uniform \
+with no cap stands a few feet from the glass. At the left, an open service door \
+shows a narrow vestibule holding a service lift and a plain flush door with a \
+small wired-glass pane. No readable text, lettering, numerals or branding \
+anywhere in the image."""
+width = 1280
+height = 720
+
+# ------------------------------------------------------------------ hotspots
+#
+# Scenery everywhere except the two objects the brief above leaves out of the
+# painting: the carton on the gallery and the torn piece under his fingers.
+
+[[hotspots]]
+hotspot_id = "six_figures"
+label = "The six figures"
+art = "scenery"
+brief = "six blank-faced mannequins in coats standing in a half circle, all of them facing an empty seventh chair"
+region = { x = 0.775, y = 0.38, w = 0.20, h = 0.40 }
+
+[[hotspots]]
+hotspot_id = "paper_moon"
+label = "The paper moon"
+art = "scenery"
+brief = "a large white paper moon hung behind the seventh chair, split across its middle and sagged inward"
+region = { x = 0.50, y = 0.16, w = 0.22, h = 0.20 }
+
+[[hotspots]]
+hotspot_id = "the_man"
+label = "The man beneath it"
+art = "scenery"
+brief = "a man in a dark suit lying partly behind the chair, one shoulder against its steel base, a shoe extended into the light"
+region = { x = 0.52, y = 0.62, w = 0.24, h = 0.16 }
+
+[[hotspots]]
+hotspot_id = "under_the_jaw"
+label = "Under the jaw"
+art = "scenery"
+brief = "the man's head and collar where it lies turned away from the glass"
+region = { x = 0.45, y = 0.58, w = 0.06, h = 0.07 }
+
+[[hotspots]]
+hotspot_id = "torn_piece"
+label = "The paper in his hand"
+art = "sprite"
+brief = "a small torn piece of typed script paper, creased where a hand closed on it, one edge visible beneath curled fingers"
+region = { x = 0.485, y = 0.70, w = 0.06, h = 0.05 }
+
+[[hotspots]]
+hotspot_id = "stage_door"
+label = "The stage door"
+art = "scenery"
+brief = "a narrow painted steel door beside the guard's booth, standing ajar onto the display stage"
+region = { x = 0.24, y = 0.36, w = 0.08, h = 0.44 }
+
+[[hotspots]]
+hotspot_id = "gallery_carton"
+label = "The carton on the gallery"
+art = "sprite"
+brief = "a shallow cardboard carton with its flaps folded back, standing on a narrow service gallery beside an open section of rail"
+region = { x = 0.58, y = 0.05, w = 0.13, h = 0.10 }
+
+[[hotspots]]
+hotspot_id = "steel_lip"
+label = "Under the steel lip"
+art = "scenery"
+brief = "the underside of a steel lip running beneath the gallery, carrying pale horizontal marks"
+region = { x = 0.44, y = 0.06, w = 0.13, h = 0.08 }
+
+[[hotspots]]
+hotspot_id = "painted_wall"
+label = "The painted wall"
+art = "scenery"
+brief = "the painted scenic wall below the gallery, crossed lower down by one long scrape"
+region = { x = 0.40, y = 0.26, w = 0.09, h = 0.30 }
+
+[[hotspots]]
+hotspot_id = "call_button"
+label = "The red button"
+art = "scenery"
+brief = "a small red push button in a metal housing, mounted on the post beside the open section of rail"
+region = { x = 0.72, y = 0.06, w = 0.05, h = 0.07 }
+
+[[hotspots]]
+hotspot_id = "access_door"
+label = "The plain door"
+art = "scenery"
+brief = "a plain flush door in the vestibule wall, opposite the lift, with a small enamel plate above the handle"
+region = { x = 0.13, y = 0.50, w = 0.09, h = 0.28 }
+
+[[hotspots]]
+hotspot_id = "wired_glass"
+label = "The wired glass"
+art = "scenery"
+brief = "a small square pane of wired glass set into the plain door, with an enclosed stair turning upward behind it"
+region = { x = 0.135, y = 0.33, w = 0.08, h = 0.15 }
+
+[[hotspots]]
+hotspot_id = "mr_bell"
+label = "Mr. Bell"
+art = "scenery"
+brief = "an elderly night guard of about sixty in a gray uniform, standing a few feet from the display glass with no cap on his head"
+region = { x = 0.33, y = 0.48, w = 0.09, h = 0.36 }
+
+[[hotspots]]
+hotspot_id = "service_lift"
+label = "The service lift"
+art = "scenery"
+brief = "the wired-glass door of the service lift at the end of the narrow vestibule"
+region = { x = 0.01, y = 0.30, w = 0.11, h = 0.50 }
+
+# -------------------------------------------------------------- interactions
+#
+# Order matters where two interactions share a trigger: the runtime dispatches
+# a click to the first available one, so the earlier shadows the later until it
+# has fired. That is how Bell answers three questions in order, how the torn
+# piece can be read and then — by a Henry who decides to — pulled free, and how
+# the lift refuses to be an exit until Henry has seen what is in the glass.
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "six_figures" }
+effects = []
+narration = """Six mannequins remain where Henry saw them on the way in. They \
+face the empty seventh chair. Bell stops several feet from the glass. "I thought \
+they'd finished it." Edwin asks him what. "The window. I thought they'd put \
+another figure in.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "paper_moon" }
+effects = [{ set_flag = "window_changed" }]
+narration = """Behind the empty seventh chair, the white paper moon has split and \
+sagged inward. Paper moves slightly where it has torn."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "the_man" }
+effects = [{ set_flag = "saw_body" }]
+narration = """There is a man beneath it. His body lies partly behind the chair, \
+one shoulder against its steel base. A shoe extends into the light. One hand \
+rests palm down on the display floor. His clothing has the softness the \
+mannequins' clothing lacks. Henry steps closer to the glass. The face is \
+Paul's."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "stage_door" }
+effects = [{ set_flag = "stage_door_locked" }]
+narration = """Bell takes a ring of keys from his belt and unlocks a narrow door \
+beside his booth. It opens onto the display stage. "This is the only door down \
+here." Henry asks whether it was locked. "Yes." How he knows. "Because I opened \
+it." Henry looks at him. "Only far enough to see his face. Then I locked it and \
+called upstairs." Who else has that key. "Mr. Price. The display chief in the \
+morning." Edwin removes a smaller key from a second ring and holds it where \
+Henry can see it. "My display-stage key has not left me.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "under_the_jaw" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "touched_neck" }]
+narration = """Henry kneels beside Paul. He touches two fingers beneath the jaw, \
+waits, then withdraws them. He does not move the body. Edwin says his name from \
+the doorway. Henry looks at him and shakes his head once. Bell reaches for his \
+cap, remembers it is not there, and lowers his hand."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "gallery_carton" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "carton_on_gallery" }]
+narration = """Henry looks up. The paper moon hangs from a scenic wall that rises \
+to the cosmetics floor. Near the top, an open section of gallery rail makes a \
+black rectangle. A shallow carton sits on the gallery beside it."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "steel_lip" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "marks_under_lip" }]
+narration = "Beneath the steel lip are pale horizontal marks."
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "painted_wall" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "scrape" }]
+narration = "Lower down, one long scrape crosses the painted wall."
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "call_button" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "red_button" }]
+narration = "A red button is mounted beside the open rail."
+
+# The paper, read. The novel's Henry stops here.
+[[interactions]]
+on = { verb = "inspect", hotspot = "torn_piece" }
+requires = ["stage_door_locked"]
+effects = [{ set_flag = "heading_int_bedroom" }]
+narration = """Henry looks back at Paul. A torn piece of typed paper, creased \
+where his hand closed on it, remains beneath the fingers of his right hand. He \
+does not pull it free. Enough of the top edge is visible to read: INT. BEDROOM — \
+NIGHT. It is not a letter."""
+
+# The paper, pulled free. Ours may. It is the one thing in this room the novel
+# refuses, and it is on the record from the moment he does it.
+[[interactions]]
+on = { verb = "inspect", hotspot = "torn_piece" }
+requires = ["stage_door_locked", "heading_int_bedroom"]
+effects = [
+    { set_flag = "pulled_the_paper" },
+    { set_flag = "touched_more_than_said" },
+]
+narration = """Henry puts one finger under the creased edge and draws the paper \
+out from beneath the hand. Half a line more, and no name anywhere on it, and now \
+his own prints are on it as well as Paul's."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "access_door" }
+effects = [{ set_flag = "access_door_unlocked" }]
+narration = """Henry turns toward the service entrance. From the vestibule, the \
+lift is on the left. On the right is a plain door marked DISPLAY ACCESS. He asks \
+whether it is locked. "Not while a window is unfinished." Where it goes. Bell \
+points upward. "There is a short stair behind it. That goes to the gallery.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "wired_glass" }
+effects = [{ set_flag = "whiting_on_treads" }]
+narration = """Through the wired-glass pane in the access door, Henry can see the \
+enclosed stair turn upward behind the scenery. Something white has been tracked \
+down the lower treads. At the top of the stair is the same black opening above \
+Paul's body. The shallow carton sits just beyond it."""
+
+# Bell answers what he is asked, in order, and repeats it shorter.
+[[interactions]]
+on = { verb = "inspect", hotspot = "mr_bell" }
+effects = [{ set_flag = "bell_key_path" }]
+narration = """Mr. Bell is perhaps sixty and has forgotten to put on his cap. \
+Henry asks him to say what happened when Mr. Ellery came downstairs. "Mr. Ellery \
+came out of the lift with his sister." Henry gives him the name. "Yes, sir. I \
+gave him the carton. He needed both hands, so he gave her the lift key.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "mr_bell" }
+requires = ["bell_key_path"]
+effects = [{ set_flag = "bell_in_receiving" }]
+narration = """"They were beside the display-access door when I went into \
+receiving to make the closing call. Then I crossed the court to check the \
+windows." Henry asks when he saw Mr. Ellery again. Bell looks through the glass. \
+"There." And Miss Ellery. "Not after I gave them the carton.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "mr_bell" }
+requires = ["bell_in_receiving"]
+effects = [{ set_flag = "court_door_never_opened" }]
+narration = """Edwin asks whether he opened the motor-court door for him. "No." \
+Henry asks whether Mr. Ellery asked him to. "No, sir." Edwin looks at the brass \
+key in his own hand. "Mr. Bell never opened the door." "No.\""""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "mr_bell" }
+requires = ["court_door_never_opened"]
+effects = []
+narration = "A distant police siren becomes audible beyond the stone canopy."
+
+# The exit. It shadows the plain look at the lift as soon as Henry has seen the
+# man, and not before: there is no leaving this room without having gone in.
+[[interactions]]
+on = { verb = "inspect", hotspot = "service_lift" }
+requires = ["saw_body"]
+effects = [{ set_flag = "left_the_room" }]
+narration = """Henry leaves the display and Bell locks the door again. Through \
+the glass, the six mannequins continue facing the seventh place."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "service_lift" }
+effects = []
+narration = "The lift opens onto a narrow vestibule behind the motor court."
+
+[win]
+requires = ["left_the_room"]
+narration = """Henry has attended the supper for less than two hours. For the \
+first time that evening, he is working."""

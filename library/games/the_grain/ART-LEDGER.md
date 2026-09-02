@@ -81,3 +81,22 @@ Convention (from `PILOT.md`): operation counts are authoritative; dollars are es
 because no provider route in this pilot writes a `usd` figure into the sidecar. Image
 sidecars carry `response.usage` token counts as the audit trail; the music sidecar carries
 none.
+
+## 2026-09-03T06:20 KST — cast neutral plates, first batch (planned)
+
+- Task: the nine drawn actors' neutral identity plates, drawn against the chosen style
+  plate. Henry is never drawn and has no plate.
+- Approach: **three first** (Ruth, Mr. Bell, Ward) as a proof of the plate prompt, looked
+  at before the remaining six are billed. Ruth carries the palette and the production's
+  most-seen face; Bell carries a uniform that must stay unmarked and the cap-in-hand
+  invariant; Ward carries the brown suit and the notebook. If the three hold, the
+  remaining six follow in one batch.
+- Command: `stage-gen generate-image --aspect-ratio 2:3 --reference
+  library/games/the_grain/references/cover.png`, one call per actor, prompt composed
+  from each `characters/<id>.toml` so identity, wardrobe and invariants are quoted
+  rather than retyped.
+- Output: `out/the-grain-cast/<profile_id>-neutral.png`.
+- Planned operations: 3 now, 6 to follow. Ceiling for the neutral plates: 9 plus up to
+  3 rerolls.
+- Estimated USD: 1.50 now, 3.00 more for the remaining six (~0.50 per operation).
+- Reviewed: no. Every plate is `unreviewed`; the art lane cannot review its own output.

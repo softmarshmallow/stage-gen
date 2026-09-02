@@ -1,0 +1,34 @@
+# Robert Holt. Cast bible: grayer than his wife, broad; has known Lydia thirty years
+# (he says twenty-eight); answers the telephone; drives and waits with the engine off;
+# apologizes for the traffic since December 1958. The novel, Scene 3: "Robert is taking
+# off his tie and explaining something about the entrance. He is broad through the
+# shoulders and grayer than his wife." Lydia later "smooths the place where his tie had
+# pressed into his collar."
+#
+# The loosened tie is the invariant. He is the book's quiet brave man and he should look
+# like a man who has just parked a car.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "robert-holt"
+revision = 1
+display_name = "Robert"
+age_years = 58
+description = "Marian's husband, broad through the shoulders and grayer than she is. He took a young man's telephone number, took him a sandwich, moved an archive, and told him he would tell his wife himself. He starts a story from the wrong end, is corrected, and keeps going."
+visual_identity = "Heavy-set man in his late fifties, broad through the shoulders and thick through the neck, with grey hair combed flat and a large, mild, apologetic face. Warm matte skin and reddened hands."
+wardrobe = "A brown-grey wool suit worn comfortably rather than well, a cream shirt with the collar marked where the tie has pressed, and a dark tie pulled loose and off centre or taken off altogether and held."
+invariants = [
+  "Grey hair combed flat, greyer than his wife's",
+  "Broad through the shoulders and thick through the neck",
+  "A dark tie pulled loose and off centre, or held in one hand",
+  "A cream shirt collar marked where the tie pressed",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The suit and shirt are authored for this production; the source names only the tie and his build.",
+  "No external character, likeness, or media reference of any kind.",
+]

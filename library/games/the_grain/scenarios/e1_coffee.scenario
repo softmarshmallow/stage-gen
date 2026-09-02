@@ -1,0 +1,731 @@
+# Episode One, Movement IV — Coffee.
+#
+# The Grain, Chapter Four (Scenes 6 and 7) and Chapter Five (Scene 8).
+# Dialogue and action prose are lifted from the novel. New writing is confined
+# to the places Paul is asked about June's sentence and deflects, Ruth's shorter
+# line after Henry asks anyway, Henry's own short answers, and the menu labels.
+#
+# The shape of the movement: Edwin opens a roof panel, the round table stops
+# being the shape of the room, and five things happen at once. Henry stands in
+# one of them. Then Ruth comes back up alone, and that one minute is not
+# occluded, because it is the night's evidence.
+#
+# Every name used here is declared in e1_coffee.toml.
+
+
+label coffee_opens:
+    stage winter_room_roof_panel
+    play supper
+
+    "The waiter clears the dessert plates. Edwin speaks to him at the kitchen door, shakes his hand, and lets him go."
+
+    show edwin formal at center
+
+    edwin "Coffee will be at the bar."
+
+    show lydia composed at right
+
+    lydia "Are we being dismissed from the table?"
+
+    edwin "You have completed dinner."
+
+    show robert rambling at far_left
+
+    robert "I haven't completed the tart."
+
+    edwin "Bring it."
+
+    "Robert does."
+
+    "Edwin opens one panel of the glass roof. The night air enters slowly. Chairs move back. Nobody decides to stand at the same time, and soon the round table is no longer the shape of the room."
+
+    hide edwin
+    hide lydia
+    hide robert
+
+    "Coffee is at the bar, and the room is doing five things at once. Henry can be in one of them."
+
+    menu:
+        "Stand at the service bar, where Ruth is.":
+            jump place_service_bar
+        "Take a cup at Edwin's end of the bar.":
+            jump place_edwins_end
+        "Carry a cup to the open roof panel.":
+            jump place_roof_panel
+        "Go where the place cards are.":
+            jump place_saucers
+        "Stay at the table. Lydia has not moved.":
+            jump place_table
+
+
+# ------------------------------------------------------------- the five places
+
+
+label place_service_bar:
+    stage service_bar
+
+    show ruth composed at left
+
+    "Ruth pours a cup and puts it in Henry's hand."
+
+    henry "No sugar."
+
+    ruth dry "You didn't use any at the office."
+
+    henry "You didn't drink the coffee."
+
+    ruth "I watched you ruin yours."
+
+    "She makes her own with a little milk. Paul comes from the other side of the bar and adds another drop before she can stop him."
+
+    show paul younger at right
+
+    ruth "That was enough."
+
+    paul "It wasn't."
+
+    "She tastes it. He was right. She says nothing."
+
+    "Paul stays beside her. He says something too low for Henry to hear the start of it."
+
+    paul "—if I say it badly."
+
+    ruth "Then you said it."
+
+    paul "You always—"
+
+    ruth shut "Not this one."
+
+    "Paul nods as if she has told him the time. Henry hears the end of it and lets it go."
+
+    set bar_said_it_badly
+
+    if ruth_knife_on_plate:
+        jump bar_june_sentence
+
+    jump bar_leaves_the_bar
+
+
+label bar_june_sentence:
+    "Henry looks toward Lydia, then back to Ruth."
+
+    henry "June's sentence."
+
+    ruth composed "I've seen something like it."
+
+    henry "Where?"
+
+    ruth "At work."
+
+    henry "Does Paul know why?"
+
+    "Ruth looks across the room. Paul is listening to Edwin explain why the Winter Room stopped serving orange ice."
+
+    ruth "He looked as if he did."
+
+    henry "Do you want me to ask him?"
+
+    ruth "No."
+
+    menu:
+        "Ask him anyway.":
+            jump bar_asks_paul
+        "Drink your coffee.":
+            jump bar_lets_it_go
+
+
+label bar_lets_it_go:
+    "Henry drinks his coffee."
+
+    ruth dry "That's all?"
+
+    henry "You said no."
+
+    ruth "You make it sound reasonable."
+
+    henry "It was one syllable."
+
+    ruth "You have no idea how much can be done with one syllable."
+
+    jump bar_leaves_the_bar
+
+
+label bar_asks_paul:
+    "Henry sets the cup down where she can see him set it down, and crosses to the other side of the bar."
+
+    show paul younger at right
+
+    henry "Paul."
+
+    paul "Mr. Calder."
+
+    henry "The sentence Miss Shaw quoted at the table. Where is it from?"
+
+    paul stopped "It's from a page. It was in a—"
+
+    "He stops there and looks for Ruth. She is four feet away with her cup at her mouth and does not help him."
+
+    paul "You should ask Lydia."
+
+    henry "I'm asking you."
+
+    paul all_right "So you are."
+
+    "He drinks, the way a man drinks when he has decided a sentence is finished."
+
+    show ruth dry at left
+
+    ruth "Now you know what the syllable was for."
+
+    set asked_paul_sentence
+
+    jump bar_leaves_the_bar
+
+
+label bar_leaves_the_bar:
+    hide ruth
+    hide paul
+
+    jump coffee_convergence
+
+
+label place_edwins_end:
+    stage service_bar
+
+    show edwin formal at center
+    show robert rambling at left
+
+    "Edwin pours coffee at the service bar. Robert accepts a cup, tastes it, and waits for Edwin to look at him."
+
+    robert "It's strong."
+
+    edwin "Yes."
+
+    robert "I like it."
+
+    edwin dry "Thank you for making both remarks."
+
+    show paul younger at right
+
+    "Paul pours a cup and leaves it beside Edwin's hand before taking one for himself. Edwin is still explaining the coffee to Robert. He finds the cup a moment later, looks across at Paul, and drinks it."
+
+    "Paul is listening to Edwin explain why the Winter Room stopped serving orange ice."
+
+    set paul_cup_for_edwin
+
+    hide edwin
+    hide robert
+    hide paul
+
+    jump coffee_convergence
+
+
+label place_roof_panel:
+    show nell flat at center
+    show marian warm at left
+
+    "Nell carries her cup to the open roof panel. Marian joins her."
+
+    show paul younger at right
+
+    "Paul looks toward the roof panel. Nell is near enough to hear him."
+
+    paul "They stopped making orange ice in 1968."
+
+    nell "I heard."
+
+    paul pleased "Good."
+
+    "Nell smiles into the open air. Paul takes a drink."
+
+    set roof_panel_i_heard
+
+    hide nell
+    hide marian
+    hide paul
+
+    jump coffee_convergence
+
+
+label place_saucers:
+    stage service_bar
+
+    show marian correcting at left
+    show lydia work at right
+
+    "Across the room, Edwin has left Lydia's place cards on the service bar beside a stack of saucers. Marian finds them and fans them in one hand."
+
+    marian "Where did you intend to put Henry?"
+
+    lydia "Beside me. One side or the other."
+
+    marian "Every time?"
+
+    lydia "I changed my mind about the other side."
+
+    marian "Who was there?"
+
+    lydia "You. Then Robert. Then no one."
+
+    marian "Where did you put me finally?"
+
+    show edwin formal at center
+
+    edwin "It no longer matters."
+
+    "Marian turns her card over. A faint number in green ink has been crossed out twice."
+
+    marian "It mattered to someone."
+
+    "Lydia holds out her hand. Marian gives her the card."
+
+    lydia lowered "I wanted you close enough to speak to me."
+
+    marian still "You could have called."
+
+    lydia "I did. You came here."
+
+    "Marian looks at the card again in Lydia's hand."
+
+    marian nothing_to_correct "I suppose I did."
+
+    "Lydia tears the card once and puts the two halves beneath her coffee saucer."
+
+    hide edwin
+    show robert rambling at far_left
+
+    "Robert arrives with his tart and looks between them."
+
+    robert "Did I miss something?"
+
+    marian "For thirty years."
+
+    robert "Which thing?"
+
+    "Marian takes his arm. He gives her the last bite of tart."
+
+    set saucers_crossed_out
+
+    hide marian
+    hide lydia
+    hide robert
+
+    jump coffee_convergence
+
+
+label place_table:
+    show lydia composed at center
+
+    "Lydia remains at the table, gathering nothing into a very small pile: her napkin ring, the place where her glass stood, one grain of salt pressed beneath her finger."
+
+    "Edwin pours coffee at the service bar."
+
+    "Nell carries her cup to the open roof panel. Marian joins her."
+
+    "From the table the round table is still the shape of the room, and Lydia is the only one sitting at it."
+
+    set lydia_alone_pile
+
+    hide lydia
+
+    jump coffee_convergence
+
+
+# ---------------------------------------------------- Paul goes down at nine
+
+
+label coffee_convergence:
+    stage winter_room_roof_panel
+
+    show paul younger at center
+    show edwin formal at right
+
+    "Paul sets down his cup and takes the brass key from beside his plate."
+
+    paul "The lift goes down to the motor court?"
+
+    edwin "Turn the key at the cosmetics floor and hold it. The lift will take you one level lower. Mr. Bell will meet you."
+
+    paul "I can find him."
+
+    edwin "He knows where he is."
+
+    hide edwin
+    show ruth composed at left
+
+    "Paul puts on his jacket and comes past Ruth on his way to the lift."
+
+    menu:
+        "Watch his coat as he passes her.":
+            jump look_envelope
+        "Watch her face.":
+            jump paul_leaves
+
+
+label look_envelope:
+    "The cream envelope rises from his inside pocket. Ruth pushes it down with two fingers as he passes her."
+
+    set ruth_two_fingers
+
+    jump paul_leaves
+
+
+label paul_leaves:
+    paul "Come with me."
+
+    ruth "Bring the carton up."
+
+    paul "I need you to hear something first."
+
+    ruth "Nell hears it first."
+
+    paul stopped "I don't know if I can."
+
+    show nell hearing at far_right
+
+    "Nell has come back to the table. She hears him."
+
+    nell "I can't do that part for you."
+
+    "Paul looks at her."
+
+    nell "Say it badly. Just say it yourself."
+
+    "Paul nods."
+
+    paul "I need to speak to Ruth downstairs."
+
+    nell "Then go."
+
+    "Ruth sets down her coffee."
+
+    ruth "I am not explaining anything for you."
+
+    paul "I know."
+
+    ruth "Then do it."
+
+    "She takes her jacket from the back of the chair and her handbag from under it. She puts it on and buttons it."
+
+    "Paul goes to the service lift and unlocks it. Ruth remains beside Henry for one moment."
+
+    ruth composed "Watch my coffee."
+
+    henry "It hasn't moved yet."
+
+    ruth "Good."
+
+    "The lift door opens. Paul and Ruth enter. The wire-glass door closes after them."
+
+    hide paul
+    hide ruth
+    hide nell
+
+    menu:
+        "Watch the floor indicator.":
+            jump look_indicator
+        "Turn to Marian.":
+            jump the_wait
+
+
+label look_indicator:
+    "Henry watches the floor indicator descend. When it reaches three, Marian asks him whether husbands are easier to find before or after dinner."
+
+    set indicator_at_three
+
+    jump the_wait
+
+
+# ------------------------------------------------------------------ the wait
+
+
+label the_wait:
+    show marian warm at left
+    show robert rambling at far_left
+    show nell flat at center
+    show lydia composed at right
+    show edwin formal at far_right
+
+    "He turns to answer her."
+
+    marian "After dinner."
+
+    henry "Usually."
+
+    marian "Why?"
+
+    henry "They get hungry."
+
+    robert "That sounds right."
+
+    marian "No one is looking for you."
+
+    robert "Not tonight."
+
+    "Nell sits in Paul's chair. She does not touch the envelope because it is no longer there. Lydia sees where she has chosen to sit and brings her the coffee pot."
+
+    nell "No, thank you."
+
+    "Lydia pours half a cup anyway."
+
+    nell flat "That is exactly what I meant."
+
+    "Lydia sets the pot down."
+
+    lydia "I heard you."
+
+    nell "You disagreed with a cup."
+
+    "Lydia pushes the cup away from Nell and takes it for herself."
+
+    lydia work "There."
+
+    "Nell watches her drink it."
+
+    nell "Better."
+
+    "At the service bar, Edwin measures grounds for a second pot. It has begun to drip by the time Robert brings him two empty cups. Edwin takes the cups from him without looking away from the pot."
+
+    menu:
+        "Look at the indicator when the lift begins to rise.":
+            jump look_lift_rising
+        "Keep your eyes on the room.":
+            jump ruth_returns
+
+
+label look_lift_rising:
+    "The service lift begins to rise. Henry looks at the indicator. Nell does not."
+
+    set lift_rising_seen
+
+    jump ruth_returns
+
+
+# ------------------------------------------------------- Ruth comes back alone
+#
+# The one minute of the night the game does not occlude. Everyone else is off
+# the stage on purpose: she walks the length of the room by herself and the
+# player is allowed to see all of it, because everything after Wednesday is
+# argued from these four seconds.
+
+
+label ruth_returns:
+    hide marian
+    hide robert
+    hide nell
+    hide lydia
+    hide edwin
+
+    show ruth exposed at center
+
+    "The lift opens. Ruth steps out alone."
+
+    jump ruth_walk_looks
+
+
+label ruth_walk_looks:
+    menu:
+        "Her handbag." if not handbag_under_arm:
+            jump look_handbag
+        "Her shoes." if not smear_on_shoe:
+            jump look_shoe
+        "The cup she left with you." if not coffee_not_drunk:
+            jump look_coffee
+        "Let her come.":
+            jump ruth_speaks
+
+
+label look_handbag:
+    "She has her handbag under her arm instead of on it."
+
+    set handbag_under_arm
+
+    jump ruth_walk_looks
+
+
+label look_shoe:
+    "There is a pale smear along the outside of one shoe. Henry takes it for dust from the carton."
+
+    set smear_on_shoe
+
+    jump ruth_walk_looks
+
+
+label look_coffee:
+    "Ruth takes the coffee she left beside Henry. She touches it to her mouth and sets it down."
+
+    set coffee_not_drunk
+
+    jump ruth_walk_looks
+
+
+label ruth_speaks:
+    show edwin formal at left
+
+    "She takes the brass key from her jacket pocket and places it beside Edwin's hand."
+
+    set key_returned_to_edwin
+
+    edwin "Where is Mr. Ellery?"
+
+    ruth "Downstairs."
+
+    show nell hearing at right
+
+    "Nell turns."
+
+    nell "With the carton?"
+
+    ruth "Yes."
+
+    nell "Is he coming back?"
+
+    ruth "He said not to wait."
+
+    set paul_not_to_wait
+
+    nell flat "He said the opposite to me."
+
+    ruth "He changed his mind."
+
+    show lydia composed at far_left
+
+    lydia "Was Mr. Bell with him?"
+
+    ruth "He was downstairs."
+
+    "Henry looks at Ruth."
+
+    henry "What happened?"
+
+    ruth "He wanted me to tell Nell for him. I refused."
+
+    henry "And then?"
+
+    ruth "He said he needed to think."
+
+    set paul_needed_to_think
+
+    nell "You know?"
+
+    ruth "Not all of it."
+
+    nell "Did he tell you what was in the carton?"
+
+    ruth shut "No."
+
+    "Nell gets up from Paul's chair."
+
+    show marian warm at far_right
+
+    marian "Give him a little while."
+
+    nell gone "He has already had a long while."
+
+    marian "I know."
+
+    "Nell looks toward the lift. She returns to her own chair."
+
+    "Edwin picks up the brass key and puts it back in his jacket. Robert asks whether there is any coffee left. Edwin pours him some."
+
+    "Ruth sits beside Henry. Her coffee remains between them, cooling."
+
+    "Robert tries the second pot and says it is stronger than the first. Edwin tells him it is the same coffee. Around them, conversation starts again in smaller pieces."
+
+    jump the_call
+
+
+# --------------------------------------------------------------- the telephone
+#
+# Scene 8 closes this movement rather than opening the window room: it is
+# dialogue for six drawn actors on a stage the movement already has, and the
+# room contract has nowhere to put a scene in front of a room.
+
+
+label the_call:
+    show robert rambling at far_left
+
+    "Robert is halfway through his second cup when the telephone rings at the service bar."
+
+    stop supper
+
+    "Edwin answers it."
+
+    edwin "Winter Room."
+
+    "He listens."
+
+    edwin dry "Slowly, Mr. Bell."
+
+    "Everyone is looking at him now."
+
+    edwin "Is the person moving?"
+
+    "He listens again."
+
+    edwin grave "Call the police from receiving. Do not open anything. I am coming down."
+
+    "He hangs up."
+
+    nell hearing "What happened?"
+
+    edwin "Mr. Bell says there is a man inside the unfinished window."
+
+    "No one moves at first."
+
+    robert "One of the workers?"
+
+    edwin "He believes it is Mr. Ellery."
+
+    "Nell goes toward the service lift. Edwin reaches it first."
+
+    edwin "Wait here."
+
+    nell hungry "No."
+
+    edwin "The display is locked. Let me find out what he saw."
+
+    nell "You already asked if he was moving."
+
+    "Edwin cannot answer that without answering something else."
+
+    "Henry takes his coat from the chair."
+
+    henry "Has Bell called the police?"
+
+    edwin "He will have by now."
+
+    henry "We find out whether Paul can be helped. If he can't, nobody touches anything until they arrive."
+
+    edwin "Come with me."
+
+    henry "You don't need a private investigator."
+
+    edwin grave "I need someone who knows what not to touch."
+
+    "Edwin takes the brass key from his jacket."
+
+    "Ruth stands."
+
+    ruth exposed "Henry."
+
+    "He looks at her."
+
+    "He enters the lift with Edwin. Lydia steps between Nell and the opening. The wire-glass door closes."
+
+    hide ruth
+    hide nell
+    hide lydia
+    hide marian
+    hide robert
+    hide edwin
+
+    stage service_lift
+
+    "The lift descends."
+
+    "Through the panel, dark departments pass in sections: the empty lamps, the canvas over the toys, the furniture arranged into rooms."
+
+    "Edwin turns the brass key at the cosmetics floor. The lift continues one short level lower."
+
+    end the_call

@@ -1,0 +1,32 @@
+# Mr. Bell. Cast bible: about sixty; forgets his cap and then carries it; logs doors.
+# The novel, Scene 9: "Mr. Bell is waiting there in a gray guard's uniform. He is
+# perhaps sixty and has forgotten to put on his cap." Later: "Bell reaches for his cap,
+# remembers it is not there, and lowers his hand."
+#
+# The cap is the whole performance. Three of his four expressions turn on where it is,
+# so the neutral plate must show the head bare and the cap in the hand.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "mr-bell"
+revision = 1
+display_name = "Mr. Bell"
+age_years = 60
+description = "The store's night guard, about sixty. He logs every door and reads them back to the night desk. He says a thing correctly and then says it again, shorter. He opened the stage door only far enough to see a face, and then locked it and called upstairs."
+visual_identity = "Solid man of about sixty with a bare head of thin grey hair, a lined and honest face, and a grey moustache. Warm matte skin. He reaches for a cap that is not on his head and lowers the hand again."
+wardrobe = "A plain grey guard's uniform of the period with a dark tie and plain unmarked buttons, carrying no insignia, no badge number and no lettering of any kind; a ring of keys on the belt; and a matching grey peaked cap held in one hand rather than worn."
+invariants = [
+  "A bare head of thin grey hair, with the cap held in one hand and never worn",
+  "A plain grey guard's uniform with no insignia, badge number or lettering",
+  "A ring of keys on the belt",
+  "A grey moustache on a lined, honest face",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The uniform is deliberately unmarked: no insignia, badge number, employer mark or lettering, so that nothing readable or brand-bearing enters the frame.",
+  "No external character, likeness, or media reference of any kind.",
+]

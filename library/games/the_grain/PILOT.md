@@ -211,6 +211,14 @@ provider, the model, the prompt digest, attempts, retries, the artifact hash and
 validation gates — but **no `usd` figure**. Image sidecars carry token usage (5,650 output
 image tokens per candidate at `quality: high`, 2048x1152); the music sidecar carries none.
 
+**Corrected at 06:14, and the correction matters:** this is true only of *direct capability
+calls*. A **graph run** reports `known_cost_usd` per node in its `execution-summary.json`.
+So everything generated through a recipe — every stage, every cast plate, both rooms, the
+UI atlas — is metered exactly, and only the hand-driven calls (the six cover candidates and
+the four music tracks) are estimated. That is the large majority of the spend measured and
+a small, known remainder estimated, which is a much better position than the paragraph
+above first claimed.
+
 So the ledger in this file records **operation counts as authoritative and dollars as
 estimated**, with the token counts kept as the audit trail. The 250 ceiling is therefore
 enforced against a count and a rate, not a meter. At the brief's own ~0.50 per image the
@@ -358,6 +366,49 @@ job, once the consumer lane lands.
 
 *Displaced:* half an hour of earlier browser QA against a consumer that was still being
 rebuilt underneath it.
+
+### 06:13 — The nested rooms work, and both are proven solvable
+
+The structural risk taken at 05:50 — rooms nested at `rooms/<id>/` inside one game package
+rather than as sibling packages — is **discharged**. `pointclick-room generate --dry-run`
+against `rooms/motor_court/` is green: 14 nodes, 4 image generations, 4 structured
+generations, no contract change of any kind.
+
+Two things had to be added to get there, and both are now done for each room: a copy of
+`references/cover.png` beside the room document, and a `ui.toml`. The plate copies are
+byte-identical to the game root's, so git stores one blob for all three. The `ui.toml`
+`game_id` must equal the **room** id rather than the game id — the room recipe treats each
+room directory as its own package — which is the one wrinkle the nesting introduces, and it
+is recorded here so nobody rediscovers it.
+
+The rooms were then proven directly, offline, through `prove_room_solvable`:
+
+| Room | Hotspots | Interactions | Reachable states | Shortest solution | Unreachable |
+|---|---|---|---|---|---|
+| `motor_court` | 6 | 6 | 16 | 1 step | none |
+| `window` | 14 | 19 | 9,312 | 2 steps | none |
+
+Both solvable, with **no unreachable interactions** in either. The window's numbers are
+exactly the intended design: a player may see the body and leave in two moves, or search
+nine thousand states' worth of looks, and both are legitimate.
+
+*A quality signal worth recording:* the motor court's plan contains **no narration-compile
+node at all**. The recipe emits one only when the author left a narration gap. The writer
+authored every line, which is what the brief demanded and what an unattended run would
+most easily have skipped.
+
+*Note on dry runs:* a dry run stubs the proof node rather than writing a real
+`puzzle.validation.json`, so gate 2 is satisfied by the direct proof above and will be
+re-satisfied by the live run's artifact.
+
+### 06:12 — The lead wrote the rooms' `ui.toml`, and the art lane still owns them
+
+The room pipeline was blocked on a file the art lane had not reached yet, so the lead wrote
+both room interface documents to unblock the dry run, and told the art lane they exist and
+may be rewritten. One constraint in them is not the art lane's to drop silently: the plate
+is a night picture, so the panel and the buttons must hold a full value step against
+near-black or the narration sits on the floor of the image and disappears. That is the cost
+of choosing candidate 1, paid where it lands.
 
 ---
 

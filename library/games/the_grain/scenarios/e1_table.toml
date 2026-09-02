@@ -1,0 +1,124 @@
+# Episode One, Movement III — the table. Scenes 3, 4 and 5 of the novel.
+#
+# The attention movement. Ten facts leave this scenario; only one of them is read
+# inside it (`pocketknife_lent`, which decides whether the knife comes back), so
+# nothing is imported. The other nine are the board Henry carries to coffee, to
+# the window, and to Ward.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_table"
+display_name = "The Table"
+revision = 1
+
+script = "scenarios/e1_table.scenario"
+script_sha256 = "596b67fd55e30dbfb77d5884644b678f9698a8fbbc84cb26f761587e3093b4df"
+entry = "arrivals_marian"
+
+# ------------------------------------------------------------------- the cast
+# Seven drawn actors and one who is not. Henry declares no expressions and is
+# never shown; his lines are spoken with the display name "Henry". Every
+# expression is named for the person rather than for a generic mood, because
+# Marian correcting and Marian with nothing to correct are the same woman at two
+# different moments of one evening and no generic word separates them.
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
+
+[[cast]]
+actor_id = "lydia"
+display_name = "Lydia"
+expressions = ["composed", "work", "cut_off", "lowered"]
+
+[[cast]]
+actor_id = "nell"
+display_name = "Nell"
+expressions = ["flat", "hungry", "hearing", "gone"]
+
+[[cast]]
+actor_id = "marian"
+display_name = "Marian"
+expressions = ["correcting", "warm", "still", "nothing_to_correct"]
+
+[[cast]]
+actor_id = "robert"
+display_name = "Robert"
+expressions = ["rambling", "sorry", "water", "waiting"]
+
+[[cast]]
+actor_id = "edwin"
+display_name = "Edwin"
+expressions = ["formal", "dry", "grave", "no_keys"]
+
+[[cast]]
+actor_id = "paul"
+display_name = "Paul"
+expressions = ["younger", "pleased", "stopped", "all_right"]
+
+# ----------------------------------------------------------------- the stages
+# One backdrop for the whole movement. The room does not change; the table does.
+
+[[stages]]
+stage_id = "winter_room_evening"
+brief = "A curved top-floor department-store dining room in 1972 beneath a shallow glass roof, evening: one round table at its center laid for eight under low amber lamps, a service bar to one side with a single unopened suitcase beside it, Los Angeles beyond the glass as a field of lights, no people, no readable text or branding"
+
+# ------------------------------------------------------------------ the audio
+
+[[tracks]]
+track_id = "supper"
+brief = "Warm and unhurried and a little hollow, a small room-sized ensemble playing for people who are enjoying themselves and know the evening is the last one"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+# ------------------------------------------------------------------ the flags
+# Ten, all set here and all local: no earlier beat's fact is read at this table.
+# Three are unmissable, three are the first course's three strands and only one
+# of them can be had, one is Henry's single act, and three are the looks the
+# courses charge for.
+
+[[flags]]
+flag_id = "eighth_card"
+
+[[flags]]
+flag_id = "would_you_have_come_first"
+
+[[flags]]
+flag_id = "hand_in_the_door"
+
+[[flags]]
+flag_id = "marian_salt"
+
+[[flags]]
+flag_id = "ruth_roll"
+
+[[flags]]
+flag_id = "dark_blue_door"
+
+[[flags]]
+flag_id = "pocketknife_lent"
+
+[[flags]]
+flag_id = "ruth_knife_on_plate"
+
+[[flags]]
+flag_id = "brass_key_after_dessert"
+
+[[flags]]
+flag_id = "envelope_hear_it"
+
+# ---------------------------------------------------------------- the endings
+
+[[endings]]
+outcome_id = "coffee"
+label = "Edwin opens a roof panel"

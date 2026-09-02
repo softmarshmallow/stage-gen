@@ -1,0 +1,33 @@
+# Detective Ellis Ward. Cast bible: early fifties, brown suit that has outlasted
+# fashion; knows Henry from before; does not need a notebook after Wednesday. The
+# novel, Scene 10: "He is in his early fifties, wearing a brown suit that has outlasted
+# several changes of fashion."
+#
+# Episode One is Wednesday, so on this night he still carries the notebook. Two of his
+# four expressions are the notebook open and the notebook closed, and the plate must
+# hold both readably.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "ellis-ward"
+revision = 1
+display_name = "Ward"
+age_years = 52
+description = "A homicide detective in his early fifties who knew Henry Calder before any of this. Blunt and procedural, one joke at a time, and one line of feeling in a whole book. He wants the rail. He lets a witness be somebody's one person and listens for whether the account changes."
+visual_identity = "Heavy-framed man in his early fifties with short iron-grey hair receding at the temples, a blunt, weathered, clean-shaven face and steady unhurried eyes. Warm matte skin and a habit of standing square to whoever he is asking."
+wardrobe = "A brown wool suit that has outlasted several changes of fashion, cut too narrow for the year and pressed anyway, over a plain cream shirt and a dull ochre tie; a dark overcoat in the night air; and a small dark pocket notebook with a stub of pencil, held open or shut in one hand."
+invariants = [
+  "Short iron-grey hair receding at the temples",
+  "A brown wool suit cut too narrow for the year and pressed anyway",
+  "A small dark pocket notebook with a stub of pencil, held open or shut",
+  "A blunt, weathered, clean-shaven face",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The shirt, tie and notebook are authored for this production; the source names the brown suit and the notebook's role.",
+  "No external character, likeness, or media reference of any kind.",
+]

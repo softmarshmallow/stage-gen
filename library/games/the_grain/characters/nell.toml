@@ -1,0 +1,30 @@
+# Nell Avery. Cast bible: twenty-nine, birthday in August, cut her hair in June.
+# June Avery's daughter, Paul's former wife. The novel: she enters "with her coat
+# folded over one arm. A faint line crosses her cheek where she had rested her hand."
+# The gloves are hers and she rubs at them; what the work is stays unspecified, and
+# must stay unspecified.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "nell-avery"
+revision = 1
+display_name = "Nell"
+age_years = 29
+description = "A woman of twenty-nine who lives at the old address, eats when she is hungry and says so, and works at something requiring gloves she rubs at. She hired an investigator to find property and found the whole of it instead. Flat, declarative, and unwilling to be helped to a bearable version."
+visual_identity = "Young woman of twenty-nine, slight and upright, with a plain unmade face, warm matte skin and clear grey eyes. Dark blonde hair cut short in June and grown out a little since, falling just below the ear and pushed behind it on one side."
+wardrobe = "A simple bottle-green shift dress with long sleeves and a high plain neck, cut at the knee; flat dark shoes; a pair of soft leather gloves held in one hand or worn, worried at with the thumb; a plain dark coat carried folded over one arm."
+invariants = [
+  "Dark blonde hair cut short and just below the ear, pushed behind it on one side",
+  "A plain bottle-green long-sleeved shift dress at the knee",
+  "Soft leather gloves, worn or held, rubbed at with the thumb",
+  "A plain dark coat carried folded over one arm",
+  "Adult proportions, matte skin, nothing styled or glamorous",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "Wardrobe colours are authored for this production within the declared palette; the source names only the coat and the gloves.",
+  "No external character, likeness, or media reference of any kind.",
+]

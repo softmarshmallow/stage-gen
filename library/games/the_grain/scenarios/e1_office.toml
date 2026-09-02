@@ -1,0 +1,53 @@
+# Episode One, Movement I — the office. Scene 1 of the novel, straight through.
+#
+# The declarative half: every name the script may use, and no prose. The script
+# holds the narrative and nothing else.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_office"
+display_name = "One Person There"
+revision = 1
+
+script = "scenarios/e1_office.scenario"
+script_sha256 = "300b4a0c1eb8c0c8747a7fe17a500a541c5792dc1373ab9ce2d3aecc18300e5e"
+entry = "office_closed"
+
+# ------------------------------------------------------------------- the cast
+# Henry declares no expressions and is therefore never drawn: the protagonist
+# convention. His lines are spoken with the display name "Henry".
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
+
+# ----------------------------------------------------------------- the stages
+
+[[stages]]
+stage_id = "calder_office_late_afternoon"
+brief = "A one-room private investigator's office over a Los Angeles street in 1972, late afternoon: a frosted-glass door with a painted name reversed on it, two client chairs that do not match, a filing cabinet that lists, a telephone, an electric fan turning, warm low light, no people, no readable text or branding"
+
+# ------------------------------------------------------------------ the audio
+
+[[tracks]]
+track_id = "office"
+brief = "Sparse and unaccompanied, one instrument alone in a warm room at the end of an afternoon, patient, going nowhere in particular"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 75
+
+# ---------------------------------------------------------------- the endings
+# Movement I does not branch. One outcome, and the case chains on it.
+
+[[endings]]
+outcome_id = "to_tollands"
+label = "Tolland's, eight o'clock"

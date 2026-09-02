@@ -1,0 +1,32 @@
+# Marian Holt. Cast bible: middle fifties; handsome; "dressed for a better restaurant
+# than the one she remembers"; gloves in both hands. The novel, Scene 3: "Marian Holt
+# steps around the corner, pulling one glove loose finger by finger. She is a handsome
+# woman in her middle fifties."
+#
+# The overdress is characterisation, not costume: she has dressed for an occasion that
+# is not going to happen. It must read as slightly too much for the room.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "marian-holt"
+revision = 1
+display_name = "Marian"
+age_years = 55
+description = "A handsome woman in her middle fifties who was June Avery's closest friend, held her coat every day on the set, and kept her boxes in a garage for eleven years. She corrects numbers, places, quantities and tenses, and the correction is love and control at once. When she has nothing to correct she is silent."
+visual_identity = "Woman in her middle fifties, tall and well kept, with carefully set dark hair going grey at the temples and a strong, handsome face. Warm matte skin, direct eyes, and a habit of holding herself as though about to be introduced."
+wardrobe = "A cream silk evening blouse under a well-cut muted ochre skirt suit, dressed a degree more formally than the occasion turns out to require; a string of small pearls; low court shoes; and a pair of long gloves, one being pulled loose finger by finger, both eventually held in her hands."
+invariants = [
+  "Carefully set dark hair going grey at the temples",
+  "Dressed one degree more formally than the room requires",
+  "A cream silk blouse under a muted ochre skirt suit",
+  "A pair of gloves, pulled loose finger by finger and then held in both hands",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The specific garments are authored for this production; the source states only that she is dressed for a better restaurant than the one she remembers.",
+  "No external character, likeness, or media reference of any kind.",
+]

@@ -1,0 +1,54 @@
+# The room's screen-fixed interface art, kept separate from the room it frames.
+#
+# Written by the production lead at 06:12 to unblock the room pipeline; the art
+# lane owns this file and may rewrite the three prompts. What it should not
+# change without saying so is the constraint in the next paragraph, which came
+# out of choosing the style plate.
+#
+# The plate is a night picture: at thumbnail it is a black field with one small
+# amber glow, and roughly half its canvas is near-black paving. Half of this game
+# is a dark motor court and a dark store. So the interface cannot be a quiet dark
+# panel on a quiet dark backdrop — it has to hold its own value separation against
+# near-black, or the narration will sit on the floor of the image and vanish.
+
+schema_version = 4
+kind = "game-ui-v4"
+game_id = "motor_court"
+revision = 1
+
+# The same art direction of record the room's own images are drawn against, bound
+# by the same digest: replacing the file is a new look and re-bills the interface.
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this production's own art direction, with no third-party image input.",
+    "First-party AI-generated plate selected by the production lead from a six-candidate sheet on 2026-09-03.",
+    "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
+]
+
+# No inventory panel. Both rooms in this episode are inspect-only — there is
+# nothing to pick up and nothing to carry — so authoring a panel the room never
+# shows would be describing a screen that does not exist.
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A painted gouache panel in warm lamp-lit cream and pale ochre, a full value step lighter than a night street, inside a plain even border of dry oxblood. Visible brushwork on the border only. The inner field must stay one uninterrupted quiet cream so several lines of narration read cleanly on top of it, and the whole panel must separate clearly from a near-black background. No gradient, no glow, no ornament, no text."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact painted gouache control in warm cream over dry oxblood, one solid rounded-rectangle face with a plain even border and a thin dark edge line. Matte, chalky, no gradient and no sheen. The face must stay one uninterrupted quiet colour so a short verb word reads cleanly on it, the four states must differ only in value and warmth, and every state must remain legible against a near-black background. No text."
+
+# A fixed glyph vocabulary the game may only restyle: the symbols, their order and
+# the grid belong to the layout, and this prompt is style direction alone.
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover_style"]
+prompt = "Flat painted gouache glyphs in warm cream and pale ochre, each symbol one solid matte colour with a dry chalky edge and no outline, gradient or sheen. Each must read at small size against a near-black background."

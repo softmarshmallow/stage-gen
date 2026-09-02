@@ -1,0 +1,32 @@
+# Paul Ellery. Cast bible: "About thirty-six, younger than Ruth by only a few years."
+# That gap is small and it matters: a player meets him for ninety minutes and then finds
+# him, and a Paul drawn too young makes Ruth a mother rather than a sister. Draw him as
+# a man in his middle thirties who reads younger only in the instant before he
+# recognizes a room.
+#
+# The cream envelope rides in his inside jacket pocket and rises when he stands.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "paul-ellery"
+revision = 1
+display_name = "Paul"
+age_years = 36
+description = "Ruth's younger brother by only a few years, and Nell's former husband. He takes things apart carefully and leaves the pieces in the order they go back. He stops before the end of a sentence and waits for his sister. He came to say it himself, badly, once, and have it be his."
+visual_identity = "Man of thirty-six, lightly built and a little under average height, with dark brown hair worn slightly long over the collar in the fashion of the year and a clean-shaven face that reads younger than it is for the half second before it recognizes a room. Warm matte skin and quick, careful hands."
+wardrobe = "A soft brown corduroy jacket over an open-collared cream shirt and dark trousers, good clothes worn without ceremony and a degree less formal than the table he is joining; a cream envelope carried in the inside jacket pocket, which rises when he stands."
+invariants = [
+  "Dark brown hair worn slightly long over the collar",
+  "Middle thirties, only a few years younger than his sister, and never a boy",
+  "A soft brown corduroy jacket over an open-collared cream shirt",
+  "A cream envelope in the inside jacket pocket",
+  "Adult proportions, matte skin, no glamour lighting",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "The clothes are authored for this production; the source names only the jacket and the envelope in its inside pocket.",
+  "No external character, likeness, or media reference of any kind.",
+]

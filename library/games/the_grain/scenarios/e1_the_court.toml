@@ -1,0 +1,131 @@
+# Episode One, Movement VI, first half — The court. The declarative half.
+#
+# Source: The Grain, Chapter Six, Scene 10.
+#
+# This beat sets nothing. It is the one place in the episode that is purely a
+# reading of the board: twelve facts come in from the motor-court room and the
+# window room, and every one of them is a clause of the speech Henry gives Ward
+# through the display glass. Nothing crosses out of it but the outcome.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_the_court"
+display_name = "The Court"
+revision = 1
+
+script = "scenarios/e1_the_court.scenario"
+script_sha256 = "695b0cb536ebf4c089e2822a3d8e93ed51c3e2cfc7233d349701fbf13757b3b2"
+entry = "the_court"
+
+# ------------------------------------------------------------------- the cast
+#
+# Four voices, two of them drawn. Henry is never drawn, and the uniformed
+# officer is never drawn either: he asks the first checkpoint question of the
+# night and is not a person the player needs a face for.
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "officer"
+display_name = "Officer"
+
+[[cast]]
+actor_id = "ward"
+display_name = "Ward"
+expressions = ["blunt", "writing", "closed_notebook", "one_joke"]
+
+[[cast]]
+actor_id = "edwin"
+display_name = "Edwin"
+expressions = ["formal", "dry", "grave", "no_keys"]
+
+# ----------------------------------------------------------------- the stages
+
+[[stages]]
+stage_id = "motor_court_police"
+brief = "The motor court of an original closed 1972 department store at night under a stone canopy lit from beneath, two unmarked and marked police sedans and an ambulance stopped at angles on the wet paving, headlights across cold blue-black stone, the lit display window at the far side reduced to a bright rectangle, no people, no readable text, lettering or insignia anywhere"
+
+# ------------------------------------------------------------------ the audio
+#
+# The window's track, and this is where it can play: a room has no audio, so
+# the low hum that belongs to Scene 9 carries into the scene immediately after
+# it and stops when Henry goes back up.
+
+[[tracks]]
+track_id = "window"
+brief = "Almost nothing. A low electrical hum with a room around it, one sustained low string that does not move, air moving somewhere out of sight, no melody and no pulse"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 75
+
+# ------------------------------------------------------------------ the flags
+#
+# Twelve imports, no locals. Every one is tested by an `if` in the script and
+# every one is set by an earlier beat: `window_before` and `gallery_open` by
+# the motor-court room on the way in, the other ten by the window room.
+#
+# `stage_door_locked` is the load-bearing one. It is the fact that means Henry
+# went through the glass, so the room gates the neck, the paper, the marks, the
+# scrape, the button and the carton behind it, and this scenario branches the
+# whole officer exchange on it: a Henry who stayed in the court touched nothing
+# and has nothing to say.
+
+[[flags]]
+flag_id = "stage_door_locked"
+origin = "imported"
+
+[[flags]]
+flag_id = "touched_neck"
+origin = "imported"
+
+[[flags]]
+flag_id = "touched_more_than_said"
+origin = "imported"
+
+[[flags]]
+flag_id = "access_door_unlocked"
+origin = "imported"
+
+[[flags]]
+flag_id = "whiting_on_treads"
+origin = "imported"
+
+[[flags]]
+flag_id = "carton_on_gallery"
+origin = "imported"
+
+[[flags]]
+flag_id = "marks_under_lip"
+origin = "imported"
+
+[[flags]]
+flag_id = "red_button"
+origin = "imported"
+
+[[flags]]
+flag_id = "heading_int_bedroom"
+origin = "imported"
+
+[[flags]]
+flag_id = "bell_in_receiving"
+origin = "imported"
+
+[[flags]]
+flag_id = "window_before"
+origin = "imported"
+
+[[flags]]
+flag_id = "gallery_open"
+origin = "imported"
+
+# ---------------------------------------------------------------- the endings
+
+[[endings]]
+outcome_id = "upstairs"
+label = "Now you are a witness"

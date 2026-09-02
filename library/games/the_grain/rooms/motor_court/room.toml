@@ -1,0 +1,166 @@
+# Episode One, Movement II — the motor court, before the bell.
+#
+# The first of the episode's two rooms. Scene 2 of the novel, first half. Inspect
+# only: there is nothing to use and nothing to carry, and the pocketknife is a
+# fact in a later beat rather than an item here.
+#
+# Every narration line is lifted from
+# `story/snapshot-2026-09-03/script/chapter-01-one-person-there.fountain`, Scene 2.
+# Nothing in this room is left for generation to write: a missing narration line
+# is a defect in this production, not a gap for the pipeline to fill.
+#
+# What the looks buy is carried forward as facts. A Henry who looked can tell the
+# officer, and Ward, that the moon was whole and the rail was already open at a
+# quarter to eight. A Henry who did not can say only that he walked past it.
+
+schema_version = 1
+kind = "pointclick-room-v2"
+room_id = "motor_court"
+display_name = "The Motor Court"
+revision = 1
+
+# The art direction of record, as pixels rather than adjectives. The plate is
+# candidate 1 of the six-candidate cover sheet, selected by the production lead on
+# 2026-09-03 and promoted to `references/cover.png`. The digest below is the
+# committed bytes, repaired by the art lane against the artifact it produced; see
+# `references/cover.provenance.json` for the generation, the selection and the
+# rights basis quoted here.
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this production's art direction, with no third-party image input.",
+    "First-party AI-generated plate selected by the production lead from a six-candidate style sheet on 2026-09-03.",
+    "No independent semantic review of the exact committed bytes is recorded; the image is unreviewed and unpublished.",
+]
+
+[style]
+label = "painted illustration, gouache-like, 1972 Los Angeles at night"
+keywords = [
+    "visible brushwork and restrained detail",
+    "warm amber light against cold blue-black glass",
+    "muted ochre, bottle green, oxblood, cream",
+    "low practical lamps, deep unlit interiors",
+    "1972 wardrobe, cars, and fixtures",
+]
+avoid = [
+    "photorealism",
+    "anime",
+    "comic ink linework",
+    "gloss or specular highlights",
+    "readable text",
+    "branding or signage lettering",
+    "people",
+]
+
+reference_ids = ["cover_style"]
+
+# The brief names the court and its light. The unfinished window's contents are
+# named because they are painted scenery the player reads, not sprites: nothing
+# in this room is composited in.
+[scene]
+brief = """The covered motor court of a large Los Angeles department store in 1972, \
+after closing and seen from under the canopy: heavy stone piers and a stone soffit lit \
+from beneath, the dark drive curving away to a cold blue-black street, and along the \
+inner wall a run of illuminated display windows against a completely dark sales floor. \
+Nearest the far end, one window is unfinished — six standing mannequin figures turned \
+toward an empty seventh place beneath a large white paper moon, a short black opening \
+left above the moon where the painted scenery meets the ceiling of the window, and a \
+stick of tailor's chalk and a pair of scissors lying on the window floor inside the \
+glass. At the far right an unmarked service door with a small bell beside it. No people, \
+no readable text, no branding."""
+width = 1280
+height = 720
+
+# --- hotspots ----------------------------------------------------------------
+# All scenery: everything here is painted into the backdrop and carries a hit
+# area only. No object in this room is picked up, moved, or occluded, so nothing
+# in it earns a separate transparent sprite.
+
+[[hotspots]]
+hotspot_id = "stone_canopy"
+label = "The canopy"
+art = "scenery"
+brief = "heavy stone piers and a stone soffit lit from beneath, the dark drive curving out to the street"
+region = { x = 0.0, y = 0.0, w = 0.26, h = 0.88 }
+
+[[hotspots]]
+hotspot_id = "display_windows"
+label = "The other windows"
+art = "scenery"
+brief = "a receding run of lit display windows: a laid dinner, a painted staircase, a group of suitcases, all against a dark sales floor"
+region = { x = 0.28, y = 0.28, w = 0.26, h = 0.40 }
+
+[[hotspots]]
+hotspot_id = "unfinished_window"
+label = "The unfinished window"
+art = "scenery"
+brief = "six standing mannequin figures turned toward an empty seventh place beneath a large white paper moon"
+region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
+
+[[hotspots]]
+hotspot_id = "black_rectangle"
+label = "Above the moon"
+art = "scenery"
+brief = "a short black rectangle left open where the painted scenery meets the ceiling of the window, directly above the paper moon"
+region = { x = 0.635, y = 0.235, w = 0.12, h = 0.055 }
+
+[[hotspots]]
+hotspot_id = "chalk_and_scissors"
+label = "The window floor"
+art = "scenery"
+brief = "a stick of tailor's chalk and a pair of scissors left on the floor inside the glass"
+region = { x = 0.60, y = 0.645, w = 0.14, h = 0.07 }
+
+[[hotspots]]
+hotspot_id = "service_bell"
+label = "The service bell"
+art = "scenery"
+brief = "a small plain bell push mounted beside an unmarked service door"
+region = { x = 0.87, y = 0.42, w = 0.07, h = 0.10 }
+
+# --- interactions ------------------------------------------------------------
+# Four looks and one way in. The two texture looks carry no effect and therefore
+# repeat; the three that export a fact fire once.
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "stone_canopy" }
+narration = """Tolland's motor court was designed so a customer could enter the store \
+without touching the city. After closing, the dark porte cochere does the opposite."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "display_windows" }
+narration = """The display windows are still illuminated. Inside them, mannequins attend \
+dinners, descend painted staircases, and wait beside luggage that has never travelled. \
+Beyond the glass, the real sales floor is dark."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "unfinished_window" }
+effects = [{ set_flag = "window_before" }]
+narration = """Nearest the service door, one window is unfinished. Six mannequins face an \
+empty seventh place beneath a white paper moon."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "black_rectangle" }
+effects = [{ set_flag = "gallery_open" }]
+narration = """Above the moon, where the scenery meets the ceiling of the window, a short \
+black rectangle has been left open."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "chalk_and_scissors" }
+effects = [{ set_flag = "chalk_and_scissors" }]
+narration = """A seamstress's chalk and a pair of scissors lie on the floor inside the \
+glass."""
+
+[[interactions]]
+on = { verb = "inspect", hotspot = "service_bell" }
+effects = [{ set_flag = "rang_the_bell" }]
+narration = "Ruth presses a bell beside an unmarked service door."
+
+# The way in is the only thing this room requires. Everything else is a look the
+# player may take or leave, and the episode is different afterwards either way.
+[win]
+requires = ["rang_the_bell"]
+narration = "Each footstep returns from the stone."

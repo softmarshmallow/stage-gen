@@ -1,0 +1,167 @@
+# The Grain, Episode One, Movement II — the way in.
+#
+# Scene 2 of the novel, second half: from the bell to the first elevator bell.
+# The looks that precede it are the room `rooms/motor_court`; this scenario picks
+# the scene up in the seconds between the bell and the door. Every line is lifted
+# from `story/snapshot-2026-09-03/script/chapter-01-one-person-there.fountain`.
+#
+# Two facts are given rather than looked for: Edwin says the place card has been
+# moved twice, and the suitcase beside the service bar has not been opened.
+#
+# Henry is never drawn.
+
+
+label the_service_door:
+    stage tollands_motor_court
+
+    show ruth composed at center
+
+    henry "Is that Lydia's work?"
+
+    ruth "No."
+
+    henry "You know where the servants enter."
+
+    ruth dry "Everybody who works for a living knows where the servants enter."
+
+    "The door opens before Henry can answer. Edwin Price is narrow, silver-haired, and dressed with the severity of a man whose dining room has survived several owners."
+
+    show ruth composed at right
+    show edwin formal at left
+
+    edwin "You're early."
+
+    ruth "By thirteen minutes."
+
+    edwin dry "For a departure, that is considered aggression."
+
+    jump the_place_card
+
+
+label the_place_card:
+    ruth composed "Edwin Price, Henry Calder."
+
+    edwin formal "Mr. Calder. I had understood you were a friend."
+
+    henry "So had I."
+
+    ruth dry "We're trying it out."
+
+    "Edwin considers Henry's coat, shoes, hands, and expression. It is not an inspection. It is seating preparation."
+
+    edwin "Miss Shaw has moved your place card twice."
+
+    set place_card_moved_twice
+
+    henry "I didn't know I had one."
+
+    edwin dry "Neither did she. This has not prevented her."
+
+    jump the_dark_floor
+
+
+label the_dark_floor:
+    stage tollands_cosmetics_floor
+    hide ruth
+    hide edwin
+
+    "He locks the door behind them and leads them up a short flight of stairs to the unlit cosmetics floor. In the dark, mirrors return fragments rather than people. Ruth knows the route and does not look at the counters. Henry does."
+
+    jump the_service_lift
+
+
+label the_service_lift:
+    stage service_lift
+    show edwin formal at left
+    show ruth composed at right
+
+    "The passenger elevators are dark. Edwin unlocks a service lift."
+
+    edwin "Mr. Bell will send the others up this way from the Hill Street door. It is the only car running."
+
+    edwin "The dining room staff left at six. I have retained one cook and one waiter, both of whom have been promised ignorance."
+
+    henry "Can they deliver?"
+
+    edwin formal "They are professionals."
+
+    "The service lift rises through the store. Each floor appears briefly through the wire-glass panel: furniture arranged into rooms without walls, women's dresses hanging in patient rows, toys under canvas, lamps glowing alone because no one found the correct switch."
+
+    "Ruth watches the floor numbers. Edwin watches Ruth."
+
+    edwin grave "She hasn't told me why she asked you."
+
+    ruth "She hasn't told me either."
+
+    edwin "You misunderstand. Lydia has told me three reasons. She hasn't told me which one she plans to remember."
+
+    "The lift stops."
+
+    jump the_winter_room
+
+
+label the_winter_room:
+    stage winter_room_evening
+    hide edwin
+    hide ruth
+
+    "The Winter Room curves along the top floor beneath a shallow glass roof. At lunchtime it seats a hundred and forty. Tonight a single round table occupies its center, laid for eight beneath low amber lamps. Los Angeles continues beyond the windows as a field of lights without an audience."
+
+    show lydia composed at center
+
+    "Lydia Shaw sits alone, writing place cards in green ink. She is dressed simply, but nothing about the dress appears accidental. One unopened suitcase stands beside the service bar."
+
+    set suitcase_unopened
+
+    show ruth composed at left
+    show edwin formal at far_left
+
+    "She sees Ruth, then Henry. She finishes the name she is writing before she rises."
+
+    lydia "You brought a stranger."
+
+    ruth "You told me not to come alone."
+
+    lydia composed "Those are not the same kindness."
+
+    ruth "Lydia Shaw, Henry Calder."
+
+    jump the_green_ink
+
+
+label the_green_ink:
+    hide edwin
+
+    "Lydia offers Henry her hand. Her fingers carry two shallow pin marks and a stain of green ink."
+
+    lydia "What did she tell you about me?"
+
+    henry "That you're leaving."
+
+    lydia "Then she told you the only thing no one here believes."
+
+    henry "Do you?"
+
+    "Lydia smiles—not because the question is clever, but because Henry has returned it without decorating it."
+
+    lydia "Sit beside me, Mr. Calder."
+
+    ruth exposed "He came with me."
+
+    lydia composed "That is why I would like to make it inconvenient."
+
+    jump the_first_bell
+
+
+label the_first_bell:
+    "An elevator bell sounds somewhere below. The empty store carries it upward, one clean note at a time."
+
+    show lydia work at center
+
+    "Lydia looks toward the entrance. For the first time, her composure does not fail; it becomes work."
+
+    lydia work "That will be the first person who thinks this dinner is about them."
+
+    hide lydia
+    hide ruth
+    end first_bell

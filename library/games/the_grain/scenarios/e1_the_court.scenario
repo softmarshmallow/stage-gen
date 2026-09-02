@@ -1,0 +1,439 @@
+# Episode One, Movement VI, first half — The court.
+#
+# The Grain, Chapter Six, Scene 10. The police take the scene away from Henry.
+# He has been useful for three minutes and now he is a witness, and the first
+# checkpoint of the night is not Ward's: it is a uniformed officer asking what
+# he touched.
+#
+# Everything Henry says down here is assembled out of the window room. The
+# novel's Henry gives Ward the whole list, because the novel's Henry looked at
+# everything; ours gives the subset he has, one clause of that speech at a
+# time. A Henry who stood in the court and never went through the stage door
+# has almost nothing to say, and Ward's answers are the same either way.
+#
+# This scenario sets no flags. It reads twelve, all of them from the two rooms
+# and none from the supper.
+
+
+label the_court:
+    stage motor_court_police
+    play window
+
+    "The first patrol car enters the motor court without its siren. Two officers step out. One goes to Bell. The other looks through the display glass and reaches for the radio at his shoulder."
+
+    if stage_door_locked:
+        jump court_went_in
+
+    jump court_stayed_out
+
+
+label court_went_in:
+    henry "The lower stage door was locked. Mr. Bell opened it. I went in to see if the man could be helped."
+
+    "The officer looks at Henry's hands."
+
+    officer "What did you touch?"
+
+    if touched_neck:
+        jump officer_answer_neck
+
+    jump officer_answer_door
+
+
+label court_stayed_out:
+    henry "Mr. Price and I came down in the service lift. Mr. Bell had telephoned upstairs before that."
+
+    "The officer looks at Henry's hands."
+
+    officer "What did you touch?"
+
+    henry "Nothing down here."
+
+    "The officer writes it down. It takes him no time at all."
+
+    jump officer_keys
+
+
+label officer_answer_neck:
+    henry "The door handle. His neck."
+
+    jump officer_nothing_else
+
+
+label officer_answer_door:
+    henry "The door handle."
+
+    jump officer_nothing_else
+
+
+label officer_nothing_else:
+    officer "Nothing else?"
+
+    if touched_more_than_said:
+        jump officer_the_paper
+
+    jump officer_no
+
+
+label officer_no:
+    henry "No."
+
+    "The officer writes it down."
+
+    jump officer_keys
+
+
+# The exchange a Henry who pulled the paper free has earned. It is longer, and
+# the evening after it is shorter.
+label officer_the_paper:
+    henry "A piece of paper under his right hand. I drew it out from beneath the fingers."
+
+    officer "You moved it."
+
+    henry "It is on the floor beside the hand, where I put it down."
+
+    officer "Why?"
+
+    henry "To read the rest of the line."
+
+    officer "And?"
+
+    henry "Half a line. There is no name on it."
+
+    "The officer stops writing. Then he writes a good deal more than he has written for anybody else, and asks Henry to stay where he is."
+
+    jump officer_keys
+
+
+label officer_keys:
+    show edwin no_keys at left
+
+    "He asks Edwin for the stage key and the lift key. Edwin gives him both. Bell gives him the matching stage key from his ring."
+
+    "The second officer goes upstairs to keep the guests in the Winter Room. Edwin watches his brass key disappear into a paper evidence envelope."
+
+    edwin "That operates half the building."
+
+    officer "Not tonight."
+
+    "More headlights enter beneath the canopy. An ambulance stops outside the display. Two attendants go in through the stage door with an officer. One kneels where Henry knelt. When he comes out, he speaks quietly to the officer and closes the door again."
+
+    hide edwin
+
+    jump ward_arrives
+
+
+label ward_arrives:
+    show ward blunt at center
+
+    "Detective Ellis Ward arrives in an unmarked sedan. He is in his early fifties, wearing a brown suit that has outlasted several changes of fashion. He sees Henry before Henry can decide whether to introduce himself."
+
+    ward "Calder."
+
+    henry "Ward."
+
+    ward one_joke "Still in the same office?"
+
+    henry "Same door."
+
+    ward blunt "Good. What did you touch?"
+
+    if touched_more_than_said:
+        jump ward_second_asking
+
+    jump ward_touch_short
+
+
+label ward_touch_short:
+    if touched_neck:
+        jump ward_touch_neck
+
+    jump ward_touch_door
+
+
+label ward_touch_neck:
+    henry "The stage-door handle. His neck."
+
+    jump ward_touch_no
+
+
+label ward_touch_door:
+    henry "The stage-door handle."
+
+    jump ward_touch_no
+
+
+label ward_touch_no:
+    ward "Anything else?"
+
+    henry "No."
+
+    jump ward_the_lift
+
+
+# Ward asks the same question the officer asked, five minutes later, and writes
+# the answer down himself.
+label ward_second_asking:
+    henry "The same as I told your officer. And the paper in his right hand."
+
+    ward writing "Tell me that part."
+
+    henry "I drew it out from under the fingers and put it down beside them."
+
+    ward "You knew better."
+
+    henry "Yes."
+
+    "Ward writes it down without any change in his face, which is worse than the change would have been."
+
+    jump ward_the_lift
+
+
+label ward_the_lift:
+    "Ward looks through the glass. A police photographer is setting up beyond him."
+
+    ward blunt "Who came down in the lift?"
+
+    henry "Paul Ellery and his sister."
+
+    ward "Name."
+
+    henry "Ruth Ellery. She returned alone with the key."
+
+    ward "What did you see down here?"
+
+    jump court_check_stage_door
+
+
+# ------------------------------------------------------- what Henry can give
+#
+# The novel gives this as one speech. Here it is assembled clause by clause out
+# of what the player looked at, in the novel's order, and a Henry who looked at
+# nothing says nothing at all — which Ward also hears.
+
+
+label court_check_stage_door:
+    if stage_door_locked:
+        jump court_say_stage_door
+
+    jump court_check_access
+
+
+label court_say_stage_door:
+    henry "The stage door was locked."
+
+    jump court_check_access
+
+
+label court_check_access:
+    if access_door_unlocked:
+        jump court_say_access
+
+    jump court_check_whiting
+
+
+label court_say_access:
+    henry "The display-access door was not."
+
+    jump court_check_whiting
+
+
+label court_check_whiting:
+    if whiting_on_treads:
+        jump court_say_whiting
+
+    jump court_check_carton
+
+
+label court_say_whiting:
+    henry "The access stair reaches the gallery above the body; there is something white on its lower treads."
+
+    jump court_check_carton
+
+
+label court_check_carton:
+    if carton_on_gallery:
+        jump court_say_carton
+
+    jump court_check_marks
+
+
+label court_say_carton:
+    henry "The carton is still on the gallery."
+
+    jump court_check_marks
+
+
+label court_check_marks:
+    if marks_under_lip:
+        jump court_say_marks
+
+    jump court_check_button
+
+
+label court_say_marks:
+    henry "There are marks below the open rail."
+
+    jump court_check_button
+
+
+label court_check_button:
+    if red_button:
+        jump court_say_button
+
+    jump court_check_moon
+
+
+label court_say_button:
+    henry "There is a red call button beside the open rail."
+
+    jump court_check_moon
+
+
+label court_check_moon:
+    if window_before:
+        jump court_say_moon
+
+    jump court_check_rail
+
+
+label court_say_moon:
+    henry "The moon was whole when I walked past this window at a quarter to eight."
+
+    jump court_check_rail
+
+
+label court_check_rail:
+    if gallery_open:
+        jump court_say_rail
+
+    jump court_paper
+
+
+label court_say_rail:
+    henry "The rail above it was already open then."
+
+    jump court_paper
+
+
+label court_paper:
+    ward writing "There was paper in his hand."
+
+    if heading_int_bedroom:
+        jump court_paper_read
+
+    jump court_paper_unread
+
+
+label court_paper_read:
+    henry "Typed like a screenplay. I could read one scene heading."
+
+    jump court_took_question
+
+
+label court_paper_unread:
+    henry "I saw it under his hand. I didn't read it."
+
+    jump court_took_question
+
+
+label court_took_question:
+    ward "Did you take it?"
+
+    if touched_more_than_said:
+        jump court_took_it
+
+    jump court_did_not_take
+
+
+label court_did_not_take:
+    henry "No."
+
+    ward "Good. Save the dinner for your statement upstairs."
+
+    jump court_ward_orders
+
+
+label court_took_it:
+    henry "I moved it. It is beside his hand, on the floor."
+
+    ward "Then don't do anything else you already know better than. Save the dinner for your statement upstairs."
+
+    henry "I will."
+
+    jump court_ward_orders
+
+
+label court_ward_orders:
+    "Ward turns to the uniformed officer."
+
+    ward blunt "Nobody uses the lift or the display stair. Find out where that red button rings before anybody disconnects anything."
+
+    "The officer writes it down."
+
+    ward "Mr. Bell, show me where you stood when you gave Ellery the carton. Mr. Price, I need every key to this window and the name of anybody who had one today."
+
+    "Henry remains where he is."
+
+    "Ward looks at him."
+
+    ward "Upstairs."
+
+    if bell_in_receiving:
+        jump court_bell_line
+
+    jump court_check_carton_again
+
+
+label court_bell_line:
+    henry "Bell left Ruth and Paul together."
+
+    ward "Bell will tell me."
+
+    jump court_check_carton_again
+
+
+label court_check_carton_again:
+    if carton_on_gallery:
+        jump court_carton_line
+
+    jump court_leaves
+
+
+label court_carton_line:
+    henry "The carton is still above the window."
+
+    ward closed_notebook "I can see it."
+
+    jump court_leaves
+
+
+label court_leaves:
+    "The photographer's flash fills the display. For an instant Paul, the chair, and the six mannequins are equally white."
+
+    if stage_door_locked:
+        jump court_leaves_witness
+
+    jump court_leaves_plain
+
+
+label court_leaves_witness:
+    ward blunt "You were first inside. Now you are a witness. Give your name to the officer and go upstairs."
+
+    jump court_goes_up
+
+
+label court_leaves_plain:
+    ward blunt "Now you are a witness. Give your name to the officer and go upstairs."
+
+    jump court_goes_up
+
+
+label court_goes_up:
+    "Henry goes upstairs."
+
+    hide ward
+
+    stop window
+
+    end upstairs

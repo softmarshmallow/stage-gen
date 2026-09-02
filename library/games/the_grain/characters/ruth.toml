@@ -1,0 +1,34 @@
+# Ruth Ellery. Cast bible: "About forty (inferred: Paul is 'younger by only a few
+# years')." The novel gives her no physical description at all, so appearance and
+# wardrobe below are authored for this production, brand-neutral and period-correct,
+# and chosen to be legible at sprite scale in five-slot staging.
+#
+# The tells are the point. Ruth is a woman who has decided what to wear the way she
+# decides a sentence: nothing accidental, nothing that asks to be looked at. She is
+# dressed for the supper from the first scene onward, because she came to the office
+# on her way there.
+
+schema_version = 1
+kind = "character-profile-v1"
+profile_id = "ruth-ellery"
+revision = 1
+display_name = "Ruth"
+age_years = 40
+description = "A Los Angeles copywriter of about forty who writes product copy and funeral-home pamphlets, and who has spent four months writing the best dialogue of her life for a picture she was not told the name of. Paul's older sister. She volunteers the truth in whole sentences so that nobody else decides what she kept."
+visual_identity = "Woman of about forty, of average height and deliberately still. Warm matte skin, level dark eyes, and dark brown hair set back from the face and pinned at the nape without ornament. A face that composes itself a half second before it is looked at."
+wardrobe = "A well-cut oxblood wool dress, plain at the neck and cut just below the knee, with a narrow belt of the same cloth; low dark heeled shoes; a single small pair of gold earrings and no other jewellery; a dark camel overcoat carried or worn, and a flat dark handbag held in one hand."
+invariants = [
+  "Dark brown hair pinned back at the nape, unornamented",
+  "A plain oxblood wool dress with a narrow self belt, cut just below the knee",
+  "A dark camel overcoat, put on one sleeve and then the other without help",
+  "No jewellery beyond one small pair of gold earrings",
+  "Adult proportions, matte skin, no glamour lighting and no cosmetic sheen",
+]
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Original repository-authored text composed from this production's cast bible and the novel's own action prose.",
+  "Appearance and wardrobe are authored for this production; the source gives Ruth no physical description.",
+  "No external character, likeness, or media reference of any kind.",
+]

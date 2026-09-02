@@ -1,0 +1,72 @@
+# Episode One, Movement II — the way in. Scene 2 of the novel, second half.
+#
+# The looks that precede this scenario are the room `rooms/motor_court`. Nothing
+# this scenario reads comes from that room, so it imports no flags: it only gives
+# two of its own away.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_way_in"
+display_name = "The Way In"
+revision = 1
+
+script = "scenarios/e1_way_in.scenario"
+script_sha256 = "83191dac4fd5a536db83c0d3229e31c06ebb6f26f4c103975a6bde67acbe2758"
+entry = "the_service_door"
+
+# ------------------------------------------------------------------- the cast
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
+
+[[cast]]
+actor_id = "edwin"
+display_name = "Edwin"
+expressions = ["formal", "dry", "grave", "no_keys"]
+
+[[cast]]
+actor_id = "lydia"
+display_name = "Lydia"
+expressions = ["composed", "work", "cut_off", "lowered"]
+
+# ----------------------------------------------------------------- the stages
+# Four backdrops, all empty of people: the cast is composited into the slots.
+
+[[stages]]
+stage_id = "tollands_motor_court"
+brief = "The covered motor court of a large Los Angeles department store in 1972 after closing: heavy stone piers and a stone soffit lit from beneath, a dark drive curving out to a cold blue-black street, a run of illuminated display windows along the inner wall against a dark sales floor, an unmarked service door at one end, no people, no readable text or branding"
+
+[[stages]]
+stage_id = "tollands_cosmetics_floor"
+brief = "The unlit cosmetics floor of a 1972 department store after closing: glass counters, tall mirrors returning fragments of light rather than reflections, a short flight of stairs behind, everything blue-black except one distant lamp, no people, no readable text or branding"
+
+[[stages]]
+stage_id = "service_lift"
+brief = "The inside of a 1972 department-store service lift: a plain metal car, a floor indicator above the gate, and a wire-glass panel through which a dark selling floor of furniture and hanging dresses passes, no people, no readable text or branding"
+
+[[stages]]
+stage_id = "winter_room_evening"
+brief = "A curved top-floor department-store dining room in 1972 beneath a shallow glass roof, evening: one round table at its center laid for eight under low amber lamps, a service bar to one side with a single unopened suitcase beside it, Los Angeles beyond the glass as a field of lights, no people, no readable text or branding"
+
+# ------------------------------------------------------------------ the flags
+# Both are given, not looked for: the scene hands them over. Neither is read
+# here, so neither is imported; later beats read them from the case.
+
+[[flags]]
+flag_id = "place_card_moved_twice"
+
+[[flags]]
+flag_id = "suitcase_unopened"
+
+# ---------------------------------------------------------------- the endings
+
+[[endings]]
+outcome_id = "first_bell"
+label = "The first person who thinks this dinner is about them"
