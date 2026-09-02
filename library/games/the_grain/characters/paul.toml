@@ -23,6 +23,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "younger"
+label = "Younger"
+description = "The half second before he recognises a room"
+direction = "Eyes open and unguarded, brows slightly raised, mouth relaxed and about to speak. A face briefly carrying less than its thirty-six years."
+
+[[expressions]]
+expression_id = "pleased"
+label = "Pleased"
+description = "Pleasure he has not decided to hide"
+direction = "A quick closed smile pulling one side further than the other, eyes crinkled at the corners, brows lifted."
+
+[[expressions]]
+expression_id = "stopped"
+label = "Stopped"
+description = "The sentence abandoned, waiting for his sister"
+direction = "Mouth open on a word he has given up, eyes moving to one side toward Ruth, brows raised and held there."
+
+[[expressions]]
+expression_id = "all_right"
+label = "All right"
+description = "Reassuring somebody, and not convincing himself"
+direction = "Brows raised at the inner corners, eyes steady on the other person, mouth closed in a small level smile that does not reach them."
 [rights]
 status = "unreviewed"
 basis = [

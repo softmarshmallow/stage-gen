@@ -23,6 +23,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "formal"
+label = "Formal"
+description = "A man at his station, and precise about it"
+direction = "Chin level, eyes direct and impersonal, mouth closed in a straight line, brows still. Correct to the point of comedy and not aware of it."
+
+[[expressions]]
+expression_id = "dry"
+label = "Dry"
+description = "The joke kept entirely in the eyes"
+direction = "One brow raised a fraction, mouth closed with the faintest downward set at one corner, eyes steady and alive. Nothing in the mouth gives it away."
+
+[[expressions]]
+expression_id = "grave"
+label = "Grave"
+description = "The building closed and a man dead in it"
+direction = "Eyes lowered and steady, mouth closed and firm, brows drawn slightly together, the head inclined a little forward."
+
+[[expressions]]
+expression_id = "no_keys"
+label = "No keys"
+description = "His authority handed over, and the cost of it"
+direction = "Eyes fixed forward and slightly widened, mouth closed hard, jaw tight, brows drawn together. A stillness that is plainly expensive."
 [rights]
 status = "unreviewed"
 basis = [

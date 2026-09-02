@@ -610,6 +610,43 @@ their beat. In the second case the payoff was already sitting in the same file: 
 "It was in his inside pocket when we went down" at `e1_statements:63`, and
 `ruth_two_fingers` is what corroborates it.
 
+### 06:31 — The episode is authored and proven, end to end
+
+Every fix from QA's second audit applied, and the whole thing re-proved:
+
+| Beat | Kind | Blocks / hotspots | Reachable states | Verdict |
+|---|---|---|---|---|
+| `e1_office` | scenario | 8 | 8 | admitted |
+| `e1_motor_court` | room | 6 hotspots, 6 interactions | 16 | solvable, 0 unreachable |
+| `e1_way_in` | scenario | 7 | 7 | admitted |
+| `e1_table` | scenario | 41 | 42 | admitted |
+| `e1_coffee` | scenario | 23 | 41 | admitted |
+| `e1_window` | room | 14 hotspots, 19 interactions | 9,312 | solvable, 0 unreachable, 0 narration gaps |
+| `e1_the_court` | scenario | 46 | 40,727 | admitted |
+| `e1_statements` | scenario | 56 | 14,565 | admitted |
+
+**`case check` — admitted, bound, 8 beats, 69 facts.** Gates 1, 2 and 3 are green.
+
+Writer B's repairs are better than the defects deserved. Ward's cut line became a two-line
+deflection that lets him off the hook; the D6 split produced *"You didn't watch the cup and
+you don't think she was frightened."* on the path where Henry looked away; and the two
+unpaid looks got beats that are among the best writing in the episode — the descent now
+ends *"Three is the last I saw of either of them."*, and the envelope corroboration ends
+with Ward writing and saying *"She told me the same thing an hour ago."*, which is the
+detective doing the exact thing he told everyone not to do.
+
+`"That isn't what I asked."` now appears exactly once in the episode, and
+`"That is not what I asked"` appears **zero** times anywhere — the Chapter Fourteen
+variation is unspent, as it should be.
+
+48 facts are read by nothing in Episode One. That is correct and deliberate: they are
+Wednesday's board handed to Thursday, and the case declares them so they survive the
+episode boundary rather than vanishing.
+
+*One correction for the record:* writer B reported `e1_statements` sitting at exactly the
+32-flag cap with no headroom. The cap was raised to **48** by the contract lane at 06:0x;
+32 declarations is comfortable, not tight.
+
 ---
 
 ## 3. Ledger

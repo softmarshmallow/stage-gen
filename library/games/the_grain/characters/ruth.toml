@@ -25,6 +25,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting and no cosmetic sheen",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "composed"
+label = "Composed"
+description = "Level and unreadable, giving nothing away"
+direction = "Level gaze held a beat longer than comfortable, lips closed and even, chin fractionally raised, brows still. A face that has already decided what it will show."
+
+[[expressions]]
+expression_id = "dry"
+label = "Dry"
+description = "The epigram landing, with no warmth behind it"
+direction = "One brow a fraction higher than the other, mouth closed with a single corner drawn back, eyes steady and faintly amused without any warmth reaching them."
+
+[[expressions]]
+expression_id = "exposed"
+label = "Exposed"
+description = "Found out, with the composure gone all at once"
+direction = "Eyes wide and fixed, lips parted, the jaw gone loose, brows lifted at the inner corners. Every arrangement dropped out of the face at once. No tears."
+
+[[expressions]]
+expression_id = "shut"
+label = "Shut"
+description = "Keeping the one sentence she will not give up"
+direction = "Eyes lowered and turned away from the questioner, mouth pressed flat, jaw set, brows drawn very slightly together. A face closing a door and standing behind it."
 [rights]
 status = "unreviewed"
 basis = [

@@ -23,6 +23,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "repeating"
+label = "Repeating"
+description = "Saying it correctly, and then again, shorter"
+direction = "Eyes earnest and fixed on the listener, mouth open shaping the sentence a second time, brows raised, chin pushed a little forward."
+
+[[expressions]]
+expression_id = "capless"
+label = "Capless"
+description = "Reaching for a cap that is not on his head"
+direction = "Eyes flicking up and aside, mouth slightly open, brows raised, the head bare and one hand arrested halfway to it."
+
+[[expressions]]
+expression_id = "through_the_glass"
+label = "Through the glass"
+description = "What he saw when he opened the door far enough"
+direction = "Eyes wide and unfocused as though still looking at something behind the viewer, mouth open and slack, brows raised high, the colour gone out of the face."
+
+[[expressions]]
+expression_id = "seated"
+label = "Seated"
+description = "Made to sit down by somebody senior"
+direction = "Eyes lowered to his own hands, mouth closed, brows drawn up at the inner corners, the chin dropped. A man being kept still and letting it happen."
 [rights]
 status = "unreviewed"
 basis = [

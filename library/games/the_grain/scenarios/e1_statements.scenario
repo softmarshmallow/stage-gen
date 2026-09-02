@@ -272,6 +272,23 @@ label envelope_offered:
 
     set offered_envelope
 
+    if ruth_two_fingers:
+        jump envelope_corroborated
+
+    jump beat_key
+
+
+label envelope_corroborated:
+    ward writing "And the letter went down in his pocket."
+
+    henry "It came up out of the pocket when he put his jacket on. His sister pushed it back down with two fingers as he passed her."
+
+    ward "You were watching her hands."
+
+    henry "I was watching his coat."
+
+    ward writing "She told me the same thing an hour ago."
+
     jump beat_key
 
 
@@ -328,6 +345,23 @@ label beat_descent:
 
     henry "Yes."
 
+    if indicator_at_three:
+        jump descent_indicator
+
+    jump beat_return
+
+
+label descent_indicator:
+    ward "And you watched nothing else."
+
+    henry "The floor indicator. I watched it down to three."
+
+    ward "And after three?"
+
+    henry "Mrs. Holt asked me a question. Three is the last I saw of either of them."
+
+    ward writing "Three."
+
     jump beat_return
 
 
@@ -348,6 +382,8 @@ label return_ward_knows:
     henry "Yes."
 
     ward "Did she drink?"
+
+    henry "I don't think so."
 
     ward blunt "Was she frightened?"
 
@@ -375,7 +411,7 @@ label return_ward_asks:
         "Yes.":
             jump return_thought
         "I don't think so.":
-            jump return_kept
+            jump return_kept_unwatched
 
 
 label return_saw:
@@ -408,6 +444,22 @@ label return_kept:
     henry "I don't think so."
 
     ward "That is the second time tonight you have not thought so."
+
+    henry "It is the best I have."
+
+    ward "All right."
+
+    set kept_frightened
+
+    jump beat_paul_words
+
+
+# The same three words on the path where Henry never looked at the cup. There
+# was no first time, so Ward counts something else.
+label return_kept_unwatched:
+    henry "I don't think so."
+
+    ward "You didn't watch the cup and you don't think she was frightened."
 
     henry "It is the best I have."
 
@@ -468,10 +520,6 @@ label paul_words_one:
 
 label paul_words_kept:
     henry "She said he was downstairs with the carton."
-
-    ward "That is not what I asked either."
-
-    henry "No."
 
     ward "You are allowed to be tired, Calder."
 
@@ -806,9 +854,7 @@ label nell_part_carton:
 label nell_silence:
     henry "The police have his clothing. They will tell you what they found."
 
-    nell "That is not what I asked you."
-
-    henry "No."
+    "It is an answer to a question she did not ask. Nell does not ask it again."
 
     jump lydia_speaks
 

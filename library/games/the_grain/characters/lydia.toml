@@ -25,6 +25,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "composed"
+label = "Composed"
+description = "Arranged along with the room she has arranged"
+direction = "Eyes steady and warm, mouth closed in a faint prepared smile, chin level, brows relaxed. The face of a woman who has set out the evening and expects it to go."
+
+[[expressions]]
+expression_id = "work"
+label = "Work"
+description = "The seam judged, the room forgotten"
+direction = "Eyes narrowed and lowered to close focus, lips pressed thin, brows drawn together, head tilted slightly down. Twenty-six years of judging a hem in one look."
+
+[[expressions]]
+expression_id = "cut_off"
+label = "Cut off"
+description = "Stopped between one syllable and the next"
+direction = "Mouth open on an unfinished word, eyes widened and fixed forward, brows raised and held. The face arrested mid-sentence and not yet recovered."
+
+[[expressions]]
+expression_id = "lowered"
+label = "Lowered"
+description = "The method failed and known to have failed"
+direction = "Eyes cast down and away, mouth closed and turned very slightly down at the corners, chin dropped, brows drawn up at the inner corners."
 [rights]
 status = "unreviewed"
 basis = [

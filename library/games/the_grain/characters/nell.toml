@@ -21,6 +21,34 @@ invariants = [
   "Adult proportions, matte skin, nothing styled or glamorous",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "flat"
+label = "Flat"
+description = "Declaring nothing and asking for nothing"
+direction = "Eyes level and barely blinking, mouth relaxed and closed, brows flat and unmoved, chin square. A face that states rather than appeals."
+
+[[expressions]]
+expression_id = "hungry"
+label = "Hungry"
+description = "Plainly wanting the food and unembarrassed by it"
+direction = "Eyes dropped to the plate, lips slightly parted, brows lifted a little in frank appetite, the chin forward. No apology anywhere in the face."
+
+[[expressions]]
+expression_id = "hearing"
+label = "Hearing"
+description = "Being told the thing, and not reacting yet"
+direction = "Eyes fixed and very still on the speaker, lips closed, chin lowered a fraction, brows drawn in. The whole face listening and holding its response back."
+
+[[expressions]]
+expression_id = "gone"
+label = "Gone"
+description = "In the room and nowhere in the face"
+direction = "Eyes unfocused past everyone, mouth slack and a little open, brows raised at the inner corners, the head not quite turned to anything."
 [rights]
 status = "unreviewed"
 basis = [

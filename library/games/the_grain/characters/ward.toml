@@ -24,6 +24,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "blunt"
+label = "Blunt"
+description = "Waiting for the answer and not helping"
+direction = "Eyes level and unhurried on the person he is asking, mouth closed and straight, chin square, brows flat. He will let the silence do the work."
+
+[[expressions]]
+expression_id = "writing"
+label = "Writing"
+description = "Taking it down, on the one night he still needs to"
+direction = "Eyes down to the notebook, lower lip slightly compressed, brows lowered in routine concentration, chin tucked in."
+
+[[expressions]]
+expression_id = "closed_notebook"
+label = "Closed notebook"
+description = "No longer needing to write any of it down"
+direction = "Eyes lifted back to the person and held steady, mouth closed, brows raised very slightly. The whole attention moved onto the face in front of him."
+
+[[expressions]]
+expression_id = "one_joke"
+label = "One joke"
+description = "The single joke he is allowed per chapter"
+direction = "One short smile at a single corner of the mouth, eyes narrowed with it, brows raised once. The rest of the face entirely unchanged."
 [rights]
 status = "unreviewed"
 basis = [

@@ -25,6 +25,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "rambling"
+label = "Rambling"
+description = "Started from the wrong end and going on anyway"
+direction = "Mouth open mid-sentence, eyes drifting off to one side after the thread, brows raised, the whole face amiable and slightly lost."
+
+[[expressions]]
+expression_id = "sorry"
+label = "Sorry"
+description = "Apologising, as he has since 1958"
+direction = "Brows drawn up hard at the inner corners, eyes lifted toward the other person, mouth pulled back and down at the corners."
+
+[[expressions]]
+expression_id = "water"
+label = "Water"
+description = "Bringing it before anyone asks"
+direction = "Eyes down and attentive to the task in his hands, mouth closed and firm, brows lowered in plain unhurried concentration."
+
+[[expressions]]
+expression_id = "waiting"
+label = "Waiting"
+description = "The engine off, and no hurry in him at all"
+direction = "Eyes level and patient toward the middle distance, mouth closed and relaxed, brows still, the face entirely without impatience."
 [rights]
 status = "unreviewed"
 basis = [

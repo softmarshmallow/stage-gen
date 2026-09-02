@@ -23,6 +23,34 @@ invariants = [
   "Adult proportions, matte skin, no glamour lighting",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+
+[[expressions]]
+expression_id = "correcting"
+label = "Correcting"
+description = "Already supplying the right number"
+direction = "Chin raised, eyes direct and slightly narrowed, mouth opening on the correction, brows level and entirely certain. Love and control in the same expression."
+
+[[expressions]]
+expression_id = "warm"
+label = "Warm"
+description = "The correction set down for a moment"
+direction = "Eyes softened with the lines gathered at their corners, a closed generous smile, chin lowered a fraction, brows relaxed."
+
+[[expressions]]
+expression_id = "still"
+label = "Still"
+description = "Holding the face in place by effort"
+direction = "Eyes fixed and unmoving, mouth closed and perfectly even, brows level, the jaw very slightly tight. Composure that is costing something to keep."
+
+[[expressions]]
+expression_id = "nothing_to_correct"
+label = "Nothing to correct"
+description = "No error left to fix, and the turn that follows"
+direction = "Lips parted a little and then closed with nothing said, eyes losing their focus, brows lifting at the inner corners. The face of someone who has looked for the mistake and not found one."
 [rights]
 status = "unreviewed"
 basis = [

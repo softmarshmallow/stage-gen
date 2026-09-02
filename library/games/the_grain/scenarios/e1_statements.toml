@@ -16,7 +16,7 @@ display_name = "Names and Addresses"
 revision = 1
 
 script = "scenarios/e1_statements.scenario"
-script_sha256 = "a4ca4c7d91f664e799019836b775b23e360baa78d434901feb9339b857eaa392"
+script_sha256 = "01bbed7a566ddfa9284ed43f4ce1c53095f6840c32f8d66e7e2862cbcd55c5ab"
 entry = "the_winter_room"
 
 # ------------------------------------------------------------------- the cast
@@ -152,6 +152,20 @@ origin = "imported"
 
 [[flags]]
 flag_id = "heading_int_bedroom"
+origin = "imported"
+
+# The two looks the coffee movement charges a whole strand of attention for.
+# `indicator_at_three` is the last Henry saw of either of them and it is the
+# answer to Ward's descent beat; `ruth_two_fingers` is the only thing in the
+# episode that corroborates a sentence Ruth says out loud upstairs, which is
+# what the board says it buys.
+
+[[flags]]
+flag_id = "indicator_at_three"
+origin = "imported"
+
+[[flags]]
+flag_id = "ruth_two_fingers"
 origin = "imported"
 
 # ---------------------------------------------------------- the flags, local

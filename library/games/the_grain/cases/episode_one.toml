@@ -529,7 +529,9 @@ reads = [
     "eighth_card",
     "envelope_hear_it",
     "heading_int_bedroom",
+    "indicator_at_three",
     "ruth_knife_on_plate",
+    "ruth_two_fingers",
     "smear_on_shoe",
 ]
 writes = [
