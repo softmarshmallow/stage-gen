@@ -1180,6 +1180,42 @@ different thing from the design, and it is the honest description of what ships.
 picture we then destroyed by writing them down.** Applying the rectangles is what produced
 roll 4. There is no way to publish roll 3's plate with roll 4's rectangles.
 
+### 07:26 — The medium, confirmed against a control
+
+QA compared three images side by side rather than judging one: `references/cover.png`,
+scene-4's office stage, and scene-5's.
+
+| | |
+|---|---|
+| `cover.png` | painted, matte, opaque flat shapes, restrained detail |
+| scene-4 office | **photographic** — optical depth of field, real leather highlights, real light through venetian blinds |
+| scene-5 office | **painted** — matte opaque shapes, visible brushwork, simplified silhouettes |
+
+scene-5 sits with the cover. The palette runs warmer and more ochre, which is correct rather
+than drift — the cover is a night exterior and the office is a late-afternoon interior. All
+twelve stages match.
+
+**And QA sharpened the finding in a way worth recording.** They found *that* the anchor said
+photorealistic; the trace found *why* — the anchor is chosen from `style_selection_brief`,
+which is the scene brief plus actor appearance and nothing else, and the brief was
+eighty-two characters of plot with no visual content at all. **The model was asked to choose
+a medium from a plot summary.** That says where the contract gap is rather than merely that
+a field was wrong: a scenario package has nowhere to state its medium, so the medium gets
+inferred from whatever prose happens to be nearest. The fix for today was to smuggle it into
+the brief's first clause. The fix for the contract is a `[style]` block on the scenario
+package, exactly as the room has.
+
+### 07:28 — A beat now says its own name while its art decodes
+
+QA measured 3–6 seconds of black at every beat transition — about 2s on the office, over 5s
+on the supper, where a stage and five full-height plates decode at once — with no spinner,
+no title, nothing. It reads as a hang.
+
+Fixed as the cheapest polish available: a layer **underneath** the canvas showing the beat's
+display name. No state, no lifecycle, no toggle — the leaf simply covers it when it has
+something to draw, so there is nothing to get wrong and nothing to leave stuck on screen.
+`tsc` clean, 1379 tests still passing.
+
 ---
 
 ## 3. Ledger

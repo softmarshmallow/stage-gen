@@ -1086,3 +1086,51 @@ applying the rectangles is what produced `window-4`. Stated plainly:
 The two concrete fixes remain: derive the backdrop's cache identity from the fields that
 feed the image rather than from the whole document, and pin the image seed so a
 regions-only re-run reproduces the same picture.
+
+---
+
+# Play plan for the two passes, with predictions stated in advance
+
+The complete choice map was extracted from the scripts before playing: 22 menus across
+the three branching scenarios (5 in `e1_table`, 6 in `e1_coffee`, 11 in `e1_statements`)
+with their gating conditions, plus both rooms' interaction order and `requires` chains.
+Predictions are recorded here **before** the passes run, so each pass is a test rather
+than a description. If a board comes out otherwise, that is a defect named in advance
+rather than rationalised afterwards.
+
+## Pass 1 — the Holts, looking at almost nothing
+
+| Beat | Choices |
+|---|---|
+| motor court | the bell only |
+| table | Watch Nell · Watch the Holts · Let him work at it · Watch Lydia say it · Follow the tin |
+| coffee | Go where the place cards are · Watch her face · Turn to Marian · Keep your eyes on the room · Let her come |
+| window | the man, then the lift |
+| statements | I couldn't say · Leave the letter · He had it at the table · I don't think so · She said he was downstairs with the carton · Ward told us not to compare statements · Let her finish · I'm not going to describe it to you |
+
+**Predicted:** `ward_close_plain`; `ward_regard` **not** set; Nell does not turn at the car.
+
+## Pass 2 — Ruth and Paul, looking at everything
+
+| Beat | Choices |
+|---|---|
+| motor court | all four looks |
+| table | Read the place cards yourself · Watch Ruth and Paul · Offer the pocketknife · Watch Ruth · Watch Edwin's round |
+| coffee | the service bar · Ask him anyway · Watch his coat · Watch the floor indicator · Look at the indicator · all three of Ruth's return looks |
+| window | everything, including pulling the paper free |
+| statements | Her reaction said no · tell him the sentence · tell him the letter · Mr. Price laid it beside his fork · She didn't drink the coffee · both accounts · dust on her shoe · That you didn't drink your coffee · He said he needed time · the carton and the page |
+
+**Predicted:** `ward_close_kept_looking`; `ward_regard` set; Nell turns.
+
+## A note on method, and a mistake worth recording
+
+The first attempt at pass 1 was discarded. Bulk-advancing by dispatching synthetic clicks
+at CSS coordinates put the click inside the menu plates, so the harness silently chose a
+strand — `ruth_roll` appeared in the ledger where `marian_salt` was intended. It was
+caught by reading the fact list, not by looking at the screen.
+
+That is the characteristic failure of driving a canvas game from outside: **the harness
+cannot see what it clicked, so the only check that works is reading the resulting board.**
+Both passes therefore quote every board from the `localStorage` save — which exposes
+`beat_id`, `statement_id`, case facts, per-beat flags, and the room's `fired` / `flags` /
+`solved` — rather than from screenshots.
