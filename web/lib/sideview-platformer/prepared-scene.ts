@@ -128,7 +128,7 @@ import {
   registerPresentationFallback,
   type PresentationFallbackKind,
 } from "@/lib/ui-atlas/fallback";
-import { UI_ATLAS_SHEETS } from "./defeat-panel";
+import { UI_ATLAS_SHEETS } from "@/lib/ui-atlas/sheets";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
 import { DEFAULT_DIALOGUE_BOX_KNOBS, dialogueBoxLayout } from "./dialogue-box-layout";
 import {

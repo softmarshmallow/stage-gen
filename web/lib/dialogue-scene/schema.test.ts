@@ -33,6 +33,10 @@ function fixture(): Record<string, unknown> {
         layout: UI_ATLAS_FIXTURE_ROLES.button_rect,
         src: "/api/assets/harborlight/ui/button_rect.png",
       },
+      previewIcons: {
+        layout: UI_ATLAS_FIXTURE_ROLES.preview_icons,
+        src: "/api/assets/harborlight/ui/preview_icons.png",
+      },
     },
     stages: program.stages.map((stage) => ({
       stageId: stage.stageId,

@@ -60,6 +60,7 @@ function preparedManifestFixture() {
     inventoryPanel: image("ui/inventory_panel.png"),
     panelFrame: image("ui/panel_frame.png"),
     buttonSheet: image("ui/button_rect.png"),
+    iconSheet: image("ui/preview_icons.png"),
   };
   // Published by the run and bound by nothing: the closure is wider than the bindings, which is
   // the shape a real package has and the one this projection has to survive.
@@ -359,6 +360,7 @@ function preparedManifestFixture() {
       },
       panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: assets.panelFrame },
       button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: assets.buttonSheet },
+      preview_icons: { ...UI_ATLAS_FIXTURE_ROLES.preview_icons, asset: assets.iconSheet },
     },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },

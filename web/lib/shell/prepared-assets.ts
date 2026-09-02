@@ -262,6 +262,7 @@ export function projectPreparedRuntimeAssets(
       bound(manifest.ui.inventory_panel.asset, "Inventory panel", true),
       bound(manifest.ui.panel_frame.asset, "Panel frame", true),
       bound(manifest.ui.button_rect.asset, "Button sheet", true),
+      bound(manifest.ui.preview_icons.asset, "Icon sheet (preview)", true),
     ]),
   );
 

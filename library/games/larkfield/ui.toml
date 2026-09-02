@@ -10,10 +10,10 @@
 # This scene holds its art direction as pixels rather than adjectives, so the roles
 # bind the same style plate every actor and backdrop is drawn against.
 
-schema_version = 3
-kind = "game-ui-v3"
+schema_version = 4
+kind = "game-ui-v4"
 game_id = "larkfield"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "cover"
@@ -41,3 +41,12 @@ layout = "nine_slice_button_sheet_4x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover"]
 prompt = "A soft rounded choice button in the plate's late-summer classroom palette: one calm field inside a slim evenly weighted border in the plate's warm accent, no ornament beyond that border. Gentle painted edges, nothing glossy or metallic. The face must stay one calm, even surface so a full sentence of choice text reads cleanly on top of it, and the four states must differ only in value and hue."
+
+# The icon set is a fixed vocabulary the game may only restyle: the glyphs, their order
+# and the grid belong to the layout, and this prompt is style direction alone. It is a
+# preview set, expected to be rewritten as the games generated here outgrow it.
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover"]
+prompt = "Soft painted glyphs in the plate's late-summer classroom palette: each symbol in the plate's warm accent colour with a gentle painted edge, simply and evenly weighted, nothing glossy or metallic."

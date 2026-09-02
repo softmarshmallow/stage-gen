@@ -195,8 +195,8 @@ def ui_toml(*, cover_sha256: str) -> str:
     """The scene's screen-fixed interface contract, drawn against the same plate."""
 
     return f"""\
-schema_version = 3
-kind = "game-ui-v3"
+schema_version = 4
+kind = "game-ui-v4"
 game_id = "seminar_hall"
 revision = 1
 
@@ -218,6 +218,12 @@ layout = "nine_slice_button_sheet_4x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover"]
 prompt = "A calm rounded choice button in the plate's palette with a slim even border."
+
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover"]
+prompt = "Soft flat glyphs in the plate's palette with a gentle painted edge."
 """
 
 

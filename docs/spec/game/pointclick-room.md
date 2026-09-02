@@ -60,13 +60,14 @@ persisted into the run as `puzzle.validation.json`
 
 `stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 20 nodes: `room.resolve` → `style_anchor.select` → the
+the shipped room is 23 nodes: `room.resolve` → `style_anchor.select` → the
 backdrop, one generate+validate pair per sprite hotspot
 (`hotspot-pipeline@v1` template instances) and per item icon
 (`item-icon-pipeline@v1`), one `narration.compile` structured call covering
 every authored narration gap under a closed-id strict schema (omitted
-entirely when the author wrote every line), the shared nine-slice UI atlas
-triplet for each of the two interface roles, the local `puzzle.validate`
+entirely when the author wrote every line), the shared UI sheet
+triplet for each of the three interface roles (two nine-slice sheets and
+the preview icon grid), the local `puzzle.validate`
 proof, and the terminal `room.bundle`.
 
 **The interface is generated, and the nodes that generate it are not this
@@ -108,9 +109,9 @@ legible through its upstream port.
 The terminal bundle writes `manifest.json` into the run directory: the cover
 ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
-generated one), the win condition, the two interface roles with the geometry
+generated one), the win condition, the three interface roles with the geometry
 the gate measured on each sheet, and a digest-bound closure of every
-published artifact — the republished cover and both sheets included.
+published artifact — the republished cover and all three sheets included.
 
 The web consumer (`web/lib/pointclick/`, route `/room/<tag>`) plays the room
 from this document alone, on the same Phaser engine as the platformer: one

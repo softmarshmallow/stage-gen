@@ -16,6 +16,8 @@ import {
 } from "./schema";
 import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
 import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import { serializeScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 import { parseScenarioProgram } from "@/lib/scenario/program";
 
@@ -91,11 +93,17 @@ interface SceneData {
     readonly source_framing_zoom: number;
   };
   /** The screen-fixed interface: measured geometry per role, and the sheet it is drawn from. */
-  readonly ui: Readonly<Record<UiAtlasRoleName, SceneUiRole>>;
+  readonly ui: SceneUi;
   readonly scenario: ScenarioProgram;
 }
 
-function uiRoles(source: Record<string, unknown>): Readonly<Record<UiAtlasRoleName, SceneUiRole>> {
+export type SceneUiIconSet = UiIconSetLayout & Readonly<{ asset_id: string }>;
+
+export type SceneUi = Readonly<
+  Record<UiAtlasRoleName, SceneUiRole> & { preview_icons: SceneUiIconSet }
+>;
+
+function uiRoles(source: Record<string, unknown>): SceneUi {
   const role = (name: UiAtlasRoleName): SceneUiRole => {
     const raw = record(source[name], `scene_data.ui.${name}`);
     return Object.freeze({
@@ -103,7 +111,16 @@ function uiRoles(source: Record<string, unknown>): Readonly<Record<UiAtlasRoleNa
       asset_id: text(raw.asset_id, `scene_data.ui.${name}.asset_id`),
     });
   };
-  return Object.freeze({ panel_frame: role("panel_frame"), button_rect: role("button_rect") });
+  const rawIcons = record(source.preview_icons, "scene_data.ui.preview_icons");
+  const previewIcons: SceneUiIconSet = Object.freeze({
+    ...parseUiIconSetLayout(rawIcons, "scene_data.ui.preview_icons"),
+    asset_id: text(rawIcons.asset_id, "scene_data.ui.preview_icons.asset_id"),
+  });
+  return Object.freeze({
+    panel_frame: role("panel_frame"),
+    button_rect: role("button_rect"),
+    preview_icons: previewIcons,
+  });
 }
 
 export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
@@ -282,6 +299,10 @@ export function projectDialogueSceneFixture(
       buttonRect: {
         layout: scene.ui.button_rect,
         src: assetUrl(require(scene.ui.button_rect.asset_id)),
+      },
+      previewIcons: {
+        layout: scene.ui.preview_icons,
+        src: assetUrl(require(scene.ui.preview_icons.asset_id)),
       },
     },
     scenario: serializeScenarioProgram(scene.scenario),

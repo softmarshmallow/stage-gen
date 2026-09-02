@@ -11,6 +11,8 @@
 
 import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
 import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 
 export const DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION = 1 as const;
@@ -91,9 +93,15 @@ export interface DialogueSceneUiRole {
   readonly src: string;
 }
 
+export interface DialogueSceneUiIconSet {
+  readonly layout: UiIconSetLayout;
+  readonly src: string;
+}
+
 export interface DialogueSceneUi {
   readonly panelFrame: DialogueSceneUiRole;
   readonly buttonRect: DialogueSceneUiRole;
+  readonly previewIcons: DialogueSceneUiIconSet;
 }
 
 // A run played in place, streamed from out/<tag>/ through the per-tag asset API,
@@ -121,7 +129,7 @@ const SNAKE_ID = /^[a-z][a-z0-9_]{0,63}$/;
  * to refuse it.
  */
 function uiRoles(value: unknown): DialogueSceneUi {
-  const raw = strictRecord(value, ["panelFrame", "buttonRect"], "ui");
+  const raw = strictRecord(value, ["panelFrame", "buttonRect", "previewIcons"], "ui");
   const role = (key: "panelFrame" | "buttonRect", name: UiAtlasRoleName): DialogueSceneUiRole => {
     const source = strictRecord(raw[key], ["layout", "src"], `ui.${key}`);
     return Object.freeze({
@@ -129,9 +137,14 @@ function uiRoles(value: unknown): DialogueSceneUi {
       src: assetPath(source.src, `ui.${key}.src`),
     });
   };
+  const icons = strictRecord(raw.previewIcons, ["layout", "src"], "ui.previewIcons");
   return Object.freeze({
     panelFrame: role("panelFrame", "panel_frame"),
     buttonRect: role("buttonRect", "button_rect"),
+    previewIcons: Object.freeze({
+      layout: parseUiIconSetLayout(icons.layout, "ui.previewIcons.layout"),
+      src: assetPath(icons.src, "ui.previewIcons.src"),
+    }),
   });
 }
 

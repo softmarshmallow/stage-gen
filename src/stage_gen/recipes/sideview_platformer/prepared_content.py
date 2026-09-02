@@ -41,7 +41,6 @@ from gnode import (
 )
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_ui import (
-    ATLAS_ROLES,
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
     INVENTORY_PANEL_HEIGHT,
@@ -57,14 +56,15 @@ from stage_gen.components.game_ui import (
     AtlasRole,
     UiReference,
     inventory_panel_layout_contract,
-    validate_atlas_image,
 )
 from stage_gen.components.game_ui.nodes import (
+    DEFAULT_ATLAS_ROLES,
     UI_ATLAS_GENERATE,
     UI_ATLAS_REVIEW,
     UI_ATLAS_VALIDATE,
     UiAtlasHandlers,
     UiAtlasHost,
+    validate_ui_sheet,
 )
 from stage_gen.components.platformer_content import (
     ContentReference,
@@ -1611,7 +1611,7 @@ class PreparedContentNodeHandler:
             elif node.type_id == UI_INVENTORY_GENERATE.type_id:
                 _validate_inventory_panel_image(data)
             elif node.type_id == UI_ATLAS_GENERATE.type_id:
-                validate_atlas_image(data, ATLAS_ROLES[str(node.params["role"])])
+                validate_ui_sheet(data, str(node.params["role"]))
             else:
                 return False
         except (OSError, ValueError):
@@ -1723,7 +1723,7 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
             + len(package.items.items)
             + len(projectile_ids)
             + 1
-            + len(ATLAS_ROLES)
+            + len(DEFAULT_ATLAS_ROLES)
         ),
         # One board-and-review pass per catalog family (props, items, inventory panel), one per
         # nine-slice atlas role, plus one per actor, plus one for the projectile catalog when the
@@ -1733,7 +1733,7 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
             + len(package.mobs.mobs)
             + len(package.npcs.npcs)
             + 3
-            + len(ATLAS_ROLES)
+            + len(DEFAULT_ATLAS_ROLES)
             + (1 if package.projectiles is not None else 0)
         ),
         "required_music_operations": len(package.soundtrack.tracks),

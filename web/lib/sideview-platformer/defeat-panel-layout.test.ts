@@ -23,4 +23,14 @@ describe("the defeat panel lays itself out from the frame's safe rect", () => {
     expect(narrow.button.width).toBe(300 - 2 * DEFAULT_DEFEAT_PANEL_KNOBS.padding);
     expect(() => defeatPanelLayout({ ...SAFE, height: 90 }, SMALLEST)).toThrow(/smallest size/);
   });
+
+  test("a frame whose ornament curls inward gives up title room before the button", () => {
+    // 124px of safe height: the spike's painterly frame at the panel's drawn size. The
+    // default title row would leave the button 50px, under its 60px floor, so the row
+    // yields down to its own floor and the button keeps its smallest size.
+    const layout = defeatPanelLayout({ ...SAFE, height: 124 }, SMALLEST);
+    const k = DEFAULT_DEFEAT_PANEL_KNOBS;
+    expect(layout.title.y).toBe(300 + k.padding + k.titleRowMinHeight / 2);
+    expect(layout.button.height).toBe(60);
+  });
 });

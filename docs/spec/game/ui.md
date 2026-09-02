@@ -4,14 +4,15 @@
 sibling of `gameplay.toml`: UI owns appearance, while gameplay owns inventory capacity, contents,
 pickup/use rules, input, and visibility state.
 
-The exact current identity is `game-ui-v3`. The V3 contract contains three generated roles: the
-fixed-layout `inventory_panel`, and two nine-slice atlas roles, `panel_frame` and `button_rect`,
-which are the executable slice of the [game UI atlas taxonomy](ui-atlas.md). Every role names a
-layout identity, an alpha policy, its references, and one prompt; no role authors geometry.
+The exact current identity is `game-ui-v4`. The V4 contract contains four generated roles: the
+fixed-layout `inventory_panel`; two nine-slice atlas roles, `panel_frame` and `button_rect`, which
+are the executable slice of the [game UI atlas taxonomy](ui-atlas.md); and the fixed-vocabulary
+`preview_icons` grid. Every role names a layout identity, an alpha policy, its references, and one
+prompt; no role authors geometry, and the icon role does not author its glyphs either.
 
-The two atlas roles are required of any game that has a UI document at all, because every genre
-draws panels and buttons. The inventory panel is optional, because it is one genre's fixed
-eight-slot furniture: a visual novel or a puzzle room that declared it would be describing a
+The two atlas roles and the icon set are required of any game that has a UI document at all,
+because every genre draws panels, buttons and a few system icons. The inventory panel is optional,
+because it is one genre's fixed eight-slot furniture: a visual novel or a puzzle room that declared it would be describing a
 screen it never draws. A recipe whose runtime needs the panel refuses a document without one at
 resolve time, which is where a runtime requirement belongs.
 
@@ -20,10 +21,10 @@ itself: game contracts are kebab-case and rooms are snake_case, and the one docu
 both must be able to say which package it belongs to without renaming either.
 
 ```toml
-schema_version = 3
-kind = "game-ui-v3"
+schema_version = 4
+kind = "game-ui-v4"
 game_id = "bellweather"
-revision = 3
+revision = 4
 
 [[references]]
 reference_id = "cover_style"
@@ -49,6 +50,12 @@ layout = "nine_slice_button_sheet_4x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover_style"]
 prompt = "A compact carved-wood button with a quiet linen face, warm and inviting when at rest."
+
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover_style"]
+prompt = "Bold flat glyphs in warm brass with a soft dark outline; no gradients or fine detail."
 ```
 
 ## Inventory panel layout
@@ -159,6 +166,76 @@ at half their sheet size and shrinks tile seams with them. It is a projection hi
 geometry, and stays out of the generation cache key. Nothing rediscovers geometry from pixels or
 file names.
 
+## Preview icon set
+
+`preview_icons` is a fixed vocabulary the game may only restyle. An image model draws well-known
+symbols dependably when asked for them by name on a plain grid, and draws bespoke symbols
+unreliably however precisely they are described, so the glyphs, their order and the grid belong
+to the layout, and the authored `prompt` is style direction alone: it may ask for warm brass with
+a dark outline and may say nothing about what the icons are. The set is named `preview` because
+it is the cheapest useful first icon sheet and will be rewritten — most likely as several declared
+families from the [taxonomy](ui-atlas.md) — as the games generated here need more than these
+sixteen. That rewrite is a new identity, not a change to this role.
+
+`icon_grid_4x4_1024_preview_v1` is one 1024 by 1024 canvas holding sixteen 200-pixel guide cells
+on a 48-pixel gutter inside a 40-pixel margin, in reading order:
+
+| 1 `play` | 2 `pause` | 3 `close` | 4 `menu` |
+| --- | --- | --- | --- |
+| 5 `gear` | 6 `home` | 7 `retry` | 8 `check` |
+| 9 `search` | 10 `hand` | 11 `heart` | 12 `star` |
+| 13 `arrow_left` | 14 `arrow_right` | 15 `sound_on` | 16 `sound_off` |
+
+The template shows each guide cell in cyan and, inside it, a yellow square at seventy percent of
+the cell — the extent a glyph should fill — and no magenta, because an icon cell has no body: a
+model told the cell is a body paints a plate. The prompt states every glyph by name and
+description in order, then the style direction, then the rule that nothing is drawn between the
+cells and that the icons are glyphs rather than buttons. `scale_mode` is `fixed`: a cell is drawn
+at one size and never sliced.
+
+### Icon alpha contract
+
+`transparent_exterior_opaque_glyph_v1` means the canvas border and at least half of the canvas
+are at alpha 16 or below, nothing at all is drawn outside the published cells, and every glyph has
+a fully opaque core (peak alpha at least 250) with whatever antialiasing it was drawn with.
+Canonicalization clears already-transparent pixels to alpha 0 and touches nothing inside a glyph,
+because an icon's edge is its drawing.
+
+### Icon admission
+
+The published cell is the guide cell grown by 16 pixels on every side: the model keeps the grid
+but drifts each glyph by some pixels, and a consumer's frame must hold what was actually drawn.
+The gutters stay wider than twice that, so published cells never touch.
+
+| Check | Gate |
+| --- | --- |
+| registration | no alpha above 16 anywhere outside the sixteen published cells |
+| presence | every cell holds a glyph: opaque coverage of its guide cell at least 2% |
+| glyph, not plate | opaque coverage of the guide cell at most 85% |
+| extent | the glyph's larger dimension between 30% and 100% of the guide cell |
+| opaque core | peak alpha in the cell at least 250 |
+| one set | largest over smallest glyph extent at most 2.5 |
+
+Whether cell nine reads as a magnifying glass is not a pixel question. One structured review
+judges it from evidence that draws every cell at 48 and 24 screen pixels beside the name it was
+asked to hold, listing each mismatch as `cell <n> <name>: <what it shows instead>`, and judges
+set coherence, style coherence with the references, that no cell carries a plate or shadow behind
+its glyph, and that the sheet itself is text-free.
+
+### Icon manifest projection
+
+```text
+role, layout, scale_mode = "fixed", alpha_policy, draw_scale, canvas {width, height},
+cell_size, cells[ {glyph, cell {x, y, width, height}, glyph_rect {...}} ], asset
+```
+
+A consumer registers one frame per `cell`, keyed by glyph, and sizes an icon by scaling the whole
+cell: `cell_size / draw_scale` is the size the set was drawn for, and scaling the cell rather
+than `glyph_rect` keeps the set's own proportions between glyphs. `glyph_rect` is the detected
+bounds, for a consumer that wants to centre a glyph optically or measure it. An icon button is
+`button_rect` with a glyph composed onto it at runtime, exactly as the taxonomy says; the icon
+sheet publishes no button.
+
 ## Pipeline and consumer contract
 
 The UI branch is independent after package resolution:
@@ -168,20 +245,23 @@ game.toml -> ui.toml + references
                     |
         +-----------+-----------------------------+
         v                                         v
-inventory-panel generate (image)     ui-{role} generate (image), role in {panel_frame, button_rect}
+inventory-panel generate (image)     ui-{role} generate (image), role in {panel_frame, button_rect, preview_icons}
         |                                         |
         v                                         v
-layout/alpha validate (local)        detect bodies, admit band fill, normalize alpha (local)
+layout/alpha validate (local)        admit the sheet, normalize alpha (local)
         |                                         |
         v                                         v
 inventory-panel review (structured)  ui-{role} review (structured)
         |                                         |
         v                                         v
-manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect
+manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect, ui.preview_icons
 ```
 
-The atlas triplet is one generic typed node set fanned out over the role parameter; adding a role
-is a fan-out change, not a new node type. It belongs to no genre, so it lives beside the contract
+The sheet triplet is one generic typed node set fanned out over the role parameter; adding a role
+is a fan-out change, not a new node type. The icon grid is the proof: a second sheet family joined
+without a new type, because a role names its family and the family supplies the template, the
+gate, the evidence and the review question, while ids, ports, cache identity and the manifest
+binding are one code path. It belongs to no genre, so it lives beside the contract
 it serves rather than inside a recipe: the types carry the component's own taxonomy path
 (`2d/ui/atlas.generate` / `.validate` / `.review`), and every recipe that wants panels and buttons
 plans the same three nodes. A host supplies only what it alone knows — its authored `ui` document,
@@ -192,16 +272,16 @@ The prompt is composed at plan time and carried on the node card, so a reader se
 instruction the provider will be given without running anything, and a recipe that gates on full
 static prompts admits these nodes like any other.
 
-Four consumers draw from the two sheets today:
+Four consumers draw from the three sheets today:
 
-| Game | `panel_frame` | `button_rect` |
-| --- | --- | --- |
-| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button |
-| Larkfield, visual novel | dialogue box, end card | choice list |
-| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar |
-| Iron Petal Unit, runner | not yet wired | not yet wired |
+| Game | `panel_frame` | `button_rect` | `preview_icons` |
+| --- | --- | --- | --- |
+| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button |
+| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button |
+| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs |
+| Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired |
 
-The prepared asset explorer lists all three platformer artifacts in its UI group. The prepared web
+The prepared asset explorer lists all four platformer artifacts in its UI group. The prepared web
 scene loads the inventory panel into the existing `InventoryHud`; every other surface above is drawn
 through the agnostic nine-slice widget. The button's hover and pressed looks are the producer's
 pixels for those states, not a tint. A toggle — the room's verb bar — shows the pressed cell as its
@@ -215,6 +295,9 @@ interaction.
 
 ## Growing the vocabulary
 
-Meters, slots, icons, chips, and every other role in the [atlas taxonomy](ui-atlas.md) are a new
-identity and a dropped run set, never optional fields on the roles above. `ui.toml` continues to
+Meters, slots, chips, declared icon families, and every other role in the
+[atlas taxonomy](ui-atlas.md) are a new identity and a dropped run set, never optional fields on
+the roles above. The preview icon set is the first thing that rule will retire: when a game needs
+a glyph the grid does not hold, the answer is a declared family under a new identity, not a
+seventeenth cell. `ui.toml` continues to
 describe presentation only; `gameplay.toml` owns inventory semantics.

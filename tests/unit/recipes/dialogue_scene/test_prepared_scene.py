@@ -66,8 +66,8 @@ async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: P
     # Five structured calls (one style anchor, one plan per actor, one judge per interface
     # role) and eleven images: one backdrop per stage, four expressions for each of two
     # actors, and the two nine-slice sheets. The style plate is authored, so nothing buys it.
-    assert len(structured.calls) == 5
-    assert len(images.requests) == 11
+    assert len(structured.calls) == 6
+    assert len(images.requests) == 12
     bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
     assert bundle.style_reference_source == "references/cover.png"
     assert bundle.style_reference.sha256 == content_sha256(
@@ -125,6 +125,8 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
         "ui-button_rect-review.json",
         "ui-panel_frame-generate.json",
         "ui-panel_frame-review.json",
+        "ui-preview_icons-generate.json",
+        "ui-preview_icons-review.json",
     ]
     ledger = AttemptLedger.model_validate_json((tmp_path / "run/attempts.json").read_bytes())
     # Merged in graph order, so the ledger reads as the run happened.
@@ -145,6 +147,8 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
         "ui-panel_frame-review",
         "ui-button_rect-generate",
         "ui-button_rect-review",
+        "ui-preview_icons-generate",
+        "ui-preview_icons-review",
     ]
     assert all(record.outcome == "selected" for record in ledger.attempts)
 

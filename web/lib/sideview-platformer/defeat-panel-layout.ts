@@ -9,6 +9,8 @@ import type { Rect, Size } from "@/lib/shell/hud-geometry";
 export type DefeatPanelKnobs = Readonly<{
   /** Height of the title row at the top of the safe rect, in screen px. */
   titleRowHeight: number;
+  /** The least the title row shrinks to when the button needs the room, in screen px. */
+  titleRowMinHeight: number;
   /** Space between the title row and the button, in screen px. */
   rowGap: number;
   /** The button's preferred size; clamped to the safe rect and to the sheet's smallest size. */
@@ -19,6 +21,7 @@ export type DefeatPanelKnobs = Readonly<{
 
 export const DEFAULT_DEFEAT_PANEL_KNOBS: DefeatPanelKnobs = Object.freeze({
   titleRowHeight: 44,
+  titleRowMinHeight: 34,
   rowGap: 18,
   button: Object.freeze({ width: 380, height: 62 }),
   padding: 6,
@@ -43,7 +46,14 @@ export function defeatPanelLayout(
     width: safe.width - 2 * knobs.padding,
     height: safe.height - 2 * knobs.padding,
   };
-  const buttonTop = inner.y + knobs.titleRowHeight + knobs.rowGap;
+  // The button is the player's answer, so it is sized first: a frame whose ornament curls
+  // inward gives up title room before it gives up the button's smallest size, and only a
+  // frame that cannot hold even that is refused.
+  const titleRowHeight = Math.max(
+    knobs.titleRowMinHeight,
+    Math.min(knobs.titleRowHeight, inner.height - knobs.rowGap - buttonMinimum.height),
+  );
+  const buttonTop = inner.y + titleRowHeight + knobs.rowGap;
   const room = { width: inner.width, height: inner.y + inner.height - buttonTop };
   const width = Math.min(Math.max(knobs.button.width, buttonMinimum.width), room.width);
   const height = Math.min(Math.max(knobs.button.height, buttonMinimum.height), room.height);
@@ -51,7 +61,7 @@ export function defeatPanelLayout(
     throw new Error("defeat panel safe rect cannot host the button at its smallest size");
   }
   return Object.freeze({
-    title: Object.freeze({ x: inner.x + inner.width / 2, y: inner.y + knobs.titleRowHeight / 2 }),
+    title: Object.freeze({ x: inner.x + inner.width / 2, y: inner.y + titleRowHeight / 2 }),
     button: Object.freeze({
       x: inner.x + inner.width / 2,
       y: buttonTop + room.height / 2,

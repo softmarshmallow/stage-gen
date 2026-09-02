@@ -4,6 +4,8 @@ import type {
 } from "@/lib/manifest/prepared-manifest";
 import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
 import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { UI_PREVIEW_ICON_GLYPHS } from "@/lib/manifest/ui-icon-layout";
 
 const HASH = "a".repeat(64);
 
@@ -35,6 +37,7 @@ function atlasCell(state: string, insets: Insets, cell: CellRect, curl = 0) {
 export const UI_ATLAS_FIXTURE_ROLES: Readonly<{
   panel_frame: UiAtlasRoleLayout;
   button_rect: UiAtlasRoleLayout;
+  preview_icons: UiIconSetLayout;
 }> = (() => {
   const panelInsets = { left: 96, top: 96, right: 96, bottom: 96 };
   const buttonInsets = { left: 72, top: 50, right: 80, bottom: 56 };
@@ -66,6 +69,27 @@ export const UI_ATLAS_FIXTURE_ROLES: Readonly<{
         atlasCell("disabled", buttonInsets, { x: 151, y: 708, width: 722, height: 155 }),
       ],
     },
+    // The icon grid's declared cells (a 200px guide grown by 16px of registration slack on a
+    // 48px gutter) with a glyph detected a little off-centre in each, as the gate reports it.
+    preview_icons: {
+      role: "preview_icons",
+      layout: "icon_grid_4x4_1024_preview_v1",
+      scale_mode: "fixed",
+      alpha_policy: "transparent_exterior_opaque_glyph_v1",
+      draw_scale: 2,
+      canvas: { width: 1024, height: 1024 },
+      cell_size: 232,
+      cells: UI_PREVIEW_ICON_GLYPHS.map((glyph, index) => {
+        const column = index % 4;
+        const row = Math.floor(index / 4);
+        const cell = { x: 24 + column * 248, y: 24 + row * 248, width: 232, height: 232 };
+        return {
+          glyph,
+          cell,
+          glyph_rect: { x: cell.x + 44 + (index % 3), y: cell.y + 48, width: 142, height: 136 },
+        };
+      }),
+    },
   };
 })();
 
@@ -74,6 +98,10 @@ export function uiAtlasFixtureBlock(prefix = "ui"): Record<string, unknown> {
   return {
     panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: `${prefix}/panel_frame.png` },
     button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: `${prefix}/button_rect.png` },
+    preview_icons: {
+      ...UI_ATLAS_FIXTURE_ROLES.preview_icons,
+      asset: `${prefix}/preview_icons.png`,
+    },
   };
 }
 
@@ -104,6 +132,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   const inventoryPanel = artifact("ui/inventory_panel.png");
   const panelFrame = artifact("ui/panel_frame.png");
   const buttonSheet = artifact("ui/button_rect.png");
+  const iconSheet = artifact("ui/preview_icons.png");
   // Published beside the assets and bound by nothing, exactly as a real run ships it.
   const terrainRecord = artifact(
     "maps/village/terrain.json",
@@ -121,6 +150,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
     inventoryPanel,
     panelFrame,
     buttonSheet,
+    iconSheet,
     terrainRecord,
   ];
 
@@ -262,6 +292,7 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
       },
       panel_frame: { ...UI_ATLAS_FIXTURE_ROLES.panel_frame, asset: panelFrame },
       button_rect: { ...UI_ATLAS_FIXTURE_ROLES.button_rect, asset: buttonSheet },
+      preview_icons: { ...UI_ATLAS_FIXTURE_ROLES.preview_icons, asset: iconSheet },
     },
     soundtrack: {
       playback: { selection: "shuffle", no_immediate_repeat: true },

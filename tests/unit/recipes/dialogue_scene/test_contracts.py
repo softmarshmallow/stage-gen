@@ -217,10 +217,11 @@ def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
             for actor in ("mio", "ren")
             for state in ("neutral", "delighted", "flustered", "concerned")
         ),
-        # The shared nine-slice interface is a terminal like any other: the bundle cannot be
-        # written until the panel and the button have been drawn, gated, and judged.
+        # The shared interface sheets are terminals like any other: the bundle cannot be
+        # written until the panel, the button and the icon set have been drawn, gated, and judged.
         "ui-panel_frame-review",
         "ui-button_rect-review",
+        "ui-preview_icons-review",
     )
 
 
@@ -242,9 +243,9 @@ def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
     assert authored["cover"].ref == "references/cover.png"
     assert authored["cover"].sha256 == resolved.style_reference.sha256
 
-    # One backdrop, four expressions for each of two actors, and the two UI atlas sheets.
+    # One backdrop, four expressions for each of two actors, and the three UI sheets.
     image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
-    assert len(image_nodes) == 11
+    assert len(image_nodes) == 12
     for node in image_nodes:
         assert resolved.style_reference.sha256 in node.input_sha256, node.node_id
 
@@ -300,6 +301,53 @@ def _ui_role_value(role: str, cell_count: int) -> dict[str, Any]:
         ],
         "asset_id": f"ui-{role.replace('_', '-')}",
     }
+
+
+def _ui_icon_value() -> dict[str, Any]:
+    """The published icon grid, shaped exactly as the producer's gate emits it."""
+
+    cells = []
+    for index in range(16):
+        row, column = divmod(index, 4)
+        x, y = 24 + column * 248, 24 + row * 248
+        cells.append(
+            {
+                "glyph": _ICON_GLYPHS[index],
+                "cell": {"x": x, "y": y, "width": 232, "height": 232},
+                "glyph_rect": {"x": x + 46, "y": y + 46, "width": 140, "height": 140},
+            }
+        )
+    return {
+        "role": "preview_icons",
+        "layout": "icon_grid_4x4_1024_preview_v1",
+        "scale_mode": "fixed",
+        "alpha_policy": "transparent_exterior_opaque_glyph_v1",
+        "draw_scale": 2,
+        "canvas": {"width": 1024, "height": 1024},
+        "cell_size": 232,
+        "cells": cells,
+        "asset_id": "ui-preview-icons",
+    }
+
+
+_ICON_GLYPHS = (
+    "play",
+    "pause",
+    "close",
+    "menu",
+    "gear",
+    "home",
+    "retry",
+    "check",
+    "search",
+    "hand",
+    "heart",
+    "star",
+    "arrow_left",
+    "arrow_right",
+    "sound_on",
+    "sound_off",
+)
 
 
 def _bundle_value(root: Path) -> dict[str, Any]:
@@ -407,7 +455,7 @@ def _bundle_value(root: Path) -> dict[str, Any]:
             ],
             *[
                 artifact(f"ui-{role.replace('_', '-')}", "ui", f"ui/{role}.png", None, None)
-                for role in ("panel_frame", "button_rect")
+                for role in ("panel_frame", "button_rect", "preview_icons")
             ],
         ],
         "attempt_ledger": {"path": "attempts.json", "sha256": "1" * 64},
@@ -417,8 +465,11 @@ def _bundle_value(root: Path) -> dict[str, Any]:
             "scene_label": "A student stays behind",
             "style_asset_id": "style-plate",
             "ui": {
-                role: _ui_role_value(role, states_count)
-                for role, states_count in (("panel_frame", 1), ("button_rect", 4))
+                **{
+                    role: _ui_role_value(role, states_count)
+                    for role, states_count in (("panel_frame", 1), ("button_rect", 4))
+                },
+                "preview_icons": _ui_icon_value(),
             },
             "stages": [
                 {

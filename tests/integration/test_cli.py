@@ -70,11 +70,11 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
         == 0
     )
     plan = json.loads(plan_output.getvalue())
-    assert len(plan["graph"]["nodes"]) == 227
+    assert len(plan["graph"]["nodes"]) == 230
     assert plan["projection"]["operation_counts"] == {
-        "local": 106,
-        "image_generation": 95,
-        "structured_generation": 23,
+        "local": 107,
+        "image_generation": 96,
+        "structured_generation": 24,
         "music_generation": 3,
     }
 
@@ -110,10 +110,10 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     )
     report = json.loads(output.getvalue())
     assert report["ok"] is True
-    assert report["node_count"] == 227
+    assert report["node_count"] == 230
     assert report["provider_operation_counts"] == {
-        "image_generation": 95,
-        "structured_generation": 23,
+        "image_generation": 96,
+        "structured_generation": 24,
         "music_generation": 3,
     }
     assert (tmp_path / "run/execution-plan.json").is_file()
@@ -123,8 +123,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     assert main(["export-view", "--run", str(tmp_path / "run")], stdout=view_output) == 0
     view_report = json.loads(view_output.getvalue())
     assert view_report["run_state"] == "succeeded"
-    assert view_report["nodes"] == 227
-    assert view_report["states"]["succeeded"] == 227
+    assert view_report["nodes"] == 230
+    assert view_report["states"]["succeeded"] == 230
     view_path = tmp_path / "run/execution-view.json"
     assert view_path.is_file()
     view_document = json.loads(view_path.read_text(encoding="utf-8"))

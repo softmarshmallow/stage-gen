@@ -147,6 +147,20 @@ export function completeCardRect(stage: Size): Rect {
   });
 }
 
+/** The end card's one control: an icon button centred under the title. */
+export const COMPLETE_CONTROL_WIDTH = 108;
+export const COMPLETE_CONTROL_HEIGHT = 64;
+export const COMPLETE_CONTROL_OFFSET_Y = 28;
+
+export function completeCardControlRect(card: Rect): Rect {
+  return Object.freeze({
+    x: card.x + (card.width - COMPLETE_CONTROL_WIDTH) / 2,
+    y: card.y + card.height / 2 + COMPLETE_CONTROL_OFFSET_Y,
+    width: COMPLETE_CONTROL_WIDTH,
+    height: COMPLETE_CONTROL_HEIGHT,
+  });
+}
+
 const CHOICE_HEIGHT = 84;
 const CHOICE_GAP = 18;
 const CHOICE_WIDTH_RATIO = 0.68;

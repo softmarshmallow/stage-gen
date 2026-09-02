@@ -18,10 +18,11 @@ import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { containRect, type Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
+import type { UiIconGlyph } from "@/lib/manifest/ui-icon-layout";
 import { AtlasButton } from "@/lib/ui-atlas/button";
 import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
-import { roomUiRole } from "./contract";
+import { roomUiSheetAsset } from "./contract";
 import type { RoomHotspot, RoomManifest } from "./contract";
 import {
   hotspotRect,
@@ -129,7 +130,7 @@ class RoomScene extends Phaser.Scene {
     // a canonical alpha boundary already, so the plain loader is enough; a sheet that does not
     // arrive is replaced in `create` by the loud stand-in under the same key.
     for (const [role, key] of UI_ATLAS_SHEETS) {
-      this.load.image(key, preparedAssetUrl(this.tag, roomUiRole(this.manifest.ui, role).asset));
+      this.load.image(key, preparedAssetUrl(this.tag, roomUiSheetAsset(this.manifest.ui, role)));
     }
   }
 
@@ -264,10 +265,16 @@ class RoomScene extends Phaser.Scene {
     this.createInventorySlots();
 
     const buttons = verbButtonRects(stage);
-    this.modeButtons.set("act", this.controlButton(buttons.act, "Act", () => this.setMode("act")));
+    // The verbs carry the two glyphs the preview icon set holds for them: a hand for acting
+    // and a magnifying glass for looking. The hotspot toggle has no glyph in the set and says
+    // its word alone, rather than borrowing a symbol that means something else.
+    this.modeButtons.set(
+      "act",
+      this.controlButton(buttons.act, "Act", () => this.setMode("act"), "hand"),
+    );
     this.modeButtons.set(
       "look",
-      this.controlButton(buttons.look, "Look", () => this.setMode("look")),
+      this.controlButton(buttons.look, "Look", () => this.setMode("look"), "search"),
     );
     this.hintButton = this.controlButton(buttons.hint, "Hotspots", () => {
       this.hintsVisible = !this.hintsVisible;
@@ -335,7 +342,12 @@ class RoomScene extends Phaser.Scene {
    * than a selected cell, so the chosen verb is shown with the pressed art. That is the
    * honest reading of a four-state sheet: a selected cell is a separate role promotion.
    */
-  private controlButton(rect: Rect, label: string, onPress: () => void): AtlasButton {
+  private controlButton(
+    rect: Rect,
+    label: string,
+    onPress: () => void,
+    glyph?: UiIconGlyph,
+  ): AtlasButton {
     return new AtlasButton({
       scene: this,
       sheetKey: uiAtlasSheetKey("button_rect"),
@@ -344,6 +356,13 @@ class RoomScene extends Phaser.Scene {
       depth: DEPTH.hud + 1,
       label,
       style: CONTROL_STYLE,
+      icon: glyph
+        ? {
+            sheetKey: uiAtlasSheetKey("preview_icons"),
+            layout: this.manifest.ui.previewIcons.layout,
+            glyph,
+          }
+        : undefined,
       onPress,
     });
   }

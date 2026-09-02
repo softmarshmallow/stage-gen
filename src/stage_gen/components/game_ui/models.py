@@ -22,8 +22,9 @@ from stage_gen.components.game_ui.atlas import (
     BUTTON_RECT_LAYOUT,
     PANEL_FRAME_LAYOUT,
 )
+from stage_gen.components.game_ui.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
 
-GAME_UI_SCHEMA_VERSION = 3
+GAME_UI_SCHEMA_VERSION = 4
 
 INVENTORY_PANEL_LAYOUT = "inventory_grid_4x2_v1"
 INVENTORY_PANEL_ALPHA_POLICY = "transparent_exterior_opaque_panel_v1"
@@ -113,30 +114,60 @@ class AtlasRoleDirection(PersistedContractModel):
         return normalized_text(value, "atlas role prompt", multiline=True)
 
 
+class IconSetDirection(PersistedContractModel):
+    """Presentation inputs for the fixed preview icon set.
+
+    The glyphs, their order and the grid are the layout's, not the author's: an image model
+    draws named, well-known symbols dependably and bespoke ones not, so a game may say how
+    the set should look and nothing about what is in it. The prompt is style direction only.
+    """
+
+    layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    alpha_policy: Literal["transparent_exterior_opaque_glyph_v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "preview_icons.reference_ids")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "preview_icons.prompt", multiline=True)
+
+
 ATLAS_ROLE_LAYOUTS: dict[str, str] = {
     "panel_frame": PANEL_FRAME_LAYOUT,
     "button_rect": BUTTON_RECT_LAYOUT,
 }
 
+#: Every sheet role the document declares, with the layout each is pinned to.
+UI_SHEET_LAYOUTS: dict[str, str] = {**ATLAS_ROLE_LAYOUTS, "preview_icons": PREVIEW_ICONS_LAYOUT}
+
 
 class GameUi(PersistedContractModel):
     """One root UI document, deliberately separate from gameplay rules.
 
-    Every genre draws panels and buttons, so the two atlas roles are required of any
-    game that has a UI document at all. The inventory panel is not: it is one genre's
-    fixed eight-slot furniture, and a visual novel or a puzzle room that declares it
-    would be authoring a screen it never draws. A recipe whose runtime needs the panel
-    refuses a document without one at resolve time, where the requirement belongs.
+    Every genre draws panels, buttons and a handful of system icons, so the two atlas
+    roles and the preview icon set are required of any game that has a UI document at
+    all. The inventory panel is not: it is one genre's fixed eight-slot furniture, and a
+    visual novel or a puzzle room that declares it would be authoring a screen it never
+    draws. A recipe whose runtime needs the panel refuses a document without one at
+    resolve time, where the requirement belongs.
     """
 
-    schema_version: Literal[3]
-    kind: Literal["game-ui-v3"]
+    schema_version: Literal[4]
+    kind: Literal["game-ui-v4"]
     game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[UiReference] = Field(min_length=1, max_length=32)
     inventory_panel: InventoryPanelDirection | None = None
     panel_frame: AtlasRoleDirection
     button_rect: AtlasRoleDirection
+    preview_icons: IconSetDirection
 
     def required_inventory_panel(self) -> InventoryPanelDirection:
         """The panel, for a recipe whose runtime draws it and cannot proceed without it."""
@@ -146,13 +177,20 @@ class GameUi(PersistedContractModel):
         return self.inventory_panel
 
     @model_validator(mode="after")
-    def validate_atlas_layouts(self) -> GameUi:
+    def validate_sheet_layouts(self) -> GameUi:
         for role, expected in ATLAS_ROLE_LAYOUTS.items():
             direction: AtlasRoleDirection = getattr(self, role)
             if direction.layout != expected:
                 raise ValueError(f"{role}.layout must be {expected!r}, got {direction.layout!r}")
             if direction.alpha_policy != ATLAS_ALPHA_POLICY:
                 raise ValueError(f"{role}.alpha_policy must be {ATLAS_ALPHA_POLICY!r}")
+        if self.preview_icons.layout != PREVIEW_ICONS_LAYOUT:
+            raise ValueError(
+                f"preview_icons.layout must be {PREVIEW_ICONS_LAYOUT!r}, "
+                f"got {self.preview_icons.layout!r}"
+            )
+        if self.preview_icons.alpha_policy != ICON_ALPHA_POLICY:
+            raise ValueError(f"preview_icons.alpha_policy must be {ICON_ALPHA_POLICY!r}")
         return self
 
     @model_validator(mode="after")
@@ -161,7 +199,7 @@ class GameUi(PersistedContractModel):
         unique_values((entry.source for entry in self.references), "UI reference source")
         declared = {entry.reference_id for entry in self.references}
         selected: set[str] = set()
-        for role in ("inventory_panel", *ATLAS_ROLE_LAYOUTS):
+        for role in ("inventory_panel", *UI_SHEET_LAYOUTS):
             direction = getattr(self, role)
             if direction is None:
                 continue
@@ -226,8 +264,10 @@ __all__ = [
     "INVENTORY_SLOT_ROWS",
     "INVENTORY_SLOT_SIZE",
     "INVENTORY_SLOT_TOP",
+    "UI_SHEET_LAYOUTS",
     "AtlasRoleDirection",
     "GameUi",
+    "IconSetDirection",
     "InventoryPanelDirection",
     "UiReference",
     "inventory_panel_layout_contract",

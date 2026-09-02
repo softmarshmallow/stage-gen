@@ -22,8 +22,8 @@ from gnode import (
     StructuredGenerationResult,
     write_artifact_with_provenance,
 )
-from stage_gen.components.game_ui import ATLAS_ROLES
-from tests.unit._ui_atlas_fixture import atlas_sheet
+from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
+from tests.unit._ui_atlas_fixture import ui_sheet
 
 
 def chroma_png() -> bytes:
@@ -62,8 +62,8 @@ class FakeImages:
             raise RetryExhaustedError("fake image", ValueError("bad media"), 6)
         role = request.metadata.get("role")
         data = (
-            atlas_sheet(ATLAS_ROLES[str(role)])
-            if role in ATLAS_ROLES
+            ui_sheet(str(role))
+            if role in UI_SHEET_ROLES
             else removed_png()
             if request.background == "transparent"
             else chroma_png()

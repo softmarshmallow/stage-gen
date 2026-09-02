@@ -5,12 +5,12 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from stage_gen.components.character_profile import CharacterProfileBinding
-from stage_gen.components.game_ui.nodes import AtlasRoleLayout
+from stage_gen.components.game_ui.nodes import AtlasRoleLayout, IconSetLayout
 from stage_gen.components.scenario import ScenarioProgram
 
 
@@ -623,10 +623,20 @@ class SceneActor(PersistedContractModel):
         return self
 
 
-class SceneUiRole(AtlasRoleLayout):
-    """One published atlas role plus the bundle asset its sheet is."""
+class SceneUiAtlasRole(AtlasRoleLayout):
+    """One published nine-slice role plus the bundle asset its sheet is."""
 
     asset_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+
+
+class SceneUiIconRole(IconSetLayout):
+    """The published icon grid plus the bundle asset its sheet is."""
+
+    asset_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+
+
+#: Either family, told apart by the `scale_mode` the producer published.
+SceneUiRole = Annotated[SceneUiAtlasRole | SceneUiIconRole, Field(discriminator="scale_mode")]
 
 
 class SceneData(PersistedContractModel):

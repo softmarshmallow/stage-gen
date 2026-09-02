@@ -9,6 +9,7 @@ import {
   type UiAtlasRoleLayout,
   type UiAtlasRoleName,
 } from "./ui-atlas-layout";
+import { parseUiIconSetLayout, type UiIconSetLayout } from "./ui-icon-layout";
 
 /**
  * What the producer says one published byte set is for.
@@ -176,6 +177,9 @@ export type PreparedInventoryPanel = InventoryPanelLayout &
 /** One nine-slice atlas role: the geometry the producer detected, bound to its sheet. */
 export type PreparedUiAtlasRole = UiAtlasRoleLayout & Readonly<{ asset: RuntimeArtifact }>;
 
+/** The preview icon grid: the cells the producer registered glyphs to, bound to its sheet. */
+export type PreparedUiIconSet = UiIconSetLayout & Readonly<{ asset: RuntimeArtifact }>;
+
 /**
  * How every one of an actor's states is brought onto its baseline's scale.
  *
@@ -263,6 +267,7 @@ export type PreparedRuntimeManifest = Readonly<{
     inventory_panel: PreparedInventoryPanel;
     panel_frame: PreparedUiAtlasRole;
     button_rect: PreparedUiAtlasRole;
+    preview_icons: PreparedUiIconSet;
   }>;
   soundtrack: Readonly<{
     playback: Readonly<{ selection: "shuffle"; no_immediate_repeat: true }>;
@@ -1072,6 +1077,11 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   };
   const panelFrame = uiAtlasRole("panel_frame");
   const buttonRect = uiAtlasRole("button_rect");
+  const rawIcons = object(ui.preview_icons, "ui.preview_icons");
+  const previewIcons: PreparedUiIconSet = Object.freeze({
+    ...parseUiIconSetLayout(rawIcons),
+    asset: artifact(rawIcons.asset, "ui.preview_icons.asset"),
+  });
   const soundtrack = object(root.soundtrack, "soundtrack");
   const playback = object(soundtrack.playback, "soundtrack.playback");
   if (playback.selection !== "shuffle" || playback.no_immediate_repeat !== true) {
@@ -1109,7 +1119,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     props: Object.freeze(props),
     items: Object.freeze(items),
     projectiles: Object.freeze(projectiles),
-    ui: Object.freeze({ inventory_panel: inventoryPanel, panel_frame: panelFrame, button_rect: buttonRect }),
+    ui: Object.freeze({ inventory_panel: inventoryPanel, panel_frame: panelFrame, button_rect: buttonRect, preview_icons: previewIcons }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),
     scenarios: Object.freeze(array(root.scenarios, "scenarios").map(parseScenarioProgram)),

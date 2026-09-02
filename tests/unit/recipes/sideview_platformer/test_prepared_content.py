@@ -16,12 +16,12 @@ from gnode import (
     StructuredGenerationRequest,
 )
 from stage_gen.components.game_ui import (
-    ATLAS_ROLES,
     INVENTORY_PANEL_HEIGHT,
     INVENTORY_PANEL_LEFT,
     INVENTORY_PANEL_TOP,
     INVENTORY_PANEL_WIDTH,
 )
+from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
 from stage_gen.components.sideview_actor.motion_geometry import (
     dialogue_atlas_grid,
     runtime_mirrors_source,
@@ -38,7 +38,7 @@ from stage_gen.recipes.sideview_platformer.prepared_content import (
     _validate_transparent_image,
     content_target_node_ids,
 )
-from tests.unit._ui_atlas_fixture import atlas_sheet
+from tests.unit._ui_atlas_fixture import ui_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
@@ -145,8 +145,8 @@ def _write_fake_image(request: ImageGenerationRequest) -> SimpleNamespace:
             right = round((column + 1) * cell_width - cell_width * 0.15)
             bottom = round((row + 1) * cell_height - cell_height * 0.15)
             draw.ellipse((left, top, right, bottom), fill=(100, 170, 230, 255))
-    elif request.metadata.get("role") in ATLAS_ROLES:
-        image = Image.open(io.BytesIO(atlas_sheet(ATLAS_ROLES[str(request.metadata["role"])])))
+    elif request.metadata.get("role") in UI_SHEET_ROLES:
+        image = Image.open(io.BytesIO(ui_sheet(str(request.metadata["role"]))))
     elif request.metadata.get("role") == "inventory_panel":
         draw.rectangle(
             (
@@ -269,9 +269,9 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 186
-    assert images.calls == 78
-    assert structured.calls == 19
+    assert len(summary.nodes) == 189
+    assert images.calls == 79
+    assert structured.calls == 20
     assert music.calls == 3
     ui_request = next(
         request for request in images.requests if request.metadata.get("role") == "inventory_panel"
@@ -347,8 +347,8 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     # board-and-review pass. It was absent from both totals when the family was introduced, so a
     # package that fires a round under-reported exactly the family it fires.
     assert coverage["projectile_ids"] == ["paperwing_dart"]
-    assert coverage["required_image_operations"] == 78
-    assert coverage["required_structured_reviews"] == 17
+    assert coverage["required_image_operations"] == 79
+    assert coverage["required_structured_reviews"] == 18
     # The matrix demanded 76 while the closure it describes performed 75, because the content
     # checkpoint named no projectile terminal. The two agreeing is the point of both fixes.
     assert coverage["required_image_operations"] == images.calls

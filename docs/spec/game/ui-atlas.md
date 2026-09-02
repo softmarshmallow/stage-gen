@@ -193,7 +193,7 @@ Packs are on-demand role lists assembled from the tiers, never new tiers.
 - A successor to `game-ui-v1` is a new identity and a dropped run set, not
   optional fields on the inventory role.
 
-## Executable slice v0 (promoted as `game-ui-v3`)
+## Executable slice v0 (promoted as `game-ui-v3`, extended as `game-ui-v4`)
 
 The first slice is intentionally two roles, because those two exercise every
 hard part of the contract: insets, content rect, state consistency, and the
@@ -213,5 +213,58 @@ stretches, a painterly one tiles, and neither is a prompt failure); cells are
 keeps count and order but drifts placement by tens of pixels; and insets widen
 from the template guide to where the drawn corner ornament ends, capped at
 twice the guide, with every state measured under the sheet's widest insets.
-Meters, slots, icons and every other role wait for their own promotion;
-nothing in the contract reserves fields for them.
+Meters, slots and every other role wait for their own promotion; nothing in
+the contract reserves fields for them.
+
+`game-ui-v4` added one deliberately narrow icon role ahead of the icon
+families above: `preview_icons`, a fixed sixteen-glyph grid (`generated`,
+`baked_color`, one size) whose vocabulary belongs to the layout and whose
+authored prompt is style direction only. It exists because a model draws named
+well-known symbols dependably and bespoke ones not, so a restyle-only set is
+the cheapest useful first icon sheet. It is named `preview` to say it will be
+rewritten as declared families — a new identity — once the games generated
+here need more than these sixteen; see [ui.md](ui.md).
+
+### Unratified: more glyphs for the same image
+
+> **Measured, not adopted.** `preview_icons` ships as the 4x4 above. The
+> following is written down so the budget is not re-discovered later; taking
+> any of it is a new layout identity and a dropped run set.
+
+An untracked spike on 2026-09-03 (15 takes, one provider call each, no retry,
+against one game's style) measured how much a single 1024 icon sheet can
+actually hold. Three findings, in the order they matter:
+
+**Cell count is nearly free.** 5x5 (25 glyphs) and 6x6 (36 glyphs) both came
+back structurally correct in every take — the declared grid was reproduced,
+never a wrong shape or a missing row — with 25/25 and 36/36 glyph identities
+correct and in reading order in the takes inspected. One 1024 sheet is one
+image whatever the grid, so 6x6 is 2.25x the vocabulary at today's cost.
+
+**The model draws to the pitch, not to the guide.** The template's yellow
+target square, drawn at 70% of each guide cell, is ignored: shrinking the guide
+by 12% while holding the pitch left glyph sizes unchanged and merely raised the
+measured extent-vs-guide from 1.22 to 1.43. The widest glyph lands at 0.97–1.00
+of the *pitch* in every geometry tested, 4x4 included. Any density work should
+therefore treat the pitch as the contract and drop the target square.
+
+**A lattice template beats per-cell boxes.** Today's template draws two nested
+rectangles per cell — 32 marks at 4x4, 72 at 6x6. Replacing them with one
+rectangle plus the interior grid lines, letting cells tile the pitch, and
+cutting the margin to the ~8 px the transparent-border rule needs, produced
+**zero opaque pixels outside the cells** across two 6x6 takes: the registration
+failure stops existing rather than being tuned away, because a glyph's worst
+case becomes touching its own cell line. It also removes the dead margin (16 px
+per side at 4x4, 32 px at 6x6, none of it required by the format).
+
+The unplanned result is that the lattice sheets came back visibly **flat** — no
+bevel, gloss, or extruded shadow — which is the one thing every live
+`preview_icons` and nine-slice review has rejected these sheets for. Fewer
+template marks and no fill-target clause appear to leave the model reading the
+style reference rather than the geometry, which makes this a style lever as
+well as a density one, and worth considering for the 4x4 on its own merits.
+
+A lattice drawn in a guide colour and then *detected* in the output is the same
+technique [`media/guide_lattice.py`](../../../src/stage_gen/media/guide_lattice.py)
+already uses for terrain atlases, so the density work would be adopting an
+existing repository idiom rather than inventing one.

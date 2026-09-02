@@ -7,10 +7,10 @@
 # authors cell rectangles or insets, because the generator renders the template from
 # the declared geometry and publishes the geometry it actually detected beside the art.
 
-schema_version = 3
-kind = "game-ui-v3"
+schema_version = 4
+kind = "game-ui-v4"
 game_id = "clockmakers_attic"
-revision = 1
+revision = 2
 
 # The same art direction of record the room's own images are drawn against, bound by
 # the same digest: replacing the file is a new look and re-bills the interface too.
@@ -39,3 +39,12 @@ layout = "nine_slice_button_sheet_4x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover_style"]
 prompt = "A compact flat graphic poster-art control in the attic's warm lamp-lit palette: one solid rounded-square field with a plain even border and no ornament beyond a thin edge line. Absolutely flat colour, no gradient, no texture. The face must stay one uninterrupted quiet colour so a short verb word reads cleanly on top of it, and the four states must differ only in value and hue."
+
+# The icon set is a fixed vocabulary the game may only restyle: the glyphs, their order
+# and the grid belong to the layout, and this prompt is style direction alone. It is a
+# preview set, expected to be rewritten as the games generated here outgrow it.
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover_style"]
+prompt = "Flat graphic poster-art glyphs in the attic's warm lamp-lit palette: each symbol one solid warm accent colour cut cleanly like paper, with no outline, gradient, texture or grain."

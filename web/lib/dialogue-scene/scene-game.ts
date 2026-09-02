@@ -23,6 +23,7 @@ import {
 import { ScenarioAudio, htmlAudioTransport } from "./scene-audio";
 import {
   choiceRects,
+  completeCardControlRect,
   completeCardRect,
   DIALOGUE_STAGE,
   dialoguePanelRect,
@@ -121,6 +122,7 @@ class DialogueScene extends Phaser.Scene {
   private choiceLayer!: Phaser.GameObjects.Container;
   private completeLayer!: Phaser.GameObjects.Container;
   private completeTitle!: Phaser.GameObjects.Text;
+  private completeControl!: AtlasButton;
 
   constructor(private readonly fixture: DialogueSceneFixture) {
     super("dialogue-scene");
@@ -142,6 +144,7 @@ class DialogueScene extends Phaser.Scene {
     // arrive is replaced in `create` by the loud stand-in under the same key.
     this.load.image(uiAtlasSheetKey("panel_frame"), this.fixture.ui.panelFrame.src);
     this.load.image(uiAtlasSheetKey("button_rect"), this.fixture.ui.buttonRect.src);
+    this.load.image(uiAtlasSheetKey("preview_icons"), this.fixture.ui.previewIcons.src);
   }
 
   create(): void {
@@ -266,16 +269,26 @@ class DialogueScene extends Phaser.Scene {
         fontSize: "38px",
       })
       .setOrigin(0.5, 0.5);
-    const hint = this.add
-      .text(
-        card.x + card.width / 2,
-        card.y + card.height / 2 + 34,
-        "tap to play again",
-        META_STYLE,
-      )
-      .setOrigin(0.5, 0.5);
+    // The way back is a control rather than a hint: an icon-only button carrying the
+    // `retry` glyph from the preview icon set, on the same sheet the choices are cut from.
+    // A tap anywhere still plays again, exactly as before; the button says so visibly.
+    this.completeControl = new AtlasButton({
+      scene: this,
+      sheetKey: uiAtlasSheetKey("button_rect"),
+      layout: this.fixture.ui.buttonRect.layout,
+      rect: completeCardControlRect(card),
+      depth: DEPTH.complete,
+      label: "",
+      icon: {
+        sheetKey: uiAtlasSheetKey("preview_icons"),
+        layout: this.fixture.ui.previewIcons.layout,
+        glyph: "retry",
+      },
+      onPress: () => this.act({ kind: "advance" }),
+    });
+    this.completeControl.setLive(false);
     this.completeLayer = this.add
-      .container(0, 0, [frame.image, this.completeTitle, hint])
+      .container(0, 0, [frame.image, this.completeTitle, ...this.completeControl.parts])
       .setDepth(DEPTH.complete)
       .setVisible(false);
   }
@@ -319,6 +332,7 @@ class DialogueScene extends Phaser.Scene {
     this.progress.setVisible(showingLine);
     this.choiceLayer.setVisible(showingChoice);
     this.completeLayer.setVisible(view?.kind === "end");
+    this.completeControl.setLive(view?.kind === "end");
 
     if (view?.kind === "end") {
       this.completeTitle.setText(view.label);

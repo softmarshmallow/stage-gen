@@ -24,8 +24,9 @@ def test_canonical_ui_contract_separates_presentation_from_gameplay() -> None:
     contract = load_game_ui_bytes((PACKAGE / "ui.toml").read_bytes())
 
     assert contract.game_id == "bellweather"
-    assert contract.inventory_panel.layout == INVENTORY_PANEL_LAYOUT
-    assert contract.inventory_panel.alpha_policy == INVENTORY_PANEL_ALPHA_POLICY
+    panel = contract.required_inventory_panel()
+    assert panel.layout == INVENTORY_PANEL_LAYOUT
+    assert panel.alpha_policy == INVENTORY_PANEL_ALPHA_POLICY
     assert "capacity" not in contract.model_dump(mode="json")
     layout = inventory_panel_layout_contract()
     assert layout["canvas"] == {"width": 1536, "height": 1024}
@@ -38,7 +39,7 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     source = (PACKAGE / "ui.toml").read_bytes()
     contract = load_game_ui_bytes(source)
 
-    assert contract.kind == "game-ui-v3"
+    assert contract.kind == "game-ui-v4"
     assert contract.panel_frame.layout == PANEL_FRAME_LAYOUT
     assert contract.button_rect.layout == BUTTON_RECT_LAYOUT
     assert contract.panel_frame.alpha_policy == ATLAS_ALPHA_POLICY
@@ -47,8 +48,8 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     swapped = source.replace(BUTTON_RECT_LAYOUT.encode(), PANEL_FRAME_LAYOUT.encode())
     with pytest.raises(AuthoredContractLoadError, match=r"button_rect\.layout must be"):
         load_game_ui_bytes(swapped)
-    with pytest.raises(AuthoredContractLoadError, match="game-ui-v3"):
-        load_game_ui_bytes(source.replace(b'kind = "game-ui-v3"', b'kind = "game-ui-v1"'))
+    with pytest.raises(AuthoredContractLoadError, match="game-ui-v4"):
+        load_game_ui_bytes(source.replace(b'kind = "game-ui-v4"', b'kind = "game-ui-v1"'))
 
 
 def test_ui_contract_rejects_unknown_and_unused_references() -> None:

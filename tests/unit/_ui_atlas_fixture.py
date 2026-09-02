@@ -1,8 +1,9 @@
-"""Synthetic nine-slice sheets for the UI atlas gate and the fake image service.
+"""Synthetic UI sheets for the sheet gates and the fake image service.
 
-A perfect sheet is what the format promises: ornamented corners, flat uniform edge bands, a
-flat centre, and one silhouette per body with only value moving between states. The knobs
-break exactly one promise each so a test can name the failure it expects.
+A perfect nine-slice sheet is what the format promises: ornamented corners, flat uniform
+edge bands, a flat centre, and one silhouette per body with only value moving between
+states. A perfect icon sheet is one opaque shape centred in every cell and nothing between
+them. The knobs break exactly one promise each so a test can name the failure it expects.
 """
 
 from __future__ import annotations
@@ -11,7 +12,58 @@ import io
 
 from PIL import Image, ImageDraw
 
-from stage_gen.components.game_ui import AtlasRole
+from stage_gen.components.game_ui import AtlasRole, IconGridRole
+from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
+
+
+def ui_sheet(role: str) -> bytes:
+    """A perfect sheet for the named role, whichever family it belongs to."""
+
+    sheet_role = UI_SHEET_ROLES[role]
+    if isinstance(sheet_role, IconGridRole):
+        return icon_sheet(sheet_role)
+    return atlas_sheet(sheet_role)
+
+
+def icon_sheet(
+    role: IconGridRole,
+    *,
+    empty_cell: int | None = None,
+    plate_cell: int | None = None,
+    spill_cell: int | None = None,
+    tiny_cell: int | None = None,
+    halo: bool = False,
+) -> bytes:
+    """One distinct opaque shape per cell, at a size that varies a little across the set."""
+
+    image = Image.new("RGBA", role.canvas, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    for index, guide in enumerate(role.guide_cells):
+        if index == empty_cell:
+            continue
+        colour = (40 + 10 * index, 60, 120 + 5 * index, 255)
+        if index == plate_cell:
+            draw.rectangle(guide.box, fill=colour)
+            continue
+        fraction = 0.2 if index == tiny_cell else 0.62 + 0.02 * (index % 5)
+        half = guide.width * fraction / 2
+        cx, cy = guide.x + guide.width / 2, guide.y + guide.height / 2
+        if index == spill_cell:
+            cx += guide.width * 0.4
+        box = (cx - half, cy - half, cx + half, cy + half)
+        if index % 3 == 0:
+            draw.ellipse(box, fill=colour)
+        elif index % 3 == 1:
+            draw.rectangle(box, fill=colour)
+        else:
+            draw.polygon(
+                [(cx, cy - half), (cx + half, cy), (cx, cy + half), (cx - half, cy)], fill=colour
+            )
+    if halo:
+        draw.rectangle((0, 0, 40, 40), fill=(255, 255, 255, 40))
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def atlas_sheet(

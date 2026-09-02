@@ -1,12 +1,18 @@
-"""The nine-slice UI atlas as one recipe-neutral node triplet.
+"""The UI sheet roles as one recipe-neutral node triplet.
 
-Every 2D game draws panels and buttons, so this is the one piece of generation that
-is genuinely the same work in every genre: the geometry template, the pixel gate, and
-the review question do not know whether a platformer, a visual novel, a point-and-click
-room, or a runner asked for them. The triplet therefore lives beside the contract it
-serves rather than inside whichever recipe built it first, under the component's own
-taxonomy name (``2d/ui/atlas.*``), so a later promotion into a gnode ring is a namespace
-move rather than a rename.
+Every 2D game draws panels, buttons and a few system icons, so this is the one piece of
+generation that is genuinely the same work in every genre: the geometry template, the
+pixel gate, and the review question do not know whether a platformer, a visual novel, a
+point-and-click room, or a runner asked for them. The triplet therefore lives beside the
+contract it serves rather than inside whichever recipe built it first, under the
+component's own taxonomy name (``2d/ui/atlas.*``), so a later promotion into a gnode
+ring is a namespace move rather than a rename.
+
+Two sheet families share the triplet. A nine-slice role (``panel_frame``, ``button_rect``)
+is gated by slice reconstruction and published with insets; the preview icon grid is
+gated by cell registration and published with glyph bounds. The node types, ids, ports,
+cache identity and manifest projection are one shape; only the family's own template,
+gate, evidence and review question differ, and they are looked up from the role.
 
 A host recipe supplies what only it knows — its authored ``ui`` document, the art
 direction that wraps the prompt, the digests that make a role cache-identifiable inside
@@ -73,7 +79,19 @@ from stage_gen.components.game_ui.atlas import (
     render_atlas_template,
     validate_atlas_image,
 )
-from stage_gen.components.game_ui.models import AtlasRoleDirection, GameUi
+from stage_gen.components.game_ui.icons import (
+    ICON_ALPHA_POLICY,
+    ICON_ROLES,
+    PREVIEW_ICON_GLYPHS,
+    PREVIEW_ICONS,
+    IconGridRole,
+    canonicalize_icon_sheet,
+    icon_evidence,
+    icon_role_contract,
+    render_icon_template,
+    validate_icon_sheet,
+)
+from stage_gen.components.game_ui.models import AtlasRoleDirection, GameUi, IconSetDirection
 
 _P = "2d/ui"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -131,8 +149,18 @@ UI_ATLAS_REVIEW = NodeType(
 #: Every type this module owns, for a recipe's own type census and registry checks.
 UI_ATLAS_NODE_TYPES = (UI_ATLAS_GENERATE, UI_ATLAS_VALIDATE, UI_ATLAS_REVIEW)
 
-#: The two roles promoted in `game-ui-v2`, in the order a graph fans them out.
-DEFAULT_ATLAS_ROLES = (PANEL_FRAME, BUTTON_RECT)
+#: Either sheet family's role: what the triplet is fanned out over.
+UiSheetRole = AtlasRole | IconGridRole
+
+#: Every role the triplet can generate, by name. A node's ``role`` param resolves here.
+UI_SHEET_ROLES: dict[str, UiSheetRole] = {**ATLAS_ROLES, **ICON_ROLES}
+
+#: The roles a `game-ui-v4` document requires, in the order a graph fans them out: the
+#: two nine-slice roles promoted in `game-ui-v2` and the preview icon set.
+DEFAULT_ATLAS_ROLES: tuple[UiSheetRole, ...] = (PANEL_FRAME, BUTTON_RECT, PREVIEW_ICONS)
+
+#: The direction a document authors for a role, by family.
+UiSheetDirection = AtlasRoleDirection | IconSetDirection
 
 
 # ------------------------------------------------------------------ prompt
@@ -221,10 +249,178 @@ def atlas_review_prompt(role: AtlasRole, direction: str, band_fill: object) -> s
     )
 
 
+_ICON_GEOMETRY = (
+    "Use the supplied layout template as the exact geometry authority. It is layout "
+    "guidance, not the requested visual style: do not draw its cyan or yellow. Each cyan "
+    "square is one cell of the grid; the yellow square inside it is the extent the glyph "
+    "should fill. Draw one glyph centred in each cell and nothing at all between or around "
+    "the cells: no cell backgrounds, plates, tiles, frames, badges, shadows, or glow behind "
+    "or around the icons, because these are glyphs and not buttons. Keep the canvas exterior "
+    "transparent alpha 0. Every glyph must have a fully opaque body with clean edges. No "
+    "text, letters, numbers, labels, logo, signature, or watermark anywhere."
+)
+
+
+def icon_content_task(role: IconGridRole, direction: str) -> str:
+    """The content task for the icon grid: the fixed vocabulary, then the authored style.
+
+    The glyph list is stated symbol by symbol in reading order, because that list is the
+    contract a consumer indexes into; the direction may colour it and nothing more.
+    """
+
+    described = dict(PREVIEW_ICON_GLYPHS)
+    listing = ", ".join(
+        f"{index + 1} {name.replace('_', ' ')} ({described[name]})"
+        for index, name in enumerate(role.glyphs)
+    )
+    width, height = role.canvas
+    return (
+        f"Create one icon set sheet for the game's screen-fixed interface: {len(role.glyphs)} "
+        f"icons in a {role.columns} by {role.rows} grid on one {width} by {height} canvas, "
+        "in reading order left to right then top to bottom: "
+        f"{listing}. Each icon is one bold, instantly readable symbol that stays legible at "
+        "24 pixels: simple, centred in its cell, filling about seventy percent of the cell, "
+        "with the same visual weight, stroke thickness, and size across the whole set.\n"
+        f"Style direction: {direction}\n{_ICON_GEOMETRY}"
+    )
+
+
+def icon_review_prompt(role: IconGridRole, direction: str) -> str:
+    """What the judge is asked about an icon sheet: identity, one set, and nothing else."""
+
+    return (
+        f"Review the generated {role.role} icon sheet against its style direction. Image 1 "
+        "shows the sheet over a checkerboard on the left and, on the right, one row per cell "
+        "in reading order: the glyph the cell was asked to hold, then that cell re-drawn at "
+        "the two sizes a game shows it. The names on the right are annotation added by the "
+        "validator for you, not part of the sheet. Remaining images are authored visual "
+        "references. Deterministic pixel validation has already proved a transparent canvas, "
+        f"exactly {len(role.glyphs)} glyphs registered to the grid with nothing drawn between "
+        "the cells, and one coherent size across the set. Do not mistake the checkerboard for "
+        "artwork. Judge: that every cell reads unmistakably as its named glyph, listing each "
+        "mismatch as an issue in the form 'cell <n> <name>: <what it shows instead>'; that all "
+        "glyphs share one style, stroke weight and visual density, as one set drawn by one "
+        "hand; style coherence with the references and the direction; that no cell carries a "
+        "background plate, tile, frame, badge, or shadow behind its glyph; and the absence of "
+        f"text, letters, numbers, or labels on the sheet itself. Style direction: {direction} "
+        "Uncertainty must not be called accept."
+    )
+
+
+# ------------------------------------------------------------------ family
+
+
+@dataclass(frozen=True)
+class SheetFamily:
+    """What differs between a nine-slice sheet and an icon grid, looked up from the role.
+
+    Everything else about the triplet — node types, ids, ports, cache identity, provider
+    request shape, manifest binding — is one code path.
+    """
+
+    direction_type: type[UiSheetDirection]
+    template: Callable[[Any], bytes]
+    validate: Callable[[bytes, Any], dict[str, object]]
+    canonicalize: Callable[[bytes, Any], tuple[bytes, dict[str, object]]]
+    evidence: Callable[[bytes, dict[str, object]], bytes]
+    contract: Callable[[dict[str, object]], dict[str, object]]
+    content_task: Callable[[Any, str], str]
+    #: The review prompt from the role, the authored direction, and the validation record;
+    #: at plan time the record is empty and the prompt names what it will be given.
+    review_prompt: Callable[[Any, str, Mapping[str, object]], str]
+    review_checks: tuple[str, ...]
+    alpha_policy: str
+    generate_description: str
+    validate_description: str
+    review_description: str
+    canonical_prompt: str
+    evidence_prompt: str
+
+
+NINE_SLICE_FAMILY = SheetFamily(
+    direction_type=AtlasRoleDirection,
+    template=render_atlas_template,
+    validate=validate_atlas_image,
+    canonicalize=canonicalize_atlas_image,
+    evidence=atlas_evidence,
+    contract=atlas_role_contract,
+    content_task=atlas_content_task,
+    review_prompt=lambda role, direction, record: atlas_review_prompt(
+        role, direction, record.get("band_fill", "the admitted")
+    ),
+    review_checks=(
+        "style_coherence",
+        "ornament_in_corners",
+        "bands_plain",
+        "centre_quiet",
+        "state_order",
+        "text_free",
+    ),
+    alpha_policy=ATLAS_ALPHA_POLICY,
+    generate_description="generate the authored {role} nine-slice atlas",
+    validate_description="detect bodies, admit a band fill, and normalize the alpha boundary",
+    review_description="review {role} style, ornament placement, and state order",
+    canonical_prompt=(
+        "Normalize only the admitted alpha boundary: clear the already-transparent "
+        "exterior and clamp every admitted content rect to alpha 255."
+    ),
+    evidence_prompt=(
+        "Composite the atlas sheet over a checkerboard and re-draw every cell through "
+        "the admitted nine-slice at a wider and a taller size for review evidence."
+    ),
+)
+
+ICON_GRID_FAMILY = SheetFamily(
+    direction_type=IconSetDirection,
+    template=render_icon_template,
+    validate=validate_icon_sheet,
+    canonicalize=canonicalize_icon_sheet,
+    evidence=icon_evidence,
+    contract=icon_role_contract,
+    content_task=icon_content_task,
+    review_prompt=lambda role, direction, _record: icon_review_prompt(role, direction),
+    review_checks=(
+        "style_coherence",
+        "glyph_identity",
+        "one_set",
+        "glyphs_only",
+        "text_free",
+    ),
+    alpha_policy=ICON_ALPHA_POLICY,
+    generate_description="generate the fixed {role} glyph grid in the authored style",
+    validate_description="register a glyph to every cell and normalize the exterior alpha",
+    review_description="review {role} glyph identity, set coherence, and style",
+    canonical_prompt=(
+        "Normalize only the admitted exterior: clear already-transparent pixels to alpha 0 "
+        "and touch nothing inside a glyph."
+    ),
+    evidence_prompt=(
+        "Composite the icon sheet over a checkerboard and draw every cell at two consumer "
+        "sizes beside the glyph name it was asked to hold, for review evidence."
+    ),
+)
+
+
+def sheet_family(role: UiSheetRole) -> SheetFamily:
+    """The family a role belongs to; a role is one or the other by construction."""
+
+    return ICON_GRID_FAMILY if isinstance(role, IconGridRole) else NINE_SLICE_FAMILY
+
+
+def validate_ui_sheet(data: bytes, role: str) -> dict[str, object]:
+    """Gate ``data`` as the named role, whichever family it belongs to.
+
+    For a host that re-checks a cached sheet against the contract before reusing it.
+    """
+
+    sheet_role = UI_SHEET_ROLES[role]
+    return sheet_family(sheet_role).validate(data, sheet_role)
+
+
 # ------------------------------------------------------------------- graph
 
 
-def atlas_node_ids(role: AtlasRole, *, prefix: str = "ui") -> tuple[str, str, str]:
+def atlas_node_ids(role: UiSheetRole, *, prefix: str = "ui") -> tuple[str, str, str]:
     """The generate, validate and review ids one role occupies in a host graph."""
 
     return (
@@ -234,7 +430,7 @@ def atlas_node_ids(role: AtlasRole, *, prefix: str = "ui") -> tuple[str, str, st
     )
 
 
-def atlas_artifact_refs(role: AtlasRole) -> tuple[str, str, str, str, str]:
+def atlas_artifact_refs(role: UiSheetRole) -> tuple[str, str, str, str, str]:
     """Every path one role writes: raw, canonical, validation, evidence, verdict."""
 
     return (
@@ -261,12 +457,12 @@ def add_ui_atlas_nodes(
     ui: GameUi,
     style_prompt: Callable[[str], str],
     direction_digests: Sequence[str] = (),
-    roles: Sequence[AtlasRole] = DEFAULT_ATLAS_ROLES,
+    roles: Sequence[UiSheetRole] = DEFAULT_ATLAS_ROLES,
     domain: str = "ui",
     prefix: str = "ui",
     attempts_port: Callable[[str], Port] | None = None,
 ) -> list[str]:
-    """Add one generic nine-slice triplet per role, fanned out over the role parameter.
+    """Add one generic sheet triplet per role, fanned out over the role parameter.
 
     The template is rendered from the role's geometry record at run time, so the record is
     what the cache key hashes: a rasterizer change that draws the same guides differently
@@ -280,6 +476,7 @@ def add_ui_atlas_nodes(
     references = {entry.reference_id: entry for entry in ui.references}
     terminals: list[str] = []
     for role in roles:
+        family = sheet_family(role)
         direction = _role_direction(ui, role)
         direction_digest = _object_sha256(direction.model_dump(mode="json"))
         geometry_digest = _object_sha256(role.geometry_record())
@@ -304,7 +501,7 @@ def add_ui_atlas_nodes(
             UI_ATLAS_GENERATE,
             generate_id,
             domain=domain,
-            description=f"generate the authored {role.role} nine-slice atlas",
+            description=family.generate_description.format(role=role.role),
             depends_on=(root,),
             cache_depends_on=(),
             params={"role": role.role},
@@ -317,7 +514,7 @@ def add_ui_atlas_nodes(
             ),
             ports=tuple(generate_ports),
             card=NodeCard(
-                prompt=style_prompt(atlas_content_task(role, direction.prompt)),
+                prompt=style_prompt(family.content_task(role, direction.prompt)),
                 template_ref=f"{role.layout}_template",
                 authored_inputs=authored,
             ),
@@ -326,7 +523,7 @@ def add_ui_atlas_nodes(
             UI_ATLAS_VALIDATE,
             validate_id,
             domain=domain,
-            description="detect bodies, admit a band fill, and normalize the alpha boundary",
+            description=family.validate_description,
             depends_on=(generated.node_id,),
             params={"role": role.role},
             input_digests=(
@@ -346,7 +543,7 @@ def add_ui_atlas_nodes(
             UI_ATLAS_REVIEW,
             review_id,
             domain=domain,
-            description=f"review {role.role} style, ornament placement, and state order",
+            description=family.review_description.format(role=role.role),
             depends_on=(validated.node_id,),
             params={"role": role.role},
             input_digests=(
@@ -355,7 +552,7 @@ def add_ui_atlas_nodes(
             ),
             ports=tuple(review_ports),
             card=NodeCard(
-                prompt=atlas_review_prompt(role, direction.prompt, "the admitted"),
+                prompt=family.review_prompt(role, direction.prompt, {}),
                 schema_name=UI_ATLAS_REVIEW_SCHEMA_NAME,
                 reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
                 authored_inputs=authored,
@@ -365,10 +562,10 @@ def add_ui_atlas_nodes(
     return terminals
 
 
-def _role_direction(ui: GameUi, role: AtlasRole) -> AtlasRoleDirection:
-    direction = getattr(ui, role.role)
-    if not isinstance(direction, AtlasRoleDirection):
-        raise ValueError(f"UI document names no atlas direction for {role.role}")
+def _role_direction(ui: GameUi, role: UiSheetRole) -> UiSheetDirection:
+    direction = getattr(ui, role.role, None)
+    if not isinstance(direction, sheet_family(role).direction_type):
+        raise ValueError(f"UI document names no {role.role} direction of the expected family")
     return direction
 
 
@@ -434,8 +631,9 @@ class UiAtlasHandlers:
 
     async def generate(self, node: Node) -> NodeExecutionResult:
         role, direction = self._role(node)
+        family = sheet_family(role)
         output = self._host.run_dir / node.port("image").artifact_ref
-        template_data = render_atlas_template(role)
+        template_data = family.template(role)
         prompt = _card_prompt(node)
         references = (
             *self._image_references(direction.reference_ids),
@@ -457,31 +655,29 @@ class UiAtlasHandlers:
                 "checkpoint": "ui",
                 "role": role.role,
                 "layout": role.layout,
-                "alpha_policy": ATLAS_ALPHA_POLICY,
+                "alpha_policy": family.alpha_policy,
             },
-            validate=lambda artifact: validate_atlas_image(artifact.data, role),
+            validate=lambda artifact: family.validate(artifact.data, role),
         )
         result = await self._call(node, role.role, prompt, lambda: self._images.generate(request))
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def validate(self, node: Node) -> NodeExecutionResult:
         role, _direction = self._role(node)
+        family = sheet_family(role)
         run_dir = self._host.run_dir
         source = run_dir / self._dependency(node, kind=UI_ATLAS_RAW_KIND)
         data = source.read_bytes()
-        canonical_data, facts = canonicalize_atlas_image(data, role)
+        canonical_data, facts = family.canonicalize(data, role)
         canonical_facts = cast(dict[str, object], facts["canonical"])
-        contract = atlas_role_contract(canonical_facts)
+        contract = family.contract(canonical_facts)
         canonical = run_dir / node.port("image").artifact_ref
         validation = run_dir / node.port("validation").artifact_ref
         evidence = run_dir / node.port("evidence").artifact_ref
         await self._write_local_image(
             canonical,
             canonical_data,
-            prompt=(
-                "Normalize only the admitted alpha boundary: clear the already-transparent "
-                "exterior and clamp every admitted content rect to alpha 255."
-            ),
+            prompt=family.canonical_prompt,
             inputs=((source.relative_to(run_dir).as_posix(), data),),
             validation=facts,
             model=UI_ATLAS_VALIDATION_VERSION,
@@ -495,14 +691,11 @@ class UiAtlasHandlers:
                 "facts": facts,
             },
         )
-        evidence_data = atlas_evidence(canonical_data, canonical_facts)
+        evidence_data = family.evidence(canonical_data, canonical_facts)
         await self._write_local_image(
             evidence,
             evidence_data,
-            prompt=(
-                "Composite the atlas sheet over a checkerboard and re-draw every cell through "
-                "the admitted nine-slice at a wider and a taller size for review evidence."
-            ),
+            prompt=family.evidence_prompt,
             inputs=((canonical.relative_to(run_dir).as_posix(), canonical_data),),
             validation={"source_validation": contract, "checkerboard_only": False},
             model=UI_ATLAS_EVIDENCE_VERSION,
@@ -511,6 +704,7 @@ class UiAtlasHandlers:
 
     async def review(self, node: Node) -> NodeExecutionResult:
         role, direction = self._role(node)
+        family = sheet_family(role)
         run_dir = self._host.run_dir
         evidence = run_dir / self._dependency(node, kind=UI_ATLAS_EVIDENCE_KIND)
         validation = run_dir / self._dependency(node, kind=UI_ATLAS_VALIDATION_KIND)
@@ -522,7 +716,7 @@ class UiAtlasHandlers:
             for reference in self._host.ui.references
             if reference.reference_id in selected
         )
-        prompt = atlas_review_prompt(role, direction.prompt, contract.get("band_fill"))
+        prompt = family.review_prompt(role, direction.prompt, contract)
         output = run_dir / node.port("verdict").artifact_ref
         request: StructuredGenerationRequest[object] = StructuredGenerationRequest(
             prompt=prompt,
@@ -532,7 +726,8 @@ class UiAtlasHandlers:
             ),
             artifact_path=output,
             schema=StructuredOutputSchema(
-                name=UI_ATLAS_REVIEW_SCHEMA_NAME, json_schema=ui_atlas_review_schema()
+                name=UI_ATLAS_REVIEW_SCHEMA_NAME,
+                json_schema=ui_atlas_review_schema(family.review_checks),
             ),
             parse=_parse_review,
             references=tuple(references),
@@ -547,8 +742,8 @@ class UiAtlasHandlers:
 
     # -- internals --------------------------------------------------------
 
-    def _role(self, node: Node) -> tuple[AtlasRole, AtlasRoleDirection]:
-        role = ATLAS_ROLES[str(node.params["role"])]
+    def _role(self, node: Node) -> tuple[UiSheetRole, UiSheetDirection]:
+        role = UI_SHEET_ROLES[str(node.params["role"])]
         return role, _role_direction(self._host.ui, role)
 
     async def _call(
@@ -642,26 +837,18 @@ class UiAtlasHandlers:
         )
 
 
-def ui_atlas_review_schema() -> dict[str, object]:
-    """The judge's answer shape: the questions the pixel gate cannot decide."""
+def ui_atlas_review_schema(
+    checks: Sequence[str] = NINE_SLICE_FAMILY.review_checks,
+) -> dict[str, object]:
+    """The judge's answer shape: the questions the pixel gate cannot decide, per family."""
 
-    checks = {
-        key: {"type": "boolean"}
-        for key in (
-            "style_coherence",
-            "ornament_in_corners",
-            "bands_plain",
-            "centre_quiet",
-            "state_order",
-            "text_free",
-        )
-    }
+    check_properties = {key: {"type": "boolean"} for key in checks}
     return {
         "type": "object",
         "properties": {
             "verdict": {"type": "string", "enum": ["accept", "reject", "uncertain"]},
             "confidence": {"type": "number"},
-            "checks": {"type": "object", "properties": checks},
+            "checks": {"type": "object", "properties": check_properties},
             "issues": {"type": "array", "items": {"type": "string"}},
             "evidence": {"type": "string"},
         },
@@ -734,6 +921,36 @@ class AtlasRoleLayout(PersistedContractModel):
     cells: list[AtlasCellLayout] = Field(min_length=1, max_length=16)
 
 
+class IconCellLayout(PersistedContractModel):
+    glyph: str = Field(pattern=SNAKE_ID_PATTERN, max_length=32)
+    #: The published cell: what a consumer cuts as one frame and scales as the glyph's box.
+    cell: AtlasRect
+    #: The detected bounds of the drawn glyph, inside ``cell``.
+    glyph_rect: AtlasRect
+
+
+class IconSetLayout(PersistedContractModel):
+    """The resolved geometry the icon grid publishes, as a typed contract.
+
+    ``scale_mode`` is ``fixed``: a cell is drawn at one size, never sliced. ``cell_size`` is
+    every cell's side, so a consumer sizes an icon by scaling its cell and keeps the set's
+    own proportions between glyphs.
+    """
+
+    role: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
+    layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    scale_mode: Literal["fixed"]
+    alpha_policy: Literal["transparent_exterior_opaque_glyph_v1"]
+    draw_scale: int = Field(ge=1)
+    canvas: AtlasCanvas
+    cell_size: int = Field(ge=1)
+    cells: list[IconCellLayout] = Field(min_length=1, max_length=64)
+
+
+#: Either family's published block, told apart by ``scale_mode``.
+UiSheetLayout = AtlasRoleLayout | IconSetLayout
+
+
 def ui_atlas_manifest(
     role: str,
     *,
@@ -753,7 +970,7 @@ def ui_atlas_manifest(
     if not isinstance(record, dict) or record.get("role") != role:
         raise ValueError(f"UI atlas {role} validation names a different role")
     try:
-        contract = atlas_role_contract(record)
+        contract = sheet_family(UI_SHEET_ROLES[role]).contract(record)
     except (KeyError, TypeError) as error:
         raise ValueError(f"UI atlas {role} validation lacks resolved geometry: {error}") from error
     return {**contract, "asset": publish(f"ui/{role}.png")}
@@ -764,7 +981,7 @@ def ui_atlas_manifest_block(
     read_validation: Callable[[str], bytes],
     publish: Callable[[str], object],
     publish_provenance: Callable[[str], None],
-    roles: Sequence[AtlasRole] = DEFAULT_ATLAS_ROLES,
+    roles: Sequence[UiSheetRole] = DEFAULT_ATLAS_ROLES,
 ) -> dict[str, object]:
     """Every generated role as one ``ui`` block."""
 
@@ -826,13 +1043,18 @@ def _object_sha256(value: object) -> str:
 
 __all__ = [
     "DEFAULT_ATLAS_ROLES",
+    "ICON_GRID_FAMILY",
+    "NINE_SLICE_FAMILY",
     "AtlasCanvas",
     "AtlasCellLayout",
     "AtlasInsets",
     "AtlasRect",
     "AtlasRoleLayout",
+    "IconCellLayout",
+    "IconSetLayout",
     "IMAGE_FEATURES",
     "STRUCTURED_FEATURES",
+    "UI_SHEET_ROLES",
     "UI_ATLAS_CONTRACT_VERSION",
     "UI_ATLAS_EVIDENCE_KIND",
     "UI_ATLAS_EVIDENCE_VERSION",
@@ -848,14 +1070,22 @@ __all__ = [
     "UI_ATLAS_VALIDATION_VERSION",
     "UI_ATLAS_VERDICT_KIND",
     "ProviderCall",
+    "SheetFamily",
     "UiAtlasHandlers",
     "UiAtlasHost",
+    "UiSheetDirection",
+    "UiSheetLayout",
+    "UiSheetRole",
     "add_ui_atlas_nodes",
     "atlas_artifact_refs",
     "atlas_content_task",
     "atlas_node_ids",
     "atlas_review_prompt",
+    "icon_content_task",
+    "icon_review_prompt",
+    "sheet_family",
     "ui_atlas_manifest",
     "ui_atlas_manifest_block",
     "ui_atlas_review_schema",
+    "validate_ui_sheet",
 ]

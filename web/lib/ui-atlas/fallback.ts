@@ -14,7 +14,8 @@ export type PresentationFallbackKind =
   | "portal_sheet"
   | "inventory_panel"
   | "panel_frame"
-  | "button_sheet";
+  | "button_sheet"
+  | "icon_sheet";
 
 export type PresentationFallbackDiagnostic = (message: string) => void;
 
@@ -59,6 +60,8 @@ function fallbackLayout(kind: PresentationFallbackKind): FallbackLayout {
       return { width: ATLAS_CANVAS_PX, height: ATLAS_CANVAS_PX, columns: 1, rows: 1 };
     case "button_sheet":
       return { width: ATLAS_CANVAS_PX, height: ATLAS_CANVAS_PX, columns: 1, rows: 4 };
+    case "icon_sheet":
+      return { width: ATLAS_CANVAS_PX, height: ATLAS_CANVAS_PX, columns: 4, rows: 4 };
   }
 }
 

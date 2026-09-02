@@ -9,6 +9,9 @@
 
 import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
 import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import type { UiSheetRole } from "@/lib/ui-atlas/sheets";
 
 export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v3";
 export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 1;
@@ -68,14 +71,26 @@ export interface RoomUiRole {
   readonly asset: string;
 }
 
+/** The preview icon grid: the cells the gate registered glyphs to, plus its sheet. */
+export interface RoomUiIconSet {
+  readonly layout: UiIconSetLayout;
+  readonly asset: string;
+}
+
 export interface RoomUi {
   readonly panelFrame: RoomUiRole;
   readonly buttonRect: RoomUiRole;
+  readonly previewIcons: RoomUiIconSet;
 }
 
-/** One role's published block, by the producer's own role name. */
+/** One nine-slice role's published block, by the producer's own role name. */
 export function roomUiRole(ui: RoomUi, role: UiAtlasRoleName): RoomUiRole {
   return role === "panel_frame" ? ui.panelFrame : ui.buttonRect;
+}
+
+/** The run-relative sheet path for any published role, for the loader. */
+export function roomUiSheetAsset(ui: RoomUi, role: UiSheetRole): string {
+  return role === "preview_icons" ? ui.previewIcons.asset : roomUiRole(ui, role).asset;
 }
 
 export interface RoomManifest {
@@ -249,6 +264,11 @@ export function parseRoomManifest(value: unknown): RoomManifest {
       asset: text(source.asset, `ui.${role}.asset`),
     };
   };
+  const rawIcons = record(ui.preview_icons, "ui.preview_icons");
+  const previewIcons: RoomUiIconSet = {
+    layout: parseUiIconSetLayout(rawIcons),
+    asset: text(rawIcons.asset, "ui.preview_icons.asset"),
+  };
   const manifest: RoomManifest = {
     roomId: text(raw.room_id, "room_id"),
     displayName: text(raw.display_name, "display_name"),
@@ -263,7 +283,7 @@ export function parseRoomManifest(value: unknown): RoomManifest {
     hotspots,
     items,
     interactions,
-    ui: { panelFrame: uiRole("panel_frame"), buttonRect: uiRole("button_rect") },
+    ui: { panelFrame: uiRole("panel_frame"), buttonRect: uiRole("button_rect"), previewIcons },
     win: {
       requires: ids(win.requires, "win.requires"),
       narration: text(win.narration, "win.narration"),

@@ -10,11 +10,7 @@ from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.components import canonical_character_profile_json
-from stage_gen.components.game_ui import (
-    ATLAS_ROLES,
-    atlas_role_contract,
-    canonicalize_atlas_image,
-)
+from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES, sheet_family
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from stage_gen.recipes.dialogue_scene.identity import (
@@ -29,7 +25,7 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     read_scene_document,
     resolve_dialogue_scene,
 )
-from tests.unit._ui_atlas_fixture import atlas_sheet
+from tests.unit._ui_atlas_fixture import ui_sheet
 
 from .package import write_scene_package
 
@@ -127,16 +123,16 @@ def _write_inputs(root: Path) -> str:
     # leaves them: the bundle reads the measured geometry rather than the declared template.
     ui = root / "ui"
     ui.mkdir()
-    for role in ATLAS_ROLES.values():
-        sheet = atlas_sheet(role)
-        canonical, facts = canonicalize_atlas_image(sheet, role)
-        _write_image(ui / f"{role.role}.png", canonical)
-        (ui / f"{role.role}.validation.json").write_text(
+    for role_name, role in UI_SHEET_ROLES.items():
+        family = sheet_family(role)
+        canonical, facts = family.canonicalize(ui_sheet(role_name), role)
+        _write_image(ui / f"{role_name}.png", canonical)
+        (ui / f"{role_name}.validation.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
                     "kind": "prepared-ui-atlas-validation-v2",
-                    **atlas_role_contract(cast(dict[str, object], facts["canonical"])),
+                    **family.contract(cast(dict[str, object], facts["canonical"])),
                 }
             ),
             encoding="utf-8",

@@ -9,9 +9,10 @@
 // the fact worth reporting: home is derived from the package's own safe-hub roles, so a game that
 // opens on a hostile route recovers somewhere the player has never been told about otherwise.
 //
-// The frame and the button are the package's own generated nine-slice art, drawn by the engine's
-// nine-slice from the geometry the producer detected. Hover and pressed are the producer's pixels
-// for those states rather than a tint, so the button reads the way the artist drew it.
+// The frame, the button and the glyph on it are the package's own generated art: the frame and
+// the button are engine nine-slices cut by the geometry the producer detected, and the `home`
+// glyph is one cell of the preview icon set. Hover and pressed are the producer's pixels for
+// those states rather than a tint, so the button reads the way the artist drew it.
 //
 // Motion is sampled from caller-supplied simulation time rather than tweened, exactly like the
 // stat log and floating combat text, so normal play and fixed-frame automation follow one path.
@@ -21,10 +22,12 @@
 
 import type Phaser from "phaser";
 import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { AtlasButton } from "@/lib/ui-atlas/button";
+import { uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
 import { NineSliceWidget, minimumSliceSize } from "@/lib/ui-atlas/widget";
 import { DEFAULT_DEFEAT_PANEL_KNOBS, defeatPanelLayout } from "./defeat-panel-layout";
 import { SCENE_CONTENT_DEPTH } from "./depths";
-import type { PresentationFallbackKind } from "@/lib/ui-atlas/fallback";
 import { defeatPromptState } from "./respawn";
 
 const VIEW_W = 1280;
@@ -34,20 +37,6 @@ const PANEL_H = 232;
 
 export const DEFEAT_PANEL_DEPTH = SCENE_CONTENT_DEPTH.dialogue + 50;
 export const DEFEAT_PANEL_TITLE = "You were defeated";
-
-/**
- * The atlas sheets this interface draws from: manifest role, texture key, and the stand-in kind
- * registered when the sheet is missing. Declared once so the scene loads exactly what the panel
- * slices.
- */
-export const UI_ATLAS_SHEETS: readonly (readonly [
-  "panel_frame" | "button_rect",
-  string,
-  PresentationFallbackKind,
-])[] = Object.freeze([
-  Object.freeze(["panel_frame", "ui_panel_frame", "panel_frame"] as const),
-  Object.freeze(["button_rect", "ui_button_rect", "button_sheet"] as const),
-]);
 
 /** The button's words, which name where the run resumes rather than promising "continue". */
 export function defeatReturnLabel(destinationName: string): string {
@@ -66,7 +55,11 @@ export type DefeatPanelSnapshot = Readonly<{
 
 export type DefeatPanelOptions = Readonly<{
   scene: Phaser.Scene;
-  ui: Readonly<{ panel_frame: UiAtlasRoleLayout; button_rect: UiAtlasRoleLayout }>;
+  ui: Readonly<{
+    panel_frame: UiAtlasRoleLayout;
+    button_rect: UiAtlasRoleLayout;
+    preview_icons: UiIconSetLayout;
+  }>;
 }>;
 
 /**
@@ -80,12 +73,10 @@ export class DefeatPanel {
   private readonly scrim: Phaser.GameObjects.Rectangle;
   private readonly panel: NineSliceWidget;
   private readonly title: Phaser.GameObjects.Text;
-  private readonly button: NineSliceWidget;
-  private readonly buttonLabel: Phaser.GameObjects.Text;
-  private readonly parts: Phaser.GameObjects.GameObject[];
+  private readonly button: AtlasButton;
+  private readonly parts: readonly Phaser.GameObjects.GameObject[];
   private confirmRequested = false;
   private shown = false;
-  private hovered = false;
 
   constructor(options: DefeatPanelOptions) {
     const scene = options.scene;
@@ -95,7 +86,7 @@ export class DefeatPanel {
       .setDepth(DEFEAT_PANEL_DEPTH);
     this.panel = new NineSliceWidget({
       scene,
-      sheetKey: "ui_panel_frame",
+      sheetKey: uiAtlasSheetKey("panel_frame"),
       layout: options.ui.panel_frame,
       width: PANEL_W,
       height: PANEL_H,
@@ -120,48 +111,31 @@ export class DefeatPanel {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(DEFEAT_PANEL_DEPTH + 2);
-    this.button = new NineSliceWidget({
+    // The press is reported on release, the way every atlas button reports it, and only while
+    // the panel is up: the button's own `live` gate is what keeps a click in the middle of a
+    // live run from respawning the player.
+    this.button = new AtlasButton({
       scene,
-      sheetKey: "ui_button_rect",
+      sheetKey: uiAtlasSheetKey("button_rect"),
       layout: options.ui.button_rect,
-      width: layout.button.width,
-      height: layout.button.height,
-      x: layout.button.x,
-      y: layout.button.y,
+      rect: {
+        x: layout.button.x - layout.button.width / 2,
+        y: layout.button.y - layout.button.height / 2,
+        width: layout.button.width,
+        height: layout.button.height,
+      },
       depth: DEFEAT_PANEL_DEPTH + 2,
-      state: "normal",
+      label: defeatReturnLabel(""),
+      icon: {
+        sheetKey: uiAtlasSheetKey("preview_icons"),
+        layout: options.ui.preview_icons,
+        glyph: "home",
+      },
+      onPress: () => {
+        this.confirmRequested = true;
+      },
     });
-    this.buttonLabel = scene.add
-      .text(layout.button.x, layout.button.y, defeatReturnLabel(""), {
-        fontFamily: "system-ui, sans-serif",
-        fontSize: "23px",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(DEFEAT_PANEL_DEPTH + 3);
-    this.parts = [this.scrim, this.panel.image, this.title, this.button.image, this.buttonLabel];
-
-    this.button.image.setInteractive({ useHandCursor: true });
-    this.button.image.on("pointerover", () => {
-      this.hovered = true;
-      if (this.shown) this.button.setState("hover");
-    });
-    this.button.image.on("pointerout", () => {
-      this.hovered = false;
-      this.button.setState("normal");
-    });
-    this.button.image.on("pointerdown", () => {
-      // Only while the panel is actually up: an interactive image keeps its hit area when it is
-      // hidden, so without this a click anywhere near the middle of a live run would respawn.
-      if (!this.shown) return;
-      this.button.setState("pressed");
-      this.confirmRequested = true;
-    });
-    this.button.image.on("pointerup", () => {
-      if (this.shown) this.button.setState(this.hovered ? "hover" : "normal");
-    });
+    this.parts = [this.scrim, this.panel.image, this.title, ...this.button.parts];
     this.hide();
   }
 
@@ -190,8 +164,9 @@ export class DefeatPanel {
       this.hide();
       return;
     }
-    this.buttonLabel.setText(defeatReturnLabel(input.destinationName));
+    this.button.setLabel(defeatReturnLabel(input.destinationName));
     this.shown = true;
+    this.button.setLive(true);
     for (const part of this.parts) {
       const drawable = part as Phaser.GameObjects.Rectangle;
       drawable.setVisible(true);
@@ -218,7 +193,7 @@ export class DefeatPanel {
   hide(): void {
     this.shown = false;
     this.confirmRequested = false;
-    this.button.setState("normal");
+    this.button.setLive(false);
     for (const part of this.parts) {
       (part as Phaser.GameObjects.Rectangle).setVisible(false);
     }
@@ -229,8 +204,8 @@ export class DefeatPanel {
       visible: this.shown,
       alpha: this.panel.image.alpha,
       title: this.title.text,
-      buttonLabel: this.buttonLabel.text,
-      buttonState: this.button.currentState,
+      buttonLabel: this.button.text.text,
+      buttonState: this.button.state,
       confirmRequested: this.confirmRequested,
     });
   }
@@ -238,7 +213,6 @@ export class DefeatPanel {
   destroy(): void {
     this.scrim.destroy();
     this.title.destroy();
-    this.buttonLabel.destroy();
     this.panel.destroy();
     this.button.destroy();
   }

@@ -24,10 +24,14 @@ function fakeScene() {
     const self: Record<string, unknown> = {
       alpha: 1,
       visible: true,
+      width: 0,
+      height: 0,
       ...extra,
       setScrollFactor: () => self,
       setDepth: () => self,
       setOrigin: () => self,
+      setPosition: () => self,
+      setDisplaySize: () => self,
       setStrokeStyle: () => self,
       setScale: () => self,
       setFillStyle: () => self,
@@ -59,9 +63,10 @@ function fakeScene() {
   const scene = {
     add: {
       rectangle: () => object(),
-      nineslice: (_x: number, _y: number, _sheet: string, frame: string) =>
-        object({ frame, setFrame: undefined }),
+      nineslice: (x: number, y: number, _sheet: string, frame: string, width: number, height: number) =>
+        object({ x, y, frame, width, height, setFrame: undefined }),
       text: (_x: number, _y: number, text: string) => object({ text }),
+      image: (_x: number, _y: number, _sheet: string, frame: string) => object({ frame }),
     },
     textures: {
       get: () => ({
@@ -141,7 +146,10 @@ describe("answering it", () => {
   test("a press is reported rather than acted on, and reading it clears it", () => {
     const { panel, handlers } = shownPanel();
     expect(panel.snapshot().confirmRequested).toBe(false);
+    // A press is a release inside the button, the way every atlas button reads it.
     handlers.get("pointerdown")?.();
+    expect(panel.snapshot().confirmRequested).toBe(false);
+    handlers.get("pointerup")?.();
     expect(panel.snapshot().confirmRequested).toBe(true);
     expect(panel.consumeConfirm()).toBe(true);
     expect(panel.consumeConfirm()).toBe(false);
@@ -160,15 +168,18 @@ describe("answering it", () => {
     expect(panel.snapshot().buttonState).toBe("normal");
   });
 
-  test("the frame and the button are cut from the package's own sheets", () => {
+  test("the frame, the button and its glyph are cut from the package's own sheets", () => {
     const { frames } = buildPanel();
-    expect(frames).toEqual([
+    expect(frames.slice(0, 5)).toEqual([
       "ui_panel_frame:default",
       "ui_button_rect:normal",
       "ui_button_rect:hover",
       "ui_button_rect:pressed",
       "ui_button_rect:disabled",
     ]);
+    // The way home is drawn as the icon set's `home` glyph beside the words.
+    expect(frames).toContain("ui_preview_icons:home");
+    expect(frames).toHaveLength(5 + 16);
   });
 
   test("a confirm key reaches the same request", () => {
@@ -182,6 +193,7 @@ describe("answering it", () => {
     // The button keeps its hit area while hidden, so a live run would otherwise respawn on a
     // click near the middle of the screen.
     handlers.get("pointerdown")?.();
+    handlers.get("pointerup")?.();
     expect(panel.consumeConfirm()).toBe(false);
     panel.requestConfirm();
     expect(panel.consumeConfirm()).toBe(false);
@@ -190,6 +202,7 @@ describe("answering it", () => {
   test("dismissing it drops a press nobody collected", () => {
     const { panel, handlers } = shownPanel();
     handlers.get("pointerdown")?.();
+    handlers.get("pointerup")?.();
     panel.hide();
     expect(panel.visible).toBe(false);
     expect(panel.consumeConfirm()).toBe(false);
