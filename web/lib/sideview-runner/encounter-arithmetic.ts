@@ -44,6 +44,15 @@ export interface EncounterConfig {
   readonly playerShotSpeedColumnsPerSecond: number;
   /** The boss's drawn height in rows, from its calibration and the package scale. */
   readonly bossHeightRows: number;
+  /**
+   * Half the boss's hit box, in columns.
+   *
+   * Measured from the drawn artwork rather than assumed from its height,
+   * because a boss is not square: this one is a rig half again as wide as it
+   * is tall, and a box derived from its height alone would let player shots
+   * pass visibly through its shears without registering.
+   */
+  readonly bossHalfWidthColumns: number;
 }
 
 /** The locomotion half, mirrored from the SDK's `ThrustProfile`. */
@@ -122,7 +131,12 @@ export const BOSS_APPROACH_COLUMNS_PER_SECOND = 5;
 export const BOSS_RETREAT_COLUMNS_PER_SECOND = 8;
 export const BOSS_ATTACK_POSE_SECONDS = 0.35;
 export const BOSS_HIT_FLASH_MS = 64;
-/** How wide the boss's hit box is, as a fraction of its drawn height. */
+/**
+ * The fallback half-width, as a fraction of drawn height.
+ *
+ * Only reached when the boot could not measure the artwork; a measured aspect
+ * is always preferred.
+ */
 export const BOSS_HALF_WIDTH_FRACTION = 0.35;
 /** A hard ceiling so a pathological package cannot grow the array without end. */
 export const ENCOUNTER_SHOT_CAP = 32;
@@ -346,7 +360,10 @@ export function shotBox(shot: EncounterShot): Box {
 
 /** The boss's hit box, in the avatar's frame. */
 export function bossBox(boss: BossState, config: EncounterConfig): Box {
-  const halfWidth = config.bossHeightRows * BOSS_HALF_WIDTH_FRACTION;
+  const halfWidth =
+    config.bossHalfWidthColumns > 0
+      ? config.bossHalfWidthColumns
+      : config.bossHeightRows * BOSS_HALF_WIDTH_FRACTION;
   return {
     left: boss.offsetColumns - halfWidth,
     right: boss.offsetColumns + halfWidth,

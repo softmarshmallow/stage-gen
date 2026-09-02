@@ -51,6 +51,7 @@ const CONFIG: EncounterConfig = {
   playerFirePeriodSeconds: 0.5,
   playerShotSpeedColumnsPerSecond: 12,
   bossHeightRows: 3,
+  bossHalfWidthColumns: 0,
 };
 
 interface Options {

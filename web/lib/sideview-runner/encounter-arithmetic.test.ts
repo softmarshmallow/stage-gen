@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   BOSS_APPROACH_COLUMNS_PER_SECOND,
+  BOSS_HALF_WIDTH_FRACTION,
   BOSS_RETREAT_COLUMNS_PER_SECOND,
   type EncounterConfig,
   type EncounterShot,
@@ -48,6 +49,7 @@ const CONFIG: EncounterConfig = Object.freeze({
   playerFirePeriodSeconds: 0.5,
   playerShotSpeedColumnsPerSecond: 12,
   bossHeightRows: 5,
+  bossHalfWidthColumns: 0,
 });
 
 function bossShot(overrides: Partial<EncounterShot> = {}): EncounterShot {
@@ -262,5 +264,38 @@ describe("thrust", () => {
 
   test("the climb cap is the slower of the two, which is what a dodge costs", () => {
     expect(THRUST.maxClimbRowsPerSecond).toBeLessThan(THRUST.maxFallRowsPerSecond);
+  });
+});
+
+describe("the boss's hit box follows its drawn shape", () => {
+  test("uses the measured half-width when the boot could supply one", () => {
+    const wide = { ...CONFIG, bossHalfWidthColumns: 4 };
+    const boss = createBossState(wide, 10, 9);
+
+    const box = bossBox(boss, wide);
+
+    expect(box.right - box.left).toBeCloseTo(8, 6);
+  });
+
+  test("falls back to a fraction of height when it could not be measured", () => {
+    const boss = createBossState(CONFIG, 10, 9);
+
+    const box = bossBox(boss, CONFIG);
+
+    expect(box.right - box.left).toBeCloseTo(
+      2 * CONFIG.bossHeightRows * BOSS_HALF_WIDTH_FRACTION,
+      6,
+    );
+  });
+
+  test("a rig wider than it is tall gets a box wider than the fallback", () => {
+    // The measured path exists because a boss is not square: the fallback
+    // would let shots pass visibly through a wide machine's front.
+    const measured = { ...CONFIG, bossHalfWidthColumns: CONFIG.bossHeightRows * 0.75 };
+    const boss = createBossState(measured, 10, 9);
+
+    expect(bossBox(boss, measured).right - bossBox(boss, measured).left).toBeGreaterThan(
+      2 * CONFIG.bossHeightRows * BOSS_HALF_WIDTH_FRACTION,
+    );
   });
 });

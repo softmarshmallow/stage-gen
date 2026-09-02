@@ -689,13 +689,20 @@ class RunnerScene extends Phaser.Scene {
     const boss = manifest.bosses.find((entry) => entry.bossId === published.bossId);
     // Both resolve by contract; the parser refused the document otherwise.
     if (arena === undefined || boss === undefined) return null;
+    // The hover is the baseline every other strip was rebased against, so its
+    // cell is the one the hit box is measured from.
+    let hoverCellAspect = 0;
     for (const motion of boss.motions) {
-      await loadTrimmedSprite(
+      const loaded = await loadTrimmedSprite(
         this.url(motion.atlas),
         bossTextureKey(boss.bossId, motion.state),
         this.textures,
         TRANSPARENCY_POLICY,
       );
+      if (motion.state === "hover" && loaded.canvas.height > 0) {
+        hoverCellAspect =
+          loaded.canvas.width / motion.columns / loaded.canvas.height;
+      }
     }
     for (const shot of manifest.projectiles) {
       await loadTrimmedSprite(
@@ -731,6 +738,8 @@ class RunnerScene extends Phaser.Scene {
         playerFirePeriodSeconds: published.playerFirePeriodSeconds,
         playerShotSpeedColumnsPerSecond: published.playerShotSpeedColumnsPerSecond,
         bossHeightRows: boss.calibration.heightUnits * manifest.scale.playerHeightTiles,
+        bossHalfWidthColumns:
+          (boss.calibration.heightUnits * manifest.scale.playerHeightTiles * hoverCellAspect) / 2,
       },
       arenaChunk: arena,
       moment:

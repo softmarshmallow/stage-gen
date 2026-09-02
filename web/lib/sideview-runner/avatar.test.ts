@@ -300,6 +300,7 @@ describe("thrust locomotion", () => {
     playerFirePeriodSeconds: 0.5,
     playerShotSpeedColumnsPerSecond: 12,
     bossHeightRows: 4,
+    bossHalfWidthColumns: 0,
   };
 
   /** A flat arena world already switched into thrust. */
