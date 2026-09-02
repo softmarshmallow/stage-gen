@@ -1134,3 +1134,57 @@ cannot see what it clicked, so the only check that works is reading the resultin
 Both passes therefore quote every board from the `localStorage` save — which exposes
 `beat_id`, `statement_id`, case facts, per-beat flags, and the room's `fired` / `flags` /
 `solved` — rather than from screenshots.
+
+---
+
+# Art audit 8 — `out/the-grain-scene-5/`, the medium fix verified
+
+The scene graph was re-run against a corrected style anchor:
+
+```
+style_mode  gouache_illustration_2d
+medium      editorial gouache illustration
+traits      opaque matte paint shapes · visible dry-brush texture ·
+            simplified graphic silhouettes · restrained paper grain
+```
+
+**Root cause, traced by the lead to the last inch and worth recording in full**, because
+it locates the contract gap rather than the field: the anchor is chosen by a structured
+call whose entire input is `style_selection_brief` — the `scene_brief` plus each actor's
+appearance and invariants, and nothing else. The `scene_brief` was eighty-two characters
+describing an *event* with no visual content ("A farewell supper in a closed 1972
+department store, and a man found in its window"). The model was asked to choose a
+medium from a plot summary and reasonably chose photography. The rooms escaped only
+because `room.toml` carries an authored `[style]` block. **The scenario package has no
+place to state its medium, so the medium is inferred from whatever prose is nearest.**
+The durable fix is a style block on the scenario contract; the fix taken today was to put
+the medium in the brief's first clause.
+
+## Verified
+
+- **Stages.** `scene-5`'s office stage against `references/cover.png`, with `scene-4`'s
+  as the control: scene-4 is photographic (optical depth of field, real leather
+  highlights, real light through venetian blinds); scene-5 is painted (matte opaque
+  shapes, visible brushwork, simplified silhouettes). scene-5 sits with the cover. The
+  warmer ochre against the cover's blue-black is correct — a late-afternoon interior
+  against a night exterior.
+- **Cast.** `ruth-exposed` across both runs plus `ruth-shut`: scene-4 is photography;
+  scene-5 has visible brushwork on the coat, matte skin and painted modelling. Wardrobe
+  holds across the change, and the expression distinction survives.
+- **Admission.** All six scenarios admit in the run's own validation output, with the
+  same state counts as the CLI. `e1_statements` imports eleven flags including
+  `indicator_at_three` and `ruth_two_fingers` — the two unpaid looks are wired in — and
+  all three of Ward's closes and both of Nell's car branches are in the reachable-label
+  set, so the outcomes the two passes predict are provably reachable before they are
+  attempted.
+
+## The residual gap, recorded and not re-billed
+
+The cast plates are **painterly realism rather than the flat graphic gouache of the
+cover**. The cover's figures are simplified into opaque shapes; Ruth is a realistic
+portrait that happens to be painted. Against the rooms and the stages the episode now
+reads as one world, which is what was broken and is now fixed. Against the cover
+specifically there is still a step. The lever, if it is ever revisited, is the sprite
+treatment line in the anchor — "isolated painted character sprite with a readable
+silhouette" asks for less than the background line, which demands "distinct depth planes"
+and got them.

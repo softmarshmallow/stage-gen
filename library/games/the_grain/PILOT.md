@@ -1220,44 +1220,55 @@ something to draw, so there is nothing to get wrong and nothing to leave stuck o
 
 ## 3. Ledger
 
-Ceiling **USD 250**. Re-plan at 150. All generation stops at 240. Every graph is
-dry-run first and its planned operation count and projected cost recorded here before a
-cent is spent.
+Ceiling **USD 250**. Re-plan at 150. Stop at 240. Every graph was dry-run first and its
+planned operation count recorded before a cent was spent.
 
-Dollars are **estimated**; see the 06:04 decision. Operation counts are authoritative.
+**Dollars are estimated, not metered.** Nothing in this pipeline reports cost: direct
+capability sidecars carry no `usd` field, and a graph run's `known_cost_usd` is present and
+**null** on every provider node. Operation counts below are exact, read from the run
+summaries; dollars are those counts at the brief's own rates (~0.50 an image, ~2.50 a
+track). The ceiling was enforced against a count and a rate.
 
-| Time | Task | Ops planned | Ops run | USD est. | Notes |
-|---|---|---|---|---|---|
-| 05:52 | Cover candidates | 6 | 6 | 3.00 | art lane; `out/the-grain-cover/`, sidecars carry token usage |
-| 06:03 | Music smoke test | 1 | 1 | 2.50 | lead; PASSED, 70.53 s, all gates green |
-| 06:23 | Motor court room | 8 | 8 | 3.00 | lead; ok first attempt, 4 image + 4 structured, proof written |
-| 06:25 | Cast neutral plates | 9 | 9 | 4.50 | art lane; **exploration, not production** — see below |
-| 06:29 | Window room, roll 1 | 10 | 12 | 4.00 | lead |
-| 06:43 | Motor court, roll 2 | 8 | 1 | 0.50 | brief + region fix; UI and anchor cache-hit |
-| 06:43 | Window room, roll 2 | 12 | 4 | 2.00 | outdoors, canonical window |
-| 06:47 | Scene run 1 | 63 | 29 | 14.00 | 12 stages + 4 tracks; cast half failed |
-| 06:50 | Window room, roll 3 | 12 | 4 | 2.00 | the pedestal chair, third attempt |
-| 06:52 | Motor court, roll 3 | 8 | 1 | 0.50 | isolated region-only test |
-| 06:58 | Scene run 2 | 63 | 55 | 20.00 | **all 32 cast plates**; stages and tracks cache-hit |
+### Actuals, by kind
 
-**Operations run so far: 121. Estimated spend: USD 55.00 of 250.** Still well below the
-150 re-plan point. Comfortably below the
-150 re-plan point; the full art run and the three remaining tracks are affordable without
-rationing.
+| Kind | Operations | Rate | Estimated USD |
+|---|---|---|---|
+| `image_generation` | 149 | 0.50 | 74.50 |
+| `music_generation` | 5 | 2.50 | 12.50 |
+| `structured_generation` | 42 | ~0.02 | 0.84 |
+| **Total** | **196** | | **~87.84 of 250** |
 
-**Three zero-cost aborts** are recorded honestly at zero: they died on the `universe_prompts`
-import before a provider client was ever constructed.
+Below the 150 re-plan point; the 240 stop was never approached.
 
-**On the nine cast plates.** The art lane generated them by hand before the lead had
-established that production plates come from the dialogue-scene recipe. They are relabelled
-**unreviewed exploration** — a hand-driven plate has no manifest, no cache identity and no
-lineage, and cannot be played. The money is not wasted: they proved the nine profiles
-produce the right faces before the full run was committed, and the art lane wrote the
-twenty-seven expression directions while looking at them, which is why `capless` is "one
-hand arrested halfway to a bare head" rather than "startled". Catching this stopped roughly
-**39 further operations** that could never have been played.
+### By run
 
----
+| Run | Ops | Outcome |
+|---|---|---|
+| `the-grain-cover` | 6 | six candidates; candidate 1 promoted as the style plate |
+| `the-grain-music` | 1 | the Lyria smoke test, exploration |
+| `the-grain-cast` | 9 | neutral plates, **exploration** — hand-driven, unplayable, relabelled |
+| `the-grain-motor-court` | 8 | roll 1 |
+| `the-grain-motor-court-2` | 1 | brief + region fix; UI and anchor cache-hit |
+| `the-grain-motor-court-3` | 1 | isolated region-only test; **ships** |
+| `the-grain-window` | 12 | roll 1 |
+| `the-grain-window-2` | 4 | outdoors, canonical window |
+| `the-grain-window-3` | 4 | the pedestal chair; **ships** |
+| `the-grain-window-4` | 1 | twelve measured rectangles; rejected, see 07:20 |
+| `the-grain-scene` | 39 | stages + tracks; cast half failed on the base-plate port |
+| `the-grain-scene-2` | 55 | all 32 plates; bundle refused a landscape style plate |
+| `the-grain-scene-3` | 0 | 114 cache hits; bundle refused an untrimmed slice |
+| `the-grain-scene-4` | 0 | 114 cache hits; **bundle written** — and then superseded |
+| `the-grain-scene-5` | 55 | the whole episode redrawn in gouache; **ships** |
+
+**Where the money went that did not ship.** 39 operations on a scene run whose cast half was
+killed by a hard-coded expression name; 9 on hand-driven plates that could never have been
+played; 12 on a window room briefed as an interior; 55 on a scene run in the wrong medium.
+That is roughly **115 of 196 operations — 59% — spent on work that was replaced.** Every one
+of those was a defect found by looking at the output rather than by a gate, and four of the
+five were found by QA. A pilot that had trusted its proofs would have shipped all of them.
+
+Three aborts on the `universe_prompts` import are recorded at zero: the process died before
+a provider client was constructed.
 
 ## 4. Screenshots
 
