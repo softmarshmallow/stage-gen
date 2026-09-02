@@ -36,7 +36,7 @@ mode = "generated_v1"                  # or "procedural_v1": no references, no p
 layout = "cut_in_frame_1536x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover_style"]
-prompt = "A torn strip in the cover's print-poster register."
+prompt = "The cover's print-poster register: flat white paper stock, bold hand-inked black rim."
 
 [[cut_in.portraits]]
 portrait_id = "stage_start"
@@ -63,7 +63,7 @@ fade. Separating it afterwards is a segmentation problem, not a transform.
 
 | part | owner | alpha | produced by |
 | --- | --- | --- | --- |
-| `frame` — one torn strip, flat white fill, black ink rim | style-scoped, character-agnostic | binary | the image model, or a local procedural drawing |
+| `frame` — one paper cut-out, flat white fill, black ink rim | style-scoped, character-agnostic | binary | the image model, or a local procedural drawing |
 | `portrait` — one die-cut close-up | character-scoped, bound to the same digest-locked references the actor uses | soft edge admitted | the image model |
 | backdrop, stripes, lettering | runtime | — | the consumer |
 | placement — where the portrait sits inside the frame's opening | judged once per portrait | — | the tool-loop agent (below) |
@@ -148,12 +148,15 @@ producer it was handed.
 `[cut_in.frame]` carries two pieces of prose with two jobs. `prompt` is the rip's
 **register** — paper, ink, how the tear reads — and `shape` is its **silhouette**. An
 authored `shape` replaces the component's default sentence outright rather than arguing with
-it inside one prompt, so the two can never contradict each other:
+it inside one prompt. The prose around the slot is shape-neutral for the same reason: it asks
+for paper, ink and emptiness and never for a *kind* of edge, so exactly one sentence in the
+brief describes how the silhouette is cut. Keep the register that way too — an edge
+instruction in `prompt` outvotes the shape slot, and the model follows the majority:
 
 ```toml
 [cut_in.frame]
 mode = "generated_v1"
-prompt = "A torn strip in the cover's print-poster register: flat white paper, bold hand-inked black rim."
+prompt = "The cover's print-poster register: flat white paper stock, bold hand-inked black rim."
 shape = "Three overlapping torn shards fanned across the canvas, the middle one widest."
 ```
 

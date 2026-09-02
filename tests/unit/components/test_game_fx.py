@@ -108,14 +108,15 @@ def test_a_procedural_frame_authors_no_references_and_no_prompt() -> None:
         b'layout = "cut_in_frame_1536x1024_v1"\n'
         b'alpha_policy = "transparent_exterior_opaque_body_v1"\n'
         b'reference_ids = ["cover_style"]\n'
-        b'prompt = "A torn strip'
+        b'prompt = "The cover'
     )
     procedural_frame = (
         b'mode = "procedural_v1"\n'
         b'layout = "cut_in_frame_1536x1024_v1"\n'
         b'alpha_policy = "transparent_exterior_opaque_body_v1"\n'
-        b'# prompt = "A torn strip'
+        b'# prompt = "The cover'
     )
+    source = _without_shape(source)
     assert generated_frame in source
     procedural = source.replace(generated_frame, procedural_frame)
     # The cover reference is now unused; drop its whole block so the closure holds.
@@ -130,18 +131,27 @@ def test_a_procedural_frame_authors_no_references_and_no_prompt() -> None:
     assert contract.cut_in.frame.prompt is None
 
 
-def test_an_authored_shape_belongs_to_the_generated_frame_alone() -> None:
-    source = _source()
-    shaped = source.replace(
-        b'reference_ids = ["cover_style"]\n',
-        b'reference_ids = ["cover_style"]\nshape = "Three overlapping torn shards."\n',
-        1,
-    )
-    contract = load_game_fx_bytes(shaped)
+def _without_shape(source: bytes) -> bytes:
+    """The package authors a frame shape; some rules are about a package that does not."""
+
+    start = source.index(b"shape = ")
+    return source[:start] + source[source.index(b"\n", start) + 1 :]
+
+
+def test_the_authored_shape_is_the_frames_silhouette_and_the_prompt_its_register() -> None:
+    contract = load_game_fx_bytes(_source())
     assert contract.cut_in is not None
-    assert contract.cut_in.frame.shape == "Three overlapping torn shards."
-    # A frame with no authored shape keeps the component's default one.
-    assert load_game_fx_bytes(source).cut_in.frame.shape is None  # type: ignore[union-attr]
+    shape = contract.cut_in.frame.shape
+    assert shape is not None and shape.startswith("One wide shard on a strong diagonal")
+    # The silhouette is described by character, never by counts: a countable claim turns the
+    # reviewer into a spec checker the image model cannot reliably satisfy.
+    assert not any(word in shape for word in ("two or three", "three or four", "half the"))
+    assert contract.cut_in.frame.prompt is not None
+    assert "print-poster register" in contract.cut_in.frame.prompt
+    # A frame with no authored shape falls back to the component's default one.
+    bare = load_game_fx_bytes(_without_shape(_source()))
+    assert bare.cut_in is not None
+    assert bare.cut_in.frame.shape is None
 
 
 def test_a_portrait_prompt_never_states_an_age() -> None:

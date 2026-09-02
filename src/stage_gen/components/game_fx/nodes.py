@@ -106,7 +106,7 @@ TOOL_LOOP_FEATURES = ("tool_use", "image_input")
 #: validation version instead. The validation version is per role: the portrait's
 #: record gained its placement, the frame's did not, and one shared constant would
 #: rekey the frame's review through lineage for nothing.
-FX_CUT_IN_CONTRACT_VERSION = "prepared-fx-cut-in-v1"
+FX_CUT_IN_CONTRACT_VERSION = "prepared-fx-cut-in-v2"
 FX_CUT_IN_DRAW_VERSION = "prepared-fx-cut-in-draw-v1"
 FX_CUT_IN_FRAME_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v3"
 FX_CUT_IN_PORTRAIT_VALIDATION_VERSION = "prepared-fx-cut-in-validation-v3"
@@ -207,12 +207,18 @@ _FRAME_SHAPE_DEFAULT = (
     "canvas height, with rough hand-torn jagged edges along its top and its bottom."
 )
 
+#: The frame around the slot says paper, ink and emptiness — never how the edge is cut.
+#: It used to open "one torn-paper rip" and end on "hugging its torn edges", which outvoted
+#: an authored shape three to one: two live rejects in a row said the silhouette came back
+#: conventionally ragged however clearly the shape asked for clean facets. Edge character
+#: belongs to exactly one sentence, and the default one still says hand-torn.
 _FRAME_TASK = (
-    "Create one torn-paper rip silhouette to be used as a game cut-in frame. {shape} It must "
+    "Create one paper cut-out silhouette to be used as a game cut-in frame. {shape} It must "
     "read as a single bold graphic element that carries the width of the screen. Fill it with "
-    "flat pure white only, and draw a thick uneven black hand-inked outline hugging its torn "
-    "edges. Nothing at all inside it: no drawing, no character, no texture, no shadow, no "
-    "gradient, no colour. Flat graphic 2D, bold print-poster cut-out look."
+    "flat pure white only, and draw a thick uneven black hand-inked outline hugging its "
+    "edges, following their shape exactly. Nothing at all inside it: no drawing, no "
+    "character, no texture, no shadow, no gradient, no colour. Flat graphic 2D, bold "
+    "print-poster cut-out look."
 )
 
 _PORTRAIT_TASK = (

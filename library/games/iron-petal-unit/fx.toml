@@ -1,7 +1,7 @@
 schema_version = 2
 kind = "game-fx-v2"
 game_id = "iron-petal-unit"
-revision = 2
+revision = 3
 
 [[references]]
 reference_id = "operator_primary"
@@ -29,7 +29,8 @@ mode = "generated_v1"
 layout = "cut_in_frame_1536x1024_v1"
 alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover_style"]
-prompt = "A torn strip in the cover's print-poster register: flat white paper with a bold hand-inked black rim, torn rough and quick like a rescue notice ripped off a greenhouse wall."
+prompt = "The cover's print-poster register: flat white paper stock, a bold uneven hand-inked black rim, the graphic weight of a notice pinned up in a greenhouse service bay."
+shape = "One wide shard on a strong diagonal, running off both the left and the right edge of the canvas and thick enough along its whole length to carry a face. Its top and its bottom edge are long and clean, broken here and there by a sharp angular chip, so it reads as a sheet slashed open rather than fringed or frayed."
 
 [[cut_in.portraits]]
 portrait_id = "stage_start"
