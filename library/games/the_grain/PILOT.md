@@ -1366,7 +1366,66 @@ QA's play-through captures are the in-play evidence and are listed in section 5.
 
 ## 5. Play notes
 
-*(two QA passes: one "watch the Holts", one "watch Ruth and Paul")*
+Two passes, played on `the-grain-scene-5` and `the-grain-window-3`. Boards are **quoted from
+`localStorage` state at each beat**, not eyeballed. QA stated its predictions **before**
+playing, so each pass is a test rather than a description.
+
+### Pass 1 — the thin board
+
+A Henry who watches the Holts, looks at almost nothing, and keeps almost everything.
+Reached the ending: *"The case is closed. It ended through `left_alone`."*
+
+**Seventeen facts at the statement.**
+
+| | |
+|---|---|
+| carried in | `place_card_moved_twice`, `rang_the_bell`, `suitcase_unopened`, `hand_in_the_door`, `would_you_have_come_first`, `marian_salt`, `envelope_hear_it`, `saucers_crossed_out`, `key_returned_to_edwin`, `paul_not_to_wait`, `paul_needed_to_think`, `saw_body`, `left_the_room` |
+| said to Ward | `kept_reaction`, `kept_key_origin`, `kept_frightened`, `kept_paul_words` |
+
+Not held, and this is the point of the pass: no `eighth_card`, no `ruth_knife_on_plate`, no
+`brass_key_after_dessert`, no `pocketknife_lent`, no `coffee_not_drunk`, no `smear_on_shoe`,
+no `indicator_at_three`, no `ruth_two_fingers`, and **nothing at all from the window beyond
+the body**.
+
+**All three predictions held.** Ward closed on `ward_close_plain` with `ward_regard` unset.
+`told_nell_in_the_court` unset, so Nell got into the car **without turning back**. The
+episode ended through `left_alone`.
+
+### The gating works, and it is the pass's real finding
+
+This is the episode's central promise — *what he watched he saw, and what he saw he can
+later say* — and it is enforced by the script, visibly, at every beat:
+
+| Beat | What a thin Henry was offered |
+|---|---|
+| Ruth and the card | two options. *"Her reaction said no."* is **absent** — not refused, not there |
+| the key | one option: *"He had it at the table."* |
+| her return | routed to `return_ward_asks`, never `return_ward_knows`. *"She didn't drink the coffee."* never offered |
+| June's sentence | **the whole beat skipped.** Ward never asks, because nobody told him there is a sentence |
+| Nell in the court | one option: *"I'm not going to describe it to you."* |
+| what Paul said | **all three offered** — both accounts are unmissable, so what Henry gives is a real choice rather than a capability |
+
+**A player cannot lie upward.**
+
+### What pass 1 broke
+
+**The board was destroyed at the ending.** Reaching `left_alone` cleared `localStorage`
+entirely — the seventeen facts, `ward_regard`, what Henry told Ruth, what he said to Nell,
+all discarded at the exact moment they became the episode's output. `FACTS.md` says what
+Henry carries into Episode Two is the board, exactly; as shipped, nothing carried, and a
+player had no way to see what they had left the building with.
+
+**Fixed at 07:52.** A `case_result_v1` record is written under its own key before the save
+is cleared, and the closing card now shows what was carried. Found by playing to the end,
+by no gate.
+
+Two smaller things, both recorded as debt rather than fixed: the window room's narration
+panel overflows where the exit and win narrations concatenate into three lines, and a
+one-option menu is presented identically to a real choice.
+
+### Pass 2 — the thick board
+
+*(in progress: everything looked at, the paper pulled free, everything told)*
 
 ---
 
