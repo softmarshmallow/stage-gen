@@ -982,6 +982,52 @@ alternative — cropping a wide establishing shot into portrait — re-bills all
 about USD 23 **and** hands every downstream draw a worse reference. Paying to make the art
 worse is the wrong trade, and the pilot said so rather than taking the quick way.
 
+### 06:55 — Gate 5, with the attribution the brief asked for
+
+`uv run python scripts/check.py` is **red on exactly one error**, and it is not this pilot's:
+
+```
+ruff format --check .   548 files already formatted
+ruff check .            All checks passed!
+mypy --strict           tests/unit/components/runner_track/test_structural_ground.py:643:
+                        Value of type "float | tuple[int, ...]" is not indexable
+                        Found 1 error in 1 file (checked 421 source files)
+```
+
+That file belongs to the agent working outside this pilot, and it is **committed**, not a
+working-tree edit — `5db441e` and `61526db`, both theirs. The pilot did not touch
+`components/runner_track/` at any point.
+
+Measured against the pilot's own scope — `components/case`, `components/scenario`,
+`orchestration`, `recipes/dialogue_scene` — `mypy --strict` reports **no issues in 30 source
+files**. Formatting and lint are clean repository-wide.
+
+The earlier red reported by the lanes (collection errors across the CLI-importing test
+modules) has cleared: it was the mid-flight `EXPRESSION_STATES` window, not a defect.
+
+### 06:56 — The bundle: a style plate that is not a portrait, and a slice that forgets to trim
+
+Two terminal-node refusals in a row, both after the art was drawn and paid for, and both
+worth recording because they share a shape: **a contract asserted at the end of a graph
+about inputs the beginning of the graph already accepted.**
+
+**One — the style plate must be portrait.** `(1024, 1536, False)`. Larkfield's plate is a
+portrait of one person; ours is a landscape establishing shot. All 47 image nodes drew
+against it without complaint. Fixed by the recipe lane within minutes of being asked, and
+the re-run then cost **zero provider operations against 114 cache hits** — which is also a
+clean demonstration that the cache identity survived the contract change.
+
+**Two — the manifest slices authored prose without trimming.** `stage.brief[:160]`,
+`description[:120]`. When the cut lands on a space the result carries trailing whitespace
+and the model refuses it for not being trimmed. The office stage brief happens to break at
+character 160 mid-phrase — *"…a painted name reversed on it, two client "* — and Ward's
+description breaks at 120 the same way.
+
+The second is the more instructive: it is invisible until the terminal node, it depends on
+nothing but the length of a sentence someone wrote, and it would bite any author whose prose
+happened to be the wrong length. Routed with a request to sweep the module for other bare
+slices on authored text rather than discovering them one run at a time.
+
 ---
 
 ## 3. Ledger
