@@ -267,6 +267,20 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       would yield 133px of slack with no regeneration, at the cost of an 18 percent change in
       apparent scale and therefore a fresh semantic review of every map layer.
 
+## Rendering
+
+- [ ] Sprites are still minified without mipmaps. Every game now draws at device pixel resolution
+      (`web/lib/device-pixels/device-camera.ts`, `40a3750`), which removed the visible pixelation
+      on the runner's player, but the underlying sampling is unchanged: an actor sheet's figure
+      is 500-700 source pixels tall and drawn at 154 design pixels, so even at a 2x device ratio
+      the GPU takes one bilinear tap per output pixel across a 2x2 texel footprint or wider.
+      Phaser leaves `mipmapFilter` empty by default and only generates mipmaps for power-of-two
+      textures, which the 1536x1024 atlases and alpha-trimmed cells are not. If jagged sprites
+      return - on a 1x screen, a taller design-space character, or a heavier minification - the
+      fix is a filtered pre-shrink of the trimmed cells at load time toward display height times
+      device ratio, or power-of-two padding plus `render.mipmapFilter`. Higher source resolution
+      makes it worse, not better.
+
 ## Runner gameplay: the CookieRun adoption
 
 The reference is **CookieRun: OvenBreak**, adopted for its level *language* and explicitly refused
