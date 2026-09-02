@@ -10,6 +10,7 @@
 // a section by registering, not by editing this file's markup.
 
 import Link from "next/link";
+import { listReadyCases } from "@/lib/shell/case-io";
 import { listReadyProjects } from "@/lib/shell/projects";
 import { listReadyScenes } from "@/lib/shell/dialogue-scene";
 import { listReadyRooms } from "@/lib/shell/pointclick-room";
@@ -186,8 +187,9 @@ function GenreSection({
 
 export default async function Home() {
   const listed = SCENE_MODULES.filter((module) => module.kind in GENRE_SECTIONS);
-  const [views, sections] = await Promise.all([
+  const [views, cases, sections] = await Promise.all([
     listExecutionViewRuns(),
+    listReadyCases(),
     Promise.all(listed.map((module) => GENRE_SECTIONS[module.kind].load())),
   ]);
   return (
@@ -206,6 +208,47 @@ export default async function Home() {
           first={index === 0}
         />
       ))}
+
+      {/* A case sits above the leaves: several scenarios and rooms played in
+          order at one URL, with a shared set of facts crossing between them. */}
+      <section className="mt-8 border-t border-border pt-4">
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">cases</span>
+          <span className="text-dim opacity-60"> · {cases.length + 1}</span>
+        </div>
+        <ul className="flex list-none flex-col gap-1.5">
+          {cases.map((entry) => (
+            <li
+              key={entry.tag}
+              className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-[13px] text-fg">{entry.displayName}</div>
+                <div className="mt-0.5 truncate text-[11px] text-dim">
+                  {entry.tag} · {entry.beats} beats
+                </div>
+              </div>
+              <Link
+                className={cx(playActive, playSizeCompact)}
+                href={`/case/${encodeURIComponent(entry.tag)}`}
+              >
+                [ ▶ play case ]
+              </Link>
+            </li>
+          ))}
+          <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
+            <div className="min-w-0">
+              <div className="truncate text-[13px] text-fg">A demonstration case</div>
+              <div className="mt-0.5 truncate text-[11px] text-dim">
+                demo · scenario, room, scenario · hand-authored fixture
+              </div>
+            </div>
+            <Link className={cx(playActive, playSizeCompact)} href="/case/demo">
+              [ ▶ play case ]
+            </Link>
+          </li>
+        </ul>
+      </section>
 
       <section className="mt-8 border-t border-border pt-4">
         <div className="mb-2 text-[13px]">

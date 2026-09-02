@@ -1,34 +1,38 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import ScenePlayer from "./ScenePlayer";
+import CasePlayer from "@/app/_play/CasePlayer";
+import { singleBeatCase } from "@/lib/shell/case";
 import { readSceneFixture } from "@/lib/shell/dialogue-scene";
 import { isSafeRunTag } from "@/lib/shell/runs";
 
 export const dynamic = "force-dynamic";
 
 // The visual-novel consumer, played straight out of the run that produced it —
-// the same shape the point-and-click room uses, on the same engine. Installing a
-// scene as the site's active theme is a separate, deliberate act; this page is
+// the same shape the point-and-click room uses, on the same engine. This page is
 // for looking at what you just generated, so it reads `out/<tag>/bundle.json`
-// and streams that run's own assets. The only chrome is one way back out.
+// and streams that run's own assets.
+//
+// It is a case of one beat. The shell — autosave at every statement, a Continue
+// when a save is waiting, the backlog — belongs to every leaf, not only to the
+// ones a case chains, and a scene played on its own that could not be resumed
+// would be a second, worse consumer of the same runtime.
 export default async function ScenePage({ params }: { params: Promise<{ tag: string }> }) {
   const { tag } = await params;
   if (!isSafeRunTag(tag)) notFound();
   const fixture = await readSceneFixture(tag);
   if (!fixture) notFound();
+  const caseDocument = singleBeatCase(fixture.title, "scenario", tag);
   return (
-    <main className="fixed inset-0 flex flex-col bg-black">
-      <div className="flex items-center gap-3 px-3 py-1.5 text-[11px] text-dim">
-        <Link href="/" className="shrink-0 whitespace-nowrap text-fg no-underline">
-          [ ◂ back ]
-        </Link>
-        <span className="truncate">
-          {fixture.title} · <span className="text-fg">{tag}</span>
-        </span>
-      </div>
-      <div className="min-h-0 flex-1">
-        <ScenePlayer fixture={fixture} />
-      </div>
-    </main>
+    <CasePlayer
+      tag={tag}
+      caseDocument={caseDocument}
+      leaves={[
+        {
+          beat: caseDocument.beats[0]!,
+          scene: fixture,
+          room: null,
+          error: null,
+        },
+      ]}
+    />
   );
 }
