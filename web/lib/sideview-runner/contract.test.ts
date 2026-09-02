@@ -5,8 +5,12 @@ import {
   RUNNER_REFUSAL,
 } from "./contract";
 import {
+  runnerArenaChunkFixture,
+  runnerBossFixture,
   runnerCalibrationFixture as calibration,
+  runnerManifestFixture,
   runnerManifestFixture as validRunnerManifest,
+  runnerMotionFixture,
   runnerMotionFixture as motion,
 } from "./fixture";
 
@@ -643,5 +647,152 @@ describe("the fx block", () => {
     document.kind = "sideview-runner-runtime-v8";
     document.schema_version = 8;
     expect(() => parseRunnerRuntimeManifest(document)).toThrow(RUNNER_REFUSAL);
+  });
+});
+
+describe("the encounter contract", () => {
+  test("parses the fight, its boss, its projectiles and its arena", () => {
+    const manifest = parseRunnerRuntimeManifest(runnerManifestFixture({ encounter: true }));
+
+    const encounter = manifest.gameplay.encounter;
+    expect(encounter).not.toBeNull();
+    expect(encounter?.bossId).toBe("thicket_router");
+    expect(encounter?.locomotion).toBe("thrust_v1");
+    expect(manifest.bosses.map((entry) => entry.bossId)).toEqual(["thicket_router"]);
+    expect(manifest.projectiles.map((entry) => entry.projectileId)).toEqual([
+      "thorn_burst",
+      "spark_pin",
+    ]);
+    expect(
+      manifest.segments.chunks.filter((entry) => entry.role === "arena").map((c) => c.segmentId),
+    ).toEqual(["boss_arena"]);
+    expect(manifest.gameplay.consequences.shot).toBe("drain_v1");
+    expect(Object.isFrozen(encounter)).toBe(true);
+  });
+
+  test("a package that fights nothing publishes empty catalogs and a null block", () => {
+    const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
+
+    expect(manifest.gameplay.encounter).toBeNull();
+    expect(manifest.bosses).toEqual([]);
+    expect(manifest.projectiles).toEqual([]);
+    expect(manifest.gameplay.consequences.shot).toBeNull();
+  });
+
+  test("an ordinary chunk cannot be the arena a fight is fought over", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.encounter = {
+      ...(gameplay.encounter as Record<string, unknown>),
+      arena_segment_id: "meadow_flat",
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("names no arena chunk");
+  });
+
+  test("an arena carrying a hazard is refused", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const segments = document.segments as Record<string, unknown>;
+    const chunks = segments.chunks as Record<string, unknown>[];
+    chunks[chunks.length - 1] = {
+      ...runnerArenaChunkFixture(),
+      hazards: [
+        { prop_id: "toppled_cart", column: 6, anchor: "surface", clearance_rows: null },
+      ],
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("carries no hazards");
+  });
+
+  test("an encounter naming an unpublished boss or projectile is refused", () => {
+    for (const [field, message] of [
+      ["boss_id", "names no published boss"],
+      ["boss_projectile_id", "names no published projectile"],
+    ] as const) {
+      const document = runnerManifestFixture({ encounter: true });
+      const gameplay = document.gameplay as Record<string, unknown>;
+      gameplay.encounter = {
+        ...(gameplay.encounter as Record<string, unknown>),
+        [field]: "absent",
+      };
+      expect(() => parseRunnerRuntimeManifest(document)).toThrow(message);
+    }
+  });
+
+  test("one projectile flying both ways is refused", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.encounter = {
+      ...(gameplay.encounter as Record<string, unknown>),
+      player_projectile_id: "thorn_burst",
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("one projectile");
+  });
+
+  test("a salvo that cannot leave the avatar a lane is refused", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.encounter = {
+      ...(gameplay.encounter as Record<string, unknown>),
+      projectile_height_rows: 1.5,
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("lane");
+  });
+
+  test("the fly strip is owed with an encounter and refused without one", () => {
+    const missing = runnerManifestFixture({ encounter: true });
+    const avatar = missing.avatar as Record<string, unknown>;
+    avatar.motions = (avatar.motions as Record<string, unknown>[]).filter(
+      (entry) => entry.state !== "fly",
+    );
+    expect(() => parseRunnerRuntimeManifest(missing)).toThrow("missing the fly state");
+
+    const spare = runnerManifestFixture();
+    const plainAvatar = spare.avatar as Record<string, unknown>;
+    plainAvatar.motions = [
+      ...(plainAvatar.motions as Record<string, unknown>[]),
+      { ...runnerMotionFixture("fly", "loop"), atlas: "avatar/fly.png" },
+    ];
+    expect(() => parseRunnerRuntimeManifest(spare)).toThrow("no encounter");
+  });
+
+  test("a shot answer and an encounter each require the other", () => {
+    const unanswered = runnerManifestFixture({ encounter: true });
+    const gameplay = unanswered.gameplay as Record<string, unknown>;
+    gameplay.consequences = {
+      ...(gameplay.consequences as Record<string, unknown>),
+      shot: null,
+    };
+    expect(() => parseRunnerRuntimeManifest(unanswered)).toThrow("exactly when an encounter");
+  });
+
+  test("a boss owes every state it fights with", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const bosses = document.bosses as Record<string, unknown>[];
+    bosses[0] = {
+      ...runnerBossFixture(),
+      motions: (runnerBossFixture().motions as Record<string, unknown>[]).filter(
+        (entry) => entry.state !== "death",
+      ),
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("declares no death motion");
+  });
+
+  test("the boss holds its hover and performs everything else once", () => {
+    const document = runnerManifestFixture({ encounter: true });
+    const bosses = document.bosses as Record<string, unknown>[];
+    bosses[0] = {
+      ...runnerBossFixture(),
+      motions: [
+        { ...runnerMotionFixture("hover", "once"), atlas: "boss/thicket_router/hover.png" },
+        { ...runnerMotionFixture("attack", "once"), atlas: "boss/thicket_router/attack.png" },
+        { ...runnerMotionFixture("death", "once"), atlas: "boss/thicket_router/death.png" },
+      ],
+    };
+
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("must play loop");
   });
 });

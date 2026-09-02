@@ -15,6 +15,7 @@ import io
 import json
 import math
 from collections.abc import Mapping as MappingABC
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from PIL import Image
@@ -49,6 +50,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.actor_content import MotionPresentation
 from stage_gen.components.game_fx.cut_in import (
     admit_cut_in_placement,
     draw_procedural_frame,
@@ -78,7 +80,11 @@ from stage_gen.components.game_fx.nodes import (
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
 from stage_gen.components.runner_audio import RunnerAudioContract
-from stage_gen.components.runner_content import declared_motion_states
+from stage_gen.components.runner_content import (
+    RUNNER_BOSS_BASELINE_STATE,
+    declared_boss_motion_states,
+    declared_motion_states,
+)
 from stage_gen.components.runner_gameplay import (
     COLLISION_BOXES,
     DUCK_PROFILES,
@@ -103,6 +109,7 @@ from stage_gen.components.runner_track import (
     validate_structural_ground_source,
 )
 from stage_gen.components.sideview_actor.asset_unit import (
+    SubjectExtentAxis,
     calibrate_subject,
     measure_subject_extent,
     resolve_declared_magnitude,
@@ -171,8 +178,13 @@ from stage_gen.recipes.sideview_runner.runner_prompts import (
 from stage_gen.recipes.sideview_runner.runner_types import (
     ATTEMPT_LEDGER_KIND,
     AVATAR_CONCEPT_GENERATE,
+    AVATAR_CONCEPT_KIND,
     AVATAR_MOTION_GENERATE,
     AVATAR_MOTION_VALIDATE,
+    BOSS_CONCEPT_GENERATE,
+    BOSS_CONCEPT_KIND,
+    BOSS_MOTION_GENERATE,
+    BOSS_MOTION_VALIDATE,
     CATALOG_ASSET_GENERATE,
     CATALOG_ASSET_VALIDATE,
     CATALOG_RAW_KIND,
@@ -232,6 +244,34 @@ if TYPE_CHECKING:
 
 RUNNER_HANDLER_VERSION = "1"
 RUNNER_BASELINE_STATE = "run"
+
+
+@dataclass(frozen=True, slots=True)
+class _ActorSubject:
+    """Which drawn actor a node is about.
+
+    The runner draws two kinds of actor through one pipeline: the avatar it
+    always has, and the boss an encounter brings. They differ in their
+    vocabulary, their baseline and where their art lands, and in nothing else -
+    the concept, the strips, the repack and the two rebase judgements are the
+    same operation on both. Resolving the subject from the node's own params is
+    what keeps that one pipeline rather than two copies drifting apart.
+    """
+
+    label: str
+    entity_id: str
+    display_name: str
+    motions: tuple[MotionPresentation, ...]
+    states: tuple[str, ...]
+    baseline_state: str
+    #: Where this actor's artifacts live, relative to the run directory.
+    artifact_dir: str
+    concept_kind: str
+
+    def motion(self, state: str) -> MotionPresentation:
+        return next(entry for entry in self.motions if entry.state == state)
+
+
 #: The one place the unit meets pixels in this recipe, matching the platformer's
 #: projection so a shared avatar reads at the same magnitude in both genres.
 RUNTIME_TILE_PX = 64
@@ -574,6 +614,43 @@ def _validate_motion_candidate(
     return {"source": source, "repack": repack}
 
 
+def _manifest_encounter(gameplay: RunnerGameplayContract) -> dict[str, object] | None:
+    """The encounter block: every named field, and every number a proof read.
+
+    Flat, like the run's own arithmetic beside it. The runtime mirrors these
+    proofs rather than re-deriving them, so publishing the whole table is what
+    keeps the played fight the fight admission proved.
+    """
+
+    encounter = gameplay.encounter
+    if encounter is None:
+        return None
+    boss = encounter.boss_profile()
+    thrust = encounter.thrust_profile()
+    return {
+        "profile": encounter.profile,
+        "locomotion": encounter.locomotion,
+        "interval_columns": encounter.interval_columns,
+        "arena_segment_id": encounter.arena_segment_id,
+        "boss_id": encounter.boss_id,
+        "boss_projectile_id": encounter.boss_projectile_id,
+        "player_projectile_id": encounter.player_projectile_id,
+        "max_climb_rows_per_second": thrust.max_climb_rows_per_second,
+        "max_fall_rows_per_second": thrust.max_fall_rows_per_second,
+        "climb_acceleration_rows_per_second2": thrust.climb_acceleration_rows_per_second2,
+        "firing_distance_columns": boss.firing_distance_columns,
+        "projectile_speed_columns_per_second": boss.projectile_speed_columns_per_second,
+        "projectile_height_rows": boss.projectile_height_rows,
+        "salvo_shots": boss.salvo_shots,
+        "salvo_period_seconds": boss.salvo_period_seconds,
+        "salvo_budget": boss.salvo_budget,
+        "lane_margin_rows": boss.lane_margin_rows,
+        "hits_to_defeat": boss.hits_to_defeat,
+        "player_fire_period_seconds": boss.player_fire_period_seconds,
+        "player_shot_speed_columns_per_second": boss.player_shot_speed_columns_per_second,
+    }
+
+
 def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
     """The manifest's published gameplay block, one key per refusal-bearing number.
 
@@ -592,7 +669,15 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
         "jump_profile": gameplay.run.jump_profile,
         "collision_box": gameplay.run.collision_box,
         "duck_profile": gameplay.run.duck_profile,
-        "consequences": gameplay.run.consequences.by_source(),
+        # Always the full source table, with `shot` explicitly null when no
+        # encounter can fire one: a consumer must never have to tell "absent"
+        # from "unanswered".
+        "consequences": {
+            "hazard": gameplay.run.consequences.hazard,
+            "pit": gameplay.run.consequences.pit,
+            "crush": gameplay.run.consequences.crush,
+            "shot": gameplay.run.consequences.shot,
+        },
         "vitals": (
             None
             if vitals is None
@@ -607,6 +692,7 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
         "max_rise_tiles": jump.max_rise_tiles,
         "jump_peak_margin_tiles": jump.peak_margin_tiles,
         "airtime_headroom": jump.airtime_headroom,
+        "encounter": _manifest_encounter(gameplay),
         "base_speed_columns_per_second": speed.base_speed_columns_per_second,
         "max_speed_multiplier": speed.max_speed_multiplier,
         "avatar_half_width_columns": collision.avatar_half_width_columns,
@@ -1221,7 +1307,8 @@ class SideviewRunnerNodeHandler:
                     "operation": f"loop_{construction}",
                 },
             )
-        if node.type_id == AVATAR_CONCEPT_GENERATE.type_id:
+        if node.type_id in (AVATAR_CONCEPT_GENERATE.type_id, BOSS_CONCEPT_GENERATE.type_id):
+            subject = self._actor(node)
             return ImageGenerationRequest(
                 prompt=self._card_prompt(node),
                 artifact_path=output,
@@ -1231,16 +1318,15 @@ class SideviewRunnerNodeHandler:
                 output_format="png",
                 size="1024x1536",
                 timeout_seconds=600,
-                metadata={"avatar_id": self._runner.avatar.avatar.avatar_id},
+                metadata={f"{subject.label}_id": subject.entity_id},
                 validate=lambda artifact: _validate_transparent_sprite(artifact.data),
             )
-        if node.type_id == AVATAR_MOTION_GENERATE.type_id:
+        if node.type_id in (AVATAR_MOTION_GENERATE.type_id, BOSS_MOTION_GENERATE.type_id):
             geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
+            subject = self._actor(node)
             state = str(node.params["state"])
-            motion = next(
-                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
-            )
-            concept_ref = self._dependency_artifact(node, kind="avatar-concept-v1")
+            motion = subject.motion(state)
+            concept_ref = self._dependency_artifact(node, kind=subject.concept_kind)
             concept = (self._run_dir / concept_ref).read_bytes()
             return ImageGenerationRequest(
                 prompt=self._card_prompt(node),
@@ -1253,7 +1339,7 @@ class SideviewRunnerNodeHandler:
                 output_format="png",
                 size=geometry.provider_size,
                 timeout_seconds=600,
-                metadata={"avatar_id": self._runner.avatar.avatar.avatar_id, "state": state},
+                metadata={f"{subject.label}_id": subject.entity_id, "state": state},
                 validate=lambda artifact: _validate_motion_candidate(
                     artifact.data, anchor=motion.anchor
                 ),
@@ -1483,7 +1569,7 @@ class SideviewRunnerNodeHandler:
             plate_ref = f"run://{node.port('plate').artifact_ref}"
             reference = StructuredReference(_data_url(plate_data, "image/png"), plate_ref)
             refs, inputs = self._reference_identity((reference,))
-            states = list(declared_motion_states(self._runner.avatar.avatar))
+            states = list(self._actor(node).states)
             schema_description = (
                 "Per-state draw-scale multipliers against an actor's baseline"
                 if node.type_id == MOTION_REBASE_JUDGE.type_id
@@ -1649,20 +1735,17 @@ class SideviewRunnerNodeHandler:
             layer = self._layer(node)
             _validate_layer_candidate(data, transparent=layer.alpha_mode == "transparent")
             return
-        if node.type_id == AVATAR_CONCEPT_GENERATE.type_id:
+        if node.type_id in (AVATAR_CONCEPT_GENERATE.type_id, BOSS_CONCEPT_GENERATE.type_id):
             facts = _validate_transparent_sprite(data)
             self._require_equal(
                 (facts["width"], facts["height"]),
                 (1024, 1536),
-                label="avatar concept dimensions",
+                label=f"{self._actor(node).label} concept dimensions",
             )
             return
-        if node.type_id == AVATAR_MOTION_GENERATE.type_id:
+        if node.type_id in (AVATAR_MOTION_GENERATE.type_id, BOSS_MOTION_GENERATE.type_id):
             state = str(node.params["state"])
-            motion = next(
-                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
-            )
-            _validate_motion_candidate(data, anchor=motion.anchor)
+            _validate_motion_candidate(data, anchor=self._actor(node).motion(state).anchor)
             return
         if node.type_id == CATALOG_ASSET_GENERATE.type_id:
             facts = _validate_catalog_candidate(data, family=str(node.params["family"]))
@@ -1867,10 +1950,10 @@ class SideviewRunnerNodeHandler:
             verdict_ref = self._provider_output_ref(node)
             parse_cut_in_review(self._strict_json_object(bundle[verdict_ref], label=verdict_ref))
             return
-        avatar = self._runner.avatar.avatar
-        states = list(declared_motion_states(avatar))
+        subject = self._actor(node)
+        states = list(subject.states)
         frames = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames, baseline_state=RUNNER_BASELINE_STATE)
+        plate = build_motion_rebase_plate(frames, baseline_state=subject.baseline_state)
         plate_data = bundle[node.port("plate").artifact_ref]
         record_ref = self._provider_output_ref(node)
         record = self._strict_json_object(bundle[record_ref], label=record_ref)
@@ -1887,7 +1970,7 @@ class SideviewRunnerNodeHandler:
                 record,
                 published_states=states,
                 plate=plate,
-                baseline_state=RUNNER_BASELINE_STATE,
+                baseline_state=subject.baseline_state,
             )
             self._admit_evidence(record, states)
             return
@@ -1902,10 +1985,10 @@ class SideviewRunnerNodeHandler:
             first_record,
             published_states=states,
             plate=plate,
-            baseline_state=RUNNER_BASELINE_STATE,
+            baseline_state=subject.baseline_state,
         )
         verification_plate = build_motion_rebase_verification_plate(
-            frames, first_pass, baseline_state=RUNNER_BASELINE_STATE
+            frames, first_pass, baseline_state=subject.baseline_state
         )
         self._require_equal(
             plate_data,
@@ -1927,7 +2010,7 @@ class SideviewRunnerNodeHandler:
         )
         self._require_equal(
             record["baseline_state"],
-            RUNNER_BASELINE_STATE,
+            subject.baseline_state,
             label=f"{node.node_id} verification baseline",
         )
         self._require_equal(
@@ -1949,14 +2032,14 @@ class SideviewRunnerNodeHandler:
         corrections = self._numeric_state_map(
             record["correction"], states, label="verification corrections"
         )
-        if corrections[RUNNER_BASELINE_STATE] != 1.0 or any(
+        if corrections[subject.baseline_state] != 1.0 or any(
             not 0.5 <= value <= 2.0 for value in corrections.values()
         ):
             raise ValueError("verification corrections lie outside the admitted residual band")
         expected_states = {
             state: (
                 1.0
-                if state == RUNNER_BASELINE_STATE
+                if state == subject.baseline_state
                 else round(first_pass[state] * corrections[state], 2)
             )
             for state in states
@@ -2075,15 +2158,13 @@ class SideviewRunnerNodeHandler:
             published, validation = _publish_runner_layer(layer, looped)
             self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
             return
-        if node.type_id == AVATAR_MOTION_VALIDATE.type_id:
+        if node.type_id in (AVATAR_MOTION_VALIDATE.type_id, BOSS_MOTION_VALIDATE.type_id):
             state = str(node.params["state"])
             geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
             source_ref = self._dependency_artifact(node, kind=MOTION_RAW_KIND)
             source = (self._run_dir / source_ref).read_bytes()
             source_facts = _validate_motion_source(source)
-            motion = next(
-                entry for entry in self._runner.avatar.avatar.motions if entry.state == state
-            )
+            motion = self._actor(node).motion(state)
             canonical, repack = repack_alpha_components(
                 source,
                 AlphaComponentRepackContract(
@@ -2212,6 +2293,11 @@ class SideviewRunnerNodeHandler:
         registry.register(AVATAR_CONCEPT_GENERATE, self._bind(self._generate_concept))
         registry.register(AVATAR_MOTION_GENERATE, self._bind(self._generate_motion))
         registry.register(AVATAR_MOTION_VALIDATE, self._bind(self._validate_motion))
+        # The boss rides the avatar's handlers: same operation, different
+        # subject, resolved from the node's own params.
+        registry.register(BOSS_CONCEPT_GENERATE, self._bind(self._generate_concept))
+        registry.register(BOSS_MOTION_GENERATE, self._bind(self._generate_motion))
+        registry.register(BOSS_MOTION_VALIDATE, self._bind(self._validate_motion))
         registry.register(MOTION_REBASE_JUDGE, self._bind(self._rebase_judge))
         registry.register(MOTION_REBASE_VERIFY, self._bind(self._rebase_verify))
         registry.register(CATALOG_ASSET_GENERATE, self._bind(self._generate_catalog))
@@ -2396,12 +2482,12 @@ class SideviewRunnerNodeHandler:
             return node.card.prompt
         if node.type_id == LAYER_LOOP_PAINT.type_id:
             return layer_loop_prompt(self._layer(node).prompt)
-        avatar = self._runner.avatar.avatar
-        states = list(declared_motion_states(avatar))
-        if node.type_id == MOTION_REBASE_JUDGE.type_id:
-            return motion_rebase_prompt(avatar.display_name, states)
-        if node.type_id == MOTION_REBASE_VERIFY.type_id:
-            return motion_rebase_verification_prompt(avatar.display_name, states)
+        if node.type_id in (MOTION_REBASE_JUDGE.type_id, MOTION_REBASE_VERIFY.type_id):
+            subject = self._actor(node)
+            states = list(subject.states)
+            if node.type_id == MOTION_REBASE_JUDGE.type_id:
+                return motion_rebase_prompt(subject.display_name, states)
+            return motion_rebase_verification_prompt(subject.display_name, states)
         if node.type_id == SOUNDTRACK_GENERATE.type_id:
             soundtrack = self._runner.soundtrack
             if soundtrack is None:
@@ -2834,34 +2920,72 @@ class SideviewRunnerNodeHandler:
         atomic_write_json(self._run_dir / node.port("validation").artifact_ref, validation)
         return self._result(node)
 
+    def _actor(self, node: Node) -> _ActorSubject:
+        """Which drawn actor this node is about, from its own params.
+
+        Absent means the avatar, so every node authored before bosses existed
+        keeps its identity and its cache key.
+        """
+
+        if str(node.params.get("actor", "avatar")) != "boss":
+            avatar = self._runner.avatar.avatar
+            return _ActorSubject(
+                label="avatar",
+                entity_id=avatar.avatar_id,
+                display_name=avatar.display_name,
+                motions=tuple(avatar.motions),
+                states=declared_motion_states(avatar),
+                baseline_state=RUNNER_BASELINE_STATE,
+                artifact_dir="avatar",
+                concept_kind=AVATAR_CONCEPT_KIND,
+            )
+        bosses = self._runner.bosses
+        if bosses is None:
+            raise ValueError("a boss node requires a declared boss catalog")
+        boss = bosses.boss(str(node.params["boss_id"]))
+        return _ActorSubject(
+            label="boss",
+            entity_id=boss.boss_id,
+            display_name=boss.display_name,
+            motions=tuple(boss.motions),
+            states=declared_boss_motion_states(boss),
+            baseline_state=RUNNER_BOSS_BASELINE_STATE,
+            artifact_dir=f"boss/{boss.boss_id}",
+            concept_kind=BOSS_CONCEPT_KIND,
+        )
+
     def _state_frames(self, node: Node) -> dict[str, tuple[bytes, ...]]:
+        subject = self._actor(node)
         frames_by_state: dict[str, tuple[bytes, ...]] = {}
         geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-        for state in declared_motion_states(self._runner.avatar.avatar):
-            atlas_ref = f"avatar/{state}.png"
+        for state in subject.states:
+            atlas_ref = f"{subject.artifact_dir}/{state}.png"
             frames_by_state[state] = split_atlas_columns(
                 (self._run_dir / atlas_ref).read_bytes(), geometry.columns, geometry.rows
             )
         return frames_by_state
 
     async def _rebase_judge(self, node: Node) -> NodeExecutionResult:
-        avatar = self._runner.avatar.avatar
-        states = list(declared_motion_states(avatar))
+        subject = self._actor(node)
+        states = list(subject.states)
         frames_by_state = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames_by_state, baseline_state=RUNNER_BASELINE_STATE)
+        plate = build_motion_rebase_plate(frames_by_state, baseline_state=subject.baseline_state)
         plate_output = self._run_dir / node.port("plate").artifact_ref
         await _write_local_image(
             plate_output,
             plate.png,
             prompt=(
-                f"Compose the complete motion-rebase judging plate for {avatar.avatar_id}: "
+                f"Compose the complete motion-rebase judging plate for {subject.entity_id}: "
                 "every frame of every state at one uniform source scale."
             ),
             inputs=[
-                (f"avatar/{state}.png", (self._run_dir / f"avatar/{state}.png").read_bytes())
+                (
+                    f"{subject.artifact_dir}/{state}.png",
+                    (self._run_dir / f"{subject.artifact_dir}/{state}.png").read_bytes(),
+                )
                 for state in states
             ],
-            validation={"baseline_state": RUNNER_BASELINE_STATE, "frame_count": len(plate.frames)},
+            validation={"baseline_state": subject.baseline_state, "frame_count": len(plate.frames)},
             model="sideview-runner-rebase-plate-v1",
         )
 
@@ -2872,7 +2996,7 @@ class SideviewRunnerNodeHandler:
                 reading,
                 published_states=states,
                 plate=plate,
-                baseline_state=RUNNER_BASELINE_STATE,
+                baseline_state=subject.baseline_state,
             )
 
         request = StructuredGenerationRequest(
@@ -2894,7 +3018,7 @@ class SideviewRunnerNodeHandler:
             timeout_seconds=600,
             metadata={
                 "kind": "avatar-motion-rebase",
-                "entity_id": avatar.avatar_id,
+                "entity_id": subject.entity_id,
                 "states": states,
                 "plate_sha256": plate.sha256,
             },
@@ -2905,10 +3029,10 @@ class SideviewRunnerNodeHandler:
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _rebase_verify(self, node: Node) -> NodeExecutionResult:
-        avatar = self._runner.avatar.avatar
-        states = list(declared_motion_states(avatar))
+        subject = self._actor(node)
+        states = list(subject.states)
         frames_by_state = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames_by_state, baseline_state=RUNNER_BASELINE_STATE)
+        plate = build_motion_rebase_plate(frames_by_state, baseline_state=subject.baseline_state)
         first_pass_ref = self._dependency_artifact(
             node, kind=REBASE_READING_KIND, port_id="reading"
         )
@@ -2917,26 +3041,29 @@ class SideviewRunnerNodeHandler:
             json.loads(first_pass_data),
             published_states=states,
             plate=plate,
-            baseline_state=RUNNER_BASELINE_STATE,
+            baseline_state=subject.baseline_state,
         )
         verification_plate = build_motion_rebase_verification_plate(
-            frames_by_state, first_pass, baseline_state=RUNNER_BASELINE_STATE
+            frames_by_state, first_pass, baseline_state=subject.baseline_state
         )
         plate_output = self._run_dir / node.port("plate").artifact_ref
         await _write_local_image(
             plate_output,
             verification_plate.png,
             prompt=(
-                f"Compose the motion-rebase verification plate for {avatar.avatar_id}: every "
+                f"Compose the motion-rebase verification plate for {subject.entity_id}: every "
                 "frame with its first-pass multiplier applied."
             ),
             inputs=[
-                (f"avatar/{state}.png", (self._run_dir / f"avatar/{state}.png").read_bytes())
+                (
+                    f"{subject.artifact_dir}/{state}.png",
+                    (self._run_dir / f"{subject.artifact_dir}/{state}.png").read_bytes(),
+                )
                 for state in states
             ]
             + [(first_pass_ref, first_pass_data)],
             validation={
-                "baseline_state": RUNNER_BASELINE_STATE,
+                "baseline_state": subject.baseline_state,
                 "first_pass_sha256": content_sha256(first_pass_data),
             },
             model="sideview-runner-rebase-plate-v1",
@@ -2951,7 +3078,7 @@ class SideviewRunnerNodeHandler:
                 published_states=states,
                 plate=plate,
                 verification_plate=verification_plate,
-                baseline_state=RUNNER_BASELINE_STATE,
+                baseline_state=subject.baseline_state,
             )
 
         request = StructuredGenerationRequest(
@@ -2973,7 +3100,7 @@ class SideviewRunnerNodeHandler:
             timeout_seconds=600,
             metadata={
                 "kind": "avatar-motion-rebase-verify",
-                "entity_id": avatar.avatar_id,
+                "entity_id": subject.entity_id,
                 "states": states,
                 "plate_sha256": verification_plate.sha256,
             },
@@ -3181,14 +3308,19 @@ class SideviewRunnerNodeHandler:
         )
 
         def calibration(
-            data: bytes, *, height_units_declared: float | None, subject: str, player: bool
+            data: bytes,
+            *,
+            height_units_declared: float | None,
+            subject: str,
+            player: bool,
+            extent_axis: SubjectExtentAxis = "height",
         ) -> dict[str, object]:
             magnitude = (
                 resolve_player_magnitude(None)
                 if player
                 else resolve_declared_magnitude(scale, height_units_declared, subject=subject)
             )
-            extent = measure_subject_extent(data, subject=subject)
+            extent = measure_subject_extent(data, subject=subject, axis=extent_axis)
             return calibrate_subject(
                 magnitude=magnitude,
                 subject_extent_px=extent,
@@ -3196,6 +3328,7 @@ class SideviewRunnerNodeHandler:
                 scale=scale,
                 tile_px=RUNTIME_TILE_PX,
                 subject=subject,
+                extent_axis=extent_axis,
             ).as_record()
 
         avatar = runner.avatar.avatar
@@ -3229,6 +3362,71 @@ class SideviewRunnerNodeHandler:
                         subject=f"prop {prop_entry.prop_id}",
                         player=False,
                     ),
+                }
+            )
+        bosses: list[dict[str, object]] = []
+        for boss_entry in runner.bosses.bosses if runner.bosses is not None else ():
+            boss_dir = f"boss/{boss_entry.boss_id}"
+            boss_rebase = read_json(f"{boss_dir}/rebase-verification.json")
+            boss_multipliers = manifest_rebase_multipliers(
+                boss_rebase, published_states=declared_boss_motion_states(boss_entry)
+            )
+            hover_atlas = (
+                self._run_dir / f"{boss_dir}/{RUNNER_BOSS_BASELINE_STATE}.png"
+            ).read_bytes()
+            bosses.append(
+                {
+                    "boss_id": boss_entry.boss_id,
+                    "display_name": boss_entry.display_name,
+                    "concept": f"{boss_dir}/concept.png",
+                    # Measured on the hover, which is the baseline every other
+                    # strip was rebased against.
+                    "calibration": calibration(
+                        hover_atlas,
+                        height_units_declared=boss_entry.height_units,
+                        subject=f"boss {boss_entry.boss_id}",
+                        player=False,
+                    ),
+                    "motions": [
+                        {
+                            "state": entry.state,
+                            "playback_mode": entry.playback_mode,
+                            "canonical_frame_indices": entry.canonical_frame_indices,
+                            "frames_per_second": entry.frames_per_second,
+                            "anchor": entry.anchor,
+                            "atlas": f"{boss_dir}/{entry.state}.png",
+                            "columns": DEFAULT_MOTION_ATLAS_GEOMETRY.columns,
+                            "rebase_multiplier": boss_multipliers[entry.state],
+                        }
+                        for entry in boss_entry.motions
+                    ],
+                }
+            )
+        projectiles: list[dict[str, object]] = []
+        for shot_entry in runner.projectiles.projectiles if runner.projectiles is not None else ():
+            shot_ref = f"catalog/projectiles/{shot_entry.projectile_id}.png"
+            shot_data = (self._run_dir / shot_ref).read_bytes()
+            projectiles.append(
+                {
+                    "projectile_id": shot_entry.projectile_id,
+                    "display_name": shot_entry.display_name,
+                    "silhouette": shot_entry.silhouette,
+                    "flight": shot_entry.flight,
+                    "impact": shot_entry.impact,
+                    "image": shot_ref,
+                    # Measured across, not up: every projectile is drawn
+                    # pointing right, so its travel axis is its width, and a
+                    # height measurement would say how thick it is rather than
+                    # how long. The published record names the axis, so a
+                    # consumer never has to infer it.
+                    "calibration": calibration(
+                        shot_data,
+                        height_units_declared=shot_entry.length_units,
+                        subject=f"projectile {shot_entry.projectile_id}",
+                        player=False,
+                        extent_axis="width",
+                    ),
+                    "length_units": shot_entry.length_units,
                 }
             )
         items = []
@@ -3364,6 +3562,7 @@ class SideviewRunnerNodeHandler:
                     {
                         "segment_id": chunk.segment_id,
                         "difficulty": chunk.difficulty,
+                        "role": chunk.role,
                         "occupancy": chunk.occupancy,
                         "hazards": [
                             {
@@ -3397,6 +3596,8 @@ class SideviewRunnerNodeHandler:
             },
             "props": props,
             "items": items,
+            "bosses": bosses,
+            "projectiles": projectiles,
             "audio": manifest_audio(runner.audio),
             "soundtrack": (
                 None
@@ -3412,7 +3613,28 @@ class SideviewRunnerNodeHandler:
             "fx": (
                 None
                 if runner.fx is None
-                else fx_manifest_block(runner.fx, read_validation=self._read_run_artifact)
+                else fx_manifest_block(
+                    runner.fx,
+                    read_validation=self._read_run_artifact,
+                    # The stage announces where the run is; the encounter
+                    # announces what has arrived. Both are display names the
+                    # package already holds.
+                    lettering={
+                        "stage_start": (track.display_name, self._package.game.display_name),
+                        **(
+                            {}
+                            if runner.gameplay.encounter is None or runner.bosses is None
+                            else {
+                                "encounter_start": (
+                                    runner.bosses.boss(
+                                        runner.gameplay.encounter.boss_id
+                                    ).display_name,
+                                    track.display_name,
+                                )
+                            }
+                        ),
+                    },
+                )
             ),
         }
         atomic_write_json(self._run_dir / node.port("manifest").artifact_ref, manifest)

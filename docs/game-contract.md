@@ -332,10 +332,10 @@ does not by itself define a core game contract.
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v4`,
   `runner-track-v4`, `runner-avatar-v3`, `runner-audio-v3`, and the optional
-  `game-fx-v1` contracts.
+  `game-fx-v2` contracts.
   Provider-free
   integration emits `prepared-game-runtime-v10` for the platformer member
-  and `sideview-runner-runtime-v9` for the runner member.
+  and `sideview-runner-runtime-v10` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
@@ -357,7 +357,7 @@ does not by itself define a core game contract.
 | [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v9` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
-| [Screen FX: transitions and overlays](spec/game/fx.md) | Exact-current `game-fx-v1`: generated cut-in plates, the game-global moment vocabulary, the traced mask polygon a runtime draws, and the two host contracts |
+| [Screen FX: transitions and overlays](spec/game/fx.md) | Exact-current `game-fx-v2`: generated cut-in plates, the game-global moment vocabulary, the traced mask polygon a runtime draws, and the two host contracts |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |
 | [Authored game maps](game-maps.md) | Exact-current `game-map-v9` package placement, ownership summary, and runtime projection |
 | [Authored game soundtracks](game-soundtrack.md) | Game-global track catalog and generation binding |

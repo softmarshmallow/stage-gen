@@ -1,7 +1,7 @@
 schema_version = 9
 kind = "game-contract-v9"
 game_id = "iron-petal-unit"
-revision = 4
+revision = 5
 display_name = "Iron Petal Unit"
 
 [universe]
@@ -83,6 +83,12 @@ source = "runner/content/props.toml"
 
 [genres.content.items]
 source = "runner/content/items.toml"
+
+[genres.content.bosses]
+source = "runner/content/bosses.toml"
+
+[genres.content.projectiles]
+source = "runner/content/projectiles.toml"
 
 [genres.audio]
 source = "runner/audio.toml"

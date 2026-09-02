@@ -34,6 +34,7 @@ from stage_gen.components.game_fx.nodes import TOOL_LOOP_FEATURES, add_cut_in_no
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
+    declared_boss_motion_states,
     declared_motion_states,
 )
 from stage_gen.components.runner_track import (
@@ -53,6 +54,8 @@ from stage_gen.components.sound_effect import GeneratedClipRealization
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
+    boss_concept_prompt,
+    boss_motion_prompt,
     catalog_asset_prompt,
     fx_plate_prompt,
     ground_prompt,
@@ -68,6 +71,10 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     AVATAR_CONCEPT_KIND,
     AVATAR_MOTION_GENERATE,
     AVATAR_MOTION_VALIDATE,
+    BOSS_CONCEPT_GENERATE,
+    BOSS_CONCEPT_KIND,
+    BOSS_MOTION_GENERATE,
+    BOSS_MOTION_VALIDATE,
     CATALOG_ASSET_GENERATE,
     CATALOG_ASSET_KIND,
     CATALOG_ASSET_VALIDATE,
@@ -758,24 +765,199 @@ def build_runner_execution_graph(
         ),
     )
 
+    # -------------------------------------------------------------------- boss
+    # The same pipeline the avatar rides, with its own vocabulary and its own
+    # baseline: an encounter's boss is drawn once as a concept and then as one
+    # strip per state, and rebased against its hover the way the avatar is
+    # rebased against its run.
+    boss_terminals: list[str] = []
+    if runner.bosses is not None:
+        boss_sources = {entry.reference_id: entry.source for entry in runner.bosses.references}
+        for boss in runner.bosses.bosses:
+            boss_references = reference_inputs(boss.reference_ids, boss_sources)
+            boss_concept_text = boss_concept_prompt(resolved, boss)
+            boss_concept = builder.add(
+                BOSS_CONCEPT_GENERATE,
+                f"boss-{boss.boss_id}-concept-generate",
+                domain="boss",
+                description=f"draw the {boss.boss_id} identity concept",
+                params={"actor": "boss", "boss_id": boss.boss_id},
+                depends_on=barrier,
+                cache_depends_on=(),
+                input_digests=(
+                    _text_digest(boss.boss_id),
+                    direction_digest,
+                    _text_digest(boss_concept_text),
+                    *(entry.sha256 for entry in boss_references),
+                ),
+                ports=(
+                    _artifact("image", f"boss/{boss.boss_id}/concept.png", BOSS_CONCEPT_KIND),
+                    _attempts(f"boss-{boss.boss_id}-concept-generate"),
+                ),
+                card=NodeCard(prompt=boss_concept_text, authored_inputs=boss_references),
+            )
+            boss_motion_validations: list[str] = []
+            boss_motions = {entry.state: entry for entry in boss.motions}
+            with builder.within_template("boss-motion-pipeline@v1"):
+                for state in declared_boss_motion_states(boss):
+                    prompt = boss_motion_prompt(resolved, boss, state)
+                    generate_id = f"boss-{boss.boss_id}-{state}-generate"
+                    generated = builder.add(
+                        BOSS_MOTION_GENERATE,
+                        generate_id,
+                        domain="boss",
+                        description=f"draw the {boss.boss_id} {state} motion strip",
+                        params={"actor": "boss", "boss_id": boss.boss_id, "state": state},
+                        depends_on=(boss_concept.node_id,),
+                        input_digests=(
+                            _text_digest(boss.boss_id),
+                            direction_digest,
+                            _text_digest(prompt),
+                        ),
+                        ports=(
+                            _artifact(
+                                "image",
+                                f"boss/{boss.boss_id}/{state}.raw.png",
+                                MOTION_RAW_KIND,
+                            ),
+                            _attempts(generate_id),
+                        ),
+                        card=NodeCard(
+                            prompt=prompt,
+                            reference_inputs=(
+                                PortRef(node_id=boss_concept.node_id, port_id="image"),
+                            ),
+                        ),
+                    )
+                    validated = builder.add(
+                        BOSS_MOTION_VALIDATE,
+                        f"boss-{boss.boss_id}-{state}-validate",
+                        domain="boss",
+                        description=f"repack the {boss.boss_id} {state} strip into cells",
+                        params={"actor": "boss", "boss_id": boss.boss_id, "state": state},
+                        depends_on=(generated.node_id,),
+                        input_digests=(_text_digest(boss_motions[state].anchor),),
+                        ports=(
+                            _artifact(
+                                "image",
+                                f"boss/{boss.boss_id}/{state}.png",
+                                MOTION_ATLAS_KIND,
+                            ),
+                            _record(
+                                "validation",
+                                f"boss/{boss.boss_id}/{state}.validation.json",
+                                MOTION_VALIDATION_KIND,
+                            ),
+                        ),
+                    )
+                    boss_motion_validations.append(validated.node_id)
+            boss_judge = builder.add(
+                MOTION_REBASE_JUDGE,
+                f"boss-{boss.boss_id}-rebase-judge",
+                domain="boss",
+                description=f"judge every {boss.boss_id} atlas against its hover baseline",
+                params={"actor": "boss", "boss_id": boss.boss_id},
+                depends_on=tuple(boss_motion_validations),
+                input_digests=(
+                    _text_digest(boss.boss_id),
+                    _text_digest(boss.display_name),
+                ),
+                ports=(
+                    _artifact("plate", f"boss/{boss.boss_id}/rebase-plate.png", REBASE_PLATE_KIND),
+                    _artifact(
+                        "reading",
+                        f"boss/{boss.boss_id}/rebase-reading.json",
+                        REBASE_READING_KIND,
+                    ),
+                    _attempts(f"boss-{boss.boss_id}-rebase-judge"),
+                ),
+                card=NodeCard(
+                    prompt=motion_rebase_prompt(
+                        boss.display_name, list(declared_boss_motion_states(boss))
+                    )
+                ),
+            )
+            boss_verify = builder.add(
+                MOTION_REBASE_VERIFY,
+                f"boss-{boss.boss_id}-rebase-verify",
+                domain="boss",
+                description=f"judge the {boss.boss_id} residual on the rebased plate",
+                params={"actor": "boss", "boss_id": boss.boss_id},
+                depends_on=(boss_judge.node_id,),
+                input_digests=(
+                    _text_digest(boss.boss_id),
+                    _text_digest(boss.display_name),
+                ),
+                ports=(
+                    _artifact(
+                        "plate",
+                        f"boss/{boss.boss_id}/rebase-verify-plate.png",
+                        REBASE_PLATE_KIND,
+                    ),
+                    _artifact(
+                        "verification",
+                        f"boss/{boss.boss_id}/rebase-verification.json",
+                        REBASE_VERIFICATION_KIND,
+                    ),
+                    _attempts(f"boss-{boss.boss_id}-rebase-verify"),
+                ),
+                card=NodeCard(
+                    prompt=motion_rebase_verification_prompt(
+                        boss.display_name, list(declared_boss_motion_states(boss))
+                    )
+                ),
+            )
+            boss_terminals.append(boss_verify.node_id)
+
     # ----------------------------------------------------------------- catalog
     catalog_validations: list[str] = []
-    catalog_families = (
+    catalog_families: list[
+        tuple[str, list[tuple[str, str, list[str], str | None]], dict[str, str]]
+    ] = [
         (
             "prop",
-            [(entry.prop_id, entry.prompt, entry.reference_ids) for entry in runner.props.props],
+            [
+                (entry.prop_id, entry.prompt, entry.reference_ids, None)
+                for entry in runner.props.props
+            ],
             prop_sources,
         ),
         (
             "item",
-            [(entry.item_id, entry.prompt, entry.reference_ids) for entry in runner.items.items],
+            [
+                (entry.item_id, entry.prompt, entry.reference_ids, None)
+                for entry in runner.items.items
+            ],
             item_sources,
         ),
-    )
+    ]
+    if runner.projectiles is not None:
+        # The third family rides the same generate-and-admit pipeline, and
+        # differs only in carrying its silhouette into the prompt: a thrown
+        # object is the one catalog subject the runtime moves, so the axis it
+        # was drawn along is part of the direction rather than a detail.
+        projectile_sources = {
+            entry.reference_id: entry.source for entry in runner.projectiles.references
+        }
+        catalog_families.append(
+            (
+                "projectile",
+                [
+                    (entry.projectile_id, entry.prompt, entry.reference_ids, entry.silhouette)
+                    for entry in runner.projectiles.projectiles
+                ],
+                projectile_sources,
+            )
+        )
     with builder.within_template("catalog-asset-pipeline@v1"):
         for family, entries, sources in catalog_families:
-            for entity_id, entity_prompt, reference_ids in entries:
-                prompt = catalog_asset_prompt(resolved, family=family, prompt_text=entity_prompt)
+            for entity_id, entity_prompt, reference_ids, silhouette in entries:
+                prompt = catalog_asset_prompt(
+                    resolved,
+                    family=family,
+                    prompt_text=entity_prompt,
+                    silhouette=silhouette,
+                )
                 entity_references = reference_inputs(reference_ids, sources)
                 generate_id = f"{family}-{entity_id}-generate"
                 generated = builder.add(
@@ -960,6 +1142,7 @@ def build_runner_execution_graph(
             *layer_validations,
             *motion_validations,
             rebase_verify.node_id,
+            *boss_terminals,
             *catalog_validations,
             *soundtrack_validations,
             *sound_effect_validations,

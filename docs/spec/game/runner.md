@@ -34,7 +34,7 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
 | `runner/audio.toml` | `runner-audio-v3` | Required event bindings, sound-effect realizations (oscillator sweeps or generated clips), and the soundtrack's transitions at the run's edges |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
-| `fx.toml` | `game-fx-v1` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start` |
+| `fx.toml` | `game-fx-v2` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start` |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
 scenario member yet; both are additive later. The screen-FX document is the
@@ -363,7 +363,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v9`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v10`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -439,14 +439,14 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "e77e5de18cbcd813ea0d9a98337173956bee616f38fae45df81fcd5681867f30",
-  "node_count": 83,
+  "topology_sha256": "c3aa2a6718b9d3af39000e3d7dabb5b907b945383435e810033ea305e14d14ab",
+  "node_count": 105,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 44,
-    "image_generation": 29,
-    "structured_generation": 4,
-    "tool_loop": 1,
+    "local": 53,
+    "image_generation": 38,
+    "structured_generation": 7,
+    "tool_loop": 2,
     "music_generation": 2,
     "sound_effect_generation": 3
   },

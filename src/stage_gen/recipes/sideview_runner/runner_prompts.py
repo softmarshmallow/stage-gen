@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from stage_gen.canonical import canonical_sha256
+from stage_gen.components.platformer_content import projectile_silhouette_art
 from stage_gen.components.runner_track import (
     RunnerStructuralGround,
     structural_ground_generation_prompt,
@@ -20,7 +21,7 @@ from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_A
 from stage_gen.components.sideview_terrain import terrain_atlas_generation_prompt
 
 if TYPE_CHECKING:
-    from stage_gen.components.runner_content import RunnerAvatar
+    from stage_gen.components.runner_content import RunnerAvatar, RunnerBoss
     from stage_gen.components.runner_track import RunnerSegmentChunk, RunnerTrack
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
 
@@ -212,10 +213,22 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
             "between every neighboring pose. Add no glow, aura, dust, motion streak, cast shadow, "
             "lighting pool, or backdrop that could bridge cells"
         )
+    # Sustained thrust, not a jump: the cells are phases of one held climb that
+    # loops, so none of them may read as a takeoff or a landing. Named
+    # explicitly because the generic fallback ("poses that communicate fly")
+    # reliably produces a jump.
+    fly_direction = (
+        "four sequential phases of one seamless sustained hovering thrust cycle, looping "
+        "cleanly from the fourth cell back to the first: the body held level and airborne "
+        "throughout with both feet clear of any ground, riding a steady lift with only a small "
+        "rise-and-settle bob and a slight forward lean. Never a takeoff, never a landing, never "
+        "a crouch, and never a ballistic jump arc"
+    )
     direction = {
         "run": "four sequential phases of one seamless full-speed run cycle",
         "jump": "four sequential key poses of one forward jump arc: takeoff, rise, apex, fall",
         "slide": slide_direction,
+        "fly": fly_direction,
         "hurt": hurt_direction,
         "death": death_direction,
     }.get(state, f"four clear game-animation key poses that communicate {state}")
@@ -230,11 +243,85 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
     )
 
 
-def catalog_asset_prompt(resolved: ResolvedRunnerPackage, *, family: str, prompt_text: str) -> str:
+def catalog_asset_prompt(
+    resolved: ResolvedRunnerPackage,
+    *,
+    family: str,
+    prompt_text: str,
+    silhouette: str | None = None,
+) -> str:
+    if family == "projectile":
+        if silhouette is None:
+            raise ValueError("a projectile prompt requires its declared silhouette")
+        art = projectile_silhouette_art(silhouette)
+        # The axis directive leads, before the subject is even named: a thrown
+        # object is the one catalog family the runtime moves, so which way it
+        # was drawn is load-bearing rather than cosmetic.
+        return (
+            f"{art.axis_directive}\n{prompt_text}\nOne single subject, {art.shape_clause}, in "
+            "strict side view, isolated on a fully transparent background with true alpha, no "
+            "text or watermark.\n" + _style_clause(resolved)
+        )
     framing = "strict side view" if family == "prop" else "clean collectible icon framing"
     return (
         f"{prompt_text}\nOne single subject, {framing}, isolated on a fully transparent "
         "background with true alpha, no text or watermark.\n" + _style_clause(resolved)
+    )
+
+
+def _boss_contract_clause(resolved: ResolvedRunnerPackage, boss: RunnerBoss) -> str:
+    proportion = resolved.package.game.proportion.heads_for(boss.body_kind)
+    heads = "" if proportion is None else f"Built to about {proportion} heads tall. "
+    return (
+        f"{heads}It is one connected machine of a single piece, drawn at roughly "
+        f"{boss.height_units} times the height of the player character it faces."
+    )
+
+
+def boss_concept_prompt(resolved: ResolvedRunnerPackage, boss: RunnerBoss) -> str:
+    return (
+        f"A single full-body identity concept of {boss.display_name}: {boss.prompt}\n"
+        f"{_boss_contract_clause(resolved, boss)}\n"
+        "Draw in strict side view facing LEFT, isolated on a fully transparent background with "
+        "true alpha, no text or watermark.\n" + _style_clause(resolved)
+    )
+
+
+def boss_motion_prompt(resolved: ResolvedRunnerPackage, boss: RunnerBoss, state: str) -> str:
+    geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
+    direction = {
+        "hover": (
+            "four sequential phases of one seamless hovering idle that loops cleanly from the "
+            "fourth cell back to the first: the whole machine held aloft with a slow "
+            "rise-and-settle bob, lift fans turning, trailing growth swaying slightly. It never "
+            "touches ground and never changes its facing"
+        ),
+        "attack": (
+            "four sequential key poses of one throw toward the LEFT: a gathering wind-up that "
+            "draws mass back to the right, the release with the throwing head snapped forward "
+            "to the left, the recoil rocked back, and a return to the level hovering pose. The "
+            "fourth cell must be able to cut straight back to the hover. Show no projectile, "
+            "no muzzle flash, and no beam"
+        ),
+        "death": (
+            "four fully disconnected sequential key poses of the machine giving out: lift "
+            "failing with a lurch, tipping nose-down, a slumping fall, and the lowest "
+            "motionless final rest with its fans stopped. The fourth cell is held indefinitely: "
+            "never recover, rise, or reset. This is equipment shutting down, never a creature "
+            "dying: no gore, no wound, no death throes. Center every complete figure inside its "
+            "own quarter with a wide band of completely empty zero-alpha transparent pixels "
+            "between every neighboring pose. Add no glow, aura, dust, motion streak, cast "
+            "shadow, lighting pool, or backdrop that could bridge cells"
+        ),
+    }.get(state, f"four clear game-animation key poses that communicate {state}")
+    return (
+        f"A {geometry.columns}x{geometry.rows} sprite motion strip of {boss.display_name}: "
+        f"{boss.prompt}\n"
+        f"{_boss_contract_clause(resolved, boss)}\n"
+        f"Exactly {geometry.frame_word} evenly spaced cells left to right, each one complete "
+        f"machine in strict side view facing LEFT, showing {direction}. Every cell is one "
+        "connected subject isolated on a fully transparent background with true alpha; nothing "
+        "trails outside its own cell, no ground, no shadow, no text.\n" + _style_clause(resolved)
     )
 
 

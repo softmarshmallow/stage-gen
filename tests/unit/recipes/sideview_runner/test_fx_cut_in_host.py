@@ -77,7 +77,9 @@ def test_a_portrait_is_placed_by_one_tool_loop_episode_before_it_is_admitted() -
     assert graph.node(review_id).depends_on == (validate_id,)
     # The frame never goes through placement: it has no face.
     assert not any(node.node_id == "fx-cut_in-frame-place" for node in graph.nodes)
-    assert graph.operation_counts()["tool_loop"] == 1
+    # One placement episode per portrait: Iron Petal announces its stage and
+    # its encounter, and each plate is placed on its own.
+    assert graph.operation_counts()["tool_loop"] == 2
     assert FX_CUT_IN_PLACE_MAX_STEPS == 6
 
 

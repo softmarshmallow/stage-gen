@@ -1,0 +1,35 @@
+schema_version = 2
+kind = "projectile-content-v2"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "greenhouse_runway"
+source = "references/orbital-greenhouse-runway.png"
+source_sha256 = "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated environment reference independently reviewed and approved for this package."]
+
+# What the pruner throws is what it has been cutting: a knot of bramble and
+# seed. Irregular, because a torn clump has no leading end a player could read.
+[[projectiles]]
+projectile_id = "bramble_knot"
+display_name = "Bramble Knot"
+silhouette = "irregular_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+reference_ids = ["greenhouse_runway"]
+length_units = 0.35
+prompt = "A torn clump of dark-green bramble and pale root wound around a cluster of dry seed husks, coral thorns catching the light, a few loose leaves flaring from the mass. Isolated on native transparent background, no motion trail, no glow spill, no floor, no text, logo, or watermark."
+
+# What the unit answers with is a repair part, not a bullet: a seeding pin the
+# rescue rig carries anyway. Axial, so its direction reads at a glance.
+[[projectiles]]
+projectile_id = "seeding_pin"
+display_name = "Seeding Pin"
+silhouette = "axial_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+reference_ids = ["greenhouse_runway"]
+length_units = 0.30
+prompt = "A slim cream-and-coral horticultural seeding pin with a tapered mint tip and three short stabilizing fins at its tail, clean workshop machining, the kind of part a rescue rig carries by the dozen. Isolated on native transparent background, no motion trail, no glow spill, no floor, no text, logo, or watermark."

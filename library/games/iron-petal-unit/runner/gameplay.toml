@@ -1,7 +1,7 @@
 schema_version = 4
 kind = "runner-gameplay-v4"
 game_id = "iron-petal-unit"
-revision = 5
+revision = 6
 track_id = "halcyon-rescue-line"
 
 [run]
@@ -17,6 +17,8 @@ duck_profile = "slide_v1"
 hazard = "drain_v1"
 pit = "drain_and_recover_v1"
 crush = "end_run_v1"
+# A seed pod thrown by maintenance equipment is a knock, not a killing blow.
+shot = "drain_v1"
 
 [run.vitals]
 profile = "three_point_v1"
@@ -24,3 +26,15 @@ hurt_representation = "blink_v1"
 
 [ramp]
 profile = "brisk_ramp_v1"
+
+# The pruner blocks the line roughly every twenty seconds of running at the
+# swift base speed: long enough that the authored track is the run and the
+# fight is the interruption, not the other way round.
+[encounter]
+boss_id = "canopy_pruner"
+profile = "barrage_boss_v1"
+locomotion = "thrust_v1"
+interval_columns = 600
+arena_segment_id = "open_canopy_bay"
+boss_projectile_id = "bramble_knot"
+player_projectile_id = "seeding_pin"

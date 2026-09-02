@@ -98,9 +98,95 @@ export function runnerAudioFixture(): Record<string, unknown> {
   };
 }
 
-export function runnerManifestFixture(): Record<string, unknown> {
+/** The arena an encounter is fought over: flat and empty in every column. */
+export function runnerArenaChunkFixture(): Record<string, unknown> {
   return {
-    schema_version: 9,
+    segment_id: "boss_arena",
+    difficulty: 1,
+    role: "arena",
+    occupancy: [
+      "000000000000",
+      "000000000000",
+      "000000000000",
+      "000000000000",
+      "000000000000",
+      "111111111111",
+      "111111111111",
+      "111111111111",
+    ],
+    hazards: [],
+    pickups: [],
+  };
+}
+
+export function runnerBossFixture(): Record<string, unknown> {
+  return {
+    boss_id: "thicket_router",
+    display_name: "Thicket Router",
+    concept: "boss/thicket_router/concept.png",
+    calibration: runnerCalibrationFixture(),
+    motions: [
+      { ...runnerMotionFixture("hover", "loop"), atlas: "boss/thicket_router/hover.png" },
+      { ...runnerMotionFixture("attack", "once"), atlas: "boss/thicket_router/attack.png" },
+      { ...runnerMotionFixture("death", "once"), atlas: "boss/thicket_router/death.png" },
+    ],
+  };
+}
+
+export function runnerProjectileFixture(
+  projectileId: string,
+  silhouette = "irregular_v1",
+): Record<string, unknown> {
+  return {
+    projectile_id: projectileId,
+    display_name: projectileId,
+    silhouette,
+    flight: "flat_bolt_v1",
+    impact: "single_target_v1",
+    image: `catalog/projectiles/${projectileId}.png`,
+    calibration: { ...runnerCalibrationFixture(), extent_axis: "width" },
+    length_units: 0.3,
+  };
+}
+
+/**
+ * An encounter the fixture's own band can hold.
+ *
+ * The grid is eight rows over a walk surface at five, and the avatar is one
+ * unit tall here, so three half-row shots leave 3.5 rows against the 1.4 the
+ * avatar and its margin need.
+ */
+export function runnerEncounterFixture(): Record<string, unknown> {
+  return {
+    profile: "barrage_boss_v1",
+    locomotion: "thrust_v1",
+    interval_columns: 400,
+    arena_segment_id: "boss_arena",
+    boss_id: "thicket_router",
+    boss_projectile_id: "thorn_burst",
+    player_projectile_id: "spark_pin",
+    max_climb_rows_per_second: 9,
+    max_fall_rows_per_second: 10,
+    climb_acceleration_rows_per_second2: 24,
+    firing_distance_columns: 10,
+    projectile_speed_columns_per_second: 7.5,
+    projectile_height_rows: 0.5,
+    salvo_shots: 3,
+    salvo_period_seconds: 1.5,
+    salvo_budget: 8,
+    lane_margin_rows: 0.4,
+    hits_to_defeat: 10,
+    player_fire_period_seconds: 0.5,
+    player_shot_speed_columns_per_second: 12,
+  };
+}
+
+export function runnerManifestFixture(
+  options: { readonly encounter?: boolean } = {},
+): Record<string, unknown> {
+  if (options.encounter === true) return encounterManifestFixture();
+  return {
+    schema_version: 10,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",
@@ -123,7 +209,9 @@ export function runnerManifestFixture(): Record<string, unknown> {
         hazard: "drain_v1",
         pit: "drain_and_recover_v1",
         crush: "end_run_v1",
+        shot: null,
       },
+      encounter: null,
       vitals: {
         profile: "three_point_v1",
         max_points: 3,
@@ -217,8 +305,47 @@ export function runnerManifestFixture(): Record<string, unknown> {
         calibration: runnerCalibrationFixture(),
       },
     ],
+    bosses: [],
+    projectiles: [],
     audio: runnerAudioFixture(),
     soundtrack: null,
     fx: null,
+  };
+}
+
+/**
+ * The same package, fighting a boss.
+ *
+ * Built by mutating the plain fixture rather than by spelling a second one
+ * out, so the two can never drift on everything an encounter does not touch.
+ */
+function encounterManifestFixture(): Record<string, unknown> {
+  const base = runnerManifestFixture();
+  const gameplay = { ...(base.gameplay as Record<string, unknown>) };
+  gameplay.consequences = {
+    ...(gameplay.consequences as Record<string, unknown>),
+    shot: "drain_v1",
+  };
+  gameplay.encounter = runnerEncounterFixture();
+  const avatar = { ...(base.avatar as Record<string, unknown>) };
+  avatar.motions = [
+    ...(avatar.motions as Record<string, unknown>[]),
+    { ...runnerMotionFixture("fly", "loop"), atlas: "avatar/fly.png" },
+  ];
+  const segments = { ...(base.segments as Record<string, unknown>) };
+  segments.chunks = [
+    ...(segments.chunks as Record<string, unknown>[]),
+    runnerArenaChunkFixture(),
+  ];
+  return {
+    ...base,
+    gameplay,
+    avatar,
+    segments,
+    bosses: [runnerBossFixture()],
+    projectiles: [
+      runnerProjectileFixture("thorn_burst"),
+      runnerProjectileFixture("spark_pin", "axial_v1"),
+    ],
   };
 }

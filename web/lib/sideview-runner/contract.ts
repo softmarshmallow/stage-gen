@@ -15,8 +15,8 @@
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v9";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 9;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v10";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 10;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -358,6 +358,8 @@ export interface RunnerRuntimeManifest {
     readonly duckedHeightFraction: number | null;
     /** The overhead fit proof's daylight margin; null exactly when duckProfile is. */
     readonly minOverheadClearanceRows: number | null;
+    /** The boss fight this run is interrupted by; null when it fights nothing. */
+    readonly encounter: RunnerEncounter | null;
   };
   readonly ground: RunnerGround;
   readonly layers: readonly RunnerLayer[];
@@ -365,10 +367,85 @@ export interface RunnerRuntimeManifest {
   readonly avatar: RunnerAvatar;
   readonly props: readonly RunnerCatalogEntry[];
   readonly items: readonly RunnerCatalogEntry[];
+  readonly bosses: readonly RunnerBoss[];
+  readonly projectiles: readonly RunnerProjectile[];
   readonly audio: RunnerAudio;
   readonly soundtrack: RunnerSoundtrack | null;
   /** Screen-FX plates and moment bindings; null exactly when the package authors none. */
   readonly fx: FxBlock | null;
+}
+
+export type BossMotionState = "hover" | "attack" | "death";
+
+export const RUNNER_BOSS_MOTION_STATES: readonly BossMotionState[] = ["hover", "attack", "death"];
+/** The boss holds its hover the way the avatar holds its run. */
+export const RUNNER_BOSS_LOOPING_MOTION_STATES: readonly BossMotionState[] = ["hover"];
+
+export interface RunnerBossMotion {
+  readonly state: BossMotionState;
+  readonly playbackMode: "loop" | "once";
+  readonly canonicalFrameIndices: readonly number[];
+  readonly framesPerSecond: number;
+  readonly anchor: "bottom" | "top";
+  readonly atlas: string;
+  readonly columns: number;
+  readonly rebaseMultiplier: number;
+}
+
+export interface RunnerBoss {
+  readonly bossId: string;
+  readonly displayName: string;
+  readonly concept: string;
+  readonly calibration: RunnerCalibration;
+  readonly motions: readonly RunnerBossMotion[];
+}
+
+export interface RunnerProjectile {
+  readonly projectileId: string;
+  readonly displayName: string;
+  readonly silhouette: "radial_v1" | "axial_v1" | "irregular_v1";
+  readonly flight: "flat_bolt_v1" | "lobbed_arc_v1" | "drifting_orb_v1";
+  readonly impact: "single_target_v1" | "burst_v1" | "piercing_v1";
+  readonly image: string;
+  /**
+   * The measured record, whose extent was taken across rather than up.
+   *
+   * Every projectile is drawn pointing right, so its travel axis is its width;
+   * the record names the axis so a consumer never has to infer it.
+   */
+  readonly calibration: RunnerCalibration;
+  /** How long the object is along that axis, in player heights. */
+  readonly lengthUnits: number;
+}
+
+/**
+ * The published encounter arithmetic.
+ *
+ * Every number a refusal read offline is here, so the runtime mirrors the
+ * proof rather than re-deriving it. Speeds are in the avatar's frame, which is
+ * the frame the dodge proof was written in.
+ */
+export interface RunnerEncounter {
+  readonly profile: "barrage_boss_v1";
+  readonly locomotion: "thrust_v1";
+  readonly intervalColumns: number;
+  readonly arenaSegmentId: string;
+  readonly bossId: string;
+  readonly bossProjectileId: string;
+  readonly playerProjectileId: string;
+  readonly maxClimbRowsPerSecond: number;
+  readonly maxFallRowsPerSecond: number;
+  readonly climbAccelerationRowsPerSecondSquared: number;
+  readonly firingDistanceColumns: number;
+  readonly projectileSpeedColumnsPerSecond: number;
+  readonly projectileHeightRows: number;
+  readonly salvoShots: number;
+  readonly salvoPeriodSeconds: number;
+  readonly salvoBudget: number;
+  readonly laneMarginRows: number;
+  readonly hitsToDefeat: number;
+  readonly playerFirePeriodSeconds: number;
+  readonly playerShotSpeedColumnsPerSecond: number;
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -753,6 +830,185 @@ function catalogEntry(
   });
 }
 
+function bossMotion(value: unknown, label: string): RunnerBossMotion {
+  const raw = record(value, label);
+  const state = literal(raw.state, `${label}.state`, RUNNER_BOSS_MOTION_STATES);
+  const frames = array(raw.canonical_frame_indices, `${label}.canonical_frame_indices`).map(
+    (entry, index) => boundedInteger(entry, `${label}.canonical_frame_indices[${index}]`, 0, 63),
+  );
+  if (frames.length === 0) throw new Error(`${label} names no frames`);
+  const columns = boundedInteger(raw.columns, `${label}.columns`, 1, 64);
+  for (const frame of frames) {
+    if (frame >= columns) {
+      throw new Error(`${label} canonical frame ${frame} is outside its ${columns}-column atlas`);
+    }
+  }
+  const playbackMode = literal(raw.playback_mode, `${label}.playback_mode`, ["loop", "once"]);
+  const loops = RUNNER_BOSS_LOOPING_MOTION_STATES.includes(state);
+  if (loops !== (playbackMode === "loop")) {
+    throw new Error(`${label} state ${state} must play ${loops ? "loop" : "once"}`);
+  }
+  return Object.freeze({
+    state,
+    playbackMode,
+    canonicalFrameIndices: Object.freeze(frames),
+    framesPerSecond: boundedInteger(raw.frames_per_second, `${label}.frames_per_second`, 1, 60),
+    anchor: literal(raw.anchor, `${label}.anchor`, ["bottom", "top"]),
+    atlas: text(raw.atlas, `${label}.atlas`),
+    columns,
+    rebaseMultiplier: positive(raw.rebase_multiplier, `${label}.rebase_multiplier`),
+  });
+}
+
+function boss(value: unknown, label: string): RunnerBoss {
+  const raw = record(value, label);
+  const motions = array(raw.motions, `${label}.motions`).map((entry, index) =>
+    bossMotion(entry, `${label}.motions[${index}]`),
+  );
+  const declared = new Set(motions.map((entry) => entry.state));
+  for (const state of RUNNER_BOSS_MOTION_STATES) {
+    if (!declared.has(state)) throw new Error(`${label} declares no ${state} motion`);
+  }
+  return Object.freeze({
+    bossId: text(raw.boss_id, `${label}.boss_id`),
+    displayName: text(raw.display_name, `${label}.display_name`),
+    concept: text(raw.concept, `${label}.concept`),
+    calibration: calibration(raw.calibration, `${label}.calibration`),
+    motions: Object.freeze(motions),
+  });
+}
+
+function projectile(value: unknown, label: string): RunnerProjectile {
+  const raw = record(value, label);
+  return Object.freeze({
+    projectileId: text(raw.projectile_id, `${label}.projectile_id`),
+    displayName: text(raw.display_name, `${label}.display_name`),
+    silhouette: literal(raw.silhouette, `${label}.silhouette`, [
+      "radial_v1",
+      "axial_v1",
+      "irregular_v1",
+    ]),
+    flight: literal(raw.flight, `${label}.flight`, [
+      "flat_bolt_v1",
+      "lobbed_arc_v1",
+      "drifting_orb_v1",
+    ]),
+    impact: literal(raw.impact, `${label}.impact`, [
+      "single_target_v1",
+      "burst_v1",
+      "piercing_v1",
+    ]),
+    image: text(raw.image, `${label}.image`),
+    calibration: calibration(raw.calibration, `${label}.calibration`),
+    lengthUnits: positive(raw.length_units, `${label}.length_units`),
+  });
+}
+
+/**
+ * The encounter block, with the obligations the generator proved offline
+ * re-stated here.
+ *
+ * Not belt-and-braces: a manifest is a wire format, and the parser is the only
+ * thing standing between a hand-edited document and a fight the runtime cannot
+ * play. The lane check is the cheap half of the generator's pigeonhole - if
+ * the band cannot hold a salvo and the avatar at once, no placement can save
+ * it.
+ */
+function runnerEncounter(
+  value: unknown,
+  label: string,
+  context: {
+    readonly chunks: readonly RunnerChunk[];
+    readonly bosses: readonly RunnerBoss[];
+    readonly projectiles: readonly RunnerProjectile[];
+    readonly walkSurfaceRow: number;
+    readonly playerHeightTiles: number;
+  },
+): RunnerEncounter {
+  const raw = record(value, label);
+  const arenaSegmentId = text(raw.arena_segment_id, `${label}.arena_segment_id`);
+  const arena = context.chunks.find((chunk) => chunk.segmentId === arenaSegmentId);
+  if (arena === undefined || arena.role !== "arena") {
+    throw new Error(`${label}.arena_segment_id ${arenaSegmentId} names no arena chunk`);
+  }
+  if (!context.chunks.some((chunk) => chunk.role !== "arena")) {
+    throw new Error(`${label} leaves no ordinary chunk for the run between encounters`);
+  }
+  const bossId = text(raw.boss_id, `${label}.boss_id`);
+  if (!context.bosses.some((entry) => entry.bossId === bossId)) {
+    throw new Error(`${label}.boss_id ${bossId} names no published boss`);
+  }
+  const bossProjectileId = text(raw.boss_projectile_id, `${label}.boss_projectile_id`);
+  const playerProjectileId = text(raw.player_projectile_id, `${label}.player_projectile_id`);
+  for (const [field, id] of [
+    ["boss_projectile_id", bossProjectileId],
+    ["player_projectile_id", playerProjectileId],
+  ] as const) {
+    if (!context.projectiles.some((entry) => entry.projectileId === id)) {
+      throw new Error(`${label}.${field} ${id} names no published projectile`);
+    }
+  }
+  if (bossProjectileId === playerProjectileId) {
+    throw new Error(`${label} fires and is fired at with one projectile`);
+  }
+  const projectileHeightRows = positive(
+    raw.projectile_height_rows,
+    `${label}.projectile_height_rows`,
+  );
+  const salvoShots = boundedInteger(raw.salvo_shots, `${label}.salvo_shots`, 1, 16);
+  const laneMarginRows = nonNegative(raw.lane_margin_rows, `${label}.lane_margin_rows`);
+  const lane = context.walkSurfaceRow - salvoShots * projectileHeightRows;
+  if (lane < context.playerHeightTiles + laneMarginRows) {
+    throw new Error(
+      `${label} leaves a ${lane.toFixed(2)}-row lane; the avatar needs ` +
+        `${(context.playerHeightTiles + laneMarginRows).toFixed(2)}`,
+    );
+  }
+  return Object.freeze({
+    profile: literal(raw.profile, `${label}.profile`, ["barrage_boss_v1"]),
+    locomotion: literal(raw.locomotion, `${label}.locomotion`, ["thrust_v1"]),
+    intervalColumns: boundedInteger(raw.interval_columns, `${label}.interval_columns`, 1, 100_000),
+    arenaSegmentId,
+    bossId,
+    bossProjectileId,
+    playerProjectileId,
+    maxClimbRowsPerSecond: positive(
+      raw.max_climb_rows_per_second,
+      `${label}.max_climb_rows_per_second`,
+    ),
+    maxFallRowsPerSecond: positive(
+      raw.max_fall_rows_per_second,
+      `${label}.max_fall_rows_per_second`,
+    ),
+    climbAccelerationRowsPerSecondSquared: positive(
+      raw.climb_acceleration_rows_per_second2,
+      `${label}.climb_acceleration_rows_per_second2`,
+    ),
+    firingDistanceColumns: positive(
+      raw.firing_distance_columns,
+      `${label}.firing_distance_columns`,
+    ),
+    projectileSpeedColumnsPerSecond: positive(
+      raw.projectile_speed_columns_per_second,
+      `${label}.projectile_speed_columns_per_second`,
+    ),
+    projectileHeightRows,
+    salvoShots,
+    salvoPeriodSeconds: positive(raw.salvo_period_seconds, `${label}.salvo_period_seconds`),
+    salvoBudget: boundedInteger(raw.salvo_budget, `${label}.salvo_budget`, 1, 1000),
+    laneMarginRows,
+    hitsToDefeat: boundedInteger(raw.hits_to_defeat, `${label}.hits_to_defeat`, 1, 100_000),
+    playerFirePeriodSeconds: positive(
+      raw.player_fire_period_seconds,
+      `${label}.player_fire_period_seconds`,
+    ),
+    playerShotSpeedColumnsPerSecond: positive(
+      raw.player_shot_speed_columns_per_second,
+      `${label}.player_shot_speed_columns_per_second`,
+    ),
+  });
+}
+
 function motion(value: unknown, label: string): RunnerMotion {
   const raw = record(value, label);
   const state = literal(raw.state, `${label}.state`, RUNNER_MOTION_STATES);
@@ -988,6 +1244,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
 
   const rawCamera = record(raw.camera, "camera");
   const rawScale = record(raw.scale, "scale");
+  const playerHeightTiles = positive(rawScale.player_height_tiles, "scale.player_height_tiles");
   const rawGameplay = record(raw.gameplay, "gameplay");
 
   // Consequences and the gauge are parsed together, because the interesting
@@ -1049,8 +1306,16 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   const items = array(raw.items, "items").map((entry, index) =>
     catalogEntry(entry, `items[${index}]`, "item_id"),
   );
+  const bosses = array(raw.bosses, "bosses").map((entry, index) =>
+    boss(entry, `bosses[${index}]`),
+  );
+  const projectiles = array(raw.projectiles, "projectiles").map((entry, index) =>
+    projectile(entry, `projectiles[${index}]`),
+  );
   uniqueIds(props.map((entry) => entry.id), "prop ids");
   uniqueIds(items.map((entry) => entry.id), "item ids");
+  uniqueIds(bosses.map((entry) => entry.bossId), "boss ids");
+  uniqueIds(projectiles.map((entry) => entry.projectileId), "projectile ids");
   const propIds = new Set(props.map((entry) => entry.id));
   const itemIds = new Set(items.map((entry) => entry.id));
 
@@ -1091,6 +1356,39 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   if (vitals?.hurtRepresentation !== "drawn_v1" && motionStates.includes("hurt")) {
     throw new Error(
       'avatar.motions declares hurt but gameplay.vitals.hurt_representation is not "drawn_v1"',
+    );
+  }
+  // The encounter's own triangles, the same ones the generator refuses: a
+  // fight with nothing to wear, a fly strip nothing can trigger, an arena no
+  // fight is fought over, and a shot answer no shot can reach.
+  const encounter =
+    rawGameplay.encounter === null || rawGameplay.encounter === undefined
+      ? null
+      : runnerEncounter(rawGameplay.encounter, "gameplay.encounter", {
+          chunks,
+          bosses,
+          projectiles,
+          walkSurfaceRow,
+          playerHeightTiles,
+        });
+  if (encounter !== null && !motionStates.includes("fly")) {
+    throw new Error("gameplay declares an encounter but avatar.motions is missing the fly state");
+  }
+  if (encounter === null) {
+    if (motionStates.includes("fly")) {
+      throw new Error("avatar.motions declares fly but gameplay declares no encounter");
+    }
+    if (bosses.length > 0) throw new Error("bosses are published but no encounter fights one");
+    if (projectiles.length > 0) {
+      throw new Error("projectiles are published but no encounter fires one");
+    }
+    if (chunks.some((entry) => entry.role === "arena")) {
+      throw new Error("an arena chunk is published but no encounter is fought over it");
+    }
+  }
+  if ((consequences.shot !== null) !== (encounter !== null)) {
+    throw new Error(
+      "gameplay.consequences.shot is answered exactly when an encounter can fire one",
     );
   }
   const declaresOverhead = chunks.some((entry) =>
@@ -1165,7 +1463,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
       mode: literal(rawCamera.mode, "camera.mode", ["auto_run_x_v1"]),
     }),
     scale: Object.freeze({
-      playerHeightTiles: positive(rawScale.player_height_tiles, "scale.player_height_tiles"),
+      playerHeightTiles,
       tilePx: boundedInteger(rawScale.tile_px, "scale.tile_px", 1, 512),
     }),
     gameplay: Object.freeze({
@@ -1233,6 +1531,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
               rawGameplay.min_overhead_clearance_rows,
               "gameplay.min_overhead_clearance_rows",
             ),
+      encounter,
     }),
     ground: runnerGround(rawGround, chunks, rows),
     layers: Object.freeze(layers),
@@ -1246,6 +1545,8 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     }),
     props: Object.freeze(props),
     items: Object.freeze(items),
+    bosses: Object.freeze(bosses),
+    projectiles: Object.freeze(projectiles),
     audio: runnerAudio(raw.audio),
     soundtrack,
     fx,

@@ -21,17 +21,20 @@ def _source() -> bytes:
     return (PACKAGE / "fx.toml").read_bytes()
 
 
-def test_canonical_fx_contract_binds_one_moment_to_one_cut_in() -> None:
+def test_canonical_fx_contract_binds_each_moment_to_its_own_portrait() -> None:
     contract = load_game_fx_bytes(_source())
 
-    assert contract.kind == "game-fx-v1"
+    assert contract.kind == "game-fx-v2"
     assert contract.game_id == "iron-petal-unit"
     assert contract.cut_in is not None
     assert contract.cut_in.frame.mode == "generated_v1"
     assert contract.cut_in.frame.layout == CUT_IN_FRAME_LAYOUT
-    assert [entry.portrait_id for entry in contract.cut_in.portraits] == ["stage_start"]
+    assert [entry.portrait_id for entry in contract.cut_in.portraits] == [
+        "stage_start",
+        "encounter_start",
+    ]
     assert contract.cut_in.portraits[0].layout == CUT_IN_PORTRAIT_LAYOUT
-    assert contract.moment_names() == ("stage_start",)
+    assert contract.moment_names() == ("stage_start", "encounter_start")
     moment = contract.moment("stage_start")
     assert moment is not None
     assert moment.effect == "cut_in"
@@ -44,8 +47,8 @@ def test_fx_contract_pins_layouts_and_identity() -> None:
     source = _source()
     with pytest.raises(AuthoredContractLoadError, match="literal_error"):
         load_game_fx_bytes(source.replace(CUT_IN_FRAME_LAYOUT.encode(), b"cut_in_frame_v9"))
-    with pytest.raises(AuthoredContractLoadError, match="game-fx-v1"):
-        load_game_fx_bytes(source.replace(b'kind = "game-fx-v1"', b'kind = "game-fx-v0"'))
+    with pytest.raises(AuthoredContractLoadError, match="game-fx-v2"):
+        load_game_fx_bytes(source.replace(b'kind = "game-fx-v2"', b'kind = "game-fx-v1"'))
 
 
 def test_fx_contract_rejects_unknown_and_unused_references() -> None:
@@ -77,6 +80,8 @@ def test_a_moment_must_name_a_declared_portrait_and_every_portrait_must_play() -
             )
         )
 
+    # Only the first binding is displaced: the package now plays two moments,
+    # and inserting the orphan twice would trip the uniqueness rule instead.
     orphaned = source.replace(
         b"[[moments]]",
         b"""[[cut_in.portraits]]
@@ -87,6 +92,7 @@ reference_ids = ["operator_primary"]
 prompt = "A quiet look."
 
 [[moments]]""",
+        1,
     )
     with pytest.raises(AuthoredContractLoadError, match="no moment plays"):
         load_game_fx_bytes(orphaned)
@@ -147,7 +153,10 @@ def test_a_portrait_prompt_never_states_an_age() -> None:
 
 
 def test_the_moment_vocabulary_is_closed_and_its_reserve_is_named() -> None:
-    assert FX_MOMENTS == ("stage_start",)
+    assert FX_MOMENTS == ("stage_start", "encounter_start")
+    # Promoting a reserved name is a contract bump, so the reserve shrinks by
+    # exactly the name that was served.
+    assert "encounter_start" not in FX_RESERVED_MOMENTS
     assert "fever_start" in FX_RESERVED_MOMENTS
     with pytest.raises(AuthoredContractLoadError, match="literal_error"):
         load_game_fx_bytes(_source().replace(b'moment = "stage_start"', b'moment = "fever_start"'))

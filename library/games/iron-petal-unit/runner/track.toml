@@ -8,7 +8,7 @@ schema_version = 4
 kind = "runner-track-v4"
 game_id = "iron-petal-unit"
 track_id = "halcyon-rescue-line"
-revision = 4
+revision = 5
 display_name = "Halcyon Rescue Line"
 
 [view]
@@ -434,4 +434,27 @@ pickups = [
   { item_id = "lumen_seed", column = 17, row = 5 },
   { item_id = "lumen_seed", column = 18, row = 5 },
   { item_id = "lumen_seed", column = 19, row = 6 },
+]
+
+# The bay the runaway pruner is met in. Flat and empty in every column, so it
+# may be entered anywhere, repeated for as long as the fight lasts, and left
+# anywhere - which is what lets one authored chunk hold an encounter of any
+# length without the seam rule bending. It carries no hazards and no seed line
+# because during the fight the thing to read is the salvo.
+[[segments.chunks]]
+segment_id = "open_canopy_bay"
+role = "arena"
+difficulty = 1
+occupancy = [
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "00000000000000000000000000000000",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
+  "11111111111111111111111111111111",
 ]

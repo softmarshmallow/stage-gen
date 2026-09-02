@@ -1,0 +1,41 @@
+schema_version = 1
+kind = "boss-content-v1"
+game_id = "iron-petal-unit"
+revision = 1
+
+[[references]]
+reference_id = "greenhouse_runway"
+source = "references/orbital-greenhouse-runway.png"
+source_sha256 = "749d8b38e5af01a0681f021e9d1393818e229abaf9d95fb8ce21049b19984022"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated environment reference independently reviewed and approved for this package."]
+
+# Halcyon Arbor has no enemies, so its boss is not one: the canopy pruner is
+# maintenance equipment that lost its schedule and kept working. It blocks the
+# rescue line because it is doing its job in the wrong place, which is why it
+# can be driven off rather than destroyed, and why its shots are seed pods.
+[[bosses]]
+boss_id = "canopy_pruner"
+display_name = "Runaway Canopy Pruner"
+body_kind = "overgrown_machine"
+height_units = 1.8
+reference_ids = ["greenhouse_runway"]
+prompt = "A large derelict greenhouse canopy-pruning rig hanging in the air on four tired ducted lift fans, cream ceramic housing with coral bands and graphite vents matching the greenhouse equipment, a wide blunt trimming head of folded shears at the front, thick bramble and pale roots grown through its frame and trailing from its underside, one mint status lens glowing at the front like a single calm eye. It is machinery that lost its schedule, never a creature: no face, no jaw, no limbs, no armour, no weapon barrels. It faces LEFT, presenting its trimming head and its lit lens toward the left edge of the frame."
+
+[[bosses.motions]]
+state = "hover"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 10
+
+[[bosses.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[bosses.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8

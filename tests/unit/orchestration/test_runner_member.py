@@ -13,6 +13,7 @@ import zipfile
 from hashlib import sha256
 from io import BytesIO, StringIO
 from pathlib import Path
+from typing import Any
 
 import pytest
 from PIL import Image
@@ -71,7 +72,7 @@ def _hazard(
     return "\n".join(lines) + "\n"
 
 
-def _refused(tmp_path: Path, code: str, **overrides: str) -> None:
+def _refused(tmp_path: Path, code: str, **overrides: Any) -> None:
     package = _two_genre_package(tmp_path, **overrides)
     with pytest.raises(GamePackageValidationError) as error:
         resolve_game_package(package)
@@ -545,10 +546,10 @@ def test_an_untelegraphed_surface_hazard_is_refused(tmp_path: Path) -> None:
 # --------------------------------------------------------------------- encounter
 
 
-def _encounter_package(tmp_path: Path, **overrides: str) -> Path:
+def _encounter_package(tmp_path: Path, **overrides: Any) -> Path:
     """The passing encounter closure: taller band, arena chunk, boss, projectiles."""
 
-    settings: dict[str, object] = {
+    settings: dict[str, Any] = {
         "chunks": ENCOUNTER_CHUNKS,
         "gameplay": RUNNER_GAMEPLAY_ENCOUNTER,
         "avatar": RUNNER_AVATAR_FLY,
@@ -558,10 +559,10 @@ def _encounter_package(tmp_path: Path, **overrides: str) -> Path:
         "walk_surface_row": ENCOUNTER_WALK_SURFACE_ROW,
     }
     settings.update(overrides)
-    return _two_genre_package(tmp_path, **settings)  # type: ignore[arg-type]
+    return _two_genre_package(tmp_path, **settings)
 
 
-def _encounter_refused(tmp_path: Path, code: str, **overrides: str) -> str:
+def _encounter_refused(tmp_path: Path, code: str, **overrides: Any) -> str:
     package = _encounter_package(tmp_path, **overrides)
     with pytest.raises(GamePackageValidationError) as error:
         resolve_game_package(package)

@@ -1,7 +1,7 @@
 schema_version = 3
 kind = "runner-avatar-v3"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "operator_primary"
@@ -49,6 +49,12 @@ frames_per_second = 10
 [[avatar.motions]]
 state = "slide"
 playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[avatar.motions]]
+state = "fly"
+playback_mode = "loop"
 canonical_frame_indices = [0, 1, 2, 3]
 frames_per_second = 12
 

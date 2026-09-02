@@ -92,6 +92,11 @@ RETIRED_PREPARED_IDENTITIES = (
     # Retired when every cut-in portrait gained the placement a tool-loop agent
     # judged inside the frame's band; the runtime draws what the reviewer saw.
     "sideview-runner-runtime-v8",
+    # Retired by the encounter pass: the manifest gained the encounter block,
+    # the boss and projectile catalogs, the arena chunk role, and the lettering
+    # each cut-in moment carries.
+    "sideview-runner-runtime-v9",
+    "game-fx-v1",
     # Retired by the encounter pass: the runner gained a locomotion that is not
     # running, a boss that fires back, and the arena chunk role the fight is
     # fought over. Gameplay, track and the runtime manifest moved together.
@@ -214,9 +219,9 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v9`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v10`" in documents["docs/game-package.md"]
     fx = documents["docs/spec/game/fx.md"]
-    assert "exact current identity is `game-fx-v1`" in fx
+    assert "exact current identity is `game-fx-v2`" in fx
     assert "`cut_in_frame_1536x1024_v1`" in fx
     assert "`tear_reveal_v1`" in fx
 

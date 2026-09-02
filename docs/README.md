@@ -57,7 +57,7 @@ Start here for the headless, general-purpose system:
   library-or-generated source axis, the axes every role declares, the provable pixel gates, genre
   packs, and the deliberately small v0 slice.
 - [Screen FX: transitions and overlays](spec/game/fx.md) — exact-current root
-  `fx.toml` (`game-fx-v1`): the cut-in as two generated plates with a producer-traced
+  `fx.toml` (`game-fx-v2`): the cut-in as two generated plates with a producer-traced
   mask polygon, the game-global moment vocabulary, the closed effect family, and the
   generation and runtime host contracts any genre adopts in one call.
 - [Game visual reference and vocabulary](game-visual-reference.md) — global

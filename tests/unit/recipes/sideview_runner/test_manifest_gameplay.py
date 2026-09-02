@@ -63,7 +63,11 @@ def test_the_published_gameplay_block_is_exactly_the_parsers_contract() -> None:
             "hazard": "drain_v1",
             "pit": "drain_and_recover_v1",
             "crush": "end_run_v1",
+            # Always present, explicitly null without an encounter: a consumer
+            # must never have to tell "absent" from "unanswered".
+            "shot": None,
         },
+        "encounter": None,
         "vitals": {
             "profile": "three_point_v1",
             "max_points": 3,

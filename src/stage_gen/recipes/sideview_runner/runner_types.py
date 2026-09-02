@@ -40,6 +40,7 @@ LAYER_LOOP_EDIT_KIND = "track-layer-loop-edit-v1"
 LAYER_LOOP_REPORT_KIND = "track-layer-loop-report-v1"
 LAYER_VALIDATION_KIND = "track-layer-validation-v1"
 AVATAR_CONCEPT_KIND = "avatar-concept-v1"
+BOSS_CONCEPT_KIND = "boss-concept-v1"
 MOTION_RAW_KIND = "avatar-motion-raw-v1"
 MOTION_ATLAS_KIND = "avatar-motion-atlas-v1"
 MOTION_VALIDATION_KIND = "avatar-motion-validation-v2"
@@ -56,9 +57,9 @@ SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v9"
+MANIFEST_KIND = "sideview-runner-runtime-v10"
 #: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 9
+MANIFEST_SCHEMA_VERSION = 10
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -184,6 +185,38 @@ AVATAR_MOTION_VALIDATE = NodeType(
     contract_version="runner-avatar-motion-validate-v4",
 )
 
+#: The boss's own chain. Separate node types rather than a parameter on the
+#: avatar's, because the type is what the plan and the taxonomy read: a reader
+#: scanning a graph should see that a boss was drawn, not an "avatar" node with
+#: an actor flag. The handlers behind them are the same ones.
+BOSS_CONCEPT_GENERATE = NodeType(
+    type_id=f"{_P}/boss_concept.generate",
+    title="Boss identity concept",
+    archetype=ViewArchetype.IMAGE,
+    operation="image_generation",
+    features=IMAGE_FEATURES,
+    policy=_PROVIDER,
+    contract_version="runner-boss-concept-v1",
+)
+
+BOSS_MOTION_GENERATE = NodeType(
+    type_id=f"{_P}/boss_motion.generate",
+    title="Boss motion atlas",
+    archetype=ViewArchetype.IMAGE,
+    operation="image_generation",
+    features=IMAGE_FEATURES,
+    policy=_PROVIDER,
+    contract_version="runner-boss-motion-v1",
+)
+
+BOSS_MOTION_VALIDATE = NodeType(
+    type_id=f"{_P}/boss_motion.validate",
+    title="Boss motion admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="runner-boss-motion-validate-v1",
+)
+
 MOTION_REBASE_JUDGE = NodeType(
     type_id=f"{_P}/motion_rebase.judge",
     title="Scale rebase reading",
@@ -283,6 +316,9 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     AVATAR_CONCEPT_GENERATE,
     AVATAR_MOTION_GENERATE,
     AVATAR_MOTION_VALIDATE,
+    BOSS_CONCEPT_GENERATE,
+    BOSS_MOTION_GENERATE,
+    BOSS_MOTION_VALIDATE,
     MOTION_REBASE_JUDGE,
     MOTION_REBASE_VERIFY,
     CATALOG_ASSET_GENERATE,
@@ -303,6 +339,10 @@ def runner_type_index() -> dict[str, NodeType]:
 __all__ = [
     "ATTEMPT_LEDGER_KIND",
     "AVATAR_CONCEPT_GENERATE",
+    "BOSS_CONCEPT_GENERATE",
+    "BOSS_MOTION_GENERATE",
+    "BOSS_MOTION_VALIDATE",
+    "BOSS_CONCEPT_KIND",
     "AVATAR_CONCEPT_KIND",
     "AVATAR_MOTION_GENERATE",
     "AVATAR_MOTION_VALIDATE",
