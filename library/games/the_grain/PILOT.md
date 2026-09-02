@@ -34,9 +34,11 @@ From these run tags:
 | `b_window` | `the-grain-window-3` |
 | the case projection | `the-grain-episode-one` |
 
-**What is in it.** 872 authored cues across six scenarios, of which 872 are lifted from the
-novel or written inside the outline's permitted list and **none is attributed to the wrong
-person**. Two inspect-only rooms, 20 hotspots, both proven solvable. Twelve stage backdrops,
+**What is in it.** **1,207 authored cues** across six scenarios — 821 spoken and 386 lines
+of narration — plus roughly 30 authored narration lines across the two rooms. Every one is
+either lifted verbatim from the novel or written inside the outline's permitted list, and
+**none is attributed to the wrong person**, checked mechanically across all eight beats and
+then read by hand. Two inspect-only rooms, 20 hotspots, both proven solvable. Twelve stage backdrops,
 thirty-two cast plates at eight actors × four authored expressions, four music tracks, a
 shared UI atlas. Sixty-nine facts crossing beat boundaries, of which 48 are Wednesday's
 board handed to Thursday.
@@ -1515,7 +1517,7 @@ The brief's eight, with what each actually returned.
 | 2 | Room proofs, `puzzle.validation.json` present | **pass** — both rooms solvable, zero unreachable interactions, real artifacts rather than dry-run stubs |
 | 3 | The case proof | **pass** — admitted **and bound**: 8 beats, 69 facts, every leaf resolved and every declaration checked against it in both directions |
 | 4 | `validate_game_package.py --root .` | **split, both halves pass.** The gate as written was impossible — it required the promoted closure to be ours while forbidding edits to `main.toml`. (a) the promoted closure still validates; (b) our package is proven by its leaf tools. See the 05:52 decision. |
-| 5 | `scripts/check.py`, credential-free | **lint and types pass; the offline suite was still running at the freeze.** `ruff format` 548 files, `ruff check` clean, `mypy --strict` clean over 421 source files. The pytest phase had reached 71% with no failure. Earlier in the run it was red on one `runner_track` error belonging to the agent working outside this pilot, which has since been fixed by them. **Not claimed green.** |
+| 5 | `scripts/check.py`, credential-free | **pass, exit 0.** `ruff format` 548 files, `ruff check` clean, `mypy --strict` clean over 421 source files, and **1,528 tests passed, 7 deselected**, in 7m19s. *"Python offline gate passed."* Earlier in the run it was red on one `runner_track` mypy error belonging to the agent working outside this pilot; they fixed it. |
 | 6 | `cd web && bun run check && bun test` | **pass** — `tsc` clean, **1379 tests pass, 0 fail** |
 | 7 | Manifests and provenance; no absolute paths | **pass** — every run carries its manifest; zero absolute paths, temp paths or credential-shaped strings across all four shipped runs; the bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false` |
 | 8 | A full play-through with a reload and a Continue | **partly.** Resume is **proven** — a reload mid-episode into a fresh tab offered the save and Continue landed on the same line. The two full passes are QA's and are in section 5. |
