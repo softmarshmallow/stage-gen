@@ -18,8 +18,8 @@ from stage_gen.components.runner_gameplay import (
     load_runner_gameplay_bytes,
 )
 
-BASE = """schema_version = 3
-kind = "runner-gameplay-v3"
+BASE = """schema_version = 4
+kind = "runner-gameplay-v4"
 game_id = "bellweather"
 revision = 1
 track_id = "sunpetal-sprint"

@@ -14,8 +14,10 @@ from .models import (
     RunnerSegments,
     RunnerStructuralGround,
     RunnerTrack,
+    SegmentRole,
     load_runner_track_bytes,
     runner_track_sha256,
+    seam_profile,
 )
 from .structural_ground import (
     STRUCTURAL_GROUND_APRON_COLUMNS,
@@ -68,6 +70,7 @@ __all__ = [
     "RunnerPickup",
     "RunnerSegmentChunk",
     "RunnerSegments",
+    "SegmentRole",
     "RunnerStructuralGround",
     "RunnerTrack",
     "StructuralGroundGuideLayout",
@@ -75,6 +78,7 @@ __all__ = [
     "canonicalize_structural_ground",
     "canonicalize_structural_ground_seam_bridge",
     "load_runner_track_bytes",
+    "seam_profile",
     "runner_track_sha256",
     "structural_ground_generation_prompt",
     "structural_ground_guide_layout",

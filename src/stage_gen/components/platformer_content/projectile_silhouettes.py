@@ -1,9 +1,15 @@
 """The one place that knows what each projectile silhouette must be drawn as.
 
-Written in the shape `mob_states.py` established, and for the same reason it was written: a family
-whose art direction is spelled out separately in the prompt builder, the deterministic validator,
-and the vision review acquires three copies of one decision, and two of them fail silently when a
-member is added. Here a silhouette is one record, and every predicate asks this module.
+Written in the shape the platformer recipe's `mob_states.py` established, and for the same reason
+it was written: a family whose art direction is spelled out separately in the prompt builder, the
+deterministic validator, and the vision review acquires three copies of one decision, and two of
+them fail silently when a member is added. Here a silhouette is one record, and every predicate
+asks this module.
+
+It sits beside the contract rather than inside one recipe because a silhouette name is a *contract*
+word: `ProjectileContent.silhouette` already declares that the name is a statement about the
+published pixels, so the sentence that makes it true belongs with the model, not with whichever
+genre happens to throw things. Two genres draw projectiles today.
 
 A projectile has one problem no other isolated object in this pipeline has: **the runtime moves
 it**. A prop stands where it was placed and an item lies where it dropped, so how the artwork is

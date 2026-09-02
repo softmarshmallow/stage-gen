@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path, PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field, field_validator, model_validator
@@ -71,8 +71,10 @@ from stage_gen.components.platformer_map import (
 from stage_gen.components.runner_audio import RunnerAudioContract, load_runner_audio_bytes
 from stage_gen.components.runner_content import (
     RunnerAvatarCatalog,
+    RunnerBossCatalog,
     declared_motion_states,
     load_runner_avatar_bytes,
+    load_runner_boss_bytes,
 )
 from stage_gen.components.runner_gameplay import (
     PLACEMENT_PROFILES,
@@ -81,10 +83,15 @@ from stage_gen.components.runner_gameplay import (
     DuckProfile,
     JumpArc,
     PlacementProfile,
+    RunnerEncounter,
     RunnerGameplayContract,
     SpeedProfile,
     apron_columns,
     arc_height_rows,
+    boss_dodge_window_seconds,
+    boss_kill_seconds,
+    boss_lane_rows,
+    boss_salvo_budget_seconds,
     clearable_span_columns,
     drop_scatter_columns,
     hazard_press_window_seconds,
@@ -98,6 +105,7 @@ from stage_gen.components.runner_track import (
     RunnerStructuralGround,
     RunnerTrack,
     load_runner_track_bytes,
+    seam_profile,
     validate_structural_ground_material_references,
 )
 from stage_gen.components.scenario import (
@@ -168,6 +176,9 @@ class ResolvedRunnerMember:
     soundtrack: GameSoundtrack | None
     #: The screen-FX document, when the game authors one for this genre.
     fx: GameFx | None
+    #: Present exactly when the gameplay declares an encounter.
+    bosses: RunnerBossCatalog | None
+    projectiles: ProjectileContentCatalog | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -885,6 +896,24 @@ def _resolve_runner_member(
         load_runner_audio_bytes,
         "invalid_runner_audio",
     )
+    bosses = (
+        None
+        if runner_member.content.bosses is None
+        else _load_locked(
+            member(runner_member.content.bosses.source),
+            load_runner_boss_bytes,
+            "invalid_runner_boss",
+        )
+    )
+    projectiles = (
+        None
+        if runner_member.content.projectiles is None
+        else _load_locked(
+            member(runner_member.content.projectiles.source),
+            load_projectile_content_bytes,
+            "invalid_projectile_content",
+        )
+    )
     soundtrack = (
         None
         if runner_member.soundtrack is None
@@ -930,7 +959,12 @@ def _resolve_runner_member(
                 "invalid_reference_image",
                 f"track {track.track_id} structural-ground references are unusable: {error}",
             ) from error
-    for label, catalog in (("avatar", avatar), ("prop", props), ("item", items)):
+    catalogs: list[tuple[str, Any]] = [("avatar", avatar), ("prop", props), ("item", items)]
+    if bosses is not None:
+        catalogs.append(("boss", bosses))
+    if projectiles is not None:
+        catalogs.append(("projectile", projectiles))
+    for label, catalog in catalogs:
         for content_reference in catalog.references:
             data = locked(
                 content_reference.source,
@@ -948,12 +982,27 @@ def _resolve_runner_member(
         audio=audio,
         soundtrack=soundtrack,
         fx=fx,
+        bosses=bosses,
+        projectiles=projectiles,
     )
 
 
-#: The moments the runner runtime emits. A bound moment outside this set is paid
-#: generation the runtime would never play, so it is refused here, offline.
-RUNNER_FX_MOMENTS: frozenset[str] = frozenset({"stage_start"})
+#: The moments the runner runtime emits unconditionally.
+RUNNER_BASE_FX_MOMENTS: frozenset[str] = frozenset({"stage_start"})
+
+
+def runner_fx_moments(gameplay: RunnerGameplayContract) -> frozenset[str]:
+    """The moments this runner member can actually play.
+
+    A bound moment outside the set is paid generation the runtime would never
+    reach, so it is refused offline. `encounter_start` is emitted only by a
+    member that declares an encounter, which makes the moment vocabulary a
+    function of the gameplay rather than a constant.
+    """
+
+    if gameplay.encounter is None:
+        return RUNNER_BASE_FX_MOMENTS
+    return RUNNER_BASE_FX_MOMENTS | {"encounter_start"}
 
 
 def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunnerMember) -> None:
@@ -980,7 +1029,7 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
             "cross_game_identity", "every package contract must share game.toml game_id"
         )
     if runner.fx is not None:
-        unplayed = sorted(set(runner.fx.moment_names()) - RUNNER_FX_MOMENTS)
+        unplayed = sorted(set(runner.fx.moment_names()) - runner_fx_moments(runner.gameplay))
         if unplayed:
             raise GamePackageValidationError(
                 "invalid_game_fx_contract",
@@ -1082,8 +1131,98 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
             'hurt_representation = "drawn_v1" to play it',
         )
 
+    # The encounter's own triangles. A boss is the most expensive thing a
+    # runner package can author - a concept plate, three strips, a rebase
+    # judgement and two projectiles - so every half of the obligation is
+    # refused here, offline, rather than discovered when the graph has already
+    # fanned out or, worse, when the run is played.
+    encounter = gameplay.encounter
+    arena_ids = {chunk.segment_id for chunk in runner.track.segments.arena_chunks()}
+    if encounter is not None and "fly" not in declared_states:
+        raise GamePackageValidationError(
+            "invalid_runner_avatar",
+            "gameplay declares an encounter; the avatar declares no fly motion to wear",
+        )
+    if encounter is None and "fly" in declared_states:
+        raise GamePackageValidationError(
+            "invalid_runner_avatar",
+            "avatar declares a fly motion but gameplay declares no encounter to trigger it",
+        )
+    if encounter is None:
+        if runner.bosses is not None:
+            raise GamePackageValidationError(
+                "invalid_runner_boss",
+                "package declares a boss catalog but gameplay declares no encounter to fight it",
+            )
+        if runner.projectiles is not None:
+            raise GamePackageValidationError(
+                "invalid_projectile_content",
+                "package declares projectiles but gameplay declares no encounter to fire them",
+            )
+        if arena_ids:
+            raise GamePackageValidationError(
+                "invalid_runner_track",
+                "track authors arena chunks no encounter is fought over: "
+                + ", ".join(sorted(arena_ids)),
+            )
+    else:
+        if runner.bosses is None:
+            raise GamePackageValidationError(
+                "unresolved_cross_reference",
+                "gameplay declares an encounter but the package declares no boss catalog",
+            )
+        if runner.projectiles is None:
+            raise GamePackageValidationError(
+                "unresolved_cross_reference",
+                "gameplay declares an encounter but the package declares no projectile catalog",
+            )
+        _assert_subset(
+            {encounter.boss_id},
+            {entry.boss_id for entry in runner.bosses.bosses},
+            "encounter boss_id",
+        )
+        _assert_subset({encounter.arena_segment_id}, arena_ids, "encounter arena_segment_id")
+        projectile_ids = {entry.projectile_id for entry in runner.projectiles.projectiles}
+        named_projectiles = {encounter.boss_projectile_id, encounter.player_projectile_id}
+        _assert_subset(named_projectiles, projectile_ids, "encounter projectile_id")
+        # The runner has exactly two projectile roles and no second weapon, so
+        # an unnamed projectile is art nothing can ever put in the air. The
+        # platformer deliberately tolerates the same shape because its weapon
+        # class is a runtime choice; here there is nothing to choose.
+        unfired = sorted(projectile_ids - named_projectiles)
+        if unfired:
+            raise GamePackageValidationError(
+                "invalid_projectile_content",
+                "package draws projectiles no encounter fires: " + ", ".join(unfired),
+            )
+        unfought = sorted(arena_ids - {encounter.arena_segment_id})
+        if unfought:
+            raise GamePackageValidationError(
+                "invalid_runner_track",
+                "track authors arena chunks the encounter is not fought over: "
+                + ", ".join(unfought),
+            )
+        unmatched = sorted({entry.boss_id for entry in runner.bosses.bosses} - {encounter.boss_id})
+        if unmatched:
+            raise GamePackageValidationError(
+                "invalid_runner_boss",
+                "package draws bosses no encounter fights: " + ", ".join(unmatched),
+            )
+        _validate_runner_encounter(
+            encounter=encounter,
+            walk_surface_row=runner.track.segments.walk_surface_row,
+            player_height_rows=player_height_rows,
+            placement=placement,
+        )
+
     segments = runner.track.segments
     for chunk in segments.chunks:
+        if chunk.role == "arena":
+            # An arena is flat, empty and seam-profiled in every column, which
+            # the track contract already proved. Every proof below is about
+            # reacting to authored terrain, and there is none here: the demand
+            # during an encounter is the boss, proved by the encounter itself.
+            continue
         _validate_runner_chunk(
             chunk=chunk,
             segments=segments,
@@ -1096,6 +1235,56 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
             duck=duck,
             player_height_rows=player_height_rows,
             prop_height_rows=prop_height_rows,
+        )
+
+
+def _validate_runner_encounter(
+    *,
+    encounter: RunnerEncounter,
+    walk_surface_row: int,
+    player_height_rows: float,
+    placement: PlacementProfile,
+) -> None:
+    """Prove one encounter survivable and winnable, closed form, before any spend.
+
+    Three refusals, in the order a player meets them: the salvo must leave a
+    lane the avatar fits through, the avatar must have time to reach it, and
+    the boss must be defeatable before its own budget ends the fight. Every
+    number comes from the named profiles, so a package cannot buy fairness by
+    lowering a threshold - only by naming a different profile or authoring a
+    taller band.
+    """
+
+    boss = encounter.boss_profile()
+    thrust = encounter.thrust_profile()
+
+    lane = boss_lane_rows(boss, walk_surface_row)
+    required = player_height_rows + boss.lane_margin_rows
+    if lane < required:
+        raise GamePackageValidationError(
+            "segment_hazard_unclearable",
+            f"encounter {encounter.profile} fires {boss.salvo_shots} shots of "
+            f"{boss.projectile_height_rows} rows into a {walk_surface_row}-row band, leaving a "
+            f"{lane:.2f}-row lane; the avatar needs {required:.2f} rows "
+            f"({player_height_rows:.2f} plus {boss.lane_margin_rows} of margin)",
+        )
+
+    window = boss_dodge_window_seconds(boss, thrust, walk_surface_row=walk_surface_row)
+    if window < placement.min_hazard_clear_seconds:
+        raise GamePackageValidationError(
+            "segment_hazard_unclearable",
+            f"encounter {encounter.profile} leaves {window:.3f}s to cross the band under "
+            f"{encounter.locomotion}; the placement discipline demands "
+            f"{placement.min_hazard_clear_seconds}s",
+        )
+
+    kill = boss_kill_seconds(boss)
+    budget = boss_salvo_budget_seconds(boss)
+    if kill > budget:
+        raise GamePackageValidationError(
+            "invalid_runner_gameplay",
+            f"encounter {encounter.profile} needs {kill:.2f}s to defeat its boss but retreats "
+            f"after {budget:.2f}s; the fight cannot be won",
         )
 
 
@@ -1125,9 +1314,7 @@ def _validate_runner_chunk(
     # floating solid above an otherwise valid edge; structural-ground guide
     # construction would then reject it after provider nodes had fanned out.
     # Keep the stricter proof here, offline, before any spend.
-    expected_seam = [
-        "0" if row < segments.walk_surface_row else "1" for row in range(len(chunk.occupancy))
-    ]
+    expected_seam = seam_profile(len(chunk.occupancy), segments.walk_surface_row)
     for label, column in (("first", 0), ("last", width - 1)):
         actual_seam = [row[column] for row in chunk.occupancy]
         if actual_seam != expected_seam:

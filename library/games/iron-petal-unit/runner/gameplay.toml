@@ -1,7 +1,7 @@
-schema_version = 3
-kind = "runner-gameplay-v3"
+schema_version = 4
+kind = "runner-gameplay-v4"
 game_id = "iron-petal-unit"
-revision = 4
+revision = 5
 track_id = "halcyon-rescue-line"
 
 [run]

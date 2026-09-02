@@ -286,7 +286,7 @@ def test_the_motion_vocabulary_is_declared_exactly_once() -> None:
     assert RUNNER_AVATAR_BASE_MOTION_STATES < RUNNER_AVATAR_MOTION_STATES
     # The runtime's copy (web/lib/sideview-runner/contract.ts) pins the same
     # order in its own suite; a drift there fails the web gate.
-    assert RUNNER_MOTION_ORDER == ("run", "jump", "slide", "hurt", "death")
+    assert RUNNER_MOTION_ORDER == ("run", "jump", "slide", "fly", "hurt", "death")
 
 
 def test_motion_source_requires_meaningful_alpha_in_every_declared_cell() -> None:

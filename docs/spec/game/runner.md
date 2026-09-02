@@ -27,8 +27,8 @@ A runner member claims the fixed `runner/` prefix inside the package:
 
 | Member | Kind | Notes |
 | --- | --- | --- |
-| `runner/gameplay.toml` | `runner-gameplay-v3` | Named profiles only; the consumer owns the feel numbers |
-| `runner/track.toml` | `runner-track-v3` | One track of authored segments and one closed ground mode |
+| `runner/gameplay.toml` | `runner-gameplay-v4` | Named profiles only; the consumer owns the feel numbers |
+| `runner/track.toml` | `runner-track-v4` | One track of authored segments and one closed ground mode |
 | `runner/content/avatar.toml` | `runner-avatar-v3` | Exactly one runtime actor: one character or one visible rider-and-machine silhouette |
 | `runner/content/props.toml` | `prop-content-v2` | Obstacles, reused verbatim |
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
@@ -69,7 +69,7 @@ frame.
 
 ## Gameplay: named profiles
 
-`runner-gameplay-v3` declares `track_id`, `[run]` (`speed_profile`,
+`runner-gameplay-v4` declares `track_id`, `[run]` (`speed_profile`,
 `jump_profile`, `collision_box`, an optional `duck_profile`, a
 `[run.consequences]` table and an optional `[run.vitals]` gauge) and `[ramp]`
 (`profile`). Every value is a closed name. The rule that decides
@@ -157,7 +157,7 @@ admitted package never bills a graph whose manifest no consumer opens.
 
 ## Track: authored tiled segments
 
-`runner-track-v3` reuses the platformer map's generation vocabulary for
+`runner-track-v4` reuses the platformer map's generation vocabulary for
 `[view]`, `[continuity]` and loop construction, digest-locked
 `[[references]]`, and `[[layers]]` with parallax and presentation. It replaces
 generated terrain geometry with authored `[segments]` and gives ground

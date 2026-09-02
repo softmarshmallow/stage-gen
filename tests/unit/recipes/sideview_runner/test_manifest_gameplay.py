@@ -25,8 +25,8 @@ from stage_gen.recipes.sideview_runner.prepared_runner import manifest_audio, ma
 
 from ..._runner_fixture import RUNNER_AUDIO
 
-GAMEPLAY = b"""schema_version = 3
-kind = "runner-gameplay-v3"
+GAMEPLAY = b"""schema_version = 4
+kind = "runner-gameplay-v4"
 game_id = "bellweather"
 revision = 1
 track_id = "sunpetal-sprint"

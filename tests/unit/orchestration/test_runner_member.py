@@ -30,12 +30,19 @@ from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_pack
 from .._runner_fixture import (
     ARC_PICKUPS,
     COVER_SHA256,
+    ENCOUNTER_CHUNKS,
+    ENCOUNTER_ROWS,
+    ENCOUNTER_WALK_SURFACE_ROW,
     FLAT_ROWS,
     GAP28_ROWS,
     GAP_ROWS,
     RUNNER_AVATAR,
+    RUNNER_AVATAR_FLY,
     RUNNER_AVATAR_NO_SLIDE,
+    RUNNER_BOSSES,
+    RUNNER_GAMEPLAY_ENCOUNTER,
     RUNNER_GAMEPLAY_NO_DUCK,
+    RUNNER_PROJECTILES,
     WIDE_FLAT_ROWS,
     runner_only_package,
 )
@@ -533,3 +540,185 @@ def test_an_untelegraphed_surface_hazard_is_refused(tmp_path: Path) -> None:
             extra=_hazard("toppled_cart", 11),
         ),
     )
+
+
+# --------------------------------------------------------------------- encounter
+
+
+def _encounter_package(tmp_path: Path, **overrides: str) -> Path:
+    """The passing encounter closure: taller band, arena chunk, boss, projectiles."""
+
+    settings: dict[str, object] = {
+        "chunks": ENCOUNTER_CHUNKS,
+        "gameplay": RUNNER_GAMEPLAY_ENCOUNTER,
+        "avatar": RUNNER_AVATAR_FLY,
+        "bosses": RUNNER_BOSSES,
+        "projectiles": RUNNER_PROJECTILES,
+        "rows": ENCOUNTER_ROWS,
+        "walk_surface_row": ENCOUNTER_WALK_SURFACE_ROW,
+    }
+    settings.update(overrides)
+    return _two_genre_package(tmp_path, **settings)  # type: ignore[arg-type]
+
+
+def _encounter_refused(tmp_path: Path, code: str, **overrides: str) -> str:
+    package = _encounter_package(tmp_path, **overrides)
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+    assert error.value.code == code, str(error.value)
+    return str(error.value)
+
+
+def test_an_encounter_package_resolves_with_its_boss_arena_and_projectiles(
+    tmp_path: Path,
+) -> None:
+    resolved = resolve_game_package(_encounter_package(tmp_path))
+
+    runner = resolved.runner
+    assert runner is not None
+    assert runner.gameplay.encounter is not None
+    assert runner.gameplay.encounter.boss_id == "bramble_harvester"
+    assert runner.bosses is not None
+    assert [entry.boss_id for entry in runner.bosses.bosses] == ["bramble_harvester"]
+    assert runner.projectiles is not None
+    assert sorted(entry.projectile_id for entry in runner.projectiles.projectiles) == [
+        "spark_pin",
+        "thorn_burst",
+    ]
+    assert [chunk.segment_id for chunk in runner.track.segments.arena_chunks()] == ["harvest_arena"]
+
+
+def test_an_encounter_without_a_fly_motion_is_refused(tmp_path: Path) -> None:
+    message = _encounter_refused(tmp_path, "invalid_runner_avatar", avatar=RUNNER_AVATAR)
+
+    assert "no fly motion to wear" in message
+
+
+def test_a_fly_motion_without_an_encounter_is_refused(tmp_path: Path) -> None:
+    package = _two_genre_package(tmp_path, avatar=RUNNER_AVATAR_FLY)
+
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+
+    assert error.value.code == "invalid_runner_avatar"
+    assert "no encounter to trigger it" in str(error.value)
+
+
+def test_an_encounter_naming_an_undrawn_boss_is_refused(tmp_path: Path) -> None:
+    _encounter_refused(
+        tmp_path,
+        "unresolved_cross_reference",
+        gameplay=RUNNER_GAMEPLAY_ENCOUNTER.replace(
+            'boss_id = "bramble_harvester"', 'boss_id = "thicket_router"', 1
+        ),
+    )
+
+
+def test_an_encounter_naming_an_unauthored_arena_is_refused(tmp_path: Path) -> None:
+    _encounter_refused(
+        tmp_path,
+        "unresolved_cross_reference",
+        gameplay=RUNNER_GAMEPLAY_ENCOUNTER.replace(
+            'arena_segment_id = "harvest_arena"', 'arena_segment_id = "harvest_flat"', 1
+        ),
+    )
+
+
+def test_an_encounter_naming_an_undrawn_projectile_is_refused(tmp_path: Path) -> None:
+    _encounter_refused(
+        tmp_path,
+        "unresolved_cross_reference",
+        gameplay=RUNNER_GAMEPLAY_ENCOUNTER.replace(
+            'boss_projectile_id = "thorn_burst"', 'boss_projectile_id = "seed_shell"', 1
+        ),
+    )
+
+
+def test_an_encounter_without_a_boss_catalog_is_refused(tmp_path: Path) -> None:
+    package = _two_genre_package(
+        tmp_path,
+        chunks=ENCOUNTER_CHUNKS,
+        gameplay=RUNNER_GAMEPLAY_ENCOUNTER,
+        avatar=RUNNER_AVATAR_FLY,
+        projectiles=RUNNER_PROJECTILES,
+        rows=ENCOUNTER_ROWS,
+        walk_surface_row=ENCOUNTER_WALK_SURFACE_ROW,
+    )
+
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+
+    assert error.value.code == "unresolved_cross_reference"
+    assert "no boss catalog" in str(error.value)
+
+
+def test_an_arena_chunk_without_an_encounter_is_dead_art(tmp_path: Path) -> None:
+    package = _two_genre_package(
+        tmp_path,
+        chunks=ENCOUNTER_CHUNKS,
+        rows=ENCOUNTER_ROWS,
+        walk_surface_row=ENCOUNTER_WALK_SURFACE_ROW,
+    )
+
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+
+    assert error.value.code == "invalid_runner_track"
+    assert "harvest_arena" in str(error.value)
+
+
+def test_a_boss_no_encounter_fights_is_dead_art(tmp_path: Path) -> None:
+    two_bosses = RUNNER_BOSSES + RUNNER_BOSSES.split("[[bosses]]", 1)[1].join(
+        ["[[bosses]]", ""]
+    ).replace("bramble_harvester", "thicket_router").replace("Bramble Harvester", "Thicket Router")
+
+    message = _encounter_refused(tmp_path, "invalid_runner_boss", bosses=two_bosses)
+
+    assert "thicket_router" in message
+
+
+def test_a_projectile_no_role_fires_is_dead_art(tmp_path: Path) -> None:
+    spare = (
+        RUNNER_PROJECTILES
+        + """
+[[projectiles]]
+projectile_id = "husk_shard"
+display_name = "Husk Shard"
+silhouette = "irregular_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+reference_ids = ["cover_style"]
+length_units = 0.28
+prompt = "A drifting fragment of dry husk."
+"""
+    )
+
+    message = _encounter_refused(tmp_path, "invalid_projectile_content", projectiles=spare)
+
+    assert "husk_shard" in message
+
+
+def test_a_salvo_that_leaves_no_clear_lane_is_refused(tmp_path: Path) -> None:
+    """The default eight-row band cannot hold three shots and a 2.40-row avatar."""
+
+    package = _two_genre_package(
+        tmp_path,
+        chunks="\n".join(
+            [
+                _chunk("meadow_flat", WIDE_FLAT_ROWS),
+                _chunk("meadow_arena", WIDE_FLAT_ROWS, role="arena"),
+            ]
+        ),
+        gameplay=RUNNER_GAMEPLAY_ENCOUNTER.replace(
+            'arena_segment_id = "harvest_arena"', 'arena_segment_id = "meadow_arena"', 1
+        ),
+        avatar=RUNNER_AVATAR_FLY,
+        bosses=RUNNER_BOSSES,
+        projectiles=RUNNER_PROJECTILES,
+    )
+
+    with pytest.raises(GamePackageValidationError) as error:
+        resolve_game_package(package)
+
+    assert error.value.code == "segment_hazard_unclearable"
+    assert "lane" in str(error.value)

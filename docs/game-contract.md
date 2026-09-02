@@ -330,8 +330,8 @@ does not by itself define a core game contract.
   `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v3`, `game-map-v9`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
-  `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v3`,
-  `runner-track-v3`, `runner-avatar-v3`, `runner-audio-v3`, and the optional
+  `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v4`,
+  `runner-track-v4`, `runner-avatar-v3`, `runner-audio-v3`, and the optional
   `game-fx-v1` contracts.
   Provider-free
   integration emits `prepared-game-runtime-v10` for the platformer member

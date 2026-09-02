@@ -41,6 +41,11 @@ from .models import (
     load_projectile_content_bytes,
     load_prop_content_bytes,
 )
+from .projectile_silhouettes import (
+    PROJECTILE_SILHOUETTES,
+    ProjectileSilhouetteArt,
+    projectile_silhouette_art,
+)
 
 __all__ = [
     "DEFAULT_MOTION_ANCHOR",
@@ -65,11 +70,13 @@ __all__ = [
     "PLAYER_MOTION_STATES",
     "PlayerContent",
     "PlayerContentCatalog",
+    "PROJECTILE_SILHOUETTES",
     "ProjectileContent",
     "ProjectileContentCatalog",
     "ProjectileFlight",
     "ProjectileImpact",
     "ProjectileSilhouette",
+    "ProjectileSilhouetteArt",
     "PropContent",
     "PropContentCatalog",
     "canonical_game_content_json",
@@ -79,4 +86,5 @@ __all__ = [
     "load_player_content_bytes",
     "load_projectile_content_bytes",
     "load_prop_content_bytes",
+    "projectile_silhouette_art",
 ]

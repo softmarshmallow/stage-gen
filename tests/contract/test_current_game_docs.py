@@ -89,6 +89,11 @@ RETIRED_PREPARED_IDENTITIES = (
     # Retired when the runtime manifest gained the optional screen-FX block:
     # the cut-in plates and the moment bindings a stage start plays.
     "sideview-runner-runtime-v7",
+    # Retired by the encounter pass: the runner gained a locomotion that is not
+    # running, a boss that fires back, and the arena chunk role the fight is
+    # fought over. Gameplay, track and the runtime manifest moved together.
+    "runner-gameplay-v3",
+    "runner-track-v3",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -201,7 +206,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     runner = documents["docs/spec/game/runner.md"]
     assert "`runner-audio-v3`" in runner
     assert "`generated_clip_v1`" in runner
-    assert "`runner-track-v3`" in runner
+    assert "`runner-track-v4`" in runner
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner

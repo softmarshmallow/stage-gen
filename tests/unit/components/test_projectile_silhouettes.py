@@ -5,7 +5,7 @@ from typing import get_args
 import pytest
 
 from stage_gen.components.platformer_content.models import ProjectileSilhouette
-from stage_gen.recipes.sideview_platformer.projectile_silhouettes import (
+from stage_gen.components.platformer_content.projectile_silhouettes import (
     PROJECTILE_SILHOUETTES,
     projectile_silhouette_art,
 )

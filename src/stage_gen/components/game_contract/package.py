@@ -353,6 +353,11 @@ class RunnerContentSources(PersistedContractModel):
     avatar: PackageSource
     props: PackageSource
     items: PackageSource
+    #: Optional together with `projectiles`: a package declares both exactly
+    #: when its gameplay declares an encounter, and the runner member validator
+    #: refuses either half on its own.
+    bosses: PackageSource | None = None
+    projectiles: PackageSource | None = None
 
 
 class RunnerGenreMember(PersistedContractModel):
@@ -360,7 +365,9 @@ class RunnerGenreMember(PersistedContractModel):
 
     The member table is minimal on purpose: gameplay (named profiles), one
     track of authored tiled segments, one avatar, obstacle props, and pickup
-    items, and explicit event-to-effect audio. Soundtrack is optional, and so
+    items, and explicit event-to-effect audio. Bosses and projectiles arrive
+    together with an encounter and are absent without one. Soundtrack is
+    optional, and so
     is the screen-FX document (``fx.toml``, a root sibling the genre consumes at
     its stage start); there is no UI member (the runtime draws its
     distance/score HUD itself) and no scenario member in v1. The family
@@ -386,6 +393,21 @@ class RunnerGenreMember(PersistedContractModel):
             "content.avatar": (self.content.avatar.source, "runner/content/avatar.toml"),
             "content.props": (self.content.props.source, "runner/content/props.toml"),
             "content.items": (self.content.items.source, "runner/content/items.toml"),
+            **(
+                {}
+                if self.content.bosses is None
+                else {"content.bosses": (self.content.bosses.source, "runner/content/bosses.toml")}
+            ),
+            **(
+                {}
+                if self.content.projectiles is None
+                else {
+                    "content.projectiles": (
+                        self.content.projectiles.source,
+                        "runner/content/projectiles.toml",
+                    )
+                }
+            ),
             "audio": (self.audio.source, "runner/audio.toml"),
             **(
                 {}
@@ -408,6 +430,8 @@ class RunnerGenreMember(PersistedContractModel):
             self.content.avatar.source,
             self.content.props.source,
             self.content.items.source,
+            *([] if self.content.bosses is None else [self.content.bosses.source]),
+            *([] if self.content.projectiles is None else [self.content.projectiles.source]),
             self.audio.source,
             *([] if self.soundtrack is None else [self.soundtrack.source]),
             *([] if self.fx is None else [self.fx.source]),

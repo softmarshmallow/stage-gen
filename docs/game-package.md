@@ -38,8 +38,8 @@ Only these prepared-package identities are accepted by the resolver:
 | --- | --- |
 | Repository selector | `game-package-v4` |
 | Package root | `game-contract-v9` |
-| Runner gameplay | `runner-gameplay-v3` |
-| Runner track | `runner-track-v3` |
+| Runner gameplay | `runner-gameplay-v4` |
+| Runner track | `runner-track-v4` |
 | Runner avatar catalog | `runner-avatar-v3` |
 | Runner audio | `runner-audio-v3` |
 | Gameplay | `gameplay-contract-v1` |

@@ -43,18 +43,29 @@ from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     KEBAB_ID_PATTERN,
+    SNAKE_ID_PATTERN,
     canonical_contract_json,
     parse_toml_contract,
     sha256_bytes,
 )
 
-RUNNER_GAMEPLAY_SCHEMA_VERSION = 3
+RUNNER_GAMEPLAY_SCHEMA_VERSION = 4
 
 SpeedProfileName = Literal["steady_runner_v1", "brisk_runner_v1", "swift_runner_v1"]
 JumpProfileName = Literal["single_arc_v1", "double_arc_v1"]
 CollisionBoxName = Literal["torso_v1"]
 DuckProfileName = Literal["slide_v1"]
 RampProfile = Literal["gentle_ramp_v1", "brisk_ramp_v1"]
+
+#: How the avatar converts intent into vertical motion while an override is
+#: running. Not a mode flag: each name carries its own admission arithmetic,
+#: because a track flown under thrust has no gaps to clear - it has corridors
+#: to fit through - and a proof written for arcs says nothing about it.
+LocomotionProfileName = Literal["thrust_v1"]
+
+#: How one boss fights. One name, one closed set of numbers, every one of them
+#: read by a refusal below.
+BossProfileName = Literal["barrage_boss_v1"]
 
 #: How much of the run one way of coming to grief costs.
 #:
@@ -66,8 +77,10 @@ RampProfile = Literal["gentle_ramp_v1", "brisk_ramp_v1"]
 ConsequenceName = Literal["end_run_v1", "drain_v1", "drain_and_recover_v1"]
 
 #: Every way a run can come to grief. Each one is answered separately, so a
-#: package can forgive a clipped hazard while keeping a pit final.
-DamageSource = Literal["hazard", "pit", "crush"]
+#: package can forgive a clipped hazard while keeping a pit final. `shot` is
+#: reachable only during an encounter, which is why the contract refuses it
+#: without one and refuses an encounter without it.
+DamageSource = Literal["hazard", "pit", "crush", "shot"]
 
 VitalsProfileName = Literal["single_point_v1", "three_point_v1", "five_point_v1"]
 
@@ -203,6 +216,95 @@ class DuckProfile:
 DUCK_PROFILES: Final[dict[str, DuckProfile]] = {
     "slide_v1": DuckProfile(ducked_height_fraction=0.5, min_overhead_clearance_rows=0.25),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class ThrustProfile:
+    """The admission arithmetic one locomotion name declares.
+
+    Thrust is held-climb, released-fall: one acceleration drives the avatar
+    toward whichever cap the held state selects. One acceleration rather than
+    two because the asymmetry that matters is the pair of caps - a rise that
+    is slower than the fall is what keeps a dodge honest - and a second
+    acceleration would be a number no refusal reads.
+
+    The worst-case traverse of a band is therefore the CLIMB, whose cap is the
+    lower of the two; every dodge proof below is written against it.
+    """
+
+    max_climb_rows_per_second: float
+    max_fall_rows_per_second: float
+    climb_acceleration_rows_per_second2: float
+
+
+THRUST_PROFILES: Final[dict[str, ThrustProfile]] = {
+    "thrust_v1": ThrustProfile(
+        max_climb_rows_per_second=9.0,
+        max_fall_rows_per_second=10.0,
+        climb_acceleration_rows_per_second2=24.0,
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class BossProfile:
+    """The admission arithmetic one boss name declares.
+
+    Every field is read by one of the three refusals below, which is why they
+    are all here rather than split with the consumer: how the boss *reads* -
+    its approach speed, its hit flash, its bob - is feel and stays in the
+    runtime, but how far it stands off, how fast it fires and how much it can
+    fire decide whether the fight is survivable and winnable, and those are
+    refusals.
+
+    - `firing_distance_columns` with `projectile_speed_columns_per_second`
+      fixes the time a shot spends in the air, which is the dodge budget.
+      The speed is measured in the AVATAR's frame: the run carries both, so
+      what a player experiences is the closing speed, and admission proves the
+      number the player actually gets.
+    - `projectile_height_rows` and `salvo_shots` decide how much of the band a
+      salvo can occupy, and `lane_margin_rows` how much daylight the lane must
+      keep beyond the avatar's own silhouette.
+    - `salvo_budget` and `salvo_period_seconds` bound the encounter, and with
+      `hits_to_defeat`, `player_fire_period_seconds` and
+      `player_shot_speed_columns_per_second` decide whether it can be won
+      before it ends.
+    """
+
+    firing_distance_columns: int
+    projectile_speed_columns_per_second: float
+    projectile_height_rows: float
+    salvo_shots: int
+    salvo_period_seconds: float
+    salvo_budget: int
+    lane_margin_rows: float
+    hits_to_defeat: int
+    player_fire_period_seconds: float
+    player_shot_speed_columns_per_second: float
+
+
+BOSS_PROFILES: Final[dict[str, BossProfile]] = {
+    "barrage_boss_v1": BossProfile(
+        firing_distance_columns=10,
+        projectile_speed_columns_per_second=7.5,
+        projectile_height_rows=1.0,
+        salvo_shots=3,
+        salvo_period_seconds=1.5,
+        salvo_budget=8,
+        lane_margin_rows=0.5,
+        hits_to_defeat=10,
+        player_fire_period_seconds=0.5,
+        player_shot_speed_columns_per_second=12.0,
+    ),
+}
+
+#: The shortest run an encounter may be authored to interrupt, in columns.
+#:
+#: A refusal reads it: an encounter that arrives every few seconds is not an
+#: interlude, it is the game, and the track's own authored chunks would never
+#: be seen. At the fastest published base speed this is a little over twenty
+#: seconds of running between encounters.
+MIN_ENCOUNTER_INTERVAL_COLUMNS: Final[int] = 200
 
 
 @dataclass(frozen=True, slots=True)
@@ -377,6 +479,81 @@ def hazard_press_window_seconds(
     return above_seconds - crossing_columns / speed.base_speed_columns_per_second
 
 
+def thrust_traverse_seconds(thrust: ThrustProfile, rows: float) -> float:
+    """Worst-case seconds to cross `rows` of band under one thrust profile.
+
+    The climb, always: its cap is the lower of the two, so an avatar that can
+    climb the band in time can certainly fall it in time. Accelerate from rest
+    to the cap, then hold it - a triangle followed by a rectangle. If the band
+    is short enough that the cap is never reached, the whole crossing is the
+    triangle.
+    """
+
+    if rows <= 0:
+        return 0.0
+    cap = thrust.max_climb_rows_per_second
+    accel = thrust.climb_acceleration_rows_per_second2
+    time_to_cap = cap / accel
+    rows_to_cap = cap * time_to_cap / 2
+    if rows <= rows_to_cap:
+        return math.sqrt(2 * rows / accel)
+    return time_to_cap + (rows - rows_to_cap) / cap
+
+
+def boss_lane_rows(boss: BossProfile, walk_surface_row: int) -> float:
+    """Rows a salvo must leave open, at worst, in the playable band.
+
+    A pigeonhole, not a simulation: the band above the walk surface is
+    `walk_surface_row` rows tall, a salvo can occupy at most
+    `salvo_shots * projectile_height_rows` of it, and what is left over is the
+    smallest lane any placement can leave. Whether the lane is contiguous is
+    the runtime's obligation, stated by publishing these numbers; whether it
+    is large enough is this refusal.
+    """
+
+    return walk_surface_row - boss.salvo_shots * boss.projectile_height_rows
+
+
+def boss_dodge_window_seconds(
+    boss: BossProfile,
+    thrust: ThrustProfile,
+    *,
+    walk_surface_row: int,
+) -> float:
+    """Seconds of slack between seeing a salvo and having to be clear of it.
+
+    The same discipline as `hazard_press_window_seconds`, written for the
+    other locomotion: a shot's flight time is what the player is given, the
+    worst-case traverse of the whole band is what the dodge costs, and the
+    remainder is the reaction slack the placement profile's
+    `min_hazard_clear_seconds` is compared against. Negative means the salvo
+    arrives before the avatar could have crossed to meet it.
+    """
+
+    flight = boss.firing_distance_columns / boss.projectile_speed_columns_per_second
+    return flight - thrust_traverse_seconds(thrust, walk_surface_row)
+
+
+def boss_kill_seconds(boss: BossProfile) -> float:
+    """Seconds to defeat one boss with every player shot landing.
+
+    The floor, not the expectation: the cadence spends `hits_to_defeat`
+    periods and the last shot still has to fly the stand-off. A real player
+    misses, which is what the slack against the salvo budget is for.
+    """
+
+    return (
+        boss.hits_to_defeat * boss.player_fire_period_seconds
+        + boss.firing_distance_columns / boss.player_shot_speed_columns_per_second
+    )
+
+
+def boss_salvo_budget_seconds(boss: BossProfile) -> float:
+    """Seconds the boss stays before its salvo budget is spent."""
+
+    return boss.salvo_budget * boss.salvo_period_seconds
+
+
 class RunnerVitals(PersistedContractModel):
     """The gauge a survivable hit spends, and how spending it is shown."""
 
@@ -394,12 +571,64 @@ class RunnerConsequences(PersistedContractModel):
     hazard: ConsequenceName
     pit: ConsequenceName
     crush: ConsequenceName
+    #: Absent means no encounter can fire at the avatar; present, it obligates
+    #: one. A run with no boss has no shot to answer for, and an encounter
+    #: whose hits cost nothing is a fight the player cannot lose.
+    shot: ConsequenceName | None = None
 
     def by_source(self) -> dict[str, str]:
-        return {"hazard": self.hazard, "pit": self.pit, "crush": self.crush}
+        sources: dict[str, str] = {"hazard": self.hazard, "pit": self.pit, "crush": self.crush}
+        if self.shot is not None:
+            sources["shot"] = self.shot
+        return sources
 
     def drains(self) -> bool:
         return any(name in DRAINING_CONSEQUENCES for name in self.by_source().values())
+
+
+class RunnerEncounter(PersistedContractModel):
+    """One boss fight the run is interrupted by, and how often it arrives.
+
+    An interlude rather than a place: the track authors one flat arena chunk,
+    the run streams it when the interval comes due, and the encounter plays
+    over it. That is what keeps the seam rule intact - every chunk still
+    follows every chunk, and no chunk carries state about what came before.
+
+    The locomotion is named here rather than on `RunnerRun` because it is an
+    override with a beginning and an end, not the way this package runs.
+    """
+
+    boss_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    profile: BossProfileName
+    #: The locomotion the avatar wears for the fight's duration.
+    locomotion: LocomotionProfileName
+    #: Columns of ordinary running between encounters.
+    interval_columns: int = Field(ge=MIN_ENCOUNTER_INTERVAL_COLUMNS, le=100_000)
+    #: The `role = "arena"` chunk this encounter is fought over.
+    arena_segment_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    boss_projectile_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    player_projectile_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+
+    @model_validator(mode="after")
+    def validate_projectiles(self) -> RunnerEncounter:
+        """The two roles are drawn separately.
+
+        One silhouette flying both ways is a fight in which a player cannot
+        tell their own fire from the boss's, which is a readability failure
+        the contract can refuse offline instead of a review catching it.
+        """
+        if self.boss_projectile_id == self.player_projectile_id:
+            raise ValueError(
+                "runner encounter fires and is fired at with one projectile "
+                f"({self.boss_projectile_id}); draw the two roles separately"
+            )
+        return self
+
+    def boss_profile(self) -> BossProfile:
+        return BOSS_PROFILES[self.profile]
+
+    def thrust_profile(self) -> ThrustProfile:
+        return THRUST_PROFILES[self.locomotion]
 
 
 class RunnerRun(PersistedContractModel):
@@ -420,8 +649,8 @@ class RunnerRamp(PersistedContractModel):
 
 
 class RunnerGameplayContract(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["runner-gameplay-v3"]
+    schema_version: Literal[4]
+    kind: Literal["runner-gameplay-v4"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     #: The single track this gameplay is played on. Exactly one in v2: an
@@ -429,6 +658,10 @@ class RunnerGameplayContract(PersistedContractModel):
     track_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     run: RunnerRun
     ramp: RunnerRamp
+    #: Absent means the run is uninterrupted. Present, it obligates a boss, an
+    #: arena chunk, two projectiles, a drawn fly motion and a shot
+    #: consequence - every one of them refused offline when it is missing.
+    encounter: RunnerEncounter | None = None
 
     @field_validator("track_id")
     @classmethod
@@ -453,6 +686,27 @@ class RunnerGameplayContract(PersistedContractModel):
             raise ValueError(
                 "runner gameplay declares [run.vitals] no consequence can drain; "
                 "use a draining consequence or drop the gauge"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_shot_obligation(self) -> RunnerGameplayContract:
+        """A shot consequence and an encounter each require the other.
+
+        The third triangle, after duck/slide and drain/gauge, and refused for
+        the same reason: an answer to a hit nothing can deliver is dead
+        contract, and a boss whose fire costs nothing is a fight with no
+        stake. Neither is worth discovering at play time.
+        """
+        shot = self.run.consequences.shot
+        if self.encounter is not None and shot is None:
+            raise ValueError(
+                "runner gameplay declares an encounter with no [run.consequences] shot answer"
+            )
+        if self.encounter is None and shot is not None:
+            raise ValueError(
+                "runner gameplay answers a shot no encounter can fire; "
+                "declare an [encounter] or drop the answer"
             )
         return self
 
@@ -491,13 +745,18 @@ def runner_gameplay_sha256(contract: RunnerGameplayContract) -> str:
 __all__ = [
     "COLLISION_BOXES",
     "DRAINING_CONSEQUENCES",
+    "BOSS_PROFILES",
     "DUCK_PROFILES",
     "JUMP_PROFILES",
+    "MIN_ENCOUNTER_INTERVAL_COLUMNS",
     "PLACEMENT_PROFILES",
     "VITALS_PROFILES",
     "RUNNER_GAMEPLAY_SCHEMA_VERSION",
     "RUNNER_PLACEMENT_PROFILE",
     "SPEED_PROFILES",
+    "THRUST_PROFILES",
+    "BossProfile",
+    "BossProfileName",
     "CollisionBoxName",
     "CollisionProfile",
     "ConsequenceName",
@@ -507,21 +766,28 @@ __all__ = [
     "JumpArc",
     "JumpProfile",
     "JumpProfileName",
+    "LocomotionProfileName",
     "PlacementProfile",
     "RampProfile",
     "RunnerGameplayContract",
     "HurtRepresentation",
     "RunnerConsequences",
+    "RunnerEncounter",
     "RunnerRamp",
     "RunnerRun",
     "RunnerVitals",
     "SpeedProfile",
     "SpeedProfileName",
+    "ThrustProfile",
     "VitalsProfile",
     "VitalsProfileName",
     "apron_columns",
     "arc_height_rows",
     "canonical_runner_gameplay_json",
+    "boss_dodge_window_seconds",
+    "boss_kill_seconds",
+    "boss_lane_rows",
+    "boss_salvo_budget_seconds",
     "clearable_span_columns",
     "drop_scatter_columns",
     "hazard_press_window_seconds",
@@ -529,4 +795,5 @@ __all__ = [
     "landing_time_seconds",
     "load_runner_gameplay_bytes",
     "runner_gameplay_sha256",
+    "thrust_traverse_seconds",
 ]

@@ -55,8 +55,8 @@ SOURCE_PACKAGE = Path(__file__).resolve().parents[2] / "library" / "games" / "be
 
 COVER_SHA256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 
-RUNNER_GAMEPLAY = """schema_version = 3
-kind = "runner-gameplay-v3"
+RUNNER_GAMEPLAY = """schema_version = 4
+kind = "runner-gameplay-v4"
 game_id = "bellweather"
 revision = 1
 track_id = "meadow-dash"
@@ -137,9 +137,9 @@ def occupancy_toml(rows: list[str]) -> str:
     return f"[\n  {quoted},\n]"
 
 
-def runner_track_toml(chunks: str) -> str:
-    return f"""schema_version = 3
-kind = "runner-track-v3"
+def runner_track_toml(chunks: str, *, rows: int = 8, walk_surface_row: int = 5) -> str:
+    return f"""schema_version = 4
+kind = "runner-track-v4"
 game_id = "bellweather"
 track_id = "meadow-dash"
 revision = 1
@@ -187,18 +187,29 @@ vertical_fit = "floor_to_screen_bottom"
 prompt = "Warm meadow-path stone cap over a darker packed-earth fill."
 
 [segments]
-rows = 8
-walk_surface_row = 5
+rows = {rows}
+walk_surface_row = {walk_surface_row}
 
 {chunks}
 """
 
 
-def chunk_toml(segment_id: str, rows: list[str], *, difficulty: int = 1, extra: str = "") -> str:
+def chunk_toml(
+    segment_id: str,
+    rows: list[str],
+    *,
+    difficulty: int = 1,
+    role: str | None = None,
+    extra: str = "",
+) -> str:
+    # `role` is a simple key, so it is written before `occupancy` and well
+    # before any `extra` sub-table: TOML binds a bare key to whichever table
+    # header precedes it.
+    role_line = f'role = "{role}"\n' if role is not None else ""
     return f"""[[segments.chunks]]
 segment_id = "{segment_id}"
 difficulty = {difficulty}
-occupancy = {occupancy_toml(rows)}
+{role_line}occupancy = {occupancy_toml(rows)}
 {extra}"""
 
 
@@ -519,6 +530,146 @@ source = "runner/soundtrack.toml"
 """
 
 
+#: The encounter grid. The default eight-row fixture band cannot hold a salvo
+#: AND the avatar: 5 - 3x1.0 leaves two rows where 2.40 + 0.5 are needed, so an
+#: encounter authored on it is refused - which is the lane proof working.
+#:
+#: The band is not merely "taller": the dodge proof bounds it from ABOVE too,
+#: because a taller band takes longer to cross and the shot's flight time is
+#: fixed. Eleven rows over a walk surface at eight is the band Iron Petal
+#: authors and the one `barrage_boss_v1` was tuned against; twelve over nine
+#: refuses.
+ENCOUNTER_ROWS = 11
+ENCOUNTER_WALK_SURFACE_ROW = 8
+ENCOUNTER_FLAT = ["0" * 24] * ENCOUNTER_WALK_SURFACE_ROW + ["1" * 24] * (
+    ENCOUNTER_ROWS - ENCOUNTER_WALK_SURFACE_ROW
+)
+
+ENCOUNTER_BLOCK = """
+[encounter]
+boss_id = "bramble_harvester"
+profile = "barrage_boss_v1"
+locomotion = "thrust_v1"
+interval_columns = 400
+arena_segment_id = "harvest_arena"
+boss_projectile_id = "thorn_burst"
+player_projectile_id = "spark_pin"
+"""
+
+RUNNER_GAMEPLAY_ENCOUNTER = (
+    RUNNER_GAMEPLAY.replace('crush = "end_run_v1"', 'crush = "end_run_v1"\nshot = "drain_v1"', 1)
+    + ENCOUNTER_BLOCK
+)
+
+_FLY_MOTION = "\n".join(
+    [
+        "[[avatar.motions]]",
+        'state = "fly"',
+        'playback_mode = "loop"',
+        "canonical_frame_indices = [0, 1, 2, 3]",
+        "frames_per_second = 12",
+        "",
+        "[[avatar.motions]]",
+        'state = "death"',
+    ]
+)
+
+RUNNER_AVATAR_FLY = RUNNER_AVATAR.replace('[[avatar.motions]]\nstate = "death"', _FLY_MOTION, 1)
+
+RUNNER_BOSSES = f"""schema_version = 1
+kind = "boss-content-v1"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "{COVER_SHA256}"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[bosses]]
+boss_id = "bramble_harvester"
+display_name = "Bramble Harvester"
+body_kind = "overgrown_machine"
+height_units = 1.8
+reference_ids = ["cover_style"]
+prompt = "A stalled harvesting rig wrapped in bramble, hanging in the air on tired lift fans."
+
+[[bosses.motions]]
+state = "hover"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 10
+
+[[bosses.motions]]
+state = "attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[bosses.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+"""
+
+RUNNER_PROJECTILES = f"""schema_version = 2
+kind = "projectile-content-v2"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "{COVER_SHA256}"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[projectiles]]
+projectile_id = "thorn_burst"
+display_name = "Thorn Burst"
+silhouette = "irregular_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+reference_ids = ["cover_style"]
+length_units = 0.35
+prompt = "A ragged knot of flung bramble seed."
+
+[[projectiles]]
+projectile_id = "spark_pin"
+display_name = "Spark Pin"
+silhouette = "axial_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+reference_ids = ["cover_style"]
+length_units = 0.30
+prompt = "A slim repair pin trailing a bright filament."
+"""
+
+BOSS_MEMBER_SOURCE = """
+[genres.content.bosses]
+source = "runner/content/bosses.toml"
+"""
+
+PROJECTILE_MEMBER_SOURCE = """
+[genres.content.projectiles]
+source = "runner/content/projectiles.toml"
+"""
+
+
+#: A run chunk on the encounter grid, plus the arena the fight is fought over.
+#: Deliberately plain: these tests are about the encounter's obligations, not
+#: about the placement discipline, which the eight-row chunks already cover.
+ENCOUNTER_CHUNKS = "\n".join(
+    [
+        chunk_toml("harvest_flat", ENCOUNTER_FLAT),
+        chunk_toml("harvest_arena", ENCOUNTER_FLAT, role="arena"),
+    ]
+)
+
+
 def two_genre_package(
     tmp_path: Path,
     *,
@@ -526,6 +677,10 @@ def two_genre_package(
     gameplay: str = RUNNER_GAMEPLAY,
     avatar: str = RUNNER_AVATAR,
     props: str = RUNNER_PROPS,
+    bosses: str | None = None,
+    projectiles: str | None = None,
+    rows: int = 8,
+    walk_surface_row: int = 5,
 ) -> Path:
     """Copy the committed platformer bellweather and author a runner member on
     top of it, so tests control every chunk under admission while the
@@ -539,11 +694,21 @@ def two_genre_package(
     (runner / "soundtrack.toml").write_text(RUNNER_SOUNDTRACK, encoding="utf-8")
     with (package / "game.toml").open("a", encoding="utf-8") as container:
         container.write(RUNNER_MEMBER)
+        if bosses is not None:
+            container.write(BOSS_MEMBER_SOURCE)
+        if projectiles is not None:
+            container.write(PROJECTILE_MEMBER_SOURCE)
     (runner / "gameplay.toml").write_text(gameplay, encoding="utf-8")
-    (runner / "track.toml").write_text(runner_track_toml(chunks), encoding="utf-8")
+    (runner / "track.toml").write_text(
+        runner_track_toml(chunks, rows=rows, walk_surface_row=walk_surface_row), encoding="utf-8"
+    )
     (runner / "content" / "avatar.toml").write_text(avatar, encoding="utf-8")
     (runner / "content" / "props.toml").write_text(props, encoding="utf-8")
     (runner / "content" / "items.toml").write_text(RUNNER_ITEMS, encoding="utf-8")
+    if bosses is not None:
+        (runner / "content" / "bosses.toml").write_text(bosses, encoding="utf-8")
+    if projectiles is not None:
+        (runner / "content" / "projectiles.toml").write_text(projectiles, encoding="utf-8")
     return package
 
 

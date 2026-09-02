@@ -42,7 +42,7 @@ from stage_gen.components.platformer_map import (
     bottom_contiguous_surface_row,
 )
 
-RUNNER_TRACK_SCHEMA_VERSION = 3
+RUNNER_TRACK_SCHEMA_VERSION = 4
 
 MIN_SEGMENT_COLUMNS = 8
 MAX_SEGMENT_COLUMNS = 64
@@ -87,9 +87,33 @@ class RunnerPickup(PersistedContractModel):
     row: int = Field(ge=0, le=63)
 
 
+#: What a chunk is for.
+#:
+#: `run` is the ordinary chunk the difficulty band draws from. `arena` is the
+#: flat floor an encounter is fought over: it is never drawn by the selector,
+#: it is streamed on demand while an encounter runs, and it carries nothing to
+#: react to, because during the fight the reacting is done to the boss.
+SegmentRole = Literal["run", "arena"]
+
+
+def seam_profile(rows: int, walk_surface_row: int) -> list[str]:
+    """The one column profile every chunk's first and last column must equal.
+
+    Empty above the shared walk surface, solid from it down. Declared here
+    rather than in the validator that enforces it because an arena chunk must
+    hold this profile in EVERY column, and two places spelling out one datum
+    is how the seam rule quietly acquires two meanings.
+    """
+
+    return ["0" if row < walk_surface_row else "1" for row in range(rows)]
+
+
 class RunnerSegmentChunk(PersistedContractModel):
     segment_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     difficulty: int = Field(ge=1, le=10)
+    #: Defaulted, because every chunk authored before encounters existed is a
+    #: run chunk and says so by saying nothing.
+    role: SegmentRole = "run"
     occupancy: list[str] = Field(min_length=1, max_length=64)
     hazards: list[RunnerHazard] = Field(default_factory=list, max_length=16)
     pickups: list[RunnerPickup] = Field(default_factory=list, max_length=32)
@@ -113,6 +137,14 @@ class RunnerSegmentChunk(PersistedContractModel):
     @model_validator(mode="after")
     def validate_placements(self) -> RunnerSegmentChunk:
         width = len(self.occupancy[0])
+        if self.role == "arena":
+            # The fight is the demand. A hazard here would be a second thing to
+            # read at the moment the player is reading a salvo, and a pickup
+            # line would sit in the lane the salvo has to leave open.
+            if self.hazards:
+                raise ValueError(f"segment {self.segment_id} is an arena and carries no hazards")
+            if self.pickups:
+                raise ValueError(f"segment {self.segment_id} is an arena and carries no pickups")
         unique_values(
             (f"{entry.column}" for entry in self.hazards),
             f"segment {self.segment_id} hazard column",
@@ -183,13 +215,30 @@ class RunnerSegments(PersistedContractModel):
     def validate_grid(self) -> RunnerSegments:
         if self.walk_surface_row >= self.rows:
             raise ValueError("walk_surface_row must sit inside the segment grid")
+        expected = seam_profile(self.rows, self.walk_surface_row)
         for chunk in self.chunks:
             if len(chunk.occupancy) != self.rows:
                 raise ValueError(
                     f"segment {chunk.segment_id} has {len(chunk.occupancy)} rows; "
                     f"the track grid declares {self.rows}"
                 )
+            if chunk.role != "arena":
+                continue
+            # An arena is the seam profile all the way across: it may be
+            # entered and left at any column and repeated back to back, which
+            # is what lets one authored chunk hold an encounter of any length.
+            width = len(chunk.occupancy[0])
+            for column in range(width):
+                if [row[column] for row in chunk.occupancy] != expected:
+                    raise ValueError(
+                        f"segment {chunk.segment_id} is an arena; every column must be empty "
+                        f"above and solid from walk_surface_row {self.walk_surface_row} down, "
+                        f"but column {column} is not"
+                    )
         return self
+
+    def arena_chunks(self) -> list[RunnerSegmentChunk]:
+        return [chunk for chunk in self.chunks if chunk.role == "arena"]
 
 
 GroundProjectionMode = Literal["orthographic_v1"]
@@ -272,8 +321,8 @@ type RunnerGround = Annotated[
 
 
 class RunnerTrack(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["runner-track-v3"]
+    schema_version: Literal[4]
+    kind: Literal["runner-track-v4"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     track_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)

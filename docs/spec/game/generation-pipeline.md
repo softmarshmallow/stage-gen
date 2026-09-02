@@ -46,7 +46,7 @@ game, hide asset fan-outs inside a coarse stage, or implement provider retry loo
 
 The runner uses the same genre-neutral captured-package boundary, including for
 a runner-only root, and then builds `sideview-runner-execution-graph-v1`.
-`runner-track-v3` has a closed ground union. The atlas branch retains its one
+`runner-track-v4` has a closed ground union. The atlas branch retains its one
 paintover plus local canonicalization. The `runner-structural-ground-v1` branch
 fans each authored segment into local occupancy-guide composition, one native-
 alpha GPT Image 2 paintover, and local exact-occupancy canonicalization. One

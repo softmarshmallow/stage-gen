@@ -75,6 +75,7 @@ from stage_gen.components.platformer_content import (
     PlayerContent,
     ProjectileContent,
     PropContent,
+    projectile_silhouette_art,
 )
 from stage_gen.components.sideview_actor.motion_geometry import (
     MOTION_ATLAS_HEIGHT,
@@ -144,9 +145,6 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     UI_INVENTORY_VALIDATE,
     WORLD_SPRITE_GENERATE,
     WORLD_SPRITE_VALIDATE,
-)
-from stage_gen.recipes.sideview_platformer.projectile_silhouettes import (
-    projectile_silhouette_art,
 )
 from stage_gen.recipes.sideview_platformer.weapon_silhouettes import player_equipment_art
 from stage_gen.resources import inventory_template_path

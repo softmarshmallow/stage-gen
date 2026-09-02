@@ -453,11 +453,11 @@ def test_seam_bridge_validation_refuses_wrong_dimensions_and_alpha() -> None:
         )
 
 
-def test_track_v3_closes_over_atlas_and_structural_modes_and_retires_v2() -> None:
+def test_track_v4_closes_over_atlas_and_structural_modes_and_retires_v3() -> None:
     atlas = runner_track_toml(chunk_toml("flat", WIDE_FLAT_ROWS)).encode()
     loaded_atlas = load_runner_track_bytes(atlas)
-    assert loaded_atlas.schema_version == 3
-    assert loaded_atlas.kind == "runner-track-v3"
+    assert loaded_atlas.schema_version == 4
+    assert loaded_atlas.kind == "runner-track-v4"
     assert loaded_atlas.ground.mode == "terrain-atlas-3x3-minimal-v1"
 
     structural = (
@@ -470,14 +470,14 @@ def test_track_v3_closes_over_atlas_and_structural_modes_and_retires_v2() -> Non
         .encode()
     )
     loaded = load_runner_track_bytes(structural)
-    assert loaded.schema_version == 3
-    assert loaded.kind == "runner-track-v3"
+    assert loaded.schema_version == 4
+    assert loaded.kind == "runner-track-v4"
     assert loaded.ground.mode == "runner-structural-ground-v1"
 
-    retired = atlas.replace(b"schema_version = 3", b"schema_version = 2").replace(
-        b'kind = "runner-track-v3"', b'kind = "runner-track-v2"'
+    retired = atlas.replace(b"schema_version = 4", b"schema_version = 3").replace(
+        b'kind = "runner-track-v4"', b'kind = "runner-track-v3"'
     )
-    with pytest.raises(AuthoredContractLoadError, match="Input should be 3"):
+    with pytest.raises(AuthoredContractLoadError, match="Input should be 4"):
         load_runner_track_bytes(retired)
 
 

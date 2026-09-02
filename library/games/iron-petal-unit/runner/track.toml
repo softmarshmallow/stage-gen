@@ -4,11 +4,11 @@
 # proved by reaction_fair_v1. Structural ground is painted once per segment;
 # occupancy remains the sole collision authority.
 
-schema_version = 3
-kind = "runner-track-v3"
+schema_version = 4
+kind = "runner-track-v4"
 game_id = "iron-petal-unit"
 track_id = "halcyon-rescue-line"
-revision = 3
+revision = 4
 display_name = "Halcyon Rescue Line"
 
 [view]
