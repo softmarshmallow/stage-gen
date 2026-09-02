@@ -11,6 +11,7 @@
 import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
+import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import {
   loadFrameStrip,
   loadParallaxLayer,
@@ -154,6 +155,8 @@ class RunnerScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The canvas is device-pixel sized; zoom the camera back to the design space it is written in.
+    applyDeviceZoom(this.cameras.main, { width: RUNNER_VIEW_WIDTH, height: RUNNER_VIEW_HEIGHT });
     this.add
       .text(RUNNER_VIEW_WIDTH / 2, RUNNER_VIEW_HEIGHT / 2, "loading track…", {
         fontFamily: "system-ui, sans-serif",
@@ -620,7 +623,9 @@ export interface RunnerGameHandle {
 
 /**
  * Boot one runner track into `parent`, scaled to fit whatever that element
- * is. The design space is fixed at 1280×720; the engine letterboxes.
+ * is. The design space is fixed at 1280×720; the engine letterboxes. The canvas itself is
+ * sized in device pixels and the scene's camera zooms it back, so nothing in the scene is
+ * measured in CSS pixels and nothing is drawn at less than screen resolution.
  */
 export function bootRunnerGame(
   parent: HTMLElement,
@@ -630,8 +635,10 @@ export function bootRunnerGame(
   const scene = new RunnerScene(tag, manifest);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
-    width: RUNNER_VIEW_WIDTH,
-    height: RUNNER_VIEW_HEIGHT,
+    ...deviceGameSize(
+      { width: RUNNER_VIEW_WIDTH, height: RUNNER_VIEW_HEIGHT },
+      currentDevicePixelScale(),
+    ),
     parent,
     backgroundColor: "#000000",
     scene: [scene],

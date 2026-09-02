@@ -77,6 +77,13 @@ this page. A future review explorer needs its own explicit review-manifest bound
 - 1280-by-720 viewport and a dead-zone follow camera whose permitted axes are read from the
   map's `[camera]` block rather than assumed; without a vertical axis the camera's world box
   is exactly one viewport tall, which is what holds it to the floor;
+- a canvas sized in device pixels with the camera zoomed by the same factor about a top-left
+  origin, so a high-DPI screen gets one canvas pixel per device pixel while every coordinate in
+  the scene stays in the 1280-by-720 design space. Phaser has no device-pixel-ratio support of
+  its own, and its midpoint helpers - bounds, follow offset, dead zone, world view - assume a
+  center origin, so [`device-camera.ts`](../web/lib/device-pixels/device-camera.ts) shifts each
+  of them; the same module serves the runner, room, and dialogue scenes. A capture keeps the
+  design-space canvas so frame hashes do not depend on the screen that produced them;
 - map width derived from authored occupancy columns at the prepared adapter's tile scale;
 - map-local parallax layer stacks and dynamic 47-mask terrain selection from authored occupancy;
 - one-time, loop-safe layer depth treatment plus terrain-aware dynamic contact shadows;

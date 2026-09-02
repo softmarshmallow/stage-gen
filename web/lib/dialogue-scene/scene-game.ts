@@ -34,6 +34,7 @@ import {
   speakerChipRect,
 } from "./scene-hud";
 import type { Rect } from "@/lib/shell/hud-geometry";
+import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import {
   dialogueSceneExpression,
   dialogueSceneStage,
@@ -139,6 +140,8 @@ class DialogueScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The canvas is device-pixel sized; zoom the camera back to the stage it is written in.
+    applyDeviceZoom(this.cameras.main, DIALOGUE_STAGE);
     const opening = this.fixture.stages[0]!;
     this.backdrop = this.add
       .image(0, 0, stageKey(opening.stageId))
@@ -417,8 +420,7 @@ export function bootDialogueSceneGame(
   const scene = new DialogueScene(fixture);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
-    width: DIALOGUE_STAGE.width,
-    height: DIALOGUE_STAGE.height,
+    ...deviceGameSize(DIALOGUE_STAGE, currentDevicePixelScale()),
     parent,
     backgroundColor: "#05070a",
     scene: [scene],

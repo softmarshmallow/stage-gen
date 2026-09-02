@@ -16,6 +16,7 @@
 import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { containRect, type Rect } from "@/lib/shell/hud-geometry";
+import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import type { RoomHotspot, RoomManifest } from "./contract";
 import {
   hotspotRect,
@@ -123,6 +124,8 @@ class RoomScene extends Phaser.Scene {
 
   create(): void {
     const stage = this.stage;
+    // The canvas is device-pixel sized; zoom the camera back to the authored frame plus HUD band.
+    applyDeviceZoom(this.cameras.main, canvasSize(this.manifest.scene));
     this.input.mouse?.disableContextMenu();
 
     // The backdrop covers the authored frame exactly; the HUD band below it is
@@ -441,8 +444,7 @@ export function bootRoomGame(
   const canvas = canvasSize(manifest.scene);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
-    width: canvas.width,
-    height: canvas.height,
+    ...deviceGameSize(canvas, currentDevicePixelScale()),
     parent,
     backgroundColor: "#05070a",
     scene: [new RoomScene(tag, manifest)],

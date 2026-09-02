@@ -23,6 +23,16 @@ import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 import { GAMEPLAY_AUTOMATION_VIEWPORT } from "./automation";
 import {
+  applyDeviceZoom,
+  centeredScroll,
+  currentDevicePixelScale,
+  deviceCameraBounds,
+  deviceFollowOffset,
+  deviceGameSize,
+  logicalWorldView,
+  midpointOffset,
+} from "@/lib/device-pixels/device-camera";
+import {
   fetchJson,
   loadFrameStrip,
   loadGridSheet,
@@ -157,6 +167,10 @@ import { DebugOverlay } from "./debug-overlay";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
+/** The design space every coordinate in this scene is written in, whatever the canvas size. */
+const VIEWPORT = Object.freeze({ width: VIEW_W, height: VIEW_H });
+/** Where the followed player rests relative to the screen center, in design pixels. */
+const PLAYER_FOLLOW_OFFSET = Object.freeze({ x: 0, y: 50 });
 const TILE_PX = 64;
 const PLAYER_HEIGHT = 154;
 const MOB_HEIGHT = 110;
@@ -358,6 +372,10 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The canvas was sized in device pixels at boot; the camera zooms by the same factor about
+    // a top-left origin so everything below keeps addressing the design space. A capture boots
+    // a design-space canvas, for which this is the identity.
+    applyDeviceZoom(this.cameras.main, VIEWPORT);
     this.cameras.main.setBackgroundColor("#73c7ed");
     this.add
       .text(VIEW_W / 2, VIEW_H / 2, "Preparing game…", {
@@ -1088,10 +1106,22 @@ export class PreparedStageScene extends Phaser.Scene {
       groundBaselineY: this.groundBaselineY,
       viewportHeight: VIEW_H,
     });
-    this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
-    this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 50);
-    this.cameras.main.setDeadzone(300, 180);
-    if (!map.camera.follow_axes.includes("y")) this.cameras.main.scrollY = 0;
+    // Bounds, follow offset and dead zone are Phaser midpoint helpers: they place the visible
+    // center half a canvas right of the scroll, which the device-zoom camera's top-left origin
+    // no longer does. Each is shifted by the same offset so the framing the map asked for holds
+    // at every device pixel ratio; at ratio one the offset is zero and nothing moves.
+    const camera = this.cameras.main;
+    const midpoint = midpointOffset(camera, VIEWPORT);
+    const worldBox = deviceCameraBounds(bounds, midpoint);
+    const followOffset = deviceFollowOffset(PLAYER_FOLLOW_OFFSET, midpoint);
+    camera.setBounds(worldBox.x, worldBox.y, worldBox.width, worldBox.height);
+    camera.startFollow(this.player.sprite, true, 0.12, 0.12, followOffset.x, followOffset.y);
+    camera.setDeadzone(300, 180);
+    // Phaser's snap on follow start is midpoint-based as well; land the first frame where the
+    // dead zone would otherwise drag the camera over the following half second.
+    const snap = centeredScroll(this.player.sprite, PLAYER_FOLLOW_OFFSET, VIEWPORT);
+    camera.setScroll(snap.scrollX, snap.scrollY);
+    if (!map.camera.follow_axes.includes("y")) camera.scrollY = 0;
     this.mapLabel?.setText(map.display_name);
     this.selectSoundtrack(map);
     this.loading = false;
@@ -1543,7 +1573,7 @@ export class PreparedStageScene extends Phaser.Scene {
         y_px: mob.sprite.y,
       });
     }
-    const view = this.cameras.main.worldView;
+    const view = logicalWorldView(this.cameras.main, VIEWPORT);
     const reservations = director.update(mapId, nowMs, {
       players: this.player
         ? [{ x_px: this.player.sprite.x, y_px: this.player.sprite.y }]
@@ -2488,10 +2518,15 @@ export function bootPreparedGame(
     automationMode,
     automationMode === null ? developerKit : null,
   );
+  // A capture keeps the design-space canvas so its frame hashes are the same on every screen; a
+  // person gets one sized in device pixels, which the scene's camera zooms back to design space.
+  const canvasSize = automationMode
+    ? GAMEPLAY_AUTOMATION_VIEWPORT
+    : deviceGameSize(GAMEPLAY_AUTOMATION_VIEWPORT, currentDevicePixelScale());
   const game = new Phaser.Game({
     type: automationMode ? Phaser.CANVAS : Phaser.AUTO,
-    width: GAMEPLAY_AUTOMATION_VIEWPORT.width,
-    height: GAMEPLAY_AUTOMATION_VIEWPORT.height,
+    width: canvasSize.width,
+    height: canvasSize.height,
     parent,
     backgroundColor: "#000000",
     scene: [scene],
