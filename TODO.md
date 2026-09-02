@@ -1041,15 +1041,25 @@ defect it was written for. What is left open is written as what it would take, n
       painted, and two segments started failing the coverage checks under it; stating the top edge
       on its own line - paint each slab to its very first pixel, hard-edged - fixed both, and took
       the aprons to 0.000 saturated colour in `iron-petal-unit-live-20260903-ground-4`.
-- [ ] **A bare rim cannot be repaired after the fact, and the floor that says so is tight.** The
-      top-cell coverage floor is now derived from how far publication grows the painting's own
-      colour under its rim: a cell may be bare over at most that distance. Rendered against a
-      genuinely eight-pixel bare rim, every underlay radius is wrong in the same way - the nearest
-      paint at a slab's top edge is its dark ink contour, so widening the reach only trades a lilac
-      band for a dark one - which is why the answer is to refuse rather than to widen. The cost is
-      that `rescue_calibration` spent all six attempts under the new floor on the first regeneration.
-      If it keeps failing, the lever is the prompt: demand a hard, fully opaque top edge on every
-      slab rather than a feathered one.
+- [x] **A bare rim cannot be repaired after the fact, so it is refused - measured where it shows.**
+      Closed 2026-09-03 after two wrong turns worth keeping. Deriving the top-cell coverage floor
+      from how far publication can reach was right in spirit: rendered against a genuinely
+      eight-pixel bare rim every underlay radius is wrong the same way, because the nearest paint at
+      a slab's edge is its dark ink contour, so widening the reach only trades a lilac band for a
+      dark one. But it put the floor at 0.90625, exactly where a normal four-to-five-pixel alpha
+      ramp lands, so it refused correct paintings about half the time and `rescue_calibration` spent
+      a whole retry budget under it. A coverage over a source cell was a proxy anyway.
+      What the rule cares about is whether guide material reaches the published raster, so the
+      validator now canonicalizes the painting it is admitting and refuses any row that is still
+      untouched deterministic base. Identity with the base rather than nearness to a guide colour,
+      which took a second turn to learn: proximity can only speak about the cap, because the guide's
+      fill is the material's own dark and honest art wears it - counting it put a third of a correct
+      row in breach, and not counting it left a fifteen-to-nineteen-pixel band of published base
+      along the *bottom* edge of four tiles completely invisible to the check that had just caught
+      the top. Across both shipped runs the measure reads 0.0000 to 0.0021 and refuses exactly the
+      tiles with a real band. The prompt's lever turned out to be the other half of the answer:
+      asking for every solid cell to be painted edge to edge, hard-edged, moved top-cell coverage
+      from 0.92 typical to 0.88-0.9996 and took `rescue_calibration` from failing to 0.98.
 
 ### Content fidelity
 
