@@ -1582,10 +1582,14 @@ class SideviewRunnerNodeHandler:
                 strict=True,
             )
             system = "You are a sprite-sheet scale judge. Return only the strict structured object."
+            # Named for the actor it judged: two actors' judgements share one
+            # node type, so the mirrored identity is the only place a reader
+            # can tell whose strips were on the plate.
+            subject_label = self._actor(node).label
             kind = (
-                "avatar-motion-rebase"
+                f"{subject_label}-motion-rebase"
                 if node.type_id == MOTION_REBASE_JUDGE.type_id
-                else "avatar-motion-rebase-verify"
+                else f"{subject_label}-motion-rebase-verify"
             )
             params = {
                 "schema_name": schema.name,
@@ -1597,7 +1601,7 @@ class SideviewRunnerNodeHandler:
                 "system_sha256": content_sha256(system.encode("utf-8")),
                 "metadata": {
                     "kind": kind,
-                    "entity_id": self._runner.avatar.avatar.avatar_id,
+                    "entity_id": self._actor(node).entity_id,
                     "states": states,
                     "plate_sha256": content_sha256(plate_data),
                 },
@@ -2888,7 +2892,7 @@ class SideviewRunnerNodeHandler:
         source_ref = self._dependency_artifact(node, kind=MOTION_RAW_KIND)
         source_data = (self._run_dir / source_ref).read_bytes()
         source_facts = _validate_motion_source(source_data)
-        motion = next(entry for entry in self._runner.avatar.avatar.motions if entry.state == state)
+        motion = self._actor(node).motion(state)
         canonical_data, repack = repack_alpha_components(
             source_data,
             AlphaComponentRepackContract(
