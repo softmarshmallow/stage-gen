@@ -219,11 +219,11 @@ export interface RunnerRuntimeManifest {
   readonly camera: { readonly mode: "auto_run_x_v1" };
   readonly scale: { readonly playerHeightTiles: number; readonly tilePx: number };
   readonly gameplay: {
-    readonly speedProfile: "steady_runner_v1";
+    readonly speedProfile: "steady_runner_v1" | "brisk_runner_v1";
     readonly jumpProfile: "single_arc_v1" | "double_arc_v1";
     readonly collisionPolicy: "end_run_v1";
     readonly duckProfile: "slide_v1" | null;
-    readonly rampProfile: "gentle_ramp_v1";
+    readonly rampProfile: "gentle_ramp_v1" | "brisk_ramp_v1";
     readonly maxClearGapColumns: number;
     readonly maxRiseTiles: number;
     /** The published arc arithmetic: the same closed forms admission proved. */
@@ -875,6 +875,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     gameplay: Object.freeze({
       speedProfile: literal(rawGameplay.speed_profile, "gameplay.speed_profile", [
         "steady_runner_v1",
+        "brisk_runner_v1",
       ]),
       jumpProfile: literal(rawGameplay.jump_profile, "gameplay.jump_profile", [
         "single_arc_v1",
@@ -887,7 +888,10 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
         rawGameplay.duck_profile === null || rawGameplay.duck_profile === undefined
           ? null
           : literal(rawGameplay.duck_profile, "gameplay.duck_profile", ["slide_v1"]),
-      rampProfile: literal(rawGameplay.ramp_profile, "gameplay.ramp_profile", ["gentle_ramp_v1"]),
+      rampProfile: literal(rawGameplay.ramp_profile, "gameplay.ramp_profile", [
+        "gentle_ramp_v1",
+        "brisk_ramp_v1",
+      ]),
       maxClearGapColumns: boundedInteger(
         rawGameplay.max_clear_gap_columns,
         "gameplay.max_clear_gap_columns",

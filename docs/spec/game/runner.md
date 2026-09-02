@@ -83,6 +83,13 @@ pacing shapes only feel and stays in the consumer. Scoring is runtime-owned:
 distance plus pickups, with a chain multiplier that breaks on a missed
 pickup.
 
+Speed names currently include `steady_runner_v1` (6 columns per second, 1.5x
+cap) and `brisk_runner_v1` (7.5 columns per second, the same proved 1.5x cap).
+Ramp names currently include `gentle_ramp_v1`, which earns its bonus over
+1,800 columns, and `brisk_ramp_v1`, which earns the same bonus over 720
+columns. Separate names preserve existing package feel while a faster package
+opts into both the new admission arithmetic and consumer pacing.
+
 Jump names: `single_arc_v1`, and `double_arc_v1`, whose air jump is **recovery,
 never reach** - it declares the identical single-hop admission arithmetic, so
 no authored chunk ever demands both hops, a player who spends the air jump
@@ -232,10 +239,14 @@ A future generated-file realization extends the effect side without changing
 the stable event bindings.
 
 Music remains the separate optional `runner/soundtrack.toml` catalog and uses
-the existing provider-neutral `game-soundtrack-v1` generation path. The runtime
-shuffles its declared loop-ready tracks after audio unlock. Do not let a tempo
-field into `game-soundtrack-v1`: it is shared across genres, and the other
-genres have no tempo.
+the existing provider-neutral `game-soundtrack-v1` generation path. The runner
+recipe adds genre staging to the authored brief: the rhythmic engine begins on
+the first beat, short action cells and clear transients preserve forward
+motion, and exploration, town-theme, pastoral, cinematic, rubato, ambient, and
+long-form orchestral development are explicitly excluded. The runtime shuffles
+its declared loop-ready tracks after audio unlock. Do not let a tempo field into
+`game-soundtrack-v1`: it is shared across genres, and the other genres have no
+tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 

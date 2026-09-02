@@ -42,6 +42,21 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(Object.isFrozen(manifest.segments.chunks[0])).toBe(true);
   });
 
+  test("accepts the brisk speed and ramp names with their published arithmetic", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.speed_profile = "brisk_runner_v1";
+    gameplay.ramp_profile = "brisk_ramp_v1";
+    gameplay.base_speed_columns_per_second = 7.5;
+
+    const manifest = parseRunnerRuntimeManifest(document);
+
+    expect(manifest.gameplay.speedProfile).toBe("brisk_runner_v1");
+    expect(manifest.gameplay.rampProfile).toBe("brisk_ramp_v1");
+    expect(manifest.gameplay.baseSpeedColumnsPerSecond).toBe(7.5);
+    expect(manifest.gameplay.maxSpeedMultiplier).toBe(1.5);
+  });
+
   test("parses structural ground locked one-for-one to authored segment grids", () => {
     const document = validRunnerManifest();
     document.ground = {

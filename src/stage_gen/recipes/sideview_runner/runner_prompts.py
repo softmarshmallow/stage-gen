@@ -209,6 +209,18 @@ def catalog_asset_prompt(resolved: ResolvedRunnerPackage, *, family: str, prompt
     )
 
 
+def soundtrack_direction() -> str:
+    """The runner-specific staging omitted by the shared music compiler."""
+
+    return (
+        "Endless-runner staging: establish the full rhythmic engine on the first beat and "
+        "maintain an urgent, even forward pulse throughout. Favor short repeating action cells, "
+        "clear percussion transients, and bass motion that supports rapid player reactions. "
+        "Do not drift into RPG exploration, town-theme, pastoral, cinematic, rubato, ambient, "
+        "or long-form orchestral development."
+    )
+
+
 __all__ = [
     "avatar_concept_prompt",
     "avatar_motion_prompt",
@@ -217,6 +229,7 @@ __all__ = [
     "layer_loop_prompt",
     "layer_prompt",
     "structural_ground_prompt",
+    "soundtrack_direction",
     "visual_direction",
     "visual_direction_digest",
 ]
