@@ -661,9 +661,25 @@ Dollars are **estimated**; see the 06:04 decision. Operation counts are authorit
 |---|---|---|---|---|---|
 | 05:52 | Cover candidates | 6 | 6 | 3.00 | art lane; `out/the-grain-cover/`, sidecars carry token usage |
 | 06:03 | Music smoke test | 1 | 1 | 2.50 | lead; PASSED, 70.53 s, all gates green |
-| 06:38 | Motor court room | 8 | 8 | 3.00 | lead; ok first attempt, 4 image + 4 structured, proof written |
+| 06:23 | Motor court room | 8 | 8 | 3.00 | lead; ok first attempt, 4 image + 4 structured, proof written |
+| 06:25 | Cast neutral plates | 9 | 9 | 4.50 | art lane; **exploration, not production** — see below |
+| 06:29 | Window room | 10 | in flight | 4.00 | lead; 6 image + 4 structured |
 
-**Operations run so far: 15. Estimated spend: USD 8.50 of 250.**
+**Operations run so far: 33. Estimated spend: USD 17.00 of 250.** Comfortably below the
+150 re-plan point; the full art run and the three remaining tracks are affordable without
+rationing.
+
+**Three zero-cost aborts** are recorded honestly at zero: they died on the `universe_prompts`
+import before a provider client was ever constructed.
+
+**On the nine cast plates.** The art lane generated them by hand before the lead had
+established that production plates come from the dialogue-scene recipe. They are relabelled
+**unreviewed exploration** — a hand-driven plate has no manifest, no cache identity and no
+lineage, and cannot be played. The money is not wasted: they proved the nine profiles
+produce the right faces before the full run was committed, and the art lane wrote the
+twenty-seven expression directions while looking at them, which is why `capless` is "one
+hand arrested halfway to a bare head" rather than "startled". Catching this stopped roughly
+**39 further operations** that could never have been played.
 
 ---
 

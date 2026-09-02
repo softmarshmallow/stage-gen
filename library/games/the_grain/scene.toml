@@ -52,13 +52,19 @@ source_sha256 = "b09bebfe24ffaf2102449c38471abd26a4fc6cee26b9998d7be3a7d787b8eae
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_coffee.toml"
-source_sha256 = "d8ee6c5dec7001133485a20c428b8b71042082b5de12b93555d7e5ffc9c9f422"
+source_sha256 = "32f51737bdf6e3fe32355c95e1bc1d37076eadef4857e6e968acc055b0304636"
 
 [[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_the_court.toml"
-source_sha256 = "56f4a0dd3497df99828716cb568ebb1c85dc1dc0f5ee0d1d4019213518b68d84"
+source_sha256 = "b68e69710c1a82bcef24a7c9fc7dddb972d52cc38dc409a5d9b80edf83d48c16"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_statements.toml"
+source_sha256 = "365416cd6af28c6a83d6c11699c861dbaddcc1d6c069a8ac29cf74218c956455"
 
 # ------------------------------------------------------------------- the cast
 # Which package member draws each actor the scenarios can show. An actor that
