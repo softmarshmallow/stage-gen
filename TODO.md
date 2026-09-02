@@ -947,7 +947,7 @@ that naming it is the deliverable.
       is a bottom-up column scan every hazard, pickup and pit-run check calls; and
       `max_clear_gap_columns` measures a quantity a bounce does not have. One contract with two
       mutually exclusive readings selected by a mode flag is exactly the compat-reader shape this
-- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-v1` by
+- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-v2` by
       someone other than its producer: the boss's three strips (does the rig read as failed
       maintenance equipment rather than a creature, and does it face left in every cell?), the two
       projectiles (does the seeding pin read axial and the bramble knot directionless?), the
