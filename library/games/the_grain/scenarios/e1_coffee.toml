@@ -82,9 +82,13 @@ brief = "The interior of an original 1972 department-store service lift, a wired
 
 # ------------------------------------------------------------------ the audio
 
+# `supper` is declared by both e1_table and e1_coffee because both play it. The scene
+# recipe records one track per distinct id in first-declaration order, so the briefs
+# MUST stay identical: if they diverge, binding order silently picks one and discards
+# the other. Change both or neither.
 [[tracks]]
 track_id = "supper"
-brief = "Warm and unhurried and a little hollow, a small late-night room heard from inside it, brushed drums under a muted trumpet with a piano that keeps stopping to listen, 1972, nothing that resolves"
+brief = "Warm and unhurried and a little hollow. One upright piano alone in a large room after hours, played sparsely and a little dry, with long rests. Eight people enjoying themselves in a building that is closing. It should sound pleasant on its surface and not quite convince. 1972. No drums, no brass, no ensemble, nothing that resolves"
 
 [tracks.generation]
 intent = "generate"

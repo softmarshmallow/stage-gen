@@ -166,3 +166,73 @@ cover candidates, the music smoke test and the motor court room. It does **not**
 these nine cast plates, which were run after that count was taken. **Pilot total is
 therefore 24 operations and about USD 13.00**, against a 250 ceiling and a 150 re-plan
 point.
+
+## 2026-09-03 — the three tracks: NOT hand-generated, and why
+
+Ordered to generate `supper`, `window` and `statements` by hand ahead of the recipe run.
+**Zero operations run. Zero USD.** The order is declined on the same ground the lead
+themselves established for the nine cast plates two messages earlier, and the evidence is
+in the repository rather than in an opinion:
+
+- `library/games/the_grain/scene.toml` states the scene "draws each backdrop, each plate
+  and **each track** exactly once".
+- `recipes/dialogue_scene/models.py` calls a `SceneTrack` "one generated music track,
+  named by the track the scenario plays"; it enforces that the scene's tracks are exactly
+  the union of the bound scenarios' tracks, and that there is one `track` artifact per
+  declared track.
+- `recipes/dialogue_scene/prompts.py` compiles each track's prompt through
+  `music_track_prompt` from the scenario's own `brief`, plus the `instrumental` and
+  `seamless_loop` flags and the mandatory originality clause.
+
+So the recipe already generates all four tracks from the scenarios. A hand-driven
+`generate-music` call would produce exactly what the nine plates produced: no manifest, no
+cache identity, no lineage, unplayable, and then regenerated anyway. **The saving is about
+USD 7.50 and three duplicate artifacts.**
+
+It was also not possible at the time of the order: `stage_gen.interfaces.cli` currently
+fails to import (`EXPRESSION_STATES` no longer in `dialogue_scene.models`, still imported
+by `dialogue_scene.manifest`) while the recipe lane lands its v5 change. Every `stage-gen`
+subcommand is down until it lands. Not this lane's file and not touched.
+
+### What was done instead — the direction put where the recipe reads it
+
+The register direction (one upright piano family, restraint, no drums) can only reach the
+model through the scenarios' `brief` fields, because that is the only free text
+`music_track_prompt` forwards. Three briefs contradicted it and have been rewritten:
+
+| Track | Was | Now |
+|---|---|---|
+| `supper` | "brushed drums under a muted trumpet" / "a small room-sized ensemble" | one upright piano, sparse and dry, long rests; pleasant on its surface and not quite convincing; no drums, no brass, no ensemble |
+| `statements` | "an upright bass walking slowly with a brush on a snare and one clarinet" | one upright piano, single low notes under an emptied room; tired rather than sad; no drums, no brass, no strings |
+| `window` | "one sustained low string" | a low continuous hum **present throughout and never falling to silence**, two or three isolated low piano notes; "do not write music for a body" |
+
+`office` is unchanged; it is already generated and already in the register.
+
+The `window` rewrite also protects the post-process gate: a cue written as "almost nothing"
+can fail the non-silence and level checks, so the continuous hum is now stated as a
+requirement rather than left to the model.
+
+### Defect found: two briefs for one track, silently resolved by binding order
+
+`supper` was declared by **both** `e1_table` and `e1_coffee` with **different** briefs.
+`manifest._union_tracks` keeps one entry per distinct id in first-declaration order, so the
+binding order in `scene.toml` (office, way_in, **table**, coffee, court, statements) meant
+`e1_table`'s brief silently won and `e1_coffee`'s more detailed instrumentation was
+discarded with no warning, no error and no log line. A writer's work would never have
+reached the model and nobody would have known.
+
+Both briefs are now identical, with a comment in each file saying they must change together
+or not at all. **Recommended, and not this lane's call: the recipe should refuse divergent
+briefs for one track id offline rather than pick by order.** The same silent-first-wins
+shape exists in `_union_stages` for stages.
+
+### Art lane running total, unchanged
+
+| Item | Ops | USD (est.) |
+|---|---|---|
+| Cover candidates | 6 | 3.00 |
+| Cast neutral plates (exploration) | 9 | 4.50 |
+| Music tracks | 0 | 0.00 |
+| **Art lane total** | **15** | **7.50** |
+
+Pilot total stands at **24 operations, about USD 13.00**.

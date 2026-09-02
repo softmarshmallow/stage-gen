@@ -90,14 +90,14 @@ region = { x = 0.0, y = 0.0, w = 0.26, h = 0.88 }
 hotspot_id = "display_windows"
 label = "The other windows"
 art = "scenery"
-brief = "a receding run of lit display windows: a laid dinner, a painted staircase, a group of suitcases, all against a dark sales floor"
+brief = "a receding run of lit display windows, each holding dressed mannequin figures: one seated at a laid dinner table, one descending a painted staircase, one standing beside a stack of travelling trunks, all against a dark sales floor"
 region = { x = 0.28, y = 0.28, w = 0.26, h = 0.40 }
 
 [[hotspots]]
 hotspot_id = "unfinished_window"
 label = "The unfinished window"
 art = "scenery"
-brief = "six standing mannequin figures turned toward an empty seventh place beneath a large white paper moon"
+brief = "six mannequin figures in evening dress, four standing and two seated on low plinths, all turned inward toward an empty seventh chair; the chair is a plain seat raised on a single slender steel column base; behind it a large matte white paper moon, flat and papery with a visible seam, no craters and no lunar surface"
 region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
 
 [[hotspots]]
@@ -105,21 +105,21 @@ hotspot_id = "black_rectangle"
 label = "Above the moon"
 art = "scenery"
 brief = "a short black rectangle left open where the painted scenery meets the ceiling of the window, directly above the paper moon"
-region = { x = 0.635, y = 0.235, w = 0.12, h = 0.055 }
+region = { x = 0.685, y = 0.257, w = 0.052, h = 0.055 }
 
 [[hotspots]]
 hotspot_id = "chalk_and_scissors"
 label = "The window floor"
 art = "scenery"
 brief = "a stick of tailor's chalk and a pair of scissors left on the floor inside the glass"
-region = { x = 0.60, y = 0.645, w = 0.14, h = 0.07 }
+region = { x = 0.685, y = 0.648, w = 0.048, h = 0.045 }
 
 [[hotspots]]
 hotspot_id = "service_bell"
 label = "The service bell"
 art = "scenery"
 brief = "a small plain bell push mounted beside an unmarked service door"
-region = { x = 0.87, y = 0.42, w = 0.07, h = 0.10 }
+region = { x = 0.840, y = 0.455, w = 0.040, h = 0.075 }
 
 # --- interactions ------------------------------------------------------------
 # Four looks and one way in. The two texture looks carry no effect and therefore

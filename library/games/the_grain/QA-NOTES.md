@@ -358,3 +358,140 @@ All six scenarios admit under `scenario check`: `e1_office` 8 states, `e1_way_in
 - Two browser play-throughs and screenshots, once the consumer lane has a run to point
   `/case/<tag>` at. Passes planned: one watching the Holts at every course and looking
   at little, one watching Ruth and Paul and looking at everything.
+
+---
+
+# Art audit — `out/the-grain-motor-court/assets/backdrop.png`
+
+Checked against `chapter-01-one-person-there.fountain:296–308` (Scene 2's motor court),
+against the narration the room itself reads out, and against
+`rooms/window/room.toml`, which must draw the same window after the fall.
+
+## Agrees with the novel
+
+- The display windows are still illuminated; the court is dark. ✓
+- The unfinished window is nearest the service door — the unmarked door is at the right
+  edge and the unfinished window is immediately left of it. ✓
+- Six mannequins face an empty seventh place: four standing, two seated on plinths, in
+  a semicircle turned inward on an empty chair. Counted twice at 3× magnification. ✓
+- The paper moon is **whole**, which is correct for the "before" plate. ✓
+- A short black rectangle is left open above the moon, where the scenery meets the
+  ceiling of the window. ✓
+- A seamstress's chalk and a pair of scissors lie on the display floor inside the
+  glass. ✓ Both objects are there, and they read as chalk and scissors.
+- No people, no readable text, lettering, signage, branding or number plates anywhere
+  in the image. ✓ Checked the street, the piers, the door and all five windows.
+- 1972 in the cars, the street lamps and the fixtures; painted, gouache-like, warm
+  amber against cold blue-black. ✓
+
+## A1 — the other windows have no mannequins in them (defect)
+
+The novel, and the room's own narration carried verbatim at
+`rooms/motor_court/room.toml:135–137`:
+
+> "The display windows are still illuminated. Inside them, mannequins attend dinners,
+> descend painted staircases, and wait beside luggage that has never travelled."
+
+The four other windows in the plate are **empty sets**: two laid tables, a painted
+staircase, a stack of trunks, and not one figure in any of them. A player who clicks
+"The other windows" reads about mannequins doing three things and is looking at a
+picture with none.
+
+The origin is the hotspot brief, not the generator — `room.toml:93` asks for "a laid
+dinner, a painted staircase, a group of suitcases" and drops the mannequins the
+sentence beside it promises. Fix the brief, then reroll.
+
+## A2 — the seventh chair has no steel base (defect, and the worst of them)
+
+`chapter-05-the-window.fountain:128`, which `rooms/window/room.toml:216` reads out
+verbatim when the player looks at the man:
+
+> "His body lies partly behind the chair, one shoulder against its **steel base**."
+
+The chair drawn is a gilt wooden oval-back side chair standing on four slender turned
+wooden legs. It has no base at all, steel or otherwise, and nothing a shoulder could
+rest against.
+
+This is the one that cannot be left, because the *after* plate has to be the same
+chair. `rooms/window/room.toml:74` and `:111` both specify the steel base, so either
+the before-plate is rerolled with a chair the novel's sentence can be true of, or the
+window room narrates a chair the player can see is not there.
+
+## A3 — the after-plate brief will not match the before-plate (continuity risk)
+
+`chapter-05:124`: "Six mannequins **remain where Henry saw them on the way in**." And
+`rooms/window/room.toml:25–29` makes recognising the frame the whole point of drawing
+the after against the before.
+
+| | before (delivered) | after (as briefed, `rooms/window/room.toml:71`) |
+|---|---|---|
+| dress | evening gowns | "in coats" |
+| posture | four standing, two seated on plinths | "stand" — all six |
+
+As written the two plates will disagree on both. The before-plate is the one that
+exists, so the window room's brief should be amended to describe what was actually
+drawn, not the other way round — rerolling the before-plate re-bills the room and the
+plate is otherwise good.
+
+## A4 — the moon is not paper (continuity risk)
+
+The plate draws an astronomical moon, with visible craters and maria, lit from within.
+The novel calls it "a white paper moon", and Scene 9 needs it to be paper:
+
+> "the white paper moon has split and sagged inward" … "Paper moves slightly where the
+> moon has torn."
+
+A cratered lunar photograph cannot split and sag. Both plates depend on this reading as
+a paper prop hung on a scenic wall. Worth a reroll of the window brief's wording at
+minimum, so the after-plate does not inherit it.
+
+## Hit areas, measured against the delivered plate
+
+Pixel positions taken from the 1280×720 backdrop by luminance thresholding, then
+confirmed visually with the regions drawn over the image.
+
+| Hotspot | Object drawn at (norm) | Hotspot region | Overlap |
+|---|---|---|---|
+| `service_bell` | x 0.852–0.863, y 0.471–0.508 | x 0.870–0.940, y 0.420–0.520 | **none** |
+| `black_rectangle` | x 0.692–0.729, y 0.264–0.311 | x 0.635–0.755, y 0.235–0.290 | ~25% |
+| `chalk_and_scissors` | x 0.693–0.724, y 0.653–0.682 | x 0.600–0.740, y 0.645–0.715 | contains |
+
+- **`service_bell` has zero overlap with the bell, and it is the room's exit.** It sets
+  `rang_the_bell`, the win flag, and it is the only way out of the room. The brass bell
+  push is on the pier at px 1091–1105, 339–366; the hotspot is at px 1114–1203,
+  302–374, entirely to the right of it on the blank door leaf. Clicking the bell does
+  nothing. Clicking blank masonry rings it. Suggested region:
+  `{ x = 0.840, y = 0.455, w = 0.040, h = 0.075 }`.
+- **`black_rectangle`** sits high and wide, mostly on the window's top rail; only the
+  object's top-left corner falls inside. Suggested:
+  `{ x = 0.685, y = 0.257, w = 0.052, h = 0.055 }`.
+- **`chalk_and_scissors`** does contain both objects, so it works. Most of its area is
+  the masonry bulkhead below the glass. Tighten only if convenient:
+  `{ x = 0.685, y = 0.648, w = 0.048, h = 0.045 }`.
+- **`display_windows`** ends at px 691; the luggage window runs to about px 710 and
+  `unfinished_window` starts at px 717, so the luggage window's right edge and its pier
+  fall in a gap between the two. Minor.
+
+`puzzle.validation.json` reports solvable, 16 reachable states, solution `[5]` — one
+interaction, the bell. Correct as a graph; the graph does not know where the bell was
+painted, which is why the hit areas had to be measured against the plate.
+
+## Rights labelling on generated images
+
+`out/the-grain-motor-court/room.json.meta.json` — the deterministic canonicalisation —
+carries `rights.status = "unreviewed"`. The **generated image** does not:
+`assets/backdrop.png.meta.json` has no `rights` key at all.
+
+This is systemic rather than one file. Across every `out/the-grain-*` run, **21 of 21
+provider-generated image sidecars carry no rights block** (nine cast plates, six cover
+candidates, the room backdrop, the UI atlas pieces). The pilot brief's non-negotiable is
+"Every generated image and track is labeled `unreviewed` in its rights fields", and the
+director's semantic-review list is built from these runs.
+
+The committed plate is correct — `references/cover.provenance.json` carries
+`status: "unreviewed"`, a three-line basis and `publication_authorized: false`. So the
+gap is confined to run artifacts under `out/`. Flagging for a ruling rather than as a
+lane defect, since it may be a component-level omission rather than anything the art
+lane did.
+
+No absolute paths and no credentials appear anywhere under the run. ✓

@@ -647,6 +647,91 @@ episode boundary rather than vanishing.
 32-flag cap with no headroom. The cap was raised to **48** by the contract lane at 06:0x;
 32 declarations is comfortable, not tight.
 
+### 06:33 — The contract stack is complete
+
+`case bundle` landed, and with it everything this pilot asked the contract lane for: five
+slots, `case-v1` with its proof and leaf binding, liveness projection, the 32 → 48 flag cap,
+and now the runtime projection.
+
+Two judgements in it are better than the specification they were given. The lane declined
+to publish the projection as `case-v1` and gave it its own identity, **`case-runtime-v1`**,
+on the ground that a beat which has grown a run tag is a different document from the one the
+author wrote — which is how every other runtime manifest here behaves. And rather than
+taking the lead's guess about how to locate a scenario inside a shared run, it read
+`dialogue_scene/manifest.py`, found that the run publishes `scenario_id`, and used that.
+
+The consumer was hard-checking `kind === "case-v1"`. One constant changed;
+`tsc --noEmit` clean and **1379 tests pass, 0 fail**. Gate 6 green.
+
+Six beats share one run tag, because one scene binds all six scenarios. `--beat-run` never
+enforced uniqueness on the tag, only on the beat id, so that mapping worked unchanged.
+
+### 06:35 — The art lane refuses an order from the lead, correctly
+
+Told to generate the three remaining music tracks by hand, the art lane **declined**, on the
+ground the lead had itself established an hour earlier about the cast plates: the recipe
+generates them. `SceneTrack` is "one generated music track, named by the track the scenario
+plays", the scene enforces that its tracks are exactly the union of the bound scenarios',
+and `prompts.py` compiles each one from the scenario's own brief. Hand-driven tracks would
+have been the plates again — no manifest, no cache identity, no lineage, unplayable,
+regenerated anyway. **That refusal saved about USD 7.50 and the lead was wrong to give the
+order.**
+
+It also means the `office.mp3` generated at 06:03 is exploration too. It bought what it was
+for — proof that the Lyria route works against a live key — and the shipped track will come
+from the recipe.
+
+**And it found silent data loss.** `supper` was declared by both `e1_table` and `e1_coffee`
+with **different briefs**. `manifest._union_tracks` keeps one entry per id in
+first-declaration order, so the binding order in `scene.toml` silently discarded
+`e1_coffee`'s — no error, no warning, no log line. `_union_stages` has the same shape, over
+twelve stages. The two briefs are now identical with a comment in each file; the recipe has
+been asked to **refuse** a divergent collision offline rather than resolve it by order.
+That hazard did not exist until a scene could bind more than one scenario, so it is v5's to
+close.
+
+### 06:36 — QA measures the pixels, and finds the room unplayable
+
+The motor-court backdrop is a good painting that got most of Scene 2 right — the windows lit
+and the court dark, the unfinished window nearest the service door, six figures on an empty
+seventh place, the moon whole, the black rectangle open, chalk and scissors legible, no
+people, no readable text anywhere, 1972 in the cars and fixtures. Then QA measured the
+hotspot rectangles against the delivered pixels.
+
+**`service_bell` had zero overlap with the bell.** It is the room's exit, it sets the win
+flag, and it is the only way out. The bell push sits at x 0.852–0.863; the hit area ran
+0.870–0.940, entirely to the right of it, on blank masonry. Clicking the bell did nothing.
+Clicking the door leaf rang it. `puzzle.validation.json` reported solvable in 16 states the
+entire time, because **the graph does not know where the bell was painted.**
+
+That is the most valuable finding of the run and no proof in this repository could have made
+it. Three regions corrected from the measurements. The window room has fourteen hotspots and
+its required one — `the_man`, exporting `saw_body` — has the same exposure, so it gets the
+same treatment after its reroll.
+
+Three fidelity defects, all traced to the brief rather than the generator: the other windows
+were briefed without the mannequins the narration promises; the seventh chair was drawn as a
+wooden side chair when the window room narrates "one shoulder against its **steel base**";
+and the moon came back cratered and astronomical when Scene 9 needs paper that can split and
+sag.
+
+**One canonical description of that window now lives in both room documents** — six
+mannequins in evening dress, four standing and two seated on low plinths, an empty seventh
+chair on a slender steel column base, a matte paper moon with a visible seam and no craters.
+QA recommended amending only the window brief to match what was drawn, which was right in
+isolation; the lead went the other way because the steel base forces a court reroll anyway,
+and matching the after-plate to a before-plate with a baseless chair would have locked the
+defect into both.
+
+**A rights gap the pilot surfaced and did not fix.** 21 of 21 provider-generated image
+sidecars under `out/` carry no rights block, against a brief that requires every generated
+image to be labelled `unreviewed` in its rights fields. The authored package is correct —
+`references/cover.provenance.json` carries `status: unreviewed` and
+`publication_authorized: false` — so the gap is in the run directory and looks like a
+component-level omission. It is reported rather than patched: repairing a media-rights
+component at hour two, in a tree four lanes are writing to, is how a run breaks something
+quietly.
+
 ---
 
 ## 3. Ledger

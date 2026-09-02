@@ -56,7 +56,7 @@ brief = "The motor court of an original closed 1972 department store at night un
 
 [[tracks]]
 track_id = "window"
-brief = "Almost nothing. A low electrical hum with a room around it, one sustained low string that does not move, air moving somewhere out of sight, no melody and no pulse"
+brief = "Almost nothing, and closer to a room tone than a cue. A low continuous electrical hum present throughout and never falling to silence, the buzz of display lighting, and the small dry movement of torn paper. At most two or three isolated low piano notes with very long silence between them. No melody, no pulse, no swell and no resolution: do not write music for a body"
 
 [tracks.generation]
 intent = "generate"
