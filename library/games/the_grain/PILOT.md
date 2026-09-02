@@ -886,9 +886,45 @@ its output is the whole resolved document, so changing a rectangle invalidates i
 **lineage** — and the backdrop with it. The cache is content-and-lineage validated exactly
 as specified; this is that design working correctly.
 
-**So hotspot regions cannot converge.** Measure plate A, correct the regions, and you get
-plate B, for which those corrections are wrong. Generation is unseeded, so B is never A. It
-is a loop with no fixed point.
+**So a correction redraws the thing it was measured against.** Measure plate A, correct the
+regions, and you get plate B. Generation is unseeded, so B is never A.
+
+**Measured, and the strong claim above is too strong — the loop converges in practice.**
+QA measured the same three objects across plate 2 and plate 3, brief unchanged, regions the
+only edit:
+
+| Object | plate 2 centre | plate 3 centre | moved |
+|---|---|---|---|
+| bell push | (1125.5, 363) | (1111.5, 383) | 24px |
+| black rectangle | (888.5, 203) | (907.5, 226.5) | 30px |
+| chalk + scissors | (895.5, 467.5) | (909, 490) | 26px |
+
+Mean 27px on a 1280×720 frame — 2.1% of width, 3.7% of height — and all three moved *down*,
+two of three *right*. A coherent global drift, not independent scatter. All three corrected
+rectangles still cover their objects on the new plate (82%, 82%, and chalk fully inside),
+so **one correction pass held**.
+
+It held because the rectangles were **padded**: the bell push is a 13×18px object and QA
+gave it a 58×62px target on the grounds that a required exit should not be a pixel hunt.
+That decision, made for playability, is what absorbed the drift. A region fitted tightly to
+its object would have missed all three.
+
+The distinction that makes the loop terminate:
+
+- **Brief unchanged, regions changed** → composition *drifts* ~27px. Padded regions survive.
+- **Brief changed** → composition is *re-imagined*. Between the window room's first and
+  second rolls the window moved by roughly a fifth of the frame and nine of fourteen
+  hotspots went from hit to miss.
+
+So the recommendation that survives measurement is: **generate, measure, correct, re-run,
+verify — and pad every region by at least 2.5% of frame width beyond the object's own
+bounds.** The verify step usually passes; it is not optional, because nothing guarantees it.
+
+**Honest caveat, QA's own and worth keeping:** this is n=1 — one reroll pair, three objects.
+Image generation's noise floor is large and a single A/B measures sampling noise as much as
+effect. The 27px is an observation, not an estimate. What is defensible is the qualitative
+claim — a same-brief redraw nudges, a changed-brief redraw re-imagines — and the padding
+rule that follows from it.
 
 Stated plainly for the director: **a room's hit areas and its backdrop cannot both be
 correct under the current cache lineage, because the only way to fix the first is to redraw
@@ -897,15 +933,54 @@ from the fields that feed the image (the scene brief, the hotspot briefs, the st
 the frame) rather than from the document as a whole. That is not a change to make at hour
 two of seven with four lanes writing to the tree, so it is reported rather than attempted.
 
-QA is measuring whether a reroll of the same brief lands objects within a few percent of
-where they were. If it does, one correction pass suffices in practice even though nothing
-guarantees it. If it does not, the rooms ship with approximate hit areas and the director is
-told so plainly.
+The contract finding stands and is still the right one: **the backdrop should not be
+invalidated by a rectangle.** That is what makes the verify step necessary at all. Fixing
+the lineage would make regions converge exactly rather than probabilistically, and drop the
+cost of a correction from one operation to zero.
 
 *Applied anyway, because they are better than what they replaced:* `service_bell` was
 spending most of itself on blank pier and overlapping the bell by seven pixels;
 `chalk_and_scissors` was a hotspot named for two objects that **contained neither of them**,
 sitting mostly on the masonry below the glass.
+
+### 06:58 — Thirty-two faces, and one node between them and the player
+
+`out/the-grain-scene-2/`: **114 of 115 nodes succeeded**, 55 provider operations, 376
+seconds. Every cast plate drew. The twelve stages and four tracks cache-hit from run 1
+exactly as predicted, so the whole cost of the re-run was the cast.
+
+**Authored per-actor expressions work.** At full face scale Ruth's four are genuinely
+distinct and correctly *small*: `composed` is level and unreadable; `dry` carries the
+faintest lift at one corner of the mouth; `exposed` has the lips parted and the brow lifted;
+`shut` has the eyes lowered and the face turned away. That subtlety is right for a woman the
+cast bible describes as composing herself half a second before she is looked at — the old
+shared vocabulary would have put `delighted` on her. Identity, wardrobe and the authored
+invariants hold across all four plates: the oxblood dress, the camel coat, the flat handbag,
+one small pair of gold earrings. Ward keeps his brown suit and his notebook through all four
+of his.
+
+**The style drift noted for the stages holds for the cast too.** The plates are photoreal
+rather than gouache. The game therefore has *one* coherent look, which is defensible, but it
+is not the briefed one, and it is now the whole art programme rather than the backdrops
+alone. First item on the director's review list, unchanged.
+
+**The one failure is the terminal `scene-bundle` node:**
+
+```
+style media contract requires (1024, 1536, False); received (2048, 1152, False)
+```
+
+Larkfield's style plate is 1024×1536 because it is a portrait of one person. Ours is
+2048×1152 because it is an establishing shot of a place. **All 47 image nodes accepted those
+bytes** and drew against them; only the terminal bundle refuses, after the work is done and
+paid for.
+
+Routed to the recipe lane with the argument that a style plate is a reference for medium,
+palette and light, that nothing is composited from it, and that a fixed portrait aspect
+looks like a constraint inherited from a plate that happened to be a character portrait. The
+alternative — cropping a wide establishing shot into portrait — re-bills all 47 images at
+about USD 23 **and** hands every downstream draw a worse reference. Paying to make the art
+worse is the wrong trade, and the pilot said so rather than taking the quick way.
 
 ---
 
@@ -923,9 +998,16 @@ Dollars are **estimated**; see the 06:04 decision. Operation counts are authorit
 | 06:03 | Music smoke test | 1 | 1 | 2.50 | lead; PASSED, 70.53 s, all gates green |
 | 06:23 | Motor court room | 8 | 8 | 3.00 | lead; ok first attempt, 4 image + 4 structured, proof written |
 | 06:25 | Cast neutral plates | 9 | 9 | 4.50 | art lane; **exploration, not production** — see below |
-| 06:29 | Window room | 10 | in flight | 4.00 | lead; 6 image + 4 structured |
+| 06:29 | Window room, roll 1 | 10 | 12 | 4.00 | lead |
+| 06:43 | Motor court, roll 2 | 8 | 1 | 0.50 | brief + region fix; UI and anchor cache-hit |
+| 06:43 | Window room, roll 2 | 12 | 4 | 2.00 | outdoors, canonical window |
+| 06:47 | Scene run 1 | 63 | 29 | 14.00 | 12 stages + 4 tracks; cast half failed |
+| 06:50 | Window room, roll 3 | 12 | 4 | 2.00 | the pedestal chair, third attempt |
+| 06:52 | Motor court, roll 3 | 8 | 1 | 0.50 | isolated region-only test |
+| 06:58 | Scene run 2 | 63 | 55 | 20.00 | **all 32 cast plates**; stages and tracks cache-hit |
 
-**Operations run so far: 33. Estimated spend: USD 17.00 of 250.** Comfortably below the
+**Operations run so far: 121. Estimated spend: USD 55.00 of 250.** Still well below the
+150 re-plan point. Comfortably below the
 150 re-plan point; the full art run and the three remaining tracks are affordable without
 rationing.
 
