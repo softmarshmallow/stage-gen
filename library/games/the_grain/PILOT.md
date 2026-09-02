@@ -1713,3 +1713,47 @@ exit could not be clicked passed gate 2 with *solvable, 16 states, zero unreacha
 interactions*; an episode drawn in the wrong medium passed every gate there is. Both were
 found by a person looking at the output. **Every gate here is offline, exact, and blind to
 the picture.**
+
+---
+
+## 9. If there is an Episode Two
+
+Not asked for. Written because the next brief is cheaper to get right than this one was, and
+because most of what this run learned is only useful as an instruction to the next.
+
+**Six things the next brief should say that this one did not.**
+
+1. **Declare the medium in the package, not in prose.** Until a scenario or scene can carry a
+   `[style]` block, the next brief must say in its own words: *the scene brief's first clause
+   names the medium, and the first artifact to check is `style-anchor.json`, before any plate
+   is drawn.* Checking one JSON file at minute twenty would have saved this run 55
+   operations and an hour.
+2. **Measure hit areas against the delivered plate, always, and pad them.** Author the room,
+   generate, measure, correct, re-run, **verify**. Pad every rectangle well beyond the
+   object. If the lineage fix lands, this collapses to measure-and-correct; until then the
+   verify step is not optional and the room may still ship approximate.
+3. **Commit a lane's work when it reports done, before answering it.** Centralising commits
+   in the lead was right and the missing step was the lead's own. Forty-nine files sat
+   uncommitted for two hours.
+4. **Have QA play before the art is final, not after.** Both of the run's worst defects — the
+   two media and the unclickable exit — were found by a person looking at output. Neither
+   was findable by any gate, and both were found late enough to cost a re-roll.
+5. **Budget for three rolls of anything that must match a fixed sentence.** The window's
+   chair took three: the first ignored the steel base, the second ignored it again with a
+   softer brief, the third obeyed a brief that said what the chair must *not* be. Naming the
+   alternatives is what worked.
+6. **Say who may review.** This run produced a great deal of art and *nobody in it* may
+   accept any of it. That is correct and it should be stated at the start rather than
+   discovered in the report, so the director's time is booked before the run, not after.
+
+**What Episode Two inherits, technically.** `case-v1` and `case bundle`; `scenario-v2` with
+authored slots and imported flags; liveness projection, without which the statement scene is
+unprovable; `dialogue-scene-v5` with per-actor authored expressions; nine character profiles
+with their directions; twelve stages, thirty-two plates and four tracks already drawn in the
+right medium; a shell that saves, resumes and keeps a backlog. Thursday reuses all of it.
+
+**What it inherits, dramatically.** Whatever board Wednesday's player carried — and the one
+thing this pilot could not build is the path that carries it. `case_result_v1` records it in
+the browser; nothing reads it from there. **If Episode Two is to open on Wednesday's board,
+that export is the first piece of work, and it is a contract question rather than a
+consumer one.**
