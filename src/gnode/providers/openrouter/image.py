@@ -55,6 +55,8 @@ class OpenRouterImageBackend:
                 "OpenRouter image generation has no masked-edit route; use the OpenAI backend"
             )
         body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
+        if request.size is not None:
+            body["size"] = request.size
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio
         if request.resolution is not None:

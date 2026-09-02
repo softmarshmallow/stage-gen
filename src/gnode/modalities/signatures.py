@@ -10,7 +10,11 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-MediaFamily = Literal["image", "audio", "application"]
+#: Mirrors ring 0's ``ARTIFACT_MEDIA_FAMILIES``. ``text`` has no modality
+#: service and therefore no signature check here: its deterministic floor
+#: (``assert_text_payload``) is enforced by the artifact write, not by a
+#: retry owner.
+MediaFamily = Literal["image", "audio", "application", "text"]
 
 
 def normalize_media_type(value: object, family: MediaFamily) -> str:

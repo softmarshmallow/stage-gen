@@ -151,6 +151,35 @@ describe("parseExecutionView", () => {
     expect(() => parseExecutionView(v2)).toThrow("re-export this run");
   });
 
+  test("carries a text artifact through as its own display", () => {
+    const document = executionViewFixture();
+    const nodes = document.nodes as Record<string, unknown>[];
+    const artifacts = nodes[1].artifacts as Record<string, unknown>[];
+    nodes[1] = {
+      ...nodes[1],
+      artifacts: [
+        {
+          ...artifacts[0],
+          artifact_ref: "production/records/wayfarer.md",
+          media_type: "text/markdown",
+          display: "text",
+          motion: null,
+        },
+      ],
+    };
+    const view = parseExecutionView(document);
+    expect(view.nodes[1].artifacts[0].display).toBe("text");
+    expect(view.nodes[1].artifacts[0].mediaType).toBe("text/markdown");
+  });
+
+  test("refuses a display outside the declared vocabulary", () => {
+    const document = executionViewFixture();
+    const nodes = document.nodes as Record<string, unknown>[];
+    const artifacts = nodes[1].artifacts as Record<string, unknown>[];
+    nodes[1] = { ...nodes[1], artifacts: [{ ...artifacts[0], display: "hologram" }] };
+    expect(() => parseExecutionView(document)).toThrow("display is invalid");
+  });
+
   test("refuses a run_state outside the declared vocabulary", () => {
     const alien = { ...executionViewFixture(), run_state: "in flight" };
     expect(() => parseExecutionView(alien)).toThrow("run_state must be one of");

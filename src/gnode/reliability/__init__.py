@@ -21,11 +21,14 @@ from .atomic import (
 )
 from .cancellation import AbortError, CancellationError, CancellationToken
 from .encoding import (
+    ARTIFACT_MEDIA_FAMILIES,
     assert_media_type,
+    assert_text_payload,
     decode_base64_strict,
     hash_input_reference,
     is_portable_artifact_reference,
     is_temporary_artifact_reference,
+    normalize_artifact_media_type,
     sanitize_reference,
     sha256_hex,
 )
@@ -49,6 +52,7 @@ from .retry import (
 
 __all__ = [
     "AI_RETRY_COUNT",
+    "ARTIFACT_MEDIA_FAMILIES",
     "AbortError",
     "ArtifactBundleEntry",
     "AtomicBundleFile",
@@ -66,6 +70,7 @@ __all__ = [
     "RetryPolicy",
     "assert_media_type",
     "assert_safe_path_segment",
+    "assert_text_payload",
     "atomic_write_bundle",
     "atomic_write_bytes",
     "atomic_write_json",
@@ -75,6 +80,7 @@ __all__ = [
     "hash_input_reference",
     "is_portable_artifact_reference",
     "is_temporary_artifact_reference",
+    "normalize_artifact_media_type",
     "record_artifact_rights",
     "record_artifact_rights_async",
     "redact_secrets",

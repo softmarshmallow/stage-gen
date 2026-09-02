@@ -119,7 +119,7 @@ export const EXECUTION_NODE_STATES: readonly ExecutionNodeState[] = [
   "skipped",
 ];
 
-export type ArtifactDisplay = "image" | "audio" | "data" | "motion_atlas";
+export type ArtifactDisplay = "image" | "audio" | "data" | "text" | "motion_atlas";
 
 export interface ExecutionViewMotion {
   readonly frameCount: number;
@@ -395,7 +395,13 @@ function motion(value: unknown, label: string): ExecutionViewMotion | null {
 function artifact(value: unknown, label: string): ExecutionViewArtifact {
   const record = object(value, label);
   const display = record.display;
-  if (display !== "image" && display !== "audio" && display !== "data" && display !== "motion_atlas") {
+  if (
+    display !== "image" &&
+    display !== "audio" &&
+    display !== "data" &&
+    display !== "text" &&
+    display !== "motion_atlas"
+  ) {
     throw new Error(`${label}.display is invalid`);
   }
   return Object.freeze({

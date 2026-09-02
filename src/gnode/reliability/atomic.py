@@ -23,8 +23,9 @@ from gnode.contracts.provenance import (
 )
 
 from .encoding import (
-    assert_media_type,
+    assert_text_payload,
     is_portable_artifact_reference,
+    normalize_artifact_media_type,
     sanitize_reference,
     sha256_hex,
 )
@@ -162,10 +163,9 @@ def build_artifact_provenance(
     if artifact is not None:
         if not artifact.data:
             raise ValueError("artifact bytes must be non-empty")
-        family = artifact.media_type.split("/", 1)[0]
-        if family not in {"image", "audio", "application"}:
-            family = "application"
-        media_type = assert_media_type(artifact.media_type, family)
+        media_type = normalize_artifact_media_type(artifact.media_type)
+        if media_type.startswith("text/"):
+            assert_text_payload(artifact.data, media_type)
         digest = ArtifactDigest(
             sha256=sha256_hex(artifact.data), bytes=len(artifact.data), media_type=media_type
         )

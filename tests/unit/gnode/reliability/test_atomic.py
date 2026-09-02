@@ -79,6 +79,57 @@ def test_pair_write_records_schema_hashes_versions_and_mode(tmp_path: Path) -> N
     assert stat.S_IMODE(sidecar_path.stat().st_mode) == 0o600
 
 
+def test_text_artifact_round_trips_with_its_own_media_type(tmp_path: Path) -> None:
+    """A prose record persists as the text it is, not as opaque bytes."""
+
+    artifact_path = tmp_path / "record.md"
+    record = "# Wayfarer\n\nA record with an em dash — and a snowman ☃.\n"
+    sidecar_path = write_artifact_with_provenance(
+        artifact_path,
+        BinaryArtifact(record.encode("utf-8"), "text/markdown"),
+        provenance(),
+    )
+    parsed = json.loads(sidecar_path.read_text())
+    assert artifact_path.read_text(encoding="utf-8") == record
+    assert parsed["artifact"]["media_type"] == "text/markdown"
+    assert parsed["artifact"]["sha256"] == sha256_hex(record.encode("utf-8"))
+
+
+def test_text_media_type_normalizes_away_its_charset_parameter(tmp_path: Path) -> None:
+    sidecar_path = write_artifact_with_provenance(
+        tmp_path / "record.md",
+        BinaryArtifact(b"# Title\n", "text/markdown; charset=utf-8"),
+        provenance(),
+    )
+    assert json.loads(sidecar_path.read_text())["artifact"]["media_type"] == "text/markdown"
+
+
+def test_text_artifact_refuses_bytes_that_are_not_the_text_they_claim(tmp_path: Path) -> None:
+    """The text floor lives in the write, because text has no modality service."""
+
+    artifact_path = tmp_path / "record.md"
+    for payload in (b"\xff\xfe# Title", b"# Title\x00hidden"):
+        with pytest.raises(ValueError, match="text bytes"):
+            write_artifact_with_provenance(
+                artifact_path,
+                BinaryArtifact(payload, "text/markdown"),
+                provenance(),
+            )
+    assert not artifact_path.exists()
+    assert not Path(f"{artifact_path}.meta.json").exists()
+
+
+def test_unknown_media_family_fails_under_its_own_name(tmp_path: Path) -> None:
+    """An unrecognized family is named, not silently reported as `application`."""
+
+    with pytest.raises(ValueError, match="unsupported artifact media family: model"):
+        write_artifact_with_provenance(
+            tmp_path / "scene.glb",
+            BinaryArtifact(b"glTF\x02\x00\x00\x00", "model/gltf-binary"),
+            provenance(),
+        )
+
+
 def test_pair_write_recursively_redacts_top_level_fields_refs_and_keys(tmp_path: Path) -> None:
     secret = "configured-secret-value"
     artifact_path = tmp_path / "artifact.bin"
