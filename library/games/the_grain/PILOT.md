@@ -211,13 +211,18 @@ provider, the model, the prompt digest, attempts, retries, the artifact hash and
 validation gates — but **no `usd` figure**. Image sidecars carry token usage (5,650 output
 image tokens per candidate at `quality: high`, 2048x1152); the music sidecar carries none.
 
-**Corrected at 06:14, and the correction matters:** this is true only of *direct capability
-calls*. A **graph run** reports `known_cost_usd` per node in its `execution-summary.json`.
-So everything generated through a recipe — every stage, every cast plate, both rooms, the
-UI atlas — is metered exactly, and only the hand-driven calls (the six cover candidates and
-the four music tracks) are estimated. That is the large majority of the spend measured and
-a small, known remainder estimated, which is a much better position than the paragraph
-above first claimed.
+**A correction, and then a correction to the correction — the second one is the truth.**
+At 06:14 the lead recorded that graph runs meter cost exactly, because
+`execution-summary.json` carries a `known_cost_usd` field per node. The first real run
+disproved it: the field is present and **null** on every provider node. The motor court's
+eight provider operations report `known_cost_usd: None`, and the summed cost is therefore
+zero, which is not a cost of zero — it is the absence of a figure.
+
+So the original paragraph stands, and it stands for graph runs too. **Nothing anywhere in
+this pipeline reports dollars.** The ledger counts operations, which are exact, and prices
+them at a rate, which is an estimate. The 250 ceiling is enforced against a count and a
+rate throughout. This is recorded twice over because a report that quietly kept the wrong
+correction would be worse than one that never made it.
 
 So the ledger in this file records **operation counts as authoritative and dollars as
 estimated**, with the token counts kept as the audit trail. The 250 ceiling is therefore
@@ -494,6 +499,117 @@ what I asked." where the novel has **"That isn't what I asked."** The novel is t
 authority and the pilot proceeds on it; the glossary is a translation aid, not a contract,
 and the director decides whether it wants correcting.
 
+### 06:35 — The consumer lane finishes, and names the last gap precisely
+
+`/case/demo` walks a three-beat case — scenario, then a point-and-click room, then a
+scenario — end to end at one URL, with real generated art. Five slots are in, and the outer
+pair is a **far rank** rather than merely two more positions: 16% smaller, standing lower,
+drawn behind, dimmer, so a table of eight reads as depth instead of a row. The inner three
+are one figure moved, not resized, and `center` still reproduces the old single-character
+framing exactly.
+
+Speaker emphasis is a pure, unit-tested module: the speaker goes full colour, ×1.045 about
+the feet, above every slot; listeners take alpha and a cool tint, cooler at the far rank;
+narration lights nobody.
+
+The shell minimum is done and proven live — after a reload the page offered *"A save is
+waiting at After, line `you_did_not#0`"* and Continue landed on that exact line with stage
+and cast intact. `/scene/<tag>` and `/room/<tag>` are now cases of one beat, so a leaf played
+alone gets the same shell.
+
+**One deliberate deviation, and it is right.** The brief said autosave the statement
+identity and the flags. The lane saves the runtime's whole drawn state instead, because a
+statement id says which line but not what the backdrop is or who is standing where — those
+are settled by having walked the invisible statements. Saving only the pair would resume the
+right sentence in an empty room.
+
+`bun run check` clean, `bun test` 1379 pass / 0 fail, up from 1328.
+
+**The last gap, now assigned.** The authored case names its leaves by package `member`; the
+consumer plays **runs**. Nothing turns one into the other. The consumer verified its reader
+against a hand-written instance and then deleted it, so what is missing is exactly one
+thing: `out/<tag>/case.json`, the authored case verbatim as JSON plus `run_tag` on each
+beat. The contract lane has it, ranked above everything except finishing liveness — because
+without it the pilot ends with proven contracts, generated art, and no way to play the
+episode, which is the worst place this run could stop.
+
+**A pre-existing finding worth the director's attention.** *Nothing currently in `out/`
+plays at all.* Every scenario bundle and room manifest on disk predates `ui.preview_icons`
+and 500s on parse; the home page reports "point-and-click rooms · 0, visual-novel scenes ·
+0". This was true before this pilot touched anything, and it is why the consumer built
+`/case/demo` as a hand-authored fixture. Our own runs are generated against the current
+recipe and are unaffected — but it means there is no older run to fall back on.
+
+### 06:38 — The first real art: the motor court
+
+Both room plans were taken as free dry runs first: `motor_court` 14 nodes (4 image, 4
+structured), `e1_window` 18 nodes (6 image, 4 structured). Ledgered, then the motor court
+started live — writer A has finished it, so its bytes are final. The window room waits for
+writer B's polish rather than being billed twice.
+
+### 06:23 — The first real art, and the plate held
+
+`pointclick-room generate` on the motor court, live: **ok, 14 nodes, 8 provider operations
+(4 image, 4 structured), 176 seconds, first attempt.** `puzzle.validation.json` is written
+and says solvable, 16 reachable states — **gate 2 satisfied for this room with a real
+artifact rather than a dry-run stub.**
+
+The backdrop is the thing worth reporting. It is not a re-draw of the plate; it is the same
+place from a different position, and it holds: the stone canopy lit from beneath, the wet
+street going cold blue-black past palms and parked cars, and a *run* of display windows
+receding into frame — the novel's own Scene 2, where mannequins "attend dinners, descend
+painted staircases, and wait beside luggage that has never travelled." All three of those
+windows are drawn. The unfinished window is at the right with its six figures, the paper
+moon, the black rectangle open above it, the scissors on the floor, and the unmarked service
+door Ruth rings. No readable text anywhere.
+
+That is the whole bet of choosing a pixel plate over adjectives, paying off on the first
+independent draw.
+
+### 06:24 — The case passes bound, and the binding proof earned its keep
+
+`case check` with every leaf resolved: **admitted, bound, 8 beats, 69 facts.** Gate 3 is
+green in its strong form — not just the beat graph, but each beat's declaration checked
+against the leaf it names, in both directions.
+
+It caught three drifts in the lead's own hand-authored case, which is exactly what it was
+built for: `b_the_court` was missing `bell_in_receiving`; `b_statements` was missing
+`asked_paul_sentence`, `carton_on_gallery` and `heading_int_bedroom` while listing
+`paul_not_to_wait` and `paul_needed_to_think`, which that scenario neither imports nor
+tests. QA flagged the same set independently.
+
+The last of those is a design point worth keeping: Ruth says both "not to wait" and "needed
+to think" on the **only** path through coffee, so gating Henry's report on them would be a
+condition that always holds. Henry always has both. What he gives is the choice — so they
+are facts carried to Thursday, read by nothing tonight.
+
+### 06:24 — QA's second audit: two cuts, one restore, two unpaid looks
+
+`e1_statements` landed clean on attribution and on every fixed sentence but two, and QA's
+research on one of them is the best single piece of work in this run.
+
+- **`:472`, Ward: "That is not what I asked either."** Not a smoothing to repair — a cut.
+  The novel varies this sentence deliberately five times across the book, and **Ward's shift
+  from "isn't" to "is not" is a Chapter Fourteen event** the book takes eight chapters to
+  earn. Spending it in Episode One would flatten it permanently. The line is cut; Ward's
+  "You are allowed to be tired, Calder." carries the beat alone.
+- **`:809`, Nell: "That is not what I asked you."** Cut. Altered form, premature (Nell says
+  no version of this until Chapter Eight, in Episode Two — it is part of what Thursday does
+  to her), and outside the outline's permitted new writing, which gives Nell no new cue in
+  Sc14 at all. Her silence is the point of the player having chosen silence.
+- **`:410`, Ward: "That is the second time tonight you have not thought so."** There is no
+  first time on either path, because at `:350` Ward asks "Did she drink?" and Henry never
+  answers — Ward is interrogating himself. The novel has the answer at ch06:297–307. The
+  lifted line is restored, which fixes both faults at once.
+
+**And two gaps that matter more than any line.** `indicator_at_three` and `ruth_two_fingers`
+are set, are listed in the outline's own Sc12 beat table, and are read by nothing. Those are
+looks a player pays a whole course of attention for. An unpaid look breaks the episode's
+central promise — that attention becomes something Henry can say — so both are being given
+their beat. In the second case the payoff was already sitting in the same file: Ruth says
+"It was in his inside pocket when we went down" at `e1_statements:63`, and
+`ruth_two_fingers` is what corroborates it.
+
 ---
 
 ## 3. Ledger
@@ -508,8 +624,9 @@ Dollars are **estimated**; see the 06:04 decision. Operation counts are authorit
 |---|---|---|---|---|---|
 | 05:52 | Cover candidates | 6 | 6 | 3.00 | art lane; `out/the-grain-cover/`, sidecars carry token usage |
 | 06:03 | Music smoke test | 1 | 1 | 2.50 | lead; PASSED, 70.53 s, all gates green |
+| 06:38 | Motor court room | 8 | 8 | 3.00 | lead; ok first attempt, 4 image + 4 structured, proof written |
 
-**Operations run so far: 7. Estimated spend: USD 5.50 of 250.**
+**Operations run so far: 15. Estimated spend: USD 8.50 of 250.**
 
 ---
 

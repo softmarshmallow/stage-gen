@@ -13,7 +13,7 @@ display_name = "Coffee"
 revision = 1
 
 script = "scenarios/e1_coffee.scenario"
-script_sha256 = "1e2f7b95b747a4692cfe520849a6cde1783382f70e6296c4f62410ae41fceb43"
+script_sha256 = "c01e6b045a83a704f0e5403af6f005786d50fdcc8f8761436ddd7e916d772ba4"
 entry = "coffee_opens"
 
 # ------------------------------------------------------------------- the cast

@@ -271,9 +271,9 @@ on = { verb = "inspect", hotspot = "torn_piece" }
 requires = ["stage_door_locked"]
 effects = [{ set_flag = "heading_int_bedroom" }]
 narration = """Henry looks back at Paul. A torn piece of typed paper, creased \
-where his hand closed on it, remains beneath the fingers of his right hand. He \
-does not pull it free. Enough of the top edge is visible to read: INT. BEDROOM — \
-NIGHT. It is not a letter."""
+where his hand closed on it, remains beneath the fingers of his right hand. \
+Enough of the top edge is visible to read: INT. BEDROOM — NIGHT. It is not a \
+letter. The rest of the line is under the hand."""
 
 # The paper, pulled free. Ours may. It is the one thing in this room the novel
 # refuses, and it is on the record from the moment he does it.

@@ -332,7 +332,7 @@ label court_paper_read:
 
 
 label court_paper_unread:
-    henry "I saw it under his hand. I didn't read it."
+    henry "I didn't look at it."
 
     jump court_took_question
 

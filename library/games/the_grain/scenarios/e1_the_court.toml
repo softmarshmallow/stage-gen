@@ -15,7 +15,7 @@ display_name = "The Court"
 revision = 1
 
 script = "scenarios/e1_the_court.scenario"
-script_sha256 = "695b0cb536ebf4c089e2822a3d8e93ed51c3e2cfc7233d349701fbf13757b3b2"
+script_sha256 = "3714f08c2e1c9b669f3834159127f35d545b26f8a694361941ca6c297e2c2204"
 entry = "the_court"
 
 # ------------------------------------------------------------------- the cast

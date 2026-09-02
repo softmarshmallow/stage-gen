@@ -13,7 +13,7 @@
 
 schema_version = 4
 kind = "game-ui-v4"
-game_id = "window"
+game_id = "e1_window"
 revision = 1
 
 # The same art direction of record the room's own images are drawn against, bound

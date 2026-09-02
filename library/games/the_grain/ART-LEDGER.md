@@ -100,3 +100,19 @@ none.
   3 rerolls.
 - Estimated USD: 1.50 now, 3.00 more for the remaining six (~0.50 per operation).
 - Reviewed: no. Every plate is `unreviewed`; the art lane cannot review its own output.
+
+## 2026-09-03T06:38 KST — the two rooms (planned, by the LEAD)
+
+Dry-run plans taken first, as required, and both are green:
+
+| Room | Nodes | image_generation | structured_generation |
+|---|---|---|---|
+| `motor_court` | 14 | 4 | 4 |
+| `e1_window` | 18 | 6 | 4 |
+
+- Planned operations: **10 image, 8 structured**.
+- Estimated USD: 6.00 for images at the brief's ~0.50, plus structured calls which are cheap
+  and which the run trace meters exactly via `known_cost_usd`.
+- The motor court runs first and alone: writer A has finished it, so its bytes are final.
+  The window room waits until writer B's polish lands, to avoid re-billing a changed digest.
+- Reviewed: no. All output `unreviewed`.

@@ -356,6 +356,11 @@ establishment = "defaults_false"
 summary = "What Henry gave Ruth beside the dark passenger elevators, after one in the morning."
 
 [[facts]]
+fact_id = "told_ruth_what_i_saw"
+establishment = "defaults_false"
+summary = "Henry answered Ruth at the elevators with what he saw, rather than deflecting or naming the coffee."
+
+[[facts]]
 fact_id = "told_nell_in_the_court"
 establishment = "defaults_false"
 summary = "What Henry said to Nell in the motor court about what was in the window with him."
@@ -491,6 +496,7 @@ reads = [
     "touched_more_than_said",
     "touched_neck",
     "stage_door_locked",
+    "bell_in_receiving",
     "access_door_unlocked",
     "whiting_on_treads",
     "carton_on_gallery",
@@ -511,15 +517,20 @@ kind = "scenario"
 member = "scenarios/e1_statements.toml"
 display_name = "Names and addresses"
 terminal = true
+# Nine, and deliberately not eleven. Ruth says both "not to wait" and "needed to
+# think" on the only path through coffee, so gating Henry's report on them would be
+# a condition that always holds — Henry always has both, and what he gives is the
+# choice. They stay facts, carried to Thursday, read by nothing tonight.
 reads = [
-    "eighth_card",
+    "asked_paul_sentence",
     "brass_key_after_dessert",
+    "carton_on_gallery",
     "coffee_not_drunk",
-    "smear_on_shoe",
-    "paul_not_to_wait",
-    "paul_needed_to_think",
-    "ruth_knife_on_plate",
+    "eighth_card",
     "envelope_hear_it",
+    "heading_int_bedroom",
+    "ruth_knife_on_plate",
+    "smear_on_shoe",
 ]
 writes = [
     "told_reaction",
@@ -539,6 +550,7 @@ writes = [
     "offered_envelope",
     "ward_regard",
     "told_ruth_after_one",
+    "told_ruth_what_i_saw",
     "told_nell_in_the_court",
     "ruth_said_needed_time",
     "would_you_have_come_second",

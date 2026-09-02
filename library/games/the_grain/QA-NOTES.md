@@ -1,209 +1,360 @@
 # QA notes — Pilot 01, Episode One
 
 Owner: QA lane. No other lane writes to this file.
+
 Method: every `speaker "text"` line and every narration string in the adaptation is
 matched against the parsed dialogue and action prose of
 `story/snapshot-2026-09-03/script/chapter-01..06-*.fountain` by exact string compare
-after Unicode/whitespace normalisation, with a fuzzy second pass to catch alterations.
-Anything that matched exactly with the same speaker is silent; everything else is
-inspected by hand and reported below.
+after Unicode/whitespace normalisation, with a fuzzy second pass to catch alterations,
+and every survivor is then read by hand against the outline's permitted-new-writing
+list, the cast bible and `FACTS.md`.
 
 Checker: `/private/tmp/claude-501/-Users-universe-Documents-shared-stage-gen/4456a1a9-1c38-49b2-84d8-30d4fd469f44/scratchpad/verify.py`
 
 ## Status board
 
-| Beat | Checked | Attribution | Verbatim | Fact ids | Verdict |
+| Beat | Attribution | Verbatim | Fixed sentences | Fact ids | Verdict |
 |---|---|---|---|---|---|
-| `e1_office` | yes | clean | clean | n/a | **pass** |
-| `rooms/motor_court` | yes | clean | clean | clean | **pass** |
-| `e1_way_in` | yes | clean | clean | clean | **pass** |
-| `e1_table` | yes | clean | clean | clean | **pass**, 2 minors |
-| `e1_coffee` | yes | clean | clean | clean | **pass**, 1 defect, 2 minors |
-| `rooms/window` | yes | clean | clean | clean | **pass**, 3 minors |
-| `e1_the_court` | yes | clean | clean | clean | **pass**, 1 defect, 2 minors |
-| `e1_statements` | not written yet | — | — | — | — |
+| `e1_office` | clean | clean | clean | n/a | **pass** |
+| `rooms/motor_court` | clean | clean | n/a | clean | **pass** |
+| `e1_way_in` | clean | clean | n/a | clean | **pass** |
+| `e1_table` | clean | clean | clean | clean | **pass** |
+| `e1_coffee` | clean | clean | clean | clean | **D2** |
+| `rooms/window` | clean | clean | n/a | clean | **pass**, polish item |
+| `e1_the_court` | clean | clean | n/a | clean | **D1** |
+| `e1_statements` | clean | clean | **two altered** | **one invented** | **D3–D6** |
 
-**No wrong attributions anywhere.** Every lifted line in every file that exists is
-spoken by the person who speaks it in the novel. **No fixed sentence is altered.**
+**No line of dialogue anywhere is attributed to the wrong person.** That was checked
+mechanically across all six scenarios and both rooms and then read by hand; every
+apparent hit was a short generic cue ("All right.", "Why?", "I did.") colliding with an
+unrelated novel line, not a misattribution.
 
 ## Fixed sentences — audit
 
 | Sentence | Where | Verdict |
 |---|---|---|
-| "I remembered you were a liar." | `e1_office.scenario:27`, Ruth | exact, correct speaker |
-| "Watch my coffee." | `e1_coffee.scenario:412`, Ruth | exact, correct speaker |
-| "He said not to wait." | `e1_coffee.scenario:583`, Ruth → Nell | exact, correct speaker |
-| "He said he needed to think." | `e1_coffee.scenario:605`, Ruth → Henry | exact, correct speaker |
-| "Would you have come?" | `e1_table.scenario:429`, Lydia → Ruth | exact; **counted once**, which is what the outline requires of Episode One (`would_you_have_come_first`) |
-| "It is what I saw." | not yet present | belongs to `e1_statements` |
-| "That isn't what I asked." | not yet present | belongs to `e1_statements` |
-| "I don't know." (the door) | not yet present | belongs to `e1_statements` |
+| "I remembered you were a liar." | `e1_office.scenario:27`, Ruth | exact |
+| "Watch my coffee." | `e1_coffee.scenario:412`, Ruth | exact |
+| "He said not to wait." | `e1_coffee.scenario:583`, Ruth → Nell | exact |
+| "He said he needed to think." | `e1_coffee.scenario:605`, Ruth → Henry | exact |
+| "Would you have come?" | `e1_table.scenario:429`, Lydia → Ruth | exact — the first counting |
+| "Would you have come?" | `e1_statements.scenario:845`, Lydia → Nell | exact — the second counting, with Nell's "You already used that excuse tonight." intact at `:849` |
+| "I don't know." | `e1_statements.scenario:199`, Henry | exact, and the whole answer — nothing appended |
+| "It is what I saw." | `e1_statements.scenario:386`, Henry | exact |
+| "That isn't what I asked." | `e1_statements.scenario:384`, Ward | exact |
+| "That isn't what I asked." | `e1_statements.scenario:472`, Ward | **ALTERED — see D3** |
+| "That is not what I asked." | `e1_statements.scenario:809`, Nell | **ALTERED, and not Nell's to say yet — see D4** |
+
+Episode One spends two of the three countings of "Would you have come?", which matches
+`FACTS.md` as amended (R-02). Both are Lydia's, and neither is gated behind a look.
 
 ### The deliberate discrepancies are intact
 
-Ruth's two accounts inside one minute are both present and both distinct:
+All three of Ruth's accounts are present and all three are distinct. Nothing has been
+harmonised:
 
 - `e1_coffee.scenario:583` — "He said not to wait." to Nell
-- `e1_coffee.scenario:605` — "He said he needed to think." to Henry
+- `e1_coffee.scenario:605` — "He said he needed to think." to Henry, the same minute
+- `e1_statements.scenario:696` — "…He said he needed time, and I left him beside the
+  display door." after one in the morning, inside Ruth's Sc13 speech, lifted whole
 
-Neither has been harmonised, neither is gated behind a look, and the two flags
-`paul_not_to_wait` / `paul_needed_to_think` are set separately. Correct.
-The third account ("he needed time", Sc13) is still unwritten — see the watch list.
+`e1_statements.scenario:706` states the three back to back and ends "Henry says none of
+that out loud", which is the Henry rule holding in Ruth's hearing. Correct, and the best
+line of new narration in the episode.
 
 ---
 
 # Defects
 
+Most severe first.
+
+## D3 — `e1_statements.scenario:472`: a fixed sentence altered (serious)
+
+```
+label paul_words_kept:
+    henry "She said he was downstairs with the carton."
+    ward "That is not what I asked either."
+```
+
+The sentence is **"That isn't what I asked."** (`chapter-06:310`). This is the exact
+failure the brief names. Two changes: the contraction is expanded, and a word is
+appended. Eighty-eight lines earlier the same file says it correctly (`:384`), so the
+scenario contains the same fixed sentence in two forms.
+
+It is worse than a smoothing, because the novel varies this sentence deliberately and
+by speaker across the whole book, and `That is not what I asked.` is a form that is
+already spoken by somebody else, later:
+
+| Chapter | Speaker | Form |
+|---|---|---|
+| `chapter-06:310` | Ward | That isn't what I asked. |
+| `chapter-08:295` | Nell | That was not what I asked. |
+| `chapter-12:479` | Nell | That is not what I asked. |
+| `chapter-14:109` | Ward | That is not what I asked. |
+| `chapter-14:860` | Ruth | That isn't what I asked you for. |
+
+Ward's shift from `isn't` to `is not` happens in Chapter Fourteen. Spending it in
+Episode One flattens a variation the book takes eight chapters to earn.
+
+**Fix:** either say it exactly — `ward "That isn't what I asked."` — or, since it would
+then be the second time in one interview, drop the line and let Ward's
+`"You are allowed to be tired, Calder."` at `:476` carry the beat alone. QA's
+preference is the second: the fixed sentence lands harder used once.
+
+## D4 — `e1_statements.scenario:809`: a fixed sentence altered, and given to the wrong episode (serious)
+
+```
+label nell_silence:
+    henry "The police have his clothing. They will tell you what they found."
+    nell "That is not what I asked you."
+```
+
+Three problems, compounding:
+
+1. **Altered.** Nell's form of this sentence is "That is not what I asked."
+   (`chapter-12:479`). `:809` appends "you".
+2. **Premature.** Nell does not say any form of it until `chapter-08:295`, in Episode
+   Two. Episode One's Nell has not yet started correcting people this way; it is part
+   of what Thursday does to her.
+3. **Outside the permitted list.** The outline's Sc14 gives Nell no new cue at all —
+   the only new writing it authorises for the car is "Nell's car without the turn:
+   action only, no new cue."
+
+**Fix:** cut the cue. `henry "The police have his clothing. They will tell you what
+they found."` followed by the existing `henry "No."` does not work without it, so the
+label becomes Henry's line and then straight to `lydia_speaks`. Nell's silence is the
+point of choosing silence.
+
+## D5 — `e1_statements.scenario:668`: an invented fact id (serious)
+
+```
+label elevators_what_i_saw:
+    ...
+    set told_ruth_what_i_saw
+```
+
+`told_ruth_what_i_saw` appears nowhere in `FACTS.md` and nowhere in
+`cases/episode_one.toml`'s fact list. It is declared only in `e1_statements.toml:...`
+and set only here. `FACTS.md`'s own rule: *"if a writer needs an id this table does not
+have, they add a row here and tell the lead, they do not invent one privately."*
+
+`FACTS.md` already carries `told_ruth_after_one` — "what Henry gave Ruth beside the
+passenger elevators" — and the scenario uses that one on the *third* answer
+(`:684`) and nothing on the first. So the three answers currently write, in order:
+nothing / an invented id / the canonical id.
+
+**Fix, for the lead rather than the writer,** because it is a ledger question: either
+(a) all three answers set `told_ruth_after_one` and the distinction is dropped, or
+(b) `FACTS.md` gains a row for the middle answer and the case declares it. The outline
+says the third answer specifically "is carried as a fact for Thursday morning to
+answer", which argues for (b) only if Thursday needs to tell the three apart.
+
+## D6 — `e1_statements.scenario:410`: Ward refers to a first time that was deleted (medium)
+
+```
+label return_kept:
+    henry "I don't think so."
+    ward "That is the second time tonight you have not thought so."
+```
+
+There is no first time on either path into this label. The cause is upstream, at
+`:345`:
+
+```
+label return_ward_knows:
+    ward "You said she touched it to her mouth."
+    henry "Yes."
+    ward "Did she drink?"
+    ward blunt "Was she frightened?"        <- Henry never answers "Did she drink?"
+```
+
+The novel (`chapter-06:297–307`) has Ward ask "Did she drink?", Henry answer **"I don't
+think so."**, and only then "Was she frightened?". The lifted answer has been dropped,
+so Ward asks two questions with nothing between them, and the new line at `:410` loses
+its referent.
+
+**Fix:** restore `henry "I don't think so."` between `:350` and `:352`. That repairs
+both problems at once — it puts back a lifted line, it stops Ward interrogating
+himself, and it makes `:410` literally true, because the menu's "I don't think so."
+then genuinely is the second time. The other path (`return_ward_asks`, `:363`) still
+needs a different line at `:410`, since there Henry said "I didn't watch the cup." —
+suggest routing `return_kept` per path, or rewording to something that fits both.
+
 ## D1 — `e1_the_court.scenario:335`: Henry reports a look he never took (medium)
+
+*Confirmed by the lead, routed to writer B. Recorded here for the evidence trail.*
 
 ```
 label court_paper_unread:
     henry "I saw it under his hand. I didn't read it."
 ```
 
-This fires when `heading_int_bedroom` is false — i.e. the player never inspected
-`torn_piece` in the window room. Nothing else in that room mentions paper: the
-`the_man` narration (`rooms/window/room.toml:216`) describes the shoe, the hand palm
-down and the clothing, and stops. So this Henry is asserting an observation the board
-does not contain, which is exactly what the movement is built to prevent — the header
-comment three lines above says "a Henry who looked at nothing says nothing at all".
+Fires when `heading_int_bedroom` is false. Nothing in the window room puts paper in
+Henry's sight otherwise — `rooms/window/room.toml:216` stops at the shoe, the hand and
+the clothing. Suggested: `henry "I didn't look at it."`
 
-Suggested fix, for the writer: drop the first clause, e.g. `henry "I didn't look at
-it."` — Ward has just told him there was paper in the hand, so Henry can answer
-without claiming to have seen it himself.
+## D2 — `e1_coffee.scenario:325`: new narration contradicting a lifted line (low-medium)
 
-## D2 — `e1_coffee.scenario:325`: new narration contradicts a lifted line (low-medium)
+*Confirmed by the lead, routed to writer B.*
 
-```
-label place_table:
-    "From the table the round table is still the shape of the room, and Lydia is
-     the only one sitting at it."
-```
+"From the table the round table is still the shape of the room…" against the novel's
+own line carried verbatim at `:40`: "…and soon the round table is no longer the shape
+of the room."
 
-Twelve lines earlier the scenario carries the novel's line verbatim
-(`e1_coffee.scenario:40`, novel `chapter-04:32`): "…and soon the round table is no
-longer the shape of the room." The new line asserts the opposite in the same scene.
-It is also new narration, and the outline's "New writing this episode needs" list does
-not include narration of any kind.
+## D7 — the case's authored `reads`/`writes` do not match the leaves (medium, contract lane)
 
-Suggested fix: cut the clause, or invert it to agree — the observation the strand
-wants is that Lydia is the only one still sitting there.
+`cases/episode_one.toml` declares reads and writes by hand, and the file's own comment
+says that is so "a leaf that stops exporting a fact fails against the case that depends
+on it". Five declarations are currently wrong, so that guard is not armed:
+
+| Beat | Problem |
+|---|---|
+| `b_the_court` | `reads` omits `bell_in_receiving`, which `e1_the_court.toml` imports and `e1_the_court.scenario:382` tests |
+| `b_statements` | `reads` omits `asked_paul_sentence` (`:621`), `carton_on_gallery` (`:764`, `:768`) and `heading_int_bedroom` (`:764`, `:766`) |
+| `b_statements` | `reads` lists `paul_not_to_wait` and `paul_needed_to_think`, which the scenario does not import and does not test |
+| `b_statements` | `writes` omits `told_ruth_what_i_saw` — a consequence of D5, and it resolves with D5 |
+
+Nothing here breaks at runtime, because every missing read is written by an earlier
+beat on every path. It is the declaration that is wrong, which is the thing that was
+supposed to catch the next mistake.
+
+---
+
+# Gaps: two paid-for looks that nothing reads
+
+Not defects in a line, but the outline promises these and Episode One does not deliver
+them. Both are looks the player must actively choose and pay a course of attention for.
+
+- **`indicator_at_three`** — set at `e1_coffee.scenario:434`. The outline's Sc12 beat
+  table lists it under **The descent**: "Who came down in the lift? | Paul and Ruth;
+  the indicator at three". The statement's descent beat
+  (`e1_statements.scenario:318–329`) has no menu and no `if`, and Henry never mentions
+  the indicator. The board table calls it "the last thing he saw of them".
+- **`ruth_two_fingers`** — set at `e1_coffee.scenario:368`. The outline's Sc12 beat
+  table lists it under **The envelope**: "Nell's name upside down; 'Hear it'; Ruth's
+  two fingers (if seen)". `e1_statements.scenario:247` gates the envelope beat on
+  `envelope_hear_it` alone, and the two fingers are never offered. The board table says
+  it buys "'It was in his inside pocket when we went down,' corroborated" — and Ruth
+  says exactly that line at `e1_statements.scenario:63`, so the corroboration is sitting
+  right there unused.
+
+Every other Episode One fact that nothing reads is one the outline marks as paying off
+later (the strands, `dark_blue_door` → Ch16, `pocketknife_lent` → Thursday's fan,
+`chalk_and_scissors` → "a rhyme on Friday", `handbag_under_arm` → "where the pages
+went"), or is unmissable and therefore never needs testing. Those are correct.
 
 ---
 
 # Minor findings and suggestions
 
-Ordered by file. None of these is a wrong attribution or an altered fixed sentence.
+## `e1_statements.scenario`
+
+- **:699** — the menu option is labelled `"He said he needed time."`, which reads as a
+  line Henry is about to speak, but the body (`:706`) is Henry noticing in silence and
+  ends "Henry says none of that out loud." Suggest relabelling to something that reads
+  as attention rather than speech, e.g. `"Count the accounts."` The body is right; the
+  label promises the wrong thing, and this is the one place in the episode where the
+  player is offered the chain that ends in Chapter Fifteen.
+- **:289** — `henry "Mr. Price laid it beside his fork while the cinnamon was going
+  round. He said, after dessert."` Ward then asks "Those words?" and Henry confirms
+  "Those words." Edwin's line is `"After dessert."` (`chapter-03:436`). Since the
+  exactness is the point of the exchange, suggest quoting it as written rather than
+  running it into the sentence.
+- **:183, :311, :414, :462** — Ward answers four separate beats with `"All right."` It
+  is new writing and permitted, but the cast bible gives Ward "blunt, one joke", not a
+  verbal tic, and four identical closes will read as one on a play-through. Suggest
+  varying two of them.
+- **:444, :515** — new stage action for Ward inside permitted new exchanges ("stops
+  writing and looks… at the painted harbor"; "waits with the pen down"). Under the
+  lead's connective-narration ruling these assert actions the novel does not contain,
+  but they contradict nothing and Ward's follow-ups cannot be staged without something.
+  Flagged once, for the record, not per instance.
+- **:319** — `ward "Who went down with him?"` The outline marks this beat "fixed" with
+  the novel's "Who came down in the lift?", but that line belongs to Sc10 and
+  `e1_the_court.scenario:195` already uses it there, correctly. The reword is the right
+  resolution of a conflict in the outline, not a defect. Recorded so it is not
+  re-litigated.
+- **:764–:769** — Nell's turn at the car requires `told_nell_in_the_court`, which only
+  the both-facts answer sets. A Henry who had only one of the two facts gave Nell
+  everything he had, and still gets no turn. The outline says the turn is for a Henry
+  who "did exactly that" — told her what he saw and what he didn't — which arguably the
+  partial answers also do. A ruling would be worth one line either way.
 
 ## `e1_coffee.scenario`
 
-- **:46** — `"Coffee is at the bar, and the room is doing five things at once. Henry
-  can be in one of them."` New narration, framing the five-place menu. Not in the
-  outline's permitted list, though menu framing is arguably unavoidable. Flagging for
-  the lead to rule on, not for the writer to act on unilaterally; the same question
-  applies to `:356` ("…and comes past Ruth on his way to the lift", added to split the
-  novel's `chapter-04:240` so the envelope can be a look).
-- **:160** — `paul "Mr. Calder."` is new writing inside the permitted Paul-deflection
-  block. Paul's cue count in `bar_asks_paul` is four (`Mr. Calder.` / `It's from a
-  page. It was in a—` / `You should ask Lydia.` / `So you are.`), inside the outline's
-  "four to six cues". The pattern check passes: he stops before the end of a sentence
-  and looks for Ruth (`:164`, `:166`). Ruth's replacement line at `:178` is the one the
-  outline asks for, and the novel's "You have no idea how much can be done with one
-  syllable." is correctly retained on the other branch (`:148`). No defect — recorded
-  so the lead can see the count was checked.
+- **:46** — connective narration framing the five-place menu. Cleared by the lead's
+  ruling: it describes the interface, not the world. Recorded as cleared.
+- **:160** — `paul "Mr. Calder."` opens the permitted Paul-deflection block. Paul's cue
+  count there is four, inside the outline's "four to six", and the pattern holds — he
+  stops before the end of a sentence and looks for Ruth (`:164`, `:166`). Ruth's
+  replacement line at `:178` is the one the outline asks for, and the novel's "You have
+  no idea how much can be done with one syllable." is correctly kept on the other
+  branch at `:148`. No defect; recorded so the count is on the record.
 
 ## `e1_table.scenario`
 
-- **:658, :1137** — `paul "The painted one had the better view."` and
-  `edwin "Why was the pan in the yard?"` are spoken by actors who are not `show`n at
-  that point in their labels. Correct attribution and correct text; the consumer cannot
-  highlight a speaker it is not drawing. Composition note for the story lane, or a
-  deliberate off-slot voice — worth one decision either way, since it recurs.
-- **:406** — `cards_unlooked` truncates the novel's action line to "Nell looks at the
-  cards." and drops "Seven names face outward. The eighth is turned toward Lydia."
-  That is the occlusion working as designed, recorded here so it is not later mistaken
-  for a dropped sentence.
+- **:658, :1137** — `paul` and `edwin` speak while not `show`n in their labels. Correct
+  text and correct attribution; the consumer cannot highlight a speaker it is not
+  drawing. One decision would settle both.
 
 ## `rooms/window/room.toml`
 
-- **:210** — "Behind the empty seventh chair, the white paper moon has split and
-  sagged inward." The novel (`chapter-05:124`) reads "Behind it, the white paper moon
-  has split and sagged inward." The anaphor had to be resolved because the sentence is
-  now a standalone hotspot. Same class of change at **:274** ("He does not pull it
-  free." for the novel's "Henry does not pull it free."). Both are pronoun repairs
-  forced by splitting the prose into hotspots, not rewrites — recording them so the
-  lead knows they were seen and judged.
-- **:273 / :287** — the `torn_piece` read narration ends "He does not pull it free.",
-  and the second interaction on the same hotspot then has him pull it free. Internally
-  contradictory when read back to back. Suggest the read narration end at "Enough of
-  the top edge is visible to read: INT. BEDROOM — NIGHT. It is not a letter." and let
-  the refusal be the player's, not the prose's.
-- **:287** — `pulled_the_paper` narration is the one line of new writing FACTS.md
-  authorises for this room. It is third-person narration rather than "Henry's voice"
-  as FACTS.md words it, and it is two sentences rather than one. Within tolerance;
-  noted only because FACTS.md is specific.
+- **:273 / :287** — polish item, routed by the lead: the read narration ends "He does
+  not pull it free." and the second interaction on the same hotspot then pulls it free.
+  The design is right; the wording makes it read as a contradiction rather than a
+  temptation. Suggest ending the read at "It is not a letter."
+- **:210, :274** — pronoun repairs forced by splitting novel prose into hotspots
+  ("Behind the empty seventh chair" for "Behind it"; "He does not" for "Henry does
+  not"). Seen, judged, not defects.
 
-## `e1_the_court.scenario`
+## Cleared and closed
 
-- **:275 / :288** — the novel's single clause "There are marks below the open rail and
-  a red call button beside it." is split into two independently gated cues, the second
-  reworded to "There is a red call button beside the open rail." The rewording is
-  forced by the split (the "it" has no antecedent once the marks line may not fire).
-  Correct handling; recorded.
-- **:427** — `court_leaves_plain` drops "You were first inside." from Ward's line for a
-  Henry who never went through the stage door. A conditional truncation of a lifted
-  line, not an alteration, and the truncation is true. Correct.
-- **:362** — `henry "I will."` is the novel's Sc12 reply to Ward's "call me before you
-  decide what it means", reused here as a reply to a new Sc10 Ward line. Two words, and
-  permitted as one of "Henry's own answer lines", but it spends a beat the statements
-  movement will want. Worth one look when `e1_statements` lands.
-
-## Documentation conflict, for the lead (not a defect in any script)
-
-`story/snapshot-2026-09-03/fixed-sentences-glossary.md:121` lists Ward's fixed sentence
-as "That's not what I asked." The novel
-(`chapter-06-names-and-addresses.fountain:310`) has **"That isn't what I asked."**, and
-so do the pilot brief and the outline. The novel is authoritative and the writer of
-`e1_statements` should use "That isn't what I asked."; the glossary line is stale. The
-glossary is inside the frozen snapshot, so it should not be edited — the lead should
-record the discrepancy instead.
+- **Escaped quotes at `e1_statements.scenario:696`.** Checked against the parser
+  (`src/stage_gen/components/scenario/parser.py:449–456`): `\"` decodes to a literal
+  `"`, so Ruth's Sc13 speech renders exactly as the novel has it. The curly-quote sites
+  at `e1_office.scenario:157` and `e1_table.scenario:1129` also match their novel
+  sources, which use curly quotes in those two places. All three correct.
+- **Character surnames.** Nell and June are **Avery**, not Ellery (cast bible :55,
+  :191). An earlier in-flight version of `e1_statements` had "Nell Ellery" and "June
+  Ellery"; the current file uses "Miss Avery" and "June Avery" throughout. Closed.
+- **Glossary conflict on "That isn't what I asked."** Ruled by the lead, filed as R-01.
+  The novel's form governs. The frozen snapshot was not edited.
 
 ---
 
-# Watch list for `e1_statements`
+# The Henry rule — findings
 
-The unwritten scenario carries most of the remaining risk. Checks queued for it:
+Checked every Henry cue in all six scenarios.
 
-1. **"It is what I saw." / "That isn't what I asked."** must appear exactly, in Ward's
-   coffee exchange, and Ward's must be `isn't`, not `is not` and not `That's not`.
-2. **"I don't know."** as the whole answer to "Why did you stop the door?", with
-   nothing appended.
-3. **Ruth's third account** (Sc13): the novel's sentence is *"He wanted me to tell Nell
-   something for him. He said, "Help me tell her." I refused. We argued. He said he
-   needed time, and I left him beside the display door."* — "he needed time" is inside a
-   longer sentence, not standalone. It must not be harmonised toward either of the two
-   Wednesday accounts, and `ruth_said_needed_time` must be set from it.
-4. **"Would you have come?"** — Lydia says it a second time in the novel's Sc14
-   (`chapter-06:471`, to Nell), answered by "You already used that excuse tonight."
-   The outline counts three across the whole story and Episode One currently holds one.
-   If Sc14 is dramatised in `e1_statements`, the count for Episode One becomes two, and
-   `FACTS.md` declares only `would_you_have_come_first`. Needs a ruling.
-5. **The Henry rule at the elevators and in the court.** Ruth is at the edge of the
-   light in Sc14; Henry's answers to Nell must stay observation or silence, with no
-   inference about the gallery, the marks, the button or the stair.
-6. **Ward's close** must branch as `FACTS.md:125` writes it and must not invent a
-   fourth close.
-7. **`scrape`** is set by `rooms/window/room.toml:259` and read by nothing so far. The
-   novel's Ward speech does not include it either, so the court is faithful; if nothing
-   in `e1_statements` reads it, it is a dead fact and the lead should know.
+- Henry never says "I think", and never says "I believe", "must have", "probably" or
+  "seems", on any path.
+- Nothing Henry says in Ruth's hearing touches the gallery, the marks, the button or
+  the stair. His three answers to Nell in the motor court
+  (`e1_statements.scenario:775, 787, 797`) are the carton and the torn page only, which
+  is what the outline permits verbatim, and Ruth is at the edge of the light for all of
+  them.
+- `e1_statements.scenario:297` — `henry "Somebody decided when."` in reply to Ward's
+  "Then somebody else decided when he could go down." Henry drops Ward's "else". That
+  is Henry declining an inference, not making one. Correct, and worth keeping.
+- Henry is never below the Winter Room between 9:02 and 9:18: the descent is Paul and
+  Ruth's, Henry watches the indicator, and the window room is entered only after
+  Edwin's call.
+- The hand in the door is not a choice (`e1_table.scenario:467–469`), and the only
+  answer is "I don't know." (`e1_statements.scenario:199`).
 
-## Facts audit
+# Facts audit
 
-Every `set` in every scenario and every `set_flag`/`requires` in both rooms uses an
-identifier that appears in `FACTS.md`. No invented ids. Each scenario's `[[flags]]`
-block matches the identifiers its script actually touches, and the twelve imports
-declared by `e1_the_court.toml` are exactly the twelve its script tests.
+Every `set` and every room `set_flag`/`requires` uses an id from `FACTS.md`, **with the
+single exception of `told_ruth_what_i_saw` (D5)**. Each scenario's `[[flags]]` block
+matches the identifiers its own script touches, in both directions, for all six
+scenarios. The case-level declaration errors are D7.
 
-`uv run python .../sg.py scenario check` admits all five written scenarios:
-`e1_office` (8 states), `e1_way_in` (7), `e1_coffee` (41), `e1_table` (42),
-`e1_the_court` (40727).
+All six scenarios admit under `scenario check`: `e1_office` 8 states, `e1_way_in` 7,
+`e1_coffee` 41, `e1_table` 42, `e1_the_court` 40727, `e1_statements` 4261.
+
+# Still to do
+
+- Re-check every defect above once the writers land fixes.
+- Two browser play-throughs and screenshots, once the consumer lane has a run to point
+  `/case/<tag>` at. Passes planned: one watching the Holts at every course and looking
+  at little, one watching Ruth and Paul and looking at everything.
