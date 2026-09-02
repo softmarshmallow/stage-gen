@@ -32,9 +32,11 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/avatar.toml` | `runner-avatar-v3` | Exactly one runtime actor: one character or one visible rider-and-machine silhouette |
 | `runner/content/props.toml` | `prop-content-v2` | Obstacles, reused verbatim |
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
+| `runner/content/bosses.toml` | `boss-content-v1` | Optional: the actors an encounter brings, drawn facing left |
+| `runner/content/projectiles.toml` | `projectile-content-v2` | Optional: what the fight throws, reused verbatim from the platformer |
 | `runner/audio.toml` | `runner-audio-v3` | Required event bindings, sound-effect realizations (oscillator sweeps or generated clips), and the soundtrack's transitions at the run's edges |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
-| `fx.toml` | `game-fx-v2` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start` |
+| `fx.toml` | `game-fx-v2` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start`, and `encounter_start` when it declares an encounter |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
 scenario member yet; both are additive later. The screen-FX document is the
@@ -305,6 +307,76 @@ every flown arc):
   hazard must declare `height_units`, or the press-window proof has nothing
   to prove against and refuses.
 
+## The encounter: a locomotion override with an actor in it
+
+An encounter is the genre's answer to a boss without breaking the seam rule
+that makes it infinite. It is not a scripted stretch of track. It is an
+**interlude**: at an authored interval the stream starts feeding one flat
+`role = "arena"` chunk instead of drawing from the difficulty band, the fight
+plays out over as many copies of it as it needs, and ordinary chunks resume.
+The arena holds the seam profile in *every* column, not just its two edges, so
+it may be entered anywhere, repeated back to back, and left anywhere. One
+authored chunk therefore holds an encounter of any length, and no chunk ever
+carries state about what came before it.
+
+For the duration the avatar wears a different **locomotion**. `thrust_v1` is
+the whole map from intent to vertical motion, not a modifier on running: held
+climbs toward one cap, released falls toward a faster one, and there is no jump
+edge, no slide, and no air-jump budget. It rides the same control as the jump -
+press to go up - as a held level beside the existing edge, so the verb never
+changes and `jump` keeps the edge semantics that stop a held key reading as a
+stream of fresh jumps. The avatar's head is clamped at the top of the band,
+because the salvo's lane is measured inside the band and an avatar above it
+would dodge by leaving.
+
+### Three proofs, offline, before any spend
+
+Admission prices the fight the way it prices a hazard: closed form, from named
+profiles, with no simulation and no provider call.
+
+- **The lane.** A salvo of `salvo_shots` shots at `projectile_height_rows` each
+  can occupy at most that much of the band, so what is left over is the
+  smallest lane any placement can leave. It must exceed the avatar's own height
+  plus `lane_margin_rows`. This is a pigeonhole, not a hope.
+- **The dodge.** A shot's flight time is `firing_distance_columns` over
+  `projectile_speed_columns_per_second`, and crossing the whole band costs the
+  locomotion's worst-case traverse - the *climb*, whose cap is the lower of the
+  two. The remainder is the reaction slack, and it is held to the same
+  `min_hazard_clear_seconds` the placement discipline demands of a hazard. It
+  bounds the band from **above** as well as below: a taller band takes longer
+  to cross while the flight time is fixed, so a band can be too tall for a boss
+  as easily as too short.
+- **Winnable.** `hits_to_defeat` at the player's own cadence, plus one last
+  shot's flight, must finish inside `salvo_budget * salvo_period_seconds`. The
+  proof assumes every player shot lands, so the slack is the miss allowance.
+
+Speeds are measured in the **avatar's** frame. The run carries the avatar and
+the boss forward together, so what a player experiences is the closing speed;
+measuring anywhere else would prove a number nobody gets. The runtime uses the
+same frame, so it plays the fight admission proved.
+
+### What the contract refuses
+
+Every obligation is refused in both directions, exactly as duck/slide and
+drain/gauge already are: an encounter with no `fly` motion to wear, a `fly`
+motion no encounter can trigger, an arena chunk no encounter is fought over, a
+boss catalog no encounter fights, a projectile no role fires, a `shot`
+consequence no encounter can deliver, and an encounter whose hits cost nothing.
+An arena carrying a hazard or a pickup is refused too: during the fight the
+thing to read is the salvo, and a pickup line would sit in the lane the salvo
+has to leave open.
+
+A boss is drawn facing **left**. Every other runner actor faces right and is
+mirrored by nothing; a boss holds a position against a moving avatar and fires
+at it, so its facing is fixed in the artwork rather than at runtime. It may
+loom: `height_units` above one player height is expected of a boss and of
+nothing else.
+
+The two projectile roles must be drawn separately. One silhouette flying both
+ways is a fight in which a player cannot tell their own fire from the boss's,
+which is a readability failure the contract can refuse offline instead of
+waiting for a review to catch it.
+
 ## Rhythm is refused
 
 Not on cost - it would still be no with unlimited budget. The seam rule and
@@ -409,9 +481,26 @@ after a death goes straight to `running`, because a two-second overlay on every
 death is the wrong feel for a runner. A package with no `fx.toml` is born
 `running`, exactly as before.
 
+An encounter plays over a run that is already going. The boss cut-in does
+**not** hold the simulation the way `stage_start` does: the avatar keeps
+running over the arena's calm floor while the plate sweeps in, and the
+director switches locomotion on the same `fx-released` the run-loop uses for
+the intro. A package that binds no `encounter_start` goes straight to the
+fight. The sealed order moved with it - the FX system is pinned behind the
+avatar rather than behind vitals, because the director both consumes
+`fx-released` and emits the `shot-contact` vitals consumes, and the old pin
+would have closed a cycle.
+
+Two reads in the director are deliberately undeclared feedback, in the pattern
+the avatar already uses: the segment window (to ask which chunk the avatar
+stands on, which a window streaming a viewport ahead cannot be wrong about)
+and the run phase (to freeze the whole encounter while the run is dead or
+holding). Declaring either would seal a cycle.
+
 Keyboard play uses Space or Arrow Up to jump and holds Arrow Down to slide.
-Pointer play divides the canvas into stable zones: the upper 68% jumps (and
-restarts after death), while holding the lower 32% holds the slide until every
+Holding the same jump control is what thrusts while a fight is on. Pointer play
+divides the canvas into stable zones: the upper 68% jumps, holds thrust, and
+restarts after death, while holding the lower 32% holds the slide until every
 lower-zone pointer is released. The visible control hint states the lower-zone
 mapping only when the manifest admits both a duck profile and slide motion;
 pointer capture preserves release when a finger leaves the canvas.
