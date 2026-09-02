@@ -9,10 +9,12 @@
 // a salvo crossing the avatar reads as passing between the two rather than
 // disappearing behind either.
 
-import type { RunnerProjectile } from "./contract";
+import type { RunnerBoss, RunnerProjectile } from "./contract";
 import {
   BOSS_HIT_FLASH_MS,
   type BossState,
+  bossBobRows,
+  offsetScreenX,
   type EncounterConfig,
   type EncounterShot,
 } from "./encounter-arithmetic";
@@ -20,28 +22,17 @@ import type { ParallaxStageView } from "./parallax";
 import { RUNNER_DEPTHS } from "./parallax";
 import { rowToScreenY, type RunnerWorld } from "./world";
 
-/** How far the hovering boss rides up and down, in rows. */
-export const BOSS_BOB_ROWS = 0.18;
-/** Seconds for one full bob. */
-export const BOSS_BOB_PERIOD_SECONDS = 2.4;
-
 export interface BossViewOptions {
   readonly bossTextureKey: (bossId: string, state: string) => string;
+  readonly bossAnimationKey: (bossId: string, state: string) => string;
   readonly projectileTextureKey: (projectileId: string) => string;
-  /** Drawn source pixels per player height, per boss motion state. */
-  readonly bossSourcePxPerUnit: number;
+  /** The published boss, for its per-state rebase multipliers and anchors. */
+  readonly boss: RunnerBoss;
   readonly projectiles: readonly RunnerProjectile[];
 }
 
-/** The bob offset in rows at one moment of the simulation's own clock. */
-export function bossBobRows(clockMs: number): number {
-  return Math.sin((clockMs / 1000) * ((2 * Math.PI) / BOSS_BOB_PERIOD_SECONDS)) * BOSS_BOB_ROWS;
-}
-
-/** Screen x of a point measured in columns ahead of the avatar. */
-export function offsetScreenX(offsetColumns: number, world: RunnerWorld): number {
-  return world.config.avatarScreenX + offsetColumns * world.config.tilePx;
-}
+/** Phaser's `TintModes.FILL`. */
+const TINT_MODE_FILL = 1;
 
 interface ShotView {
   readonly image: Phaser.GameObjects.Image;
@@ -57,37 +48,48 @@ export function buildBossView(
   const bossSprite = scene.add
     .sprite(0, 0, options.bossTextureKey(encounter?.bossId ?? "", "hover"), 0)
     .setDepth(RUNNER_DEPTHS.boss)
+    .setOrigin(0.5, 1)
     .setVisible(false);
+  // One scale for the whole actor, from the measured cell: the per-state
+  // rebase multiplier rides on top, exactly as the avatar's does.
+  const baseScale =
+    (config.playerHeightTiles * config.tilePx) / options.boss.calibration.sourcePxPerUnit;
   const shotContainer = scene.add.container(0, 0).setDepth(RUNNER_DEPTHS.shot);
   const shotViews = new Map<number, ShotView>();
   const projectileById = new Map(
     options.projectiles.map((entry) => [entry.projectileId, entry] as const),
   );
+  const motionByState = new Map(options.boss.motions.map((entry) => [entry.state, entry]));
   let wornState: string | null = null;
-  let wornImpulses = 0;
+  let wornImpulses = -1;
 
   function syncBoss(boss: BossState, config: EncounterConfig, clockMs: number): void {
     bossSprite.setVisible(true);
-    const scale =
-      (config.bossHeightRows * world.config.tilePx) / options.bossSourcePxPerUnit;
-    const key = options.bossTextureKey(config.bossId, boss.motion);
+    // The strip replays on the attack IMPULSE, not only on the state change:
+    // a second salvo inside the same `attack` state must restart the swing or
+    // it reads as the boss firing without moving.
     const replay = boss.motion === "attack" && boss.attackImpulses !== wornImpulses;
     if (boss.motion !== wornState || replay) {
-      bossSprite.setTexture(key, 0);
       wornState = boss.motion;
       wornImpulses = boss.attackImpulses;
+      const motion = motionByState.get(boss.motion);
+      if (motion !== undefined) {
+        bossSprite.setScale(baseScale * motion.rebaseMultiplier);
+        bossSprite.setOrigin(0.5, motion.anchor === "bottom" ? 1 : 0);
+        bossSprite.play(options.bossAnimationKey(config.bossId, boss.motion));
+      }
     }
     // The hover bobs; a dying machine does not, because it is falling.
     const bob = boss.motion === "death" ? 0 : bossBobRows(clockMs);
-    bossSprite
-      .setPosition(
-        offsetScreenX(boss.offsetColumns, world),
-        rowToScreenY(boss.y + bob, world.config),
-      )
-      .setScale(scale)
-      .setOrigin(0.5, 1);
+    bossSprite.setPosition(
+      offsetScreenX(boss.offsetColumns, world.config.avatarScreenX, world.config.tilePx),
+      rowToScreenY(boss.y + bob, world.config),
+    );
     if (boss.lastHitAtMs !== null && clockMs - boss.lastHitAtMs < BOSS_HIT_FLASH_MS) {
-      bossSprite.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      // Tint mode FILL by its numeric value: this module is deliberately free
+      // of a Phaser *value* import, because pulling the browser bundle in
+      // makes every test that touches it need a DOM.
+      bossSprite.setTint(0xffffff).setTintMode(TINT_MODE_FILL);
     } else {
       bossSprite.clearTint();
     }
@@ -119,7 +121,7 @@ export function buildBossView(
       shotViews.set(shot.id, view);
     }
     view.image.setPosition(
-      offsetScreenX(shot.x, world),
+      offsetScreenX(shot.x, world.config.avatarScreenX, world.config.tilePx),
       rowToScreenY(shot.row, world.config),
     );
   }

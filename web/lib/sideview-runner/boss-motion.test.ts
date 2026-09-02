@@ -5,7 +5,7 @@ import {
   BOSS_BOB_ROWS,
   bossBobRows,
   offsetScreenX,
-} from "./boss-view";
+} from "./encounter-arithmetic";
 import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { createRunnerWorld } from "./world";
@@ -33,24 +33,24 @@ describe("the boss's own motion", () => {
 
 describe("placing a thing measured in columns ahead of the avatar", () => {
   test("zero columns ahead is exactly the avatar's own screen anchor", () => {
-    const world = createRunnerWorld(manifest, 1);
+    const { avatarScreenX, tilePx } = createRunnerWorld(manifest, 1).config;
 
-    expect(offsetScreenX(0, world)).toBe(world.config.avatarScreenX);
+    expect(offsetScreenX(0, avatarScreenX, tilePx)).toBe(avatarScreenX);
   });
 
   test("a column ahead is one tile to the right, and behind is to the left", () => {
-    const world = createRunnerWorld(manifest, 1);
-    const anchor = world.config.avatarScreenX;
+    const { avatarScreenX, tilePx } = createRunnerWorld(manifest, 1).config;
 
-    expect(offsetScreenX(1, world)).toBe(anchor + world.config.tilePx);
-    expect(offsetScreenX(-2, world)).toBe(anchor - 2 * world.config.tilePx);
+    expect(offsetScreenX(1, avatarScreenX, tilePx)).toBe(avatarScreenX + tilePx);
+    expect(offsetScreenX(-2, avatarScreenX, tilePx)).toBe(avatarScreenX - 2 * tilePx);
   });
 
   test("does not move with the run: the offset is already avatar-relative", () => {
     const world = createRunnerWorld(manifest, 1);
-    const before = offsetScreenX(10, world);
+    const { avatarScreenX, tilePx } = world.config;
+    const before = offsetScreenX(10, avatarScreenX, tilePx);
     world.avatar.distanceColumns += 500;
 
-    expect(offsetScreenX(10, world)).toBe(before);
+    expect(offsetScreenX(10, avatarScreenX, tilePx)).toBe(before);
   });
 });

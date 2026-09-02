@@ -311,6 +311,36 @@ export function salvoRows(
   });
 }
 
+/** How far the hovering boss rides up and down, in rows. */
+export const BOSS_BOB_ROWS = 0.18;
+/** Seconds for one full bob. */
+export const BOSS_BOB_PERIOD_SECONDS = 2.4;
+
+/**
+ * The bob offset in rows at one moment of the simulation's own clock.
+ *
+ * Sampled from the clock rather than tweened, so a replayed run draws
+ * identical frames.
+ */
+export function bossBobRows(clockMs: number): number {
+  return Math.sin((clockMs / 1000) * ((2 * Math.PI) / BOSS_BOB_PERIOD_SECONDS)) * BOSS_BOB_ROWS;
+}
+
+/**
+ * Screen x of a point measured in columns ahead of the avatar.
+ *
+ * The encounter's whole frame is avatar-relative, and the avatar is pinned to
+ * a fixed screen anchor, so this is the one conversion the views need and it
+ * does not move with the run.
+ */
+export function offsetScreenX(
+  offsetColumns: number,
+  avatarScreenX: number,
+  tilePx: number,
+): number {
+  return avatarScreenX + offsetColumns * tilePx;
+}
+
 /** Advance one shot in the avatar's frame. */
 export function advanceShot(shot: EncounterShot, dt: number): void {
   shot.x += shot.vx * dt;

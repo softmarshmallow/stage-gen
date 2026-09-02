@@ -139,6 +139,10 @@ export function bossTextureKey(bossId: string, state: string): string {
   return `runner:boss:${bossId}:${state}`;
 }
 
+export function bossAnimationKey(bossId: string, state: string): string {
+  return `runner:boss:${bossId}:${state}:play`;
+}
+
 export function projectileTextureKey(projectileId: string): string {
   return `runner:projectile:${projectileId}`;
 }
@@ -337,16 +341,19 @@ class RunnerScene extends Phaser.Scene {
       world.config.tilePx,
       groundLine,
     );
+    const encounterBoss =
+      encounter === null
+        ? null
+        : (manifest.bosses.find((entry) => entry.bossId === encounter.encounter.bossId) ?? null);
     const actors = this.buildActorsView(world, propRasterSizes, itemRasterSizes);
     const bossView =
-      encounter === null
+      encounter === null || encounterBoss === null
         ? null
         : buildBossView(this, world, {
             bossTextureKey,
+            bossAnimationKey,
             projectileTextureKey,
-            bossSourcePxPerUnit:
-              manifest.bosses.find((entry) => entry.bossId === encounter.encounter.bossId)
-                ?.calibration.sourcePxPerUnit ?? 1,
+            boss: encounterBoss,
             projectiles: manifest.projectiles,
           });
     const stage: ParallaxStageView = {
@@ -356,10 +363,6 @@ class RunnerScene extends Phaser.Scene {
         bossView?.sync(current);
       },
     };
-    const encounterBoss =
-      encounter === null
-        ? null
-        : manifest.bosses.find((entry) => entry.bossId === encounter.encounter.bossId) ?? null;
     const hud = buildHud(
       this,
       world.config.tilePx,
@@ -689,19 +692,30 @@ class RunnerScene extends Phaser.Scene {
     const boss = manifest.bosses.find((entry) => entry.bossId === published.bossId);
     // Both resolve by contract; the parser refused the document otherwise.
     if (arena === undefined || boss === undefined) return null;
+    // A motion atlas is a strip, not a picture: loaded as one image every cell
+    // is drawn at once, which is four bosses in a row. Split it the way the
+    // avatar's strips are split, and install the same playback.
+    //
     // The hover is the baseline every other strip was rebased against, so its
     // cell is the one the hit box is measured from.
     let hoverCellAspect = 0;
     for (const motion of boss.motions) {
-      const loaded = await loadTrimmedSprite(
+      const key = bossTextureKey(boss.bossId, motion.state);
+      const loaded = await loadFrameStrip(
         this.url(motion.atlas),
-        bossTextureKey(boss.bossId, motion.state),
+        key,
+        motion.columns,
         this.textures,
         TRANSPARENCY_POLICY,
       );
-      if (motion.state === "hover" && loaded.canvas.height > 0) {
-        hoverCellAspect =
-          loaded.canvas.width / motion.columns / loaded.canvas.height;
+      installMotionPlayback(this, bossAnimationKey(boss.bossId, motion.state), key, {
+        mode: motion.playbackMode,
+        canonical_frame_indices: motion.canonicalFrameIndices,
+        frames_per_second: motion.framesPerSecond,
+      });
+      if (motion.state === "hover") {
+        const cell = loaded.cells[0];
+        if (cell !== undefined && cell.h > 1) hoverCellAspect = cell.w / cell.h;
       }
     }
     for (const shot of manifest.projectiles) {
