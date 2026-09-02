@@ -12,7 +12,7 @@ mock.module("phaser", () => ({
 }));
 
 const { assembleRunnerSystems } = await import("./game");
-const { sealSystems } = await import("./systems");
+const { sealSystems } = await import("@/lib/game-systems/systems");
 const { createIntentLatch } = await import("./intent");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 
@@ -22,6 +22,7 @@ const DOCUMENTED_ORDER = [
   "runner/avatar",
   "runner/segments",
   "runner/obstacles",
+  "runner/vitals",
   "runner/run-loop",
   "runner/camera",
   "runner/parallax",
@@ -31,15 +32,24 @@ const DOCUMENTED_ORDER = [
 
 const noopView = { sync: () => undefined };
 
+// The runner declares events, so sealing needs the accessor that clears the
+// frame queue each tick — the same one `RunnerScene` passes.
+const EVENTS = { events: (world: { events: unknown }) => world.events as { beginFrame(): void } };
+
 describe("assembleRunnerSystems", () => {
   test("seals into the documented frame order", () => {
-    const sealed = sealSystems(assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK));
+    const sealed = sealSystems(
+      assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
+      EVENTS,
+    );
     expect(sealed.order).toEqual(DOCUMENTED_ORDER);
   });
 
   test("the order derives from declarations, not registration order", () => {
-    const reversed = [...assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK)].reverse();
-    expect(sealSystems(reversed).order).toEqual(DOCUMENTED_ORDER);
+    const reversed = [
+      ...assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
+    ].reverse();
+    expect(sealSystems(reversed, EVENTS).order).toEqual(DOCUMENTED_ORDER);
   });
 
   test("every system declares a contract version", () => {

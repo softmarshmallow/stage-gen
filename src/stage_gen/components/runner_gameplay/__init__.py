@@ -1,20 +1,25 @@
-"""The runner genre's gameplay contract (`runner-gameplay-v2`)."""
+"""The runner genre's gameplay contract (`runner-gameplay-v3`)."""
 
 from .models import (
-    COLLISION_PROFILES,
+    COLLISION_BOXES,
+    DRAINING_CONSEQUENCES,
     DUCK_PROFILES,
     JUMP_PROFILES,
     PLACEMENT_PROFILES,
     RUNNER_GAMEPLAY_SCHEMA_VERSION,
     RUNNER_PLACEMENT_PROFILE,
     SPEED_PROFILES,
+    VITALS_PROFILES,
     CollisionProfile,
     DuckProfile,
     JumpArc,
     JumpProfile,
     PlacementProfile,
+    RunnerConsequences,
     RunnerGameplayContract,
+    RunnerVitals,
     SpeedProfile,
+    VitalsProfile,
     apron_columns,
     arc_height_rows,
     clearable_span_columns,
@@ -27,14 +32,19 @@ from .models import (
 )
 
 __all__ = [
-    "COLLISION_PROFILES",
+    "COLLISION_BOXES",
+    "DRAINING_CONSEQUENCES",
     "DUCK_PROFILES",
     "JUMP_PROFILES",
     "PLACEMENT_PROFILES",
+    "VITALS_PROFILES",
     "RUNNER_GAMEPLAY_SCHEMA_VERSION",
     "RUNNER_PLACEMENT_PROFILE",
     "SPEED_PROFILES",
     "CollisionProfile",
+    "RunnerConsequences",
+    "RunnerVitals",
+    "VitalsProfile",
     "DuckProfile",
     "JumpArc",
     "JumpProfile",

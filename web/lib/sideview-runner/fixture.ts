@@ -69,7 +69,7 @@ export function runnerAudioFixture(): Record<string, unknown> {
 
 export function runnerManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 4,
+    schema_version: 5,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",
@@ -86,8 +86,18 @@ export function runnerManifestFixture(): Record<string, unknown> {
     gameplay: {
       speed_profile: "steady_runner_v1",
       jump_profile: "double_arc_v1",
-      collision_policy: "end_run_v1",
+      collision_box: "torso_v1",
       duck_profile: "slide_v1",
+      consequences: {
+        hazard: "drain_v1",
+        pit: "drain_and_recover_v1",
+        crush: "end_run_v1",
+      },
+      vitals: {
+        profile: "three_point_v1",
+        max_points: 3,
+        hurt_representation: "blink_v1",
+      },
       ramp_profile: "gentle_ramp_v1",
       max_clear_gap_columns: 3,
       max_rise_tiles: 2,

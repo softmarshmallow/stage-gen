@@ -23,6 +23,13 @@ so its graph digest moves with those newly captured authored members.
 Re-pinned 2026-09-02 for ``alpha-component-repack-v3``. The fused-component fallback now
 requires one higher-alpha principal core in every expected source lattice slot. The local repack
 cache identity changed deliberately while provider operations and topology stayed fixed.
+
+Re-pinned again 2026-09-02 for ``runner-gameplay-v3``. Bellweather's runner member re-authored
+its gameplay closure - the collision box split away from what a contact costs, and a vitals
+gauge arrived, and the container's own revision moved with it - and the plan document binds the
+whole package closure, so the platformer's graph digest moves with a sibling member it does not
+read. Topology, node count, and operation counts are all unchanged, which is the same shape as
+the 2026-09-01 re-pin above.
 """
 
 from __future__ import annotations
@@ -39,7 +46,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 221
-BELLWEATHER_GRAPH_SHA256 = "3e59ec58ef41f381fd217c29ff8f4849ac7bf57546f78e02ced52c2a99b8f7fa"
+BELLWEATHER_GRAPH_SHA256 = "d2d550ccbfa695c8dcd3f8d3bee72a669653c0842cd035e836afa4e085c543e4"
 BELLWEATHER_TOPOLOGY_SHA256 = "2cf9fc619702263ac2954e9e28bc22f47227735d1eadbf08d58ebe5573c36c2d"
 
 

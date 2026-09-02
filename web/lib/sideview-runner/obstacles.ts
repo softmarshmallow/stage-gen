@@ -15,7 +15,7 @@ import {
   type StreamedHazard,
   type StreamedPickup,
 } from "./segments";
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
 import type { AvatarState, RunnerWorld, RunnerWorldConfig } from "./world";
 
 export interface WorldBox {
@@ -84,12 +84,18 @@ export function pickupKey(pickup: StreamedPickup): string {
   return `${pickup.worldColumn}:${pickup.row}:${pickup.itemId}`;
 }
 
+/** Instance identity for a hazard placement, matching `pickupKey`'s shape. */
+export function hazardKey(hazard: StreamedHazard): string {
+  return `${hazard.worldColumn}:${hazard.propId}`;
+}
+
 export function createObstaclesSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/obstacles",
-    contractVersion: "obstacles-system-v2",
+    contractVersion: "obstacles-system-v3",
     reads: ["segments", "avatar"],
     writes: ["obstacles"],
+    emits: ["hazard-contact"],
     update(world) {
       const obstacles = world.obstacles;
       obstacles.hazardContact = false;
@@ -118,6 +124,16 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
         );
         if (boxesOverlap(avatar, box)) {
           obstacles.hazardContact = true;
+          // Per instance, edge-triggered, keyed the way pickups already are.
+          // Overlap is a *level* — it holds for every frame of the crossing —
+          // and a gauge told about a level would be emptied by one prop. What
+          // the vitals system needs to hear is that this particular hazard was
+          // struck, which happens exactly once however long the crossing runs.
+          const key = hazardKey(hazard);
+          if (!obstacles.struck.has(key)) {
+            obstacles.struck.add(key);
+            world.events.emit({ type: "hazard-contact", key });
+          }
         }
       }
       for (const pickup of streamedPickups(world.segments)) {

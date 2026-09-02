@@ -6,8 +6,16 @@
 // The RNG is mulberry32 — tiny, deterministic, and good enough for chunk
 // selection, which is the only random decision the runner makes.
 
-import type { RunnerRuntimeManifest, RunnerChunk, RunnerMotionState } from "./contract";
-import type { GameSystem } from "./systems";
+import type {
+  RunnerRuntimeManifest,
+  RunnerChunk,
+  RunnerConsequences,
+  RunnerMotionState,
+} from "./contract";
+import { createEventQueue, type EventQueue } from "@/lib/game-systems/events";
+import { createGauge } from "@/lib/game-systems/gauge";
+import type { GameSystem } from "@/lib/game-systems/systems";
+import type { RunnerEvent, VitalsState } from "./vitals";
 import type { DifficultyState } from "./difficulty";
 import { rampProfile, type RampProfileName } from "./difficulty";
 import type { RunnerIntent } from "./intent";
@@ -35,8 +43,15 @@ export function mulberry32(seed: number): Rng {
 
 export type RunPhase = "running" | "dead";
 
-/** Why the run ended, when it has. */
-export type DeathCause = "hazard" | "pit" | "step" | null;
+/**
+ * Why the run ended, when it has.
+ *
+ * The same three names the authored contract answers separately, so what a
+ * package chose and what actually happened are stated in one vocabulary.
+ * `crush` was called `step` while it was only ever a way to die; now that a
+ * package can forgive it, it is worth a name a reader recognises.
+ */
+export type DeathCause = "hazard" | "pit" | "crush" | null;
 
 export interface AvatarState {
   /** Forward progress of the avatar's feet, in world columns. */
@@ -54,8 +69,6 @@ export interface AvatarState {
    * impulse, not the state change, so a second hop re-animates. */
   jumpImpulses: number;
   motion: RunnerMotionState;
-  /** A death the avatar itself detected this frame; run-loop folds it into the phase. */
-  deathCause: Extract<DeathCause, "pit" | "step"> | null;
 }
 
 export interface ObstaclesState {
@@ -65,6 +78,8 @@ export interface ObstaclesState {
   missed: Set<string>;
   /** True while the avatar overlaps a hazard this frame. */
   hazardContact: boolean;
+  /** Instance keys of hazards already struck, so one prop costs one point. */
+  struck: Set<string>;
   /** Pickups first collected this frame, for scoring and despawn effects. */
   collectedThisFrame: StreamedPickup[];
   /** Pickups newly missed this frame; the run-loop breaks the chain on them. */
@@ -112,6 +127,11 @@ export interface RunnerWorldConfig {
   readonly duckProfile: "slide_v1" | null;
   /** The slide's proved height fraction; null exactly when duckProfile is. */
   readonly duckedHeightFraction: number | null;
+  /** What each way of coming to grief costs, as the package authored it. */
+  readonly consequences: RunnerConsequences;
+  /** The gauge's ceiling; null exactly when no consequence drains. */
+  readonly maxVitalPoints: number | null;
+  readonly hurtRepresentation: "blink_v1" | "drawn_v1" | null;
   readonly arithmetic: RunnerArithmetic;
   readonly rampProfile: RampProfileName;
   /** Highest difficulty actually present in this package's nonempty chunk catalog. */
@@ -133,8 +153,11 @@ export interface RunnerWorld {
   avatar: AvatarState;
   segments: SegmentStream;
   obstacles: ObstaclesState;
+  vitals: VitalsState;
   run: RunState;
   camera: CameraState;
+  /** This frame's occurrences. Cleared by the sealed tick, not by any system. */
+  readonly events: EventQueue<RunnerEvent>;
   readonly config: RunnerWorldConfig;
 }
 
@@ -159,6 +182,9 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
     jumpProfile: manifest.gameplay.jumpProfile,
     duckProfile: manifest.gameplay.duckProfile,
     duckedHeightFraction: manifest.gameplay.duckedHeightFraction,
+    consequences: manifest.gameplay.consequences,
+    maxVitalPoints: manifest.gameplay.vitals?.maxPoints ?? null,
+    hurtRepresentation: manifest.gameplay.vitals?.hurtRepresentation ?? null,
     arithmetic: Object.freeze({
       baseSpeedColumnsPerSecond: manifest.gameplay.baseSpeedColumnsPerSecond,
       maxSpeedMultiplier: manifest.gameplay.maxSpeedMultiplier,
@@ -243,15 +269,22 @@ export function resetRunnerWorld(world: RunnerWorld, seed: number): void {
     sliding: false,
     jumpImpulses: 0,
     motion: "run",
-    deathCause: null,
   };
   world.segments = createSegmentStream(world.config.rows, world.config.walkSurfaceRow);
   world.obstacles = {
     collected: new Set(),
     missed: new Set(),
     hazardContact: false,
+    struck: new Set(),
     collectedThisFrame: [],
     missedThisFrame: 0,
+  };
+  world.vitals = {
+    gauge: world.config.maxVitalPoints === null ? null : createGauge(world.config.maxVitalPoints),
+    clockMs: 0,
+    pendingRecovery: null,
+    hurtThisFrame: false,
+    depletedThisFrame: false,
   };
   world.run = { phase: "running", seed, rng, score: 0, chain: 0, multiplier: 1, cause: null };
   world.camera = { scrollX: cameraScrollX(world.avatar.distanceColumns, world.config) };
@@ -285,15 +318,22 @@ export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number)
       sliding: false,
       jumpImpulses: 0,
       motion: "run",
-      deathCause: null,
     },
     segments: createSegmentStream(config.rows, config.walkSurfaceRow),
     obstacles: {
       collected: new Set(),
       missed: new Set(),
       hazardContact: false,
+      struck: new Set(),
       collectedThisFrame: [],
       missedThisFrame: 0,
+    },
+    vitals: {
+      gauge: null,
+      clockMs: 0,
+      pendingRecovery: null,
+      hurtThisFrame: false,
+      depletedThisFrame: false,
     },
     run: {
       phase: "running",
@@ -305,6 +345,7 @@ export function createRunnerWorld(manifest: RunnerRuntimeManifest, seed: number)
       cause: null,
     },
     camera: { scrollX: 0 },
+    events: createEventQueue<RunnerEvent>(),
     config,
   };
   resetRunnerWorld(world, seed);

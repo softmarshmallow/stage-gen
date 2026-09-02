@@ -13,20 +13,22 @@
 // the readout saying how close that body is to dying - and behind any mob that happened to
 // stand in front of one. They sit above every world layer and below the true screen furniture.
 //
-// The fill is one continuous rounded bar over a spectrum, not a row of pips. The colour under
-// the fill's leading edge is the reading: a bar running out green is healthy, one guttering at
-// red is a body about to drop, and that is legible on a 46px mob bar at a glance where counting
-// cells is not. Reveal is a crop of a gradient baked once per size, so the colour at a given
-// fraction is a property of the texture rather than something recomputed - a bar at half is the
-// same amber whether it got there by one blow or four.
+// The drawing itself lives in `lib/sideview/gauge-bar.ts` and is shared with every other
+// bounded resource on screen - the capsule, the spectrum, the crop, the baked textures. What
+// stays here is what is actually the platformer's: the two sizes, the drop below the feet, the
+// actor-HUD rung, and the rule that a mob's bar arrives with its first wound.
 
 import Phaser from "phaser";
+import {
+  GaugeBar,
+  gaugeBarFillWidth,
+  gaugeBarRevealedByChange,
+  type GaugeBarStyle,
+} from "@/lib/sideview/gauge-bar";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 
-export type HealthBarStyle = Readonly<{
-  /** Drawn size of the whole capsule, in world pixels. */
-  width: number;
-  height: number;
+export type HealthBarStyle = GaugeBarStyle &
+  Readonly<{
   /**
    * Drop from the actor's feet to the middle of the bar, in world pixels.
    *
@@ -36,7 +38,7 @@ export type HealthBarStyle = Readonly<{
    * floating at a height that only looks right on flat ground.
    */
   footGap: number;
-}>;
+  }>;
 
 /**
  * The player's bar, sized against the character rather than against the screen.
@@ -63,24 +65,6 @@ export const MOB_HEALTH_BAR_STYLE: HealthBarStyle = Object.freeze({
   footGap: 8,
 });
 
-/**
- * Low to high, left to right.
- *
- * Read at the fill's leading edge, so these are not decoration: the hand-off from red through
- * amber is where a player decides to back out of a fight.
- */
-const GRADIENT_STOPS: readonly (readonly [number, string])[] = Object.freeze([
-  Object.freeze([0, "#d43d2f"] as const),
-  Object.freeze([0.35, "#e8743b"] as const),
-  Object.freeze([0.6, "#f2c14e"] as const),
-  Object.freeze([0.82, "#9ecb47"] as const),
-  Object.freeze([1, "#3fbf6f"] as const),
-]);
-
-const TRACK_FILL = "rgba(14, 10, 9, 0.78)";
-const TRACK_RIM = "rgba(0, 0, 0, 0.7)";
-const RIM_WIDTH = 1;
-
 export type HealthBarPlacement = Readonly<{
   /** Centre of the capsule, in world pixels. */
   x: number;
@@ -93,7 +77,8 @@ export type HealthBarPlacement = Readonly<{
  * Where the bar sits for an actor standing at a point.
  *
  * Pure and exported because this is the whole of the "under the body" claim, and it is the part
- * of the widget worth asserting without a browser.
+ * of the widget worth asserting without a browser. It is also the part the shared capsule
+ * deliberately does not know: a bar pinned to the top of a canvas has no feet to hang under.
  */
 export function healthBarPlacement(
   input: Readonly<{ actorX: number; actorFootY: number; style: HealthBarStyle }>,
@@ -117,11 +102,7 @@ export function healthBarPlacement(
 export function healthBarFillWidth(
   input: Readonly<{ hp: number; maxHp: number; style: HealthBarStyle }>,
 ): number {
-  const max = Math.max(0, input.maxHp);
-  const hp = Math.min(Math.max(0, input.hp), max);
-  if (hp <= 0 || max <= 0) return 0;
-  const exact = (hp / max) * input.style.width;
-  return Math.min(input.style.width, Math.max(input.style.height, exact));
+  return gaugeBarFillWidth({ value: input.hp, max: input.maxHp, style: input.style });
 }
 
 /**
@@ -138,81 +119,7 @@ export function healthBarFillWidth(
 export function healthBarRevealedByDamage(
   input: Readonly<{ hp: number; maxHp: number }>,
 ): boolean {
-  if (!Number.isFinite(input.hp) || !Number.isFinite(input.maxHp)) return false;
-  if (input.maxHp <= 0) return false;
-  return input.hp < input.maxHp;
-}
-
-/** One texture pair per distinct bar size, shared by every bar drawn at that size. */
-function textureKeys(style: HealthBarStyle): Readonly<{
-  track: string;
-  fill: string;
-}> {
-  const size = `${style.width}x${style.height}`;
-  return Object.freeze({
-    track: `stage-gen-health-track-${size}`,
-    fill: `stage-gen-health-fill-${size}`,
-  });
-}
-
-/** A capsule path: the radius is half the height, so the ends are true semicircles. */
-function capsulePath(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void {
-  const radius = Math.min(height / 2, width / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + width, y, x + width, y + height, radius);
-  ctx.arcTo(x + width, y + height, x, y + height, radius);
-  ctx.arcTo(x, y + height, x, y, radius);
-  ctx.arcTo(x, y, x + width, y, radius);
-  ctx.closePath();
-}
-
-/**
- * Draw the two capsules this size needs, once.
- *
- * Baked into textures rather than redrawn as `Graphics` per frame because every bar at a size
- * shares them: a stage with eight mobs pays for one 46px pair, not eight, and the fill's colour
- * ramp is then a fixed property of the image instead of arithmetic repeated per actor per frame.
- */
-function ensureTextures(scene: Phaser.Scene, style: HealthBarStyle): void {
-  const keys = textureKeys(style);
-  const { width, height } = style;
-
-  if (!scene.textures.exists(keys.track)) {
-    const canvas = scene.textures.createCanvas(keys.track, width, height);
-    const ctx = canvas?.getContext();
-    if (canvas && ctx) {
-      capsulePath(ctx, RIM_WIDTH / 2, RIM_WIDTH / 2, width - RIM_WIDTH, height - RIM_WIDTH);
-      ctx.fillStyle = TRACK_FILL;
-      ctx.fill();
-      ctx.lineWidth = RIM_WIDTH;
-      ctx.strokeStyle = TRACK_RIM;
-      ctx.stroke();
-      canvas.refresh();
-    }
-  }
-
-  if (!scene.textures.exists(keys.fill)) {
-    // Inset by the rim so the colour sits inside the track rather than over its edge, which at
-    // five pixels tall is the difference between a bar and a smear.
-    const inset = RIM_WIDTH;
-    const canvas = scene.textures.createCanvas(keys.fill, width, height);
-    const ctx = canvas?.getContext();
-    if (canvas && ctx) {
-      const gradient = ctx.createLinearGradient(0, 0, width, 0);
-      for (const [stop, colour] of GRADIENT_STOPS) gradient.addColorStop(stop, colour);
-      capsulePath(ctx, inset, inset, width - inset * 2, height - inset * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      canvas.refresh();
-    }
-  }
+  return gaugeBarRevealedByChange({ value: input.hp, max: input.maxHp });
 }
 
 export type HealthBarTick = Readonly<{
@@ -224,9 +131,15 @@ export type HealthBarTick = Readonly<{
   actorFootY: number;
 }>;
 
+/**
+ * An actor's bar: the shared capsule, anchored under a body in world space.
+ *
+ * A thin preset rather than its own widget. Everything that made this floating
+ * — scroll factor one, the drop below the feet, the actor-HUD rung — is stated
+ * here in three lines, and everything that made it *a bar* is shared.
+ */
 export class FloatingHealthBar {
-  private readonly container: Phaser.GameObjects.Container;
-  private readonly fill: Phaser.GameObjects.Image;
+  private readonly bar: GaugeBar;
   private readonly style: HealthBarStyle;
   private lastHp = -1;
   private lastMax: number;
@@ -234,82 +147,48 @@ export class FloatingHealthBar {
   constructor(scene: Phaser.Scene, maxHp: number, style: HealthBarStyle) {
     this.style = style;
     this.lastMax = Math.max(1, maxHp);
-    ensureTextures(scene, style);
-    const keys = textureKeys(style);
-
-    this.container = scene.add.container(0, 0);
-    this.container.setScrollFactor(1);
-    this.container.setDepth(SCENE_CONTENT_DEPTH.actorHud);
-
-    const track = scene.add.image(0, 0, keys.track);
-    track.setOrigin(0.5, 0.5);
-    this.container.add(track);
-
-    this.fill = scene.add.image(0, 0, keys.fill);
-    this.fill.setOrigin(0.5, 0.5);
-    this.container.add(this.fill);
-    this.applyFill(this.lastMax);
+    this.bar = new GaugeBar(scene, {
+      style,
+      max: this.lastMax,
+      // World space: a bar is re-anchored to its actor every frame, so it
+      // scrolls, zooms and travels with them.
+      scrollFactor: 1,
+      depth: SCENE_CONTENT_DEPTH.actorHud,
+    });
   }
 
-  /**
-   * Reveal the leading `width` pixels of the gradient.
-   *
-   * A crop, not a scale: scaling would drag the whole spectrum along with the fill and paint a
-   * half-empty bar in the same green as a full one, which is the one thing the gradient exists
-   * to prevent. Cropping leaves each colour at the fraction it belongs to and squares off the
-   * leading edge, which is what a bar draining should look like anyway.
-   */
-  private applyFill(hp: number): void {
-    const width = healthBarFillWidth({ hp, maxHp: this.lastMax, style: this.style });
-    if (width <= 0) {
-      this.fill.setVisible(false);
-      return;
-    }
-    this.fill.setVisible(true);
-    this.fill.setCrop(0, 0, width, this.style.height);
-  }
-
-  /**
-   * Re-anchor to the actor and redraw from their health.
-   *
-   * The position is written every frame and the fill only on a change, because this runs at
-   * frame rate: following has to be unconditional or the bar visibly lags the body it is
-   * attached to, while health changes a handful of times a stage.
-   */
+  /** Re-anchor to the actor and redraw from their health. */
   update(tick: HealthBarTick): void {
     const placement = healthBarPlacement({
       actorX: tick.actorX,
       actorFootY: tick.actorFootY,
       style: this.style,
     });
-    this.container.setPosition(placement.x, placement.y);
-    if (tick.maxHp > 0 && tick.maxHp !== this.lastMax) {
-      this.lastMax = tick.maxHp;
-      this.lastHp = -1;
-    }
-    if (tick.hp !== this.lastHp) {
-      this.applyFill(tick.hp);
-      this.lastHp = tick.hp;
-    }
-    this.container.setAlpha(tick.invulnerable ? 0.55 : 1);
+    if (tick.maxHp > 0) this.lastMax = tick.maxHp;
+    this.lastHp = tick.hp;
+    this.bar.update({
+      value: tick.hp,
+      max: tick.maxHp,
+      x: placement.x,
+      y: placement.y,
+      dimmed: tick.invulnerable,
+    });
   }
 
   /** Follow an actor that is fading out, so the bar dies with the body rather than after it. */
   setAlpha(alpha: number): void {
-    this.container.setAlpha(alpha);
+    this.bar.setAlpha(alpha);
   }
 
   setVisible(visible: boolean): void {
-    this.container.setVisible(visible);
+    this.bar.setVisible(visible);
   }
 
   /** Back to full, for the frame-zero restore the deterministic capture runs before it starts. */
   reset(hp: number, maxHp: number): void {
     this.lastMax = Math.max(1, maxHp);
     this.lastHp = hp;
-    this.applyFill(hp);
-    this.container.setAlpha(1);
-    this.container.setVisible(true);
+    this.bar.reset(hp, maxHp);
   }
 
   snapshot(): Readonly<{
@@ -320,12 +199,13 @@ export class FloatingHealthBar {
     y: number;
     fillWidth: number;
   }> {
+    const inner = this.bar.snapshot();
     return Object.freeze({
       hp: this.lastHp,
       maxHp: this.lastMax,
-      visible: this.container.visible,
-      x: this.container.x,
-      y: this.container.y,
+      visible: inner.visible,
+      x: inner.x,
+      y: inner.y,
       fillWidth: healthBarFillWidth({
         hp: this.lastHp,
         maxHp: this.lastMax,
@@ -335,6 +215,6 @@ export class FloatingHealthBar {
   }
 
   destroy(): void {
-    this.container.destroy(true);
+    this.bar.destroy();
   }
 }

@@ -18,20 +18,31 @@ describe("createRunLoopSystem", () => {
     expect(world.run.phase).toBe("running");
   });
 
-  test("hazard contact ends the run with the hazard cause", () => {
+  test("a run-ended verdict ends the run and carries its source as the cause", () => {
     const world = createRunnerWorld(manifest, 1);
-    world.obstacles.hazardContact = true;
+    world.events.emit({ type: "run-ended", source: "crush" });
     system.update(world, STEP);
     expect(world.run.phase).toBe("dead");
-    expect(world.run.cause).toBe("hazard");
+    expect(world.run.cause).toBe("crush");
+    expect(world.avatar.motion).toBe("death");
   });
 
-  test("an avatar-detected death wins the cause over simultaneous contact", () => {
+  test("hazard contact alone does not end the run: the consequence decides", () => {
     const world = createRunnerWorld(manifest, 1);
-    world.avatar.deathCause = "pit";
     world.obstacles.hazardContact = true;
+    world.events.emit({ type: "hazard-contact", key: "6:filter_stack" });
     system.update(world, STEP);
-    expect(world.run.cause).toBe("pit");
+    // No verdict was emitted, so nothing here ends anything. Under this
+    // fixture a hazard drains instead, which is runner/vitals' answer to give.
+    expect(world.run.phase).toBe("running");
+  });
+
+  test("a drained point that did not empty the gauge leaves the run alive", () => {
+    const world = createRunnerWorld(manifest, 1);
+    world.events.emit({ type: "drained", source: "hazard", remaining: 2 });
+    system.update(world, STEP);
+    expect(world.run.phase).toBe("running");
+    expect(world.run.cause).toBe(null);
   });
 
   test("dead runs ignore scoring and wait for the restart request", () => {

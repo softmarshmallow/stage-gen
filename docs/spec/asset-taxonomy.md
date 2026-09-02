@@ -92,6 +92,8 @@ the old names.
 | `components/sideview_terrain` | lifted from the platformer recipe | `2d/sideview/terrain_47tile` | c — both side-view genres paint one atlas |
 | `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
 | `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
+| `web/lib/game-systems` | new in the vitals pass | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
+| `web/lib/sideview/gauge-bar` | new in the vitals pass | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

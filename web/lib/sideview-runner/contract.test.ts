@@ -437,6 +437,92 @@ describe("the verb obligations", () => {
 
   test("the runtime's motion order mirrors the generator's declaration", async () => {
     const { RUNNER_MOTION_STATES } = await import("./contract");
-    expect(RUNNER_MOTION_STATES).toEqual(["run", "jump", "slide", "death"]);
+    expect(RUNNER_MOTION_STATES).toEqual(["run", "jump", "slide", "hurt", "death"]);
+  });
+});
+
+describe("the vitals and consequence contract", () => {
+  test("parses every damage source and the gauge it spends", () => {
+    const manifest = parseRunnerRuntimeManifest(validRunnerManifest());
+    expect(manifest.gameplay.collisionBox).toBe("torso_v1");
+    expect(manifest.gameplay.consequences).toEqual({
+      hazard: "drain_v1",
+      pit: "drain_and_recover_v1",
+      crush: "end_run_v1",
+    });
+    expect(manifest.gameplay.vitals).toEqual({
+      profile: "three_point_v1",
+      maxPoints: 3,
+      hurtRepresentation: "blink_v1",
+    });
+  });
+
+  test("refuses a draining consequence with no gauge to spend from", () => {
+    const document = validRunnerManifest();
+    (document.gameplay as Record<string, unknown>).vitals = null;
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(
+      "gameplay.vitals is required when a consequence drains it",
+    );
+  });
+
+  test("refuses a gauge no consequence can drain", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.consequences = { hazard: "end_run_v1", pit: "end_run_v1", crush: "end_run_v1" };
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(
+      "gameplay.vitals is declared but no consequence can drain it",
+    );
+  });
+
+  test("accepts a one-hit-kill package: every source terminal, no gauge", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.consequences = { hazard: "end_run_v1", pit: "end_run_v1", crush: "end_run_v1" };
+    gameplay.vitals = null;
+    expect(parseRunnerRuntimeManifest(document).gameplay.vitals).toBe(null);
+  });
+
+  test("refuses a missing damage source rather than defaulting it", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.consequences = { hazard: "drain_v1", pit: "drain_v1" };
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("gameplay.consequences.crush");
+  });
+
+  test("refuses an unknown consequence name", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.consequences = { hazard: "shrug_it_off_v1", pit: "drain_v1", crush: "end_run_v1" };
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow("gameplay.consequences.hazard");
+  });
+});
+
+describe("the hurt obligation", () => {
+  test("a drawn representation requires the strip it plays", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.vitals = { profile: "three_point_v1", max_points: 3, hurt_representation: "drawn_v1" };
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(
+      "avatar.motions is missing the hurt state",
+    );
+  });
+
+  test("the blink representation refuses a strip nothing would play", () => {
+    const document = validRunnerManifest();
+    const avatar = document.avatar as Record<string, unknown>;
+    avatar.motions = [...(avatar.motions as unknown[]), motion("hurt", "once")];
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(
+      'gameplay.vitals.hurt_representation is not "drawn_v1"',
+    );
+  });
+
+  test("a drawn representation with its strip parses", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.vitals = { profile: "three_point_v1", max_points: 3, hurt_representation: "drawn_v1" };
+    const avatar = document.avatar as Record<string, unknown>;
+    avatar.motions = [...(avatar.motions as unknown[]), motion("hurt", "once")];
+    const parsed = parseRunnerRuntimeManifest(document);
+    expect(parsed.avatar.motions.map((entry) => entry.state)).toContain("hurt");
   });
 });

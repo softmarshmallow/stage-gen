@@ -45,6 +45,7 @@ import {
   type RunnerGroundTextures,
 } from "./parallax";
 import { createRunLoopSystem } from "./run-loop";
+import { avatarBlinkAlpha, createVitalsSystem } from "./vitals";
 import {
   collectiblePresentation,
   hazardCueAlpha,
@@ -61,7 +62,7 @@ import {
   surfaceRowAt,
   createSegmentsSystem,
 } from "./segments";
-import { sealSystems, type GameSystem, type SealedSystems } from "./systems";
+import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/game-systems/systems";
 import {
   createCameraSystem,
   createRunnerWorld,
@@ -93,6 +94,7 @@ export function assembleRunnerSystems(
     createAvatarSystem(),
     createSegmentsSystem(),
     createObstaclesSystem(),
+    createVitalsSystem(),
     createRunLoopSystem(),
     createCameraSystem(),
     createParallaxSystem(stage),
@@ -299,7 +301,7 @@ class RunnerScene extends Phaser.Scene {
         actors.sync(current);
       },
     };
-    const hud = buildHud(this, world.config.tilePx);
+    const hud = buildHud(this, world.config.tilePx, world.config.maxVitalPoints);
 
     this.disposers.push(attachKeyboardIntentSource(this.latch, window));
     this.disposers.push(attachPointerIntentSource(this.latch, this.game.canvas));
@@ -322,6 +324,7 @@ class RunnerScene extends Phaser.Scene {
 
     this.sealed = sealSystems(
       assembleRunnerSystems(this.latch, stage, hud, createWebAudioSink(manifest.audio)),
+      { events: (current) => current.events },
     );
     this.world = world;
     this.children.getByName("loading-label")?.destroy();
@@ -418,6 +421,12 @@ class RunnerScene extends Phaser.Scene {
           }
         }
         avatar.setY(rowToScreenY(current.avatar.y, config));
+        // The contracted nonvisual hurt representation: while the gauge is
+        // refusing input the avatar blinks, and the phase is arithmetic on the
+        // frame's clock rather than a tween, so a fixed-step replay of this
+        // run draws the same alpha on the same frame. Re-applied every frame
+        // because it is a function of time, not an event.
+        avatar.setAlpha(avatarBlinkAlpha(current));
 
         // Contact shadow on the support under the avatar, thinning with air.
         shadow.clear();

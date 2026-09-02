@@ -246,7 +246,7 @@ the `resolved-game-package-v6` identity and in the
 `game-package-validation-v6` report.
 The selected genre DAG consumes this resolved package. Platformer integration
 emits `prepared-game-runtime-v10`; runner integration emits
-`sideview-runner-runtime-v4`.
+`sideview-runner-runtime-v5`.
 
 Validate the canonical package with:
 

@@ -16,8 +16,8 @@ from stage_gen.recipes.sideview_runner.prepared_runner import manifest_audio, ma
 
 from ..._runner_fixture import SOURCE_PACKAGE
 
-GAMEPLAY = b"""schema_version = 2
-kind = "runner-gameplay-v2"
+GAMEPLAY = b"""schema_version = 3
+kind = "runner-gameplay-v3"
 game_id = "bellweather"
 revision = 1
 track_id = "sunpetal-sprint"
@@ -25,8 +25,17 @@ track_id = "sunpetal-sprint"
 [run]
 speed_profile = "steady_runner_v1"
 jump_profile = "double_arc_v1"
-collision_policy = "end_run_v1"
+collision_box = "torso_v1"
 duck_profile = "slide_v1"
+
+[run.consequences]
+hazard = "drain_v1"
+pit = "drain_and_recover_v1"
+crush = "end_run_v1"
+
+[run.vitals]
+profile = "three_point_v1"
+hurt_representation = "blink_v1"
 
 [ramp]
 profile = "gentle_ramp_v1"
@@ -39,8 +48,18 @@ def test_the_published_gameplay_block_is_exactly_the_parsers_contract() -> None:
     assert block == {
         "speed_profile": "steady_runner_v1",
         "jump_profile": "double_arc_v1",
-        "collision_policy": "end_run_v1",
+        "collision_box": "torso_v1",
         "duck_profile": "slide_v1",
+        "consequences": {
+            "hazard": "drain_v1",
+            "pit": "drain_and_recover_v1",
+            "crush": "end_run_v1",
+        },
+        "vitals": {
+            "profile": "three_point_v1",
+            "max_points": 3,
+            "hurt_representation": "blink_v1",
+        },
         "ramp_profile": "gentle_ramp_v1",
         "max_clear_gap_columns": 3,
         "max_rise_tiles": 2,

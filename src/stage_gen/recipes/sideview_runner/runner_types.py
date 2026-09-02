@@ -52,7 +52,7 @@ SOUNDTRACK_RAW_KIND = "soundtrack-track-raw-v1"
 SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
 SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v4"
+MANIFEST_KIND = "sideview-runner-runtime-v5"
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",

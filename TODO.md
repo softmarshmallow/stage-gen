@@ -63,6 +63,18 @@ ordered but coupled: branching without skip-already-read is unexplorable in prac
       The web runtime and synthetic fixture already accept the optional role, but the Python recipe
       still produces only `character-attack`; bind generation, raster/alpha/scale validation,
       provenance, and producer-to-consumer tests before promoting artwork.
+- [ ] Draw the runner's `hurt` motion, and switch both runner packages to
+      `hurt_representation = "drawn_v1"`. The seam is already built and costs no second schema
+      bump: `runner-gameplay-v3` refuses `drawn_v1` without a declared `hurt` motion and
+      `blink_v1` with one, so the upgrade is a one-word authored change plus regeneration. What it
+      does cost is real: `RUNNER_MOTION_ORDER` grows, the graph gains a generate/validate pair per
+      package, `topology_sha256` and the embedded runner contract move, `runner_prompts.py` needs a
+      hurt direction beside its death one, and the art needs semantic review by a non-producer.
+      Pairs naturally with the platformer `character-hurt` strip above - one art pass, two genres.
+- [ ] Consider binding a `hurt` audio cue. Deliberately not taken with the vitals pass: it would
+      bump `runner-audio-v1` for feedback the platformer does not have either, and the blink plus
+      the bar's dim already say a blow connected. Authoring only when it happens - one binding and
+      one oscillator realization per package, no art spend.
 - [ ] Add one village gameplay-harness scenario that boots the authored social-hub map and proves
       the flat stage, resident loading and scale, dialogue gating, and portal transition together.
       Component and runtime unit coverage exists; this missing end-to-end scenario must use reviewed
@@ -277,7 +289,10 @@ mechanism rather than a nicety. `selectChunkIndex` (`web/lib/sideview-runner/seg
 draws uniformly from every eligible chunk, so the chunk that teaches and the chunk that tests cannot
 be ordered and every telegraph must work on first sight. At `tile_px` 64 against a 1280px viewport
 with the avatar pinned at column 5, lookahead is 15 columns - 2.50s at base speed, 1.67s fully
-ramped - against `collision_policy = "end_run_v1"`. Enough to react, not enough to plan. Rayman's
+ramped - against a terminal `hazard` consequence, which was the only
+      consequence `runner-gameplay-v2` could express. A package that now spends a point instead
+      buys reaction time the argument below never priced in: the budget still has to hold for a
+      one-hit-kill package, so the reasoning stands as the worst case rather than as the only case. Enough to react, not enough to plan. Rayman's
 contextual verbs need non-local state the seam rule forbids by construction; BIT.TRIP's trail
 arrives welded to a beat contract; Jetpack Joyride's to a flight verb that discards our terrain
 contract. CookieRun hands us the device with nothing bolted to it, and `RunnerPickup` is already

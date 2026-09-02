@@ -8,7 +8,7 @@
 // authored manifest realization for the bound effect — no hidden cue table,
 // no assets, no provider cost — while headless suites inject a recorder.
 
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
 import type { RunnerAudio, RunnerAudioEvent } from "./contract";
 import type { RunnerWorld } from "./world";
 

@@ -8,7 +8,7 @@
 
 import { bottomContiguousSurfaceRow, type RunnerChunk } from "./contract";
 import { rampProfile } from "./difficulty";
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
 import type { RunnerWorld } from "./world";
 
 export interface StreamedHazard {

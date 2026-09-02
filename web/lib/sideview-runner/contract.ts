@@ -1,19 +1,49 @@
 /**
- * The infinite-runner runtime contract: `sideview-runner-runtime-v4`.
+ * The infinite-runner runtime contract: `sideview-runner-runtime-v5`.
  *
  * One strict, hand-written validating parser in the house style: unknown
  * kinds are refused with a re-generate hint, shapes are checked field by
  * field against what `prepared_runner.py` publishes, and the parsed document
- * is deep-frozen. The runtime plays a track from this document alone. v4
- * retains the proved arc and duck arithmetic plus authored audio, and closes
- * ground presentation over the atlas and structural-segment alternatives.
+ * is deep-frozen. The runtime plays a track from this document alone. v5
+ * retains the proved arc and duck arithmetic, authored audio, and the closed
+ * ground presentation, and replaces v4's `collision_policy` with the two
+ * separate things it had conflated: `collision_box` is the torso geometry
+ * admission proves, while `consequences` says what each way of coming to
+ * grief actually costs and `vitals` declares the gauge it is spent from.
  */
 
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v4";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 4;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v5";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 5;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
+
+/** Every way a run can come to grief, each answered separately by the package. */
+export const RUNNER_DAMAGE_SOURCES = ["hazard", "pit", "crush"] as const;
+export type RunnerDamageSource = (typeof RUNNER_DAMAGE_SOURCES)[number];
+
+export const RUNNER_CONSEQUENCES = ["end_run_v1", "drain_v1", "drain_and_recover_v1"] as const;
+export type RunnerConsequence = (typeof RUNNER_CONSEQUENCES)[number];
+
+/** The consequences that spend a point, and so oblige a gauge to spend it from. */
+export const RUNNER_DRAINING_CONSEQUENCES: ReadonlySet<RunnerConsequence> = new Set([
+  "drain_v1",
+  "drain_and_recover_v1",
+]);
+
+export type RunnerConsequences = Readonly<Record<RunnerDamageSource, RunnerConsequence>>;
+
+export type RunnerVitals = Readonly<{
+  profile: "single_point_v1" | "three_point_v1" | "five_point_v1";
+  /** The gauge's ceiling. Published because a bar cannot be drawn without it. */
+  maxPoints: number;
+  /**
+   * How a survivable hit is shown. `blink_v1` is the contracted nonvisual
+   * representation the game contract requires when no drawn asset covers the
+   * transition; `drawn_v1` obligates a `hurt` motion in the avatar.
+   */
+  hurtRepresentation: "blink_v1" | "drawn_v1";
+}>;
 
 export const RUNNER_REFUSAL =
   "unsupported sideview-runner manifest; regenerate this track with a current stage-gen " +
@@ -26,17 +56,19 @@ const MAX_SEGMENT_ROWS = 32;
 const MIN_SEGMENT_COLUMNS = 8;
 const MAX_SEGMENT_COLUMNS = 64;
 
-export type RunnerMotionState = "run" | "jump" | "slide" | "death";
+export type RunnerMotionState = "run" | "jump" | "slide" | "hurt" | "death";
 
 /**
  * The canonical motion order, mirroring the generator's RUNNER_MOTION_ORDER.
  * `run`, `jump`, and `death` are owed by every avatar; `slide` is owed
- * exactly when the manifest declares a duck profile.
+ * exactly when the manifest declares a duck profile, and `hurt` exactly when
+ * it declares `hurt_representation = "drawn_v1"`.
  */
 export const RUNNER_MOTION_STATES: readonly RunnerMotionState[] = [
   "run",
   "jump",
   "slide",
+  "hurt",
   "death",
 ];
 
@@ -221,8 +253,12 @@ export interface RunnerRuntimeManifest {
   readonly gameplay: {
     readonly speedProfile: "steady_runner_v1" | "brisk_runner_v1";
     readonly jumpProfile: "single_arc_v1" | "double_arc_v1";
-    readonly collisionPolicy: "end_run_v1";
+    readonly collisionBox: "torso_v1";
     readonly duckProfile: "slide_v1" | null;
+    /** What each way of coming to grief costs. Every source is answered. */
+    readonly consequences: RunnerConsequences;
+    /** The gauge a draining consequence spends; null exactly when none drains. */
+    readonly vitals: RunnerVitals | null;
     readonly rampProfile: "gentle_ramp_v1" | "brisk_ramp_v1";
     readonly maxClearGapColumns: number;
     readonly maxRiseTiles: number;
@@ -756,6 +792,53 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   const rawCamera = record(raw.camera, "camera");
   const rawScale = record(raw.scale, "scale");
   const rawGameplay = record(raw.gameplay, "gameplay");
+
+  // Consequences and the gauge are parsed together, because the interesting
+  // check is the relationship between them rather than either one alone: a
+  // gauge nothing can spend and a drain with nothing to spend are both
+  // documents the producer refuses, and reproducing that refusal here is what
+  // keeps the two sides one contract rather than two hopeful ones.
+  const rawConsequences = record(rawGameplay.consequences, "gameplay.consequences");
+  const consequences = Object.freeze(
+    Object.fromEntries(
+      RUNNER_DAMAGE_SOURCES.map((source) => [
+        source,
+        literal(rawConsequences[source], `gameplay.consequences.${source}`, [
+          ...RUNNER_CONSEQUENCES,
+        ]),
+      ]),
+    ),
+  ) as RunnerConsequences;
+  const drains = RUNNER_DAMAGE_SOURCES.some((source) =>
+    RUNNER_DRAINING_CONSEQUENCES.has(consequences[source]),
+  );
+  const rawVitals =
+    rawGameplay.vitals === null || rawGameplay.vitals === undefined
+      ? null
+      : record(rawGameplay.vitals, "gameplay.vitals");
+  if (drains && rawVitals === null) {
+    throw new Error("gameplay.vitals is required when a consequence drains it");
+  }
+  if (!drains && rawVitals !== null) {
+    throw new Error("gameplay.vitals is declared but no consequence can drain it");
+  }
+  const vitals: RunnerVitals | null =
+    rawVitals === null
+      ? null
+      : Object.freeze({
+          profile: literal(rawVitals.profile, "gameplay.vitals.profile", [
+            "single_point_v1",
+            "three_point_v1",
+            "five_point_v1",
+          ]),
+          maxPoints: boundedInteger(rawVitals.max_points, "gameplay.vitals.max_points", 1, 99),
+          hurtRepresentation: literal(
+            rawVitals.hurt_representation,
+            "gameplay.vitals.hurt_representation",
+            ["blink_v1", "drawn_v1"],
+          ),
+        });
+
   const rawGround = record(raw.ground, "ground");
 
   const props = array(raw.props, "props").map((entry, index) =>
@@ -791,13 +874,22 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   uniqueIds(motionStates, "avatar motion states");
   const declaresDuck =
     rawGameplay.duck_profile !== null && rawGameplay.duck_profile !== undefined;
-  const requiredStates: readonly RunnerMotionState[] = declaresDuck
-    ? [...RUNNER_BASE_MOTION_STATES, "slide"]
-    : RUNNER_BASE_MOTION_STATES;
+  const requiredStates: readonly RunnerMotionState[] = [
+    ...RUNNER_BASE_MOTION_STATES,
+    ...(declaresDuck ? (["slide"] as const) : []),
+    // The drawn hurt representation owes its strip, exactly as a duck profile
+    // owes a slide. The blink representation owes none and must not ship one.
+    ...(vitals?.hurtRepresentation === "drawn_v1" ? (["hurt"] as const) : []),
+  ];
   for (const required of requiredStates) {
     if (!motionStates.includes(required)) {
       throw new Error(`avatar.motions is missing the ${required} state`);
     }
+  }
+  if (vitals?.hurtRepresentation !== "drawn_v1" && motionStates.includes("hurt")) {
+    throw new Error(
+      'avatar.motions declares hurt but gameplay.vitals.hurt_representation is not "drawn_v1"',
+    );
   }
   const declaresOverhead = chunks.some((entry) =>
     entry.hazards.some((hazard) => hazard.anchor === "overhead"),
@@ -881,9 +973,9 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
         "single_arc_v1",
         "double_arc_v1",
       ]),
-      collisionPolicy: literal(rawGameplay.collision_policy, "gameplay.collision_policy", [
-        "end_run_v1",
-      ]),
+      collisionBox: literal(rawGameplay.collision_box, "gameplay.collision_box", ["torso_v1"]),
+      consequences,
+      vitals,
       duckProfile:
         rawGameplay.duck_profile === null || rawGameplay.duck_profile === undefined
           ? null

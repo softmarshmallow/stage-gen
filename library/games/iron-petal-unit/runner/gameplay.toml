@@ -1,14 +1,26 @@
-schema_version = 2
-kind = "runner-gameplay-v2"
+schema_version = 3
+kind = "runner-gameplay-v3"
 game_id = "iron-petal-unit"
-revision = 2
+revision = 3
 track_id = "halcyon-rescue-line"
 
 [run]
 speed_profile = "brisk_runner_v1"
 jump_profile = "double_arc_v1"
-collision_policy = "end_run_v1"
+collision_box = "torso_v1"
 duck_profile = "slide_v1"
+
+# A rescue run should survive a clipped valve; a fall down a coolant shaft or a
+# closing press should not be survivable, because there is nothing left to
+# recover onto that reads as the same run.
+[run.consequences]
+hazard = "drain_v1"
+pit = "drain_and_recover_v1"
+crush = "end_run_v1"
+
+[run.vitals]
+profile = "three_point_v1"
+hurt_representation = "blink_v1"
 
 [ramp]
 profile = "brisk_ramp_v1"

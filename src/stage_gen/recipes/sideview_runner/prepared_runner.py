@@ -51,10 +51,11 @@ from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, valid
 from stage_gen.components.runner_audio import RunnerAudioContract
 from stage_gen.components.runner_content import declared_motion_states
 from stage_gen.components.runner_gameplay import (
-    COLLISION_PROFILES,
+    COLLISION_BOXES,
     DUCK_PROFILES,
     JUMP_PROFILES,
     SPEED_PROFILES,
+    VITALS_PROFILES,
     RunnerGameplayContract,
 )
 from stage_gen.components.runner_track import (
@@ -492,13 +493,24 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
 
     jump = JUMP_PROFILES[gameplay.run.jump_profile]
     speed = SPEED_PROFILES[gameplay.run.speed_profile]
-    collision = COLLISION_PROFILES[gameplay.run.collision_policy]
+    collision = COLLISION_BOXES[gameplay.run.collision_box]
     duck = None if gameplay.run.duck_profile is None else DUCK_PROFILES[gameplay.run.duck_profile]
+    vitals = gameplay.run.vitals
     return {
         "speed_profile": gameplay.run.speed_profile,
         "jump_profile": gameplay.run.jump_profile,
-        "collision_policy": gameplay.run.collision_policy,
+        "collision_box": gameplay.run.collision_box,
         "duck_profile": gameplay.run.duck_profile,
+        "consequences": gameplay.run.consequences.by_source(),
+        "vitals": (
+            None
+            if vitals is None
+            else {
+                "profile": vitals.profile,
+                "max_points": VITALS_PROFILES[vitals.profile].max_points,
+                "hurt_representation": vitals.hurt_representation,
+            }
+        ),
         "ramp_profile": gameplay.ramp.profile,
         "max_clear_gap_columns": jump.max_clear_gap_columns,
         "max_rise_tiles": jump.max_rise_tiles,
@@ -2912,7 +2924,7 @@ class SideviewRunnerNodeHandler:
             ground_manifest = manifest_ground(track)
 
         manifest = {
-            "schema_version": 4,
+            "schema_version": 5,
             "kind": MANIFEST_KIND,
             "game_id": self._package.game.game_id,
             "display_name": self._package.game.display_name,

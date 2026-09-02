@@ -27,7 +27,7 @@ A runner member claims the fixed `runner/` prefix inside the package:
 
 | Member | Kind | Notes |
 | --- | --- | --- |
-| `runner/gameplay.toml` | `runner-gameplay-v2` | Named profiles only; the consumer owns the feel numbers |
+| `runner/gameplay.toml` | `runner-gameplay-v3` | Named profiles only; the consumer owns the feel numbers |
 | `runner/track.toml` | `runner-track-v3` | One track of authored segments and one closed ground mode |
 | `runner/content/avatar.toml` | `runner-avatar-v3` | Exactly one runtime actor: one character or one visible rider-and-machine silhouette |
 | `runner/content/props.toml` | `prop-content-v2` | Obstacles, reused verbatim |
@@ -66,9 +66,10 @@ frame.
 
 ## Gameplay: named profiles
 
-`runner-gameplay-v2` declares `track_id`, `[run]` (`speed_profile`,
-`jump_profile`, `collision_policy`, and an optional `duck_profile`) and
-`[ramp]` (`profile`). Every value is a closed name. The rule that decides
+`runner-gameplay-v3` declares `track_id`, `[run]` (`speed_profile`,
+`jump_profile`, `collision_box`, an optional `duck_profile`, a
+`[run.consequences]` table and an optional `[run.vitals]` gauge) and `[ramp]`
+(`profile`). Every value is a closed name. The rule that decides
 where a number lives: **it belongs in the SDK constant table iff a refusal
 depends on it; it stays consumer-owned iff only the feel depends on it.** So
 each name declares its admission arithmetic as SDK constants - the jump's
@@ -79,7 +80,10 @@ the base - each is the other family's worst case, and the consumer's ramp is
 clamped to the cap); the collision box widths; the duck's height fraction and
 clearance margin - and the manifest publishes them, so the arc the runtime
 flies and the arc admission proved are the same closed forms. The ramp's
-pacing shapes only feel and stays in the consumer. Scoring is runtime-owned:
+pacing shapes only feel and stays in the consumer, and so do every number
+behind a consequence: how long immunity lasts, how fast the avatar blinks, and
+how far recovery looks for footing are all feel, tunable without regenerating
+an image. Scoring is runtime-owned:
 distance plus pickups, with a chain multiplier that breaks on a missed
 pickup.
 
@@ -95,6 +99,42 @@ never reach** - it declares the identical single-hop admission arithmetic, so
 no authored chunk ever demands both hops, a player who spends the air jump
 early is never stranded, and admission stays a one-dimensional existential
 over launch columns rather than a search over jump sequences.
+
+Collision-box names: `torso_v1`. v3 renamed this member, because v2's
+`collision_policy` carried two unrelated things under one word: the avatar's
+torso box, which every press-window proof reads, and the assertion that a
+contact ends the run. The box is geometry admission depends on; what a contact
+costs is a choice a package makes. Splitting them is what let a package become
+survivable without weakening a single proof.
+
+Consequence names: `end_run_v1`, `drain_v1`, and `drain_and_recover_v1`.
+`[run.consequences]` answers `hazard`, `pit` and `crush` separately and
+explicitly - no source defaults, because a silent default is exactly how a pit
+quietly stops being final. `drain_v1` spends one point and leaves the avatar
+where it stands, which suits a hazard it runs through; `drain_and_recover_v1`
+spends the same point and puts the avatar down on the next legal surface
+ahead, which is what a pit or a crush needs because there is nowhere to leave
+it standing. Recovery never rewinds earned distance and never skips an
+unpassed hazard.
+
+Vitals names: `single_point_v1`, `three_point_v1`, `five_point_v1`, each
+declaring only its point count - the one vitals number a refusal and the HUD
+both read. `[run.vitals]` is present exactly when some consequence drains, and
+both directions are refused (`vitals_without_damage`, `damage_without_vitals`)
+on the same principle as the duck triangle.
+
+`hurt_representation` is the third obligation: `drawn_v1` requires a drawn
+`hurt` motion in the avatar contract, and `blink_v1` requires its absence.
+The game contract holds that visible gameplay requires visual coverage - a
+subsystem may not advertise an actor transition without a validated asset or an
+explicitly contracted nonvisual representation. `blink_v1` is that contracted
+representation, stated rather than assumed: the avatar keeps its running pose
+and the consumer blinks it for the immunity window.
+
+**Admission is unchanged and stays exactly as strict.** `reaction_fair_v1`
+still proves every hazard avoidable at the base speed. A gauge is forgiveness
+laid over a fair track, never a licence to author an unfair one, and no
+refusal reads the point count except the two obligation checks above.
 
 Duck names: `slide_v1`. A gameplay contract that declares one obligates a
 drawn `slide` motion; a track that hangs overhead hazards obligates a duck
@@ -250,7 +290,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v4`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v5`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -265,8 +305,19 @@ width. Collectibles keep their authored collision cell while
 presentation applies per-instance bob, horizontal flip, and a short glint.
 Hazards preserve authored height, clamp visible width to the published collision
 span, register surface obstacles to the footing line, and receive only a local
-readability cue rather than a screen-wide warning. These are consumer
+readability cue rather than a screen-wide warning. Hazard contact is resolved
+per placement rather than per frame: overlap is a level that holds for the
+whole crossing, and one prop costs at most one point however long that takes. These are consumer
 presentation rules, not authored geometry and not generation prompts.
+
+A survivable package draws its gauge as one capsule bar above the readout
+band, in screen space rather than over the avatar: the avatar is pinned to a
+fixed screen anchor and never moves, so a bar tracking it would hold still
+while costing the downward glance a runner cannot afford. The bar dims with the
+immunity window, so a blow that connected reads on the readout as well as on
+the avatar. A package whose every consequence is terminal draws no bar, because
+a bar that can only read full is a promise about mistakes the player does not
+have.
 
 Keyboard play uses Space or Arrow Up to jump and holds Arrow Down to slide.
 Pointer play divides the canvas into stable zones: the upper 68% jumps (and
@@ -293,7 +344,7 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "2be1a6e40521e10a2a1387edde513cc6dfd4de272454e33d733c7bf3ec88d13e",
+  "topology_sha256": "8f85a104265149e59eeb62f82a705b548e9a3f0c147f4f56ea8612ec254911c3",
   "node_count": 70,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

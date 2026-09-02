@@ -1,12 +1,27 @@
 """The runner's gameplay contract: named profiles, no authored numbers.
 
-An infinite runner's feel is four closed names - how it runs, how it jumps,
-what a hit means, and (optionally) how it ducks - plus a ramp. Each name
+An infinite runner's feel is a handful of closed names - how it runs, how it
+jumps, how wide it collides, what each way of coming to grief costs, and
+(optionally) how it ducks - plus a ramp. Each name
 declares its admission arithmetic as an SDK constant (the `experience_curve`
 idiom: the contract names the feel, the consumer owns the numbers), so a track
 is provable against the exact arc it will be played with before any art is
 paid for. Scoring is runtime-owned: distance plus pickups, with nothing to
-author in v2.
+author.
+
+v3 splits what v2's `collision_policy` had conflated. That one name carried
+the avatar's torso box - which every press-window proof reads - *and* asserted
+that a hazard ends the run, and the two are unrelated: the box is geometry
+admission depends on, while what a contact costs is a consequence the package
+chooses. So `collision_box` keeps the geometry under an honest name, and a
+`[run.consequences]` table answers the separate question once per way of
+coming to grief. `end_run_v1` survives there, as the consequence it always
+was.
+
+Admission is unchanged and stays exactly as strict. A gauge is forgiveness
+laid over a fair track, never a licence to author an unfair one: every hazard
+must still be provably avoidable at the base speed, whether or not surviving
+it is possible.
 
 The rule that decides where a number lives: it belongs in the SDK constant
 table iff a REFUSAL depends on it; it stays consumer-owned iff only the FEEL
@@ -22,7 +37,7 @@ import math
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
@@ -33,13 +48,38 @@ from stage_gen.components._game_input import (
     sha256_bytes,
 )
 
-RUNNER_GAMEPLAY_SCHEMA_VERSION = 2
+RUNNER_GAMEPLAY_SCHEMA_VERSION = 3
 
 SpeedProfileName = Literal["steady_runner_v1", "brisk_runner_v1"]
 JumpProfileName = Literal["single_arc_v1", "double_arc_v1"]
-CollisionPolicy = Literal["end_run_v1"]
+CollisionBoxName = Literal["torso_v1"]
 DuckProfileName = Literal["slide_v1"]
 RampProfile = Literal["gentle_ramp_v1", "brisk_ramp_v1"]
+
+#: How much of the run one way of coming to grief costs.
+#:
+#: `end_run_v1` is terminal. `drain_v1` spends one point of the vitals gauge
+#: and opens its refractory window, leaving the avatar where it stands - right
+#: for a hazard the avatar runs through. `drain_and_recover_v1` spends the same
+#: point and then places the avatar back on the next legal surface, which is
+#: what a pit or a crush needs, because there is nowhere to leave it standing.
+ConsequenceName = Literal["end_run_v1", "drain_v1", "drain_and_recover_v1"]
+
+#: Every way a run can come to grief. Each one is answered separately, so a
+#: package can forgive a clipped hazard while keeping a pit final.
+DamageSource = Literal["hazard", "pit", "crush"]
+
+VitalsProfileName = Literal["single_point_v1", "three_point_v1", "five_point_v1"]
+
+#: How a survivable hit is shown.
+#:
+#: `docs/game-contract.md` requires that visible gameplay have visual coverage:
+#: a subsystem may not advertise an actor transition unless a validated asset
+#: or an explicitly contracted nonvisual representation exists for it.
+#: `blink_v1` is that contracted nonvisual representation, stated rather than
+#: assumed - the avatar keeps its running pose and the consumer blinks it for
+#: the refractory window. `drawn_v1` obligates a drawn `hurt` motion instead.
+HurtRepresentation = Literal["blink_v1", "drawn_v1"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,19 +139,46 @@ JUMP_PROFILES: Final[dict[str, JumpProfile]] = {
 
 @dataclass(frozen=True, slots=True)
 class CollisionProfile:
-    """The collision-box discipline one collision name declares.
+    """The collision-box discipline one collision-box name declares.
 
     The avatar's torso box and the hazard's inset footprint decide how long a
-    hazard crossing lasts, which is half of every press-window proof.
+    hazard crossing lasts, which is half of every press-window proof. Purely
+    geometry: what a contact then costs is a consequence, and lives in its own
+    table so the two can be chosen independently.
     """
 
     avatar_half_width_columns: float
     hazard_column_inset: float
 
 
-COLLISION_PROFILES: Final[dict[str, CollisionProfile]] = {
-    "end_run_v1": CollisionProfile(avatar_half_width_columns=0.3, hazard_column_inset=0.15),
+COLLISION_BOXES: Final[dict[str, CollisionProfile]] = {
+    "torso_v1": CollisionProfile(avatar_half_width_columns=0.3, hazard_column_inset=0.15),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class VitalsProfile:
+    """The gauge one vitals name declares.
+
+    Only the point count lives here, and only because a refusal and the HUD
+    both read it: a package with one point is one-hit-kill however its
+    consequences are worded, and a bar cannot be drawn without its maximum.
+    Everything else about how a hit feels - the refractory window, the blink
+    interval, how far recovery looks ahead - is consumer-owned, exactly as the
+    difficulty ramp's pacing is.
+    """
+
+    max_points: int
+
+
+VITALS_PROFILES: Final[dict[str, VitalsProfile]] = {
+    "single_point_v1": VitalsProfile(max_points=1),
+    "three_point_v1": VitalsProfile(max_points=3),
+    "five_point_v1": VitalsProfile(max_points=5),
+}
+
+#: The consequences that spend a point, and therefore oblige a gauge to spend.
+DRAINING_CONSEQUENCES: Final[frozenset[str]] = frozenset({"drain_v1", "drain_and_recover_v1"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -305,13 +372,42 @@ def hazard_press_window_seconds(
     return above_seconds - crossing_columns / speed.base_speed_columns_per_second
 
 
+class RunnerVitals(PersistedContractModel):
+    """The gauge a survivable hit spends, and how spending it is shown."""
+
+    profile: VitalsProfileName
+    hurt_representation: HurtRepresentation
+
+
+class RunnerConsequences(PersistedContractModel):
+    """What each way of coming to grief costs.
+
+    Every source is answered explicitly rather than defaulted, because a
+    silent default is exactly how a pit quietly stops being final.
+    """
+
+    hazard: ConsequenceName
+    pit: ConsequenceName
+    crush: ConsequenceName
+
+    def by_source(self) -> dict[str, str]:
+        return {"hazard": self.hazard, "pit": self.pit, "crush": self.crush}
+
+    def drains(self) -> bool:
+        return any(name in DRAINING_CONSEQUENCES for name in self.by_source().values())
+
+
 class RunnerRun(PersistedContractModel):
     speed_profile: SpeedProfileName
     jump_profile: JumpProfileName
-    collision_policy: CollisionPolicy
+    collision_box: CollisionBoxName
     #: Absent means the avatar cannot duck and the track may not hang overhead
     #: hazards; present, it obligates a drawn slide motion.
     duck_profile: DuckProfileName | None = None
+    consequences: RunnerConsequences
+    #: Present exactly when some consequence drains it. A gauge nothing can
+    #: spend is dead contract, and a drain with no gauge is unsayable.
+    vitals: RunnerVitals | None = None
 
 
 class RunnerRamp(PersistedContractModel):
@@ -319,8 +415,8 @@ class RunnerRamp(PersistedContractModel):
 
 
 class RunnerGameplayContract(PersistedContractModel):
-    schema_version: Literal[2]
-    kind: Literal["runner-gameplay-v2"]
+    schema_version: Literal[3]
+    kind: Literal["runner-gameplay-v3"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     #: The single track this gameplay is played on. Exactly one in v2: an
@@ -334,6 +430,27 @@ class RunnerGameplayContract(PersistedContractModel):
     def validate_track_id(cls, value: str) -> str:
         return value
 
+    @model_validator(mode="after")
+    def validate_vitals_obligation(self) -> RunnerGameplayContract:
+        """A gauge and a drain each require the other.
+
+        The same shape as the duck triangle: a declared profile that nothing
+        can reach, and a reference to something undeclared, are both refused
+        rather than quietly tolerated, so an unplayable combination is
+        unsayable instead of merely unlucky.
+        """
+        drains = self.run.consequences.drains()
+        if drains and self.run.vitals is None:
+            raise ValueError(
+                "runner gameplay declares a draining consequence with no [run.vitals] gauge"
+            )
+        if not drains and self.run.vitals is not None:
+            raise ValueError(
+                "runner gameplay declares [run.vitals] no consequence can drain; "
+                "use a draining consequence or drop the gauge"
+            )
+        return self
+
     def jump_profile(self) -> JumpProfile:
         return JUMP_PROFILES[self.run.jump_profile]
 
@@ -341,7 +458,12 @@ class RunnerGameplayContract(PersistedContractModel):
         return SPEED_PROFILES[self.run.speed_profile]
 
     def collision_profile(self) -> CollisionProfile:
-        return COLLISION_PROFILES[self.run.collision_policy]
+        return COLLISION_BOXES[self.run.collision_box]
+
+    def vitals_profile(self) -> VitalsProfile | None:
+        if self.run.vitals is None:
+            return None
+        return VITALS_PROFILES[self.run.vitals.profile]
 
     def duck_profile(self) -> DuckProfile | None:
         if self.run.duck_profile is None:
@@ -362,15 +484,19 @@ def runner_gameplay_sha256(contract: RunnerGameplayContract) -> str:
 
 
 __all__ = [
-    "COLLISION_PROFILES",
+    "COLLISION_BOXES",
+    "DRAINING_CONSEQUENCES",
     "DUCK_PROFILES",
     "JUMP_PROFILES",
     "PLACEMENT_PROFILES",
+    "VITALS_PROFILES",
     "RUNNER_GAMEPLAY_SCHEMA_VERSION",
     "RUNNER_PLACEMENT_PROFILE",
     "SPEED_PROFILES",
-    "CollisionPolicy",
+    "CollisionBoxName",
     "CollisionProfile",
+    "ConsequenceName",
+    "DamageSource",
     "DuckProfile",
     "DuckProfileName",
     "JumpArc",
@@ -379,10 +505,15 @@ __all__ = [
     "PlacementProfile",
     "RampProfile",
     "RunnerGameplayContract",
+    "HurtRepresentation",
+    "RunnerConsequences",
     "RunnerRamp",
     "RunnerRun",
+    "RunnerVitals",
     "SpeedProfile",
     "SpeedProfileName",
+    "VitalsProfile",
+    "VitalsProfileName",
     "apron_columns",
     "arc_height_rows",
     "canonical_runner_gameplay_json",

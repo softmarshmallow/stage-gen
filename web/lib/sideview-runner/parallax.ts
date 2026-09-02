@@ -19,7 +19,7 @@ import {
 } from "@/lib/sideview/terrain-atlas";
 import type { RunnerLayer } from "./contract";
 import { windowOccupancyGrid } from "./segments";
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
 import { rowToScreenY, RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH, type RunnerWorld } from "./world";
 
 /** Depth rungs: background bands, ground, actors, foreground bands, HUD. */

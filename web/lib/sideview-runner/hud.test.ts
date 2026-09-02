@@ -5,6 +5,7 @@ import {
   formatScore,
   hudReadoutRect,
   runDistanceMeters,
+  vitalsBarRect,
 } from "./hud";
 import { RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH } from "./world";
 
@@ -47,5 +48,20 @@ describe("hud layout", () => {
     const rect = deathPanelRect(400, 300);
     expect(rect.width).toBeLessThanOrEqual(400 * 0.6);
     expect(rect.height).toBeLessThanOrEqual(300 * 0.4);
+  });
+});
+
+describe("vitalsBarRect", () => {
+  test("sits above the readout band, inside the same left margin", () => {
+    const readout = hudReadoutRect();
+    const bar = vitalsBarRect();
+    expect(bar.x).toBe(readout.x);
+    expect(bar.y).toBeLessThan(readout.y);
+    expect(bar.width).toBeLessThanOrEqual(readout.width);
+  });
+
+  test("stays inside a narrow canvas", () => {
+    const bar = vitalsBarRect(320);
+    expect(bar.x + bar.width).toBeLessThanOrEqual(320);
   });
 });

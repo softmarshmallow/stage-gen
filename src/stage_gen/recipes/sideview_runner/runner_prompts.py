@@ -157,6 +157,15 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
             "safely with the chassis, and keeps both hands on the controls. Add no glow, shadow, "
             "or effect outside the low envelope; never detach, eject, stretch, or contort the rider"
         )
+        hurt_direction = (
+            "four right-facing cells of one brief recoil that ends back in the run: a hit "
+            "flinch with the chassis rocked back, the deepest recoil, a recovering stride, and "
+            "an upright running pose matching the run cycle. The fourth cell must be able to cut "
+            "straight back to the run: the machine is upright and powered, the flower reactor and "
+            "headlamp are lit, and the rider is secured with both hands on the controls. This is "
+            "a survivable blow, not a defeat - never collapse, kneel, power down, detach, eject, "
+            "or show gore or injury detail"
+        )
         death_direction = (
             "four fully disconnected right-facing cells whose height strictly descends: a "
             "running stumble, knees buckling, a controlled forward kneel, and the lowest compact "
@@ -175,6 +184,13 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
             "leading forward, the torso laid far back, and the head tucked so the whole "
             "figure stays below half its standing height, then beginning to rise back up"
         )
+        hurt_direction = (
+            "four sequential key poses of one brief recoil that ends back in the run: a hit "
+            "flinch with the torso rocked back, the deepest recoil, a recovering stride, and an "
+            "upright running pose matching the run cycle. The fourth cell must be able to cut "
+            "straight back to the run. This is a survivable blow, not a defeat - never collapse, "
+            "come to rest, or show gore or injury detail"
+        )
         death_direction = (
             "four fully disconnected sequential key poses of the run ending: a stumble, knees "
             "buckling, a controlled forward collapse, and the lowest motionless final rest, "
@@ -188,6 +204,7 @@ def avatar_motion_prompt(resolved: ResolvedRunnerPackage, avatar: RunnerAvatar, 
         "run": "four sequential phases of one seamless full-speed run cycle",
         "jump": "four sequential key poses of one forward jump arc: takeoff, rise, apex, fall",
         "slide": slide_direction,
+        "hurt": hurt_direction,
         "death": death_direction,
     }.get(state, f"four clear game-animation key poses that communicate {state}")
     return (

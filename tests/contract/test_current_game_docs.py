@@ -70,6 +70,12 @@ RETIRED_PREPARED_IDENTITIES = (
     "runner-track-v2",
     "runner-avatar-v2",
     "sideview-runner-runtime-v3",
+    # Retired when the runner split what `collision_policy` had conflated: the
+    # torso box admission proves is one thing, and what a contact costs is
+    # another. The gameplay contract gained a per-source consequence table and
+    # an optional vitals gauge, and the runtime manifest publishes both.
+    "runner-gameplay-v2",
+    "sideview-runner-runtime-v4",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -179,7 +185,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v4`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v5`" in documents["docs/game-package.md"]
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue

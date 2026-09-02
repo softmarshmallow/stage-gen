@@ -13,7 +13,7 @@
 // way is simply lost, which for an arcade runner is the correct trade — the
 // alternative is a burst of catch-up steps the player never saw.
 
-import type { FixedStep } from "./systems";
+import type { FixedStep } from "@/lib/game-systems/systems";
 
 export const FIXED_STEP_SECONDS = 1 / 60;
 export const MAX_SUBSTEPS_PER_ADVANCE = 5;

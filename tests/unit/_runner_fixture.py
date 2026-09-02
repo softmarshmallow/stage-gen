@@ -18,8 +18,8 @@ SOURCE_PACKAGE = Path(__file__).resolve().parents[2] / "library" / "games" / "be
 
 COVER_SHA256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 
-RUNNER_GAMEPLAY = """schema_version = 2
-kind = "runner-gameplay-v2"
+RUNNER_GAMEPLAY = """schema_version = 3
+kind = "runner-gameplay-v3"
 game_id = "bellweather"
 revision = 1
 track_id = "meadow-dash"
@@ -27,8 +27,17 @@ track_id = "meadow-dash"
 [run]
 speed_profile = "steady_runner_v1"
 jump_profile = "double_arc_v1"
-collision_policy = "end_run_v1"
+collision_box = "torso_v1"
 duck_profile = "slide_v1"
+
+[run.consequences]
+hazard = "drain_v1"
+pit = "drain_and_recover_v1"
+crush = "end_run_v1"
+
+[run.vitals]
+profile = "three_point_v1"
+hurt_representation = "blink_v1"
 
 [ramp]
 profile = "gentle_ramp_v1"

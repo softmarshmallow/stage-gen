@@ -51,7 +51,11 @@ function simulate(
     if (wantsJump) jumped = true;
     world.intent = runnerIntent({ jump: wantsJump });
     stepAvatar(world, DT);
-    if (world.avatar.deathCause !== null) return { died: true, landed: false };
+    // A death is an occurrence now: the avatar says what happened and the
+    // vitals system decides what it costs, so the test reads the queue.
+    if (world.events.frame.some((e) => e.type === "pit" || e.type === "crush")) {
+      return { died: true, landed: false };
+    }
     if (world.avatar.distanceColumns >= options.untilColumn) {
       return { died: false, landed: world.avatar.grounded };
     }
@@ -112,8 +116,7 @@ describe("stepAvatar", () => {
     const world = craftedWorld("1111111111" + "000" + "111111111111111");
     const result = simulate(world, { untilColumn: 16 });
     expect(result.died).toBe(true);
-    expect(world.avatar.deathCause).toBe("pit");
-    expect(world.avatar.motion).toBe("death");
+    expect(world.events.ofType("pit")).toHaveLength(1);
   });
 
   test("lands a max_rise_tiles step when jumped, dies into its face when not", () => {
@@ -163,7 +166,7 @@ describe("stepAvatar", () => {
     );
     const crashed = simulate(crashWorld, { untilColumn: 16 });
     expect(crashed.died).toBe(true);
-    expect(crashWorld.avatar.deathCause).toBe("step");
+    expect(crashWorld.events.ofType("crush")).toHaveLength(1);
   });
 
   test("holds the death pose and stops advancing once the run is dead", () => {

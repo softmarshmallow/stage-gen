@@ -1020,6 +1020,28 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
             "avatar declares a slide motion but gameplay declares no duck_profile to trigger it",
         )
 
+    # The same triangle for how a survivable blow is shown. `docs/game-contract.md`
+    # requires visible gameplay to have visual coverage: a subsystem may not
+    # advertise an actor transition without either a validated asset or an
+    # explicitly contracted nonvisual representation. `blink_v1` is that
+    # contracted representation and owes no art; `drawn_v1` owes the strip.
+    # Both directions are refused, because a paid hurt pose nothing plays is
+    # dead spend exactly as an untriggerable slide is.
+    vitals = gameplay.run.vitals
+    representation = None if vitals is None else vitals.hurt_representation
+    if representation == "drawn_v1" and "hurt" not in declared_states:
+        raise GamePackageValidationError(
+            "invalid_runner_avatar",
+            'gameplay declares hurt_representation = "drawn_v1"; '
+            "the avatar declares no hurt motion to wear",
+        )
+    if representation != "drawn_v1" and "hurt" in declared_states:
+        raise GamePackageValidationError(
+            "invalid_runner_avatar",
+            "avatar declares a hurt motion but gameplay does not declare "
+            'hurt_representation = "drawn_v1" to play it',
+        )
+
     segments = runner.track.segments
     for chunk in segments.chunks:
         _validate_runner_chunk(

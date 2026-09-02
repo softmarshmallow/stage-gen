@@ -224,7 +224,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # current-game contract coverage adds six deliberate entries (measured 421).
         # The provider-free replay adds its migration module, operator script,
         # and focused adversarial test module (measured 424).
-        assert len(sdist_entries) <= 424
+        # The vitals pass adds the runner_gameplay component's focused test
+        # package - its __init__ and the consequence/gauge contract module -
+        # which is the first focused coverage that component has had (426).
+        assert len(sdist_entries) <= 426
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the

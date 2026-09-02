@@ -13,7 +13,8 @@
 // avatar's feet sit at y, and gravity is positive.
 
 import { surfaceRowAt } from "./segments";
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
+import { applyPendingRecovery } from "./vitals";
 import type { RunnerWorld } from "./world";
 
 /** The consumer's own defaults, equal to the SDK's published values; runtime
@@ -100,6 +101,10 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     avatar.motion = "death";
     return;
   }
+  // A forgiven fall, decided last frame: applied before anything else moves,
+  // so the recovered avatar starts this step standing rather than still in
+  // the hole it was pulled out of.
+  applyPendingRecovery(world);
 
   const arc = jumpArcFor(
     world.config.maxRiseTiles,
@@ -131,10 +136,10 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
       avatar.sliding = false;
       avatar.motion = "jump";
     } else if (support < avatar.y) {
-      // The ground face rose into the avatar: an unjumped step is a collision,
-      // and the manifest's collision policy makes a collision end the run.
-      avatar.deathCause = "step";
-      avatar.motion = "death";
+      // The ground face rose into the avatar: an unjumped step is a crush.
+      // What that costs is not decided here — the package's consequence table
+      // answers it, and the vitals system reads that. This says what happened.
+      world.events.emit({ type: "crush" });
       return;
     }
   }
@@ -155,14 +160,12 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
       } else {
         // Buried without crossing from above — ascending into a step's face,
         // or carried into a pit wall while already below its rim. Either way
-        // it is a collision, and a collision ends the run.
-        avatar.deathCause = "step";
-        avatar.motion = "death";
+        // it is a crush.
+        world.events.emit({ type: "crush" });
         return;
       }
     } else if (avatar.y > world.config.rows) {
-      avatar.deathCause = "pit";
-      avatar.motion = "death";
+      world.events.emit({ type: "pit" });
     }
   }
 }
@@ -170,9 +173,10 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
 export function createAvatarSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/avatar",
-    contractVersion: "avatar-system-v2",
+    contractVersion: "avatar-system-v3",
     reads: ["intent", "difficulty"],
     writes: ["avatar"],
+    emits: ["pit", "crush"],
     update(world, step) {
       stepAvatar(world, step.dt);
     },

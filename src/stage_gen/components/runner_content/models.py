@@ -40,14 +40,18 @@ RUNNER_AVATAR_SCHEMA_VERSION = 3
 #: The one canonical motion-state order every runner surface derives from:
 #: node ids and rebase plate bands in the recipe, and the runtime's own copy,
 #: all follow this tuple. `slide` sits between the verbs and the ending so the
-#: three states shipped before it keep their relative order.
-RUNNER_MOTION_ORDER: tuple[str, ...] = ("run", "jump", "slide", "death")
+#: three states shipped before it keep their relative order, and `hurt` sits
+#: after it for the same reason.
+RUNNER_MOTION_ORDER: tuple[str, ...] = ("run", "jump", "slide", "hurt", "death")
 
 #: The states every runner avatar owes regardless of its track: the avatar
-#: always runs, the base verb is jump, and a hit ends the run. `slide` is owed
-#: only by a gameplay contract that declares a duck profile - the required set
-#: is a function of what the member declares, so a runner with no overhead
-#: hazards never pays for a strip it cannot use.
+#: always runs, the base verb is jump, and a run that cannot be survived ends.
+#: `slide` is owed only by a gameplay contract that declares a duck profile,
+#: and `hurt` only by one that declares `hurt_representation = "drawn_v1"` -
+#: the required set is a function of what the member declares, so a runner
+#: with no overhead hazards never pays for a strip it cannot use, and a
+#: package whose hits are shown by the contracted blink never pays for a pose
+#: no consequence plays.
 RUNNER_AVATAR_BASE_MOTION_STATES = frozenset({"run", "jump", "death"})
 
 #: The closed vocabulary a runner avatar may be drawn in.

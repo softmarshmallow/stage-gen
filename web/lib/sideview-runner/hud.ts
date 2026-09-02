@@ -11,7 +11,9 @@
 import type Phaser from "phaser";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { RUNNER_DEPTHS } from "./parallax";
-import type { GameSystem } from "./systems";
+import { GaugeBar } from "@/lib/sideview/gauge-bar";
+import type { GameSystem } from "@/lib/game-systems/systems";
+import { avatarIsImmune } from "./vitals";
 import { RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH, type RunnerWorld } from "./world";
 
 /** Screen pixels of world (at scale 1) that count as one reported meter. */
@@ -40,6 +42,21 @@ export function hudReadoutRect(viewWidth: number = RUNNER_VIEW_WIDTH): Rect {
   return { x: 24, y: 18, width: Math.min(420, viewWidth - 48), height: 44 };
 }
 
+/**
+ * The vitals bar, pinned above the readout band.
+ *
+ * Screen furniture, not a floating bar: the runner's avatar is pinned to a
+ * fixed screen anchor and never leaves it, so a bar tracking the body would
+ * hold still anyway while stealing the glance downward that a runner cannot
+ * afford. The top-left corner is where the run's other promises already are —
+ * distance, score, chain — and how many mistakes are left is the same kind of
+ * fact about the run rather than a fact about a body.
+ */
+export function vitalsBarRect(viewWidth: number = RUNNER_VIEW_WIDTH): Rect {
+  const readout = hudReadoutRect(viewWidth);
+  return { x: readout.x, y: readout.y - 12, width: Math.min(180, readout.width), height: 10 };
+}
+
 /** The death card, centered with a fixed aspect so it reads the same everywhere. */
 export function deathPanelRect(
   viewWidth: number = RUNNER_VIEW_WIDTH,
@@ -63,8 +80,8 @@ export interface HudView {
 export function createHudSystem(view: HudView): GameSystem<RunnerWorld> {
   return {
     id: "runner/hud",
-    contractVersion: "hud-system-v2",
-    reads: ["run", "avatar", "camera"],
+    contractVersion: "hud-system-v3",
+    reads: ["run", "avatar", "camera", "vitals"],
     writes: [],
     after: ["runner/parallax"],
     update(world) {
@@ -86,8 +103,21 @@ const HINT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
 };
 
 /** Build the HUD objects on a live scene and return the view the system drives. */
-export function buildHud(scene: Phaser.Scene, tilePx: number): HudView {
+export function buildHud(scene: Phaser.Scene, tilePx: number, maxPoints: number | null): HudView {
   const readout = hudReadoutRect();
+  // A one-hit-kill package has nothing to draw: a bar that can only ever read
+  // full is a promise about mistakes the player does not have.
+  const vitalsRect = vitalsBarRect();
+  const vitalsBar =
+    maxPoints === null
+      ? null
+      : new GaugeBar(scene, {
+          style: { width: vitalsRect.width, height: vitalsRect.height },
+          max: maxPoints,
+          // Zero: the bar belongs to the run, not to the world under it.
+          scrollFactor: 0,
+          depth: RUNNER_DEPTHS.hud,
+        });
   const distanceText = scene.add
     .text(readout.x, readout.y, "0 m", READOUT_STYLE)
     .setDepth(RUNNER_DEPTHS.hud)
@@ -144,6 +174,18 @@ export function buildHud(scene: Phaser.Scene, tilePx: number): HudView {
 
   return {
     sync(world: RunnerWorld): void {
+      const gauge = world.vitals.gauge;
+      if (vitalsBar && gauge) {
+        vitalsBar.update({
+          value: gauge.value,
+          max: gauge.max,
+          x: vitalsRect.x + vitalsRect.width / 2,
+          y: vitalsRect.y + vitalsRect.height / 2,
+          // The bar flashes with the immunity window, so the readout itself
+          // says a blow connected rather than only the avatar saying it.
+          dimmed: avatarIsImmune(world),
+        });
+      }
       distanceText.setText(formatRunDistance(world.avatar.distanceColumns, tilePx));
       scoreText.setText(formatScore(world.run.score));
       comboText.setText(formatCombo(world.run.chain, world.run.multiplier));

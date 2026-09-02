@@ -13,7 +13,7 @@
 // handle, not an input gesture.
 
 import { resetRunnerWorld, type Rng, type RunnerWorld } from "./world";
-import type { GameSystem } from "./systems";
+import type { GameSystem } from "@/lib/game-systems/systems";
 
 /** What one collected pickup is worth before the chain multiplier. */
 export const PICKUP_SCORE = 10;
@@ -37,9 +37,10 @@ export function nextRunSeed(rng: Rng): number {
 export function createRunLoopSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/run-loop",
-    contractVersion: "run-loop-system-v2",
+    contractVersion: "run-loop-system-v3",
     reads: ["intent", "avatar", "obstacles"],
     writes: ["run"],
+    consumes: ["run-ended"],
     update(world) {
       const run = world.run;
       if (run.phase === "running") {
@@ -52,12 +53,14 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
         run.multiplier = chainMultiplier(run.chain);
         run.score +=
           world.obstacles.collectedThisFrame.length * PICKUP_SCORE * run.multiplier;
-        if (world.avatar.deathCause !== null) {
+        // The run-loop no longer decides what a contact means; it ends runs.
+        // Which occurrences are survivable is the package's answer, resolved
+        // by runner/vitals, and what arrives here is the verdict.
+        const ended = world.events.ofType("run-ended")[0];
+        if (ended) {
           run.phase = "dead";
-          run.cause = world.avatar.deathCause;
-        } else if (world.obstacles.hazardContact) {
-          run.phase = "dead";
-          run.cause = "hazard";
+          run.cause = ended.source;
+          world.avatar.motion = "death";
         }
         return;
       }
