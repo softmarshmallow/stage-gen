@@ -1401,6 +1401,18 @@ Held under `out/`. The director's visual review list, in the order it should be 
 | The window, after | `out/the-grain-window-3/assets/backdrop.png` |
 | Nine exploration plates, not shipped | `out/the-grain-cast/` + `EXPLORATION.md` |
 
+**Two contact sheets were built for this review** so the twelve stages and the thirty-two
+plates can be judged together rather than one file at a time:
+
+| | |
+|---|---|
+| `out/the-grain-review/stages.png` | all twelve backdrops, labelled, one sheet |
+| `out/the-grain-review/cast.png` | eight actors × four authored expressions, one row each |
+
+Both are captures made for this report and carry no provenance sidecar, deliberately: a
+figure authored for the docs is not a pipeline artifact. The artifacts they show are the
+ones under `out/the-grain-scene-5/assets/`.
+
 QA's play-through captures are the in-play evidence and are listed in section 5.
 
 ---
