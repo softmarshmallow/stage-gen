@@ -1319,7 +1319,15 @@ pass 2 reports.
 *Open design question handed to QA rather than decided by the lead:* one result record per
 case, overwritten each completion — which matches "the board Episode Two opens on" — or one
 per completion, which keeps a history. Pass 2 will overwrite pass 1's under the current
-shape.
+shape. The lead leans to one record, because Episode Two opens on the player's *last* play
+rather than on all of them.
+
+**And an honest limit on the fix, which the director should not have to infer.** The record
+lives in `localStorage`. It is visible to the player on the closing card and readable by
+anyone with the browser open, and that is all. **A generation pipeline cannot read it**, so
+Episode Two cannot literally open on it today — carrying a board between episodes would need
+an export path that does not exist. What this fix bought is that the episode's output is no
+longer *destroyed*; what it did not buy is a way to hand it to anything.
 
 ### 07:49 — The narration stays on its plate
 
