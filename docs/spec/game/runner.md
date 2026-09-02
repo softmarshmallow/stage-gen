@@ -197,7 +197,12 @@ presentation a closed union:
   so it is carried by the prompt and *recorded* rather than refused: source
   admission publishes `apron_incident_share`, the aprons' share of saturated
   colour against the span's own. Iron Petal's aprons measured 0.71 to 1.29
-  before the joint was asked for and 0.48 to 0.81 after. Every
+  before the joint was asked for. Asking for it as a bolted plate took them to
+  0.48 to 0.81, and asking on its own line - after the first phrasing turned
+  out to be long enough to crowd out the demand that every guide cell be
+  painted - took them to 0.000 across all twelve: the joint carries no
+  saturated colour at all, which is what a plain cream plate with a bolt
+  pattern is. Every
   chunk report carries the same bridge, left-role, right-role, and lineage
   digests. Source admission counts painted coverage only at alpha 128 or
   greater, so a technically nonzero but effectively invisible provider result

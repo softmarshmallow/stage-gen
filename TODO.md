@@ -1036,7 +1036,11 @@ defect it was written for. What is left open is written as what it would take, n
       a join reads as a plain bolted plate. The number is recorded as `apron_incident_share` rather
       than refused, because how quiet a joint should be is art direction and this repo puts art
       direction in the prompt. Edge response was tried as the measure first and cannot see this at
-      all - a plain bolted plate has as much contour as a pipe behind a vine.
+      all - a plain bolted plate has as much contour as a pipe behind a vine. The first phrasing of
+      the joint clause was also long enough to crowd out the demand that every guide cell be
+      painted, and two segments started failing the coverage checks under it; stating the top edge
+      on its own line - paint each slab to its very first pixel, hard-edged - fixed both, and took
+      the aprons to 0.000 saturated colour in `iron-petal-unit-live-20260903-ground-4`.
 - [ ] **A bare rim cannot be repaired after the fact, and the floor that says so is tight.** The
       top-cell coverage floor is now derived from how far publication grows the painting's own
       colour under its rim: a cell may be bare over at most that distance. Rendered against a
@@ -1139,8 +1143,8 @@ defect it was written for. What is left open is written as what it would take, n
       `encounter_start` portrait, which is now the pruner rather than the operator (is it
       recognisably the same machine as the concept plate the run drew, and does it read as a face
       at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).
-- [ ] Semantic visual review of the ground and the middle-distance layer in the final
-      `iron-petal-unit-live-20260903-ground-*` run by someone other than its producer. Three
+- [ ] Semantic visual review of the ground and the middle-distance layer in
+      `iron-petal-unit-live-20260903-ground-4` by someone other than its producer. Three
       questions, in the order they were worked: does a chunk join read as a joint - a place where
       two spans are bolted together - rather than as a panel of one segment's scenery inserted into
       another, and does seeing the same joint every twenty-four columns read as infrastructure or as
