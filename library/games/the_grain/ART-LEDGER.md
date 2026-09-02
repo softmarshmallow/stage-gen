@@ -236,3 +236,23 @@ shape exists in `_union_stages` for stages.
 | **Art lane total** | **15** | **7.50** |
 
 Pilot total stands at **24 operations, about USD 13.00**.
+
+## 2026-09-03T06:45 KST — the full scene: every stage, every plate, every track (planned)
+
+Dry-run plan taken first and green. **One graph draws the whole episode**, because the
+scene binds all six scenarios and unions their stages, cast and tracks — so an actor who
+appears in four scenarios is drawn once, not four times.
+
+- Graph: 115 nodes.
+- Planned operations: **47 image_generation, 4 music_generation, 12 structured_generation,
+  0 background_removal**.
+- Estimated USD: **~23.50 images + ~10.00 music ≈ 34.00**, structured calls on top and cheap.
+- What that covers: twelve stage backdrops, eight drawn actors × four authored expressions
+  (thirty-two plates), the four music tracks, and the shared UI atlas triplet.
+- Reviewed: no. Every artifact is `unreviewed`; the director's semantic review list is built
+  from this run.
+
+The de-duplication is the point and it is measured: the recipe lane reports a two-scenario
+scene sharing both actors and one stage plans 37 nodes / 19 provider operations against
+71 nodes / 37 for the same two scenarios as separate scene packages, and binding the second
+scenario changed **zero** cache keys on the twenty-one shared art nodes.

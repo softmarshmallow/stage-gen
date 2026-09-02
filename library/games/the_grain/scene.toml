@@ -10,8 +10,8 @@
 # `cases/episode_one.toml`, which also carries the two point-and-click rooms that
 # sit between these scenarios and generates its art through its own recipe.
 
-schema_version = 4
-kind = "dialogue-scene-v4"
+schema_version = 5
+kind = "dialogue-scene-v5"
 game_id = "the_grain"
 display_name = "The Grain — Episode One"
 revision = 1
@@ -40,31 +40,31 @@ source_sha256 = "5f9ce7101789cc8279cf8cfab42751db255e3631de95f5dd2fb336eb3fd4940
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_way_in.toml"
-source_sha256 = "0ce26a98dde54cdfd0fde793273fa0f6402d5dd755dc143d98f114ec6aca9135"
+source_sha256 = "3587808c0eb1d92454a166930abf2a19788a7e9c4114a8e4561e502629ed462f"
 
 [[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_table.toml"
-source_sha256 = "b09bebfe24ffaf2102449c38471abd26a4fc6cee26b9998d7be3a7d787b8eae0"
+source_sha256 = "3bc1ac4fa82d7d01c51a6de32a6dc79a02a141faa5b61a7fd4003c65717aeff6"
 
 [[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_coffee.toml"
-source_sha256 = "32f51737bdf6e3fe32355c95e1bc1d37076eadef4857e6e968acc055b0304636"
+source_sha256 = "f53575c8eb488491abfff225a22a9ed79bbbadf70429588c0d39d35eae4e03ec"
 
 [[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_the_court.toml"
-source_sha256 = "b68e69710c1a82bcef24a7c9fc7dddb972d52cc38dc409a5d9b80edf83d48c16"
+source_sha256 = "57aa88461ae98df899f39991949f13e390dd1ce8f7cc6c82541bac5eb24c1be4"
 
 [[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/e1_statements.toml"
-source_sha256 = "365416cd6af28c6a83d6c11699c861dbaddcc1d6c069a8ac29cf74218c956455"
+source_sha256 = "e7807e474cfda14a3e1e6158524db5aa83a6dfa3d6e3fc118a02f974176f62c6"
 
 # ------------------------------------------------------------------- the cast
 # Which package member draws each actor the scenarios can show. An actor that
@@ -78,7 +78,7 @@ actor_id = "ruth"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/ruth.toml"
-source_sha256 = "624017484b4a9fe5227e55c046bd7f005091f253871d8a82bced0548f8b98110"
+source_sha256 = "a558126b28a20f4dd22781caf361fc1215cbfc4d50286ecc4d0310b857ba27c5"
 
 [[cast]]
 actor_id = "nell"
@@ -86,7 +86,7 @@ actor_id = "nell"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/nell.toml"
-source_sha256 = "c824038f67f04159e1a4885b2f65cfc97fc3a1e1d170164401da78841ce6d4c0"
+source_sha256 = "2b49be6616967c41e05e57041668239764e42d0cc8751b1e38346f956d7cf326"
 
 [[cast]]
 actor_id = "lydia"
@@ -94,7 +94,7 @@ actor_id = "lydia"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/lydia.toml"
-source_sha256 = "4178d0113101da500d4891e96c18b1c9537607c54ae3a86f85070da5b6a5fff1"
+source_sha256 = "12c1f321bf84e1e4e32e3e0f5e1fce92f897cd7373ceb12f39000ea530133592"
 
 [[cast]]
 actor_id = "marian"
@@ -102,7 +102,7 @@ actor_id = "marian"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/marian.toml"
-source_sha256 = "925675bb5e33bfab531dda6ede4a1b906638f59b896632451e45a8baec3a2563"
+source_sha256 = "f6922d8803ea5d1f6244afabe81c584fac32f9af251e5a42756903e5680d692d"
 
 [[cast]]
 actor_id = "robert"
@@ -110,7 +110,7 @@ actor_id = "robert"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/robert.toml"
-source_sha256 = "f4775b5bbef7f8ba54a98a052228ea5dc2cf19850cd8c2ef1204e05f945f22c0"
+source_sha256 = "840a7746626b7c67db3e61cd93db22c8caf7c11446c315c68a42f9b62727bfae"
 
 [[cast]]
 actor_id = "edwin"
@@ -118,7 +118,7 @@ actor_id = "edwin"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/edwin.toml"
-source_sha256 = "3bc81b2ab471d674477732c553110589b93f316d9db6ef9b5acc1e7e56cc6eb1"
+source_sha256 = "ae4d96b9e30887e0eaf1ecec86b6246a87bc781c2b8f6087b2243485ef19a147"
 
 [[cast]]
 actor_id = "paul"
@@ -126,7 +126,7 @@ actor_id = "paul"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/paul.toml"
-source_sha256 = "4af630db69f83a0cc37e6f391eb8fd97058af3e35cfa2d18acfcfeaf019508e6"
+source_sha256 = "f7b249b20fa99bcd937d5b0b66fcea0c1b7147fa2c7d1b281a4b8519862e961b"
 
 [[cast]]
 actor_id = "ward"
@@ -134,7 +134,7 @@ actor_id = "ward"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/ward.toml"
-source_sha256 = "44fa17fef8c88f6ebef31d2a0ffb2ef249a1c3854ff58a92f645c07676ef0b7f"
+source_sha256 = "bf50b140a6cddfacec36e9512c05854d7862f6071e71d6ef1e8e167db01f2bd5"
 
 [[references]]
 reference_id = "cover"

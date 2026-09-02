@@ -11,7 +11,10 @@ list, the cast bible and `FACTS.md`.
 
 Checker: `/private/tmp/claude-501/-Users-universe-Documents-shared-stage-gen/4456a1a9-1c38-49b2-84d8-30d4fd469f44/scratchpad/verify.py`
 
-## Status board
+## Status board — text lane CLOSED
+
+All seven defects raised against the scripts have been fixed by the writers and
+re-audited. **Every beat now passes on all four axes.**
 
 | Beat | Attribution | Verbatim | Fixed sentences | Fact ids | Verdict |
 |---|---|---|---|---|---|
@@ -19,15 +22,37 @@ Checker: `/private/tmp/claude-501/-Users-universe-Documents-shared-stage-gen/445
 | `rooms/motor_court` | clean | clean | n/a | clean | **pass** |
 | `e1_way_in` | clean | clean | n/a | clean | **pass** |
 | `e1_table` | clean | clean | clean | clean | **pass** |
-| `e1_coffee` | clean | clean | clean | clean | **D2** |
-| `rooms/window` | clean | clean | n/a | clean | **pass**, polish item |
-| `e1_the_court` | clean | clean | n/a | clean | **D1** |
-| `e1_statements` | clean | clean | **two altered** | **one invented** | **D3–D6** |
+| `e1_coffee` | clean | clean | clean | clean | **pass** — D2 fixed |
+| `rooms/window` | clean | clean | n/a | clean | **pass** — polish item fixed |
+| `e1_the_court` | clean | clean | n/a | clean | **pass** — D1 fixed |
+| `e1_statements` | clean | clean | clean | clean | **pass** — D3–D6 fixed |
 
-**No line of dialogue anywhere is attributed to the wrong person.** That was checked
+**No line of dialogue anywhere is attributed to the wrong person.** Checked
 mechanically across all six scenarios and both rooms and then read by hand; every
 apparent hit was a short generic cue ("All right.", "Why?", "I did.") colliding with an
 unrelated novel line, not a misattribution.
+
+**No fixed sentence is altered.** A sweep for every variant of the "That is not what I
+asked" family across all six scenarios and both rooms returns exactly one survivor:
+Ward's "That isn't what I asked.", said once.
+
+All six admit under `scenario check`: `e1_office` 8 states, `e1_way_in` 7,
+`e1_table` 42, `e1_coffee` 41, `e1_the_court` 40727, `e1_statements` 14565.
+
+### How each defect closed
+
+| # | Fix, as verified |
+|---|---|
+| D1 | `e1_the_court:335` now reads `henry "I didn't look at it."` — the unearned sighting is gone |
+| D2 | the contradicting narration is cut from `place_table`; only the lifted line at `e1_coffee:40` remains |
+| D3 | "That is not what I asked either." cut; Ward's exact form survives once |
+| D4 | Nell's cue cut from `nell_silence` |
+| D5 | `told_ruth_what_i_saw` added to `FACTS.md:115` and declared in the case; three answers, three records |
+| D6 | fixed better than proposed — `henry "I don't think so."` restored after "Did she drink?", and the other path split into `return_kept_unwatched`, where Ward says "You didn't watch the cup and you don't think she was frightened." Both paths are now true |
+| D7 | case `reads`/`writes` corrected; `case check` passes bound, 8 beats, 69 facts |
+| gap 1 | `descent_indicator` — `henry "Three is the last I saw of either of them."` / `ward writing "Three."` |
+| gap 2 | `envelope_corroborated` — `ward writing "She told me the same thing an hour ago."`, with Henry's "I was watching his coat." keeping him out of inference |
+| polish | `rooms/window:277` — "He does not pull it free." replaced by "The rest of the line is under the hand.", which makes the second interaction a temptation rather than a contradiction |
 
 ## Fixed sentences — audit
 
@@ -41,9 +66,11 @@ unrelated novel line, not a misattribution.
 | "Would you have come?" | `e1_statements.scenario:845`, Lydia → Nell | exact — the second counting, with Nell's "You already used that excuse tonight." intact at `:849` |
 | "I don't know." | `e1_statements.scenario:199`, Henry | exact, and the whole answer — nothing appended |
 | "It is what I saw." | `e1_statements.scenario:386`, Henry | exact |
-| "That isn't what I asked." | `e1_statements.scenario:384`, Ward | exact |
-| "That isn't what I asked." | `e1_statements.scenario:472`, Ward | **ALTERED — see D3** |
-| "That is not what I asked." | `e1_statements.scenario:809`, Nell | **ALTERED, and not Nell's to say yet — see D4** |
+| "That isn't what I asked." | `e1_statements.scenario:420`, Ward | exact, and now the only one |
+
+Two altered instances were found in the first audit and have since been cut — Ward's
+"That is not what I asked either." (D3) and Nell's "That is not what I asked you."
+(D4). The defect write-ups are kept below for the evidence trail; both are closed.
 
 Episode One spends two of the three countings of "Would you have come?", which matches
 `FACTS.md` as amended (R-02). Both are Lydia's, and neither is gated behind a look.
@@ -495,3 +522,117 @@ lane defect, since it may be a component-level omission rather than anything the
 lane did.
 
 No absolute paths and no credentials appear anywhere under the run. ✓
+
+---
+
+# Art audit 2 — `out/the-grain-window/assets/backdrop.png` (hit areas and composition)
+
+Audited for hit areas and composition only. Fidelity is not assessed: this plate was
+generated against the old brief (coats, no steel base, cratered moon) and a reroll is
+pending under the canonical window description.
+
+## Hit areas — 9 of 14 hotspots do not cover the object they name
+
+Regions from `out/the-grain-window/room.json`, object positions measured on the
+delivered 1280×720 plate and confirmed against the regions drawn over the image.
+
+| Hotspot | Verdict | Where the hotspot actually lands |
+|---|---|---|
+| `stage_door` | **miss** | blank stone wall between the vestibule and the window; the ajar door is at the right edge of the glass, roughly x 0.79–0.83 |
+| `under_the_jaw` | **miss** | blank stone wall; the man's head is at roughly x 0.64–0.66, y 0.60–0.63 |
+| `torn_piece` | **miss** | blank wall and floor; the right hand is at roughly x 0.79–0.80, y 0.66–0.67 |
+| `painted_wall` | **miss** | stone wall left of the window; the scenic wall is inside the display, x 0.52–0.79 |
+| `paper_moon` | **~6%** | on the gallery band above the window; the moon is at y 0.34–0.62, the box ends at y 0.36 |
+| `six_figures` | **~5%** | the right jamb and the guard's booth; the six figures run x 0.52–0.79 |
+| `mr_bell` | **miss** | wall to the guard's right; the guard stands at roughly x 0.26–0.33 |
+| `steel_lip` | **miss** | upper-left soffit, left of the gallery |
+| `wired_glass` | **miss** | above the pane; the pane sits lower in the door |
+| `the_man` | hit | contains the body |
+| `call_button` | hit | drawn at x 0.720–0.780, y 0.074–0.151 against a box of x 0.720–0.770, y 0.060–0.130 |
+| `access_door` | hit | contains the flush door |
+| `service_lift` | partial | contains the left-hand opening |
+| `gallery_carton` | sprite | composited; position authored, not checkable from the backdrop |
+
+**The consequences are not evenly spread.**
+
+- **`stage_door` gates six other interactions** — `under_the_jaw`, `gallery_carton`,
+  `steel_lip`, `painted_wall`, `call_button` and `torn_piece` all list it in
+  `requires`. If it cannot be clicked, `touched_neck`, `carton_on_gallery`,
+  `marks_under_lip`, `scrape`, `red_button`, `heading_int_bedroom` and
+  `pulled_the_paper` are all unreachable — which is most of the board Ward's statement
+  reads.
+- **`mr_bell` gates its own chain of three**, so `bell_key_path`, `bell_in_receiving`
+  and `court_door_never_opened` go with it.
+- **`the_man` hits**, so `saw_body` is obtainable and the exit is reachable. The room is
+  escapable. It is very nearly empty on the way through.
+
+`puzzle.validation.json` reports solvable, 9312 reachable states, solution `[2, 17]`.
+Correct as a graph, and again blind to where anything was painted.
+
+## The diagnosis, which is the part worth keeping
+
+The misses are not random. The hotspot map was authored against the brief's composition
+— window centred, vestibule at the left — and the plate placed the window much further
+right and much larger, and put the guard in the middle of the floor rather than a few
+feet from the glass. Everything on the right of the map is therefore shifted left of
+its object by roughly a fifth of the frame, and the few hotspots that hit are the ones
+near the left edge and the one high on the gallery.
+
+**Hotspot regions authored before the plate exists will not match it.** They are a
+guess at a composition, and the generator is not bound by that guess. Every reroll
+invalidates every region in the room, and the regions have to be re-measured against
+the new pixels afterwards — a proof cannot do it, because the proof never sees the
+image.
+
+## Composition notes for the reroll
+
+- The plate reads as an **interior** — a lobby with a coffered ceiling, recessed
+  downlights and a polished floor. Scene 9 is outdoors: "Bell leads them through the
+  service door and into the motor court. The night air is colder at street level. The
+  lamps beneath the stone canopy shine into the display glass." There is no canopy, no
+  wet paving, no street, no city. The court plate got this right and this one does not,
+  and the two are supposed to be the same place.
+- The guard stands roughly twenty feet from the glass, in the middle of the floor. The
+  brief asks for "standing a few feet from the display glass", and Sc9 has "Bell stops
+  several feet from the glass."
+- The elements themselves are all present and legible: the lift and the wired-glass
+  stair door at the left, the flush access door, the ajar stage door at the right of the
+  glass, the guard's booth, the gallery with an open rail section, the red button, and
+  the moon split across its middle. It is a good painting of the wrong room.
+
+---
+
+# Open items
+
+## Waiting on other lanes
+
+1. **Re-measure every hotspot in both rooms after the rerolls.** Fourteen in the window
+   room, six in the court. `the_man` (exports `saw_body`, required by the window's exit)
+   and `service_bell` (exports `rang_the_bell`, the court's win flag) get measured and
+   reported first — a required hotspot that misses its object makes the room unplayable
+   whatever the proof says.
+2. **Two browser play-throughs**, once there is an `out/<tag>/case.json` and scene art:
+   one watching the Holts at every course and looking at little, one watching Ruth and
+   Paul and looking at everything. To report per pass: what the board held at the
+   statement, what Ward said at his close, whether Nell turned back at the car.
+   Screenshots of every movement and both rooms. The case shell itself is already
+   confirmed working on `/case/demo` — breadcrumb, beat counter, backlog and
+   Continue/Start over all render.
+
+## One remaining minor, lowest priority
+
+`rooms/window/room.toml:332` — "Edwin looks at the brass key in **his own** hand." The
+novel (`chapter-05:272`) is "Edwin looks at the brass key in his hand." One word added
+to lifted action prose. Unlike the pronoun repairs elsewhere in the room it is not
+forced by the hotspot split, though it does disambiguate against Bell in the sentence
+before. Leave or cut; noted only for completeness.
+
+## Repository-level, for the director's report, not for a lane
+
+21 of 21 provider-generated image sidecars under `out/the-grain-*` carry no `rights`
+block, against the brief's requirement that every generated image is labelled
+`unreviewed`. The committed package is compliant
+(`references/cover.provenance.json`: `status: unreviewed`, three-line basis,
+`publication_authorized: false`). Ruled by the lead as a gap the pilot surfaces and does
+not fix, on the grounds that repairing a media-rights component mid-run in a shared tree
+is how something breaks quietly.
