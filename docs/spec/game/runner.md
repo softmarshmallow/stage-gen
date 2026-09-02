@@ -248,9 +248,10 @@ measured 0.805 of its scanline on a tile measuring 0.0075 overall.
 Identity with the base, not nearness to a guide colour. Proximity can only
 speak about the cap, because the guide's fill is the material's own dark and
 honest art wears it legitimately - counting it put a third of a correct row in
-breach, and not counting it left a fifteen-to-nineteen-pixel band of published
-base along the *bottom* edge of four tiles invisible to the check that had just
-caught the top. The base is there for a cell nobody painted; anywhere it
+breach, and not counting it left the same defect at the *bottom* edge
+invisible: in the run that shipped, one tile published a fourteen-pixel band of
+base along its last rows and another published its final row, neither of which
+the cap test could see. The base is there for a cell nobody painted; anywhere it
 survives, the picture is publishing the guide's own material as ground.
 
 Across Iron Petal's paintings the check reads 0.0000 to 0.0021 and refuses the

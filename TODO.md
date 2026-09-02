@@ -1054,9 +1054,9 @@ defect it was written for. What is left open is written as what it would take, n
       untouched deterministic base. Identity with the base rather than nearness to a guide colour,
       which took a second turn to learn: proximity can only speak about the cap, because the guide's
       fill is the material's own dark and honest art wears it - counting it put a third of a correct
-      row in breach, and not counting it left a fifteen-to-nineteen-pixel band of published base
-      along the *bottom* edge of four tiles completely invisible to the check that had just caught
-      the top. Across both shipped runs the measure reads 0.0000 to 0.0021 and refuses exactly the
+      row in breach, and not counting it left the same defect at the *bottom* edge invisible: of
+      the twelve tiles in the run that shipped, one published a fourteen-pixel band of base along
+      its last rows and another published its final row, neither visible to the cap test. Across both shipped runs the measure reads 0.0000 to 0.0021 and refuses exactly the
       tiles with a real band. The prompt's lever turned out to be the other half of the answer:
       asking for every solid cell to be painted edge to edge, hard-edged, moved top-cell coverage
       from 0.92 typical to 0.88-0.9996 and took `rescue_calibration` from failing to 0.98.

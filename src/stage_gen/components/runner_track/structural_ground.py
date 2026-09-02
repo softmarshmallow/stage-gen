@@ -72,9 +72,10 @@ _MIN_SOURCE_TOP_CELL_COVERAGE: Final = 0.85
 #: raster: the hairline that shipped was four fifths of one scanline on a tile
 #: measuring 0.0075 overall. Identity with the base rather than nearness to a
 #: guide colour, because proximity can only speak about the cap - the guide's
-#: fill is the material's own dark and honest art wears it - which left a
-#: fifteen-to-nineteen-pixel band of published base along the bottom edge of
-#: four tiles invisible to the check that caught the top.
+#: fill is the material's own dark and honest art wears it - which left the same
+#: defect at the bottom edge invisible: one shipped tile published a
+#: fourteen-pixel band of base along its last rows and another published its
+#: final row.
 _MAX_PUBLISHED_BASE_ROW_SHARE: Final = 0.10
 
 #: How far the painting's own colour is grown under the bare rim it leaves.
