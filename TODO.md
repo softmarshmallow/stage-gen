@@ -543,6 +543,89 @@ before and after every authoring edit and confirm no image node's cache identity
       taxonomy. D covers the demo procedurally; a generated slash, spark, or burst family is a new
       taxonomy entry with its own contract, review, and cache identity, and has no caller until D
       has shown what shapes are worth drawing.
+- [x] **J. A number drawn one digit at a time (easy).** Landed 2026-09-03 from a reference frame
+      of the real thing: a column of MapleStory damage numbers where no two digits of a number sit
+      on the same line. That is what one `Phaser.GameObjects.Text` per number structurally cannot
+      do - a block of text can only pop as a block - so a number is now a *run of glyphs*.
+      `combatTextGlyphLayout` centers the row on the run from the advances the renderer measured
+      (nominal shares when it cannot measure, so a non-rendering environment still lays out), and
+      `sampleCombatTextGlyph` displaces each digit from there: invisible until its own beat
+      (26 ms apart), arriving oversized (1.45x) and high, falling over 120 ms into a resting place
+      that is a shallow arc plus a jitter and a size variance hashed from the event id and the
+      digit index. Hashed, not drawn at random, for the reason every motion in that module is
+      sampled from `nowMs`: the same blow has to displace its digits the same way in play and in a
+      fixed-frame capture. The run's own punch, rise, micro-shake, stack, and fade are untouched -
+      the per-digit sample is displacement *around* the anchor - and reduced motion keeps the row
+      while dropping the theatre. The cost question is the pool: a glyph per digit is up to seven
+      objects per number, so the pool is keyed by the exact glyph rather than by style alone, and a
+      recycled `7` already holds a rendered 7. Reuse therefore costs no text re-render at all,
+      which is what makes the whole thing affordable. Verified as a rendered filmstrip, offline in
+      headless Chrome against the real module, not by eye in the game. Not a package knob: this is
+      presentation, which the consumer owns, and it stays that way unless someone wants two
+      different number *feels* in one library, which would be a named word like `number_scale`.
+      Then the other half of the reference, same day: the **face and the double outline**. A
+      number is a sticker - saturated core, light ring, heavier dark edge - which is two Phaser
+      objects per glyph, because canvas strokes text once. Every dark edge sits one depth below
+      every coloured face, so a neighbouring number's outline never covers a digit. The fills went
+      saturated (gold, coral) because a pale number with a white ring has no ring, and a critical
+      inverts the ring rather than losing it: white core, hot-amber ring, deep-red edge. The
+      thickness turned out to be a *typeface* question rather than a free choice, which is the
+      thing worth remembering here: a stroke eats a glyph's counters from both sides, and Fredoka
+      closed its 8s, 9s and 0s at a 6px ring, well before the edge was heavy enough to read as
+      arcade weight. So the numbers moved to Luckiest Guy (`web/public/fonts/luckiest-guy/`,
+      Apache-2.0 - *not* OFL like Fredoka, which is what `google/fonts` filing it under `apache/`
+      told us), set at weight 400 because that is the only weight it has: bold from a face with no
+      bold is synthesized by the browser, and how much it thickens is a glyph metric decided
+      outside the repository. Sizes went up about a quarter (40/44, criticals 56/62) because a
+      condensed cap-height display face sets smaller per pixel than the text face did. The stat
+      log stays on Fredoka - it is running words, not numerals. Thickness and size were swept as
+      rendered strips and read off, not guessed.
+      One real bug fell out of this: **the committed font was never being loaded at all**.
+      `loadBrowserCombatTextFont` had no caller anywhere and there is no `@font-face` in the app's
+      CSS, so every damage number the demo has ever drawn was set in the first fallback the
+      machine had - `Arial Rounded MT Bold` on this one - which is most of why the numbers looked
+      weak. `PreviewCanvas` now awaits the faces before it boots the game, which is what the
+      module README always claimed happened.
+      Then contrast, which turned out to be the half that mattered most and the half a test card
+      hides. The numbers were being judged against a dark swatch, where gold looks superb; against
+      Bellweather's own art -- warm ambers, tans, autumn orange, blue sky -- a gold number sits at
+      almost exactly the luminance of the stone it is drawn over (0.65 against 0.48) and of the
+      horizon (0.67), and it vanishes. Measured off the run's real layer PNGs, then rendered over
+      crops of them: four candidate hues against three bands. Magenta is the one saturated hue
+      this world does not already contain, which is the same reason the arcade reference uses it,
+      and it steps hard from the white ring above it and from every band below. Damage taken stays
+      red: which side a number belongs to outranks its contrast. The critical stopped being a
+      separate warm palette and became the number's own colour *inverted* -- normal is the colour
+      inside a white ring, critical is white inside a ring of that colour -- so the two share a
+      hue and a silhouette, and the brightest thing on the screen is the biggest hit. Tracking
+      went from -2 to +2: tight tracking is what an arcade number looks like *without* an outline,
+      and with an 11px dark edge on every glyph the packed silhouettes fuse into one mass. The
+      tests now assert the value steps (core-to-ring >= 3, ring-to-edge >= 4, by WCAG relative
+      luminance) rather than pinned hexes, because the gold the eye approved measured 1.7 and no
+      pinned hex would ever have said so.
+      Held the reference beside it again and it was still visibly short, so: measured the
+      reference itself. Its digits stand about 0.85 of the player's height and one number spans
+      nearly half the frame -- the scale *is* the feedback, and every careful thing done above was
+      being done to a footnote. Ours were 0.18 of the player. Rendered four candidate sizes beside
+      the run's own player and mob sprites at the sizes the scene draws them. First landed on
+      96/104, which read as too large in play, then 76/82, and settled at **64/70** (criticals
+      90/98) - a cap at just under a third of the player. Deliberately short of the reference's four
+      fifths: the reference is one boss taking one combo, and this is a hunting map where a dozen
+      creatures die at once, so its own scale would have four simultaneous deaths covering the
+      fight. That the second pass was a one-constant change is the point of what follows. That one change forced
+      the right refactor -- **every other measurement is now a share of the font size** (both
+      edges, tracking, arc, jitter, drop, stack step), because pixel displacements around a number
+      two and a half times larger read as a big number sitting perfectly still. The size travels
+      on `CombatTextMotion` so the samplers stay pure. Two more reference details landed with it:
+      the core is filled with a **vertical gradient** (lit top, deep foot) applied once per drawn
+      glyph from the text object's own canvas context, which is what separates a digit that reads
+      as an object from one that reads as a decal; and the stack step went to 0.95 of a line,
+      because at 0.6 the numbers of one flurry overlapped into an unreadable mass. Tests pin the
+      size floor against the player height and the proportionality (a run at twice the size arcs
+      and stacks twice as far). Still short of the reference on two counts, both known: its face is
+      wider than Luckiest Guy's condensed one, and its criticals are gold-orange where ours stay
+      white-hot with the heat only in the foot of the gradient -- the white core is what keeps a
+      critical the brightest thing on screen and what the inversion rule is built on.
 
 ## Runner gameplay: the CookieRun adoption
 

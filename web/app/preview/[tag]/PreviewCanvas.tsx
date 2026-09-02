@@ -41,6 +41,13 @@ export default function PreviewCanvas({
     // lazily and keep its lifecycle out of the headless pipeline.
     void (async () => {
       const { bootPreparedGame } = await import("@/lib/sideview-platformer/prepared-scene");
+      // Before the scene, not inside it. A Phaser text object rasterises when it is constructed,
+      // so a damage number drawn before its face is usable is drawn in a fallback and stays in it,
+      // and a capture taken then is a capture of whatever font the machine happened to have.
+      const { loadBrowserCombatTextFont } = await import(
+        "@/lib/sideview-platformer/combat-font"
+      );
+      await loadBrowserCombatTextFont();
       if (cancelled || !ref.current) return;
       preview = bootPreparedGame(ref.current, tag, transparencyPolicy, automationMode);
       handle.current = preview;

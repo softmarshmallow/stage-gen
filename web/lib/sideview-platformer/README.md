@@ -196,16 +196,63 @@ that does not declare the subsystem defaults on for this static gameplay UI. Exp
 disables it, while malformed declared data throws. Font, palette, timing, pooling, and motion are
 deliberately not TOML settings.
 
-`combat-font.ts` loads the bundled Fredoka face and proves numeric glyph readiness before enabled
-feedback starts. Outgoing values are ivory-gold, incoming values coral, and both use a deep outline.
-Each world-space glyph gets a bounded scale punch and local micro-shake, rises, then fades on the
+`combat-font.ts` commits two faces and proves numeric glyph readiness for both before enabled
+feedback starts, and `PreviewCanvas` awaits it before the game boots: a Phaser text object
+rasterises when it is constructed, so a number drawn before its face is usable is drawn in a
+fallback and stays in it. Fredoka is a text face and carries the EXP stat log. Damage numbers are
+set in Luckiest Guy, at weight 400 because that is the only weight it has - a synthesized bold is
+the browser's own thickening, and that is a glyph metric decided outside the repository.
+
+The face is chosen by the outline. A number is drawn as a sticker: a saturated core, a light ring
+around it, and a heavier dark edge around that, which is two layers per glyph because canvas
+strokes text once. How thick those rings may go is a property of the typeface - a stroke eats a
+glyph's counters from both sides - and Fredoka's counters close up long before the edge is heavy
+enough to read as arcade weight. Every dark edge is drawn below every coloured face, so a
+neighbouring number's outline never covers a digit.
+
+The palette is a contrast decision measured against this library's own art. Bellweather is painted
+in warm ambers, tans and autumn orange under a blue sky, and a gold number sits at almost exactly
+the luminance of the stone it is drawn over as well as of the horizon; magenta is the one
+saturated hue the world does not contain, and it steps hard away from both the white ring above it
+and every band of the art below it. Damage taken stays red, because which side a number belongs to
+outranks its contrast. A critical is its own colour inverted rather than a second palette: a normal
+number is its colour inside a white ring, a critical is white inside a ring of that colour, so the
+two share a hue and a silhouette and the brightest thing on screen is the biggest hit. The tests
+assert the value steps rather than the hexes, because a core-to-ring step of 1.7 is what a gold
+number inside a white ring actually was, and it looked perfectly fine on a dark test card.
+
+Size is the other half of the reference and the half that is easiest to under-do. The arcade
+reference sets a digit at about four fifths of the player's height: the scale *is* the feedback,
+and a tidy number beside a 154px character reads as a footnote however well it is drawn. These
+sizes put a cap at just under a third of the player: short of the reference on purpose, because the
+reference is one boss taking one combo and this is a hunting map where a dozen creatures die at
+once, and at the reference's own scale four simultaneous deaths cover the fight. Every other measurement is a share of
+that size -- both edges, the tracking, the arc, the jitter, the drop, and the stack step -- so
+moving the size moves the whole number rather than producing a big number sitting perfectly still
+inside pixel displacements that no longer fit it. The core is filled with a vertical gradient
+rather than a flat colour, applied once per drawn glyph from the text object's own canvas context:
+light collects along the top and the hue deepens into the foot, which is the difference between a
+digit that reads as a decal and one that reads as an object.
+
+Each world-space number gets a bounded scale punch and local micro-shake, rises, then fades on the
 caller-supplied simulation clock. Reduced-motion mode is fade-only; the camera and actors never
 shake.
+
+A number is drawn one digit at a time. `combatTextGlyphLayout` lays the row out around its own
+center from the advances the renderer measured, and `sampleCombatTextGlyph` displaces each digit
+from there: it is invisible until its own beat, arrives oversized and high, and falls into a
+resting place that is a shallow arc plus a jitter and a size variance hashed from the event id and
+the digit's index. That is the difference between a damage number and a damage effect - one text
+object can only pop as a block, while a row of digits arrives left to right with no two of them on
+the same line. Every value is displacement around the run's own anchor, so the rise, shake, stack,
+and fade are untouched by it, and reduced motion keeps the row while dropping the theatre.
 
 `CombatTextSystem` follows `create -> update -> snapshot -> dispose`. The scene creates one for the
 current stage, updates it after authoritative combat, exposes the deterministic snapshot to the
 runtime probe, and disposes it before a portal rebuild or scene shutdown. Its active list and
-reusable Phaser text pool are bounded, so rapid hits cannot leak objects across a stage.
+reusable Phaser text pool are bounded, so rapid hits cannot leak objects across a stage. The pool is
+keyed by the exact glyph rather than by style alone: a recycled `7` already holds a rendered 7, so
+reuse costs no text re-render, which is what makes a glyph-per-digit renderer affordable.
 
 `stages.ts` is the stage plan. One asset directory paints several stages: the
 first keeps the run's own terrain seed, later ones salt it and switch platform
