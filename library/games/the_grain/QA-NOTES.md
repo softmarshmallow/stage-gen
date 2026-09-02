@@ -857,3 +857,177 @@ story cost: clicking the figures on the right of the window gets the moon or the
    moon. No rectangle proposed. The outline names the scrape as one of the two facts
    step 6a of the argument needs, so letting `scrape` go unobtainable is a decision to
    record, not a thing to let happen quietly.
+
+---
+
+# Art audit 6 — `out/the-grain-window-4/` verify, and a correction to audit 4
+
+The twelve corrected rectangles are present in `window-4/room.json`, matching what was
+sent; `stage_door` and `service_lift` were left unchanged as agreed.
+
+**The drift rule did not hold.** This was a regions-only edit, and the composition was
+re-imagined rather than nudged.
+
+| | motor court | window room |
+|---|---|---|
+| rectangles changed | 3 | 12 |
+| result | drifted ~27px | re-imagined |
+| rectangles that survived | 3 of 3 | 7 of 14 |
+
+### What misses on window-4
+
+- **`service_lift`, the exit** — the region sits on an open view of the wet night street
+  with a lamp and trees. The lift door, with its diamond wired-glass panel, is at
+  px 160–233; the region's right edge is 154. A clean miss by 6px.
+- **`stage_door`, which gates six** — the region is on a blank stone pier. The two doors
+  in the picture are at px ~217–289, to its left.
+- `under_the_jaw`, `torn_piece`, `call_button`, `painted_wall`, `gallery_carton` — all
+  drifted off their objects.
+
+Still hitting: `the_man` (exports `saw_body`, required by the exit), `paper_moon`,
+`six_figures`, `mr_bell`, `access_door`, and `steel_lip` / `wired_glass` marginally.
+
+### The room is not blocked, and the distinction matters
+
+A hotspot is a rectangle over the image; a click inside it fires whatever it is bound to
+regardless of what is painted underneath. `the_man` hits, so `saw_body` is obtainable
+and the exit is reachable by clicking the empty street. **Every fact in the room remains
+obtainable.** What is broken is the correspondence between what the player sees and what
+they can click: leaving means clicking a street, opening the stage door means clicking
+blank stone, and the lift door they can actually see fires `access_door`, which now sits
+on top of it. Unplayable-feeling rather than unplayable.
+
+### The corrected finding
+
+Audit 4's rule was stated from one measurement and is wrong as stated. The honest form:
+
+> A same-brief redraw sometimes nudges and sometimes re-imagines. One correction pass
+> **may** converge; it is not reliable, and on this evidence the larger the edit the less
+> reliable it is. Nothing in the contract makes it converge.
+
+n=2 with a disagreement is weaker than n=1 with a clean result, and considerably more
+honest. Measuring twice is what revealed it; the first measurement alone would have
+supported a rule that is not true. This is the second time in this run that a single
+image-generation observation proved to be sampling noise dressed as a finding.
+
+The contract finding is unchanged and is now the whole answer rather than half of it:
+**the backdrop should not be invalidated by a rectangle.** Fix that lineage and regions
+converge trivially, because the picture stops moving. Until then, hit areas in
+`pointclick-room-v2` are approximate by construction. If the image adapter exposes a
+seed, pinning it would make a regions-only re-run reproduce the same picture and let
+rectangles land exactly — that is the concrete fix, even if it is not for today.
+
+---
+
+# Play notes — pass 1 (the Holts, looking at nothing), partial
+
+Played at `http://localhost:3000/case/the-grain-episode-one` against
+`the-grain-scene-4`, `the-grain-motor-court-3`, `the-grain-window-3`.
+Reached beat 4 of 8 (`b_table`, statement `arrivals_sit_down#18`) before pausing.
+
+## The board, quoted from the save rather than inferred
+
+The shell's `localStorage` save exposes `beat_id`, `statement_id`, the full fact list,
+flags, stage, and the actor/slot/expression array — so boards in these notes are read
+from state, not eyeballed.
+
+After the motor court and the way in, a Henry who looked at nothing carries exactly:
+
+```
+place_card_moved_twice, rang_the_bell, suitcase_unopened
+```
+
+Three facts: the two the scene hands over and the exit flag. No looks. Correct.
+
+## Verified in play
+
+- **The fixed sentence lands.** "I remembered you were a liar." arrives from Ruth's
+  mouth, in the oxblood dress and camel coat, at line 6 of 95.
+- **The case chains.** Beat 1 ends on an outcome card reading "Tolland's, eight o'clock"
+  — the `to_tollands` ending label — with a Continue that moves to beat 2 of 8.
+- **Resume works across a reload.** Reloading into a fresh tab mid-episode offered
+  "A save is waiting at The table", and Continue landed correctly. This is gate item 8's
+  reload clause and it passes.
+- **The motor court's corrected hotspots are right in the build.** The Hotspots overlay
+  shows all six landing on their objects. The bell rang on one tap and returned both
+  novel sentences verbatim: "Ruth presses a bell beside an unmarked service door. Each
+  footstep returns from the stone."
+- **Every line checked against the script matched**, text and speaker, at lines 5, 17,
+  24, 48, 72, 77 of the office and 4, 30, 36, 40, 42, 92, 134 of the table.
+
+## Composition — the lead's first question
+
+**Five slots are legible.** With marian `far_left`, ruth `left`, robert `center`, lydia
+`right`, nell `far_right` all up, the far ranks are visibly smaller, dimmer and set back.
+The treatment is real; it is simply invisible with only three actors, because `far_left`
+and `left` are adjacent steps on the ramp.
+
+**The speaker highlight reads without the name plate.** The speaker is brightened,
+brought forward and slightly enlarged while the others recede. Confirmed deliberately by
+catching Marian in consecutive frames, once speaking and once not.
+
+**But the room disappears behind the cast.** At five, the Winter Room is a strip of glass
+dome above their heads and one corner of the round table between Ruth and Robert. The
+table laid for eight — the shape the movement keeps discussing ceasing to be — is not
+visible. It reads as five people standing in a row, not a supper. Two causes, both
+independent of the slot design: the plates are full-body standing figures, and they are
+composited large enough that heads touch the top of the stage and feet are cut off by the
+dialogue panel. Reducing the composite scale would restore the room at no cost to
+legibility, because the highlight is doing the work of directing the eye.
+
+A related oddity that follows from the sprite convention: everyone stands, throughout a
+seated supper for eight.
+
+## Expression — the lead's second question
+
+**They land at play scale.** Ruth's `shut` is unmistakable on "That's what makes it
+unpleasant." — eyes lowered, head turned away — and clearly different from the `composed`
+plate two lines earlier. Compared at full plate size, `exposed` and `shut` share coat,
+dress, hair and framing and differ only in face and carriage, so the character does not
+jump between lines.
+
+## Defect — every beat transition is a black screen
+
+3–6 seconds of pure black on each beat change, with no spinner and no title card: the
+breadcrumb updates and the stage stays black until the art decodes. About 2s into the
+office; over 5s into the supper, which loads a stage plus five 1024×1536 plates. It reads
+as a hang. A loading state is the cheapest polish available in the build.
+
+## Blocked
+
+Pass 1 paused at beat 4 pending a decision on the medium (below), since the remaining
+beats would be played against art that may be replaced.
+
+---
+
+# Art audit 7 — the episode is in two media
+
+The six scenario beats are **photorealistic photography**. The two rooms, and
+`references/cover.png` which is supposed to govern every image, are **painted gouache**.
+
+Root cause, one field:
+
+```
+out/the-grain-scene-4/style-anchor.json
+  "style_mode": "photorealistic_natural"
+  "medium_keyword": "photorealistic natural photography"
+```
+
+The brief's art direction is the opposite and explicit: "painted illustration,
+gouache-like, visible brushwork, restrained detail. **Not photoreal**, not anime, not
+comic ink. Nothing glossy."
+
+It is not a reference-binding failure. `request.json` binds `style_reference_id "cover"`
+to `references/cover.png` with the correct sha256 — the painted plate is attached. The
+anchor's medium keyword simply wins over the reference image.
+
+**Why the rooms escaped it:** each `room.toml` carries an authored `[style]` block —
+label "painted illustration, gouache-like, 1972 Los Angeles at night", with an `avoid`
+list whose first entry is "photorealism". The scenario contract has no `[style]` block at
+all: it gives a scenario cast, stages, tracks and endings, and no way to state its
+medium. So the recipe defaulted, and the default is photoreal. **The rooms could say it
+and the scenarios could not.** That is the contract gap, and it is the finding rather
+than the individual plates.
+
+In play, a player walks out of a photograph into a painting and back again, twice, and
+the cover the director opens the report with is the painting.

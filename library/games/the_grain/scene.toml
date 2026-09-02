@@ -15,7 +15,7 @@ kind = "dialogue-scene-v5"
 game_id = "the_grain"
 display_name = "The Grain — Episode One"
 revision = 1
-scene_brief = "A farewell supper in a closed 1972 department store, and a man found in its window"
+scene_brief = "Gouache painting, never photography: a 1972 farewell supper in a closed department store"
 transparency_mode = "native"
 
 # The art direction of record, as pixels rather than adjectives. Candidate 1 of a

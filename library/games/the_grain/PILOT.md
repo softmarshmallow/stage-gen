@@ -794,7 +794,9 @@ smaller."* Removing it would remove the thing two characters are talking about. 
 ruled it acceptable as illegible letterform rather than text, and records it here explicitly
 because it sits on the edge of a hard rule and should be seen rather than buried.
 
-**The stages read photographic, not gouache.** This is the more serious one. The art
+**The stages read photographic, not gouache.** *Logged here at 06:47 as a matter for the
+director's taste. That was wrong — see 07:12, where QA found the single field that caused
+it. Left in place because the misjudgement is part of the record.* The art
 direction is "painted illustration, gouache-like, visible brushwork, restrained detail. Not
 photoreal." The cover plate is unmistakably a painting. The twelve stages, drawn against
 that plate as their style reference, came back closer to rendered or photographed sets —
@@ -1079,6 +1081,64 @@ That version cascade is worth a line in the report on its own: the recipe's iden
 three times in one morning for good reasons, and each move was invisible to the consumer
 until a page rendered an error. Nothing checks a consumer's pins against a producer's
 identity offline.
+
+### 07:12 — The episode was in two media, and the cause was eighty-two characters
+
+**The most important defect of the run**, found by QA in play rather than by any gate.
+
+The six scenario beats came back **photorealistic photography**. The two rooms, and the
+cover plate that is supposed to govern everything, came back **painted gouache**. A player
+walked out of a photograph into a painting and back again, twice.
+
+`out/the-grain-scene-4/style-anchor.json`:
+
+```
+style_mode        photorealistic_natural
+medium_keyword    photorealistic natural photography
+character_sprite  isolated full-character photographic plate…
+```
+
+The art direction in the brief is the opposite and explicit: *"painted illustration,
+gouache-like, visible brushwork, restrained detail. **Not photoreal**, not anime, not comic
+ink. Nothing glossy."*
+
+**It was not a reference-binding failure.** `request.json` binds the plate correctly, by
+digest. The painted cover was attached to all 47 calls. The anchor's medium keyword simply
+outranks the reference image.
+
+**The cause, traced the last inch:** the anchor is a structured call whose *entire* input is
+`style_selection_brief` — `scene_brief` plus each actor's appearance, wardrobe and
+invariants. The `scene_brief` the lead authored was:
+
+> "A farewell supper in a closed 1972 department store, and a man found in its window"
+
+Eighty-two characters that say what happens and **nothing about what it looks like**. Asked
+to choose a medium from a description of an event, the model chose photography, reasonably.
+
+**Why the rooms escaped it, which is the finding worth keeping:** `room.toml` carries an
+authored `[style]` block — label, keywords, and an avoid-list beginning with
+"photorealism". `scenario-v2` has cast, stages, tracks, flags and endings, and **no way to
+say what medium it is in**. The rooms could say it and the scenarios could not, so the
+recipe defaulted, and the default is photoreal.
+
+**The fix was one line.** The brief now reads *"Gouache painting, never photography: a 1972
+farewell supper in a closed department store"*, and the anchor came back:
+
+```
+style_mode  gouache_illustration_2d
+medium      editorial gouache illustration
+traits      opaque matte paint shapes · visible dry-brush texture ·
+            simplified graphic silhouettes · restrained paper grain
+```
+
+The whole episode is redrawing against that. **This is the pilot's clearest argument for a
+contract change:** a scenario, or a scene, should be able to declare its medium the way a
+room can. A 96-character label is not where art direction belongs, and the only reason it
+worked is that a person noticed the game was in two media by *playing* it.
+
+*Recorded against the pilot's own earlier note:* the style drift was logged at 06:47 as a
+question for the director's taste. It was not a taste question. It was a defect with a
+single cause, and it took playing the game to see it.
 
 ---
 

@@ -301,3 +301,40 @@ under authored expression ids. Re-running the same 115-node graph.
   profile, so a profile's digest covers them and editing **one** direction re-bills **all
   four** of that actor's plates. Get an actor's four right together or not at all.
 - Reviewed: no.
+
+### Actual — window room, roll 4: twelve rectangles, one operation
+
+QA measured all fourteen hotspots on roll 3 and returned twelve corrected rectangles with a
+dispatch-shadowing analysis of every overlapping pair. Applied in a single edit, because a
+region change redraws the backdrop and a second pass would invalidate the first.
+
+- 1 provider operation. 12 cache hits, 6 misses — both sprite hotspots cached; only the
+  backdrop redrew.
+- `puzzle.validation.json`: solvable, 9,312 states, **zero unreachable interactions**.
+- Two rectangles were added rather than corrected: `wired_glass` had no object of its own,
+  because the plate put its one wired-glass pane in the stage door instead of the access
+  door, and `painted_wall` had no visible scrape. Both are placed so their facts stay
+  obtainable; both divergences are in the report.
+
+## 2026-09-03T07:12 KST — the scene, run 5: the whole episode in the right medium (planned)
+
+Cause: QA found `style-anchor.json` carrying `style_mode: "photorealistic_natural"`, so all
+twelve stages and all thirty-two plates came back photographic while the two rooms and the
+cover came back painted. The episode was in two media.
+
+Root cause traced: the anchor is a structured call whose only input is
+`style_selection_brief` — `scene_brief` plus each actor's appearance, wardrobe and
+invariants. The old `scene_brief` said what happens and nothing about how it looks, so the
+model chose photography. The rooms escaped because `room.toml` carries an authored `[style]`
+block whose avoid-list begins with "photorealism"; the scenario contract has no such block.
+
+Fix: one line. `scene_brief` now reads *"Gouache painting, never photography: a 1972
+farewell supper in a closed department store"*, and the anchor came back
+`gouache_illustration_2d` / "editorial gouache illustration" / opaque matte paint shapes,
+visible dry-brush texture, restrained paper grain.
+
+- Planned operations: 47 image (all redraw — the anchor is upstream of every one), 4 music
+  and 12 structured expected to cache-hit or be cheap.
+- Estimated USD: ~23.50.
+- This is a **semantic regeneration**, not a provider retry.
+- Reviewed: no.
