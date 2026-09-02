@@ -18,6 +18,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
+from itertools import pairwise
 from typing import Final, cast
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -27,7 +28,7 @@ from stage_gen.media.guide_lattice import png_bytes
 
 STRUCTURAL_GROUND_MODE: Final = "runner-structural-ground-v1"
 STRUCTURAL_GROUND_GUIDE_ID: Final = "runner-structural-ground-guide-v1"
-STRUCTURAL_GROUND_SOURCE_ID: Final = "runner-structural-ground-source-v4"
+STRUCTURAL_GROUND_SOURCE_ID: Final = "runner-structural-ground-source-v5"
 STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID: Final = (
     "runner-structural-ground-seam-bridge-canonicalization-v1"
 )
@@ -76,22 +77,46 @@ _MAX_GUIDE_RESIDUE_DISTANCE: Final = 10
 #: honestly, and the guide's palette is derived from the authored material.
 _MAX_GUIDE_RESIDUE_SHARE: Final = 0.06
 
-#: Projection tolerances. Under a parallel projection every receding edge runs
-#: the same way, so the tile's dominant non-horizontal lean must not change
-#: sign across it, and must not drift far in magnitude. Measured on the played
-#: v9 run these read -36.8 / +30.8 / +40.2 degrees by horizontal third: a sign
-#: flip and a 9-degree drift, one tile carrying two projection systems.
-_MAX_PROJECTION_LEAN_SPREAD_DEGREES: Final = 14.0
+#: Under a parallel projection every receding edge runs the same way, so one
+#: tile must not carry two opposite families - the `\|/` splay this check was
+#: opened for. Calibrated against real art with an instrument that resolves
+#: angles at all: Iron Petal's twelve shipped tiles spread 7.2 to 59.6 degrees
+#: across their thirds, and those same tiles hatched into an opposite-leaning
+#: splay spread 76.0 to 84.6. The tolerance sits in the gap.
+#:
+#: That is a weaker claim than this file's opening paragraph might suggest, and
+#: it is stated weakly on purpose. Legitimate greenhouse detail - a pipe bend
+#: against a bracket chamfer against a hanging vine - already moves the measured
+#: lean sixty degrees between thirds of a tile that is visibly a correct front
+#: elevation, so no threshold on this statistic can see subtler drift. Refusing
+#: one receding top face needs a detector local to the surface run rather than a
+#: whole-tile edge statistic, and the earlier 14-degree tolerance only looked
+#: tighter because the instrument under it could return exactly one number.
+_MAX_PROJECTION_LEAN_SPREAD_DEGREES: Final = 68.0
 
 #: Leans below this are read as horizontal detail rather than a receding edge,
 #: and leans this close to vertical are structural uprights. Both are excluded
-#: before the dominant lean is taken.
+#: before the family's lean is taken.
 _MIN_PROJECTION_LEAN_DEGREES: Final = 8.0
 _MAX_PROJECTION_LEAN_DEGREES: Final = 82.0
+
+#: Below this gradient magnitude a pixel is flat material rather than an edge.
+_MIN_PROJECTION_EDGE_MAGNITUDE: Final = 24
 
 #: Below this many qualifying edge pixels a third has nothing to say, and a
 #: flat material is not a projection failure.
 _MIN_PROJECTION_EDGE_SAMPLES: Final = 64
+
+#: How the lean estimator reads gradients. Pillow's kernel filter clamps its
+#: output into the image's own range, so the 8-bit `offset=128` pair this began
+#: with saturated on every strong edge and dropped it into the +-45 degree bin:
+#: synthetic parallel edges drawn at 20, 30, 45, 60 and 70 degrees all measured
+#: 45.0, and every shipped tile reported a spread of exactly zero. Signed
+#: gradients need the 32-bit `I` mode and an offset with headroom under them,
+#: and orientation has to be read above the pixel staircase of an aliased edge,
+#: which is what the blur is for.
+_PROJECTION_GRADIENT_OFFSET: Final = 32768
+_PROJECTION_BLUR_RADIUS: Final = 3.0
 
 RGB = tuple[int, int, int]
 
@@ -896,66 +921,98 @@ def guide_residue_share(
     return residue / considered
 
 
-def _dominant_lean_degrees(region: Image.Image) -> float | None:
-    """The dominant non-horizontal edge lean of one region, in degrees.
+def diagonal_family_lean_degrees(region: Image.Image) -> float | None:
+    """The lean of one region's diagonal edge family, in degrees, or None.
 
-    A Sobel pair through `ImageFilter.Kernel`, then a one-degree histogram over
-    the edge directions perpendicular to each gradient, folded to (-90, 90].
+    A Sobel pair over a blurred copy, then the magnitude-weighted circular mean
+    of the doubled angles of every edge that is neither near-horizontal nor
+    near-vertical. Doubling is what makes a mean of orientations meaningful: an
+    orientation lives modulo 180 degrees, so +80 and -80 are neighbours rather
+    than opposites and only the doubled angle averages correctly.
+
+    A mean rather than the modal bin, because the mode jumps between unrelated
+    bins on legitimate art - a pipe bend one moment, a bracket chamfer the next
+    - while the mean moves as the picture does.
+
     Pure Pillow on purpose: this project depends on exactly httpx, pillow and
     pydantic, and one check does not justify adding numpy to that.
     """
 
-    grey = region.convert("L")
+    if region.width < 3 or region.height < 3:
+        return None
+    blurred = region.convert("L").filter(ImageFilter.GaussianBlur(_PROJECTION_BLUR_RADIUS))
+    grey = blurred.convert("I")
+    offset = _PROJECTION_GRADIENT_OFFSET
     horizontal = grey.filter(
-        ImageFilter.Kernel((3, 3), (-1, 0, 1, -2, 0, 2, -1, 0, 1), scale=1, offset=128)
-    ).tobytes()
+        ImageFilter.Kernel((3, 3), (-1, 0, 1, -2, 0, 2, -1, 0, 1), scale=1, offset=offset)
+    )
     vertical = grey.filter(
-        ImageFilter.Kernel((3, 3), (-1, -2, -1, 0, 0, 0, 1, 2, 1), scale=1, offset=128)
-    ).tobytes()
-    histogram: dict[int, int] = {}
+        ImageFilter.Kernel((3, 3), (-1, -2, -1, 0, 0, 0, 1, 2, 1), scale=1, offset=offset)
+    )
+    # A 3x3 kernel cannot reach the outermost ring, and Pillow copies the source
+    # into it, so those pixels carry luminance where a gradient is expected and
+    # would read as enormous fake edges.
+    inner = (1, 1, grey.width - 1, grey.height - 1)
+    gradients_x = cast(Sequence[int], horizontal.crop(inner).get_flattened_data())
+    gradients_y = cast(Sequence[int], vertical.crop(inner).get_flattened_data())
+    sum_x = 0.0
+    sum_y = 0.0
     samples = 0
-    for index, raw_x in enumerate(horizontal):
-        gradient_x = raw_x - 128
-        gradient_y = vertical[index] - 128
-        if abs(gradient_x) + abs(gradient_y) < 24:
+    for raw_x, raw_y in zip(gradients_x, gradients_y, strict=True):
+        gradient_x = raw_x - offset
+        gradient_y = raw_y - offset
+        magnitude = abs(gradient_x) + abs(gradient_y)
+        if magnitude < _MIN_PROJECTION_EDGE_MAGNITUDE:
             continue
         # The edge runs perpendicular to its gradient.
         angle = math.degrees(math.atan2(-gradient_x, gradient_y))
         angle = (angle + 90.0) % 180.0 - 90.0
-        magnitude = abs(angle)
-        if magnitude < _MIN_PROJECTION_LEAN_DEGREES or magnitude > _MAX_PROJECTION_LEAN_DEGREES:
+        lean = abs(angle)
+        if lean < _MIN_PROJECTION_LEAN_DEGREES or lean > _MAX_PROJECTION_LEAN_DEGREES:
             continue
-        bucket = round(angle)
-        histogram[bucket] = histogram.get(bucket, 0) + 1
+        doubled = math.radians(angle * 2.0)
+        sum_x += magnitude * math.cos(doubled)
+        sum_y += magnitude * math.sin(doubled)
         samples += 1
     if samples < _MIN_PROJECTION_EDGE_SAMPLES:
         return None
-    return float(max(histogram.items(), key=lambda entry: (entry[1], -abs(entry[0])))[0])
+    return math.degrees(math.atan2(sum_y, sum_x)) / 2.0
 
 
 def projection_lean_by_third(painted: Image.Image) -> list[float | None]:
-    """Dominant lean for the left, middle and right thirds of a painted band."""
+    """The diagonal family's lean in the left, middle and right thirds."""
 
     width, height = painted.size
     third = width // 3
     return [
-        _dominant_lean_degrees(painted.crop((index * third, 0, (index + 1) * third, height)))
+        diagonal_family_lean_degrees(painted.crop((index * third, 0, (index + 1) * third, height)))
         for index in range(3)
     ]
 
 
 def projection_lean_spread(leans: Sequence[float | None]) -> float | None:
-    """How far apart the measured thirds are, or None when too few speak.
+    """The smallest arc of orientation containing every measured third.
 
-    A sign flip is deliberately not special-cased: under a parallel projection
-    every receding edge runs the same way, so opposite signs simply produce a
-    spread far past any tolerance a consistent tile could show.
+    An orientation is circular modulo 180 degrees, so `max - min` is the wrong
+    arithmetic on it: +87 and -87 degrees are six degrees apart, not 174, and
+    reading them as 174 refuses a tile whose thirds agree. The doubled angles
+    are placed on a circle, the widest empty gap between neighbours is found,
+    and what is left over is the covering arc.
+
+    A sign flip is not special-cased. Under a parallel projection every receding
+    edge runs the same way, so genuinely opposite families - the backslash-bar-
+    slash splay -
+    sit a quarter turn apart and produce the maximum this statistic can report,
+    which is 90 degrees.
     """
 
     measured = [value for value in leans if value is not None]
     if len(measured) < 2:
         return None
-    return max(measured) - min(measured)
+    doubled = sorted(math.radians(value * 2.0) % math.tau for value in measured)
+    gaps = [second - first for first, second in pairwise(doubled)]
+    gaps.append(doubled[0] + math.tau - doubled[-1])
+    return math.degrees(math.tau - max(gaps)) / 2.0
 
 
 def _decode_rgba(data: bytes, *, label: str) -> Image.Image:

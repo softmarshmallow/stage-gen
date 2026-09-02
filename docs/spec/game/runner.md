@@ -218,9 +218,20 @@ provider returns its conditioning image rather than a painting. Alpha checks
 cannot see that at all, because every guide pixel is opaque - they measure
 alpha rather than authorship.
 
-**Lean consistency.** The dominant non-horizontal edge lean, sampled by
-horizontal thirds of the authored body, must stay inside a spread tolerance,
-which one projection system does and two do not.
+**Lean consistency.** The diagonal edge family's lean, sampled by horizontal
+thirds of the authored body, must fit inside one arc of orientation: two
+opposite receding families in one tile are two projection systems. The lean is
+the magnitude-weighted circular mean of the doubled edge angles, and the spread
+is the smallest arc covering the thirds, because orientation is circular modulo
+180 degrees and +87 against -87 is six degrees of disagreement rather than 174.
+
+The claim is deliberately narrow. Iron Petal's twelve shipped tiles spread 7.2
+to 59.6 degrees across their thirds while being visibly correct front
+elevations, because honest greenhouse detail - a pipe bend against a bracket
+chamfer against a hanging vine - moves the measured lean that far on its own;
+the same tiles hatched into an opposite-leaning splay spread 76.0 to 84.6, and
+the tolerance sits in that gap. Refusing a single receding top face would need a
+detector local to the surface run rather than a whole-tile edge statistic.
 
 `oblique_v1` is the reserved second member. It would carry a receding angle and
 a depth ratio (cabinet is 0.5, cavalier 1.0), and it is not merely unbuilt: the

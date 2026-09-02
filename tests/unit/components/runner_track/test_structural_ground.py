@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from hashlib import sha256
 from io import BytesIO
 from typing import cast
@@ -26,6 +27,9 @@ from stage_gen.components.runner_track import (
     validate_structural_ground_material_references,
     validate_structural_ground_seam_bridge,
     validate_structural_ground_source,
+)
+from stage_gen.components.runner_track.structural_ground import (
+    diagonal_family_lean_degrees,
 )
 
 from ..._runner_fixture import (
@@ -591,6 +595,68 @@ def test_source_admission_refuses_a_tile_that_mixes_projections() -> None:
             material_identity=MATERIAL_IDENTITY,
             material_references=[REFERENCE],
         )
+
+
+def test_the_lean_estimator_resolves_the_angle_it_is_given() -> None:
+    """The instrument the projection check reads used to answer 45 to everything.
+
+    Pillow's kernel filter clamps into the source image's own range, so the
+    8-bit Sobel pair this began with saturated on every strong edge. Families
+    drawn at 20, 30, 45, 60 and 70 degrees all measured 45.0, every shipped
+    tile reported a spread of exactly zero, and the tolerance above it could
+    never refuse anything.
+    """
+
+    for drawn in (-60.0, -30.0, 20.0, 30.0, 45.0, 60.0, 70.0):
+        canvas = Image.new("RGB", (300, 300), (240, 240, 240))
+        pen = ImageDraw.Draw(canvas)
+        run = 300.0 / math.tan(math.radians(drawn))
+        for index in range(-12, 18):
+            near = index * 40
+            pen.line([(near, 300), (near + run, 0)], fill=(30, 30, 30), width=5)
+        measured = diagonal_family_lean_degrees(canvas)
+        assert measured is not None
+        assert abs(measured - drawn) < 2.0, f"drawn {drawn}, measured {measured}"
+
+
+def test_source_admission_admits_one_consistent_receding_family() -> None:
+    """The refusal is two projections in one tile, never a diagonal as such.
+
+    Its false-positive side is the one that costs provider attempts: greenhouse
+    ground is full of honest diagonals - pipe bends, hanging vines, bracket
+    chamfers - and a tile whose receding edges all run the same way is a
+    parallel projection, which is the whole point.
+    """
+
+    guide, report = _guide()
+    layout = cast(dict[str, int], report["layout"])
+    with Image.open(BytesIO(painted_over_guide(guide))) as opened:
+        hatched = opened.convert("RGBA")
+    body_left = layout["left"] + layout["apron_columns"] * layout["cell_px"]
+    body_right = body_left + layout["columns"] * layout["cell_px"]
+    body_top = layout["top"] + 5 * layout["cell_px"]
+    body_bottom = layout["top"] + layout["rows"] * layout["cell_px"]
+    height = body_bottom - body_top
+
+    layer = Image.new("RGBA", hatched.size, (0, 0, 0, 0))
+    pen = ImageDraw.Draw(layer)
+    for offset in range(-height * 2, (body_right - body_left) + height * 2, 24):
+        near = body_left + offset
+        pen.line((near, body_top, near + height, body_bottom), fill=(240, 236, 220, 255), width=5)
+    patch = layer.crop((body_left, body_top, body_right, body_bottom))
+    hatched.paste(patch, (body_left, body_top), patch)
+
+    admitted = validate_structural_ground_source(
+        _png(hatched),
+        occupancy=PITTED_ROWS,
+        walk_surface_row=5,
+        guide=guide,
+        material_identity=MATERIAL_IDENTITY,
+        material_references=[REFERENCE],
+    )
+    spread = admitted["projection_lean_spread_degrees"]
+    assert spread is not None
+    assert cast(float, spread) < 20.0
 
 
 def test_source_admission_refuses_a_part_painted_walking_surface() -> None:
