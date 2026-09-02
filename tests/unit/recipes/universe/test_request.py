@@ -20,6 +20,15 @@ from stage_gen.recipes.universe.universe_request import (
 FIXTURE = Path("library/games/lantern_ferry")
 
 
+def _ledger_file(tmp_path: Path, entity_ids: tuple[str, ...]) -> Path:
+    """A first run's ledger, which every later reroll has to advance."""
+
+    ledger = resolve_sample_ledger(universe_id="lantern_ferry", entity_ids=entity_ids)
+    path = tmp_path / "sample-ledger.json"
+    path.write_text(json.dumps(ledger.model_dump(mode="json")), encoding="utf-8")
+    return path
+
+
 def _resolve(root: Path = FIXTURE) -> ResolvedUniverseSource:
     return resolve_universe_source(read_universe_document(root), root=root)
 
@@ -105,22 +114,36 @@ def test_a_fresh_sample_ledger_names_every_entity() -> None:
     assert ledger.samples == {"the_ferry": 0, "east_landing": 0}
 
 
-def test_a_reroll_advances_exactly_the_entity_it_names() -> None:
+def test_a_reroll_advances_exactly_the_entity_it_names(tmp_path: Path) -> None:
+    prior = _ledger_file(tmp_path, ("the_ferry", "east_landing"))
     ledger = resolve_sample_ledger(
         universe_id="lantern_ferry",
         entity_ids=("the_ferry", "east_landing"),
+        prior=prior,
         rerolls=("east_landing",),
     )
     assert ledger.samples == {"the_ferry": 0, "east_landing": 1}
+
+
+def test_a_reroll_without_a_prior_ledger_is_refused() -> None:
+    """Starting fresh would drop every other entity back to its rejected picture."""
+
+    with pytest.raises(ValueError, match="advance a prior sample ledger"):
+        resolve_sample_ledger(
+            universe_id="lantern_ferry",
+            entity_ids=("the_ferry", "east_landing"),
+            rerolls=("east_landing",),
+        )
 
 
 def test_rerolls_accumulate_over_a_carried_ledger(tmp_path: Path) -> None:
     first = resolve_sample_ledger(
         universe_id="lantern_ferry",
         entity_ids=("the_ferry", "east_landing"),
+        prior=_ledger_file(tmp_path, ("the_ferry", "east_landing")),
         rerolls=("east_landing",),
     )
-    prior = tmp_path / "sample-ledger.json"
+    prior = tmp_path / "carried.json"
     prior.write_text(json.dumps(first.model_dump(mode="json")), encoding="utf-8")
     second = resolve_sample_ledger(
         universe_id="lantern_ferry",
@@ -131,10 +154,13 @@ def test_rerolls_accumulate_over_a_carried_ledger(tmp_path: Path) -> None:
     assert second.samples == {"the_ferry": 0, "east_landing": 2}
 
 
-def test_rerolling_an_unplanned_entity_is_refused() -> None:
+def test_rerolling_an_unplanned_entity_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="does not plan"):
         resolve_sample_ledger(
-            universe_id="lantern_ferry", entity_ids=("the_ferry",), rerolls=("ghost",)
+            universe_id="lantern_ferry",
+            entity_ids=("the_ferry",),
+            prior=_ledger_file(tmp_path, ("the_ferry",)),
+            rerolls=("ghost",),
         )
 
 

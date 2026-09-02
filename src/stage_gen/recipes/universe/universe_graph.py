@@ -359,7 +359,7 @@ def build_universe_semantic_graph(
             "medium": resolved.medium.medium_id,
             "poster_proxy_long_edge": str(POSTER_PROXY_LONG_EDGE),
         },
-        input_digests=source_digests,
+        input_digests=(*source_digests, _text_digest(str(POSTER_PROXY_LONG_EDGE))),
         ports=(
             _artifact("source_lock", SOURCE_LOCK_REF, SOURCE_LOCK_KIND),
             _artifact("poster_proxy", POSTER_PROXY_REF, POSTER_PROXY_KIND),
@@ -524,6 +524,14 @@ def build_universe_gallery_graph(
     if samples.universe_id != resolved.universe_id:
         raise ValueError(f"sample ledger is for {samples.universe_id!r}, not this universe")
 
+    reserved = sorted(
+        entity_id for entity_id in admitted.entity_ids() if node_safe(entity_id) == "global"
+    )
+    if reserved:
+        raise ValueError(
+            f"entity id {reserved[0]!r} collides with the gallery's global direction node; "
+            "rename the entity in the admitted universe"
+        )
     builder = GraphBuilder(profile=profile, local_max_in_flight=4)
     compile_digest = medium.compile_digest()
     render_digest = medium.render_digest()
@@ -628,8 +636,13 @@ def build_universe_gallery_graph(
                     "mask_reference_count": "0",
                 },
                 depends_on=(direction_id,),
+                # The size is the one number that decides what the provider is
+                # asked to draw and what the package ships, so it belongs to the
+                # node's identity rather than only to its params: an image drawn
+                # to a superseded canvas is not a valid answer to this question.
                 input_digests=(
                     render_digest,
+                    _text_digest(size),
                     _sample_digest(entity_id, samples.sample(entity_id)),
                 ),
                 ports=(
@@ -653,6 +666,7 @@ def build_universe_gallery_graph(
                 description=f"Downscaled review proxy for {entity.display_name}",
                 params={"entity_id": entity_id, "long_edge": str(REVIEW_PROXY_LONG_EDGE)},
                 depends_on=(image_id,),
+                input_digests=(_text_digest(str(REVIEW_PROXY_LONG_EDGE)),),
                 ports=(
                     _artifact(
                         "proxy",

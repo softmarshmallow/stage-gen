@@ -623,35 +623,47 @@ def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
         semantic_out, admitted=admitted, poster=package / "references/poster.png"
     )
 
+    def _gallery(output: Path, invocation: str, *extra: str) -> dict[str, object]:
+        stream = StringIO()
+        arguments = [
+            "universe",
+            "gallery",
+            "--input",
+            str(package),
+            "--semantic-run",
+            str(semantic_out),
+            "--output",
+            str(output),
+            "--cache-dir",
+            str(tmp_path / "cache"),
+            "--dry-run",
+            "--invocation-id",
+            invocation,
+            *extra,
+        ]
+        assert main(arguments, stdout=stream) == 0
+        report: dict[str, object] = json.loads(stream.getvalue())
+        return report
+
     gallery_out = tmp_path / "gallery"
-    stdout = StringIO()
-    assert (
-        main(
-            [
-                "universe",
-                "gallery",
-                "--input",
-                str(package),
-                "--semantic-run",
-                str(semantic_out),
-                "--output",
-                str(gallery_out),
-                "--cache-dir",
-                str(tmp_path / "cache"),
-                "--dry-run",
-                "--invocation-id",
-                "cli-gallery",
-                "--reroll",
-                "low_marsh",
-            ],
-            stdout=stdout,
-        )
-        == 0
-    )
-    gallery_report = json.loads(stdout.getvalue())
+    gallery_report = _gallery(gallery_out, "cli-gallery")
     assert gallery_report["phase"] == "gallery"
     assert gallery_report["node_count"] == 42
     assert sum(gallery_report["counts"].values()) == 8
+
+    # A reroll advances the ledger the first run left behind, rather than
+    # quietly starting a new one and restoring every other rejected picture.
+    rerolled_out = tmp_path / "gallery-2"
+    _gallery(
+        rerolled_out,
+        "cli-gallery-2",
+        "--reroll",
+        "low_marsh",
+        "--sample-ledger",
+        str(gallery_out / "sample-ledger.json"),
+    )
+    ledger = json.loads((rerolled_out / "sample-ledger.json").read_bytes())
+    assert ledger["samples"]["low_marsh"] == 1
 
     for run_dir in (semantic_out, gallery_out):
         stdout = StringIO()

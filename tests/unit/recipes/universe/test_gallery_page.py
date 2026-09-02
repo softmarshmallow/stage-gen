@@ -18,19 +18,33 @@ ADMITTED = Path("tests/contract/fixtures/universe/lantern_ferry.admitted-univers
 
 
 async def _dry_gallery(tmp_path: Path, *, rerolls: tuple[str, ...] = ()) -> Path:
+    """One gallery run; a reroll advances the ledger a first run left behind."""
+
+    executor = UniverseExecutor(StageGenConfig())
     semantic = materialize_semantic_run(
         tmp_path / "sem", admitted=ADMITTED, poster=FIXTURE / "references/poster.png"
     )
-    run = await UniverseExecutor(StageGenConfig()).dry_run_gallery(
+    first = await executor.dry_run_gallery(
         FIXTURE,
         semantic_run=semantic,
         run_dir=tmp_path / "gal",
         cache_dir=tmp_path / "cache",
         invocation_id="dry-gallery",
-        rerolls=rerolls,
     )
-    assert run.summary.ok
-    return run.run_dir
+    assert first.summary.ok
+    if not rerolls:
+        return first.run_dir
+    second = await executor.dry_run_gallery(
+        FIXTURE,
+        semantic_run=semantic,
+        run_dir=tmp_path / "gal-2",
+        cache_dir=tmp_path / "cache",
+        invocation_id="dry-gallery-2",
+        rerolls=rerolls,
+        sample_ledger=first.run_dir / "sample-ledger.json",
+    )
+    assert second.summary.ok
+    return second.run_dir
 
 
 async def test_a_gallery_run_carries_the_bytes_its_manifest_names(tmp_path: Path) -> None:
@@ -83,5 +97,24 @@ async def test_the_page_renders_from_the_run_alone(tmp_path: Path) -> None:
 async def test_the_page_refuses_a_run_that_lost_its_inputs(tmp_path: Path) -> None:
     run_dir = await _dry_gallery(tmp_path)
     (run_dir / "inputs/universe.json").unlink()
-    with pytest.raises(OSError):
+    with pytest.raises((OSError, ValueError)):
+        gallery_page.render(run_dir)
+
+
+async def test_the_page_follows_no_symlink_out_of_the_run(tmp_path: Path) -> None:
+    """A manifest is data the page is handed, not a licence to read the disk."""
+
+    run_dir = await _dry_gallery(tmp_path)
+    secret = tmp_path / "outside.json"
+    secret.write_text(json.dumps({"status": "admitted", "review": {}}), encoding="utf-8")
+    escape = run_dir / "package" / "escape.json"
+    escape.parent.mkdir(parents=True, exist_ok=True)
+    escape.symlink_to(secret)
+
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["entities"][0]["record"] = "package/escape.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises((OSError, ValueError)):
         gallery_page.render(run_dir)

@@ -8,6 +8,12 @@ Changelog
 2026-09-03  First pin, when the recipe was promoted out of the spike.
             Semantic: 6 nodes. Gallery: 42 nodes over the fixture's 8 entities
             (one global direction, five nodes per entity, one terminal close).
+2026-09-03  Both graph digests re-pinned after an adversarial review found three
+            things outside node identity that decide what a node produces: the
+            requested pixel size and the two proxy long edges, and the medium's
+            forbidden-direction vocabulary and display name. All four now ride
+            input digests. No node was added or removed, so both topology
+            digests are unchanged — which is the point of the split.
 """
 
 from __future__ import annotations
@@ -33,11 +39,11 @@ FIXTURE = Path("library/games/lantern_ferry")
 ADMITTED = Path("tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json")
 
 SEMANTIC_NODE_COUNT = 6
-SEMANTIC_GRAPH_SHA256 = "dd6f0be572608404eb0dd6bf5db0d961bcd6889625e53fbbd16809bfac9c2001"
+SEMANTIC_GRAPH_SHA256 = "c72927dfaf2dad70cbf24c23489676b742a5e94e4e25963a4451da0f40aa8567"
 SEMANTIC_TOPOLOGY_SHA256 = "ef67f5dfad878dd308ce7a481b0f68cdf53b6626355dd186c42e29d6b9831e22"
 
 GALLERY_NODE_COUNT = 42
-GALLERY_GRAPH_SHA256 = "369b3409624c0626010ed9d2f798122426f32368e82f70159bda92a0c2031e33"
+GALLERY_GRAPH_SHA256 = "2c8d3c3392382af272b13f6617e7fce9eab109eaeb6b19990c0ff05e594a98d8"
 GALLERY_TOPOLOGY_SHA256 = "3cdc982dcad3f7bd6b0433bb50c5e61097559e6768fb02eb63d2d41799c2d62c"
 
 

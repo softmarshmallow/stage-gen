@@ -173,7 +173,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # handler, manifest, consumer page, executor, and view. It is the first
         # recipe whose output is a package to read rather than to play, so it
         # shares no module with the four that came before (measured 242).
-        assert len(wheel_entries) <= 242
+        # The case container (2026-09-03) adds six: its component package, models,
+        # proof and resolver, plus the leaf binding and the runtime projection in
+        # the composition root - neither is a component, because a case names
+        # rooms and a room is a recipe (measured 248).
+        assert len(wheel_entries) <= 248
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -265,7 +269,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The universe recipe (2026-09-03) adds its fourteen modules, five test
         # modules, the fixture poster script and its test, and the four members
         # of the committed Lantern Ferry package (measured 492).
-        assert len(sdist_entries) <= 492
+        # The case container (2026-09-03) adds its five modules, five test
+        # modules, and its specification document; the two point-and-click rooms
+        # of the Grain's episode bring a room package each - room, UI, cover and
+        # provenance (measured 511).
+        assert len(sdist_entries) <= 511
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -283,7 +291,15 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The screen-FX family (contract, plate gate with the polygon trace, node set,
         # focused tests, spec page) measured 6.11 MB; the ceiling is 6.2 MB.
         # The tool-loop agent (2026-09-03): measured 6.30 MB; the ceiling is 6.4 MB.
-        assert sum(sdist_entries.values()) < 6_400_000
+        # The universe recipe and the case container (2026-09-03) together measured
+        # 6.94 MB - 6.85 MB of it the universe recipe's fourteen modules, five test
+        # modules and admitted-universe fixture, and 0.09 MB the case container's
+        # five modules, five test modules and specification page. The ceiling is
+        # 7.0 MB. An adversarial review of the universe recipe then added four
+        # more test modules and the rules they pin - cache identity for the
+        # requested canvas, the reroll ledger, the page's symlink refusal - and
+        # measured 7.03 MB; the ceiling is 7.1 MB.
+        assert sum(sdist_entries.values()) < 7_100_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
@@ -440,7 +456,18 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         if relative.parts[0] == "library":
             assert len(relative.parts) >= 5
             assert relative.parts[:2] == ("library", "games")
-            assert relative.parts[3] == "references"
+            # A game's own art sits at `library/games/<game_id>/references/`. A
+            # package holding several point-and-click rooms gives each room its own
+            # sub-package - `rooms/<room_id>/` with its own `room.toml`, `ui.toml`
+            # and `references/` - because a room's cover is that room's art
+            # direction of record rather than the game's, and the room recipe is
+            # handed that directory. It is the same rule read at the level that
+            # owns the reference; see docs/spec/game/case.md.
+            assert relative.parts[3] == "references" or (
+                relative.parts[3] == "rooms"
+                and len(relative.parts) >= 7
+                and relative.parts[5] == "references"
+            )
             assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "web":
             assert relative.parts[:2] in {("web", "public"), ("web", "scripts")}

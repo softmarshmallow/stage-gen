@@ -9,12 +9,12 @@ package.
 from __future__ import annotations
 
 # ruff: noqa: E501
+import contextlib
 import html
 import json
-import shutil
 from pathlib import Path
 
-from gnode import resolve_relative_path_within_root
+from stage_gen.components._authored_package import read_package_member
 from stage_gen.recipes.universe.universe_graph import (
     INPUT_POSTER_PROXY_REF,
     INPUT_UNIVERSE_REF,
@@ -27,10 +27,17 @@ def _e(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
-def _within(run_dir: Path, ref: str) -> Path:
-    """Resolve one run-relative path, refusing anything that leaves the run."""
+def _read_within(run_dir: Path, ref: str) -> bytes:
+    """Read one run-relative file, following no symlink below the run.
 
-    return resolve_relative_path_within_root(run_dir, ref, "gallery page input")
+    Lexical confinement is not enough here. A manifest is data the page is
+    handed, and a run directory can be unpacked from anywhere, so a symlinked
+    ancestor inside the run would let a crafted manifest pull bytes out of the
+    run and publish them into the page. Each segment is opened ``O_NOFOLLOW``
+    instead, which makes the check and the read the same operation.
+    """
+
+    return read_package_member(run_dir, ref, label="gallery page input")
 
 
 def render(run_dir: Path) -> str:
@@ -43,15 +50,17 @@ def render(run_dir: Path) -> str:
     """
 
     run_dir = run_dir.resolve()
-    manifest = json.loads(_within(run_dir, "manifest.json").read_bytes())
-    universe = json.loads(_within(run_dir, INPUT_UNIVERSE_REF).read_bytes())
+    manifest = json.loads(_read_within(run_dir, "manifest.json"))
+    universe = json.loads(_read_within(run_dir, INPUT_UNIVERSE_REF))
     proposal = universe["proposal"]
     plan_by_entity = {p["entity_id"]: p for p in universe["plan"]["plans"]}
     consumer = run_dir / "consumer"
     consumer.mkdir(exist_ok=True)
-    poster_src = _within(run_dir, INPUT_POSTER_PROXY_REF)
-    if poster_src.is_file():
-        shutil.copyfile(poster_src, consumer / "poster.jpg")
+    # A run without a poster proxy still renders; the page just loses its header image.
+    poster_shown = False
+    with contextlib.suppress(OSError, ValueError):
+        (consumer / "poster.jpg").write_bytes(_read_within(run_dir, INPUT_POSTER_PROXY_REF))
+        poster_shown = True
     names = {e["entity_id"]: e["display_name"] for e in proposal["entities"]}
     entities_by_id = {e["entity_id"]: e for e in proposal["entities"]}
     incident: dict[str, list[dict[str, object]]] = {eid: [] for eid in names}
@@ -84,9 +93,7 @@ def render(run_dir: Path) -> str:
         plan = plan_by_entity.get(eid, {})
         status = entry["status"]
         record = (
-            json.loads(_within(run_dir, entry["record"]).read_bytes())
-            if entry.get("record")
-            else None
+            json.loads(_read_within(run_dir, str(entry["record"]))) if entry.get("record") else None
         )
         teaches = record["review"]["what_the_image_teaches"] if record else ""
         image_html = (
@@ -192,7 +199,7 @@ ul.rels,ul.facts{{padding-left:16px;margin:6px 0}}.kind{{color:var(--muted);font
 .register{{color:var(--muted);font-size:.85rem}}.blocking{{color:var(--warn)}}.reason{{color:var(--warn);font-size:.85rem}}
 </style></head><body>
 <header>
-  <div>{'<img src="poster.jpg" alt="Approved poster">' if poster_src.is_file() else ""}</div>
+  <div>{'<img src="poster.jpg" alt="Approved poster">' if poster_shown else ""}</div>
   <div class="intro">
     <h1>{_e(proposal["title"])}</h1>
     <p class="meta">{_e(manifest["medium_id"].replace("_", " "))} · {len(manifest["entities"])} entities · {counts} · unpublished exploration package</p>

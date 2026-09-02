@@ -8,6 +8,7 @@ implementation detail, and these tests are where that contract is stated.
 from __future__ import annotations
 
 import dataclasses
+import json
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,7 @@ from stage_gen.recipes.universe.universe_graph import (
 from stage_gen.recipes.universe.universe_request import (
     AdmittedUniverse,
     ResolvedUniverseSource,
+    admitted_universe_from_bytes,
     admitted_universe_from_document,
     read_universe_document,
     resolve_sample_ledger,
@@ -46,11 +48,26 @@ def _admitted(resolved: ResolvedUniverseSource) -> AdmittedUniverse:
     return admitted_universe_from_document(ADMITTED, poster_sha256=resolved.poster_sha256)
 
 
-def _gallery(*, rerolls: tuple[str, ...] = ()) -> UniverseGraph:
+def _gallery(*, rerolls: tuple[str, ...] = (), tmp_path: Path | None = None) -> UniverseGraph:
     resolved = _resolved()
     admitted = _admitted(resolved)
+    prior: Path | None = None
+    if rerolls:
+        assert tmp_path is not None, "a reroll must advance a ledger"
+        prior = tmp_path / "sample-ledger.json"
+        prior.write_text(
+            json.dumps(
+                resolve_sample_ledger(
+                    universe_id=admitted.universe_id, entity_ids=admitted.entity_ids()
+                ).model_dump(mode="json")
+            ),
+            encoding="utf-8",
+        )
     samples = resolve_sample_ledger(
-        universe_id=admitted.universe_id, entity_ids=admitted.entity_ids(), rerolls=rerolls
+        universe_id=admitted.universe_id,
+        entity_ids=admitted.entity_ids(),
+        prior=prior,
+        rerolls=rerolls,
     )
     return build_universe_gallery_graph(
         resolved,
@@ -108,11 +125,14 @@ def test_every_node_declares_a_registered_type_and_a_prompt_where_it_needs_one()
                 assert node.card is not None and node.card.prompt, node.node_id
 
 
-def test_a_reroll_moves_one_entity_and_the_terminal_that_counts_it() -> None:
+def test_a_reroll_moves_one_entity_and_the_terminal_that_counts_it(tmp_path: Path) -> None:
     """The whole point of the sample ledger, priced: one branch, not the gallery."""
 
     base = {node.node_id: node.cache_key for node in _gallery().nodes}
-    rerolled = {node.node_id: node.cache_key for node in _gallery(rerolls=("low_marsh",)).nodes}
+    rerolled = {
+        node.node_id: node.cache_key
+        for node in _gallery(rerolls=("low_marsh",), tmp_path=tmp_path).nodes
+    }
     moved = sorted(node_id for node_id in base if base[node_id] != rerolled[node_id])
     assert moved == [
         "gallery-close",
@@ -123,11 +143,11 @@ def test_a_reroll_moves_one_entity_and_the_terminal_that_counts_it() -> None:
     ]
 
 
-def test_a_reroll_does_not_change_the_shape_of_the_graph() -> None:
+def test_a_reroll_does_not_change_the_shape_of_the_graph(tmp_path: Path) -> None:
     """A different draw is a different plan, not a different pipeline."""
 
     base = _gallery()
-    rerolled = _gallery(rerolls=("low_marsh",))
+    rerolled = _gallery(rerolls=("low_marsh",), tmp_path=tmp_path)
     assert base.topology_sha256 == rerolled.topology_sha256
     assert base.graph_sha256 != rerolled.graph_sha256
 
@@ -215,3 +235,38 @@ def test_every_provider_node_can_persist_what_it_was_refused() -> None:
             if node.operation != "structured_generation":
                 continue
             assert "attempts" in {port.port_id for port in node.ports}, node.node_id
+
+
+def test_the_requested_canvas_is_part_of_what_an_image_node_is_asked_for() -> None:
+    """An image drawn to a superseded canvas is not an answer to this question."""
+
+    from stage_gen.recipes.universe import ontology
+
+    before = _gallery().node("image-sela-fenn")
+    original = dict(ontology.SIZE_BY_MODE)
+    try:
+        for mode in list(ontology.SIZE_BY_MODE):
+            ontology.SIZE_BY_MODE[mode] = "1024x1024"
+        after = _gallery().node("image-sela-fenn")
+    finally:
+        ontology.SIZE_BY_MODE.update(original)
+    assert before.params["size"] != after.params["size"]
+    assert before.cache_key != after.cache_key
+
+
+def test_an_entity_may_not_take_the_global_direction_node_name() -> None:
+    resolved = _resolved()
+    admitted = admitted_universe_from_bytes(
+        ADMITTED.read_bytes().replace(b"sela_fenn", b"global"),
+        poster_sha256=resolved.poster_sha256,
+    )
+    samples = resolve_sample_ledger(
+        universe_id=admitted.universe_id, entity_ids=admitted.entity_ids()
+    )
+    with pytest.raises(ValueError, match="collides with the gallery's global direction node"):
+        build_universe_gallery_graph(
+            resolved,
+            admitted,
+            samples=samples,
+            profile=universe_graph_profile(StageGenConfig(), images=True),
+        )

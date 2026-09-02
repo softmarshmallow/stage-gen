@@ -40,6 +40,7 @@ UNIVERSE_DOCUMENT_NAME = "universe.toml"
 SEMANTIC_UNIVERSE_REF = "semantic/universe.json"
 SEMANTIC_ADMISSION_REF = "semantic/admission.json"
 POSTER_PROXY_REF = "production/source-lock/poster-proxy.jpg"
+SOURCE_LOCK_REF = "production/source-lock/source-lock.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,7 +232,13 @@ def admitted_universe_from_document(path: Path, *, poster_sha256: str) -> Admitt
 
 
 def load_admitted_universe(semantic_run_dir: Path, *, poster_sha256: str) -> AdmittedUniverse:
-    """Read an admitted universe out of a finished semantic run directory."""
+    """Read an admitted universe out of a finished semantic run directory.
+
+    ``poster_sha256`` is what the caller's package declares, and it is checked
+    against what the run actually locked rather than trusted. Pairing an
+    admission with a different package's poster would otherwise plan a whole
+    gallery — every image keyed on a poster nobody in that run ever saw.
+    """
 
     universe_path = semantic_run_dir / SEMANTIC_UNIVERSE_REF
     admission_path = semantic_run_dir / SEMANTIC_ADMISSION_REF
@@ -248,7 +255,28 @@ def load_admitted_universe(semantic_run_dir: Path, *, poster_sha256: str) -> Adm
     bound = universe_binding.get("sha256") if isinstance(universe_binding, dict) else None
     if admission.get("semantic_status") != "pass" or bound != content_sha256(data):
         raise ValueError("admission record does not bind the current universe bytes")
+    locked = read_locked_poster_sha256(semantic_run_dir)
+    if locked is not None and locked != poster_sha256:
+        raise ValueError(
+            "semantic run locked a different poster than the source package declares: "
+            f"run {locked}, package {poster_sha256}"
+        )
     return admitted_universe_from_bytes(data, poster_sha256=poster_sha256)
+
+
+def read_locked_poster_sha256(semantic_run_dir: Path) -> str | None:
+    """What poster the semantic run bound, or None when it kept no source lock."""
+
+    path = semantic_run_dir / SOURCE_LOCK_REF
+    if not path.is_file():
+        return None
+    try:
+        lock = json.loads(path.read_bytes())
+    except json.JSONDecodeError as error:
+        raise ValueError(f"unreadable source lock: {error}") from None
+    poster = lock.get("poster") if isinstance(lock, dict) else None
+    digest = poster.get("sha256") if isinstance(poster, dict) else None
+    return digest if isinstance(digest, str) else None
 
 
 def read_poster_proxy(semantic_run_dir: Path) -> bytes:
@@ -275,6 +303,13 @@ def resolve_sample_ledger(
     """
 
     known = list(dict.fromkeys(entity_ids))
+    if rerolls and prior is None:
+        # Without the prior ledger every other entity silently drops back to
+        # draw zero, quietly restoring pictures a reviewer already rejected.
+        raise ValueError(
+            "a reroll must advance a prior sample ledger: pass the previous run's "
+            "sample-ledger.json alongside --reroll"
+        )
     samples = dict.fromkeys(known, 0)
     if prior is not None:
         carried = _read_sample_ledger(prior)
@@ -309,6 +344,7 @@ def _read_sample_ledger(path: Path) -> SampleLedger:
 
 __all__ = [
     "POSTER_PROXY_REF",
+    "SOURCE_LOCK_REF",
     "SEMANTIC_ADMISSION_REF",
     "SEMANTIC_UNIVERSE_REF",
     "UNIVERSE_DOCUMENT_NAME",
@@ -318,6 +354,7 @@ __all__ = [
     "admitted_universe_from_document",
     "direction_requirements",
     "load_admitted_universe",
+    "read_locked_poster_sha256",
     "read_poster_proxy",
     "read_universe_document",
     "resolve_sample_ledger",

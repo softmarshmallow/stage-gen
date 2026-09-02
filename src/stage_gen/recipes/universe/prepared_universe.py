@@ -161,6 +161,7 @@ class UniverseNodeHandler:
             cache_dir=cache_dir,
             namespace=UNIVERSE_CACHE_NAMESPACE,
             record_kind=UNIVERSE_CACHE_RECORD_KIND,
+            admit=_admit_cached,
         )
         self._registry = NodeTypeRegistry()
         for node_type, method in (
@@ -1040,6 +1041,27 @@ EXPANSION DIRECTION (full text)
             ],
         )
         return self._result(node)
+
+
+def _admit_cached(node: Node, payloads: tuple[bytes, ...]) -> bool:
+    """Re-prove a restored image against the node that is asking for it now.
+
+    The generation path validates the pixels it received; without this the
+    restore path never does, so a cache entry drawn to a superseded canvas
+    would be published as the answer to a question it does not answer. The key
+    covers this too — the size is an input digest — but a cache is exactly the
+    place where two belts are worth their cost.
+    """
+
+    if node.type_id != CONCEPT_IMAGE.type_id or not payloads:
+        return True
+    size = str(node.params.get("size", ""))
+    try:
+        width, height = (int(value) for value in size.split("x", 1))
+        facts = inspect_image(payloads[0], expected_media_type="image/png")
+    except (ValueError, TypeError):
+        return False
+    return (facts.width, facts.height) == (width, height) and not facts.has_alpha
 
 
 def _bind(

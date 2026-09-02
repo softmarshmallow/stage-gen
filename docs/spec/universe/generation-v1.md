@@ -102,13 +102,28 @@ that editing one kind of instruction re-bills only the nodes that read it:
 
 | Digest | Bound to | Changing it re-bills |
 | --- | --- | --- |
-| `compile_digest` | `direction.global`, `direction.entity` | the text direction tier |
-| `render_digest` | `concept.image` | the images |
-| `review_digest` | `concept.review` | the reviews only |
+| `compile_digest` (guidance + forbidden terms) | `direction.global`, `direction.entity` | the text direction tier |
+| `render_digest` (render, negative, shared blocks) | `concept.image` | the images |
+| `review_digest` (criteria + medium display name) | `concept.review` | the reviews only |
 
 The spike hashed all of it into one digest bound to every direction, image, and
 review node, so recalibrating the reviewer cost a full regeneration — about
 eleven dollars to change a sentence about judgement.
+
+Two rules the split has to obey, both found by review rather than by design:
+
+- **Anything that decides what a node produces is an input digest, not a
+  parameter.** Node parameters are not hashed into the cache key, so the
+  requested pixel size, the review proxy's long edge, and the poster proxy's
+  long edge all ride input digests. Otherwise changing the gallery resolution
+  would restore the old pixels and report every node a cache hit.
+- **A hard acceptance rule belongs to the digest of the tier it refuses.** The
+  medium's `forbidden_direction_terms` is not prose any model is shown, but a
+  compiled direction has to clear it, so it is part of `compile_digest`.
+
+The image nodes carry a second belt as well: a restored image is re-proved
+against the size the node currently asks for, so a cache can never publish an
+answer to a superseded question.
 
 ## Rerolling one image
 
@@ -121,8 +136,12 @@ stage-gen universe gallery --input library/games/lantern_ferry --semantic-run ou
 ```
 
 redraws one entity and takes every other branch, and both direction tiers, from
-cache. `--reroll` is repeatable; an entity the universe does not plan is
+cache. `--reroll` is repeatable, and an entity the universe does not plan is
 refused rather than silently ignored.
+
+`--sample-ledger` is **required** with `--reroll`. A reroll advances a ledger;
+starting a fresh one would drop every other entity back to draw zero and quietly
+restore the pictures a reviewer had already rejected.
 
 ## Image route
 
@@ -271,6 +290,9 @@ semantic run. Regenerate with
 - Collectives tend to render as crowds of similar figures.
 - The cold-reader protocol in the spike's evaluation set was run with model
   readers. A human time-boxed read is still owed.
+- An entity may not be called `global`: entity node ids share a namespace with
+  the fixed `direction-global` node, and the gallery refuses the collision at
+  plan time rather than failing on a duplicate node id.
 - `universe.toml` is a package root of its own kind under `library/games/`. It
   is never a member of a `game.toml` closure — taxonomy V0 declines to ratify
   that question, and the selected prepared-game closure must not carry

@@ -31,9 +31,18 @@ class MediumContract:
     forbidden_direction_terms: tuple[str, ...]
 
     def compile_digest(self) -> str:
-        """Identity for the direction compilers: what they are told, and nothing else."""
+        """Identity for the direction compilers: what they are told, and what refuses them.
 
-        return content_sha256(self.compile_guidance.encode("utf-8"))
+        ``forbidden_direction_terms`` is not prose the compiler is shown, but it
+        is a hard acceptance rule the compiled direction has to clear, so it
+        belongs here: adding a term must re-run the directions it would now
+        refuse, or the rule applies or not depending on what happens to be in
+        the cache.
+        """
+
+        return content_sha256(
+            "\n".join((self.compile_guidance, *self.forbidden_direction_terms)).encode("utf-8")
+        )
 
     def render_digest(self) -> str:
         """Identity for the image nodes: every block that reaches an image prompt.
@@ -56,7 +65,7 @@ class MediumContract:
         )
 
     def review_digest(self) -> str:
-        """Identity for the review nodes alone.
+        """Identity for the review nodes alone. Includes the name they are told.
 
         Kept out of ``render_digest`` deliberately. The spike hashed compile,
         render, negative, and review prose into one digest bound to every
@@ -65,7 +74,7 @@ class MediumContract:
         judged rather than how it was drawn.
         """
 
-        return content_sha256(self.review_criteria.encode("utf-8"))
+        return content_sha256("\n".join((self.display_name, self.review_criteria)).encode("utf-8"))
 
 
 SHARED_STAGING_RULE: Final = """CONSEQUENTIAL IN-WORLD STAGING: manifest the primary entity through consequential physical action, use, occupation, or environmental change at human scale. For a collective, idea, system, or event, show people, structures, tools, weather, water, vegetation, or terrain materially doing, undergoing, enforcing, or responding to the entity's consequences. Never substitute an explanatory tableau: no one studies or points at a flat surface; no papers, plans, notes, cards, pages, arranged tokens, miniature layouts, maps, schematics, charts, or props whose identity depends on marks or text. A closed, blank, edge-on book may remain a subordinate carried object."""
