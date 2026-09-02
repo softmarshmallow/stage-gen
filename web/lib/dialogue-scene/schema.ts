@@ -16,15 +16,21 @@ import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 
 export const DIALOGUE_SCENE_FIXTURE_SCHEMA_VERSION = 1 as const;
-export const DIALOGUE_SCENE_EXPRESSION_STATES = Object.freeze([
-  "neutral",
-  "delighted",
-  "flustered",
-  "concerned",
-] as const);
 
-export type DialogueSceneExpressionState =
-  (typeof DIALOGUE_SCENE_EXPRESSION_STATES)[number];
+/**
+ * An expression is named by the scenario's cast declaration, not by this file.
+ *
+ * The fixture used to close the vocabulary at four generic moods, which was
+ * honest while one game shipped and every plate really was neutral, delighted,
+ * flustered, or concerned. It stops being honest the moment a cast is written
+ * for a particular story, because the useful names are the ones that belong to
+ * the person - a detective's `composed` and `shut` are not two of anyone else's
+ * four. The scenario declares each actor's expressions, admission already
+ * refuses a script that names one nobody declared, and `assertArtCoversNarrative`
+ * below refuses a fixture with no plate for a declared expression. Closing the
+ * set a third time here would only refuse stories, not catch mistakes.
+ */
+export type DialogueSceneExpressionState = string;
 
 export interface DialogueSceneAsset {
   readonly id: string;
@@ -389,7 +395,7 @@ function assertArtCoversNarrative(fixture: DialogueSceneFixture): void {
     }
     const states = new Set(drawn.expressions.map((variant) => variant.state));
     for (const expression of member.expressions) {
-      if (!states.has(expression as DialogueSceneExpressionState)) {
+      if (!states.has(expression)) {
         throw new Error(
           `dialogue-scene fixture actor ${member.actorId} has no ${expression} plate`,
         );
@@ -495,14 +501,5 @@ function audioPath(value: unknown, label: string): string {
 }
 
 function expressionState(value: unknown, label: string): DialogueSceneExpressionState {
-  if (
-    typeof value !== "string" ||
-    !(DIALOGUE_SCENE_EXPRESSION_STATES as readonly string[]).includes(value)
-  ) {
-    throw new Error(
-      `dialogue-scene fixture ${label} must be one of ` +
-        DIALOGUE_SCENE_EXPRESSION_STATES.join(", "),
-    );
-  }
-  return value as DialogueSceneExpressionState;
+  return snakeId(value, label);
 }

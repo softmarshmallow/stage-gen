@@ -86,6 +86,20 @@ export interface RoomGameHandle {
   destroy(removeCanvas: boolean): void;
 }
 
+/**
+ * How a host drives one room.
+ *
+ * The room is still the whole game inside its canvas; these are the two seams a
+ * case needs. `resume` is a saved state to open on, `carriedFlags` are the facts
+ * an earlier beat set, and `onChange` fires after every click so the shell can
+ * autosave and notice the win without polling.
+ */
+export interface RoomGameOptions {
+  readonly resume?: RoomPlayState | null;
+  readonly carriedFlags?: readonly string[];
+  readonly onChange?: (state: RoomPlayState) => void;
+}
+
 class RoomScene extends Phaser.Scene {
   private state: RoomPlayState;
   private mode: VerbMode = "act";
@@ -107,9 +121,10 @@ class RoomScene extends Phaser.Scene {
   constructor(
     private readonly tag: string,
     private readonly manifest: RoomManifest,
+    private readonly options: RoomGameOptions = {},
   ) {
     super("pointclick-room");
-    this.state = initialState(manifest);
+    this.state = options.resume ?? initialState(manifest, options.carriedFlags ?? []);
   }
 
   private get stage(): { width: number; height: number } {
@@ -408,6 +423,7 @@ class RoomScene extends Phaser.Scene {
 
   /** One pass over the whole view from the reducer's state: no partial updates. */
   private render(): void {
+    this.options.onChange?.(this.state);
     for (const hotspot of this.manifest.hotspots) {
       const object = this.hotspotObjects.get(hotspot.id);
       if (object === undefined) continue;
@@ -481,6 +497,7 @@ export function bootRoomGame(
   parent: HTMLElement,
   tag: string,
   manifest: RoomManifest,
+  options: RoomGameOptions = {},
 ): RoomGameHandle {
   const canvas = canvasSize(manifest.scene);
   const game = new Phaser.Game({
@@ -488,7 +505,7 @@ export function bootRoomGame(
     ...deviceGameSize(canvas, currentDevicePixelScale()),
     parent,
     backgroundColor: "#05070a",
-    scene: [new RoomScene(tag, manifest)],
+    scene: [new RoomScene(tag, manifest, options)],
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   });
   return { destroy: (removeCanvas: boolean) => game.destroy(removeCanvas) };

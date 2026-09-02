@@ -1,6 +1,6 @@
 // Read one run's `bundle.json` and project it into the fixture a scene plays.
 //
-// This is the whole consumer side of `dialogue-scene-bundle-v7`. It replaces the
+// This is the whole consumer side of `dialogue-scene-bundle-v8`. It replaces the
 // bundle reader that used to live inside the theme installer: that module existed
 // to copy a reviewed bundle into a public directory for a DOM preview route, and
 // both the route and the directory are gone. What survives is the part that was
@@ -21,8 +21,32 @@ import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import { serializeScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
 import { parseScenarioProgram } from "@/lib/scenario/program";
 
-export const DIALOGUE_SCENE_BUNDLE_KIND = "dialogue-scene-bundle-v7" as const;
-export const DIALOGUE_SCENE_RECIPE_VERSION = "dialogue-scene-v7" as const;
+function selectScenario(value: unknown, scenarioId: string | undefined): unknown {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("scene_data.scenarios must be a non-empty list");
+  }
+  if (scenarioId === undefined) {
+    if (value.length !== 1) {
+      const ids = value.map((entry) => record(entry, "scene_data.scenarios[]").scenario_id);
+      throw new Error(
+        `run publishes ${value.length} scenarios (${ids.join(", ")}); ` +
+          "the caller must say which one to play",
+      );
+    }
+    return value[0];
+  }
+  const found = value.find(
+    (entry) => record(entry, "scene_data.scenarios[]").scenario_id === scenarioId,
+  );
+  if (found === undefined) {
+    const ids = value.map((entry) => record(entry, "scene_data.scenarios[]").scenario_id);
+    throw new Error(`run publishes no scenario ${scenarioId}; it has ${ids.join(", ")}`);
+  }
+  return found;
+}
+
+export const DIALOGUE_SCENE_BUNDLE_KIND = "dialogue-scene-bundle-v8" as const;
+export const DIALOGUE_SCENE_RECIPE_VERSION = "dialogue-scene-v8" as const;
 
 export interface DialogueSceneBundleAsset {
   readonly id: string;
@@ -123,10 +147,23 @@ function uiRoles(source: Record<string, unknown>): SceneUi {
   });
 }
 
-export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
+/**
+ * Parse one run's bundle, choosing which of its scenarios to play.
+ *
+ * A `dialogue-scene-bundle-v8` run publishes the union of several scenarios,
+ * because an episode is split so each one's admission proof stays under its
+ * ceiling and they then share one set of stages, plates and tracks. So the
+ * bundle no longer names a scenario — the caller does, from the case's beat.
+ * `scenarioId` may be omitted only when the run holds exactly one, which is
+ * what a standalone `/scene/<tag>` relies on.
+ */
+export function parseDialogueSceneBundle(
+  value: unknown,
+  scenarioId?: string,
+): DialogueSceneBundle {
   const root = record(value, "bundle");
   exact(root.kind, DIALOGUE_SCENE_BUNDLE_KIND, "bundle.kind");
-  exact(root.schema_version, 7, "bundle.schema_version");
+  exact(root.schema_version, 8, "bundle.schema_version");
   exact(root.recipe, "dialogue-scene", "bundle.recipe");
   exact(root.recipe_version, DIALOGUE_SCENE_RECIPE_VERSION, "bundle.recipe_version");
 
@@ -219,7 +256,7 @@ export function parseDialogueSceneBundle(value: unknown): DialogueSceneBundle {
       ),
     }),
     ui: uiRoles(record(sceneRaw.ui, "scene_data.ui")),
-    scenario: parseScenarioProgram(sceneRaw.scenario),
+    scenario: parseScenarioProgram(selectScenario(sceneRaw.scenarios, scenarioId)),
   };
 
   return Object.freeze({

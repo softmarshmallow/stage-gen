@@ -27,13 +27,16 @@ import {
   completeCardRect,
   DIALOGUE_STAGE,
   dialoguePanelRect,
+  emphasizedFrame,
   slotFrame,
   visualNovelBoxLayout,
   type VisualNovelBoxLayout,
 } from "./scene-hud";
+import { actorEmphasis, narrationEmphasis } from "./emphasis";
 import { AtlasButton } from "@/lib/ui-atlas/button";
-import { uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
+import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import {
@@ -45,8 +48,10 @@ import { scenarioActionForKey, scenarioOptionForKey } from "@/lib/scenario/keys"
 import {
   initialScenarioState,
   reduceScenario,
+  restoreScenarioState,
   scenarioIsFinished,
   scenarioProgress,
+  scenarioStatementId,
   scenarioView,
   type ScenarioState,
 } from "@/lib/scenario/runtime";
@@ -58,10 +63,6 @@ function stageKey(stageId: string): string {
 function plateKey(actorId: string, state: string): string {
   return `vn:actor:${actorId}:${state}`;
 }
-
-/** How much an actor who is not speaking is dimmed and pushed back. */
-const LISTENER_TINT = 0x7f8496;
-const LISTENER_ALPHA = 0.82;
 
 const PANEL_FILL = 0x111a33;
 const PANEL_ALPHA = 0.93;
@@ -107,6 +108,32 @@ export interface DialogueSceneGameHandle {
   destroy(removeCanvas: boolean): void;
 }
 
+/** What the scene reports to whatever is hosting it, once per drawn moment. */
+export interface DialogueSceneMoment {
+  readonly state: ScenarioState;
+  /** `<label>#<index>` of what is on screen, or null at the ending card. */
+  readonly statementId: string | null;
+  /** The line being spoken, for a backlog; null for a choice or an ending. */
+  readonly line: { readonly speaker: string | null; readonly text: string } | null;
+  readonly outcome: string | null;
+}
+
+/**
+ * How a host drives one scene.
+ *
+ * The scene stays the whole game inside its canvas. These are the two seams a
+ * shell around it genuinely needs: where to start, and what just happened. A
+ * host that supplies `onFinish` also takes over what the ending card's one
+ * gesture means - in a case it is "on to the next beat", not "play it again".
+ */
+export interface DialogueSceneOptions {
+  readonly resume?: ScenarioState | null;
+  /** Facts an earlier beat set, seeded into the flags this scenario declares. */
+  readonly carriedFlags?: readonly string[];
+  readonly onMoment?: (moment: DialogueSceneMoment) => void;
+  readonly onFinish?: (outcome: string, flags: readonly string[]) => void;
+}
+
 class DialogueScene extends Phaser.Scene {
   private playback: ScenarioState;
   private readonly audio: ScenarioAudio;
@@ -124,9 +151,15 @@ class DialogueScene extends Phaser.Scene {
   private completeTitle!: Phaser.GameObjects.Text;
   private completeControl!: AtlasButton;
 
-  constructor(private readonly fixture: DialogueSceneFixture) {
+  constructor(
+    private readonly fixture: DialogueSceneFixture,
+    private readonly options: DialogueSceneOptions = {},
+  ) {
     super("dialogue-scene");
-    this.playback = initialScenarioState(fixture.scenario);
+    const resumed =
+      options.resume == null ? null : restoreScenarioState(fixture.scenario, options.resume);
+    this.playback =
+      resumed ?? initialScenarioState(fixture.scenario, options.carriedFlags ?? []);
     this.audio = new ScenarioAudio(fixture, htmlAudioTransport());
   }
 
@@ -148,6 +181,14 @@ class DialogueScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The comment in `preload` promised a stand-in for an interface sheet that
+    // does not arrive, and the room scene has always registered one; the scene
+    // did not, so a run published without one of the three sheets drew Phaser's
+    // own missing-texture green instead of saying what was wrong. A missing
+    // image must not remove the mechanic that would have used it.
+    for (const [, key, kind] of UI_ATLAS_SHEETS) {
+      if (!this.textures.exists(key)) registerPresentationFallback(this.textures, key, kind);
+    }
     // The canvas is device-pixel sized; zoom the camera back to the stage it is written in.
     applyDeviceZoom(this.cameras.main, DIALOGUE_STAGE);
     const opening = this.fixture.stages[0]!;
@@ -297,7 +338,16 @@ class DialogueScene extends Phaser.Scene {
     // Advancing off the end plays again rather than doing nothing. The reducer
     // is right to hold at the ending - that is what "finished" means - but a tap
     // that visibly does nothing reads as a broken scene, so the view decides
-    // what the end card's one gesture is for.
+    // what the end card's one gesture is for. Inside a case that gesture belongs
+    // to the host: the next beat, not this one over again.
+    if (action.kind === "advance" && scenarioIsFinished(this.playback)) {
+      const outcome = this.playback.outcome;
+      if (this.options.onFinish !== undefined && outcome !== null) {
+        this.audio.stopAll();
+        this.options.onFinish(outcome, this.playback.flags);
+        return;
+      }
+    }
     const intent =
       action.kind === "advance" && scenarioIsFinished(this.playback)
         ? ({ kind: "restart" } as const)
@@ -318,6 +368,7 @@ class DialogueScene extends Phaser.Scene {
 
   private render(): void {
     const view = scenarioView(this.fixture.scenario, this.playback);
+    this.report(view);
     this.audio.apply(this.playback.tracks);
     this.renderStage();
     this.renderCast(view?.kind === "line" ? view.speaker : null);
@@ -403,8 +454,10 @@ class DialogueScene extends Phaser.Scene {
   private renderCast(speaker: string | null): void {
     // Everybody the scenario has on stage, each in the slot it put them in and
     // at the expression it last named. Whoever is speaking is drawn at full
-    // colour in front; the rest are dimmed and pushed back, which is how a
-    // player knows who is talking without reading the name chip.
+    // colour, a little larger, and in front; the rest recede without leaving,
+    // which is how a player knows who is talking without reading the name plate.
+    // The numbers are `emphasis.ts`, so the rule is unit-tested rather than
+    // buried in a draw call.
     const framing = mapDialogueSceneFraming(this.fixture.presentation.framingZoom);
     const baseline = mapDialogueSceneFraming(this.fixture.presentation.sourceFramingZoom);
     const placement = {
@@ -435,17 +488,44 @@ class DialogueScene extends Phaser.Scene {
         placement,
         onStage.slot,
       );
-      const speaking = speaker === actorId;
+      const emphasis =
+        speaker === null
+          ? narrationEmphasis(onStage.slot)
+          : actorEmphasis(onStage.slot, speaker === actorId);
+      const drawn = emphasizedFrame(frame, emphasis.scale);
       sprite
         .setVisible(true)
         .setTexture(key)
-        .setPosition(frame.x, frame.y)
-        .setDisplaySize(frame.width, frame.height)
-        .setDepth(DEPTH.sprite + (speaking ? 1 : 0))
-        .setAlpha(speaking ? 1 : LISTENER_ALPHA);
-      if (speaking) sprite.clearTint();
-      else sprite.setTint(LISTENER_TINT);
+        .setPosition(drawn.x, drawn.y)
+        .setDisplaySize(drawn.width, drawn.height)
+        .setDepth(DEPTH.sprite + emphasis.stackOrder)
+        .setAlpha(emphasis.alpha);
+      if (emphasis.tint === null) sprite.clearTint();
+      else sprite.setTint(emphasis.tint);
     }
+  }
+
+  /**
+   * Tell the host what is on screen, exactly once per drawn moment.
+   *
+   * Reported from `render` rather than from `act` so a resumed scene announces
+   * its first moment too: a host that only heard about transitions would have
+   * nothing to autosave until the player pressed something.
+   */
+  private report(view: ReturnType<typeof scenarioView>): void {
+    if (this.options.onMoment === undefined) return;
+    this.options.onMoment({
+      state: this.playback,
+      statementId:
+        this.playback.outcome === null
+          ? scenarioStatementId(this.playback.label, this.playback.index)
+          : null,
+      line:
+        view?.kind === "line"
+          ? { speaker: view.speakerLabel, text: view.text }
+          : null,
+      outcome: this.playback.outcome,
+    });
   }
 
   private renderSpeaker(label: string): void {
@@ -466,8 +546,9 @@ class DialogueScene extends Phaser.Scene {
 export function bootDialogueSceneGame(
   parent: HTMLElement,
   fixture: DialogueSceneFixture,
+  options: DialogueSceneOptions = {},
 ): DialogueSceneGameHandle {
-  const scene = new DialogueScene(fixture);
+  const scene = new DialogueScene(fixture, options);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     ...deviceGameSize(DIALOGUE_STAGE, currentDevicePixelScale()),

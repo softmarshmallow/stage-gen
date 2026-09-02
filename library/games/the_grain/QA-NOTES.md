@@ -744,3 +744,116 @@ Tooling: `…/scratchpad/hotspots.py <run-dir>` renders the overlay, cuts one pa
 per hotspot, and derives the gating structure from `room.json` — it colours a region
 differently when its flag is required by the exit, so the load-bearing ones are
 separated before anything is judged by eye.
+
+---
+
+# Art audit 4 — the convergence question (`motor-court-2` → `motor-court-3`)
+
+The lead applied three corrected rectangles and nothing else, and the backdrop redrew
+because `room-resolve` sits upstream of the image node and a rectangle invalidates it by
+lineage. The question was whether hit areas can ever converge under that.
+
+**They do, provided they are padded.** All three rectangles still cover their objects on
+the new plate.
+
+| Object | plate-2 centre | plate-3 centre | moved | my region still covers |
+|---|---|---|---|---|
+| bell push | (1125.5, 363) | (1111.5, 383) | 24px | 82% |
+| black rectangle | (888.5, 203) | (907.5, 226.5) | 30px | 82% x, 67% y |
+| chalk + scissors | (895.5, 467.5) | (909, 490) | 26px | chalk fully, scissors 57% |
+
+Mean displacement 27px on a 1280×720 frame — 2.1% of width, 3.7% of height. All three
+moved down and two of three moved right: a coherent global drift, not independent
+scatter, which is why one padded region absorbs it.
+
+It held because the regions were padded. The bell is a 13×18px object and was given a
+58×62px target, chosen for playability rather than for drift tolerance, and that is what
+absorbed the movement. A region fitted tightly to its object would have missed all three.
+
+## The rule that survives measurement
+
+> Brief **unchanged**, regions changed → the composition drifts about 27px. Padded
+> regions survive; one correction pass converges.
+>
+> Brief **changed** → the composition is re-imagined, not nudged. Between the first and
+> second motor-court rolls the window moved by roughly a fifth of the frame, and between
+> `window-2` and `window-3` every one of fourteen measurements was invalidated.
+
+So the recommendation is *generate, measure, correct, re-run, verify* — padding every
+region by at least 2.5% of frame width beyond the object's own bounds (~30px at
+1280×720), because the correction re-bills the backdrop and the redraw moves things by
+about that much. The verify step usually passes; it is not optional, because nothing
+guarantees it.
+
+**Caveat, and it belongs beside the number: this is n=1.** One reroll pair, three
+objects. Image generation's noise floor is large and a single A/B measures sampling
+noise as much as effect. The qualitative claim — same brief nudges, changed brief
+re-imagines — now has three observations behind it and is what should be defended.
+"27px" is an observation, not an estimate.
+
+The contract finding stands regardless: the backdrop should not be invalidated by a
+rectangle. Fixing that lineage would make regions converge exactly rather than
+probabilistically, and drop the cost of a correction from one operation to zero.
+
+---
+
+# Art audit 5 — `out/the-grain-window-3/`
+
+## Fidelity
+
+- **The chair is fixed.** A pedestal chair on a single slender steel column base with a
+  circular foot. "One shoulder against its steel base" is now true of the object. The
+  hardened brief worked where the soft one did not.
+- **The moon is right.** Flat matte paper, no craters, split clean across the middle
+  with the lower half sagging inward.
+- **Minor divergence:** the man lies *in front of* the chair rather than partly behind
+  it, and his shoulder is about 30px clear of the column. The novel is "His body lies
+  partly behind the chair, one shoulder against its steel base." Closer than any
+  previous roll; recorded rather than re-billed.
+
+## Hit areas: both required hotspots work
+
+`the_man` hits — the body spans y 413–480 and the region starts at 446, so about 60% of
+it including both shoes is live. `saw_body` is obtainable, `left_the_room` is reachable,
+the case can be completed. `stage_door` is a clean hit, so its six dependents are all
+reachable once their own rectangles are fixed.
+
+*A note against myself:* at contact-sheet size `the_man` looked like a miss and a
+run-stopping message was half-written. At full size the legs and shoes are plainly
+inside. **A claim that a room cannot be finished has to be checked at full resolution
+before it is sent.**
+
+### Corrected regions
+
+```toml
+the_man        = { x = 0.602, y = 0.553, w = 0.141, h = 0.135 }
+under_the_jaw  = { x = 0.645, y = 0.553, w = 0.047, h = 0.081 }
+torn_piece     = { x = 0.605, y = 0.589, w = 0.041, h = 0.065 }
+paper_moon     = { x = 0.616, y = 0.331, w = 0.155, h = 0.242 }
+six_figures    = { x = 0.492, y = 0.344, w = 0.109, h = 0.322 }
+call_button    = { x = 0.691, y = 0.097, w = 0.039, h = 0.083 }
+steel_lip      = { x = 0.547, y = 0.178, w = 0.141, h = 0.047 }
+gallery_carton = { x = 0.658, y = 0.114, w = 0.052, h = 0.078 }
+mr_bell        = { x = 0.305, y = 0.424, w = 0.066, h = 0.389 }
+```
+
+`stage_door`, `access_door` and `service_lift` land correctly and are left alone.
+
+**`six_figures` is deliberately narrow.** A box spanning all six figures (x 640–1050)
+would also cover the moon, the chair, the man and the paper — and `six_figures` is first
+in the interaction list, so it would swallow every click meant for any of them. It is
+placed on the two left-hand standing figures instead. That is a hit-area decision with a
+story cost: clicking the figures on the right of the window gets the moon or the body.
+
+## Two unresolved, needing an art decision rather than a measurement
+
+1. **`wired_glass`** exports `whiting_on_treads`, and the one wired-glass pane in the
+   picture is in the *stage door* (x 320–370, y 330–380), not in the DISPLAY ACCESS door
+   where the room document puts it and where the stair with the whiting is supposed to
+   show. No rectangle proposed. Either the brief separates the two doors more sharply,
+   or the hotspot moves to the pane that exists and the narration follows it.
+2. **`painted_wall`** exports `scrape`, and no long scrape is drawn anywhere on the
+   scenic wall — which is in any case almost entirely occluded by the figures and the
+   moon. No rectangle proposed. The outline names the scrape as one of the two facts
+   step 6a of the argument needs, so letting `scrape` go unobtainable is a decision to
+   record, not a thing to let happen quietly.

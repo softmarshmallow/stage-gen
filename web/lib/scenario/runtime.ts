@@ -11,6 +11,7 @@
 // which is stable across a save because it names authored positions rather than
 // how the player got there.
 
+import { SCENARIO_SLOTS } from "./program";
 import type {
   ScenarioBlock,
   ScenarioChoiceOption,
@@ -66,17 +67,79 @@ export type ScenarioAction =
   | { readonly kind: "choose"; readonly option: number }
   | { readonly kind: "restart" };
 
-/** The state before the entry block has presented anything. */
-export function initialScenarioState(program: ScenarioProgram): ScenarioState {
+/**
+ * The state before the entry block has presented anything.
+ *
+ * `carried` is how a fact set from an earlier beat of a case arrives, and only
+ * the flags this scenario declared as `imported` are seeded from it. A local
+ * flag is one this scenario's own `set` statements establish, and seeding it
+ * from outside would start the player in a state the admission proof never
+ * searched - the proof enumerated every assignment of the imported flags and
+ * exactly one starting assignment of the local ones, which is cleared.
+ */
+export function initialScenarioState(
+  program: ScenarioProgram,
+  carried: readonly string[] = [],
+): ScenarioState {
+  const declared = new Set(program.importedFlags);
   return settle(program, {
     label: program.entry,
     index: -1,
-    flags: [],
+    flags: Object.freeze([...new Set(carried.filter((flag) => declared.has(flag)))].sort()),
     seen: [],
     stage: null,
     actors: [],
     tracks: [],
     outcome: null,
+  });
+}
+
+/**
+ * A saved moment, checked against the program it claims to belong to.
+ *
+ * Returns null rather than throwing when the snapshot does not fit: a save is
+ * read back from a browser the player owns, and a scenario that was regenerated
+ * under the player's feet should start over, not crash. Everything the drawing
+ * depends on is validated - the block, the statement inside it, the stage, the
+ * cast, the slots, and the flags - because the runtime is the only thing here
+ * that knows what the program actually declares.
+ */
+export function restoreScenarioState(
+  program: ScenarioProgram,
+  saved: ScenarioState,
+): ScenarioState | null {
+  const block = blockOf(program, saved.label);
+  if (block === null) return null;
+  if (!Number.isSafeInteger(saved.index) || saved.index < 0) return null;
+  if (saved.outcome === null && block.statements[saved.index] === undefined) return null;
+  if (
+    saved.outcome !== null &&
+    !program.endings.some((ending) => ending.outcomeId === saved.outcome)
+  ) {
+    return null;
+  }
+  const declaredFlags = new Set(program.flags);
+  if (saved.flags.some((flag) => !declaredFlags.has(flag))) return null;
+  const stages = new Set(program.stages.map((stage) => stage.stageId));
+  if (saved.stage !== null && !stages.has(saved.stage)) return null;
+  const tracks = new Set(program.tracks.map((track) => track.trackId));
+  if (saved.tracks.some((track) => !tracks.has(track))) return null;
+  const cast = new Map(program.cast.map((member) => [member.actorId, member]));
+  for (const actor of saved.actors) {
+    const member = cast.get(actor.actorId);
+    if (member === undefined) return null;
+    if (!(SCENARIO_SLOTS as readonly string[]).includes(actor.slot)) return null;
+    if (actor.expression !== null && !member.expressions.includes(actor.expression)) return null;
+  }
+  return Object.freeze({
+    label: saved.label,
+    index: saved.index,
+    flags: Object.freeze([...saved.flags].sort()),
+    seen: Object.freeze([...saved.seen]),
+    stage: saved.stage,
+    actors: Object.freeze(saved.actors.map((actor) => Object.freeze({ ...actor }))),
+    tracks: Object.freeze([...saved.tracks]),
+    outcome: saved.outcome,
   });
 }
 

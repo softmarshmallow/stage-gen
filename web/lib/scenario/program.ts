@@ -1,4 +1,4 @@
-// The `scenario-program-v1` document, validated the way this repository
+// The `scenario-program-v2` document, validated the way this repository
 // validates every persisted contract: by hand, strictly, refusing unknown and
 // missing keys alike rather than trusting a shape because it parsed.
 //
@@ -7,12 +7,37 @@
 // whole graph reachable before any art was paid for. Nothing here re-derives any
 // of that; the runtime's job is to walk what was already admitted.
 
-export const SCENARIO_PROGRAM_KIND = "scenario-program-v1";
+/**
+ * The compiled wire identity, bumped with the five-slot staging vocabulary.
+ *
+ * There is no compatibility path back to `scenario-program-v1`, and there must
+ * not be one: a v1 consumer handed a v2 program would not fail on `far_left`, it
+ * would quietly draw it somewhere wrong, which is the exact failure the identity
+ * exists to prevent. Bump the contract, drop the old runs, keep one identity.
+ */
+export const SCENARIO_PROGRAM_KIND = "scenario-program-v2";
+export const SCENARIO_PROGRAM_SCHEMA_VERSION = 2;
 
 const SNAKE_ID = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
 const TEXT_MAX = 600;
 
-export type ScenarioSlot = "left" | "center" | "right";
+/**
+ * Where an actor stands, from the far side of the table to the near.
+ *
+ * Five, not three, because the scenarios this consumer plays seat eight people
+ * and an exchange has to be able to show the two who are talking, the two who
+ * are listening, and the one nobody is looking at. The order of this array is
+ * the order across the stage, left to right, and the layout depends on it.
+ */
+export const SCENARIO_SLOTS = Object.freeze([
+  "far_left",
+  "left",
+  "center",
+  "right",
+  "far_right",
+] as const);
+
+export type ScenarioSlot = (typeof SCENARIO_SLOTS)[number];
 
 export interface ScenarioCondition {
   readonly requires: readonly string[];
@@ -136,6 +161,21 @@ export interface ScenarioTrackDeclaration {
   readonly generation: ScenarioTrackGeneration;
 }
 
+/**
+ * Where a flag's value comes from.
+ *
+ * A `local` flag starts clear and only this scenario's own `set` statements
+ * establish it. An `imported` flag is a fact a case carried in from an earlier
+ * beat: this scenario reads it and never sets it, and its admission proof
+ * searched from every assignment of it because a fact may arrive either way.
+ */
+export type ScenarioFlagOrigin = "local" | "imported";
+
+export interface ScenarioFlagDeclaration {
+  readonly flagId: string;
+  readonly origin: ScenarioFlagOrigin;
+}
+
 export interface ScenarioEnding {
   readonly outcomeId: string;
   readonly label: string;
@@ -152,6 +192,8 @@ export interface ScenarioProgram {
   readonly stages: readonly ScenarioStageDeclaration[];
   readonly tracks: readonly ScenarioTrackDeclaration[];
   readonly flags: readonly string[];
+  /** The subset of `flags` a case establishes before this scenario runs. */
+  readonly importedFlags: readonly string[];
   readonly endings: readonly ScenarioEnding[];
   readonly blocks: readonly ScenarioBlock[];
 }
@@ -184,9 +226,10 @@ export function parseScenarioProgram(value: unknown): ScenarioProgram {
     "scenario program",
     ["tracks", "flags"],
   );
-  exact(root.schema_version, 1, "scenario program schema_version");
+  exact(root.schema_version, SCENARIO_PROGRAM_SCHEMA_VERSION, "scenario program schema_version");
   exact(root.kind, SCENARIO_PROGRAM_KIND, "scenario program kind");
 
+  const declaredFlags = list(root.flags ?? [], "scenario flags", 0).map(flagDeclaration);
   const program: ScenarioProgram = {
     gameId: text(root.game_id, "scenario game_id", 96),
     scenarioId: snakeId(root.scenario_id, "scenario_id"),
@@ -197,7 +240,10 @@ export function parseScenarioProgram(value: unknown): ScenarioProgram {
     cast: Object.freeze(list(root.cast, "scenario cast", 1).map(castMember)),
     stages: Object.freeze(list(root.stages, "scenario stages", 1).map(stageDeclaration)),
     tracks: Object.freeze(list(root.tracks ?? [], "scenario tracks", 0).map(trackDeclaration)),
-    flags: Object.freeze(list(root.flags ?? [], "scenario flags", 0).map(flagDeclaration)),
+    flags: Object.freeze(declaredFlags.map((flag) => flag.flagId)),
+    importedFlags: Object.freeze(
+      declaredFlags.filter((flag) => flag.origin === "imported").map((flag) => flag.flagId),
+    ),
     endings: Object.freeze(list(root.endings, "scenario endings", 1).map(ending)),
     blocks: Object.freeze(list(root.blocks, "scenario blocks", 1).map(block)),
   };
@@ -277,9 +323,16 @@ function trackDeclaration(value: unknown, index: number): ScenarioTrackDeclarati
   });
 }
 
-function flagDeclaration(value: unknown, index: number): string {
-  const record = strictRecord(value, ["flag_id"], `scenario flags[${index}]`);
-  return snakeId(record.flag_id, `scenario flags[${index}].flag_id`);
+function flagDeclaration(value: unknown, index: number): ScenarioFlagDeclaration {
+  const record = strictRecord(value, ["flag_id"], `scenario flags[${index}]`, ["origin"]);
+  const origin = record.origin ?? "local";
+  if (origin !== "local" && origin !== "imported") {
+    throw new Error(`scenario flags[${index}].origin must be local or imported`);
+  }
+  return Object.freeze({
+    flagId: snakeId(record.flag_id, `scenario flags[${index}].flag_id`),
+    origin,
+  });
 }
 
 function ending(value: unknown, index: number): ScenarioEnding {
@@ -551,10 +604,10 @@ function positiveInteger(value: unknown, label: string): number {
 }
 
 function slot(value: unknown, label: string): ScenarioSlot {
-  if (value !== "left" && value !== "center" && value !== "right") {
-    throw new Error(`${label} must be left, center, or right`);
+  if (typeof value !== "string" || !(SCENARIO_SLOTS as readonly string[]).includes(value)) {
+    throw new Error(`${label} must be one of ${SCENARIO_SLOTS.join(", ")}`);
   }
-  return value;
+  return value as ScenarioSlot;
 }
 
 function exact<ValueT>(value: unknown, expected: ValueT, label: string): void {
@@ -574,7 +627,7 @@ function exact<ValueT>(value: unknown, expected: ValueT, label: string): void {
  */
 export function serializeScenarioProgram(program: ScenarioProgram): unknown {
   return {
-    schema_version: 1,
+    schema_version: SCENARIO_PROGRAM_SCHEMA_VERSION,
     kind: SCENARIO_PROGRAM_KIND,
     game_id: program.gameId,
     scenario_id: program.scenarioId,
@@ -601,7 +654,10 @@ export function serializeScenarioProgram(program: ScenarioProgram): unknown {
         target_duration_seconds: track.generation.targetDurationSeconds,
       },
     })),
-    flags: program.flags.map((flag) => ({ flag_id: flag })),
+    flags: program.flags.map((flag) => ({
+      flag_id: flag,
+      origin: program.importedFlags.includes(flag) ? "imported" : "local",
+    })),
     endings: program.endings.map((ending) => ({
       outcome_id: ending.outcomeId,
       label: ending.label,

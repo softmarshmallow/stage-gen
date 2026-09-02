@@ -13,6 +13,7 @@
 // Overlaying is both the genre's convention and safe here for that reason.
 
 import { containSize, type Rect, type Size } from "@/lib/shell/hud-geometry";
+import { SCENARIO_SLOTS, type ScenarioSlot } from "@/lib/scenario/program";
 
 /**
  * The design frame: the producer's own background contract.
@@ -52,26 +53,108 @@ export interface FramingPlacement {
  * height rather than being stretched to fit either.
  */
 /**
+ * How far each slot stands from the middle, and which rank it stands in.
+ *
+ * Five slots seat a supper table rather than a conversation: the inner three are
+ * the near rank, at the same size and the same distance, and the outer two are
+ * the far rank. `rank` is not decoration. It is what makes a row of five read as
+ * a room with depth instead of five cut-outs in a line, and it is what lets the
+ * script say "this exchange belongs to the two at the end of the table" by
+ * putting them anywhere but the far slots.
+ */
+interface SlotStanding {
+  /** Signed share of the stage width between the frame's middle and the slot's. */
+  readonly offset: number;
+  /** 0 for the near rank, 1 for the far one. */
+  readonly rank: 0 | 1;
+}
+
+const SLOT_STANDING: Readonly<Record<ScenarioSlot, SlotStanding>> = Object.freeze({
+  far_left: Object.freeze({ offset: -0.33, rank: 1 as const }),
+  left: Object.freeze({ offset: -0.19, rank: 0 as const }),
+  center: Object.freeze({ offset: 0, rank: 0 as const }),
+  right: Object.freeze({ offset: 0.19, rank: 0 as const }),
+  far_right: Object.freeze({ offset: 0.33, rank: 1 as const }),
+});
+
+/** How much smaller the far rank is drawn than the near one. */
+export const SLOT_RECESSION_SCALE = 0.16;
+/**
+ * How much of the height a receding figure loses is given back as a downward
+ * nudge, so its head drops as its feet rise. Anchoring the shrink at the top
+ * alone would raise the whole figure, which reads as floating rather than as
+ * standing further away.
+ */
+export const SLOT_RECESSION_DROP = 0.35;
+
+/** Which of two actors is drawn in front, before the speaker is lifted above both. */
+export function slotStackOrder(slot: ScenarioSlot): number {
+  const standing = SLOT_STANDING[slot];
+  if (standing.rank === 1) return 0;
+  return standing.offset === 0 ? 2 : 1;
+}
+
+/** True for the two slots drawn as the far rank. */
+export function slotIsFarRank(slot: ScenarioSlot): boolean {
+  return SLOT_STANDING[slot].rank === 1;
+}
+
+/**
  * Where an actor standing in one slot is drawn.
  *
- * Three slots across the stage rather than one fixed side, because a scene with
- * a cast has to be able to put two people on screen and have the player see who
- * is where. The centre slot is the old single-character position, so a one-actor
- * scene is framed exactly as it always was.
+ * The centre slot is the old single-character position, so a one-actor scene is
+ * framed exactly as it always was, and the near rank is the same figure only
+ * moved — a slot changes where somebody stands, not how big they are. The far
+ * rank is the one deliberate exception: it is smaller and stands a little lower,
+ * because two more people had to fit on a stage that already held three and
+ * putting them at the same size would read as a crowd rather than a table.
  */
 export function slotFrame(
   stage: Size,
   source: Size,
   placement: FramingPlacement,
-  slot: "left" | "center" | "right",
+  slot: ScenarioSlot,
 ): Rect {
   const centred = spriteFrame(stage, source, placement);
-  const offsets = { left: -0.26, center: 0, right: 0.26 } as const;
+  const standing = SLOT_STANDING[slot];
+  const scale = 1 - standing.rank * SLOT_RECESSION_SCALE;
+  const width = centred.width * scale;
+  const height = centred.height * scale;
+  const middle = centred.x + centred.width / 2 + stage.width * standing.offset;
   // Not rounded: `spriteFrame` is not either, and the canvas is scaled to the
   // viewport anyway, so rounding here would only make the centre slot disagree
   // with the single-actor framing it is supposed to reproduce exactly.
-  return Object.freeze({ ...centred, x: centred.x + stage.width * offsets[slot] });
+  return Object.freeze({
+    x: middle - width / 2,
+    y: centred.y + (centred.height - height) * SLOT_RECESSION_DROP,
+    width,
+    height,
+  });
 }
+
+/**
+ * The same frame, grown or shrunk about the figure's feet.
+ *
+ * Emphasis has to move the head, not the floor: scaling about the top-left would
+ * slide a highlighted actor sideways and lift them off the ground the rest of the
+ * cast is standing on.
+ */
+export function emphasizedFrame(frame: Rect, scale: number): Rect {
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new Error("dialogue-scene emphasis scale must be a positive number");
+  }
+  const width = frame.width * scale;
+  const height = frame.height * scale;
+  return Object.freeze({
+    x: frame.x + frame.width / 2 - width / 2,
+    y: frame.y + frame.height - height,
+    width,
+    height,
+  });
+}
+
+/** Every slot, left to right across the stage. */
+export const STAGE_SLOTS = SCENARIO_SLOTS;
 
 export function spriteFrame(
   stage: Size,

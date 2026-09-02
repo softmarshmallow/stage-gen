@@ -8,6 +8,7 @@ import {
   hotspotVisible,
   initialState,
   inspectHotspot,
+  roomFlagVocabulary,
   selectItem,
 } from "./state";
 import { roomManifestFixture } from "./fixture";
@@ -95,5 +96,30 @@ describe("room manifest parser", () => {
     const interactions = raw.interactions as Array<Record<string, unknown>>;
     (interactions[0].on as Record<string, unknown>).hotspot = "ghost";
     expect(() => parseRoomManifest(raw)).toThrow(/unknown hotspot/);
+  });
+});
+
+
+describe("carrying facts into a room", () => {
+  test("the flag vocabulary is recovered from the document the reducer walks", () => {
+    expect(roomFlagVocabulary(manifest)).toEqual(new Set(["chest_open", "prize_taken"]));
+  });
+
+  test("a fact this room uses arrives set", () => {
+    expect(initialState(manifest, ["chest_open"]).flags).toEqual(["chest_open"]);
+  });
+
+  test("a fact this room never mentions is dropped rather than added to its state", () => {
+    expect(initialState(manifest, ["a_fact_from_a_scenario"]).flags).toEqual([]);
+  });
+
+  test("carrying nothing is exactly the room as the player used to find it", () => {
+    expect(initialState(manifest, [])).toEqual(initialState(manifest));
+  });
+
+  test("a room whose win flag arrives already set opens solved, and says so", () => {
+    // An authoring error rather than a feature: the win flag belongs to the room's
+    // own exit. The reducer is honest about it instead of pretending otherwise.
+    expect(initialState(manifest, ["prize_taken"]).solved).toBe(true);
   });
 });

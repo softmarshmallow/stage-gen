@@ -22,15 +22,47 @@ export interface RoomPlayState {
 export const MISS_LINE = "Nothing happens.";
 export const MISS_WITH_ITEM_LINE = "That doesn't work here.";
 
-export function initialState(manifest: RoomManifest): RoomPlayState {
+/**
+ * Every flag this room can read or write, from its own interactions and its win.
+ *
+ * A room does not declare a flag list the way a scenario does, so the vocabulary
+ * is recovered from the document: it is exactly the set of names the reducer can
+ * ever compare against.
+ */
+export function roomFlagVocabulary(manifest: RoomManifest): ReadonlySet<string> {
+  const flags = new Set<string>(manifest.win.requires);
+  for (const interaction of manifest.interactions) {
+    for (const flag of interaction.requires) flags.add(flag);
+    for (const effect of interaction.effects) {
+      if (effect.set_flag !== undefined) flags.add(effect.set_flag);
+    }
+  }
+  return flags;
+}
+
+/**
+ * The room as the player finds it, optionally with facts an earlier beat set.
+ *
+ * `carried` is the case's shared fact set. Only names this room actually uses
+ * are seeded — a fact it never mentions cannot change what it does, and putting
+ * it in the state would put a name in the machine the solvability proof never
+ * searched. A room that begins already solved is a case-authoring error, not
+ * something to paper over here: the win flag belongs to the room's own exit.
+ */
+export function initialState(
+  manifest: RoomManifest,
+  carried: readonly string[] = [],
+): RoomPlayState {
+  const vocabulary = roomFlagVocabulary(manifest);
+  const flags = [...new Set(carried.filter((flag) => vocabulary.has(flag)))].sort();
   return {
-    flags: [],
+    flags,
     inventory: [],
     revealed: [],
     fired: [],
     selectedItem: null,
     narration: manifest.displayName,
-    solved: false,
+    solved: manifest.win.requires.every((flag) => flags.includes(flag)),
   };
 }
 

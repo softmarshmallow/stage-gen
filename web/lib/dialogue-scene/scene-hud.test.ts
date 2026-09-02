@@ -5,12 +5,16 @@ import {
   completeCardRect,
   DIALOGUE_STAGE,
   dialoguePanelRect,
+  emphasizedFrame,
   speakerChipRect,
   choiceAt,
   choiceRects,
   slotFrame,
+  slotIsFarRank,
+  slotStackOrder,
   spriteFrame,
   SPRITE_MAX_WIDTH_RATIO,
+  STAGE_SLOTS,
 } from "./scene-hud";
 
 const PLATE = { width: 1024, height: 1536 };
@@ -118,19 +122,95 @@ describe("choice layout", () => {
 });
 
 describe("actor slots", () => {
-  test("three slots spread across the stage, centre matching the old single position", () => {
+  test("five slots run left to right across the stage without overtaking each other", () => {
+    const middles = STAGE_SLOTS.map((slot) => {
+      const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, slot);
+      return frame.x + frame.width / 2;
+    });
+    for (let index = 1; index < middles.length; index += 1) {
+      expect(middles[index]!).toBeGreaterThan(middles[index - 1]!);
+    }
+    // A whole table of five fits: nobody at the end of it is half off the frame.
+    for (const slot of STAGE_SLOTS) {
+      const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, slot);
+      expect(frame.x).toBeGreaterThanOrEqual(0);
+      expect(frame.x + frame.width).toBeLessThanOrEqual(DIALOGUE_STAGE.width);
+    }
+  });
+
+  test("five stay inside the frame even at the emphasis the speaker is drawn with", () => {
+    for (const slot of STAGE_SLOTS) {
+      const frame = emphasizedFrame(
+        slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, slot),
+        1.05,
+      );
+      expect(frame.x).toBeGreaterThanOrEqual(0);
+      expect(frame.x + frame.width).toBeLessThanOrEqual(DIALOGUE_STAGE.width);
+    }
+  });
+
+  test("the centre slot still reproduces the single-character framing exactly", () => {
     const centre = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "center");
-    expect(centre.x).toBe(spriteFrame(DIALOGUE_STAGE, PLATE, CENTRED).x);
-    const left = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "left");
-    const right = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "right");
-    expect(left.x).toBeLessThan(centre.x);
-    expect(right.x).toBeGreaterThan(centre.x);
-    // Same figure, only moved: a slot changes where somebody stands, not how big
-    // they are, or two people on stage would read as being at different depths.
-    for (const frame of [left, centre, right]) {
+    const single = spriteFrame(DIALOGUE_STAGE, PLATE, CENTRED);
+    expect(centre.x).toBe(single.x);
+    expect(centre.y).toBe(single.y);
+    expect(centre.width).toBe(single.width);
+    expect(centre.height).toBe(single.height);
+  });
+
+  test("the near rank is one figure moved, not resized", () => {
+    const centre = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "center");
+    for (const slot of ["left", "center", "right"] as const) {
+      const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, slot);
       expect(frame.width).toBe(centre.width);
       expect(frame.height).toBe(centre.height);
       expect(frame.y).toBe(centre.y);
+      expect(slotIsFarRank(slot)).toBe(false);
     }
+  });
+
+  test("the far rank stands smaller, lower, and with its feet higher up the stage", () => {
+    const centre = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "center");
+    for (const slot of ["far_left", "far_right"] as const) {
+      const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, slot);
+      expect(slotIsFarRank(slot)).toBe(true);
+      expect(frame.height).toBeLessThan(centre.height);
+      // Head lower than the near rank's, feet higher: the two cues that read as depth.
+      expect(frame.y).toBeGreaterThan(centre.y);
+      expect(frame.y + frame.height).toBeLessThan(centre.y + centre.height);
+      // Aspect survives the recession.
+      expect(frame.width / frame.height).toBeCloseTo(centre.width / centre.height, 5);
+    }
+  });
+
+  test("the far rank is drawn behind the near rank, and the centre in front of it", () => {
+    expect(slotStackOrder("far_left")).toBe(slotStackOrder("far_right"));
+    expect(slotStackOrder("left")).toBe(slotStackOrder("right"));
+    expect(slotStackOrder("left")).toBeGreaterThan(slotStackOrder("far_left"));
+    expect(slotStackOrder("center")).toBeGreaterThan(slotStackOrder("right"));
+  });
+});
+
+describe("emphasizedFrame", () => {
+  test("grows about the feet, so the floor line never moves", () => {
+    const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "left");
+    const grown = emphasizedFrame(frame, 1.05);
+    expect(grown.y + grown.height).toBeCloseTo(frame.y + frame.height, 5);
+    expect(grown.x + grown.width / 2).toBeCloseTo(frame.x + frame.width / 2, 5);
+    expect(grown.height).toBeCloseTo(frame.height * 1.05, 5);
+  });
+
+  test("a scale of one leaves an unemphasized actor where their slot put them", () => {
+    const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "far_right");
+    const same = emphasizedFrame(frame, 1);
+    expect(same.x).toBeCloseTo(frame.x, 6);
+    expect(same.y).toBeCloseTo(frame.y, 6);
+    expect(same.width).toBeCloseTo(frame.width, 6);
+    expect(same.height).toBeCloseTo(frame.height, 6);
+  });
+
+  test("a scale that is not a positive number is refused rather than drawn", () => {
+    const frame = slotFrame(DIALOGUE_STAGE, PLATE, CENTRED, "center");
+    expect(() => emphasizedFrame(frame, 0)).toThrow("positive number");
   });
 });

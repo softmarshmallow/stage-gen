@@ -227,8 +227,8 @@ function manifestFixture(): Record<string, unknown> {
     projectiles: [{ projectile_id: "paperwing_dart" }],
     scenarios: [
       parseScenarioProgram({
-        schema_version: 1,
-        kind: "scenario-program-v1",
+        schema_version: 2,
+        kind: "scenario-program-v2",
         game_id: "village-game",
         scenario_id: "meet_baker",
         display_name: "Meet the Baker",

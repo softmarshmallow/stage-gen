@@ -31,12 +31,28 @@ async function readJson(file: string): Promise<unknown | null> {
  * present and invalid still throws, because that is a contract violation rather
  * than a run this build declines to read.
  */
-export async function readSceneFixture(tag: string): Promise<DialogueSceneFixture | null> {
+export async function readSceneFixture(
+  tag: string,
+  scenarioId?: string,
+): Promise<DialogueSceneFixture | null> {
   if (!isSafeRunTag(tag)) return null;
   const document = await readJson(path.join(runDirFor(tag), BUNDLE_NAME));
   if (document === null) return null;
-  const bundle = parseDialogueSceneBundle(document);
+  const bundle = parseDialogueSceneBundle(document, scenarioId);
   return projectDialogueSceneFixture(bundle, (asset) => preparedAssetUrl(tag, asset.path));
+}
+
+/** The run's first scenario id, for readers that only need a header. */
+function firstScenarioId(document: unknown): string | undefined {
+  if (typeof document !== "object" || document === null) return undefined;
+  const sceneData = (document as { scene_data?: unknown }).scene_data;
+  if (typeof sceneData !== "object" || sceneData === null) return undefined;
+  const scenarios = (sceneData as { scenarios?: unknown }).scenarios;
+  if (!Array.isArray(scenarios) || scenarios.length === 0) return undefined;
+  const first = scenarios[0];
+  if (typeof first !== "object" || first === null) return undefined;
+  const id = (first as { scenario_id?: unknown }).scenario_id;
+  return typeof id === "string" ? id : undefined;
 }
 
 export interface ReadyScene {
@@ -61,7 +77,11 @@ export async function listReadyScenes(): Promise<ReadyScene[]> {
       if (document === null) return;
       let bundle;
       try {
-        bundle = parseDialogueSceneBundle(document);
+        // The index row only needs the run's header — its title, its plate and its
+        // counts — so it reads the run's first scenario rather than choosing one.
+        // Which scenario a beat plays is the case's business, not the catalogue's.
+        const first = firstScenarioId(document);
+        bundle = parseDialogueSceneBundle(document, first);
       } catch {
         // A bundle this build cannot read is not a playable scene. The run
         // viewer still lists the run; only the play link is withheld.

@@ -1,4 +1,4 @@
-// A hand-authored `scenario-program-v1` wire document for tests.
+// A hand-authored `scenario-program-v2` wire document for tests.
 //
 // Deliberately an untyped record, like every `*.fixture.ts` here: the parser
 // under test is what gives it shape. It replaces a committed copy of the Python
@@ -18,8 +18,8 @@ const SCRIPT_SHA256 = "0123456789abcdef".repeat(4);
 /** A fresh document each call, so a test can mutate its copy freely. */
 export function ferryProgramDocument(): Record<string, unknown> {
   return {
-    schema_version: 1,
-    kind: "scenario-program-v1",
+    schema_version: 2,
+    kind: "scenario-program-v2",
     game_id: "harborlight",
     scenario_id: "ferry_bell",
     display_name: "The Ferry Bell",

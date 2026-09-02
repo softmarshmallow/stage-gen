@@ -5,6 +5,7 @@ import { parseScenarioProgram } from "./program";
 import {
   initialScenarioState,
   reduceScenario,
+  restoreScenarioState,
   scenarioActor,
   scenarioIsFinished,
   scenarioProgress,
@@ -250,5 +251,99 @@ describe("statement identity", () => {
     const progress = scenarioProgress(program, final);
     expect(progress.seen).toBe(final.seen.length);
     expect(progress.total).toBeGreaterThan(progress.seen);
+  });
+});
+
+
+describe("carrying facts into a scenario", () => {
+  /** The same ferry, with one flag declared as a fact a case establishes. */
+  const importing = parseScenarioProgram({
+    ...ferryProgramDocument(),
+    flags: [
+      { flag_id: "asked_the_fare" },
+      { flag_id: "has_token", origin: "imported" },
+      { flag_id: "rang_the_bell" },
+    ],
+  });
+
+  test("an imported flag arrives set, so a later beat reads what an earlier one wrote", () => {
+    expect(importing.importedFlags).toEqual(["has_token"]);
+    expect(initialScenarioState(importing, ["has_token"]).flags).toEqual(["has_token"]);
+  });
+
+  test("a local flag is never seeded from outside, even when the case carries the name", () => {
+    // Its value is this scenario's own to establish; the proof searched exactly
+    // one starting assignment of it, and that assignment is clear.
+    expect(initialScenarioState(importing, ["rang_the_bell"]).flags).toEqual([]);
+  });
+
+  test("a name this scenario does not declare at all is dropped rather than smuggled in", () => {
+    expect(
+      initialScenarioState(importing, ["has_token", "a_fact_from_another_beat"]).flags,
+    ).toEqual(["has_token"]);
+  });
+
+  test("carrying nothing is exactly the state the scenario had before", () => {
+    expect(initialScenarioState(program, [])).toEqual(initialScenarioState(program));
+  });
+
+  test("a flag declaration with no origin is local, which is the default it always had", () => {
+    expect(program.importedFlags).toEqual([]);
+    expect(program.flags).toEqual(["asked_the_fare", "has_token", "rang_the_bell"]);
+  });
+
+  test("an origin outside the vocabulary is refused rather than read as local", () => {
+    expect(() =>
+      parseScenarioProgram({
+        ...ferryProgramDocument(),
+        flags: [{ flag_id: "has_token", origin: "inherited" }],
+      }),
+    ).toThrow("origin must be local or imported");
+  });
+});
+
+describe("restoreScenarioState", () => {
+  test("a snapshot of a real moment comes back as that moment", () => {
+    const saved = advance(initialScenarioState(program), 3);
+    const restored = restoreScenarioState(program, saved);
+    expect(restored).not.toBeNull();
+    expect(restored!.label).toBe(saved.label);
+    expect(restored!.index).toBe(saved.index);
+    expect(scenarioView(program, restored!)).toEqual(scenarioView(program, saved));
+    // And it keeps walking from there, rather than restarting.
+    expect(advance(restored!, 1)).toEqual(advance(saved, 1));
+  });
+
+  test("a block this program no longer has is refused rather than played", () => {
+    const saved = advance(initialScenarioState(program), 2);
+    expect(restoreScenarioState(program, { ...saved, label: "a_block_that_was_cut" })).toBeNull();
+  });
+
+  test("a statement index past the end of its block is refused", () => {
+    const saved = advance(initialScenarioState(program), 2);
+    expect(restoreScenarioState(program, { ...saved, index: 999 })).toBeNull();
+  });
+
+  test("a flag, stage, actor, expression or slot the program does not declare is refused", () => {
+    const saved = advance(initialScenarioState(program), 3);
+    expect(restoreScenarioState(program, { ...saved, flags: ["not_declared"] })).toBeNull();
+    expect(restoreScenarioState(program, { ...saved, stage: "not_a_stage" })).toBeNull();
+    expect(
+      restoreScenarioState(program, {
+        ...saved,
+        actors: [{ actorId: "nobody", expression: null, slot: "center" }],
+      }),
+    ).toBeNull();
+    expect(
+      restoreScenarioState(program, {
+        ...saved,
+        actors: [{ actorId: "mara", expression: "furious", slot: "center" }],
+      }),
+    ).toBeNull();
+  });
+
+  test("an outcome the program does not declare is refused", () => {
+    const saved = advance(initialScenarioState(program), 3);
+    expect(restoreScenarioState(program, { ...saved, outcome: "not_an_ending" })).toBeNull();
   });
 });

@@ -1028,6 +1028,39 @@ nothing but the length of a sentence someone wrote, and it would bite any author
 happened to be the wrong length. Routed with a request to sweep the module for other bare
 slices on authored text rather than discovering them one run at a time.
 
+### 07:05 — It plays
+
+`http://localhost:3000/case/the-grain-episode-one`, beat 1 of 8, on generated art:
+
+> Calder Investigations in late afternoon — the blinds, the fan, the filing cabinet, the
+> frosted-glass door with the painted name reversed on it, Los Angeles and its palms out the
+> window — and across the bottom the narration plate in cream on oxblood:
+>
+> **"Ruth Ellery knocks directly beneath his painted name."** · 2 / 95 · tap to continue
+
+Four taps later Ruth is standing in the room in the oxblood dress and the camel coat with
+the flat handbag, and the plate reads:
+
+> **Ruth**
+> **"I remembered you were a liar."** · 6 / 95
+
+The novel's line, verbatim, spoken by the person who says it, wearing the expression the
+script named, on a stage drawn against a plate chosen from six candidates, inside a shell
+that is counting the backlog and will let a player stop and come back.
+
+Getting the last inch took four consumer version pins, each surfacing one page-load at a
+time until the fourth was found by sweeping instead of reloading: the bundle `kind`, its
+`schema_version`, its `recipe_version`, and the shape underneath them — a v8 bundle carries
+`scene_data.scenarios` as a **list of six**, where v7 carried one. The consumer now selects
+by the beat's `scenario_id`, and omitting it is legal only when a run holds exactly one
+scenario, which is what a standalone `/scene/<tag>` relies on. `tsc` clean, **1379 tests
+pass**.
+
+That version cascade is worth a line in the report on its own: the recipe's identity moved
+three times in one morning for good reasons, and each move was invisible to the consumer
+until a page rendered an error. Nothing checks a consumer's pins against a producer's
+identity offline.
+
 ---
 
 ## 3. Ledger
