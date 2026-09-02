@@ -686,3 +686,61 @@ When the cast run lands, the only remaining question is whether each drawn plate
 as the word it is named for. The map of which lines each plate must carry is at
 `…/scratchpad/expression_lines.txt` — every actor/expression with its cues — so the
 plate pass is a lookup rather than a re-derivation.
+
+---
+
+# Art audit 3 — motor court reroll (`out/the-grain-motor-court-2/`)
+
+## Fidelity: all four defects fixed
+
+- **A1** the other windows hold figures — one seated at a laid dinner table, one on the
+  painted staircase, one standing beside the trunks. The room's own verbatim narration
+  is drawn at last.
+- **A2** the seventh chair is a pedestal chair on a single slender steel column base, so
+  "one shoulder against its steel base" is a sentence about something that exists.
+- **A3** six figures in evening dress, four standing and two seated on plinths — the
+  canonical description, and what the window room must now match.
+- **A4** the moon is flat matte paper, no craters and no lunar surface.
+
+Black rectangle open above the moon, chalk and scissors on the display floor, no
+readable text anywhere, no people.
+
+## Hit areas: three of six need correcting
+
+Measured by largest-connected-blob detection with a hand-checked threshold, then
+confirmed by drawing each proposed rectangle back onto the plate and looking at it.
+
+| Hotspot | Object drawn at (px) | Verdict |
+|---|---|---|
+| `service_bell` | x 1119–1132, y 354–372 | **half-covered** — region 1075–1126 catches the bell's left 7px and spends the rest on blank pier |
+| `black_rectangle` | x 864–913, y 187–219 | region 877–943 catches the right two-thirds, overruns onto plain wall |
+| `chalk_and_scissors` | chalk x 859–869 y 459–464; scissors x 902–932 y 462–477 | **misses both** — region sits mostly on the masonry bulkhead below the glass and contains neither the chalk nor most of the scissors |
+| `stone_canopy` | — | correct |
+| `display_windows` | — | correct |
+| `unfinished_window` | — | correct |
+
+### Corrected regions
+
+```toml
+service_bell        = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
+black_rectangle     = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
+chalk_and_scissors  = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
+```
+
+The bell is a 13×18px object. The corrected region gives a 58×62px target, which is a
+comfortable size for the room's only exit rather than a pixel hunt — the old region and
+the drawn bell were 40px apart, close enough to be clickable and far enough to be
+missed.
+
+## Method note
+
+Simple luminance thresholding is not reliable here: it repeatedly clipped on the
+search-window edge and returned the box it had been asked to look inside. Object
+positions in this audit come from largest-connected-blob detection, and every proposed
+rectangle is drawn back onto the plate and inspected before it is reported. The window
+room's fourteen hotspots get the same treatment.
+
+Tooling: `…/scratchpad/hotspots.py <run-dir>` renders the overlay, cuts one padded crop
+per hotspot, and derives the gating structure from `room.json` — it colours a region
+differently when its flag is required by the exit, so the load-bearing ones are
+separated before anything is judged by eye.

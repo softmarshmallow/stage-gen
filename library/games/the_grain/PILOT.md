@@ -866,6 +866,47 @@ two plates disagree about the object the novel's fixed line depends on — *"one
 against its steel base."* The brief has been hardened to name a pedestal chair explicitly
 and to say what it is not, and the room is rolling again at a cost of about one operation.
 
+### 06:56 — The room's hit areas and its backdrop cannot both be correct
+
+The pilot's principal finding about `pointclick-room-v2`, and it took an isolated experiment
+that QA insisted on to get it right. The earlier claim in this file — that a region-only
+correction would cost nothing — was **wrong**, and it was wrong because the test that
+suggested it also changed a brief, so the backdrop was redrawing anyway.
+
+The clean test: apply three corrected rectangles, change nothing else, re-run.
+
+```
+provider operations = 1        cache: 10 hit, 4 miss
+missed: room-resolve, room-backdrop, room-puzzle-validate, room-bundle
+backdrop sha256:  865db2b0…  ->  d5425dd9…
+```
+
+A hit area is not an input to any image, but `room-resolve` sits upstream of everything and
+its output is the whole resolved document, so changing a rectangle invalidates it by
+**lineage** — and the backdrop with it. The cache is content-and-lineage validated exactly
+as specified; this is that design working correctly.
+
+**So hotspot regions cannot converge.** Measure plate A, correct the regions, and you get
+plate B, for which those corrections are wrong. Generation is unseeded, so B is never A. It
+is a loop with no fixed point.
+
+Stated plainly for the director: **a room's hit areas and its backdrop cannot both be
+correct under the current cache lineage, because the only way to fix the first is to redraw
+the second.** The fix is a contract change — the backdrop's cache identity should derive
+from the fields that feed the image (the scene brief, the hotspot briefs, the style plate,
+the frame) rather than from the document as a whole. That is not a change to make at hour
+two of seven with four lanes writing to the tree, so it is reported rather than attempted.
+
+QA is measuring whether a reroll of the same brief lands objects within a few percent of
+where they were. If it does, one correction pass suffices in practice even though nothing
+guarantees it. If it does not, the rooms ship with approximate hit areas and the director is
+told so plainly.
+
+*Applied anyway, because they are better than what they replaced:* `service_bell` was
+spending most of itself on blank pier and overlapping the bell by seven pixels;
+`chalk_and_scissors` was a hotspot named for two objects that **contained neither of them**,
+sitting mostly on the masonry below the glass.
+
 ---
 
 ## 3. Ledger

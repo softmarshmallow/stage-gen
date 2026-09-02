@@ -105,21 +105,21 @@ hotspot_id = "black_rectangle"
 label = "Above the moon"
 art = "scenery"
 brief = "a short black rectangle left open where the painted scenery meets the ceiling of the window, directly above the paper moon"
-region = { x = 0.685, y = 0.257, w = 0.052, h = 0.055 }
+region = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
 
 [[hotspots]]
 hotspot_id = "chalk_and_scissors"
 label = "The window floor"
 art = "scenery"
 brief = "a stick of tailor's chalk and a pair of scissors left on the floor inside the glass"
-region = { x = 0.685, y = 0.648, w = 0.048, h = 0.045 }
+region = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
 
 [[hotspots]]
 hotspot_id = "service_bell"
 label = "The service bell"
 art = "scenery"
 brief = "a small plain bell push mounted beside an unmarked service door"
-region = { x = 0.840, y = 0.455, w = 0.040, h = 0.075 }
+region = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
 
 # --- interactions ------------------------------------------------------------
 # Four looks and one way in. The two texture looks carry no effect and therefore
