@@ -32,6 +32,7 @@ import {
 import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
+import { createEncounterSystem } from "./encounter";
 import { createFixedStepAccumulator } from "./fixed-step";
 import { buildHud, createHudSystem, type HudView } from "./hud";
 import {
@@ -101,13 +102,18 @@ export function assembleRunnerSystems(
 ): readonly GameSystem<RunnerWorld>[] {
   return [
     createIntentSystem(latch),
-    // Always sealed, even with nothing to play: the run-loop consumes its
-    // release, and one topology is easier to reason about than two. Pinned
-    // behind vitals so it sits directly before the run-loop that consumes it,
-    // whatever the registration order.
-    createFxSystem<RunnerWorld>(fx, { after: ["runner/vitals"] }),
+    // Always sealed, even with nothing to play: two consumers read its
+    // release, and one topology is easier to reason about than two.
+    //
+    // Pinned behind the avatar rather than behind vitals. The encounter
+    // director both consumes `fx-released` and emits `shot-contact`, which
+    // vitals consumes, so pinning fx behind vitals would close the loop
+    // encounter -> vitals -> fx -> encounter and the sealer would refuse it.
+    // Behind the avatar the order is unambiguous and nothing cycles.
+    createFxSystem<RunnerWorld>(fx, { after: ["runner/avatar"] }),
     createDifficultySystem(),
     createAvatarSystem(),
+    createEncounterSystem(),
     createSegmentsSystem(),
     createObstaclesSystem(),
     createVitalsSystem(),

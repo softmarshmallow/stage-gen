@@ -29,6 +29,9 @@ export function chainMultiplier(chain: number): number {
   return multiplier;
 }
 
+/** What defeating one boss is worth. Feel, like every other score constant. */
+export const BOSS_DEFEAT_SCORE = 500;
+
 /** Draw the next run's seed from the current run's RNG stream. */
 export function nextRunSeed(rng: Rng): number {
   return Math.floor(rng() * 0x100000000) >>> 0;
@@ -37,16 +40,21 @@ export function nextRunSeed(rng: Rng): number {
 export function createRunLoopSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/run-loop",
-    contractVersion: "run-loop-system-v3",
+    contractVersion: "run-loop-system-v4",
     reads: ["intent", "avatar", "obstacles"],
     writes: ["run"],
-    consumes: ["run-ended", "fx-released"],
+    consumes: ["run-ended", "fx-released", "boss-defeated"],
     update(world) {
       const run = world.run;
       if (run.phase === "intro") {
         // The overlay owns the clock: the run begins the frame the rip starts
-        // tearing away, which is what `fx-released` says.
-        if (world.events.ofType("fx-released").length > 0) run.phase = "running";
+        // tearing away, which is what `fx-released` says. Only the stage's
+        // own moment starts the run; a boss cut-in plays over a run that is
+        // already going.
+        const released = world.events
+          .ofType("fx-released")
+          .some((event) => event.moment === "stage_start");
+        if (released) run.phase = "running";
         return;
       }
       if (run.phase === "running") {
@@ -59,6 +67,10 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
         run.multiplier = chainMultiplier(run.chain);
         run.score +=
           world.obstacles.collectedThisFrame.length * PICKUP_SCORE * run.multiplier;
+        // A defeated boss pays a flat reward rather than one scaled by the
+        // chain: the fight is not a pickup line, and a player who spent the
+        // encounter dodging should not be paid less for winning it.
+        run.score += world.events.ofType("boss-defeated").length * BOSS_DEFEAT_SCORE;
         // The run-loop no longer decides what a contact means; it ends runs.
         // Which occurrences are survivable is the package's answer, resolved
         // by runner/vitals, and what arrives here is the verdict.

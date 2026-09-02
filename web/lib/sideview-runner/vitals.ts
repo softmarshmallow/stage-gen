@@ -20,6 +20,7 @@ import type { FxEvent } from "@/lib/fx/moment-system";
 import type { RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/game-systems/systems";
 import { surfaceRowAt } from "./segments";
+import type { EncounterEvent } from "./encounter";
 import type { RunnerWorld } from "./world";
 
 /**
@@ -99,7 +100,9 @@ export type RunnerEvent =
   /** The run is over, by this source. */
   | { readonly type: "run-ended"; readonly source: RunnerDamageSource }
   /** A screen-FX moment released the simulation, or finished. */
-  | FxEvent;
+  | FxEvent
+  /** The boss encounter's own announcements. */
+  | EncounterEvent;
 
 /**
  * The first solid surface at or after a column, or null within the lookahead.
@@ -154,10 +157,10 @@ export function avatarBlinkAlpha(world: RunnerWorld): number {
 export function createVitalsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/vitals",
-    contractVersion: "vitals-system-v1",
+    contractVersion: "vitals-system-v2",
     reads: ["avatar", "segments"],
     writes: ["vitals"],
-    consumes: ["hazard-contact", "pit", "crush"],
+    consumes: ["hazard-contact", "pit", "crush", "shot-contact"],
     emits: ["drained", "absorbed", "run-ended"],
     update(world, step) {
       const vitals = world.vitals;
@@ -172,13 +175,27 @@ export function createVitalsSystem(): GameSystem<RunnerWorld> {
       // compound accident costs one point rather than three.
       const occurrences = world.events.frame.filter(
         (event) =>
-          event.type === "hazard-contact" || event.type === "pit" || event.type === "crush",
+          event.type === "hazard-contact" ||
+          event.type === "pit" ||
+          event.type === "crush" ||
+          event.type === "shot-contact",
       );
 
       for (const occurrence of occurrences) {
         const source: RunnerDamageSource =
-          occurrence.type === "hazard-contact" ? "hazard" : occurrence.type;
+          occurrence.type === "hazard-contact"
+            ? "hazard"
+            : occurrence.type === "shot-contact"
+              ? "shot"
+              : occurrence.type;
         const consequence = world.config.consequences[source];
+
+        if (consequence === undefined || consequence === null) {
+          // Unreachable: the contract pairs a shot answer with the encounter
+          // that fires it. A missing answer must still not forgive the hit.
+          world.events.emit({ type: "run-ended", source });
+          return;
+        }
 
         if (consequence === "end_run_v1") {
           world.events.emit({ type: "run-ended", source });

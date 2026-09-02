@@ -20,6 +20,11 @@ import type { GameSystem } from "@/lib/game-systems/systems";
 import type { RunnerEvent, VitalsState } from "./vitals";
 import type { DifficultyState } from "./difficulty";
 import { rampProfile, type RampProfileName } from "./difficulty";
+import {
+  type EncounterConfig,
+  type EncounterState,
+  createEncounterState,
+} from "./encounter-arithmetic";
 import type { RunnerIntent } from "./intent";
 import { NEUTRAL_RUNNER_INTENT } from "./intent";
 import {
@@ -57,7 +62,17 @@ export type RunPhase = "intro" | "running" | "dead";
  * `crush` was called `step` while it was only ever a way to die; now that a
  * package can forgive it, it is worth a name a reader recognises.
  */
-export type DeathCause = "hazard" | "pit" | "crush" | null;
+export type DeathCause = "hazard" | "pit" | "crush" | "shot" | null;
+
+/**
+ * Which physics the avatar integrates.
+ *
+ * A locomotion is the whole map from intent to vertical motion, not a
+ * modifier on running: `thrust` has no jump edge, no slide and no arc, and
+ * `run` has no held climb. The encounter director owns the switch; the avatar
+ * feedback-reads it.
+ */
+export type RunnerLocomotion = "run" | "thrust";
 
 export interface AvatarState {
   /** Forward progress of the avatar's feet, in world columns. */
@@ -153,6 +168,20 @@ export interface RunnerWorldConfig {
   readonly avatarScreenX: number;
   /** The stage-start binding the package plays before the run, if any. */
   readonly introMoment: FxMoment | null;
+  /** The boss-arrival binding, if the package binds one. */
+  readonly encounterMoment: FxMoment | null;
+  /** The published encounter arithmetic; null when the package fights nothing. */
+  readonly encounter: EncounterConfig | null;
+  /**
+   * The arena chunk an encounter is fought over, held out of `chunks`.
+   *
+   * Separated so the difficulty selector cannot draw it: the arena is not a
+   * harder or easier chunk, it is a chunk for a different purpose, and the
+   * band it would fall into would be a lie either way.
+   */
+  readonly arenaChunk: RunnerChunk | null;
+  /** Viewport width in columns, for placing a boss off the right edge. */
+  readonly viewportColumns: number;
 }
 
 export interface RunnerWorld {
@@ -166,6 +195,10 @@ export interface RunnerWorld {
   camera: CameraState;
   /** The screen-FX moment in flight, driven by the generic fx system; null when none. */
   fx: FxState | null;
+  /** Which physics the avatar is wearing this frame. */
+  locomotion: RunnerLocomotion;
+  /** The boss-encounter director's slice; null exactly when none is authored. */
+  encounter: EncounterState | null;
   /** This frame's occurrences. Cleared by the sealed tick, not by any system. */
   readonly events: EventQueue<RunnerEvent>;
   readonly config: RunnerWorldConfig;
@@ -180,8 +213,30 @@ export const AVATAR_SCREEN_ANCHOR_FRACTION = 0.25;
 
 const STREAM_MARGIN_COLUMNS = 8;
 
-export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldConfig {
+/**
+ * What the manifest cannot yet tell the world about an encounter.
+ *
+ * Injected rather than derived here so the world's shape does not depend on
+ * the order the parser and the director were built in: the boot resolves the
+ * published block once and hands it over, and everything downstream - the
+ * avatar's physics, the segment stream, the director - is testable from a
+ * hand-built config with no manifest at all.
+ */
+export interface RunnerEncounterBinding {
+  readonly encounter: EncounterConfig;
+  readonly arenaChunk: RunnerChunk;
+  readonly moment: FxMoment | null;
+}
+
+export function runnerWorldConfig(
+  manifest: RunnerRuntimeManifest,
+  binding: RunnerEncounterBinding | null = null,
+): RunnerWorldConfig {
   const viewportColumns = Math.ceil(RUNNER_VIEW_WIDTH / manifest.scale.tilePx);
+  const arenaSegmentId = binding?.arenaChunk.segmentId ?? null;
+  const runChunks = manifest.segments.chunks.filter(
+    (chunk) => chunk.segmentId !== arenaSegmentId,
+  );
   return Object.freeze({
     rows: manifest.segments.rows,
     walkSurfaceRow: manifest.segments.walkSurfaceRow,
@@ -204,10 +259,8 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
       hazardColumnInset: manifest.gameplay.hazardColumnInset,
     }),
     rampProfile: manifest.gameplay.rampProfile,
-    maxAuthoredDifficulty: Math.max(
-      ...manifest.segments.chunks.map((chunk) => chunk.difficulty),
-    ),
-    chunks: manifest.segments.chunks,
+    maxAuthoredDifficulty: Math.max(...runChunks.map((chunk) => chunk.difficulty)),
+    chunks: runChunks,
     propHeightUnits: new Map(
       manifest.props.map((prop) => [prop.id, prop.calibration.heightUnits]),
     ),
@@ -216,6 +269,10 @@ export function runnerWorldConfig(manifest: RunnerRuntimeManifest): RunnerWorldC
     avatarScreenX: Math.round(RUNNER_VIEW_WIDTH * AVATAR_SCREEN_ANCHOR_FRACTION),
     introMoment:
       manifest.fx?.moments.find((entry) => entry.moment === "stage_start") ?? null,
+    encounterMoment: binding?.moment ?? null,
+    encounter: binding?.encounter ?? null,
+    arenaChunk: binding?.arenaChunk ?? null,
+    viewportColumns,
   });
 }
 
@@ -316,6 +373,9 @@ export function resetRunnerWorld(
     cause: null,
   };
   world.fx = null;
+  world.locomotion = "run";
+  world.encounter =
+    world.config.encounter === null ? null : createEncounterState(world.config.encounter);
   if (intro && world.config.introMoment !== null) {
     beginFxMoment(world, world.config.introMoment.moment, world.config.introMoment.choreography);
   }
@@ -332,9 +392,12 @@ export function resetRunnerWorld(
 export function createRunnerWorld(
   manifest: RunnerRuntimeManifest,
   seed: number,
-  options: { readonly intro?: boolean } = { intro: true },
+  options: {
+    readonly intro?: boolean;
+    readonly encounter?: RunnerEncounterBinding | null;
+  } = { intro: true },
 ): RunnerWorld {
-  const config = runnerWorldConfig(manifest);
+  const config = runnerWorldConfig(manifest, options.encounter ?? null);
   // The reset fills every dynamic field; the placeholders exist only to give
   // it a complete object to work on.
   const world: RunnerWorld = {
@@ -382,6 +445,8 @@ export function createRunnerWorld(
     },
     camera: { scrollX: 0 },
     fx: null,
+    locomotion: "run",
+    encounter: null,
     events: createEventQueue<RunnerEvent>(),
     config,
   };

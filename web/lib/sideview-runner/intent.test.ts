@@ -14,7 +14,12 @@ import { createRunnerWorld } from "./world";
 describe("runnerIntent", () => {
   test("defaults every unstated field to not asked for", () => {
     expect(runnerIntent()).toEqual(NEUTRAL_RUNNER_INTENT);
-    expect(runnerIntent({ jump: true })).toEqual({ jump: true, duck: false, action: false });
+    expect(runnerIntent({ jump: true })).toEqual({
+      jump: true,
+      duck: false,
+      thrust: false,
+      action: false,
+    });
     expect(Object.isFrozen(runnerIntent({ jump: true }))).toBe(true);
   });
 });
@@ -164,7 +169,7 @@ describe("attachPointerIntentSource", () => {
 
     target.dispatch("pointerdown", { clientY: 500, pointerId: 7 });
     target.dispatch("pointerdown", { clientY: 510, pointerId: 8 });
-    expect(latch.sample()).toEqual({ jump: false, duck: true, action: false });
+    expect(latch.sample()).toEqual({ jump: false, duck: true, thrust: false, action: false });
     expect(target.captured).toEqual([7, 8]);
     target.dispatch("pointerup", { clientY: 700, pointerId: 7 });
     expect(latch.sample().duck).toBe(true);
@@ -198,5 +203,79 @@ describe("createIntentSystem", () => {
     expect(world.intent.jump).toBe(true);
     system.update(world, { dt: 1 / 60, now: 2 / 60, frame: 2 });
     expect(world.intent.jump).toBe(false);
+  });
+});
+
+describe("thrust rides the jump key as a held level", () => {
+  test("a keydown edges the jump once and holds thrust until the key comes up", () => {
+    const latch = createIntentLatch();
+    const target = fakeWindow();
+    attachKeyboardIntentSource(latch, target);
+
+    target.dispatch("keydown", { code: "Space" });
+    const first = latch.sample();
+    expect(first.jump).toBe(true);
+    expect(first.thrust).toBe(true);
+
+    // The edge is spent; the level is not.
+    const second = latch.sample();
+    expect(second.jump).toBe(false);
+    expect(second.thrust).toBe(true);
+
+    target.dispatch("keyup", { code: "Space" });
+    expect(latch.sample().thrust).toBe(false);
+  });
+
+  test("an auto-repeating key neither re-edges the jump nor re-asserts thrust", () => {
+    const latch = createIntentLatch();
+    const target = fakeWindow();
+    attachKeyboardIntentSource(latch, target);
+
+    target.dispatch("keydown", { code: "ArrowUp" });
+    expect(latch.sample().jump).toBe(true);
+    target.dispatch("keydown", { code: "ArrowUp", repeat: true });
+    const repeated = latch.sample();
+    expect(repeated.jump).toBe(false);
+    expect(repeated.thrust).toBe(true);
+  });
+
+  test("ducking does not thrust", () => {
+    const latch = createIntentLatch();
+    const target = fakeWindow();
+    attachKeyboardIntentSource(latch, target);
+
+    target.dispatch("keydown", { code: "ArrowDown" });
+
+    const sampled = latch.sample();
+    expect(sampled.duck).toBe(true);
+    expect(sampled.thrust).toBe(false);
+  });
+
+  test("the pointer's upper zone holds thrust until every upper pointer lifts", () => {
+    const latch = createIntentLatch();
+    const target = fakePointerTarget();
+    attachPointerIntentSource(latch, target);
+
+    target.dispatch("pointerdown", { clientY: 100, pointerId: 1 });
+    target.dispatch("pointerdown", { clientY: 120, pointerId: 2 });
+    expect(latch.sample().thrust).toBe(true);
+    expect(target.captured).toEqual([1, 2]);
+
+    target.dispatch("pointerup", { clientY: 100, pointerId: 1 });
+    expect(latch.sample().thrust).toBe(true);
+    target.dispatch("lostpointercapture", { clientY: 120, pointerId: 2 });
+    expect(latch.sample().thrust).toBe(false);
+  });
+
+  test("disposal cannot leave thrust held", () => {
+    const latch = createIntentLatch();
+    const target = fakePointerTarget();
+    const dispose = attachPointerIntentSource(latch, target);
+    target.dispatch("pointerdown", { clientY: 100, pointerId: 5 });
+    expect(latch.sample().thrust).toBe(true);
+
+    dispose();
+
+    expect(latch.sample().thrust).toBe(false);
   });
 });

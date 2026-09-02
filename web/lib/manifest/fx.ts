@@ -8,7 +8,15 @@
 
 import { CUT_IN_CHOREOGRAPHY_NAMES, type CutInChoreographyName } from "@/lib/fx/cut-in";
 
-export const FX_MOMENTS = ["stage_start"] as const;
+/**
+ * The moments a package may bind, mirroring the generator's `FX_MOMENTS`.
+ *
+ * Which of them a given genre can actually play is the generator's business:
+ * it refuses `encounter_start` from a runner that declares no encounter,
+ * offline, before the plate is ever drawn. Here the vocabulary is simply
+ * closed, so an unknown name is a refusal rather than a silent no-op.
+ */
+export const FX_MOMENTS = ["stage_start", "encounter_start"] as const;
 export type FxMomentName = (typeof FX_MOMENTS)[number];
 export const FX_EFFECTS = ["cut_in"] as const;
 export type FxEffectName = (typeof FX_EFFECTS)[number];

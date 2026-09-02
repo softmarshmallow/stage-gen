@@ -20,11 +20,15 @@ const DOCUMENTED_ORDER = [
   "runner/intent",
   "runner/difficulty",
   "runner/avatar",
+  // The screen-FX moment seals before the encounter director that consumes
+  // its release; the director seals before the stream it asks for an arena,
+  // before the vitals that answer for the shots it fires, and before the
+  // run-loop that pays for the boss it defeats.
+  "fx/moment",
+  "runner/encounter",
   "runner/segments",
   "runner/obstacles",
   "runner/vitals",
-  // The screen-FX moment seals directly before the run-loop that consumes its release.
-  "fx/moment",
   "runner/run-loop",
   "runner/camera",
   "runner/parallax",

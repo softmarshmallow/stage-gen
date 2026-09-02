@@ -14,6 +14,8 @@
 
 import { surfaceRowAt } from "./segments";
 import type { GameSystem } from "@/lib/game-systems/systems";
+
+import { type ThrustArithmetic, thrustVelocity } from "./encounter-arithmetic";
 import { applyPendingRecovery } from "./vitals";
 import type { RunnerWorld } from "./world";
 
@@ -113,6 +115,16 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     world.config.maxClearGapColumns,
     world.config.arithmetic,
   );
+  // Which physics to integrate is a feedback read of `locomotion`: the
+  // encounter director writes it, and it is not declared as a read here
+  // because that edge would seal a cycle (avatar -> encounter -> avatar). The
+  // cost is that the switch lands one 60Hz frame late, which is a sixtieth of
+  // a second at the moment a two-second cut-in has just finished playing.
+  if (world.locomotion === "thrust" && world.config.encounter !== null) {
+    stepThrust(world, dt, world.config.encounter.thrust);
+    return;
+  }
+
   avatar.distanceColumns += world.difficulty.speedColumnsPerSecond * dt;
   const support = surfaceRowAt(world.segments, Math.floor(avatar.distanceColumns));
 
@@ -172,10 +184,65 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
   }
 }
 
+/**
+ * Advance the avatar one fixed step under thrust.
+ *
+ * The same forward motion, a different vertical verb: held climbs, released
+ * falls, and the floor is the arena's, which is flat by contract. There is no
+ * jump edge, no slide, and no air-jump budget - a locomotion is the whole map
+ * from intent to vertical motion, not a modifier on the running one, so
+ * nothing here reads a jump profile.
+ *
+ * The head is clamped at row 0 rather than allowed off the top, because the
+ * salvo's lane is measured inside the band and an avatar above the band could
+ * dodge everything by leaving the fight.
+ */
+function stepThrust(world: RunnerWorld, dt: number, thrust: ThrustArithmetic): void {
+  const avatar = world.avatar;
+  avatar.distanceColumns += world.difficulty.speedColumnsPerSecond * dt;
+  const support = surfaceRowAt(world.segments, Math.floor(avatar.distanceColumns));
+  const held = world.intent.thrust;
+
+  avatar.sliding = false;
+  avatar.airJumpsUsed = 0;
+
+  if (avatar.grounded && !held) {
+    // Idling on the arena floor: still running, just not climbing.
+    avatar.vy = 0;
+    avatar.motion = "run";
+    return;
+  }
+  if (avatar.grounded) avatar.grounded = false;
+
+  avatar.vy = thrustVelocity(avatar.vy, held, dt, thrust);
+  avatar.y += avatar.vy * dt;
+
+  const ceiling = world.config.playerHeightTiles;
+  if (avatar.y < ceiling) {
+    avatar.y = ceiling;
+    avatar.vy = 0;
+  }
+
+  if (support !== null && avatar.y >= support && avatar.vy >= 0) {
+    avatar.y = support;
+    avatar.vy = 0;
+    avatar.grounded = true;
+    avatar.motion = "run";
+    return;
+  }
+  if (support === null && avatar.y > world.config.rows) {
+    // Unreachable on an admitted arena, which is flat in every column. Kept
+    // so a mis-authored floor fails the way a pit does rather than silently.
+    world.events.emit({ type: "pit" });
+    return;
+  }
+  avatar.motion = "fly";
+}
+
 export function createAvatarSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/avatar",
-    contractVersion: "avatar-system-v3",
+    contractVersion: "avatar-system-v4",
     reads: ["intent", "difficulty"],
     writes: ["avatar"],
     emits: ["pit", "crush"],

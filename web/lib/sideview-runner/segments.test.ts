@@ -236,3 +236,65 @@ describe("the selection grammar", () => {
     expect(run(7)).not.toEqual(run(8));
   });
 });
+
+describe("the arena an encounter is fought over", () => {
+  const ARENA = chunkFixture({ segmentId: "boss_arena", role: "arena" });
+  const CATALOG = [chunkFixture(), PIT_CHUNK];
+
+  test("streams the arena verbatim, back to back, while it is asked for", () => {
+    const stream = createSegmentStream(8, 5);
+
+    streamAhead(stream, CATALOG, { ceiling: 2, arena: ARENA }, mulberry32(1), 20);
+
+    expect(stream.chunks.length).toBeGreaterThan(1);
+    for (const streamed of stream.chunks) {
+      expect(streamed.segmentId).toBe("boss_arena");
+      expect(streamed.role).toBe("arena");
+    }
+    // Contiguous, like any other streamed run of chunks.
+    expect(stream.chunks[1].startColumn).toBe(stream.chunks[0].width);
+  });
+
+  test("spends no randomness and leaves the pacing counters where they were", () => {
+    const stream = createSegmentStream(8, 5);
+    streamAhead(stream, CATALOG, { ceiling: 2, restEveryAppends: 3 }, mulberry32(4), 8);
+    const lastIndex = stream.lastChunkIndex;
+    const appends = stream.appendsSinceRest;
+
+    let rngCalls = 0;
+    const countingRng = () => {
+      rngCalls += 1;
+      return 0.5;
+    };
+    streamAhead(
+      stream,
+      CATALOG,
+      { ceiling: 2, restEveryAppends: 3, arena: ARENA },
+      countingRng,
+      40,
+    );
+
+    expect(rngCalls).toBe(0);
+    expect(stream.lastChunkIndex).toBe(lastIndex);
+    expect(stream.appendsSinceRest).toBe(appends);
+  });
+
+  test("ordinary selection resumes the moment the arena is no longer asked for", () => {
+    const stream = createSegmentStream(8, 5);
+    streamAhead(stream, CATALOG, { ceiling: 2, arena: ARENA }, mulberry32(1), 16);
+    const arenaCount = stream.chunks.length;
+
+    streamAhead(stream, CATALOG, { ceiling: 2 }, mulberry32(1), 40);
+
+    expect(stream.chunks.length).toBeGreaterThan(arenaCount);
+    expect(stream.chunks.slice(arenaCount).every((c) => c.segmentId !== "boss_arena")).toBe(true);
+  });
+
+  test("a streamed chunk carries the role it was authored with", () => {
+    const stream = createSegmentStream(8, 5);
+
+    streamAhead(stream, CATALOG, { ceiling: 2 }, mulberry32(1), 8);
+
+    expect(stream.chunks[0].role).toBe("run");
+  });
+});

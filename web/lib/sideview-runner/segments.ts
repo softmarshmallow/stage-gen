@@ -9,6 +9,7 @@
 import { bottomContiguousSurfaceRow, type RunnerChunk } from "./contract";
 import { rampProfile } from "./difficulty";
 import type { GameSystem } from "@/lib/game-systems/systems";
+import { encounterWantsArena } from "./encounter";
 import type { RunnerWorld } from "./world";
 
 export interface StreamedHazard {
@@ -27,6 +28,8 @@ export interface StreamedPickup {
 export interface StreamedChunk {
   readonly segmentId: string;
   readonly difficulty: number;
+  /** What this chunk is for; the encounter director reads it off the window. */
+  readonly role: "run" | "arena";
   /** World column of this chunk's local column 0. */
   readonly startColumn: number;
   readonly width: number;
@@ -66,6 +69,16 @@ export interface ChunkSelection {
   readonly floor?: number;
   /** Every this-many appends, one catalog-easiest breather is forced. */
   readonly restEveryAppends?: number;
+  /**
+   * When set, every append streams this chunk verbatim.
+   *
+   * The encounter's floor, back to back for as long as the fight lasts. It
+   * spends no randomness and leaves the anti-repeat and the rest cadence
+   * exactly where they were, so the ordinary track resumes on the beat it
+   * would have reached had the fight not happened - an encounter interrupts
+   * the run without rewriting its pacing.
+   */
+  readonly arena?: RunnerChunk | null;
 }
 
 /**
@@ -116,6 +129,7 @@ function streamChunk(chunk: RunnerChunk, startColumn: number): StreamedChunk {
   return Object.freeze({
     segmentId: chunk.segmentId,
     difficulty: chunk.difficulty,
+    role: chunk.role ?? "run",
     startColumn,
     width: chunk.occupancy[0].length,
     occupancy: chunk.occupancy,
@@ -151,6 +165,11 @@ export function streamAhead(
 ): void {
   const restEvery = selection.restEveryAppends ?? Number.POSITIVE_INFINITY;
   while (stream.nextColumn <= throughColumn) {
+    if (selection.arena) {
+      stream.chunks.push(streamChunk(selection.arena, stream.nextColumn));
+      stream.nextColumn += selection.arena.occupancy[0].length;
+      continue;
+    }
     const resting = stream.appendsSinceRest + 1 >= restEvery;
     const index = resting
       ? selectRestIndex(catalog, rng, stream.lastChunkIndex)
@@ -220,12 +239,16 @@ export function streamedPickups(stream: SegmentStream): readonly StreamedPickup[
 export function createSegmentsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/segments",
-    contractVersion: "segments-system-v2",
-    reads: ["difficulty", "avatar"],
+    contractVersion: "segments-system-v3",
+    reads: ["difficulty", "avatar", "encounter"],
     writes: ["segments"],
     update(world) {
       const profile = rampProfile(world.config.rampProfile);
       const ahead = Math.ceil(world.avatar.distanceColumns) + world.config.streamAheadColumns;
+      // While a fight is on the way or under way the stream feeds the arena
+      // instead of drawing from the catalog. The director asks; this decides
+      // nothing about when.
+      const arena = encounterWantsArena(world) ? world.config.arenaChunk : null;
       streamAhead(
         world.segments,
         world.config.chunks,
@@ -233,6 +256,7 @@ export function createSegmentsSystem(): GameSystem<RunnerWorld> {
           ceiling: world.difficulty.ceiling,
           floor: world.difficulty.floor,
           restEveryAppends: profile.restEveryAppends,
+          arena,
         },
         world.run.rng,
         ahead,

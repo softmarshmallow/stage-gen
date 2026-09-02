@@ -251,3 +251,151 @@ describe("stepAvatar", () => {
     expect(world.avatar.motion).toBe("jump");
   });
 });
+
+describe("thrust locomotion", () => {
+  const THRUST = Object.freeze({
+    maxClimbRowsPerSecond: 9,
+    maxFallRowsPerSecond: 10,
+    climbAccelerationRowsPerSecondSquared: 24,
+  });
+
+  const ARENA_WIDTH = 240;
+  const ARENA_ROW = "1".repeat(ARENA_WIDTH);
+  const EMPTY_ROW = "0".repeat(ARENA_WIDTH);
+  const ARENA_CHUNK = {
+    segmentId: "crafted_arena",
+    difficulty: 1,
+    role: "arena" as const,
+    occupancy: [
+      EMPTY_ROW,
+      EMPTY_ROW,
+      EMPTY_ROW,
+      EMPTY_ROW,
+      EMPTY_ROW,
+      ARENA_ROW,
+      ARENA_ROW,
+      ARENA_ROW,
+    ],
+    hazards: [],
+    pickups: [],
+  };
+
+  const ENCOUNTER_CONFIG = {
+    profile: "barrage_boss_v1",
+    locomotion: "thrust_v1",
+    intervalColumns: 400,
+    arenaSegmentId: "crafted_arena",
+    bossId: "root_warden",
+    bossProjectileId: "spore_bolt",
+    playerProjectileId: "seed_dart",
+    thrust: THRUST,
+    firingDistanceColumns: 10,
+    projectileSpeedColumnsPerSecond: 7.5,
+    projectileHeightRows: 1,
+    salvoShots: 3,
+    salvoPeriodSeconds: 1.5,
+    salvoBudget: 8,
+    laneMarginRows: 0.5,
+    hitsToDefeat: 10,
+    playerFirePeriodSeconds: 0.5,
+    playerShotSpeedColumnsPerSecond: 12,
+    bossHeightRows: 4,
+  };
+
+  /** A flat arena world already switched into thrust. */
+  function flyingWorld(): RunnerWorld {
+    const world = createRunnerWorld(manifest, 1, {
+      encounter: { encounter: ENCOUNTER_CONFIG, arenaChunk: ARENA_CHUNK, moment: null },
+    });
+    const stream = createSegmentStream(8, 5);
+    streamAhead(stream, [ARENA_CHUNK], { ceiling: 1 }, mulberry32(1), ARENA_WIDTH - 1);
+    world.segments = stream;
+    world.locomotion = "thrust";
+    return world;
+  }
+
+  test("a held thrust lifts the avatar off the arena floor and wears fly", () => {
+    const world = flyingWorld();
+    const floor = world.avatar.y;
+    world.intent = runnerIntent({ thrust: true });
+
+    for (let tick = 0; tick < 20; tick += 1) stepAvatar(world, DT);
+
+    expect(world.avatar.y).toBeLessThan(floor);
+    expect(world.avatar.grounded).toBe(false);
+    expect(world.avatar.motion).toBe("fly");
+  });
+
+  test("releasing it falls back to the floor and wears run again", () => {
+    const world = flyingWorld();
+    const floor = world.avatar.y;
+    world.intent = runnerIntent({ thrust: true });
+    for (let tick = 0; tick < 20; tick += 1) stepAvatar(world, DT);
+
+    world.intent = runnerIntent({ thrust: false });
+    for (let tick = 0; tick < 240; tick += 1) stepAvatar(world, DT);
+
+    expect(world.avatar.y).toBeCloseTo(floor, 6);
+    expect(world.avatar.grounded).toBe(true);
+    expect(world.avatar.motion).toBe("run");
+    expect(world.avatar.vy).toBe(0);
+  });
+
+  test("the head never crosses the top of the band", () => {
+    const world = flyingWorld();
+    world.intent = runnerIntent({ thrust: true });
+
+    for (let tick = 0; tick < 600; tick += 1) {
+      stepAvatar(world, DT);
+      expect(world.avatar.y - world.config.playerHeightTiles).toBeGreaterThanOrEqual(-1e-9);
+    }
+    // Pinned at the ceiling, not drifting through it.
+    expect(world.avatar.y).toBeCloseTo(world.config.playerHeightTiles, 6);
+    expect(world.avatar.vy).toBe(0);
+  });
+
+  test("it ignores the jump edge and spends no impulse", () => {
+    const world = flyingWorld();
+    const before = world.avatar.jumpImpulses;
+    world.intent = runnerIntent({ jump: true });
+
+    for (let tick = 0; tick < 20; tick += 1) stepAvatar(world, DT);
+
+    expect(world.avatar.jumpImpulses).toBe(before);
+    expect(world.avatar.grounded).toBe(true);
+    expect(world.avatar.motion).toBe("run");
+  });
+
+  test("it never slides, whatever the duck intent says", () => {
+    const world = flyingWorld();
+    world.intent = runnerIntent({ duck: true });
+
+    stepAvatar(world, DT);
+
+    expect(world.avatar.sliding).toBe(false);
+  });
+
+  test("the run keeps carrying the avatar forward while it flies", () => {
+    const world = flyingWorld();
+    const start = world.avatar.distanceColumns;
+    world.intent = runnerIntent({ thrust: true });
+
+    for (let tick = 0; tick < 60; tick += 1) stepAvatar(world, DT);
+
+    expect(world.avatar.distanceColumns).toBeCloseTo(
+      start + world.difficulty.speedColumnsPerSecond,
+      6,
+    );
+  });
+
+  test("run locomotion ignores a held thrust", () => {
+    const world = craftedWorld("1".repeat(240));
+    const floor = world.avatar.y;
+    world.intent = runnerIntent({ thrust: true });
+
+    for (let tick = 0; tick < 30; tick += 1) stepAvatar(world, DT);
+
+    expect(world.avatar.y).toBe(floor);
+    expect(world.avatar.motion).toBe("run");
+  });
+});
