@@ -1,5 +1,5 @@
-schema_version = 3
-kind = "dialogue-scene-v3"
+schema_version = 5
+kind = "dialogue-scene-v5"
 game_id = "larkfield"
 display_name = "Larkfield"
 revision = 2
@@ -17,16 +17,20 @@ transparency_mode = "native"
 # that binds the plate as its own `reference_id` is held to the person in it.
 style_reference_id = "cover"
 
-# The narrative, as an authored scenario rather than a flat beat list. The scene
-# binds its scenario document by digest, and that document binds its script the
-# same way, so one recorded hash closes over every word the scene can say. A game
-# may hold several scenarios; this names the one it plays. Admission proves the
-# whole thing finishable offline, before any art is paid for.
-[scenario]
+# The narratives, as authored scenarios rather than a flat beat list. The scene
+# binds each scenario document by digest, and that document binds its script the
+# same way, so one recorded hash per entry closes over every word the scene can
+# say. Admission proves each one finishable offline, before any art is paid for.
+#
+# A list, because an episode is split into several scenarios so each one's proof
+# stays under its state ceiling - and the scene then declares the union of their
+# stages, cast and tracks and draws each backdrop, plate and track exactly once.
+# One entry today; the sixth costs no art the first five already paid for.
+[[scenarios]]
 schema_version = 1
 kind = "scenario-binding-v1"
 ref = "scenarios/last_class.toml"
-source_sha256 = "71b6d7109b77a16eefcc81ed7185f8dcd641e1031c6d0106d356e901e0570a2a"
+source_sha256 = "ab038ee4c94b2dac84e27e9daf0fb6bb7ee3b6f81d3d3e3c00cf470ae657157d"
 
 # Which package members draw each actor the scenario can show. The scenario says
 # who exists and what they can wear on their face; this says whose profile and
@@ -40,7 +44,7 @@ reference_id = "cover"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/nao.toml"
-source_sha256 = "7c07c3ecf9f0cbdde264692fe8d88fae730e41059041b7a77e43a5f6e86c065b"
+source_sha256 = "66f8f6dbdd02922da3696435926a8914385586ab9cdbdf0af09f9f20f0c825c5"
 
 [[cast]]
 actor_id = "haruki"
@@ -49,7 +53,7 @@ actor_id = "haruki"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/haruki.toml"
-source_sha256 = "477694cded27c7c916b3c25bc42bfe47193d8604686298670f4cc7dd68097387"
+source_sha256 = "cb6878cace8f85075579dfdb3101e68cb44bd910b7dd26455c346dbb6e8df08e"
 
 [[cast]]
 actor_id = "sayaka"
@@ -58,7 +62,7 @@ actor_id = "sayaka"
 schema_version = 1
 kind = "character-profile-binding-v1"
 ref = "characters/sayaka.toml"
-source_sha256 = "13afd93f6923bda74f4a9fd4c0da4cbf2fa67de46e581ec9d6292043ad739725"
+source_sha256 = "4c88283727ea7f4e4e81a684612d37b9bffc33a6a87bce4e2a94ce5e0b1ef9a3"
 
 [[references]]
 reference_id = "cover"

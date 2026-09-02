@@ -5,10 +5,12 @@
 > This is the canonical human overview of prepared-game generation — the
 > side-view platformer recipe's pipeline (`2d/sideview/platformer` in the
 > [asset taxonomy](../asset-taxonomy.md)). The sibling
-> [runner](runner.md), dialogue-scene, and
+> [runner](runner.md), [dialogue-scene](../dialogue-scene-assets.md), and
 > [point-and-click room](pointclick-room.md) recipes each declare their own graph
-> document kind and checked graph contract; their node tables are not folded
-> into the platformer snapshot below. So does
+> document kind, and their node tables are not folded into the platformer
+> snapshot below. Only the platformer and the runner carry a checked graph
+> contract block; the dialogue-scene and point-and-click graphs are held to their
+> shapes by their own recipe tests instead, which is weaker and worth closing. So does
 > [universe](../universe/generation-v1.md), which is not a game at all: it
 > builds a storyworld package to read rather than a package to play, and seals
 > two graphs because the size of its gallery is a result of its first phase. The typed package graph is

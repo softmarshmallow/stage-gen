@@ -14,6 +14,34 @@ invariants = [
   "Adult proportions and a quiet, observant demeanor",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+[[expressions]]
+expression_id = "neutral"
+label = "Composed"
+description = "Composed and attentive, listening to the room"
+direction = "Level gaze toward the listener, lips closed and relaxed, brows even. The attentive stillness of someone waiting for a sound to come back."
+
+[[expressions]]
+expression_id = "delighted"
+label = "Delighted"
+description = "Warm open delight with bright eyes and an unguarded smile"
+direction = "Eyes bright and slightly narrowed with the smile, mouth open in an unguarded grin, brows lifted. Nothing held back."
+
+[[expressions]]
+expression_id = "flustered"
+label = "Flustered"
+description = "Warmly flustered with a faint blush and a shy half-smile"
+direction = "Faint warmth across the cheeks, eyes cast a little aside, mouth caught between a smile and a word not finished. Brows lifted at the inner corners."
+
+[[expressions]]
+expression_id = "concerned"
+label = "Concerned"
+description = "Focused concern, with the brows drawn and the mouth firm"
+direction = "Brows drawn together, eyes fixed on the listener, mouth closed and firm. Concentration rather than distress."
+
 [rights]
 status = "unreviewed"
 basis = ["Original repository-authored text with no external character or media reference."]

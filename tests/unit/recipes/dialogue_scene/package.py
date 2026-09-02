@@ -31,6 +31,33 @@ invariants = [
   "Olive work jacket and a ring of keys",
 ]
 
+# The four drawn faces, authored per actor. The FIRST is the base plate; the rest
+# are face-only edits of it, so the resting face leads.
+
+[[expressions]]
+expression_id = "gruff"
+label = "Gruff"
+description = "Composed and attentive, waiting for the other to speak"
+direction = "Level unhurried gaze, mouth closed and even, jaw loose."
+
+[[expressions]]
+expression_id = "amused"
+label = "Amused"
+description = "Open delight with bright eyes and an unguarded smile"
+direction = "Eyes creased deeply at the corners, a wide slow smile, brows lifted."
+
+[[expressions]]
+expression_id = "apologetic"
+label = "Apologetic"
+description = "Caught out, with the sentence unfinished"
+direction = "Eyes moving away, mouth pulled to one side, brows raised unevenly."
+
+[[expressions]]
+expression_id = "firm"
+label = "Firm"
+description = "Focused concern with the brows drawn and the mouth firm"
+direction = "Brows drawn low and together, eyes narrowed and steady, mouth pressed closed."
+
 [rights]
 status = "unreviewed"
 basis = ["Original repository-authored text with no external character reference."]
@@ -51,6 +78,33 @@ invariants = [
   "Navy cardigan over a white collared shirt",
 ]
 
+# The four drawn faces, authored per actor. The FIRST is the base plate; the rest
+# are face-only edits of it, so the resting face leads.
+
+[[expressions]]
+expression_id = "steady"
+label = "Steady"
+description = "Composed and attentive, waiting for the other to speak"
+direction = "Level gaze toward the listener, lips closed and relaxed, brows even."
+
+[[expressions]]
+expression_id = "glad"
+label = "Glad"
+description = "Open delight with bright eyes and an unguarded smile"
+direction = "Eyes bright and creased at the corners, an open unguarded smile, brows lifted."
+
+[[expressions]]
+expression_id = "caught"
+label = "Caught"
+description = "Caught out, with the sentence unfinished"
+direction = "Gaze cast aside, mouth caught between a smile and a word, inner brows raised."
+
+[[expressions]]
+expression_id = "worried"
+label = "Worried"
+description = "Focused concern with the brows drawn and the mouth firm"
+direction = "Brows drawn together, eyes fixed on the listener, mouth closed and firm."
+
 [rights]
 status = "unreviewed"
 basis = ["Original repository-authored text with no external character reference."]
@@ -60,8 +114,8 @@ SCENARIO_SCRIPT = """\
 label opening:
     stage lounge
     "The lamps are still on over the empty seminar table."
-    show mio neutral at center
-    show ren neutral at left
+    show mio steady at center
+    show ren gruff at left
     mio "I hoped you would stay after the seminar."
 
     menu:
@@ -73,14 +127,14 @@ label opening:
 
 label staying:
     set stayed
-    mio delighted "Then sit. The notes will keep."
-    ren concerned "I will be locking up at seven regardless."
+    mio glad "Then sit. The notes will keep."
+    ren firm "I will be locking up at seven regardless."
     jump closing
 
 
 label leaving:
-    mio flustered "Of course. I did not mean to keep you."
-    ren flustered "The east door is already bolted, for what it is worth."
+    mio caught "Of course. I did not mean to keep you."
+    ren apologetic "The east door is already bolted, for what it is worth."
     jump closing
 
 
@@ -92,8 +146,8 @@ label closing:
 
 
 label ending_stayed:
-    mio concerned "Next week, then. Same table."
-    ren delighted "Next week."
+    mio worried "Next week, then. Same table."
+    ren amused "Next week."
     hide mio
     hide ren
     end stayed_late
@@ -106,10 +160,72 @@ label ending_left:
 """
 
 
+SECOND_SCENARIO_SCRIPT = """\
+label night:
+    stage corridor
+    "The corridor lights click off one bank at a time."
+    show mio steady at center
+    mio "You are still here."
+    show ren firm at left
+    ren "So are you."
+    jump lounge_again
+
+
+label lounge_again:
+    stage lounge
+    mio glad "The table is warmer than the corridor."
+    hide mio
+    hide ren
+    end locked_up
+"""
+
+
+def second_scenario_toml(*, script_sha256: str) -> str:
+    """A second beat of the same episode: same cast, one shared stage, one new one.
+
+    The shared `lounge` declaration is byte-identical to the first scenario's on
+    purpose - that is the case the union has to collapse to one backdrop node.
+    """
+
+    return f'''\
+schema_version = 2
+kind = "scenario-v2"
+game_id = "seminar_hall"
+scenario_id = "late_shift"
+display_name = "The Late Shift"
+revision = 1
+script = "scenarios/late_shift.scenario"
+script_sha256 = "{script_sha256}"
+entry = "night"
+
+[[cast]]
+actor_id = "mio"
+display_name = "Mio"
+expressions = ["steady", "glad", "caught", "worried"]
+
+[[cast]]
+actor_id = "ren"
+display_name = "Ren"
+expressions = ["gruff", "amused", "apologetic", "firm"]
+
+[[stages]]
+stage_id = "lounge"
+brief = "An original empty evening study lounge, warm lamps, no people"
+
+[[stages]]
+stage_id = "corridor"
+brief = "An original empty tiled corridor at night, half the lights already off"
+
+[[endings]]
+outcome_id = "locked_up"
+label = "You were locked in together"
+'''
+
+
 def scenario_toml(*, script_sha256: str) -> str:
     return f'''\
-schema_version = 1
-kind = "scenario-v1"
+schema_version = 2
+kind = "scenario-v2"
 game_id = "seminar_hall"
 scenario_id = "after_seminar"
 display_name = "After the Seminar"
@@ -121,12 +237,12 @@ entry = "opening"
 [[cast]]
 actor_id = "mio"
 display_name = "Mio"
-expressions = ["neutral", "delighted", "flustered", "concerned"]
+expressions = ["steady", "glad", "caught", "worried"]
 
 [[cast]]
 actor_id = "ren"
 display_name = "Ren"
-expressions = ["neutral", "delighted", "flustered", "concerned"]
+expressions = ["gruff", "amused", "apologetic", "firm"]
 
 [[stages]]
 stage_id = "lounge"
@@ -145,16 +261,34 @@ label = "You left"
 '''
 
 
-def cover_png() -> bytes:
-    """A deterministic stand-in for the authored identity plate."""
+def cover_png(*, landscape: bool = False) -> bytes:
+    """A deterministic stand-in for the authored style plate.
 
+    ``landscape`` gives a 16:9 establishing shot instead of a portrait canvas. A
+    style plate is a reference for medium, palette and light, not a canvas
+    anything is composited onto, so both shapes are legitimate art direction and
+    the pipeline has to carry either.
+    """
+
+    size = (2048, 1152) if landscape else (1024, 1536)
     output = BytesIO()
-    Image.new("RGB", (1024, 1536), (40, 60, 110)).save(output, format="PNG")
+    Image.new("RGB", size, (40, 60, 110)).save(output, format="PNG")
     return output.getvalue()
 
 
-def write_scene_package(root: Path, **overrides: object) -> Path:
-    """Write a resolvable package under ``root`` and return that directory."""
+def write_scene_package(
+    root: Path,
+    *,
+    second_scenario: bool = False,
+    landscape_plate: bool = False,
+    **overrides: object,
+) -> Path:
+    """Write a resolvable package under ``root`` and return that directory.
+
+    ``second_scenario`` binds a second beat of the same episode, which shares both
+    actors and one of its two stages with the first. It is what the de-duplication
+    tests plan: the union must add one backdrop, not a second copy of everything.
+    """
 
     root.mkdir(parents=True, exist_ok=True)
     (root / "references").mkdir(exist_ok=True)
@@ -164,7 +298,7 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
     (root / "characters/mio.toml").write_bytes(character_bytes)
     second_bytes = SECOND_CHARACTER_TOML.encode("utf-8")
     (root / "characters/ren.toml").write_bytes(second_bytes)
-    cover = cover_png()
+    cover = cover_png(landscape=landscape_plate)
     (root / "references/cover.png").write_bytes(cover)
     script_bytes = SCENARIO_SCRIPT.encode("utf-8")
     (root / "scenarios/after_seminar.scenario").write_bytes(script_bytes)
@@ -172,16 +306,27 @@ def write_scene_package(root: Path, **overrides: object) -> Path:
         "utf-8"
     )
     (root / "scenarios/after_seminar.toml").write_bytes(scenario_bytes)
-    (root / "scenarios/index.toml").write_text(
+    catalog = (
         'schema_version = 1\nkind = "scenario-catalog-v1"\ngame_id = "seminar_hall"\n'
-        'revision = 1\n\n[[scenarios]]\nscenario_id = "after_seminar"\n',
-        encoding="utf-8",
+        'revision = 1\n\n[[scenarios]]\nscenario_id = "after_seminar"\n'
     )
+    second_scenario_sha256: str | None = None
+    if second_scenario:
+        second_script = SECOND_SCENARIO_SCRIPT.encode("utf-8")
+        (root / "scenarios/late_shift.scenario").write_bytes(second_script)
+        second_scenario_bytes = second_scenario_toml(
+            script_sha256=hashlib.sha256(second_script).hexdigest()
+        ).encode("utf-8")
+        (root / "scenarios/late_shift.toml").write_bytes(second_scenario_bytes)
+        second_scenario_sha256 = hashlib.sha256(second_scenario_bytes).hexdigest()
+        catalog += '\n[[scenarios]]\nscenario_id = "late_shift"\n'
+    (root / "scenarios/index.toml").write_text(catalog, encoding="utf-8")
     document = scene_value(
         character_sha256=hashlib.sha256(character_bytes).hexdigest(),
         second_sha256=hashlib.sha256(second_bytes).hexdigest(),
         cover_sha256=hashlib.sha256(cover).hexdigest(),
         scenario_sha256=hashlib.sha256(scenario_bytes).hexdigest(),
+        second_scenario_sha256=second_scenario_sha256,
         **overrides,
     )
     (root / "scene.toml").write_text(_to_toml(document), encoding="utf-8")
@@ -233,13 +378,14 @@ def scene_value(
     second_sha256: str,
     cover_sha256: str,
     scenario_sha256: str,
+    second_scenario_sha256: str | None = None,
     **overrides: object,
 ) -> dict[str, Any]:
     """The authored document, as a plain value a test can mutate before parsing."""
 
     value: dict[str, Any] = {
-        "schema_version": 3,
-        "kind": "dialogue-scene-v3",
+        "schema_version": 5,
+        "kind": "dialogue-scene-v5",
         "game_id": "seminar_hall",
         "display_name": "Seminar Hall",
         "revision": 1,
@@ -275,15 +421,26 @@ def scene_value(
                 "rights_basis": ["Original brand-neutral test fixture."],
             }
         ],
-        "scenario": {
-            "schema_version": 1,
-            "kind": "scenario-binding-v1",
-            "ref": "scenarios/after_seminar.toml",
-            "source_sha256": scenario_sha256,
-        },
+        "scenarios": [
+            {
+                "schema_version": 1,
+                "kind": "scenario-binding-v1",
+                "ref": "scenarios/after_seminar.toml",
+                "source_sha256": scenario_sha256,
+            }
+        ],
         "presentation": {"framing_zoom": 70, "source_framing_zoom": 70},
         "transparency_mode": "chroma",
     }
+    if second_scenario_sha256 is not None:
+        value["scenarios"].append(
+            {
+                "schema_version": 1,
+                "kind": "scenario-binding-v1",
+                "ref": "scenarios/late_shift.toml",
+                "source_sha256": second_scenario_sha256,
+            }
+        )
     value.update(overrides)
     return value
 

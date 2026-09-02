@@ -80,20 +80,18 @@ from stage_gen.recipes.dialogue_scene.identity import (
 )
 from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
 from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
     MINIMUM_TRACK_SECONDS,
     AttemptLedger,
     AttemptRecord,
     DialogueScenePlan,
     DialogueScenePlanDraft,
     ExpressionDirection,
-    ExpressionState,
     PromptTemplateBinding,
     SharedLocks,
     SpriteGeometry,
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
-from stage_gen.recipes.dialogue_scene.prompts import expression_prompt, neutral_prompt
+from stage_gen.recipes.dialogue_scene.prompts import base_plate_prompt, expression_prompt
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DIALOGUE_CACHE_NAMESPACE,
     DIALOGUE_CACHE_RECORD_KIND,
@@ -104,11 +102,13 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
     ResolvedSceneActor,
     profile_lock_values,
+    scenario_id_from_ref,
 )
 from stage_gen.recipes.dialogue_scene.scene_types import (
     BACKDROP_GENERATE,
     BUNDLE_PACKAGE,
     CONCEPT_INGEST,
+    CONCEPT_KIND,
     EXPRESSION_DERIVE,
     EXPRESSION_GENERATE,
     EXPRESSION_SOURCE_KIND,
@@ -235,8 +235,8 @@ class DialogueSceneNodeHandler:
         registry.register(CONCEPT_INGEST, self._bind(self._concept_publish))
         registry.register(PLAN_COMPILE, self._bind(self._plan))
         registry.register(BACKDROP_GENERATE, self._bind(self._backdrop_generate))
-        registry.register(EXPRESSION_GENERATE, self._bind(self._expression))
-        registry.register(EXPRESSION_DERIVE, self._bind(self._expression))
+        registry.register(EXPRESSION_GENERATE, self._bind(self._expression_base))
+        registry.register(EXPRESSION_DERIVE, self._bind(self._expression_edit))
         registry.register(SPRITE_MATTE, self._bind(self._canonicalize_matte))
         registry.register(SPRITE_CANONICALIZE, self._bind(self._canonicalize_local))
         registry.register(TRACK_GENERATE, self._bind(self._track_generate))
@@ -266,14 +266,23 @@ class DialogueSceneNodeHandler:
             raise ValueError(f"node {node.node_id} declares no stage")
         return str(stage_id)
 
-    def _node_state(self, node: Node) -> ExpressionState:
-        """The declared expression this node instance is bound to."""
+    def _node_state(self, node: Node) -> str:
+        """The declared expression this node instance is bound to.
+
+        Checked against the actor's own authored faces rather than a scene-wide
+        list: the taxonomy is per actor now, so a node naming an expression its
+        actor does not declare is exactly as wrong as one naming a stranger.
+        """
 
         candidate = node.params.get("state")
-        for state in EXPRESSION_STATES:
-            if state == candidate:
-                return state
-        raise ValueError(f"node {node.node_id} declares no known expression state")
+        actor = self._node_actor(node)
+        for expression in actor.expressions:
+            if expression.expression_id == candidate:
+                return expression.expression_id
+        raise ValueError(
+            f"node {node.node_id} names an expression {actor.actor_id} does not declare: "
+            f"{candidate}"
+        )
 
     # ------------------------------------------------------------------ nodes
 
@@ -296,34 +305,45 @@ class DialogueSceneNodeHandler:
         return self._result(node, provider_operations=0)
 
     async def _write_scenario(self, node: Node) -> NodeExecutionResult:
-        """Publish the compiled narrative and the proof that admitted it.
+        """Publish one compiled narrative and the proof that admitted it.
 
         Both were settled while the package resolved, so this writes what was
         already proven rather than re-deriving it. The proof ships beside the
         program for the same reason `puzzle.validation.json` does: a run that
         claims a scenario is finishable should carry the evidence.
+
+        One node per bound scenario, writing to that node's own ports: the scene
+        holds several, and a handler that reached for "the" scenario could only
+        ever have published the first one.
         """
 
-        scenario = self._scene.scenario
+        scenario_id = str(node.params["scenario"])
+        scenario = self._scene.scenario(scenario_id)
+        binding = next(
+            item
+            for item in self._scene.request.scenarios
+            if scenario_id_from_ref(item.ref) == scenario_id
+        )
         await self._write_local(
-            "scenario.json",
+            node.port("program").artifact_ref,
             scenario.program_bytes,
             "application/json",
             "Compile the authored scenario into its program.",
-            refs=[self._scene.request.scenario.ref],
+            refs=[binding.ref],
             params={
                 "scenario_id": scenario.declarations.scenario_id,
-                "scenario_source_sha256": self._scene.request.scenario.source_sha256,
+                "scenario_source_sha256": binding.source_sha256,
                 "script_sha256": scenario.declarations.script_sha256,
                 "program_sha256": scenario.program_sha256,
             },
         )
         await self._write_local(
-            "scenario.validation.json",
+            node.port("proof").artifact_ref,
             canonical_json_bytes(scenario.admission.model_dump(mode="json")),
             "application/json",
             "Prove the authored scenario reachable and finishable.",
             params={
+                "scenario_id": scenario.declarations.scenario_id,
                 "reachable_states": scenario.admission.reachable_states,
                 "endings": len(scenario.admission.witnesses),
             },
@@ -416,7 +436,7 @@ class DialogueSceneNodeHandler:
             artifact_path=self._run_dir / node.port("document").artifact_ref,
             references=(_structured_reference(concept, concept_path),),
             schema=StructuredOutputSchema(
-                name="dialogue_scene_plan_v7",
+                name="dialogue_scene_plan_v8",
                 json_schema=dialogue_plan_json_schema(),
                 strict=True,
             ),
@@ -486,26 +506,53 @@ class DialogueSceneNodeHandler:
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
-    async def _expression(self, node: Node) -> NodeExecutionResult:
+    async def _expression_base(self, node: Node) -> NodeExecutionResult:
+        """The face drawn from scratch, against the style plate.
+
+        Which node this is comes from its declared type, never from the name of
+        the expression it draws. This used to read `if state == "neutral"`, which
+        was a fixed vocabulary's base face hard-coded into the dispatch: the
+        moment expressions became authored, an actor whose resting face is
+        `composed` or `blunt` fell into the edit branch and asked for an
+        expression source no base node has. The graph already decides which node
+        is the base - it wires this one to the concept plate and the others to
+        this one's output - so the handler reads that decision instead of
+        re-deriving it from a string.
+        """
+
         scene = self._scene
-        state = self._node_state(node)
         actor = self._node_actor(node)
         plan = self._plan_document(actor)
-        alpha = scene.request.transparency_mode == "native"
-        if state == "neutral":
-            source_relative = self._dependency_artifact(node, kind="portrait-concept-v1")
-            prompt = neutral_prompt(
-                scene.request, plan, has_identity_plate=actor.identity_reference is not None
-            )
-        else:
-            source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
-            prompt = expression_prompt(
-                state, plan, transparency_mode=scene.request.transparency_mode
-            )
+        source_relative = self._dependency_artifact(node, kind=CONCEPT_KIND)
+        prompt = base_plate_prompt(
+            scene.request,
+            plan,
+            expression_id=actor.base.expression_id,
+            has_identity_plate=actor.identity_reference is not None,
+        )
+        return await self._draw_expression(node, prompt, source_relative)
+
+    async def _expression_edit(self, node: Node) -> NodeExecutionResult:
+        """One face-only edit of this actor's base plate."""
+
+        scene = self._scene
+        state = self._node_state(node)
+        plan = self._plan_document(self._node_actor(node))
+        source_relative = self._dependency_artifact(node, kind=EXPRESSION_SOURCE_KIND)
+        prompt = expression_prompt(state, plan, transparency_mode=scene.request.transparency_mode)
+        return await self._draw_expression(node, prompt, source_relative)
+
+    async def _draw_expression(
+        self, node: Node, prompt: str, source_relative: str
+    ) -> NodeExecutionResult:
         source = self._read(source_relative)
-        references = ((source, source_relative),)
         result = await self._image(
-            node, state, prompt, node.port("source").artifact_ref, references, alpha=alpha
+            node,
+            self._node_state(node),
+            prompt,
+            node.port("source").artifact_ref,
+            ((source, source_relative),),
+            alpha=self._scene.request.transparency_mode == "native",
         )
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
@@ -566,7 +613,7 @@ class DialogueSceneNodeHandler:
     async def _finish_sprite(
         self,
         node: Node,
-        state: ExpressionState,
+        state: str,
         source_relative: str,
         data: bytes,
         derivation: dict[str, object],
@@ -589,7 +636,7 @@ class DialogueSceneNodeHandler:
         return self._result(node, attempts=attempts, provider_operations=provider_operations)
 
     async def _remove_background(
-        self, node: Node, state: ExpressionState, source: bytes
+        self, node: Node, state: str, source: bytes
     ) -> tuple[bytes, dict[str, object], int]:
         if self._background is None:
             raise ValueError("ai transparency requires an injected background-removal service")
@@ -678,7 +725,7 @@ class DialogueSceneNodeHandler:
 
     def _track(self, node: Node) -> TrackDeclaration:
         track_id = node.params["track"]
-        for track in self._scene.scenario.program.tracks:
+        for track in self._scene.tracks:
             if track.track_id == track_id:
                 return track
         raise ValueError(f"node {node.node_id} names an undeclared track: {track_id}")
@@ -705,17 +752,25 @@ class DialogueSceneNodeHandler:
     def _parse_plan(self, actor: ResolvedSceneActor, value: object) -> DialoguePlan:
         scene = self._scene
         draft = DialogueScenePlanDraft.model_validate(value)
+        # Copied from the actor's own profile, not read back from the draft: the
+        # faces are authored, so the plan records the words a person wrote and a
+        # provider is never asked to invent an expression for anybody.
         states = [
-            ExpressionDirection(id=state, direction=draft.states.for_state(state))
-            for state in EXPRESSION_STATES
+            ExpressionDirection(
+                id=expression.expression_id,
+                label=expression.label,
+                description=expression.description,
+                direction=expression.direction,
+            )
+            for expression in actor.expressions
         ]
         native = scene.request.transparency_mode == "native"
         profile = actor.profile
         identity, wardrobe = profile_lock_values(profile.profile)
         return DialogueScenePlan(
-            schema_version=7,
-            kind="dialogue-scene-plan-v7",
-            recipe_version="dialogue-scene-v7",
+            schema_version=8,
+            kind="dialogue-scene-plan-v8",
+            recipe_version="dialogue-scene-v8",
             policy_version="coming-of-age-nonexplicit-v3",
             expression_profile="expression-core-v3",
             art_request_sha256=scene.art_request_sha256,

@@ -17,7 +17,7 @@ from stage_gen.recipes.dialogue_scene.identity import (
     canonical_sha256,
     content_sha256,
 )
-from stage_gen.recipes.dialogue_scene.manifest import write_dialogue_bundle
+from stage_gen.recipes.dialogue_scene.manifest import _fit, write_dialogue_bundle
 from stage_gen.recipes.dialogue_scene.models import DialogueBundle
 from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
 from stage_gen.recipes.dialogue_scene.scene_request import (
@@ -41,9 +41,9 @@ def _png(width: int, height: int, *, alpha: bool) -> bytes:
 def _plan(scene: ResolvedDialogueScene, index: int) -> dict[str, object]:
     profile = scene.actors[index].profile
     return {
-        "schema_version": 7,
-        "kind": "dialogue-scene-plan-v7",
-        "recipe_version": "dialogue-scene-v7",
+        "schema_version": 8,
+        "kind": "dialogue-scene-plan-v8",
+        "recipe_version": "dialogue-scene-v8",
         "policy_version": "coming-of-age-nonexplicit-v3",
         "expression_profile": "expression-core-v3",
         "art_request_sha256": scene.art_request_sha256,
@@ -66,8 +66,13 @@ def _plan(scene: ResolvedDialogueScene, index: int) -> dict[str, object]:
             "safe_bounds": [0.0, 0.0, 1.0, 1.0],
         },
         "states": [
-            {"id": state, "direction": f"a {state} expression"}
-            for state in ("neutral", "delighted", "flustered", "concerned")
+            {
+                "id": expression.expression_id,
+                "label": expression.label,
+                "description": expression.description,
+                "direction": expression.direction,
+            }
+            for expression in scene.actors[index].expressions
         ],
         "prompt_templates": [
             {"id": "profile-neutral-v1", "sha256": TEMPLATE_DIGEST},
@@ -98,11 +103,14 @@ def _write_inputs(root: Path) -> str:
             root / f"plans/{actor.asset_prefix}.json",
             json.dumps(_plan(scene, index)).encode(),
         )
-    _write_json_pair(root / "scenario.json", scene.scenario.program_bytes)
-    _write_json_pair(
-        root / "scenario.validation.json",
-        json.dumps(scene.scenario.admission.model_dump(mode="json"), sort_keys=True).encode(),
-    )
+    (root / "scenarios").mkdir(exist_ok=True)
+    for scenario in scene.scenarios:
+        slug = scenario.declarations.scenario_id.replace("_", "-")
+        _write_json_pair(root / f"scenarios/{slug}.json", scenario.program_bytes)
+        _write_json_pair(
+            root / f"scenarios/{slug}.validation.json",
+            json.dumps(scenario.admission.model_dump(mode="json"), sort_keys=True).encode(),
+        )
     anchor = materialize_style_anchor(
         StyleModeSelection(
             schema_version=1,
@@ -143,12 +151,12 @@ def _write_inputs(root: Path) -> str:
         "style-plate.png": scene.style_reference.data,
         **{
             f"stage-{stage.stage_id.replace('_', '-')}.png": _png(1672, 941, alpha=False)
-            for stage in scene.scenario.program.stages
+            for stage in scene.stages
         },
         **{
-            f"{actor.asset_prefix}-{state}.png": _png(1024, 1536, alpha=True)
+            f"{actor.asset_prefix}-{expression.expression_id}.png": _png(1024, 1536, alpha=True)
             for actor in scene.actors
-            for state in ("neutral", "delighted", "flustered", "concerned")
+            for expression in actor.expressions
         },
     }
     for name, data in files.items():
@@ -195,8 +203,8 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     tag = _write_inputs(tmp_path)
     await write_dialogue_bundle(tmp_path, tag=tag)
     bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 7
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v7"
+    assert bundle_raw["schema_version"] == 8
+    assert bundle_raw["kind"] == "dialogue-scene-bundle-v8"
     assert "sceneData" not in bundle_raw
     assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
     bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))
@@ -213,7 +221,7 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
         (tmp_path / "plans/mio.json.meta.json").read_bytes()
     )
     anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
-    assert first.recipe_version == "dialogue-scene-v7"
+    assert first.recipe_version == "dialogue-scene-v8"
     assert first.scene_data.actors[0].appearance.art_direction == (
         "clean 2D Japanese anime illustration"
     )
@@ -252,3 +260,36 @@ async def test_manifest_binds_request_and_plan_provenance_digests(
     await write_dialogue_bundle(tmp_path, tag=tag)
     third = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
     assert canonical_sha256(third) not in {first_identity, canonical_sha256(second)}
+
+
+def test_projection_copy_is_cut_on_a_word_boundary_and_never_left_untrimmed() -> None:
+    """A hard slice on authored prose is a refusal waiting for the wrong sentence.
+
+    Every persisted string in this contract must be trimmed, so a brief whose
+    character limit happened to land on a space produced a value the bundle then
+    refused - at the terminal node, after every image in the scene had been drawn
+    and paid for. The length of an author's sentence is not something they should
+    have to think about, and certainly not something they should discover after a
+    run.
+    """
+
+    # The exact failure: the cut lands on a space, so the naive slice ends in one.
+    brief = "a" * 159 + " tail"
+    assert brief[:160].endswith(" ")
+    fitted = _fit(brief, 160)
+    assert fitted == fitted.strip()
+    assert len(fitted) <= 160
+
+    # Alt text may be heard, so it does not end mid-word.
+    sentence = "The inside of a service lift with a painted name reversed on it, two client " * 4
+    fitted = _fit(sentence, 160)
+    assert len(fitted) <= 160
+    assert fitted == fitted.strip()
+    assert sentence.startswith(fitted)
+    assert sentence[len(fitted)] in " ,"
+
+    # A single word longer than the budget still yields something, rather than
+    # collapsing a min_length=1 field to the empty string.
+    assert _fit("x" * 400, 96) == "x" * 96
+    # Short enough to keep whole, and trimmed on the way through.
+    assert _fit("  already short  ", 96) == "already short"

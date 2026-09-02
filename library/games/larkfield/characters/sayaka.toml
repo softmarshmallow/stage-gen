@@ -14,6 +14,34 @@ invariants = [
   "Adult proportions and a patient, unhurried bearing",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+[[expressions]]
+expression_id = "neutral"
+label = "Composed"
+description = "Watchful and unreadable"
+direction = "Steady gaze, lips closed and even, brows level and still. A face that is taking in more than it gives back."
+
+[[expressions]]
+expression_id = "delighted"
+label = "Delighted"
+description = "Delight breaking through the composure"
+direction = "Eyes bright, a broad smile with teeth showing, brows lifted high. The composure gone for a moment."
+
+[[expressions]]
+expression_id = "flustered"
+label = "Flustered"
+description = "Composure slipping, and being hauled back"
+direction = "Gaze dropped and turned aside, mouth opened slightly then half-closed, faint colour in the cheeks, inner brows raised."
+
+[[expressions]]
+expression_id = "concerned"
+label = "Concerned"
+description = "Worry held very still"
+direction = "Brows drawn together, eyes fixed and unblinking, mouth a firm closed line. Concern kept under tight control."
+
 [rights]
 status = "unreviewed"
 basis = ["Original repository-authored text with no external character or media reference."]

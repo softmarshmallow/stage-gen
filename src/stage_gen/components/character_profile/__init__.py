@@ -14,6 +14,7 @@ from .loader import (
     load_character_profile_bytes,
 )
 from .models import (
+    CharacterExpression,
     CharacterProfile,
     CharacterProfileBinding,
     CharacterProfileReference,
@@ -22,6 +23,7 @@ from .models import (
 )
 
 __all__ = [
+    "CharacterExpression",
     "CharacterProfile",
     "CharacterProfileBinding",
     "CharacterProfileLoadError",

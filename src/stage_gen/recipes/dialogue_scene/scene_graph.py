@@ -36,7 +36,6 @@ from gnode import (
 )
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
-from stage_gen.recipes.dialogue_scene.models import EXPRESSION_STATES
 from stage_gen.recipes.dialogue_scene.prompts import (
     background_prompt,
     plan_prompt,
@@ -80,7 +79,7 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
-DIALOGUE_GRAPH_SCHEMA_VERSION = 4
+DIALOGUE_GRAPH_SCHEMA_VERSION = 5
 DIALOGUE_TRACE_SCHEMA_VERSION = 1
 #: The cache tree this recipe's node artifacts live under. Renaming it is the
 #: whole-recipe invalidation lever; per-type levers are the types' own
@@ -107,10 +106,10 @@ class DialogueSceneGraph(Graph):
     RUN_SUMMARY_KIND: ClassVar[str] = "dialogue-scene-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "dialogue-scene-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 4
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 5
 
-    schema_version: Literal[4]
-    kind: Literal["dialogue-scene-execution-graph-v4"]
+    schema_version: Literal[5]
+    kind: Literal["dialogue-scene-execution-graph-v5"]
     recipe: Literal["dialogue-scene"]
     game_id: str
     scene_id: str
@@ -233,7 +232,12 @@ def _track_digest(track: TrackDeclaration) -> str:
 
 
 def expression_template_ids(scene: ResolvedDialogueScene) -> tuple[str, str]:
-    """The packaged prompt-template identities this request binds, plan-time known."""
+    """The packaged prompt-template identities this request binds, plan-time known.
+
+    Still named for the base plate and the edit, not for `neutral` and the other
+    three: the templates say how a face is drawn from scratch and how one is
+    edited, which is unchanged by the faces now being authored.
+    """
 
     native = scene.request.transparency_mode == "native"
     return (
@@ -249,10 +253,19 @@ def build_dialogue_scene_graph(
 ) -> DialogueSceneGraph:
     """Compile one authored request into the exact node graph it implies.
 
-    The graph fans out twice over what the scenario declares: once per drawable
-    actor and once per stage. Nothing here reads a fixed count - a scene with one
-    actor and one backdrop produces the graph it used to, and a scene with a cast
-    of four across three rooms produces the same shape, wider.
+    The graph fans out over what the bound scenarios declare between them: once
+    per bound scenario, once per distinct drawable actor, once per distinct stage,
+    once per distinct track, and once per face that actor's own profile declares.
+    Nothing here reads a fixed count - a scene with one actor and one backdrop
+    produces the graph it used to, and a scene with a cast of nine across six
+    scenarios produces the same shape, wider.
+
+    The de-duplication is the resolver's union, not a filter applied here: every
+    fan-out below walks a list that already holds one entry per distinct id. What
+    this function must not do is let a node's identity depend on WHICH scenario
+    asked for it - a backdrop node is named for its stage, keyed on the stage's
+    own brief, and carries no scenario in its cache identity, so the same room
+    named by three scenarios is one node, drawn once, and cached once.
     """
 
     builder = GraphBuilder(profile=profile)
@@ -287,27 +300,40 @@ def build_dialogue_scene_graph(
         input_digests=(scene.request_sha256, scene.policy_digest, scene.template_digest),
         ports=(_artifact("request", "request.json", REQUEST_KIND),),
     )
-    builder.add(
-        SCENARIO_ADMIT,
-        "scene-scenario",
-        domain="scene",
-        description="Admit the authored scenario and publish its proof",
-        depends_on=("scene-request",),
-        input_digests=(scene.scenario.program_sha256,),
-        ports=(
-            _artifact("program", "scenario.json", SCENARIO_KIND),
-            _artifact("proof", "scenario.validation.json", SCENARIO_ADMISSION_KIND),
-        ),
-        card=NodeCard(
-            authored_inputs=(
-                AuthoredInput(
-                    label="scenario",
-                    ref=request.scenario.ref,
-                    sha256=request.scenario.source_sha256,
+    # One admit node per bound narrative. A single node publishing all of them
+    # would make editing the fourth scenario re-publish the other five, and the
+    # proof that admitted one scenario would no longer be an artifact of its own.
+    scenario_node_ids: list[str] = []
+    for binding, scenario in zip(request.scenarios, scene.scenarios, strict=True):
+        scenario_id = scenario.declarations.scenario_id
+        node_id = f"scenario-{_slug(scenario_id)}"
+        scenario_node_ids.append(node_id)
+        builder.add(
+            SCENARIO_ADMIT,
+            node_id,
+            domain="scene",
+            description=f"Admit the {scenario_id} scenario and publish its proof",
+            params={"scenario": scenario_id},
+            depends_on=("scene-request",),
+            input_digests=(scenario.program_sha256,),
+            ports=(
+                _artifact("program", f"scenarios/{_slug(scenario_id)}.json", SCENARIO_KIND),
+                _artifact(
+                    "proof",
+                    f"scenarios/{_slug(scenario_id)}.validation.json",
+                    SCENARIO_ADMISSION_KIND,
                 ),
-            )
-        ),
-    )
+            ),
+            card=NodeCard(
+                authored_inputs=(
+                    AuthoredInput(
+                        label="scenario",
+                        ref=binding.ref,
+                        sha256=binding.source_sha256,
+                    ),
+                )
+            ),
+        )
     builder.add(
         STYLE_SELECT,
         "scene-style-select",
@@ -352,7 +378,7 @@ def build_dialogue_scene_graph(
     terminal_ids: list[str] = []
 
     # ------------------------------------------------------------------ stages
-    for stage in scene.scenario.program.stages:
+    for stage in scene.stages:
         node_id = f"stage-{_slug(stage.stage_id)}"
         terminal_ids.append(node_id)
         builder.add(
@@ -406,7 +432,11 @@ def build_dialogue_scene_graph(
         )
         profile_node = f"actor-{slug}-profile"
         plan_node = f"actor-{slug}-plan"
-        neutral_node = f"actor-{slug}-neutral"
+        # The base face is the actor's own first authored expression, not a fixed
+        # `neutral`: a detective's resting face is `blunt` and a witness's is
+        # `repeating`, and there is no scene-wide word for either.
+        base = actor.base
+        base_node = f"actor-{slug}-{_slug(base.expression_id)}"
 
         builder.add(
             PROFILE_RESOLVE,
@@ -435,22 +465,28 @@ def build_dialogue_scene_graph(
             ),
             card=NodeCard(
                 prompt=plan_prompt(request, scene.art_request_sha256, actor.profile.profile),
-                schema_name="dialogue_scene_plan_v7",
+                schema_name="dialogue_scene_plan_v8",
                 reference_inputs=(style_ref,),
             ),
         )
         plan_ref = PortRef(node_id=plan_node, port_id="document")
         builder.add(
             EXPRESSION_GENERATE,
-            neutral_node,
+            base_node,
             domain="actor",
-            description=f"Generate the identity-locked neutral sprite for {actor.actor_id}",
-            params={"actor": actor.actor_id, "state": "neutral"},
+            description=(
+                f"Generate the identity-locked {base.expression_id} sprite for {actor.actor_id}"
+            ),
+            params={"actor": actor.actor_id, "state": base.expression_id},
             depends_on=(plan_node, "scene-style-plate"),
             input_digests=actor_digests,
             ports=(
-                _artifact("source", f"raw/{slug}-neutral.png", EXPRESSION_SOURCE_KIND),
-                _attempts(neutral_node),
+                _artifact(
+                    "source",
+                    f"raw/{slug}-{_slug(base.expression_id)}.png",
+                    EXPRESSION_SOURCE_KIND,
+                ),
+                _attempts(base_node),
             ),
             card=NodeCard(
                 template_ref=neutral_template,
@@ -458,14 +494,17 @@ def build_dialogue_scene_graph(
                 authored_inputs=actor_inputs,
             ),
         )
-        for state in EXPRESSION_STATES[1:]:
+        for expression in actor.edits:
+            state = _slug(expression.expression_id)
             builder.add(
                 EXPRESSION_DERIVE,
                 f"actor-{slug}-{state}",
                 domain="actor",
-                description=f"Derive the {state} expression for {actor.actor_id}",
-                params={"actor": actor.actor_id, "state": state},
-                depends_on=(neutral_node,),
+                description=(
+                    f"Derive the {expression.expression_id} expression for {actor.actor_id}"
+                ),
+                params={"actor": actor.actor_id, "state": expression.expression_id},
+                depends_on=(base_node,),
                 input_digests=actor_digests,
                 ports=(
                     _artifact("source", f"raw/{slug}-{state}.png", EXPRESSION_SOURCE_KIND),
@@ -474,13 +513,14 @@ def build_dialogue_scene_graph(
                 card=NodeCard(
                     template_ref=expression_template,
                     reference_inputs=(
-                        PortRef(node_id=neutral_node, port_id="source"),
+                        PortRef(node_id=base_node, port_id="source"),
                         plan_ref,
                         anchor_ref,
                     ),
                 ),
             )
-        for state in EXPRESSION_STATES:
+        for expression in actor.expressions:
+            state = _slug(expression.expression_id)
             node_id = f"actor-{slug}-canonicalize-{state}"
             terminal_ids.append(node_id)
             sprite = _artifact("sprite", f"assets/{slug}-{state}.png", EXPRESSION_SPRITE_KIND)
@@ -490,8 +530,10 @@ def build_dialogue_scene_graph(
                     SPRITE_MATTE,
                     node_id,
                     domain="actor",
-                    description=f"Matte the portable {state} sprite for {actor.actor_id}",
-                    params={"actor": actor.actor_id, "state": state},
+                    description=(
+                        f"Matte the portable {expression.expression_id} sprite for {actor.actor_id}"
+                    ),
+                    params={"actor": actor.actor_id, "state": expression.expression_id},
                     depends_on=(f"actor-{slug}-{state}",),
                     input_digests=(scene.transparency_digest,),
                     ports=(
@@ -509,8 +551,11 @@ def build_dialogue_scene_graph(
                     SPRITE_CANONICALIZE,
                     node_id,
                     domain="actor",
-                    description=f"Derive the portable {state} sprite for {actor.actor_id}",
-                    params={"actor": actor.actor_id, "state": state},
+                    description=(
+                        f"Derive the portable {expression.expression_id} sprite "
+                        f"for {actor.actor_id}"
+                    ),
+                    params={"actor": actor.actor_id, "state": expression.expression_id},
                     depends_on=(f"actor-{slug}-{state}",),
                     input_digests=(scene.transparency_digest,),
                     ports=(sprite,),
@@ -518,11 +563,13 @@ def build_dialogue_scene_graph(
                 )
 
     # ------------------------------------------------------------------ tracks
-    # One track per declared music identity, exactly as one backdrop per declared
-    # stage. The scenario is the catalog: it says which tracks exist and what each
-    # one is for, and admission already refused a script that plays an undeclared
-    # track or declares one nothing plays.
-    for track in scene.scenario.program.tracks:
+    # One track per distinct music identity, exactly as one backdrop per distinct
+    # stage. The scenarios are the catalog: they say which tracks exist and what
+    # each one is for, and admission already refused a script that plays an
+    # undeclared track or declares one nothing plays. Two scenarios that share a
+    # theme share the recording; the resolver already refused two scenarios that
+    # disagree about what one track_id is.
+    for track in scene.tracks:
         node_id = f"track-{_slug(track.track_id)}"
         terminal_ids.append(node_id)
         builder.add(
@@ -566,8 +613,11 @@ def build_dialogue_scene_graph(
         "scene-bundle",
         domain="scene",
         description="Write the portable dialogue bundle",
-        depends_on=("scene-scenario", *terminal_ids),
-        input_digests=(*digests, scene.scenario.program_sha256),
+        depends_on=(*scenario_node_ids, *terminal_ids),
+        input_digests=(
+            *digests,
+            *(scenario.program_sha256 for scenario in scene.scenarios),
+        ),
         ports=(
             Port(
                 port_id="merged_attempts", artifact_ref="attempts.json", kind=MERGED_ATTEMPTS_KIND
@@ -582,7 +632,7 @@ def build_dialogue_scene_graph(
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
         schema_version=DIALOGUE_GRAPH_SCHEMA_VERSION,
-        kind="dialogue-scene-execution-graph-v4",
+        kind="dialogue-scene-execution-graph-v5",
         recipe="dialogue-scene",
         game_id=request.game_id,
         scene_id=scene.scene_id,

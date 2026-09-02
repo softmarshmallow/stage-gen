@@ -68,7 +68,8 @@ def _repoint_digests(package: Path) -> None:
     scenario_digest = hashlib.sha256(scenario.read_bytes()).hexdigest()
     scene.write_text(
         re.sub(
-            r'(\[scenario\][^\[]*?source_sha256 = )"[0-9a-f]{64}"',
+            r'(\[\[scenarios\]\][^\[]*?ref = "scenarios/after_seminar\.toml"\n'
+            r'source_sha256 = )"[0-9a-f]{64}"',
             lambda match: f'{match.group(1)}"{scenario_digest}"',
             scene.read_text(encoding="utf-8"),
             count=1,
@@ -86,13 +87,13 @@ def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Pat
     assert canonical_json_bytes(parsed) == canonical_json_bytes(reversed_value)
     assert canonical_sha256(parsed) == canonical_sha256(reversed_value)
 
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed({**document, "kind": "dialogue-theme-request-v3"})
     camel = dict(document)
     camel["sceneBrief"] = camel.pop("scene_brief")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed(camel)
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed({**document, "unknown": True})
     with pytest.raises(ValueError, match="content policy"):
         _parsed({**document, "scene_brief": "A minor stays behind after the seminar"})
@@ -112,12 +113,19 @@ def test_the_scene_binds_its_narrative_as_a_digest_bound_member(tmp_path: Path) 
     """The scene carries no lines of its own; it names the scenario that does."""
 
     document = _document(write_scene_package(tmp_path / "pkg"))
-    binding = document["scenario"]
+    bindings = document["scenarios"]
+    assert isinstance(bindings, list)
+    binding = bindings[0]
     assert isinstance(binding, dict)
     assert binding["ref"] == "scenarios/after_seminar.toml"
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
-        _parsed({**document, "scenario": {**binding, "ref": "../elsewhere.toml"}})
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
+        _parsed({**document, "scenarios": [{**binding, "ref": "../elsewhere.toml"}]})
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
+        _parsed({**document, "scenarios": []})
+    # The same scenario bound twice is an authoring slip, not a way to pay twice.
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
+        _parsed({**document, "scenarios": [binding, dict(binding)]})
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed({**document, "dialogue": [{"id": "a", "speaker": "Mio", "text": "Hi."}]})
 
 
@@ -135,15 +143,15 @@ def test_a_profile_that_is_not_a_package_member_is_refused(tmp_path: Path) -> No
     def with_first(profile: object) -> dict[str, object]:
         return {**document, "cast": [{**first, "character_profile": profile}, cast[1]]}
 
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed(with_first({"ref": "characters/mio.toml"}))
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed(with_first({**binding, "ref": "../elsewhere.toml"}))
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed(with_first({**binding, "ref": "characters/mio.json"}))
     camel = dict(binding)
     camel["sourceSha256"] = camel.pop("source_sha256")
-    with pytest.raises(ValueError, match="invalid dialogue-scene-v3"):
+    with pytest.raises(ValueError, match="invalid dialogue-scene-v5"):
         _parsed(with_first(camel))
 
 
@@ -193,35 +201,134 @@ def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
     ids = [node.node_id for node in graph.nodes]
     assert ids[:5] == [
         "scene-request",
-        "scene-scenario",
+        "scenario-after-seminar",
         "scene-style-select",
         "scene-style-plate",
         "stage-lounge",
     ]
     # One backdrop per declared stage, and a full expression fan-out per actor.
     assert [node_id for node_id in ids if node_id.startswith("stage-")] == ["stage-lounge"]
-    for actor in ("mio", "ren"):
+    for actor, states in (
+        ("mio", ("steady", "glad", "caught", "worried")),
+        ("ren", ("gruff", "amused", "apologetic", "firm")),
+    ):
         assert f"actor-{actor}-profile" in ids
         assert f"actor-{actor}-plan" in ids
-        assert f"actor-{actor}-neutral" in ids
-        for state in ("delighted", "flustered", "concerned"):
+        for state in states:
             assert f"actor-{actor}-{state}" in ids
-        for state in ("neutral", "delighted", "flustered", "concerned"):
             assert f"actor-{actor}-canonicalize-{state}" in ids
     assert graph.terminal_node_id == "scene-bundle"
     assert graph.node("scene-bundle").depends_on == (
-        "scene-scenario",
+        "scenario-after-seminar",
         "stage-lounge",
         *(
             f"actor-{actor}-canonicalize-{state}"
-            for actor in ("mio", "ren")
-            for state in ("neutral", "delighted", "flustered", "concerned")
+            for actor, states in (
+                ("mio", ("steady", "glad", "caught", "worried")),
+                ("ren", ("gruff", "amused", "apologetic", "firm")),
+            )
+            for state in states
         ),
         # The shared interface sheets are terminals like any other: the bundle cannot be
         # written until the panel, the button and the icon set have been drawn, gated, and judged.
         "ui-panel_frame-review",
         "ui-button_rect-review",
         "ui-preview_icons-review",
+    )
+
+
+def test_several_scenarios_generate_the_union_of_their_art_exactly_once(
+    tmp_path: Path,
+) -> None:
+    """The whole point of v4: six beats of one episode cost the art of one scene.
+
+    The second bound scenario shares both actors and one of its two stages with
+    the first. What it may add is its own admission node and the one backdrop
+    nobody had drawn yet - and nothing else. If a plate or a shared room appeared
+    twice, or if binding a second scenario moved a shared node's cache key, the
+    scene would be paying six times for one cast and this change would buy
+    nothing.
+    """
+
+    one = _graph(write_scene_package(tmp_path / "one"))
+    two = _graph(write_scene_package(tmp_path / "two", second_scenario=True))
+    added = {node.node_id for node in two.nodes} - {node.node_id for node in one.nodes}
+    assert added == {"scenario-late-shift", "stage-corridor"}
+    assert not {node.node_id for node in one.nodes} - {node.node_id for node in two.nodes}
+
+    # One backdrop per distinct stage, not per (scenario, stage) pair.
+    assert [node.node_id for node in two.nodes if node.node_id.startswith("stage-")] == [
+        "stage-lounge",
+        "stage-corridor",
+    ]
+    # Both scenarios show both actors; each is drawn once.
+    base_plates = [
+        node.node_id for node in two.nodes if node.type_id == "2d/frontview/vn/expression.generate"
+    ]
+    assert base_plates == ["actor-mio-steady", "actor-ren-gruff"]
+    assert len([node for node in two.nodes if node.node_id.startswith("actor-")]) == len(
+        ("mio", "ren")
+    ) * (1 + 1 + 4 + 4)
+
+    # A node's identity is what the image IS, never which scenario asked for it,
+    # so every shared plate and room stays cached when a scenario is added.
+    shared = [node.node_id for node in one.nodes if node.node_id.startswith(("stage-", "actor-"))]
+    assert shared
+    for node_id in shared:
+        assert one.node(node_id).cache_key == two.node(node_id).cache_key, node_id
+    assert two.node("scene-bundle").depends_on[:2] == (
+        "scenario-after-seminar",
+        "scenario-late-shift",
+    )
+
+
+def test_two_scenarios_that_disagree_about_one_stage_are_refused(tmp_path: Path) -> None:
+    """One stage_id is one backdrop, so two briefs for it is an authoring error.
+
+    Refused offline rather than reconciled: which of the two briefs the single
+    image should be drawn from is not a question the pipeline may answer, and
+    silently taking the first-bound scenario's would make the art depend on the
+    binding order.
+    """
+
+    package = write_scene_package(tmp_path / "pkg", second_scenario=True)
+    scenario = package / "scenarios/late_shift.toml"
+    scenario.write_text(
+        scenario.read_text(encoding="utf-8").replace(
+            "An original empty evening study lounge, warm lamps, no people",
+            "An original empty evening study lounge with the lamps already out",
+        ),
+        encoding="utf-8",
+    )
+    _repoint_second_digest(package)
+    with pytest.raises(ValueError) as refusal:
+        _resolved(package)
+    # The refusal has to name both sides. Keeping the first-bound brief and
+    # discarding the other would make the drawn room a function of the order the
+    # scene happens to list its scenarios in, and lose a writer's work silently.
+    message = str(refusal.value)
+    assert "stage lounge" in message
+    assert "after_seminar: 'An original empty evening study lounge, warm lamps" in message
+    assert "late_shift: 'An original empty evening study lounge with the lamps already out'" in (
+        message
+    )
+
+
+def _repoint_second_digest(package: Path) -> None:
+    """Re-pin the second scenario after a test edits it, and nothing else."""
+
+    scenario = package / "scenarios/late_shift.toml"
+    digest = hashlib.sha256(scenario.read_bytes()).hexdigest()
+    scene = package / "scene.toml"
+    scene.write_text(
+        re.sub(
+            r'(\[\[scenarios\]\]\n(?:.*\n)*?ref = "scenarios/late_shift\.toml"\n'
+            r'source_sha256 = )"[0-9a-f]{64}"',
+            lambda match: f'{match.group(1)}"{digest}"',
+            scene.read_text(encoding="utf-8"),
+            count=1,
+        ),
+        encoding="utf-8",
     )
 
 
@@ -257,23 +364,36 @@ def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
     )
 
     # Only the actor that binds the plate as its own is held to its identity.
-    mio = graph.node("actor-mio-neutral")
-    ren = graph.node("actor-ren-neutral")
+    mio = graph.node("actor-mio-steady")
+    ren = graph.node("actor-ren-gruff")
     assert mio.card is not None and ren.card is not None
     assert len(mio.card.authored_inputs) == 2
     assert len(ren.card.authored_inputs) == 1
 
 
-def test_each_derived_expression_is_its_own_node_off_the_neutral_source(tmp_path: Path) -> None:
+def test_each_derived_expression_is_its_own_node_off_the_base_plate(tmp_path: Path) -> None:
     # The stage pipeline this replaces derived three expressions inside one stage and
     # canonicalized four inside another, so a single bad state failed the whole batch.
+    #
+    # The base is each actor's FIRST authored expression, not a face called
+    # `neutral`: the two actors here declare different vocabularies on purpose, so
+    # anything that recovers "the base" from a hard-coded name fails this test.
     graph = _graph(write_scene_package(tmp_path / "pkg"))
-    for actor in ("mio", "ren"):
-        for state in ("delighted", "flustered", "concerned"):
-            assert graph.node(f"actor-{actor}-{state}").depends_on == (f"actor-{actor}-neutral",)
+    for actor, base, edits in (
+        ("mio", "steady", ("glad", "caught", "worried")),
+        ("ren", "gruff", ("amused", "apologetic", "firm")),
+    ):
+        assert graph.node(f"actor-{actor}-{base}").type_id == "2d/frontview/vn/expression.generate"
+        for state in edits:
+            node = graph.node(f"actor-{actor}-{state}")
+            assert node.type_id == "2d/frontview/vn/expression.derive"
+            assert node.depends_on == (f"actor-{actor}-{base}",)
             assert graph.node(f"actor-{actor}-canonicalize-{state}").depends_on == (
                 f"actor-{actor}-{state}",
             )
+        assert graph.node(f"actor-{actor}-canonicalize-{base}").depends_on == (
+            f"actor-{actor}-{base}",
+        )
 
 
 def _ui_role_value(role: str, cell_count: int) -> dict[str, Any]:
@@ -359,8 +479,7 @@ def _bundle_value(root: Path) -> dict[str, Any]:
     """
 
     resolved = _resolved(root)
-    program = json.loads(resolved.scenario.program_bytes)
-    states = ("neutral", "delighted", "flustered", "concerned")
+    program = json.loads(resolved.scenarios[0].program_bytes)
     actors = list(resolved.actors)
 
     def bundle_file(path: str) -> dict[str, object]:
@@ -396,10 +515,10 @@ def _bundle_value(root: Path) -> dict[str, Any]:
         }
 
     return {
-        "schema_version": 7,
-        "kind": "dialogue-scene-bundle-v7",
+        "schema_version": 8,
+        "kind": "dialogue-scene-bundle-v8",
         "recipe": "dialogue-scene",
-        "recipe_version": "dialogue-scene-v7",
+        "recipe_version": "dialogue-scene-v8",
         "tag": "seminar-hall",
         "game_id": "seminar_hall",
         "run_identity_sha256": "e" * 64,
@@ -419,15 +538,20 @@ def _bundle_value(root: Path) -> dict[str, Any]:
             }
             for actor in actors
         ],
-        "scenario": bundle_file("scenario.json"),
-        "scenario_validation": bundle_file("scenario.validation.json"),
-        "scenario_binding": {
-            "schema_version": 1,
-            "kind": "scenario-binding-v1",
-            "ref": "scenarios/after_seminar.toml",
-            "source_sha256": resolved.request.scenario.source_sha256,
-        },
-        "scenario_sha256": "f" * 64,
+        "scenarios": [
+            {
+                "scenario_id": "after_seminar",
+                "binding": {
+                    "schema_version": 1,
+                    "kind": "scenario-binding-v1",
+                    "ref": "scenarios/after_seminar.toml",
+                    "source_sha256": resolved.request.scenarios[0].source_sha256,
+                },
+                "program": bundle_file("scenarios/after-seminar.json"),
+                "validation": bundle_file("scenarios/after-seminar.validation.json"),
+                "program_sha256": "f" * 64,
+            }
+        ],
         "style_reference": bundle_file("assets/style-plate.png"),
         "style_reference_source": "references/cover.png",
         "assets": [
@@ -451,7 +575,8 @@ def _bundle_value(root: Path) -> dict[str, Any]:
                     actor.actor_id,
                 )
                 for actor in actors
-                for state in states
+                for expression in actor.expressions
+                for state in (expression.expression_id,)
             ],
             *[
                 artifact(f"ui-{role.replace('_', '-')}", "ui", f"ui/{role}.png", None, None)
@@ -498,18 +623,21 @@ def _bundle_value(root: Path) -> dict[str, Any]:
                             "asset_id": f"{actor.asset_prefix}-{state}",
                             "appearance_id": actor.profile.profile.profile_id,
                             "state": state,
-                            "label": state.title(),
-                            "description": f"A {state} expression",
-                            "alt": f"{actor.display_name} looking {state}",
+                            "label": expression.label,
+                            "description": expression.description,
+                            "alt": f"{actor.display_name}, {expression.label.lower()}",
                         }
-                        for state in states
+                        for expression in actor.expressions
+                        for state in (expression.expression_id,)
                     ],
                 }
                 for actor in actors
             ],
             "placement": {"framing_zoom": 70, "source_framing_zoom": 70},
-            "available_states": list(states),
-            "scenario": program,
+            "available_states": sorted(
+                {expression.expression_id for actor in actors for expression in actor.expressions}
+            ),
+            "scenarios": [program],
         },
         "review": {"status": "pending", "path": None, "sha256": None},
         "rights": {"aggregate": "unreviewed", "publication_authorized": False},
@@ -606,5 +734,6 @@ def test_rewording_a_line_does_not_re_bill_a_single_image(tmp_path: Path) -> Non
     for node_id in art_nodes:
         assert original.node(node_id).cache_key == edited.node(node_id).cache_key, node_id
     # The narrative did change, and the nodes that carry it say so.
-    assert original.node("scene-scenario").cache_key != edited.node("scene-scenario").cache_key
+    admit = "scenario-after-seminar"
+    assert original.node(admit).cache_key != edited.node(admit).cache_key
     assert original.node("scene-bundle").cache_key != edited.node("scene-bundle").cache_key

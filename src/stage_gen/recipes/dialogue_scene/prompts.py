@@ -13,7 +13,6 @@ from stage_gen.recipes.dialogue_scene.identity import canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     DialogueRequest,
     DialogueScenePlan,
-    ExpressionState,
 )
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
 
@@ -47,7 +46,9 @@ TEMPLATES = {
     "version": PROMPT_TEMPLATE_VERSION,
     "plan": "Convert a strict coming-of-age scene package into the locked dialogue scene plan.",
     "background": "Create an opaque background without people.",
-    "neutral": "Create a full-body neutral sprite on flat chroma magenta.",
+    # The template says how a base plate is drawn, not which face it is: the face
+    # comes from the actor's own authored direction, appended below.
+    "neutral": "Create a full-body character sprite on flat chroma magenta.",
     "expression": "Edit only the face to the requested expression.",
     "base_policy": _BASE,
     "style_reference": STYLE_REFERENCE_CLAUSE,
@@ -85,7 +86,8 @@ def plan_prompt(
     return (
         f"{TEMPLATES['plan']} {_BASE}\n"
         f"Art request SHA-256: {art_request_sha256}. Policy digest: {POLICY_DIGEST}. "
-        f"Template digest: {template_digest}. Preserve the four expression states exactly.\n"
+        f"Template digest: {template_digest}. The expressions are authored, not yours to "
+        f"choose; return only the shared staging locks.\n"
         f"{STYLE_REFERENCE_CLAUSE}\n"
         f"REQUEST: {payload}{profile_line}"
     )
@@ -124,15 +126,24 @@ def background_prompt(brief: str) -> str:
     )
 
 
-def neutral_prompt(
+def base_plate_prompt(
     request: DialogueRequest,
     plan: DialogueScenePlan,
     *,
+    expression_id: str,
     has_identity_plate: bool = False,
 ) -> str:
+    """The one face drawn from scratch, from its own authored direction.
+
+    `expression_id` is passed in rather than assumed to be `neutral`. The base
+    plate is whichever face the actor's profile declares first, and a detective's
+    is `blunt`; reaching for a fixed name here would look up a direction the plan
+    does not carry.
+    """
+
     identity_clause = f"\n{IDENTITY_REFERENCE_CLAUSE}" if has_identity_plate else ""
     template = (
-        "Create a full-body neutral sprite with native alpha."
+        "Create a full-body character sprite with native alpha."
         if request.transparency_mode == "native"
         else TEMPLATES["neutral"]
     )
@@ -143,7 +154,7 @@ def neutral_prompt(
         else "perfectly flat #ff00ff background."
     )
     return (
-        f"{template} {_BASE}\n{plan.direction_for('neutral')}. "
+        f"{template} {_BASE}\n{plan.direction_for(expression_id)}. "
         f"Required identity: {plan.shared_locks.identity}. Required wardrobe: "
         f"{plan.shared_locks.wardrobe}. Those locks are authoritative for who this is. "
         "Full body, isolated character with a clear silhouette and separable edges for a "
@@ -155,11 +166,19 @@ def neutral_prompt(
 
 
 def expression_prompt(
-    state: ExpressionState,
+    state: str,
     plan: DialogueScenePlan,
     *,
     transparency_mode: str = "ai",
 ) -> str:
+    """One face-only edit, from the direction the character's author wrote.
+
+    The expression id is the narrative's word for the face and the direction is
+    the profile's description of it, so the prompt names both: the id alone would
+    hand the provider `no_keys` and hope, and the direction alone would lose the
+    name the script and the bundle both key on.
+    """
+
     if transparency_mode != "native":
         return (
             f"{TEMPLATES['expression']} {_BASE}\nTarget expression: {state}. "

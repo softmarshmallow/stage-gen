@@ -14,6 +14,34 @@ invariants = [
   "Adult proportions and a dry, unimpressed bearing",
 ]
 
+# The four drawn faces, authored for this actor rather than shared across the cast.
+# The FIRST entry is the base plate, generated from scratch against the style plate;
+# the other three are face-only edits of it, so the resting face leads. `label` and
+# `description` are shown to people; `direction` is the only text the image model sees.
+[[expressions]]
+expression_id = "neutral"
+label = "Composed"
+description = "Even and unhurried, giving the room time"
+direction = "Level gaze, mouth closed and even, shoulders and jaw loose. The face of someone who is in no hurry to speak first."
+
+[[expressions]]
+expression_id = "delighted"
+label = "Delighted"
+description = "Open pleasure, arriving all at once"
+direction = "Eyes creased at the corners, a wide unguarded smile, brows lifted. Pleasure that has caught him off guard."
+
+[[expressions]]
+expression_id = "flustered"
+label = "Flustered"
+description = "Caught out, and covering it badly"
+direction = "Eyes moving away from the listener, mouth pulled to one side, faint colour high on the cheeks, brows raised unevenly."
+
+[[expressions]]
+expression_id = "concerned"
+label = "Concerned"
+description = "Attention sharpened by something wrong"
+direction = "Brows drawn low and together, eyes steady and narrowed, mouth pressed closed. Listening harder than before."
+
 [rights]
 status = "unreviewed"
 basis = ["Original repository-authored text with no external character or media reference."]

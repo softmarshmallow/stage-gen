@@ -139,10 +139,6 @@ class FakeStructured:
                     "lighting": "soft evening light",
                     "style": "untrusted edge style that must not reach image prompts",
                 },
-                "states": {
-                    state: f"adult {state} expression"
-                    for state in ("neutral", "delighted", "flustered", "concerned")
-                },
             }
         )
         parsed = request.parse(value)

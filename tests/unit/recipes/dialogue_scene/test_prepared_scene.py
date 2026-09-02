@@ -13,6 +13,7 @@ from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     AttemptLedger,
     DialogueBundle,
+    MediaFacts,
 )
 from stage_gen.recipes.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
 from stage_gen.recipes.dialogue_scene.scene_graph import (
@@ -83,15 +84,54 @@ async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: P
         "expression",
         "ui",
     }
-    # Every actor carries the whole locked taxonomy, in order.
+    # Every actor carries its OWN authored faces, in its profile's order - not a
+    # taxonomy shared across the cast. The two here declare different vocabularies
+    # on purpose, and neither base plate is called `neutral`, so anything that
+    # recovers "the base expression" from a hard-coded name fails this run.
     assert [actor.actor_id for actor in bundle.actors] == ["mio", "ren"]
-    for actor in bundle.scene_data.actors:
-        assert [variant.state for variant in actor.expression_variants] == [
-            "neutral",
-            "delighted",
-            "flustered",
-            "concerned",
-        ]
+    states = {
+        actor.actor_id: [variant.state for variant in actor.expression_variants]
+        for actor in bundle.scene_data.actors
+    }
+    assert states == {
+        "mio": ["steady", "glad", "caught", "worried"],
+        "ren": ["gruff", "amused", "apologetic", "firm"],
+    }
+    assert bundle.scene_data.available_states == sorted(
+        {"steady", "glad", "caught", "worried", "gruff", "amused", "apologetic", "firm"}
+    )
+    # The displayed copy is the character author's, not a table in the recipe.
+    mio = next(actor for actor in bundle.scene_data.actors if actor.actor_id == "mio")
+    assert mio.expression_variants[0].label == "Steady"
+    assert mio.expression_variants[0].description.startswith("Composed and attentive")
+
+
+@pytest.mark.asyncio
+async def test_a_landscape_style_plate_runs_and_bundles(tmp_path: Path) -> None:
+    """The plate is art direction, not a canvas, so its shape is the author's.
+
+    The bundle used to require the style plate be exactly 1024x1536 - the canvas
+    of a character sprite, inherited from a plate that happened to be a portrait
+    of one person. A plate that is a wide establishing shot of a place drew every
+    image in the scene, paid for all of them, and was then refused by the terminal
+    node. Nothing composites the plate, and the run republishes the author's exact
+    bytes by digest, so there was never a size the pipeline could have produced to
+    satisfy that rule.
+    """
+
+    package = write_scene_package(tmp_path / "package", landscape_plate=True)
+    summary, _images, _structured = await run_scene(
+        package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache"
+    )
+    assert summary.ok
+    bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
+    plate = next(artifact for artifact in bundle.assets if artifact.role == "style")
+    assert isinstance(plate.media, MediaFacts)
+    assert (plate.media.width, plate.media.height) == (2048, 1152)
+    # The generated roles keep their canvases; only the authored plate is free.
+    background = next(artifact for artifact in bundle.assets if artifact.role == "background")
+    assert isinstance(background.media, MediaFacts)
+    assert (background.media.width, background.media.height) == (1672, 941)
 
 
 @pytest.mark.asyncio
@@ -108,15 +148,15 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
 
     per_node = sorted(path.name for path in (tmp_path / "run/attempts").iterdir())
     assert per_node == [
-        "actor-mio-concerned.json",
-        "actor-mio-delighted.json",
-        "actor-mio-flustered.json",
-        "actor-mio-neutral.json",
+        "actor-mio-caught.json",
+        "actor-mio-glad.json",
         "actor-mio-plan.json",
-        "actor-ren-concerned.json",
-        "actor-ren-delighted.json",
-        "actor-ren-flustered.json",
-        "actor-ren-neutral.json",
+        "actor-mio-steady.json",
+        "actor-mio-worried.json",
+        "actor-ren-amused.json",
+        "actor-ren-apologetic.json",
+        "actor-ren-firm.json",
+        "actor-ren-gruff.json",
         "actor-ren-plan.json",
         "scene-style-select.json",
         "stage-lounge.json",
@@ -134,15 +174,15 @@ async def test_every_node_records_its_own_attempts_and_the_bundle_merges_them(
         "scene-style-select",
         "stage-lounge",
         "actor-mio-plan",
-        "actor-mio-neutral",
-        "actor-mio-delighted",
-        "actor-mio-flustered",
-        "actor-mio-concerned",
+        "actor-mio-steady",
+        "actor-mio-glad",
+        "actor-mio-caught",
+        "actor-mio-worried",
         "actor-ren-plan",
-        "actor-ren-neutral",
-        "actor-ren-delighted",
-        "actor-ren-flustered",
-        "actor-ren-concerned",
+        "actor-ren-gruff",
+        "actor-ren-amused",
+        "actor-ren-apologetic",
+        "actor-ren-firm",
         "ui-panel_frame-generate",
         "ui-panel_frame-review",
         "ui-button_rect-generate",

@@ -16,10 +16,10 @@ def test_definition_names_and_refs_are_canonical_lower_snake_case() -> None:
     schema = dialogue_plan_json_schema()
     definitions = schema["$defs"]
     assert isinstance(definitions, dict)
-    assert set(definitions) == {
-        "expression_directions",
-        "shared_locks",
-    }
+    # Only the shared staging locks are generated now: the expression directions
+    # are authored per actor in the character profile, so there is no schema for a
+    # provider to fill in.
+    assert set(definitions) == {"shared_locks"}
     refs = _values_for_key(schema, "$ref")
     assert refs
     targets: set[str] = set()

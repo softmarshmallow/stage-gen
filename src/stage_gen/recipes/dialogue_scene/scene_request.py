@@ -6,6 +6,13 @@ canonical scene document, the policy, the prompt templates, the transparency
 derivation, the packaged style resources, the authored character profile, and the
 authored reference images the scene is drawn against.
 
+A scene binds several scenarios. Everything the graph fans out over - stages,
+drawable cast, tracks - is the **union** across them, computed here, so the same
+room, actor or track named by three scenarios resolves to one entry and is drawn
+once. Two scenarios that name one id with different content are refused rather
+than silently reconciled: which of the two briefs the one backdrop should be
+drawn from is not a question the pipeline may answer for the author.
+
 A scene is a directory, not a loose request file. Every member it names is read from
 inside that directory, confined to it, following no symlink, and matched against the
 digest the author recorded.
@@ -26,26 +33,36 @@ from gnode import InputProvenance
 from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.components._secure_fs import read_absolute_regular_file
 from stage_gen.components.character_profile import (
+    CharacterExpression,
     CharacterProfile,
     CharacterProfileBinding,
     resolve_character_profile_binding,
 )
 from stage_gen.components.game_ui import GameUi, UiReference, load_game_ui_bytes
 from stage_gen.components.scenario import (
+    CastMember,
     ResolvedScenario,
+    StageDeclaration,
+    TrackDeclaration,
     resolve_scenario,
 )
 from stage_gen.image_prompting import load_image_style_resources
-from stage_gen.media import CHROMA_MATTE_VERSION, MAGENTA_EDGE_DECONTAMINATION_VERSION
+from stage_gen.media import (
+    CHROMA_MATTE_VERSION,
+    MAGENTA_EDGE_DECONTAMINATION_VERSION,
+    inspect_image,
+)
 from stage_gen.recipes.dialogue_scene.identity import (
     canonical_json_bytes,
     canonical_sha256,
 )
 from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
+    MAXIMUM_EXPRESSIONS,
+    MINIMUM_EXPRESSIONS,
     DialogueRequest,
     DialogueSceneDocument,
     RightsStatus,
+    ScenarioBinding,
     SceneReference,
 )
 from stage_gen.recipes.dialogue_scene.policy import (
@@ -106,7 +123,9 @@ class ResolvedSceneActor:
 
     actor_id: str
     display_name: str
-    expressions: tuple[str, ...]
+    #: The faces this actor can wear, in the profile's authored drawing order.
+    #: The first is the base plate; the rest are face-only edits of it.
+    expressions: tuple[CharacterExpression, ...]
     profile: ResolvedSceneProfile
     #: This actor's own authored plate, when the scene bound one. Absent means the
     #: actor is drawn from its profile words against the scene style plate alone.
@@ -115,6 +134,16 @@ class ResolvedSceneActor:
     @property
     def asset_prefix(self) -> str:
         return self.actor_id.replace("_", "-")
+
+    @property
+    def base(self) -> CharacterExpression:
+        """The face generated from scratch; every other one is an edit of it."""
+
+        return self.expressions[0]
+
+    @property
+    def edits(self) -> tuple[CharacterExpression, ...]:
+        return self.expressions[1:]
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,12 +169,17 @@ class ResolvedDialogueScene:
     style_resource_sha256: str
     style_compiler_sha256: str
     style_selection_brief: str
-    #: Every drawable actor the scenario names, in the scenario's cast order.
+    #: Every drawable actor any bound scenario names, once, in binding order.
     actors: tuple[ResolvedSceneActor, ...]
     #: The scene's art direction of record: medium, palette and light for every
     #: generated image, actor plates included.
     style_reference: ResolvedSceneReference
-    scenario: ResolvedScenario
+    #: The bound narratives, in the order the scene declared them.
+    scenarios: tuple[ResolvedScenario, ...]
+    #: The union the graph fans out over: one entry per distinct id, in first-
+    #: declaration order, already proven identical wherever two scenarios agree.
+    stages: tuple[StageDeclaration, ...]
+    tracks: tuple[TrackDeclaration, ...]
     #: The scene's screen-fixed interface art direction. Separate from the narrative on
     #: purpose: the dialogue box knows nothing about what is said inside it, and the
     #: nine-slice roles it names are the same ones every other genre draws.
@@ -156,6 +190,9 @@ class ResolvedDialogueScene:
 
     def actor(self, actor_id: str) -> ResolvedSceneActor:
         return next(actor for actor in self.actors if actor.actor_id == actor_id)
+
+    def scenario(self, scenario_id: str) -> ResolvedScenario:
+        return next(item for item in self.scenarios if item.declarations.scenario_id == scenario_id)
 
     def identity(self) -> dict[str, object]:
         """The portable record of exactly which package this run was planned from."""
@@ -184,14 +221,21 @@ class ResolvedDialogueScene:
                         if actor.identity_reference is None
                         else actor.identity_reference.sha256
                     ),
+                    "expressions": [item.expression_id for item in actor.expressions],
                 }
                 for actor in self.actors
             ],
             "style_reference_source": self.style_reference.source,
             "style_reference_sha256": self.style_reference.sha256,
-            "scenario_ref": self.request.scenario.ref,
-            "scenario_source_sha256": self.request.scenario.source_sha256,
-            "scenario_program_sha256": self.scenario.program_sha256,
+            "scenarios": [
+                {
+                    "scenario_id": scenario.declarations.scenario_id,
+                    "scenario_ref": binding.ref,
+                    "scenario_source_sha256": binding.source_sha256,
+                    "scenario_program_sha256": scenario.program_sha256,
+                }
+                for binding, scenario in zip(self.request.scenarios, self.scenarios, strict=True)
+            ],
             "ui_sha256": self.ui_sha256,
         }
 
@@ -242,7 +286,7 @@ def parse_dialogue_request(document: object) -> DialogueRequest:
     try:
         request = DialogueSceneDocument.model_validate(dict(document))
     except ValidationError as error:
-        raise ValueError(f"invalid dialogue-scene-v3: {error}") from None
+        raise ValueError(f"invalid dialogue-scene-v5: {error}") from None
     assert_dialogue_policy(request)
     return request
 
@@ -256,11 +300,13 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
     # that no longer hash to the canonical digest the plan and bundle compare
     # against, which is exactly the mismatch the bundle refuses.
     request_bytes = canonical_json_bytes(request)
-    # The narrative is admitted before anything else is materialized, so a scene
-    # whose scenario cannot be finished costs nothing.
-    scenario = _resolve_scenario(request, root=root)
-    style_reference = _read_reference(root, request.style_reference())
-    actors = _resolve_actors(request, scenario, root=root)
+    # Every narrative is admitted before anything else is materialized, so a scene
+    # holding one scenario that cannot be finished costs nothing.
+    scenarios = _resolve_scenarios(request, root=root)
+    stages = _union_stages(scenarios)
+    tracks = _union_tracks(scenarios)
+    style_reference = _read_style_plate(root, request)
+    actors = _resolve_actors(request, scenarios, root=root)
     resources = load_image_style_resources()
     ui = load_game_ui_bytes(_read_ui_document(root))
     if ui.game_id != request.game_id:
@@ -280,7 +326,9 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
         style_selection_brief=style_selection_brief(request, actors),
         actors=actors,
         style_reference=style_reference,
-        scenario=scenario,
+        scenarios=scenarios,
+        stages=stages,
+        tracks=tracks,
         ui=ui,
         ui_sha256=canonical_sha256(ui.model_dump(mode="json")),
         ui_references={entry.source: _read_ui_reference(root, entry) for entry in ui.references},
@@ -288,7 +336,7 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
 
 
 def recipe_version(request: DialogueRequest) -> str:
-    return "dialogue-scene-v7"
+    return "dialogue-scene-v8"
 
 
 def template_digest(request: DialogueRequest) -> str:
@@ -337,6 +385,41 @@ def profile_lock_values(profile: CharacterProfile) -> tuple[str, str]:
     if len(identity) > 2000 or len(wardrobe) > 1000:
         raise ValueError("dialogue character_profile exceeds deterministic lock limits")
     return identity, wardrobe
+
+
+#: What an authored style plate may be, checked offline before any spend.
+#:
+#: Not a canvas: the plate is attached to provider calls as a reference for
+#: medium, palette and light, and nothing composites it, so its aspect ratio is
+#: the author's business - a portrait of one character and a landscape
+#: establishing shot are both legitimate art direction. These are the bounds that
+#: catch a mistake instead: a thumbnail pasted in by accident, or a file so large
+#: it would be rejected by the provider after the run had started.
+STYLE_PLATE_MINIMUM_EDGE = 512
+STYLE_PLATE_MAXIMUM_EDGE = 4096
+
+
+def _read_style_plate(root: Path, request: DialogueRequest) -> ResolvedSceneReference:
+    """Read the scene's art direction of record and hold it to what a plate must be.
+
+    The bundle used to require the plate be exactly 1024x1536, which is the canvas
+    of a character sprite rather than anything the plate itself is - and it
+    checked it at the terminal node, so a scene whose plate was a wide
+    establishing shot drew every image, paid for all of them, and was then
+    refused. Whatever the rule is, it belongs here: offline, before the first
+    provider call, alongside every other thing this package must get right.
+    """
+
+    plate = _read_reference(root, request.style_reference())
+    facts = inspect_image(plate.data, expected_media_type=plate.media_type)
+    for edge, name in ((facts.width, "width"), (facts.height, "height")):
+        if not STYLE_PLATE_MINIMUM_EDGE <= edge <= STYLE_PLATE_MAXIMUM_EDGE:
+            raise ValueError(
+                f"scene style plate {plate.source} has a {name} of {edge}px, outside the "
+                f"{STYLE_PLATE_MINIMUM_EDGE}..{STYLE_PLATE_MAXIMUM_EDGE}px an art-direction "
+                "reference must be"
+            )
+    return plate
 
 
 def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneReference:
@@ -394,7 +477,7 @@ def art_request_sha256(request: DialogueRequest) -> str:
 _SCENARIO_REF = re.compile(r"scenarios/([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\.toml")
 
 
-def _scenario_id_from_ref(ref: str) -> str:
+def scenario_id_from_ref(ref: str) -> str:
     """`scenarios/<id>.toml` -> `<id>`, refusing anything else."""
 
     match = _SCENARIO_REF.fullmatch(ref)
@@ -403,20 +486,37 @@ def _scenario_id_from_ref(ref: str) -> str:
     return match.group(1)
 
 
-def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenario:
-    """Admit the authored narrative and hold it to the digest the scene recorded.
+def _resolve_scenarios(request: DialogueRequest, *, root: Path) -> tuple[ResolvedScenario, ...]:
+    """Admit every bound narrative, each held to the digest the scene recorded.
 
-    The scene binds one `scenarios/<id>.toml`, which in turn binds its script by
-    digest, so one recorded hash closes over the whole narrative. Which scenario
-    a scene plays is the scene's to say - a game may hold several - so the ref is
-    read for the id rather than pinned to a fixed filename. The
-    expressions the scenario asks for must exist in this recipe's locked taxonomy:
-    art the pipeline cannot draw is refused here rather than discovered as a
-    missing texture in the browser.
+    A scene binds one or more `scenarios/<id>.toml`, and each in turn binds its
+    script by digest, so one recorded hash per entry closes over the whole
+    narrative. Which scenarios a scene plays is the scene's to say - a game holds
+    a catalog - so each ref is read for its id rather than pinned to a fixed
+    filename.
     """
 
-    binding = request.scenario
-    scenario_id = _scenario_id_from_ref(binding.ref)
+    scenarios = tuple(
+        _resolve_one_scenario(request, binding, root=root) for binding in request.scenarios
+    )
+    ids = [scenario.declarations.scenario_id for scenario in scenarios]
+    if len(ids) != len(set(ids)):
+        raise ValueError("dialogue scene binds the same scenario_id twice: " + ", ".join(ids))
+    return scenarios
+
+
+def _resolve_one_scenario(
+    request: DialogueRequest, binding: ScenarioBinding, *, root: Path
+) -> ResolvedScenario:
+    """Admit one bound narrative, held to the digest the scene recorded.
+
+    The expressions a scenario asks for are no longer checked against a fixed
+    recipe taxonomy - there is none. They are checked against the actor's own
+    authored character profile in `_resolve_actors`, which is where the words
+    that draw each face live.
+    """
+
+    scenario_id = scenario_id_from_ref(binding.ref)
     declared = sha256(
         read_absolute_regular_file((root / binding.ref).resolve(), label="dialogue scene scenario")
     ).hexdigest()
@@ -429,46 +529,162 @@ def _resolve_scenario(request: DialogueRequest, *, root: Path) -> ResolvedScenar
     assert_scenario_policy(scenario.program)
     if scenario.declarations.game_id != request.game_id:
         raise ValueError("dialogue scene scenario game_id must match the scene document")
-    for member in scenario.declarations.cast:
-        unknown = sorted(set(member.expressions) - set(EXPRESSION_STATES))
-        if unknown:
-            raise ValueError(
-                f"scenario cast member {member.actor_id} asks for expressions this recipe "
-                f"cannot draw: {', '.join(unknown)}"
-            )
     return scenario
+
+
+def _union_stages(scenarios: tuple[ResolvedScenario, ...]) -> tuple[StageDeclaration, ...]:
+    """One backdrop per distinct stage, in first-declaration order.
+
+    Three scenarios set in the same drawing room are one drawing room, and the
+    graph draws it once. Two scenarios that give one stage_id different briefs
+    are refused: a backdrop is generated from its brief, so keeping the first one
+    seen would let the binding order in `scene.toml` decide which writer's brief
+    is drawn and silently discard the other. The refusal names both scenarios and
+    both briefs, because the author has to be able to see what collided.
+    """
+
+    union: dict[str, tuple[str, StageDeclaration]] = {}
+    for scenario in scenarios:
+        owner = scenario.declarations.scenario_id
+        for stage in scenario.program.stages:
+            existing = union.get(stage.stage_id)
+            if existing is None:
+                union[stage.stage_id] = (owner, stage)
+                continue
+            first_owner, first = existing
+            if first != stage:
+                raise ValueError(
+                    _collision_message(
+                        "stage",
+                        stage.stage_id,
+                        first_owner,
+                        first.brief,
+                        owner,
+                        stage.brief,
+                        "one stage is one backdrop",
+                    )
+                )
+    return tuple(stage for _owner, stage in union.values())
+
+
+def _union_tracks(scenarios: tuple[ResolvedScenario, ...]) -> tuple[TrackDeclaration, ...]:
+    """One track per distinct track identity, on the same terms as the stages."""
+
+    union: dict[str, tuple[str, TrackDeclaration]] = {}
+    for scenario in scenarios:
+        owner = scenario.declarations.scenario_id
+        for track in scenario.program.tracks:
+            existing = union.get(track.track_id)
+            if existing is None:
+                union[track.track_id] = (owner, track)
+                continue
+            first_owner, first = existing
+            if first != track:
+                raise ValueError(
+                    _collision_message(
+                        "track",
+                        track.track_id,
+                        first_owner,
+                        first.brief,
+                        owner,
+                        track.brief,
+                        "one track is one recording",
+                    )
+                )
+    return tuple(track for _owner, track in union.values())
+
+
+def _collision_message(
+    kind: str,
+    declared_id: str,
+    first_owner: str,
+    first_brief: str,
+    second_owner: str,
+    second_brief: str,
+    rule: str,
+) -> str:
+    """Name both sides of a union collision, so the author can see what to change."""
+
+    return (
+        f"bound scenarios declare {kind} {declared_id} differently, and {rule}, so the "
+        f"declarations must agree rather than one of them being discarded:\n"
+        f"  {first_owner}: {first_brief!r}\n"
+        f"  {second_owner}: {second_brief!r}"
+    )
+
+
+def _union_drawable_cast(scenarios: tuple[ResolvedScenario, ...]) -> tuple[CastMember, ...]:
+    """Every actor any bound scenario can show, once, in first-declaration order.
+
+    The expressions merge rather than clash: a scenario that only ever shows an
+    actor concerned and one that shows her delighted are the same person, and the
+    recipe draws the whole locked taxonomy for anyone drawable at all. The display
+    name is identity, though, so two scenarios that disagree about it are refused.
+    """
+
+    union: dict[str, CastMember] = {}
+    for scenario in scenarios:
+        for member in scenario.program.cast:
+            if not member.drawable:
+                continue
+            existing = union.get(member.actor_id)
+            if existing is None:
+                union[member.actor_id] = member
+                continue
+            if (
+                existing.display_name is not None
+                and member.display_name is not None
+                and existing.display_name != member.display_name
+            ):
+                raise ValueError(
+                    f"bound scenarios give actor {member.actor_id} different display names: "
+                    f"{existing.display_name} and {member.display_name}"
+                )
+            union[member.actor_id] = existing.model_copy(
+                update={
+                    "display_name": existing.display_name or member.display_name,
+                    "expressions": sorted(set(existing.expressions) | set(member.expressions)),
+                }
+            )
+    return tuple(union.values())
 
 
 def _resolve_actors(
     request: DialogueRequest,
-    scenario: ResolvedScenario,
+    scenarios: tuple[ResolvedScenario, ...],
     *,
     root: Path,
 ) -> tuple[ResolvedSceneActor, ...]:
-    """Bind every drawable actor the scenario names to the members that draw it.
+    """Bind every drawable actor the bound scenarios name to the members that draw it.
 
     Checked in both directions, the way the scenario's own two halves are: a
     drawable actor with no scene binding could not be drawn, and a binding for an
-    actor the narrative never shows would pay for plates nobody sees.
+    actor no bound narrative ever shows would pay for plates nobody sees. Over the
+    union, so an actor that only the fourth scenario shows is still bound, and
+    each actor is resolved once however many scenarios name her.
     """
 
     bindings = {member.actor_id: member for member in request.cast}
-    drawable = [member for member in scenario.declarations.cast if member.drawable]
+    drawable = _union_drawable_cast(scenarios)
     missing = sorted({member.actor_id for member in drawable} - set(bindings))
     if missing:
         raise ValueError(
-            "scene cast does not bind every drawable actor the scenario shows: "
+            "scene cast does not bind every drawable actor the scenarios show: "
             + ", ".join(missing)
         )
     unused = sorted(set(bindings) - {member.actor_id for member in drawable})
     if unused:
-        raise ValueError("scene cast binds actors the scenario never draws: " + ", ".join(unused))
+        raise ValueError("scene cast binds actors no bound scenario draws: " + ", ".join(unused))
+    profiles = {
+        member.actor_id: _resolve_profile(bindings[member.actor_id].character_profile, root=root)
+        for member in drawable
+    }
     return tuple(
         ResolvedSceneActor(
             actor_id=member.actor_id,
             display_name=member.display_name or member.actor_id,
-            expressions=tuple(member.expressions),
-            profile=_resolve_profile(bindings[member.actor_id].character_profile, root=root),
+            expressions=_bind_expressions(member, profiles[member.actor_id]),
+            profile=profiles[member.actor_id],
             identity_reference=(
                 None
                 if bindings[member.actor_id].reference_id is None
@@ -479,6 +695,46 @@ def _resolve_actors(
         )
         for member in drawable
     )
+
+
+def _bind_expressions(
+    member: CastMember, profile: ResolvedSceneProfile
+) -> tuple[CharacterExpression, ...]:
+    """Hold one actor's narrative expression ids to the profile that draws them.
+
+    The scenario says which faces the script may ask for; the profile says what
+    each one looks like. Neither half may be a superset of the other: an id the
+    script uses and the profile does not describe would be a missing plate, and
+    one the profile describes and no script ever asks for is a plate paid for and
+    never shown. Exactly the same two-directional rule the cast and the stage list
+    are already held to, applied one level down.
+
+    Order is the profile's, not the scenario's, because order is a drawing
+    decision: the first entry is generated from scratch and the rest are edits of
+    it, so the resting face has to lead and only the profile knows which that is.
+    """
+
+    declared = [item.expression_id for item in profile.profile.expressions]
+    if not MINIMUM_EXPRESSIONS <= len(declared) <= MAXIMUM_EXPRESSIONS:
+        raise ValueError(
+            f"character profile {profile.ref} must declare "
+            f"{MINIMUM_EXPRESSIONS}..{MAXIMUM_EXPRESSIONS} expressions to be drawn, "
+            f"and declares {len(declared)}"
+        )
+    asked = set(member.expressions)
+    missing = sorted(asked - set(declared))
+    if missing:
+        raise ValueError(
+            f"the scenarios show {member.actor_id} wearing expressions the character "
+            f"profile {profile.ref} does not describe: {', '.join(missing)}"
+        )
+    unused = sorted(set(declared) - asked)
+    if unused:
+        raise ValueError(
+            f"character profile {profile.ref} describes expressions no bound scenario "
+            f"ever shows {member.actor_id} wearing: {', '.join(unused)}"
+        )
+    return tuple(profile.profile.expressions)
 
 
 def _resolve_profile(binding: CharacterProfileBinding, *, root: Path) -> ResolvedSceneProfile:
@@ -523,6 +779,8 @@ __all__ = [
     "SCENE_DOCUMENT_NAME",
     "UI_DOCUMENT_NAME",
     "SCENE_ID_MAX_LENGTH",
+    "STYLE_PLATE_MAXIMUM_EDGE",
+    "STYLE_PLATE_MINIMUM_EDGE",
     "ResolvedDialogueScene",
     "ResolvedSceneActor",
     "art_request_sha256",
@@ -532,6 +790,7 @@ __all__ = [
     "profile_lock_values",
     "read_scene_document",
     "recipe_version",
+    "scenario_id_from_ref",
     "resolve_dialogue_scene",
     "style_selection_brief",
     "template_digest",

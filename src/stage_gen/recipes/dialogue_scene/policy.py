@@ -17,9 +17,10 @@ from stage_gen.components.character_profile import CharacterProfile
 from stage_gen.components.scenario import ScenarioProgram
 from stage_gen.recipes.dialogue_scene.identity import canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
     MAXIMUM_AGE,
+    MAXIMUM_EXPRESSIONS,
     MINIMUM_AGE,
+    MINIMUM_EXPRESSIONS,
     DialogueRequest,
 )
 
@@ -28,7 +29,10 @@ CONTENT_POLICY = {
     "version": POLICY_VERSION,
     "minimum_age": MINIMUM_AGE,
     "content": "coming-of-age drama; non-explicit; no coercion or incest",
-    "expressions": list(EXPRESSION_STATES),
+    # The expression ids are authored per actor now, so the policy binds how many
+    # faces a scene will pay for rather than which four they must be. A fixed list
+    # here would have been a genre's taxonomy pretending to be a safety rule.
+    "expressions": {"minimum": MINIMUM_EXPRESSIONS, "maximum": MAXIMUM_EXPRESSIONS},
 }
 POLICY_DIGEST = canonical_sha256(CONTENT_POLICY)
 

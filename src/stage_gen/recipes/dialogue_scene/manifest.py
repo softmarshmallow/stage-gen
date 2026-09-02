@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
@@ -23,6 +24,8 @@ from stage_gen.components.scenario import (
 from stage_gen.components.scenario import (
     ScenarioAdmissionReport,
     ScenarioProgram,
+    StageDeclaration,
+    TrackDeclaration,
 )
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
@@ -33,19 +36,20 @@ from stage_gen.recipes.dialogue_scene.identity import (
     content_sha256,
 )
 from stage_gen.recipes.dialogue_scene.models import (
-    EXPRESSION_STATES,
     AttemptLedger,
     AttemptLedgerBinding,
     AudioFacts,
     BundleActor,
     BundleArtifact,
     BundleFile,
+    BundleScenario,
     DialogueBundle,
     DialogueSceneDocument,
     DialogueScenePlan,
     MediaFacts,
     ReviewState,
     RightsState,
+    ScenarioBinding,
     SceneCastBinding,
     SceneData,
 )
@@ -54,9 +58,12 @@ from stage_gen.recipes.dialogue_scene.prompts import (
     NATIVE_ALPHA_TEMPLATE_DIGEST,
     TEMPLATE_DIGEST,
 )
-from stage_gen.recipes.dialogue_scene.scene_request import art_request_sha256
+from stage_gen.recipes.dialogue_scene.scene_request import (
+    art_request_sha256,
+    scenario_id_from_ref,
+)
 
-_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
+_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="6")
 
 
 async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
@@ -78,22 +85,14 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     style_sha256 = content_sha256(style_bytes)
     if style_sha256 != authored_reference.source_sha256:
         raise ValueError("published style plate does not match the authored reference digest")
-    # The narrative the run publishes must be the narrative the package declared:
-    # the program names the script digest, and the scene named the scenario's.
-    scenario_bytes = _read(run_dir, "scenario.json")
-    scenario_provenance = _read(run_dir, "scenario.json.meta.json")
-    _validate_provenance(scenario_provenance, scenario_bytes, "scenario")
-    scenario_program = ScenarioProgram.model_validate_json(scenario_bytes)
-    if scenario_program.game_id != request.game_id:
-        raise ValueError("published scenario game_id does not match the request")
-    scenario_proof_bytes = _read(run_dir, "scenario.validation.json")
-    scenario_proof_provenance = _read(run_dir, "scenario.validation.json.meta.json")
-    _validate_provenance(scenario_proof_provenance, scenario_proof_bytes, "scenario proof")
-    scenario_proof = ScenarioAdmissionReport.model_validate_json(scenario_proof_bytes)
-    if not scenario_proof.admitted:
-        raise ValueError("bundle refuses a scenario its own proof did not admit")
-    if scenario_proof.scenario_id != scenario_program.scenario_id:
-        raise ValueError("scenario proof does not describe the published scenario")
+    # Every narrative the run publishes must be one the package declared: the
+    # program names the script digest, and the scene named the scenario's. One
+    # entry per binding, read in the scene's own order, so the bundle lists the
+    # episode's beats the way the author wrote them down.
+    scenarios = [_read_scenario(run_dir, request, binding) for binding in request.scenarios]
+    for entry in scenarios:
+        if entry.program.game_id != request.game_id:
+            raise ValueError("published scenario game_id does not match the request")
     ledger_bytes = _read(run_dir, "attempts.json")
     ledger = AttemptLedger.model_validate_json(ledger_bytes)
     style_anchor_bytes = _read(run_dir, "style-anchor.json")
@@ -105,15 +104,19 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     # single-character run always applied - the fan-out widened the count, not the
     # standard of proof.
     bound = {member.actor_id: member for member in request.cast}
+    # The union across every published scenario, once each: the whole point of a
+    # scene binding several is that an actor three of them show is one set of
+    # plates. `_union_members` preserves first-declaration order, which is the
+    # order the graph fanned out in, so the bundle lists what the run produced.
+    _union_drawable_cast_checked(entry.program for entry in scenarios)
     resolved_actors = [
         _read_actor(run_dir, request, bound[member.actor_id], member)
-        for member in scenario_program.cast
-        if member.expressions
+        for member in _union_drawable_cast(entry.program for entry in scenarios)
     ]
     identity_sha = canonical_sha256(
         {
-            "domain": "stage-gen/dialogue-scene/run-identity/v6",
-            "recipe": "dialogue-scene-v7",
+            "domain": "stage-gen/dialogue-scene/run-identity/v7",
+            "recipe": "dialogue-scene-v8",
             "game_id": request.game_id,
             "request_sha256": canonical_sha256(request),
             "style_reference_source": authored_reference.source,
@@ -125,9 +128,15 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
                 }
                 for actor in resolved_actors
             ],
-            "scenario_ref": request.scenario.ref,
-            "scenario_source_sha256": request.scenario.source_sha256,
-            "scenario_sha256": content_sha256(scenario_bytes),
+            "scenarios": [
+                {
+                    "scenario_id": entry.program.scenario_id,
+                    "scenario_ref": entry.binding.ref,
+                    "scenario_source_sha256": entry.binding.source_sha256,
+                    "scenario_sha256": entry.program_sha256,
+                }
+                for entry in scenarios
+            ],
             "policy_sha256": POLICY_DIGEST,
             "profile": "expression-core-v3",
             "template_sha256": (
@@ -159,32 +168,37 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
                 None,
                 None,
             )
-            for stage in scenario_program.stages
+            for stage in _union_stages(entry.program for entry in scenarios)
         ],
+        # One plate per face the actor's own profile declares, not per fixed
+        # state: nine people in a murder mystery do not share four expressions.
         *[
             _asset(
                 run_dir,
                 ledger,
-                f"{actor.slug}-{state}",
+                f"{actor.slug}-{_slug(expression.expression_id)}",
                 "expression",
-                f"assets/{actor.slug}-{state}.png",
-                state,
+                f"assets/{actor.slug}-{_slug(expression.expression_id)}.png",
+                expression.expression_id,
                 actor.actor_id,
             )
             for actor in resolved_actors
-            for state in EXPRESSION_STATES
+            for expression in actor.profile.expressions
         ],
-        *[await _track_asset(run_dir, ledger, track.track_id) for track in scenario_program.tracks],
+        *[
+            await _track_asset(run_dir, ledger, track_id)
+            for track_id in _union_tracks(entry.program for entry in scenarios)
+        ],
         *[
             _asset(run_dir, ledger, _ui_asset_id(role), "ui", f"ui/{role}.png", None, None)
             for role in ui_roles
         ],
     ]
     bundle = DialogueBundle(
-        schema_version=7,
-        kind="dialogue-scene-bundle-v7",
+        schema_version=8,
+        kind="dialogue-scene-bundle-v8",
         recipe="dialogue-scene",
-        recipe_version="dialogue-scene-v7",
+        recipe_version="dialogue-scene-v8",
         tag=tag,
         game_id=request.game_id,
         run_identity_sha256=identity_sha,
@@ -195,20 +209,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             provenance_sha256=content_sha256(request_provenance),
         ),
         actors=[actor.binding for actor in resolved_actors],
-        scenario=BundleFile(
-            path="scenario.json",
-            sha256=content_sha256(scenario_bytes),
-            provenance_path="scenario.json.meta.json",
-            provenance_sha256=content_sha256(scenario_provenance),
-        ),
-        scenario_validation=BundleFile(
-            path="scenario.validation.json",
-            sha256=content_sha256(scenario_proof_bytes),
-            provenance_path="scenario.validation.json.meta.json",
-            provenance_sha256=content_sha256(scenario_proof_provenance),
-        ),
-        scenario_binding=request.scenario,
-        scenario_sha256=content_sha256(scenario_bytes),
+        scenarios=[entry.binding_record for entry in scenarios],
         style_reference=BundleFile(
             path="assets/style-plate.png",
             sha256=style_sha256,
@@ -220,7 +221,13 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         attempt_ledger=AttemptLedgerBinding(
             path="attempts.json", sha256=content_sha256(ledger_bytes)
         ),
-        scene_data=_scene_data(request, resolved_actors, style_anchor, scenario_program, ui_roles),
+        scene_data=_scene_data(
+            request,
+            resolved_actors,
+            style_anchor,
+            [entry.program for entry in scenarios],
+            ui_roles,
+        ),
         review=ReviewState(status="pending", path=None, sha256=None),
         rights=RightsState(aggregate="unreviewed", publication_authorized=False),
     )
@@ -231,7 +238,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         ProvenanceInput(
             schema_version=2,
             provider="local",
-            model="deterministic-dialogue-bundle-v5",
+            model="deterministic-dialogue-bundle-v6",
             prompt="Assemble the authored scene package's assets into the portable bundle.",
             refs=[
                 "request.json",
@@ -248,6 +255,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
                 "style_reference_source": authored_reference.source,
                 "style_reference_sha256": style_sha256,
                 "cast": [actor.actor_id for actor in resolved_actors],
+                "scenarios": [entry.program.scenario_id for entry in scenarios],
                 "style_anchor_path": "style-anchor.json",
                 "style_anchor_artifact_sha256": content_sha256(style_anchor_bytes),
                 "style_anchor_provenance_path": "style-anchor.json.meta.json",
@@ -273,6 +281,147 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         ),
     )
     return ("bundle.json", provenance.relative_to(run_dir).as_posix())
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolvedScenarioFiles:
+    """One published narrative, its proof, and the binding both came from."""
+
+    program: ScenarioProgram
+    binding: ScenarioBinding
+    program_sha256: str
+    binding_record: BundleScenario
+
+
+def _read_scenario(
+    run_dir: Path, request: DialogueSceneDocument, binding: ScenarioBinding
+) -> _ResolvedScenarioFiles:
+    """Read and verify one published program and the proof that admitted it.
+
+    Every check the single-scenario run made is made here per scenario: the
+    published id must be the one the ref names, the proof must describe that same
+    program, and it must actually admit it.
+    """
+
+    scenario_id = scenario_id_from_ref(binding.ref)
+    slug = _slug(scenario_id)
+    program_path = f"scenarios/{slug}.json"
+    proof_path = f"scenarios/{slug}.validation.json"
+    program_bytes = _read(run_dir, program_path)
+    program_provenance = _read(run_dir, f"{program_path}.meta.json")
+    _validate_provenance(program_provenance, program_bytes, f"{scenario_id} scenario")
+    program = ScenarioProgram.model_validate_json(program_bytes)
+    if program.scenario_id != scenario_id:
+        raise ValueError(f"published scenario at {program_path} is not {scenario_id}")
+    proof_bytes = _read(run_dir, proof_path)
+    proof_provenance = _read(run_dir, f"{proof_path}.meta.json")
+    _validate_provenance(proof_provenance, proof_bytes, f"{scenario_id} scenario proof")
+    proof = ScenarioAdmissionReport.model_validate_json(proof_bytes)
+    if not proof.admitted:
+        raise ValueError(
+            f"bundle refuses scenario {scenario_id}, which its own proof did not admit"
+        )
+    if proof.scenario_id != program.scenario_id:
+        raise ValueError(f"scenario proof at {proof_path} does not describe {scenario_id}")
+    if request.game_id != program.game_id:
+        raise ValueError("published scenario game_id does not match the request")
+    return _ResolvedScenarioFiles(
+        program=program,
+        binding=binding,
+        program_sha256=content_sha256(program_bytes),
+        binding_record=BundleScenario(
+            scenario_id=scenario_id,
+            binding=binding,
+            program=BundleFile(
+                path=program_path,
+                sha256=content_sha256(program_bytes),
+                provenance_path=f"{program_path}.meta.json",
+                provenance_sha256=content_sha256(program_provenance),
+            ),
+            validation=BundleFile(
+                path=proof_path,
+                sha256=content_sha256(proof_bytes),
+                provenance_path=f"{proof_path}.meta.json",
+                provenance_sha256=content_sha256(proof_provenance),
+            ),
+            program_sha256=content_sha256(program_bytes),
+        ),
+    )
+
+
+def _union_drawable_cast(programs: Iterable[ScenarioProgram]) -> list[ScenarioCastMember]:
+    """Every actor any published scenario shows, once, in first-declaration order."""
+
+    union: dict[str, ScenarioCastMember] = {}
+    for program in programs:
+        for member in program.cast:
+            if member.expressions and member.actor_id not in union:
+                union[member.actor_id] = member
+    return list(union.values())
+
+
+def _union_stages(programs: Iterable[ScenarioProgram]) -> list[StageDeclaration]:
+    """One backdrop per distinct stage, refusing a collision rather than resolving it.
+
+    `setdefault` would have been enough to make the counts come out right, and
+    that is exactly the bug: two scenarios declaring one stage_id with different
+    briefs would have had the first-bound one silently win, and a writer's brief
+    would have vanished into the binding order of `scene.toml` with no error and
+    no log line. The resolver refuses this before any spend; the bundle refuses
+    it again over the published bytes, because the manifest re-proves what it
+    reads rather than trusting that resolution happened.
+    """
+
+    union: dict[str, StageDeclaration] = {}
+    for program in programs:
+        for stage in program.stages:
+            existing = union.get(stage.stage_id)
+            if existing is not None and existing != stage:
+                raise ValueError(
+                    f"published scenarios declare stage {stage.stage_id} with different "
+                    f"briefs: {existing.brief!r} and {stage.brief!r}"
+                )
+            union[stage.stage_id] = stage
+    return list(union.values())
+
+
+def _union_tracks(programs: Iterable[ScenarioProgram]) -> list[str]:
+    """One recording per distinct track identity, on the same terms as the stages."""
+
+    union: dict[str, TrackDeclaration] = {}
+    for program in programs:
+        for track in program.tracks:
+            existing = union.get(track.track_id)
+            if existing is not None and existing != track:
+                raise ValueError(
+                    f"published scenarios declare track {track.track_id} with different "
+                    f"briefs or generation intent: {existing.brief!r} and {track.brief!r}"
+                )
+            union[track.track_id] = track
+    return list(union)
+
+
+def _union_drawable_cast_checked(programs: Iterable[ScenarioProgram]) -> None:
+    """Refuse two published scenarios that disagree about who an actor is."""
+
+    seen: dict[str, str | None] = {}
+    for program in programs:
+        for member in program.cast:
+            if not member.expressions:
+                continue
+            if member.actor_id in seen:
+                first = seen[member.actor_id]
+                if (
+                    first is not None
+                    and member.display_name is not None
+                    and first != member.display_name
+                ):
+                    raise ValueError(
+                        f"published scenarios give actor {member.actor_id} different display "
+                        f"names: {first} and {member.display_name}"
+                    )
+                continue
+            seen[member.actor_id] = member.display_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,6 +503,34 @@ def _read_actor(
     )
 
 
+def _fit(value: str, limit: int) -> str:
+    """Cut authored prose to a projection's limit without leaving a ragged edge.
+
+    A bare slice is a latent refusal. Every persisted string in this contract must
+    be trimmed, so an author whose sentence happens to put a space at exactly
+    character `limit` produced a value the bundle then refused - at the terminal
+    node, after every image in the scene had been drawn and paid for. The length
+    of somebody's prose is not something they should have to think about, and it
+    is certainly not something they should discover after a run.
+
+    Cutting back to the last word boundary as well, because these fields are
+    titles and alt text: a reader may hear `alt`, and a word severed mid-syllable
+    is worse than a slightly shorter sentence. The boundary is only honoured when
+    it keeps most of the budget, so a single very long word still gets cut rather
+    than collapsing the field to nothing.
+    """
+
+    text = value.strip()
+    if len(text) <= limit:
+        return text
+    head = text[:limit].rstrip()
+    boundary = head.rfind(" ")
+    if boundary > limit // 2:
+        head = head[:boundary]
+    trimmed = head.rstrip(" ,;:-").strip()
+    return trimmed or text[:limit].strip()
+
+
 def _slug(value: str) -> str:
     return value.replace("_", "-")
 
@@ -368,26 +545,29 @@ def _scene_data(
     request: DialogueSceneDocument,
     actors: list[_ResolvedActorFiles],
     style_anchor: CanonicalStyleAnchor,
-    scenario: ScenarioProgram,
+    scenarios: list[ScenarioProgram],
     ui_roles: dict[str, object],
 ) -> SceneData:
     return SceneData.model_validate(
         {
             "scene_id": f"{_slug(request.game_id)}-scene",
-            "title": scenario.display_name[:96],
-            "scene_label": request.scene_brief[:160],
+            # The scene's own name, not the first scenario's: a scene that binds
+            # six beats of one episode is not called after whichever beat happens
+            # to be bound first.
+            "title": _fit(request.display_name, 96),
+            "scene_label": _fit(request.scene_brief, 160),
             "style_asset_id": "style-plate",
             "stages": [
                 {
                     "stage_id": stage.stage_id,
                     "asset_id": _slug(stage.stage_id),
-                    "alt": stage.brief[:160],
+                    "alt": _fit(stage.brief, 160),
                 }
-                for stage in scenario.stages
+                for stage in _union_stages(scenarios)
             ],
             "tracks": [
-                {"track_id": track.track_id, "asset_id": f"track-{_slug(track.track_id)}"}
-                for track in scenario.tracks
+                {"track_id": track_id, "asset_id": f"track-{_slug(track_id)}"}
+                for track_id in _union_tracks(scenarios)
             ],
             "actors": [
                 {
@@ -396,23 +576,28 @@ def _scene_data(
                         "id": actor.profile.profile_id,
                         "label": actor.profile.display_name,
                         "age": actor.profile.age_years,
-                        "role": actor.profile.description[:120],
-                        "tagline": actor.profile.description[:120],
+                        "role": _fit(actor.profile.description, 120),
+                        "tagline": _fit(actor.profile.description, 120),
                         "description": actor.profile.description,
                         "visual_identity": actor.profile.visual_identity,
                         "art_direction": style_anchor.medium_keyword,
                     },
+                    # Label and description come from the character's author, not
+                    # from a table in this module: a fixed table could only ever
+                    # have described one genre's four faces.
                     "expression_variants": [
                         {
-                            "id": f"{actor.slug}-{state}",
-                            "asset_id": f"{actor.slug}-{state}",
+                            "id": f"{actor.slug}-{_slug(expression.expression_id)}",
+                            "asset_id": f"{actor.slug}-{_slug(expression.expression_id)}",
                             "appearance_id": actor.profile.profile_id,
-                            "state": state,
-                            "label": _expression_copy(state)[0],
-                            "description": _expression_copy(state)[1],
-                            "alt": f"{actor.profile.display_name} looking {state}"[:160],
+                            "state": expression.expression_id,
+                            "label": expression.label,
+                            "description": expression.description,
+                            "alt": _fit(
+                                f"{actor.profile.display_name}, {expression.label.lower()}", 160
+                            ),
                         }
-                        for state in EXPRESSION_STATES
+                        for expression in actor.profile.expressions
                     ],
                 }
                 for actor in actors
@@ -421,7 +606,13 @@ def _scene_data(
                 "framing_zoom": request.presentation.framing_zoom,
                 "source_framing_zoom": request.presentation.source_framing_zoom,
             },
-            "available_states": list(EXPRESSION_STATES),
+            "available_states": sorted(
+                {
+                    expression.expression_id
+                    for actor in actors
+                    for expression in actor.profile.expressions
+                }
+            ),
             # The shared projection names the sheet by path; a bundle names everything by
             # asset id instead, so the path is replaced rather than carried beside it.
             "ui": {
@@ -435,7 +626,7 @@ def _scene_data(
                 }
                 for role, layout in ui_roles.items()
             },
-            "scenario": scenario,
+            "scenarios": scenarios,
         }
     )
 
@@ -534,12 +725,3 @@ def _validate_provenance(data: bytes, artifact: bytes, label: str) -> None:
 
 def _read(run_dir: Path, relative: str) -> bytes:
     return resolve_relative_path_within_root(run_dir, relative, "dialogue bundle path").read_bytes()
-
-
-def _expression_copy(state: str) -> tuple[str, str]:
-    return {
-        "neutral": ("Composed", "Composed and attentive with direct adult eye contact"),
-        "delighted": ("Delighted", "Warm open delight with bright eyes and an unguarded smile"),
-        "flustered": ("Flustered", "Warmly flustered with a faint blush and shy half-smile"),
-        "concerned": ("Concerned", "Focused adult concern with drawn brows and a firm mouth"),
-    }[state]

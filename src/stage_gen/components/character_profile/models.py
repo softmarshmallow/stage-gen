@@ -118,6 +118,30 @@ class CharacterProfileBinding(PersistedContractModel):
         return _portable_relative_path(value)
 
 
+class CharacterExpression(PersistedContractModel):
+    """One drawn face this character can wear, authored rather than generated.
+
+    The expression **ids** belong to the narrative - a scenario says which faces
+    it can ask for - but what each face looks like is a fact about the person,
+    the same kind of fact as `visual_identity` and `wardrobe`, and so it is
+    authored here and travels with the profile wherever it is staged.
+
+    `label` and `description` are shown to people; `direction` is the only text a
+    provider is handed. Keeping them apart is what stops provider instructions
+    leaking into displayed copy and vice versa.
+    """
+
+    expression_id: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    label: str = Field(min_length=1, max_length=96)
+    description: str = Field(min_length=1, max_length=200)
+    direction: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("label", "description", "direction")
+    @classmethod
+    def validate_text(cls, value: str, info: Any) -> str:
+        return _normalized_text(value, str(info.field_name))
+
+
 class CharacterProfile(PersistedContractModel):
     """Stable authored identity and design facts, independent of any recipe."""
 
@@ -131,6 +155,11 @@ class CharacterProfile(PersistedContractModel):
     visual_identity: str
     wardrobe: str
     invariants: list[str] = Field(min_length=1)
+    #: The drawn faces, in drawing order. The FIRST entry is the base plate a
+    #: recipe generates from scratch; the rest are edits of it, so the resting
+    #: face leads. Optional here because not every consumer draws faces at all;
+    #: a recipe that does may require it, and the visual-novel recipe does.
+    expressions: list[CharacterExpression] = Field(default_factory=list, max_length=16)
     rights: CharacterProfileRights
     references: list[CharacterProfileReference] = Field(default_factory=list)
 
@@ -146,6 +175,18 @@ class CharacterProfile(PersistedContractModel):
         if len(set(normalized)) != len(normalized):
             raise ValueError("invariants must be unique")
         return normalized
+
+    @model_validator(mode="after")
+    def validate_unique_expressions(self) -> CharacterProfile:
+        ids = [expression.expression_id for expression in self.expressions]
+        if len(set(ids)) != len(ids):
+            raise ValueError("expression_id values must be unique")
+        return self
+
+    def expression(self, expression_id: str) -> CharacterExpression | None:
+        return next(
+            (item for item in self.expressions if item.expression_id == expression_id), None
+        )
 
     @model_validator(mode="after")
     def validate_unique_references(self) -> CharacterProfile:

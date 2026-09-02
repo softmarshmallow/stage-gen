@@ -33,16 +33,23 @@ class PersistedContractModel(BaseModel):
 MINIMUM_AGE = 18
 MAXIMUM_AGE = 120
 
-ExpressionState = Literal["neutral", "delighted", "flustered", "concerned"]
+#: One drawn face, named by the author rather than by this recipe.
+#:
+#: The taxonomy used to be a fixed `neutral | delighted | flustered | concerned`,
+#: which is a set of faces for one genre. A murder mystery has no reading of
+#: `delighted` that belongs on a detective at a crime scene, and a fixed list
+#: guaranteed that every actor in a scene got the same four. The ids now come
+#: from the scenario's `[[cast]] expressions` - already authored, already
+#: meaningful, already admitted - and the direction for each comes from the
+#: actor's own character profile.
+ExpressionId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
 TransparencyMode = Literal["native", "ai", "chroma"]
 RightsStatus = Literal["unreviewed", "restricted", "redistribution-approved"]
 
-EXPRESSION_STATES: tuple[ExpressionState, ...] = (
-    "neutral",
-    "delighted",
-    "flustered",
-    "concerned",
-)
+#: How many faces one drawable actor declares: a base plate plus at least one
+#: edit of it, and no more than the sprite budget a scene can carry.
+MINIMUM_EXPRESSIONS = 2
+MAXIMUM_EXPRESSIONS = 8
 _UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
@@ -110,12 +117,17 @@ class SceneReference(PersistedContractModel):
 
 
 class ScenarioBinding(PersistedContractModel):
-    """The narrative this scene plays, bound to exact bytes.
+    """One narrative this scene plays, bound to exact bytes.
 
     A scene used to carry its own flat beat list, which could only ever be walked
     from the first line to the last. The narrative is a `scenario-v1` package
     member now, so the same scene admits choices, flags, and endings, and one
     authored shape serves both genres instead of two that can drift apart.
+
+    A scene binds a **list** of these. An episode split into six scenarios so each
+    one's admission proof stays under its state ceiling is still one cast, one
+    look, and one set of rooms; binding them to one scene is what lets the graph
+    draw that art once instead of once per scenario.
     """
 
     schema_version: Literal[1] = 1
@@ -166,23 +178,32 @@ class DialogueSceneDocument(PersistedContractModel):
     """The authored root of one visual-novel scene package.
 
     One scene = one directory under ``library/games/`` holding this document
-    beside the members it names by exact relative path: the character profile it
-    binds, and the ``references/`` its art is drawn against. Temporary by
-    intent - the standing goal is for every game kind to be declared through
-    ``game.toml`` - so this contract owns only what a scene needs today and
-    stays easy to absorb.
+    beside the members it names by exact relative path: the scenarios it plays,
+    the character profiles it binds, and the ``references/`` its art is drawn
+    against. Temporary by intent - the standing goal is for every game kind to be
+    declared through ``game.toml`` - so this contract owns only what a scene
+    needs today and stays easy to absorb.
+
+    A scene binds several scenarios and generates the **union** of their art
+    exactly once. The alternative - one scene package per scenario - would put
+    the same style plate, the same character profiles, and the scenario and
+    script files themselves into the tree once per beat, which is a second
+    source of truth for the words.
     """
 
-    schema_version: Literal[3]
-    kind: Literal["dialogue-scene-v3"]
+    schema_version: Literal[5]
+    kind: Literal["dialogue-scene-v5"]
     game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     display_name: str = Field(min_length=1, max_length=96)
     revision: int = Field(ge=1)
     scene_brief: str = Field(min_length=1, max_length=96)
-    #: The narrative, as an authored `scenario-v1` member. Proven finishable
-    #: offline before any art is paid for.
-    scenario: ScenarioBinding
-    #: Which package members draw each actor the scenario can show.
+    #: The narratives, as authored `scenario-v1` members. Each is proven
+    #: finishable offline before any art is paid for, and the scene declares the
+    #: union of what they all name: one backdrop per distinct stage, one plate
+    #: per distinct actor and expression, one track per distinct track. An
+    #: episode told as six scenarios therefore costs the art of one scene.
+    scenarios: list[ScenarioBinding] = Field(min_length=1, max_length=16)
+    #: Which package members draw each actor the bound scenarios can show.
     cast: list[SceneCastBinding] = Field(min_length=1, max_length=16)
     #: The declared reference that fixes this scene's look. It is published into
     #: the run as the style plate and attached to every generated image, so
@@ -196,6 +217,9 @@ class DialogueSceneDocument(PersistedContractModel):
 
     @model_validator(mode="after")
     def closed_package_bindings(self) -> DialogueSceneDocument:
+        scenario_refs = [binding.ref for binding in self.scenarios]
+        if len(scenario_refs) != len(set(scenario_refs)):
+            raise ValueError("scene scenario refs must be unique")
         actor_ids = [member.actor_id for member in self.cast]
         if len(actor_ids) != len(set(actor_ids)):
             raise ValueError("scene cast actor_id values must be unique")
@@ -279,7 +303,16 @@ class SpriteGeometry(PersistedContractModel):
 
 
 class ExpressionDirection(PersistedContractModel):
-    id: ExpressionState
+    """One authored face, as the plan records it.
+
+    `direction` is copied from the actor's character profile rather than written
+    by a model: the same words a person wrote produce the same face every run,
+    and the drawn expression is now reviewable against its own source text.
+    """
+
+    id: ExpressionId
+    label: str = Field(min_length=1, max_length=96)
+    description: str = Field(min_length=1, max_length=200)
     direction: str = Field(min_length=1, max_length=1000)
 
 
@@ -288,35 +321,23 @@ class PromptTemplateBinding(PersistedContractModel):
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
-class ExpressionDirections(PersistedContractModel):
-    """The only expression content delegated to structured generation."""
-
-    neutral: str = Field(min_length=1, max_length=1000)
-    delighted: str = Field(min_length=1, max_length=1000)
-    flustered: str = Field(min_length=1, max_length=1000)
-    concerned: str = Field(min_length=1, max_length=1000)
-
-    def for_state(self, state: ExpressionState) -> str:
-        if state == "neutral":
-            return self.neutral
-        if state == "delighted":
-            return self.delighted
-        if state == "flustered":
-            return self.flustered
-        return self.concerned
-
-
 class DialogueScenePlanDraft(PersistedContractModel):
-    """Generative plan fields; recipe-owned invariants are composed locally."""
+    """Generative plan fields; recipe-owned invariants are composed locally.
+
+    Narrower than it was: the expression directions used to be generated here,
+    one shared set applied to every actor in the scene. They are authored per
+    actor now, so what is left is the staging the look genuinely is a function
+    of - pose, lighting, and style - and identity and wardrobe are still
+    composed deterministically from the profile rather than asked for.
+    """
 
     shared_locks: SharedLocks
-    states: ExpressionDirections
 
 
 class DialogueScenePlan(PersistedContractModel):
-    schema_version: Literal[7]
-    kind: Literal["dialogue-scene-plan-v7"]
-    recipe_version: Literal["dialogue-scene-v7"]
+    schema_version: Literal[8]
+    kind: Literal["dialogue-scene-plan-v8"]
+    recipe_version: Literal["dialogue-scene-v8"]
     policy_version: Literal["coming-of-age-nonexplicit-v3"]
     expression_profile: Literal["expression-core-v3"]
     #: The ART request this plan is a function of, not the whole document.
@@ -333,17 +354,31 @@ class DialogueScenePlan(PersistedContractModel):
     identity_reference_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     shared_locks: SharedLocks
     geometry: SpriteGeometry
-    states: list[ExpressionDirection]
+    #: The actor's own faces, in the profile's authored order. The first is the
+    #: base plate; the rest are edits of it.
+    states: list[ExpressionDirection] = Field(
+        min_length=MINIMUM_EXPRESSIONS, max_length=MAXIMUM_EXPRESSIONS
+    )
     prompt_templates: list[PromptTemplateBinding]
 
     @model_validator(mode="after")
-    def exact_expression_contract(self) -> DialogueScenePlan:
-        if tuple(state.id for state in self.states) != EXPRESSION_STATES:
-            raise ValueError("plan states must use the locked taxonomy and order")
+    def unique_expression_ids(self) -> DialogueScenePlan:
+        ids = [state.id for state in self.states]
+        if len(ids) != len(set(ids)):
+            raise ValueError("plan states must not repeat an expression id")
         return self
 
-    def direction_for(self, state: ExpressionState) -> str:
-        return next(item.direction for item in self.states if item.id == state)
+    def state(self, expression_id: str) -> ExpressionDirection:
+        found = next((item for item in self.states if item.id == expression_id), None)
+        if found is None:
+            raise ValueError(
+                f"plan for {self.appearance_id} carries no expression {expression_id}; "
+                f"it declares {', '.join(item.id for item in self.states)}"
+            )
+        return found
+
+    def direction_for(self, expression_id: str) -> str:
+        return self.state(expression_id).direction
 
 
 DialoguePlan = DialogueScenePlan
@@ -394,7 +429,7 @@ class BundleArtifact(PersistedContractModel):
     actor_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
     #: Which scenario track an audio artifact carries; None for every image role.
     track_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
-    state: ExpressionState | None = None
+    state: ExpressionId | None = None
     path: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bytes: int = Field(ge=1)
@@ -415,10 +450,25 @@ class BundleArtifact(PersistedContractModel):
     def role_media_contract(self) -> BundleArtifact:
         """Each role's media is exactly what its consumer draws or plays.
 
-        The image roles are pinned to a canvas; a track is pinned to being audio
-        that a scene can actually sit under. The two are checked separately
-        because a track has no canvas and an image has no duration - that is
-        what the discriminated union is for.
+        The **generated** image roles are pinned to a canvas; a track is pinned to
+        being audio that a scene can actually sit under. The two are checked
+        separately because a track has no canvas and an image has no duration -
+        that is what the discriminated union is for.
+
+        The style plate is the exception, and deliberately so. It is the one asset
+        in the bundle the pipeline did not make: the run republishes the author's
+        exact bytes, and the manifest proves that by comparing the published
+        digest to the one the package declared. A canvas rule on bytes the run is
+        contractually required to copy verbatim cannot be satisfied by anything
+        the pipeline does - it can only refuse a valid package, and only at the
+        terminal node, after every image has been drawn and paid for. The `1024x1536`
+        it used to require was inherited from a plate that happened to be a
+        portrait of one character; a plate that is an establishing shot of a place
+        is landscape for the same reason its game is. Nothing composites the
+        plate - it is attached to provider calls as a reference for medium,
+        palette and light - so its aspect ratio is not a property the scene
+        depends on. What a plate must be is checked where every other authored
+        member is checked: in the resolver, offline, before any spend.
         """
 
         if self.role == "track":
@@ -438,7 +488,13 @@ class BundleArtifact(PersistedContractModel):
             raise ValueError("only track assets may name a track_id")
         if not isinstance(self.media, MediaFacts):
             raise ValueError(f"{self.role} asset requires image media facts")
-        expected = (1672, 941, False) if self.role == "background" else (1024, 1536, False)
+        if self.role == "style":
+            if self.actor_id is not None:
+                raise ValueError("the style plate belongs to no actor")
+            if self.state is not None:
+                raise ValueError("only expression assets may name a state")
+            return self
+        expected = (1672, 941, False)
         if self.role == "ui":
             # A nine-slice sheet is a square canvas with a transparent exterior; the cells
             # inside it are detected rather than fixed, so scene_data carries their geometry.
@@ -563,6 +619,20 @@ class BundleActor(PersistedContractModel):
     plan: BundleFile
 
 
+class BundleScenario(PersistedContractModel):
+    """One bound narrative's published members, plus the proof that admitted it.
+
+    A scene plays several beats of the same episode, so a single `scenario` field
+    could only ever have named one of them - the same reason `actors` is a list.
+    """
+
+    scenario_id: str = Field(pattern=r"^[a-z][a-z0-9_]{0,95}$")
+    binding: ScenarioBinding
+    program: BundleFile
+    validation: BundleFile
+    program_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class SceneStage(PersistedContractModel):
     """One generated backdrop, named by the stage the scenario switches to."""
 
@@ -600,7 +670,7 @@ class SceneExpressionVariant(PersistedContractModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     asset_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     appearance_id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
-    state: ExpressionState
+    state: ExpressionId
     label: str = Field(min_length=1, max_length=96)
     description: str = Field(min_length=1, max_length=200)
     alt: str = Field(min_length=1, max_length=160)
@@ -611,7 +681,15 @@ class SceneActor(PersistedContractModel):
 
     actor_id: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     appearance: SceneAppearance
-    expression_variants: list[SceneExpressionVariant] = Field(min_length=1, max_length=8)
+    #: This actor's own faces, in the order they were drawn. Per actor, not
+    #: scene-wide: nine people in a murder mystery do not share four expressions.
+    expression_variants: list[SceneExpressionVariant] = Field(
+        min_length=MINIMUM_EXPRESSIONS, max_length=MAXIMUM_EXPRESSIONS
+    )
+
+    @property
+    def states(self) -> tuple[str, ...]:
+        return tuple(variant.state for variant in self.expression_variants)
 
     @model_validator(mode="after")
     def variants_bind_this_appearance(self) -> SceneActor:
@@ -649,70 +727,102 @@ class SceneData(PersistedContractModel):
     tracks: list[SceneTrack] = Field(default_factory=list, max_length=32)
     actors: list[SceneActor] = Field(min_length=1, max_length=16)
     placement: ScenePlacement
-    available_states: list[ExpressionState]
+    #: Every expression id any actor in this scene can wear, sorted. A consumer
+    #: that needs one actor's own set reads that actor's `expression_variants`;
+    #: this is the vocabulary check, not a per-actor promise.
+    available_states: list[ExpressionId]
     #: The screen-fixed interface, as the geometry the producer's gate detected plus the
     #: asset each role is drawn from. A consumer slices the published cell with the
     #: published insets; nothing here is derived from the layout id.
     ui: dict[str, SceneUiRole] = Field(min_length=1, max_length=8)
-    #: The compiled narrative, embedded rather than referenced.
+    #: The compiled narratives, embedded rather than referenced, in the order the
+    #: scene bound them.
     #:
     #: `scene_data` is the consumer's projection of the run, and the narrative is
-    #: the substance of it. The run still publishes `scenario.json` as its own
-    #: artifact - that is the graph node's port and where the proof points - but a
-    #: consumer that had to fetch a second file to know what anybody says would
-    #: make every consumer of this bundle, installed themes included, learn a new
-    #: retrieval path. The manifest builds this from the published bytes, so the
-    #: two are the same content by construction rather than by promise.
-    scenario: ScenarioProgram
+    #: the substance of it. The run still publishes each `scenarios/<id>.json` as
+    #: its own artifact - that is the graph node's port and where the proof points
+    #: - but a consumer that had to fetch a second file to know what anybody says
+    #: would make every consumer of this bundle, installed themes included, learn
+    #: a new retrieval path. The manifest builds this from the published bytes, so
+    #: the two are the same content by construction rather than by promise.
+    #:
+    #: A list, because one scene plays several beats of the same episode. The
+    #: stages, actors and tracks below are the union over all of them, generated
+    #: once each.
+    scenarios: list[ScenarioProgram] = Field(min_length=1, max_length=16)
+
+    def drawable_cast(self) -> set[str]:
+        """Every actor any bound scenario can show, once."""
+
+        return {
+            member.actor_id
+            for scenario in self.scenarios
+            for member in scenario.cast
+            if member.expressions
+        }
+
+    def declared_stages(self) -> set[str]:
+        return {stage.stage_id for scenario in self.scenarios for stage in scenario.stages}
+
+    def declared_tracks(self) -> set[str]:
+        return {track.track_id for scenario in self.scenarios for track in scenario.tracks}
 
     @model_validator(mode="after")
     def exact_projection_bindings(self) -> SceneData:
-        if tuple(self.available_states) != EXPRESSION_STATES:
-            raise ValueError("scene_data available_states must use the locked taxonomy")
-        for actor in self.actors:
-            variants = tuple(item.state for item in actor.expression_variants)
-            if variants != EXPRESSION_STATES:
-                raise ValueError(
-                    f"scene_data actor {actor.actor_id} must use the locked expression taxonomy"
-                )
+        # The vocabulary is the union of what the actors actually carry, in both
+        # directions: a state nobody wears would be a promise with no plate, and
+        # a plate whose state is missing here would be unreachable copy.
+        union = {state for actor in self.actors for state in actor.states}
+        if sorted(set(self.available_states)) != sorted(self.available_states):
+            raise ValueError("scene_data available_states must be sorted and unique")
+        if set(self.available_states) != union:
+            raise ValueError(
+                "scene_data available_states must be exactly the union of the actors' own "
+                f"expressions: {sorted(union)}"
+            )
         actor_ids = [actor.actor_id for actor in self.actors]
         if len(actor_ids) != len(set(actor_ids)):
             raise ValueError("scene_data actor ids must be unique")
         stage_ids = [stage.stage_id for stage in self.stages]
         if len(stage_ids) != len(set(stage_ids)):
             raise ValueError("scene_data stage ids must be unique")
-        # The projection must cover exactly what the narrative can ask for: a
+        scenario_ids = [scenario.scenario_id for scenario in self.scenarios]
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise ValueError("scene_data scenario ids must be unique")
+        # The projection must cover exactly what the narratives can ask for: a
         # `stage` or `show` naming something with no plate would surface as a
-        # missing texture in a browser rather than as a refused package.
-        declared_actors = {member.actor_id for member in self.scenario.cast if member.expressions}
+        # missing texture in a browser rather than as a refused package. Exactly
+        # the union, in both directions: an actor only the fourth scenario shows
+        # still needs plates, and a plate nothing shows was paid for and unseen.
+        declared_actors = self.drawable_cast()
         if declared_actors != set(actor_ids):
             raise ValueError(
-                "scene_data actors must be exactly the scenario's drawable cast: "
-                f"{sorted(declared_actors)}"
+                "scene_data actors must be exactly the union of the bound scenarios' "
+                f"drawable cast: {sorted(declared_actors)}"
             )
-        declared_stages = {stage.stage_id for stage in self.scenario.stages}
+        declared_stages = self.declared_stages()
         if declared_stages != set(stage_ids):
             raise ValueError(
-                "scene_data stages must be exactly the scenario's stages: "
+                "scene_data stages must be exactly the union of the bound scenarios' stages: "
                 + ", ".join(sorted(declared_stages))
             )
         track_ids = [track.track_id for track in self.tracks]
         if len(track_ids) != len(set(track_ids)):
             raise ValueError("scene_data track ids must be unique")
-        declared_tracks = {track.track_id for track in self.scenario.tracks}
+        declared_tracks = self.declared_tracks()
         if declared_tracks != set(track_ids):
             raise ValueError(
-                "scene_data tracks must be exactly the scenario's tracks: "
+                "scene_data tracks must be exactly the union of the bound scenarios' tracks: "
                 + ", ".join(sorted(declared_tracks))
             )
         return self
 
 
 class DialogueBundle(PersistedContractModel):
-    schema_version: Literal[7]
-    kind: Literal["dialogue-scene-bundle-v7"]
+    schema_version: Literal[8]
+    kind: Literal["dialogue-scene-bundle-v8"]
     recipe: Literal["dialogue-scene"]
-    recipe_version: Literal["dialogue-scene-v7"]
+    recipe_version: Literal["dialogue-scene-v8"]
     tag: str = Field(min_length=1)
     game_id: str = Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=64)
     run_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -721,13 +831,11 @@ class DialogueBundle(PersistedContractModel):
     #: binding both came from. A scene has a cast now, so a single profile field
     #: could only ever have named one of them.
     actors: list[BundleActor] = Field(min_length=1, max_length=16)
-    #: The compiled narrative and the proof that admitted it. A consumer plays
-    #: from `scenario`; `scenario_validation` is the evidence, carried because a
-    #: run must name everything it contains.
-    scenario: BundleFile
-    scenario_validation: BundleFile
-    scenario_binding: ScenarioBinding
-    scenario_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    #: One entry per bound narrative: the compiled program, the proof that
+    #: admitted it, and the package binding both came from. A consumer plays from
+    #: `program`; `validation` is the evidence, carried because a run must name
+    #: everything it contains.
+    scenarios: list[BundleScenario] = Field(min_length=1, max_length=16)
     #: The authored plate every image in the run was drawn against, named by the
     #: package path it came from and the exact bytes the run republished.
     style_reference: BundleFile
@@ -740,6 +848,14 @@ class DialogueBundle(PersistedContractModel):
 
     @model_validator(mode="after")
     def unique_roles_and_paths(self) -> DialogueBundle:
+        scenario_ids = [scenario.scenario_id for scenario in self.scenarios]
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise ValueError("bundle scenario ids must be unique")
+        if set(scenario_ids) != {scenario.scenario_id for scenario in self.scene_data.scenarios}:
+            raise ValueError("bundle scenarios and scene_data scenarios must name the same set")
+        refs = [scenario.binding.ref for scenario in self.scenarios]
+        if len(refs) != len(set(refs)):
+            raise ValueError("bundle scenario bindings must be unique")
         actor_ids = [actor.actor_id for actor in self.actors]
         if len(actor_ids) != len(set(actor_ids)):
             raise ValueError("bundle actor ids must be unique")
@@ -754,7 +870,7 @@ class DialogueBundle(PersistedContractModel):
         if backgrounds != len(self.scene_data.stages):
             raise ValueError("bundle must contain one background per declared stage")
         expressions = sum(artifact.role == "expression" for artifact in self.assets)
-        if expressions != len(self.scene_data.actors) * len(EXPRESSION_STATES):
+        if expressions != sum(len(actor.expression_variants) for actor in self.scene_data.actors):
             raise ValueError("bundle must contain every expression state for every actor")
         tracks = sum(artifact.role == "track" for artifact in self.assets)
         if tracks != len(self.scene_data.tracks):
