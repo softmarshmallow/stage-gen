@@ -947,12 +947,6 @@ that naming it is the deliverable.
       is a bottom-up column scan every hazard, pickup and pit-run check calls; and
       `max_clear_gap_columns` measures a quantity a bounce does not have. One contract with two
       mutually exclusive readings selected by a mode flag is exactly the compat-reader shape this
-- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-v2` by
-      someone other than its producer: the boss's three strips (does the rig read as failed
-      maintenance equipment rather than a creature, and does it face left in every cell?), the two
-      projectiles (does the seeding pin read axial and the bramble knot directionless?), the
-      avatar's `fly` strip (does it read as sustained thrust rather than a jump?), and the
-      `encounter_start` portrait (is it recognisably the same operator as `stage_start`?).
       repo forbids. The verb set inverts too - the runner's one verb is an edge-triggered jump, the
       jumper's is a held continuous steering axis with no jump at all, which the `RunnerIntent`
       latch's consume-on-sample semantics actively corrupts. The precedent is the runner itself,
@@ -1021,3 +1015,20 @@ that naming it is the deliverable.
 - [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean. Compare
       them with the local theme/compiler equivalents, retain each change once, and run the full
       offline gates; do not pull or merge them blindly over local work.
+- [ ] **A calibrated actor is measured by its alpha, not by its body.** `height_units` scales the
+      subject's whole alpha extent, so an actor drawn with something hanging off it - the pruner's
+      trailing roots - spends part of its declared height on the tail, and the machine a player
+      reads as "the boss" comes out visibly smaller than the number says. Iron Petal pays for this
+      by authoring 2.6 player heights to get a body that looms like two, which works but means the
+      number in the catalog is not the number on screen. The fix, when a second actor needs it, is
+      either a declared body extent beside the silhouette or a measurement that discounts a
+      trailing tail; both are contract changes, so neither is worth making for one boss.
+- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-big` by
+      someone other than its producer: the boss's three strips, redrawn at 2.6 player heights (does
+      the rig read as failed maintenance equipment rather than a creature, does it face left in
+      every cell, and does the extra size read as mass rather than as the same machine enlarged?),
+      the two projectiles (does the seeding pin read axial and the bramble knot directionless?), the
+      avatar's `fly` strip (does it read as sustained thrust rather than a jump?), and the
+      `encounter_start` portrait, which is now the pruner rather than the operator (is it
+      recognisably the same machine as the concept plate the run drew, and does it read as a face
+      at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).

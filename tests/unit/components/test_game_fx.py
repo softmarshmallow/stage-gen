@@ -98,6 +98,32 @@ prompt = "A quiet look."
         load_game_fx_bytes(orphaned)
 
 
+def test_a_portrait_declares_where_its_identity_comes_from() -> None:
+    """References, a drawn subject, or both - but never neither.
+
+    A plate with no identity source is drawn from its prompt's prose alone, which
+    means a different subject on every attempt; for the moment that announces a
+    boss, that is a plate showing a machine the fight does not contain.
+    """
+
+    contract = load_game_fx_bytes(_source())
+    assert contract.cut_in is not None
+    stage, encounter = contract.cut_in.portraits
+    assert stage.subject is None
+    assert stage.reference_ids == ["operator_primary"]
+    assert encounter.subject is not None
+    assert encounter.subject.kind == "actor_concept_v1"
+    # The boss the run draws itself; the reference carries the print register only.
+    assert encounter.subject.actor_id == "canopy_pruner"
+    assert encounter.reference_ids == ["cover_style"]
+
+    identity_free = _source().replace(
+        b'reference_ids = ["operator_primary"]', b"reference_ids = []"
+    )
+    with pytest.raises(AuthoredContractLoadError, match="declares no identity"):
+        load_game_fx_bytes(identity_free)
+
+
 def test_a_procedural_frame_authors_no_references_and_no_prompt() -> None:
     source = _source()
     with pytest.raises(AuthoredContractLoadError, match="procedural_v1 authors no references"):
@@ -119,6 +145,11 @@ def test_a_procedural_frame_authors_no_references_and_no_prompt() -> None:
     source = _without_shape(source)
     assert generated_frame in source
     procedural = source.replace(generated_frame, procedural_frame)
+    # The encounter plate cites the cover for its print register, but its identity
+    # comes from its subject, so it can give the reference up; with the frame drawn
+    # locally nothing else cites it.
+    assert b'reference_ids = ["cover_style"]' in procedural
+    procedural = procedural.replace(b'reference_ids = ["cover_style"]', b"reference_ids = []")
     # The cover reference is now unused; drop its whole block so the closure holds.
     cover_block = re.search(
         rb'\[\[references\]\]\nreference_id = "cover_style"\n(?:.+\n)+?\n', procedural

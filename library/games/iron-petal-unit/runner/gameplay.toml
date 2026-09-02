@@ -1,7 +1,7 @@
 schema_version = 4
 kind = "runner-gameplay-v4"
 game_id = "iron-petal-unit"
-revision = 7
+revision = 8
 track_id = "halcyon-rescue-line"
 
 [run]
@@ -27,16 +27,17 @@ hurt_representation = "blink_v1"
 [ramp]
 profile = "brisk_ramp_v1"
 
-# The contract floor, which at the swift base speed is a little over twenty
-# seconds of running before the pruner blocks the line. Iron Petal is the
-# package the genre is demonstrated from, so it sits at the shortest interval
-# admission allows: long enough that the authored track is still the run and
-# the fight is still the interruption, short enough to be seen.
+# The contract floor - twice the widest admissible chunk - which at the swift
+# base speed is about fourteen seconds of running before the pruner blocks the
+# line, and less once the ramp has taken hold. Iron Petal is the package the
+# genre is demonstrated from, so it sits at the shortest interval admission
+# allows: a whole authored chunk still runs between fights, and the fight is
+# still reached soon enough to be the thing a first run is remembered for.
 [encounter]
 boss_id = "canopy_pruner"
 profile = "barrage_boss_v1"
 locomotion = "thrust_v1"
-interval_columns = 200
+interval_columns = 128
 arena_segment_id = "open_canopy_bay"
 boss_projectile_id = "bramble_knot"
 player_projectile_id = "seeding_pin"

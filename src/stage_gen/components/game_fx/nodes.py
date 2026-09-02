@@ -91,6 +91,7 @@ from stage_gen.components.game_fx.cut_in import (
 from stage_gen.components.game_fx.models import (
     CutInFrameDirection,
     CutInPortraitDirection,
+    CutInPortraitSubject,
     GameFx,
 )
 
@@ -237,8 +238,31 @@ def frame_content_task(direction: str, shape: str | None = None) -> str:
     return f"{task}\nAuthored direction: {direction}\n{_PLATE_COMMON}"
 
 
+#: The same plate for an actor the run draws itself. Everything the human portrait
+#: takes from an authored face - the identity, the proportions, what a "close-up" even
+#: means for this body - this one takes from the concept plate the graph hands it as
+#: image 1, so it never has to be described twice and cannot be described differently.
+#: The connectedness clause leads rather than trails because the plate gate admits one
+#: dominant shape: a machine's hanging parts are exactly what drifts off into debris,
+#: and a demand made late in a prompt is the one that gets dropped.
+_SUBJECT_TASK = (
+    "Create one die-cut plate for a game cut-in: a tight close-up of the front of the "
+    "subject in image 1, drawn as one connected mass with every hanging or trailing part "
+    "touching the body rather than floating apart, filling the canvas so its silhouette "
+    "is cropped by the top and by both side edges. Identity comes from image 1 alone: "
+    "exactly that build, those markings, colours, and fittings, in the same proportions, "
+    "turned so that whatever on it reads as a face - a lens, a head, a mouth of tools - "
+    "faces the viewer. Bold clean ink contours and cel shading, slightly tilted dynamic "
+    "angle. The plate has a clean alpha edge along the silhouette."
+)
+
+
 def portrait_content_task(direction: str) -> str:
     return f"{_PORTRAIT_TASK}\nExpression and mood: {direction}\n{_PLATE_COMMON}"
+
+
+def subject_content_task(direction: str) -> str:
+    return f"{_SUBJECT_TASK}\nMoment and mood: {direction}\n{_PLATE_COMMON}"
 
 
 _PLACE_TASK = (
@@ -258,11 +282,34 @@ _PLACE_SYSTEM = (
 )
 
 
-def place_content_task(portrait_id: str, direction: str) -> str:
-    return f"{_PLACE_TASK}\nPortrait: {portrait_id}. Its authored mood: {direction}"
+#: A subject plate has no eyes or mouth to keep inside the band, so the same
+#: instruction is written against the parts it does have.
+_PLACE_SUBJECT_TASK = (
+    "Place this cut-out subject plate inside the torn-strip cut-in frame so the "
+    "composition reads like a production cut-in. The subject should fill the band: the "
+    "part of it that reads as a face over the band's upper-middle, the body fully inside "
+    "the band, neither floating in empty backdrop nor so large that the front of it is "
+    "cut away by the torn edges. Outlying parts may bleed past the edges; that is the "
+    "look. Prefer the subject over the band's thickest stretch. Iterate: render a "
+    "placement, look at it, adjust the scale and the centre, and submit only a placement "
+    "you have rendered and seen."
+)
 
 
-def cut_in_review_prompt(plate: CutInPlate, direction: str, shape: str | None = None) -> str:
+def place_content_task(
+    portrait_id: str, direction: str, *, subject: CutInPortraitSubject | None = None
+) -> str:
+    task = _PLACE_TASK if subject is None else _PLACE_SUBJECT_TASK
+    return f"{task}\nPortrait: {portrait_id}. Its authored mood: {direction}"
+
+
+def cut_in_review_prompt(
+    plate: CutInPlate,
+    direction: str,
+    shape: str | None = None,
+    *,
+    subject: CutInPortraitSubject | None = None,
+) -> str:
     """What the judge is asked, given what the pixel gate has already proved.
 
     The gate no longer fixes the rip's topology, so the frame's silhouette is judged
@@ -283,6 +330,21 @@ def cut_in_review_prompt(plate: CutInPlate, direction: str, shape: str | None = 
             "the absence of text, pseudo-text, characters, or scenery. Authored shape: "
             f"{shape or _FRAME_SHAPE_DEFAULT} Authored direction: {direction} Uncertainty "
             "must not be called accept."
+        )
+    if subject is not None:
+        return (
+            "Review the generated cut-in subject plate against its authored direction. Image 1 "
+            "shows the plate over a checkerboard on the left and, on the right, the plate "
+            "composed inside the game's cut-in frame exactly as the game shows it. Image 2 is "
+            "the identity concept plate of the very subject this cut-in announces, drawn in "
+            "the same run; any remaining images are authored style references. Deterministic "
+            "pixel validation has already proved a transparent exterior with no painted "
+            "backdrop and one dominant shape. Do not mistake the checkerboard for artwork. "
+            "Judge that the build, markings, colours and fittings are unmistakably the same "
+            "subject as image 2 rather than another of its kind, that it is drawn close and "
+            "cropped by the canvas rather than floating small in it, that the mood matches the "
+            "direction, and the absence of text, pseudo-text, logos, or scenery. Authored "
+            f"direction: {direction} Uncertainty must not be called accept."
         )
     return (
         "Review the generated cut-in portrait plate against its authored direction. Image 1 "
@@ -350,6 +412,7 @@ def add_cut_in_nodes(
     domain: str = "fx",
     prefix: str = "fx",
     attempts_port: Callable[[str], Port] | None = None,
+    subject_reference: Callable[[CutInPortraitSubject], PortRef] | None = None,
 ) -> list[str]:
     """Add the frame and every portrait the document declares.
 
@@ -358,6 +421,10 @@ def add_cut_in_nodes(
     frame's band by the tool-loop agent before it is validated, and its validation depends
     on both, so its reviewer sees the exact composition a runtime shows. Returns the
     terminal ids a host adds to its own list.
+
+    ``subject_reference`` resolves a portrait's declared subject to the port of the node
+    that draws it. A host that supplies none draws no actors, so a document naming one is
+    refused here, while the graph is still being built and before any spend.
     """
 
     if fx.cut_in is None:
@@ -479,7 +546,10 @@ def add_cut_in_nodes(
     portrait_geometry = _object_sha256(CUT_IN_PORTRAIT.geometry_record())
     for portrait in fx.cut_in.portraits:
         plate_id = plate_id_for("portrait", portrait.portrait_id)
-        direction_digest = _object_sha256(portrait.model_dump(mode="json"))
+        # Absent fields are absent from the digest, so a portrait that declares no
+        # subject keeps the cache key it had before subjects existed. What a plate
+        # does not say cannot re-bill it.
+        direction_digest = _object_sha256(portrait.model_dump(mode="json", exclude_none=True))
         generate_id, _draw_id, place_id, validate_id, review_id = cut_in_node_ids(
             plate_id, prefix=prefix
         )
@@ -488,6 +558,16 @@ def add_cut_in_nodes(
         )
         params = {"plate": "portrait", "portrait_id": portrait.portrait_id}
         authored = authored_for(portrait.reference_ids)
+        subject = portrait.subject
+        if subject is not None and subject_reference is None:
+            raise ValueError(
+                f"cut_in portrait {portrait.portrait_id} takes its identity from the "
+                f"{subject.actor_id!r} {subject.kind} plate, which this genre does not draw"
+            )
+        # The drawn subject is lineage, not a digest: its bytes are what the plate is
+        # copied from, so the concept being redrawn has to re-key the portrait. Every
+        # other input is authored, and stays a digest.
+        subject_port = None if subject is None else subject_reference(subject)  # type: ignore[misc]
         ports = [_artifact("image", raw_ref, FX_CUT_IN_RAW_KIND)]
         if attempts_port is not None:
             ports.append(attempts_port(generate_id))
@@ -496,8 +576,8 @@ def add_cut_in_nodes(
             generate_id,
             domain=domain,
             description=f"generate the {portrait.portrait_id} cut-in portrait plate",
-            depends_on=(root,),
-            cache_depends_on=(),
+            depends_on=(root,) if subject_port is None else (root, subject_port.node_id),
+            cache_depends_on=() if subject_port is None else (subject_port.node_id,),
             params=params,
             input_digests=(
                 *direction_digests,
@@ -508,8 +588,13 @@ def add_cut_in_nodes(
             ),
             ports=tuple(ports),
             card=NodeCard(
-                prompt=style_prompt(portrait_content_task(portrait.prompt)),
+                prompt=style_prompt(
+                    portrait_content_task(portrait.prompt)
+                    if subject is None
+                    else subject_content_task(portrait.prompt)
+                ),
                 authored_inputs=authored,
+                reference_inputs=() if subject_port is None else (subject_port,),
             ),
         )
         place_ports = [_artifact("placement", placement_ref, FX_CUT_IN_PLACEMENT_KIND)]
@@ -529,7 +614,7 @@ def add_cut_in_nodes(
             ),
             ports=tuple(place_ports),
             card=NodeCard(
-                prompt=place_content_task(portrait.portrait_id, portrait.prompt),
+                prompt=place_content_task(portrait.portrait_id, portrait.prompt, subject=subject),
                 schema_name=FX_CUT_IN_PLACE_SCHEMA_NAME,
                 reference_inputs=(
                     PortRef(node_id=generated.node_id, port_id="image"),
@@ -564,7 +649,11 @@ def add_cut_in_nodes(
             review_id,
             domain=domain,
             description=f"review the {portrait.portrait_id} portrait's identity and expression",
-            depends_on=(validated.node_id,),
+            depends_on=(
+                (validated.node_id,)
+                if subject_port is None
+                else (validated.node_id, subject_port.node_id)
+            ),
             params=params,
             input_digests=(
                 _object_sha256({"contract": FX_CUT_IN_REVIEW_VERSION}),
@@ -572,9 +661,18 @@ def add_cut_in_nodes(
             ),
             ports=tuple(review_ports),
             card=NodeCard(
-                prompt=cut_in_review_prompt(CUT_IN_PORTRAIT, portrait.prompt),
+                prompt=cut_in_review_prompt(CUT_IN_PORTRAIT, portrait.prompt, subject=subject),
                 schema_name=FX_CUT_IN_REVIEW_SCHEMA_NAME,
-                reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
+                # The judge is shown what the plate had to match: the composed plate
+                # first, then the identity it was copied from.
+                reference_inputs=(
+                    (PortRef(node_id=validated.node_id, port_id="image"),)
+                    if subject_port is None
+                    else (
+                        PortRef(node_id=validated.node_id, port_id="image"),
+                        subject_port,
+                    )
+                ),
                 authored_inputs=authored,
             ),
         )
@@ -645,9 +743,39 @@ def _authored_references(
     return tuple(values)
 
 
-def cut_in_generate_request(host: FxCutInHost, node: Node) -> ImageGenerationRequest:
+def subject_port(
+    node: Node, direction: CutInFrameDirection | CutInPortraitDirection
+) -> PortRef | None:
+    """The port a portrait's drawn subject comes from, or None if it has none.
+
+    ``add_cut_in_nodes`` writes it last on the card at both the generate and the review
+    end, which is the whole convention: the plan card and the provider request read the
+    same entry, so they cannot name different images.
+    """
+
+    if not isinstance(direction, CutInPortraitDirection) or direction.subject is None:
+        return None
+    card = node.card
+    if card is None or not card.reference_inputs:
+        raise ValueError(f"node {node.node_id} draws a subject its card does not name")
+    return card.reference_inputs[-1]
+
+
+def _produced_reference(
+    graph: Graph, port_ref: PortRef, read: Callable[[str], bytes]
+) -> tuple[str, bytes]:
+    artifact_ref = graph.node(port_ref.node_id).port(port_ref.port_id).artifact_ref
+    return artifact_ref, read(artifact_ref)
+
+
+def cut_in_generate_request(
+    host: FxCutInHost, graph: Graph, node: Node, *, read: Callable[[str], bytes]
+) -> ImageGenerationRequest:
     """The exact image request one generate node sends: shared by the handler and by a
-    host's provenance mirror, so the two can never disagree on identity."""
+    host's provenance mirror, so the two can never disagree on identity.
+
+    ``read`` resolves a run-relative artifact ref to bytes, for the drawn subject a
+    portrait may take its identity from; a portrait without one never calls it."""
 
     plate, direction = cut_in_direction(host.fx, node)
     validate = validate_frame_plate if plate.role == "frame" else validate_portrait_plate
@@ -660,10 +788,25 @@ def cut_in_generate_request(host: FxCutInHost, node: Node) -> ImageGenerationReq
     }
     if isinstance(direction, CutInPortraitDirection):
         metadata["portrait_id"] = direction.portrait_id
+    port_ref = subject_port(node, direction)
+    subject_references: tuple[ImageReference, ...] = ()
+    if port_ref is not None and isinstance(direction, CutInPortraitDirection):
+        subject = direction.subject
+        artifact_ref, data = _produced_reference(graph, port_ref, read)
+        # First, because the prompt calls it image 1: the identity the plate is drawn
+        # from leads the authored style references it is drawn in.
+        subject_references = (
+            ImageReference(_data_url(data, "image/png"), f"run://{artifact_ref}"),
+        )
+        if subject is not None:
+            metadata["subject_id"] = subject.actor_id
     return ImageGenerationRequest(
         prompt=_card_prompt(node),
         artifact_path=host.run_dir / node.port("image").artifact_ref,
-        input_references=_authored_references(host, direction.reference_ids),
+        input_references=(
+            *subject_references,
+            *_authored_references(host, direction.reference_ids),
+        ),
         quality="high",
         background="transparent",
         output_format="png",
@@ -693,6 +836,16 @@ def cut_in_review_request(
             provenance_ref=f"run://{evidence_ref}",
         )
     ]
+    port_ref = subject_port(node, direction)
+    if port_ref is not None:
+        # Image 2 for the judge, exactly as the review prompt says: the identity the
+        # plate was copied from, not a description of it.
+        artifact_ref, data = _produced_reference(graph, port_ref, read)
+        references.append(
+            StructuredReference(
+                url=_data_url(data, "image/png"), provenance_ref=f"run://{artifact_ref}"
+            )
+        )
     by_id = {entry.reference_id: entry for entry in host.fx.references}
     for reference_id in direction.reference_ids:
         source = by_id[reference_id].source
@@ -1053,7 +1206,7 @@ class FxCutInHandlers:
         self._provider_call = provider_call
 
     async def generate(self, node: Node) -> NodeExecutionResult:
-        request = cut_in_generate_request(self._host, node)
+        request = cut_in_generate_request(self._host, self._graph, node, read=self._read)
         result = await self._call(
             node, str(node.params["plate"]), request.prompt, lambda: self._images.generate(request)
         )
@@ -1326,6 +1479,8 @@ __all__ = [
     "place_content_task",
     "plate_id_for",
     "portrait_content_task",
+    "subject_content_task",
+    "subject_port",
     "validation_version_for",
     "write_cut_in_draw",
     "write_cut_in_validation",

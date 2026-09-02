@@ -481,6 +481,14 @@ after a death goes straight to `running`, because a two-second overlay on every
 death is the wrong feel for a runner. A package with no `fx.toml` is born
 `running`, exactly as before.
 
+The plate the encounter slams up is the **boss**, not the operator: the moment
+announces what has arrived. A generated actor cannot be announced from authored
+art, so the portrait takes its identity through a graph edge to the concept
+plate this same run drew - `subject = { kind = "actor_concept_v1", actor_id }`,
+resolved here to the boss concept node and refused for any other id. The plate
+is re-drawn whenever the boss is, because the concept is its cache lineage
+rather than a digest of words about it.
+
 An encounter plays over a run that is already going. The boss cut-in does
 **not** hold the simulation the way `stage_start` does: the avatar keeps
 running over the arena's calm floor while the plate sweeps in, and the
@@ -528,7 +536,7 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "c3aa2a6718b9d3af39000e3d7dabb5b907b945383435e810033ea305e14d14ab",
+  "topology_sha256": "c75f676d7f35580a4d63b18ff321dde978774b4838d615f1d3a03f088e6de4f0",
   "node_count": 105,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -581,10 +589,10 @@ rather than only the atlas branch. Regenerate with
 ```
 <!-- pipeline-graph-contract:end -->
 
-For the exact Iron Petal Unit fixture, the normal graph contains 36 first-pass
+For the exact Iron Petal Unit fixture, the normal graph contains 52 first-pass
 provider operations. Provider transport retries and later semantic
 regenerations are reported by their owning node and are not extra graph nodes.
-One of those operations is a *tool loop*: a bounded episode in which the
+Two of those operations are *tool loops*: a bounded episode in which the
 placement agent renders, looks, and adjusts before it submits — many model
 turns, one operation, one attempt ledger.
 Every provider node also publishes one attempt-ledger artifact that binds the exact graph-visible
@@ -596,14 +604,15 @@ lineage.
 
 | Domain | Concrete expansion | Image | Structured | Tool loop | Music | Sound | Local |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| World | 11 segments × (guide + structural paint + canonicalize), one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 17 | 0 | 0 | 0 | 0 | 26 |
-| Avatar | One combined rider-machine concept, 4 motion strips and validations, two whole-silhouette motion-rebase judgements | 5 | 2 | 0 | 0 | 0 | 4 |
-| Catalog | 4 obstacles and 1 collectible, each generated and locally validated | 5 | 0 | 0 | 0 | 0 | 5 |
+| World | 12 segments × (guide + structural paint + canonicalize) - the twelfth is the encounter's arena - one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 18 | 0 | 0 | 0 | 0 | 28 |
+| Avatar | One combined rider-machine concept, 5 motion strips and validations, two whole-silhouette motion-rebase judgements | 6 | 2 | 0 | 0 | 0 | 5 |
+| Boss | One identity concept, 3 motion strips and validations, two whole-silhouette motion-rebase judgements; absent entirely for a member with no encounter | 4 | 2 | 0 | 0 | 0 | 3 |
+| Catalog | 4 obstacles, 1 collectible, and 2 projectiles, each generated and locally validated | 7 | 0 | 0 | 0 | 0 | 7 |
 | Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
 | Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
-| Screen FX | One cut-in frame plate and one `stage_start` portrait plate, each generated, admitted (mask polygon traced), and reviewed; the portrait placed inside the frame by one tool-loop episode before admission | 2 | 2 | 1 | 0 | 0 | 2 |
+| Screen FX | One cut-in frame plate and one portrait plate per bound moment (`stage_start` from authored references, `encounter_start` from the boss's own concept plate), each generated, admitted (mask polygon traced), and reviewed; each portrait placed inside the frame by one tool-loop episode before admission | 3 | 3 | 2 | 0 | 0 | 3 |
 | Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **83 nodes** | **29** | **4** | **1** | **2** | **3** | **44** |
+| **Total** | **105 nodes** | **38** | **7** | **2** | **2** | **3** | **53** |
 
 ## Resolution and admission
 

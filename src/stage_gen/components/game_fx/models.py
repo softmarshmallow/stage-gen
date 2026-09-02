@@ -150,21 +150,52 @@ class CutInFrameDirection(PersistedContractModel):
         return self
 
 
+class CutInPortraitSubject(PersistedContractModel):
+    """A drawn actor the plate takes its identity from, instead of an authored file.
+
+    Every portrait needs an identity, and an authored reference can only carry the
+    identity of something authored. A boss is *generated*: the run draws its concept
+    plate itself, so a portrait announcing that boss has to inherit the face through a
+    graph edge to that plate, or the cut-in can announce a machine the fight does not
+    contain. That is a lineage the document declares and the hosting genre resolves:
+    ``kind`` names the family the id belongs to, and a genre that draws no such actor
+    refuses the id rather than guessing.
+    """
+
+    kind: Literal["actor_concept_v1"]
+    actor_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+
+
 class CutInPortraitDirection(PersistedContractModel):
-    """One die-cut character plate for one moment: identity from the references,
-    expression from the prompt."""
+    """One die-cut plate for one moment: identity from the references or from a drawn
+    subject, expression from the prompt."""
 
     portrait_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     layout: Literal["cut_in_portrait_1536x1024_v1"]
     alpha_policy: Literal["transparent_exterior_v1"]
-    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    #: Empty only when a ``subject`` carries the identity instead; style references
+    #: may still be listed beside one.
+    reference_ids: list[str] = Field(default_factory=list, max_length=16)
     prompt: str
+    subject: CutInPortraitSubject | None = None
 
     @field_validator("reference_ids")
     @classmethod
     def validate_reference_ids(cls, value: list[str]) -> list[str]:
         unique_values(value, "cut_in portrait reference_ids")
         return value
+
+    @model_validator(mode="after")
+    def validate_identity_source(self) -> CutInPortraitDirection:
+        """A plate with neither a reference nor a subject has no identity at all, and
+        would be whatever the prompt's prose happened to conjure that attempt."""
+
+        if not self.reference_ids and self.subject is None:
+            raise ValueError(
+                f"cut_in portrait {self.portrait_id} declares no identity: give it "
+                "reference_ids, a subject, or both"
+            )
+        return self
 
     @field_validator("prompt")
     @classmethod
@@ -314,6 +345,7 @@ __all__ = [
     "CutInFrameDirection",
     "CutInMomentBinding",
     "CutInPortraitDirection",
+    "CutInPortraitSubject",
     "FxMoment",
     "FxReference",
     "GameFx",

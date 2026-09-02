@@ -1,7 +1,7 @@
 schema_version = 2
 kind = "game-fx-v2"
 game_id = "iron-petal-unit"
-revision = 3
+revision = 4
 
 [[references]]
 reference_id = "operator_primary"
@@ -16,13 +16,6 @@ source = "references/cover.png"
 source_sha256 = "c079a180d9cecb479f8167ed5fc4604aa244848128f8dbaf69f80ae6359f089e"
 rights_status = "redistribution-approved"
 rights_basis = ["Original AI-generated Iron Petal Unit cover approved for redistribution by the authenticated task owner."]
-
-[[references]]
-reference_id = "operator_personality"
-source = "references/operator-personality.png"
-source_sha256 = "70459f9437f31bcc92c167e959696f30d6ef1b596e8d5d3cc8f64a4f61da3649"
-rights_status = "redistribution-approved"
-rights_basis = ["Original AI-generated operator expression study approved for redistribution by the authenticated task owner."]
 
 [cut_in.frame]
 mode = "generated_v1"
@@ -45,12 +38,21 @@ effect = "cut_in"
 portrait_id = "stage_start"
 choreography = "tear_reveal_v1"
 
+# The moment announces what has arrived, so the plate is the pruner itself and
+# not the operator meeting it: its identity is inherited from the concept plate
+# this same run draws, which is the only way a generated actor can appear in a
+# cut-in and be certain to be the one the player then fights. The references
+# here carry the print register only.
 [[cut_in.portraits]]
 portrait_id = "encounter_start"
 layout = "cut_in_portrait_1536x1024_v1"
 alpha_policy = "transparent_exterior_v1"
-reference_ids = ["operator_personality", "operator_primary"]
-prompt = "Mira the instant something large blocks the line ahead: chin down, brows drawn, blue-gray eyes narrowed hard to one side at what is coming, mouth set in a tight braced line rather than a grin, one gloved hand snapping up to the throttle grip, the coral-and-mint sprout barrette in her tousled dark-brown bob knocked slightly askew, cream utility jacket collar pushed up by the rush of air."
+reference_ids = ["cover_style"]
+prompt = "The pruner the instant it drops into the line: its trimming head swung wide open toward the viewer, the status lens burning close and hard rather than idling, bramble and torn roots swinging with the weight of the move, the lift fans kicked to full and hazed with the leaf litter they are throwing."
+
+[cut_in.portraits.subject]
+kind = "actor_concept_v1"
+actor_id = "canopy_pruner"
 
 [[moments]]
 moment = "encounter_start"

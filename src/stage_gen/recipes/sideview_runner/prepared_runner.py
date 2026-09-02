@@ -1359,7 +1359,9 @@ class SideviewRunnerNodeHandler:
                 validate=lambda artifact: _validate_catalog_candidate(artifact.data, family=family),
             )
         if node.type_id == FX_CUT_IN_GENERATE.type_id:
-            return cut_in_generate_request(self._fx_host(), node)
+            return cut_in_generate_request(
+                self._fx_host(), self._graph, node, read=self._read_run_artifact
+            )
         raise ValueError(f"runner node has no image request builder: {node.type_id}")
 
     def _music_generation_request(self, node: Node) -> MusicGenerationRequest:

@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "boss-content-v1"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "greenhouse_runway"
@@ -18,9 +18,9 @@ rights_basis = ["Original AI-generated environment reference independently revie
 boss_id = "canopy_pruner"
 display_name = "Runaway Canopy Pruner"
 body_kind = "overgrown_machine"
-height_units = 1.8
+height_units = 2.6
 reference_ids = ["greenhouse_runway"]
-prompt = "A large derelict greenhouse canopy-pruning rig hanging in the air on four tired ducted lift fans, cream ceramic housing with coral bands and graphite vents matching the greenhouse equipment, a wide blunt trimming head of folded shears at the front, thick bramble and pale roots grown through its frame and trailing from its underside, one mint status lens glowing at the front like a single calm eye. It is machinery that lost its schedule, never a creature: no face, no jaw, no limbs, no armour, no weapon barrels. It faces LEFT, presenting its trimming head and its lit lens toward the left edge of the frame."
+prompt = "A large derelict greenhouse canopy-pruning rig hanging in the air on four tired ducted lift fans, cream ceramic housing with coral bands and graphite vents matching the greenhouse equipment, a wide blunt trimming head of folded shears at the front, thick bramble and pale roots grown through its frame and trailing from its underside, one mint status lens glowing at the front like a single calm eye. It is far larger than the operator it blocks, filling the height of the bay it hangs in. It is machinery that lost its schedule, never a creature: no face, no jaw, no limbs, no armour, no weapon barrels. It faces LEFT, presenting its trimming head and its lit lens toward the left edge of the frame."
 
 [[bosses.motions]]
 state = "hover"

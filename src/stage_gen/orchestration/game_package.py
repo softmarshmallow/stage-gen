@@ -1035,6 +1035,19 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
                 "invalid_game_fx_contract",
                 "the runner runtime emits no such moment: " + ", ".join(unplayed),
             )
+        # The only actor the runner draws that a moment can announce is the boss of
+        # the encounter that announces it. A portrait naming any other id would be a
+        # plate drawn from a concept the run has no reason to hold.
+        encounter = runner.gameplay.encounter
+        for portrait in () if runner.fx.cut_in is None else runner.fx.cut_in.portraits:
+            if portrait.subject is None:
+                continue
+            if encounter is None or portrait.subject.actor_id != encounter.boss_id:
+                raise GamePackageValidationError(
+                    "unresolved_cross_reference",
+                    f"cut_in portrait {portrait.portrait_id} takes its identity from "
+                    f"{portrait.subject.actor_id!r}, which is not this member's encounter boss",
+                )
     if runner.member.cast.avatar_id != runner.avatar.avatar.avatar_id:
         raise GamePackageValidationError(
             "unresolved_cross_reference",

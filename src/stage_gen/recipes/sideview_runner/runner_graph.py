@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, Literal
 
@@ -30,6 +31,7 @@ from gnode import (
     seal_graph,
 )
 from gnode.providers.openai import supports_openai_native_alpha_model
+from stage_gen.components.game_fx import CutInPortraitSubject
 from stage_gen.components.game_fx.nodes import TOOL_LOOP_FEATURES, add_cut_in_nodes
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
@@ -137,6 +139,7 @@ from stage_gen.resources import (
 if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.media import LoopConstruction
+    from stage_gen.orchestration.game_package import ResolvedRunnerMember
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
 
 RUNNER_GRAPH_SCHEMA_VERSION = 1
@@ -292,6 +295,29 @@ def effective_loop_construction(resolved: ResolvedRunnerPackage, layer_id: str) 
         if layer.layer_id == layer_id:
             return layer.loop_construction or track.continuity.loop_construction
     raise KeyError(layer_id)
+
+
+def runner_subject_reference(
+    runner: ResolvedRunnerMember,
+) -> Callable[[CutInPortraitSubject], PortRef]:
+    """Resolve a cut-in portrait's declared subject to the node that draws it.
+
+    The runner draws exactly one family of actor a moment can announce, so an id
+    that is not a declared boss is refused rather than quietly resolved to
+    something else. Member validation has already refused an id that is not the
+    encounter's own boss; this is the graph builder refusing to reach for an
+    artifact no node in it produces.
+    """
+
+    def resolve(subject: CutInPortraitSubject) -> PortRef:
+        declared = set() if runner.bosses is None else {e.boss_id for e in runner.bosses.bosses}
+        if subject.actor_id not in declared:
+            raise ValueError(
+                f"cut-in portrait subject {subject.actor_id!r} is not a boss this package draws"
+            )
+        return PortRef(node_id=f"boss-{subject.actor_id}-concept-generate", port_id="image")
+
+    return resolve
 
 
 def build_runner_execution_graph(
@@ -1109,6 +1135,7 @@ def build_runner_execution_graph(
     fx_sources: dict[str, str] = {}
     if runner.fx is not None:
         fx_sources = {entry.reference_id: entry.source for entry in runner.fx.references}
+
         fx_terminals = add_cut_in_nodes(
             builder,
             root="package-resolve",
@@ -1116,6 +1143,7 @@ def build_runner_execution_graph(
             style_prompt=lambda task: fx_plate_prompt(resolved, task),
             direction_digests=(direction_digest,),
             attempts_port=_attempts,
+            subject_reference=runner_subject_reference(runner),
         )
 
     # ---------------------------------------------------------------- manifest

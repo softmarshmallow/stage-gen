@@ -290,9 +290,9 @@ BOSS_PROFILES: Final[dict[str, BossProfile]] = {
         projectile_height_rows=1.0,
         salvo_shots=3,
         salvo_period_seconds=1.5,
-        salvo_budget=8,
+        salvo_budget=16,
         lane_margin_rows=0.5,
-        hits_to_defeat=10,
+        hits_to_defeat=24,
         player_fire_period_seconds=0.5,
         player_shot_speed_columns_per_second=12.0,
     ),
@@ -300,11 +300,15 @@ BOSS_PROFILES: Final[dict[str, BossProfile]] = {
 
 #: The shortest run an encounter may be authored to interrupt, in columns.
 #:
-#: A refusal reads it: an encounter that arrives every few seconds is not an
-#: interlude, it is the game, and the track's own authored chunks would never
-#: be seen. At the fastest published base speed this is a little over twenty
-#: seconds of running between encounters.
-MIN_ENCOUNTER_INTERVAL_COLUMNS: Final[int] = 200
+#: A refusal reads it, so it is arithmetic rather than taste: twice the widest
+#: chunk the track contract admits (64 columns), which is the shortest gap that
+#: guarantees at least one WHOLE authored chunk is run between two fights
+#: however the chunk boundaries happen to fall. Below it a track could be
+#: authored whose player never sees a complete piece of it - the fight would
+#: have become the game and the track its interruption, which is the wrong way
+#: round. `test_encounter_contract` pins the derivation against the track
+#: contract's own maximum so the two cannot drift apart.
+MIN_ENCOUNTER_INTERVAL_COLUMNS: Final[int] = 128
 
 
 @dataclass(frozen=True, slots=True)

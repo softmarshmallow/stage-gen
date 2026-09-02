@@ -30,6 +30,7 @@ from stage_gen.components.runner_gameplay import (
     load_runner_gameplay_bytes,
     thrust_traverse_seconds,
 )
+from stage_gen.components.runner_track import MAX_SEGMENT_COLUMNS
 
 ENCOUNTER = """
 [encounter]
@@ -120,6 +121,19 @@ def test_an_encounter_that_never_lets_the_track_be_seen_is_refused() -> None:
         load_runner_gameplay_bytes(document.encode())
 
 
+def test_the_floor_is_two_of_the_widest_chunk_the_track_contract_admits() -> None:
+    """The floor is arithmetic, not taste, and this is the arithmetic.
+
+    Two widest chunks is the shortest gap in which a whole authored chunk is
+    guaranteed to run between two fights however the boundaries fall - one
+    would only guarantee it when the previous arena happened to end on one.
+    The two components hold the numbers separately, so nothing but this
+    assertion stops them drifting apart.
+    """
+
+    assert MIN_ENCOUNTER_INTERVAL_COLUMNS == 2 * MAX_SEGMENT_COLUMNS
+
+
 def test_a_shot_is_answered_like_every_other_damage_source() -> None:
     gameplay = load_runner_gameplay_bytes((BASE + ENCOUNTER).encode())
 
@@ -193,15 +207,15 @@ def test_the_fight_can_be_won_before_the_boss_runs_out_of_salvos() -> None:
 
     kill = boss_kill_seconds(boss)
 
-    assert kill == pytest.approx(10 * 0.5 + 10 / 12.0)
+    assert kill == pytest.approx(24 * 0.5 + 10 / 12.0)
     assert kill <= boss_salvo_budget_seconds(boss)
     # The slack is the miss allowance: a player who lands every shot finishes
-    # in less than half the window they are given.
-    assert kill < boss_salvo_budget_seconds(boss) / 2
+    # with well over a third of the window they are given still unspent.
+    assert kill < boss_salvo_budget_seconds(boss) * 0.6
 
 
 def test_a_tougher_boss_than_its_budget_allows_is_unwinnable() -> None:
     boss = BOSS_PROFILES["barrage_boss_v1"]
-    spongy = dataclasses.replace(boss, hits_to_defeat=40)
+    spongy = dataclasses.replace(boss, hits_to_defeat=64)
 
     assert boss_kill_seconds(spongy) > boss_salvo_budget_seconds(spongy)

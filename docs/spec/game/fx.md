@@ -64,7 +64,7 @@ fade. Separating it afterwards is a segmentation problem, not a transform.
 | part | owner | alpha | produced by |
 | --- | --- | --- | --- |
 | `frame` — one paper cut-out, flat white fill, black ink rim | style-scoped, character-agnostic | binary | the image model, or a local procedural drawing |
-| `portrait` — one die-cut close-up | character-scoped, bound to the same digest-locked references the actor uses | soft edge admitted | the image model |
+| `portrait` — one die-cut close-up | actor-scoped, bound to the digest-locked references the actor uses or to the concept plate the run drew for it | soft edge admitted | the image model |
 | backdrop, stripes, lettering | runtime | — | the consumer |
 | placement — where the portrait sits inside the frame's opening | judged once per portrait | — | the tool-loop agent (below) |
 | choreography | consumer | — | `web/lib/fx/cut-in.ts` |
@@ -106,6 +106,30 @@ A moment is bound at most once. Every declared portrait must be played by some m
 art is refused, the map-contract rule. A portrait prompt never states the subject's age —
 the references carry it, and an age token on a face-filling close-up is exactly what the
 provider's moderation refused in the spike — so the loader refuses one offline.
+
+### Where a portrait's identity comes from
+
+A portrait needs an identity, and the prompt is never it: the prompt carries the moment and
+the mood, and prose alone would draw a different subject on every attempt. There are two
+sources, and a portrait declaring neither is refused offline.
+
+| source | field | identity is | used for |
+| --- | --- | --- | --- |
+| authored references | `reference_ids` | the digest-locked files the actor already uses | a character the package ships art for |
+| a drawn subject | `subject` | the concept plate this same run draws | an actor the run generates — a boss |
+
+`subject` is `{ kind = "actor_concept_v1", actor_id = "…" }`, and it is a **graph edge**, not
+a description: the generate node depends on the node that draws that actor, the concept plate
+arrives as image 1, and the plate's cache key is the concept's lineage, so redrawing the actor
+redraws the plate that announces it. Without the edge a boss cut-in could only be *described*
+in prose, and the machine on the plate would be a different machine from the one the player
+then fights. The reviewer is shown the same concept as image 2 and judges identity against it
+rather than against words.
+
+Which ids are resolvable is the hosting genre's, exactly as the moment vocabulary is: the
+runner resolves a boss id and refuses any other, and a genre that draws no actors refuses a
+subject outright while the graph is being built. The two identity sources compose — a subject
+portrait may still cite references for the print register it is drawn in.
 
 ## Layouts, alpha policies, admission
 
