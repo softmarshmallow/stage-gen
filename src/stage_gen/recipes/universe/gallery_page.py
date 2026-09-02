@@ -14,6 +14,12 @@ import json
 import shutil
 from pathlib import Path
 
+from gnode import resolve_relative_path_within_root
+from stage_gen.recipes.universe.universe_graph import (
+    INPUT_POSTER_PROXY_REF,
+    INPUT_UNIVERSE_REF,
+)
+
 CLASS_ORDER = ("actor", "collective", "place", "thing", "kind", "system", "event", "idea")
 
 
@@ -21,20 +27,29 @@ def _e(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
-def _repo_root(run_dir: Path) -> Path:
-    return run_dir.resolve().parents[3]
+def _within(run_dir: Path, ref: str) -> Path:
+    """Resolve one run-relative path, refusing anything that leaves the run."""
+
+    return resolve_relative_path_within_root(run_dir, ref, "gallery page input")
 
 
 def render(run_dir: Path) -> str:
+    """Render one finished gallery run into a single self-contained HTML page.
+
+    Everything it reads lives inside the run. The gallery run carries its own
+    copy of the admitted universe and the poster proxy, so a package can be
+    moved, archived, or served from anywhere without the page losing half its
+    text.
+    """
+
     run_dir = run_dir.resolve()
-    manifest = json.loads((run_dir / "manifest.json").read_bytes())
-    repo_root = _repo_root(run_dir)
-    universe = json.loads((repo_root / manifest["semantic_run"]["universe_path"]).read_bytes())
+    manifest = json.loads(_within(run_dir, "manifest.json").read_bytes())
+    universe = json.loads(_within(run_dir, INPUT_UNIVERSE_REF).read_bytes())
     proposal = universe["proposal"]
     plan_by_entity = {p["entity_id"]: p for p in universe["plan"]["plans"]}
     consumer = run_dir / "consumer"
     consumer.mkdir(exist_ok=True)
-    poster_src = repo_root / manifest["semantic_run"]["poster_proxy_path"]
+    poster_src = _within(run_dir, INPUT_POSTER_PROXY_REF)
     if poster_src.is_file():
         shutil.copyfile(poster_src, consumer / "poster.jpg")
     names = {e["entity_id"]: e["display_name"] for e in proposal["entities"]}
@@ -69,7 +84,9 @@ def render(run_dir: Path) -> str:
         plan = plan_by_entity.get(eid, {})
         status = entry["status"]
         record = (
-            json.loads((run_dir / entry["record"]).read_bytes()) if entry.get("record") else None
+            json.loads(_within(run_dir, entry["record"]).read_bytes())
+            if entry.get("record")
+            else None
         )
         teaches = record["review"]["what_the_image_teaches"] if record else ""
         image_html = (

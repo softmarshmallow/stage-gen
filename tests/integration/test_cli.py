@@ -575,3 +575,115 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
     repaired = json.loads(output.getvalue())
     declarations = (package / "scenarios/last_class.toml").read_text(encoding="utf-8")
     assert repaired["last_class"] in declarations
+
+
+def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Both phases, a reroll, and the consumer page, with no provider anywhere."""
+
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/lantern_ferry"
+    admitted = repository / "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
+
+    semantic_out = tmp_path / "semantic"
+    stdout = StringIO()
+    assert (
+        main(
+            [
+                "universe",
+                "semantic",
+                "--input",
+                str(package),
+                "--output",
+                str(semantic_out),
+                "--cache-dir",
+                str(tmp_path / "cache"),
+                "--dry-run",
+                "--invocation-id",
+                "cli-semantic",
+            ],
+            stdout=stdout,
+        )
+        == 0
+    )
+    report = json.loads(stdout.getvalue())
+    assert report["recipe"] == "universe"
+    assert report["phase"] == "semantic"
+    assert report["universe_id"] == "lantern_ferry"
+    assert report["node_count"] == 6
+
+    # The gallery phase starts from an admission rather than from the package,
+    # so stand one up from the committed fixture instead of paying for a run.
+    from tests.unit.recipes.universe._universe_fixture import materialize_semantic_run
+
+    materialize_semantic_run(
+        semantic_out, admitted=admitted, poster=package / "references/poster.png"
+    )
+
+    gallery_out = tmp_path / "gallery"
+    stdout = StringIO()
+    assert (
+        main(
+            [
+                "universe",
+                "gallery",
+                "--input",
+                str(package),
+                "--semantic-run",
+                str(semantic_out),
+                "--output",
+                str(gallery_out),
+                "--cache-dir",
+                str(tmp_path / "cache"),
+                "--dry-run",
+                "--invocation-id",
+                "cli-gallery",
+                "--reroll",
+                "low_marsh",
+            ],
+            stdout=stdout,
+        )
+        == 0
+    )
+    gallery_report = json.loads(stdout.getvalue())
+    assert gallery_report["phase"] == "gallery"
+    assert gallery_report["node_count"] == 42
+    assert sum(gallery_report["counts"].values()) == 8
+
+    for run_dir in (semantic_out, gallery_out):
+        stdout = StringIO()
+        assert main(["export-view", "--run", str(run_dir)], stdout=stdout) == 0
+        assert json.loads(stdout.getvalue())["gaps"] == 0
+
+    stdout = StringIO()
+    assert main(["universe", "page", "--run", str(gallery_out)], stdout=stdout) == 0
+    page = Path(json.loads(stdout.getvalue())["page"])
+    assert page.is_file()
+    assert "The Lantern Ferry" in page.read_text(encoding="utf-8")
+
+
+def test_universe_failure_injection_is_refused_outside_a_dry_run(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Injecting a failure is a dry-run affordance; a paid run must not take it."""
+
+    repository = Path(__file__).resolve().parents[2]
+    exit_code = main(
+        [
+            "universe",
+            "semantic",
+            "--input",
+            str(repository / "library/games/lantern_ferry"),
+            "--output",
+            str(tmp_path / "run"),
+            "--failure-node",
+            "source-lock",
+        ],
+        stdout=StringIO(),
+    )
+    assert exit_code != 0
+    assert "available only with --dry-run" in capsys.readouterr().err
+    assert not (tmp_path / "run").exists()

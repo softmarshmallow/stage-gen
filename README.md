@@ -151,10 +151,12 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Four recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
+- Five recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
   build distinct prepared-game members from a `game.toml` package, `dialogue-scene`
-  builds an adult, non-explicit scene bundle from an authored request, and
-  `pointclick-room` builds a fixed painted puzzle room from an authored room package.
+  builds an adult, non-explicit scene bundle from an authored request,
+  `pointclick-room` builds a fixed painted puzzle room from an authored room package,
+  and `universe` builds an explorable storyworld package with one concept image per
+  admitted entity.
   Each declares its own graph document kind, so no recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache

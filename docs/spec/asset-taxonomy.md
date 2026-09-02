@@ -82,6 +82,7 @@ the old names.
 | `recipes/scrolling_preview` | `recipes/sideview_platformer` | `2d/sideview/platformer` (the recipe is the genre package) | c/d |
 | `recipes/dialogue_scene` | unchanged | `2d/frontview/vn/scene` | c |
 | `recipes/pointclick_room` | new in the ABI pass | `2d/roomview/pointclick` | c/d — fixed-room stage, cursor-only interaction |
+| `recipes/universe` | new in the universe pass | `universe` | a — no camera and no genre: the semantic half of this recipe proposes, plans and admits a storyworld as text, and only its gallery half draws |
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
 | `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |

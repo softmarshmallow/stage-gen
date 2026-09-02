@@ -110,13 +110,15 @@ uv run stage-gen <args>
 ```
 
 The CLI is the only automation surface: there is no HTTP service, and no
-process outside it starts a run. Four recipes compile onto the one engine —
+process outside it starts a run. Five recipes compile onto the one engine —
 `sideview-platformer` and `sideview-runner` build distinct prepared-game
 members from a `game.toml` package, `dialogue-scene` builds a scene bundle from
 an authored request document, and `pointclick-room` builds a fixed painted
 puzzle room from an authored package whose puzzle is proven finishable before generation is scheduled
 (`stage-gen pointclick-room generate --input library/games/<id>
---output out/<tag>`). Each declares its own graph document kind, so no recipe
+--output out/<tag>`), and `universe` builds an explorable storyworld package —
+typed entities and one concept image each — from a poster, a synopsis, and an
+expansion direction. Each declares its own graph document kind, so no recipe
 can read another's plan.
 
 Generated runs live below the configured output directory. Recipe-specific

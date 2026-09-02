@@ -97,8 +97,10 @@ debugging and reproducibility; it is not an IP license.
 
 ## Recipes and preview
 
-Four recipes compile onto the one engine: `sideview-platformer`,
-`sideview-runner`, `dialogue-scene`, and `pointclick-room`. Each declares its
+Five recipes compile onto the one engine: `sideview-platformer`,
+`sideview-runner`, `dialogue-scene`, `pointclick-room`, and `universe`. The
+first four produce something to play; `universe` produces something to read.
+Each declares its
 own graph document kind, so no recipe can read another's plan, and none may
 define another's assumptions or artifact layout.
 

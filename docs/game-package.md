@@ -53,7 +53,7 @@ Only these prepared-package identities are accepted by the resolver:
 | Item catalog | `item-content-v2` |
 | Projectile catalog | `projectile-content-v2` (optional) |
 | Scenario catalog | `scenario-catalog-v1` |
-| Scenario | `scenario-v1` |
+| Scenario | `scenario-v2` |
 
 Successful provider-free integration of the platformer member emits
 `prepared-game-runtime-v10`; a runner member's run emits
@@ -209,3 +209,12 @@ relationships, spawning, encounters, loot, placements, interactions, quests,
 and effects.
 Root `ui.toml` owns generated interface presentation only; its current inventory
 panel contract is specified in [Authored game UI](spec/game/ui.md).
+
+## Not a game package
+
+`library/games/<id>/universe.toml` is a package root of its own kind, read by
+the [universe recipe](spec/universe/generation-v1.md). It is never a member of
+a `game.toml` closure: [universe taxonomy V0](spec/universe/taxonomy-v0.md)
+declines to ratify that question, and the selected prepared-game closure must
+not carry universe-only files. The two roots sit side by side under
+`library/games/` and are resolved by different code.

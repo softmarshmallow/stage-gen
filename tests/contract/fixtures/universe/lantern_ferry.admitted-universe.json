@@ -1,0 +1,1310 @@
+{
+  "schema_version": 1,
+  "kind": "universe-admitted-v1",
+  "universe_id": "lantern_ferry",
+  "title": "The Lantern Ferry",
+  "medium_id": "anime_2d",
+  "publication_authorized": false,
+  "proposal": {
+    "universe_id": "lantern_ferry",
+    "title": "The Lantern Ferry",
+    "premise": {
+      "fact_id": "premise_one_crossing",
+      "claim": "The Sennow is a silt river a third of a mile wide with no bridge and soft banks that will not hold a pier, and the only two towns for forty miles sit on opposite sides of it, so everything that crosses goes by one lantern-read ferry.",
+      "lineage": "explicit_source",
+      "basis": "The opening paragraph states the width, the absence of a bridge, the soft silt, and the two towns; the third states that the crossing is read by lamp.",
+      "evidence_ids": [
+        "synopsis_p01",
+        "synopsis_p03"
+      ],
+      "direction_requirement_ids": []
+    },
+    "present_state": {
+      "fact_id": "present_state_two_towers_burning",
+      "claim": "Fourteen months into a bloom that never died back, the spring fords have not opened, the toll has been raised twice, both bank towers are still burning against each other, and neither bank has oil enough to burn both through another season.",
+      "lineage": "explicit_source",
+      "basis": "The last two paragraphs state the unbroken bloom, the closed fords, the two toll rises, both towers burning, and the shortfall of oil.",
+      "evidence_ids": [
+        "synopsis_p11",
+        "synopsis_p12"
+      ],
+      "direction_requirement_ids": []
+    },
+    "physical_ecological_rules": [
+      {
+        "fact_id": "rule_flakeshell_bloom",
+        "claim": "From late summer to the first hard frost the river fills with flakeshell, a drifting animal no larger than a grain of salt whose pale shells turn the water opaque; a hand held a foot under the surface disappears.",
+        "lineage": "explicit_source",
+        "basis": "Stated outright, including the size of the animal and the disappearing hand.",
+        "evidence_ids": [
+          "synopsis_p02"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_wandering_channel",
+        "claim": "While the flakeshell runs, the current drags sand along the bottom and the deep channel moves nightly: a lane that carried a loaded boat at dusk can be a shoal by morning.",
+        "lineage": "explicit_source",
+        "basis": "Stated in the same paragraph as the bloom, as its mechanical consequence.",
+        "evidence_ids": [
+          "synopsis_p02"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_amber_over_channel_green_over_shoal",
+        "claim": "Oil pressed from lampreed burns a narrow amber, and flakeshell scatters that amber into a long unbroken column over deep water and a short broken green one over sand; reading those two colours is the whole skill of the crossing.",
+        "lineage": "explicit_source",
+        "basis": "Stated as the reason the crossing works at all.",
+        "evidence_ids": [
+          "synopsis_p03"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_reading_needs_height_and_dark",
+        "claim": "The reading can be taken only after dark, only from above the water, and only while exactly one light is burning, which is why the boat carries a short mast and one lamp above the crew's heads.",
+        "lineage": "conservative_inference",
+        "basis": "The three conditions are stated; that the boat's one short mast exists to satisfy the second is the connection between the reading paragraph and the boat paragraph, and nothing else in the package explains the mast.",
+        "evidence_ids": [
+          "synopsis_p03",
+          "synopsis_p05"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_reed_oil_only",
+        "claim": "Pressed lampreed oil is the only fuel that burns the narrow amber the reading depends on; tallow and fish oil burn wide and white and flatten the two colours into one.",
+        "lineage": "explicit_source",
+        "basis": "Stated in the paragraph on the Low Marsh cut.",
+        "evidence_ids": [
+          "synopsis_p07"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_seasonal_alternatives",
+        "claim": "In an ordinary spring the water runs clear and low and three gravel fords open upstream of Tallow Landing, and for those weeks nobody pays to cross; in deep winter the surface sets into loose slabs over a channel that never freezes, and every year it drowns somebody who took the slabs for ice.",
+        "lineage": "explicit_source",
+        "basis": "Stated as the rest of the river's year.",
+        "evidence_ids": [
+          "synopsis_p04"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "fact_id": "rule_crossed_light_over_the_bar",
+        "claim": "Amber thrown from towers on opposite banks crosses over the Long Grey, the mile-long sandbar in mid-river, and the scattered colour there reads as deep channel over two feet of water.",
+        "lineage": "explicit_source",
+        "basis": "Stated as the physical reason two lamps do not double the light.",
+        "evidence_ids": [
+          "synopsis_p10"
+        ],
+        "direction_requirement_ids": []
+      }
+    ],
+    "institutional_tensions": [
+      {
+        "tension_id": "tension_two_towers",
+        "summary": "Both banks keep a lamp burning, and two lamps make the Long Grey read as channel. The south will license no north crew while the north tower stands; the north will not darken while the toll is fixed in the south.",
+        "participant_entity_ids": [
+          "landing_ferry_charter",
+          "kestwick_lamp_subscription",
+          "one_light_reads_true"
+        ],
+        "fact_ids": [
+          "fact_two_lamps_do_not_double_the_light",
+          "fact_north_tower_lit_two_autumns_ago",
+          "fact_no_licence_while_north_lamp_stands"
+        ],
+        "material_stakes": "If the north tower goes dark, Kestwick buys a southern licence to see its own river and loses the price it can hold out for. If a north crew is licensed, the charter loses the fifth-share of every toll that keeps the Standing Lamp lit and the oil bought.",
+        "competing_legitimate_needs": "One reference light is a physical requirement of the reading, not a preference. A town on the far bank with no charter, no toll share and no licensed crew has no other way to see where the channel lies."
+      },
+      {
+        "tension_id": "tension_one_cut_two_towers",
+        "summary": "One four-week hand cut of lampreed now fuels two towers through a bloom that did not stop, at a price the charter fixed for a season that was supposed to end at the frost.",
+        "participant_entity_ids": [
+          "low_marsh",
+          "landing_ferry_charter",
+          "kestwick_lamp_subscription"
+        ],
+        "fact_ids": [
+          "fact_marsh_cut_window",
+          "fact_marsh_price_asked_three_times",
+          "fact_cut_measured_for_a_short_season"
+        ],
+        "material_stakes": "The cutters carry the whole shortfall at a fixed price and cannot cut the beds twice. The charter must keep the Standing Lamp burning at that price or break its own duty. The subscription buys whatever the cut leaves over, week by week.",
+        "competing_legitimate_needs": "The cutters are paid for a season's work and are being asked for a year's fuel. The charter cannot raise the oil price without raising the toll it is already accused of raising. The subscription is buying the only fuel that reads true."
+      },
+      {
+        "tension_id": "tension_storm_clause_toll",
+        "summary": "The toll has risen twice under a clause written for storm weeks, in a year where the storm weeks never ended, while the crews take the risk of a channel two lamps have lied about.",
+        "participant_entity_ids": [
+          "landing_ferry_charter",
+          "sela_fenn"
+        ],
+        "fact_ids": [
+          "fact_toll_raised_twice",
+          "fact_sela_leaves_before_dark",
+          "fact_bloom_did_not_die_back"
+        ],
+        "material_stakes": "The charter's revenue is what buys the oil and keeps the tower, and the clause is the only wording that lets it charge for a permanent emergency. The ferry masters are the ones on the mast when the reading is wrong, and the earlier a crew leaves the less it can be paid to carry.",
+        "competing_legitimate_needs": "A crossing that is now the only way over at any season costs more to run than the charter's ordinary toll covers. A master who reads a lie is the one who grounds a loaded boat, and no clause covers that."
+      }
+    ],
+    "visual_observations": [
+      {
+        "observation_id": "poster_hung_lantern",
+        "category": "thing",
+        "claim": "A single amber disc with concentric halo rings hangs high above the water and is the only light source in the frame.",
+        "confidence": "high",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_amber_column",
+        "category": "system_cue",
+        "claim": "A broken column of amber lies on the water directly beneath that light, its segments alternating wide and narrow, and it is the only vertical in the frame.",
+        "confidence": "high",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_moored_hull",
+        "category": "thing",
+        "claim": "A flat hull with a squared bow and a low rail rides between the two banks, carrying one short mast with a yard and a small amber light above the deck.",
+        "confidence": "high",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_raked_stern_post",
+        "category": "thing",
+        "claim": "A short raked post rises from the hull's after end, above the deck line and behind the mast.",
+        "confidence": "medium",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_landing_posts",
+        "category": "place",
+        "claim": "Two posts of unequal height stand on the near bank with a rail spanning them, and nothing else is built on either shore.",
+        "confidence": "high",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_flat_bands",
+        "category": "art_grammar",
+        "claim": "Sky and water are flat horizontal bands of colour with hard edges and no gradient, and every mass reads as an unmodelled silhouette.",
+        "confidence": "high",
+        "canonical_status": "evidence"
+      },
+      {
+        "observation_id": "poster_far_bank_silhouette",
+        "category": "place",
+        "claim": "The far bank reads as one unbroken low silhouette with no structure standing on it.",
+        "confidence": "medium",
+        "canonical_status": "uncertain"
+      },
+      {
+        "observation_id": "poster_horizon_glare",
+        "category": "ambiguity",
+        "claim": "A bright band sits on the horizon under the hung light and cannot be told apart from a second light burning on the far bank.",
+        "confidence": "medium",
+        "canonical_status": "uncertain"
+      },
+      {
+        "observation_id": "poster_border_rule",
+        "category": "promotional_element",
+        "claim": "A thin amber rule insets the whole image as a printed border.",
+        "confidence": "high",
+        "canonical_status": "exclude_from_canon"
+      }
+    ],
+    "viewpoints": [
+      {
+        "viewpoint_id": "viewpoint_first_crossing",
+        "display_name": "A passenger making a first crossing",
+        "summary": "Someone who has paid the toll at the rail and is standing on a flat deck in the dark while a woman above them calls colours at water they cannot see into.",
+        "anchor_entity_ids": [
+          "landing_lighter",
+          "sela_fenn",
+          "flakeshell"
+        ],
+        "initially_known": "That there is no bridge, that the toll was higher than they were told, and that the boat leaves after dark.",
+        "entry_question": "Why does the crossing only run at night, and what is she reading out there?"
+      },
+      {
+        "viewpoint_id": "viewpoint_north_subscriber",
+        "display_name": "A Kestwick household paying the week's share",
+        "summary": "A north-bank family whose bead is hung at the doorframe, who has never been on the water at night and knows the crossing only as a price set on the other bank.",
+        "anchor_entity_ids": [
+          "kestwick_lamp_subscription",
+          "one_light_reads_true",
+          "landing_ferry_charter"
+        ],
+        "initially_known": "That the week's oil is paid for, that the tower burns all night, and that a boat was lost on the bar two autumns ago.",
+        "entry_question": "If both lamps are blamed for the bar, why is the answer always that ours goes out?"
+      }
+    ],
+    "entities": [
+      {
+        "entity_id": "sela_fenn",
+        "display_name": "Sela Fenn",
+        "primary_class": "actor",
+        "facets": [],
+        "entity_kind": "senior ferry master and lamp-reader",
+        "salience": "major",
+        "summary": "The senior ferry master at Tallow Landing on the south bank and the best reader of lamp-light on either side of the Sennow. In bloom season the river is opaque, so the deep channel is found by how one amber lamp scatters on the surface; Sela reads it from the masthead and calls it aloud while her crew poles blind below her.",
+        "how_it_works_or_lives": "Nineteen years of crossings in bloom water. She rides the short mast under the reading lantern, names a long unbroken amber column as channel and a short broken green one as shoal, and the crew works to her voice; the outbound leg runs about fifty minutes downstream, and the boat is hauled back up the far bank on a shore rope at first light.",
+        "present_tension": "With both towers burning, the colour over the Long Grey lies. She has begun leaving an hour before full dark, when a little daylight is still on the water and neither lamp reads true, on the reasoning that a channel she is guessing at is safer than one two lamps have lied about.",
+        "facts": [
+          {
+            "fact_id": "fact_sela_nineteen_years",
+            "claim": "Sela Fenn has crossed in bloom water for nineteen years and is the senior ferry master at the Landing.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the paragraph that introduces her.",
+            "evidence_ids": [
+              "synopsis_p08"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_sela_calls_the_channel_aloud",
+            "claim": "She calls the channel aloud from the mast while her crew poles below her, because only the reader above the water can see which column is amber and which is green.",
+            "lineage": "conservative_inference",
+            "basis": "The synopsis states that she calls the channel from the mast and that the reading can only be taken from above the water; that the crew below therefore cannot check her is the connection between the two.",
+            "evidence_ids": [
+              "synopsis_p03",
+              "synopsis_p08"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_sela_leaves_before_dark",
+            "claim": "She has begun crossing an hour before full dark, when neither lamp reads true, because a channel she is guessing at is safer than a channel two lamps have lied about.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the closing paragraph.",
+            "evidence_ids": [
+              "synopsis_p12"
+            ],
+            "direction_requirement_ids": []
+          }
+        ]
+      },
+      {
+        "entity_id": "kestwick_lamp_subscription",
+        "display_name": "The Kestwick Lamp Subscription",
+        "primary_class": "collective",
+        "facets": [
+          "system"
+        ],
+        "entity_kind": "household subscription that fuels the north bank's rival tower",
+        "salience": "major",
+        "summary": "Forty-one households in Kestwick, the north-bank town, who pay weekly into a common purse for the lampreed oil that keeps their own lamp tower burning. Kestwick raised the tower two autumns ago because the crossing's charter, its toll and its crew licences all sit on the south bank, and a north-bank farmer selling grain across the water would otherwise buy a southern licence to see where the channel lies.",
+        "how_it_works_or_lives": "The purse buys pressed reed oil by the week and the jars go up the tower's outside stair sealed; Hesk Varrow, refused a southern licence twice, trims and burns it. Payment is public: a household that has paid hangs a bead of amber glass at its doorframe. The purse never holds more than the nights immediately ahead.",
+        "present_tension": "Two lamps burning at once cross their light over the Long Grey and make two feet of water read deep. The Company will license no Kestwick crew while the north lamp stands, and the subscription will not darken it while the toll is set in the south.",
+        "facts": [
+          {
+            "fact_id": "fact_subscription_forty_one_households",
+            "claim": "Forty-one households pay weekly into the Kestwick Lamp Subscription for the oil the north tower burns.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the count in the paragraph on the north tower.",
+            "evidence_ids": [
+              "synopsis_p09"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_north_tower_lit_two_autumns_ago",
+            "claim": "Two autumns ago Kestwick raised its own tower and lit it, on the argument that the river touches both banks and a north-bank seller should not buy a southern licence to see the channel.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the north bank's plain argument.",
+            "evidence_ids": [
+              "synopsis_p09"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_subscription_doorframe_bead",
+            "claim": "A household that has paid the week's share hangs a bead of amber glass at its doorframe, so the subscription's reach can be counted along a street without asking anyone.",
+            "lineage": "generated_extension",
+            "basis": "The synopsis gives a weekly household subscription and a count of forty-one; how a weekly payment is shown in public is not stated, and the direction permits one lineaged layer of marsh and town custom.",
+            "evidence_ids": [
+              "synopsis_p09"
+            ],
+            "direction_requirement_ids": [
+              "direction_extension_layer"
+            ]
+          }
+        ]
+      },
+      {
+        "entity_id": "low_marsh",
+        "display_name": "The Low Marsh",
+        "primary_class": "place",
+        "facets": [],
+        "entity_kind": "shallow reed marsh and the hand cut that fuels every lamp",
+        "salience": "major",
+        "summary": "The shallow reed ground below Tallow Landing where lampreed is taken by hand in the four weeks before the bloom. Pressed lampreed oil is the only fuel that burns the narrow amber the channel reading depends on, so every light on either bank is cut here first.",
+        "how_it_works_or_lives": "Cutters wade the beds with hooks in the last dry weeks and float the bundles out on rafts to the press. The cut is a window rather than a supply: reed taken once the bloom is running presses thin. The cutters sell to the Landing Ferry Company at the price the charter fixes, and have asked three times to have it raised.",
+        "present_tension": "This year's cut was measured for a season that was supposed to end at the frost, and it is feeding two towers through a bloom that did not stop. Whatever the cutters are paid, the beds cannot be cut twice.",
+        "facts": [
+          {
+            "fact_id": "fact_marsh_cut_window",
+            "claim": "Cutters take lampreed by hand in the Low Marsh in the four weeks before the bloom, and that pressed reed oil is the only fuel that burns the narrow amber the reading depends on.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the paragraph on where the oil comes from.",
+            "evidence_ids": [
+              "synopsis_p07"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_marsh_price_asked_three_times",
+            "claim": "The cutters sell to the Company at the price the charter fixes and have asked three times to have it raised.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the count of requests.",
+            "evidence_ids": [
+              "synopsis_p07"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_cut_measured_for_a_short_season",
+            "claim": "The lampreed cut before this bloom was measured for a season that was supposed to end, and it is now burning through a fifteenth month.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the paragraph on the year the bloom held.",
+            "evidence_ids": [
+              "synopsis_p11"
+            ],
+            "direction_requirement_ids": []
+          }
+        ]
+      },
+      {
+        "entity_id": "landing_lighter",
+        "display_name": "The Landing Lighter",
+        "primary_class": "thing",
+        "facets": [
+          "place"
+        ],
+        "entity_kind": "flat-bottomed licensed ferry boat",
+        "salience": "major",
+        "summary": "The boat the crossing is made in: flat-bottomed, squared bow, low rail, and one short mast carrying the reading lantern above the crew's heads. It takes eleven passengers, or four passengers and a cart, and for the fifty minutes of an outbound leg it is the only piece of the world anyone aboard is standing on.",
+        "how_it_works_or_lives": "It cannot fight the current, so it is worked downstream on the outbound leg and hauled back up the far bank on a shore rope at first light. It lands only at the two oak posts and the rail on each bank, the only silt firm enough to hold a boat.",
+        "present_tension": "Four crews are licensed to work it and none may work it with the Standing Lamp dark. With the fords closed and the toll raised twice, the same hull now carries every crossing in every season.",
+        "facts": [
+          {
+            "fact_id": "fact_lighter_form_and_capacity",
+            "claim": "The lighter is flat-bottomed with a squared bow, a low rail and one short mast that carries the reading lantern above the crew, and it takes eleven passengers, or four passengers and a cart.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the paragraph describing the boat.",
+            "evidence_ids": [
+              "synopsis_p05"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_lighter_downstream_and_shore_rope",
+            "claim": "A crossing runs about fifty minutes: the lighter is worked downstream on the outbound leg because it cannot fight the current, and is hauled back up the far bank on a shore rope at first light.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the crossing time and both legs.",
+            "evidence_ids": [
+              "synopsis_p05"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_landing_posts_and_rail",
+            "claim": "Each bank's landing is two oak posts with a rail between them, standing on the only silt firm enough to land on.",
+            "lineage": "visual_observation",
+            "basis": "Two posts of unequal height with a rail spanning them stand on the near bank of the poster, and the synopsis paragraph cited alongside states what they are for; the poster is the only place their arrangement is seen.",
+            "evidence_ids": [
+              "poster_landing_posts",
+              "synopsis_p05"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_lighter_raked_stern_post",
+            "claim": "The lighter carries a short raked post at its after end, standing above the deck line where the shore rope is made off for the haul back.",
+            "lineage": "generated_extension",
+            "basis": "The raked post is visible on the poster and nowhere in the synopsis; what it is for is admitted only as the extension layer the direction allows, tied to the shore rope the synopsis does state.",
+            "evidence_ids": [
+              "poster_raked_stern_post",
+              "synopsis_p05"
+            ],
+            "direction_requirement_ids": [
+              "direction_poster_grammar_only",
+              "direction_extension_layer"
+            ]
+          }
+        ]
+      },
+      {
+        "entity_id": "flakeshell",
+        "display_name": "Flakeshell",
+        "primary_class": "kind",
+        "facets": [],
+        "entity_kind": "drifting shelled animal whose bloom closes and lights the river",
+        "salience": "major",
+        "summary": "A drifting animal no larger than a grain of salt whose pale shells fill the Sennow from late summer to the first hard frost and turn it opaque; a hand held a foot under the surface disappears. It is not silt and not weather. It can be scooped in a pan, counted, and watched for its die-back.",
+        "how_it_works_or_lives": "The bloom does two things at once: it hides the bottom, so the channel cannot be seen, and it scatters lamplight, so the channel can be read. Amber from a lampreed burner comes back long and unbroken over deep water and short and green over sand.",
+        "present_tension": "This year the flakeshell did not die back behind the first hard frost. The fords never opened, the river has been unreadable by daylight for fourteen months, and nobody on either bank can say why the bloom held.",
+        "facts": [
+          {
+            "fact_id": "fact_flakeshell_opaque_water",
+            "claim": "Flakeshell is a drifting animal no larger than a grain of salt whose pale shells turn the river opaque from late summer to the first hard frost.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the size of the animal and the season.",
+            "evidence_ids": [
+              "synopsis_p02"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_flakeshell_scatters_the_amber",
+            "claim": "Flakeshell scatters lampreed amber differently over deep water than over sand, which is the only reason a covered channel can be found at all.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the reason the crossing works.",
+            "evidence_ids": [
+              "synopsis_p03"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_bloom_did_not_die_back",
+            "claim": "This year the flakeshell did not die back behind the first hard frost, the spring fords never opened, and the water has been unreadable by daylight for fourteen months.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the present year's break with the ordinary cycle.",
+            "evidence_ids": [
+              "synopsis_p11"
+            ],
+            "direction_requirement_ids": []
+          }
+        ]
+      },
+      {
+        "entity_id": "landing_ferry_charter",
+        "display_name": "The Landing Charter",
+        "primary_class": "system",
+        "facets": [
+          "collective"
+        ],
+        "entity_kind": "chartered crossing monopoly and the company that keeps it",
+        "salience": "major",
+        "summary": "The written grant from both town councils under which the Landing Ferry Company works the crossing. It fixes the toll, licenses the four crews allowed on the water, sets the price the Company pays for lampreed oil, and requires that the Standing Lamp burn whenever a licensed boat is out. The Standing Lamp is the stone tower on the south bank whose amber burner every crew reads its channel against.",
+        "how_it_works_or_lives": "The charter is visible at the rail rather than on paper: the tower is lit before a boat leaves, a licensed crew loads between the oak posts and takes the toll, an unlicensed hull is turned off the same landing, and the Company keeps a fifth of every toll for keeping the tower and buying the oil. One clause, written for storm weeks, lets the toll rise while the crossing is the only way over.",
+        "present_tension": "An unbroken bloom has turned the storm-week clause into the ordinary year. The toll has risen twice, the price paid to the marsh has not moved, and the Company will license no Kestwick crew while the north lamp stands.",
+        "facts": [
+          {
+            "fact_id": "fact_charter_fixes_toll_and_licences",
+            "claim": "The charter is a written grant from both town councils that fixes the toll, licenses the four crews allowed on the water, and sets the price the Company pays for oil.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the content of the charter.",
+            "evidence_ids": [
+              "synopsis_p06"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_standing_lamp_must_burn",
+            "claim": "The Standing Lamp is a stone tower on the south bank with a lampreed burner behind an amber lens, and the charter requires it to burn whenever a licensed boat is out; the Company takes a fifth of every toll for keeping it.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the tower, the duty and the fifth-share.",
+            "evidence_ids": [
+              "synopsis_p06"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_toll_raised_twice",
+            "claim": "The Company has raised the toll twice under a clause written for storm weeks.",
+            "lineage": "explicit_source",
+            "basis": "Stated in the paragraph on the year the bloom held.",
+            "evidence_ids": [
+              "synopsis_p11"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_no_licence_while_north_lamp_stands",
+            "claim": "The Company will not license a Kestwick crew while the north lamp stands.",
+            "lineage": "explicit_source",
+            "basis": "Stated as one half of the closing deadlock.",
+            "evidence_ids": [
+              "synopsis_p12"
+            ],
+            "direction_requirement_ids": []
+          }
+        ]
+      },
+      {
+        "entity_id": "long_grey_grounding",
+        "display_name": "The Long Grey Grounding",
+        "primary_class": "event",
+        "facets": [],
+        "entity_kind": "the first night both towers burned together",
+        "salience": "supporting",
+        "summary": "The first night the south and north lamps burned at the same time. Their amber crossed over the Long Grey, the mile-long sandbar in mid-river, and the crossed colour read as deep channel over two feet of water. A licensed lighter went onto the bar at speed with nine aboard and a horse, broke its rail and its mast, and lost the horse and one passenger.",
+        "how_it_works_or_lives": "Each town's inquiry blamed the other town's lamp, and both towers still burn. Since that night the reading has been argued about as a right rather than practised as a skill.",
+        "present_tension": "Nothing was darkened afterwards. Every crossing since is made over a bar that is known to lie whenever both lamps are lit.",
+        "facts": [
+          {
+            "fact_id": "fact_long_grey_sandbar",
+            "claim": "The Long Grey is a mile-long sandbar in mid-river with about two feet of water over it.",
+            "lineage": "explicit_source",
+            "basis": "Stated with its length and its depth.",
+            "evidence_ids": [
+              "synopsis_p10"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_crossed_light_grounded_a_lighter",
+            "claim": "On the first night both towers burned together, a licensed lighter went onto the Long Grey at speed with nine aboard and a horse, broke its rail and its mast, and lost the horse and one passenger.",
+            "lineage": "explicit_source",
+            "basis": "Stated with the count aboard and what was lost.",
+            "evidence_ids": [
+              "synopsis_p10"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_inquiries_blamed_the_other_bank",
+            "claim": "Each town's inquiry into the grounding blamed the other town's lamp.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the outcome of both inquiries.",
+            "evidence_ids": [
+              "synopsis_p10"
+            ],
+            "direction_requirement_ids": []
+          }
+        ]
+      },
+      {
+        "entity_id": "one_light_reads_true",
+        "display_name": "One Light Reads True",
+        "primary_class": "idea",
+        "facets": [],
+        "entity_kind": "contested rule of the crossing",
+        "salience": "major",
+        "summary": "The rule the whole crossing rests on: the channel can be read only while exactly one lamp is burning. It began as a physical fact, because one narrow amber source scattering off the bloom gives a long column over deep water and a short green one over sand, and it has become a claim about who may keep a light. The south holds that the Standing Lamp is the reference and no second light may stand; the north holds that the river touches both banks.",
+        "how_it_works_or_lives": "It is practised before it is argued. A keeper shutters his lens for the minutes a licensed boat is on the water; a master waits out a second light rather than read against it. Nothing enforces it but the bar.",
+        "present_tension": "Two autumns of both towers burning have turned a working condition into a demand each bank makes of the other. The Company hears darken the north lamp; Kestwick hears buy a southern licence to see your own river.",
+        "facts": [
+          {
+            "fact_id": "fact_only_one_light_burning",
+            "claim": "The channel reading can be done only after dark, only from above the water, and only with one light burning.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the three conditions of the reading.",
+            "evidence_ids": [
+              "synopsis_p03"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_two_lamps_do_not_double_the_light",
+            "claim": "Two lamps burning at once do not double the light: their amber crosses over the Long Grey and the scattered colour there reads deep over two feet of water.",
+            "lineage": "explicit_source",
+            "basis": "Stated as the physical consequence of two towers.",
+            "evidence_ids": [
+              "synopsis_p10"
+            ],
+            "direction_requirement_ids": []
+          },
+          {
+            "fact_id": "fact_north_keeper_shutters_the_lens",
+            "claim": "North-bank practice is to shutter the tower lens for the minutes a licensed boat is on the water, which keeps the rule as a courtesy without conceding the tower.",
+            "lineage": "generated_extension",
+            "basis": "The synopsis states the one-light condition and that both towers still burn, but not how the north bank works around it night to night; this is the extension layer the direction allows for marsh and bank custom.",
+            "evidence_ids": [
+              "synopsis_p03",
+              "synopsis_p10"
+            ],
+            "direction_requirement_ids": [
+              "direction_extension_layer"
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "relationship_id": "rel_charter_licenses_sela",
+        "relationship_family": "social_political",
+        "relationship_kind": "certifies",
+        "source_entity_id": "landing_ferry_charter",
+        "target_entity_id": "sela_fenn",
+        "summary": "The charter licenses the four crews allowed on the water, and Sela Fenn is the senior master of one of them.",
+        "temporal_scope": "For as long as the charter has run, and for her nineteen years on the water.",
+        "perspective": "The Company counts her as its best licence; she counts the licence as the reason she cannot cross for anyone else.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p06",
+          "synopsis_p08"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_sela_works_the_lighter",
+        "relationship_family": "material_functional",
+        "relationship_kind": "uses",
+        "source_entity_id": "sela_fenn",
+        "target_entity_id": "landing_lighter",
+        "summary": "She works the lighter from its mast, calling the channel while the crew poles the hull under her.",
+        "temporal_scope": "Every crossing of the bloom season.",
+        "perspective": "To the crew the boat is what they push; to her it is the platform the reading is taken from.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p05",
+          "synopsis_p08"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_sela_reads_by_one_light",
+        "relationship_family": "causal_historical",
+        "relationship_kind": "depends_on",
+        "source_entity_id": "sela_fenn",
+        "target_entity_id": "one_light_reads_true",
+        "summary": "Her whole method is the rule: one narrow amber source, read from above the water, after dark.",
+        "temporal_scope": "Every night crossing, and conspicuously in its absence this year.",
+        "perspective": "She treats the rule as a working condition; both banks treat it as a claim.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p03",
+          "synopsis_p08"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_charter_governs_the_cut",
+        "relationship_family": "social_political",
+        "relationship_kind": "governs",
+        "source_entity_id": "landing_ferry_charter",
+        "target_entity_id": "low_marsh",
+        "summary": "The charter sets the price the Company pays for lampreed oil, so the marsh cut is sold at a rate the cutters do not set.",
+        "temporal_scope": "Every cut since the charter was granted.",
+        "perspective": "The Company reads the fixed price as the guarantee that the Standing Lamp can always be fuelled; the cutters read it as a wage that has not moved in three askings.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p06",
+          "synopsis_p07"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_charter_opposes_the_subscription",
+        "relationship_family": "social_political",
+        "relationship_kind": "opposes",
+        "source_entity_id": "landing_ferry_charter",
+        "target_entity_id": "kestwick_lamp_subscription",
+        "summary": "Neither will move first: no Kestwick crew is licensed while the north lamp stands, and the north lamp will not go dark while the toll is set in the south.",
+        "temporal_scope": "Since the north tower was lit two autumns ago.",
+        "perspective": "The south calls the north tower the hazard; the north calls the licence bar the hazard.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p12"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_rule_requires_reed_oil",
+        "relationship_family": "material_functional",
+        "relationship_kind": "requires",
+        "source_entity_id": "one_light_reads_true",
+        "target_entity_id": "low_marsh",
+        "summary": "The rule holds only for lampreed light: reed oil burns the narrow amber, and tallow or fish oil burns wide and white and flattens the two colours into one.",
+        "temporal_scope": "Every night the reading is taken.",
+        "perspective": "To a crew it is a fuel specification; to the marsh it is why one four-week cut decides whether anybody crosses.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p03",
+          "synopsis_p07"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_subscription_consumes_the_same_cut",
+        "relationship_family": "material_functional",
+        "relationship_kind": "consumes",
+        "source_entity_id": "kestwick_lamp_subscription",
+        "target_entity_id": "low_marsh",
+        "summary": "The north tower burns oil from the same beds the Company buys from, so one cut is now feeding two burners.",
+        "temporal_scope": "Since the north tower was lit, and acutely through this unbroken bloom.",
+        "perspective": "The subscription buys a fuel; the marsh sees one season's cut leaving in two directions.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p07",
+          "synopsis_p09",
+          "synopsis_p12"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_rule_depends_on_the_bloom",
+        "relationship_family": "causal_historical",
+        "relationship_kind": "depends_on",
+        "source_entity_id": "one_light_reads_true",
+        "target_entity_id": "flakeshell",
+        "summary": "Without the bloom there is nothing for the amber to scatter off, and without the bloom there would be no need to read the water at all.",
+        "temporal_scope": "Every bloom season.",
+        "perspective": "The animal that closes the river is also the one that makes it legible.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p02",
+          "synopsis_p03"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_charter_changed_by_the_bloom",
+        "relationship_family": "causal_historical",
+        "relationship_kind": "changed_by",
+        "source_entity_id": "landing_ferry_charter",
+        "target_entity_id": "flakeshell",
+        "summary": "A bloom that did not clear turned a clause written for storm weeks into the ordinary year, and the toll rose twice under it.",
+        "temporal_scope": "The last fourteen months.",
+        "perspective": "The Company reads the clause as written for exactly this; the banks read fourteen months as no longer a storm week.",
+        "lineage": "explicit_source",
+        "evidence_ids": [
+          "synopsis_p11"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_subscription_participated_in_the_grounding",
+        "relationship_family": "causal_historical",
+        "relationship_kind": "participated_in",
+        "source_entity_id": "kestwick_lamp_subscription",
+        "target_entity_id": "long_grey_grounding",
+        "summary": "The north tower that burned on the night of the grounding was burning subscription oil.",
+        "temporal_scope": "The first night both towers burned together.",
+        "perspective": "The subscription counts itself a payer of fuel, not a party to a wreck; the southern inquiry counted it as the second light.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p09",
+          "synopsis_p10"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_grounding_represents_the_rule",
+        "relationship_family": "symbolic",
+        "relationship_kind": "represents",
+        "source_entity_id": "long_grey_grounding",
+        "target_entity_id": "one_light_reads_true",
+        "summary": "On both banks the grounding stands for the rule; every argument about a second lamp is made over that night.",
+        "temporal_scope": "Since the inquiries closed without a finding either bank accepted.",
+        "perspective": "The south cites it as proof the north tower must go dark; the north cites it as proof that two banks were never asked which lamp should stand.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p10",
+          "synopsis_p12"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_grounding_damaged_a_lighter",
+        "relationship_family": "material_functional",
+        "relationship_kind": "damages",
+        "source_entity_id": "long_grey_grounding",
+        "target_entity_id": "landing_lighter",
+        "summary": "A licensed lighter of this build broke its rail and its mast on the bar, which is the mast the reading lantern rides on.",
+        "temporal_scope": "One night, two autumns ago.",
+        "perspective": "To the Company it was a hull and a licence; to a crew it was the loss of the only thing that holds the lamp above the water.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p05",
+          "synopsis_p10"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_lighter_moves_through_the_bloom",
+        "relationship_family": "spatial",
+        "relationship_kind": "moves_through",
+        "source_entity_id": "landing_lighter",
+        "target_entity_id": "flakeshell",
+        "summary": "Every crossing is worked through bloom water, so nothing under the hull can be seen from the deck at any point in the fifty minutes.",
+        "temporal_scope": "Every crossing of the season, and every crossing of the last fourteen months.",
+        "perspective": "A passenger sees a flat grey surface; the master sees the only surface the reading works on.",
+        "lineage": "conservative_inference",
+        "evidence_ids": [
+          "synopsis_p02",
+          "synopsis_p05"
+        ],
+        "direction_requirement_ids": []
+      },
+      {
+        "relationship_id": "rel_bloom_overlaps_the_marsh",
+        "relationship_family": "spatial",
+        "relationship_kind": "overlaps",
+        "source_entity_id": "flakeshell",
+        "target_entity_id": "low_marsh",
+        "summary": "The bloom runs up into the marsh's outer beds, which is why the cut has to be finished before it arrives.",
+        "temporal_scope": "The four weeks before each bloom, and the whole of this one.",
+        "perspective": "The cutters date their season by where the water goes pale, not by a calendar.",
+        "lineage": "generated_extension",
+        "evidence_ids": [
+          "synopsis_p02",
+          "synopsis_p07"
+        ],
+        "direction_requirement_ids": [
+          "direction_extension_layer"
+        ]
+      }
+    ],
+    "identity_markers": [
+      {
+        "marker_id": "marker_subscription_bead",
+        "owner_entity_id": "kestwick_lamp_subscription",
+        "form": "One bead of amber glass on a short reed cord, hung at the doorframe at head height.",
+        "materials": "Waste glass from the tower lens-maker, drilled and strung on the same reed the oil is pressed from.",
+        "applied_use": "Hung on the day the week's share is paid and taken in when it lapses.",
+        "meaning": "This house is paying for the north light this week, and can say so without being asked.",
+        "limits": "It records that a share was paid, never how much, and it says nothing about the households that pay late or pay in oil.",
+        "historical_origin": "It began as the tally of the first winter, when the purse was counted door to door and a bead was left behind as the receipt.",
+        "lineage": "generated_extension",
+        "evidence_ids": [
+          "synopsis_p09"
+        ],
+        "direction_requirement_ids": [
+          "direction_extension_layer"
+        ],
+        "independently_admitted_thing_id": null
+      },
+      {
+        "marker_id": "marker_uncut_notch",
+        "owner_entity_id": "low_marsh",
+        "form": "The last three stems of a worked bed left standing and notched at knee height.",
+        "materials": "Living lampreed, notched with the same hook that took the rest of the bed.",
+        "applied_use": "Left by the cutter who worked the bed and read by the next cutter to reach it.",
+        "meaning": "This bed is cut for the season, and whose turn it was is settled between cutters rather than by the charter.",
+        "limits": "It lasts one season only, because the bloom rots the notched stems, and it binds nobody who does not cut here.",
+        "historical_origin": "Older than the charter, and the charter has never mentioned it.",
+        "lineage": "generated_extension",
+        "evidence_ids": [
+          "synopsis_p07"
+        ],
+        "direction_requirement_ids": [
+          "direction_extension_layer"
+        ],
+        "independently_admitted_thing_id": null
+      },
+      {
+        "marker_id": "marker_licence_cord",
+        "owner_entity_id": "landing_ferry_charter",
+        "form": "A band of undyed reed cord knotted around the left forearm, worn over the sleeve where a hand at the rail can see it.",
+        "materials": "Reed cord from the same press house that supplies the oil, knotted once for each year the licence has been renewed.",
+        "applied_use": "Worn on the water by the four licensed crews and cut off the arm when a licence is withdrawn.",
+        "meaning": "This crew may take the toll and land between the oak posts.",
+        "limits": "It is worn by crews, not by passengers or cutters, and it proves nothing away from the landing.",
+        "historical_origin": "It began as the tally of renewals the Company kept for its own crews and became the thing a passenger looks for at the rail.",
+        "lineage": "generated_extension",
+        "evidence_ids": [
+          "synopsis_p06"
+        ],
+        "direction_requirement_ids": [
+          "direction_extension_layer",
+          "direction_visible_mechanics"
+        ],
+        "independently_admitted_thing_id": null
+      }
+    ],
+    "direction_coverage": [
+      {
+        "requirement_id": "direction_cold_reader",
+        "status": "satisfied",
+        "evidence_ids": [
+          "flakeshell",
+          "low_marsh",
+          "one_light_reads_true",
+          "landing_ferry_charter"
+        ],
+        "note": "Each entity summary names what it is before it names what it is for: flakeshell is defined as an animal that closes the water, the marsh as where the only usable fuel is cut, the rule as the one-light condition, and the charter as the grant that fixes toll, licences and the Standing Lamp."
+      },
+      {
+        "requirement_id": "direction_irregular_census",
+        "status": "partial",
+        "evidence_ids": [
+          "sela_fenn",
+          "kestwick_lamp_subscription",
+          "low_marsh",
+          "landing_lighter",
+          "flakeshell",
+          "landing_ferry_charter",
+          "long_grey_grounding",
+          "one_light_reads_true"
+        ],
+        "note": "Eight entities out of a census of six to ten, one per class. Nothing is padded and every class carries a distinct load, but the even distribution is regular rather than irregular; a larger census would weight the crossing trade above the idea layer."
+      },
+      {
+        "requirement_id": "direction_visible_mechanics",
+        "status": "satisfied",
+        "evidence_ids": [
+          "rule_amber_over_channel_green_over_shoal",
+          "fact_lighter_downstream_and_shore_rope",
+          "fact_marsh_cut_window",
+          "marker_licence_cord",
+          "rule_seasonal_alternatives"
+        ],
+        "note": "The reading is a person on a mast calling two colours, the shore rope is a haul at first light, the cut is hands in the beds, the toll and licence are a cord at the rail, and the fords and winter slabs are surfaces a body stands on or falls through."
+      },
+      {
+        "requirement_id": "direction_physical_river",
+        "status": "satisfied",
+        "evidence_ids": [
+          "rule_flakeshell_bloom",
+          "rule_reed_oil_only",
+          "rule_wandering_channel",
+          "tension_one_cut_two_towers"
+        ],
+        "note": "Nothing in the package acts without fuel, hours or risk: the bloom is an animal, the light is pressed oil measured in weeks of cut, and the channel moves because sand moves."
+      },
+      {
+        "requirement_id": "direction_legitimate_disagreement",
+        "status": "satisfied",
+        "evidence_ids": [
+          "tension_two_towers",
+          "tension_one_cut_two_towers",
+          "tension_storm_clause_toll",
+          "rel_charter_governs_the_cut"
+        ],
+        "note": "The charter's fifth-share buys the reference light, the subscription buys sight of the channel for a bank with no licence, and the marsh cutters hold a third position: a fixed price for a cut that cannot be taken twice."
+      },
+      {
+        "requirement_id": "direction_extension_layer",
+        "status": "satisfied",
+        "evidence_ids": [
+          "fact_subscription_doorframe_bead",
+          "fact_north_keeper_shutters_the_lens",
+          "marker_uncut_notch",
+          "marker_licence_cord",
+          "rel_bloom_overlaps_the_marsh"
+        ],
+        "note": "Every extension is marsh or bank custom, tools of the trade, or the working of the charter, and each is recorded as a generated extension citing this requirement."
+      },
+      {
+        "requirement_id": "direction_poster_grammar_only",
+        "status": "satisfied",
+        "evidence_ids": [
+          "fact_lighter_raked_stern_post",
+          "poster_border_rule",
+          "poster_horizon_glare",
+          "poster_flat_bands"
+        ],
+        "note": "The raked stern post is the one poster-only detail admitted, and it enters as a generated extension citing this requirement. The printed border and the horizon glare are held out of canon, and the flat banded light is recorded as art grammar rather than as weather."
+      },
+      {
+        "requirement_id": "direction_one_image_one_lesson",
+        "status": "satisfied",
+        "evidence_ids": [
+          "sela_fenn",
+          "landing_ferry_charter",
+          "one_light_reads_true",
+          "long_grey_grounding"
+        ],
+        "note": "Only the master's scene stages the channel reading itself; the charter scene is the toll and the licence at the rail, the rule's scene is a lens being shuttered for a passing boat, and the grounding is the consequence rather than the mechanism."
+      },
+      {
+        "requirement_id": "direction_no_explanatory_images",
+        "status": "satisfied",
+        "evidence_ids": [
+          "viewpoint_first_crossing",
+          "viewpoint_north_subscriber",
+          "rel_grounding_represents_the_rule"
+        ],
+        "note": "Topology, chronology and causality stay in the relationship and viewpoint records; no plan entry stages a chart, sheet, plan, cutaway or standalone emblem, and every entry is one continuous scene."
+      }
+    ],
+    "source_conflicts": [
+      {
+        "conflict_id": "conflict_horizon_glare",
+        "detail": "The poster puts a bright band on the horizon under the hung light, which cannot be told apart from a second tower burning on the far bank.",
+        "status": "resolved",
+        "resolution": "Read as staging. The poster is visual evidence and art grammar only, so the number and position of the towers is taken from the synopsis, which puts the Standing Lamp on the south bank and the rival tower at Kestwick.",
+        "evidence_ids": [
+          "poster_horizon_glare",
+          "poster_hung_lantern",
+          "synopsis_p09"
+        ]
+      },
+      {
+        "conflict_id": "conflict_bloom_cause",
+        "detail": "The synopsis states that the flakeshell did not die back behind the first hard frost and gives no cause; nothing in the package supplies one.",
+        "status": "unresolved",
+        "resolution": "Left open on purpose. Inventing a cause would put an explanation where the world has only a fifteenth month of it, and every institution here is arguing without one.",
+        "evidence_ids": [
+          "fact_bloom_did_not_die_back",
+          "synopsis_p11"
+        ]
+      }
+    ],
+    "unresolved_questions": [
+      "Why the bloom held through a frost that has always ended it, and whether anyone on either bank is measuring it rather than waiting.",
+      "What the charter actually says about a second light, given that both inquiries into the grounding read it and neither published a finding the other bank accepted.",
+      "Whether the marsh could be cut a second time in a year, and what a bed cut twice presses out."
+    ]
+  },
+  "plan": {
+    "universe_id": "lantern_ferry",
+    "set_rationale": "Eight images, one per entity, each carrying a lesson no other carries: how the channel is read and by whom, what the boat is and how it comes home, where the fuel is cut, what the water is made of, what the charter looks like at the rail, who pays for the second light, what the crossed light cost, and how the one-light rule is practised. Only one entry stages the reading itself. Night is the working condition here, so it is rationed to two entries and every other hour of the day carries its own subject.",
+    "plans": [
+      {
+        "entity_id": "sela_fenn",
+        "concept_mode": "in_world_action",
+        "primary_purpose": "humanize",
+        "lesson_key": "lesson_the_channel_is_called_aloud",
+        "audience_question": "Who decides where the boat goes when nobody aboard can see the bottom?",
+        "visible_fact_ids": [
+          "fact_sela_calls_the_channel_aloud",
+          "fact_sela_nineteen_years"
+        ],
+        "visible_relationship_ids": [
+          "rel_sela_works_the_lighter",
+          "rel_sela_reads_by_one_light"
+        ],
+        "scene_premise": "Mid-crossing: the master braced at the masthead under the reading lantern, one arm out over the water, mouth open on a called colour, while the polers on the deck below work to a voice they cannot check.",
+        "signature_motif": {
+          "action_verb": "calling",
+          "dominant_prop": "masthead_lantern",
+          "vantage": "low_angle"
+        },
+        "in_frame_contrast": "The reader is lit from above by the lamp she is reading by, while the crew under her are silhouettes with their faces turned away from the light.",
+        "unique_contribution": "The only image in which the reading is spoken by a named person and obeyed by people who cannot verify it.",
+        "scene_register": {
+          "scale": "human",
+          "time_of_day": "night",
+          "weather": "clear",
+          "weather_justification": "Clear air, because the reading needs an unbroken amber column and any haze breaks it into the same short segments a shoal gives.",
+          "setting": "exterior",
+          "population": "few",
+          "energy": "working"
+        }
+      },
+      {
+        "entity_id": "kestwick_lamp_subscription",
+        "concept_mode": "representative_public_manifestation",
+        "primary_purpose": "connect",
+        "lesson_key": "lesson_the_north_light_is_bought_weekly",
+        "audience_question": "Who is paying for the second light, and how often?",
+        "visible_fact_ids": [
+          "fact_subscription_forty_one_households",
+          "fact_subscription_doorframe_bead"
+        ],
+        "visible_relationship_ids": [
+          "rel_subscription_consumes_the_same_cut",
+          "rel_charter_opposes_the_subscription"
+        ],
+        "scene_premise": "The week's oil going up the north tower's outside stair: households queued at the door with sealed jars, a crate of them stacked at the foot of the stair, amber beads hung at the doorframes of the street behind.",
+        "signature_motif": {
+          "action_verb": "hoisting",
+          "dominant_prop": "oil_jar_crate",
+          "vantage": "over_shoulder"
+        },
+        "in_frame_contrast": "The tower lens is already burning above a stair still being climbed with the oil that will feed it tonight.",
+        "unique_contribution": "The only image that shows the second light as a weekly household expense rather than as a rival institution.",
+        "scene_register": {
+          "scale": "architectural",
+          "time_of_day": "dusk",
+          "weather": "overcast",
+          "weather_justification": "Overcast holds the last light flat over the north bank so the tower lens is already the brightest thing in the street.",
+          "setting": "threshold",
+          "population": "crowd",
+          "energy": "working"
+        }
+      },
+      {
+        "entity_id": "low_marsh",
+        "concept_mode": "establishing_environment",
+        "primary_purpose": "orient",
+        "lesson_key": "lesson_every_lamp_is_cut_by_hand",
+        "audience_question": "Where does the light on this river actually come from?",
+        "visible_fact_ids": [
+          "fact_marsh_cut_window",
+          "fact_cut_measured_for_a_short_season"
+        ],
+        "visible_relationship_ids": [
+          "rel_charter_governs_the_cut",
+          "rel_bloom_overlaps_the_marsh"
+        ],
+        "scene_premise": "The reed ground below the town from above: cut lanes worked into the beds, small figures waist deep with hooks, and a raft of bundled reed being poled out toward the press.",
+        "signature_motif": {
+          "action_verb": "cutting",
+          "dominant_prop": "reed_bundle_raft",
+          "vantage": "aerial"
+        },
+        "in_frame_contrast": "Cut lanes lie beside beds still standing, so a season's whole window is legible as an area rather than a date.",
+        "unique_contribution": "The only image that places the fuel supply in the landscape and shows how small the cut is against the water it lights.",
+        "scene_register": {
+          "scale": "landscape",
+          "time_of_day": "day",
+          "weather": "wind",
+          "weather_justification": "Wind lays the standing beds over, which is what makes the cut lanes and the poling lanes between them legible from height.",
+          "setting": "exterior",
+          "population": "few",
+          "energy": "working"
+        }
+      },
+      {
+        "entity_id": "landing_lighter",
+        "concept_mode": "hero_object_in_use",
+        "primary_purpose": "identify",
+        "lesson_key": "lesson_the_boat_cannot_come_back_alone",
+        "audience_question": "What is this boat, and how does it get back to where it started?",
+        "visible_fact_ids": [
+          "fact_lighter_form_and_capacity",
+          "fact_lighter_downstream_and_shore_rope",
+          "fact_lighter_raked_stern_post"
+        ],
+        "visible_relationship_ids": [
+          "rel_sela_works_the_lighter"
+        ],
+        "scene_premise": "First light on the far bank: the empty lighter angled in close to the shore, the shore rope taut from the raked stern post to the crew walking it upstream along the bank, the reading lantern dark on its yard.",
+        "signature_motif": {
+          "action_verb": "hauling",
+          "dominant_prop": "squared_bow_hull",
+          "vantage": "eye_level"
+        },
+        "in_frame_contrast": "The lamp that ruled the outbound leg hangs dead on the mast while the boat is moved by rope and legs.",
+        "unique_contribution": "The only image of the return leg, where the boat is worked by rope and shore instead of by light and current.",
+        "scene_register": {
+          "scale": "human",
+          "time_of_day": "dawn",
+          "weather": "fog",
+          "weather_justification": "River fog forms over warmer water against a cold bank at first light, which is the hour the shore rope is worked, and it sits low enough to leave the hull and the rope clear.",
+          "setting": "exterior",
+          "population": "few",
+          "energy": "working"
+        }
+      },
+      {
+        "entity_id": "flakeshell",
+        "concept_mode": "representative_specimen_in_context",
+        "primary_purpose": "differentiate",
+        "lesson_key": "lesson_the_grey_water_is_an_animal",
+        "audience_question": "Is the river dirty, or is something living in it?",
+        "visible_fact_ids": [
+          "fact_flakeshell_opaque_water",
+          "fact_bloom_did_not_die_back"
+        ],
+        "visible_relationship_ids": [
+          "rel_lighter_moves_through_the_bloom"
+        ],
+        "scene_premise": "A scoop pan set on the boards at the landing edge, held level in one hand: pale shells settling in the pan, a wrist lowered into it and lost a knuckle down, snow on the boards and loose slabs at the water's margin behind.",
+        "signature_motif": {
+          "action_verb": "dipping",
+          "dominant_prop": "shell_scoop_pan",
+          "vantage": "high_angle"
+        },
+        "in_frame_contrast": "Shells that read as individual grains in the pan read as one flat opaque surface in the river a hand's span beyond it.",
+        "unique_contribution": "The only image at the scale where the bloom can be seen to be made of animals rather than of silt.",
+        "scene_register": {
+          "scale": "intimate",
+          "time_of_day": "day",
+          "weather": "snow",
+          "weather_justification": "Deep winter: the surface sets into loose slabs at the margin while the channel behind them never freezes, and the pan is scooped from the open water between the two.",
+          "setting": "threshold",
+          "population": "solitary",
+          "energy": "still"
+        }
+      },
+      {
+        "entity_id": "landing_ferry_charter",
+        "concept_mode": "visible_system_instance",
+        "primary_purpose": "manifest",
+        "lesson_key": "lesson_the_charter_is_enforced_at_the_rail",
+        "audience_question": "What does a monopoly on a river actually look like from the bank?",
+        "visible_fact_ids": [
+          "fact_charter_fixes_toll_and_licences",
+          "fact_toll_raised_twice",
+          "fact_standing_lamp_must_burn"
+        ],
+        "visible_relationship_ids": [
+          "rel_charter_licenses_sela",
+          "rel_charter_governs_the_cut"
+        ],
+        "scene_premise": "Boarding between the two oak posts: a licensed crewman with the reed cord on his forearm taking coin at the rail as passengers step across, while at the same landing a hand fends an unlicensed skiff off the posts and its owner argues from the water.",
+        "signature_motif": {
+          "action_verb": "boarding",
+          "dominant_prop": "oak_landing_posts",
+          "vantage": "eye_level"
+        },
+        "in_frame_contrast": "The same rail admits one boat and refuses another, and the only difference visible in the frame is a cord on a forearm.",
+        "unique_contribution": "The only image where the toll and the licence are a physical transaction at a rail rather than a rule about the river.",
+        "scene_register": {
+          "scale": "architectural",
+          "time_of_day": "day",
+          "weather": "clear",
+          "weather_justification": "Clear midday, the hours when no boat is reading, so nothing in the frame is lit by a lamp and the landing is doing business only.",
+          "setting": "threshold",
+          "population": "crowd",
+          "energy": "working"
+        }
+      },
+      {
+        "entity_id": "long_grey_grounding",
+        "concept_mode": "witnessed_event_moment",
+        "primary_purpose": "historicize",
+        "lesson_key": "lesson_the_crossed_light_cost_a_boat",
+        "audience_question": "What happened the first night both towers burned?",
+        "visible_fact_ids": [
+          "fact_crossed_light_grounded_a_lighter",
+          "fact_long_grey_sandbar"
+        ],
+        "visible_relationship_ids": [
+          "rel_grounding_damaged_a_lighter",
+          "rel_subscription_participated_in_the_grounding"
+        ],
+        "scene_premise": "The lighter hard up on the bar and canted over in two feet of water, rail broken and mast down across the sand, figures over the side, a horse floundering, and two amber columns lying across the shoal from opposite banks.",
+        "signature_motif": {
+          "action_verb": "grounding",
+          "dominant_prop": "canted_hull",
+          "vantage": "high_angle"
+        },
+        "in_frame_contrast": "Two amber columns cross where there is sand under them, and the water they cross over is shallow enough to stand in.",
+        "unique_contribution": "The only image of the accident itself, and the only one that shows two lights on the same water at the same time.",
+        "scene_register": {
+          "scale": "landscape",
+          "time_of_day": "night",
+          "weather": "clear",
+          "weather_justification": "Clear night, because both amber columns only carry the length of the bar when the air between the towers is clean.",
+          "setting": "exterior",
+          "population": "few",
+          "energy": "urgent"
+        }
+      },
+      {
+        "entity_id": "one_light_reads_true",
+        "concept_mode": "practiced_or_contested_idea",
+        "primary_purpose": "invite",
+        "lesson_key": "lesson_someone_must_choose_which_lamp_burns",
+        "audience_question": "If only one lamp may burn, who gets to decide which one it is?",
+        "visible_fact_ids": [
+          "fact_north_keeper_shutters_the_lens",
+          "fact_only_one_light_burning"
+        ],
+        "visible_relationship_ids": [
+          "rel_grounding_represents_the_rule",
+          "rel_rule_depends_on_the_bloom"
+        ],
+        "scene_premise": "Inside the north tower's lamp room at dusk: the keeper's hand on the lens shutter, holding it half across the burner for the minutes a licensed boat is on the water, his other hand on the frame as he watches the far bank through the glass.",
+        "signature_motif": {
+          "action_verb": "shuttering",
+          "dominant_prop": "amber_lens_shutter",
+          "vantage": "from_within"
+        },
+        "in_frame_contrast": "Half the lens is shuttered dark and half is still burning, with the far bank's own lamp small and steady through the glass beyond it.",
+        "unique_contribution": "The only image in which the rule is a decision made by one pair of hands, minute by minute, rather than a claim made by a bank.",
+        "scene_register": {
+          "scale": "human",
+          "time_of_day": "dusk",
+          "weather": "clear",
+          "weather_justification": "Clear dusk, so the far bank's lamp is visible through the glass and the choice being made in the room has a visible object.",
+          "setting": "interior",
+          "population": "solitary",
+          "energy": "still"
+        }
+      }
+    ]
+  }
+}

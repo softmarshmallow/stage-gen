@@ -626,9 +626,7 @@ def _dispatch(
         # Re-rendering a finished gallery reads the run and nothing else: no
         # config, no provider, no event loop.
         page_path = universe_gallery_page.render(Path(args.run_dir))
-        stdout.write(
-            f"{json.dumps({'page': page_path}, sort_keys=True, separators=(',', ':'))}\n"
-        )
+        stdout.write(f"{json.dumps({'page': page_path}, sort_keys=True, separators=(',', ':'))}\n")
         return 0
     if command == "export-view":
         run_dir = Path(args.run_dir)
@@ -758,8 +756,7 @@ def _dispatch_case(args: argparse.Namespace, *, stdout: TextIO) -> int:
     report = {
         "game_id": catalog.game_id,
         "cases": [
-            _case_report(root, case_id, structure_only=bool(args.structure_only))
-            for case_id in ids
+            _case_report(root, case_id, structure_only=bool(args.structure_only)) for case_id in ids
         ],
     }
     stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
@@ -781,9 +778,7 @@ def _case_structure_report(resolved: ResolvedCase) -> dict[str, object]:
         "bound": False,
         "case_sha256": resolved.case_sha256,
         "reachable_beats": list(admission.reachable_beats),
-        "terminals": {
-            witness.beat_id: list(witness.path) for witness in admission.witnesses
-        },
+        "terminals": {witness.beat_id: list(witness.path) for witness in admission.witnesses},
         "facts": {
             entry.fact_id: {
                 "establishment": entry.establishment,

@@ -7,6 +7,9 @@ meant to satisfy or break.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from stage_gen.recipes.universe import models
 from stage_gen.recipes.universe.ontology import CONCEPT_PURPOSES, DRY_WEATHER, MODES_BY_CLASS
 
@@ -239,3 +242,42 @@ def entity_direction(entity_id: str, realization: str, extra: str = "") -> model
         continuity_notes="n",
         avoid=["readable text"],
     )
+
+
+def materialize_semantic_run(run_dir: Path, *, admitted: Path, poster: Path) -> Path:
+    """Build the shape a finished semantic run leaves behind, without paying for one.
+
+    The gallery phase starts from an admission, and an admission is the
+    expensive half of this recipe. Committing one lets every gallery test and
+    the checked graph contract run offline.
+    """
+
+    from stage_gen.canonical import content_sha256
+    from stage_gen.recipes.universe.prepared_universe import make_image_proxy
+
+    (run_dir / "semantic").mkdir(parents=True, exist_ok=True)
+    (run_dir / "production/source-lock").mkdir(parents=True, exist_ok=True)
+    admitted_bytes = admitted.read_bytes()
+    (run_dir / "semantic/universe.json").write_bytes(admitted_bytes)
+    (run_dir / "semantic/admission.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "universe-admission-v1",
+                "universe_id": "lantern_ferry",
+                "semantic_status": "pass",
+                "publication_authorized": False,
+                "universe": {
+                    "path": "semantic/universe.json",
+                    "sha256": content_sha256(admitted_bytes),
+                },
+                "bindings": {},
+                "note": "fixture stand-in for an admitted semantic run",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "production/source-lock/poster-proxy.jpg").write_bytes(
+        make_image_proxy(poster.read_bytes(), long_edge=1600, fmt="JPEG")
+    )
+    return run_dir

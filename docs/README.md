@@ -14,6 +14,11 @@ Start here for the headless, general-purpose system:
   poster/synopsis/expansion-direction source roles, relational outputs,
   identity markers, explanatory asset obligations, generic graph-and-gallery
   consumer baseline, and extension boundary for future genre profiles.
+- [Universe generation V1](spec/universe/generation-v1.md) — the recipe that
+  implements that taxonomy: the authored `universe-source-v1` package, the two
+  sealed graphs one universe implies, what the set-level plan enforces before
+  any image is paid for, which edit re-bills which node, and how one rejected
+  image is redrawn without redrawing the gallery.
 - [Component contract](component-contract.md) — reusable-module requirements.
 - [Image style anchor](image-style-anchor.md) — tracked rendering-medium
   vocabulary, single-token model selection, and digest-bound prompt clause.
@@ -36,7 +41,7 @@ Start here for the headless, general-purpose system:
   machine-checked current side-view platformer and runner DAGs, typed nodes, stage
   and operation contracts, internal fan-out, execution semantics, and explicitly
   separated target evolution.
-- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of four recipes
+- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of five recipes
   (`2d/roomview/pointclick`): the authored `pointclick-room-v2` room package, its
   solvability proof, the 14-node graph, and the `pointclick-room-runtime-v2` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
@@ -71,9 +76,14 @@ Start here for the headless, general-purpose system:
   skip/resume, checkpoint, and cutscene-realization semantics.
 - [Scenario: the executable narrative subset](spec/game/scenario.md) — the
   ratified decision to build a data-only text IR rather than adopt a narrative
-  library, the current `scenario-v1` contract and Ren'Py-shaped script surface,
+  library, the current `scenario-v2` contract and Ren'Py-shaped script surface,
   its closed statement vocabulary, the reachability proof that admits both
   offline, and the deterministic runtime both consumers walk.
+- [Case: the container above the narrative leaves](spec/game/case.md) — the
+  exact-current `case-v1` beat graph that chains scenarios and point-and-click
+  rooms into one episode, its declared fact namespace and the `origin =
+  "imported"` crossing, the must-availability proof that refuses a movement
+  reading a fact some route never established, and `stage-gen case check`.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.

@@ -151,17 +151,17 @@ class UniverseGraph(Graph):
         return tuple(operation.value for operation in UniverseOperationKind)
 
     def identity_header(self) -> dict[str, object]:
-        return {
-            **super().identity_header(),
-            "recipe": self.recipe,
-            "phase": self.phase,
-            "universe_id": self.universe_id,
-            "medium_id": self.medium_id,
-            "entity_count": self.entity_count,
-            "poster_sha256": self.poster_sha256,
-            "sample_ledger_sha256": self.sample_ledger_sha256,
-            "publication_authorized": False,
-        }
+        """Structure only, because this feeds ``topology_sha256``.
+
+        The phase is here because the two phases really are different shapes.
+        The poster digest and the sample ledger are deliberately not: rerolling
+        one image, or swapping the poster, changes what the graph draws and so
+        moves ``graph_sha256`` and the affected cache keys, but it does not
+        change the shape of the graph, and the checked doc snapshot should not
+        move for it.
+        """
+
+        return {**super().identity_header(), "recipe": self.recipe, "phase": self.phase}
 
     def annotator_key(self) -> str:
         return self.recipe

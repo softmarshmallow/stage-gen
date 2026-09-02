@@ -7,6 +7,10 @@
 > identity markers, narrative roles, entity concept obligations, and
 > ratification rules from which a future universe recipe may be built.
 >
+> That recipe now exists. This document remains the semantic authority over
+> classes, source roles, and ratification; the pipeline that implements it is
+> described in [universe generation V1](generation-v1.md).
+>
 > V0 deliberately starts with an agnostic core. It is not the permanent ceiling
 > of the taxonomy. Future genre profiles MAY widen the authored vocabulary with
 > standard classes such as planets for science fiction, but they MUST project
