@@ -1523,6 +1523,28 @@ one-option menu is presented identically to a real choice.
   bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false`.
 - The ledger enforces the 250 ceiling against an operation count and a rate, because the
   provenance sidecars carry no `usd` figure. Drift risk, not overrun risk; named, not hidden.
+- **A beat takes 4–7 seconds to appear** — a stage plus up to five 1024×1536 plates decoding
+  at once. The loading layer added at 07:28 makes the wait legible rather than shorter; it
+  made an invisible problem visible, which is not the same as fixing it.
+- **A one-option menu is presented identically to a real choice.** Correct behaviour — a
+  thin Henry genuinely has one thing he can say — but the player is asked to choose from one
+  thing. Odd feel, not a defect.
+- **The supper does not read as a supper.** Five full-height figures fill the frame, heads at
+  the top and feet under the dialogue panel, and the table laid for eight is behind them. The
+  knob is `[presentation] framing_zoom` and it was tried and abandoned: it re-bills every
+  image, which would re-roll thirty-two verified faces to change a number no prompt reads.
+  See 07:44.
+- **The cast plates are painterly realism where the cover plate is flat graphic gouache.**
+  One world with the stages and rooms, which is what was broken and is now fixed, but a step
+  short of the plate. The lever is the anchor's sprite-treatment line, which does less work
+  than its background line.
+- **The board cannot leave the browser.** `case_result_v1` stops the episode's output being
+  destroyed, but it lives in `localStorage`; no pipeline can read it, so Episode Two cannot
+  literally open on it without an export path that does not exist.
+- **The pilot's own process defect:** commits were centralised in the lead so five agents
+  would not race in one tree, and the lead then committed its own package a dozen times
+  while 49 files of lane work sat uncommitted for two hours. The fix belongs in the next
+  brief: commit a lane's work when it reports done, before answering it.
 
 ---
 
