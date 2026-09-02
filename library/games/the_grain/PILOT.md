@@ -11,8 +11,6 @@ This file is the director's first read. It is written as the run goes, not at th
 
 ## 1. State
 
-*(rewritten at the freeze)*
-
 **Episode One of *The Grain* plays, start to finish, at one URL, on generated art.**
 
 ```
@@ -29,7 +27,7 @@ From these run tags:
 
 | Beat | Run |
 |---|---|
-| `b_office`, `b_way_in`, `b_table`, `b_coffee`, `b_the_court`, `b_statements` | `the-grain-scene-4` |
+| `b_office`, `b_way_in`, `b_table`, `b_coffee`, `b_the_court`, `b_statements` | `the-grain-scene-5` |
 | `b_motor_court` | `the-grain-motor-court-3` |
 | `b_window` | `the-grain-window-3` |
 | the case projection | `the-grain-episode-one` |
@@ -43,9 +41,17 @@ thirty-two cast plates at eight actors × four authored expressions, four music 
 shared UI atlas. Sixty-nine facts crossing beat boundaries, of which 48 are Wednesday's
 board handed to Thursday.
 
+It is drawn in the medium the brief asked for — painted gouache, matte, visible brushwork —
+and it was not, until 07:12. See the two-media defect, which is the one finding here worth
+more than the game.
+
 **What is not in it.** No save slots, no skip-already-read, no preferences. The window
-room's scrape is narrated and not depicted. The art is photoreal where the brief asked for
-gouache. Nothing is reviewed.
+room's scrape is narrated and not depicted, and most of that room's forensic looks sit on
+blank wall, so a player finds them only by clicking what they cannot see. The supper does
+not read as a supper: five full-height figures fill the frame and the table laid for eight
+is behind them. The cast plates are painterly realism where the cover plate is flat graphic
+gouache — one world, but a step short of the plate. **Nothing is reviewed**, and nobody in
+this run may review it.
 
 ---
 
