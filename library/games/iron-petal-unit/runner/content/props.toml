@@ -1,7 +1,7 @@
 schema_version = 2
 kind = "prop-content-v2"
 game_id = "iron-petal-unit"
-revision = 1
+revision = 2
 
 [[references]]
 reference_id = "greenhouse_runway"
@@ -12,7 +12,7 @@ rights_basis = ["Original AI-generated environment reference independently revie
 
 [[props]]
 prop_id = "filter_stack"
-height_units = 0.68
+height_units = 0.60
 display_name = "Upright Filter Stack"
 reference_ids = ["greenhouse_runway"]
 prompt = "One narrow upright greenhouse air-filter stack on a small stable foot, cream ceramic housing with coral bands, vertical graphite vents, a mint status lens, and a few harmless leaves caught in its grille. It is a tall one-column jump obstacle: the visible artwork width must be no more than one third of its visible height, with no broad drum, sideways body, or horizontal spill. Strict side view, isolated on native transparent background, no floor, scenery, glow spill, text, logo, or watermark."

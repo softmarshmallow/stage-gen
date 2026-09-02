@@ -664,10 +664,11 @@ means.
       -> narrowing -> edge-on -> widening strip); the bob stays code motion. Note the cost is low:
       items carry no motion support at all today - only the avatar has `motions` - but a four-frame
       strip is still one image node, so this is a content-contract addition, not new provider spend.
-- [ ] **The run should scroll faster.** Cheapest item here: another closed speed name beside
-      `steady_runner_v1` and `brisk_runner_v1`, which is a union widening needing no schema bump
-      (the `e668c6a` precedent). The caveat that must not be skipped: press windows are proved at
-      base speed, so a faster base re-opens admission on every authored track.
+- [x] **The run should scroll faster.** `swift_runner_v1` (9 columns per second, same 1.5x cap),
+      a union widening with no schema bump. The caveat bit exactly as predicted: every press window
+      scales as 1/base, and Iron Petal's `filter_stack` (0.68 player-heights) capped the track at
+      8.3 columns per second, so it was re-authored to 0.60 - a shorter silhouette, not a lowered
+      threshold. Zero provider re-keys.
 
 ### The gauge's other half
 

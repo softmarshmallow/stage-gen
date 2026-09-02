@@ -10,8 +10,17 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
+
 from stage_gen.components.runner_audio import load_runner_audio_bytes
-from stage_gen.components.runner_gameplay import load_runner_gameplay_bytes
+from stage_gen.components.runner_gameplay import (
+    COLLISION_BOXES,
+    JUMP_PROFILES,
+    SPEED_PROFILES,
+    hazard_press_window_seconds,
+    jump_arc,
+    load_runner_gameplay_bytes,
+)
 from stage_gen.recipes.sideview_runner.prepared_runner import manifest_audio, manifest_gameplay
 
 from ..._runner_fixture import RUNNER_AUDIO
@@ -85,6 +94,41 @@ def test_the_brisk_profiles_publish_their_proved_speed_and_runtime_ramp_names() 
     assert block["ramp_profile"] == "brisk_ramp_v1"
     assert block["base_speed_columns_per_second"] == 7.5
     assert block["max_speed_multiplier"] == 1.5
+
+
+def test_the_swift_profile_publishes_its_faster_base_under_the_same_cap() -> None:
+    swift = GAMEPLAY.replace(
+        b'speed_profile = "steady_runner_v1"', b'speed_profile = "swift_runner_v1"'
+    )
+
+    block = manifest_gameplay(load_runner_gameplay_bytes(swift))
+
+    assert block["speed_profile"] == "swift_runner_v1"
+    assert block["base_speed_columns_per_second"] == 9.0
+    assert block["max_speed_multiplier"] == 1.5
+
+
+def test_a_faster_base_never_widens_a_press_window() -> None:
+    # The arc is speed-invariant in columns, so the window a hazard leaves
+    # scales as one over the base speed: a faster name re-opens admission
+    # on every authored track rather than relaxing it.
+    jump = JUMP_PROFILES["double_arc_v1"]
+    windows = []
+    for name in ("steady_runner_v1", "brisk_runner_v1", "swift_runner_v1"):
+        speed = SPEED_PROFILES[name]
+        windows.append(
+            hazard_press_window_seconds(
+                jump_arc(jump, speed),
+                speed,
+                COLLISION_BOXES["torso_v1"],
+                hazard_height_rows=1.9,
+            )
+            * speed.base_speed_columns_per_second
+        )
+    assert windows[0] == pytest.approx(windows[1]) == pytest.approx(windows[2])
+    assert SPEED_PROFILES["swift_runner_v1"].base_speed_columns_per_second > (
+        SPEED_PROFILES["brisk_runner_v1"].base_speed_columns_per_second
+    )
 
 
 def test_a_duckless_gameplay_publishes_null_duck_arithmetic() -> None:

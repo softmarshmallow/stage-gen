@@ -88,7 +88,13 @@ distance plus pickups, with a chain multiplier that breaks on a missed
 pickup.
 
 Speed names currently include `steady_runner_v1` (6 columns per second, 1.5x
-cap) and `brisk_runner_v1` (7.5 columns per second, the same proved 1.5x cap).
+cap), `brisk_runner_v1` (7.5 columns per second, the same proved 1.5x cap) and
+`swift_runner_v1` (9 columns per second, the same cap). A faster name is never
+a relaxation: the arc is speed-invariant in columns, so every press window
+scales as one over the base speed, and a hazard cluster that cleared under
+`brisk_runner_v1` by a hair is refused under `swift_runner_v1`. The answer is
+the designer's rule below - a shorter silhouette or a taller jump - never a
+lowered threshold.
 Ramp names currently include `gentle_ramp_v1`, which earns its bonus over
 1,800 columns, and `brisk_ramp_v1`, which earns the same bonus over 720
 columns. Separate names preserve existing package feel while a faster package

@@ -308,7 +308,7 @@ export interface RunnerRuntimeManifest {
   readonly camera: { readonly mode: "auto_run_x_v1" };
   readonly scale: { readonly playerHeightTiles: number; readonly tilePx: number };
   readonly gameplay: {
-    readonly speedProfile: "steady_runner_v1" | "brisk_runner_v1";
+    readonly speedProfile: "steady_runner_v1" | "brisk_runner_v1" | "swift_runner_v1";
     readonly jumpProfile: "single_arc_v1" | "double_arc_v1";
     readonly collisionBox: "torso_v1";
     readonly duckProfile: "slide_v1" | null;
@@ -1123,6 +1123,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
       speedProfile: literal(rawGameplay.speed_profile, "gameplay.speed_profile", [
         "steady_runner_v1",
         "brisk_runner_v1",
+        "swift_runner_v1",
       ]),
       jumpProfile: literal(rawGameplay.jump_profile, "gameplay.jump_profile", [
         "single_arc_v1",

@@ -57,6 +57,18 @@ describe("parseRunnerRuntimeManifest", () => {
     expect(manifest.gameplay.maxSpeedMultiplier).toBe(1.5);
   });
 
+  test("accepts the swift speed name with its published base", () => {
+    const document = validRunnerManifest();
+    const gameplay = document.gameplay as Record<string, unknown>;
+    gameplay.speed_profile = "swift_runner_v1";
+    gameplay.base_speed_columns_per_second = 9;
+
+    const manifest = parseRunnerRuntimeManifest(document);
+
+    expect(manifest.gameplay.speedProfile).toBe("swift_runner_v1");
+    expect(manifest.gameplay.baseSpeedColumnsPerSecond).toBe(9);
+  });
+
   test("parses structural ground locked one-for-one to authored segment grids", () => {
     const document = validRunnerManifest();
     document.ground = {

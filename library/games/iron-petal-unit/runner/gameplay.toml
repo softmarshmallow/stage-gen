@@ -1,11 +1,11 @@
 schema_version = 3
 kind = "runner-gameplay-v3"
 game_id = "iron-petal-unit"
-revision = 3
+revision = 4
 track_id = "halcyon-rescue-line"
 
 [run]
-speed_profile = "brisk_runner_v1"
+speed_profile = "swift_runner_v1"
 jump_profile = "double_arc_v1"
 collision_box = "torso_v1"
 duck_profile = "slide_v1"

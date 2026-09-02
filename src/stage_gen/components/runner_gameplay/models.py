@@ -50,7 +50,7 @@ from stage_gen.components._game_input import (
 
 RUNNER_GAMEPLAY_SCHEMA_VERSION = 3
 
-SpeedProfileName = Literal["steady_runner_v1", "brisk_runner_v1"]
+SpeedProfileName = Literal["steady_runner_v1", "brisk_runner_v1", "swift_runner_v1"]
 JumpProfileName = Literal["single_arc_v1", "double_arc_v1"]
 CollisionBoxName = Literal["torso_v1"]
 DuckProfileName = Literal["slide_v1"]
@@ -102,6 +102,11 @@ class SpeedProfile:
 SPEED_PROFILES: Final[dict[str, SpeedProfile]] = {
     "steady_runner_v1": SpeedProfile(base_speed_columns_per_second=6.0, max_speed_multiplier=1.5),
     "brisk_runner_v1": SpeedProfile(base_speed_columns_per_second=7.5, max_speed_multiplier=1.5),
+    # Every press window scales as 1 / base speed (the arc is speed-invariant
+    # in columns, so time-above-height and crossing time shrink together), so
+    # a faster name re-opens admission on every authored track rather than
+    # relaxing it: a hazard that cleared at 7.5 by a hair refuses at 9.0.
+    "swift_runner_v1": SpeedProfile(base_speed_columns_per_second=9.0, max_speed_multiplier=1.5),
 }
 
 
