@@ -64,3 +64,31 @@ describe("assembleRunnerSystems", () => {
     }
   });
 });
+
+describe("the encounter in the sealed order", () => {
+  test("seals identically whether or not a package fights anything", () => {
+    // The topology is declaration-driven: the director is always assembled,
+    // and a package with nothing to fight simply carries a null slice.
+    const sealed = sealSystems(
+      assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
+      EVENTS,
+    );
+    expect(sealed.order).toEqual(DOCUMENTED_ORDER);
+  });
+
+  test("the director sits between the moment it consumes and the systems that answer it", () => {
+    const order = sealSystems(
+      assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
+      EVENTS,
+    ).order;
+    const at = (id: string) => order.indexOf(id);
+
+    // It consumes fx-released ...
+    expect(at("fx/moment")).toBeLessThan(at("runner/encounter"));
+    // ... asks the stream for an arena ...
+    expect(at("runner/encounter")).toBeLessThan(at("runner/segments"));
+    // ... and emits shot-contact and boss-defeated, which these answer.
+    expect(at("runner/encounter")).toBeLessThan(at("runner/vitals"));
+    expect(at("runner/encounter")).toBeLessThan(at("runner/run-loop"));
+  });
+});

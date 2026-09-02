@@ -895,20 +895,37 @@ means.
       restores a point, and a heal item. Both fit the existing primitive; what is missing is the
       authored vocabulary saying when a package grants them, mirroring `[run.consequences]`.
 
-### Locomotion: the one that needs new admission arithmetic
+### Locomotion and the encounter
 
-- [ ] **Make the genre agnostic over its mechanism - run versus fly.** Jetpack Joyride and Geometry
-      Dash both carry two. This is not a mode flag but a **locomotion profile**: the map from intent
-      to vertical motion *plus its own admission arithmetic*. Today `jump_profile` is that,
-      implicitly, for running only - admission proves gap spans and jump arcs. A thrust track has no
-      gaps to clear; it has corridors to fit through, so it needs a different proof rather than a
-      relaxed one. The hard constraint: whatever locomotion a package declares, admission must still
-      prove that locomotion's fairness offline before spend, or this becomes the first
-      unfair-by-construction genre in the repo.
-- [ ] **Fever time falls out of locomotion once it exists.** Model it as a **timed locomotion
-      override** - switch locomotion, optionally suspend consequences, for a bounded window - so
-      "fever is flying" is a parameter the input author chooses rather than a special case in the
-      runtime.
+- [x] **Make the genre agnostic over its mechanism - run versus fly.** `thrust_v1` landed as a
+      locomotion profile with its own admission arithmetic, and the hard constraint held: the
+      encounter's three proofs (lane, dodge, winnable) are closed form and run offline before any
+      spend, reusing `reaction_fair_v1`'s own 0.15s reaction constant for the dodge. The one thing
+      the design note did not predict is that the dodge proof bounds the band from **above** as
+      well as below - a taller band takes longer to cross while the shot's flight time is fixed, so
+      twelve rows over a walk surface at nine refuses where eleven over eight passes.
+- [x] **A boss the locomotion override is for.** `barrage_boss_v1`, the `role = "arena"` chunk, the
+      `boss-content-v1` catalog, projectiles reused verbatim from the platformer, and
+      `encounter_start` promoted from reserved to served. The seam rule is intact rather than bent:
+      the arena holds the seam profile in every column, so one authored chunk holds a fight of any
+      length and no chunk carries state about what came before it.
+- [ ] **Whole-track thrust.** The locomotion exists but only as an encounter override; a package
+      cannot yet declare it as how it runs. That needs the corridor-fit proof over authored
+      terrain, which is a different proof from the lane pigeonhole an arena gets for free by being
+      flat and empty.
+- [ ] **Fever time is now one field away.** The override machinery is built and played: switch
+      locomotion for a bounded window, optionally suspend consequences. What is missing is the
+      authored vocabulary saying when a package grants it, and `fever_start` is already reserved
+      in the FX moment table waiting for it.
+- [ ] **The encounter is silent.** `runner-audio-v3` closes its event set, and none of the fight's
+      events - a salvo fired, a shot landing on the avatar, a boss hit, a boss defeated - has a
+      binding. The director already emits all four; what is missing is the audio vocabulary.
+- [ ] **A boss takes a hit without showing it.** The runtime flashes the sprite for 64ms, which is
+      the same nonvisual-representation argument `blink_v1` makes for the avatar - but unlike
+      `blink_v1` it is not contracted anywhere. Either name it in the contract or draw a `hurt`
+      strip and pay for it.
+- [ ] **Defeating a boss pays score and nothing else.** Once the healing vocabulary below exists, a
+      defeated boss is the obvious first authored source of a restored point.
 
 ### Still owed on the played run
 
@@ -930,6 +947,12 @@ that naming it is the deliverable.
       is a bottom-up column scan every hazard, pickup and pit-run check calls; and
       `max_clear_gap_columns` measures a quantity a bounce does not have. One contract with two
       mutually exclusive readings selected by a mode flag is exactly the compat-reader shape this
+- [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-v1` by
+      someone other than its producer: the boss's three strips (does the rig read as failed
+      maintenance equipment rather than a creature, and does it face left in every cell?), the two
+      projectiles (does the seeding pin read axial and the bramble knot directionless?), the
+      avatar's `fly` strip (does it read as sustained thrust rather than a jump?), and the
+      `encounter_start` portrait (is it recognisably the same operator as `stage_start`?).
       repo forbids. The verb set inverts too - the runner's one verb is an edge-triggered jump, the
       jumper's is a held continuous steering axis with no jump at all, which the `RunnerIntent`
       latch's consume-on-sample semantics actively corrupts. The precedent is the runner itself,
