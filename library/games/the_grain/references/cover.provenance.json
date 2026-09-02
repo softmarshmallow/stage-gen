@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "kind": "game-package-reference-provenance-v1",
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_style_plate_v1",
+  "state": "unreviewed",
+  "game_id": "the_grain",
+  "reference_id": "cover_style",
+  "source": "references/cover.png",
+  "sha256": "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930",
+  "bytes": 3726675,
+  "media": {
+    "mime_type": "image/png",
+    "width": 2048,
+    "height": 1152,
+    "alpha": false
+  },
+  "role": "The style plate of record for the whole of The Grain, Episode One. It fixes medium, palette and light for every image the production draws afterwards - nine cast plates and their expressions, eleven stages, two room backdrops, sprites and the UI atlas - so the look is decided once by a person instead of drifting per prompt. It deliberately carries no face: the window's figures are blank-headed mannequins, and the cast take their identities from the cast bible and their written profiles, never from this plate.",
+  "generation": {
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "quality": "high",
+    "size": "2048x1152",
+    "background": "opaque",
+    "output_format": "png",
+    "aspect_ratio": "16:9",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "generated_at": "2026-09-02T20:48:51.466Z",
+    "prompt": "A painted illustration in gouache on board, visible brushwork, restrained detail, matte and dry, not photographic, not glossy, not anime, not ink comic. Subject: the deep motor court of a 1972 Los Angeles department store after closing, seen wide. A heavy stone porte-cochere canopy spans the top third of the frame, lit from beneath by small recessed lamps. At the far side, one large display window glows warm amber against the cold blue-black of the stone, the empty driveway and the night street. Inside the lit window an unfinished display: six mannequins in evening dress stand and sit in a loose arc, all facing an empty seventh chair. Behind the chair, a very large white paper moon fills the back of the window. Above the moon, where the painted scenery meets the top of the window, a short black rectangle is open in a dark gallery rail, set high near the window ceiling. On the display floor lie a stick of seamstress chalk and a pair of steel scissors. Behind the window the real sales floor is completely dark. Palette: muted ochre, bottle green, oxblood, cream, deep blue-black. Strong contrast between the amber interior and the cold exterior. No people anywhere. No letters, no numbers, no signage, no logos, no readable text of any kind.",
+    "prompt_hash_scope": "full_exact_utf8_string",
+    "prompt_sha256": "3dc200a4a75b9a3d28d36783748f10f48bcf4f74f10f7c38c13ede96020a64d7",
+    "input_references": []
+  },
+  "style_reference": null,
+  "selection": {
+    "spike": "the-grain-cover-v1",
+    "candidate": "wide_motor_court",
+    "candidate_source": "out/the-grain-cover/candidate-1.png",
+    "candidate_count": 6,
+    "selected_on": "2026-09-03",
+    "selected_by": "production lead",
+    "rationale": "The only candidate correct on every subject item, free of people, and complete on the light rule: six blank-headed mannequins facing the empty seventh chair, the paper moon whole, the gallery rectangle unmistakably an open slot, chalk and scissors on the display floor, the store behind unlit, the stone canopy lit from beneath and the street cold. It states all four palette colours as objects rather than as a wash. Its blank heads were weighed as a cost and accepted as a protection: with nine actors, a plate carrying a face would pull every one of them toward it.",
+    "not_selected": [
+      "candidate-2 (through the glass) was the runner-up: same subject discipline, and the best reading of the gallery rectangle, but mullions make the mannequin count ambiguous and the interior skews yellow.",
+      "candidate-3 rendered the figures as people with faces and was rejected as a plate.",
+      "candidate-4 read as a resort garden court rather than a downtown motor court.",
+      "candidate-5 lost the warm half of the palette.",
+      "candidate-6 showed a lit room behind the display, contradicting the dark sales floor."
+    ]
+  },
+  "exploration": {
+    "run": "out/the-grain-cover/",
+    "note": "The five unselected candidates are kept in the run as exploration and are labelled unreviewed exploration. They are not package members, are not promoted, and are not identity or style references for anything.",
+    "candidates": [
+      "out/the-grain-cover/candidate-1.png",
+      "out/the-grain-cover/candidate-2.png",
+      "out/the-grain-cover/candidate-3.png",
+      "out/the-grain-cover/candidate-4.png",
+      "out/the-grain-cover/candidate-5.png",
+      "out/the-grain-cover/candidate-6.png"
+    ]
+  },
+  "visual_review": {
+    "status": "pending",
+    "artifact_sha256": "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930",
+    "artifact_bytes": 3726675,
+    "note": "Selecting a candidate is not publication approval, and the lane that produced an image cannot review it. An independent semantic pass on these exact bytes is still owed before the rights status may move."
+  },
+  "rights": {
+    "status": "unreviewed",
+    "reviewed_at": null,
+    "basis": [
+      "Original brand-neutral prompt composed from this production's art direction, with no third-party image input.",
+      "First-party AI-generated plate selected by the production lead from a six-candidate style sheet on 2026-09-03.",
+      "No independent semantic review of the exact committed bytes is recorded; the image is unreviewed and unpublished."
+    ],
+    "publication_authorized": false
+  }
+}

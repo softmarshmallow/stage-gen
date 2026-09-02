@@ -1,0 +1,68 @@
+{
+  "schema_version": 2,
+  "provider": "openai",
+  "model": "gpt-image-2",
+  "seed": null,
+  "prompt": "A painted illustration in gouache on board, visible brushwork, restrained detail, matte and dry, not photographic, not glossy, not anime, not ink comic. Subject: the deep motor court of a 1972 Los Angeles department store after closing, seen wide. A heavy stone porte-cochere canopy spans the top third of the frame, lit from beneath by small recessed lamps. At the far side, one large display window glows warm amber against the cold blue-black of the stone, the empty driveway and the night street. Inside the lit window an unfinished display: six mannequins in evening dress stand and sit in a loose arc, all facing an empty seventh chair. Behind the chair, a very large white paper moon fills the back of the window. Above the moon, where the painted scenery meets the top of the window, a short black rectangle is open in a dark gallery rail, set high near the window ceiling. On the display floor lie a stick of seamstress chalk and a pair of steel scissors. Behind the window the real sales floor is completely dark. Palette: muted ochre, bottle green, oxblood, cream, deep blue-black. Strong contrast between the amber interior and the cold exterior. No people anywhere. No letters, no numbers, no signage, no logos, no readable text of any kind.",
+  "prompt_sha256": "3dc200a4a75b9a3d28d36783748f10f48bcf4f74f10f7c38c13ede96020a64d7",
+  "references": [],
+  "refs": [],
+  "inputs": [],
+  "params": {
+    "n": 1,
+    "validated": true,
+    "operation": "generation",
+    "output_format": "png",
+    "size": "2048x1152",
+    "quality": "high",
+    "background": "opaque",
+    "moderation": "low",
+    "metadata": {
+      "source": "stage-gen-headless"
+    }
+  },
+  "validation": {
+    "output_nonempty": true,
+    "base64": "strict",
+    "media_type": "image/png",
+    "signature": "matched",
+    "caller": true,
+    "width": 2048,
+    "height": 1152
+  },
+  "component": {
+    "name": "@stage-gen/image-generation",
+    "version": "0.0.0"
+  },
+  "tool": {
+    "name": "stage-gen",
+    "version": "0.0.0"
+  },
+  "artifact": {
+    "sha256": "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930",
+    "bytes": 3726675,
+    "media_type": "image/png"
+  },
+  "ts": "2026-09-02T20:48:51.466Z",
+  "attempts": 1,
+  "retries": 0,
+  "response": {
+    "media_type": "image/png",
+    "bytes": 3726675,
+    "request_id": "req_e4226ddd73384daab2bc24167203aa9b",
+    "created": 1788382129,
+    "usage": {
+      "input_tokens": 276,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 276
+      },
+      "output_tokens": 5650,
+      "output_tokens_details": {
+        "image_tokens": 5650,
+        "text_tokens": 0
+      },
+      "total_tokens": 5926
+    }
+  }
+}

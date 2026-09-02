@@ -210,6 +210,94 @@ whole planned art programme is roughly 67 operations, and the run is not close t
 ceiling; the risk this creates is one of drift, not of overrun, and it is named here rather
 than smoothed over.
 
+### 06:08 — The statement is two beats, not one
+
+Writer B measured `e1_statements` against the contract and it failed three ways at once:
+**20 imported flags** against a cap of 16, **39 declared flags** against a `max_length` of
+32, and a state frontier in the nine figures against a 200,000 ceiling. Every one of the 20
+imports is read by a real condition — they gate which clauses of Ward's "What did you see
+down here?" Henry can assemble and which answers he can give — so nothing could be dropped
+as defensive.
+
+The beat is **split**: `e1_the_court` (Sc10, the motor court, the first officers, Ward's
+arrival, `end upstairs`) and `e1_statements` (Sc11–14, the Winter Room, the statement,
+Ruth, Nell, the cab, `end left_alone`). Both then sit under the import and flag caps.
+
+This is better story and not merely cheaper proof, which is why it was taken rather than
+negotiated. Sc10 is Henry losing the scene to the police in a cold motor court; Sc11–14 is
+the building turned into eight separate chairs and a detective who wants observation and
+not interpretation. The outline already names them apart. Episode One is now **eight
+beats**: six scenarios and two rooms.
+
+*Displaced:* nothing authored. The alternative on the table was cutting Henry's options at
+the statement, which is the one place in the episode where the player's whole evening is
+cashed in.
+
+### 06:08 — The proof moves, not the scripts
+
+The split alone does not save `e1_statements`; its local flags at the tail still give
+roughly 5,000 assignments before imports are counted. The contract lane has been asked, at
+a rank **above** the multi-scenario scene work, for two changes to the *proof*:
+
+- **Liveness projection** in the admission search — a flag dead the instant it is set stops
+  multiplying the frontier. In this half almost every flag is: the `thought_*` and `kept_*`
+  answers are never read again, and only `told_coffee`, `told_shoe` and `told_paul_words`
+  survive to `ward_close`. Projected, the frontier falls to a few thousand states. The
+  brief pre-authorised exactly this ("project out flags no downstream condition reads …
+  rather than cutting the movement's choices").
+- **`ScenarioDeclarations.flags` `max_length` 32 → 48.** Even split, `e1_statements` sits
+  at 27, and the supper scenario is not small. 32 was a number never tested against a real
+  ensemble scene.
+
+The import cap stays at 16 deliberately: with liveness in place both files sit at 11 and 8,
+and a cap that still bites is a cap worth keeping. The instruction to the contract lane was
+explicit that the authored scripts must not change and that a scenario admissible before
+must stay admissible — if projection changes admissions in any direction other than "more
+of them", stop.
+
+*Instruction to both writers:* write against the full requirement, not the current ceiling.
+A scenario that is correct and refused can be fixed in the proof; a line quietly cut has to
+be noticed.
+
+### 06:10 — The plate is candidate 1, and the lead was talked out of candidate 6
+
+Six candidates, six genuinely different prompts, one operation each, all first-attempt.
+The lead formed an independent view before reading the art lane's comparison and picked
+**6** — figures at portrait scale, both colour registers, every story element present. The
+art lane recommended **1**. The art lane was right, on two grounds:
+
+- Behind candidate 6's display panels there is a **lit room with a lamp and furniture**,
+  which contradicts "the real sales floor behind is dark". As the plate attached to every
+  downstream call, it would have taught every draw the wrong thing about a closed store.
+- The faces. Candidate 6's mannequins have hair and read as people; candidate 3's are fully
+  rendered faces. The lead had counted candidate 1's blank heads as a **cost**, since 36 of
+  roughly 67 planned images are cast portraits. That was backwards, and this repository had
+  already recorded the lesson the other way round: Larkfield's `scene.toml` warns that a
+  plate showing a face "is NOT an identity reference for the cast — asserting its identity
+  over three actors would pull all of them toward that one face." We have **nine** actors.
+  A faceless plate is protective. The profiles carry the faces; the plate carries medium,
+  palette and light.
+
+Candidate 1 is the wide motor court after closing: the stone canopy lit from beneath, six
+blank-headed mannequins facing the empty seventh chair, the paper moon whole, the black
+rectangle open in the gallery rail above it, chalk and scissors on the display floor, the
+cold street receding past palms. It is the only candidate correct on every subject item,
+free of people, and complete on the light rule, and it states all four palette colours as
+objects rather than as a wash.
+
+Promoted to `references/cover.png`,
+`sha256 = bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930`, with the
+generation sidecar carried across as `references/cover.source.meta.json`. Chosen once and
+not replaced; replacing it re-bills every image in the game.
+
+**Its one real cost is accepted and pushed downstream:** at thumbnail it is a black field
+with a small glow, and roughly half the canvas is near-black paving. That is now a
+constraint on `ui.toml` — the narration plate and the buttons have to hold against a
+near-black backdrop, because half this game is a dark motor court and a dark store.
+
+*Displaced:* candidate 6, and with it a plate that would have taught faces and a lit
+back-of-store. The other five stay in the run as exploration, labelled unreviewed.
+
 ---
 
 ## 3. Ledger
@@ -246,8 +334,10 @@ Dollars are **estimated**; see the 06:04 decision. Operation counts are authorit
 - Shell is autosave + Continue + a fifty-line backlog and nothing else: no save slots, no
   skip-already-read, no preferences. Deliberate; recorded at launch.
 - Rooms nested under one package rather than given a member type in the room contract.
-- The placeholder `scenarios/chapter_one.*` predates the narrative lock and must be
-  removed by the lead before the freeze.
+- The placeholder `scenarios/chapter_one.*` predated the narrative lock and was deleted at
+  05:57 rather than bumped to the v2 identity.
+- The ledger enforces the 250 ceiling against an operation count and a rate, because the
+  provenance sidecars carry no `usd` figure. Drift risk, not overrun risk; named, not hidden.
 
 ---
 

@@ -66,3 +66,18 @@ the statements.
 - Rights: **unreviewed**. Five of the six are exploration. Not promoted, not published,
   not committed by this lane. The plate is the lead's choice.
 - Running total for the art lane: 6 operations, ~USD 3.00 estimated.
+
+---
+
+### Running totals
+
+| Owner | Ops | USD (estimated) |
+|---|---|---|
+| Art lane — cover candidates | 6 | 3.00 |
+| Lead — music smoke test | 1 | 2.50 |
+| **Pilot to date** | **7** | **5.50** |
+
+Convention (from `PILOT.md`): operation counts are authoritative; dollars are estimated,
+because no provider route in this pilot writes a `usd` figure into the sidecar. Image
+sidecars carry `response.usage` token counts as the audit trail; the music sidecar carries
+none.

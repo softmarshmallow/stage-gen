@@ -1,0 +1,10 @@
+# Which cases The Grain holds. One today — Episode One, the supper night — but the
+# story is episodic and Episode Two (Thursday) is a second case, so the catalog is
+# the shape that already expects it.
+schema_version = 1
+kind = "case-catalog-v1"
+game_id = "the_grain"
+revision = 1
+
+[[cases]]
+case_id = "episode_one"

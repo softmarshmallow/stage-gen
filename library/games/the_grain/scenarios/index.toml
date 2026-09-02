@@ -1,9 +1,28 @@
-# Ratified narrative scenarios for The Grain. This catalog can be checked
-# independently while the complete prepared game package remains unassembled.
+# The six scenarios of Episode One, in the order of the night. The two
+# point-and-click rooms that sit between them — the motor court before, the
+# window after — are not scenarios and are named by the case instead, at
+# `rooms/motor_court/room.toml` and `rooms/window/room.toml`.
+#
+# What plays them in sequence is `cases/episode_one.toml`.
 schema_version = 1
 kind = "scenario-catalog-v1"
 game_id = "the_grain"
-revision = 1
+revision = 2
 
 [[scenarios]]
-scenario_id = "chapter_one"
+scenario_id = "e1_office"
+
+[[scenarios]]
+scenario_id = "e1_way_in"
+
+[[scenarios]]
+scenario_id = "e1_table"
+
+[[scenarios]]
+scenario_id = "e1_coffee"
+
+[[scenarios]]
+scenario_id = "e1_the_court"
+
+[[scenarios]]
+scenario_id = "e1_statements"

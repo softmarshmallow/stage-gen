@@ -1,0 +1,539 @@
+# Episode One — The Winter Room.
+#
+# Wednesday 27 September 1972, from 5:37 in the afternoon to after one in the
+# morning. Eight beats: six scenarios and two point-and-click rooms. Nothing
+# branches. What differs at the end is what Henry carries out of the building,
+# and that is carried in facts.
+#
+# The facts below are the board. Their identifiers are frozen in ../FACTS.md and
+# the consumer's autosave keys on them.
+
+schema_version = 1
+kind = "case-v1"
+game_id = "the_grain"
+case_id = "episode_one"
+display_name = "Episode One — The Winter Room"
+revision = 1
+entry = "b_office"
+
+# ---------------------------------------------------------------------- facts
+#
+# `required` is claimed only where the night says the thing out loud and Henry
+# cannot be elsewhere: an exit condition, a line spoken to the room, a key handed
+# back in front of him. Everything a player has to choose to look at is
+# `defaults_false`, because the player who never looked is a player for whom it
+# is simply false — which is the whole design of the episode. A thin board is a
+# legitimate way to have played, not a bug.
+
+[[facts]]
+fact_id = "window_before"
+establishment = "defaults_false"
+summary = "Six figures, an empty seventh place, the paper moon whole, at a quarter to eight."
+
+[[facts]]
+fact_id = "gallery_open"
+establishment = "defaults_false"
+summary = "The short black rectangle already open in the gallery rail above the moon."
+
+[[facts]]
+fact_id = "chalk_and_scissors"
+establishment = "defaults_false"
+summary = "A seamstress's chalk and a pair of scissors on the display floor."
+
+[[facts]]
+fact_id = "rang_the_bell"
+establishment = "required"
+summary = "Ruth rang the bell beside the unmarked service door and the night began."
+
+[[facts]]
+fact_id = "suitcase_unopened"
+establishment = "required"
+summary = "One unopened suitcase standing beside the service bar."
+
+[[facts]]
+fact_id = "place_card_moved_twice"
+establishment = "required"
+summary = "Edwin: Miss Shaw has moved your place card twice."
+
+[[facts]]
+fact_id = "eighth_card"
+establishment = "defaults_false"
+summary = "Seven names face outward. The eighth is turned toward Lydia."
+
+[[facts]]
+fact_id = "would_you_have_come_first"
+establishment = "required"
+summary = "The first of the three times someone asks 'Would you have come?'"
+
+[[facts]]
+fact_id = "hand_in_the_door"
+establishment = "required"
+summary = "Henry puts his hand in a closing lift door for a man he has never met."
+
+[[facts]]
+fact_id = "ruth_roll"
+establishment = "defaults_false"
+summary = "Ruth tears a roll and puts half on Paul's plate, and knows it only when her hand is empty."
+
+[[facts]]
+fact_id = "marian_salt"
+establishment = "defaults_false"
+summary = "Marian's salt, taken and not used, set down again by Robert's hand."
+
+[[facts]]
+fact_id = "dark_blue_door"
+establishment = "defaults_false"
+summary = "Dark blue, a house, and 'Mine, beginning Thursday.'"
+
+[[facts]]
+fact_id = "pocketknife_lent"
+establishment = "defaults_false"
+summary = "Henry's pocketknife lent for a knot and closed and returned."
+
+[[facts]]
+fact_id = "ruth_knife_on_plate"
+establishment = "defaults_false"
+summary = "Ruth's knife touches her plate when Lydia repeats June's sentence."
+
+[[facts]]
+fact_id = "brass_key_after_dessert"
+establishment = "defaults_false"
+summary = "Edwin lays the brass key beside Paul's fork and says 'After dessert.'"
+
+[[facts]]
+fact_id = "envelope_hear_it"
+establishment = "required"
+summary = "The cream envelope, Nell's name upside down, and 'Hear it.'"
+
+[[facts]]
+fact_id = "bar_said_it_badly"
+establishment = "defaults_false"
+summary = "At the bar: '—if I say it badly.' 'Then you said it.' 'Not this one.'"
+
+[[facts]]
+fact_id = "paul_cup_for_edwin"
+establishment = "defaults_false"
+summary = "Paul pours a cup and leaves it beside Edwin's hand. His last kindness."
+
+[[facts]]
+fact_id = "saucers_crossed_out"
+establishment = "defaults_false"
+summary = "The place cards fanned; a number in green ink crossed out twice; a card torn once under a saucer."
+
+[[facts]]
+fact_id = "roof_panel_i_heard"
+establishment = "defaults_false"
+summary = "The orange ice repeated for Nell at the open roof panel. 'I heard.' 'Good.'"
+
+[[facts]]
+fact_id = "lydia_alone_pile"
+establishment = "defaults_false"
+summary = "Lydia at the emptied table, gathering nothing into a very small pile."
+
+[[facts]]
+fact_id = "ruth_two_fingers"
+establishment = "defaults_false"
+summary = "Ruth pushes the rising envelope back down with two fingers as Paul passes her."
+
+[[facts]]
+fact_id = "asked_paul_sentence"
+establishment = "defaults_false"
+summary = "Henry asked Paul about June's sentence, after Ruth had said no, and was deflected."
+
+[[facts]]
+fact_id = "indicator_at_three"
+establishment = "defaults_false"
+summary = "Henry watches the floor indicator descend to three. The last he saw of them."
+
+[[facts]]
+fact_id = "lift_rising_seen"
+establishment = "defaults_false"
+summary = "The service lift begins to rise. Henry looks at the indicator; Nell does not."
+
+[[facts]]
+fact_id = "handbag_under_arm"
+establishment = "defaults_false"
+summary = "She has her handbag under her arm instead of on it."
+
+[[facts]]
+fact_id = "smear_on_shoe"
+establishment = "defaults_false"
+summary = "A pale smear along the outside of one shoe. Henry takes it for dust from the carton."
+
+[[facts]]
+fact_id = "key_returned_to_edwin"
+establishment = "required"
+summary = "Ruth places the brass key beside Edwin's hand."
+
+[[facts]]
+fact_id = "coffee_not_drunk"
+establishment = "defaults_false"
+summary = "She touches the coffee to her mouth and sets it down."
+
+[[facts]]
+fact_id = "paul_not_to_wait"
+establishment = "required"
+summary = "Ruth to Nell: 'He said not to wait.'"
+
+[[facts]]
+fact_id = "paul_needed_to_think"
+establishment = "required"
+summary = "Ruth to Henry, the same minute: 'He said he needed to think.'"
+
+[[facts]]
+fact_id = "window_changed"
+establishment = "defaults_false"
+summary = "The paper moon has split and sagged inward."
+
+[[facts]]
+fact_id = "saw_body"
+establishment = "required"
+summary = "The man beneath the moon, a shoe extending into the light, one hand palm down."
+
+[[facts]]
+fact_id = "stage_door_locked"
+establishment = "defaults_false"
+summary = "Locked. Bell opened it far enough to see a face, locked it, and called upstairs."
+
+[[facts]]
+fact_id = "touched_neck"
+establishment = "defaults_false"
+summary = "Two fingers beneath the jaw, held, and withdrawn."
+
+[[facts]]
+fact_id = "carton_on_gallery"
+establishment = "defaults_false"
+summary = "The shallow carton still on the gallery beside the open rail."
+
+[[facts]]
+fact_id = "marks_under_lip"
+establishment = "defaults_false"
+summary = "Pale horizontal marks beneath the steel lip."
+
+[[facts]]
+fact_id = "scrape"
+establishment = "defaults_false"
+summary = "One long scrape across the painted wall, lower down."
+
+[[facts]]
+fact_id = "red_button"
+establishment = "defaults_false"
+summary = "A red button mounted beside the open rail."
+
+[[facts]]
+fact_id = "heading_int_bedroom"
+establishment = "defaults_false"
+summary = "The torn typed piece under his right hand. The top edge is a scene heading. It is not a letter."
+
+[[facts]]
+fact_id = "pulled_the_paper"
+establishment = "defaults_false"
+summary = "Henry pulled the paper free — which the novel's Henry does not do."
+
+[[facts]]
+fact_id = "touched_more_than_said"
+establishment = "defaults_false"
+summary = "Henry touched something he will have to account for to a uniformed officer."
+
+[[facts]]
+fact_id = "access_door_unlocked"
+establishment = "defaults_false"
+summary = "DISPLAY ACCESS, unlocked — 'not while a window is unfinished.'"
+
+[[facts]]
+fact_id = "whiting_on_treads"
+establishment = "defaults_false"
+summary = "Something white tracked down the lower treads of the enclosed stair."
+
+[[facts]]
+fact_id = "bell_key_path"
+establishment = "defaults_false"
+summary = "'He needed both hands, so he gave her the lift key.'"
+
+[[facts]]
+fact_id = "bell_in_receiving"
+establishment = "defaults_false"
+summary = "'I went into receiving to make the closing call.'"
+
+[[facts]]
+fact_id = "court_door_never_opened"
+establishment = "defaults_false"
+summary = "Bell never opened the motor-court door for him, and was never asked to."
+
+[[facts]]
+fact_id = "left_the_room"
+establishment = "required"
+summary = "Henry leaves the display and Bell locks the door again."
+
+# The statement's own record: what Henry gave Ward as something he saw, what he
+# gave as something he thought, and what he kept. Nothing in Episode One reads
+# these — they are what Wednesday hands to Thursday, and Episode Two opens on
+# whatever they hold.
+
+[[facts]]
+fact_id = "told_reaction"
+establishment = "defaults_false"
+summary = "'Her reaction said no,' given to Ward as report rather than as guess."
+
+[[facts]]
+fact_id = "thought_reaction"
+establishment = "defaults_false"
+summary = "The same, given as a guess."
+
+[[facts]]
+fact_id = "kept_reaction"
+establishment = "defaults_false"
+summary = "Nothing given about whether Ruth knew her brother was invited."
+
+[[facts]]
+fact_id = "told_key_origin"
+establishment = "defaults_false"
+summary = "Edwin, before coffee, 'after dessert' — where the brass key came from."
+
+[[facts]]
+fact_id = "kept_key_origin"
+establishment = "defaults_false"
+summary = "Only that Paul had the key."
+
+[[facts]]
+fact_id = "told_coffee"
+establishment = "defaults_false"
+summary = "'She didn't drink the coffee.' — and then 'It is what I saw.'"
+
+[[facts]]
+fact_id = "thought_frightened"
+establishment = "defaults_false"
+summary = "'Yes.' Was she frightened, answered as interpretation."
+
+[[facts]]
+fact_id = "kept_frightened"
+establishment = "defaults_false"
+summary = "'I don't think so.'"
+
+[[facts]]
+fact_id = "told_paul_words"
+establishment = "defaults_false"
+summary = "Both of Ruth's accounts of what Paul said, given to Ward."
+
+[[facts]]
+fact_id = "told_paul_words_one"
+establishment = "defaults_false"
+summary = "One of the two accounts, given to Ward."
+
+[[facts]]
+fact_id = "kept_paul_words"
+establishment = "defaults_false"
+summary = "Neither account given."
+
+[[facts]]
+fact_id = "told_shoe"
+establishment = "defaults_false"
+summary = "'There was dust on her shoe from the carton.' A misread, and Friday corrects it."
+
+[[facts]]
+fact_id = "kept_shoe"
+establishment = "defaults_false"
+summary = "The shoe not mentioned."
+
+[[facts]]
+fact_id = "offered_sentence"
+establishment = "defaults_false"
+summary = "Henry offers June's sentence unasked."
+
+[[facts]]
+fact_id = "offered_envelope"
+establishment = "defaults_false"
+summary = "Henry offers the envelope, Nell's name upside down, and 'Hear it.'"
+
+[[facts]]
+fact_id = "ward_regard"
+establishment = "defaults_false"
+summary = "Ward heard a witness who reported rather than explained. The episode's verdict."
+
+[[facts]]
+fact_id = "told_ruth_after_one"
+establishment = "defaults_false"
+summary = "What Henry gave Ruth beside the dark passenger elevators, after one in the morning."
+
+[[facts]]
+fact_id = "told_nell_in_the_court"
+establishment = "defaults_false"
+summary = "What Henry said to Nell in the motor court about what was in the window with him."
+
+[[facts]]
+fact_id = "ruth_said_needed_time"
+establishment = "defaults_false"
+summary = "Ruth's third account: 'He said he needed time.' One word off what she said upstairs."
+
+# ---------------------------------------------------------------------- beats
+#
+# Eight, in the order of the night. `reads` and `writes` are authored rather than
+# derived, so a leaf that stops exporting a fact fails against the case that
+# depends on it. Rooms declare no reads: a room starts from an empty state.
+
+[[beats]]
+beat_id = "b_office"
+kind = "scenario"
+member = "scenarios/e1_office.toml"
+display_name = "Calder Investigations, late afternoon"
+writes = []
+[[beats.edges]]
+outcome = "to_tollands"
+to = "b_motor_court"
+
+[[beats]]
+beat_id = "b_motor_court"
+kind = "room"
+member = "rooms/motor_court/room.toml"
+display_name = "The motor court, before"
+writes = ["window_before", "gallery_open", "chalk_and_scissors", "rang_the_bell"]
+[[beats.edges]]
+outcome = "win"
+to = "b_way_in"
+
+[[beats]]
+beat_id = "b_way_in"
+kind = "scenario"
+member = "scenarios/e1_way_in.toml"
+display_name = "The way in"
+writes = ["suitcase_unopened", "place_card_moved_twice"]
+[[beats.edges]]
+outcome = "first_bell"
+to = "b_table"
+
+[[beats]]
+beat_id = "b_table"
+kind = "scenario"
+member = "scenarios/e1_table.toml"
+display_name = "The table"
+writes = [
+    "eighth_card",
+    "would_you_have_come_first",
+    "hand_in_the_door",
+    "ruth_roll",
+    "marian_salt",
+    "dark_blue_door",
+    "pocketknife_lent",
+    "ruth_knife_on_plate",
+    "brass_key_after_dessert",
+    "envelope_hear_it",
+]
+[[beats.edges]]
+outcome = "coffee"
+to = "b_coffee"
+
+[[beats]]
+beat_id = "b_coffee"
+kind = "scenario"
+member = "scenarios/e1_coffee.toml"
+display_name = "Coffee, and the returned key"
+reads = ["ruth_knife_on_plate"]
+writes = [
+    "bar_said_it_badly",
+    "paul_cup_for_edwin",
+    "saucers_crossed_out",
+    "roof_panel_i_heard",
+    "lydia_alone_pile",
+    "ruth_two_fingers",
+    "asked_paul_sentence",
+    "indicator_at_three",
+    "lift_rising_seen",
+    "handbag_under_arm",
+    "smear_on_shoe",
+    "key_returned_to_edwin",
+    "coffee_not_drunk",
+    "paul_not_to_wait",
+    "paul_needed_to_think",
+]
+[[beats.edges]]
+outcome = "the_call"
+to = "b_window"
+
+[[beats]]
+beat_id = "b_window"
+kind = "room"
+member = "rooms/window/room.toml"
+display_name = "The window"
+writes = [
+    "window_changed",
+    "saw_body",
+    "stage_door_locked",
+    "touched_neck",
+    "carton_on_gallery",
+    "marks_under_lip",
+    "scrape",
+    "red_button",
+    "heading_int_bedroom",
+    "pulled_the_paper",
+    "touched_more_than_said",
+    "access_door_unlocked",
+    "whiting_on_treads",
+    "bell_key_path",
+    "bell_in_receiving",
+    "court_door_never_opened",
+    "left_the_room",
+]
+[[beats.edges]]
+outcome = "win"
+to = "b_the_court"
+
+[[beats]]
+beat_id = "b_the_court"
+kind = "scenario"
+member = "scenarios/e1_the_court.toml"
+display_name = "The first officers"
+reads = [
+    "touched_more_than_said",
+    "touched_neck",
+    "stage_door_locked",
+    "access_door_unlocked",
+    "whiting_on_treads",
+    "carton_on_gallery",
+    "marks_under_lip",
+    "red_button",
+    "heading_int_bedroom",
+    "window_before",
+    "gallery_open",
+]
+writes = []
+[[beats.edges]]
+outcome = "upstairs"
+to = "b_statements"
+
+[[beats]]
+beat_id = "b_statements"
+kind = "scenario"
+member = "scenarios/e1_statements.toml"
+display_name = "Names and addresses"
+terminal = true
+reads = [
+    "eighth_card",
+    "brass_key_after_dessert",
+    "coffee_not_drunk",
+    "smear_on_shoe",
+    "paul_not_to_wait",
+    "paul_needed_to_think",
+    "ruth_knife_on_plate",
+    "envelope_hear_it",
+]
+writes = [
+    "told_reaction",
+    "thought_reaction",
+    "kept_reaction",
+    "told_key_origin",
+    "kept_key_origin",
+    "told_coffee",
+    "thought_frightened",
+    "kept_frightened",
+    "told_paul_words",
+    "told_paul_words_one",
+    "kept_paul_words",
+    "told_shoe",
+    "kept_shoe",
+    "offered_sentence",
+    "offered_envelope",
+    "ward_regard",
+    "told_ruth_after_one",
+    "told_nell_in_the_court",
+    "ruth_said_needed_time",
+]
