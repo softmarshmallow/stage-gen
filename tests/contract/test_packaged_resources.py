@@ -252,7 +252,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The tool-loop agent (2026-09-03) adds the modality and adapter above plus
         # their unit tests and the runner-side placement tests (measured 468 beside
         # the encounter pass that landed the same day).
-        assert len(sdist_entries) <= 468
+        # The encounter pass closed with one more focused test module than that
+        # measurement caught: the actor-subject resolver, which exists because
+        # two handlers had quietly kept reading the avatar's catalog (469). It
+        # adds no wheel module - the boss and its projectiles reuse contracts
+        # and pipelines that already shipped.
+        assert len(sdist_entries) <= 469
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
