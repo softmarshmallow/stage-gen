@@ -332,7 +332,7 @@ async def test_guide_generate_validate_chain_uses_native_alpha_and_exact_provena
     bridge_meta = json.loads(
         (run_dir / "world/ground/shared-seam-bridge.png.meta.json").read_text()
     )
-    assert bridge_meta["model"] == ("runner-structural-ground-seam-bridge-canonicalization-v1")
+    assert bridge_meta["model"] == ("runner-structural-ground-seam-bridge-canonicalization-v2")
     assert bridge_meta["refs"] == [
         "world/ground/warmup_flat.raw.png",
         "world/ground/warmup_flat.guide.png",
@@ -341,7 +341,7 @@ async def test_guide_generate_validate_chain_uses_native_alpha_and_exact_provena
     assert bridge_meta["validation"]["source_segment_id"] == "warmup_flat"
 
     canonical_meta = json.loads((run_dir / "world/ground/warmup_flat.png.meta.json").read_text())
-    assert canonical_meta["model"] == "runner-structural-ground-canonicalization-v2"
+    assert canonical_meta["model"] == "runner-structural-ground-canonicalization-v3"
     assert canonical_meta["refs"] == [
         "world/ground/warmup_flat.raw.png",
         "world/ground/warmup_flat.guide.png",

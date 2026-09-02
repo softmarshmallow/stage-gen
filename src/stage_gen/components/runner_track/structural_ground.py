@@ -30,12 +30,12 @@ STRUCTURAL_GROUND_MODE: Final = "runner-structural-ground-v1"
 STRUCTURAL_GROUND_GUIDE_ID: Final = "runner-structural-ground-guide-v1"
 STRUCTURAL_GROUND_SOURCE_ID: Final = "runner-structural-ground-source-v5"
 STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID: Final = (
-    "runner-structural-ground-seam-bridge-canonicalization-v1"
+    "runner-structural-ground-seam-bridge-canonicalization-v2"
 )
 STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_ID: Final = (
     "runner-structural-ground-seam-bridge-validation-v2"
 )
-STRUCTURAL_GROUND_CANONICALIZER_ID: Final = "runner-structural-ground-canonicalization-v2"
+STRUCTURAL_GROUND_CANONICALIZER_ID: Final = "runner-structural-ground-canonicalization-v3"
 STRUCTURAL_GROUND_VALIDATION_ID: Final = "runner-structural-ground-validation-v3"
 
 STRUCTURAL_GROUND_CELL_PX: Final = 64
@@ -58,7 +58,23 @@ _MIN_SOURCE_SOLID_CELL_COVERAGE: Final = 0.50
 #: back 0.63 covered and the missing third shipped as a flat lilac band along
 #: the row the avatar stands on. The old 0.20 floor admitted a cell that was
 #: four fifths fallback.
-_MIN_SOURCE_TOP_CELL_COVERAGE: Final = 0.85
+#: How far the painting's own colour is grown under the bare rim it leaves.
+#: Six published pixels covers the four-to-five-pixel alpha ramp measured at the
+#: top of every Iron Petal slab. It is deliberately no wider: the nearest paint
+#: at a slab's top edge is its dark ink contour, so six pixels reads as that
+#: contour while twelve reads as a smear. A cell left barer than this is not a
+#: feathered edge but an under-painted cell, and the top-cell coverage floor -
+#: which is this number, read the other way round - refuses it instead.
+_PAINT_EDGE_EXTENSION_PX: Final = 6
+
+#: The floor is the rim the canonicalizer can underlay, read as a coverage:
+#: a cell bare over more than `_PAINT_EDGE_EXTENSION_PX` of its 64 published
+#: pixels is not a feathered edge, and nothing downstream can cover it with
+#: the cell's own material. The two numbers are the same statement, so they
+#: are written once. At 0.85 this admitted the arena chunk at 0.875, whose
+#: eight bare pixels published as a lilac band along the row the avatar
+#: stands on through the whole boss fight.
+_MIN_SOURCE_TOP_CELL_COVERAGE: Final = 1.0 - _PAINT_EDGE_EXTENSION_PX / STRUCTURAL_GROUND_CELL_PX
 _MAX_SOURCE_EMPTY_LEAKAGE: Final = 0.35
 _MIN_SOURCE_VISIBLE_ALPHA: Final = 128
 
@@ -106,6 +122,7 @@ _MIN_PROJECTION_EDGE_MAGNITUDE: Final = 24
 #: Below this many qualifying edge pixels a third has nothing to say, and a
 #: flat material is not a projection failure.
 _MIN_PROJECTION_EDGE_SAMPLES: Final = 64
+
 
 #: How the lean estimator reads gradients. Pillow's kernel filter clamps its
 #: output into the image's own range, so the 8-bit `offset=128` pair this began
@@ -1159,14 +1176,64 @@ def _canonicalize_painting(
         material_identity=material_identity,
     )
     mask = _occupancy_mask(occupancy)
-    painted_alpha = Image.composite(
-        painting.getchannel("A"),
-        Image.new("L", painting.size, 0),
-        mask,
+    # The deterministic base exists for cells the provider did not paint at all.
+    # It must not show through a painted cell's own feathered edge. A returned
+    # painting ramps its alpha from nothing to opaque over four or five pixels
+    # along the top of every slab, and compositing that ramp over a base built
+    # from the guide's cap and fill colours publishes a guide-coloured hairline
+    # on the row the avatar stands on - measured at 0.805 of the first opaque
+    # scanline while the whole tile sat at 0.0075, which is how a share over an
+    # area misses a line.
+    #
+    # So the painting is laid down twice. Its solid core is grown outward first,
+    # to put material colour under the whole rim; the painting itself then goes
+    # over that at its true alpha, so the edge keeps the softness the provider
+    # drew and fades into its own material instead of into the guide. Hardening
+    # the feather instead of underlaying it was tried and is worse in both
+    # directions: colour under the visibility floor is not faint paint but
+    # whatever the encoder left where nobody could see it, and promoting it
+    # published a line of yellow and magenta speckle, while promoting only the
+    # core stretched the slab's dark ink contour into a heavy band.
+    blank = Image.new("L", painting.size, 0)
+    alpha = painting.getchannel("A")
+    core = painting.copy()
+    core.putalpha(
+        Image.composite(
+            alpha.point(lambda value: 255 if value >= _MIN_SOURCE_VISIBLE_ALPHA else 0),
+            blank,
+            mask,
+        )
     )
+    underlay = _extend_painted_edges(core, radius=_PAINT_EDGE_EXTENSION_PX)
+    underlay.putalpha(Image.composite(underlay.getchannel("A"), blank, mask))
     painted = painting.copy()
-    painted.putalpha(painted_alpha)
-    return Image.alpha_composite(base, painted)
+    painted.putalpha(Image.composite(alpha, blank, mask))
+    return Image.alpha_composite(Image.alpha_composite(base, underlay), painted)
+
+
+def _shifted(image: Image.Image, offset: tuple[int, int]) -> Image.Image:
+    moved = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    moved.paste(image, offset)
+    return moved
+
+
+def _extend_painted_edges(painting: Image.Image, *, radius: int) -> Image.Image:
+    """Grow the painting's own colour a few pixels into the rim it left bare.
+
+    A returned painting stops a handful of pixels short of the guide's bottom
+    edge, and the deterministic base underneath is built from the guide's cap
+    and fill colours, so those pixels publish as guide material along the very
+    bottom of the tile. The base is there for a cell the provider did not paint
+    at all; it is not there for the rim of one it did. Each pass lays a copy
+    shifted one pixel in each direction UNDER what is already there, so painted
+    colour spreads outward and nothing already painted is overwritten.
+    """
+
+    extended = painting
+    for _ in range(radius):
+        for offset in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            extended = Image.alpha_composite(_shifted(extended, offset), extended)
+    return extended
 
 
 def _canonical_seam_column(

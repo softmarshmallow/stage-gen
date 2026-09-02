@@ -8,7 +8,7 @@ from io import BytesIO
 from typing import cast
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.runner_track import (
@@ -595,6 +595,59 @@ def test_source_admission_refuses_a_tile_that_mixes_projections() -> None:
             material_identity=MATERIAL_IDENTITY,
             material_references=[REFERENCE],
         )
+
+
+def test_a_feathered_edge_publishes_material_rather_than_the_guide_palette() -> None:
+    """The hairline on the row the avatar stands on was never the model's doing.
+
+    A returned painting ramps its alpha over the first few pixels of every
+    slab. The deterministic base under it is built from the guide's own cap and
+    fill colours, so that ramp published a guide-coloured line along the
+    walking surface - 0.805 of the first opaque scanline, while the whole tile
+    measured 0.0075, which is why a share over an area never saw it.
+    """
+
+    bridge, _bridge_report, painted_source, guide = _bridge(PITTED_ROWS)
+    _guide_bytes, guide_report = _guide()
+    layout = cast(dict[str, int], guide_report["layout"])
+    palette = cast(dict[str, list[int]], guide_report["palette"])
+    cap = tuple(palette["cap_rgb"])
+
+    with Image.open(BytesIO(painted_source)) as opened:
+        feathered = opened.convert("RGBA")
+    alpha = feathered.getchannel("A")
+    surface_top = layout["top"] + 5 * layout["cell_px"]
+    ramp = Image.new("L", feathered.size, 255)
+    pen = ImageDraw.Draw(ramp)
+    for step in range(4):
+        pen.line(
+            (0, surface_top + step, feathered.width, surface_top + step),
+            fill=(step + 1) * 12,
+        )
+    feathered.putalpha(ImageChops.darker(alpha, ramp))
+
+    canonical, _report = canonicalize_structural_ground(
+        _png(feathered),
+        occupancy=PITTED_ROWS,
+        walk_surface_row=5,
+        material_identity=MATERIAL_IDENTITY,
+        material_references=[REFERENCE],
+        guide=guide,
+        seam_bridge=bridge,
+    )
+    with Image.open(BytesIO(canonical)) as opened:
+        published = opened.convert("RGBA")
+    row = 5 * STRUCTURAL_GROUND_CELL_PX
+    pixels = published.load()
+    assert pixels is not None
+    opaque = [pixels[x, row][:3] for x in range(published.width) if pixels[x, row][3] >= 128]
+    assert opaque
+    wearing_the_guide = [
+        colour
+        for colour in opaque
+        if max(abs(colour[index] - cap[index]) for index in range(3)) <= 10
+    ]
+    assert not wearing_the_guide, f"{len(wearing_the_guide)} of {len(opaque)} still wear the cap"
 
 
 def test_the_lean_estimator_resolves_the_angle_it_is_given() -> None:

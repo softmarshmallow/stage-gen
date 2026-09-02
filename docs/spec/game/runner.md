@@ -212,11 +212,26 @@ and fill colours - so unpainted ground publishes *as guide material*. This is
 the check that catches a part-painted walk surface, which the coverage floor
 below it could not: a cell four fifths made of fallback passed the old one.
 
+The floor is not a taste number. Publication grows the painting's own solid
+colour a few pixels outward to sit under the rim its alpha feathers away, and
+the floor is that same distance read as a coverage, so a cell is admitted
+exactly when what it leaves bare is a feathered edge the canonicalizer can
+cover rather than an unpainted cell it cannot. The two are written once and
+derived from each other.
+
 **Guide residue.** No guide-palette colour may survive above a small share of
 the painted region. This catches the other shape of the same failure, where a
 provider returns its conditioning image rather than a painting. Alpha checks
 cannot see that at all, because every guide pixel is opaque - they measure
 alpha rather than authorship.
+
+A share over an area cannot see a line, and the defect that outlived this check
+was one. Compositing a feathered edge straight onto the palette base published
+a guide-coloured hairline along the row the avatar stands on: 0.805 of the
+first opaque scanline, on a tile measuring 0.0075 overall. The fix is at the
+cause - the base is for a cell nobody painted, never for the rim of one
+somebody did - so the painting is laid down twice, its grown solid core under
+its own true-alpha edge.
 
 **Lean consistency.** The diagonal edge family's lean, sampled by horizontal
 thirds of the authored body, must fit inside one arc of orientation: two
