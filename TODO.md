@@ -962,39 +962,58 @@ Assessed against the played `iron-petal-unit-live-20260902-v9` run. Grouped by w
 actually costs, because three of these share one regeneration and one of them changes what "fair"
 means.
 
-### Ground: the pipeline validates coverage and geometry, never projection
+### Ground: the projection is declared, and the instrument that would prove it is blind
 
-- [ ] **Adopt a declared ground projection.** A side-scroller's ground must be drawn in **oblique
-      projection** - a parallel projection whose receding edges never converge and which therefore
-      has no vanishing point. This is a correctness rule, not taste: parallel projection is the only
-      projection invariant under horizontal translation, and `auto_run_x_v1` scrolls the ground past
-      a fixed camera while chunks repeat in arbitrary order. A vanishing point encodes a camera
-      position, so a converging tile swims as it scrolls and has no repeat unit at all. Jetpack
-      Joyride is the reference: every receding edge leans the same way at the same angle
-      (`\\\\`), never splaying (`\|/`). The two numbers a spec needs are the **receding angle**
-      and the **depth ratio** (cabinet oblique = 0.5, cavalier = 1.0); both are refusal-bearing once
-      a gate reads them, so they belong in the SDK constant table under a closed projection name.
-      Avoid "isometric"/"axonometric"/"planometric" - those rotate all three axes; oblique is the
-      family that keeps the front face square-on, which is what a side view means.
-- [ ] **Gate it.** Measured on `world/ground/rescue_calibration.png`, dominant non-horizontal edge
-      lean by horizontal third: left `-36.8` deg, middle `+30.8` deg, right `+40.2` deg. The sign
-      flips and the magnitude drifts ~9 deg across the rest - one tile carrying at least two
-      projection systems. A gate that refuses a sign flip, or a spread past a tolerance, is provable
-      offline before spend and is the missing third check beside coverage and occupancy.
-- [ ] **Guide paint is shipping as ground art.** In the same raster, the walk-surface row (row 8,
-      y 512-576) reads: y 512-522 lilac `(163,181,199)` - the guide's surface marker; y 524-534
-      brown `(85,60,34)` - the guide's raw occupancy fill; painted deck only from y~536. So the top
-      ~23px of a 64px cell is unpainted guide, on the row the avatar stands on. Root cause is a
-      blind spot rather than bad luck: source admission counts painted coverage at alpha >= 128, and
-      guide pixels are opaque, so an alpha test cannot distinguish paint-by-model from
-      guide-showing-through. **The gate measures alpha, not authorship.** It needs a guide-palette
-      residue check, and the prompt needs to demand the guide be painted over rather than around.
+Reassessed 2026-09-03 against `iron-petal-unit-live-20260903-boss-big`. The contract half of
+this section shipped; the measuring half did not survive contact with real art.
+
+- [x] **Adopt a declared ground projection.** Landed 2026-09-02 in `0dcd8a8`, a commit whose message
+      names none of it, which is why every checkbox in this section went stale for a day.
+      `GroundProjection` and `GroundProjectionMode` sit in `components/runner_track/models.py`, Iron
+      Petal declares `[ground.projection] mode = "orthographic_v1"` deliberately rather than
+      inheriting it, and `_PROJECTION_CLAUSES` states the mandate to the model inside the ground
+      prompt's HARD CONTRACT: every edge horizontal or vertical, no vanishing point, no receding
+      edge, no visible top surface. The plan's two numbers - receding angle and depth ratio - are
+      **not** in the table, because `oblique_v1` turned out to be blocked rather than merely
+      unwritten: `_validate_alpha_geometry` requires every published cell to be exactly opaque or
+      exactly transparent against authored occupancy, and oblique depth spills into neighbouring
+      cells, so serving it needs a projection-aware expected mask and a canvas margin past
+      `columns x 64` first. Orthographic - a flat front elevation with no top face - is the truthful
+      one for a strict side view anyway, and is the only member served. Field presence is not
+      identity: an absent block means `orthographic_v1` and the default is excluded from the ground
+      node's cache identity, so declaring it re-billed nothing.
+- [ ] **The projection gate exists and measures nothing.** `_MAX_PROJECTION_LEAN_SPREAD_DEGREES =
+      14.0` is in place and every published tile passes it - by reporting the same number every
+      time. `_dominant_lean_degrees` runs its Sobel pair through `ImageFilter.Kernel(..., scale=1,
+      offset=128)` on an 8-bit `L` image, so a strong edge clips both channels and lands on the
+      +-45 degree bin. Synthetic parallel edges drawn at 20 / 30 / 45 / 60 / 70 degrees all measure
+      **45.0**; every tile in `iron-petal-unit-live-20260903-boss-big` reports
+      `projection_lean_degrees [-45.0, -45.0, -45.0]` with spread `0.0`. The instrument has no
+      resolution left, so the gate cannot refuse anything and the tolerance was never tested. The
+      original -36.8 / +30.8 / +40.2 reading was taken with a different instrument and does not
+      transfer. Fix the estimator in Pillow alone - this project depends on exactly httpx, pillow
+      and pydantic, and one check does not justify numpy - then re-measure the shipped tiles and set
+      the tolerance from what a consistent tile actually shows. Expect the current art to fail.
+- [ ] **Guide residue is gated by a share, and the defect is a line.** The residue check landed with
+      the rest (`_MAX_GUIDE_RESIDUE_DISTANCE = 10`, `_MAX_GUIDE_RESIDUE_SHARE = 0.06`) and it works:
+      it measures authorship rather than alpha, it refused two of the three provider attempts that
+      produced the shipped `rescue_calibration`, and the 23-pixel band this item was opened for is
+      gone. What survives is at the edges, where a share over an area cannot see it. Whole-tile
+      residue is `0.0075`; by 64-pixel row it is `0.056` at row 8 and `0.068` at row 10, and by
+      scanline the first opaque line - y 512, the top of the surface the avatar stands on - is
+      `0.805`, while the last, y 700, is `1.000` at exactly the guide's fill colour. A guide-coloured
+      hairline rims every slab. The prompt lever is already spent: the HARD CONTRACT names the
+      lighter band along each exposed top edge and demands it be painted over. The replacement check
+      is per-row or per-edge, not a global share.
 - [ ] **The seam bridge fixes the join and breaks its own borders.** Every chunk ends with shared
       bridge column 0 and starts with bridge column 1, so an A-to-B join is continuous by
-      construction - but the bridge is the same two columns everywhere, lifted from the first
-      segment's apron, so it lands as a foreign panel: two hard vertical edges 128px apart at every
-      join, where each chunk's own art meets the insert. Direction is edge *conditioning* - each
-      chunk paints toward a shared edge profile - rather than a foreign insert.
+      construction - but `canonicalize_structural_ground_seam_bridge` publishes *the first generated
+      segment's* right apron as that shared two-column bridge, so the same 128 pixels of one
+      segment's art is dropped into every other segment: two hard vertical edges 128px apart at
+      every join, where each chunk's own art meets the insert. Direction is edge *conditioning* -
+      each chunk paints toward a shared edge profile - rather than a foreign insert, which changes
+      what the model is asked for, what the canonicalizer proves, and probably the guide. Not a
+      tolerance to loosen.
 
 ### Content fidelity
 
@@ -1002,7 +1021,10 @@ means.
       horizontal runs terminating mid-air on open cut faces, no vertical support, large dead
       regions. Nothing in the layer contract requires an object to be supported, attached, or
       terminated, so this is an authoring and prompt gap first; whether any part of it is gateable
-      is the open question.
+      is the open question. The machinery around the layer is sound - measured anchors and seals,
+      `generated_bridge` loop construction, placement fields held out of generation identity - so
+      nothing here is a pipeline problem. The brief is the lever, and today it spends its whole
+      length on a negative-space contract that never asks for an object to be held up by anything.
 - [ ] **The coin needs a drawn spin, and the right projection.** Two separate defects.
       `lumen_seed.png` is rendered in 3/4 perspective while the game is strict side view. And
       `collectiblePresentation` fakes rotation by squashing `scaleX` on a cosine, which on a
