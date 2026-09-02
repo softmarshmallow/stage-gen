@@ -1,0 +1,238 @@
+# Episode One, Movement VI, second half — Names and addresses. The declarative
+# half.
+#
+# Source: The Grain, Chapter Six, Scenes 11 to 14.
+#
+# This is the beat the episode exists for, and it is the only one that writes a
+# verdict. Nine facts come in from the supper and the window; twenty go out,
+# and every one of the twenty is a record of what Henry chose to say to a
+# detective who could hear the difference.
+
+schema_version = 2
+kind = "scenario-v2"
+game_id = "the_grain"
+scenario_id = "e1_statements"
+display_name = "Names and Addresses"
+revision = 1
+
+script = "scenarios/e1_statements.scenario"
+script_sha256 = "a4ca4c7d91f664e799019836b775b23e360baa78d434901feb9339b857eaa392"
+entry = "the_winter_room"
+
+# ------------------------------------------------------------------- the cast
+#
+# Henry and the uniformed officer are never drawn. Bell is in Scenes 11 and 13
+# but does not speak in either, so he is narrated rather than staged and costs
+# this scenario no plate.
+
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
+
+[[cast]]
+actor_id = "officer"
+display_name = "Officer"
+
+[[cast]]
+actor_id = "ward"
+display_name = "Ward"
+expressions = ["blunt", "writing", "closed_notebook", "one_joke"]
+
+[[cast]]
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
+
+[[cast]]
+actor_id = "nell"
+display_name = "Nell"
+expressions = ["flat", "hungry", "hearing", "gone"]
+
+[[cast]]
+actor_id = "lydia"
+display_name = "Lydia"
+expressions = ["composed", "work", "cut_off", "lowered"]
+
+[[cast]]
+actor_id = "marian"
+display_name = "Marian"
+expressions = ["correcting", "warm", "still", "nothing_to_correct"]
+
+[[cast]]
+actor_id = "robert"
+display_name = "Robert"
+expressions = ["rambling", "sorry", "water", "waiting"]
+
+[[cast]]
+actor_id = "edwin"
+display_name = "Edwin"
+expressions = ["formal", "dry", "grave", "no_keys"]
+
+# ----------------------------------------------------------------- the stages
+
+[[stages]]
+stage_id = "winter_room_after_police"
+brief = "The same original top-floor glass-roofed dining room at night after the police have been through it, the round table stripped and the chairs pulled several feet apart and turned away from each other, cups and saucers left exactly where they stood, a yellow pad and a coat over the back of one chair, the open roof panel still open, no people, no readable text or signage"
+
+[[stages]]
+stage_id = "private_dining_room"
+brief = "A small private dining room off a curved wall in an original 1972 department store, a square table for four, four chairs, a large painted view of a harbor on the far wall, one glass panel beside the door looking back into a larger room, low warm lamplight, no people, no readable text or signage"
+
+[[stages]]
+stage_id = "passenger_elevators"
+brief = "A lobby of dark passenger elevators in a closed 1972 department store after one in the morning, polished bronze doors unlit, floor indicators dead, a single working ceiling fixture, deep shadow along a marble floor, no people, no readable text, numerals or signage"
+
+[[stages]]
+stage_id = "motor_court_screened"
+brief = "The motor court of an original closed 1972 department store very late at night, one unmarked sedan left under the stone canopy, a large gray fabric screen fixed over most of the display glass with light escaping around its edges, wet paving, the street beyond cold and empty, no people, no readable text or signage"
+
+# ------------------------------------------------------------------ the audio
+
+[[tracks]]
+track_id = "statements"
+brief = "Dry and late. An upright bass walking slowly with a brush on a snare and one clarinet holding single long notes, room tone under all of it, tired rather than tense, 1972"
+
+[tracks.generation]
+intent = "generate"
+instrumental = true
+seamless_loop = true
+target_duration_seconds = 90
+
+# ------------------------------------------------------- the flags, imported
+#
+# Nine. Every one gates an option Henry would otherwise be inventing, and every
+# one is a look the player either took or did not:
+#
+#   eighth_card              Sc3, the card turned toward Lydia
+#   ruth_knife_on_plate      Sc5, her knife touching her plate at June's sentence
+#   envelope_hear_it         Sc5, "Hear it", Nell's name upside down
+#   brass_key_after_dessert  Sc5, Edwin laying the key beside Paul's fork
+#   coffee_not_drunk         Sc7, the cup touched to her mouth and set down
+#   smear_on_shoe            Sc7, the pale smear Henry reads as carton dust
+#   asked_paul_sentence      Sc6, Henry asking Paul after Ruth said no
+#   carton_on_gallery        Sc9, the shallow carton beside the open rail
+#   heading_int_bedroom      Sc9, INT. BEDROOM — NIGHT, and it is not a letter
+#
+# `paul_not_to_wait` and `paul_needed_to_think` are deliberately NOT imported:
+# both are heard by the whole room in Sc7 and e1_coffee sets them on its only
+# path, so a condition on either would always hold. Henry always has both. What
+# he does with them is the choice.
+
+[[flags]]
+flag_id = "eighth_card"
+origin = "imported"
+
+[[flags]]
+flag_id = "ruth_knife_on_plate"
+origin = "imported"
+
+[[flags]]
+flag_id = "envelope_hear_it"
+origin = "imported"
+
+[[flags]]
+flag_id = "brass_key_after_dessert"
+origin = "imported"
+
+[[flags]]
+flag_id = "coffee_not_drunk"
+origin = "imported"
+
+[[flags]]
+flag_id = "smear_on_shoe"
+origin = "imported"
+
+[[flags]]
+flag_id = "asked_paul_sentence"
+origin = "imported"
+
+[[flags]]
+flag_id = "carton_on_gallery"
+origin = "imported"
+
+[[flags]]
+flag_id = "heading_int_bedroom"
+origin = "imported"
+
+# ---------------------------------------------------------- the flags, local
+#
+# What was told, what was interpreted, and what was kept. One of each triple is
+# set at every beat where the board allows a choice; the beats where it does
+# not are the cost of having been looking elsewhere.
+
+[[flags]]
+flag_id = "told_reaction"
+
+[[flags]]
+flag_id = "thought_reaction"
+
+[[flags]]
+flag_id = "kept_reaction"
+
+[[flags]]
+flag_id = "offered_sentence"
+
+[[flags]]
+flag_id = "offered_envelope"
+
+[[flags]]
+flag_id = "told_key_origin"
+
+[[flags]]
+flag_id = "kept_key_origin"
+
+[[flags]]
+flag_id = "told_coffee"
+
+[[flags]]
+flag_id = "thought_frightened"
+
+[[flags]]
+flag_id = "kept_frightened"
+
+[[flags]]
+flag_id = "told_paul_words"
+
+[[flags]]
+flag_id = "told_paul_words_one"
+
+[[flags]]
+flag_id = "kept_paul_words"
+
+[[flags]]
+flag_id = "told_shoe"
+
+[[flags]]
+flag_id = "kept_shoe"
+
+# The episode's verdict. Set by the close when enough was given as seen.
+
+[[flags]]
+flag_id = "ward_regard"
+
+# What was carried out of the building to two other people.
+
+[[flags]]
+flag_id = "told_ruth_what_i_saw"
+
+[[flags]]
+flag_id = "told_ruth_after_one"
+
+[[flags]]
+flag_id = "ruth_said_needed_time"
+
+[[flags]]
+flag_id = "told_nell_in_the_court"
+
+# The second of the three countings. Lydia says it to Nell in the motor court
+# and Nell answers by counting it out loud, which is why it cannot be collapsed
+# into the first.
+
+[[flags]]
+flag_id = "would_you_have_come_second"
+
+# ---------------------------------------------------------------- the endings
+
+[[endings]]
+outcome_id = "left_alone"
+label = "He leaves alone"

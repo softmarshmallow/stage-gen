@@ -643,7 +643,17 @@ label ruth_speaks:
 
 
 label the_call:
-    show robert rambling at far_left
+    hide ruth
+    hide nell
+    hide lydia
+    hide marian
+    hide edwin
+
+    show edwin formal at center
+    show ruth composed at left
+    show nell hearing at right
+    show lydia composed at far_left
+    show robert rambling at far_right
 
     "Robert is halfway through his second cup when the telephone rings at the service bar."
 
@@ -716,7 +726,6 @@ label the_call:
     hide ruth
     hide nell
     hide lydia
-    hide marian
     hide robert
     hide edwin
 

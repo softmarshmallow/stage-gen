@@ -37,7 +37,7 @@ something), **checkpoint** (what Henry chose to say to Ward).
 | id | how | source | what it buys |
 |---|---|---|---|
 | `eighth_card` | look | Sc3 | seven names face outward; the eighth is turned toward Lydia. Lets "Her reaction said no" be report, not guess |
-| `would_you_have_come_first` | heard | Sc3 | the first of three countings of "Would you have come?" |
+| `would_you_have_come_first` | heard | Sc3 | Lydia to Ruth. The first of the three countings of "Would you have come?" |
 | `hand_in_the_door` | fixed | Sc3 | Henry stops the closing lift door. Not a choice. Ward will ask why; the answer is "I don't know." |
 | `ruth_roll` | attention | Sc4 | Ruth tears a roll and puts half on Paul's plate, and knows it only when her hand is empty |
 | `marian_salt` | attention | Sc4 | Marian's salt, taken and not used, set down by Robert's hand |
@@ -111,9 +111,11 @@ What Henry chose to say. Each beat sets exactly one of a told / thought / kept t
 | `offered_sentence` | June's sentence | Henry offers it unasked (needs `ruth_knife_on_plate`) |
 | `offered_envelope` | the envelope | Nell's name upside down, "Hear it" (needs `envelope_hear_it`) |
 | `ward_regard` | Ward's close | set by the close's branch when enough was given as seen. **The episode's verdict** |
-| `told_ruth_after_one` | Sc13 | what Henry gave Ruth beside the passenger elevators |
+| `told_ruth_after_one` | Sc13 | what Henry gave Ruth beside the passenger elevators: "That you didn't drink your coffee." It breaks Ward's instruction and tells her he watches her cup |
+| `told_ruth_what_i_saw` | Sc13 | **added by writer B, 2026-09-03.** The middle answer at the elevators, "What I saw." Sc13 offers three and the ledger carried one id; the novel's deflection records nothing, and the other two are different things for Thursday to answer |
 | `told_nell_in_the_court` | Sc14 | what Henry said to Nell about the window |
 | `ruth_said_needed_time` | Sc13 | Ruth's third account: "He said he needed time." One word off what she said upstairs. Henry may notice or not |
+| `would_you_have_come_second` | Sc14 | Lydia to Nell, in the motor court. **The second counting.** Nell's reply — "You already used that excuse tonight." — is the count being kept out loud, so the two cannot be collapsed |
 
 ## Ward's close
 
@@ -142,3 +144,22 @@ label ward_close:
 - A fact a scenario reads but no earlier beat can set must still be declared, and the
   case proof will require it to default to false. Facts are false until set.
 - Nothing else crosses a beat boundary. No inventory. The pocketknife is a fact, not an item.
+
+## Amendment, 06:22 — "Would you have come?" is counted twice in Episode One
+
+Added after QA's line audit. The sentence appears **twice** inside this episode's span,
+both times spoken by Lydia: to Ruth in Sc3 (`chapter-02:425`) and to Nell in Sc14
+(`chapter-06:471`). This ledger originally declared only the first.
+
+It is not a repetition to tidy. Nell answers the second with "You already used that excuse
+tonight." — the count is being kept inside the fiction, by a character, out loud. Collapsing
+the two, or dropping Sc14's, would delete a line that only works because the earlier one
+happened. `would_you_have_come_second` is therefore a fact in its own right, written by
+`e1_statements`, and the third counting belongs to a later episode.
+
+## Amendment, 06:22 — Ward's line is "That isn't what I asked."
+
+`fixed-sentences-glossary.md` renders Ward's line as "That's not what I asked." The novel
+(`chapter-06-names-and-addresses.fountain:310`) has **"That isn't what I asked."**, and so
+do the brief and the episode outline. The novel is the authority; the glossary is a
+translation aid and is wrong here. Filed for the director in `adaptation/returns.md`.

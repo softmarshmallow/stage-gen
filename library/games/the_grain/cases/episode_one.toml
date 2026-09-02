@@ -361,6 +361,11 @@ establishment = "defaults_false"
 summary = "What Henry said to Nell in the motor court about what was in the window with him."
 
 [[facts]]
+fact_id = "would_you_have_come_second"
+establishment = "required"
+summary = "Lydia to Nell in the motor court. The second counting, and Nell keeps the count out loud."
+
+[[facts]]
 fact_id = "ruth_said_needed_time"
 establishment = "defaults_false"
 summary = "Ruth's third account: 'He said he needed time.' One word off what she said upstairs."
@@ -536,4 +541,5 @@ writes = [
     "told_ruth_after_one",
     "told_nell_in_the_court",
     "ruth_said_needed_time",
+    "would_you_have_come_second",
 ]

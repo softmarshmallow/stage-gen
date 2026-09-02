@@ -410,6 +410,90 @@ is a night picture, so the panel and the buttons must hold a full value step aga
 near-black or the narration sits on the floor of the image and disappears. That is the cost
 of choosing candidate 1, paid where it lands.
 
+### 06:18 — Writer A finishes: 598 cues, 598 lifted, nothing invented
+
+Four beats done and admitted: `e1_office` (8 blocks/8 states), `e1_way_in` (7/7),
+`e1_table` (41 blocks/42 states, 5 menus), and the motor-court room. The writer built their
+own checker: 432 dialogue cues verified verbatim **against the correct speaker**, 166
+narration lines verbatim in the novel's prose, **zero attribution defects**, and the
+outline's licence for new writing went entirely unused on that half.
+
+`e1_table` sits at 10 declared flags of 48 and 42 reachable states of 200,000. The naive
+figure would have been about 1,200 — the contract lane's liveness projection is visibly
+working, and no cap raise was needed for the first half of the episode.
+
+One reordering, recorded because it is the only structural liberty taken: Henry's "Is that
+Lydia's work?" and Ruth's "No." sit before the bell in the novel, but the room's *exit* is
+the bell and `pointclick-room-v2` has no dialogue vocabulary. The exchange therefore opens
+`e1_way_in` — same words, same speakers, same continuous moment, one beat later.
+
+### 06:20 — The scene recipe cannot draw the expressions the story wrote
+
+Authoring the real `scene.toml` surfaced a limit nothing had hit before.
+`ExpressionState` in the dialogue-scene recipe is
+`Literal["neutral", "delighted", "flustered", "concerned"]` — hard-wired, exactly four —
+and `ExpressionDirections` is, in the recipe's own words, "the only expression content
+delegated to structured generation", sitting at **scene** level. One set of four
+model-written directions is applied to **every actor in the scene**.
+
+Our nine actors declare expressions named for the person — Ruth `composed/dry/exposed/shut`,
+Ward `blunt/writing/closed_notebook/one_joke`, Bell `repeating/capless/through_the_glass/seated`.
+`scenario check` already admits those names; only the scene recipe refuses them.
+
+This is not a naming inconvenience, and the pilot declined to treat it as one. There is no
+reading of `delighted` that belongs on a detective at a crime scene, on Bell with his cap in
+his hands, or on Edwin after his keys are taken — and a single shared direction set
+guarantees all nine get the same four faces.
+
+The scene lane has been asked for `dialogue-scene-v5`: expression ids come from the
+scenario's own `[[cast]] expressions`, and each expression's direction comes from the
+actor's authored `character-profile-v1` document rather than from a structured call. That
+second half is a bonus — it deletes a generation node and makes every drawn face
+deterministic against words a person wrote.
+
+**Hard checkpoint 09:30, and the fallback is priced.** If v5 will not land, forty expression
+names are mapped onto the fixed four by script, the art comes out generic, and it is
+recorded as this pilot's largest compromise. Ten minutes of work, so an early NO is nearly
+free and a late collapse is not. The lane was told: land v4 first and confirm it green
+before starting v5.
+
+### 06:22 — QA's first audit: two defects, and a gap in the lead's own ledger
+
+Seven files audited line by line against the novel. **No wrong attributions anywhere. No
+altered fixed sentences.** Ruth's deliberate discrepancy — "not to wait" to Nell, "needed to
+think" to Henry, in the same minute — survived intact as two separate flags.
+
+Two defects, both routed:
+
+- **`e1_the_court:335`**, the serious one. `henry "I saw it under his hand. I didn't read it."`
+  fires when `heading_int_bedroom` is false — a Henry who never inspected the torn piece
+  asserting a sighting the board does not carry, in the one movement built to prevent
+  exactly that. Ward has just said there was paper in the hand, so Henry can answer without
+  claiming the look.
+- **`e1_coffee:325`**, new narration contradicting a lifted line twelve lines above it.
+
+**Ruling on connective narration.** The outline said narration is the novel's prose
+unchanged; it was written before the menus existed, and a menu needs a sentence to stand on.
+Connective narration is now permitted, bounded: *it may not assert any fact, action or
+observation the novel does not contain, and it may not contradict a lifted line.* Framing
+the interface is fine; describing the world is not. QA keeps flagging instances, not the
+category.
+
+**And a gap in the lead's own work.** "Would you have come?" is spoken **twice** inside
+Episode One, both times by Lydia — to Ruth in Sc3, and to Nell in Sc14. `FACTS.md`, frozen
+at 05:48 from the outline's board rather than from the novel, declared only the first.
+
+It cannot be collapsed, and the reason is the whole argument: Nell answers the second with
+"You already used that excuse tonight." The count is kept inside the fiction, by a
+character, out loud. Drop Sc14's and a line disappears that only worked because the earlier
+one happened. `would_you_have_come_second` now exists in the ledger and in the case, which
+re-proves and still admits at **68 facts**. Filed as R-02.
+
+Also filed as **R-01**: the Korean glossary renders Ward's fixed sentence as "That's not
+what I asked." where the novel has **"That isn't what I asked."** The novel is the
+authority and the pilot proceeds on it; the glossary is a translation aid, not a contract,
+and the director decides whether it wants correcting.
+
 ---
 
 ## 3. Ledger

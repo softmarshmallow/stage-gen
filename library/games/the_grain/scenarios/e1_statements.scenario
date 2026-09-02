@@ -1,0 +1,940 @@
+# Episode One, Movement VI, second half — Names and addresses.
+#
+# The Grain, Chapter Six, Scenes 11 to 14. The Winter Room turned into eight
+# separate chairs; Ward, who wants observation from a man who is paid for
+# interpretation; Ruth beside the dark passenger elevators after one in the
+# morning; Nell in the motor court under a gray screen. Then a cab, and Henry
+# leaves alone.
+#
+# This is the episode's verdict, and it is a statement rather than a solution.
+# At each beat Ward asks and Henry can give what he SAW, give what he THINKS,
+# or keep it. Every reporting option is gated on the fact behind it, so a Henry
+# who spent the supper watching the Holts finds the option is simply not there.
+# Ward hears the difference every time, and his close reads the shape of the
+# whole.
+#
+# The Henry rule bites hardest here. Player-Henry may keep more than the
+# novel's Henry, and he may never say more in Ruth's hearing about the gallery,
+# the marks, the button or the stair: her Wednesday account is bible, and it is
+# her answer to what she believes is known. Nothing said to Ward is said in her
+# hearing; nothing said in the motor court is inference.
+
+
+label the_winter_room:
+    stage winter_room_after_police
+    play statements
+
+    "The Winter Room no longer has a single table."
+
+    "An officer has placed the chairs several feet apart. Another writes names, addresses, telephone numbers, and relationships on a yellow pad. The cook stands near the kitchen door in a white shirt with one sleeve rolled higher than the other."
+
+    show nell hungry at center
+
+    "Nell sees Henry come out of the lift."
+
+    nell "Is he dead?"
+
+    henry "Yes."
+
+    show marian warm at left
+
+    "Marian takes off her coat and lays it over the back of Nell's chair. She returns to her own before Nell can accept or refuse it."
+
+    show lydia cut_off at right
+
+    "Lydia takes one step toward Nell. She sees the coat and stops."
+
+    show robert sorry at far_left
+
+    "Robert picks up the cup nearest him."
+
+    officer "Please leave everything where it is."
+
+    "Robert puts it down. It is not the cup he had been using."
+
+    show ruth shut at far_right
+
+    "Ruth remains beside the coffee Henry watched for her. She does not touch it."
+
+    nell "Did he have my letter?"
+
+    henry "I didn't search him."
+
+    ruth "It was in his inside pocket when we went down."
+
+    "The officer looks up from his pad."
+
+    officer "Please don't discuss what happened."
+
+    "Ruth nods. Nell looks at Ruth for the first time since Henry returned."
+
+    "The police reactivate the service lift. Edwin comes up with another officer. He has no keys now. He goes to the service bar, remembers the cups, and leaves his hands at his sides. Bell is brought up a few minutes later."
+
+    "The police move them one at a time into the small private dining rooms along the curved wall. Doors close. People come back and sit in the wrong chairs."
+
+    "Robert's statement is longest. Marian's is shortest. Bell demonstrates the motion of passing a key from one hand to another. Edwin draws two different key shapes on the edge of a store plan. Lydia answers one question twice and is taken back inside."
+
+    "Ward calls Henry last."
+
+    hide nell
+    hide marian
+    hide lydia
+    hide robert
+    hide ruth
+
+    jump the_statement
+
+
+# ------------------------------------------------------------- the statement
+#
+# Ward alone at centre for the whole of it. Ruth is intermittently visible
+# beyond the glass panel and hears none of it.
+
+
+label the_statement:
+    stage private_dining_room
+
+    show ward blunt at center
+
+    "The private dining room contains a table for four and a painted view of a harbor. Ward puts Henry on the side facing the painting."
+
+    ward "You were invited socially."
+
+    henry "Yes."
+
+    ward "By Ruth Ellery."
+
+    henry "Yes."
+
+    ward "Client?"
+
+    henry "No."
+
+    ward "Friend?"
+
+    "Henry looks through the glass panel. Ruth is speaking to the uniformed officer at the far end of the Winter Room."
+
+    henry "Yes."
+
+    "Ward writes the word."
+
+    ward writing "How well do you know your friend?"
+
+    henry "That isn't a question with a useful answer."
+
+    ward "It is when a brother is dead."
+
+    henry "We met during a case. She told me the truth when it cost her something. We have seen each other several times since."
+
+    ward "Tonight she asked you to come because?"
+
+    henry "She expected Lydia Shaw to force a private matter into the room. She wanted one person there who would not help them perform it."
+
+    jump beat_reaction
+
+
+label beat_reaction:
+    ward blunt "Did she know her brother was invited?"
+
+    menu:
+        "Her reaction said no." if eighth_card:
+            jump reaction_saw
+        "No.":
+            jump reaction_thought
+        "I couldn't say.":
+            jump reaction_kept
+
+
+label reaction_saw:
+    henry "Her reaction said no."
+
+    ward "Her reaction."
+
+    henry "Seven cards faced outward. The eighth was turned toward Miss Shaw. Miss Ellery reached for it and Miss Shaw put two fingers on it before she could turn it over."
+
+    ward writing "That I can use."
+
+    set told_reaction
+
+    jump beat_the_door
+
+
+label reaction_thought:
+    henry "No."
+
+    ward "You watched her find out?"
+
+    henry "I watched her afterward."
+
+    ward "Then that is you, Calder, not her."
+
+    set thought_reaction
+
+    jump beat_the_door
+
+
+label reaction_kept:
+    henry "I couldn't say."
+
+    ward "You were at the table."
+
+    henry "I was watching something else."
+
+    ward writing "All right."
+
+    set kept_reaction
+
+    jump beat_the_door
+
+
+label beat_the_door:
+    ward "What did she do?"
+
+    "Henry tells him: the place card, the elevator, Paul's wish to leave, Henry's hand on the closing door."
+
+    "Ward stops him there."
+
+    ward blunt "Why did you stop the door?"
+
+    henry "I don't know."
+
+    ward "You put your hand in a closing door for a man you had never met."
+
+    henry "Yes."
+
+    ward "And you don't know why."
+
+    henry "No."
+
+    "Ward writes it down. Henry watches him write it."
+
+    jump beat_sentence
+
+
+label beat_sentence:
+    if ruth_knife_on_plate:
+        jump sentence_offer
+
+    jump beat_envelope
+
+
+label sentence_offer:
+    "Ward does not ask about the sentence, because nobody has told him there is one."
+
+    menu:
+        "Tell him about June Avery's sentence.":
+            jump sentence_offered
+        "Let him keep his own order.":
+            jump beat_envelope
+
+
+label sentence_offered:
+    henry "Miss Shaw quoted a sentence at the table tonight. It belonged to Miss Avery's mother. Miss Ellery has seen something like it at her work."
+
+    ward "Which work?"
+
+    henry "You will have to ask her."
+
+    ward writing "A sentence."
+
+    henry "Her knife touched her plate when she heard it. She had not meant it to."
+
+    set offered_sentence
+
+    jump beat_envelope
+
+
+label beat_envelope:
+    if envelope_hear_it:
+        jump envelope_offer
+
+    jump beat_key
+
+
+label envelope_offer:
+    menu:
+        "Tell him about the letter.":
+            jump envelope_offered
+        "Leave the letter to Miss Avery.":
+            jump beat_key
+
+
+label envelope_offered:
+    henry "Paul Ellery laid a cream envelope beside his plate at dessert and put his hand flat on it. Miss Avery read her own name on it upside down."
+
+    ward "Whose letter?"
+
+    henry "Hers. She asked him whether she was to read it or hear it, and he took longer over the answer than he should have."
+
+    ward writing "Which was it?"
+
+    henry "Hear it. After dinner, alone. He had not done it yet."
+
+    set offered_envelope
+
+    jump beat_key
+
+
+label beat_key:
+    ward blunt "Where did the key come from?"
+
+    menu:
+        "Mr. Price laid it beside his fork before coffee." if brass_key_after_dessert:
+            jump key_told
+        "He had it at the table.":
+            jump key_kept
+
+
+label key_told:
+    henry "Mr. Price laid it beside his fork while the cinnamon was going round. He said, after dessert."
+
+    ward "Those words?"
+
+    henry "Those words."
+
+    ward writing "Then somebody else decided when he could go down."
+
+    henry "Somebody decided when."
+
+    set told_key_origin
+
+    jump beat_descent
+
+
+label key_kept:
+    henry "He had it at the table. It was beside his plate when he stood up."
+
+    ward "Who gave it to him?"
+
+    henry "I didn't see."
+
+    ward "All right."
+
+    set kept_key_origin
+
+    jump beat_descent
+
+
+label beat_descent:
+    ward "Who went down with him?"
+
+    henry "His sister. They took the service lift a few minutes after nine."
+
+    ward "And you stayed where you were."
+
+    henry "She asked me to watch her coffee."
+
+    ward "Did you?"
+
+    henry "Yes."
+
+    jump beat_return
+
+
+# The model beat. Ward asks for a state of mind and Henry answers with a cup,
+# and the whole of what Ward thinks of him afterwards turns on it.
+
+
+label beat_return:
+    if coffee_not_drunk:
+        jump return_ward_knows
+
+    jump return_ward_asks
+
+
+label return_ward_knows:
+    ward "You said she touched it to her mouth."
+
+    henry "Yes."
+
+    ward "Did she drink?"
+
+    ward blunt "Was she frightened?"
+
+    menu:
+        "She didn't drink the coffee.":
+            jump return_saw
+        "Yes.":
+            jump return_thought
+        "I don't think so.":
+            jump return_kept
+
+
+label return_ward_asks:
+    ward "She came back up alone."
+
+    henry "Yes."
+
+    ward "Did she drink the coffee she left with you?"
+
+    henry "I didn't watch the cup."
+
+    ward blunt "Was she frightened?"
+
+    menu:
+        "Yes.":
+            jump return_thought
+        "I don't think so.":
+            jump return_kept
+
+
+label return_saw:
+    henry "She didn't drink the coffee."
+
+    ward "That isn't what I asked."
+
+    henry "It is what I saw."
+
+    set told_coffee
+
+    jump beat_paul_words
+
+
+label return_thought:
+    henry "Yes."
+
+    ward "Of what?"
+
+    henry "I couldn't tell you."
+
+    ward writing "Then it is a word, and it goes down as yours."
+
+    set thought_frightened
+
+    jump beat_paul_words
+
+
+label return_kept:
+    henry "I don't think so."
+
+    ward "That is the second time tonight you have not thought so."
+
+    henry "It is the best I have."
+
+    ward "All right."
+
+    set kept_frightened
+
+    jump beat_paul_words
+
+
+# Two reports of the same sentence, one minute apart, that do not fit each
+# other. Henry heard both. What he does with them is his.
+
+
+label beat_paul_words:
+    ward "What did she say when she came back?"
+
+    menu:
+        "She told Miss Avery he said not to wait. She told me he said he needed to think.":
+            jump paul_words_both
+        "She told Miss Avery he said not to wait.":
+            jump paul_words_one
+        "She said he was downstairs with the carton.":
+            jump paul_words_kept
+
+
+label paul_words_both:
+    henry "She told Miss Avery he said not to wait. A minute later she told me he said he needed to think."
+
+    ward "Which minute?"
+
+    henry "The same one."
+
+    "Ward stops writing and looks for a moment at the painted harbor over Henry's shoulder."
+
+    ward writing "Say it once more, slowly."
+
+    henry "He said not to wait. He said he needed to think. In the same minute, to two people."
+
+    set told_paul_words
+
+    jump beat_shoe
+
+
+label paul_words_one:
+    henry "She told Miss Avery he said not to wait."
+
+    ward "And to you?"
+
+    henry "She answered what I asked her."
+
+    ward writing "All right."
+
+    set told_paul_words_one
+
+    jump beat_shoe
+
+
+label paul_words_kept:
+    henry "She said he was downstairs with the carton."
+
+    ward "That is not what I asked either."
+
+    henry "No."
+
+    ward "You are allowed to be tired, Calder."
+
+    set kept_paul_words
+
+    jump beat_shoe
+
+
+label beat_shoe:
+    if smear_on_shoe:
+        jump shoe_offer
+
+    jump ward_close
+
+
+label shoe_offer:
+    menu:
+        "There was dust on her shoe from the carton.":
+            jump shoe_told
+        "Say nothing about the shoe.":
+            jump shoe_kept
+
+
+label shoe_told:
+    henry "There was dust on her shoe from the carton."
+
+    ward "You saw the carton on her shoe?"
+
+    henry "I saw a pale smear along the outside of one shoe. The carton is mine, not hers."
+
+    ward writing "Then give me the shoe and keep the carton."
+
+    henry "The outside of the right one, from the toe back."
+
+    set told_shoe
+
+    jump ward_close
+
+
+label shoe_kept:
+    "Ward waits with the pen down. Henry lets the pause be the answer, and Ward writes nothing into it."
+
+    set kept_shoe
+
+    jump ward_close
+
+
+# ------------------------------------------------------------- Ward's close
+#
+# The branch is FACTS.md's, written as the specific combinations that matter
+# rather than as a count, because flags are boolean and a threshold is a shape.
+# The weight is on the coffee, the shoe and what Paul said: the three places
+# where Henry could have given an opinion and gave a thing he saw instead.
+
+
+label ward_close:
+    if told_coffee and told_shoe and told_paul_words:
+        jump ward_close_kept_looking
+
+    if told_coffee and told_shoe:
+        jump ward_close_regard
+
+    if told_coffee and told_paul_words:
+        jump ward_close_regard
+
+    jump ward_close_plain
+
+
+label ward_close_kept_looking:
+    "Ward closes his notebook."
+
+    ward closed_notebook "Keep doing that."
+
+    henry "Are you holding anyone?"
+
+    ward "Not tonight."
+
+    "He stands."
+
+    ward "You do not go back into the window or the gallery. Do not compare statements with the others tonight. You are one of them."
+
+    "Henry gets up."
+
+    ward "Calder."
+
+    "Henry waits."
+
+    ward "If you remember something, call me before you decide what it means."
+
+    henry "I will."
+
+    set ward_regard
+
+    jump the_elevators
+
+
+label ward_close_regard:
+    "Ward closes his notebook."
+
+    ward closed_notebook "Keep doing that."
+
+    "He stands."
+
+    ward "You do not go back into the window or the gallery. Do not compare statements with the others tonight. You are one of them."
+
+    "Henry gets up."
+
+    ward "Calder."
+
+    "Henry waits."
+
+    ward "If you remember something, call me before you decide what it means."
+
+    henry "I will."
+
+    set ward_regard
+
+    jump the_elevators
+
+
+label ward_close_plain:
+    "Ward closed his notebook some time ago. Henry did not notice when."
+
+    ward closed_notebook "You are one of them."
+
+    "He stands, and he does not say the rest of it."
+
+    "Henry gets up and goes out past him."
+
+    jump the_elevators
+
+
+# ----------------------------------------------------------- after one, Ruth
+
+
+label the_elevators:
+    stage passenger_elevators
+
+    hide ward
+
+    "It is after one in the morning when the officers finish taking initial accounts. Ward has not announced a theory. The guests may leave after confirming where they can be reached."
+
+    show ruth composed at center
+
+    "Ruth finds Henry beside the dark passenger elevators."
+
+    if asked_paul_sentence:
+        jump elevators_you_asked_him
+
+    jump elevators_open
+
+
+label elevators_you_asked_him:
+    ruth dry "You asked him."
+
+    henry "I did."
+
+    ruth "And?"
+
+    henry "He stopped in the middle of it and looked for you."
+
+    ruth shut "Yes. He does that."
+
+    jump elevators_open
+
+
+label elevators_open:
+    ruth "What did you tell him?"
+
+    menu:
+        "Ward told us not to compare statements.":
+            jump elevators_novel
+        "What I saw.":
+            jump elevators_what_i_saw
+        "That you didn't drink your coffee." if coffee_not_drunk:
+            jump elevators_coffee
+
+
+label elevators_novel:
+    henry "Ward told us not to compare statements."
+
+    jump ruth_account
+
+
+label elevators_what_i_saw:
+    henry "What I saw."
+
+    ruth composed "That is not an answer and you know it isn't."
+
+    henry "It is the one Ward left me."
+
+    ruth "Then I will do the comparing."
+
+    set told_ruth_what_i_saw
+
+    jump ruth_account
+
+
+label elevators_coffee:
+    henry "That you didn't drink your coffee."
+
+    "Ruth does not move for a moment."
+
+    ruth exposed "You watched the cup."
+
+    henry "I watched the cup."
+
+    ruth "All evening I thought you were watching me."
+
+    set told_ruth_after_one
+
+    jump ruth_account
+
+
+label ruth_account:
+    "Ruth looks toward the private room where Ward is speaking with Bell."
+
+    ruth "Mr. Bell gave Paul the carton. Paul handed me the lift key. Then Bell went into receiving. Paul opened the carton. There were typed pages and envelopes. I did not read them."
+
+    "Henry says nothing."
+
+    ruth "He wanted me to tell Nell something for him. He said, \"Help me tell her.\" I refused. We argued. He said he needed time, and I left him beside the display door."
+
+    menu:
+        "He said he needed time.":
+            jump ruth_third_account
+        "Let her finish.":
+            jump ruth_called_back
+
+
+label ruth_third_account:
+    "Upstairs she said he needed to think. To Nell she said he said not to wait. Now, after one in the morning, he needed time. Henry says none of that out loud."
+
+    set ruth_said_needed_time
+
+    jump ruth_called_back
+
+
+label ruth_called_back:
+    henry "Why are you telling me?"
+
+    ruth "Because Ward will. I don't want you deciding what I kept from you before you know what I said. I told him the same thing."
+
+    "An officer opens the private-room door and calls Ruth back inside. She goes without taking the coffee she left beside Henry."
+
+    hide ruth
+
+    jump the_motor_court
+
+
+# --------------------------------------------------- the motor court, and out
+
+
+label the_motor_court:
+    stage motor_court_screened
+
+    "The motor court has been cleared of police cars except for Ward's sedan. A gray screen now covers most of the display glass. Light escapes around its edges. The ambulance has already gone."
+
+    show robert waiting at far_left
+    show marian warm at left
+    show nell gone at center
+    show lydia lowered at right
+    show ruth composed at far_right
+
+    "Robert holds Marian's coat. Marian remains near Nell without standing beside her. Lydia waits with her unopened suitcase."
+
+    "Ruth approaches Nell."
+
+    ruth "I can take you home."
+
+    nell "No."
+
+    ruth "I don't think you should be alone."
+
+    nell "Then Marian can come."
+
+    "Marian does not answer for her."
+
+    nell "If she wants."
+
+    marian "I want."
+
+    "Ruth nods. She moves away toward the service door but does not leave."
+
+    "Nell looks at Henry."
+
+    nell hearing "What was in the window with him?"
+
+    menu:
+        "The carton was on the gallery. There was a torn typed page in his hand." if carton_on_gallery and heading_int_bedroom:
+            jump nell_told
+        "There was a torn typed page in his hand." if heading_int_bedroom:
+            jump nell_part_page
+        "There was a carton on the gallery above him." if carton_on_gallery:
+            jump nell_part_carton
+        "I'm not going to describe it to you.":
+            jump nell_silence
+
+
+label nell_told:
+    henry "The carton was on the gallery. There was a torn typed page in his hand."
+
+    nell "And my letter?"
+
+    henry "The police have his clothing. They will tell you what they found."
+
+    set told_nell_in_the_court
+
+    jump lydia_speaks
+
+
+label nell_part_page:
+    henry "There was a torn typed page in his hand."
+
+    nell "And my letter?"
+
+    henry "The police have his clothing. They will tell you what they found."
+
+    jump lydia_speaks
+
+
+label nell_part_carton:
+    henry "There was a carton on the gallery above him."
+
+    nell "And my letter?"
+
+    henry "The police have his clothing. They will tell you what they found."
+
+    jump lydia_speaks
+
+
+label nell_silence:
+    henry "The police have his clothing. They will tell you what they found."
+
+    nell "That is not what I asked you."
+
+    henry "No."
+
+    jump lydia_speaks
+
+
+label lydia_speaks:
+    lydia "The carton was meant for you."
+
+    "Nell turns to her."
+
+    nell "What does that mean?"
+
+    "Lydia looks at Marian. Marian's face gives her no permission and no escape."
+
+    lydia "I called Paul because he had something that belonged to June."
+
+    nell "My mother."
+
+    lydia "Yes."
+
+    nell "What?"
+
+    lydia lowered "Something of hers I should have given you years ago. I meant to. There was never a week when it would not have been the wrong week, and then there were fourteen years of wrong weeks, and I am not going to stand in a motor court and pretend that was—"
+
+    nell "How did he get it?"
+
+    lydia "I wanted him to answer that."
+
+    nell "You brought Paul here to return it to me."
+
+    lydia "Yes."
+
+    nell "Without telling me what it was."
+
+    lydia cut_off "Would you have come?"
+
+    set would_you_have_come_second
+
+    nell "You already used that excuse tonight."
+
+    "Lydia lowers her eyes."
+
+    "Nell turns to Ruth. Ruth has come out from beneath the canopy as far as the edge of the light."
+
+    nell "You went down with him."
+
+    ruth "Yes."
+
+    nell "Did he say anything about me?"
+
+    ruth exposed "He said you would listen."
+
+    nell "I would have."
+
+    "Nobody helps her with the tense."
+
+    "Marian holds out the coat. Nell takes it and cannot find the second sleeve. She tries twice. Marian turns the coat around and holds it open, and Nell lets her."
+
+    "Lydia takes one step toward them."
+
+    nell "No."
+
+    "Lydia stops where she is."
+
+    "Robert has brought the car under the canopy. Marian and Nell go toward it."
+
+    if told_nell_in_the_court:
+        jump nell_turns
+
+    jump nell_does_not_turn
+
+
+label nell_turns:
+    "At the edge of the light Nell turns back, not to Lydia and not to Ruth."
+
+    nell hearing "Mr. Calder. You told me what you saw."
+
+    henry "Yes."
+
+    nell "And what you didn't."
+
+    henry "Yes."
+
+    "She gets into the car. Robert closes the door for her and gets in without looking at Lydia."
+
+    jump the_cab
+
+
+label nell_does_not_turn:
+    "She gets into the car without turning back. Robert closes the door for her and gets in without looking at Lydia."
+
+    jump the_cab
+
+
+label the_cab:
+    hide nell
+    hide marian
+    hide robert
+
+    "Lydia picks up her suitcase and does not go anywhere with it."
+
+    show edwin no_keys at left
+
+    "Edwin, who has been standing at the service door with no keys in his pockets, takes it from her."
+
+    hide lydia
+    hide edwin
+    hide ruth
+
+    show ruth composed at center
+
+    "Ruth comes the rest of the way to Henry."
+
+    ruth "I'll find a cab."
+
+    henry "I'll walk you to Hill."
+
+    ruth shut "No. Not tonight."
+
+    "She goes out under the canopy toward the street. He watches her to the corner. She does not look back, and he does not expect her to."
+
+    hide ruth
+
+    "The display screen moves in the night air. Behind it, the white paper moon remains lit."
+
+    "Henry entered Tolland's with Ruth. He leaves alone."
+
+    stop statements
+
+    end left_alone

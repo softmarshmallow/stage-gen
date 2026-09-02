@@ -1,0 +1,146 @@
+# The Grain — Episode One as one generated bundle.
+#
+# A scene binds several scenarios because the episode is split into six of them,
+# so each one's admission proof stays under its state ceiling. The scene then
+# declares the union of their stages, cast and tracks, and draws each backdrop,
+# each plate and each track exactly once — a supper of eight people appears in
+# four different scenarios and its actors are drawn for all four together.
+#
+# This document is the art half of the episode. The play order is not here: it is
+# `cases/episode_one.toml`, which also carries the two point-and-click rooms that
+# sit between these scenarios and generates its art through its own recipe.
+
+schema_version = 4
+kind = "dialogue-scene-v4"
+game_id = "the_grain"
+display_name = "The Grain — Episode One"
+revision = 1
+scene_brief = "A farewell supper in a closed 1972 department store, and a man found in its window"
+transparency_mode = "native"
+
+# The art direction of record, as pixels rather than adjectives. Candidate 1 of a
+# six-candidate sheet, selected by the production lead on 2026-09-03: the motor
+# court after closing, six blank-headed mannequins facing an empty seventh chair
+# beneath a paper moon. It fixes medium, palette and light for everything drawn
+# here, and its digest rides each image node's cache identity — replacing the file
+# is a new look and re-bills the whole episode.
+#
+# It is deliberately NOT an identity reference for the cast. It has no faces in it
+# at all, which with nine actors to draw is protection rather than a shortfall:
+# a plate showing one face would pull all nine toward it.
+style_reference_id = "cover"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_office.toml"
+source_sha256 = "5f9ce7101789cc8279cf8cfab42751db255e3631de95f5dd2fb336eb3fd49408"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_way_in.toml"
+source_sha256 = "0ce26a98dde54cdfd0fde793273fa0f6402d5dd755dc143d98f114ec6aca9135"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_table.toml"
+source_sha256 = "b09bebfe24ffaf2102449c38471abd26a4fc6cee26b9998d7be3a7d787b8eae0"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_coffee.toml"
+source_sha256 = "d8ee6c5dec7001133485a20c428b8b71042082b5de12b93555d7e5ffc9c9f422"
+
+[[scenarios]]
+schema_version = 1
+kind = "scenario-binding-v1"
+ref = "scenarios/e1_the_court.toml"
+source_sha256 = "56f4a0dd3497df99828716cb568ebb1c85dc1dc0f5ee0d1d4019213518b68d84"
+
+# ------------------------------------------------------------------- the cast
+# Which package member draws each actor the scenarios can show. An actor that
+# declares no expressions speaks but is never drawn and needs no binding here:
+# Henry is the protagonist and is never on screen, and the uniformed officer is
+# a voice in a motor court.
+
+[[cast]]
+actor_id = "ruth"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/ruth.toml"
+source_sha256 = "624017484b4a9fe5227e55c046bd7f005091f253871d8a82bced0548f8b98110"
+
+[[cast]]
+actor_id = "nell"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/nell.toml"
+source_sha256 = "c824038f67f04159e1a4885b2f65cfc97fc3a1e1d170164401da78841ce6d4c0"
+
+[[cast]]
+actor_id = "lydia"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/lydia.toml"
+source_sha256 = "4178d0113101da500d4891e96c18b1c9537607c54ae3a86f85070da5b6a5fff1"
+
+[[cast]]
+actor_id = "marian"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/marian.toml"
+source_sha256 = "925675bb5e33bfab531dda6ede4a1b906638f59b896632451e45a8baec3a2563"
+
+[[cast]]
+actor_id = "robert"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/robert.toml"
+source_sha256 = "f4775b5bbef7f8ba54a98a052228ea5dc2cf19850cd8c2ef1204e05f945f22c0"
+
+[[cast]]
+actor_id = "edwin"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/edwin.toml"
+source_sha256 = "3bc81b2ab471d674477732c553110589b93f316d9db6ef9b5acc1e7e56cc6eb1"
+
+[[cast]]
+actor_id = "paul"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/paul.toml"
+source_sha256 = "4af630db69f83a0cc37e6f391eb8fd97058af3e35cfa2d18acfcfeaf019508e6"
+
+[[cast]]
+actor_id = "ward"
+[cast.character_profile]
+schema_version = 1
+kind = "character-profile-binding-v1"
+ref = "characters/ward.toml"
+source_sha256 = "44fa17fef8c88f6ebef31d2a0ffb2ef249a1c3854ff58a92f645c07676ef0b7f"
+
+[[references]]
+reference_id = "cover"
+source = "references/cover.png"
+source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this production's own art direction, with no third-party image input.",
+    "First-party AI-generated plate selected by the production lead from a six-candidate sheet on 2026-09-03.",
+    "No independent semantic review of the exact committed bytes is recorded yet; see references/cover.provenance.json.",
+]
+
+[presentation]
+framing_zoom = 70
+source_framing_zoom = 70
