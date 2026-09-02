@@ -8,8 +8,8 @@
 # the script uses and this file does not declare is refused, and so is a
 # declaration the script never uses.
 
-schema_version = 1
-kind = "scenario-v1"
+schema_version = 2
+kind = "scenario-v2"
 game_id = "larkfield"
 scenario_id = "last_class"
 display_name = "The Last Class of Summer"

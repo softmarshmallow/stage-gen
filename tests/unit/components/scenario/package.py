@@ -62,8 +62,8 @@ def declarations_value(*, script_sha256: str, **overrides: Any) -> dict[str, Any
     """The default declarations, with any top-level key replaced."""
 
     value: dict[str, Any] = {
-        "schema_version": 1,
-        "kind": "scenario-v1",
+        "schema_version": 2,
+        "kind": "scenario-v2",
         "game_id": "testgame",
         "scenario_id": "last_class",
         "display_name": "The Last Class",

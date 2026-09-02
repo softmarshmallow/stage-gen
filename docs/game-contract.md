@@ -330,7 +330,7 @@ does not by itself define a core game contract.
   `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v4`, `game-map-v9`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
-  `scenario-catalog-v1`, `scenario-v1`, `runner-gameplay-v4`,
+  `scenario-catalog-v1`, `scenario-v2`, `runner-gameplay-v4`,
   `runner-track-v4`, `runner-avatar-v3`, `runner-audio-v3`, and the optional
   `game-fx-v2` contracts.
   Provider-free
@@ -357,6 +357,7 @@ does not by itself define a core game contract.
 | [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v9` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
+| [Case: the container above the narrative leaves](spec/game/case.md) | Exact-current `case-v1`, `case-catalog-v1` and the `case-runtime-v1` projection: the beat graph over scenarios and rooms, the declared fact namespace, the must-availability proof, and the leaf binding |
 | [Screen FX: transitions and overlays](spec/game/fx.md) | Exact-current `game-fx-v2`: generated cut-in plates, the game-global moment vocabulary, the traced mask polygon a runtime draws, and the two host contracts |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |
 | [Authored game maps](game-maps.md) | Exact-current `game-map-v9` package placement, ownership summary, and runtime projection |

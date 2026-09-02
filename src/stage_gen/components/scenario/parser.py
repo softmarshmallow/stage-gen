@@ -24,6 +24,7 @@ from typing import Literal
 
 from stage_gen.components._game_input import SNAKE_ID_PATTERN
 from stage_gen.components.scenario.models import (
+    SLOTS,
     AudioStatement,
     ChoiceOption,
     ChoiceStatement,
@@ -44,7 +45,7 @@ from stage_gen.components.scenario.models import (
 _STATEMENT_KEYWORDS = frozenset(
     {"show", "hide", "stage", "play", "stop", "set", "menu", "if", "jump", "end"}
 )
-_SLOTS: frozenset[str] = frozenset({"left", "center", "right"})
+_SLOTS: frozenset[str] = frozenset(SLOTS)
 _MAX_LINES = 20_000
 
 
@@ -260,7 +261,7 @@ def _parse_show(line: _SourceLine, words: list[str]) -> ShowStatement:
             raise _error(line, "expected a slot after `at`")
         candidate = words[index]
         if candidate not in _SLOTS:
-            raise _error(line, f"slot must be left, center, or right; found `{candidate}`")
+            raise _error(line, f"slot must be one of {', '.join(SLOTS)}; found `{candidate}`")
         slot = candidate  # type: ignore[assignment]
         index += 1
     if index != len(words):

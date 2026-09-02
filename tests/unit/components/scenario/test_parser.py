@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from stage_gen.components.scenario import (
+    SLOTS,
     AudioStatement,
     ChoiceStatement,
     HideStatement,
@@ -54,8 +55,17 @@ def test_show_takes_an_optional_expression_and_slot() -> None:
     assert statements[2] == HideStatement(actor="nao")
 
 
+def test_every_one_of_the_five_slots_parses() -> None:
+    """v2 widened the vocabulary to five; a supper table needs the outer pair."""
+
+    statements = _one_block("\n".join(f"    show nao at {slot}" for slot in SLOTS))
+    assert [
+        statement.slot for statement in statements if isinstance(statement, ShowStatement)
+    ] == list(SLOTS)
+
+
 def test_a_slot_outside_the_closed_vocabulary_is_refused() -> None:
-    with pytest.raises(ScenarioSyntaxError, match=r"line 2: slot must be left, center, or right"):
+    with pytest.raises(ScenarioSyntaxError, match=r"line 2: slot must be one of far_left"):
         _one_block("    show nao at upstage")
 
 

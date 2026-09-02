@@ -3,11 +3,12 @@
 > **Contract maturity: exact-current for the authored contract, the script
 > surface, the admission proof, and the runtime that walks it.** Executable
 > authority: `src/stage_gen/components/scenario/`, `web/lib/scenario/`, the
-> authored `library/games/larkfield/scenario.toml` beside its script, and
+> authored `library/games/larkfield/scenarios/last_class.toml` beside its script, and
 > `stage-gen scenario check`. The choice recorded under [Decision](#decision) is
 > settled and should not be re-litigated without new evidence.
-> [The shell is not Scenario](#the-shell-is-not-scenario) remains a target
-> shape: there are no save slots, no backlog, and no skip-already-read.
+> [The shell is not Scenario](#the-shell-is-not-scenario) is partly built: the
+> consumer now autosaves and keeps a backlog, and there are still no save slots
+> and no skip-already-read.
 
 The [dialogue and cutscene sequence contract](dialogue-and-cutscene-sequences.md)
 owns the canonical semantic vocabulary for authored narrative: sequences, nodes,
@@ -92,7 +93,7 @@ is expected to consume scenarios rather than keeping a parallel beat list.
 
 ## The four parts
 
-1. **The authored contract** (`scenario-v1`) — strict TOML, closed statement
+1. **The authored contract** (`scenario-v2`) — strict TOML, closed statement
    vocabulary, no expressions beyond flag tests, no embedded code.
 2. **The authored surface** — a line-oriented script file that compiles one to
    one onto that vocabulary, so the part a person writes is prose rather than
@@ -104,13 +105,13 @@ is expected to consume scenarios rather than keeping a parallel beat list.
    free of engine, manifest, and genre vocabulary, drawn by each genre's own
    consumer.
 
-## Authored contract — `scenario-v1`
+## Authored contract — `scenario-v2`
 
 A scenario is **two package members**, each named by exact relative path and
 exact bytes, the way every other authored member is:
 
 ```text
-library/games/<game_id>/scenario.toml                  # declarations
+library/games/<game_id>/scenarios/<scenario_id>.toml       # declarations
 library/games/<game_id>/scenarios/<scenario_id>.scenario  # the script
 ```
 
@@ -120,7 +121,7 @@ flags, endings — is package data and stays in TOML. The script holds only
 narrative. That keeps schema noise out of the file where prose lives, and keeps
 the digest-bound members where the rest of the package's members already are.
 
-`scenario.toml` names the script by path and pins it with `script_sha256`,
+The declarations name the script by path and pin it with `script_sha256`,
 exactly as `[[references]]` pins an image. Admission checks the two halves
 against each other in both directions: a name the script uses that the
 declarations do not carry is refused, and so is a declaration nothing uses.
@@ -162,6 +163,61 @@ set and a set that must be clear — the same shape the point-and-click room
 already uses for `requires`. No arithmetic, no comparison, no expression
 language, no embedded source. This is the single rule that keeps a scenario
 provable and keeps the runtime from becoming an interpreter.
+
+### Staging slots
+
+```text
+show <actor> [<expression>] at far_left | left | center | right | far_right
+```
+
+`scenario-v1` carried the middle three. **A supper table of eight needs more than
+three positions before composition can carry meaning**, so v2 adds the outer
+pair, and an exchange can put the Holts at the ends of the frame while the person
+across the table holds the centre.
+
+Three-slot scripts are a **strict subset**: every v1 staging reads the same. The
+contract identity moved anyway, because widening a value domain is not a
+field-presence change — a consumer that switched on the old three values would
+mis-draw the new two rather than refuse them, and this repository's rule is that
+identity is exact-current. The compiled wire document moved with it, to
+`scenario-program-v2`.
+
+Which slot an actor occupies is authored per exchange, by who is shown. The
+consumer highlights the speaker; the script does not say who is speaking loudly.
+
+### Imported flags
+
+A flag declaration carries an `origin`:
+
+```toml
+[[flags]]
+flag_id = "stayed_quiet"          # origin = "local", the default
+
+[[flags]]
+flag_id = "rang_the_bell"
+origin = "imported"
+```
+
+A **local** flag starts clear and only this scenario's own `set` statements
+establish it. An **imported** flag is a fact carried in from an earlier beat of a
+[case](case.md): the scenario reads it and may never set it.
+
+This exists because of one admission rule. Admission refuses "a flag read by a
+condition that no reachable `set` establishes" — which is right for a lone
+scenario and fatal for a chained one, where the movement that reads
+`coffee_not_drunk` is deliberately not the movement that sets it. `origin` is the
+declaration that tells the proof which is which. **The identifier is identical on
+both sides of the boundary**, and that is the whole crossing mechanism.
+
+What it costs, and the discipline that follows:
+
+- the proof searches from **every assignment** of the imported flags, because a
+  fact may arrive either way and a scenario proven for one arrival is unproven.
+  Each import therefore doubles the entry frontier;
+- an imported flag **no condition tests** is refused. Importing the whole board
+  "just in case" is the failure mode, and it is bought at `2^n`; and
+- `MAX_IMPORTED_FLAGS` caps the count in code. A movement needing more is asking
+  to read the whole board rather than the part its branches test.
 
 Deliberately outside the subset, each refused rather than approximated: `wait`,
 `gameplay_gate`, `sequence_call`, shot and camera direction, timeline tracks,
@@ -222,7 +278,7 @@ if_jump     = "if" , condition , ":" , NEWLINE , INDENT , jump , DEDENT ;
 condition   = term , { "and" , term } ;
 term        = [ "not" ] , ident ;
 
-slot        = "left" | "center" | "right" ;
+slot        = "far_left" | "left" | "center" | "right" | "far_right" ;
 ident       = lower_snake_case ;
 ```
 
@@ -318,8 +374,8 @@ label ending_quiet:
 with the names it uses declared beside it:
 
 ```toml
-schema_version = 1
-kind = "scenario-v1"
+schema_version = 2
+kind = "scenario-v2"
 scenario_id = "last_class"
 script = "scenarios/last_class.scenario"
 script_sha256 = "<sha256 of the exact script bytes>"
@@ -395,9 +451,49 @@ rule `_fireable` already carries on the room side, restated for branches.
 
 **The ceiling lives in code, not in the authored file**
 (`MAX_REACHABLE_STATES`), so an author cannot raise their own limit. It is not a
-formality: the space is `labels x 2^flags`, so ten flags is nothing and
-twenty-five is thirty-three million states. Keeping flags few is the authoring
-discipline this number enforces.
+formality: the space is `labels x 2^live flags`, so ten is nothing and
+twenty-five would be thirty-three million states. What keeps a real ensemble
+scene under it is [liveness projection](#liveness-projection), not authoring
+fewer choices.
+
+### Liveness projection
+
+The search would be unaffordable without it, and the reason is the shape real
+narrative takes. An ensemble scene authors one flag per answer — a `told_*`, a
+`thought_*`, a `kept_*` — and most of them are **dead the instant they are set**:
+nothing downstream ever tests them. Carried in the state, each one doubles the
+space for no observable difference, and a movement with ten of them is a thousand
+times more expensive than the branching it actually contains.
+
+So the search projects each state's flags onto the flags still **live** at the
+block it is entering, computed by a backward dataflow over the syntactic
+control-flow graph. Within a block every `set` runs before the terminal statement,
+which is the only statement that reads a flag, so the incoming value of a flag
+matters exactly when the block tests it without first assigning it, or when some
+successor still needs it:
+
+```text
+live_in(b)  = (reads(b) u live_out(b)) minus assigned(b)
+live_out(b) = U live_in(s) for every syntactic successor s
+```
+
+**This is a change to the proof, never to the verdict.** The projection preserves
+every condition's value at the point it is evaluated, so it is a quotient of the
+exact state space: the same reachable labels, the same reachable endings, the
+same shortest-path lengths, and the same "choice with no selectable option"
+refusal. A scenario admissible before is admissible after. Only the number of
+states shrinks — which is the whole point, since the number of states is what the
+ceiling measures. `tests/unit/components/scenario/test_liveness.py` holds it to
+that by running the exact, unprojected search alongside the real one and
+comparing.
+
+It also pays for the [imported flags](#imported-flags) twice over: an import is
+dead one block after the condition that reads it, so the entry frontier collapses
+again immediately rather than being carried to every ending.
+
+The alternative, when a movement will not fit, is **not** cutting the player's
+authored choices. It is splitting the movement — which is what a
+[case](case.md) is for.
 
 The proof, with one shortest path to each ending as evidence, is persisted into
 the run, the way `puzzle.validation.json` already is.
@@ -491,6 +587,10 @@ This document does not:
 
 ## References
 
+- [Case: the container above the narrative leaves](case.md) — the authored beat
+  graph that chains scenarios and rooms into one episode, the fact namespace they
+  trade across a beat boundary, and the proof that no movement reads a fact some
+  route never established.
 - [Ren'Py language reference](https://www.renpy.org/doc/html/) — the statement
   vocabulary studied for this subset, and the source of the skip, backlog, and
   save-slot conventions adopted in M2.

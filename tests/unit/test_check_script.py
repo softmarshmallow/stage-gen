@@ -54,5 +54,8 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     ) in commands
     assert ("stage-gen", "dialogue-scene", "generate", "--help") in commands
     assert ("stage-gen", "pointclick-room", "generate", "--help") in commands
+    assert ("stage-gen", "scenario", "check", "--help") in commands
+    assert ("stage-gen", "case", "check", "--help") in commands
+    assert ("stage-gen", "case", "bundle", "--help") in commands
     assert ("stage-gen", "universe", "semantic", "--help") in commands
     assert ("stage-gen", "universe", "gallery", "--help") in commands

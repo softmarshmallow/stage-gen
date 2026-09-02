@@ -263,8 +263,8 @@ def test_a_choice_no_option_can_satisfy_is_refused_as_a_softlock() -> None:
 def _declarations() -> ScenarioDeclarations:
     return ScenarioDeclarations.model_validate(
         {
-            "schema_version": 1,
-            "kind": "scenario-v1",
+            "schema_version": 2,
+            "kind": "scenario-v2",
             "game_id": "testgame",
             "scenario_id": "last_class",
             "display_name": "The Last Class",

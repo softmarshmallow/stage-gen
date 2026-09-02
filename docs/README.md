@@ -83,7 +83,8 @@ Start here for the headless, general-purpose system:
   exact-current `case-v1` beat graph that chains scenarios and point-and-click
   rooms into one episode, its declared fact namespace and the `origin =
   "imported"` crossing, the must-availability proof that refuses a movement
-  reading a fact some route never established, and `stage-gen case check`.
+  reading a fact some route never established, `stage-gen case check`, and the
+  `case-runtime-v1` projection a consumer plays.
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.
@@ -139,8 +140,9 @@ Start here for the headless, general-purpose system:
 - [Web preview adapter](web-preview.md) — optional first consumer.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
-  (`dialogue-scene-v3`) produced by recipe `dialogue-scene-v7` into
-  `dialogue-scene-bundle-v7`, read by the scene consumer at `/scene/<tag>`.
+  (`dialogue-scene-v5`, one scene binding several scenarios, with per-actor
+  authored expressions) produced by recipe `dialogue-scene-v8` into
+  `dialogue-scene-bundle-v8`, read by the scene consumer at `/scene/<tag>`.
 - [Dialogue-scene framing control](dialogue-scene-framing.md) — implemented
   deterministic consumer mapping and prompt research.
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred

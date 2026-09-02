@@ -1,4 +1,4 @@
-"""The `scenario-v1` authored narrative contract: parse, compile, prove, resolve.
+"""The `scenario-v2` authored narrative contract: parse, compile, prove, resolve.
 
 Recipe-neutral on purpose. A scenario carries no genre, no engine, and no
 generation vocabulary, because the visual novel and the platformer's village
@@ -7,6 +7,7 @@ parallel one that can drift. See `docs/spec/game/scenario.md`.
 """
 
 from .admission import (
+    MAX_IMPORTED_FLAGS,
     MAX_REACHABLE_STATES,
     ScenarioAdmissionError,
     ScenarioState,
@@ -20,6 +21,7 @@ from .models import (
     SCENARIO_CATALOG_SCHEMA_VERSION,
     SCENARIO_KIND,
     SCENARIO_SCHEMA_VERSION,
+    SLOTS,
     TERMINAL_KINDS,
     AudioStatement,
     Block,
@@ -65,6 +67,7 @@ from .resolve import (
 )
 
 __all__ = [
+    "MAX_IMPORTED_FLAGS",
     "MAX_REACHABLE_STATES",
     "RESERVED_WORDS",
     "SCENARIO_CATALOG_KIND",
@@ -73,6 +76,7 @@ __all__ = [
     "SCENARIO_KIND",
     "SCENARIO_RESOLUTION_VERSION",
     "SCENARIO_SCHEMA_VERSION",
+    "SLOTS",
     "TERMINAL_KINDS",
     "AudioStatement",
     "Block",

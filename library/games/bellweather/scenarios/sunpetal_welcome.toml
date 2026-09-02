@@ -2,8 +2,8 @@
 # policy blocks it carried are gone: seven of their nine fields were
 # single-valued literals, and the map it named is the one the interaction
 # that binds this scenario already names.
-schema_version = 1
-kind = "scenario-v1"
+schema_version = 2
+kind = "scenario-v2"
 game_id = "bellweather"
 scenario_id = "sunpetal_welcome"
 display_name = "Warm Bread for the Road"

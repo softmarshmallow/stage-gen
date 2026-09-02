@@ -53,6 +53,7 @@ from stage_gen.config import (
     parse_transparency_mode,
 )
 from stage_gen.orchestration.case_binding import BoundCase, bind_case
+from stage_gen.orchestration.case_bundle import publish_case
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.game_package import resolve_prepared_package
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
@@ -343,6 +344,40 @@ def build_parser() -> argparse.ArgumentParser:
             "prove the beat graph and the fact discipline without resolving the leaves; "
             "for authoring a case before every scenario and room it names exists"
         ),
+    )
+
+    case_bundle_parser = case_commands.add_parser(
+        "bundle",
+        help="publish one proven case as the `case.json` a consumer plays",
+    )
+    case_bundle_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored package directory holding cases/index.toml",
+    )
+    case_bundle_parser.add_argument(
+        "--case",
+        required=True,
+        dest="case_id",
+        help="one case_id from the catalog",
+    )
+    case_bundle_parser.add_argument(
+        "--beat-run",
+        action="append",
+        default=[],
+        dest="beat_runs",
+        metavar="BEAT_ID=RUN_TAG",
+        help=(
+            "which run each beat is played from; repeat once per beat. A run tag only "
+            "exists after its leaf has been generated, so this cannot be authored"
+        ),
+    )
+    case_bundle_parser.add_argument("--output", required=True, dest="output_path")
+    case_bundle_parser.add_argument(
+        "--runs-dir",
+        dest="runs_dir",
+        help="directory holding the named runs (default: the output's parent)",
     )
 
     export_view_parser = commands.add_parser(
@@ -745,9 +780,52 @@ def _dispatch(
     return asyncio.run(_dispatch_async(args, runtime=runtime, stdout=stdout))
 
 
+def _bundle_case(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    """Join the authored beats to the runs they were generated into, and publish."""
+
+    published = publish_case(
+        Path(args.input_path),
+        args.case_id,
+        run_tags=_beat_run_tags(args.beat_runs),
+        output=Path(args.output_path),
+        runs_root=Path(args.runs_dir) if args.runs_dir else None,
+    )
+    report = {
+        "case_id": published.runtime.case_id,
+        "kind": published.runtime.kind,
+        "output": published.output.as_posix(),
+        "document_sha256": published.document_sha256,
+        "beats": {
+            beat.beat_id: {
+                "run_tag": beat.run_tag,
+                **({} if beat.scenario_id is None else {"scenario_id": beat.scenario_id}),
+            }
+            for beat in published.runtime.beats
+        },
+    }
+    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+    return 0
+
+
+def _beat_run_tags(values: list[str]) -> dict[str, str]:
+    """Parse `--beat-run beat_id=run_tag`, refusing a repeat rather than taking one."""
+
+    tags: dict[str, str] = {}
+    for value in values:
+        beat_id, separator, run_tag = value.partition("=")
+        if not separator or not beat_id or not run_tag:
+            raise ValueError(f"--beat-run expects BEAT_ID=RUN_TAG; found `{value}`")
+        if beat_id in tags:
+            raise ValueError(f"--beat-run names beat `{beat_id}` twice")
+        tags[beat_id] = run_tag
+    return tags
+
+
 def _dispatch_case(args: argparse.Namespace, *, stdout: TextIO) -> int:
     """Admission with no event loop, no config, and no provider - it never needs one."""
 
+    if args.case_command == "bundle":
+        return _bundle_case(args, stdout=stdout)
     root = Path(args.input_path)
     catalog = read_case_catalog(root)
     if args.case_id is not None and args.case_id not in catalog.case_ids:

@@ -1,4 +1,4 @@
-"""The `scenario-v1` authored contract and the program it compiles to.
+"""The `scenario-v2` authored contract and the program it compiles to.
 
 Two documents, split by what the content *is*. `scenario.toml` carries everything
 with a digest, a rights basis, or a generation brief - cast, stages, tracks, flags,
@@ -29,8 +29,8 @@ from stage_gen.components._game_input import (
 )
 from stage_gen.components.game_soundtrack import TrackGenerationIntent
 
-SCENARIO_SCHEMA_VERSION = 1
-SCENARIO_KIND = "scenario-v1"
+SCENARIO_SCHEMA_VERSION = 2
+SCENARIO_KIND = "scenario-v2"
 SCENARIO_CATALOG_SCHEMA_VERSION = 1
 SCENARIO_CATALOG_KIND = "scenario-catalog-v1"
 SCENARIO_CATALOG_NAME = "scenarios/index.toml"
@@ -58,7 +58,17 @@ RESERVED_WORDS: frozenset[str] = frozenset(
     }
 )
 
-Slot = Literal["left", "center", "right"]
+#: Five staging slots, left to right across the frame. `scenario-v1` carried the
+#: middle three; a supper table of eight needs more than three positions before
+#: composition can carry meaning, so v2 adds the outer pair. The three-slot
+#: vocabulary is a strict subset, so a v1 script's staging still reads the same -
+#: what changed is the contract identity, because a consumer that switched on the
+#: old three values would mis-draw the new two rather than refuse them.
+Slot = Literal["far_left", "left", "center", "right", "far_right"]
+
+#: In frame order, so the parser, the error message, and the document all read the
+#: slots from one list rather than three that can drift apart.
+SLOTS: tuple[Slot, ...] = ("far_left", "left", "center", "right", "far_right")
 
 #: A scenario is recipe-neutral, and the two families it has to sit between do
 #: not agree on how a game id is spelled: the prepared game package is kebab
@@ -320,7 +330,20 @@ class TrackDeclaration(ScenarioModel):
 
 
 class FlagDeclaration(ScenarioModel):
+    """One boolean the script may test and set.
+
+    `origin` says where the value comes from. A `local` flag starts clear and only
+    this scenario's own `set` statements establish it - the ordinary case, and the
+    one admission proves outright. An `imported` flag is a **fact carried in from an
+    earlier beat of a case**: the scenario reads it but may never set it, so
+    admission exempts it from the "read but nothing sets it" refusal and instead
+    proves the scenario from every assignment of the imported flags. The identifier
+    is the same on both sides of the boundary, which is the whole of the crossing
+    mechanism; see `docs/spec/game/case.md`.
+    """
+
     flag_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    origin: Literal["local", "imported"] = "local"
 
 
 class EndingDeclaration(ScenarioModel):
@@ -371,8 +394,8 @@ class ScenarioCatalog(ScenarioModel):
 class ScenarioDeclarations(ScenarioModel):
     """`scenarios/<id>.toml`: every name the script may use, and no prose."""
 
-    schema_version: Literal[1]
-    kind: Literal["scenario-v1"]
+    schema_version: Literal[2]
+    kind: Literal["scenario-v2"]
     game_id: str = Field(pattern=GAME_REFERENCE_PATTERN, max_length=96)
     scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str = Field(min_length=1, max_length=96)
@@ -383,7 +406,13 @@ class ScenarioDeclarations(ScenarioModel):
     cast: list[CastMember] = Field(min_length=1, max_length=32)
     stages: list[StageDeclaration] = Field(min_length=1, max_length=32)
     tracks: list[TrackDeclaration] = Field(default_factory=list, max_length=32)
-    flags: list[FlagDeclaration] = Field(default_factory=list, max_length=32)
+    #: Forty-eight, not thirty-two. The old number was never tested against an
+    #: ensemble scene: a supper of eight with three courses and a strand each runs
+    #: to nearly forty flags before anyone has answered a question. The ceiling
+    #: that actually protects the proof is `MAX_REACHABLE_STATES`, and liveness
+    #: projection means a flag nothing downstream reads no longer costs the search
+    #: anything - so counting flag declarations was guarding the wrong quantity.
+    flags: list[FlagDeclaration] = Field(default_factory=list, max_length=48)
     endings: list[EndingDeclaration] = Field(min_length=1, max_length=32)
 
     @field_validator("display_name")
@@ -412,6 +441,12 @@ class ScenarioDeclarations(ScenarioModel):
         return frozenset(flag.flag_id for flag in self.flags)
 
     @property
+    def imported_flag_ids(self) -> frozenset[str]:
+        """The facts this scenario expects a case to have established before it."""
+
+        return frozenset(flag.flag_id for flag in self.flags if flag.origin == "imported")
+
+    @property
     def stage_ids(self) -> frozenset[str]:
         return frozenset(stage.stage_id for stage in self.stages)
 
@@ -437,8 +472,8 @@ class ScenarioProgram(PersistedContractModel):
     script's digest so a consumer can tell which exact prose it was compiled from.
     """
 
-    schema_version: Literal[1] = 1
-    kind: Literal["scenario-program-v1"] = "scenario-program-v1"
+    schema_version: Literal[2] = 2
+    kind: Literal["scenario-program-v2"] = "scenario-program-v2"
     game_id: str = Field(pattern=GAME_REFERENCE_PATTERN, max_length=96)
     scenario_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
     display_name: str
@@ -481,6 +516,10 @@ class ScenarioAdmissionReport(PersistedContractModel):
     reachable_states: int = Field(ge=1)
     reachable_labels: list[str] = Field(default_factory=list)
     witnesses: list[EndingWitness] = Field(default_factory=list)
+    #: The imported flags the search enumerated. The proof started from every
+    #: assignment of these, because a fact carried in from an earlier beat may
+    #: arrive either way and a scenario proven only for one of them is unproven.
+    imported_flags: list[str] = Field(default_factory=list)
 
 
 __all__ = [
@@ -490,6 +529,7 @@ __all__ = [
     "SCENARIO_CATALOG_SCHEMA_VERSION",
     "SCENARIO_KIND",
     "SCENARIO_SCHEMA_VERSION",
+    "SLOTS",
     "TERMINAL_KINDS",
     "AudioStatement",
     "Block",

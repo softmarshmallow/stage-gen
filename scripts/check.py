@@ -61,6 +61,9 @@ def commands(python: str = sys.executable) -> tuple[tuple[str, ...], ...]:
         ),
         ("stage-gen", "dialogue-scene", "generate", "--help"),
         ("stage-gen", "pointclick-room", "generate", "--help"),
+        ("stage-gen", "scenario", "check", "--help"),
+        ("stage-gen", "case", "check", "--help"),
+        ("stage-gen", "case", "bundle", "--help"),
         ("stage-gen", "universe", "semantic", "--help"),
         ("stage-gen", "universe", "gallery", "--help"),
     )
