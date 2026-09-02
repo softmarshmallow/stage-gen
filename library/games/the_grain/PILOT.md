@@ -1240,6 +1240,35 @@ the same branch throughout. What it needed, and did not have, was a step in the 
 loop: **when a lane reports done, commit its work before answering it.** That belongs in the
 next brief.
 
+### 07:44 — The framing knob exists, and using it costs a full re-roll
+
+QA's top composition note is that with five actors up the Winter Room disappears behind
+full-height figures — heads at the top of the frame, feet under the dialogue panel, and the
+table laid for eight invisible. The knob is `[presentation] framing_zoom`, and the consumer
+scales by `framing_zoom / source_framing_zoom`, so dropping it from 70 to 52 would draw the
+cast at about three-quarters and give the room back.
+
+`framing_zoom` never reaches a prompt — `scene_graph.py` and `prompts.py` do not read it, so
+it is purely a presentational value. **It still invalidated every image node.** Forty seconds
+into the re-run, 23 image generations had already fired.
+
+**Abandoned, and the second reason is the real one.** The cost is about USD 23, which is
+affordable. But generation is unseeded, so re-running redraws all thirty-two cast plates —
+and those plates have been verified by QA as distinct, correctly named, and identity-stable
+across expressions. **Paying to re-roll thirty-two verified faces in order to change a
+number that never reaches a prompt is a bad trade**, and the outcome would be unverified
+faces at a better scale.
+
+Killed mid-run, `framing_zoom` reverted to 70, the partial run deleted, and the package
+confirmed byte-identical to the one that produced the shipped art — `graph_sha256`
+`82ebe28f…` matches `the-grain-scene-5` exactly.
+
+*The finding for the report:* a purely presentational field, which no prompt reads, sits
+inside the scene's cache identity and re-bills the entire graph. That is the same lineage
+shape as the room's hit areas, in a second recipe — **the thing you must change to fix the
+picture is upstream of the picture** — and it means the composition note goes to the
+director as a note rather than as a fix, for a reason that is not the money.
+
 ---
 
 ## 3. Ledger
