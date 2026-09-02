@@ -596,6 +596,93 @@ suites use their own fixtures and the Python gate never touches runtime selectio
       generously or adversarially in the next track pass; and the known `hedgerow_band` backdrop
       defect from the first run, unchanged by this pass.
 
+## Runner: the next pass
+
+Assessed against the played `iron-petal-unit-live-20260902-v9` run. Grouped by what each item
+actually costs, because three of these share one regeneration and one of them changes what "fair"
+means.
+
+### Ground: the pipeline validates coverage and geometry, never projection
+
+- [ ] **Adopt a declared ground projection.** A side-scroller's ground must be drawn in **oblique
+      projection** - a parallel projection whose receding edges never converge and which therefore
+      has no vanishing point. This is a correctness rule, not taste: parallel projection is the only
+      projection invariant under horizontal translation, and `auto_run_x_v1` scrolls the ground past
+      a fixed camera while chunks repeat in arbitrary order. A vanishing point encodes a camera
+      position, so a converging tile swims as it scrolls and has no repeat unit at all. Jetpack
+      Joyride is the reference: every receding edge leans the same way at the same angle
+      (`\\\\`), never splaying (`\|/`). The two numbers a spec needs are the **receding angle**
+      and the **depth ratio** (cabinet oblique = 0.5, cavalier = 1.0); both are refusal-bearing once
+      a gate reads them, so they belong in the SDK constant table under a closed projection name.
+      Avoid "isometric"/"axonometric"/"planometric" - those rotate all three axes; oblique is the
+      family that keeps the front face square-on, which is what a side view means.
+- [ ] **Gate it.** Measured on `world/ground/rescue_calibration.png`, dominant non-horizontal edge
+      lean by horizontal third: left `-36.8` deg, middle `+30.8` deg, right `+40.2` deg. The sign
+      flips and the magnitude drifts ~9 deg across the rest - one tile carrying at least two
+      projection systems. A gate that refuses a sign flip, or a spread past a tolerance, is provable
+      offline before spend and is the missing third check beside coverage and occupancy.
+- [ ] **Guide paint is shipping as ground art.** In the same raster, the walk-surface row (row 8,
+      y 512-576) reads: y 512-522 lilac `(163,181,199)` - the guide's surface marker; y 524-534
+      brown `(85,60,34)` - the guide's raw occupancy fill; painted deck only from y~536. So the top
+      ~23px of a 64px cell is unpainted guide, on the row the avatar stands on. Root cause is a
+      blind spot rather than bad luck: source admission counts painted coverage at alpha >= 128, and
+      guide pixels are opaque, so an alpha test cannot distinguish paint-by-model from
+      guide-showing-through. **The gate measures alpha, not authorship.** It needs a guide-palette
+      residue check, and the prompt needs to demand the guide be painted over rather than around.
+- [ ] **The seam bridge fixes the join and breaks its own borders.** Every chunk ends with shared
+      bridge column 0 and starts with bridge column 1, so an A-to-B join is continuous by
+      construction - but the bridge is the same two columns everywhere, lifted from the first
+      segment's apron, so it lands as a foreign panel: two hard vertical edges 128px apart at every
+      join, where each chunk's own art meets the insert. Direction is edge *conditioning* - each
+      chunk paints toward a shared edge profile - rather than a foreign insert.
+
+### Content fidelity
+
+- [ ] **Background layers float.** `botanical_terraces` is disconnected pipe runs hanging in void:
+      horizontal runs terminating mid-air on open cut faces, no vertical support, large dead
+      regions. Nothing in the layer contract requires an object to be supported, attached, or
+      terminated, so this is an authoring and prompt gap first; whether any part of it is gateable
+      is the open question.
+- [ ] **The coin needs a drawn spin, and the right projection.** Two separate defects.
+      `lumen_seed.png` is rendered in 3/4 perspective while the game is strict side view. And
+      `collectiblePresentation` fakes rotation by squashing `scaleX` on a cosine, which on a
+      perspective disc reads as a wobble rather than a spin. Rotation should be sprite-based (a face
+      -> narrowing -> edge-on -> widening strip); the bob stays code motion. Note the cost is low:
+      items carry no motion support at all today - only the avatar has `motions` - but a four-frame
+      strip is still one image node, so this is a content-contract addition, not new provider spend.
+- [ ] **The run should scroll faster.** Cheapest item here: another closed speed name beside
+      `steady_runner_v1` and `brisk_runner_v1`, which is a union widening needing no schema bump
+      (the `e668c6a` precedent). The caveat that must not be skipped: press windows are proved at
+      base speed, so a faster base re-opens admission on every authored track.
+
+### The gauge's other half
+
+- [ ] **Nothing heals.** `restore()` exists on the shared gauge, fully tested, and is called by
+      nothing outside its own tests. Two authored sources are wanted: a combo/chain threshold that
+      restores a point, and a heal item. Both fit the existing primitive; what is missing is the
+      authored vocabulary saying when a package grants them, mirroring `[run.consequences]`.
+
+### Locomotion: the one that needs new admission arithmetic
+
+- [ ] **Make the genre agnostic over its mechanism - run versus fly.** Jetpack Joyride and Geometry
+      Dash both carry two. This is not a mode flag but a **locomotion profile**: the map from intent
+      to vertical motion *plus its own admission arithmetic*. Today `jump_profile` is that,
+      implicitly, for running only - admission proves gap spans and jump arcs. A thrust track has no
+      gaps to clear; it has corridors to fit through, so it needs a different proof rather than a
+      relaxed one. The hard constraint: whatever locomotion a package declares, admission must still
+      prove that locomotion's fairness offline before spend, or this becomes the first
+      unfair-by-construction genre in the repo.
+- [ ] **Fever time falls out of locomotion once it exists.** Model it as a **timed locomotion
+      override** - switch locomotion, optionally suspend consequences, for a bounded window - so
+      "fever is flying" is a parameter the input author chooses rather than a special case in the
+      runtime.
+
+### Still owed on the played run
+
+- [ ] Semantic visual review of `iron-petal-unit-live-20260902-v9` by someone other than its
+      producer, and a separately recorded listening verdict on its two regenerated tracks. Every
+      item above that regenerates art inherits this obligation.
+
 ## Future genres
 
 Two families worth reserving now so they cannot drift, and one of them needs a name badly enough

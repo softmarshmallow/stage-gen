@@ -12,6 +12,7 @@ can drift; repeat the scoped smoke tests before widening an adapter contract.
 OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 FAL_KEY=
+ELEVENLABS_API_KEY=
 STAGE_GEN_OPENAI_IMAGE_MODEL=gpt-image-2
 STAGE_GEN_OPENAI_IMAGE_IPM=150
 STAGE_GEN_IMAGE_MODEL=openai/gpt-image-2
@@ -29,6 +30,15 @@ The default `native` mode sends image calls directly to OpenAI and requires
 OpenRouter; `ai` additionally requires `FAL_KEY`, while `chroma` keys locally.
 Missing credentials or failed native alpha never cause an automatic strategy
 change.
+
+`ELEVENLABS_API_KEY` is loaded but not yet consumed by any node. It exists so a
+scoped sound-effect spike can authenticate against ElevenLabs before any
+adapter, binding-table route, or recipe node depends on it. No capability
+requires it, so `doctor` reports it without gating readiness on it. Binding it
+to a route means declaring that route in the binding table and documenting the
+operation here in the same change. The measured model boundary — what this
+route can and cannot be asked for — is recorded in
+[spec/model-eleven-text-to-sound-v2.md](spec/model-eleven-text-to-sound-v2.md).
 
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.

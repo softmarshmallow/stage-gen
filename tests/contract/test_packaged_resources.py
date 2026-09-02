@@ -105,6 +105,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
     environment.pop("OPENAI_API_KEY", None)
     environment.pop("OPENROUTER_API_KEY", None)
     environment.pop("FAL_KEY", None)
+    environment.pop("ELEVENLABS_API_KEY", None)
     subprocess.run(
         [
             sys.executable,
@@ -227,7 +228,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The vitals pass adds the runner_gameplay component's focused test
         # package - its __init__ and the consequence/gauge contract module -
         # which is the first focused coverage that component has had (426).
-        assert len(sdist_entries) <= 426
+        # The sound-effect model adapter contract adds one specification page,
+        # recording the measured ElevenLabs boundary the same way the image model
+        # page records its own (427).
+        assert len(sdist_entries) <= 427
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -250,6 +254,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert _env_value(env_example, "OPENAI_API_KEY") == ""
         assert _env_value(env_example, "OPENROUTER_API_KEY") == ""
         assert _env_value(env_example, "FAL_KEY") == ""
+        assert _env_value(env_example, "ELEVENLABS_API_KEY") == ""
         sdist.extractall(extracted_sdist_parent, filter="data")
 
     extracted_sdist = extracted_sdist_parent / root

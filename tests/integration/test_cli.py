@@ -404,11 +404,15 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
         "OPENAI_API_KEY",
         "OPENROUTER_API_KEY",
         "FAL_KEY",
+        "ELEVENLABS_API_KEY",
         "_STAGE_GEN_DISABLE_DOTENV",
     ):
         monkeypatch.delenv(name, raising=False)
     (tmp_path / ".env").write_text(
-        "OPENAI_API_KEY=doctor-openai\nOPENROUTER_API_KEY=doctor-openrouter\nFAL_KEY=doctor-fal\n",
+        "OPENAI_API_KEY=doctor-openai\n"
+        "OPENROUTER_API_KEY=doctor-openrouter\n"
+        "FAL_KEY=doctor-fal\n"
+        "ELEVENLABS_API_KEY=doctor-elevenlabs\n",
         encoding="utf-8",
     )
     output = StringIO()
@@ -418,10 +422,16 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
     rendered = output.getvalue()
     report = json.loads(rendered)
     assert report["ok"] is True
-    assert report["capabilities"] == {"openai": True, "openrouter": True, "fal": True}
+    assert report["capabilities"] == {
+        "openai": True,
+        "openrouter": True,
+        "fal": True,
+        "elevenlabs": True,
+    }
     assert "doctor-openai" not in rendered
     assert "doctor-openrouter" not in rendered
     assert "doctor-fal" not in rendered
+    assert "doctor-elevenlabs" not in rendered
 
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:

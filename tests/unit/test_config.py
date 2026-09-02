@@ -93,6 +93,7 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
         "OPENAI_API_KEY",
         "OPENROUTER_API_KEY",
         "FAL_KEY",
+        "ELEVENLABS_API_KEY",
         "_STAGE_GEN_DISABLE_DOTENV",
     ):
         monkeypatch.delenv(name, raising=False)
@@ -100,6 +101,7 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
         "OPENAI_API_KEY=file-openai\n"
         "OPENROUTER_API_KEY=file-openrouter\n"
         "FAL_KEY='file-fal'\n"
+        "ELEVENLABS_API_KEY=file-elevenlabs\n"
         "STAGE_GEN_IMAGE_MODEL=ignored/from-file\n"
         "UNRELATED_SECRET=ignored-value\n",
         encoding="utf-8",
@@ -110,10 +112,12 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
     assert config.openai_api_key == "file-openai"
     assert config.open_router_api_key == "file-openrouter"
     assert config.fal_key == "file-fal"
+    assert config.elevenlabs_api_key == "file-elevenlabs"
     assert config.image_model == "openai/gpt-image-2"
     assert "file-openai" not in repr(config)
     assert "file-openrouter" not in repr(config)
     assert "file-fal" not in repr(config)
+    assert "file-elevenlabs" not in repr(config)
     assert "ignored-value" not in repr(config)
 
 
@@ -125,8 +129,12 @@ def test_process_provider_environment_takes_precedence_over_cwd_dotenv(
     monkeypatch.setenv("OPENAI_API_KEY", "process-openai")
     monkeypatch.setenv("OPENROUTER_API_KEY", "process-openrouter")
     monkeypatch.delenv("FAL_KEY", raising=False)
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     (tmp_path / ".env").write_text(
-        "OPENAI_API_KEY=file-openai\nOPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
+        "OPENAI_API_KEY=file-openai\n"
+        "OPENROUTER_API_KEY=file-openrouter\n"
+        "FAL_KEY=file-fal\n"
+        "ELEVENLABS_API_KEY=file-elevenlabs\n",
         encoding="utf-8",
     )
 
@@ -147,9 +155,13 @@ def test_offline_gate_switch_prevents_cwd_dotenv_credentials(
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("FAL_KEY", raising=False)
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     (tmp_path / ".env").write_text(
-        "OPENAI_API_KEY=file-openai\nOPENROUTER_API_KEY=file-openrouter\nFAL_KEY=file-fal\n",
+        "OPENAI_API_KEY=file-openai\n"
+        "OPENROUTER_API_KEY=file-openrouter\n"
+        "FAL_KEY=file-fal\n"
+        "ELEVENLABS_API_KEY=file-elevenlabs\n",
         encoding="utf-8",
     )
 
@@ -158,6 +170,7 @@ def test_offline_gate_switch_prevents_cwd_dotenv_credentials(
     assert config.openai_api_key is None
     assert config.open_router_api_key is None
     assert config.fal_key is None
+    assert config.elevenlabs_api_key is None
 
 
 @pytest.mark.parametrize(
@@ -183,6 +196,7 @@ def test_config_rejects_unsafe_allowlisted_dotenv_entries(
         "OPENAI_API_KEY",
         "OPENROUTER_API_KEY",
         "FAL_KEY",
+        "ELEVENLABS_API_KEY",
         "_STAGE_GEN_DISABLE_DOTENV",
     ):
         monkeypatch.delenv(name, raising=False)

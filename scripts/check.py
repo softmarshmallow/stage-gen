@@ -10,7 +10,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-CREDENTIAL_VARIABLES = ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY")
+CREDENTIAL_VARIABLES = (
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "FAL_KEY",
+    "ELEVENLABS_API_KEY",
+)
 
 
 def sanitized_environment(source: dict[str, str] | None = None) -> dict[str, str]:

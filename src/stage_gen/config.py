@@ -37,9 +37,11 @@ class StageGenConfig(ContractModel):
     openai_api_key: str | None = Field(default=None, repr=False)
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
+    elevenlabs_api_key: str | None = Field(default=None, repr=False)
     openai_base_url: str | None = None
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
+    elevenlabs_base_url: str | None = None
     openai_image_model: str = "gpt-image-2"
     openai_image_ipm: int = Field(default=150, ge=1)
     image_model: str = "openai/gpt-image-2"
@@ -93,9 +95,11 @@ def load_config(
         openai_api_key=_first(values, "OPENAI_API_KEY"),
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
         fal_key=_first(values, "FAL_KEY"),
+        elevenlabs_api_key=_first(values, "ELEVENLABS_API_KEY"),
         openai_base_url=_first(values, "OPENAI_BASE_URL"),
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
+        elevenlabs_base_url=_first(values, "ELEVENLABS_BASE_URL"),
         openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL") or "gpt-image-2",
         openai_image_ipm=_positive_integer(
             values.get("STAGE_GEN_OPENAI_IMAGE_IPM"),

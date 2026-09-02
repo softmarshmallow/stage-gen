@@ -79,7 +79,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             failures.append(f".env.example: missing Python/web config name {name}")
     if env_assignments.get("TRANSPARENCY_MODE") != "native":
         failures.append(".env.example: TRANSPARENCY_MODE must document the native default")
-    for secret_name in ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY"):
+    for secret_name in (
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "FAL_KEY",
+        "ELEVENLABS_API_KEY",
+    ):
         if env_assignments.get(secret_name, "") != "":
             failures.append(f".env.example: {secret_name} must remain blank")
 

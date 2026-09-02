@@ -418,6 +418,7 @@ def create_doctor_report(
             "openai": bool(config.openai_api_key),
             "openrouter": bool(config.open_router_api_key),
             "fal": bool(config.fal_key),
+            "elevenlabs": bool(config.elevenlabs_api_key),
         },
         "models": {
             "nativeImage": config.openai_image_model,
